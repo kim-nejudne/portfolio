@@ -45,6 +45,8 @@ export interface CoverSummary {
   totalReservations: number;
   totalCovers: number;
   maxDailyCapacity: number;
+  /** Covers available per sitting window; configurable per deployment. */
+  maxSlotCovers: number;
   sittingCounts: {
     early: number; // 17:00 - 18:30
     prime: number; // 18:30 - 20:30

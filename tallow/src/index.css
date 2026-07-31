@@ -1,5 +1,63 @@
 @import "tailwindcss";
 
+/* Self-hosted, latin-subset woff2. Generated from the Google Fonts css2 API —
+   see the case study for why Newsreader is pinned to a static instance rather
+   than shipped as its 132K two-axis variable file. */
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/instrument-serif-400-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/instrument-serif-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/newsreader-400-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/newsreader-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-300-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./fonts/jetbrains-mono-400-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @layer base {
   :root {
     --font-display: 'Instrument Serif', 'Newsreader', serif;
@@ -28,6 +86,20 @@
 
   button, a, [role="button"], input[type="submit"], input[type="button"], input[type="reset"] {
     cursor: pointer;
+  }
+
+  /* One focus treatment for the whole app, keyboard-only. Individual controls
+     do not opt out — a control that cannot show focus cannot be operated
+     without a mouse, and several of them are the only way to do the job. */
+  :focus-visible {
+    outline: 2px solid var(--accent-oxblood);
+    outline-offset: 2px;
+  }
+
+  /* Dark surfaces need the ring in paper, not oxblood, to clear contrast. */
+  .on-dark :focus-visible,
+  .on-dark:focus-visible {
+    outline-color: var(--bg-paper);
   }
 }
 
@@ -81,12 +153,24 @@
   box-shadow: 2px 4px 16px rgba(26, 23, 21, 0.06);
 }
 
-/* Struck out 86 item styling */
+/* The 86 strike.
+   Every menu line carries the rule at all times and only its colour changes,
+   so a dish being 86'd inks the line in over 420ms instead of popping it.
+   text-decoration-line is not animatable; text-decoration-color is — which is
+   why the rule is declared up front and held transparent rather than added on
+   strike. Colour and opacity only: no layout, no compositing surprises. */
+.menu-line {
+  text-decoration: line-through;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  transition:
+    opacity 300ms ease,
+    text-decoration-color 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .item-86 {
   opacity: 0.45;
-  text-decoration: line-through;
-  text-decoration-color: #7A2322;
-  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--accent-oxblood);
 }
 
 /* Masked reveal classes */
@@ -105,10 +189,24 @@
   transform: translateY(0%);
 }
 
+/* Reduced motion is a policy, not a per-component afterthought: anything that
+   moves is neutralised here by default, and new motion has to opt back in
+   deliberately rather than escape by being forgotten.
+   Durations are near-zero rather than zero so transitionend still fires and
+   any handler waiting on it is not stranded. */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* The hero reveal is a translate that starts off-position. Killing the
+     duration alone would still snap it; the text simply starts in place. */
   .masked-text-inner {
     transform: none !important;
-    transition: none !important;
   }
 }
-

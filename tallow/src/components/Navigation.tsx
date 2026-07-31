@@ -1,26 +1,28 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Sparkles, Key, Calendar, BookOpen, MapPin, Menu as MenuIcon } from 'lucide-react';
+import { Key } from 'lucide-react';
 
 interface NavigationProps {
   staffAuthenticated: boolean;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({
-  staffAuthenticated,
-}) => {
-  const location = useLocation();
-  const currentPath = location.pathname;
+/** One source of truth for the header links, in printed-index order. */
+const NAV_LINKS = [
+  { to: '/', label: 'Overview', short: 'Home' },
+  { to: '/menu', label: 'The Menu', short: 'Menu' },
+  { to: '/story', label: 'The Craft', short: 'Story' },
+  { to: '/visit', label: 'Location & Hours', short: 'Visit' },
+] as const;
+
+export const Navigation: React.FC<NavigationProps> = ({ staffAuthenticated }) => {
+  const currentPath = useLocation().pathname;
 
   return (
     <header className="sticky top-0 z-40 bg-[#F7F4EE]/95 backdrop-blur-sm hairline-bottom transition-all duration-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
-        
+
         {/* Brand Mark */}
-        <Link
-          to="/"
-          className="group flex flex-col text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-[#7A2322]"
-        >
+        <Link to="/" className="group flex flex-col text-left">
           <span className="font-display text-2xl sm:text-3xl tracking-wider text-[#1A1715] group-hover:text-[#7A2322] transition-colors">
             TALLOW
           </span>
@@ -29,57 +31,34 @@ export const Navigation: React.FC<NavigationProps> = ({
           </span>
         </Link>
 
-        {/* Navigation Links */}
-        <nav aria-label="Main Navigation" className="hidden md:flex items-center space-x-8 text-xs font-sans-ui tracking-wider uppercase">
-          <Link
-            to="/"
-            className={`pb-1 transition-colors relative ${
-              currentPath === '/'
-                ? 'text-[#1A1715] font-semibold border-b border-[#7A2322]'
-                : 'text-[#6B635A] hover:text-[#1A1715]'
-            }`}
-          >
-            Overview
-          </Link>
-
-          <Link
-            to="/menu"
-            className={`pb-1 transition-colors relative ${
-              currentPath === '/menu'
-                ? 'text-[#1A1715] font-semibold border-b border-[#7A2322]'
-                : 'text-[#6B635A] hover:text-[#1A1715]'
-            }`}
-          >
-            The Menu
-          </Link>
-
-          <Link
-            to="/story"
-            className={`pb-1 transition-colors relative ${
-              currentPath === '/story'
-                ? 'text-[#1A1715] font-semibold border-b border-[#7A2322]'
-                : 'text-[#6B635A] hover:text-[#1A1715]'
-            }`}
-          >
-            The Craft
-          </Link>
-
-          <Link
-            to="/visit"
-            className={`pb-1 transition-colors relative ${
-              currentPath === '/visit'
-                ? 'text-[#1A1715] font-semibold border-b border-[#7A2322]'
-                : 'text-[#6B635A] hover:text-[#1A1715]'
-            }`}
-          >
-            Location & Hours
-          </Link>
+        {/* Only one of the two navs below is ever in the accessibility tree —
+            the other is display:none at that breakpoint — so they can share a
+            label without a screen reader hearing the links twice. */}
+        <nav aria-label="Main" className="hidden md:flex items-center space-x-8 text-xs font-sans-ui tracking-wider uppercase">
+          {NAV_LINKS.map(({ to, label }) => {
+            const isCurrent = currentPath === to;
+            return (
+              <Link
+                key={to}
+                to={to}
+                aria-current={isCurrent ? 'page' : undefined}
+                className={`pb-1 transition-colors relative ${
+                  isCurrent
+                    ? 'text-[#1A1715] font-semibold border-b border-[#7A2322]'
+                    : 'text-[#6B635A] hover:text-[#1A1715]'
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-3 sm:space-x-4">
           <Link
             to="/reserve"
+            aria-current={currentPath === '/reserve' ? 'page' : undefined}
             className={`px-4 py-2 text-xs uppercase tracking-widest transition-all ${
               currentPath === '/reserve'
                 ? 'bg-[#1A1715] text-[#F7F4EE]'
@@ -91,45 +70,42 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           <Link
             to="/staff"
-            title="Staff Control Portal"
+            aria-current={currentPath.startsWith('/staff') ? 'page' : undefined}
             className={`p-2 transition-colors border ${
-              currentPath === '/staff'
+              currentPath.startsWith('/staff')
                 ? 'border-[#7A2322] text-[#7A2322] bg-[#7A2322]/5'
                 : 'border-[#DDD6C8] text-[#6B635A] hover:text-[#1A1715] hover:border-[#1A1715]'
             }`}
           >
-            <Key className="w-3.5 h-3.5" />
+            {/* The key glyph is the entire control, so the name has to be text:
+                a title attribute alone is not reliably announced. */}
+            <Key className="w-3.5 h-3.5" aria-hidden="true" />
+            <span className="sr-only">
+              Staff control portal{staffAuthenticated ? ' (signed in)' : ''}
+            </span>
           </Link>
         </div>
       </div>
 
       {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-[#DDD6C8] py-2 px-2 bg-[#F7F4EE] text-[11px] uppercase tracking-wider text-[#6B635A]">
-        <Link
-          to="/"
-          className={`px-2 py-1 ${currentPath === '/' ? 'text-[#7A2322] font-medium' : ''}`}
-        >
-          Home
-        </Link>
-        <Link
-          to="/menu"
-          className={`px-2 py-1 ${currentPath === '/menu' ? 'text-[#7A2322] font-medium' : ''}`}
-        >
-          Menu
-        </Link>
-        <Link
-          to="/story"
-          className={`px-2 py-1 ${currentPath === '/story' ? 'text-[#7A2322] font-medium' : ''}`}
-        >
-          Story
-        </Link>
-        <Link
-          to="/visit"
-          className={`px-2 py-1 ${currentPath === '/visit' ? 'text-[#7A2322] font-medium' : ''}`}
-        >
-          Visit
-        </Link>
-      </div>
+      <nav
+        aria-label="Main"
+        className="md:hidden flex items-center justify-around border-t border-[#DDD6C8] py-2 px-2 bg-[#F7F4EE] text-[11px] uppercase tracking-wider text-[#6B635A]"
+      >
+        {NAV_LINKS.map(({ to, short }) => {
+          const isCurrent = currentPath === to;
+          return (
+            <Link
+              key={to}
+              to={to}
+              aria-current={isCurrent ? 'page' : undefined}
+              className={`px-2 py-1 ${isCurrent ? 'text-[#7A2322] font-medium' : ''}`}
+            >
+              {short}
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 };

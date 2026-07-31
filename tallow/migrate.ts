@@ -1,11 +1,12 @@
+// Side-effect form, first, for the same reason as in server.ts: env has to be
+// populated before any imported module body reads it.
+import 'dotenv/config';
+
 import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
-import dotenv from 'dotenv';
 import { INITIAL_MENU_ITEMS, INITIAL_RESERVATIONS } from './src/data/initialData.js';
 import { MenuItem, Reservation } from './src/types.js';
-
-dotenv.config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 

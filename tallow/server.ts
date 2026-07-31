@@ -1,7 +1,12 @@
+// Must come first, and must be the side-effect form. src/server/db.ts reads
+// DATABASE_URL while its module body evaluates, which under ESM happens before
+// any statement in this file runs — so a dotenv.config() call further down
+// loads the file long after the process has already thrown.
+import 'dotenv/config';
+
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
-import dotenv from 'dotenv';
 import { MenuItem, Reservation, TimeSlotAvailability, CoverSummary } from './src/types.js';
 import {
   MAX_SLOT_COVERS,
@@ -30,8 +35,6 @@ import {
   clearRateLimit,
 } from './src/server/auth.js';
 
-dotenv.config();
-
 const ALL_SITTING_TIMES = [
   '17:00', '17:30', '18:00', '18:30', '19:00',
   '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'
@@ -39,8 +42,17 @@ const ALL_SITTING_TIMES = [
 
 const VALID_STATUSES = ['confirmed', 'seated', 'completed', 'cancelled'] as const;
 
+/** The booking window the public copy promises, in days. */
+const BOOKING_WINDOW_DAYS = 30;
+
 function todayISO() {
   return new Date().toISOString().split('T')[0];
+}
+
+function isoDaysFromNow(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
 }
 
 function newToken() {
@@ -177,6 +189,14 @@ async function startServer() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' });
     }
+    // The date input bounds this too, but the input is not the security
+    // boundary and the site promises a 30-day window in writing.
+    // ISO dates compare correctly as strings.
+    if (date < todayISO() || date > isoDaysFromNow(BOOKING_WINDOW_DAYS)) {
+      return res.status(400).json({
+        error: `Sittings can only be booked from today up to ${BOOKING_WINDOW_DAYS} days in advance.`,
+      });
+    }
     if (!ALL_SITTING_TIMES.includes(time)) {
       return res.status(400).json({ error: 'That sitting time is not on the service schedule.' });
     }
@@ -281,6 +301,7 @@ async function startServer() {
       totalReservations: active.length,
       totalCovers: active.reduce((sum, r) => sum + r.partySize, 0),
       maxDailyCapacity: ALL_SITTING_TIMES.length * MAX_SLOT_COVERS,
+      maxSlotCovers: MAX_SLOT_COVERS,
       sittingCounts: {
         early: coversIn('17:00', '18:30'),
         prime: coversIn('18:30', '20:30'),

@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-[#1A1715] text-[#F7F4EE] border-t-4 border-[#7A2322] pt-12 pb-16 px-4 sm:px-8 mt-20">
+    // on-dark switches the focus ring to paper: oxblood on near-black does not
+    // clear contrast, and this is the one dark surface in the app.
+    <footer className="on-dark bg-[#1A1715] text-[#F7F4EE] border-t-4 border-[#7A2322] pt-12 pb-16 px-4 sm:px-8 mt-20">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 text-xs font-mono-data">
         
         {/* Brand Colophon */}
         <div className="md:col-span-5 space-y-3">
-          <h3 className="font-display text-3xl tracking-widest text-[#F7F4EE]">TALLOW</h3>
+          <h2 className="font-display text-3xl tracking-widest text-[#F7F4EE]">TALLOW</h2>
           <p className="text-[#8C6E43] uppercase tracking-[0.2em] text-[10px]">
             Dry-Aged · Live-Fire Steakhouse · London Soho
           </p>
@@ -19,9 +21,9 @@ export const Footer: React.FC = () => {
 
         {/* Operating Sittings */}
         <div className="md:col-span-4 space-y-2 text-[#DDD6C8]/90">
-          <span className="text-[#8C6E43] uppercase tracking-wider block font-bold mb-2">
+          <h2 className="text-[#8C6E43] uppercase tracking-wider block font-bold mb-2">
             Service Hours
-          </span>
+          </h2>
           <p>Wednesday – Friday: 17:00 – 23:00</p>
           <p>Saturday: 12:00 – 15:30 · 17:00 – 23:30</p>
           <p>Sunday: 12:00 – 21:00 (Hearth Feast)</p>
@@ -29,10 +31,10 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Quick Navigation */}
-        <div className="md:col-span-3 space-y-2 uppercase tracking-wider text-[11px]">
-          <span className="text-[#8C6E43] uppercase tracking-wider block font-bold mb-2">
+        <nav aria-label="Footer" className="md:col-span-3 space-y-2 uppercase tracking-wider text-[11px]">
+          <h2 className="text-[#8C6E43] uppercase tracking-wider block font-bold mb-2">
             Index
-          </span>
+          </h2>
           <ul className="space-y-1.5 text-[#DDD6C8]">
             <li>
               <Link to="/menu" className="hover:text-[#7A2322] transition-colors inline-block">
@@ -60,7 +62,7 @@ export const Footer: React.FC = () => {
               </Link>
             </li>
           </ul>
-        </div>
+        </nav>
 
       </div>
 
