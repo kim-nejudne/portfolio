@@ -52,7 +52,7 @@ export const INITIAL_MENU_ITEMS: MenuItem[] = [
     agingDays: 60,
     price: 135,
     description: '60-day dry aged strip and fillet on the bone. Deep mineral tang. Basted in aged tallow and wild thyme over white oak.',
-    photoUrl: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?auto=format&fit=crop&w=800&q=80',
+    photoUrl: 'https://images.unsplash.com/photo-1600891964092-4316c288032e?auto=format&fit=crop&w=800&q=80',
     is86: false,
     isDishOfDay: false,
     sortOrder: 4,
