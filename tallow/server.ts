@@ -20,6 +20,15 @@ import {
   bookSitting,
   insertReservation,
 } from './src/server/db.js';
+import {
+  assertAuthConfig,
+  mintToken,
+  roleForPin,
+  requireSession,
+  requireStaff,
+  rateLimitAuth,
+  clearRateLimit,
+} from './src/server/auth.js';
 
 dotenv.config();
 
@@ -51,7 +60,15 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT ?? 3000);
 
-  app.use(express.json());
+  // nginx is the only thing in front of us, so exactly one proxy hop is trusted.
+  // Without this every client shares nginx's IP and the sign-in limiter becomes global.
+  app.set('trust proxy', 1);
+  app.use(express.json({ limit: '64kb' }));
+
+  // Fail at boot rather than 500ing on the first sign-in attempt. A missing
+  // secret means no session can be minted, so the dashboard is unreachable —
+  // better to refuse to start and have the healthcheck catch it.
+  assertAuthConfig();
 
   await waitForDb();
 
@@ -62,18 +79,25 @@ async function startServer() {
     res.json(await getMenu());
   }));
 
-  // 2. Staff Auth
-  app.post('/api/admin/auth', (req, res) => {
-    const { pin } = req.body ?? {};
-    const expected = process.env.STAFF_PIN ?? 'tallow123';
-    if (typeof pin === 'string' && pin.toLowerCase() === expected.toLowerCase()) {
-      return res.json({ success: true, token: 'staff-session-active-token' });
+  // 2. Staff Auth — issues a signed session carrying the role the PIN maps to.
+  app.post('/api/admin/auth', rateLimitAuth, (req, res) => {
+    const role = roleForPin(req.body?.pin);
+    if (!role) {
+      return res.status(401).json({ success: false, error: 'Invalid staff security PIN.' });
     }
-    return res.status(401).json({ success: false, error: 'Invalid staff security PIN.' });
+    clearRateLimit(req);
+    return res.json({ success: true, token: mintToken(role), role });
+  });
+
+  // Advertises the demo PIN so the sign-in screen can show it without the value
+  // being baked into the client bundle. Absent when no demo PIN is configured.
+  app.get('/api/admin/demo-hint', (_req, res) => {
+    const demoPin = process.env.DEMO_PIN;
+    return res.json({ demoPin: demoPin || null });
   });
 
   // 3. Toggle 86 Board Status (Staff)
-  app.post('/api/admin/86', route(async (req, res) => {
+  app.post('/api/admin/86', requireStaff, route(async (req, res) => {
     const { menuItemId, is86 } = req.body ?? {};
     if (!menuItemId) {
       return res.status(400).json({ error: 'Missing menuItemId' });
@@ -88,14 +112,14 @@ async function startServer() {
   }));
 
   // 4. Set Dish of the Day (Staff)
-  app.post('/api/admin/dish-of-the-day', route(async (req, res) => {
+  app.post('/api/admin/dish-of-the-day', requireStaff, route(async (req, res) => {
     const { menuItemId } = req.body ?? {};
     const menuItems = await setDishOfTheDay(menuItemId ?? null);
     return res.json({ success: true, menuItems });
   }));
 
   // 5. Menu CRUD (Staff)
-  app.post('/api/admin/menu/save', route(async (req, res) => {
+  app.post('/api/admin/menu/save', requireStaff, route(async (req, res) => {
     const itemData: Partial<MenuItem> = req.body ?? {};
     if (!itemData.name || !itemData.category || !itemData.price) {
       return res.status(400).json({ error: 'Name, category, and price are required.' });
@@ -109,7 +133,7 @@ async function startServer() {
   }));
 
   // Delete Menu Item (Staff)
-  app.delete('/api/admin/menu/:id', route(async (req, res) => {
+  app.delete('/api/admin/menu/:id', requireStaff, route(async (req, res) => {
     const menuItems = await deleteMenuItem(req.params.id);
     return res.json({ success: true, menuItems });
   }));
@@ -241,7 +265,7 @@ async function startServer() {
   }));
 
   // 10. Staff Reservations Dashboard API
-  app.get('/api/admin/reservations', route(async (req, res) => {
+  app.get('/api/admin/reservations', requireSession, route(async (req, res) => {
     const date = (req.query.date as string) || todayISO();
 
     const dayReservations = await getReservationsForDate(date);
@@ -268,7 +292,7 @@ async function startServer() {
   }));
 
   // 11. Update Reservation Status (Staff)
-  app.patch('/api/admin/reservations/:id/status', route(async (req, res) => {
+  app.patch('/api/admin/reservations/:id/status', requireStaff, route(async (req, res) => {
     const { status } = req.body ?? {};
     if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: `Status must be one of: ${VALID_STATUSES.join(', ')}.` });

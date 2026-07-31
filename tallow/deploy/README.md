@@ -10,21 +10,35 @@ service is memory-capped.
 | App port | `127.0.0.1:3003` → container `:3000` (loopback only) |
 | Postgres | compose-internal only, no published port, volume `tallow_tallow-db` |
 | nginx | `/etc/nginx/sites-available/tallow` → `tallow.kimnejudne.dev` |
-| Basic auth | `/etc/nginx/.htpasswd-tallow`, user `tallow` |
+| Auth | in-app bearer sessions; no nginx gate (site is public) |
 
-## Basic auth is load-bearing
+## Authentication
 
-The six `/api/admin/*` routes hand out a session token but **never check it**.
-`auth_basic` on the vhost is the only thing standing between the public internet
-and "read every guest reservation, delete any menu item". Do not remove it until
-those routes enforce auth server-side.
+The site is public — no gate in front of it. Access control lives in the app:
 
-Verify it still holds after any nginx change:
+| PIN | Role | Can |
+|---|---|---|
+| `STAFF_PIN` (private) | `staff` | read the dashboard, 86 dishes, edit the menu, change reservation status |
+| `DEMO_PIN` (shown on the sign-in screen) | `demo` | read the dashboard only |
+
+Sessions are HMAC-signed with `SESSION_SECRET` and expire after 8 hours. They are
+not stored server-side, so a restart does not sign anyone out. Every `/api/admin/*`
+route is guarded: reads need any session, writes need `staff`, and a `demo` write
+returns 403 with `readOnly: true`, which the dashboard surfaces as a banner.
+
+Verify the guards still hold after any change:
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: tallow.kimnejudne.dev' \
-  http://127.0.0.1/api/admin/reservations   # must be 401
+# all six must be 401
+for r in "GET /api/admin/reservations" "POST /api/admin/86" \
+         "POST /api/admin/dish-of-the-day" "POST /api/admin/menu/save" \
+         "DELETE /api/admin/menu/cut-1" "PATCH /api/admin/reservations/x/status"; do
+  curl -s -o /dev/null -w "%{http_code} ${r}\n" -X ${r%% *} https://tallow.kimnejudne.dev${r#* }
+done
 ```
+
+Sign-in is rate limited to 10 attempts per IP per 10 minutes. `trust proxy` is set
+to 1 so that limiter keys on the real client IP rather than nginx's.
 
 ## Deploying a new build
 

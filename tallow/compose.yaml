@@ -72,7 +72,12 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       MAX_SLOT_COVERS: ${MAX_SLOT_COVERS:-16}
+      # Signs admin sessions. The app refuses to boot without it.
+      SESSION_SECRET: ${SESSION_SECRET}
+      # Full-access PIN, private.
       STAFF_PIN: ${STAFF_PIN}
+      # Read-only PIN, advertised on the sign-in screen. Omit to disable the demo role.
+      DEMO_PIN: ${DEMO_PIN:-}
     # Bound to loopback only — nginx terminates TLS and applies basic auth
     # in front of it. Never expose this port publicly.
     ports:

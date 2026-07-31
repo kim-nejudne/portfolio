@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link, Routes, Route, Navigate } from 'react-router-dom';
 import { MenuItem, Reservation, CoverSummary, ReservationStatus } from '../types';
-import { Key, AlertTriangle, Plus, Trash2, Edit2, Search, Check, Flame, Users, Calendar, Filter, Command } from 'lucide-react';
+import { adminFetch, getRole, setSession, ReadOnlyError, SessionExpiredError } from '../lib/session';
+import { Key, AlertTriangle, Plus, Trash2, Edit2, Search, Check, Flame, Users, Calendar, Filter, Command, Eye } from 'lucide-react';
 
 interface StaffDashboardProps {
   authenticated: boolean;
   onAuthenticate: (token: string) => void;
+  onSignOut: () => void;
   onMenuUpdated: () => void;
   menuItems: MenuItem[];
 }
@@ -13,6 +15,7 @@ interface StaffDashboardProps {
 export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   authenticated,
   onAuthenticate,
+  onSignOut,
   onMenuUpdated,
   menuItems,
 }) => {
@@ -39,16 +42,36 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const [editingItem, setEditingItem] = useState<Partial<MenuItem> | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
 
+  // A demo session may read the dashboard but not change anything; the server
+  // enforces this, and the UI mirrors it so nothing looks broken when it refuses.
+  const [role, setRole] = useState<'staff' | 'demo' | null>(getRole());
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [demoPin, setDemoPin] = useState<string | null>(null);
+  const readOnly = role === 'demo';
+  // One place to express "this control writes", so a read-only session cannot
+  // fire it and it visibly reads as unavailable rather than broken.
+  const writeProps = readOnly
+    ? { disabled: true, title: 'Disabled in the read-only preview' }
+    : {};
+  const writeClass = readOnly ? ' opacity-40 cursor-not-allowed' : '';
+
+  // Surfaces a refused write, rather than logging it where nobody looks.
+  const reportActionError = (err: unknown, fallback: string) => {
+    if (err instanceof ReadOnlyError) setActionError(err.message);
+    else if (err instanceof SessionExpiredError) { setRole(null); setActionError(err.message); }
+    else { console.error(fallback, err); setActionError(fallback); }
+  };
+
   // Fetch staff data
   const fetchStaffData = async () => {
     setLoadingData(true);
     try {
-      const res = await fetch(`/api/admin/reservations?date=${selectedDate}`);
+      const res = await adminFetch(`/api/admin/reservations?date=${selectedDate}`);
       const data = await res.json();
       if (data.summary) setSummary(data.summary);
       if (data.reservations) setReservations(data.reservations);
     } catch (err) {
-      console.error('Failed to load staff data:', err);
+      reportActionError(err, 'Failed to load staff data.');
     } finally {
       setLoadingData(false);
     }
@@ -59,6 +82,18 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       fetchStaffData();
     }
   }, [authenticated, selectedDate]);
+
+  // The demo PIN is served by the API rather than compiled into the bundle, so
+  // rotating it does not require a rebuild.
+  useEffect(() => {
+    if (authenticated) return;
+    let cancelled = false;
+    fetch('/api/admin/demo-hint')
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setDemoPin(d.demoPin ?? null); })
+      .catch(() => { /* hint is optional */ });
+    return () => { cancelled = true; };
+  }, [authenticated]);
 
   // Handle PIN authentication
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -72,6 +107,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        setSession(data.token, data.role);
+        setRole(data.role);
         onAuthenticate(data.token);
       } else {
         setAuthError(data.error || 'Invalid PIN code.');
@@ -84,23 +121,24 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   // 86 Board Toggle
   const handleToggle86 = async (menuItemId: string, current86: boolean) => {
     try {
-      const res = await fetch('/api/admin/86', {
+      const res = await adminFetch('/api/admin/86', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ menuItemId, is86: !current86 }),
       });
       if (res.ok) {
+        setActionError(null);
         onMenuUpdated();
       }
     } catch (err) {
-      console.error('Failed to toggle 86 status:', err);
+      reportActionError(err, 'Failed to toggle 86 status.');
     }
   };
 
   // Set Dish of the Day
   const handleSetDishOfDay = async (menuItemId: string) => {
     try {
-      const res = await fetch('/api/admin/dish-of-the-day', {
+      const res = await adminFetch('/api/admin/dish-of-the-day', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ menuItemId }),
@@ -109,14 +147,14 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         onMenuUpdated();
       }
     } catch (err) {
-      console.error('Failed to set dish of day:', err);
+      reportActionError(err, 'Failed to set dish of the day.');
     }
   };
 
   // Inline Status Change for Reservations
   const handleStatusChange = async (resvId: string, newStatus: ReservationStatus) => {
     try {
-      const res = await fetch(`/api/admin/reservations/${resvId}/status`, {
+      const res = await adminFetch(`/api/admin/reservations/${resvId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -125,7 +163,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         fetchStaffData();
       }
     } catch (err) {
-      console.error('Failed to update reservation status:', err);
+      reportActionError(err, 'Failed to update reservation status.');
     }
   };
 
@@ -135,7 +173,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     if (!editingItem) return;
 
     try {
-      const res = await fetch('/api/admin/menu/save', {
+      const res = await adminFetch('/api/admin/menu/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingItem),
@@ -145,7 +183,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         onMenuUpdated();
       }
     } catch (err) {
-      alert('Failed to save menu item.');
+      reportActionError(err, 'Failed to save menu item.');
     }
   };
 
@@ -153,12 +191,12 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const handleDeleteMenuItem = async (id: string) => {
     if (!confirm('Permanently remove this dish from menu database?')) return;
     try {
-      const res = await fetch(`/api/admin/menu/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/menu/${id}`, { method: 'DELETE' });
       if (res.ok) {
         onMenuUpdated();
       }
     } catch (err) {
-      alert('Failed to delete menu item.');
+      reportActionError(err, 'Failed to delete menu item.');
     }
   };
 
@@ -248,12 +286,15 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               required
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="Enter PIN (Default: tallow123)"
+              placeholder="Enter staff PIN"
               className="w-full px-3 py-2 bg-[#EFE6D5] border border-[#38322D] font-mono-data text-sm text-[#1A1715] focus:outline-none"
             />
-            <p className="text-[10px] font-mono-data text-[#8C6E43] mt-1">
-              Default access PIN: <code className="font-bold">tallow123</code>
-            </p>
+            {demoPin && (
+              <p className="text-[10px] font-mono-data text-[#8C6E43] mt-1 leading-relaxed">
+                Viewing this as a portfolio piece? Use <code className="font-bold">{demoPin}</code> for a
+                read-only tour of the back of house — the 86 board and cover maths are live, but changes are disabled.
+              </p>
+            )}
           </div>
 
           <button
@@ -271,14 +312,50 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 sm:px-8">
-      
+
+      {readOnly && (
+        <div
+          className="flex items-start gap-3 mb-6 p-3 border border-[#8C6E43] bg-[#EFE6D5] text-[#5C4A2E]"
+          role="status"
+        >
+          <Eye className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-[11px] font-mono-data leading-relaxed">
+            <span className="font-bold uppercase tracking-wider">Read-only preview.</span>{' '}
+            Every number below is live — cover maths, sitting loads, the 86 board. Writes are
+            disabled so the public demo stays intact.
+          </p>
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          className="flex items-start gap-3 mb-6 p-3 border border-[#7A2322] bg-[#7A2322]/10 text-[#7A2322]"
+          role="alert"
+        >
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-[11px] font-mono-data leading-relaxed flex-1">{actionError}</p>
+          <button
+            onClick={() => setActionError(null)}
+            className="text-[10px] font-mono-data uppercase tracking-wider underline shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Staff Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-2 border-[#1A1715] pb-4 mb-6 gap-4">
         <div>
           <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#7A2322] font-bold">
-            Service Control Active
+            {readOnly ? 'Read-Only Session' : 'Service Control Active'}
           </span>
           <h2 className="font-display text-3xl text-[#1A1715]">STAFF SERVICE CONSOLE</h2>
+          <button
+            onClick={() => { setRole(null); onSignOut(); }}
+            className="mt-1 text-[10px] font-mono-data uppercase tracking-wider text-[#6B635A] hover:text-[#7A2322] underline"
+          >
+            Sign out
+          </button>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -579,11 +656,12 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
                     <button
                       onClick={() => handleToggle86(item.id, item.is86)}
+                      {...writeProps}
                       className={`px-3 py-1.5 text-xs font-mono-data uppercase tracking-wider transition-colors ${
                         item.is86
                           ? 'bg-[#1A1715] text-[#F7F4EE] hover:bg-[#8C6E43]'
                           : 'bg-[#7A2322] text-[#F7F4EE] hover:bg-[#581413]'
-                      }`}
+                      }${writeClass}`}
                     >
                       {item.is86 ? 'Re-List Dish' : '86 Dish Now'}
                     </button>
@@ -642,7 +720,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                     {!item.isDishOfDay && (
                       <button
                         onClick={() => handleSetDishOfDay(item.id)}
-                        className="px-3 py-1.5 border border-[#8C6E43] text-[#8C6E43] hover:bg-[#8C6E43] hover:text-[#F7F4EE] text-xs font-mono-data uppercase"
+                        {...writeProps}
+                        className={"px-3 py-1.5 border border-[#8C6E43] text-[#8C6E43] hover:bg-[#8C6E43] hover:text-[#F7F4EE] text-xs font-mono-data uppercase" + writeClass}
                       >
                         Make Dish of Day
                       </button>
@@ -658,7 +737,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                     </button>
                     <button
                       onClick={() => handleDeleteMenuItem(item.id)}
-                      className="p-2 border border-[#7A2322] text-[#7A2322] hover:bg-[#7A2322] hover:text-[#F7F4EE]"
+                      {...writeProps}
+                      className={"p-2 border border-[#7A2322] text-[#7A2322] hover:bg-[#7A2322] hover:text-[#F7F4EE]" + writeClass}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

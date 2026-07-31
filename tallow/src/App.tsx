@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import { MenuItem, Reservation } from './types';
+import { getToken, clearSession } from './lib/session';
 import { Navigation } from './components/Navigation';
 import { HeroSection } from './components/HeroSection';
 import { PublicMenu } from './components/PublicMenu';
@@ -24,7 +25,8 @@ export default function App() {
   const [dishPreference, setDishPreference] = useState<string>('');
 
   // Staff authentication
-  const [staffAuthenticated, setStaffAuthenticated] = useState<boolean>(false);
+  // Restored from sessionStorage so a reload on /staff does not bounce to sign-in.
+  const [staffAuthenticated, setStaffAuthenticated] = useState<boolean>(() => getToken() !== null);
 
   // Fetch active menu from backend Express API
   const fetchMenu = async () => {
@@ -140,7 +142,8 @@ export default function App() {
           <Route path="/staff/*" element={
             <StaffDashboard
               authenticated={staffAuthenticated}
-              onAuthenticate={(token) => setStaffAuthenticated(true)}
+              onAuthenticate={() => setStaffAuthenticated(true)}
+              onSignOut={() => { clearSession(); setStaffAuthenticated(false); }}
               onMenuUpdated={fetchMenu}
               menuItems={menuItems}
             />
