@@ -1,10 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-interface FooterProps {
-  onNavigate: (tab: 'home' | 'menu' | 'story' | 'visit' | 'reserve' | 'staff') => void;
-}
-
-export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+export const Footer: React.FC = () => {
   return (
     <footer className="bg-[#1A1715] text-[#F7F4EE] border-t-4 border-[#7A2322] pt-12 pb-16 px-4 sm:px-8 mt-20">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 text-xs font-mono-data">
@@ -38,29 +35,29 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </span>
           <ul className="space-y-1.5 text-[#DDD6C8]">
             <li>
-              <button onClick={() => onNavigate('menu')} className="hover:text-[#7A2322] transition-colors">
+              <Link to="/menu" className="hover:text-[#7A2322] transition-colors inline-block">
                 The Printed Menu
-              </button>
+              </Link>
             </li>
             <li>
-              <button onClick={() => onNavigate('reserve')} className="hover:text-[#7A2322] transition-colors">
+              <Link to="/reserve" className="hover:text-[#7A2322] transition-colors inline-block">
                 Reserve Sittings
-              </button>
+              </Link>
             </li>
             <li>
-              <button onClick={() => onNavigate('story')} className="hover:text-[#7A2322] transition-colors">
+              <Link to="/story" className="hover:text-[#7A2322] transition-colors inline-block">
                 Ageing & Live Hearth Craft
-              </button>
+              </Link>
             </li>
             <li>
-              <button onClick={() => onNavigate('visit')} className="hover:text-[#7A2322] transition-colors">
+              <Link to="/visit" className="hover:text-[#7A2322] transition-colors inline-block">
                 Location & Private Dining
-              </button>
+              </Link>
             </li>
             <li className="pt-2">
-              <button onClick={() => onNavigate('staff')} className="text-[#8C6E43] hover:text-[#F7F4EE] underline">
+              <Link to="/staff" className="text-[#8C6E43] hover:text-[#F7F4EE] underline inline-block">
                 Staff Control Portal (86 Board)
-              </button>
+              </Link>
             </li>
           </ul>
         </div>
