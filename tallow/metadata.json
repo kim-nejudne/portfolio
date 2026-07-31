@@ -1,0 +1,6 @@
+{
+  "name": "TALLOW",
+  "description": "Modern live-fire, dry-aged steakhouse with an editorial printed menu aesthetic, real-time table reservation engine, 86-board integration, and staff control panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
