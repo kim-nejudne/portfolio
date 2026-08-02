@@ -9,22 +9,22 @@
   },
   {
     "content": "Phase 2: Get design guidelines (design_agent) with strict no-shadcn constraint",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Backend — auth, teams, memberships, invites, projects, tickets, xp ledger, evolution engine, prestige, pokeapi cache with startup pre-warm",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Frontend — hand-built game UI design system (no shadcn), all routes, forced starter picker, board+DnD, XP bar hero, evolution cutscene, leaderboard, prestige",
-    "status": "pending"
+    "status": "completed"
   },
   {
-    "content": "Phase 2: All user stories covered end-to-end (sign up → team → project → starter → tickets → XP → level up → evolve → leaderboard → un-complete devolves)",
-    "status": "pending"
+    "content": "Phase 2: Live API verified end-to-end — sign up → team → project → starter → tickets → XP → level 16 → Charmeleon; reversal → devolves back to Charmander cleanly",
+    "status": "completed"
   },
   {
     "content": "Phase 3: End-to-end testing via testing_agent_v3 (backend + frontend), fix all reported issues",
-    "status": "pending"
+    "status": "in_progress"
   }
 ]

@@ -1,56 +1,53 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-import { HOME } from "@/constants/testIds";
+import React, { useEffect } from "react";
+import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { getToken } from "@/lib/api";
+import AmbientBackground from "@/components/game/AmbientBackground";
+import Toaster from "@/components/game/Toaster";
+import Landing from "@/pages/Landing";
+import SignIn from "@/pages/SignIn";
+import SignUp from "@/pages/SignUp";
+import Teams from "@/pages/Teams";
+import TeamDetail from "@/pages/TeamDetail";
+import TeamSettings from "@/pages/TeamSettings";
+import Project from "@/pages/Project";
+import ProjectSettings from "@/pages/ProjectSettings";
+import InviteAccept from "@/pages/InviteAccept";
+import TopBar from "@/components/game/TopBar";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+function Protected({ children }) {
+  const token = getToken();
+  if (!token) return <Navigate to="/sign-in" replace />;
+  return children;
+}
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
+function Shell({ children }) {
   return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="min-h-screen relative">
+      <AmbientBackground />
+      <TopBar />
+      <main className="px-3 sm:px-4 lg:px-6 py-6">{children}</main>
+      <Toaster />
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Shell>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/sign-up" element={<SignUp />} />
+          <Route path="/invite/:token" element={<InviteAccept />} />
+          <Route path="/teams" element={<Protected><Teams /></Protected>} />
+          <Route path="/teams/:teamId" element={<Protected><TeamDetail /></Protected>} />
+          <Route path="/teams/:teamId/settings" element={<Protected><TeamSettings /></Protected>} />
+          <Route path="/projects/:projectId" element={<Protected><Project /></Protected>} />
+          <Route path="/projects/:projectId/settings" element={<Protected><ProjectSettings /></Protected>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Shell>
+    </BrowserRouter>
+  );
+}
