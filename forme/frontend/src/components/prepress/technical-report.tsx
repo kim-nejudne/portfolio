@@ -67,13 +67,13 @@ function TechnicalRow({
   const actionable = !waived && check.severity !== 'PASS';
   return (
     <details
-      open={actionable}
+      open={actionable || waived}
       className="anim-land border-b border-rule last:border-b-0"
       style={{ animationDelay: `${index * 30}ms` }}
       data-testid="preflight-check-row"
     >
       <summary className="flex min-h-8 items-center gap-3 px-3 py-1.5 transition-colors duration-100 hover:bg-skeleton">
-        <SeverityMark severity={check.severity} waived={waived} />
+        <SeverityMark severity={check.severity} waived={waived} kind={check.waiver?.kind} />
         <span className={`flex-1 truncate text-xs ${waived ? 'text-muted line-through' : ''}`}>
           {check.label}
         </span>

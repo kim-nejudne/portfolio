@@ -65,7 +65,7 @@ export default async function SpecsPage() {
             <h2 className="border-b-2 border-rule-strong pb-2 text-xl font-semibold tracking-tight">
               Trim, bleed and safety
             </h2>
-            <div className="mt-5 grid gap-6 md:grid-cols-[1fr_16rem]">
+            <div className="mt-5 grid gap-6 md:grid-cols-[1fr_19rem]">
               <div className="space-y-4">
                 <p>
                   The trim box is the finished size. Bleed is <span className="num">3mm</span>{' '}

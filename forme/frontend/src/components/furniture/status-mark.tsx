@@ -89,14 +89,16 @@ const SEVERITY_OWNER: Record<CheckSeverity, StateOwner> = {
 export function SeverityMark({
   severity,
   waived = false,
+  kind,
 }: {
   severity: CheckSeverity;
   waived?: boolean;
+  kind?: 'WAIVED' | 'OVERRIDDEN';
 }) {
   return (
     <StatusMark
       owner={waived ? 'final' : SEVERITY_OWNER[severity]}
-      label={waived ? `${severity} WAIVED` : severity}
+      label={waived ? (kind ?? 'WAIVED') : severity}
       testId="status-mark"
     />
   );

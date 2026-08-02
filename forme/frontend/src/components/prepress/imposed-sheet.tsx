@@ -17,6 +17,7 @@ export function ImposedSheet({
   const { sheetWidthMm: width, sheetHeightMm: height } = plan;
   const gripperY = height - plan.input.gripperMm;
   const pad = 22;
+  const stroke = plan.fits ? 'currentColor' : '#D6006E';
 
   return (
     <svg
@@ -75,8 +76,9 @@ export function ImposedSheet({
               width={page.widthMm}
               height={page.heightMm}
               fill="none"
-              stroke="currentColor"
-              strokeWidth="0.7"
+              stroke={stroke}
+              strokeWidth={plan.fits ? 0.7 : 1.2}
+              strokeDasharray={plan.fits ? undefined : '6 3'}
             />
             <g aria-hidden="true" stroke="currentColor" strokeWidth="0.4">
               <path d={`M${page.xMm} ${page.yMm - 6}V${page.yMm - 1}`} />
@@ -92,7 +94,7 @@ export function ImposedSheet({
               fontFamily="IBM Plex Mono, monospace"
               fontSize="26"
               textAnchor="middle"
-              fill="currentColor"
+              fill={stroke}
               transform={page.rotated ? `rotate(180 ${cx} ${cy})` : undefined}
             >
               {page.label}
@@ -117,6 +119,18 @@ export function ImposedSheet({
       <text x="0" y="-8" fontFamily="IBM Plex Mono, monospace" fontSize="9" fill="currentColor">
         {side} FORM · {form.plate} · {width} × {height}mm
       </text>
+      {plan.fits ? null : (
+        <text
+          x={width}
+          y={height + 18}
+          fontFamily="IBM Plex Mono, monospace"
+          fontSize="9"
+          textAnchor="end"
+          fill="#D6006E"
+        >
+          PAGES OVER THE SHEET EDGE
+        </text>
+      )}
     </svg>
   );
 }

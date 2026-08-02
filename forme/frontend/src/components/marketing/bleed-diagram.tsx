@@ -6,7 +6,7 @@ export function BleedDiagram() {
   const trim = { w: 148, h: 210 };
   const bleed = 3;
   const safety = 4;
-  const pad = 26;
+  const pad = 34;
   const originX = pad + bleed;
   const originY = pad + bleed;
 
@@ -47,25 +47,25 @@ export function BleedDiagram() {
           <path d={`M${originX + trim.w} ${pad - 10}V${pad - 2}`} />
           <path d={`M${originX} ${pad - 6}H${originX + trim.w}`} />
         </g>
-        <g fontFamily="IBM Plex Mono, monospace" fontSize="7" fill="currentColor">
-          <text x={originX + trim.w / 2} y={pad - 12} textAnchor="middle">
+        <g fontFamily="IBM Plex Mono, monospace" fontSize="9" fill="currentColor">
+          <text x={originX + trim.w / 2} y={pad - 14} textAnchor="middle">
             TRIM 148mm
           </text>
           <text
-            x={pad - 12}
+            x={pad - 16}
             y={pad + (trim.h + bleed * 2) / 2}
             textAnchor="middle"
-            transform={`rotate(-90 ${pad - 12} ${pad + (trim.h + bleed * 2) / 2})`}
+            transform={`rotate(-90 ${pad - 16} ${pad + (trim.h + bleed * 2) / 2})`}
           >
             BLEED BOX 216mm
           </text>
-          <text x={pad} y={pad + trim.h + bleed * 2 + 12} fill="#00A0D8">
+          <text x={pad} y={pad + trim.h + bleed * 2 + 16} fill="#00A0D8">
             BLEED 3mm outside trim
           </text>
-          <text x={originX + safety + 4} y={originY + safety + 12} fill="#D6006E">
+          <text x={originX + safety + 4} y={originY + safety + 14} fill="#D6006E">
             SAFETY 4mm inside trim
           </text>
-          <text x={originX + 4} y={originY + trim.h - 6}>
+          <text x={originX + 4} y={originY + trim.h - 8}>
             A5 148 × 210mm
           </text>
         </g>

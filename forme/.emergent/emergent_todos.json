@@ -13,46 +13,46 @@
   },
   {
     "content": "Phase 2: Design guidelines from design_agent and globals.css token layer",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Shared furniture components (status marks, CMYK progress strip, registration target, crop-mark frame, skeletons) and the five route-group shells with role gating",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Routes 1-3 — / , /specs (SVG bleed diagram, anchors, metadata), /quote (URL-state calculator)",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Route 4 — /sign-in with demo role picker writing the session cookie",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Routes 5-7 — /app job table, /app/jobs/[id] spine (timeline, preflight, proof viewer, approve+confirm, comments), /app/new streaming upload",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Routes 8-9 — /prepress queue, /prepress/jobs/[id] waive/override + live SVG imposition planner",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Routes 10-11 — /floor board, /admin/pricing editable matrix",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: loading.tsx skeletons for every route, error.tsx, not-found.tsx",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: typecheck strict + production build clean, no component imports a fixture, no setTimeout in any component, zero unused deps",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: All user stories covered in development",
-    "status": "pending"
+    "status": "completed"
   },
   {
-    "content": "Phase 2: End to End Testing using Testing Agent",
-    "status": "pending"
+    "content": "Phase 2: End to End Testing using Testing Agent (97%, all follow-ups fixed and re-verified)",
+    "status": "completed"
   }
 ]
