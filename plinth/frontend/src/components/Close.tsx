@@ -1,8 +1,23 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { gsap, useGSAP, MM_CONDITIONS } from '../gsapSetup';
+import EnrolDialog from './EnrolDialog';
+import WeekOneDialog from './WeekOneDialog';
+
+type DialogName = 'enrol' | 'week-one' | null;
 
 export default function Close() {
   const sectionRef = useRef<HTMLElement>(null);
+  const [dialog, setDialog] = useState<DialogName>(null);
+
+  // The magnetic offset never gets a pointerleave once the dialog takes the
+  // top layer, so release it on the click that opened it.
+  const openDialog = (
+    name: Exclude<DialogName, null>,
+    e: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    gsap.to(e.currentTarget, { x: 0, y: 0, duration: 0.4, ease: 'power3.out' });
+    setDialog(name);
+  };
 
   useGSAP(
     () => {
@@ -103,6 +118,7 @@ export default function Close() {
         <button
           type="button"
           data-testid="cta-start"
+          onClick={(e) => openDialog('enrol', e)}
           className="cta-magnetic bg-blue px-10 py-5 font-mono text-sm uppercase tracking-[0.25em] text-bone"
         >
           Start block one
@@ -110,14 +126,22 @@ export default function Close() {
         <button
           type="button"
           data-testid="cta-week-one"
+          onClick={(e) => openDialog('week-one', e)}
           className="cta-magnetic border border-ink px-10 py-5 font-mono text-sm uppercase tracking-[0.25em]"
         >
           See week one free
         </button>
       </div>
 
+      <EnrolDialog open={dialog === 'enrol'} onClose={() => setDialog(null)} />
+      <WeekOneDialog
+        open={dialog === 'week-one'}
+        onClose={() => setDialog(null)}
+      />
+
+
       <footer className="mt-24 flex flex-col justify-between gap-4 border-t border-ink pt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-muted md:flex-row">
-        <span className="font-bold text-ink">Block</span>
+        <span className="font-bold text-ink">Plinth</span>
         <span>Accumulate · Intensify · Realise · Restore</span>
         <span>Set in Archivo &amp; Space Mono · No photographs · MMXXVI</span>
       </footer>

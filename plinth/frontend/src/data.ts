@@ -113,6 +113,40 @@ export const SESSIONS: SessionDef[] = [
   },
 ];
 
+/** The free week: block 01, moderate load, high volume. */
+export const WEEK_ONE: SessionDef[] = [
+  {
+    id: 'w1-day-1',
+    day: 'DAY 1',
+    title: 'SQUAT',
+    rows: [
+      { label: 'BACK SQUAT', detail: '5 × 8 @ 65% 1RM · RPE 6 · REST 2:30' },
+      { label: 'FRONT SQUAT', detail: '3 × 8 @ 55% 1RM · RPE 6 · REST 2:00' },
+      { label: 'TOTAL', detail: '58 MIN · 7,400 KG' },
+    ],
+  },
+  {
+    id: 'w1-day-2',
+    day: 'DAY 2',
+    title: 'PRESS',
+    rows: [
+      { label: 'OVERHEAD PRESS', detail: '5 × 8 @ 62% 1RM · RPE 6 · REST 2:00' },
+      { label: 'BARBELL ROW', detail: '4 × 10 @ 60% 1RM · RPE 6 · REST 2:00' },
+      { label: 'TOTAL', detail: '52 MIN · 5,900 KG' },
+    ],
+  },
+  {
+    id: 'w1-day-3',
+    day: 'DAY 3',
+    title: 'DEADLIFT',
+    rows: [
+      { label: 'DEADLIFT', detail: '5 × 5 @ 67.5% 1RM · RPE 7 · REST 3:00' },
+      { label: 'ROMANIAN DEADLIFT', detail: '3 × 8 @ 55% 1RM · RPE 6 · REST 2:30' },
+      { label: 'TOTAL', detail: '61 MIN · 8,100 KG' },
+    ],
+  },
+];
+
 export interface EvidenceDef {
   target: number;
   kind: 'int' | 'm' | 'plus' | 'pct';

@@ -172,6 +172,56 @@ section[id] {
 }
 
 
+/* Modals — native <dialog> in the top layer */
+.modal-shell::backdrop {
+  background: color-mix(in srgb, var(--color-ink) 78%, transparent);
+}
+
+/* Lock the page behind the dialog. scrollbar-gutter keeps the width stable,
+   so opening a modal never shifts the layout underneath it. */
+html:has(dialog[open]) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .modal-shell,
+  .modal-shell::backdrop {
+    opacity: 0;
+    transition:
+      opacity 0.3s ease,
+      display 0.3s allow-discrete,
+      overlay 0.3s allow-discrete;
+  }
+
+  .modal-shell[open],
+  .modal-shell[open]::backdrop {
+    opacity: 1;
+  }
+
+  @starting-style {
+    .modal-shell[open],
+    .modal-shell[open]::backdrop {
+      opacity: 0;
+    }
+  }
+
+  .modal-panel {
+    transform: translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-shell[open] .modal-panel {
+    transform: translateY(0);
+  }
+
+  @starting-style {
+    .modal-shell[open] .modal-panel {
+      transform: translateY(20px);
+    }
+  }
+}
+
 /* Print: A4 program card of the selected session, nothing else */
 @page {
   size: A4;
