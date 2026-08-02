@@ -134,6 +134,14 @@ def resolve_evolutions(
     return ("choice", [n["species_id"] for n, _ in eligible])
 
 
+def _gate_to(root: Dict[str, Any], species: int, target: int, synthetic_level: int, level_pct: int) -> int:
+    node = find_node(root, species) or {"children": []}
+    for child in node.get("children", []):
+        if child["node"]["species_id"] == target:
+            return effective_gate(child["details"], synthetic_level, level_pct)
+    return 1
+
+
 def derive_state(
     ledger: List[Dict[str, Any]],
     base_species_id: int,
@@ -142,10 +150,22 @@ def derive_state(
     synthetic_level: int = 30,
     level_pct: int = 100,
     xp_baseline: int = 0,
+    choices: Optional[Dict[int, int]] = None,
 ) -> Dict[str, Any]:
+    """Rebuild a partner's whole state from its ledger.
+
+    `choices` maps a branching species to the evolution its trainer committed
+    to. Without it the walk stalls at every fork forever, because nothing else
+    here remembers a decision — the ledger only holds XP.
+
+    A choice is honoured only while its target is still *eligible*, so it does
+    not survive a reversal: strip the XP back below the gate and the walk stops
+    at the fork again, exactly as it would have the first time.
+    """
     total_xp = sum(int(e.get("xp_awarded", 0)) for e in ledger)
     mon_xp = max(0, total_xp - int(xp_baseline))
     level = level_from_xp(mon_xp, growth_table)
+    choices = choices or {}
 
     species = base_species_id
     history: List[Dict[str, Any]] = []
@@ -156,14 +176,15 @@ def derive_state(
         if kind == "none":
             break
         if kind == "single":
-            node = find_node(root, species) or {"children": []}
-            gate_level = 1
-            for child in node.get("children", []):
-                if child["node"]["species_id"] == payload:
-                    gate_level = effective_gate(child["details"], synthetic_level, level_pct)
-                    break
+            gate_level = _gate_to(root, species, payload, synthetic_level, level_pct)
             history.append({"from": species, "to": payload, "at_level": gate_level})
             species = payload
+            continue
+        chosen = choices.get(species)
+        if chosen is not None and chosen in payload:
+            gate_level = _gate_to(root, species, chosen, synthetic_level, level_pct)
+            history.append({"from": species, "to": chosen, "at_level": gate_level})
+            species = chosen
             continue
         pending = True
         pending_options = list(payload)  # type: ignore[arg-type]

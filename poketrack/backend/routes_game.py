@@ -41,6 +41,17 @@ async def _species_bundle(pokeapi, species_id: int) -> Dict[str, Any]:
     }
 
 
+async def _committed_choices(mon_id: str) -> Dict[int, int]:
+    """Branch decisions this partner has already made, keyed by fork species.
+
+    The ledger holds XP and nothing else, so a fork is the one piece of state
+    the engine cannot re-derive. `db.evolutions` is where it is remembered.
+    """
+    db = get_db()
+    rows = await db.evolutions.find({"player_pokemon_id": mon_id}).to_list(1000)
+    return {int(r["from_species_id"]): int(r["to_species_id"]) for r in rows}
+
+
 async def _pokemon_data(pokeapi, species_id: int) -> Dict[str, Any]:
     pk = await pokeapi.pokemon(species_id)
     sp = await pokeapi.species(species_id)
@@ -116,6 +127,7 @@ async def _get_pokemon_state(project_id: str, uid: str) -> Dict[str, Any] | None
         synthetic_level=project.get("synthetic_evolution_level", 30),
         level_pct=project.get("evolution_level_pct", 100),
         xp_baseline=doc.get("xp_baseline", 0),
+        choices=await _committed_choices(doc["id"]),
     )
     current_data = await _pokemon_data(pokeapi, state["current_species_id"])
     hint = next_evolution_hint(
@@ -232,6 +244,7 @@ async def choose_evolution(project_id: str, body: ChooseEvolutionRequest, uid: s
         synthetic_level=project.get("synthetic_evolution_level", 30),
         level_pct=project.get("evolution_level_pct", 100),
         xp_baseline=doc.get("xp_baseline", 0),
+        choices=await _committed_choices(doc["id"]),
     )
     if not state["pending_evolution"]:
         raise HTTPException(status_code=400, detail="No pending evolution")
@@ -310,6 +323,7 @@ async def prestige(project_id: str, body: StarterPick, uid: str = Depends(curren
         synthetic_level=project.get("synthetic_evolution_level", 30),
         level_pct=project.get("evolution_level_pct", 100),
         xp_baseline=doc.get("xp_baseline", 0),
+        choices=await _committed_choices(doc["id"]),
     )
     if state["stage_index"] != state["total_stages"] or state["pending_evolution"]:
         raise HTTPException(status_code=400, detail="Only fully evolved Pokémon can prestige")
@@ -360,6 +374,7 @@ async def leaderboard(project_id: str, uid: str = Depends(current_user_id)):
                 synthetic_level=project.get("synthetic_evolution_level", 30),
                 level_pct=project.get("evolution_level_pct", 100),
                 xp_baseline=pm.get("xp_baseline", 0),
+                choices=await _committed_choices(pm["id"]),
             )
             data = await _pokemon_data(pokeapi, state["current_species_id"])
             rows.append({

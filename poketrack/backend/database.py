@@ -30,4 +30,7 @@ async def setup_indexes() -> None:
     await db.player_pokemon.create_index([("project_id", ASCENDING), ("user_id", ASCENDING)], unique=True)
     await db.xp_events.create_index("player_pokemon_id")
     await db.xp_events.create_index("ticket_id")
+    # Read on every partner and leaderboard row — derive_state needs the
+    # committed branch choices to walk past a fork.
+    await db.evolutions.create_index("player_pokemon_id")
     await db.pokeapi_cache.create_index("key", unique=True)
