@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bone: #f2eee6;
+  --color-ink: #101010;
+  --color-blue: #1f2bff;
+  --color-vermilion: #ff3b14;
+  --color-muted: #5f5a52;
+  --color-muted-ink: #a5a099;
+  --font-display: "Archivo Variable", "Archivo", sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+}
+
+:root {
+  --nav-height: 3.5rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background: var(--color-bone);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--color-blue);
+  color: var(--color-bone);
+}
+
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+section[id] {
+  scroll-margin-top: var(--nav-height);
+}
+
+/* Hero entrance: CSS only, no JS dependency. LCP renders without the bundle. */
+.hero-mask {
+  display: block;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-line {
+    display: block;
+    transform: translateY(112%);
+    animation: hero-rise 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .hero-line-1 { animation-delay: 0.05s; }
+  .hero-line-2 { animation-delay: 0.16s; }
+  .hero-line-3 { animation-delay: 0.27s; }
+  .hero-line-4 { animation-delay: 0.38s; }
+  .hero-line-5 { animation-delay: 0.49s; }
+
+  @keyframes hero-rise {
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .scroll-cue {
+    animation: cue-drift 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  @keyframes cue-drift {
+    0%, 100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    50% {
+      transform: translateY(6px);
+      opacity: 0.55;
+    }
+  }
+}
+
+/* Half-tone stipple treatment for REALISE planner cells */
+.stipple {
+  background-image: radial-gradient(circle, var(--color-blue) 1px, transparent 1.4px);
+  background-size: 7px 7px;
+}
+
+
+/* Archivo width-axis compositions */
+.stretch-wide {
+  font-stretch: 125%;
+}
+
+.stretch-narrow {
+  font-stretch: 72%;
+}
