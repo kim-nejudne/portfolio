@@ -41,11 +41,16 @@ export default function Teams() {
           <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="teams-title">YOUR TEAMS</h1>
         </div>
         <form onSubmit={create} className="flex items-end gap-2" data-testid="teams-create-form">
-          <label className="flex-1">
+          {/* min-w-0 lets this shrink below the input's 16rem basis; without it the
+              flex item floors at its content and pushes FORM TEAM off-screen.
+              The cap is max-w-full, not a vw unit — 70vw knows nothing about the
+              button sharing this row or the page padding, so it overflowed on a
+              360px screen. */}
+          <label className="flex-1 min-w-0">
             <span className="font-pixel text-[9px] tracking-hud text-white/70">NEW TEAM NAME</span>
             <input value={name} onChange={(e) => setName(e.target.value)}
               data-testid="teams-create-name"
-              className="mt-1 w-64 max-w-[70vw] rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+              className="mt-1 w-64 max-w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
           </label>
           <GameButton type="submit" tone="grass" testId="teams-create-submit">FORM TEAM</GameButton>
         </form>
