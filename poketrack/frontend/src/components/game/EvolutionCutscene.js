@@ -30,21 +30,33 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
           role="dialog"
           aria-modal="true"
         >
-          {/* aurora backdrop */}
-          <div className="pointer-events-none absolute inset-0"
-            style={{ background: `radial-gradient(60% 40% at 50% 50%, ${color}55, transparent 70%)` }} />
-
           {/* rays */}
           {!reduce && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              {/* Four spokes on a 90° period, so the wheel closes on itself —
+                  the old stop list ran transparent → colour across 0°/360°,
+                  which left a hard seam raking across the screen. */}
               <div className="h-[120vmax] w-[120vmax] animate-ray-burst opacity-70"
-                style={{ background: `conic-gradient(from 0deg, rgba(255,255,255,0.0), ${color}88, rgba(255,255,255,0.0) 25%, ${color}88 50%, rgba(255,255,255,0.0) 75%, ${color}88)` }} />
+                style={{ background: `repeating-conic-gradient(from 0deg, ${color}00 0deg, ${color}7a 20deg, ${color}00 40deg, ${color}00 90deg)` }} />
             </div>
           )}
 
           {/* stage */}
           <div className="relative z-10 grid place-items-center">
             <div className="relative h-56 w-56 grid place-items-center">
+              {/* Glow. Anchored on the sprite, not on the viewport: the overlay
+                  stretches its two grid rows, so the sprite sits around a
+                  quarter of the way down and a gradient positioned at 50% 50%
+                  lights empty space between the sprite and the dialogue.
+                  Every stop carries the type hue at a decreasing alpha —
+                  fading to `transparent` fades through transparent *black*,
+                  which drags the midtones through grey and reads as mud. */}
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[150vmin] w-[150vmin] -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  background: `radial-gradient(circle closest-side, ${color}5c 0%, ${color}33 26%, ${color}16 46%, ${color}07 64%, ${color}00 80%)`,
+                }}
+              />
               {/* old sprite */}
               <motion.img
                 src={fromMon?.sprite}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { api, getUser } from "@/lib/api";
 import GameFrame from "@/components/game/GameFrame";
@@ -9,7 +9,7 @@ import PokeBallLoader from "@/components/game/PokeBallLoader";
 import StarterPicker from "@/components/game/StarterPicker";
 import PartnerPanel from "@/components/game/PartnerPanel";
 import BoardColumn from "@/components/game/BoardColumn";
-import TicketCard from "@/components/game/TicketCard";
+import TicketCard, { TicketCardPreview } from "@/components/game/TicketCard";
 import TicketModal from "@/components/game/TicketModal";
 import Leaderboard from "@/components/game/Leaderboard";
 import EvolutionCutscene from "@/components/game/EvolutionCutscene";
@@ -38,6 +38,9 @@ export default function ProjectPage() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState(null);
+
+  // Board drag state — the id of the ticket currently under the pointer.
+  const [draggingId, setDraggingId] = useState(null);
 
   // Cutscene state
   const [cutscene, setCutscene] = useState({ open: false, from: null, to: null });
@@ -180,7 +183,10 @@ export default function ProjectPage() {
     if (idx < STATUSES.length - 1) moveTicket(t, STATUSES[idx + 1]);
   };
 
+  const onDragStart = (event) => setDraggingId(event.active.id);
+
   const onDragEnd = (event) => {
+    setDraggingId(null);
     const { active, over } = event;
     if (!over) return;
     const status = over.id;
@@ -261,6 +267,7 @@ export default function ProjectPage() {
 
   const byStatus = (s) => tickets.filter((t) => t.status === s);
   const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
+  const draggingTicket = draggingId ? tickets.find((t) => t.id === draggingId) : null;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -294,7 +301,13 @@ export default function ProjectPage() {
 
         <div>
           {tab === "board" && (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              onDragCancel={() => setDraggingId(null)}
+            >
               <div className="flex gap-4 overflow-x-auto pb-4" data-testid="board">
                 {STATUSES.map((s) => (
                   <BoardColumn key={s} status={s} tickets={byStatus(s)}>
@@ -305,6 +318,13 @@ export default function ProjectPage() {
                   </BoardColumn>
                 ))}
               </div>
+              {/* Portalled to the body: the columns and the board scroller both
+                  clip their overflow, so the card has to travel outside them. */}
+              <DragOverlay dropAnimation={reduce ? null : undefined}>
+                {draggingTicket && (
+                  <TicketCardPreview ticket={draggingTicket} assignee={memberMap[draggingTicket.assignee_id]} />
+                )}
+              </DragOverlay>
             </DndContext>
           )}
           {tab === "list" && (

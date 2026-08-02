@@ -74,7 +74,10 @@ module.exports = {
         "level-up-slam": "level-up-slam 520ms cubic-bezier(0.2, 1.2, 0.2, 1)",
         "screen-shake": "screen-shake 420ms linear",
         "capture-wobble": "capture-wobble 1.2s ease-in-out infinite",
-        "ray-burst": "ray-burst 1.2s ease-out",
+        // `forwards` matters: the keyframes end at opacity 0, but with the
+        // default fill mode the element snaps back to its base style when the
+        // 1.2s is up — leaving the burst parked on screen instead of gone.
+        "ray-burst": "ray-burst 1.2s ease-out forwards",
         "typewriter-caret": "typewriter-caret 700ms step-end infinite",
         "dialogue-arrow-blink": "dialogue-arrow-blink 650ms step-end infinite",
         "aurora-drift": "aurora-drift 14s ease-in-out infinite",
