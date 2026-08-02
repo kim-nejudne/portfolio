@@ -23,6 +23,26 @@ export default function Hero() {
             scrub: 1,
           },
         });
+
+        if (ctx.conditions?.isDesktop) {
+          const headline = headlineRef.current;
+          if (!headline) return;
+          gsap.set(headline, { transformPerspective: 1200 });
+          const rotY = gsap.quickTo(headline, 'rotationY', {
+            duration: 0.7,
+            ease: 'power3.out',
+          });
+          const rotX = gsap.quickTo(headline, 'rotationX', {
+            duration: 0.7,
+            ease: 'power3.out',
+          });
+          const onMove = (e: PointerEvent) => {
+            rotY((e.clientX / window.innerWidth - 0.5) * 4);
+            rotX((e.clientY / window.innerHeight - 0.5) * -3);
+          };
+          window.addEventListener('pointermove', onMove);
+          return () => window.removeEventListener('pointermove', onMove);
+        }
       });
       return () => mm.revert();
     },

@@ -21,6 +21,36 @@ export default function Close() {
             once: true,
           },
         });
+
+        if (ctx.conditions?.isDesktop) {
+          const cleanups: (() => void)[] = [];
+          gsap.utils.toArray<HTMLElement>('.cta-magnetic').forEach((btn) => {
+            const xTo = gsap.quickTo(btn, 'x', {
+              duration: 0.4,
+              ease: 'power3.out',
+            });
+            const yTo = gsap.quickTo(btn, 'y', {
+              duration: 0.4,
+              ease: 'power3.out',
+            });
+            const onMove = (e: PointerEvent) => {
+              const r = btn.getBoundingClientRect();
+              xTo((e.clientX - r.left - r.width / 2) * 0.25);
+              yTo((e.clientY - r.top - r.height / 2) * 0.35);
+            };
+            const onLeave = () => {
+              xTo(0);
+              yTo(0);
+            };
+            btn.addEventListener('pointermove', onMove);
+            btn.addEventListener('pointerleave', onLeave);
+            cleanups.push(() => {
+              btn.removeEventListener('pointermove', onMove);
+              btn.removeEventListener('pointerleave', onLeave);
+            });
+          });
+          return () => cleanups.forEach((fn) => fn());
+        }
       });
       return () => mm.revert();
     },
@@ -73,14 +103,14 @@ export default function Close() {
         <button
           type="button"
           data-testid="cta-start"
-          className="bg-blue px-10 py-5 font-mono text-sm uppercase tracking-[0.25em] text-bone transition-transform duration-200 hover:-translate-y-0.5"
+          className="cta-magnetic bg-blue px-10 py-5 font-mono text-sm uppercase tracking-[0.25em] text-bone"
         >
           Start block one
         </button>
         <button
           type="button"
           data-testid="cta-week-one"
-          className="border border-ink px-10 py-5 font-mono text-sm uppercase tracking-[0.25em] transition-transform duration-200 hover:-translate-y-0.5"
+          className="cta-magnetic border border-ink px-10 py-5 font-mono text-sm uppercase tracking-[0.25em]"
         >
           See week one free
         </button>

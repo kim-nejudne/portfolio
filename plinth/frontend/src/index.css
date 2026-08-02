@@ -59,11 +59,11 @@ section[id] {
     transform: translateY(112%);
     animation: hero-rise 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  .hero-line-1 { animation-delay: 0.05s; }
-  .hero-line-2 { animation-delay: 0.16s; }
-  .hero-line-3 { animation-delay: 0.27s; }
-  .hero-line-4 { animation-delay: 0.38s; }
-  .hero-line-5 { animation-delay: 0.49s; }
+  .hero-line-1 { animation-delay: 0.72s; }
+  .hero-line-2 { animation-delay: 0.83s; }
+  .hero-line-3 { animation-delay: 0.94s; }
+  .hero-line-4 { animation-delay: 1.05s; }
+  .hero-line-5 { animation-delay: 1.16s; }
 
   @keyframes hero-rise {
     to {
@@ -101,4 +101,72 @@ section[id] {
 
 .stretch-narrow {
   font-stretch: 72%;
+}
+
+/* On-load plate wipe: ink over blue, both slide away. CSS only. */
+.load-wipe {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .load-wipe {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+  }
+  .load-wipe-panel {
+    position: absolute;
+    inset: 0;
+    animation: wipe-up 0.9s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+  }
+  .load-wipe-blue {
+    background: var(--color-blue);
+    animation-delay: 0.4s;
+  }
+  .load-wipe-ink {
+    background: var(--color-ink);
+    animation-delay: 0.62s;
+  }
+  .load-wipe-word {
+    position: absolute;
+    left: 1rem;
+    bottom: 1.25rem;
+    color: var(--color-bone);
+  }
+  @keyframes wipe-up {
+    to {
+      transform: translateY(-101%);
+    }
+  }
+}
+
+/* Nav underline reveal — transform only */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link::after {
+    transition: none;
+  }
 }

@@ -18,6 +18,14 @@ export default function App() {
 
   return (
     <>
+      <div aria-hidden="true" className="load-wipe">
+        <div className="load-wipe-panel load-wipe-blue" />
+        <div className="load-wipe-panel load-wipe-ink">
+          <span className="load-wipe-word font-mono text-xs uppercase tracking-[0.3em]">
+            Block — 16 weeks
+          </span>
+        </div>
+      </div>
       <a
         href="#main"
         data-testid="skip-link"

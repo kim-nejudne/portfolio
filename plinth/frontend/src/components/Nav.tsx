@@ -1,3 +1,6 @@
+import { useRef } from 'react';
+import { gsap, useGSAP, MM_CONDITIONS } from '../gsapSetup';
+
 const LINKS = [
   { href: '#planner', label: 'Plan' },
   { href: '#blocks', label: 'Blocks' },
@@ -7,9 +10,30 @@ const LINKS = [
 ];
 
 export default function Nav() {
+  const headerRef = useRef<HTMLElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add(MM_CONDITIONS, (ctx) => {
+        if (ctx.conditions?.reduceMotion) return;
+        gsap.to(progressRef.current, {
+          scaleX: 1,
+          ease: 'none',
+          scrollTrigger: { start: 0, end: 'max', scrub: 0.5 },
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope: headerRef },
+  );
+
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-ink bg-bone">
-      <nav
+    <header
+      ref={headerRef}
+      className="fixed inset-x-0 top-0 z-40 border-b border-ink bg-bone"
+    >      <nav
         aria-label="Primary"
         className="flex h-[var(--nav-height)] items-center justify-between px-4 md:px-10"
       >
@@ -26,7 +50,7 @@ export default function Nav() {
               <a
                 href={link.href}
                 data-testid={`nav-link-${link.label.toLowerCase()}`}
-                className="font-mono text-xs uppercase tracking-[0.2em] hover:text-blue"
+                className="nav-link font-mono text-xs uppercase tracking-[0.2em] hover:text-blue"
               >
                 {link.label}
               </a>
@@ -37,6 +61,11 @@ export default function Nav() {
           16 weeks
         </span>
       </nav>
+      <div
+        ref={progressRef}
+        aria-hidden="true"
+        className="absolute bottom-[-1px] left-0 h-[2px] w-full origin-left scale-x-0 bg-blue"
+      />
     </header>
   );
 }

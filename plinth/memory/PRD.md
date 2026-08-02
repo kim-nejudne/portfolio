@@ -63,6 +63,18 @@ typecheck pass.
 - yarn typecheck and yarn build pass; no console errors; no markers; no
   Math.random
 
+## Polish pass (2026-08-02, second session)
+- Signature on-load moment: CSS-only double plate wipe (blue, then ink with
+  mono wordmark) revealing the hero; gated in no-preference media, zero JS
+- Hero headline: pointer-driven 3D tilt (rotationX/Y, transformPerspective)
+  via gsap.quickTo, desktop + no-preference only, alongside existing scroll
+  parallax
+- Magnetic CTAs on the close plate (quickTo x/y, spring back on leave)
+- Scroll-progress hairline (blue, scaleX scrub) under the fixed nav
+- Nav link underline reveals (transform-only CSS transition)
+- Re-verified: typecheck + build pass, console clean, reduced motion renders
+  hero instantly with no wipe and all static end-states intact
+
 ## Backlog
 - P0: none — definition of done met
 - P1: og-card image slot (manifest ready), plate-texture halftone overlay
