@@ -42,7 +42,7 @@ export default function Nav() {
           data-testid="nav-wordmark"
           className="font-display text-xl font-black uppercase tracking-[-0.02em]"
         >
-          Block
+          Plinth
         </a>
         <ul className="hidden items-center gap-8 md:flex">
           {LINKS.map((link) => (

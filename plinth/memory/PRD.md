@@ -1,7 +1,7 @@
-# PRD — BLOCK Marketing Site
+# PRD — PLINTH Marketing Site
 
 ## Original problem statement
-Single-page marketing site for BLOCK, a 16-week periodised strength program.
+Single-page marketing site for PLINTH, a 16-week periodised strength program.
 Portfolio piece for a design engineer: editorial poster design meeting
 Apple-grade scroll craft. No photographs, no backend, no component library.
 Kinetic editorial art direction: Bone #F2EEE6 / Ink #101010 / Blue #1F2BFF
@@ -98,4 +98,4 @@ typecheck pass.
 ## Next tasks
 1. Commission/generate art for the four image manifest slots if desired
 2. Wire CTAs to a real checkout/signup if the program ever ships
-3. Add a second cycle's dataset (BLOCK 2.0) to data.ts when written
+3. Add a second cycle's dataset (PLINTH 2.0) to data.ts when written

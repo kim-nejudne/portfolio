@@ -57,7 +57,7 @@ export default function Hero() {
       className="sticky top-0 z-0 flex h-[100dvh] flex-col justify-between bg-bone px-4 pb-8 pt-[calc(var(--nav-height)+1.5rem)] md:px-10"
     >
       <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.25em] text-muted md:text-xs">
-        <span>Block — periodised strength</span>
+        <span>Plinth — periodised strength</span>
         <span className="tabular-nums">01 / 09</span>
       </div>
 

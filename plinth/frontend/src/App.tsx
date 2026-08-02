@@ -22,7 +22,7 @@ export default function App() {
         <div className="load-wipe-panel load-wipe-blue" />
         <div className="load-wipe-panel load-wipe-ink">
           <span className="load-wipe-word font-mono text-xs uppercase tracking-[0.3em]">
-            Block — 16 weeks
+            Plinth — 16 weeks
           </span>
         </div>
       </div>

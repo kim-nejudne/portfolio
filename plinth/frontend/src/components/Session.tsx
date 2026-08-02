@@ -151,7 +151,7 @@ export default function Session() {
       <div aria-hidden="true" className="print-card hidden text-ink print:block">
         <div className="flex items-baseline justify-between">
           <span className="font-display text-2xl font-black uppercase tracking-[-0.02em]">
-            Block
+            Plinth
           </span>
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] tabular-nums">
             WK 11 · Block 03 · Realise
