@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { gsap, useGSAP, MM_CONDITIONS } from '../gsapSetup';
 
 const LINKS = [
@@ -45,6 +45,22 @@ export default function Nav() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  // `#top` matches no element, so the wordmark relied on the browser's
+  // fallback — and it left the previous section hash in the URL, so a reload
+  // dropped you back down the page. Scroll explicitly and clear the hash.
+  //
+  // No `behavior: 'smooth'`: ScrollTrigger forces `scroll-behavior: auto` on
+  // the document because native smooth scrolling fights its pins, so a smooth
+  // request is cancelled outright and nothing moves at all. Every section link
+  // already hard-cuts for the same reason; this matches them.
+  const toTop = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    setOpen(false);
+    window.scrollTo(0, 0);
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+  };
+
   return (
     <header
       ref={headerRef}
@@ -56,6 +72,7 @@ export default function Nav() {
       >
         <a
           href="#top"
+          onClick={toTop}
           data-testid="nav-wordmark"
           className="font-display text-xl font-black uppercase tracking-[-0.02em]"
         >
