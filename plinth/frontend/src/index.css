@@ -170,3 +170,30 @@ section[id] {
     transition: none;
   }
 }
+
+
+/* Print: A4 program card of the selected session, nothing else */
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+  header,
+  .load-wipe,
+  main > *:not(#session) {
+    display: none !important;
+  }
+  #session {
+    background: #ffffff !important;
+    color: var(--color-ink) !important;
+    padding: 0 !important;
+  }
+  .print-card {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

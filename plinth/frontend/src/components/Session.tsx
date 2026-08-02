@@ -59,17 +59,18 @@ export default function Session() {
       aria-labelledby="session-heading"
       className="relative z-10 bg-ink px-4 py-24 text-bone md:px-10 md:py-32"
     >
-      <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-ink tabular-nums">
-        06 — One session, in full
-      </p>
-      <h2
-        id="session-heading"
-        className="mt-6 font-display text-[clamp(2rem,5vw,4.5rem)] font-black uppercase leading-[0.9] tracking-[-0.02em]"
-      >
-        Week eleven, day by day.
-      </h2>
+      <div className="print:hidden">
+        <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-ink tabular-nums">
+          06 — One session, in full
+        </p>
+        <h2
+          id="session-heading"
+          className="mt-6 font-display text-[clamp(2rem,5vw,4.5rem)] font-black uppercase leading-[0.9] tracking-[-0.02em]"
+        >
+          Week eleven, day by day.
+        </h2>
 
-      <fieldset className="mt-12">
+        <fieldset className="mt-12">
         <legend className="sr-only">Select training day</legend>
         <div className="flex border border-bone/40" role="presentation">
           {SESSIONS.map((s, i) => (
@@ -134,6 +135,54 @@ export default function Session() {
       <p className="mt-10 font-mono text-xs uppercase tracking-[0.2em] text-muted-ink">
         Barbell · rack · plates. Nothing else.
       </p>
+
+      <div className="mt-8 flex justify-end">
+        <button
+          type="button"
+          data-testid="print-session-button"
+          onClick={() => window.print()}
+          className="border border-bone/40 px-6 py-3 font-mono text-xs uppercase tracking-[0.25em] text-bone hover:bg-bone hover:text-ink"
+        >
+          Print this session
+        </button>
+      </div>
+      </div>
+
+      <div aria-hidden="true" className="print-card hidden text-ink print:block">
+        <div className="flex items-baseline justify-between">
+          <span className="font-display text-2xl font-black uppercase tracking-[-0.02em]">
+            Block
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.25em] tabular-nums">
+            WK 11 · Block 03 · Realise
+          </span>
+        </div>
+        <div className="mt-4 border-t-2 border-ink pt-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-blue">
+            {SESSIONS[day].day}
+          </p>
+          <p className="mt-1 font-display text-6xl font-black uppercase leading-[0.9] tracking-[-0.02em]">
+            {SESSIONS[day].title}
+          </p>
+        </div>
+        <dl className="mt-8 border-b border-ink">
+          {SESSIONS[day].rows.map((r) => (
+            <div
+              key={r.label}
+              className="grid grid-cols-[180px_1fr] gap-6 border-t border-ink py-3"
+            >
+              <dt className="font-mono text-xs uppercase tracking-[0.15em]">
+                {r.label}
+              </dt>
+              <dd className="font-mono text-xs tabular-nums">{r.detail}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-8 flex justify-between font-mono text-[9px] uppercase tracking-[0.2em]">
+          <span>Barbell · rack · plates. Nothing else.</span>
+          <span>The plan changes on Sundays · 18:00</span>
+        </div>
+      </div>
     </section>
   );
 }

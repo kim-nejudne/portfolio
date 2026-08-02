@@ -75,6 +75,15 @@ typecheck pass.
 - Re-verified: typecheck + build pass, console clean, reduced motion renders
   hero instantly with no wipe and all static end-states intact
 
+## Print stylesheet (2026-08-02, third session)
+- PRINT THIS SESSION button on the session plate calls window.print()
+- @page A4 + @media print rules hide the nav, wipe, and every section
+  (including ScrollTrigger pin-spacers) except the session plate
+- Print-only program card mirrors the currently selected day: wordmark,
+  WK 11 · BLOCK 03 · REALISE tag, blue day label, display lift name, all
+  rows against hairlines, equipment/cadence footer lines
+- Verified with print-media emulation at A4 dimensions: only the card prints
+
 ## Backlog
 - P0: none — definition of done met
 - P1: og-card image slot (manifest ready), plate-texture halftone overlay
