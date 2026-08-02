@@ -281,6 +281,34 @@ export interface JobFilter {
   states?: readonly JobState[];
 }
 
+/** Flattened rows handed to the table components. Built on the server. */
+export interface JobRow {
+  reference: string;
+  description: string;
+  quantity: number;
+  stockLabel: string;
+  state: JobState;
+  stateLabel: string;
+  owner: StateOwner;
+  dueAt: string;
+  dueDate: string;
+  dueLabel: string;
+  overdue: boolean;
+  progress: number;
+  press: PressId;
+  total: number;
+  href: string;
+}
+
+export interface QueueRow extends JobRow {
+  customer: string;
+  productLabel: string;
+  sheetLabel: string;
+  sheets: number;
+  ageMinutes: number;
+  ageLabel: string;
+}
+
 /* ----------------------------------------------------------------- presses */
 
 export type PressState = 'MAKEREADY' | 'RUNNING' | 'WASHUP' | 'IDLE';
@@ -291,6 +319,8 @@ export interface Press {
   kind: 'litho' | 'digital';
   units: string;
   maxSheet: SheetId;
+  maxSheetMm: string;
+  notes: string;
   state: PressState;
   jobReference: string | null;
   jobDescription: string | null;

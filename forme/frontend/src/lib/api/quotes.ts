@@ -84,7 +84,10 @@ export function parseQuoteInput(query: Record<string, string | string[] | undefi
   const rawQuantity = Number.parseInt(one(query.quantity) ?? '', 10);
   const quantity = QUANTITIES.includes(rawQuantity) ? rawQuantity : DEFAULT_QUOTE_INPUT.quantity;
 
-  const rawFinishing = (one(query.finishing) ?? 'trim').split(',').filter(Boolean);
+  const finishingParam = query.finishing;
+  const rawFinishing = Array.isArray(finishingParam)
+    ? finishingParam
+    : (finishingParam ?? 'trim').split(',').filter(Boolean);
   const finishing = FINISHES.filter((id) => rawFinishing.includes(id));
 
   let pageCount: number | null = null;
