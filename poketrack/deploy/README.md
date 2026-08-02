@@ -151,7 +151,46 @@ ssh root@165.245.189.5 'cd /opt/poketrack && docker compose start app'
 archive was taken are not in it and therefore survive — drop the database yourself
 first if you want the state to match the archive exactly.
 
+## Analytics
+
+**Nothing runs in the visitor's browser.** `scripts/stats.sh` renders a GoAccess
+report from nginx's own access log, hourly from root's crontab:
+
+```
+7 * * * * /opt/poketrack/scripts/stats.sh >> /var/log/poketrack-stats.log 2>&1
+```
+
+Read it at **`https://poketrack.kimnejudne.dev/_stats/`**, behind basic auth
+(`/etc/nginx/poketrack-stats.htpasswd`, user `kim`). Rotate the password with:
+
+```bash
+ssh root@165.245.189.5 'printf "kim:%s\n" "$(openssl passwd -apr1 NEWPASSWORD)" \
+  > /etc/nginx/poketrack-stats.htpasswd && systemctl reload nginx'
+```
+
+`auth_basic` is scoped to the `/_stats/` location deliberately. At server level it
+would also cover the ACME challenge path and quietly break certificate renewal.
+
+The vhost writes to its own `/var/log/nginx/poketrack.access.log` so the report
+does not have to sieve four vhosts apart; logrotate's existing `*.log` rule covers
+it at daily/14. The script reparses that whole retained window each run and keeps
+no `--persist` database, which makes it idempotent — a re-run cannot double-count
+lines it already read. IPs are anonymised and crawlers ignored.
+
+This *replaced* client-side analytics rather than supplementing it — see History.
+
 ## History
+
+The scaffold shipped two third-party scripts in `frontend/public/index.html`: a
+loader from `assets.emergent.sh` and an inline PostHog snippet with session
+recording enabled, keyed to Emergent's project and ingest host. Both were removed
+on 2026-08-02 and replaced by the log-based report above.
+
+This is not about hiding the scaffold origin — the case study states that plainly
+and should. It is that the key was not Kim's, so the data was unreadable to him
+while the recording liability was his; the loader was a parser-blocking script
+from an origin he does not control; and neither was referenced anywhere in the
+application code.
 
 This subdomain previously served **poke-project** — an unrelated Next.js +
 Drizzle + Postgres + Clerk app, deployed pull-based from GHCR by a GitHub Actions
