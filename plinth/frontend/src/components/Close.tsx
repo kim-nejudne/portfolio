@@ -80,7 +80,7 @@ export default function Close() {
             className="font-display text-[clamp(4rem,10vw,9rem)] font-black leading-none tracking-[-0.03em] tabular-nums"
             data-testid="price-monthly"
           >
-            £29
+            ₱2,150
           </p>
           <p className="mt-4 font-mono text-xs uppercase tracking-[0.2em] text-muted">
             Per month · cancel at the end of any block
@@ -91,7 +91,7 @@ export default function Close() {
             className="font-display text-[clamp(4rem,10vw,9rem)] font-black leading-none tracking-[-0.03em] tabular-nums"
             data-testid="price-cycle"
           >
-            £96
+            ₱7,100
           </p>
           <p className="mt-4 font-mono text-xs uppercase tracking-[0.2em] text-muted">
             Per cycle · 16 weeks · prepaid

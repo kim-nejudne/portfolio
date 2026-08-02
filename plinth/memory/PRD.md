@@ -84,6 +84,11 @@ typecheck pass.
   rows against hairlines, equipment/cadence footer lines
 - Verified with print-media emulation at A4 dimensions: only the card prints
 
+## Currency localisation (2026-08-02)
+- Prices converted GBP → PHP at ~£1 = ₱74, rounded to clean numbers:
+  £29/month → ₱2,150, £96/cycle → ₱7,100 (close plate only place prices
+  appear)
+
 ## Backlog
 - P0: none — definition of done met
 - P1: og-card image slot (manifest ready), plate-texture halftone overlay
