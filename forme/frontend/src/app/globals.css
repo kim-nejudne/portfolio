@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Substrate */
+  --color-paper: #f4f2ed;
+  --color-ink: #0b0b0b;
+
+  /* Process colours, each with a job */
+  --color-cyan: #00a0d8;
+  --color-magenta: #d6006e;
+  --color-yellow: #f2b705;
+
+  /* Type */
+  --color-muted: #6b675f;
+  --color-muted-ink: #8c877d;
+
+  /* Hairlines */
+  --color-rule: #cdc9be;
+  --color-rule-strong: #a8a49a;
+  --color-rule-ink: #2b2b28;
+
+  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.05rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.15rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.3rem;
+
+  --radius-none: 0;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-radius: 0;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-synthesis-weight: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cyan);
+    outline-offset: 1px;
+  }
+}
+
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}

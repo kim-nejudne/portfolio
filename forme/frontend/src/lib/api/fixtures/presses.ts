@@ -1,0 +1,77 @@
+import type { Press } from '@/lib/types';
+
+/**
+ * Press states as they stood at DEMO_NOW. The floor board advances these
+ * deterministically from the elapsed time since the page mounted.
+ */
+export const PRESSES: readonly Press[] = [
+  {
+    id: 'XL75',
+    name: 'Heidelberg Speedmaster XL 75',
+    kind: 'litho',
+    units: '5 colour + coater',
+    maxSheet: 'B2',
+    state: 'MAKEREADY',
+    jobReference: 'FM-2608-0412',
+    jobDescription: 'Broadsheet poster, A3, four colour, rush',
+    customer: 'Kalsada Press',
+    sheetsRun: 0,
+    sheetsTarget: 288,
+    wasteSheets: 34,
+    sheetsPerHour: 9000,
+    minutesRemaining: 38,
+    operator: 'A. Mendoza',
+    shift: 'Shift 1',
+    queue: [
+      { reference: 'FM-2608-0406', customer: 'Atelier Sur', sheets: 405, stock: '170gsm uncoated', dueAt: '2026-08-04T17:00:00+08:00' },
+      { reference: 'FM-2608-0407', customer: 'Kalsada Press', sheets: 1_121, stock: '130gsm gloss art', dueAt: '2026-08-05T12:00:00+08:00' },
+      { reference: 'FM-2608-0410', customer: 'Nine Dots', sheets: 411, stock: '150gsm silk', dueAt: '2026-08-08T17:00:00+08:00' },
+    ],
+  },
+  {
+    id: 'G40',
+    name: 'Komori Lithrone G40',
+    kind: 'litho',
+    units: '8 colour, perfecting',
+    maxSheet: 'B1',
+    state: 'RUNNING',
+    jobReference: 'FM-2608-0409',
+    jobDescription: 'Census enumerator handbook, 32pp, A5',
+    customer: 'Bureau of Printing',
+    sheetsRun: 2_140,
+    sheetsTarget: 5_300,
+    wasteSheets: 187,
+    sheetsPerHour: 13_000,
+    minutesRemaining: 15,
+    operator: 'R. Delos Reyes',
+    shift: 'Shift 1',
+    queue: [
+      { reference: 'FM-2608-0408', customer: 'Talim Editions', sheets: 1_180, stock: '170gsm uncoated', dueAt: '2026-08-06T12:00:00+08:00' },
+      { reference: 'FM-2608-0413', customer: 'Talim Editions', sheets: 3_240, stock: '170gsm uncoated', dueAt: '2026-08-12T17:00:00+08:00' },
+      { reference: 'FM-2608-0416', customer: 'Bureau of Printing', sheets: 2_060, stock: '130gsm gloss art', dueAt: '2026-08-06T17:00:00+08:00' },
+    ],
+  },
+  {
+    id: 'INDIGO',
+    name: 'HP Indigo 12000',
+    kind: 'digital',
+    units: 'B2 digital, 7 colour',
+    maxSheet: 'B2',
+    state: 'RUNNING',
+    jobReference: 'FM-2608-0411',
+    jobDescription: 'Product care cards, A6, 300gsm silk board',
+    customer: 'Atelier Sur',
+    sheetsRun: 210,
+    sheetsTarget: 447,
+    wasteSheets: 9,
+    sheetsPerHour: 4_600,
+    minutesRemaining: 4,
+    operator: 'J. Castro',
+    shift: 'Shift 1',
+    queue: [
+      { reference: 'FM-2608-0415', customer: 'Nine Dots', sheets: 176, stock: '300gsm silk board', dueAt: '2026-08-04T12:00:00+08:00' },
+      { reference: 'FM-2608-0421', customer: 'Nine Dots', sheets: 29, stock: '350gsm uncoated board', dueAt: '2026-08-11T17:00:00+08:00' },
+      { reference: 'FM-2608-0422', customer: 'Talim Editions', sheets: 34, stock: 'Colorplan 270gsm', dueAt: '2026-08-08T17:00:00+08:00' },
+    ],
+  },
+];
