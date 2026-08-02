@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PLINTH — share card source</title>
+    <style>
+      @font-face {
+        font-family: 'Archivo Variable';
+        src: url('/node_modules/@fontsource-variable/archivo/files/archivo-latin-standard-normal.woff2')
+          format('woff2-variations');
+        font-weight: 100 900;
+        font-stretch: 62% 125%;
+      }
+      @font-face {
+        font-family: 'Space Mono';
+        src: url('/node_modules/@fontsource/space-mono/files/space-mono-latin-400-normal.woff2')
+          format('woff2');
+        font-weight: 400;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body { width: 1200px; height: 630px; }
+
+      body {
+        background: #f2eee6;
+        color: #101010;
+        font-family: 'Archivo Variable', sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 56px 64px;
+      }
+
+      .rail {
+        display: flex;
+        justify-content: space-between;
+        font-family: 'Space Mono', monospace;
+        font-size: 20px;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Three lines, broken by hand. The hero's five-line break is set for a
+         portrait-ish viewport column; at 1200x630 it stacks too tall and the
+         facts rule falls off the bottom of the card. */
+      h1 {
+        font-size: 112px;
+        font-weight: 900;
+        line-height: 0.86;
+        letter-spacing: -0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .heavier { color: #ff3b14; font-stretch: 125%; }
+
+      .rule { height: 6px; width: 180px; background: #ff3b14; margin-bottom: 26px; }
+
+      .facts {
+        border-top: 2px solid #101010;
+        padding-top: 20px;
+        font-family: 'Space Mono', monospace;
+        font-size: 22px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="rail">
+      <span>Plinth — periodised strength</span>
+      <span>01 / 09</span>
+    </div>
+
+    <h1>
+      Sixteen weeks.<br />
+      Then you do it<br />
+      again, <span class="heavier">heavier.</span></h1>
+
+    <div>
+      <div class="rule"></div>
+      <div class="facts">16 weeks · 4 blocks · 3 sessions / week · week 1 free</div>
+    </div>
+  </body>
+</html>

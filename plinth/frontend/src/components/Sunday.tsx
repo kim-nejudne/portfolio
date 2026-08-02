@@ -67,7 +67,7 @@ export default function Sunday() {
       aria-labelledby="sunday-heading"
       className="relative z-10 bg-blue px-4 py-28 text-bone md:px-10 md:py-40"
     >
-      <p className="font-mono text-xs uppercase tracking-[0.25em] tabular-nums opacity-70">
+      <p className="font-mono text-xs uppercase tracking-[0.25em] tabular-nums opacity-85">
         07 — The cadence
       </p>
       <h2
@@ -80,7 +80,11 @@ export default function Sunday() {
       </h2>
 
       <div className="mt-20 grid items-end gap-16 md:mt-28 md:grid-cols-12">
-        <div className="md:col-span-7">
+        {/* The strip enters from xPercent: 10. Below `md` it is full-width, so
+            that offset stood ~36px proud of the viewport and scrolled the whole
+            document sideways on a phone. Clip it here rather than dropping the
+            entrance — the slide now reads as arriving from behind the margin. */}
+        <div className="overflow-x-clip md:col-span-7">
           <div ref={stripRef} className="relative border-y border-bone/40">
             <div className="grid grid-cols-7">
               {DAYS.map((d) => (
@@ -102,7 +106,7 @@ export default function Sunday() {
               </span>
             </div>
           </div>
-          <p className="mt-16 font-mono text-xs uppercase tracking-[0.2em] opacity-70">
+          <p className="mt-16 font-mono text-xs uppercase tracking-[0.2em] opacity-85">
             Next week arrives Sunday 18:00 · never mid-week
           </p>
         </div>

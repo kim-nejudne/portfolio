@@ -65,11 +65,16 @@ export default function Premise() {
           We are not an app. We are the plan.
         </h2>
       </div>
-      <div className="overflow-hidden border-y border-bone/25 py-5">
+      {/* Inverted from blue-on-ink to bone-on-blue. The scaffold prompt asked
+          for blue on ink, but that measures 2.58:1 — under even the 3:1 large-
+          text floor. Blue still carries "the plan"; it now carries it as the
+          plate rather than as the type, which is also how the rest of the page
+          uses a full-bleed colour. */}
+      <div className="overflow-hidden bg-blue py-5">
         <div
           ref={marqueeRef}
           data-testid="block-marquee"
-          className="flex w-max whitespace-nowrap font-mono text-2xl uppercase tracking-[0.1em] text-blue md:text-4xl"
+          className="flex w-max whitespace-nowrap font-mono text-2xl uppercase tracking-[0.1em] text-bone md:text-4xl"
         >
           <span className="pr-2">{MARQUEE_TEXT.repeat(3)}</span>
           <span className="pr-2" aria-hidden="true">

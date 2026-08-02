@@ -87,8 +87,11 @@ export default function EnrolDialog({ open, onClose }: EnrolDialogProps) {
               </div>
             ))}
           </dl>
+          {/* The form says it is a demo; this state did not, and it is the one
+              that reads as a completed transaction. */}
           <p className="mt-8 font-mono text-xs uppercase tracking-[0.2em] text-muted">
-            Week one is free. Nothing is charged until day eight.
+            Demo — nothing was submitted and no card was taken. PLINTH is a
+            portfolio piece, not a real program.
           </p>
           <button
             type="button"

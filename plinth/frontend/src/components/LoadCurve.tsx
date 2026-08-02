@@ -6,18 +6,50 @@ const PLOT_W = 1000;
 const PLOT_H = 420;
 
 const xAt = (i: number) => (i / 15) * PLOT_W;
-const yTonnage = (v: number) => PLOT_H - ((v - 11000) / 16000) * PLOT_H;
-const yIntensity = (v: number) => PLOT_H - ((v - 65) / 27.5) * PLOT_H;
+
+/**
+ * Both axes are derived from the data they plot. The scaffold hard-coded the
+ * domains (11000–27000 kg, 65–92.5%), so editing a figure silently moved the
+ * lines against a scale that no longer fitted them.
+ */
+const scale = (values: number[]) => {
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  return {
+    norm: (v: number) => (v - lo) / (hi - lo),
+    y: (v: number) => PLOT_H - ((v - lo) / (hi - lo)) * PLOT_H,
+  };
+};
+
+const TONNAGE = scale(TONNAGE_KG);
+const INTENSITY = scale(INTENSITY_1RM);
 
 const toPath = (ys: number[]) =>
   ys
     .map((y, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${y.toFixed(1)}`)
     .join('');
 
-const TONNAGE_D = toPath(TONNAGE_KG.map(yTonnage));
-const INTENSITY_D = toPath(INTENSITY_1RM.map(yIntensity));
-const X11 = xAt(10);
+const TONNAGE_D = toPath(TONNAGE_KG.map(TONNAGE.y));
+const INTENSITY_D = toPath(INTENSITY_1RM.map(INTENSITY.y));
 const BLOCK_DIVIDERS = [3.5, 7.5, 11.5].map(xAt);
+
+/**
+ * Where the two lines actually meet, found by walking the segments rather than
+ * asserted. The scaffold drew its marker at a hard-coded week 11 while the
+ * lines crossed at week 12 — the annotation and the picture disagreed, on the
+ * page whose entire pitch is measurement.
+ */
+function crossoverIndex(): number {
+  const gap = (i: number) => TONNAGE.norm(TONNAGE_KG[i]) - INTENSITY.norm(INTENSITY_1RM[i]);
+  for (let i = 0; i < TONNAGE_KG.length - 1; i += 1) {
+    const a = gap(i);
+    const b = gap(i + 1);
+    if (a > 0 && b <= 0) return i + a / (a - b);
+  }
+  return NaN;
+}
+
+const CROSSOVER_X = xAt(crossoverIndex());
 
 export default function LoadCurve() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -95,7 +127,7 @@ export default function LoadCurve() {
             viewBox="-60 -46 1120 510"
             className="w-full"
             role="img"
-            aria-label="Line chart of weekly tonnage against average intensity across sixteen weeks. The two lines cross at week eleven."
+            aria-label="Line chart of weekly tonnage against average intensity across sixteen weeks. Tonnage peaks at 28,000 kg in week three and steps down block by block; intensity climbs to 90% of one-rep max in week eleven. The two cross once, at the start of REALISE in week nine."
             data-testid="load-curve-svg"
           >
             {BLOCK_DIVIDERS.map((x) => (
@@ -142,20 +174,20 @@ export default function LoadCurve() {
             />
             <g ref={noteRef}>
               <path
-                d={`M${X11},-6 L${X11},${PLOT_H}`}
+                d={`M${CROSSOVER_X},-6 L${CROSSOVER_X},${PLOT_H}`}
                 stroke="#101010"
                 strokeWidth="1"
                 strokeDasharray="2 4"
               />
               <text
-                x={X11}
+                x={CROSSOVER_X}
                 y={-20}
                 textAnchor="middle"
                 fontSize="14"
                 fill="#101010"
                 className="font-mono tabular-nums"
               >
-                WK 11 · 24,100 KG · 84% 1RM
+                CROSSOVER · REALISE BEGINS · WK 09
               </text>
             </g>
           </svg>

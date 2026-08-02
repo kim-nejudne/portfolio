@@ -71,9 +71,19 @@ export default function Evidence() {
         className="mt-10 grid grid-cols-2 gap-px border border-ink bg-ink/40 md:grid-cols-4"
         data-testid="evidence-grid"
       >
+        {/* `dt` precedes `dd` in the DOM because that is the only order `dl`
+            permits; `flex-col-reverse` keeps the figure above its caption on
+            screen. Nothing here is focusable, so visual and tab order can't
+            disagree. */}
         {EVIDENCE.map((e, i) => (
-          <div key={e.caption} className="bg-vermilion p-5 md:p-8">
-            <dd className="font-display text-[clamp(2.4rem,6.5vw,5.5rem)] font-black leading-none tracking-[-0.02em]">
+          <div
+            key={e.caption}
+            className="evidence-cell flex flex-col-reverse justify-end bg-vermilion p-5 md:p-8"
+          >
+            <dt className="mt-4 font-mono text-[10px] uppercase tracking-[0.2em] md:text-xs">
+              {e.caption}
+            </dt>
+            <dd className="evidence-figure font-black leading-none tracking-[-0.02em]">
               <span
                 aria-hidden="true"
                 ref={(el) => {
@@ -86,9 +96,6 @@ export default function Evidence() {
               </span>
               <span className="sr-only">{e.realText}</span>
             </dd>
-            <dt className="mt-4 font-mono text-[10px] uppercase tracking-[0.2em] md:text-xs">
-              {e.caption}
-            </dt>
           </div>
         ))}
       </dl>

@@ -87,10 +87,28 @@ section[id] {
   }
 }
 
-/* Half-tone stipple treatment for REALISE planner cells */
+/* Half-tone stipple treatment for REALISE planner cells. Lighter and finer than
+   the scaffold's — at 1px/7px the dots swallowed the SQ/PR/DL labels sitting on
+   top of them. */
 .stipple {
-  background-image: radial-gradient(circle, var(--color-blue) 1px, transparent 1.4px);
-  background-size: 7px 7px;
+  background-image: radial-gradient(circle, var(--color-blue) 0.6px, transparent 1px);
+  background-size: 6px 6px;
+}
+
+/* The evidence figures size from their own cell rather than the viewport. The
+   viewport clamp put a 295px "41,600" inside a 235px cell at 1280.
+
+   Container query units resolve against the cell's content box, so padding is
+   already excluded. "41,600" measures 3.55x its own font size in Archivo Black
+   with tabular figures, which puts the ceiling at 28cqi — 26cqi is that with
+   about 8% of headroom, so a font update or a longer figure has somewhere to go
+   before it touches the hairline. */
+.evidence-cell {
+  container-type: inline-size;
+}
+
+.evidence-figure {
+  font-size: min(26cqi, 5.5rem);
 }
 
 

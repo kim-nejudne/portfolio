@@ -1,22 +1,10 @@
-export interface BlockDef {
-  n: string;
-  name: string;
-  weeks: string;
-  line1: string;
-  line2: string;
-  volume: number;
-  intensity: number;
-}
-
-export const BLOCKS: BlockDef[] = [
+const BLOCK_COPY = [
   {
     n: '01',
     name: 'ACCUMULATE',
     weeks: 'WEEKS 01–04',
     line1: 'Four weeks of high volume at moderate load.',
     line2: 'Tonnage climbs week on week. The base is built here.',
-    volume: 92,
-    intensity: 44,
   },
   {
     n: '02',
@@ -24,8 +12,6 @@ export const BLOCKS: BlockDef[] = [
     weeks: 'WEEKS 05–08',
     line1: 'Volume holds while the load rises.',
     line2: 'Sets get heavier, rest gets longer, the work narrows.',
-    volume: 74,
-    intensity: 63,
   },
   {
     n: '03',
@@ -33,8 +19,6 @@ export const BLOCKS: BlockDef[] = [
     weeks: 'WEEKS 09–12',
     line1: 'Volume drops away. Intensity peaks.',
     line2: 'Heavy doubles and triples at the cycle’s highest percentages.',
-    volume: 46,
-    intensity: 95,
   },
   {
     n: '04',
@@ -42,25 +26,95 @@ export const BLOCKS: BlockDef[] = [
     weeks: 'WEEKS 13–16',
     line1: 'The deload, programmed rather than improvised.',
     line2: 'Load falls away so the next cycle can start heavier.',
-    volume: 22,
-    intensity: 18,
   },
-];
+] as const;
 
+/**
+ * Weekly tonnage, kg. Four blocks of four, each ending in a deload.
+ *
+ * The scaffold's figures rose across the cycle and put their maximum in block
+ * four — which contradicted every block description beside them ("volume drops
+ * away", "load falls away") and the volume bars on those same panels. These
+ * descend block by block, as the copy has always said they do. Range holds to
+ * the program's stated 12,000–28,000 kg.
+ */
 export const TONNAGE_KG = [
-  12500, 15200, 17800, 11800, 18200, 20500, 22800, 14600, 21200, 23600, 24100,
-  16200, 23800, 22000, 17600, 12400,
+  24000, 26000, 28000, 17000, // 01 ACCUMULATE — climbs to the cycle peak
+  23000, 24000, 25000, 16500, // 02 INTENSIFY  — volume holds while load rises
+  19000, 19500, 20000, 14000, // 03 REALISE    — volume drops away
+  15500, 14500, 13500, 12000, // 04 RESTORE    — falls away
 ];
 
+/**
+ * Average intensity, % of tested 1RM. Climbs across the first three blocks and
+ * deloads at the end of each, which is what a periodised block actually does —
+ * the scaffold's copy claimed it "does not negotiate" while plotting a sawtooth
+ * directly beside the sentence.
+ *
+ * Tuned so the two series cross exactly once, on the INTENSIFY/REALISE divider.
+ * `CROSSOVER_X` in LoadCurve computes that point from these numbers rather than
+ * trusting the tuning, so the annotation cannot drift away from the picture.
+ */
 export const INTENSITY_1RM = [
-  66, 69, 72, 65, 74, 76, 78, 70, 80, 82, 84, 74, 88, 90, 85, 72,
+  67.5, 70, 72.5, 65, // 01 ACCUMULATE
+  75, 77.5, 80, 70,   // 02 INTENSIFY
+  78, 84, 90, 75,     // 03 REALISE — peaks at 90% in week 11
+  72.5, 71, 69, 67.5, // 04 RESTORE
 ];
 
 export const CURVE_STATEMENTS = [
-  'Volume builds the base. Tonnage peaks inside each block, then deloads.',
-  'Intensity rises on one line for sixteen weeks. It does not negotiate.',
-  'The two cross once. Week eleven. After that, load leads.',
+  'Volume peaks in week three at 28,000 kg, then steps down block by block.',
+  'Intensity climbs to 90% in week eleven, deloading at the end of each block.',
+  'The two cross once, where REALISE begins. After that, load leads.',
 ];
+
+export interface BlockDef {
+  n: string;
+  name: string;
+  weeks: string;
+  line1: string;
+  line2: string;
+  /** Mean weekly tonnage for the block, kg. */
+  tonnage: number;
+  /** Mean intensity for the block, % of tested 1RM. */
+  intensity: number;
+  /** Bar widths, 0–100, normalised within each series across the four blocks. */
+  volumeBar: number;
+  intensityBar: number;
+}
+
+const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const weeksOf = (xs: number[], block: number) =>
+  xs.slice((block - 1) * 4, block * 4);
+
+/**
+ * The panel bars used to be four hand-written percentages with no unit and no
+ * source — 92/44, 74/63, 46/95, 22/18 — which meant they could say anything and
+ * did: they told the correct periodisation story while the plotted tonnage told
+ * the opposite one. They are now derived from the same two arrays the load
+ * curve plots, and each is labelled with the real figure it represents.
+ *
+ * Widths are normalised within each series rather than to an absolute zero:
+ * mean intensity only ranges 69–82% across the cycle, so a zero-based bar would
+ * render four near-identical blocks and lose the inversion that is the point of
+ * the panel. The 12% floor keeps the smallest block visible as a mark.
+ */
+const BLOCK_TONNAGE = [1, 2, 3, 4].map((b) => mean(weeksOf(TONNAGE_KG, b)));
+const BLOCK_INTENSITY = [1, 2, 3, 4].map((b) => mean(weeksOf(INTENSITY_1RM, b)));
+
+const bar = (value: number, series: number[]) => {
+  const lo = Math.min(...series);
+  const hi = Math.max(...series);
+  return Math.round(12 + 88 * ((value - lo) / (hi - lo)));
+};
+
+export const BLOCKS: BlockDef[] = BLOCK_COPY.map((copy, i) => ({
+  ...copy,
+  tonnage: Math.round(BLOCK_TONNAGE[i]),
+  intensity: Math.round(BLOCK_INTENSITY[i]),
+  volumeBar: bar(BLOCK_TONNAGE[i], BLOCK_TONNAGE),
+  intensityBar: bar(BLOCK_INTENSITY[i], BLOCK_INTENSITY),
+}));
 
 export interface SessionRow {
   label: string;

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap, useGSAP, MM_CONDITIONS } from '../gsapSetup';
 
 const LINKS = [
@@ -12,6 +12,8 @@ const LINKS = [
 export default function Nav() {
   const headerRef = useRef<HTMLElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
 
   useGSAP(
     () => {
@@ -29,11 +31,26 @@ export default function Nav() {
     { scope: headerRef },
   );
 
+  // Escape closes and hands focus back to the control that opened it, so a
+  // keyboard user is never left with focus inside a panel that has gone away.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
   return (
     <header
       ref={headerRef}
       className="fixed inset-x-0 top-0 z-40 border-b border-ink bg-bone"
-    >      <nav
+    >
+      <nav
         aria-label="Primary"
         className="flex h-[var(--nav-height)] items-center justify-between px-4 md:px-10"
       >
@@ -57,10 +74,46 @@ export default function Nav() {
             </li>
           ))}
         </ul>
-        <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted tabular-nums">
+        <span className="hidden font-mono text-xs uppercase tracking-[0.2em] text-muted tabular-nums md:inline">
           16 weeks
         </span>
+
+        {/* Below `md` the section links were simply `hidden`, so there was no
+            way to reach any section from a phone. Square and hairline like the
+            rest of the furniture — an index, not a hamburger. */}
+        <button
+          ref={toggleRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls="nav-sections"
+          data-testid="nav-toggle"
+          className="border border-ink px-3 py-2 font-mono text-[10px] uppercase tracking-[0.25em] md:hidden"
+        >
+          {open ? 'Close' : 'Index'}
+        </button>
       </nav>
+
+      <ul
+        id="nav-sections"
+        hidden={!open}
+        data-testid="nav-mobile-panel"
+        className="border-t border-ink bg-bone md:hidden"
+      >
+        {LINKS.map((link) => (
+          <li key={link.href} className="border-b border-ink/15 last:border-b-0">
+            <a
+              href={link.href}
+              onClick={() => setOpen(false)}
+              data-testid={`nav-mobile-link-${link.label.toLowerCase()}`}
+              className="block px-4 py-4 font-mono text-xs uppercase tracking-[0.25em]"
+            >
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+
       <div
         ref={progressRef}
         aria-hidden="true"

@@ -5,12 +5,16 @@ const WEEKS = Array.from({ length: 16 }, (_, i) => i + 1);
 const DAYS = ['SQ', 'PR', 'DL'];
 const BLOCK_NAMES = ['ACCUMULATE', 'INTENSIFY', 'REALISE', 'RESTORE'];
 
+// Four treatments, not four hues. Blocks 3 and 4 carry a hairline as well:
+// without one the stipple ran continuously across weeks 09–12 and read as a
+// single dotted rectangle, and the hollow block had no grid at all — both
+// directly under a caption saying "one cell per session".
 function cellTreatment(week: number): string {
   const block = Math.ceil(week / 4);
   if (block === 1) return 'bg-blue text-bone';
   if (block === 2) return 'border border-blue bg-transparent text-blue';
-  if (block === 3) return 'stipple text-blue';
-  return 'bg-transparent text-muted';
+  if (block === 3) return 'stipple border border-blue/45 text-blue';
+  return 'border border-ink/25 bg-transparent text-muted';
 }
 
 export default function Planner() {
@@ -31,11 +35,17 @@ export default function Planner() {
           return;
         }
 
+        // The second zoom stage scales a 48-cell subtree — stipple backgrounds
+        // included — by 8. That is cheap enough on a desktop GPU and not on a
+        // mid-range phone, so mobile gets the assembly and the first zoom only,
+        // over a shorter pin.
+        const deep = !ctx.conditions?.isMobile;
+
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: sectionRef.current,
             start: 'top top',
-            end: '+=300%',
+            end: deep ? '+=300%' : '+=180%',
             scrub: 1,
             pin: true,
             anticipatePin: 1,
@@ -60,11 +70,13 @@ export default function Planner() {
         tl.to({}, { duration: 0.6 });
         tl.to(
           zoomRef.current,
-          { scale: 3.4, duration: 2, ease: 'power2.in' },
+          { scale: deep ? 3.4 : 2.2, duration: 2, ease: 'power2.in' },
           'zoom',
         );
         tl.to('.planner-chrome', { opacity: 0, duration: 0.4 }, 'zoom');
-        tl.to(zoomRef.current, { scale: 8, duration: 1.6, ease: 'power2.in' });
+        if (deep) {
+          tl.to(zoomRef.current, { scale: 8, duration: 1.6, ease: 'power2.in' });
+        }
         tl.to(zoomRef.current, { opacity: 0, duration: 0.5 }, '-=0.4');
         tl.fromTo(
           cardRef.current,

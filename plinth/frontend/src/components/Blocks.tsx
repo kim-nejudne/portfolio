@@ -53,12 +53,17 @@ export default function Blocks() {
     { scope: sectionRef },
   );
 
+  // `overflow-x-clip` on the section: the track is four viewport-wide panels
+  // side by side, so it stands 300vw proud of this section before ScrollTrigger
+  // ever pins it — which put a 4320px horizontal scrollbar on the document at
+  // 1440. `clip` rather than `hidden` because `hidden` forces overflow-y to
+  // `auto`, making this a scroll container and breaking the pin.
   return (
     <section
       id="blocks"
       ref={sectionRef}
       aria-labelledby="blocks-heading"
-      className="relative z-10 bg-ink"
+      className="relative z-10 overflow-x-clip bg-ink"
     >
       <h2 id="blocks-heading" className="sr-only">
         The four blocks
@@ -85,7 +90,11 @@ export default function Blocks() {
                 >
                   {b.n}
                 </span>
-                <span className="block-reveal pt-4 font-mono text-xs uppercase tracking-[0.25em] tabular-nums opacity-70">
+                <span
+                  className={`block-reveal pt-4 font-mono text-xs uppercase tracking-[0.25em] tabular-nums ${
+                    onBlue ? 'opacity-85' : 'opacity-70'
+                  }`}
+                >
                   {b.weeks}
                 </span>
               </div>
@@ -97,31 +106,37 @@ export default function Blocks() {
                 <p className="block-reveal mt-5 max-w-md font-mono text-sm leading-relaxed">
                   {b.line1}
                 </p>
-                <p className="block-reveal max-w-md font-mono text-sm leading-relaxed opacity-70">
+                <p
+                  className={`block-reveal max-w-md font-mono text-sm leading-relaxed ${
+                    onBlue ? 'opacity-85' : 'opacity-70'
+                  }`}
+                >
                   {b.line2}
                 </p>
 
                 <div className="mt-10 max-w-xl space-y-4">
                   <div>
-                    <div className="flex justify-between font-mono text-[10px] uppercase tracking-[0.2em] opacity-80">
-                      <span>Volume</span>
-                      <span className="tabular-nums">{b.volume}%</span>
+                    <div className="flex justify-between font-mono text-[10px] uppercase tracking-[0.2em] opacity-85">
+                      <span>Volume · mean / week</span>
+                      <span className="tabular-nums">
+                        {b.tonnage.toLocaleString('en-GB')} kg
+                      </span>
                     </div>
                     <div
                       className={`block-bar mt-1 h-5 origin-left ${
                         onBlue ? 'bg-bone' : 'bg-blue'
                       }`}
-                      style={{ width: `${b.volume}%` }}
+                      style={{ width: `${b.volumeBar}%` }}
                     />
                   </div>
                   <div>
-                    <div className="flex justify-between font-mono text-[10px] uppercase tracking-[0.2em] opacity-80">
-                      <span>Intensity</span>
-                      <span className="tabular-nums">{b.intensity}%</span>
+                    <div className="flex justify-between font-mono text-[10px] uppercase tracking-[0.2em] opacity-85">
+                      <span>Intensity · mean</span>
+                      <span className="tabular-nums">{b.intensity}% 1RM</span>
                     </div>
                     <div
                       className="block-bar mt-1 h-5 origin-left bg-vermilion"
-                      style={{ width: `${b.intensity}%` }}
+                      style={{ width: `${b.intensityBar}%` }}
                     />
                   </div>
                 </div>
