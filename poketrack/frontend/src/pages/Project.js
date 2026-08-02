@@ -242,8 +242,8 @@ export default function ProjectPage() {
     return (
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <p className="font-pixel text-[10px] tracking-widest text-type-electric">PRESTIGE</p>
-          <h1 className="font-pixel text-2xl tracking-widest text-white pixel-shadow">START OVER, KEEP THE LEGEND</h1>
+          <p className="font-pixel text-[10px] tracking-display text-type-electric">PRESTIGE</p>
+          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow">START OVER, KEEP THE LEGEND</h1>
           <p className="mt-2 font-body text-sm text-white/70">Pick a new starter. Your lifetime XP stays on the leaderboard as a ⭐ badge.</p>
         </div>
         <StarterPicker starters={starters} onConfirm={confirmPrestige} loading={busy} testIdPrefix="prestige-starter" />
@@ -256,8 +256,8 @@ export default function ProjectPage() {
     return (
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <p className="font-pixel text-[10px] tracking-widest text-type-electric">FIRST VISIT</p>
-          <h1 className="font-pixel text-2xl tracking-widest text-white pixel-shadow" data-testid="starter-gate-title">PICK YOUR PARTNER TO CONTINUE</h1>
+          <p className="font-pixel text-[10px] tracking-display text-type-electric">FIRST VISIT</p>
+          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="starter-gate-title">PICK YOUR PARTNER TO CONTINUE</h1>
           <p className="mt-2 font-body text-sm text-white/70">You can't see the board until you've chosen a Pokémon partner. Every ticket you complete will level them up.</p>
         </div>
         <StarterPicker starters={starters} onConfirm={chooseStarter} loading={busy} />
@@ -273,15 +273,15 @@ export default function ProjectPage() {
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
         <div>
-          <p className="font-pixel text-[9px] tracking-widest text-type-electric">PROJECT</p>
-          <h1 className="font-pixel text-2xl tracking-widest text-white pixel-shadow" data-testid="project-name">{project.name}</h1>
+          <p className="font-pixel text-[9px] tracking-display text-type-electric">PROJECT</p>
+          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="project-name">{project.name}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex gap-1 rounded-[12px] p-1 bg-black/40 ring-2 ring-black/70">
             {[["board","BOARD"],["list","LIST"],["leaderboard","LEADERBOARD"]].map(([k,label]) => (
               <button key={k} onClick={() => setTab(k)}
                 data-testid={`tab-${k}`}
-                className={`px-3 py-1 rounded-[10px] font-pixel text-[9px] tracking-widest ${tab === k ? "bg-type-water text-type-water-ink" : "text-white/80"}`}>{label}</button>
+                className={`px-3 py-1 rounded-[10px] font-pixel text-[9px] tracking-hud ${tab === k ? "bg-type-water text-type-water-ink" : "text-white/80"}`}>{label}</button>
             ))}
           </div>
           <GameButton size="sm" tone="grass" onClick={openNewTicket} testId="new-ticket-button">+ NEW TICKET</GameButton>
@@ -331,7 +331,7 @@ export default function ProjectPage() {
             <GameFrame className="p-0 overflow-hidden">
               <table className="w-full border-collapse" data-testid="tickets-list">
                 <thead>
-                  <tr className="font-pixel text-[9px] tracking-widest text-white/70">
+                  <tr className="font-pixel text-[9px] tracking-hud text-white/70">
                     <th className="text-left px-4 py-2">Ticket</th>
                     <th className="text-left px-4 py-2">Status</th>
                     <th className="text-right px-4 py-2">Points</th>
@@ -342,7 +342,7 @@ export default function ProjectPage() {
                   {tickets.map((t) => (
                     <tr key={t.id} className="border-t border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => openEditTicket(t)} data-testid={`list-row-${t.id}`}>
                       <td className="px-4 py-2 font-body text-sm text-white">{t.title}</td>
-                      <td className="px-4 py-2 font-pixel text-[9px] tracking-widest uppercase text-white/70">{t.status.replace("_", " ")}</td>
+                      <td className="px-4 py-2 font-pixel text-[9px] tracking-hud uppercase text-white/70">{t.status.replace("_", " ")}</td>
                       <td className="px-4 py-2 text-right font-pixel text-[10px] text-white">{t.story_points}</td>
                       <td className="px-4 py-2 font-body text-xs text-white/70">{memberMap[t.assignee_id]?.name || "—"}</td>
                     </tr>

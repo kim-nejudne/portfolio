@@ -27,9 +27,9 @@ export default function TeamSettings() {
   return (
     <div className="max-w-lg mx-auto">
       <GameFrame className="p-6">
-        <p className="font-pixel text-[11px] tracking-widest text-white pixel-shadow" data-testid="team-settings-title">TEAM SETTINGS</p>
+        <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow" data-testid="team-settings-title">TEAM SETTINGS</p>
         <label className="block mt-4">
-          <span className="font-pixel text-[9px] tracking-widest text-white/70">TEAM NAME</span>
+          <span className="font-pixel text-[9px] tracking-hud text-white/70">TEAM NAME</span>
           <input value={name} onChange={(e) => setName(e.target.value)}
             data-testid="team-settings-name"
             className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />

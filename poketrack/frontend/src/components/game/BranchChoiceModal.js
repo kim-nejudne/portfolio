@@ -24,7 +24,7 @@ export function BranchChoiceModal({ open, options = [], onChoose, onCancel }) {
         >
           <div className="mx-auto max-w-6xl">
             <div className="text-center mb-4">
-              <p className="font-pixel text-[12px] tracking-widest text-white/90 pixel-shadow">CHOOSE YOUR EVOLUTION!</p>
+              <p className="font-pixel text-[12px] tracking-display text-white/90 pixel-shadow">CHOOSE YOUR EVOLUTION!</p>
               <p className="font-body text-sm text-white/70 mt-2">Your partner is ready to evolve. Pick a path — this choice is permanent (until XP reversals!).</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -44,7 +44,7 @@ export function BranchChoiceModal({ open, options = [], onChoose, onCancel }) {
                       <div className="grid place-items-center h-32">
                         <img src={mon.sprite} alt={mon.name} className="sprite h-28 w-28 object-contain drop-shadow-[0_6px_0_rgba(0,0,0,0.5)] animate-idle-bob" />
                       </div>
-                      <div className="mt-2 font-pixel text-[11px] tracking-widest capitalize text-white pixel-shadow">{mon.name}</div>
+                      <div className="mt-2 font-pixel text-[11px] tracking-display capitalize text-white pixel-shadow">{mon.name}</div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {mon.types.map((t) => <TypeChip key={t} type={t} size="sm" />)}
                       </div>

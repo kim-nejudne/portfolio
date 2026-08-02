@@ -13,12 +13,12 @@ function Credential({ label, value, copied, onCopy }) {
   return (
     <div className="px-3 py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-pixel text-[9px] tracking-widest text-white/60">{label}</span>
+        <span className="font-pixel text-[9px] tracking-hud text-white/60">{label}</span>
         <button
           type="button"
           onClick={onCopy}
           aria-label={`Copy ${label.toLowerCase()} ${value}`}
-          className="font-pixel text-[8px] tracking-widest px-2 py-1 rounded-[6px] shrink-0
+          className="font-pixel text-[8px] tracking-hud px-2 py-1 rounded-[6px] shrink-0
                      bg-white/10 text-white/80 ring-1 ring-white/15
                      hover:bg-white/20 hover:text-white
                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70
@@ -106,16 +106,16 @@ export default function SignIn() {
   return (
     <div className="max-w-md mx-auto py-10">
       <GameFrame className="p-6">
-        <p className="font-pixel text-[12px] tracking-widest text-white pixel-shadow" data-testid="sign-in-title">TRAINER SIGN-IN</p>
+        <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow" data-testid="sign-in-title">TRAINER SIGN-IN</p>
         <form onSubmit={submit} className="mt-5 space-y-3" data-testid="sign-in-form">
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-widest text-white/70">EMAIL</span>
+            <span className="font-pixel text-[9px] tracking-hud text-white/70">EMAIL</span>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
               data-testid="sign-in-email"
               className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
           </label>
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-widest text-white/70">PASSWORD</span>
+            <span className="font-pixel text-[9px] tracking-hud text-white/70">PASSWORD</span>
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
               data-testid="sign-in-password"
               className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
@@ -127,7 +127,7 @@ export default function SignIn() {
 
       {demos.length > 0 && (
         <GameFrame className="mt-5 p-6" tone="panel2" testId="demo-accounts">
-          <p className="font-pixel text-[11px] tracking-widest text-type-electric">JUST LOOKING?</p>
+          <p className="font-pixel text-[11px] tracking-display text-type-electric">JUST LOOKING?</p>
           <p className="mt-2 font-body text-sm text-white/75">
             Use one of these accounts — no sign-up needed. Sign in with a single button,
             or type the credentials into the form above. Each trainer drops you at a
@@ -143,7 +143,7 @@ export default function SignIn() {
                   data-testid={`demo-account-${d.email}`}
                   className="rounded-[12px] bg-black/40 px-4 py-4 ring-2 ring-black/70 border border-white/10"
                 >
-                  <p className="font-pixel text-[10px] tracking-widest text-white pixel-shadow">
+                  <p className="font-pixel text-[10px] tracking-hud text-white pixel-shadow">
                     {d.role_label || d.name}
                   </p>
                   <p className="mt-2 font-body text-sm text-white/90">{d.name}</p>

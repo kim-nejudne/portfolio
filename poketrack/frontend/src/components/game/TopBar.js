@@ -16,7 +16,7 @@ export function TopBar() {
               <span className="h-2 w-2 rounded-full bg-white ring-2 ring-black" />
             </div>
           </div>
-          <span className="font-pixel text-[11px] tracking-widest text-white pixel-shadow">POKÉTRACK</span>
+          <span className="font-pixel text-[11px] tracking-display text-white pixel-shadow">POKÉTRACK</span>
         </Link>
         <div className="flex items-center gap-2">
           {user ? (

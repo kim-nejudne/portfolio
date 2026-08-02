@@ -23,7 +23,7 @@ export function LevelUpBanner({ level, visible, onDone }) {
           className="pointer-events-none fixed left-1/2 top-16 z-[80] -translate-x-1/2"
           data-testid="level-up-banner"
         >
-          <div className="relative rounded-[16px] bg-white text-black ring-4 ring-black shadow-frame px-6 py-3 font-pixel text-[12px] tracking-widest">
+          <div className="relative rounded-[16px] bg-white text-black ring-4 ring-black shadow-frame px-6 py-3 font-pixel text-[12px] tracking-display">
             LEVEL UP! <span className="text-type-fire">LV {level}</span>
             <div className="pointer-events-none absolute inset-0 rounded-[16px]"
               style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0) 60%)" }} />

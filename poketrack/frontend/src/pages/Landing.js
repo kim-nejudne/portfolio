@@ -42,11 +42,11 @@ export default function Landing() {
           <motion.p
             initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="font-pixel text-[10px] tracking-widest text-type-electric mb-3">A NEW ADVENTURE BEGINS</motion.p>
+            className="font-pixel text-[10px] tracking-display text-type-electric mb-3">A NEW ADVENTURE BEGINS</motion.p>
           <motion.h1
             initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.05, type: "spring", stiffness: 420, damping: 32 }}
-            className="font-pixel text-3xl sm:text-4xl lg:text-5xl leading-[1.35] tracking-widest text-white pixel-shadow">
+            className="font-pixel text-3xl sm:text-4xl lg:text-5xl leading-[1.35] tracking-display text-white pixel-shadow">
             LEVEL UP<br />YOUR TEAM.
           </motion.h1>
           <motion.p
@@ -105,7 +105,7 @@ export default function Landing() {
           t: "CLEAN REVERSALS", d: "Un-check a Done ticket and your Pokemon devolves cleanly — history rolls back, no ledger mutation."
         }].map((f) => (
           <GameFrame key={f.t} className="p-5">
-            <p className="font-pixel text-[11px] tracking-widest text-type-electric">{f.t}</p>
+            <p className="font-pixel text-[11px] tracking-display text-type-electric">{f.t}</p>
             <p className="mt-3 font-body text-sm text-white/85">{f.d}</p>
           </GameFrame>
         ))}

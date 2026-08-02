@@ -30,22 +30,22 @@ export default function SignUp() {
   return (
     <div className="max-w-md mx-auto py-10">
       <GameFrame className="p-6">
-        <p className="font-pixel text-[12px] tracking-widest text-white pixel-shadow" data-testid="sign-up-title">NEW TRAINER REGISTRATION</p>
+        <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow" data-testid="sign-up-title">NEW TRAINER REGISTRATION</p>
         <form onSubmit={submit} className="mt-5 space-y-3" data-testid="sign-up-form">
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-widest text-white/70">TRAINER NAME</span>
+            <span className="font-pixel text-[9px] tracking-hud text-white/70">TRAINER NAME</span>
             <input required value={name} onChange={(e) => setName(e.target.value)}
               data-testid="sign-up-name"
               className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
           </label>
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-widest text-white/70">EMAIL</span>
+            <span className="font-pixel text-[9px] tracking-hud text-white/70">EMAIL</span>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
               data-testid="sign-up-email"
               className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
           </label>
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-widest text-white/70">PASSWORD (6+ chars)</span>
+            <span className="font-pixel text-[9px] tracking-hud text-white/70">PASSWORD (6+ chars)</span>
             <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
               data-testid="sign-up-password"
               className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />

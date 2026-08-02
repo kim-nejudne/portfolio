@@ -20,7 +20,7 @@ export function BoardColumn({ status, tickets, children }) {
           style={{ background: `linear-gradient(180deg, ${color}, transparent 80%)` }}>
           <div className="flex items-center gap-2">
             <span className="text-lg" aria-hidden>{meta.icon}</span>
-            <span className="font-pixel text-[10px] tracking-widest text-white pixel-shadow">{meta.label}</span>
+            <span className="font-pixel text-[10px] tracking-display text-white pixel-shadow">{meta.label}</span>
           </div>
           <span data-testid={`board-column-${status}-count`} className="font-pixel text-[9px] px-2 py-0.5 rounded-chip bg-black/70 text-white ring-2 ring-black/70">{tickets.length}</span>
         </div>

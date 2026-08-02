@@ -38,22 +38,22 @@ export function TicketModal({ open, initial, members = [], onCancel, onSave, onD
             transition={{ type: "spring", stiffness: 460, damping: 32 }}
             className="w-[min(640px,96vw)]">
             <GameFrame className="p-5">
-              <p className="font-pixel text-[12px] tracking-widest text-white pixel-shadow">{initial ? "EDIT TICKET" : "NEW TICKET"}</p>
+              <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow">{initial ? "EDIT TICKET" : "NEW TICKET"}</p>
               <label className="block mt-4">
-                <span className="font-pixel text-[9px] tracking-widest text-white/70">TITLE</span>
+                <span className="font-pixel text-[9px] tracking-hud text-white/70">TITLE</span>
                 <input value={title} onChange={(e) => setTitle(e.target.value)}
                   data-testid="ticket-modal-title"
                   className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
               </label>
               <label className="block mt-3">
-                <span className="font-pixel text-[9px] tracking-widest text-white/70">DESCRIPTION</span>
+                <span className="font-pixel text-[9px] tracking-hud text-white/70">DESCRIPTION</span>
                 <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3}
                   data-testid="ticket-modal-description"
                   className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
               </label>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div>
-                  <span className="font-pixel text-[9px] tracking-widest text-white/70">STORY POINTS</span>
+                  <span className="font-pixel text-[9px] tracking-hud text-white/70">STORY POINTS</span>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {POINTS.map((p) => (
                       <button key={p} onClick={() => setPoints(p)}
@@ -63,7 +63,7 @@ export function TicketModal({ open, initial, members = [], onCancel, onSave, onD
                   </div>
                 </div>
                 <div>
-                  <span className="font-pixel text-[9px] tracking-widest text-white/70">STATUS</span>
+                  <span className="font-pixel text-[9px] tracking-hud text-white/70">STATUS</span>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {["backlog", "in_progress", "done"].map((s) => (
                       <button key={s} onClick={() => setStatus(s)}
@@ -74,7 +74,7 @@ export function TicketModal({ open, initial, members = [], onCancel, onSave, onD
                 </div>
               </div>
               <label className="block mt-3">
-                <span className="font-pixel text-[9px] tracking-widest text-white/70">ASSIGNEE</span>
+                <span className="font-pixel text-[9px] tracking-hud text-white/70">ASSIGNEE</span>
                 <select value={assignee} onChange={(e) => setAssignee(e.target.value)}
                   data-testid="ticket-modal-assignee"
                   className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10">

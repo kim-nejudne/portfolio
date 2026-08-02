@@ -12,7 +12,7 @@ export function Leaderboard({ rows = [], myUserId }) {
   if (rows.length === 0) {
     return (
       <GameFrame className="p-8 text-center">
-        <p className="font-pixel text-[11px] tracking-widest text-white pixel-shadow">No trainers yet</p>
+        <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow">No trainers yet</p>
         <p className="mt-2 font-body text-sm text-white/70">Invite teammates and finish some tickets — the arena awaits.</p>
       </GameFrame>
     );
@@ -20,13 +20,13 @@ export function Leaderboard({ rows = [], myUserId }) {
   return (
     <GameFrame className="p-0 overflow-hidden">
       <div className="px-5 py-3 flex items-center justify-between">
-        <p className="font-pixel text-[11px] tracking-widest text-white pixel-shadow">TOURNAMENT STANDINGS</p>
+        <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow">TOURNAMENT STANDINGS</p>
         <span className="font-pixel text-[9px] text-white/60">RANKED BY LIFETIME XP</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" data-testid="leaderboard-table">
           <thead>
-            <tr className="font-pixel text-[9px] tracking-widest text-white/70">
+            <tr className="font-pixel text-[9px] tracking-hud text-white/70">
               <th scope="col" className="text-left px-4 py-2">Rank</th>
               <th scope="col" className="text-left px-4 py-2">Trainer</th>
               <th scope="col" className="text-left px-4 py-2">Partner</th>
@@ -47,7 +47,7 @@ export function Leaderboard({ rows = [], myUserId }) {
                     >{r.rank}</span>
                   </th>
                   <td className="px-4 py-3">
-                    <div className="font-pixel text-[10px] tracking-widest text-white">{r.user_name} {isMe && <span className="text-type-electric">(YOU)</span>}</div>
+                    <div className="font-pixel text-[10px] tracking-hud text-white">{r.user_name} {isMe && <span className="text-type-electric">(YOU)</span>}</div>
                     <div className="font-body text-xs text-white/60">{r.user_email}</div>
                   </td>
                   <td className="px-4 py-3">

@@ -39,7 +39,7 @@ export function XPBar({
     <div data-testid={testId} className="space-y-2">
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-3">
-          <span className="font-pixel text-[10px] tracking-widest text-white/80">LV</span>
+          <span className="font-pixel text-[10px] tracking-display text-white/80">LV</span>
           <motion.span
             key={level}
             initial={reduce ? {} : { scale: 1.4, y: -6 }}
@@ -51,7 +51,7 @@ export function XPBar({
             {level}
           </motion.span>
         </div>
-        <span className="font-pixel text-[9px] tracking-widest text-white/70" data-testid="partner-total-xp">{totalXp.toLocaleString()} XP</span>
+        <span className="font-pixel text-[9px] tracking-hud text-white/70" data-testid="partner-total-xp">{totalXp.toLocaleString()} XP</span>
       </div>
       <div className="relative rounded-[14px] bg-black/50 ring-2 ring-black/70 shadow-frameSm overflow-hidden">
         <div className="grid grid-cols-12 gap-[3px] p-[6px]">
@@ -70,7 +70,7 @@ export function XPBar({
           })}
         </div>
       </div>
-      <div className="flex justify-between font-pixel text-[8px] tracking-widest text-white/70">
+      <div className="flex justify-between font-pixel text-[8px] tracking-hud text-white/70">
         <span data-testid="partner-xp-progress">{current.toLocaleString()} / {needed.toLocaleString()}</span>
         <span>NEXT LV</span>
       </div>

@@ -37,12 +37,12 @@ export default function Teams() {
     <div className="max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <p className="font-pixel text-[10px] tracking-widest text-type-electric">TRAINER HQ</p>
-          <h1 className="font-pixel text-2xl tracking-widest text-white pixel-shadow" data-testid="teams-title">YOUR TEAMS</h1>
+          <p className="font-pixel text-[10px] tracking-display text-type-electric">TRAINER HQ</p>
+          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="teams-title">YOUR TEAMS</h1>
         </div>
         <form onSubmit={create} className="flex items-end gap-2" data-testid="teams-create-form">
           <label className="flex-1">
-            <span className="font-pixel text-[9px] tracking-widest text-white/70">NEW TEAM NAME</span>
+            <span className="font-pixel text-[9px] tracking-hud text-white/70">NEW TEAM NAME</span>
             <input value={name} onChange={(e) => setName(e.target.value)}
               data-testid="teams-create-name"
               className="mt-1 w-64 max-w-[70vw] rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
@@ -54,7 +54,7 @@ export default function Teams() {
       <div className="mt-6">
         {loading ? <PokeBallLoader /> : teams.length === 0 ? (
           <GameFrame className="p-8 text-center">
-            <p className="font-pixel text-[12px] tracking-widest text-white pixel-shadow">WELCOME, NEW TRAINER!</p>
+            <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow">WELCOME, NEW TRAINER!</p>
             <p className="mt-3 font-body text-sm text-white/70">Every great adventure starts with a team. Form one above to begin — you'll be its owner.</p>
           </GameFrame>
         ) : (
@@ -62,7 +62,7 @@ export default function Teams() {
             {teams.map((t) => (
               <Link key={t.id} to={`/teams/${t.id}`} className="block" data-testid={`team-card-${t.id}`}>
                 <GameFrame className="p-4 hover:brightness-110 transition-[filter] duration-150">
-                  <p className="font-pixel text-[12px] tracking-widest text-white pixel-shadow">{t.name}</p>
+                  <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow">{t.name}</p>
                   <p className="mt-2 font-body text-sm text-white/70 uppercase">You are {t.my_role}</p>
                 </GameFrame>
               </Link>

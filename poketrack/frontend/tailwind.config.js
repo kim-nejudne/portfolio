@@ -8,8 +8,16 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        pixel: ["'Press Start 2P'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
-        body: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", "sans-serif"],
+        pixel: ["'DotGothic16'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        body: ["'Inter Variable'", "Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", "sans-serif"],
+      },
+      // Tracking for the pixel face, by role rather than by eye. DotGothic16 is
+      // far narrower than the Press Start 2P it replaced, so the blanket 0.1em
+      // that used to hold that face apart now just costs width at the 9–10px
+      // this UI leans on. Big display numerals still want the air.
+      letterSpacing: {
+        hud: "0.02em",      // 8–10px chrome: chips, counts, ticket titles
+        display: "0.08em",  // brand, column headers, level numerals
       },
       colors: {
         type: {

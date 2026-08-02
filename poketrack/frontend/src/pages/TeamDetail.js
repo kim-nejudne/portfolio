@@ -84,8 +84,8 @@ export default function TeamDetail() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-baseline justify-between">
         <div>
-          <p className="font-pixel text-[9px] tracking-widest text-type-electric">TEAM</p>
-          <h1 className="font-pixel text-2xl tracking-widest text-white pixel-shadow" data-testid="team-name">{team.name}</h1>
+          <p className="font-pixel text-[9px] tracking-display text-type-electric">TEAM</p>
+          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="team-name">{team.name}</h1>
         </div>
         {isOwner && (
           <Link to={`/teams/${teamId}/settings`} data-testid="team-settings-link">
@@ -97,20 +97,20 @@ export default function TeamDetail() {
       <div className="grid md:grid-cols-2 gap-5">
         <GameFrame className="p-5">
           <div className="flex items-center justify-between">
-            <p className="font-pixel text-[11px] tracking-widest text-white pixel-shadow">PROJECTS</p>
+            <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow">PROJECTS</p>
           </div>
           <div className="mt-3 space-y-2">
             {projects.length === 0 ? <p className="font-body text-sm text-white/70">No projects yet.</p> :
               projects.map((p) => (
                 <Link key={p.id} to={`/projects/${p.id}`} className="block" data-testid={`project-card-${p.id}`}>
-                  <div className="rounded-[12px] px-4 py-3 ring-2 ring-black/70 bg-white/5 hover:bg-white/10 font-pixel text-[10px] tracking-widest">{p.name}</div>
+                  <div className="rounded-[12px] px-4 py-3 ring-2 ring-black/70 bg-white/5 hover:bg-white/10 font-pixel text-[10px] tracking-hud">{p.name}</div>
                 </Link>
               ))
             }
           </div>
           <form onSubmit={createProject} className="mt-4 flex items-end gap-2" data-testid="project-create-form">
             <label className="flex-1">
-              <span className="font-pixel text-[9px] tracking-widest text-white/70">NEW PROJECT</span>
+              <span className="font-pixel text-[9px] tracking-hud text-white/70">NEW PROJECT</span>
               <input value={pname} onChange={(e) => setPname(e.target.value)}
                 data-testid="project-create-name"
                 className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
@@ -120,12 +120,12 @@ export default function TeamDetail() {
         </GameFrame>
 
         <GameFrame className="p-5">
-          <p className="font-pixel text-[11px] tracking-widest text-white pixel-shadow">ROSTER</p>
+          <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow">ROSTER</p>
           <ul className="mt-3 space-y-2" data-testid="members-list">
             {members.map((m) => (
               <li key={m.user_id} className="flex items-center justify-between rounded-[10px] px-3 py-2 ring-2 ring-black/70 bg-white/5">
                 <div>
-                  <p className="font-pixel text-[10px] tracking-widest text-white">{m.name}</p>
+                  <p className="font-pixel text-[10px] tracking-hud text-white">{m.name}</p>
                   <p className="font-body text-xs text-white/60">{m.email}</p>
                 </div>
                 <span className="font-pixel text-[9px] px-2 py-0.5 rounded-chip bg-white/10 text-white ring-2 ring-black/70 uppercase">{m.role}</span>
@@ -135,7 +135,7 @@ export default function TeamDetail() {
 
           {isOwner && (
             <div className="mt-5 border-t border-white/10 pt-5">
-              <p className="font-pixel text-[10px] tracking-widest text-white/70">INVITE TEAMMATE</p>
+              <p className="font-pixel text-[10px] tracking-display text-white/70">INVITE TEAMMATE</p>
               <form onSubmit={invite} className="mt-2 flex gap-2" data-testid="invite-form">
                 <input value={iemail} onChange={(e) => setIemail(e.target.value)} type="email" placeholder="friend@team.com"
                   data-testid="invite-email"

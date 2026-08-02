@@ -22,7 +22,7 @@ export function StarterPicker({ starters = [], onConfirm, loading, testIdPrefix 
       <GameFrame className="p-5" tone="panel">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <p className="font-pixel text-[12px] tracking-widest text-white pixel-shadow">CHOOSE YOUR PARTNER</p>
+            <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow">CHOOSE YOUR PARTNER</p>
             <p className="font-body text-sm text-white/70 mt-2">Professor Oak's lab is full of Poké Balls. Pick the one you'll level up as your team ships tickets.</p>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -30,7 +30,7 @@ export function StarterPicker({ starters = [], onConfirm, loading, testIdPrefix 
               <button key={g}
                 onClick={() => setGen(g)}
                 data-testid={`${testIdPrefix}-gen-${g}`}
-                className={`px-3 py-1 rounded-chip font-pixel text-[9px] tracking-widest ring-2 ring-black/70 ${gen === g ? "bg-type-electric text-type-electric-ink" : "bg-white/10 text-white"}`}>
+                className={`px-3 py-1 rounded-chip font-pixel text-[9px] tracking-hud ring-2 ring-black/70 ${gen === g ? "bg-type-electric text-type-electric-ink" : "bg-white/10 text-white"}`}>
                 GEN {g}
               </button>
             ))}
@@ -68,7 +68,7 @@ export function StarterPicker({ starters = [], onConfirm, loading, testIdPrefix 
                       </>
                     )}
                   </div>
-                  <div className="mt-2 font-pixel text-[10px] tracking-widest capitalize text-white pixel-shadow">{mon.label || mon.name}</div>
+                  <div className="mt-2 font-pixel text-[10px] tracking-hud capitalize text-white pixel-shadow">{mon.label || mon.name}</div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {mon.types?.map((t) => <TypeChip key={t} type={t} size="sm" />)}
                   </div>
@@ -92,7 +92,7 @@ export function StarterPicker({ starters = [], onConfirm, loading, testIdPrefix 
                   <img src={selectedMon.sprite} alt={selectedMon.name} className="sprite h-40 w-40 object-contain relative z-10 animate-idle-bob drop-shadow-[0_10px_0_rgba(0,0,0,0.55)]" />
                 </div>
                 <div>
-                  <p className="font-pixel text-[14px] tracking-widest text-white capitalize pixel-shadow">{selectedMon.name}</p>
+                  <p className="font-pixel text-[14px] tracking-display text-white capitalize pixel-shadow">{selectedMon.name}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedMon.types?.map((t) => <TypeChip key={t} type={t} />)}
                   </div>

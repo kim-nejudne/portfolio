@@ -26,7 +26,7 @@ export function PartnerPanel({ mon, animateKey, onEvolveClick, onPrestigeClick }
         <div className="relative flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <p className="font-pixel text-[11px] tracking-widest text-white capitalize pixel-shadow" data-testid="partner-species-name">{mon.species_name}</p>
+              <p className="font-pixel text-[11px] tracking-display text-white capitalize pixel-shadow" data-testid="partner-species-name">{mon.species_name}</p>
               {mon.is_shiny && <span className="font-pixel text-[10px] px-2 py-0.5 rounded-chip bg-yellow-300 text-black ring-2 ring-black/60" data-testid="shiny-badge">✨ SHINY</span>}
               {mon.prestige > 0 && <span className="font-pixel text-[9px] px-2 py-0.5 rounded-chip bg-white text-black ring-2 ring-black/60" data-testid="prestige-badge">⭐×{mon.prestige}</span>}
             </div>
@@ -72,11 +72,11 @@ export function PartnerPanel({ mon, animateKey, onEvolveClick, onPrestigeClick }
 
         {mon.evolutions_history?.length > 0 && (
           <div>
-            <p className="font-pixel text-[9px] tracking-widest text-white/60 mb-2">EVOLUTION HISTORY</p>
+            <p className="font-pixel text-[9px] tracking-hud text-white/60 mb-2">EVOLUTION HISTORY</p>
             <ul className="space-y-2" data-testid="evolution-history">
               {mon.evolutions_history.map((h, i) => (
                 <li key={i} className="flex items-center gap-3 text-sm font-body text-white/90">
-                  <span className="font-pixel text-[9px] tracking-widest text-type-electric">LV {h.at_level}</span>
+                  <span className="font-pixel text-[9px] tracking-hud text-type-electric">LV {h.at_level}</span>
                   <img src={h.from.sprite} className="sprite h-8 w-8" alt={h.from.name} />
                   <span className="capitalize">{h.from.name}</span>
                   <span className="opacity-60">→</span>
