@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Phase 1: Build POC — pokeapi_client + engine + test_core.py covering all edge cases",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Run test_core.py and fix until ALL scenarios pass — 60/60 PASSED",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: Get design guidelines (design_agent) with strict no-shadcn constraint",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2: Backend — auth, teams, memberships, invites, projects, tickets, xp ledger, evolution engine, prestige, pokeapi cache with startup pre-warm",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Frontend — hand-built game UI design system (no shadcn), all routes, forced starter picker, board+DnD, XP bar hero, evolution cutscene, leaderboard, prestige",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: All user stories covered end-to-end (sign up → team → project → starter → tickets → XP → level up → evolve → leaderboard → un-complete devolves)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: End-to-end testing via testing_agent_v3 (backend + frontend), fix all reported issues",
+    "status": "pending"
+  }
+]
