@@ -72,33 +72,47 @@ Both already in place from the previous site — the A record (`plinth` →
 `165.245.189.5`, at **Namecheap**, not DigitalOcean) and the certbot certificate
 for `plinth.kimnejudne.dev` are unchanged by this deploy. Nothing to redo.
 
-## nginx — apply `nginx/plinth.conf`
+## nginx
 
-**The vhost needs updating, and `deploy.sh` does not do it.** The config that
-came with this site had `try_files $uri /index.html` — a single-page-app fallback
-on a page with no router — so **every** unknown path answered 200 with the
-homepage as `text/html`:
+`nginx/plinth.conf` is a **verbatim copy of what is installed** at
+`/etc/nginx/sites-available/plinth`, pulled back from the droplet after the last
+change so the two cannot drift. `deploy.sh` does not touch it — it only reloads.
 
-```
-$ curl -so /dev/null -w '%{http_code} %{content_type}\n' https://plinth.kimnejudne.dev/robots.txt
-200 text/html
-```
-
-No 404 existed anywhere on the site, `/favicon.ico` returned HTML, and a crawler
-could index unlimited duplicate URLs. `nginx/plinth.conf` in this directory is
-the intended vhost: `=404`, per-location cache headers (nginx does not merge
-`add_header` across levels), and a `webmanifest` MIME type so browsers will parse
-the manifest.
+To change the vhost, edit it there, copy it up, and pull it back:
 
 ```bash
-scp deploy/nginx/plinth.conf root@165.245.189.5:/etc/nginx/sites-available/plinth
-ssh root@165.245.189.5 'nginx -t && systemctl reload nginx'
+scp deploy/nginx/plinth.conf root@165.245.189.5:/tmp/plinth.conf
+ssh root@165.245.189.5 '
+  cp /etc/nginx/sites-available/plinth /root/plinth.conf.bak-$(date -u +%Y%m%dT%H%M%SZ)
+  cp /tmp/plinth.conf /etc/nginx/sites-available/plinth
+  nginx -t && systemctl reload nginx'
 ```
 
-Certbot owns the `ssl_certificate` / `options-ssl-nginx.conf` / `ssl_dhparam`
-lines. Re-add them from the existing file rather than hand-writing them, or run
-`certbot --nginx -d plinth.kimnejudne.dev` after installing to let certbot
-re-insert its block.
+Always `nginx -t` before reloading, and keep the backup — the certbot-managed
+lines (`ssl_certificate`, `options-ssl-nginx.conf`, `ssl_dhparam`, the port-80
+redirect block) are not reproducible by hand.
+
+### Fixed 2026-08-02 — the site had no 404
+
+`location /` was `try_files $uri $uri/ /index.html` — a single-page-app fallback
+on a page with no router. **Every** unknown path answered 200 with the homepage
+as `text/html`: `/favicon.ico`, `/og-card.png` and `/robots.txt` all returned the
+document, no 404 existed anywhere on the site, and a crawler could have indexed
+unlimited duplicate URLs. One line, `=404`.
+
+A regex location for the root-level brand assets was added at the same time, so
+the share card and icons get a day of caching instead of inheriting the
+document's `no-cache`.
+
+Verified after reload:
+
+```
+/                     200  text/html
+/robots.txt           200  text/plain
+/site.webmanifest     200  application/manifest+json
+/og-card.png          200  image/png       Cache-Control: public, max-age=86400
+/nonsense-xyz         404
+```
 
 ## Brand assets
 
