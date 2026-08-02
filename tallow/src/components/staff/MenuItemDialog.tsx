@@ -102,14 +102,16 @@ export const MenuItemDialog: React.FC<MenuItemDialogProps> = ({
 
             <div>
               <label htmlFor={`${fieldId}-price`} className={labelClass}>
-                Price (£) <span aria-hidden="true">*</span>
+                Price (₱) <span aria-hidden="true">*</span>
               </label>
+              {/* Whole pesos: menu_items.price is an INTEGER, so a centavo step
+                  only ever produced a value the database would round away. */}
               <input
                 id={`${fieldId}-price`}
                 type="number"
                 required
                 min={0}
-                step="0.01"
+                step="1"
                 value={item.price ?? ''}
                 onChange={(e) => onChange({ ...item, price: parseOptionalNumber(e.target.value) as number })}
                 className={fieldClass}

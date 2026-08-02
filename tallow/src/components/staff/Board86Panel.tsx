@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MenuItem } from '../../types';
 import { adminFetch } from '../../lib/session';
+import { formatPrice } from '../../lib/money';
 import { useStaffSession } from './StaffSessionContext';
 
 interface Board86PanelProps {
@@ -67,7 +68,7 @@ export const Board86Panel: React.FC<Board86PanelProps> = ({ menuItems, onMenuUpd
                   {item.name}
                 </h3>
               </div>
-              <span className="font-display text-lg text-[#7A2322]">£{item.price}</span>
+              <span className="font-display text-lg text-[#7A2322]">{formatPrice(item.price)}</span>
             </div>
 
             <div className="mt-4 flex items-center justify-between pt-3 border-t border-[#DDD6C8]">

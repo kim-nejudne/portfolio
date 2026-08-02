@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
 import { MenuItem, MenuCategory } from '../types';
+import { formatPrice } from '../lib/money';
 
 interface PublicMenuProps {
   menuItems: MenuItem[];
@@ -237,7 +238,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
                             )}
                           </div>
                           <span className="font-display text-xl text-[#7A2322] font-semibold pl-4">
-                            £{item.price}
+                            {formatPrice(item.price)}
                           </span>
                         </div>
 

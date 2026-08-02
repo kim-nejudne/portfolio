@@ -2,7 +2,7 @@
 // populated before any imported module body reads it.
 import 'dotenv/config';
 
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { INITIAL_MENU_ITEMS, INITIAL_RESERVATIONS } from './src/data/initialData.js';
@@ -44,7 +44,39 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS reservations_date_time_idx ON reservations (date, time);
   -- Guest lookup is by token, case-insensitively.
   CREATE INDEX IF NOT EXISTS reservations_token_upper_idx ON reservations (UPPER(token));
+
+  -- One row per applied data migration. Seeding is guarded by "are the tables
+  -- empty", which says nothing about whether a long-lived database has had a
+  -- given rewrite applied — this table is what makes that answerable.
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    id VARCHAR PRIMARY KEY,
+    applied_at TIMESTAMP NOT NULL DEFAULT now()
+  );
 `;
+
+/**
+ * Data migrations, in order. Each runs at most once per database.
+ *
+ * These rewrite rows that already exist; they are not schema changes. A
+ * database seeded *after* a migration was written already has the shape that
+ * migration produces, so `runMigration` records it as applied without running
+ * it — see the baseline path below.
+ */
+const MIGRATIONS: { id: string; sql: string }[] = [
+  {
+    id: '001_gbp_to_php',
+    // TALLOW re-priced from pounds to Philippine pesos at ₱75/£1, rounded to
+    // the nearest ₱50 so a typeset menu keeps round numbers.
+    //
+    // Arithmetic rather than a hardcoded per-id table, so prices added or
+    // edited through the staff dashboard convert alongside the seeded ones.
+    //
+    // The ::numeric cast is load-bearing: ROUND() on double precision rounds
+    // half to even, which turns £135 (₱10,125) into ₱10,100. On numeric it
+    // rounds half away from zero and gives the intended ₱10,150.
+    sql: `UPDATE menu_items SET price = (ROUND((price * 75)::numeric / 50) * 50)::int`,
+  },
+];
 
 /** Seed data comes from db.json when a local flat-file DB exists, else the bundled defaults. */
 function seedSource(): { menuItems: MenuItem[]; reservations: Reservation[]; from: string } {
@@ -63,6 +95,42 @@ function seedSource(): { menuItems: MenuItem[]; reservations: Reservation[]; fro
   return { menuItems: INITIAL_MENU_ITEMS, reservations: INITIAL_RESERVATIONS, from: 'bundled defaults' };
 }
 
+/**
+ * Run any migration this database has not recorded yet.
+ *
+ * `baseline` means the rows were just inserted from the current seed file and
+ * therefore already reflect every migration written so far: record them as
+ * applied rather than running them. Without that, seeding a fresh database
+ * from the peso seed file and then running 001 would convert pesos to pesos.
+ */
+async function applyPendingMigrations(client: PoolClient, baseline: boolean) {
+  const { rows } = await client.query<{ id: string }>('SELECT id FROM schema_migrations');
+  const applied = new Set(rows.map((r) => r.id));
+  const pending = MIGRATIONS.filter((m) => !applied.has(m.id));
+
+  if (pending.length === 0) {
+    console.log('No pending migrations.');
+    return;
+  }
+
+  for (const migration of pending) {
+    await client.query('BEGIN');
+    try {
+      if (baseline) {
+        console.log(`Baselining ${migration.id} — freshly seeded data is already in its target shape.`);
+      } else {
+        const result = await client.query(migration.sql);
+        console.log(`Applied ${migration.id} — ${result.rowCount} row(s) rewritten.`);
+      }
+      await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [migration.id]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    }
+  }
+}
+
 async function runMigration() {
   const client = await pool.connect();
   try {
@@ -77,7 +145,10 @@ async function runMigration() {
     const resCount = Number(rows[0].res);
 
     if (menuCount > 0 && resCount > 0) {
-      console.log(`Already seeded (${menuCount} menu items, ${resCount} reservations) — nothing to do.`);
+      console.log(`Already seeded (${menuCount} menu items, ${resCount} reservations) — skipping seed.`);
+      // Rows predate this run, so they are not necessarily in the current
+      // shape: migrations have to actually run against them.
+      await applyPendingMigrations(client, false);
       return;
     }
 
@@ -115,7 +186,15 @@ async function runMigration() {
     }
 
     await client.query('COMMIT');
-    console.log(`Migration complete — ${menuItems.length} menu items, ${reservations.length} reservations.`);
+    console.log(`Seeded ${menuItems.length} menu items, ${reservations.length} reservations.`);
+
+    // Baseline only when menu_items was genuinely empty, because that is the
+    // one case where every menu row came from the current seed file. If the
+    // table already held rows and we came down this path because
+    // *reservations* was empty, the ON CONFLICT above left those menu rows
+    // untouched and they still need converting.
+    await applyPendingMigrations(client, menuCount === 0);
+    console.log('Migration complete.');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     // Exit non-zero: the app container waits on this step and must not start

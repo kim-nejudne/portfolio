@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { MenuItem } from '../../types';
 import { adminFetch } from '../../lib/session';
+import { formatPrice } from '../../lib/money';
 import { useStaffSession } from './StaffSessionContext';
 import { MenuItemDialog } from './MenuItemDialog';
 
@@ -77,7 +78,7 @@ export const MenuManagerPanel: React.FC<MenuManagerPanelProps> = ({ menuItems, o
             setEditingItem({
               name: '',
               category: 'cuts',
-              price: 40,
+              price: 3000,
               description: '',
               is86: false,
               isDishOfDay: false,
@@ -112,7 +113,7 @@ export const MenuManagerPanel: React.FC<MenuManagerPanelProps> = ({ menuItems, o
                 )}
               </div>
               <p className="text-xs font-mono-data text-[#8C6E43] uppercase">
-                Cat: {item.category} · Price: £{item.price} ·{' '}
+                Cat: {item.category} · Price: {formatPrice(item.price)} ·{' '}
                 {item.agingDays ? `${item.agingDays}d Aged` : 'Fresh'} ·{' '}
                 {item.weightGrams ? `${item.weightGrams}g` : 'Standard'}
               </p>

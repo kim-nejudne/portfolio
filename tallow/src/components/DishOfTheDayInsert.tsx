@@ -1,5 +1,6 @@
 import React from 'react';
 import { MenuItem } from '../types';
+import { formatPrice } from '../lib/money';
 import { Flame, AlertTriangle } from 'lucide-react';
 
 interface DishOfTheDayInsertProps {
@@ -45,7 +46,7 @@ export const DishOfTheDayInsert: React.FC<DishOfTheDayInsertProps> = ({ dish, on
 
           <div className="text-right">
             <span className="font-display text-2xl sm:text-3xl text-[#7A2322]">
-              £{dish.price}
+              {formatPrice(dish.price)}
             </span>
             <p className="text-[10px] font-mono-data uppercase tracking-wider text-[#6B635A]">
               per portion
