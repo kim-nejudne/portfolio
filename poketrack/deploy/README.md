@@ -98,10 +98,58 @@ A cold first `/pokedex/starters` can take a few seconds; later ones are cached.
 
 ## Backups
 
-**There are none yet.** The retired poke-project stack had a nightly `pg_dump`
-cron under the `deploy` user; it was removed with that stack and has no MongoDB
-equivalent. If this app grows data worth keeping, a `mongodump` on the same 03:15
-schedule is the obvious replacement.
+`scripts/backup-db.sh` runs from **root's** crontab at **03:15 UTC** — the slot the
+retired poke-project `pg_dump` used to hold. Root rather than `deploy` because the
+script reaches into the container for credentials that only root can get at.
+
+```
+15 3 * * * /opt/poketrack/scripts/backup-db.sh >> /opt/poketrack/backups/backup.log 2>&1
+```
+
+Each run writes `/opt/poketrack/backups/poketrack-<UTC stamp>.archive.gz` and keeps
+the **14 most recent**. A run is ~1MB, nearly all of it the `pokeapi_cache`
+collection. Pruning sits downstream of every failure path in the script, so a
+broken dump cannot age out the last good one — it exits first and leaves the
+existing archives alone.
+
+Credentials never cross the host shell: the container already carries them as
+`MONGO_INITDB_ROOT_*`, so the script expands them inside it and they never appear
+in a host process list.
+
+Check it is running:
+
+```bash
+ssh root@165.245.189.5 'tail -5 /opt/poketrack/backups/backup.log; ls -la /opt/poketrack/backups'
+```
+
+### Restoring
+
+Verified end-to-end on 2026-08-02 by restoring into a scratch database and
+diffing collection counts against live — all 8 matched.
+
+Rehearse into a scratch namespace first. This touches nothing real:
+
+```bash
+ARCHIVE=/opt/poketrack/backups/poketrack-<stamp>.archive.gz
+docker exec -i poketrack-db-1 sh -c 'mongorestore --archive --gzip \
+  --nsFrom="poketrack.*" --nsTo="restoretest.*" \
+  --username="$MONGO_INITDB_ROOT_USERNAME" --password="$MONGO_INITDB_ROOT_PASSWORD" \
+  --authenticationDatabase=admin' < "$ARCHIVE"
+```
+
+To restore for real, over the live database:
+
+```bash
+ssh root@165.245.189.5 'cd /opt/poketrack && docker compose stop app'   # no writes mid-restore
+docker exec -i poketrack-db-1 sh -c 'mongorestore --archive --gzip --drop \
+  --username="$MONGO_INITDB_ROOT_USERNAME" --password="$MONGO_INITDB_ROOT_PASSWORD" \
+  --authenticationDatabase=admin' < "$ARCHIVE"
+ssh root@165.245.189.5 'cd /opt/poketrack && docker compose start app'
+```
+
+`--drop` clears each collection as it restores it. Collections created *after* the
+archive was taken are not in it and therefore survive — drop the database yourself
+first if you want the state to match the archive exactly.
 
 ## History
 
