@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import GameFrame from "@/components/game/GameFrame";
 import GameButton from "@/components/game/GameButton";
 import DialogueBox from "@/components/game/DialogueBox";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 
 const FLOATING_MONS = [
   { id: 4, type: "fire",    url: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png" },
@@ -23,6 +23,18 @@ const TYPE_HEX = {
 
 export default function Landing() {
   const signedIn = !!getToken();
+  // Both CTAs above ask for an account. Anyone who just wants to look needs a
+  // way past that, but only when there is actually a demo world to look at.
+  const [hasDemos, setHasDemos] = useState(false);
+  useEffect(() => {
+    if (signedIn) return undefined;
+    let live = true;
+    api.get("/auth/demo-accounts")
+      .then(({ data }) => { if (live) setHasDemos(Array.isArray(data) && data.length > 0); })
+      .catch(() => { /* absent is the same as none */ });
+    return () => { live = false; };
+  }, [signedIn]);
+
   return (
     <div className="max-w-6xl mx-auto">
       <section className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center py-6 lg:py-16" data-testid="landing-hero">
@@ -51,6 +63,15 @@ export default function Landing() {
               {signedIn ? "CONTINUE" : "SIGN IN"}
             </GameButton>
           </div>
+          {hasDemos && (
+            <p className="mt-4 font-body text-sm text-white/60" data-testid="landing-demo-hint">
+              Don't want an account?{" "}
+              <Link to="/sign-in" className="underline text-type-electric" data-testid="landing-demo-link">
+                Sign in as a demo trainer
+              </Link>{" "}
+              — a team, four months of tickets and a partner mid-evolution, already set up.
+            </p>
+          )}
           <div className="mt-8">
             <DialogueBox text={`Welcome to PokeTrack!\nComplete tickets, earn XP, evolve your team.\nOak's watching — don't disappoint him.`} />
           </div>

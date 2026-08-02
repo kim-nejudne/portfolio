@@ -53,6 +53,10 @@ ssh root@165.245.189.5 "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' /opt/poketrack/
 Order matters only in that step 3 should not run long before step 2 — the SPA
 and the API ship as one release.
 
+Routine deploys need nothing further; the demo world lives in mongo, not in the
+image, and survives. On a **fresh volume** it has to be built once — see
+[The demo world](#the-demo-world).
+
 ## Rolling back
 
 Previous images stay on the box. Roll back without rebuilding:
@@ -150,6 +154,101 @@ ssh root@165.245.189.5 'cd /opt/poketrack && docker compose start app'
 `--drop` clears each collection as it restores it. Collections created *after* the
 archive was taken are not in it and therefore survive — drop the database yourself
 first if you want the state to match the archive exactly.
+
+## The demo world
+
+Recruiters need to see this app without signing up for it, so the database
+carries a seeded world — three teams, eight projects, ~420 tickets, 34 partners
+— and three shared accounts that the sign-in page offers as one-click buttons:
+
+| | | |
+|---|---|---|
+| `owner@poketrack.dev` | Rina Halvorsen, team owner | Charmeleon one 5-point ticket short of Charizard |
+| `dev@poketrack.dev` | Marcus Oyelaran, engineer | Eevee stalled on an eight-way branch |
+| `new@poketrack.dev` | June Castellanos, new joiner | no partner on the flagship board — lands on the starter picker |
+
+All three share the password **`pokedemo`**, which is printed on the page. They
+are ordinary accounts with ordinary write access: a visitor can finish tickets,
+evolve a partner and drag things back out of Done, because watching a Charizard
+cutscene fire *is* the demo. There is no read-only role and nothing here is
+guarded — treat every byte of the demo world as public and disposable.
+
+`backend/seed_demo.py` builds it. Levels are not written as numbers: the seed
+asks the real PokéAPI growth table what level 35 costs, converts that to story
+points, and issues exactly enough Done tickets to pay for it. Delete one in the
+UI and the level really does fall, because the app derives it the same way.
+
+### Building it the first time
+
+The script ships in the image (`COPY backend/ ./`), so on a fresh volume:
+
+```bash
+ssh root@165.245.189.5 'docker exec poketrack-app-1 python seed_demo.py'
+```
+
+It takes a few seconds and is safe to re-run. Then install the cron below.
+
+**The first seed needs PokéAPI reachable.** It resolves every species the demo
+will render — including Eevee's eight branches, which the startup prewarm does
+not fetch and which the offline `backend/poc/_cache` does not carry; that
+fallback only covers the 27 starters. Everything it pulls is written to the
+`pokeapi_cache` collection, so later resets are offline-safe. If anything cannot
+be resolved the seed prints a `WARNING:` naming the species ids and carries on —
+re-run it once the network is back.
+
+### Resetting
+
+`scripts/reset-demo.sh` runs the seed inside the **app** container — that is
+where `MONGO_URL` lives and the only place that can reach mongo, which publishes
+no port. Root's crontab, at 04:15 UTC, an hour behind the backup so a reset
+never lands mid-`mongodump`:
+
+```
+15 4 * * * /opt/poketrack/scripts/reset-demo.sh >> /opt/poketrack/backups/reset-demo.log 2>&1
+```
+
+Run it by hand any time — before sending the link to someone, for instance:
+
+```bash
+ssh root@165.245.189.5 /opt/poketrack/scripts/reset-demo.sh
+```
+
+Two properties make that safe on a live box:
+
+- **It only touches demo data.** The wipe walks out from users marked `is_demo`
+  and takes their teams, projects, tickets, partners and ledger with them —
+  including anything a visitor created while clicking around, which carries no
+  demo marker of its own. A team a demo user merely *joined* is left alone; only
+  teams a demo user **owns** are deleted. A real account is never in scope.
+- **Ids are derived, not random** — a uuid5 of a fixed namespace. A reset hands
+  every user, team and project the same id it had before, so bearer tokens
+  (which carry the user id in `sub`) stay valid and bookmarked project URLs keep
+  resolving. Nobody is signed out at 04:15.
+
+Check it is running, and read what it wrote:
+
+```bash
+ssh root@165.245.189.5 'tail -5 /opt/poketrack/backups/reset-demo.log'
+```
+
+`--quiet` keeps the `wiped:`/`seeded:` summary — that line is the log's only
+record — and drops the per-trainer table. Run it without the flag to see every
+trainer's derived level, ticket count and XP residue; a `!` in that table means
+a trainer did not land on the level the config asked for.
+
+### Removing it
+
+```bash
+ssh root@165.245.189.5 'docker exec poketrack-app-1 python seed_demo.py --wipe-only'
+```
+
+Then drop the cron line. With no demo users in the database
+`/api/auth/demo-accounts` returns `[]`, and both the sign-in panel and the
+landing-page hint disappear on their own — neither is hardcoded.
+
+**Do not change `DEMO_NS` in `seed_demo.py`.** It is the fixed uuid5 namespace
+every id derives from. Changing it orphans every bookmarked URL and invalidates
+every outstanding demo token.
 
 ## Analytics
 

@@ -55,6 +55,40 @@ async def sign_in(body: UserLogin):
     }
 
 
+@router.get("/demo-accounts")
+async def demo_accounts():
+    """Credentials the sign-in page offers as one-click buttons.
+
+    Unauthenticated on purpose — a recruiter has nothing to sign in with yet,
+    which is the whole problem this solves. The passwords are real but they are
+    only ever attached to seeded accounts inside a world `seed_demo.py` rebuilds
+    on a schedule; there is nothing here to protect.
+
+    Read straight out of the database rather than a constant, so an unseeded
+    instance returns an empty list and the sign-in page renders as it always
+    did. `demo_password` is stored on the user document and is returned by this
+    route alone — no other response model carries it.
+    """
+    db = get_db()
+    rows = await db.users.find(
+        {"is_demo_login": True},
+        {"_id": 0, "email": 1, "name": 1, "demo_password": 1,
+         "demo_role_label": 1, "demo_blurb": 1, "demo_order": 1},
+    ).to_list(20)
+    rows.sort(key=lambda r: (r.get("demo_order", 99), r.get("email", "")))
+    return [
+        {
+            "email": r["email"],
+            "password": r.get("demo_password", ""),
+            "name": r.get("name", ""),
+            "role_label": r.get("demo_role_label", ""),
+            "blurb": r.get("demo_blurb", ""),
+        }
+        for r in rows
+        if r.get("demo_password")
+    ]
+
+
 @router.get("/me")
 async def me(uid: str = Depends(current_user_id)):
     db = get_db()
