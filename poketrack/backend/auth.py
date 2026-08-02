@@ -43,9 +43,11 @@ def decode_token(token: str) -> Optional[str]:
 
 
 async def current_user_id(authorization: Optional[str] = Header(default=None)) -> str:
-    if not authorization or not authorization.lower().startswith("bearer "):
+    if not authorization or not authorization.strip() or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing bearer token")
     uid = decode_token(token)
     if not uid:
         raise HTTPException(status_code=401, detail="Invalid or expired token")

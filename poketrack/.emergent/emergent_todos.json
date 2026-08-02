@@ -20,11 +20,15 @@
     "status": "completed"
   },
   {
-    "content": "Phase 2: Live API verified end-to-end — sign up → team → project → starter → tickets → XP → level 16 → Charmeleon; reversal → devolves back to Charmander cleanly",
+    "content": "Phase 2: Live API verified end-to-end — Charmander → Charmeleon at LV16, reversal devolves cleanly",
     "status": "completed"
   },
   {
-    "content": "Phase 3: End-to-end testing via testing_agent_v3 (backend + frontend), fix all reported issues",
-    "status": "in_progress"
+    "content": "Phase 3: E2E testing via testing_agent_v3 — backend 87/88 (98.9%), frontend 100% flows, live evolution cutscene fired",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Fixed 401-on-empty-Authorization; verified all auth edge cases return 401",
+    "status": "completed"
   }
 ]
