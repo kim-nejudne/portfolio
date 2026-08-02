@@ -1,0 +1,25 @@
+# Runtime dependencies for the container image — the subset of requirements.txt
+# that the app actually imports. requirements.txt is the dev/test superset and
+# additionally pins `emergentintegrations`, which is not on public PyPI and is
+# imported nowhere; installing it in the image would only break the build.
+#
+# Verified against `grep -rE '^\s*(import|from) ' backend/*.py backend/poc/*.py`.
+
+fastapi==0.110.1
+uvicorn[standard]==0.25.0
+python-dotenv>=1.0.1
+
+# database.py / pokeapi_service.py
+motor==3.3.1
+pymongo==4.6.3
+
+# models.py — EmailStr needs email-validator
+pydantic>=2.6.4
+email-validator>=2.2.0
+
+# auth.py
+pyjwt>=2.10.1
+bcrypt==4.1.3
+
+# pokeapi_service.py fetches PokéAPI synchronously in a thread
+requests>=2.31.0
