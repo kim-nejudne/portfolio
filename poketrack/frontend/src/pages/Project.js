@@ -291,7 +291,7 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[380px_1fr] gap-6">
+      <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-6">
         <div className="space-y-3">
           <PartnerPanel mon={mon} animateKey={xpKey}
             onEvolveClick={() => setBranchOpen(true)}
@@ -299,7 +299,14 @@ export default function ProjectPage() {
           />
         </div>
 
-        <div>
+        {/* min-w-0 is load-bearing. The board below is a scroll container, but its
+            columns carry an explicit min-w-[280px] — an explicit floor, unlike an
+            automatic one, still counts toward the scroller's min-content width
+            (3x280 + 2x16 gap = 872px). A grid item defaults to min-width:auto, so
+            that 872 becomes the track's floor and the *page* scrolls sideways
+            instead of the board. Zeroing it lets the track take the column width
+            and hands the overflow back to the scroller. */}
+        <div className="min-w-0">
           {tab === "board" && (
             <DndContext
               sensors={sensors}
