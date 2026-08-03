@@ -25,4 +25,6 @@ numpy>=1.26.0
 python-multipart>=0.0.9
 jq>=1.6.0
 typer>=0.9.0
-emergentintegrations==0.2.0
+# emergentintegrations was pinned here by the scaffold. It is not on public
+# PyPI and is imported nowhere, so `pip install -r requirements.txt` failed
+# outright — nobody could set the project up from a clean checkout.

@@ -15,7 +15,7 @@ from __future__ import annotations
 import sys
 from typing import Dict, List, Tuple
 
-from pokeapi_client import (
+from poc.pokeapi_client import (
     chain_id_from_species,
     get_evolution_chain,
     get_growth_rate,
@@ -23,7 +23,10 @@ from pokeapi_client import (
     get_species,
     growth_rate_name_from_species,
 )
-from engine import (
+# Explicitly the POC engine. `from engine import ...` resolved to the
+# production backend/engine.py instead, which has no EvoNode — so this
+# suite could never be collected, from any directory.
+from poc.engine import (
     EvoNode,
     build_growth_table,
     commit_single_path,
@@ -64,6 +67,18 @@ def _label(status: bool) -> str:
 
 
 def check(cond: bool, msg: str) -> bool:
+    """
+    Record a check, and fail the test if it did not hold.
+
+    The `assert` is the whole point and was missing. This file began life as a
+    script whose main() printed a pass/fail tally, and it was later collected by
+    pytest — but check() only ever counted and printed. A test function that
+    never raises always passes, so every test in this file reported green
+    regardless of outcome. Verified by inverting a known-true condition: the
+    suite still said "8 passed".
+
+    The print stays so the standalone script output is unchanged.
+    """
     global PASS, FAIL
     if cond:
         PASS += 1
@@ -71,6 +86,7 @@ def check(cond: bool, msg: str) -> bool:
     else:
         FAIL += 1
         print(f"  {_label(False)}  {msg}")
+    assert cond, msg
     return cond
 
 
