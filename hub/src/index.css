@@ -273,138 +273,192 @@ body {
   color: var(--color-muted);
 }
 
-/* ---- the cards --------------------------------------------------- */
+/* ---- the showcase ------------------------------------------------ *
+ *
+ * One card at a time. All five sit stacked in the same place in the sky above
+ * his head, and the timeline brings them out of the opening in turn — so only
+ * one is ever visible and the stack never reads as a stack.
+ *
+ * It renders nothing until the timeline claims the stage. That is the right
+ * default for a pile of five absolutely-positioned cards on top of one
+ * another, and it is what makes the reduced-motion branch below almost empty:
+ * the showcase simply never appears, and `Index` carries the work.
+ * ------------------------------------------------------------------ */
 
-/*
- * The settled grid is the real layout. The timeline animates each card *from*
- * the cavity to where CSS already put it — so when the pin releases, the cards
- * are exactly where the stylesheet says, and a browser that never runs the
- * timeline shows five working links instead of five invisible ones.
- */
-.cards-wrap {
+.showcase {
+  display: none;
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
   /* The sky above the *open* head once it has finished sinking — not above
      the opening. Sizing this to the cut line was a quiet lie about where the
-     head ends, and it put the bottom row of cards across his forehead. */
+     head ends, and it put the cards across his forehead. */
   height: calc(var(--eye-end) - var(--head-open-rise) * var(--canvas-h));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
   z-index: var(--card-z);
   pointer-events: none;
 }
 
-/*
- * Five across on desktop, in one row.
- *
- * Three-and-two was the first attempt and it does not fit: two rows of cards
- * plus a three-line description each needs more vertical room than the sky
- * above his head has, and buying that room means shrinking the head, which is
- * the one thing on this page that must not get smaller. A single row of five
- * reads as a contact sheet, keeps the portrait at full size, and leaves the
- * sky visible above the work — which is the composition the piece is about.
- */
-.cards {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 23rem;
+.stage[data-ready] .showcase {
+  display: block;
+}
+
+.showcase-stack {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
 }
 
 .card {
-  flex: 0 0 calc((100% - 0.75rem) / 2);
+  /* Every card in the same grid cell: that is the stack. */
+  grid-area: 1 / 1;
+  width: min(21rem, 86vw);
   pointer-events: auto;
-}
-
-@media (min-width: 768px) {
-  .cards {
-    gap: 1.25rem;
-    max-width: min(84rem, 92vw);
-    flex-wrap: nowrap;
-  }
-  .card {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-}
-
-/* Hidden only once the timeline has taken over. Without the guard a failed
-   script leaves the work unreachable, which is a worse failure than an
-   un-animated page. */
-.stage[data-ready] .card {
+  /* Hidden until the timeline hands it its beat. GSAP writes both of these
+     inline via autoAlpha, so this is only the state before the first frame. */
   opacity: 0;
   visibility: hidden;
 }
 
+@media (min-width: 768px) {
+  .card {
+    /* Big enough to be the subject of the screen. At 32rem it read as a
+       thumbnail marooned in the middle of a wide monitor; the sky around it is
+       supposed to be air, not emptiness. */
+    width: min(36rem, 50vw);
+  }
+}
+
 .card-link {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    'frame frame'
-    'index name'
-    'line  line';
-  column-gap: 0.5rem;
+  display: block;
   text-decoration: none;
   color: inherit;
 }
 
 .card-frame {
-  /* 16:9 on a phone, 3:2 from tablet up. Three rows of cards have to clear the
-     head on a 390x844 screen, and 55px of crop height each is what pays for
-     it. Identical across all five cards, which is the frame's actual job. */
-  --crop-aspect: 16 / 9;
-  grid-area: frame;
   display: block;
   background: var(--color-paper);
-  padding: 5px;
+  padding: 6px;
   box-shadow:
     0 0 0 1px var(--color-rule),
-    0 14px 22px -18px rgb(22 24 29 / 0.55);
-  margin-bottom: 0.6rem;
+    0 22px 34px -26px rgb(22 24 29 / 0.6);
+  margin-bottom: 0.9rem;
 }
 
 .card-frame img {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: var(--crop-aspect);
+  aspect-ratio: 3 / 2;
   object-fit: cover;
 }
 
-.card-index {
-  grid-area: index;
-  font-size: 0.58rem;
-  line-height: 1.5;
-  padding-top: 0.18rem;
+.card-count {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
   color: var(--color-muted);
 }
 
 .card-name {
-  grid-area: name;
-  font-size: 1rem;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 1.45rem;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
   font-weight: 500;
 }
 
 .card-line {
-  grid-area: line;
-  margin-top: 0.3rem;
-  font-size: 0.56rem;
-  line-height: 1.5;
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.66rem;
+  line-height: 1.55;
   color: var(--color-muted);
   text-wrap: pretty;
 }
 
-.card-aside {
+@media (min-width: 768px) {
+  .card-name {
+    font-size: 2rem;
+  }
+  .card-line {
+    font-size: 0.72rem;
+  }
+}
+
+/* ---- the index --------------------------------------------------- *
+ *
+ * The contents page. The showcase is a performance and it leaves; this does
+ * not. Quiet on purpose — no crops, no frames, ink on paper — because it comes
+ * straight after the loudest thing on the site and must not argue with it.
+ * ------------------------------------------------------------------ */
+
+.index {
+  padding: 4rem 1.25rem 1rem;
+}
+
+.index-heading {
+  max-width: 68rem;
+  margin: 0 auto;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.index-list {
+  max-width: 68rem;
+  margin: 1.5rem auto 0;
+  list-style: none;
+}
+
+.index-row {
+  border-top: 1px solid var(--color-rule);
+}
+
+.index-row:last-child {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.index-link {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
+  align-items: baseline;
+  padding: 1.15rem 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.index-num {
+  font-size: 0.62rem;
+  color: var(--color-muted);
+}
+
+.index-name {
+  position: relative;
+  justify-self: start;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+.index-line {
+  grid-column: 2;
+  font-size: 0.66rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-wrap: pretty;
+}
+
+.index-aside {
   display: inline-block;
-  margin-top: 0.35rem;
+  margin: 0 0 1rem 3.25rem;
   font-size: 0.58rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -412,35 +466,36 @@ body {
 }
 
 @media (min-width: 768px) {
-  .card-frame {
-    --crop-aspect: 3 / 2;
+  .index-link {
+    grid-template-columns: 3rem minmax(0, 14rem) 1fr;
+    align-items: baseline;
+    row-gap: 0;
+    padding: 1.4rem 0;
   }
-  .card-name {
-    font-size: 1.1rem;
+  .index-line {
+    grid-column: 3;
   }
-  .card-line {
-    font-size: 0.62rem;
+  .index-name {
+    font-size: 1.6rem;
   }
 }
 
 /* A hairline that draws on hover — transform only, so it composites. */
-.card-link .card-name {
-  position: relative;
-}
-.card-link .card-name::after {
+.index-name::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -2px;
+  bottom: -3px;
   height: 1px;
   background: currentColor;
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.card-link:hover .card-name::after,
-.card-link:focus-visible .card-name::after {
+
+.index-link:hover .index-name::after,
+.index-link:focus-visible .index-name::after {
   transform: scaleX(1);
 }
 
@@ -450,7 +505,8 @@ body {
  * Promotion is not free: each composited layer is a texture the GPU has to
  * hold, and the head is nine of them. They are promoted when the section pins
  * and demoted the moment it does not, so scrolling the rest of the page costs
- * nothing.
+ * nothing. The cards are five more textures, but only one is ever visible, so
+ * the four hidden ones cost nothing to hold.
  */
 .stage.is-pinned .head,
 .stage.is-pinned .lid-hinge,
@@ -466,10 +522,11 @@ body {
  * it. The timeline is never built under this query (see gsapSetup.ts), so
  * there is nothing here to fight and nothing to remember to guard.
  *
- * The head renders already open, eyes already up, sky visible, with the five
- * cards laid out beneath in a static grid. Every word readable, nothing moves.
- * The page still says what it means; it says it as a picture instead of as a
- * performance.
+ * The head renders already open, eyes already up, sky visible. The showcase
+ * never appears at all — it is a performance, and `Index` below it is the work
+ * — which is why this block is mostly about turning the stage back into
+ * ordinary flow. Every word readable, nothing moves. The page still says what
+ * it means; it says it as a picture instead of as a performance.
  * ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -532,17 +589,15 @@ body {
     opacity: 0;
   }
 
-  .cards-wrap {
-    position: static;
-    height: auto;
-    padding: 2.5rem 1rem 0;
-  }
-
   .cue {
     display: none;
   }
 
-  .card-link .card-name::after {
+  .index {
+    padding-top: 2.5rem;
+  }
+
+  .index-name::after {
     transition: none;
   }
 }

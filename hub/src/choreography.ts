@@ -1,5 +1,5 @@
 /**
- * The six beats, in one place.
+ * The beats, in one place.
  *
  * Every number the timeline uses lives here, because the whole argument for
  * building against placeholder art is that the *timing* can be tuned before
@@ -14,21 +14,20 @@ export const BEATS = {
   /** 0 · Rest — closed, eyes meeting yours. */
   /** 1 · Lid — the cranium hinges open, and the head sinks as it does. */
   lidStart: 0,
-  lidEnd: 35,
-  descentStart: 4,
-  descentEnd: 38,
+  lidEnd: 26,
+  descentStart: 3,
+  descentEnd: 30,
 
   /** 2 · Look — the eyes flick up. Triggered, not scrubbed. */
-  look: 38,
+  look: 32,
 
   /** 3 · Beat — nothing. Do not fill it. */
 
-  /** 4 · Emergence — the cards rise into the sky he is already staring at. */
-  emergeStart: 48,
-  emergeEnd: 78,
+  /** 4 · Showcase — the ideas come out one at a time. */
+  showcaseStart: 36,
 
-  /** 5 · Settle — the head keeps going and leaves the bottom of the frame. */
-  exitStart: 78,
+  /** 5 · Settle — the head leaves the bottom of the frame. */
+  exitStart: 90,
   exitEnd: 100,
 } as const;
 
@@ -36,12 +35,18 @@ export const BEATS = {
 export const TOTAL = 100;
 
 /**
- * How much scroll the whole performance costs. Six beats over three and a bit
- * viewport heights: enough that the empty beat at 38–48% is felt as a pause
- * rather than skipped over, and short enough that a recruiter skimming with a
- * trackpad reaches the cards.
+ * How much scroll the whole performance costs.
+ *
+ * Nearly twice what the settled-grid version needed, and unavoidably so: five
+ * projects shown one at a time is five separate arrivals, and a beat you pass
+ * in a flick is not a showcase. At this length each card owns roughly 60% of a
+ * viewport of scrolling — about one unhurried wheel gesture.
+ *
+ * The skim risk that creates is real, and the index below the pin is the
+ * answer to it: a reader who flings past the whole sequence still lands on a
+ * complete list of the work.
  */
-export const PIN_LENGTH = '+=320%';
+export const PIN_LENGTH = '+=560%';
 
 /**
  * Where the eyes sit, as a percentage of viewport height, at rest and at the
@@ -51,8 +56,8 @@ export const PIN_LENGTH = '+=320%';
  * that fills a 390x844 screen leaves nowhere for a card to rise into — so the
  * head does not stay put. It sinks as it opens until the eyes are at the
  * bottom of the screen, which frees the entire viewport above it, keeps the
- * gaze pointing at the space the cards arrive in, and means beat 5 needs no
- * dissolve: the head simply carries on and leaves.
+ * gaze pointing at the space the cards arrive in, and means the last beat
+ * needs no dissolve: the head simply carries on and leaves.
  */
 export const EYE_REST_VH = { mobile: 52, desktop: 46 } as const;
 export const EYE_END_VH = 88;
@@ -82,11 +87,36 @@ export const LID_ANGLE = -74;
 /** The gaze change. Its own easing, its own duration, in real seconds. */
 export const FLICK_SECONDS = 0.12;
 
+/* ------------------------------------------------------------------ *
+ * The genie
+ *
+ * One card at a time. Each is born tiny at the mouth of the opening, arcs up
+ * into the middle of the sky, holds still long enough to be read, then drifts
+ * on up and out of frame while the next is already on its way.
+ *
+ * The slot (rise + hold + leave) is longer than the stride, so an outgoing
+ * card and an incoming one overlap by about a beat and a half. Without that
+ * overlap the screen empties five times, and an empty screen mid-scroll reads
+ * as something broken rather than as a pause.
+ * ------------------------------------------------------------------ */
+
+/** Scroll units from one card's birth to the next one's. */
+export const CARD_STRIDE = 10.5;
+
+/** Out of the opening: the genie itself. */
+export const CARD_RISE = 3.4;
+
+/** On stage, unmoving, being read. */
+export const CARD_HOLD = 5.2;
+
+/** Up and away. */
+export const CARD_LEAVE = 3.4;
+
 /**
- * How far a card is scaled down at the instant it leaves the cavity. Small
- * enough to read as coming *out of* the opening, large enough not to pop.
+ * How small a card is at the instant it leaves the cavity. Small enough to
+ * read as coming *out of* the opening, large enough not to pop.
  */
-export const CARD_BIRTH_SCALE = 0.12;
+export const CARD_BIRTH_SCALE = 0.1;
 
 /**
  * Per-card character. Nothing moves in parallel with anything else: each card
@@ -101,7 +131,3 @@ export const CARD_ARCS = [
   { rotate: 11, xEase: 'power1.inOut', yEase: 'power2.out' },
   { rotate: -7, xEase: 'power2.inOut', yEase: 'power3.out' },
 ] as const;
-
-/** Heavy, so the five arrivals are five events rather than a swarm. */
-export const CARD_STAGGER = 4.2; // in timeline units
-export const CARD_DURATION = 13; // in timeline units

@@ -4,8 +4,10 @@ import {
   BEATS,
   CARD_ARCS,
   CARD_BIRTH_SCALE,
-  CARD_DURATION,
-  CARD_STAGGER,
+  CARD_HOLD,
+  CARD_LEAVE,
+  CARD_RISE,
+  CARD_STRIDE,
   EYE_END_VH,
   EYE_REST_VH,
   FLICK_SECONDS,
@@ -181,14 +183,24 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         if (cue) tl.to(cue, { autoAlpha: 0, duration: 6 }, 0);
 
         /*
-         * 3 · beat — nothing between 38 and 48. It will feel wrong in isolation
-         * and right in sequence. Do not fill it.
+         * 3 · beat — nothing between the flick and the first card. It will
+         * feel wrong in isolation and right in sequence. Do not fill it.
          */
 
-        /* 4 · the cards rise into the sky he is already looking at */
+        /*
+         * 4 · the genie.
+         *
+         * One card at a time: born tiny at the mouth of the opening, arced up
+         * into the middle of the sky, held still long enough to be read, then
+         * drifting on up and out while the next is already on its way.
+         *
+         * All five cards occupy the same position in the layout, stacked, so
+         * every one of them travels the same route from the same origin. Only
+         * the arc differs.
+         */
         cards.forEach((card, i) => {
           const arc = CARD_ARCS[i % CARD_ARCS.length];
-          const at = BEATS.emergeStart + i * CARD_STAGGER;
+          const born = BEATS.showcaseStart + i * CARD_STRIDE;
           const from = (k: 'dx' | 'dy') => () => launch[i]?.[k] ?? 0;
 
           tl.fromTo(
@@ -200,8 +212,8 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
               rotate: arc.rotate,
               autoAlpha: 0,
             },
-            { autoAlpha: 1, duration: CARD_DURATION * 0.3 },
-            at,
+            { autoAlpha: 1, duration: CARD_RISE * 0.35 },
+            born,
           );
 
           /*
@@ -209,12 +221,38 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
            * arc: two eases that disagree bend a straight line into one, without
            * a motion-path plugin and without a single non-composited property.
            */
-          tl.to(card, { x: 0, duration: CARD_DURATION, ease: arc.xEase, immediateRender: false }, at);
-          tl.to(card, { y: 0, duration: CARD_DURATION, ease: arc.yEase, immediateRender: false }, at);
+          tl.to(card, { x: 0, duration: CARD_RISE, ease: arc.xEase, immediateRender: false }, born);
+          tl.to(card, { y: 0, duration: CARD_RISE, ease: arc.yEase, immediateRender: false }, born);
           tl.to(
             card,
-            { scale: 1, rotate: 0, duration: CARD_DURATION, ease: 'power2.out', immediateRender: false },
-            at,
+            { scale: 1, rotate: 0, duration: CARD_RISE, ease: 'power2.out', immediateRender: false },
+            born,
+          );
+
+          /*
+           * The last one does not leave.
+           *
+           * Every card before it drifts away to make room for the next, but
+           * there is no next after the fifth, and letting it go too would end
+           * the whole performance on an empty sheet of paper while the head
+           * slides out beneath it. Holding it means the pin releases onto
+           * something — and the eye has somewhere to be as the index arrives.
+           */
+          if (i === cards.length - 1) return;
+
+          const leaves = born + CARD_RISE + CARD_HOLD;
+          const away = () => -(card.getBoundingClientRect().bottom + 48);
+
+          tl.to(
+            card,
+            { y: away, scale: 0.94, rotate: arc.rotate * 0.35, duration: CARD_LEAVE, ease: 'power1.in', immediateRender: false },
+            leaves,
+          );
+          /* Fading only over the back half, so it is gone before the edge. */
+          tl.to(
+            card,
+            { autoAlpha: 0, duration: CARD_LEAVE * 0.55, ease: 'none', immediateRender: false },
+            leaves + CARD_LEAVE * 0.45,
           );
         });
 
@@ -239,49 +277,22 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         tl.set({}, {}, TOTAL); // hold the timeline open to its full length
 
         /*
-         * Keyboard rescue.
+         * There is no keyboard rescue here any more, and that is the fix
+         * rather than an omission.
          *
-         * The cards spend most of the pin at `autoAlpha: 0`, which sets
-         * `visibility: hidden` — and that is correct: invisible work must not
-         * be clickable by a stray mouse or tabbable by someone who cannot see
-         * why focus vanished. But it also means the obvious fix does not work.
-         * A `focusin` handler on the list can never fire, because a
-         * visibility-hidden element cannot take focus in the first place. That
-         * was written, shipped into the verify suite, and failed there.
+         * An earlier version hid the only copy of the work inside this pinned
+         * section, so a keyboard user could reach it only at one scroll
+         * position — which needed a scripted jump on the skip link, which
+         * needed the scrub landed synchronously first, which needed the
+         * timeline poked by hand. Three mechanisms to undo one bad decision.
          *
-         * So the rescue belongs on the skip link, which is the first thing a
-         * keyboard user reaches. It jumps to the settled state and hands focus
-         * to the first card. Without the timeline it stays an ordinary anchor
-         * to `#work`, so nothing depends on this running.
+         * Now the showcase is a performance and `Index` below the pin is the
+         * navigation: five links, always in the document, always visible. The
+         * skip link is an ordinary anchor and none of the above exists.
          */
-        const st = tl.scrollTrigger;
-        const skip = document.querySelector<HTMLAnchorElement>('[data-skip]');
-
-        const onSkip = (e: Event) => {
-          if (!st) return;
-          e.preventDefault();
-          const settled = st.start + (st.end - st.start) * (BEATS.emergeEnd / TOTAL);
-          window.scrollTo({ top: settled, behavior: 'instant' as ScrollBehavior });
-          st.update();
-          /*
-           * Land the timeline on the same beat, synchronously.
-           *
-           * Scrolling alone is not enough: the scrub is 0.4s of easing behind
-           * the scroll, so the card would still be `visibility: hidden` at the
-           * instant focus was handed to it — and focus on a hidden element is
-           * silently dropped, which is the bug this whole handler exists to
-           * fix. Setting the progress directly renders it now; the scrub then
-           * eases from that value to the same value and nothing moves.
-           */
-          tl.progress(BEATS.emergeEnd / TOTAL);
-          list.querySelector<HTMLAnchorElement>('a')?.focus();
-        };
-
-        skip?.addEventListener('click', onSkip);
 
         return () => {
           ScrollTrigger.removeEventListener('refreshInit', measure);
-          skip?.removeEventListener('click', onSkip);
           stage.removeAttribute('data-ready');
           stage.classList.remove('is-pinned');
         };

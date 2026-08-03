@@ -3,10 +3,11 @@
  *
  * These are the claims the brief makes that a stylesheet cannot demonstrate:
  * that reduced motion builds no timeline at all rather than a quieter one,
- * that a keyboard user can actually reach work that spends most of the scroll
- * at zero opacity, that the head is invisible to a screen reader and the cards
- * are a real list of real links, and that layer promotion is released when the
- * section is not pinned.
+ * that the work is reachable without the performance running, that the head
+ * and the showcase are both invisible to a screen reader while the index is a
+ * real list of real links, that nothing tabbable is buried inside an
+ * `aria-hidden` subtree, and that layer promotion is released when the section
+ * is not pinned.
  *
  * Each one is written to fail loudly. A check that cannot fail is decoration.
  *
@@ -115,12 +116,12 @@ async function main() {
     );
 
     const links = await ev(
-      `JSON.stringify([...document.querySelectorAll('.cards > li > a.card-link')]
+      `JSON.stringify([...document.querySelectorAll('.index-list > li > a.index-link')]
          .map(a => ({ name: a.textContent.replace(/\\s+/g,' ').trim().slice(0, 24), href: a.getAttribute('href') })))`,
     );
     const parsed = JSON.parse(links);
     check(
-      'the work is a list of five links with real names',
+      'the index is a list of five links with real names',
       parsed.length === 5 && parsed.every((l) => l.name.length > 3 && /^https:\/\//.test(l.href)),
       `${parsed.length} links`,
     );
@@ -128,55 +129,109 @@ async function main() {
     check(
       'no dead case-study links are rendered',
       await ev(
-        `[...document.querySelectorAll('.card-aside')].every(a => (a.getAttribute('href')||'').length > 0)`,
+        `[...document.querySelectorAll('.index-aside')].every(a => (a.getAttribute('href')||'').length > 0)`,
       ),
+    );
+
+    /*
+     * The showcase duplicates those five links as a visual performance, so it
+     * is hidden from assistive technology — which is only legitimate if
+     * nothing inside it is in the tab order. That is axe's `aria-hidden-focus`
+     * rule, and it is the exact trade being made here, so it gets asserted
+     * rather than assumed.
+     */
+    check(
+      'the showcase is hidden from assistive technology',
+      await ev(`document.querySelector('.showcase').getAttribute('aria-hidden') === 'true'`),
+    );
+
+    check(
+      'nothing tabbable is buried inside an aria-hidden subtree',
+      await ev(`(() => {
+        const sel = 'a[href], button, input, select, textarea, [tabindex]';
+        for (const el of document.querySelectorAll('[aria-hidden="true"]')) {
+          for (const f of el.querySelectorAll(sel)) {
+            if ((f.getAttribute('tabindex') ?? '0') !== '-1') return false;
+          }
+        }
+        return true;
+      })()`),
     );
 
     /* ---- the animated branch ---------------------------------------- */
 
     check('the section pins', await ev(`!!document.querySelector('.pin-spacer')`));
     check(
-      'the cards start hidden once the timeline owns them',
-      await ev(`getComputedStyle(document.querySelector('.card')).opacity === '0'`),
+      'the showcase renders only once the timeline claims the stage',
+      await ev(`(() => {
+        const stage = document.querySelector('.stage');
+        const showcase = document.querySelector('.showcase');
+        const shown = getComputedStyle(showcase).display !== 'none';
+        stage.removeAttribute('data-ready');
+        const hidden = getComputedStyle(showcase).display === 'none';
+        stage.setAttribute('data-ready', '');
+        return shown && hidden;
+      })()`),
+    );
+    /*
+     * "One at a time" is the whole point of the sequence, so it gets walked
+     * rather than spot-checked. Sample the showcase range and count the cards
+     * that are actually *readable* — fully opaque and visible. Two may share
+     * the screen at a crossover, but only ever one of them is finished
+     * arriving; the other is on its way out and fading.
+     */
+    const stage = await ev(`(() => {
+      const s = document.querySelector('.pin-spacer'), st = document.querySelector('.stage');
+      return String(s.getBoundingClientRect().height - st.getBoundingClientRect().height);
+    })()`);
+    const pin = Number(stage);
+    let maxOpaque = 0;
+    let holdsSeen = 0;
+    for (let i = 0; i <= 28; i++) {
+      const at = 0.34 + (i / 28) * 0.62;
+      await ev(`window.scrollTo(0, ${Math.round(at * pin)})`);
+      await sleep(280);
+      const n = await ev(`[...document.querySelectorAll('.card')].filter(c => {
+        const cs = getComputedStyle(c);
+        return cs.visibility === 'visible' && Number(cs.opacity) > 0.9;
+      }).length`);
+      maxOpaque = Math.max(maxOpaque, n);
+      if (n === 1) holdsSeen++;
+    }
+    check(
+      'never more than one card is fully on stage',
+      maxOpaque <= 1,
+      `peak ${maxOpaque} across 29 samples`,
+    );
+    check(
+      'and there is a card on stage for most of the sequence',
+      holdsSeen >= 18,
+      `${holdsSeen}/29 samples`,
     );
 
-    /* ---- keyboard rescue -------------------------------------------- */
+    /* ---- reaching the work without the performance ------------------- */
 
     /*
-     * The cards are `visibility: hidden` for most of the pin, so they are not
-     * focusable and cannot rescue themselves. The skip link is the first stop
-     * for a keyboard user and is where the rescue has to live: it must jump to
-     * the settled state and land focus on a card that is actually visible.
+     * The whole keyboard story, and it is deliberately dull. The skip link is
+     * an ordinary anchor to an ordinary list below the pinned section. An
+     * earlier version hid the only copy of the work inside the pin and needed
+     * a scripted scroll jump to reach it; this needs nothing.
      */
     check(
-      'invisible cards are not in the tab order',
+      'the skip link points at something that exists and is visible',
       await ev(`(() => {
-        window.scrollTo(0, 0);
-        const card = document.querySelector('.card-link');
-        card.focus();
-        return document.activeElement !== card;
+        const href = document.querySelector('.skip').getAttribute('href');
+        const target = document.querySelector(href);
+        if (!target) return false;
+        const cs = getComputedStyle(target);
+        return cs.display !== 'none' && cs.visibility === 'visible' &&
+               target.getBoundingClientRect().height > 0;
       })()`),
     );
 
-    const skipped = await ev(`(() => {
-      window.scrollTo(0, 0);
-      const before = window.scrollY;
-      document.querySelector('[data-skip]').click();
-      const a = document.activeElement;
-      return JSON.stringify({
-        before, after: window.scrollY,
-        focused: a ? a.className : null,
-        opacity: a ? getComputedStyle(a.closest('.card')).opacity : null,
-        visibility: a ? getComputedStyle(a.closest('.card')).visibility : null,
-      });
-    })()`);
-    const s2 = JSON.parse(skipped);
-    check('the skip link jumps to the settled work', s2.after > s2.before + 100, `${s2.before} -> ${s2.after}`);
-    check('and lands focus on a card', s2.focused === 'card-link', String(s2.focused));
     check(
-      'and that card is visible at the moment it receives focus',
-      Number(s2.opacity) > 0.9 && s2.visibility === 'visible',
-      `opacity ${s2.opacity}, visibility ${s2.visibility}`,
+      'the index sits outside the pinned section',
+      await ev(`!document.querySelector('#work').closest('.pin-spacer')`),
     );
 
     /* ---- layer promotion is released -------------------------------- */
@@ -185,11 +240,11 @@ async function main() {
       'will-change is dropped when the section is not pinned',
       await ev(`(() => {
         window.scrollTo(0, document.documentElement.scrollHeight);
-        return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => {
+        return new Promise(r => setTimeout(() => {
           const stage = document.querySelector('.stage');
           r(!stage.classList.contains('is-pinned') &&
             getComputedStyle(document.querySelector('.head')).willChange === 'auto');
-        })));
+        }, 300));
       })()`),
     );
 
@@ -203,10 +258,15 @@ async function main() {
       await ev(`!document.querySelector('.stage').hasAttribute('data-ready')`),
     );
     check(
-      'reduced motion leaves every card fully visible',
-      await ev(
-        `[...document.querySelectorAll('.card')].every(c => getComputedStyle(c).opacity === '1')`,
-      ),
+      'reduced motion never renders the showcase at all',
+      await ev(`getComputedStyle(document.querySelector('.showcase')).display === 'none'`),
+    );
+    check(
+      'reduced motion still shows all five links in the index',
+      await ev(`(() => {
+        const rows = [...document.querySelectorAll('.index-link')];
+        return rows.length === 5 && rows.every(a => a.getBoundingClientRect().height > 0);
+      })()`),
     );
     check(
       'reduced motion shows the head already open and looking up',

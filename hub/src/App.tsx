@@ -1,8 +1,9 @@
 import { useRef, type CSSProperties } from 'react';
-import Cards from './components/Cards';
 import Colophon from './components/Colophon';
 import Head from './components/Head';
+import Index from './components/Index';
 import Pitch from './components/Pitch';
+import Showcase from './components/Showcase';
 import { CANVAS, CARD_Z, EYE_LINE, HEAD_FRACTION, HEAD_OPEN_RISE } from './head';
 import { EYE_END_VH, EYE_REST_VH, HEAD_HEIGHT_VH, LID_ANGLE } from './choreography';
 import { useHubTimeline } from './hooks/useHubTimeline';
@@ -38,7 +39,12 @@ export default function App() {
 
   return (
     <>
-      <a className="skip mono" href="#work" data-skip>
+      {/*
+        An ordinary anchor to an ordinary list. It needs no JavaScript, no
+        scroll arithmetic and no knowledge of the timeline, because the thing
+        it points at sits below the pinned section and is always visible.
+      */}
+      <a className="skip mono" href="#work">
         Skip to the work
       </a>
       <main>
@@ -46,12 +52,13 @@ export default function App() {
           <div className="stage-inner">
             <Pitch />
             <Head />
-            <Cards />
+            <Showcase />
           </div>
           <p className="cue mono" data-cue aria-hidden="true">
             Scroll
           </p>
         </section>
+        <Index />
         <Colophon />
       </main>
     </>

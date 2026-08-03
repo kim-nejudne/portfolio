@@ -2,7 +2,9 @@
 
 The homepage. A portrait fills the hero; on scroll the cranium hinges open, the
 head sinks until the eyes are at the bottom of the screen, he looks up, and the
-five projects rise out of the opening into the sky he is already staring at.
+five projects come out of the opening **one at a time** — each held big and
+still in the sky above him while he watches it, then drifting away as the next
+arrives. A quiet index follows, so nothing depends on having watched.
 
 `../hub-brief.md` is the source of truth for the art direction and the beats.
 This file covers the build.
@@ -25,7 +27,7 @@ itself twice, in ways a stylesheet reading could not have caught:
   sliced off. `LID_ANGLE` is the first number to re-tune when the real crown
   exists, and the paper-thickness band on the cut edge is what will have to
   sell it.
-- **The settled grid landed on his forehead.** The layout sized the card region
+- **The cards landed on his forehead.** The layout sized the region they occupy
   to end at the *cut line*, but when the lid is up the rear wall of the skull
   still stands about 100px above it. `HEAD_OPEN_RISE` is that measurement, and
   it needs re-measuring against the real head.
@@ -73,39 +75,54 @@ over four seconds, and the illusion dies.
 ## Reduced motion
 
 Not a quieter variant — a different layout, and CSS owns all of it under the
-same media query GSAP tests. The timeline is never built. The head renders
-already open, eyes already up, sky visible, cards in a static grid beneath.
+same media query GSAP tests. The timeline is never built, and the showcase —
+which is a performance and nothing else — never renders at all. The head
+renders already open, eyes already up, sky visible, with the index beneath it.
 Every word readable, nothing moves.
 
-## Keyboard
+## Two components, one list of work
 
-The cards spend most of the pin at `autoAlpha: 0`, which sets
-`visibility: hidden` — correctly, since invisible work must not be clickable or
-tabbable. But that also means a card cannot rescue itself: a `focusin` handler
-on the list can never fire, because a hidden element cannot take focus. That
-version was written, shipped into the verify suite, and failed there.
+`Showcase` is the performance: five cards stacked in the same place, brought
+out of the head one at a time. It renders nothing until the timeline claims the
+stage, and it is `aria-hidden`, because it duplicates links that are announced
+properly a screen further down.
 
-So the rescue lives on the **skip link**, the first thing a keyboard user
-reaches. It jumps to the settled state, lands the timeline on that beat
-synchronously, and hands focus to the first card. Without the timeline it stays
-an ordinary anchor to `#work`.
+`Index` is the navigation: five ruled rows below the pin, always in the
+document, always visible, needing nothing to run.
+
+That split is what makes the keyboard story dull, which is the goal. An earlier
+version put the only copy of the work *inside* the pinned section, visible at
+exactly one scroll position — so the skip link needed a scripted jump, which
+needed the scrub landed synchronously first, which needed the timeline poked by
+hand. Three mechanisms undoing one bad decision. The skip link is now an
+ordinary `href="#work"`.
+
+The showcase cards are still real links. A card that size in the middle of the
+screen invites a click and refusing one would be a small betrayal. Outside its
+own beat a card is `visibility: hidden`, so the browser enforces "only the card
+on stage is live" with no bookkeeping.
 
 ## Verifying
 
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 17 assertions in a real browser
-npm run beats             # photograph the six beats, desktop and phone
+npm run verify            # 20 assertions in a real browser
+npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol. It checks the
-things a stylesheet cannot demonstrate: that reduced motion builds no timeline
-rather than a quieter one, that the keyboard path actually reaches visible
-work, that the head is invisible to assistive technology while the cards are a
-real list of real links, that layer promotion is released when the section is
-not pinned, and the colour rule. Each check has been sabotaged to confirm it
-fails on the thing it exists to catch.
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 20 assertions,
+five of which have been sabotaged to confirm they fail on the thing they exist
+to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
+builds no timeline rather than a quieter one, that the work is reachable
+without the performance running, that the head and showcase are invisible to
+assistive technology while nothing tabbable is buried inside an `aria-hidden`
+subtree, that layer promotion is released when unpinned, and the colour rule.
+
+It also *walks* the showcase rather than spot-checking it: 29 samples across
+the sequence, asserting that no more than one card is ever fully on stage and
+that a card is on stage for most of it. Collapsing `CARD_STRIDE` makes it
+report a peak of five.
 
 **Do not verify motion through a visible browser tab that is not focused.** A
 backgrounded tab throttles `requestAnimationFrame` to nothing and GSAP's ticker
@@ -122,11 +139,11 @@ a modern browser fetches none of them.
 | Head layers | ≤ 600KB | 56KB *(placeholder)* |
 | Card crops | ≤ 400KB | 78KB *(placeholder)* |
 | Fonts | ≤ 90KB | 41KB |
-| JS, gzipped | ≤ 120KB | 110KB |
+| JS, gzipped | ≤ 120KB | 111KB |
 | CSS + HTML, gzipped | — | 5KB |
 | **First load** | **≤ 1.3MB** | **290KB** |
 
-The JS line is the tight one: React plus GSAP plus ScrollTrigger is 110KB of a
+The JS line is the tight one: React plus GSAP plus ScrollTrigger is 111KB of a
 120KB budget, so there is no room for another library. Anything new has to
 replace something.
 

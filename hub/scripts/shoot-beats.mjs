@@ -24,13 +24,16 @@ const PORT = 9333;
 /** The beats, as fractions of the pinned scroll. Mirrors BEATS in src. */
 const SHOTS = [
   ['0-rest', 0],
-  ['1-lid-half', 0.18],
-  ['1-lid-open', 0.35],
-  ['2-look', 0.4],
-  ['3-beat', 0.45],
-  ['4-emerge', 0.6],
-  ['4-emerge-late', 0.72],
-  ['5-settled', 0.82],
+  ['1-lid-open', 0.28],
+  ['2-look', 0.335],
+  ['3-beat', 0.35],
+  ['4-card1-rise', 0.382],
+  ['4-card1-hold', 0.42],
+  ['4-crossover', 0.462],
+  ['4-card2-hold', 0.525],
+  ['4-card3-hold', 0.63],
+  ['4-card4-hold', 0.735],
+  ['4-card5-hold', 0.84],
   ['5-end', 1.0],
 ];
 
