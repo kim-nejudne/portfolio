@@ -84,8 +84,35 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  button, a, [role="button"], input[type="submit"], input[type="button"], input[type="reset"] {
+  /* Tailwind v4's Preflight leaves controls at the browser default cursor — v3
+     set pointer on buttons and v4 deliberately does not. Selects and the
+     labels that wrap a choice are controls too, so they say so as well. */
+  button,
+  a,
+  select,
+  summary,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
     cursor: pointer;
+  }
+
+  /* Without this a disabled button still claimed to be clickable, which is a
+     worse lie than a missing pointer: the reservation form disables its submit
+     precisely when the slot is full. Components that set cursor-not-allowed
+     themselves still win — this is the default they were compensating for. */
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  fieldset:disabled,
+  [aria-disabled="true"],
+  label:has(> input:disabled) {
+    cursor: not-allowed;
   }
 
   /* One focus treatment for the whole app, keyboard-only. Individual controls
