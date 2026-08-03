@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+
+# Never
+.env
+.env.*
+!.env.example
+*.pem
+*.key
