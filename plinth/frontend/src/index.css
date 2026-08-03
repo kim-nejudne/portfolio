@@ -43,6 +43,40 @@ body {
   outline-offset: 3px;
 }
 
+/*
+ * Tailwind v4's Preflight leaves controls at the browser default cursor. v3 set
+ * pointer on buttons; v4 deliberately does not, and the browser default for
+ * <button> is an arrow — so every button on the page was claiming not to be one.
+ *
+ * Inside @layer base rather than unlayered like the rules above it: unlayered
+ * styles beat Tailwind's utilities, which would mean a `cursor-not-allowed`
+ * class silently losing to this. The day-selector labels already set
+ * cursor-pointer themselves and must keep winning.
+ */
+@layer base {
+  button,
+  select,
+  summary,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  ::file-selector-button,
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  fieldset:disabled,
+  [aria-disabled="true"],
+  label:has(> input:disabled) {
+    cursor: not-allowed;
+  }
+}
+
 section[id] {
   scroll-margin-top: var(--nav-height);
 }
