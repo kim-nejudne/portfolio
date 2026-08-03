@@ -69,20 +69,33 @@ export const EYE_END_VH = 88;
  * Smaller on a phone than the ratio alone would suggest, and sitting lower.
  * A 390x844 screen has to fit the pitch above the crown, and at the desktop
  * proportion the headline lands on his hair.
+ *
+ * Both numbers came down when the lid started lifting clear of the head. The
+ * head and the card are competing for the same viewport, and the head opening
+ * legibly is worth more than the card being enormous — the card only has to be
+ * the subject of the screen, which it still is.
  */
-export const HEAD_HEIGHT_VH = { mobile: 44, desktop: 62 } as const;
+export const HEAD_HEIGHT_VH = { mobile: 40, desktop: 54 } as const;
 
 /**
- * How far the lid swings.
+ * How far the lid swings, and how far it lifts as it goes.
  *
- * Just under vertical, deliberately. Past 90 degrees the crown would fling
- * forward over the face and cover the sky the cards need; short of about 60 it
- * reads as a lifted hat rather than an opened container. At 74 the lid is
- * foreshortened almost to its cut edge — which is why that edge carries a
- * paper-thickness band in the asset spec, and why this angle is the first
- * thing to re-tune when the real art lands.
+ * The rotation alone was never the problem — it ran from the first frame — but
+ * a cap hinged at the back and tipped toward the viewer foreshortens into the
+ * seam and its perspective-magnified projection sweeps straight back down over
+ * the opening. So the head looked identical for most of the scroll: the lid
+ * was moving and nothing was being revealed.
+ *
+ * The fix is two-part. The cavity is now deep enough to have an inside (see
+ * `CAVITY_RY` in the generator), and the lid *lifts* as it turns instead of
+ * only pivoting. A strict hinge is the more truthful mechanism and the less
+ * legible one; a top that rises and tilts back reads instantly as a lid coming
+ * off a box, which is the sentence the piece is trying to say.
+ *
+ * The lift is a percentage of the artboard height, so it scales with the head.
  */
-export const LID_ANGLE = -74;
+export const LID_ANGLE = -66;
+export const LID_LIFT = 11;
 
 /** The gaze change. Its own easing, its own duration, in real seconds. */
 export const FLICK_SECONDS = 0.12;

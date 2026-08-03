@@ -326,8 +326,9 @@ body {
   .card {
     /* Big enough to be the subject of the screen. At 32rem it read as a
        thumbnail marooned in the middle of a wide monitor; the sky around it is
-       supposed to be air, not emptiness. */
-    width: min(36rem, 50vw);
+       supposed to be air, not emptiness. Capped by how much sky there is above
+       an open head — see HEAD_OPEN_RISE, which the verify suite checks. */
+    width: min(28rem, 44vw);
   }
 }
 
@@ -578,8 +579,15 @@ body {
     aspect-ratio: var(--canvas-aspect);
   }
 
+  /*
+   * The same transform the timeline ends on — lift *then* rotate, matching the
+   * order GSAP composes `yPercent` and `rotateX`. Getting only the rotation
+   * here meant the static head showed a lid still sitting over its own
+   * opening: technically open, visibly shut. The verify suite now compares
+   * this against the animated end state rather than trusting it.
+   */
   .lid-hinge {
-    transform: rotateX(var(--lid-angle));
+    transform: translateY(var(--lid-lift)) rotateX(var(--lid-angle));
   }
 
   .layer[data-layer='eyes-up'] {

@@ -36,15 +36,25 @@ W, H = 1200, 1600
 # them or the hinge will not land on the seam.
 HEAD_CX, HEAD_CY = 600, 630
 HEAD_RX, HEAD_RY = 280, 450          # head spans y 180..1080, x 320..880
-CUT_Y = 430                          # where the cranium separates
+CUT_Y = 410                          # where the cranium separates
 
-# Half-width of the head at the cut line: 280 * sqrt(1 - ((430-630)/450)^2).
+# Half-width of the head at the cut line: 280 * sqrt(1 - ((410-630)/450)^2).
 # The cavity ellipse has to be exactly this wide or the opening will not sit
 # flush in the silhouette.
-CAVITY_RX = 251
-CAVITY_RY = 80                       # squashed: we are looking slightly down into it
+CAVITY_RX = 244
 
-SKY_RX, SKY_RY = 268, 102             # larger than the opening, smaller than the head:
+# How deep the bowl is, and the single biggest thing that was wrong with the
+# piece.
+#
+# This was 80. An opening 160 units tall in a head 900 tall is a slot, not an
+# opening: with the lid fully up it exposed about fifty pixels of sky, and the
+# foreshortened crown sat over most of that. So for the first two thirds of the
+# scroll the head looked completely unchanged and the whole gesture read as
+# nothing happening. The rotation was running the entire time — it just had
+# nothing to reveal. You cannot open something with no inside.
+CAVITY_RY = 140
+
+SKY_RX, SKY_RY = 262, 168             # larger than the opening, smaller than the head:
                                      # it must have room to parallax and no room to spill
 
 EYE_CY = 640
@@ -92,7 +102,7 @@ def layer_head_back() -> str:
     """Everything behind the cavity: the rear of the skull, and the far inner
     rim you see across the opening once the lid is up."""
     return svg(
-        f'<g fill="{TONE_BACK}">{head_path_clipped(CUT_Y - 150, 1600)}</g>'
+        f'<g fill="{TONE_BACK}">{head_path_clipped(CUT_Y - 230, 1600)}</g>'
         # the far rim, arcing up behind the sky
         f'<path d="M {HEAD_CX - CAVITY_RX} {CUT_Y} '
         f"a {CAVITY_RX} {CAVITY_RY} 0 0 1 {CAVITY_RX * 2} 0 Z\" "
@@ -144,10 +154,17 @@ def layer_cavity() -> str:
         f'<clipPath id="silhouette">'
         f'<ellipse cx="{HEAD_CX}" cy="{HEAD_CY}" rx="{HEAD_RX + 2}" ry="{HEAD_RY + 2}"/>'
         f"</clipPath>"
+        # Darker at the back of the bowl than at the front rim. Flat, the wall
+        # read as a ring drawn on the head rather than as an inside.
+        f'<linearGradient id="wall" x1="0" y1="{CUT_Y - CAVITY_RY}" '
+        f'x2="0" y2="{CUT_Y + CAVITY_RY}" gradientUnits="userSpaceOnUse">'
+        f'<stop offset="0" stop-color="#454951"/>'
+        f'<stop offset="1" stop-color="{TONE_CAVITY}"/>'
+        f"</linearGradient>"
         f"</defs>"
         f'<g clip-path="url(#silhouette)" fill-rule="evenodd">'
-        f'<path fill="{TONE_CAVITY}" d="'
-        f"M 0 {CUT_Y - SKY_RY - 4} H {W} V {CUT_Y + 130} H 0 Z "
+        f'<path fill="url(#wall)" d="'
+        f"M 0 {CUT_Y - SKY_RY - 4} H {W} V {CUT_Y + CAVITY_RY + 60} H 0 Z "
         f"M {HEAD_CX - CAVITY_RX} {CUT_Y} "
         f"a {CAVITY_RX} {CAVITY_RY} 0 1 0 {CAVITY_RX * 2} 0 "
         f"a {CAVITY_RX} {CAVITY_RY} 0 1 0 {-CAVITY_RX * 2} 0 Z"

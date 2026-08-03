@@ -5,7 +5,7 @@ import Index from './components/Index';
 import Pitch from './components/Pitch';
 import Showcase from './components/Showcase';
 import { CANVAS, CARD_Z, EYE_LINE, HEAD_FRACTION, HEAD_OPEN_RISE } from './head';
-import { EYE_END_VH, EYE_REST_VH, HEAD_HEIGHT_VH, LID_ANGLE } from './choreography';
+import { EYE_END_VH, EYE_REST_VH, HEAD_HEIGHT_VH, LID_ANGLE, LID_LIFT } from './choreography';
 import { useHubTimeline } from './hooks/useHubTimeline';
 
 /**
@@ -30,6 +30,7 @@ const vars = {
   '--head-vh-desktop': HEAD_HEIGHT_VH.desktop,
   '--canvas-aspect': CANVAS.w / CANVAS.h,
   '--lid-angle': `${LID_ANGLE}deg`,
+  '--lid-lift': `${-LID_LIFT}%`,
   '--card-z': CARD_Z,
 } as CSSProperties;
 

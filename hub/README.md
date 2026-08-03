@@ -22,15 +22,21 @@ policy, the keyboard path and the whole performance budget are built and tuned
 already correct. It also front-loads the risk — and it has already paid for
 itself twice, in ways a stylesheet reading could not have caught:
 
-- **The lid does not read as a lid.** At 74° it foreshortens almost to its cut
-  edge and looks less like an opened flap than like a crown that has been
-  sliced off. `LID_ANGLE` is the first number to re-tune when the real crown
-  exists, and the paper-thickness band on the cut edge is what will have to
-  sell it.
-- **The cards landed on his forehead.** The layout sized the region they occupy
-  to end at the *cut line*, but when the lid is up the rear wall of the skull
-  still stands about 100px above it. `HEAD_OPEN_RISE` is that measurement, and
-  it needs re-measuring against the real head.
+- **The head did not appear to open at all.** The rotation ran from the first
+  frame, but the cavity was 160 canvas units deep in a head 900 tall — a slot,
+  not an opening — so even fully up it showed a sliver of sky that the
+  foreshortened crown sat over. The transform was fine; it had nothing to
+  reveal. Fixed by making the bowl deep enough to have an inside, giving the
+  lid a **lift** as well as a rotation so it visibly leaves the head, and
+  easing the lid `out` rather than `inOut` — `power2.inOut` spent the first
+  third of the scroll on a quarter of the movement, which on a 66° swing is
+  invisible, and a scrubbed mechanism has to answer the hand turning it.
+- **The cards landed on his forehead. Twice.** The layout sized the region they
+  occupy to end at the *cut line*, which is not where the head ends; then, once
+  the lid started lifting, the corrected figure was too small again.
+  `HEAD_OPEN_RISE` is now a *checked* number rather than a reasoned one — the
+  verify suite photographs the open head with the showcase hidden, trims away
+  the paper to find its real topmost pixel, and fails if a card overlaps it.
 
 ```sh
 npm run art      # regenerate the placeholder head layers
@@ -40,9 +46,16 @@ npm run crops    # re-grab a placeholder crop from each live spoke
 ### Replacing the placeholders
 
 Drop the real layers into `public/head/` under the same names, as `.avif` with
-a `.png` beside them. Then re-measure `HEAD_OPEN_RISE` and re-tune `LID_ANGLE`,
-and check `CUT_Y` / `CAVITY_RY` / `EYE_CY` in `src/head.ts` still match where
-the artwork actually puts them. Nothing else should need to change.
+a `.png` beside them. Then check `CUT_Y` / `CAVITY_RX` / `CAVITY_RY` / `EYE_CY`
+in `src/head.ts` still match where the artwork actually puts them, re-tune
+`LID_ANGLE` and `LID_LIFT`, and let `npm run verify` tell you whether
+`HEAD_OPEN_RISE` is still right. Nothing else should need to change.
+
+The lift is worth understanding before changing it. A strict hinge is the more
+truthful mechanism and the less legible one: a cap pivoting toward the viewer
+foreshortens into its own seam, and perspective magnification sweeps its
+projection back down over the opening it just made. A top that rises *and*
+tilts reads instantly as a lid coming off a box. Legibility won.
 
 ## The three files that carry the design
 
@@ -107,12 +120,12 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 20 assertions in a real browser
+npm run verify            # 22 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 20 assertions,
-five of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 22 assertions,
+eight of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
@@ -123,6 +136,14 @@ It also *walks* the showcase rather than spot-checking it: 29 samples across
 the sequence, asserting that no more than one card is ever fully on stage and
 that a card is on stage for most of it. Collapsing `CARD_STRIDE` makes it
 report a peak of five.
+
+Two checks exist because the same thing broke twice. One photographs the open
+head and fails if a card overlaps it. The other compares the reduced-motion
+lid transform against the animated end state — CSS and GSAP express that pose
+in two different files and they had already drifted, leaving the static head
+technically open and visibly shut. It compares rotation and *proportional*
+lift, not raw matrices: the head is deliberately a different size in flow than
+on the stage, so the pixel translations differ by design.
 
 **Do not verify motion through a visible browser tab that is not focused.** A
 backgrounded tab throttles `requestAnimationFrame` to nothing and GSAP's ticker

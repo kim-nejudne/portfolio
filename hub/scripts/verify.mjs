@@ -14,7 +14,8 @@
  * Usage: node scripts/verify.mjs [url]
  */
 
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const URL_ARG = process.argv[2] ?? 'http://localhost:4501/';
@@ -209,6 +210,69 @@ async function main() {
       `${holdsSeen}/29 samples`,
     );
 
+    /*
+     * The card must not land on his forehead.
+     *
+     * This has been wrong twice, both times because the constant that reserves
+     * sky for the cards was derived from something other than where the head
+     * actually ends — first the cut line, then a rise measured before the lid
+     * started lifting clear. So it is measured rather than reasoned about:
+     * hide the showcase, photograph the open head, and find its real topmost
+     * pixel by trimming away the uniform paper. Then compare with where CSS
+     * puts the card.
+     *
+     * `-trim` reports the offset of the first row that is not the background
+     * colour, which after the pitch has faded out is the head and nothing else.
+     */
+    const headTopWhenOpen = async (holdAt) => {
+      await ev(`window.scrollTo(0, ${Math.round(holdAt * pin)})`);
+      await sleep(900);
+      await ev(`document.querySelector('.showcase').style.visibility = 'hidden'`);
+      await sleep(120);
+      const shot = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
+      writeFileSync('/tmp/hub-headtop.png', Buffer.from(shot.data, 'base64'));
+      await ev(`document.querySelector('.showcase').style.visibility = ''`);
+      await sleep(120);
+      const out = execFileSync('magick', [
+        '/tmp/hub-headtop.png', '-fuzz', '4%', '-trim',
+        '-format', '%[fx:page.y]', 'info:',
+      ]).toString().trim();
+      return Number(out);
+    };
+
+    let worstGap = Infinity;
+    for (const hold of [0.42, 0.63, 0.84]) {
+      const top = await headTopWhenOpen(hold);
+      const bottom = await ev(`(() => {
+        const c = [...document.querySelectorAll('.card')]
+          .filter(x => getComputedStyle(x).visibility === 'visible')
+          .map(x => x.getBoundingClientRect().bottom);
+        return c.length ? Math.max(...c) : -1;
+      })()`);
+      if (bottom > 0) worstGap = Math.min(worstGap, top - bottom);
+    }
+    check(
+      'the card on stage never overlaps the open head',
+      worstGap > 0,
+      `closest approach ${Math.round(worstGap)}px`,
+    );
+
+    /*
+     * Remember how far open the lid actually ends up, so the reduced-motion
+     * branch can be compared against it rather than merely checked for "not
+     * identity". CSS and GSAP express this transform in two different places
+     * and they have already drifted once.
+     */
+    await ev(`window.scrollTo(0, ${Math.round(0.3 * pin)})`);
+    await sleep(900);
+    const openLid = JSON.parse(await ev(`(() => {
+      const l = document.querySelector('.lid-hinge');
+      return JSON.stringify({
+        m: getComputedStyle(l).transform,
+        h: l.offsetHeight, // layout height: getBoundingClientRect is the *projected* box of a rotated element
+      });
+    })()`));
+
     /* ---- reaching the work without the performance ------------------- */
 
     /*
@@ -268,6 +332,39 @@ async function main() {
         return rows.length === 5 && rows.every(a => a.getBoundingClientRect().height > 0);
       })()`),
     );
+    const staticLid = JSON.parse(await ev(`(() => {
+      const l = document.querySelector('.lid-hinge');
+      return JSON.stringify({
+        m: getComputedStyle(l).transform,
+        h: l.offsetHeight,
+      });
+    })()`));
+
+    /*
+     * Compared as rotation plus a *proportional* lift, not as raw matrices.
+     * The lift is a percentage of the artboard and the head is deliberately a
+     * different size in flow than it is on the pinned stage, so the pixel
+     * translations differ by design — the first version of this check flagged
+     * that as a failure, which was the check being wrong, not the CSS.
+     */
+    /* Parse inside the parentheses — matching digits across the whole string
+       picks up the "3" in `matrix3d` and yields seventeen components. */
+    const nums = (m) =>
+      m.includes('(')
+        ? m.slice(m.indexOf('(') + 1, m.lastIndexOf(')')).split(',').map((x) => Number(x.trim()))
+        : [];
+    const a = nums(openLid.m);
+    const b = nums(staticLid.m);
+    const rotationMatches =
+      a.length === 16 && b.length === 16 && a.slice(0, 12).every((v, i) => Math.abs(v - b[i]) < 0.01);
+    const liftA = a.length === 16 ? a[13] / openLid.h : NaN;
+    const liftB = b.length === 16 ? b[13] / staticLid.h : NaN;
+    check(
+      'reduced motion opens the lid exactly as far as the timeline does',
+      rotationMatches && Math.abs(liftA - liftB) < 0.005,
+      `lift ${(liftA * 100).toFixed(1)}% vs ${(liftB * 100).toFixed(1)}% of the artboard`,
+    );
+
     check(
       'reduced motion shows the head already open and looking up',
       await ev(`(() => {

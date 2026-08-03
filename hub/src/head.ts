@@ -19,8 +19,9 @@ export const CANVAS = { w: 1200, h: 1600 } as const;
  * Landmarks, in canvas units, mirrored from the generator. Only three matter
  * to the app, and all three are consequences of where the cranium is cut.
  */
-const CUT_Y = 430;
-const CAVITY_RY = 80;
+const CUT_Y = 410;
+const CAVITY_RY = 140;
+const CAVITY_RX = 244;
 const EYE_CY = 640;
 
 /** Where the cards are born: the centre of the opening. */
@@ -42,7 +43,6 @@ export const CAVITY_POINT = {
  * still cannot be seen anywhere except through the hole. A hair larger than
  * the cavity ellipse so the rim's own edge covers the seam.
  */
-const CAVITY_RX = 251;
 export const SKY_CLIP = `ellipse(${((CAVITY_RX / CANVAS.w) * 100 + 0.3).toFixed(3)}% ${(
   (CAVITY_RY / CANVAS.h) * 100 +
   0.2
@@ -79,14 +79,18 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * canvas. This is the ceiling the settled cards have to clear.
  *
  * It is not the cut line, which is the number the layout used first and the
- * reason the bottom row of cards landed on his forehead. When the lid is up,
- * the rear wall of the skull still stands above the cut and the lid itself
- * projects above that — roughly 100px more, at desktop size. Measured off the
- * open head rather than derived, because the lid's contribution depends on the
- * hinge angle and on artwork that does not exist yet; re-measure it when the
- * real crown lands.
+ * reason the cards landed on his forehead. When the lid is up, the rear wall
+ * of the skull still stands above the cut, and the lid itself lifts clear
+ * above that.
+ *
+ * It is not derived, because it depends on the hinge angle, the lift, and
+ * artwork that does not exist yet. It is *checked* instead:
+ * `scripts/verify.mjs` photographs the open head with the showcase hidden,
+ * finds its real topmost pixel, and fails if a card overlaps it. So this can
+ * be wrong and the suite will say so — which is what happened both times it
+ * was wrong before.
  */
-export const HEAD_OPEN_RISE = 0.24;
+export const HEAD_OPEN_RISE = 0.37;
 
 /**
  * The eye pair is the one layer that is not full-bleed. It is cross-faded on

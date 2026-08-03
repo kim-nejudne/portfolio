@@ -12,6 +12,7 @@ import {
   EYE_REST_VH,
   FLICK_SECONDS,
   LID_ANGLE,
+  LID_LIFT,
   PIN_LENGTH,
   TOTAL,
 } from '../choreography';
@@ -153,11 +154,26 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
           },
         });
 
-        /* 1 · the lid hinges open */
+        /* 1 · the lid lifts and turns back off the head */
         tl.fromTo(
           lid,
-          { rotateX: 0 },
-          { rotateX: LID_ANGLE, duration: BEATS.lidEnd - BEATS.lidStart, ease: 'power2.inOut' },
+          { rotateX: 0, yPercent: 0 },
+          {
+            rotateX: LID_ANGLE,
+            yPercent: -LID_LIFT,
+            duration: BEATS.lidEnd - BEATS.lidStart,
+            /*
+             * Out, not inOut. A scrubbed mechanism has to answer the hand that
+             * is turning it: `power2.inOut` spends the first third of the
+             * scroll delivering a quarter of the movement, which on a 66
+             * degree swing is about fifteen degrees — invisible. The head
+             * appeared not to open at all until the scroll was already a
+             * tenth of the way down the page. Easing out means the lid breaks
+             * free immediately and settles into place, which is what an object
+             * you are lifting actually does.
+             */
+            ease: 'power1.out',
+          },
           BEATS.lidStart,
         );
 
