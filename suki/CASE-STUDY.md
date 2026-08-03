@@ -10,7 +10,7 @@ Offline-first, because in a Philippine barangay that is not an architectural
 preference. The power goes out, the signal drops to one bar, and the shop still
 has to sell a sachet of shampoo and write down who owes what.
 
-- **Live:** `suki.kimnejudne.dev`
+- **Live:** https://suki.kimnejudne.dev
 - **Stack:** Vite 6 · React 19 · TypeScript strict · Dexie/IndexedDB ·
   vite-plugin-pwa · NestJS 11 · Drizzle · Postgres 17 · npm workspaces
 - **Brief:** `sarisari-brief.md` — written *before* this pass, gap list and all
@@ -424,6 +424,27 @@ clients rebase on pull, and the e2e suite already covers two devices replaying
 into one log. The product does not need it yet.
 
 **Accounts.** Covered above: the wrong trade for a shop counter.
+
+**Per-visitor shops.** `pull` returns every operation past the client's cursor
+regardless of which device wrote it, because the product is one shop with
+several devices behind one counter. On a public demo that means visitors share
+a shop — one person's sales appear in the next person's ledger. The right
+answer is a `shop_id` on the log; the cheap answer, taken here, is a nightly
+timer that wipes the demo shop so everybody starts from the seeded fixtures.
+
+The cheap answer had one sharp edge worth recording. The reset must truncate
+*without* `RESTART IDENTITY`: `seq` is the cursor clients page from and they
+keep it in IndexedDB across the reset, so restarting the sequence hands the
+next operation a `seq` below a returning visitor's cursor — their own sales
+sync to the server and become permanently invisible to them. I demonstrated
+that failure before shipping the version that avoids it, and the script asserts
+the sequence did not go backwards.
+
+The check that asserts it was itself broken on the first run:
+`select last_value from pg_get_serial_sequence(...)` reads plausibly and errors
+at runtime, because that function returns a *name*. Under the script's `ERR`
+trap it would have failed the reset every night — a guard that would have
+disabled the thing it was guarding. Running it once caught that in seconds.
 
 ---
 

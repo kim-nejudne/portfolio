@@ -1,0 +1,11 @@
+[Unit]
+Description=SUKI demo shop reset
+Documentation=file:///opt/suki/README.md
+After=docker.service suki-backup.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/suki-reset.sh
+Nice=10
+IOSchedulingClass=idle

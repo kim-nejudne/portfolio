@@ -16,6 +16,7 @@ does not run `npm ci` or `docker build`.
 | API port | `127.0.0.1:3007` → container `4100` |
 | nginx vhost | `/etc/nginx/sites-available/suki.conf` |
 | Backups | `/var/backups/suki`, nightly 03:40, 14 days |
+| Demo reset | nightly 03:50 — wipes the shared shop, see below |
 
 ## Why the split
 
@@ -124,6 +125,55 @@ Run it once by hand and read the output. The script refuses to keep a dump that
 fails its checks, so a silent success is the only acceptable result — and the
 first time it ran during development it correctly refused a dump, because its
 size floor was set too high for a three-table schema.
+
+## The nightly demo reset
+
+SUKI's product model is one shop with several devices behind one counter,
+sharing one append-only log. `pull` therefore returns every operation past the
+client's cursor regardless of which device wrote it — correct for a sari-sari
+store, wrong for a public demo where every visitor is a stranger sharing that
+same shop.
+
+Left alone, a recruiter opening the link a week from now would see whatever had
+accumulated: other people's sales, other people's utang, and anything crude
+somebody typed into a note. `suki-reset.timer` wipes the shop at 03:50 so every
+visitor starts from the seeded fixtures.
+
+```sh
+scp deploy/backup/suki-reset.sh root@165.245.189.5:/usr/local/bin/
+scp deploy/backup/suki-reset.{service,timer} root@165.245.189.5:/etc/systemd/system/
+ssh root@165.245.189.5 'chmod 755 /usr/local/bin/suki-reset.sh && systemctl daemon-reload && systemctl enable --now suki-reset.timer'
+```
+
+It runs **ten minutes after the backup**, deliberately: the night's dump
+captures whatever visitors did before this wipes it.
+
+**The truncate must never use `RESTART IDENTITY`.** `seq` is the cursor clients
+page from, and they keep it in IndexedDB across the reset. Restarting the
+sequence hands the next operation a `seq` *below* a returning visitor's cursor,
+so `pull` never returns it — their own sales sync to the server and become
+permanently invisible to them. Demonstrated rather than assumed:
+
+```
+# with RESTART IDENTITY, a visitor whose cursor is 4:
+push  -> accepted, cursor 1
+pull?since=4 -> operations returned: 0    # their own sale, invisible
+select seq from operations -> 1           # but it is right there
+```
+
+The script asserts the sequence did not go backwards, and fails loudly if it
+did.
+
+**The limitation is real and stated rather than hidden:** between one visitor
+and the next reset, visitors share a shop. The better product answer is scoping
+the log per visitor with a `shop_id`; that was deferred because it changes the
+schema the case study describes.
+
+To reset by hand — before sending the link to someone specific, say:
+
+```sh
+ssh root@165.245.189.5 'systemctl start suki-reset.service && journalctl -u suki-reset.service -n 5 --no-pager -o cat'
+```
 
 ## Updating
 
