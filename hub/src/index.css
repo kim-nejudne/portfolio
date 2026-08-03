@@ -184,14 +184,32 @@ body {
   transform-style: preserve-3d;
 }
 
+/*
+ * The two faces of the lid, nudged a hair apart in z.
+ *
+ * Coplanar and coincident, they z-fight: the browser has no basis to choose
+ * between them and `backface-visibility` never gets to do its job — the flipped
+ * lid kept rendering its outside instead of its inside. Half a pixel of
+ * separation on each side of the shared plane is invisible and decisive.
+ */
 .lid-plate {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
+  transform: translateZ(0.5px);
 }
 
+.lid-front {
+  transform: translateZ(0.5px);
+}
+
+/*
+ * The backface, flipped about the same axis the lid turns on. It was
+ * `rotateX(180deg)` when the lid hinged backwards; left that way against a
+ * sideways flip it would show the inside of the cranium upside down.
+ */
 .lid-back {
-  transform: rotateX(180deg);
+  transform: translateZ(-0.5px) rotateY(180deg);
 }
 
 .sky-clip {
@@ -328,7 +346,7 @@ body {
        thumbnail marooned in the middle of a wide monitor; the sky around it is
        supposed to be air, not emptiness. Capped by how much sky there is above
        an open head — see HEAD_OPEN_RISE, which the verify suite checks. */
-    width: min(28rem, 44vw);
+    width: min(30rem, 46vw);
   }
 }
 
@@ -508,12 +526,23 @@ body {
  * and demoted the moment it does not, so scrolling the rest of the page costs
  * nothing. The cards are five more textures, but only one is ever visible, so
  * the four hidden ones cost nothing to hold.
+ *
+ * The lid is listed separately and *only* for `transform`, which is not a
+ * micro-optimisation. `will-change: opacity` makes an element a grouping
+ * element, and a grouping element forces `transform-style` back to `flat` — so
+ * naming opacity here silently destroyed the hinge's 3D context and with it
+ * all backface culling. The flipped-open lid kept rendering its outside
+ * instead of its inside, and the cause was this line rather than anything in
+ * the 3D code.
  */
 .stage.is-pinned .head,
-.stage.is-pinned .lid-hinge,
 .stage.is-pinned .layer[data-layer='sky'],
 .stage.is-pinned .card {
   will-change: transform, opacity;
+}
+
+.stage.is-pinned .lid-hinge {
+  will-change: transform;
 }
 
 /* ------------------------------------------------------------------ *
@@ -580,14 +609,13 @@ body {
   }
 
   /*
-   * The same transform the timeline ends on — lift *then* rotate, matching the
-   * order GSAP composes `yPercent` and `rotateX`. Getting only the rotation
-   * here meant the static head showed a lid still sitting over its own
-   * opening: technically open, visibly shut. The verify suite now compares
-   * this against the animated end state rather than trusting it.
+   * The same pose the timeline ends on, in the order GSAP composes it:
+   * `rotate` (the in-plane tilt) before `rotateY` (the flip). This is written
+   * twice — here and in the timeline — and the two have drifted before, so the
+   * verify suite compares them rather than trusting them.
    */
   .lid-hinge {
-    transform: translateY(var(--lid-lift)) rotateX(var(--lid-angle));
+    transform: rotate(var(--lid-tilt)) rotateY(var(--lid-angle));
   }
 
   .layer[data-layer='eyes-up'] {

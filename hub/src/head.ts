@@ -22,6 +22,7 @@ export const CANVAS = { w: 1200, h: 1600 } as const;
 const CUT_Y = 410;
 const CAVITY_RY = 140;
 const CAVITY_RX = 244;
+const HEAD_CX = 600;
 const EYE_CY = 640;
 
 /** Where the cards are born: the centre of the opening. */
@@ -49,14 +50,30 @@ export const SKY_CLIP = `ellipse(${((CAVITY_RX / CANVAS.w) * 100 + 0.3).toFixed(
 ).toFixed(3)}% at ${CAVITY_POINT.x}% ${CAVITY_POINT.y}%)`;
 
 /**
- * The hinge: the *back* edge of the cut ellipse, which in a straight-on view
- * projects to its top. The lid rotates about this line, so it has to be the
- * lid's transform-origin or the crown will pivot around its middle and read as
- * a spinning disc rather than a lifted flap.
+ * The hinge: the **right end of the cut ellipse**.
+ *
+ * The lid flips open sideways about a vertical axis, the way a book cover
+ * opens — not backwards about the skull. That is a `rotateY`, and it earns its
+ * keep three times over.
+ *
+ * It reveals *progressively and immediately*: the crown foreshortens away from
+ * the left, so the opening is uncovered from the far side within the first few
+ * degrees, and by 90 it is completely clear. The back-hinge version had the
+ * opposite property — perspective magnification swept the tipping crown
+ * straight back down over the hole it had just made, which is why the head
+ * looked shut for most of the scroll and needed a lift bolted on to escape.
+ *
+ * It also finally gives `lid-underside` something to do. Past 90 degrees the
+ * lid faces away, the browser swaps to the backface, and you are looking at
+ * the inside of the cranium lying open to the right. That is what the two
+ * plates in `Head.tsx` were built for.
+ *
+ * The y is the cut line rather than its back edge, so the pivot sits in the
+ * middle of the seam, where the eye expects a hinge to be.
  */
 export const HINGE = {
-  x: 50,
-  y: ((CUT_Y - CAVITY_RY) / CANVAS.h) * 100, // 21.875%
+  x: ((HEAD_CX + CAVITY_RX) / CANVAS.w) * 100, // 70.333%
+  y: (CUT_Y / CANVAS.h) * 100, // 25.625%
 } as const;
 
 /**
@@ -90,7 +107,7 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * be wrong and the suite will say so — which is what happened both times it
  * was wrong before.
  */
-export const HEAD_OPEN_RISE = 0.37;
+export const HEAD_OPEN_RISE = 0.311;
 
 /**
  * The eye pair is the one layer that is not full-bleed. It is cross-faded on

@@ -12,7 +12,7 @@ import {
   EYE_REST_VH,
   FLICK_SECONDS,
   LID_ANGLE,
-  LID_LIFT,
+  LID_TILT,
   PIN_LENGTH,
   TOTAL,
 } from '../choreography';
@@ -154,13 +154,13 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
           },
         });
 
-        /* 1 · the lid lifts and turns back off the head */
+        /* 1 · the top of the head flips open to the right */
         tl.fromTo(
           lid,
-          { rotateX: 0, yPercent: 0 },
+          { rotateY: 0, rotate: 0 },
           {
-            rotateX: LID_ANGLE,
-            yPercent: -LID_LIFT,
+            rotateY: LID_ANGLE,
+            rotate: LID_TILT,
             duration: BEATS.lidEnd - BEATS.lidStart,
             /*
              * Out, not inOut. A scrubbed mechanism has to answer the hand that

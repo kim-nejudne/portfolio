@@ -1,7 +1,8 @@
 # The hub — `kimnejudne.dev`
 
-The homepage. A portrait fills the hero; on scroll the cranium hinges open, the
-head sinks until the eyes are at the bottom of the screen, he looks up, and the
+The homepage. A portrait fills the hero; on scroll the top of the head flips
+open to the right, the head sinks until the eyes are at the bottom of the
+screen, he looks up, and the
 five projects come out of the opening **one at a time** — each held big and
 still in the sky above him while he watches it, then drifting away as the next
 arrives. A quiet index follows, so nothing depends on having watched.
@@ -26,11 +27,17 @@ itself twice, in ways a stylesheet reading could not have caught:
   frame, but the cavity was 160 canvas units deep in a head 900 tall — a slot,
   not an opening — so even fully up it showed a sliver of sky that the
   foreshortened crown sat over. The transform was fine; it had nothing to
-  reveal. Fixed by making the bowl deep enough to have an inside, giving the
-  lid a **lift** as well as a rotation so it visibly leaves the head, and
-  easing the lid `out` rather than `inOut` — `power2.inOut` spent the first
-  third of the scroll on a quarter of the movement, which on a 66° swing is
-  invisible, and a scrubbed mechanism has to answer the hand turning it.
+  reveal. The bowl is deep enough to be an inside now, and the lid eases `out`
+  rather than `inOut`: `power2.inOut` spent the first third of the scroll on a
+  quarter of the movement, which on a large swing is invisible, and a scrubbed
+  mechanism has to answer the hand turning it.
+- **The backface was silently never culled**, so the lid flipped all the way
+  round and kept showing its outside. Nothing in the computed styles said so.
+  The cause was `will-change: opacity` on the hinge: that makes an element a
+  grouping element, grouping forces `transform-style` back to `flat`, and a
+  flattened context does no backface culling at all. My own layer-promotion
+  optimisation was destroying the 3D. The hinge now declares
+  `will-change: transform` only, and there is a pixel-level regression test.
 - **The cards landed on his forehead. Twice.** The layout sized the region they
   occupy to end at the *cut line*, which is not where the head ends; then, once
   the lid started lifting, the corrected figure was too small again.
@@ -48,14 +55,19 @@ npm run crops    # re-grab a placeholder crop from each live spoke
 Drop the real layers into `public/head/` under the same names, as `.avif` with
 a `.png` beside them. Then check `CUT_Y` / `CAVITY_RX` / `CAVITY_RY` / `EYE_CY`
 in `src/head.ts` still match where the artwork actually puts them, re-tune
-`LID_ANGLE` and `LID_LIFT`, and let `npm run verify` tell you whether
-`HEAD_OPEN_RISE` is still right. Nothing else should need to change.
+`LID_ANGLE` and `LID_TILT`, and let `npm run verify` tell you whether
+`HEAD_OPEN_RISE` is still right — it prints the measurements to derive it from.
+Nothing else should need to change.
 
-The lift is worth understanding before changing it. A strict hinge is the more
-truthful mechanism and the less legible one: a cap pivoting toward the viewer
-foreshortens into its own seam, and perspective magnification sweeps its
-projection back down over the opening it just made. A top that rises *and*
-tilts reads instantly as a lid coming off a box. Legibility won.
+The hinge is worth understanding before changing it. The lid flips **sideways**
+about a vertical axis at the right end of the cut — the way a book cover opens
+— not backwards about the skull. A cap tipping backwards foreshortens into its
+own seam and perspective magnification sweeps its projection straight back down
+over the opening it just made, which is why the back-hinge version needed a
+lift bolted on to escape itself. A sideways flip uncovers the opening
+progressively from the far side, is fully clear by 90°, and past 90° the
+browser swaps to the backface — so you end up looking at the inside of the
+cranium lying open to the right, which is what `lid-underside` was drawn for.
 
 ## The three files that carry the design
 
@@ -120,12 +132,12 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 22 assertions in a real browser
+npm run verify            # 23 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 22 assertions,
-eight of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 23 assertions,
+nine of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
@@ -137,13 +149,15 @@ the sequence, asserting that no more than one card is ever fully on stage and
 that a card is on stage for most of it. Collapsing `CARD_STRIDE` makes it
 report a peak of five.
 
-Two checks exist because the same thing broke twice. One photographs the open
-head and fails if a card overlaps it. The other compares the reduced-motion
-lid transform against the animated end state — CSS and GSAP express that pose
-in two different files and they had already drifted, leaving the static head
-technically open and visibly shut. It compares rotation and *proportional*
-lift, not raw matrices: the head is deliberately a different size in flow than
-on the stage, so the pixel translations differ by design.
+Three checks exist because three things broke in ways nothing else could see.
+One photographs the open head and fails if a card overlaps it, printing the
+measurements `HEAD_OPEN_RISE` should be derived from. One compares the
+reduced-motion lid pose against the animated end state — CSS and GSAP express
+it in two different files and they had already drifted, leaving the static head
+technically open and visibly shut. And one isolates the lid's own pixels, by
+differencing a frame against the same frame with the lid hidden, and fails if
+the flipped lid looks like the closed one — which is what a lost 3D context
+looks like, and it is invisible in the computed styles.
 
 **Do not verify motion through a visible browser tab that is not focused.** A
 backgrounded tab throttles `requestAnimationFrame` to nothing and GSAP's ticker

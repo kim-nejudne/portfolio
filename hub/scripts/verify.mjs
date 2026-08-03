@@ -241,6 +241,7 @@ async function main() {
     };
 
     let worstGap = Infinity;
+    let tightest = null;
     for (const hold of [0.42, 0.63, 0.84]) {
       const top = await headTopWhenOpen(hold);
       const bottom = await ev(`(() => {
@@ -249,12 +250,31 @@ async function main() {
           .map(x => x.getBoundingClientRect().bottom);
         return c.length ? Math.max(...c) : -1;
       })()`);
-      if (bottom > 0) worstGap = Math.min(worstGap, top - bottom);
+      if (bottom > 0 && top - bottom < worstGap) {
+        worstGap = top - bottom;
+        tightest = { top, bottom };
+      }
     }
+    /*
+     * The detail line is the point as much as the pass/fail. HEAD_OPEN_RISE is
+     * how much sky the layout reserves above the head, and it is only ever
+     * correct by measurement — so the numbers it should be derived from get
+     * printed rather than left to be guessed at again.
+     */
+    const geom = await ev(`(() => {
+      const st = getComputedStyle(document.querySelector('.stage'));
+      const h = document.querySelector('.head');
+      return JSON.stringify({ canvasH: h.offsetHeight });
+    })()`);
+    const { canvasH } = JSON.parse(geom);
     check(
       'the card on stage never overlaps the open head',
       worstGap > 0,
-      `closest approach ${Math.round(worstGap)}px`,
+      `closest approach ${Math.round(worstGap)}px` +
+        (tightest
+          ? ` (head top ${Math.round(tightest.top)}, card bottom ${Math.round(tightest.bottom)}, ` +
+            `artboard ${canvasH}px — slack is ${(worstGap / canvasH).toFixed(3)} of HEAD_OPEN_RISE)`
+          : ''),
     );
 
     /*
@@ -272,6 +292,58 @@ async function main() {
         h: l.offsetHeight, // layout height: getBoundingClientRect is the *projected* box of a rotated element
       });
     })()`));
+
+    /*
+     * The flipped-open lid must show its *inside*, not its outside.
+     *
+     * This failed silently for a while and the cause was nowhere near the 3D
+     * code: `will-change: opacity` on the hinge made it a grouping element,
+     * grouping forces `transform-style` back to `flat`, and a flattened
+     * context does no backface culling at all — so the lid turned all the way
+     * round and kept showing its outside. Nothing in the computed styles says
+     * so; only the pixels do.
+     *
+     * Tested art-agnostically: whatever the two faces are, they must not look
+     * the same. The lid's own pixels are isolated by differencing a frame
+     * against the same frame with the lid hidden, then the mean tone of that
+     * region is compared closed against flipped.
+     */
+    const lidTone = async (at) => {
+      await ev(`window.scrollTo(0, ${'ZERO'})`.replace('ZERO', String(Math.round(at * pin))));
+      await sleep(900);
+      await ev(`document.querySelector('.showcase').style.visibility = 'hidden'`);
+      await sleep(120);
+      const withLid = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
+      writeFileSync('/tmp/hub-lid-a.png', Buffer.from(withLid.data, 'base64'));
+      await ev(`document.querySelector('.lid-hinge').style.visibility = 'hidden'`);
+      await sleep(120);
+      const without = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
+      writeFileSync('/tmp/hub-lid-b.png', Buffer.from(without.data, 'base64'));
+      await ev(`document.querySelector('.lid-hinge').style.visibility = '';
+                document.querySelector('.showcase').style.visibility = '';`);
+
+      const box = execFileSync('magick', [
+        '/tmp/hub-lid-a.png', '/tmp/hub-lid-b.png', '-compose', 'difference', '-composite',
+        '-colorspace', 'Gray', '-threshold', '8%', '-trim',
+        '-format', '%X %Y %w %h', 'info:',
+      ]).toString().trim().replace(/\+/g, '').split(/\s+/).map(Number);
+      const [x, y, w, h] = box;
+      if (!(w > 8 && h > 8)) return null;
+      return Number(
+        execFileSync('magick', [
+          '/tmp/hub-lid-a.png', '-crop', `${w}x${h}+${x}+${y}`, '+repage',
+          '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:',
+        ]).toString().trim(),
+      );
+    };
+
+    const closedTone = await lidTone(0);
+    const flippedTone = await lidTone(0.3);
+    check(
+      'the flipped-open lid shows its inside, not its outside',
+      closedTone !== null && flippedTone !== null && Math.abs(closedTone - flippedTone) > 0.06,
+      `closed ${closedTone?.toFixed(3)} vs flipped ${flippedTone?.toFixed(3)}`,
+    );
 
     /* ---- reaching the work without the performance ------------------- */
 

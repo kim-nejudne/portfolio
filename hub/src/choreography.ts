@@ -70,32 +70,39 @@ export const EYE_END_VH = 88;
  * A 390x844 screen has to fit the pitch above the crown, and at the desktop
  * proportion the headline lands on his hair.
  *
- * Both numbers came down when the lid started lifting clear of the head. The
- * head and the card are competing for the same viewport, and the head opening
- * legibly is worth more than the card being enormous — the card only has to be
- * the subject of the screen, which it still is.
+ * The head and the card compete for the same viewport, so these move whenever
+ * the lid's silhouette does. They came down when the lid was lifting clear
+ * above the head and went back up when it started flipping sideways instead:
+ * a lid lying to the right reaches far less far up than one hovering over the
+ * crown. `npm run verify` measures the real clearance and prints it, which is
+ * what these are tuned against.
  */
-export const HEAD_HEIGHT_VH = { mobile: 40, desktop: 54 } as const;
+export const HEAD_HEIGHT_VH = { mobile: 42, desktop: 58 } as const;
 
 /**
- * How far the lid swings, and how far it lifts as it goes.
+ * How far the lid flips.
  *
- * The rotation alone was never the problem — it ran from the first frame — but
- * a cap hinged at the back and tipped toward the viewer foreshortens into the
- * seam and its perspective-magnified projection sweeps straight back down over
- * the opening. So the head looked identical for most of the scroll: the lid
- * was moving and nothing was being revealed.
+ * A `rotateY` about the right end of the cut — the top of the head opens
+ * sideways, like a book cover, and ends up lying to the right of the face with
+ * its inside toward you. See `HINGE` in `head.ts` for why the axis is vertical
+ * rather than across the back of the skull.
  *
- * The fix is two-part. The cavity is now deep enough to have an inside (see
- * `CAVITY_RY` in the generator), and the lid *lifts* as it turns instead of
- * only pivoting. A strict hinge is the more truthful mechanism and the less
- * legible one; a top that rises and tilts back reads instantly as a lid coming
- * off a box, which is the sentence the piece is trying to say.
+ * Past 90 degrees the lid is facing away and the browser swaps to the backface
+ * plate, so this angle is also what decides whether you end up looking at the
+ * outside of the crown or the inside of it. 168 lands it almost flat, still
+ * caught by a few degrees of perspective so it does not read as a decal.
  *
- * The lift is a percentage of the artboard height, so it scales with the head.
+ * Positive, so it swings *toward* the viewer on the way round rather than away
+ * — the difference between a lid opening and a lid retreating.
  */
-export const LID_ANGLE = -66;
-export const LID_LIFT = 11;
+export const LID_ANGLE = 168;
+
+/**
+ * A little counter-rotation in the plane, so the lid tips as it swings instead
+ * of tracking a perfect arc. Mechanisms do this; drawings that do not look
+ * like diagrams.
+ */
+export const LID_TILT = -7;
 
 /** The gaze change. Its own easing, its own duration, in real seconds. */
 export const FLICK_SECONDS = 0.12;
