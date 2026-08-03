@@ -1,0 +1,14 @@
+[Unit]
+Description=FORME Postgres dump
+Documentation=file:///opt/forme/README.md
+# Nothing to dump if docker is not up.
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/forme-backup.sh
+# The box is shared with six other containers; a backup must never be the
+# reason something else is starved.
+Nice=10
+IOSchedulingClass=idle

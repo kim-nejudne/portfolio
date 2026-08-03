@@ -160,12 +160,50 @@ every role, against a throwaway `forme_test` database.
 
 ## Backups
 
-**Not yet configured.** No dump timer exists for `forme_forme-db`.
+A systemd timer dumps Postgres nightly at 03:20 local, offset from certbot's
+renewal window so the two are not competing for two vCPUs.
 
-Currently acceptable because everything in it is regenerable demo seed, and
-because the artwork volume holds only test PDFs. It stops being acceptable the
-moment a real job or a real customer record lands in there — the same open item
-TALLOW carries.
+| | |
+|---|---|
+| Script | `/usr/local/bin/forme-backup.sh` (source in `deploy/backup/`) |
+| Unit | `forme-backup.service` + `forme-backup.timer` |
+| Output | `/var/backups/forme/forme-<UTC stamp>.sql.gz`, mode 600 |
+| Retention | 14 days, pruned only *after* a good dump lands |
+
+The dump is written to `.partial` and renamed only once it has passed three
+checks: a minimum size, `gzip -t`, and a scan confirming it declares all five
+core tables. A truncated pipe produces a file that looks like a backup and
+restores nothing, which is worse than no file at all.
+
+```bash
+systemctl start forme-backup.service          # run one now
+journalctl -u forme-backup.service -n 20      # what it did
+systemctl list-timers forme-backup.timer      # when it runs next
+```
+
+### Restoring
+
+Verified working — a dump was replayed into a scratch database and returned the
+expected row counts (24 jobs, 126 job events, 40 price rates).
+
+```bash
+ssh root@165.245.189.5
+set -a; . /opt/forme/.env; set +a
+C=$(cd /opt/forme && docker compose ps -q db)
+DUMP=/var/backups/forme/forme-<stamp>.sql.gz
+
+# Into a scratch database first. Never straight over the live one.
+docker exec -i "$C" psql -U "$POSTGRES_USER" -d postgres -c 'CREATE DATABASE restore_check;'
+zcat "$DUMP" | docker exec -i "$C" psql -U "$POSTGRES_USER" -d restore_check -v ON_ERROR_STOP=1
+```
+
+The dump carries `--clean --if-exists`, so it can be replayed over the live
+database once the scratch copy has been checked.
+
+**Still not covered: the artwork volume.** `forme_forme-artwork` holds customer
+PDFs and nothing dumps it. Acceptable while it contains only test files;
+it stops being acceptable the moment real artwork lands. TALLOW carries the
+same gap for its own database and has no timer at all.
 
 ## Rolling back
 

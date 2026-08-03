@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly FORME Postgres dump
+
+[Timer]
+# 03:20 local. Offset from the hour and from certbot's renewal window so the
+# two are not competing for a 2-vCPU box.
+OnCalendar=*-*-* 03:20:00
+# If the droplet was off at 03:20, run on the next boot rather than skipping.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
