@@ -1,0 +1,16 @@
+# Everything the image never needs. Keeps the build context small on a laptop
+# and keeps secrets out of it entirely.
+node_modules
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+frontend/public
+frontend/src
+frontend/scripts
+.git
+deploy
+*.md
+coverage
+**/*.tsbuildinfo

@@ -1,0 +1,14 @@
+[Unit]
+Description=SUKI Postgres dump
+Documentation=file:///opt/suki/README.md
+# Nothing to dump if docker is not up.
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/suki-backup.sh
+# The box is shared with several other containers; a backup must never be the
+# reason something else is starved.
+Nice=10
+IOSchedulingClass=idle
