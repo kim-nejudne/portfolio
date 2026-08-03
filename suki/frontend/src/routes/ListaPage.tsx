@@ -77,8 +77,24 @@ export function ListaPage() {
                   <MonogramChip name={c.name} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[15px] truncate">{c.name}</p>
-                    <p className="mono text-[11px] text-muted truncate">
-                      {c.purok} · {days === null ? 'never paid' : `${days}d since bayad`}
+                    {/* One line, but the clipping is aimed rather than left to
+                        whichever half ran out of room first.
+
+                        This read "Purok Mabini · 31d since b…" at 360px, losing
+                        the one word that says what the number counts — a
+                        payment age with no unit is just a number. Letting it
+                        wrap fixed that but made row heights uneven in a list
+                        whose whole job is being scanned.
+
+                        So the purok truncates and the age never does: the purok
+                        repeats down the column and is recoverable from four
+                        values, the age is unique to the row. */}
+                    <p className="mono text-[11px] text-muted flex gap-1 min-w-0">
+                      <span className="truncate">{c.purok}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="shrink-0">
+                        {days === null ? 'never paid' : `${days}d since bayad`}
+                      </span>
                     </p>
                   </div>
                   <div className="text-right">
