@@ -1,0 +1,161 @@
+@import 'tailwindcss';
+
+/* ---------- Design tokens ---------- */
+:root {
+  /* Palette (five values only) */
+  --color-paper: #FBF8F0;
+  --color-rule: #C9C2B2;
+  --color-ink: #1C2A3A;
+  --color-utang: #A32C2C;
+  --color-bayad: #2F6B4F;
+
+  /* Muted grey, used sparingly for secondary text */
+  --color-muted: #6E6A60;
+
+  /* Type scale */
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Martian Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-body: 16px;
+  --text-amount: 18px;
+  --text-balance: 28px;
+  --text-hero: 32px;
+
+  /* Spacing rhythm (baseline grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Chrome */
+  --bottom-bar-height: 68px;
+  --tap-min: 48px;
+  --rule-width: 1px;
+  --radius-tap: 4px;
+}
+
+/* Register colours as Tailwind theme values so we can use text-ink etc. */
+@theme {
+  --color-paper: #FBF8F0;
+  --color-rule: #C9C2B2;
+  --color-ink: #1C2A3A;
+  --color-utang: #A32C2C;
+  --color-bayad: #2F6B4F;
+  --color-muted: #6E6A60;
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Martian Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- Base ---------- */
+html, body, #root {
+  height: 100%;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+* { box-sizing: border-box; }
+
+/* Buttons — reset then base */
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+/* Focus visible — always in ink, offset so it never clips */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* Selection — quiet */
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* ---------- Reusable primitives ---------- */
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.rule { border-bottom: var(--rule-width) solid var(--color-rule); }
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  padding: 8px 12px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  z-index: 100;
+}
+.skip-link:focus { left: 12px; top: 12px; }
+
+/* ---------- Motion (allowed moments only) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .anim-slide-in {
+    animation: slide-in 200ms ease-out both;
+  }
+  .anim-fade-in {
+    animation: fade-in 180ms ease-out both;
+  }
+  .anim-pending {
+    animation: pending-pulse 1400ms ease-in-out infinite;
+  }
+  .anim-payday {
+    animation: payday-in 260ms ease-out both;
+  }
+  .anim-bump {
+    animation: bump 160ms ease-out both;
+  }
+  .settle {
+    transition: opacity 240ms ease-out;
+  }
+}
+
+@keyframes slide-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pending-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@keyframes payday-in {
+  from { transform: translateY(-6px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
