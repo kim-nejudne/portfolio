@@ -14,3 +14,4 @@ export * from './monogram';
 export * from './tingi';
 export * from './ledger';
 export * from './sync';
+export * from './project';

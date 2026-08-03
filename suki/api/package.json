@@ -2,14 +2,14 @@
   "name": "@suki/api",
   "version": "1.0.0",
   "private": true,
-  "description": "SUKI sync API — append-only operation log over Postgres, idempotent on the client-generated operation id.",
+  "description": "SUKI sync API \u2014 append-only operation log over Postgres, idempotent on the client-generated operation id.",
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "jest",
-    "test:e2e": "npm run build && jest --config ./test/jest-e2e.json --runInBand",
+    "test": "jest --config ./test/jest-e2e.json --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node dist/db/migrate.js",
     "db:seed": "node dist/db/seed.js"
@@ -44,12 +44,5 @@
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.4",
     "typescript": "5.8.3"
-  },
-  "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": { "^.+\\.ts$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.spec.json" }] },
-    "testEnvironment": "node"
   }
 }

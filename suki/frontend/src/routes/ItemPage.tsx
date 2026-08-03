@@ -43,7 +43,7 @@ export function ItemPage() {
 
   function commitBuyPrice() {
     if (parsedBuy === null || parsedBuy <= 0 || !item || parsedBuy === item.buyPrice) return;
-    changeBuyPrice(item.id, parsedBuy);
+    void changeBuyPrice(item.id, parsedBuy);
   }
 
   return (
@@ -149,7 +149,7 @@ export function ItemPage() {
         <MovementSheet
           onClose={() => setAddOpen(false)}
           onSubmit={(kind, qty, note) => {
-            recordStockAdjustment({ itemId: item.id, kind, qty, ...(note ? { note } : {}) });
+            void recordStockAdjustment({ itemId: item.id, kind, qty, ...(note ? { note } : {}) });
             setAddOpen(false);
           }}
         />

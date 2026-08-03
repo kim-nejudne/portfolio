@@ -76,7 +76,7 @@ export function TillPage() {
       unitPrice: l.unitPrice,
       lineTotal: l.qty * l.unitPrice,
     }));
-    recordCashSale({ items, total });
+    void recordCashSale({ items, total });
     reset();
   }
 
@@ -89,7 +89,7 @@ export function TillPage() {
       unitPrice: l.unitPrice,
       lineTotal: l.qty * l.unitPrice,
     }));
-    recordCreditSale({ items, total, customerId });
+    void recordCreditSale({ items, total, customerId });
     setPickerOpen(false);
     reset();
     navigate(`/lista/${customerId}`);

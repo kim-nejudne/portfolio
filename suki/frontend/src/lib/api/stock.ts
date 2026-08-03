@@ -16,12 +16,12 @@ export async function listMovements(itemId: string): Promise<StockMovement[]> {
   return delay(combined);
 }
 
-export function recordStockAdjustment(payload: StockAdjustmentPayload): void {
+export async function recordStockAdjustment(payload: StockAdjustmentPayload): Promise<void> {
   const id = crypto.randomUUID();
   const createdAt = getSessionSync().today;
   extraMovements.push({ id, itemId: payload.itemId, kind: payload.kind, qty: payload.qty, createdAt, ...(payload.note ? { note: payload.note } : {}) });
   // deliveries add, sale/spoilage/adjustment subtract
   const delta = payload.kind === 'delivery' ? payload.qty : -payload.qty;
   adjustStockOverlay(payload.itemId, delta);
-  enqueue({ id, type: 'stock-adjustment', payload, createdAt });
+  await enqueue({ id, type: 'stock-adjustment', payload, createdAt });
 }

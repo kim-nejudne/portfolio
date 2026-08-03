@@ -9,6 +9,10 @@
     "frontend"
   ],
   "packageManager": "npm@11.15.0",
+  "//overrides": "vite-plugin-pwa's peer range spans Vite 3-8, so npm satisfied it by installing a second Vite (7.x) at the root while the web app kept its pinned 6.3.4 nested. Two Vite copies means two sets of Plugin types, and `tsc -b` fails on a plugin array that is structurally identical but nominally from the wrong node_modules. One copy, pinned to the version the app is actually built with.",
+  "overrides": {
+    "vite": "6.3.4"
+  },
   "engines": {
     "node": ">=22"
   },

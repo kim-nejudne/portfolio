@@ -142,7 +142,7 @@ export function CustomerPage() {
           maxAmount={currentBalance}
           onClose={() => setPayOpen(false)}
           onSubmit={(amount) => {
-            recordPayment({ customerId, amount });
+            void recordPayment({ customerId, amount });
             setPayOpen(false);
           }}
         />

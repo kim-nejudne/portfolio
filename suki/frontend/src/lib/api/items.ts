@@ -24,10 +24,10 @@ export async function getItem(id: string): Promise<Item | undefined> {
   return delay(found ? applyOverlays(found) : undefined);
 }
 
-export function changeBuyPrice(itemId: string, buyPrice: number): void {
+export async function changeBuyPrice(itemId: string, buyPrice: number): Promise<void> {
   buyPriceOverlay.set(itemId, buyPrice);
   const payload: BuyPriceChangePayload = { itemId, buyPrice };
-  enqueue({
+  await enqueue({
     id: crypto.randomUUID(),
     type: 'buy-price-change',
     payload,
