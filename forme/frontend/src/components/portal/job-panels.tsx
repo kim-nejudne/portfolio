@@ -1,7 +1,7 @@
 import { ColourBar } from '@/components/furniture/marks';
-import { formatDateTime } from '@/lib/dates';
-import { VAT_PERCENT, formatInteger, formatPeso } from '@/lib/money';
-import type { Job, PriceMatrix } from '@/lib/types';
+import { formatDateTime } from '@forme/domain';
+import { VAT_PERCENT, formatInteger, formatPeso } from '@forme/domain';
+import type { Job, PriceMatrix } from '@forme/domain';
 
 function labelFor<T extends { id: string; label: string }>(
   rows: readonly T[],

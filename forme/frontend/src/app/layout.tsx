@@ -5,7 +5,7 @@ import '@fontsource/ibm-plex-mono/600.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://forme.ph'),
+  metadataBase: new URL(process.env.FORME_PUBLIC_URL ?? 'https://forme.kimnejudne.dev'),
   title: {
     default: 'FORME \u2014 trade printer, Manila',
     template: '%s \u2014 FORME',

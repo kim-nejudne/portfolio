@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { IntakePanel } from '@/components/intake/intake-panel';
 import { QuoteForm } from '@/components/quote/quote-form';
 import { getPriceMatrix } from '@/lib/api/pricing';
-import { getQuote, parseQuoteInput } from '@/lib/api/quotes';
-import { formatDate } from '@/lib/dates';
-import { VAT_PERCENT, formatInteger, formatPeso } from '@/lib/money';
+import { getQuote } from '@/lib/api/quotes';
+import { parseQuoteInput } from '@/lib/quote-url';
+import { formatDate } from '@forme/domain';
+import { VAT_PERCENT, formatInteger, formatPeso } from '@forme/domain';
 
 export const metadata: Metadata = {
   title: 'Submit a job',
@@ -21,15 +22,20 @@ export default async function NewJobPage({
   const [matrix, quote] = await Promise.all([getPriceMatrix(), getQuote(input)]);
   const description = typeof query.description === 'string' ? query.description : '';
 
-  const summary: readonly { label: string; value: string }[] = [
-    { label: 'Press', value: quote.press },
-    { label: 'Sheet', value: quote.sheetId },
-    { label: 'Sheets', value: formatInteger(quote.sheetsRequired) },
-    { label: 'Subtotal', value: formatPeso(quote.subtotal) },
-    { label: `VAT ${VAT_PERCENT}%`, value: formatPeso(quote.vat) },
-    { label: 'Total', value: formatPeso(quote.total) },
-    { label: 'Despatch', value: formatDate(quote.despatchAt) },
-  ];
+  // The API declines to price an invalid specification rather than returning a
+  // wrong number. The estimate strip is what disappears; the form and the
+  // per-field messages stay, so the page still tells you what to fix.
+  const summary: readonly { label: string; value: string }[] = quote
+    ? [
+        { label: 'Press', value: quote.press },
+        { label: 'Sheet', value: quote.sheetId },
+        { label: 'Sheets', value: formatInteger(quote.sheetsRequired) },
+        { label: 'Subtotal', value: formatPeso(quote.subtotal) },
+        { label: `VAT ${VAT_PERCENT}%`, value: formatPeso(quote.vat) },
+        { label: 'Total', value: formatPeso(quote.total) },
+        { label: 'Despatch', value: formatDate(quote.despatchAt) },
+      ]
+    : [];
 
   return (
     <main id="main" className="mx-auto max-w-[90rem] px-4 py-6">
@@ -54,7 +60,9 @@ export default async function NewJobPage({
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-xs text-muted">{quote.pressReason}</p>
+      <p className="mt-2 text-xs text-muted">
+        {quote ? quote.pressReason : 'No price yet — correct the specification below.'}
+      </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
         <QuoteForm

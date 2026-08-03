@@ -1,7 +1,7 @@
 import { StatusMark } from '@/components/furniture/status-mark';
-import { formatDuration, formatShortDate, formatTime } from '@/lib/dates';
-import { formatInteger, formatPercent } from '@/lib/money';
-import type { Press, PressState, StateOwner } from '@/lib/types';
+import { formatDuration, formatShortDate, formatTime } from '@forme/domain';
+import { formatInteger, formatPercent } from '@forme/domain';
+import type { Press, PressState, StateOwner } from '@forme/domain';
 
 const STATE_OWNER: Record<PressState, StateOwner> = {
   RUNNING: 'system',

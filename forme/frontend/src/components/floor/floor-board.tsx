@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { PressPanel } from '@/components/floor/press-panel';
-import { subscribeToClock } from '@/lib/api/clock';
-import { subscribeToFloor } from '@/lib/api/presses';
-import { formatDate, formatTime, formatWeekday } from '@/lib/dates';
-import type { Press } from '@/lib/types';
+import { subscribeToClock } from '@/lib/api/live';
+import { subscribeToFloor } from '@/lib/api/live';
+import { formatDate, formatTime, formatWeekday } from '@forme/domain';
+import type { Press } from '@forme/domain';
 
 /**
  * The board polls through the data layer. No timer lives in this component, and
@@ -16,7 +16,9 @@ export function FloorBoard({ initial }: { initial: readonly Press[] }) {
   const [presses, setPresses] = useState<readonly Press[]>(initial);
   const [clock, setClock] = useState<string | null>(null);
 
-  useEffect(() => subscribeToFloor(initial, setPresses), [initial]);
+  // `initial` is the server-rendered snapshot and stays the seed for useState;
+  // the subscription only needs somewhere to push updates.
+  useEffect(() => subscribeToFloor(setPresses), []);
   useEffect(() => subscribeToClock(setClock), []);
 
   const running = presses.filter((press) => press.state === 'RUNNING').length;

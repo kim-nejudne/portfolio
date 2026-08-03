@@ -1,6 +1,6 @@
 import { SeverityMark } from '@/components/furniture/status-mark';
-import { formatDateTime } from '@/lib/dates';
-import type { PreflightCheck, PreflightReport } from '@/lib/types';
+import { formatDateTime } from '@forme/domain';
+import type { PreflightCheck, PreflightReport } from '@forme/domain';
 
 function CheckRow({ check, index }: { check: PreflightCheck; index: number }) {
   const waived = check.waiver !== null;

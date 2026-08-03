@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { QuoteForm } from '@/components/quote/quote-form';
 import { QuoteOutput } from '@/components/quote/quote-output';
 import { getPriceMatrix } from '@/lib/api/pricing';
-import { getQuote, parseQuoteInput, quoteToQuery } from '@/lib/api/quotes';
+import { getQuote } from '@/lib/api/quotes';
+import { parseQuoteInput, quoteToQuery } from '@/lib/quote-url';
 
 export const metadata: Metadata = {
   title: 'Instant quote — litho and digital, priced in whole pesos',
@@ -36,7 +37,20 @@ export default async function QuotePage({
       <div className="mt-8 grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-start">
         <QuoteForm input={input} matrix={matrix} errors={errors} />
         <div className="lg:sticky lg:top-6">
-          <QuoteOutput quote={quote} query={canonical} input={input} />
+          {quote ? (
+            <QuoteOutput quote={quote} query={canonical} input={input} />
+          ) : (
+            /* The API refused to price this specification. The form already
+               shows the per-field messages, so this states the consequence
+               rather than repeating them. */
+            <div className="border border-magenta p-4">
+              <p className="label-caps text-ink">NO PRICE</p>
+              <p className="mt-2 text-sm text-muted">
+                This specification cannot be quoted as it stands. Correct the fields marked
+                above and the price returns.
+              </p>
+            </div>
+          )}
           <p className="mt-3 break-all border border-rule px-3 py-2 num text-2xs text-muted">
             /quote?{canonical}
           </p>

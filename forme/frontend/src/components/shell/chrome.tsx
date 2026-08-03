@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { chooseRoleAction, signOutAction } from '@/lib/actions/session';
 import { ROLE_LABEL } from '@/lib/api/session';
-import type { Role, Session } from '@/lib/types';
+import type { Role, Session } from '@forme/domain';
 
 export function SkipLink() {
   return (

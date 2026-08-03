@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { approveProofAction, rejectProofAction } from '@/lib/actions/jobs';
-import { formatDate } from '@/lib/dates';
+import { formatDate } from '@forme/domain';
 
 /**
  * Approve is the most consequential button in the app: two steps, an explicit

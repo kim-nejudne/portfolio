@@ -1,4 +1,5 @@
-import type { CheckSeverity, StateOwner } from '@/lib/types';
+import { SEVERITY_LABEL } from '@forme/domain';
+import type { CheckSeverity, StateOwner } from '@forme/domain';
 
 /**
  * Status is never colour alone. Every state carries a text label, a colour and a
@@ -11,6 +12,29 @@ const OWNER_CLASS: Record<StateOwner, string> = {
   held: 'text-yellow',
   final: 'text-ink',
 };
+
+/**
+ * A fifth mark, for a check the engine did not run. It is deliberately not a
+ * StateOwner: no job is ever "skipped", only a check is, and widening StateOwner
+ * would put a meaningless state into every job timeline. Muted rather than
+ * coloured, because it is neither good news nor an alarm — the report's own copy
+ * explains why it did not run.
+ */
+function SkippedShape({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 12 12"
+      aria-hidden
+      focusable="false"
+      className="shrink-0"
+    >
+      <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" />
+      <path d="M2.8 9.2 9.2 2.8" stroke="currentColor" strokeWidth="1" />
+    </svg>
+  );
+}
 
 function MarkShape({ owner, size = 12 }: { owner: StateOwner; size?: number }) {
   const common = {
@@ -80,7 +104,7 @@ export function StatusMark({
   );
 }
 
-const SEVERITY_OWNER: Record<CheckSeverity, StateOwner> = {
+const SEVERITY_OWNER: Record<Exclude<CheckSeverity, 'SKIPPED'>, StateOwner> = {
   PASS: 'final',
   WARN: 'held',
   FAIL: 'human',
@@ -95,15 +119,26 @@ export function SeverityMark({
   waived?: boolean;
   kind?: 'WAIVED' | 'OVERRIDDEN';
 }) {
+  // A check that never ran cannot be waived — there is no finding to take
+  // responsibility for — so SKIPPED wins over the waiver flag rather than
+  // being dressed up as a pass somebody signed off.
+  if (severity === 'SKIPPED') {
+    return (
+      <span className="inline-flex items-center gap-2" data-testid="status-mark">
+        <span className="text-muted">
+          <SkippedShape />
+        </span>
+        <span className="label-caps whitespace-nowrap text-ink" data-testid="status-label">
+          {SEVERITY_LABEL.SKIPPED}
+        </span>
+      </span>
+    );
+  }
   return (
     <StatusMark
       owner={waived ? 'final' : SEVERITY_OWNER[severity]}
-      label={waived ? (kind ?? 'WAIVED') : severity}
+      label={waived ? (kind ?? 'WAIVED') : SEVERITY_LABEL[severity]}
       testId="status-mark"
     />
   );
-}
-
-export function severityOwner(severity: CheckSeverity): StateOwner {
-  return SEVERITY_OWNER[severity];
 }

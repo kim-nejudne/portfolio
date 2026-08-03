@@ -1,55 +1,30 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { RegistrationTarget } from '@/components/furniture/marks';
-import { SeverityMark } from '@/components/furniture/status-mark';
-import { subscribeToPreflight } from '@/lib/api/preflight';
+import { useRef, useState } from 'react';
 import { createJobAction } from '@/lib/actions/jobs';
-import type { PreflightCheck, QuoteInput } from '@/lib/types';
-
-interface StreamState {
-  checks: readonly PreflightCheck[];
-  total: number;
-  running: boolean;
-}
-
-const EMPTY: StreamState = { checks: [], total: 12, running: false };
+import { PREFLIGHT_CHECK_COUNT } from '@forme/domain';
+import type { QuoteInput } from '@forme/domain';
 
 /**
- * The upload. The drop zone is decoration over a real file input; the checks
- * arrive from the data layer one at a time. There is no timer in this component.
+ * The upload. The drop zone is decoration over a real file input.
+ *
+ * The scaffold streamed preflight checks here the moment a file was chosen,
+ * looking them up by filename. Against a real API there is nothing to stream
+ * yet — the job does not exist, the artwork has not been sent, and no worker
+ * has measured anything. The live stream now runs on the job page, where there
+ * is a real report being written. This panel states what will happen and stops
+ * there, which is the honest version of the same moment.
  */
 export function IntakePanel({ input, description }: { input: QuoteInput; description: string }) {
   const [file, setFile] = useState<{ name: string; bytes: number } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [stream, setStream] = useState<StreamState>(EMPTY);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!file) {
-      setStream(EMPTY);
-      return;
-    }
-    setStream({ checks: [], total: 12, running: true });
-    const unsubscribe = subscribeToPreflight(file.name, (check, index, total) => {
-      setStream((current) => ({
-        checks: [...current.checks, check],
-        total,
-        running: index + 1 < total,
-      }));
-    });
-    return unsubscribe;
-  }, [file]);
 
   function take(files: FileList | null) {
     const next = files && files.length > 0 ? files[0] : null;
     setFile(next ? { name: next.name, bytes: next.size } : null);
   }
 
-  const fails = stream.checks.filter((check) => check.severity === 'FAIL').length;
-  const warns = stream.checks.filter((check) => check.severity === 'WARN').length;
-  const passes = stream.checks.filter((check) => check.severity === 'PASS').length;
-  const complete = file !== null && !stream.running && stream.checks.length > 0;
 
   return (
     <form action={createJobAction} className="border-2 border-ink" data-testid="intake-form">
@@ -122,75 +97,34 @@ export function IntakePanel({ input, description }: { input: QuoteInput; descrip
         />
         <p id="artwork-help" className="mt-2 text-xs text-muted">
           Drop a file on this panel or use the field. One PDF per job, pages in reading order.
-          Preflight starts as soon as the file is chosen.
+          Preflight runs once the job is submitted.
         </p>
       </div>
 
       <div className="border-t border-rule">
         <div className="flex items-center justify-between px-3 py-2">
           <h3 className="label-caps">Preflight</h3>
-          <span className="flex items-center gap-2">
-            {stream.running ? <RegistrationTarget size={16} spinning /> : null}
-            <span className="num text-2xs text-muted">
-              {file === null
-                ? 'WAITING FOR FILE'
-                : `${stream.checks.length} / ${stream.total} CHECKS`}
-            </span>
+          <span className="num text-2xs text-muted">
+            {file === null ? 'WAITING FOR FILE' : `${PREFLIGHT_CHECK_COUNT} CHECKS QUEUED`}
           </span>
         </div>
 
         <p aria-live="polite" className="sr-only" data-testid="preflight-live">
           {file === null
             ? ''
-            : stream.running
-              ? `Check ${stream.checks.length} of ${stream.total} complete.`
-              : `Preflight complete. ${passes} passed, ${warns} warnings, ${fails} failures.`}
+            : `${file.name} ready. ${PREFLIGHT_CHECK_COUNT} checks will run once the job is submitted.`}
         </p>
 
-        {file === null ? (
-          <p className="px-3 pb-3 text-xs text-muted" data-testid="empty-state">
-            Twelve checks run against the artwork specification. They land here one at a time as
-            each one finishes.
-          </p>
-        ) : (
-          <ol className="border-t border-rule" data-testid="preflight-stream">
-            {stream.checks.map((check, index) => (
-              <li
-                key={check.id}
-                className="anim-land flex items-center gap-3 border-b border-rule px-3 py-1.5 last:border-b-0"
-                style={{ animationDelay: `${index * 0}ms` }}
-              >
-                <SeverityMark severity={check.severity} />
-                <span className="flex-1 truncate text-xs" title={check.finding}>
-                  {check.label}
-                </span>
-                <span className="num hidden text-2xs text-muted md:inline">{check.measured}</span>
-              </li>
-            ))}
-            {stream.running ? (
-              <li className="flex items-center gap-3 border-b border-rule px-3 py-1.5">
-                <RegistrationTarget size={12} spinning />
-                <span className="num text-2xs text-muted">
-                  RUNNING CHECK {Math.min(stream.checks.length + 1, stream.total)} OF {stream.total}
-                </span>
-              </li>
-            ) : null}
-          </ol>
-        )}
+        <p className="px-3 pb-3 text-xs text-muted" data-testid="empty-state">
+          {file === null
+            ? `${PREFLIGHT_CHECK_COUNT} checks run against the artwork specification — trim, bleed, safety margin, embedded fonts, effective resolution, colour space, ink coverage and page count.`
+            : 'Submitting sends the artwork to the press and starts preflight. The checks land one at a time on the job page, as each one finishes.'}
+        </p>
 
-        {complete ? (
-          <div className="border-t border-rule px-3 py-3">
-            <p className="num text-xs">
-              {passes} PASS · {warns} WARN ·{' '}
-              <span className={fails > 0 ? 'text-magenta' : ''}>{fails} FAIL</span>
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {fails > 0
-                ? 'Failures do not stop you submitting the job. They stop it going to proof until prepress overrides each one with a written reason.'
-                : 'Nothing blocking. The job goes to proofing as soon as prepress has looked at it.'}
-            </p>
-          </div>
-        ) : null}
+        <p className="border-t border-rule px-3 py-2 text-xs text-muted">
+          Failures do not stop you submitting. They stop the job going to proof until prepress
+          overrides each one with a written reason.
+        </p>
       </div>
 
       <div className="flex items-center justify-between gap-4 border-t-2 border-ink px-3 py-3">

@@ -1,7 +1,7 @@
 import { addCommentAction } from '@/lib/actions/jobs';
-import { formatDateTime } from '@/lib/dates';
+import { formatDateTime } from '@forme/domain';
 import { ROLE_LABEL } from '@/lib/api/session';
-import type { JobComment } from '@/lib/types';
+import type { JobComment } from '@forme/domain';
 
 export function CommentThread({
   reference,

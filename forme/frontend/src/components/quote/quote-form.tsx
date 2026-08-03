@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { RegistrationTarget } from '@/components/furniture/marks';
-import { formatInteger } from '@/lib/money';
-import type { PriceMatrix, ProductId, QuoteFieldError, QuoteInput } from '@/lib/types';
+import { formatInteger } from '@forme/domain';
+import type { PriceMatrix, ProductId, QuoteFieldError, QuoteInput } from '@forme/domain';
 
 const FIELD =
   'h-8 w-full border border-rule-strong bg-paper px-2 num text-sm transition-colors duration-100 focus:border-ink';

@@ -5,6 +5,7 @@ import { StatusMark } from '@/components/furniture/status-mark';
 import { CommentThread } from '@/components/portal/comment-thread';
 import { FileListPanel, JobSpecPanel } from '@/components/portal/job-panels';
 import { PreflightReportPanel } from '@/components/portal/preflight-report';
+import { LivePreflight } from '@/components/portal/live-preflight';
 import { ProofDecision } from '@/components/portal/proof-decision';
 import { ProofViewer } from '@/components/portal/proof-viewer';
 import { StateTimeline } from '@/components/portal/state-timeline';
@@ -13,8 +14,8 @@ import { getJob } from '@/lib/api/jobs';
 import { countBySeverity, getPreflightReport, hasBlockingFailure } from '@/lib/api/preflight';
 import { getPriceMatrix } from '@/lib/api/pricing';
 import { getSession } from '@/lib/api/session';
-import { dueStatus, formatDate, formatDateTime } from '@/lib/dates';
-import { JOB_STATE_LABEL, OWNER_LABEL } from '@/lib/domain';
+import { dueStatus, formatDate, formatDateTime } from '@forme/domain';
+import { JOB_STATE_LABEL, OWNER_LABEL } from '@forme/domain';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -131,7 +132,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </p>
           ) : null}
 
-          <PreflightReportPanel report={report} counts={counts} blocked={blocked} />
+          {/* While the worker is running there is no report to render yet, so
+              the live panel takes the slot and hands it back on completion. */}
+          {job.state === 'PREFLIGHT' && report === null ? (
+            <LivePreflight reference={job.reference} />
+          ) : (
+            <PreflightReportPanel report={report} counts={counts} blocked={blocked} />
+          )}
           <CommentThread reference={job.reference} comments={job.comments} />
         </div>
 

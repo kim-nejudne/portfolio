@@ -2,8 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { savePriceCellAction } from '@/lib/actions/pricing';
-import { formatMultiplier, formatPeso } from '@/lib/money';
-import type { PriceCellGroup, PriceEditResult, PriceMatrix } from '@/lib/types';
+import { formatMultiplier, formatPeso } from '@forme/domain';
+import type { PriceCellGroup, PriceEditResult, PriceMatrix } from '@forme/domain';
 
 interface CellState {
   status: 'idle' | 'saving' | 'saved' | 'error';

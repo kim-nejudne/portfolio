@@ -7,13 +7,13 @@ import { ImpositionPlanner } from '@/components/prepress/imposition-planner';
 import { TechnicalReport } from '@/components/prepress/technical-report';
 import { getNow } from '@/lib/api/clock';
 import { getJob } from '@/lib/api/jobs';
-import { largestSchemeThatFits } from '@/lib/api/imposition';
+import { largestSchemeThatFits } from '@forme/domain';
 import { countBySeverity, getPreflightReport, hasBlockingFailure } from '@/lib/api/preflight';
 import { getPriceMatrix } from '@/lib/api/pricing';
-import { dueStatus, formatDate, formatDateTime } from '@/lib/dates';
-import { JOB_STATE_LABEL } from '@/lib/domain';
-import { formatInteger } from '@/lib/money';
-import type { BindingStyle } from '@/lib/types';
+import { dueStatus, formatDate, formatDateTime } from '@forme/domain';
+import { JOB_STATE_LABEL } from '@forme/domain';
+import { formatInteger } from '@forme/domain';
+import type { BindingStyle } from '@forme/domain';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },

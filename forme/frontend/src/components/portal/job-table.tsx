@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ProgressStrip } from '@/components/furniture/progress-strip';
 import { StatusMark } from '@/components/furniture/status-mark';
-import { formatInteger } from '@/lib/money';
-import type { JobRow } from '@/lib/types';
+import { formatInteger } from '@forme/domain';
+import type { JobRow } from '@forme/domain';
 
 type SortKey = 'reference' | 'description' | 'quantity' | 'state' | 'due';
 type Direction = 'asc' | 'desc';

@@ -1,4 +1,4 @@
-import type { ImpositionPlan } from '@/lib/types';
+import type { ImpositionPlan } from '@forme/domain';
 
 const TAIL_MM = 12;
 

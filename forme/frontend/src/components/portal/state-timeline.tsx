@@ -1,7 +1,7 @@
 import { StatusMark } from '@/components/furniture/status-mark';
-import { formatDateTime } from '@/lib/dates';
-import { JOB_STATE_LABEL, JOB_STATE_NOTE, stateOwner } from '@/lib/domain';
-import type { Job } from '@/lib/types';
+import { formatDateTime } from '@forme/domain';
+import { JOB_STATE_LABEL, JOB_STATE_NOTE, stateOwner } from '@forme/domain';
+import type { Job } from '@forme/domain';
 
 /**
  * The spine of the job. Completed stages are black with a timestamp, the current

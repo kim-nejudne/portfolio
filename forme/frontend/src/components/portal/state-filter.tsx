@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { JOB_STATE_LABEL } from '@/lib/domain';
-import type { JobState } from '@/lib/types';
+import { JOB_STATE_LABEL } from '@forme/domain';
+import type { JobState } from '@forme/domain';
 
 /** Filter state lives in the URL, so a filtered list is a link. */
 export function StateFilter({

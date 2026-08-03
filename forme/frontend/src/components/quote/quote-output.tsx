@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { ColourBar } from '@/components/furniture/marks';
 import { StatusMark } from '@/components/furniture/status-mark';
-import { formatDate, formatWeekday } from '@/lib/dates';
-import { VAT_PERCENT, formatInteger, formatPeso } from '@/lib/money';
-import type { QuoteInput, QuoteResult } from '@/lib/types';
+import { formatDate, formatWeekday } from '@forme/domain';
+import { VAT_PERCENT, formatInteger, formatPeso } from '@forme/domain';
+import type { QuoteInput, QuoteResult } from '@forme/domain';
 
 function Row({
   label,

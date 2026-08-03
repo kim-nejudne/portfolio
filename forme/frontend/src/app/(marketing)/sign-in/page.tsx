@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { RegistrationTarget } from '@/components/furniture/marks';
-import { chooseRoleAction } from '@/lib/actions/session';
+import { chooseRoleAction, signInAction } from '@/lib/actions/session';
 import { ROLE_LABEL, getSession } from '@/lib/api/session';
-import type { Role } from '@/lib/types';
+import type { Role } from '@forme/domain';
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -20,8 +20,18 @@ const ROLE_NOTES: Record<Role, string> = {
 
 const ROLES: readonly Role[] = ['customer', 'prepress', 'floor', 'admin'];
 
-export default async function SignInPage() {
-  const session = await getSession();
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [session, query] = await Promise.all([getSession(), searchParams]);
+
+  // Set by the middleware when it turned someone away from a gated surface.
+  // Carried through the form so signing in returns them to where they were
+  // going; the action validates it again before redirecting.
+  const next = typeof query.next === 'string' ? query.next : '';
+  const error = typeof query.error === 'string' ? query.error : '';
 
   return (
     <main id="main" className="mx-auto max-w-[34rem] px-4 py-14">
@@ -34,7 +44,21 @@ export default async function SignInPage() {
         Trade accounts only. If you do not have one, send a specification and we will open one.
       </p>
 
-      <form className="mt-8 border border-rule-strong p-4" data-testid="sign-in-form">
+      {next ? (
+        <p
+          className="mt-4 border-l-2 border-magenta px-3 py-2 text-sm text-muted"
+          data-testid="sign-in-redirect-notice"
+        >
+          That page needs an account. Sign in and we will take you straight there.
+        </p>
+      ) : null}
+
+      <form
+        action={signInAction}
+        className="mt-8 border border-rule-strong p-4"
+        data-testid="sign-in-form"
+      >
+        <input type="hidden" name="next" value={next} />
         <p>
           <label htmlFor="email" className="label-caps text-muted">
             Account email
@@ -60,18 +84,26 @@ export default async function SignInPage() {
             className="mt-1 h-9 w-full border border-rule-strong bg-paper px-2 num text-sm focus:border-ink"
           />
         </p>
+        {error ? (
+          <p
+            role="alert"
+            className="mt-4 border-l-2 border-magenta px-3 py-2 text-sm"
+            data-testid="sign-in-error"
+          >
+            {error}
+          </p>
+        ) : null}
         <button
           type="submit"
-          disabled
           aria-describedby="auth-note"
-          className="mt-5 w-full border border-rule-strong px-4 py-2 label-caps text-muted"
+          className="mt-5 w-full border border-ink bg-ink px-4 py-2 label-caps text-paper transition-colors duration-100 hover:bg-paper hover:text-ink"
           data-testid="sign-in-submit"
         >
           Sign in
         </button>
         <p id="auth-note" className="mt-2 text-xs text-muted">
-          Authentication is not wired up in this build. The form is here so the layout is right
-          when it is. Use the role picker below.
+          Sessions last eight hours and are signed. Sign-in is rate limited to ten attempts per
+          ten minutes.
         </p>
       </form>
 
@@ -85,9 +117,9 @@ export default async function SignInPage() {
           </span>
         </div>
         <p className="px-4 py-3 text-xs text-muted">
-          This is scaffolding, not authentication. Choosing a role sets a cookie and lands on that
-          role&apos;s home screen. The whole mechanism lives in one module and the layouts read it
-          server-side.
+          Each of these signs in as a real, read-only account for that role &mdash; the same
+          endpoint as the form above, not a shortcut past it. They can read every screen and
+          change nothing, so the next visitor sees the shop as it was.
         </p>
         <ul className="divide-y divide-rule border-t border-rule">
           {ROLES.map((role) => (
@@ -98,6 +130,7 @@ export default async function SignInPage() {
               </span>
               <form action={chooseRoleAction}>
                 <input type="hidden" name="role" value={role} />
+                <input type="hidden" name="next" value={next} />
                 <button
                   type="submit"
                   data-testid={`role-${role}`}

@@ -1,9 +1,6 @@
 import { cookies } from 'next/headers';
-import type { Role, Session } from '@/lib/types';
-
-export const ROLE_COOKIE = 'forme_role';
-
-const ROLES: readonly Role[] = ['customer', 'prepress', 'floor', 'admin'];
+import type { Role, Session } from '@forme/domain';
+import { ApiError, apiFetch } from './client';
 
 export const ROLE_LABEL: Record<Role, string> = {
   customer: 'Customer',
@@ -19,47 +16,87 @@ export const ROLE_HOME: Record<Role, string> = {
   admin: '/admin/pricing',
 };
 
-const OPERATORS: Record<Role, string> = {
-  customer: 'Ivy Sarmiento',
-  prepress: 'L. Bautista',
-  floor: 'A. Mendoza',
-  admin: 'M. Reyes',
+const SIGNED_OUT: Session = {
+  role: 'customer',
+  operator: '',
+  customerId: null,
+  signedIn: false,
 };
 
-/** Customer sessions are scoped to one account. Nine Dots Studio is the demo account. */
-const DEMO_CUSTOMER_ID = 'nine-dots';
-
-/**
- * The whole session mechanism. Layouts read this server-side; no component
- * checks a role for itself. A real auth layer replaces the cookie read here.
- */
-export async function getSession(): Promise<Session> {
-  const store = await cookies();
-  const value = store.get(ROLE_COOKIE)?.value;
-  const role = ROLES.find((entry) => entry === value);
-  return {
-    role: role ?? 'customer',
-    operator: OPERATORS[role ?? 'customer'],
-    customerId: (role ?? 'customer') === 'customer' ? DEMO_CUSTOMER_ID : null,
-    signedIn: role !== undefined,
-  };
+interface MeResponse {
+  user: { id: string; email: string; name: string; role: Role; customerId: string | null };
 }
 
-export async function setRole(role: Role): Promise<void> {
-  const store = await cookies();
-  store.set(ROLE_COOKIE, role, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 12,
+/**
+ * The session, read from the API rather than trusted from a cookie.
+ *
+ * The scaffold stored the role in a plain `forme_role` cookie, which meant
+ * anyone who could open devtools could set `forme_role=admin` and walk into the
+ * price matrix. The cookie now carries a signed token the API verifies, and the
+ * role comes back from `/auth/me` — the browser no longer asserts anything.
+ */
+export async function getSession(): Promise<Session> {
+  try {
+    const { user } = await apiFetch<MeResponse>('/auth/me');
+    return {
+      role: user.role,
+      operator: user.name,
+      customerId: user.customerId,
+      signedIn: true,
+    };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return SIGNED_OUT;
+    throw error;
+  }
+}
+
+export async function signIn(email: string, password: string): Promise<Role> {
+  const response = await fetch(`${process.env.API_URL ?? 'http://127.0.0.1:4000/api'}/auth/sign-in`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    cache: 'no-store',
   });
+
+  const body = (await response.json()) as
+    | MeResponse
+    | { error: { message: string } };
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      'SIGN_IN_FAILED',
+      'error' in body ? body.error.message : 'Email or password is incorrect.',
+    );
+  }
+
+  // Forward the API's Set-Cookie headers onto our own response, so the browser
+  // ends up holding the tokens rather than this server process.
+  const jar = await cookies();
+  for (const raw of response.headers.getSetCookie()) {
+    const [pair] = raw.split(';');
+    const index = pair?.indexOf('=') ?? -1;
+    if (index > 0 && pair) {
+      const name = pair.slice(0, index);
+      const value = pair.slice(index + 1);
+      jar.set(name, value, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: name === 'forme_refresh' ? '/auth' : '/',
+      });
+    }
+  }
+
+  return (body as MeResponse).user.role;
 }
 
 export async function signOut(): Promise<void> {
-  const store = await cookies();
-  store.delete(ROLE_COOKIE);
+  const jar = await cookies();
+  jar.delete('forme_access');
+  jar.delete('forme_refresh');
 }
 
 export function isRole(value: string): value is Role {
-  return ROLES.some((role) => role === value);
+  return value === 'customer' || value === 'prepress' || value === 'floor' || value === 'admin';
 }

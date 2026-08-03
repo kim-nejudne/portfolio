@@ -1,5 +1,5 @@
-import { formatInteger, formatMultiplier } from '@/lib/money';
-import type { Press, TurnaroundRate } from '@/lib/types';
+import { formatInteger, formatMultiplier } from '@forme/domain';
+import type { Press, TurnaroundRate } from '@forme/domain';
 
 export function PressList({ presses }: { presses: readonly Press[] }) {
   return (

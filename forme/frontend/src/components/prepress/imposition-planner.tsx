@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { ImposedSheet } from '@/components/prepress/imposed-sheet';
-import { SHEETS, buildPlan } from '@/lib/api/imposition';
-import { BINDING_LABEL, SCHEME_LABEL, WORK_STYLE_LABEL } from '@/lib/domain';
-import { formatInteger } from '@/lib/money';
+import { SHEETS, buildPlan } from '@forme/domain';
+import { BINDING_LABEL, SCHEME_LABEL, WORK_STYLE_LABEL } from '@forme/domain';
+import { formatInteger } from '@forme/domain';
 import type {
   BindingStyle,
   ImpositionInput,
@@ -12,7 +12,7 @@ import type {
   SignatureScheme,
   SizeId,
   WorkStyle,
-} from '@/lib/types';
+} from '@forme/domain';
 
 const FIELD =
   'h-7 w-full border border-rule-strong bg-paper px-1.5 num text-xs focus:border-ink';

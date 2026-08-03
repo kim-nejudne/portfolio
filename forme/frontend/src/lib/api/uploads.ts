@@ -1,35 +1,21 @@
-import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { StoredFile } from '@/lib/types';
+import type { StoredFile } from '@forme/domain';
+import { apiFetch } from './client';
 
 /**
- * Uploads go to the local filesystem. No object store, no platform blob service.
+ * Artwork goes to the API, which validates size and magic bytes, names the file
+ * by content hash and queues preflight.
+ *
+ * The scaffold wrote straight to `.uploads/` in the web process's working
+ * directory with no size cap, no type check and a silent overwrite on any name
+ * collision. Nothing about that survived.
  */
-const UPLOAD_DIR = join(process.cwd(), '.uploads');
-
-function safeName(reference: string, name: string): string {
-  return `${reference}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-}
-
 export async function storeArtwork(reference: string, file: File): Promise<StoredFile> {
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  const name = safeName(reference, file.name);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(join(UPLOAD_DIR, name), buffer);
-  return { name, bytes: buffer.byteLength, at: new Date().toISOString() };
-}
+  const form = new FormData();
+  form.append('file', file);
 
-export async function listStoredArtwork(): Promise<readonly StoredFile[]> {
-  try {
-    const names = await readdir(UPLOAD_DIR);
-    const files = await Promise.all(
-      names.map(async (name) => {
-        const info = await stat(join(UPLOAD_DIR, name));
-        return { name, bytes: info.size, at: info.mtime.toISOString() };
-      }),
-    );
-    return files.sort((a, b) => b.at.localeCompare(a.at));
-  } catch {
-    return [];
-  }
+  const { stored } = await apiFetch<{ stored: StoredFile }>(
+    `/jobs/${encodeURIComponent(reference)}/artwork`,
+    { method: 'POST', body: form },
+  );
+  return stored;
 }

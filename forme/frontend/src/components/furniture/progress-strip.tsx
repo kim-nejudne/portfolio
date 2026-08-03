@@ -1,4 +1,4 @@
-import type { StateOwner } from '@/lib/types';
+import type { StateOwner } from '@forme/domain';
 
 const SEGMENTS: readonly { key: string; className: string }[] = [
   { key: 'C', className: 'bg-cyan' },

@@ -1,91 +1,78 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import type { PreflightCheckId } from '@forme/domain';
+import { parseQuoteInput } from '@/lib/quote-url';
 import { addComment, approveProof, createJob, rejectProof } from '@/lib/api/jobs';
 import { overrideCheck, waiveCheck } from '@/lib/api/preflight';
-import { parseQuoteInput } from '@/lib/api/quotes';
-import { getSession } from '@/lib/api/session';
 import { storeArtwork } from '@/lib/api/uploads';
 
-function text(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  return typeof value === 'string' ? value.trim() : '';
+/**
+ * The actor is no longer passed in. Every one of these calls carries the
+ * session cookie to the API, which resolves who is acting from the token — the
+ * scaffold read a name out of a cookie and sent it along, which meant the
+ * "approved by" on a job record was whatever the browser claimed.
+ */
+function revalidateJob(reference: string): void {
+  revalidatePath(`/app/jobs/${reference}`);
+  revalidatePath('/app');
+  revalidatePath('/prepress');
 }
 
 export async function approveProofAction(formData: FormData): Promise<void> {
-  const reference = text(formData, 'reference');
-  const session = await getSession();
-  await approveProof(reference, session.operator);
-  revalidatePath(`/app/jobs/${reference}`);
-  revalidatePath('/app');
-  revalidatePath('/prepress');
+  const reference = String(formData.get('reference') ?? '');
+  await approveProof(reference);
+  revalidateJob(reference);
 }
 
 export async function rejectProofAction(formData: FormData): Promise<void> {
-  const reference = text(formData, 'reference');
-  const reason = text(formData, 'reason');
+  const reference = String(formData.get('reference') ?? '');
+  const reason = String(formData.get('reason') ?? '').trim();
   if (reason.length < 4) return;
-  const session = await getSession();
-  await rejectProof(reference, reason, session.operator);
-  revalidatePath(`/app/jobs/${reference}`);
-  revalidatePath('/app');
-  revalidatePath('/prepress');
+  await rejectProof(reference, reason);
+  revalidateJob(reference);
 }
 
 export async function addCommentAction(formData: FormData): Promise<void> {
-  const reference = text(formData, 'reference');
-  const body = text(formData, 'body');
+  const reference = String(formData.get('reference') ?? '');
+  const body = String(formData.get('body') ?? '').trim();
   if (body.length === 0) return;
-  const session = await getSession();
-  await addComment(reference, body, session.operator, session.role);
-  revalidatePath(`/app/jobs/${reference}`);
-  revalidatePath(`/prepress/jobs/${reference}`);
+  await addComment(reference, body);
+  revalidateJob(reference);
 }
 
 export async function waiveCheckAction(formData: FormData): Promise<void> {
-  const reference = text(formData, 'reference');
-  const reportId = text(formData, 'reportId');
-  const checkId = text(formData, 'checkId');
-  const reason = text(formData, 'reason');
-  const kind = text(formData, 'kind');
+  const reportId = String(formData.get('reportId') ?? '');
+  const checkId = String(formData.get('checkId') ?? '') as PreflightCheckId;
+  const reference = String(formData.get('reference') ?? '');
+  const reason = String(formData.get('reason') ?? '').trim();
+  const kind = String(formData.get('kind') ?? 'WAIVED');
   if (reason.length < 8) return;
-  const session = await getSession();
-  if (kind === 'OVERRIDE') await overrideCheck(reportId, checkId, reason, session.operator);
-  else await waiveCheck(reportId, checkId, reason, session.operator);
+
+  if (kind === 'OVERRIDDEN') await overrideCheck(reportId, checkId, reason);
+  else await waiveCheck(reportId, checkId, reason);
+
   revalidatePath(`/prepress/jobs/${reference}`);
-  revalidatePath(`/app/jobs/${reference}`);
-  revalidatePath('/prepress');
+  revalidateJob(reference);
 }
 
 export async function createJobAction(formData: FormData): Promise<void> {
-  const session = await getSession();
-  const query: Record<string, string | string[]> = {
-    product: text(formData, 'product'),
-    size: text(formData, 'size'),
-    pages: text(formData, 'pages'),
-    stock: text(formData, 'stock'),
-    colours: text(formData, 'colours'),
-    quantity: text(formData, 'quantity'),
-    finishing: formData.getAll('finishing').filter((entry): entry is string => typeof entry === 'string'),
-    turnaround: text(formData, 'turnaround'),
-  };
+  const description = String(formData.get('description') ?? '').trim();
+  const query = Object.fromEntries(
+    [...formData.entries()]
+      .filter(([, value]) => typeof value === 'string')
+      .map(([key, value]) => [key, String(value)]),
+  );
   const { input } = parseQuoteInput(query);
-  const description = text(formData, 'description') || 'Untitled job';
-  const file = formData.get('artwork');
-  const hasFile = file instanceof File && file.size > 0;
 
-  const job = await createJob({
-    customerId: session.customerId ?? 'nine-dots',
-    description,
-    spec: input,
-    fileName: hasFile ? (file as File).name : null,
-    fileBytes: hasFile ? (file as File).size : 0,
-  });
+  const job = await createJob({ description, spec: input });
 
-  if (hasFile) await storeArtwork(job.reference, file as File);
+  const file = formData.get('file');
+  if (file instanceof File && file.size > 0) {
+    await storeArtwork(job.reference, file);
+  }
 
   revalidatePath('/app');
-  revalidatePath('/prepress');
   redirect(`/app/jobs/${job.reference}`);
 }

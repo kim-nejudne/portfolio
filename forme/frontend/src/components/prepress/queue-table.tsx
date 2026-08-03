@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { StatusMark } from '@/components/furniture/status-mark';
-import { formatInteger } from '@/lib/money';
-import type { QueueRow } from '@/lib/types';
+import { formatInteger } from '@forme/domain';
+import type { QueueRow } from '@forme/domain';
 
 type SortKey = 'reference' | 'customer' | 'quantity' | 'age' | 'due';
 type Direction = 'asc' | 'desc';
