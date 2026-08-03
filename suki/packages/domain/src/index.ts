@@ -13,3 +13,4 @@ export * from './dates';
 export * from './monogram';
 export * from './tingi';
 export * from './ledger';
+export * from './sync';
