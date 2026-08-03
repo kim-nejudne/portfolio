@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
 import { changeBuyPrice, getItem } from '../lib/api/items';
 import { listMovements, recordStockAdjustment } from '../lib/api/stock';
-import { formatPeso, formatPesoBare, parsePesoInput } from '../lib/money';
+import { formatPeso, formatPesoBare, parsePesoInput, PESO_SIGN } from '@suki/domain';
 import { MonogramChip } from '../components/MonogramChip';
 import { BigButton } from '../components/BigButton';
-import { shortDate } from '../lib/date';
+import { shortDate } from '@suki/domain';
 import { useQueue } from '../lib/useQueue';
 
 export function ItemPage() {
@@ -70,7 +70,7 @@ export function ItemPage() {
           <dd className="amount mono text-[18px]">
             <label className="sr-only" htmlFor="buy-price">Buy price</label>
             <span className="inline-flex items-baseline gap-1">
-              <span aria-hidden>₱</span>
+              <span aria-hidden>{PESO_SIGN}</span>
               <input
                 id="buy-price"
                 inputMode="numeric"

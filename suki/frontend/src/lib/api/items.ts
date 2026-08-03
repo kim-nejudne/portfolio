@@ -1,7 +1,7 @@
 // Items API. Reads from fixtures; buyPrice changes go through queue.
 import { ITEMS } from './fixtures/items';
 import { delay } from './delay';
-import type { Item, BuyPriceChangePayload } from '../types';
+import type { Item, BuyPriceChangePayload } from '@suki/domain';
 import { enqueue } from './queue';
 import { getSessionSync } from './session';
 

@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
 import { listItems } from '../lib/api/items';
-import { formatPeso } from '../lib/money';
+import { formatPeso } from '@suki/domain';
 import { MonogramChip } from '../components/MonogramChip';
-import type { Item } from '../lib/types';
+import type { Item } from '@suki/domain';
 
 type Filter = 'all' | 'low' | 'out';
 
@@ -82,6 +82,9 @@ function FilterTab({ active, onClick, label }: { active: boolean; onClick: () =>
       className="mono text-[12px] uppercase px-3"
       style={{
         minHeight: 'var(--tap-min)',
+        // Height alone was set, so "All" and "Out" measured 36px across —
+        // under the 48px minimum on the axis a thumb actually misses.
+        minWidth: 'var(--tap-min)',
         border: '1px solid var(--color-rule)',
         background: active ? 'var(--color-ink)' : 'transparent',
         color: active ? 'var(--color-paper)' : 'var(--color-ink)',

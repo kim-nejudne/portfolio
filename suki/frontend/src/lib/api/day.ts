@@ -8,7 +8,7 @@ import type {
   CashSalePayload,
   CreditSalePayload,
   PaymentPayload,
-} from '../types';
+} from '@suki/domain';
 
 export interface DaySummary {
   isoDate: string;

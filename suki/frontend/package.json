@@ -1,5 +1,5 @@
 {
-  "name": "suki",
+  "name": "@suki/web",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -15,7 +15,8 @@
     "@fontsource/martian-mono": "5.2.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-router-dom": "7.6.0"
+    "react-router-dom": "7.6.0",
+    "@suki/domain": "*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.5",

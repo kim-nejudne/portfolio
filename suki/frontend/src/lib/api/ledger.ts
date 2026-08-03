@@ -8,7 +8,7 @@ import type {
   Operation,
   PaymentPayload,
   CreditSalePayload,
-} from '../types';
+} from '@suki/domain';
 import { history } from './queue';
 
 function opToEntry(op: Operation): LedgerEntry | null {

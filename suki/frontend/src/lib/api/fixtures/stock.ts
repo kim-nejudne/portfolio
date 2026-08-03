@@ -1,5 +1,5 @@
 // Stock movements — delivery events primarily. Deterministic ISO dates.
-import type { StockMovement } from '../../types';
+import type { StockMovement } from '@suki/domain';
 
 export const STOCK_MOVEMENTS: StockMovement[] = [
   { id: 'm001', itemId: 'i01', kind: 'delivery', qty: 24, createdAt: '2025-08-15T07:30:00.000Z', note: 'Delivery from market' },

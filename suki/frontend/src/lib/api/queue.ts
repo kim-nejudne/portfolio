@@ -1,7 +1,7 @@
 // The spine. Every write in the app goes through here. Nothing else writes.
 // The scaffold's queued-ops shape is exactly what the real sync will POST.
 
-import type { Operation, OperationStatus, OperationType, QueueSnapshot } from '../types';
+import type { Operation, OperationStatus, OperationType, QueueSnapshot } from '@suki/domain';
 
 type Listener = (snap: QueueSnapshot) => void;
 

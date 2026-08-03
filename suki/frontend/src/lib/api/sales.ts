@@ -4,7 +4,7 @@
 import { enqueue } from './queue';
 import { adjustStockOverlay } from './items';
 import { getSessionSync } from './session';
-import type { CashSalePayload, CreditSalePayload, PaymentPayload } from '../types';
+import type { CashSalePayload, CreditSalePayload, PaymentPayload } from '@suki/domain';
 
 export function recordCashSale(payload: CashSalePayload): string {
   const id = crypto.randomUUID();

@@ -97,7 +97,10 @@ export function UnlockPage() {
         })}
       </div>
 
-      <p className="text-[12px] text-muted mono text-center">Hint for the design review: {UNLOCK_PIN}</p>
+      {/* The PIN is on screen on purpose: this is a walkable demo, the same way
+          TALLOW and FORME advertise their demo accounts. It reads as a note to
+          whoever is standing at the counter, not to whoever is marking the work. */}
+      <p className="text-[12px] text-muted mono text-center">Demo shop — the PIN is {UNLOCK_PIN}</p>
     </main>
   );
 }

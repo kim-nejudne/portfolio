@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { formatPeso } from '../lib/money';
+import { formatPeso } from '@suki/domain';
 import { MonogramChip } from './MonogramChip';
-import { daysBetween } from '../lib/date';
+import { daysBetween } from '@suki/domain';
 
 interface CustomerRow {
   id: string;

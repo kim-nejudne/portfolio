@@ -4,13 +4,13 @@ import { useAsync } from '../lib/useAsync';
 import { getCustomer } from '../lib/api/customers';
 import { listEntries, entryStatus } from '../lib/api/ledger';
 import { recordPayment } from '../lib/api/sales';
-import { formatPeso, formatPesoBare, parsePesoInput } from '../lib/money';
-import { shortDate, daysBetween } from '../lib/date';
+import { formatPeso, formatPesoBare, parsePesoInput, PESO_SIGN } from '@suki/domain';
+import { shortDate, daysBetween } from '@suki/domain';
 import { getSessionSync } from '../lib/api/session';
 import { MonogramChip } from '../components/MonogramChip';
 import { BigButton } from '../components/BigButton';
 import { useQueue } from '../lib/useQueue';
-import type { LedgerEntry } from '../lib/types';
+import type { LedgerEntry } from '@suki/domain';
 
 export function CustomerPage() {
   const { customerId = '' } = useParams();
@@ -211,7 +211,7 @@ export function CustomerPage() {
           </div>
           <label className="block mono uppercase text-[11px] text-muted" htmlFor="pay-amt">Amount received</label>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="amount text-[28px] text-muted">₱</span>
+            <span className="amount text-[28px] text-muted">{PESO_SIGN}</span>
             <input
               id="pay-amt"
               inputMode="numeric"

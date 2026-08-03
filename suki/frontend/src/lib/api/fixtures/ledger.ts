@@ -2,7 +2,7 @@
 // About 15 customers carry a positive balance as of APP_TODAY (2025-09-15).
 // Purchases increase utang, payments decrease it.
 
-import type { LedgerEntry, SaleItem } from '../../types';
+import type { LedgerEntry, SaleItem } from '@suki/domain';
 
 function line(itemId: string, name: string, qty: number, unitPrice: number): SaleItem {
   return { itemId, name, qty, unitPrice, lineTotal: qty * unitPrice };

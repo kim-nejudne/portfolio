@@ -1,7 +1,7 @@
 // 60 items across the real shop categories. Buy/sell prices are integer pesos.
 // Stock is in sell units; some already below reorder to make /restock real.
 
-import type { Item } from '../../types';
+import type { Item } from '@suki/domain';
 
 export const ITEMS: Item[] = [
   // Sachets (shampoo, coffee, conditioner, powdered drinks)

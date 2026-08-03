@@ -1,7 +1,7 @@
 import { history } from '../lib/api/queue';
-import type { Operation } from '../lib/types';
-import { formatPeso } from '../lib/money';
-import { shortDate } from '../lib/date';
+import type { Operation } from '@suki/domain';
+import { formatPeso } from '@suki/domain';
+import { shortDate } from '@suki/domain';
 
 interface Props {
   onClose: () => void;

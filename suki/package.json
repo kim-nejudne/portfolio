@@ -1,0 +1,23 @@
+{
+  "name": "suki",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SUKI — offline-first ledger and stock app for a sari-sari store. Vite web, NestJS sync API, shared domain package.",
+  "workspaces": [
+    "packages/*",
+    "api",
+    "frontend"
+  ],
+  "packageManager": "npm@11.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev:web": "npm run dev --workspace @suki/web",
+    "dev:api": "npm run dev --workspace @suki/api"
+  }
+}

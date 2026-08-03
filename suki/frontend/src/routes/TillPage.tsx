@@ -5,8 +5,8 @@ import { listCustomersWithBalance } from '../lib/api/customers';
 import { collectQueueEntries } from '../lib/api/ledger';
 import { recordCashSale, recordCreditSale } from '../lib/api/sales';
 import { getSessionSync } from '../lib/api/session';
-import { formatPeso } from '../lib/money';
-import type { Item, SaleItem } from '../lib/types';
+import { formatPeso } from '@suki/domain';
+import type { Item, SaleItem } from '@suki/domain';
 import { MonogramChip } from '../components/MonogramChip';
 import { BigButton } from '../components/BigButton';
 import { CustomerPicker } from '../components/CustomerPicker';
@@ -144,9 +144,16 @@ export function TillPage() {
                   }}
                   data-testid={`till-item-${it.id}`}
                 >
-                  <div className="flex items-start gap-2">
-                    <MonogramChip name={it.name} size={36} />
-                    <span className="text-[13px] leading-tight line-clamp-2">{it.name}</span>
+                  {/* The monogram sits above the name rather than beside it.
+                      Sharing the row cost the name about half the cell, which
+                      clamped "Lucky Me Pancit Canton Chilimansi" and
+                      "…Canton Original" to the same string — two different
+                      products, identical on the screen used a hundred times a
+                      day. Full width and three lines separates every name in
+                      the catalogue. */}
+                  <div className="flex flex-col gap-1.5">
+                    <MonogramChip name={it.name} size={32} />
+                    <span className="text-[13px] leading-tight line-clamp-3">{it.name}</span>
                   </div>
                   <div className="flex items-baseline justify-between mt-auto">
                     <span className="amount text-[18px]">{formatPeso(it.sellPrice)}</span>

@@ -1,7 +1,7 @@
 // Stock API. Movement list + adjustment writes.
 import { STOCK_MOVEMENTS } from './fixtures/stock';
 import { delay } from './delay';
-import type { StockAdjustmentPayload, StockMovement } from '../types';
+import type { StockAdjustmentPayload, StockMovement } from '@suki/domain';
 import { enqueue } from './queue';
 import { adjustStockOverlay } from './items';
 import { getSessionSync } from './session';

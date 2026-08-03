@@ -1,4 +1,4 @@
-import { monogramFor } from '../lib/monogram';
+import { monogramFor } from '@suki/domain';
 
 interface Props {
   name: string;

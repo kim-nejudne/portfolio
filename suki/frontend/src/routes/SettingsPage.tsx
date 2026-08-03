@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getSessionSync, updateSession } from '../lib/api/session';
-import { parsePesoInput } from '../lib/money';
+import { parsePesoInput } from '@suki/domain';
 import { BigButton } from '../components/BigButton';
 import { useUnlock } from '../lib/unlock';
 import { useNavigate } from 'react-router-dom';

@@ -1,7 +1,7 @@
 // Deterministic fixture data. Fixed ISO strings, no new Date(), no Math.random().
 // The rest of the app reaches these ONLY through src/lib/api/*.ts.
 
-import type { Customer } from '../../types';
+import type { Customer } from '@suki/domain';
 
 /** The app's single clock — the day the shop is 'open' for this build. Same on every device. */
 export const APP_TODAY = '2025-09-15T09:00:00.000Z'; // a kinsenas, deliberately

@@ -1,4 +1,4 @@
-import { paydayKindFor, daysUntilNextPayday } from '../lib/date';
+import { paydayKindFor, daysUntilNextPayday } from '@suki/domain';
 
 interface Props {
   today: string;

@@ -1,0 +1,29 @@
+{
+  "name": "@suki/domain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Types and pure domain logic shared by the web app and the sync API: money, tingi arithmetic, balance derivation, payday dates.",
+  "main": "./dist/cjs/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cjs/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.esm.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "module": "./dist/esm/index.js"
+}

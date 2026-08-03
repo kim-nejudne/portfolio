@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useAsync } from '../lib/useAsync';
 import { listItems } from '../lib/api/items';
-import { formatPeso } from '../lib/money';
+import { formatPeso } from '@suki/domain';
 import { MonogramChip } from '../components/MonogramChip';
-import type { Item } from '../lib/types';
+import type { Item } from '@suki/domain';
 
 interface Row {
   item: Item;

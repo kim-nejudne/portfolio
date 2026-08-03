@@ -2,7 +2,7 @@
 // The rest of the app reads `session.getSession()` and never touches fixtures.
 
 import { APP_TODAY, STORE } from './fixtures/customers';
-import type { Session } from '../types';
+import type { Session } from '@suki/domain';
 import { delay } from './delay';
 
 let session: Session = {

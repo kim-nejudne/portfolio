@@ -2,7 +2,7 @@
 import { CUSTOMERS } from './fixtures/customers';
 import { LEDGER } from './fixtures/ledger';
 import { delay } from './delay';
-import type { Customer, LedgerEntry } from '../types';
+import type { Customer, LedgerEntry } from '@suki/domain';
 
 export async function listCustomers(): Promise<Customer[]> {
   return delay(CUSTOMERS);
