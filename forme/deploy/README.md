@@ -20,8 +20,8 @@ the next free pair.
 
 ## Status
 
-The stack is **deployed and running**, serving correctly on loopback and
-through nginx on the `Host` header. It is **not yet reachable from the
+The stack is **deployed and running** at `f310acd`, serving correctly on loopback
+and through nginx on the `Host` header. It is **not yet reachable from the
 internet**: `forme.kimnejudne.dev` has no DNS record, so there is no
 certificate. Two manual steps remain — see *Going live* below.
 
@@ -100,9 +100,12 @@ directory — the workspace lockfile and `@forme/domain` both live above them.
 migrations, then seeds *only if the tables are empty*, so re-running it against
 a populated database is a no-op.
 
-The current deployment is tagged `20260803-1` rather than a git SHA, because
-the tree was not committed when it was built. Use the SHA from the next build
-onward.
+The deployed tag is the commit it was built from — currently `f310acd`. Check
+what is actually running before assuming:
+
+```bash
+ssh root@165.245.189.5 'cd /opt/forme && docker compose ps --format "{{.Name}}\t{{.Image}}"'
+```
 
 ## Old images
 
