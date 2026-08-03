@@ -11,7 +11,7 @@ function CheckRow({ check, index }: { check: PreflightCheck; index: number }) {
       style={{ animationDelay: `${index * 40}ms` }}
       data-testid="preflight-check-row"
     >
-      <summary className="flex min-h-8 cursor-default items-center gap-3 px-3 py-1.5 transition-colors duration-100 hover:bg-skeleton">
+      <summary className="flex min-h-8 items-center gap-3 px-3 py-1.5 transition-colors duration-100 hover:bg-skeleton">
         <SeverityMark severity={check.severity} waived={waived} kind={check.waiver?.kind} />
         <span className={`flex-1 truncate text-sm ${waived ? 'text-muted line-through' : ''}`}>
           {check.label}

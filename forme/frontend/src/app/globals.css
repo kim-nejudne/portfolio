@@ -88,8 +88,45 @@
 
   /* Native disclosure marker removed; the preflight rows draw their own. */
   summary {
-    cursor: default;
     list-style: none;
+  }
+
+  /*
+   * Tailwind v4's Preflight leaves interactive controls at the browser default
+   * cursor. v3 set `pointer` on buttons; v4 deliberately does not, and the
+   * browser default for <button> is an arrow — so every control in the app was
+   * silently claiming not to be one.
+   *
+   * Worth being exact about which elements: anything that responds to a click
+   * should say so before it is clicked. A <summary> that expands a preflight
+   * check is as interactive as a button, and it already highlights on hover,
+   * so the arrow was actively contradicting the hover state.
+   */
+  button,
+  summary,
+  select,
+  [role='button'],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='file'],
+  ::file-selector-button,
+  /* The checkbox labels wrap their input, so the whole row is a hit target. */
+  label:has(> input[type='checkbox']),
+  label:has(> input[type='radio']) {
+    cursor: pointer;
+  }
+
+  /*
+   * "You cannot click this" is a different message from "this is not a
+   * control", and the disabled proof-approval button needs the first one —
+   * it is disabled precisely because a preflight failure is blocking it.
+   */
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled='true'],
+  label:has(> input:disabled) {
+    cursor: not-allowed;
   }
 
   summary::-webkit-details-marker {
