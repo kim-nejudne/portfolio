@@ -16,10 +16,11 @@ the eyes land and how far the descent has left to travel all fall out of it. See
 `../hub-brief.md` is the source of truth for the art direction and the beats.
 This file covers the build.
 
-## Three layers, and it was built against nine
+## Four layers, and it was built against nine
 
-The head is `face`, `neck` and `lid` — a pen-and-ink portrait Kim drew, cut in
-two along a wavy tear, with the neck carried by the face and written blank.
+The head is `sky`, `face`, `neck` and `lid` — a pen-and-ink portrait Kim drew,
+cut in two along a wavy tear, with the neck carried by the face and written
+blank, and a colour field behind the cut.
 
 It was built against **nine placeholder layers**: flat grey shapes in the
 correct proportions, stacking order and registration, written to the exact
@@ -58,12 +59,12 @@ rather than drawn** — `head-back`, `sky`, `cavity`, `eyes-forward`, `eyes-up`
 and `lid-underside`. That is a design decision with teeth and it is recorded
 here rather than absorbed quietly:
 
-- The head **no longer opens onto a cavity**. The hair swings off and reveals
-  his drawn scalp. There is no hole, no paper thickness, no inside.
-- **There is no sky**, so the only colour left on the page is the five project
-  crops. The one colour rule got stricter and the reveal it was built around —
-  colour arriving at the exact moment the head opens — is gone. The first
-  colour on the page is now the first card.
+- The head **still has no modelled cavity** — no drawn rim, no inside wall. It
+  opens onto colour rather than onto a bowl, which reads as a hole cut in paper
+  and suits a page made of paper better than the thickness would have.
+- ~~**There is no sky.**~~ **It came back**, and it cost one drawing rather than
+  the four it looked like — see below. The reveal the one colour rule was
+  written for is on the page again: colour arrives as the head opens.
 - **The eye-flick beat is gone.** The eyes are drawn into `face` and cannot
   change. The pause before the first card survives as a breath, but the
   argument for it — he looks up at empty sky and your gaze follows his to the
@@ -196,12 +197,12 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 33 assertions in a real browser
+npm run verify            # 35 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 33 assertions,
-seventeen of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 35 assertions,
+twenty of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
@@ -246,6 +247,43 @@ technically open and visibly shut. And one isolates the lid's own pixels, by
 differencing a frame against the same frame with the lid hidden, and fails if
 the flipped lid looks like the closed one — which is what a lost 3D context
 looks like, and it is invisible in the computed styles.
+
+### The sky came back, and it cost one drawing
+
+The brief lists it among six deletions and treats restoring it as a real
+project. It was one layer, because of a fact nobody had checked: **`face.png` is
+completely transparent above the tear.** Its ink starts exactly where the cut
+does, so the head already opened onto nothing and a colour field behind it needs
+no drawn cavity and no back of skull. The tear is its rim.
+
+The other five stay gone on the mechanism rather than the budget. `head-back`
+and `lid-underside` existed to be seen when the lid tipped away from the viewer,
+and an in-plane hinge never turns. `cavity` was the drawn rim. The eyes are in
+the face.
+
+Three things make it work, and each is asserted:
+
+- **It fades in across the swing** rather than being uncovered by it. The lid is
+  hair — 57% coverage inside its own box — so a solid field behind it speckles
+  through the strands at rest and the reveal is spent before the first scroll.
+  `SKY_REVEAL` in `choreography.ts`.
+- **Its bottom edge is the face's own alpha.** `compose-art.py` clips it, so the
+  sky stops at the tear however far past it the drawing paints. Overlap is free;
+  a gap is a visible seam. That clip is asserted **in the composer**, not the
+  browser, because it is the one property a screenshot cannot see: what is
+  hidden underneath his face leaves no trace in a frame.
+- **The head is two elements.** A card comes *out of* the sky and goes *behind*
+  his face — opposite sides of the same card — so the two halves cannot share a
+  stacking context. `.head-plate` carries the geometry and deliberately creates
+  no context of its own; `.head-sky` and `.head` sit either side of `CARD_Z` and
+  are driven by the same tween.
+
+The placeholder it was built against is derived rather than drawn: a flat dome
+taking its width from the head's own width at the tear and its rise from the top
+of the lid. The first version sized it to the lid's *bounding box*, which is far
+wider than his skull because the hair sweeps out to one side, and it rendered as
+a blue disc behind him instead of a hole in his head. Even a stand-in has to be
+measured off the drawing.
 
 ### The head is in front of the cards
 

@@ -18,6 +18,7 @@ import {
   LIP_REST_VH,
   LID_ANGLE,
   PIN_LENGTH,
+  SKY_REVEAL,
   TOTAL,
 } from '../choreography';
 
@@ -58,6 +59,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
 
         const q = <T extends HTMLElement>(sel: string) => stage.querySelector<T>(sel);
         const head = q('[data-head]');
+        const sky = q('[data-sky]');
         const lid = q('[data-lid]');
         const cavity = q('[data-cavity]');
         const pitch = q('[data-pitch]');
@@ -65,7 +67,16 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         const list = q('[data-cards]');
         const cards = gsap.utils.toArray<HTMLElement>('[data-card]', stage);
 
-        if (!head || !lid || !cavity || !list || cards.length === 0) return;
+        if (!head || !sky || !lid || !cavity || !list || cards.length === 0) return;
+
+        /*
+         * The head is two elements and they must move as one. They cannot be a
+         * single element: a card comes out of the sky and goes behind his face,
+         * so the two halves sit on opposite sides of the showcase in paint
+         * order and a shared transform would make them atomic. See
+         * `.head-plate` — the plate positions them, these two carry the motion.
+         */
+        const headParts = [head, sky];
 
         /*
          * Tell CSS that the timeline is driving. Until this lands the cards are
@@ -118,7 +129,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
          */
         let launch: { dx: number; dy: number }[] = [];
         const measure = () => {
-          gsap.set([head, ...cards], { clearProps: 'transform' });
+          gsap.set([...headParts, ...cards], { clearProps: 'transform' });
           const c = cavity.getBoundingClientRect();
           const cx = c.left + c.width / 2;
           launch = cards.map((card, i) => {
@@ -186,9 +197,31 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
           BEATS.lidStart,
         );
 
+        /*
+         * 1 · and the colour arrives through the opening as it does.
+         *
+         * The one sanctioned exception to the colour rule, and the beat that
+         * exception was written for. A fade rather than an uncovering, forced by
+         * the artwork: the lid is hair at roughly 57% coverage, so a solid field
+         * behind it speckles through the strands at rest and the reveal would be
+         * spent before the first scroll. Still scrubbed, so it is the viewer's
+         * hand doing it, and it finishes while the cap is still travelling — the
+         * colour and the opening should read as one event, not two.
+         */
+        tl.fromTo(
+          sky,
+          { autoAlpha: 0 },
+          {
+            autoAlpha: 1,
+            duration: SKY_REVEAL.end - SKY_REVEAL.start,
+            ease: 'power1.out',
+          },
+          SKY_REVEAL.start,
+        );
+
         /* 1 · and the head sinks as it opens, until the eyes reach the floor */
         tl.fromTo(
-          head,
+          headParts,
           { y: 0 },
           {
             y: descent,
@@ -333,7 +366,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
          * costs no new vocabulary.
          */
         tl.to(
-          head,
+          headParts,
           {
             y: () => descent() + head.offsetHeight * 0.8,
             duration: BEATS.exitEnd - BEATS.exitStart,

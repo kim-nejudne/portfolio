@@ -77,6 +77,28 @@ export const cardSettles = (born: number) => cardFlies(born) + CARD_RISE;
  */
 export const DESCENT_EASE = 'power2.inOut';
 
+/**
+ * When the colour arrives.
+ *
+ * The one colour rule says the hub is paper and ink and the only colour is the
+ * five projects — with a single sanctioned exception, the printed sky behind
+ * the cut. This is the beat that exception was written for: **colour appears at
+ * the moment the head opens**, and it was absent from the page for as long as
+ * the sky layer was deleted.
+ *
+ * It is a fade rather than an uncovering, and that is forced by the artwork. The
+ * lid is hair — about 57% coverage inside its own bounding box — so a solid
+ * field behind it speckles through the strands at rest and the reveal is spent
+ * before the viewer has scrolled. A scrubbed fade tied to the swing is the
+ * honest version: it is still the viewer's hand doing it, and it still lands on
+ * the opening rather than announcing itself separately.
+ *
+ * It finishes well before `LID_ANGLE` is reached — the colour should be *there*
+ * while the cap is still travelling, not arrive with it, or it reads as two
+ * events instead of one.
+ */
+export const SKY_REVEAL = { start: 1, end: 11 } as const;
+
 /** The timeline is built in these units: 1 unit = 1% of the pinned scroll. */
 export const TOTAL = 100;
 

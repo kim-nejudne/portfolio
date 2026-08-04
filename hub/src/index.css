@@ -144,26 +144,59 @@ body {
 
 /* ---- the head ---------------------------------------------------- */
 
-.head {
+/*
+ * The plate carries the geometry, and carries **no z-index and no transform**.
+ *
+ * That is the whole reason it exists. Its two children have to end up on
+ * opposite sides of the showcase in paint order — the sky behind a card, his
+ * face in front of it — and a stacking context here would glue them together
+ * and make the pair atomic. So the plate positions, and the children stack and
+ * move.
+ */
+.head-plate {
   position: absolute;
   left: calc(50% - var(--canvas-w) / 2);
   top: calc(var(--lip-rest-bp) - var(--lip-line) * var(--canvas-h));
   width: var(--canvas-w);
   height: var(--canvas-h);
-  /* No transform here, deliberately: GSAP writes `transform` on this element
-     and a CSS translate for centring would be silently overwritten. */
+}
+
+.head,
+.head-sky {
+  position: absolute;
+  inset: 0;
+  /* No transform here, deliberately: GSAP writes `transform` on these and a
+     CSS translate for centring would be silently overwritten. */
 
   /*
-   * In front of the cards. See `HEAD_Z` in `head.ts` — this is what makes the
-   * tear an opening rather than a line the cards happen to start on: a card
-   * leaving it passes *behind* his scalp and is cut by the drawing.
-   *
-   * `pointer-events: none` is not optional alongside it. The head is
-   * `aria-hidden` decoration covering part of a real link, and without this it
-   * would quietly eat clicks on the bottom edge of every queued card.
+   * `pointer-events: none` is not optional. The head is `aria-hidden`
+   * decoration whose box is the entire artboard and mostly transparent, sitting
+   * over a real link — without this it would quietly eat clicks on the bottom
+   * edge of every queued card while painting nothing there.
    */
-  z-index: var(--head-z);
   pointer-events: none;
+}
+
+/*
+ * In front of the cards. See `HEAD_Z` in `head.ts` — this is what makes the
+ * tear an opening rather than a line the cards happen to start on: a card
+ * leaving it passes *behind* his face and is cut by the drawing.
+ */
+.head {
+  z-index: var(--head-z);
+}
+
+/*
+ * And behind them, because a card comes *out of* the sky.
+ *
+ * Hidden at rest and revealed as the lid swings — see `SKY_REVEAL`. It cannot
+ * simply sit there waiting to be uncovered: the lid is hair, about 57% coverage
+ * inside its own box, so a solid colour behind it speckles through the strands
+ * and the reveal is spent before the scroll starts.
+ */
+.head-sky {
+  z-index: var(--sky-z);
+  opacity: 0;
 }
 
 /*
@@ -538,6 +571,7 @@ body {
  * compositor either way.
  */
 .stage.is-pinned .head,
+.stage.is-pinned .head-sky,
 .stage.is-pinned .card {
   will-change: transform, opacity;
 }
@@ -591,7 +625,7 @@ body {
    * The shoulders are cropped away because in flow the artboard's lower margin
    * is just a large empty gap between the portrait and the work.
    */
-  .head {
+  .head-plate {
     position: relative;
     left: auto;
     top: auto;
@@ -600,6 +634,16 @@ body {
     height: auto;
     aspect-ratio: 1200 / 1088;
     overflow: clip;
+  }
+
+  /*
+   * The sky is on in the static layout, because the static head renders
+   * *already open* — there is no swing to reveal it, so there is nothing for it
+   * to be waiting for. It is the one place the two branches say different
+   * things about the same layer and the difference is the point.
+   */
+  .head-sky {
+    opacity: 1;
   }
 
   .canvas {

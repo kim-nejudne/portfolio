@@ -102,7 +102,27 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  */
 export const HEAD_OPEN_RISE = 0.52;
 
-export type LayerName = 'face' | 'neck' | 'lid';
+export type LayerName = 'sky' | 'face' | 'neck' | 'lid';
+
+/**
+ * What shows through the hole the lid leaves.
+ *
+ * It is the one layer of the six deleted that came back, and it turned out to
+ * cost a single drawing rather than the four it looked like. `face.png` is
+ * completely transparent above the tear — its ink starts exactly where the cut
+ * does — so the head already opened onto nothing, and a colour field behind it
+ * needs no drawn cavity and no back-of-skull. The tear is its rim.
+ *
+ * The other five stay gone, and the mechanism is why rather than the budget.
+ * `head-back` and `lid-underside` existed to be seen when the lid tipped away
+ * from the viewer; an in-plane hinge never turns. `cavity` was the drawn rim.
+ * The eyes are drawn into the face.
+ *
+ * **It is the only colour on the page that is not a project.** That is the one
+ * colour rule doing what it was written to do: the reveal is colour arriving at
+ * the moment the head opens, and it has been absent since the layer was cut.
+ */
+export const BACK_STACK: readonly LayerName[] = ['sky'];
 
 /**
  * Back to front. Three layers, down from nine.
@@ -111,14 +131,17 @@ export type LayerName = 'face' | 'neck' | 'lid';
  * off the top, and with the face on top the tear rendered as a flat line
  * instead of an edge.
  *
- * What used to be here: `head-back`, `sky`, `cavity`, `eyes-forward`,
- * `eyes-up`, and briefly `lid-underside`. Every one was a placeholder grey
- * shape standing in for art that was never drawn, and the decision was to
- * delete them rather than draw them. The consequences are real and belong here
- * rather than in a commit message nobody reads: the head no longer opens onto a
- * cavity, it opens onto his drawn scalp; there is no sky, so the **only colour
- * left on the page is the five project crops**; and the eye-flick beat is gone,
- * because the eyes are drawn into `face` and cannot change.
+ * What used to be here: `head-back`, `cavity`, `eyes-forward`, `eyes-up`, and
+ * briefly `lid-underside`. Every one was a placeholder grey shape standing in
+ * for art that was never drawn, and the decision was to delete them rather than
+ * draw them. The consequences are real and belong here rather than in a commit
+ * message nobody reads: the head does not open onto a modelled cavity, and the
+ * eye-flick beat is gone, because the eyes are drawn into `face` and cannot
+ * change.
+ *
+ * `sky` was the sixth and it has been restored — see `BACK_STACK`. It is not in
+ * this list because it does not stack with these: it is behind the cards and
+ * these are in front of them.
  *
  * `neck` is written fully transparent — the face was cut with the collar and
  * shoulders attached. It stays in the stack because a separately cut neck is a
@@ -128,6 +151,13 @@ export const STACK: readonly LayerName[] = ['face', 'neck', 'lid'];
 
 /**
  * Stacking. Three tiers, and the middle one is the whole paper-craft illusion.
+ *
+ * **The sky is behind them and the rest of the head is in front**, which is why
+ * the drawing is two elements rather than one. A card has to come *out of* the
+ * sky and *behind* his face, and those are opposite sides of the card — so the
+ * two halves of the head cannot share a stacking context. `.head-plate` carries
+ * the geometry and creates no context of its own; `.head-sky` and `.head` sit
+ * inside it at either side of `CARD_Z`, both driven by the same tween.
  *
  * **The head is in front of the cards.** That is the correction that makes the
  * opening an opening: a card leaving the tear passes *behind* his scalp, so its
@@ -148,6 +178,7 @@ export const STACK: readonly LayerName[] = ['face', 'neck', 'lid'];
  * furniture rather than part of the scene, and at rest the head fills the bottom
  * of the screen where the cue lives.
  */
+export const SKY_Z = 10;
 export const CARD_Z = 20;
 export const HEAD_Z = 30;
 export const CHROME_Z = 40;

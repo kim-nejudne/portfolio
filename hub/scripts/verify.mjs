@@ -120,9 +120,18 @@ async function main() {
 
     await load({ reduce: false });
 
+    /*
+     * Effectively hidden, rather than hidden by an attribute in one named
+     * place. The drawing became three elements when the sky came back, and the
+     * `aria-hidden` moved up to the plate that wraps them — correct, and it
+     * failed a check that was looking at `.head` itself. What matters is that
+     * nothing in the drawing reaches the accessibility tree, and `closest`
+     * asks that directly.
+     */
     check(
       'the head is hidden from assistive technology',
-      await ev(`document.querySelector('.head').getAttribute('aria-hidden') === 'true'`),
+      await ev(`['.head', '.head-sky', '.head-plate']
+        .every(s => document.querySelector(s)?.closest('[aria-hidden="true"]'))`),
     );
 
     check(
@@ -487,6 +496,102 @@ async function main() {
       );
     }
 
+    /* ---- the sky ----------------------------------------------------- */
+
+    /*
+     * The sky is the one colour on the page that is not a project, and the one
+     * sanctioned exception to the colour rule. Two things have to be true of it
+     * and neither is observable from CSS.
+     *
+     * **It arrives when the head opens.** That is the entire reason the layer
+     * exists — the brief's reveal, absent from the page for as long as it was
+     * deleted. A sky that is simply always there is a blue shape behind a
+     * portrait, and it would look completely correct in a screenshot.
+     *
+     * **It is behind the cards**, because a card comes *out of* it. This is the
+     * mirror of the check that the rest of the head is in front, and it is why
+     * the head is two elements: the two halves sit on opposite sides of the
+     * showcase and cannot share a stacking context.
+     */
+    const skyInk = async (at) => {
+      await ev(`window.scrollTo(0, ${Math.round(at * pin)})`);
+      await sleep(900);
+      const a = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
+      writeFileSync('/tmp/hub-sky-on.png', Buffer.from(a.data, 'base64'));
+      await ev(`document.querySelector('.head-sky').style.visibility = 'hidden'`);
+      await sleep(150);
+      const b = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
+      writeFileSync('/tmp/hub-sky-off.png', Buffer.from(b.data, 'base64'));
+      await ev(`document.querySelector('.head-sky').style.visibility = ''`);
+      return Number(
+        execFileSync('magick', ['/tmp/hub-sky-on.png', '/tmp/hub-sky-off.png',
+          '-compose', 'difference', '-composite', '-colorspace', 'Gray',
+          '-format', '%[fx:mean]', 'info:']).toString().trim(),
+      );
+    };
+
+    const skyAtRest = await skyInk(0);
+    const skyWhenOpen = await skyInk(0.2);
+    check(
+      'the colour arrives when the head opens',
+      skyAtRest < 0.002 && skyWhenOpen > skyAtRest * 10,
+      `the sky contributes ${(skyAtRest * 100).toFixed(2)}% of the frame's ink at rest` +
+        ` and ${(skyWhenOpen * 100).toFixed(2)}% once it is open`,
+    );
+
+    /*
+     * And the cards are in front of it. Two halves again, because either alone
+     * passes on a broken page: inside the queued card's own image the sky must
+     * be invisible, and immediately around that image it must not be — the
+     * first says the card wins, the second says there was a sky there to win
+     * against.
+     *
+     * At a *queue* frame, not the one the reveal was measured at. The first
+     * version reused the 0.2 frames and reported 0.00% and 0.0% — a pass on the
+     * first half and a fail on the second, which was the check correctly
+     * refusing to draw a conclusion: at 0.2 the only unsettled card is the
+     * first one in mid-flight, well clear of the sky, so there was no
+     * contention to judge either way.
+     */
+    await skyInk(0.28);
+    const overCard = JSON.parse(await ev(`(() => {
+      const q = [...document.querySelectorAll('.card')].filter(c => {
+        const cs = getComputedStyle(c);
+        if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.5) return false;
+        const m = new DOMMatrixReadOnly(cs.transform);
+        return !(Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24);
+      });
+      const img = q[0] && q[0].querySelector('img');
+      if (!img) return 'null';
+      const r = img.getBoundingClientRect();
+      const pad = 26;
+      return JSON.stringify({
+        inner: [Math.round(r.width - pad * 2), Math.round(r.height - pad * 2),
+                Math.round(r.left + pad), Math.round(r.top + pad)],
+        outer: [Math.round(r.width + pad * 2), Math.round(r.height + pad * 2),
+                Math.round(r.left - pad), Math.round(r.top - pad)],
+      });
+    })()`));
+    if (!overCard || overCard.inner[0] < 40 || overCard.inner[1] < 40) {
+      check('the cards are in front of the sky', false, 'no queued card image to test against');
+    } else {
+      /* Frames from the 0.28 pass above, still on disk and still current. */
+      const meanOver = (box) => Number(
+        execFileSync('magick', ['/tmp/hub-sky-on.png', '/tmp/hub-sky-off.png',
+          '-compose', 'difference', '-composite', '-colorspace', 'Gray',
+          '-crop', `${box[0]}x${box[1]}+${box[2]}+${box[3]}`, '+repage',
+          '-format', '%[fx:mean]', 'info:']).toString().trim(),
+      );
+      const inside = meanOver(overCard.inner);
+      const around = meanOver(overCard.outer);
+      check(
+        'the cards are in front of the sky',
+        inside < 0.002 && around > 0.02,
+        `hiding the sky changes ${(inside * 100).toFixed(2)}% inside the queued card's image` +
+          ` and ${(around * 100).toFixed(1)}% around it`,
+      );
+    }
+
     let maxSettled = 0;
     let holdsSeen = 0;
     let emptyFrames = 0;
@@ -626,11 +731,22 @@ async function main() {
         });
       })()`));
       if (!card) return null;
-      await ev(`document.querySelector('.showcase').style.visibility = 'hidden'`);
+      /*
+       * The sky is hidden for this measurement, and that is a claim rather than
+       * a convenience. What the card must not cover is the *drawing* — his
+       * forehead and the swung cap, the failure this check was written for
+       * twice. The sky is the hole, it sits behind the cards by design, and a
+       * card in front of the colour it came out of is the arrangement working.
+       * Leaving it in made the check report a 0px clearance against a layer the
+       * card is supposed to overlap.
+       */
+      await ev(`document.querySelector('.showcase').style.visibility = 'hidden';
+                document.querySelector('.head-sky').style.visibility = 'hidden';`);
       await sleep(120);
       const shot = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
       writeFileSync('/tmp/hub-headtop.png', Buffer.from(shot.data, 'base64'));
-      await ev(`document.querySelector('.showcase').style.visibility = ''`);
+      await ev(`document.querySelector('.showcase').style.visibility = '';
+                document.querySelector('.head-sky').style.visibility = '';`);
       await sleep(120);
       const out = execFileSync('magick', [
         '/tmp/hub-headtop.png',

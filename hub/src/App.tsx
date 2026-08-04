@@ -4,7 +4,16 @@ import Head from './components/Head';
 import Index from './components/Index';
 import Pitch from './components/Pitch';
 import Showcase from './components/Showcase';
-import { CANVAS, CARD_Z, CHROME_Z, HEAD_FRACTION, HEAD_OPEN_RISE, HEAD_Z, LIP_LINE } from './head';
+import {
+  CANVAS,
+  CARD_Z,
+  CHROME_Z,
+  HEAD_FRACTION,
+  HEAD_OPEN_RISE,
+  HEAD_Z,
+  LIP_LINE,
+  SKY_Z,
+} from './head';
 import { HEAD_HEIGHT_VH, LID_ANGLE, LIP_END_VH, LIP_REST_VH } from './choreography';
 import { useHubTimeline } from './hooks/useHubTimeline';
 
@@ -30,6 +39,7 @@ const vars = {
   '--head-vh-desktop': HEAD_HEIGHT_VH.desktop,
   '--canvas-aspect': CANVAS.w / CANVAS.h,
   '--lid-angle': `${LID_ANGLE}deg`,
+  '--sky-z': SKY_Z,
   '--card-z': CARD_Z,
   '--head-z': HEAD_Z,
   '--chrome-z': CHROME_Z,
