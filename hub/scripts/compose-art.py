@@ -74,7 +74,13 @@ SCALE_OUT = 1.5
 # pixels — identical pixels, not merely a good fit. Carried through the old
 # registration that gives exactly (376, -467), which is what align-art.py says
 # on its own. Two independent methods, one answer.
-LID_OFFSET = (376, -467)
+#
+# The +2 on x is Kim's, by eye, after looking at the composed page: the tear
+# reads better with the lid a touch right of where both measurements put it.
+# Two source pixels is about three on the artboard and just over one CSS pixel
+# at the size the head is drawn, so it is a nudge and not a correction — the
+# measured value is the one above, and this is the number the page uses.
+LID_OFFSET = (376 + 2, -467)
 
 SOURCES = {
     # layer name  ->  (file, offset in the face layer's coordinates)
@@ -161,24 +167,38 @@ HEAD_HEIGHT_UNITS = 900
 
 
 def dome_mask(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, tuple, str]:
-    """The shape of the missing cap, derived from the two real cuts.
+    """The shape of the missing cap: **a circle**, derived from the face alone.
 
-    Works in artboard space and takes both its dimensions from the drawing, so
-    it needs no offset and no measurement of its own:
+    Works in artboard space and takes its one dimension from the drawing, so it
+    needs no offset and no measurement of its own:
 
-      width   the head's own width across the top of the tear — his temples
-      height  from the tear up to the top of the lid, which is the cap's rise
+      diameter   the head's own width across the top of the tear — his temples
 
-    The first version sized this to the lid's *bounding box*, which is much
-    wider than his skull because the hair sweeps out to one side. It rendered as
-    a blue disc behind him instead of a hole in his head — a good illustration
-    of why even a stand-in has to be measured off the drawing.
+    Centred on the tear, so the upper half is the dome and the lower half runs
+    under the face to be clipped away by it. The cap therefore rises exactly half
+    the width of his head.
+
+    **It was an ellipse and Kim asked for a circle**, which gives up a property
+    worth naming rather than losing quietly. The ellipse took its height from the
+    lid — the cap rose exactly as far as the piece that swung away — so the sky
+    filled precisely the volume the lid vacated and the open head was exactly as
+    tall as the closed head. A circle cannot do that, because the two numbers are
+    independent: against this cut the lid's height is 737px and half the head's
+    width is 507, so the dome is 230px shorter and `HEAD_OPEN_RISE` has to come
+    down with it. In exchange the shape stops depending on the lid at all, which
+    means re-cutting the hair can no longer change the sky.
+
+    The first version of this sized the shape to the lid's *bounding box*, which
+    is much wider than his skull because the hair sweeps out to one side. It
+    rendered as a blue disc behind him instead of a hole in his head — a good
+    illustration of why even a stand-in has to be measured off the drawing, and
+    the reason the diameter is the head's width and not the lid's.
 
     Returns the mask, the box it occupies, and a line for the build log.
     """
-    fa, la = face.getchannel("A"), lid.getchannel("A")
-    fbox, lbox = fa.getbbox(), la.getbbox()
-    if not fbox or not lbox:
+    fa = face.getchannel("A")
+    fbox = fa.getbbox()
+    if not fbox or not lid.getchannel("A").getbbox():
         raise SystemExit("cannot derive the sky's shape without face and lid")
 
     tear_top = fbox[1]
@@ -186,14 +206,12 @@ def dome_mask(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, tuple, 
     band = fa.crop((0, tear_top, face.width, tear_top + 60)).getbbox()
     left, right = band[0], band[2]
     cx, w = (left + right) / 2, right - left
-    rise = tear_top - lbox[1]
 
-    # Centred on the tear, so the upper half is the dome and the lower half runs
-    # under the face to be clipped away by it.
-    box = (cx - w / 2, tear_top - rise, cx + w / 2, tear_top + rise)
+    r = w / 2
+    box = (cx - r, tear_top - r, cx + r, tear_top + r)
     mask = Image.new("L", face.size, 0)
     ImageDraw.Draw(mask).ellipse(box, fill=255)
-    return mask, box, f"dome {int(w)}x{int(rise)} on the tear at y{tear_top}"
+    return mask, box, f"circle d{int(w)} on the tear at y{tear_top}"
 
 
 def fill_dome(mask: Image.Image, box: tuple, texture: Image.Image | None) -> Image.Image:

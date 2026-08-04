@@ -123,13 +123,18 @@ What did move, and what it cost:
 | | first cut | second cut |
 |---|---|---|
 | `CUT_Y` | 560 | 692 — the tear is at the brow, so the whole cranium hinges away |
-| `HINGE` | 82.889%, 30.833% | 81.556%, 42.833% |
-| `HEAD_OPEN_RISE` | 0.52 | 0.544, and now bounded by the **sky** rather than the swung lid |
+| `HINGE` | 82.889%, 30.833% | 81.722%, 42.833% |
+| `HEAD_OPEN_RISE` | 0.52 | 0.448, and now bounded by the **sky** rather than the swung lid |
 | head paints in front of cards | proven by natural overlap | overlap manufactured — see below |
 
+`LID_OFFSET` carries `+2` on x on top of the measured value. That is Kim's, by
+eye, after looking at the composed page — about three artboard pixels and just
+over one CSS pixel at the size the head is drawn. It is written as `376 + 2` so
+the measurement and the nudge stay legible as two different kinds of number.
+
 Two consequences worth knowing before the third cut. The sky got bigger for
-free, because `compose-art.py` derives the dome's rise from the height of the
-lid; the open head is therefore exactly as tall as the closed head. And the
+free, because `compose-art.py` derived the dome's rise from the height of the
+lid — though that has since been given up, see below. And the
 cards stopped touching the drawing at all — the opening is now larger than a
 card, so a sweep of the whole pin finds 86 contended pixels at one frame and
 zero everywhere else. That broke the check that the head paints in front of the
@@ -348,16 +353,28 @@ Three things make it work, and each is asserted:
   no context of its own; `.head-sky` and `.head` sit either side of `CARD_Z` and
   are driven by the same tween.
 
-**The shape is not worth drawing, so it isn't.** Its width is the head's own
-width at the tear, its rise is the height of the lid, and its bottom edge is the
-face's alpha — all three already in the two cuts. The dome is derived and only
-the *fill* comes from outside, which is why there are three intake paths:
+**The shape is not worth drawing, so it isn't.** It is a **circle** whose
+diameter is the head's own width at the tear, centred on the tear so the upper
+half is the dome and the lower half runs under the face to be clipped away by
+it. Both numbers are already in the cuts. The dome is derived and only the
+*fill* comes from outside, which is why there are three intake paths:
 
 ```sh
 art/sky-fill.png   # any rectangle of colour. Cover-fitted through the dome.
 art/sky_cut.png    # a cut layer with its own alpha, placed like the lid.
 # neither          # a flat placeholder in the dome.
 ```
+
+It was an **ellipse** until Kim asked for a circle, and the swap gives up
+something worth naming rather than losing quietly. The ellipse took its height
+from the lid, so the cap rose exactly as far as the piece that swung away: the
+sky filled precisely the volume the lid vacated, and **the open head was exactly
+as tall as the closed head**, with `HEAD_OPEN_RISE` equal to the closed head's
+own rise. A circle's rise is half the head's width and has nothing to do with
+the lid, so that coincidence is gone — against this cut the lid is 737px tall
+and half the head is 507, and `HEAD_OPEN_RISE` came down from 0.544 to 0.448 to
+match. What it buys is independence: the sky no longer changes when the hair is
+re-cut, and the shape reads as a hole punched in paper rather than an egg.
 
 `sky-fill.png` is the one to reach for. No transparency, no alignment, no size
 to hit — and it is the shape of asset an image model can actually produce,

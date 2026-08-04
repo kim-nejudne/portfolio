@@ -66,7 +66,7 @@ export const CAVITY_POINT = {
  * the number stays meaningful.
  */
 export const HINGE = {
-  x: 81.556, // 979 of 1200
+  x: 81.722, // 981 of 1200
   y: 42.833, // 685 of 1600
 } as const;
 
@@ -105,17 +105,22 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * It is not the cut line, which is the number the layout used first and the
  * reason the cards landed on his forehead.
  *
- * **What it is holding off changed with the second cut**, and the answer is
- * better than the one it replaced. Measured off the composed layers: the
- * drawing below the tear rises 0.237 above the lip line, the swung lid 0.387 —
- * and the sky 0.544, which makes the sky the tallest thing on the open head by
- * a wide margin. That is not a coincidence to be tuned around. `compose-art.py`
- * derives the dome's rise as the height of the lid, so the sky fills precisely
- * the space the lid vacates: **the open head is exactly as tall as the closed
- * head**, and this number is the closed head's own rise. Under the first cut
- * the swung lid was the tallest thing and 0.52 was fitted to it, which is why
- * the sky then poked ~20px above the reservation and the caption of the settled
- * card grazed the dome.
+ * **What it is holding off changed with the second cut.** Measured off the
+ * composed layers: the drawing below the tear rises 0.237 above the lip line
+ * and the swung lid 0.387 — but the sky reaches higher than either, so the sky
+ * is what this number has to clear. Under the first cut the swung lid was the
+ * tallest thing and 0.52 was fitted to it, which is why the sky then poked
+ * ~20px above the reservation and the caption of the settled card grazed the
+ * dome.
+ *
+ * **Then the dome became a circle and it came down again**, 0.544 to 0.448.
+ * Briefly this number had a derivation instead of a fitting: the elliptical
+ * dome took its rise from the height of the lid, so the sky filled precisely
+ * the volume the lid vacated and the open head was exactly as tall as the
+ * closed head — 0.544 was the closed head's own rise. A circle's rise is half
+ * the head's width and has nothing to do with the lid, so that coincidence is
+ * gone and this is a measured number again. `compose-art.py` prints the apex;
+ * `verify.mjs` prints the slack.
  *
  * It is still not derived in code, because it depends on the hinge angle and on
  * the artwork, and it is still *checked* instead: `scripts/verify.mjs`
@@ -124,7 +129,7 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * card in front of the colour it came out of is the arrangement working — so it
  * measures the 0.237 and reports the slack rather than binding on it.
  */
-export const HEAD_OPEN_RISE = 0.544;
+export const HEAD_OPEN_RISE = 0.448;
 
 export type LayerName = 'sky' | 'face' | 'neck' | 'lid';
 
