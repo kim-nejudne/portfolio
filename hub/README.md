@@ -123,8 +123,8 @@ What did move, and what it cost:
 | | first cut | second cut |
 |---|---|---|
 | `CUT_Y` | 560 | 692 — the tear is at the brow, so the whole cranium hinges away |
-| `HINGE` | 82.889%, 30.833% | 81.833%, 42.833% |
-| `HEAD_OPEN_RISE` | 0.52 | 0.448, and now bounded by the **sky** rather than the swung lid |
+| `HINGE` | 82.889%, 30.833% | 82.222%, 42.833% |
+| `HEAD_OPEN_RISE` | 0.52 | 0.509, and now bounded by the **sky** rather than the swung lid |
 | head paints in front of cards | proven by natural overlap | overlap manufactured — see below |
 
 `LID_OFFSET` carries a nudge on x on top of the measured value — Kim's, by eye,
@@ -384,6 +384,27 @@ the lid, so that coincidence is gone — against this cut the lid is 737px tall
 and half the head is 507, and `HEAD_OPEN_RISE` came down from 0.544 to 0.448 to
 match. What it buys is independence: the sky no longer changes when the hair is
 re-cut, and the shape reads as a hole punched in paper rather than an egg.
+
+**The dome was off-centre for three commits and nothing noticed.** Its width came
+from a fixed 60-row band below the topmost face pixel, which reads as a fair
+proxy for "the head's width at the tear" and is not one, because the tear is a
+*wave*. Its high point is at x 849 and its left end sits 86 canvas units lower,
+so a band 40 canvas units deep never reached the left half of the cut. It
+measured x 360–1037 of a tear that actually spans 210–1020, and centred the
+circle **83 units right of the opening** — with the left end of his brow opening
+onto bare paper.
+
+It survived a re-cut, an ellipse-to-circle change and 35 passing browser
+assertions, because the failure renders as *paper* on a page that is already
+paper: a slightly smaller dome that looks entirely deliberate. So the fix is two
+parts. `tear_edge` separates the tear from the shoulders by walking out from its
+high point while the edge stays continuous — neighbouring columns of a hand-drawn
+tear differ by a pixel or two, the drop into the shoulders is several hundred,
+and any threshold between those scales works. Then the radius is derived rather
+than guessed: **the smallest circle centred on the tear that contains the whole
+tear**. And the composer *asserts* it, per column and with no tolerance —
+directly above the cut, everywhere along it, there must be sky. Restoring the old
+band makes it name the 264 bare columns.
 
 `sky-fill.png` is the one to reach for. No transparency, no alignment, no size
 to hit — and it is the shape of asset an image model can actually produce,

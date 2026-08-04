@@ -34,13 +34,15 @@ constants of the drawing.
 """
 
 from pathlib import Path
+import math
 import subprocess
 import sys
 
 try:
+    import numpy as np
     from PIL import Image, ImageChops, ImageDraw
 except ImportError:
-    sys.exit("needs Pillow:  pip install --user Pillow")
+    sys.exit("needs Pillow and numpy:  pip install --user Pillow numpy")
 
 ROOT = Path(__file__).resolve().parent.parent
 ART = ROOT / "art"
@@ -77,8 +79,9 @@ SCALE_OUT = 1.5
 #
 # The offset on x is Kim's, by eye, after looking at the composed page: the tear
 # reads better with the lid a touch right of where both measurements put it. It
-# is a nudge and not a correction — the measured value is the one above, and the
-# sum is what the page uses.
+# is a nudge and not a correction — the measured value is 376, and the sum is
+# what the page uses. Note the base below has since been moved to 380 by hand as
+# well, so the by-eye component is 4 + NUDGE_X_CSS_PX and not just the nudge.
 #
 # **Asked for in screen pixels, so it is converted rather than pasted in.** A
 # source pixel is not a CSS pixel and the ratio is not close to one: the chain is
@@ -180,52 +183,98 @@ HEAD_TOP_UNITS = 180
 HEAD_HEIGHT_UNITS = 900
 
 
+def tear_edge(face: Image.Image) -> tuple[list, int, int, int]:
+    """The tear itself, column by column, separated from the shoulders.
+
+    Returns `(top, left, right, peak_y)` — the topmost row of face ink in each
+    column, the span of columns that belong to the cut, and the tear's highest
+    point.
+
+    **The separation is the whole job.** `face.png` is transparent above the
+    tear, so the topmost ink in a column is the tear — but only for columns that
+    have a tear. Outside the head the topmost ink is his shoulders, hundreds of
+    rows further down, and any measurement that mixes the two is measuring a
+    shape nobody drew.
+
+    So walk out from the tear's highest point while the edge stays *continuous*.
+    Neighbouring columns of a hand-drawn tear differ by a pixel or two; the drop
+    into the shoulders is a cliff of several hundred. Anything between those two
+    scales works as the threshold and none of it is a tuned number.
+    """
+    a = np.array(face.getchannel("A")) > 128
+    h, w = a.shape
+    top = [None] * w
+    for x in range(w):
+        ys = np.nonzero(a[:, x])[0]
+        if len(ys):
+            top[x] = int(ys[0])
+
+    inked = [x for x in range(w) if top[x] is not None]
+    if not inked:
+        raise SystemExit("the face layer has no ink — nothing to cut a sky from")
+    peak = min(inked, key=lambda x: top[x])
+
+    cliff = h * 0.02  # two per cent of the artboard: far above the tear's own
+    left = right = peak  # wobble, far below the drop into the shoulders
+    while left > 0 and top[left - 1] is not None and abs(top[left - 1] - top[left]) < cliff:
+        left -= 1
+    while right < w - 1 and top[right + 1] is not None and abs(top[right + 1] - top[right]) < cliff:
+        right += 1
+    return top, left, right, top[peak]
+
+
 def dome_mask(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, tuple, str]:
     """The shape of the missing cap: **a circle**, derived from the face alone.
 
-    Works in artboard space and takes its one dimension from the drawing, so it
-    needs no offset and no measurement of its own:
-
-      diameter   the head's own width across the top of the tear — his temples
-
-    Centred on the tear, so the upper half is the dome and the lower half runs
-    under the face to be clipped away by it. The cap therefore rises exactly half
-    the width of his head.
+    Centred on the middle of the tear and on the tear's highest point, so the
+    upper half is the dome and the lower half runs under the face to be clipped
+    away by it. The radius is **the smallest that contains the whole tear** —
+    the furthest any point of the cut lies from that centre. That is a
+    derivation rather than a fitting, and it is the one that matters: a sky
+    narrower than the mouth it fills leaves paper showing inside the opening,
+    and overlap past the tear costs nothing because the face clips it.
 
     **It was an ellipse and Kim asked for a circle**, which gives up a property
     worth naming rather than losing quietly. The ellipse took its height from the
     lid — the cap rose exactly as far as the piece that swung away — so the sky
     filled precisely the volume the lid vacated and the open head was exactly as
     tall as the closed head. A circle cannot do that, because the two numbers are
-    independent: against this cut the lid's height is 737px and half the head's
-    width is 507, so the dome is 230px shorter and `HEAD_OPEN_RISE` has to come
-    down with it. In exchange the shape stops depending on the lid at all, which
-    means re-cutting the hair can no longer change the sky.
+    independent, and `HEAD_OPEN_RISE` came down to match. In exchange the shape
+    stops depending on the lid at all, so re-cutting the hair can no longer move
+    the sky.
 
-    The first version of this sized the shape to the lid's *bounding box*, which
-    is much wider than his skull because the hair sweeps out to one side. It
-    rendered as a blue disc behind him instead of a hole in his head — a good
-    illustration of why even a stand-in has to be measured off the drawing, and
-    the reason the diameter is the head's width and not the lid's.
+    Two earlier versions were wrong about the width, and both are the same
+    mistake — measuring the head somewhere other than at the cut.
+
+    1. **The lid's bounding box**, which is much wider than his skull because
+       the hair sweeps out to one side. It rendered as a blue disc behind him
+       instead of a hole in his head.
+    2. **A fixed 60-row band below the topmost face pixel.** That reads as a
+       reasonable proxy for "the head's width at the tear" and it is not, because
+       the tear is a *wave*: its high point is at x 849 and its left end sits 86
+       units lower, so a band 40 canvas units deep never reached the left half of
+       the cut. It measured x 360–1037 of a tear that actually spans 210–1020,
+       and centred the circle 83 units right of the opening — visibly off, with
+       the left end of his brow opening onto bare paper. It survived a re-cut, a
+       shape change and a full verify run, because nothing in the suite looks at
+       whether the sky fills the hole.
 
     Returns the mask, the box it occupies, and a line for the build log.
     """
-    fa = face.getchannel("A")
-    fbox = fa.getbbox()
-    if not fbox or not lid.getchannel("A").getbbox():
+    if not face.getchannel("A").getbbox() or not lid.getchannel("A").getbbox():
         raise SystemExit("cannot derive the sky's shape without face and lid")
 
-    tear_top = fbox[1]
-    # The head's width where the cut is: ink in the first rows of the face.
-    band = fa.crop((0, tear_top, face.width, tear_top + 60)).getbbox()
-    left, right = band[0], band[2]
-    cx, w = (left + right) / 2, right - left
+    top, left, right, tear_top = tear_edge(face)
+    cx, cy = (left + right) / 2, tear_top
+    r = max(math.hypot(x - cx, top[x] - cy) for x in range(left, right + 1))
 
-    r = w / 2
-    box = (cx - r, tear_top - r, cx + r, tear_top + r)
+    box = (cx - r, cy - r, cx + r, cy + r)
     mask = Image.new("L", face.size, 0)
     ImageDraw.Draw(mask).ellipse(box, fill=255)
-    return mask, box, f"circle d{int(w)} on the tear at y{tear_top}"
+    return mask, box, (
+        f"circle r{int(r)} centred ({int(cx)}, {int(cy)}) on a tear "
+        f"spanning x{left}..{right}"
+    )
 
 
 def fill_dome(mask: Image.Image, box: tuple, texture: Image.Image | None) -> Image.Image:
@@ -353,6 +402,31 @@ def main() -> None:
                 "the clip in CLIPPED_BY is not doing its job"
             )
         notes[name] = f"{notes.get(name, '')} clipped to {cutter}".strip()
+
+    # And the sky actually fills the hole it is behind.
+    #
+    # Asserted here for the same reason the clip is: the browser cannot see it.
+    # A mouth the sky fails to reach shows *paper*, and the page is already
+    # paper — so the failure renders as a slightly smaller dome and looks
+    # completely deliberate. That is exactly how the 60-row band survived a
+    # re-cut, a shape change and 35 passing browser assertions while leaving the
+    # left end of his brow opening onto nothing.
+    #
+    # The claim is per-column and there is no tolerance in it: directly above
+    # the tear, everywhere along the tear, there must be sky. The row just above
+    # the cut is bare by construction — `face.png` is transparent above the tear
+    # — so anything found there came from the sky layer or is a hole.
+    if "sky" in placed and "face" in placed:
+        top, left, right, _ = tear_edge(placed["face"])
+        sa = placed["sky"].getchannel("A").load()
+        bare = [x for x in range(left, right + 1) if not sa[x, max(0, top[x] - 1)]]
+        if bare:
+            sys.exit(
+                f"the sky does not reach the tear in {len(bare)} of "
+                f"{right - left + 1} columns (x{bare[0]}..{bare[-1]}) — the mouth "
+                "of the opening would show paper. Check dome_mask's centre and radius."
+            )
+        notes["sky"] = f"{notes.get('sky', '')} fills the tear".strip()
 
     for name, canvas in placed.items():
         png = OUT / f"{name}.png"
