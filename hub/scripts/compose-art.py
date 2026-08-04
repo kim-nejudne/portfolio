@@ -142,6 +142,20 @@ CLIPPED_BY = {"sky": "face"}
 #                         about being a shape rather than a drawing.
 SKY_FILL = "sky-fill.png"
 
+# --- the dome, as a design decision rather than a derivation -----------------
+# `dome_mask` derives the circle that exactly fills the tear: centred on the
+# cut's midpoint and just large enough to contain all of it. These two scale and
+# shift that answer, and they are Kim's by eye.
+#
+# **A scale below 1 means the sky no longer fills the opening**, and paper shows
+# inside his head at both ends of the tear. That is a legitimate thing to want —
+# a window of sky rather than the whole inside of a skull — but it is the exact
+# defect that went unnoticed for three commits when it happened by accident, so
+# the composer prints the uncovered fraction on every run and refuses only when
+# nobody asked for it. Coverage is reported; leaving the head is still an error.
+SKY_RADIUS_SCALE = 0.60       # 40% smaller than the circle that fills the tear
+SKY_CENTRE_NUDGE_X = 40       # canvas units right of the tear's midpoint
+
 # The fill in `art/` is a riso-style sky from an image model, with one manual
 # step that has to be repeated if it is ever regenerated: **crop the border
 # off**. The model printed the sky as a block on a sheet of cream paper, and a
@@ -266,15 +280,21 @@ def dome_mask(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, tuple, 
 
     top, left, right, tear_top = tear_edge(face)
     cx, cy = (left + right) / 2, tear_top
-    r = max(math.hypot(x - cx, top[x] - cy) for x in range(left, right + 1))
+    fills = max(math.hypot(x - cx, top[x] - cy) for x in range(left, right + 1))
+
+    r = fills * SKY_RADIUS_SCALE
+    cx += SKY_CENTRE_NUDGE_X * SCALE_OUT
 
     box = (cx - r, cy - r, cx + r, cy + r)
     mask = Image.new("L", face.size, 0)
     ImageDraw.Draw(mask).ellipse(box, fill=255)
-    return mask, box, (
+    how = (
         f"circle r{int(r)} centred ({int(cx)}, {int(cy)}) on a tear "
         f"spanning x{left}..{right}"
     )
+    if SKY_RADIUS_SCALE != 1 or SKY_CENTRE_NUDGE_X:
+        how += f", {SKY_RADIUS_SCALE:g}x the filling radius r{int(fills)}"
+    return mask, box, how
 
 
 def fill_dome(mask: Image.Image, box: tuple, texture: Image.Image | None) -> Image.Image:
@@ -403,30 +423,53 @@ def main() -> None:
             )
         notes[name] = f"{notes.get(name, '')} clipped to {cutter}".strip()
 
-    # And the sky actually fills the hole it is behind.
-    #
-    # Asserted here for the same reason the clip is: the browser cannot see it.
-    # A mouth the sky fails to reach shows *paper*, and the page is already
-    # paper — so the failure renders as a slightly smaller dome and looks
-    # completely deliberate. That is exactly how the 60-row band survived a
-    # re-cut, a shape change and 35 passing browser assertions while leaving the
-    # left end of his brow opening onto nothing.
-    #
-    # The claim is per-column and there is no tolerance in it: directly above
-    # the tear, everywhere along the tear, there must be sky. The row just above
-    # the cut is bare by construction — `face.png` is transparent above the tear
-    # — so anything found there came from the sky layer or is a hole.
+    # And two things about where the sky lands, neither of which the browser can
+    # see. A sky that misses renders as *paper*, and the page is already paper —
+    # so both failures look like a slightly different dome that somebody chose.
+    # That is precisely how an off-centre circle survived a re-cut, a shape
+    # change and 35 passing browser assertions.
     if "sky" in placed and "face" in placed:
         top, left, right, _ = tear_edge(placed["face"])
         sa = placed["sky"].getchannel("A").load()
         bare = [x for x in range(left, right + 1) if not sa[x, max(0, top[x] - 1)]]
-        if bare:
+        span = right - left + 1
+
+        # **Coverage** — is there sky directly above every part of the cut? The
+        # row just above the tear is bare by construction, since `face.png` is
+        # transparent there, so anything found is the sky layer or a hole.
+        #
+        # Reported rather than enforced *when the shape was deliberately shrunk
+        # or shifted*, because then partial coverage is the request and not a
+        # bug. With the dome left at its derived size this is absolute: a full
+        # circle that fails to reach the tear is the accident, and it exits.
+        chosen = SKY_RADIUS_SCALE != 1 or SKY_CENTRE_NUDGE_X
+        if bare and not chosen:
             sys.exit(
-                f"the sky does not reach the tear in {len(bare)} of "
-                f"{right - left + 1} columns (x{bare[0]}..{bare[-1]}) — the mouth "
-                "of the opening would show paper. Check dome_mask's centre and radius."
+                f"the sky does not reach the tear in {len(bare)} of {span} columns "
+                f"(x{bare[0]}..{bare[-1]}) — the mouth of the opening would show "
+                "paper. Check dome_mask's centre and radius."
             )
-        notes["sky"] = f"{notes.get('sky', '')} fills the tear".strip()
+        notes["sky"] = (
+            f"{notes.get('sky', '')} covers {100 * (span - len(bare)) // span}% of the tear"
+        ).strip()
+
+        # **Containment** — the sky must not paint outside the head. This one has
+        # no opt-out, because there is no version of the design where a crescent
+        # of colour beside his ear is wanted, and it is a failure this piece has
+        # already shipped once: the first dome was sized to the lid's bounding
+        # box and rendered as a blue disc behind him. Shrinking the circle cannot
+        # cause it; moving it can, which is why it arrives with the nudge.
+        head = ImageChops.lighter(
+            placed["face"].getchannel("A"), placed["lid"].getchannel("A")
+        ).point(lambda v: 0 if v > 8 else 255)
+        outside = ImageChops.multiply(placed["sky"].getchannel("A"), head)
+        stray = sum(n for v, n in enumerate(outside.histogram()) if v > 8)
+        if stray:
+            sys.exit(
+                f"the sky paints {stray} pixels outside the closed head — a "
+                "crescent of colour beside the drawing. Reduce SKY_CENTRE_NUDGE_X "
+                "or SKY_RADIUS_SCALE."
+            )
 
     for name, canvas in placed.items():
         png = OUT / f"{name}.png"

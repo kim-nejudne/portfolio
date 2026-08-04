@@ -124,7 +124,7 @@ What did move, and what it cost:
 |---|---|---|
 | `CUT_Y` | 560 | 692 — the tear is at the brow, so the whole cranium hinges away |
 | `HINGE` | 82.889%, 30.833% | 82.222%, 42.833% |
-| `HEAD_OPEN_RISE` | 0.52 | 0.509, and now bounded by the **sky** rather than the swung lid |
+| `HEAD_OPEN_RISE` | 0.52 | 0.400, and now bounded by the **sky** rather than the swung lid — barely, at 0.387 |
 | head paints in front of cards | proven by natural overlap | overlap manufactured — see below |
 
 `LID_OFFSET` carries a nudge on x on top of the measured value — Kim's, by eye,
@@ -402,9 +402,26 @@ high point while the edge stays continuous — neighbouring columns of a hand-dr
 tear differ by a pixel or two, the drop into the shoulders is several hundred,
 and any threshold between those scales works. Then the radius is derived rather
 than guessed: **the smallest circle centred on the tear that contains the whole
-tear**. And the composer *asserts* it, per column and with no tolerance —
-directly above the cut, everywhere along it, there must be sky. Restoring the old
-band makes it name the 264 bare columns.
+tear**.
+
+That derived answer is the *baseline*, not the shipped shape. `SKY_RADIUS_SCALE`
+and `SKY_CENTRE_NUDGE_X` scale and shift it, and both are Kim's by eye — the dome
+currently ships at **0.6× and 40 canvas units right**, so it covers 62% of the
+tear and paper shows inside his head at both ends of the cut. Which is a
+legitimate thing to want: a window of sky rather than the whole inside of a
+skull. It is also, pixel for pixel, the defect above. So the composer holds two
+different lines:
+
+- **Coverage is reported, and enforced only when nobody asked otherwise.** Every
+  run prints what fraction of the tear has sky above it. With the dome left at
+  its derived size a shortfall is an accident and the build exits; once the shape
+  has been deliberately shrunk or shifted, partial coverage is the request. A
+  full-size circle 4% short still names its 23 bare columns; restoring the old
+  60-row band names 264.
+- **Leaving the head is an error with no opt-out.** There is no version of this
+  design where a crescent of colour beside his ear is wanted, and the piece has
+  shipped that once already. Nudging the circle 200 units right instead of 40
+  reports 37,273 stray pixels and refuses to write.
 
 `sky-fill.png` is the one to reach for. No transparency, no alignment, no size
 to hit — and it is the shape of asset an image model can actually produce,
