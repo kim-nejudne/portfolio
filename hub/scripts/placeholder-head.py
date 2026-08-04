@@ -261,12 +261,22 @@ def layer_eyes(looking_up: bool) -> str:
     return svg("".join(parts), width=w, height=h, vb=f"{x} {y} {w} {h}")
 
 
+"""
+`lid-underside` is deliberately absent, and `layer_lid_underside` above is kept
+only so the reasoning survives with it.
+
+It existed as the back plate of a two-sided hinge: the lid turned out of the
+picture plane, and past 90 degrees the browser swapped to the backface, so you
+ended up looking at the inside of the cranium. The hinge is an in-plane rotation
+now — a lid swinging aside on a hinge, which never turns away from the viewer —
+so there is no backface, nothing to fill it with, and a generated file nobody
+fetches is worse than no file at all.
+"""
 LAYERS = {
     "head-back": layer_head_back,
     "sky": layer_sky,
     "cavity": layer_cavity,
     "lid": layer_lid,
-    "lid-underside": layer_lid_underside,
     "face": layer_face,
     "neck": layer_neck,
     "eyes-forward": lambda: layer_eyes(False),

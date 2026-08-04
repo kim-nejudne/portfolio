@@ -150,11 +150,14 @@ body {
      and a CSS translate for centring would be silently overwritten. */
 }
 
+/*
+ * No `perspective` here any more. The lid hinges in the picture plane, so
+ * nothing on this canvas leaves it, and a perspective container with no 3D
+ * child is an invitation to reintroduce one by accident.
+ */
 .canvas {
   position: absolute;
   inset: 0;
-  /* perspective applies to direct children only, and the hinge is one. */
-  perspective: 1400px;
 }
 
 .layer {
@@ -178,38 +181,22 @@ body {
   opacity: 0;
 }
 
+/*
+ * The hinge. One element, one rotation, and `transformOrigin` set from
+ * `HINGE` in `head.ts` — the bottom-right corner of Kim's tear.
+ *
+ * What used to be here: `transform-style: preserve-3d`, two coplanar plates
+ * separated by half a pixel of z so they would not fight, `backface-visibility`
+ * on both, and a comment explaining why the back one was rotated about Y rather
+ * than X. All of it existed to show the inside of the cranium as the lid turned
+ * away from the viewer. An in-plane rotation never turns away, so all of it is
+ * gone — along with the trap where `will-change: opacity` on this element made
+ * it a grouping element, forced `transform-style` back to flat, and silently
+ * disabled the backface culling the whole arrangement depended on.
+ */
 .lid-hinge {
   position: absolute;
   inset: 0;
-  transform-style: preserve-3d;
-}
-
-/*
- * The two faces of the lid, nudged a hair apart in z.
- *
- * Coplanar and coincident, they z-fight: the browser has no basis to choose
- * between them and `backface-visibility` never gets to do its job — the flipped
- * lid kept rendering its outside instead of its inside. Half a pixel of
- * separation on each side of the shared plane is invisible and decisive.
- */
-.lid-plate {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  transform: translateZ(0.5px);
-}
-
-.lid-front {
-  transform: translateZ(0.5px);
-}
-
-/*
- * The backface, flipped about the same axis the lid turns on. It was
- * `rotateX(180deg)` when the lid hinged backwards; left that way against a
- * sideways flip it would show the inside of the cranium upside down.
- */
-.lid-back {
-  transform: translateZ(-0.5px) rotateY(180deg);
 }
 
 .sky-clip {
@@ -522,18 +509,18 @@ body {
 
 /*
  * Promotion is not free: each composited layer is a texture the GPU has to
- * hold, and the head is nine of them. They are promoted when the section pins
+ * hold, and the head is eight of them. They are promoted when the section pins
  * and demoted the moment it does not, so scrolling the rest of the page costs
  * nothing. The cards are five more textures, but only one is ever visible, so
  * the four hidden ones cost nothing to hold.
  *
- * The lid is listed separately and *only* for `transform`, which is not a
- * micro-optimisation. `will-change: opacity` makes an element a grouping
- * element, and a grouping element forces `transform-style` back to `flat` — so
- * naming opacity here silently destroyed the hinge's 3D context and with it
- * all backface culling. The flipped-open lid kept rendering its outside
- * instead of its inside, and the cause was this line rather than anything in
- * the 3D code.
+ * The lid is still listed separately and still *only* for `transform`. The
+ * reason it had to be is gone with the 3D — `will-change: opacity` makes an
+ * element a grouping element, a grouping element forces `transform-style` back
+ * to `flat`, and that silently disabled the backface culling the old two-plate
+ * hinge depended on. Nothing here depends on it now, but the lid only ever
+ * animates transform, so promising opacity as well would be a lie to the
+ * compositor either way.
  */
 .stage.is-pinned .head,
 .stage.is-pinned .layer[data-layer='sky'],
@@ -609,13 +596,14 @@ body {
   }
 
   /*
-   * The same pose the timeline ends on, in the order GSAP composes it:
-   * `rotate` (the in-plane tilt) before `rotateY` (the flip). This is written
-   * twice — here and in the timeline — and the two have drifted before, so the
-   * verify suite compares them rather than trusting them.
+   * The same pose the timeline ends on. One rotation now rather than an
+   * in-plane tilt composed with a flip, which is a good deal less to keep in
+   * step — but it is still written twice, here and in the timeline, and the
+   * two have drifted before. The verify suite compares them rather than
+   * trusting them.
    */
   .lid-hinge {
-    transform: rotate(var(--lid-tilt)) rotateY(var(--lid-angle));
+    transform: rotate(var(--lid-angle));
   }
 
   .layer[data-layer='eyes-up'] {

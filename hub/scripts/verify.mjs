@@ -15,8 +15,20 @@
  */
 
 import { execFileSync, spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
+
+/*
+ * Read from the source rather than restated here. A second copy of the angle
+ * would agree with the first right up until someone changed one of them, and
+ * then the check would be asserting history.
+ */
+const LID_ANGLE = Number(
+  /export const LID_ANGLE = (-?[\d.]+)/.exec(
+    readFileSync(new URL('../src/choreography.ts', import.meta.url), 'utf8'),
+  )?.[1],
+);
+if (!Number.isFinite(LID_ANGLE)) throw new Error('could not read LID_ANGLE from src/choreography.ts');
 
 const URL_ARG = process.argv[2] ?? 'http://localhost:4501/';
 const PORT = 9336;
@@ -294,22 +306,24 @@ async function main() {
     })()`));
 
     /*
-     * The flipped-open lid must show its *inside*, not its outside.
+     * The lid must actually swing, and it must end up clear of the opening.
      *
-     * This failed silently for a while and the cause was nowhere near the 3D
-     * code: `will-change: opacity` on the hinge made it a grouping element,
-     * grouping forces `transform-style` back to `flat`, and a flattened
-     * context does no backface culling at all — so the lid turned all the way
-     * round and kept showing its outside. Nothing in the computed styles says
-     * so; only the pixels do.
+     * This replaced a backface test. The old hinge turned the cap out of the
+     * picture plane and the claim worth checking was which of its two faces
+     * you were looking at — a claim nothing in the computed styles could
+     * answer, because `will-change: opacity` was silently flattening the 3D
+     * context and disabling culling. The hinge is an in-plane rotation now:
+     * there is no backface, and the claim that matters is the one this piece
+     * has got wrong twice. *You cannot open something that stays shut.*
      *
-     * Tested art-agnostically: whatever the two faces are, they must not look
-     * the same. The lid's own pixels are isolated by differencing a frame
-     * against the same frame with the lid hidden, then the mean tone of that
-     * region is compared closed against flipped.
+     * Both halves are measured in pixels and neither knows anything about the
+     * artwork. The lid's own pixels are isolated by differencing a frame
+     * against the same frame with the lid hidden — so "did it move" is the
+     * distance that region travels, and "is the opening clear" is whether
+     * hiding the lid changes anything over the mouth of the cavity.
      */
-    const lidTone = async (at) => {
-      await ev(`window.scrollTo(0, ${'ZERO'})`.replace('ZERO', String(Math.round(at * pin))));
+    const lidFrames = async (at) => {
+      await ev(`window.scrollTo(0, ${Math.round(at * pin)})`);
       await sleep(900);
       await ev(`document.querySelector('.showcase').style.visibility = 'hidden'`);
       await sleep(120);
@@ -319,30 +333,85 @@ async function main() {
       await sleep(120);
       const without = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
       writeFileSync('/tmp/hub-lid-b.png', Buffer.from(without.data, 'base64'));
+      const cavity = JSON.parse(await ev(`(() => {
+        const r = document.querySelector('[data-cavity]').getBoundingClientRect();
+        return JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top) });
+      })()`));
       await ev(`document.querySelector('.lid-hinge').style.visibility = '';
                 document.querySelector('.showcase').style.visibility = '';`);
 
-      const box = execFileSync('magick', [
-        '/tmp/hub-lid-a.png', '/tmp/hub-lid-b.png', '-compose', 'difference', '-composite',
-        '-colorspace', 'Gray', '-threshold', '8%', '-trim',
-        '-format', '%X %Y %w %h', 'info:',
-      ]).toString().trim().replace(/\+/g, '').split(/\s+/).map(Number);
-      const [x, y, w, h] = box;
-      if (!(w > 8 && h > 8)) return null;
-      return Number(
+      /*
+       * How much ink the lid contributes, not how far apart its extremes are.
+       *
+       * The first version trimmed the thresholded difference and used the
+       * bounding box. That measures extent, and extent lies: a rotated element
+       * with no image in it still paints a one-pixel outline of its own box,
+       * so deleting `lid.png` outright produced a *larger* box than the real
+       * lid did and the check passed. Mean difference over the whole frame
+       * cannot be fooled that way — a hairline is nearly nothing however wide
+       * it is spread.
+       */
+      const energy = Number(
         execFileSync('magick', [
-          '/tmp/hub-lid-a.png', '-crop', `${w}x${h}+${x}+${y}`, '+repage',
+          '/tmp/hub-lid-a.png', '/tmp/hub-lid-b.png', '-compose', 'difference', '-composite',
           '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:',
         ]).toString().trim(),
       );
+      return { energy, cavity };
     };
 
-    const closedTone = await lidTone(0);
-    const flippedTone = await lidTone(0.3);
+    const shut = await lidFrames(0);
+    const open = await lidFrames(0.3);
+
+    /*
+     * The lid has to be a layer that actually paints. Without this, a missing
+     * or empty `lid.png` would sail through the covering check below — nothing
+     * cannot cover anything.
+     */
     check(
-      'the flipped-open lid shows its inside, not its outside',
-      closedTone !== null && flippedTone !== null && Math.abs(closedTone - flippedTone) > 0.06,
-      `closed ${closedTone?.toFixed(3)} vs flipped ${flippedTone?.toFixed(3)}`,
+      'the lid is a layer that actually paints',
+      shut.energy > 0.005,
+      `hiding it at rest changes ${(shut.energy * 100).toFixed(2)}% of the frame's ink`,
+    );
+
+    /*
+     * And it has to reach its full swing.
+     *
+     * Read off the matrix rather than by comparing where the lid's pixels are
+     * between two poses, which is what the first version of this did. That
+     * measured the wrong thing: the head *descends* over the same stretch of
+     * scroll, so the lid's pixels move hundreds of pixels whether or not it
+     * rotates at all — an 8-degree lid passed it comfortably. atan2 on the
+     * first column is the rotation and nothing else.
+     */
+    const lidAngle = Number(await ev(`(() => {
+      const m = new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.lid-hinge')).transform);
+      return (Math.atan2(m.b, m.a) * 180) / Math.PI;
+    })()`));
+    check(
+      'the lid reaches its full swing',
+      Math.abs(lidAngle - LID_ANGLE) < 1.5,
+      `${lidAngle.toFixed(1)}deg against LID_ANGLE ${LID_ANGLE}`,
+    );
+
+    /*
+     * The mouth of the opening, at the open pose. A patch rather than a pixel:
+     * one sample would be at the mercy of a single halftone dot once the
+     * treatment lands.
+     */
+    const PATCH = 48;
+    const openingMean = (file) => Number(
+      execFileSync('magick', [
+        file,
+        '-crop', `${PATCH}x${PATCH}+${Math.round(open.cavity.x - PATCH / 2)}+${Math.round(open.cavity.y - PATCH / 2)}`,
+        '+repage', '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:',
+      ]).toString().trim(),
+    );
+    const overOpening = Math.abs(openingMean('/tmp/hub-lid-a.png') - openingMean('/tmp/hub-lid-b.png'));
+    check(
+      'the open lid is not covering the opening',
+      overOpening < 0.02,
+      `hiding the open lid changes the mouth of the cavity by ${overOpening.toFixed(4)} (0 means it was already clear)`,
     );
 
     /* ---- reaching the work without the performance ------------------- */
@@ -427,14 +496,29 @@ async function main() {
         : [];
     const a = nums(openLid.m);
     const b = nums(staticLid.m);
+
+    /*
+     * `matrix(a,b,c,d,e,f)` now, not `matrix3d` — the hinge is a plain z
+     * rotation, so the browser serialises six components rather than sixteen.
+     * The previous version indexed 0..11 and 13 unconditionally and reported
+     * `NaN% vs NaN%`, which the comparison then read as "not different" — a
+     * check that would have passed anything. It failed loudly here only
+     * because `NaN < 0.005` is false. Assert the shape first.
+     */
+    const twoD = a.length === 6 && b.length === 6;
     const rotationMatches =
-      a.length === 16 && b.length === 16 && a.slice(0, 12).every((v, i) => Math.abs(v - b[i]) < 0.01);
-    const liftA = a.length === 16 ? a[13] / openLid.h : NaN;
-    const liftB = b.length === 16 ? b[13] / staticLid.h : NaN;
+      twoD && a.slice(0, 4).every((v, i) => Math.abs(v - b[i]) < 0.01);
+    /* Translation as a proportion of the artboard: the head is deliberately a
+       different size in flow than on the pinned stage, so raw pixels differ by
+       design. A pure rotation about an origin still produces one. */
+    const liftA = twoD ? a[5] / openLid.h : NaN;
+    const liftB = twoD ? b[5] / staticLid.h : NaN;
     check(
       'reduced motion opens the lid exactly as far as the timeline does',
-      rotationMatches && Math.abs(liftA - liftB) < 0.005,
-      `lift ${(liftA * 100).toFixed(1)}% vs ${(liftB * 100).toFixed(1)}% of the artboard`,
+      twoD && rotationMatches && Math.abs(liftA - liftB) < 0.005,
+      twoD
+        ? `rotation matches, lift ${(liftA * 100).toFixed(1)}% vs ${(liftB * 100).toFixed(1)}% of the artboard`
+        : `expected a 2D matrix, got ${a.length} and ${b.length} components`,
     );
 
     check(

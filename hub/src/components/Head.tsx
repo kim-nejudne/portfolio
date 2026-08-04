@@ -1,7 +1,7 @@
 import { CAVITY_POINT, EYE_BOX, HINGE, SKY_CLIP, STACK, sources, type LayerName } from '../head';
 
 /**
- * The head, as nine stacked images and one 3D hinge.
+ * The head, as eight stacked images and one hinge.
  *
  * It is `aria-hidden` in its entirety. It is the most expensive thing on the
  * page and it says nothing a screen reader can use — the meaning is in the
@@ -45,7 +45,7 @@ function Layer({ name }: { name: LayerName }) {
 }
 
 export default function Head() {
-  const behindLid = STACK.filter((n) => n !== 'lid' && n !== 'lid-underside');
+  const behindLid = STACK.filter((n) => n !== 'lid');
 
   return (
     <div className="head" data-head aria-hidden="true">
@@ -62,24 +62,21 @@ export default function Head() {
         )}
 
         {/*
-          The lid and its underside share one rotating wrapper and face opposite
-          ways, so the browser decides which is visible from the angle. At the
-          angle we actually use the underside barely peeks — but wiring it as a
-          real backface rather than an opacity cross-fade means the hinge stays
-          correct if the angle is re-tuned past vertical once the real crown
-          exists, which is the likeliest change the artwork will force.
+          The lid, on a hinge at the bottom-right of the tear.
+
+          One plate, not two. The rotation is in the picture plane, so the cap
+          never turns away from the viewer and there is no backface to fill —
+          which took with it the `perspective`, the `preserve-3d`, the pair of
+          z-separated plates, and the bug where `will-change: opacity` on this
+          element silently flattened the 3D context and disabled backface
+          culling altogether. A mechanism with nothing to get wrong.
         */}
         <div
           className="lid-hinge"
           data-lid
           style={{ transformOrigin: `${HINGE.x}% ${HINGE.y}%` }}
         >
-          <div className="lid-plate lid-front">
-            <Layer name="lid" />
-          </div>
-          <div className="lid-plate lid-back">
-            <Layer name="lid-underside" />
-          </div>
+          <Layer name="lid" />
         </div>
 
         {/*

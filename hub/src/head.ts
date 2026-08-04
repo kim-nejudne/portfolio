@@ -16,13 +16,20 @@
 export const CANVAS = { w: 1200, h: 1600 } as const;
 
 /**
- * Landmarks, in canvas units, mirrored from the generator. Only three matter
- * to the app, and all three are consequences of where the cranium is cut.
+ * Landmarks, in canvas units.
+ *
+ * These still describe the *placeholder* cavity, not Kim's tear — his runs from
+ * y 429 to 613 with a half-width of about 374, against the 410/244 below. They
+ * move as a set the day the real cavity and sky are cut, because moving them
+ * alone would slide `SKY_CLIP` off a painted rim that had not moved with it.
+ *
+ * `HEAD_CX` used to live here to derive the hinge. It does not any more: the
+ * hinge is measured off the real lid, so a constant claiming to know where the
+ * centre of the head is would have been a second, disagreeing source of truth.
  */
 const CUT_Y = 410;
 const CAVITY_RY = 140;
 const CAVITY_RX = 244;
-const HEAD_CX = 600;
 const EYE_CY = 640;
 
 /** Where the cards are born: the centre of the opening. */
@@ -50,30 +57,28 @@ export const SKY_CLIP = `ellipse(${((CAVITY_RX / CANVAS.w) * 100 + 0.3).toFixed(
 ).toFixed(3)}% at ${CAVITY_POINT.x}% ${CAVITY_POINT.y}%)`;
 
 /**
- * The hinge: the **right end of the cut ellipse**.
+ * The hinge: the **bottom-right corner of the lid**, where the tear meets the
+ * right edge of the head.
  *
- * The lid flips open sideways about a vertical axis, the way a book cover
- * opens — not backwards about the skull. That is a `rotateY`, and it earns its
- * keep three times over.
+ * The lid swings open in the picture plane — a z rotation, a hinge, the way a
+ * flip-top lid swivels aside. Nothing rotates out of plane, which is what
+ * separates it from the two mechanisms it replaced: a `rotateX` across the back
+ * of the skull, whose perspective-magnified projection swept straight back down
+ * over the hole it had just made, and a `rotateY` book-cover door.
  *
- * It reveals *progressively and immediately*: the crown foreshortens away from
- * the left, so the opening is uncovered from the far side within the first few
- * degrees, and by 90 it is completely clear. The back-hinge version had the
- * opposite property — perspective magnification swept the tipping crown
- * straight back down over the hole it had just made, which is why the head
- * looked shut for most of the scroll and needed a lift bolted on to escape.
+ * Measured off `public/head/lid.png` rather than derived from the cut ellipse,
+ * because the pivot has to be on Kim's tear and not on the placeholder's. If
+ * the lid is re-cut, re-measure: the furthest point of its silhouette in the
+ * +x+y direction is the corner, and `scripts/compose-art.py` puts every layer
+ * in the same coordinate space so the number stays meaningful.
  *
- * It also finally gives `lid-underside` something to do. Past 90 degrees the
- * lid faces away, the browser swaps to the backface, and you are looking at
- * the inside of the cranium lying open to the right. That is what the two
- * plates in `Head.tsx` were built for.
- *
- * The y is the cut line rather than its back edge, so the pivot sits in the
- * middle of the seam, where the eye expects a hinge to be.
+ * A consequence worth naming: an in-plane rotation never shows a backface, so
+ * the cap presents its outside — its hair — all the way round. `lid-underside`
+ * has nothing left to do and is no longer in `STACK`.
  */
 export const HINGE = {
-  x: ((HEAD_CX + CAVITY_RX) / CANVAS.w) * 100, // 70.333%
-  y: (CUT_Y / CANVAS.h) * 100, // 25.625%
+  x: 81.917, // 983 of 1200
+  y: 37.125, // 594 of 1600
 } as const;
 
 /**
@@ -96,18 +101,19 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * canvas. This is the ceiling the settled cards have to clear.
  *
  * It is not the cut line, which is the number the layout used first and the
- * reason the cards landed on his forehead. When the lid is up, the rear wall
- * of the skull still stands above the cut, and the lid itself lifts clear
- * above that.
+ * reason the cards landed on his forehead. The rear wall of the skull stands
+ * above the cut whatever the lid is doing, and depending on how far the lid has
+ * swung, the lid itself may stand above *that* — at `LID_ANGLE` 132 it did, and
+ * cost 34px of overlap.
  *
- * It is not derived, because it depends on the hinge angle, the lift, and
- * artwork that does not exist yet. It is *checked* instead:
+ * It is not derived, because it depends on the hinge angle and on artwork that
+ * does not exist yet. It is *checked* instead:
  * `scripts/verify.mjs` photographs the open head with the showcase hidden,
  * finds its real topmost pixel, and fails if a card overlaps it. So this can
  * be wrong and the suite will say so — which is what happened both times it
  * was wrong before.
  */
-export const HEAD_OPEN_RISE = 0.311;
+export const HEAD_OPEN_RISE = 0.315;
 
 /**
  * The eye pair is the one layer that is not full-bleed. It is cross-faded on
@@ -129,7 +135,6 @@ export type LayerName =
   | 'cavity'
   | 'face'
   | 'neck'
-  | 'lid-underside'
   | 'lid'
   | 'eyes-forward'
   | 'eyes-up';
@@ -148,6 +153,11 @@ export type LayerName =
  *
  * The eye pair sits behind `face`, showing through the sockets that layer has
  * cut out of it, so the gaze can change without redrawing a single feature.
+ *
+ * `lid-underside` used to sit between `neck` and `lid` as the back plate of a
+ * two-sided hinge. The hinge is an in-plane rotation now, which never turns the
+ * cap away from the viewer, so there is no backface to fill and the layer is
+ * gone rather than left rendering nothing.
  */
 export const STACK: readonly LayerName[] = [
   'head-back',
@@ -157,7 +167,6 @@ export const STACK: readonly LayerName[] = [
   'eyes-up',
   'face',
   'neck',
-  'lid-underside',
   'lid',
 ];
 

@@ -71,38 +71,41 @@ export const EYE_END_VH = 88;
  * proportion the headline lands on his hair.
  *
  * The head and the card compete for the same viewport, so these move whenever
- * the lid's silhouette does. They came down when the lid was lifting clear
- * above the head and went back up when it started flipping sideways instead:
- * a lid lying to the right reaches far less far up than one hovering over the
- * crown. `npm run verify` measures the real clearance and prints it, which is
- * what these are tuned against.
+ * the lid's silhouette does — and it has moved three times now: a lid lifting
+ * clear above the crown, a lid flipping sideways like a door, and a lid
+ * swinging aside on a hinge. `npm run verify` measures the real clearance and
+ * prints it, which is what these are tuned against rather than reasoned to.
  */
 export const HEAD_HEIGHT_VH = { mobile: 42, desktop: 58 } as const;
 
 /**
- * How far the lid flips.
+ * How far the lid swings.
  *
- * A `rotateY` about the right end of the cut — the top of the head opens
- * sideways, like a book cover, and ends up lying to the right of the face with
- * its inside toward you. See `HINGE` in `head.ts` for why the axis is vertical
- * rather than across the back of the skull.
+ * A plain **in-plane rotation about the z axis**, pivoting on the bottom-right
+ * corner of the tear — a hinge, not a door. Nothing rotates out of the picture
+ * plane, so there is no perspective, no foreshortening and no backface.
  *
- * Past 90 degrees the lid is facing away and the browser swaps to the backface
- * plate, so this angle is also what decides whether you end up looking at the
- * outside of the crown or the inside of it. 168 lands it almost flat, still
- * caught by a few degrees of perspective so it does not read as a decal.
+ * Positive is clockwise on screen. Because the lid sits up and to the *left* of
+ * its own pivot, clockwise sweeps it up and over to the right, and the tear
+ * line rotates from pointing left, through vertical, to pointing right.
  *
- * Positive, so it swings *toward* the viewer on the way round rather than away
- * — the difference between a lid opening and a lid retreating.
+ * 150 rather than something smaller, for a reason that is not taste. The cap's
+ * far corner passes through vertical at about 61 degrees, and that is the peak
+ * of the whole arc — at 132 the cap was still high enough to be the tallest
+ * thing on the artboard, which pushed the cards down into it and cost 34px of
+ * overlap. By 150 the cap has come back down past the crown of `head-back`,
+ * which becomes the ceiling instead, and the cards get their sky back. Swinging
+ * further to 165 buys nothing and starts to read as thrown rather than hinged.
+ *
+ * `npm run verify` measures all of that: that the swing lands on this number,
+ * and separately, in pixels, that the opening is actually uncovered at the end
+ * of it. The second is the one that matters — this piece has twice shipped a
+ * lid that rotated perfectly and revealed nothing.
+ *
+ * The two rotations this replaced were a `rotateY` door plus a few degrees of
+ * in-plane tilt. One number where there were two.
  */
-export const LID_ANGLE = 168;
-
-/**
- * A little counter-rotation in the plane, so the lid tips as it swings instead
- * of tracking a perfect arc. Mechanisms do this; drawings that do not look
- * like diagrams.
- */
-export const LID_TILT = -7;
+export const LID_ANGLE = 150;
 
 /** The gaze change. Its own easing, its own duration, in real seconds. */
 export const FLICK_SECONDS = 0.12;

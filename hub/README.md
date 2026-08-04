@@ -31,13 +31,15 @@ itself twice, in ways a stylesheet reading could not have caught:
   rather than `inOut`: `power2.inOut` spent the first third of the scroll on a
   quarter of the movement, which on a large swing is invisible, and a scrubbed
   mechanism has to answer the hand turning it.
-- **The backface was silently never culled**, so the lid flipped all the way
-  round and kept showing its outside. Nothing in the computed styles said so.
-  The cause was `will-change: opacity` on the hinge: that makes an element a
-  grouping element, grouping forces `transform-style` back to `flat`, and a
-  flattened context does no backface culling at all. My own layer-promotion
-  optimisation was destroying the 3D. The hinge now declares
-  `will-change: transform` only, and there is a pixel-level regression test.
+- **The backface was silently never culled**, so the sideways-flipping lid went
+  all the way round and kept showing its outside. Nothing in the computed styles
+  said so. The cause was `will-change: opacity` on the hinge: that makes an
+  element a grouping element, grouping forces `transform-style` back to `flat`,
+  and a flattened context does no backface culling at all. My own
+  layer-promotion optimisation was destroying the 3D. *Moot now* — the hinge is
+  an in-plane rotation and there is no 3D left to destroy — but it is the
+  clearest example this project has of a system reporting success while doing
+  nothing, so it is recorded rather than deleted.
 - **The cards landed on his forehead. Twice.** The layout sized the region they
   occupy to end at the *cut line*, which is not where the head ends; then, once
   the lid started lifting, the corrected figure was too small again.
@@ -52,22 +54,53 @@ npm run crops    # re-grab a placeholder crop from each live spoke
 
 ### Replacing the placeholders
 
-Drop the real layers into `public/head/` under the same names, as `.avif` with
-a `.png` beside them. Then check `CUT_Y` / `CAVITY_RX` / `CAVITY_RY` / `EYE_CY`
-in `src/head.ts` still match where the artwork actually puts them, re-tune
-`LID_ANGLE` and `LID_TILT`, and let `npm run verify` tell you whether
-`HEAD_OPEN_RISE` is still right — it prints the measurements to derive it from.
-Nothing else should need to change.
+**Do not hand-edit `public/head/`.** Put cut layers in `art/` and run
+`python3 scripts/compose-art.py`, which places every one through the same
+transform onto the 2400x3200 artboard. Registration is the whole game and it is
+a property of that script, not of nine careful exports.
 
-The hinge is worth understanding before changing it. The lid flips **sideways**
-about a vertical axis at the right end of the cut — the way a book cover opens
-— not backwards about the skull. A cap tipping backwards foreshortens into its
-own seam and perspective magnification sweeps its projection straight back down
-over the opening it just made, which is why the back-hinge version needed a
-lift bolted on to escape itself. A sideways flip uncovers the opening
-progressively from the far side, is fully clear by 90°, and past 90° the
-browser swaps to the backface — so you end up looking at the inside of the
-cranium lying open to the right, which is what `lid-underside` was drawn for.
+```sh
+python3 scripts/compose-art.py             # art/ -> public/head/, registered
+python3 scripts/align-art.py a.png b.png   # recover a trimmed layer's offset
+```
+
+Export **untrimmed** — keep the document at the photo's size and turn off "trim
+transparent pixels" — and a layer's offset is `(0, 0)`. If it was trimmed,
+`align-art.py` recovers the offset by matching the tear two layers share, and
+prints the RMS residual so you know whether to believe it.
+
+Two traps, both of which have already fired:
+
+- **A stale `.avif` silently beats a fresh `.png`.** `sources()` offers AVIF
+  first, so writing only the PNG shows the *previous* cut with no error
+  anywhere. `compose-art.py` always writes both.
+- **`npm run art` used to overwrite real art with grey ellipses**, without
+  saying anything. It now skips any layer `compose-art.py` owns unless you pass
+  `--all`.
+
+Then check `CUT_Y` / `CAVITY_RX` / `CAVITY_RY` / `EYE_CY` in `src/head.ts`
+against where the artwork actually puts them, re-measure `HINGE` off the new
+lid, and let `npm run verify` tell you whether `HEAD_OPEN_RISE` is still right
+— it prints the measurements to derive it from.
+
+**The hinge.** The lid rotates **in the picture plane** about the bottom-right
+corner of the tear: a hinge, the way a flip-top lid swings aside. No
+perspective, no foreshortening, no backface, and nothing that can be flattened
+by a stray `will-change`.
+
+It is the third mechanism this piece has had, and the two it replaced both
+failed for the same reason. A cap tipping **backwards** about the skull
+foreshortens into its own seam, and perspective magnification sweeps its
+projection straight back down over the opening it just made — so it needed a
+vertical lift bolted on simply to escape itself. A **sideways** `rotateY` door
+fixed that but ended flat-on to the viewer, which meant maintaining a two-plate
+3D hinge and an entire extra layer to fill the backface. The in-plane hinge
+reveals the opening as directly as the door does and costs one `rotate`.
+
+The angle matters more than it looks. The cap's far corner passes through
+vertical at about 61°, the peak of the arc — at 132° the cap was still the
+tallest thing on the artboard and pushed the cards into it. By 150° it has come
+back down past the crown of `head-back`, which becomes the ceiling instead.
 
 ## The three files that carry the design
 
