@@ -278,12 +278,25 @@ Three things make it work, and each is asserted:
   no context of its own; `.head-sky` and `.head` sit either side of `CARD_Z` and
   are driven by the same tween.
 
-The placeholder it was built against is derived rather than drawn: a flat dome
-taking its width from the head's own width at the tear and its rise from the top
-of the lid. The first version sized it to the lid's *bounding box*, which is far
-wider than his skull because the hair sweeps out to one side, and it rendered as
-a blue disc behind him instead of a hole in his head. Even a stand-in has to be
-measured off the drawing.
+**The shape is not worth drawing, so it isn't.** Its width is the head's own
+width at the tear, its rise is the height of the lid, and its bottom edge is the
+face's alpha — all three already in the two cuts. The dome is derived and only
+the *fill* comes from outside, which is why there are three intake paths:
+
+```sh
+art/sky-fill.png   # any rectangle of colour. Cover-fitted through the dome.
+art/sky_2.png      # a cut layer with its own alpha, placed like the lid.
+# neither          # a flat placeholder in the dome.
+```
+
+`sky-fill.png` is the one to reach for. No transparency, no alignment, no size
+to hit — and it is the shape of asset an image model can actually produce,
+where a precisely-cut silhouette on a real alpha channel is not.
+
+Getting the derived dome right still took two goes: sized to the lid's
+*bounding box* first, which is far wider than his skull because the hair sweeps
+out to one side, and it rendered as a blue disc behind him instead of a hole in
+his head. Even a stand-in has to be measured off the drawing.
 
 ### The head is in front of the cards
 

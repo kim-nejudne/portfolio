@@ -90,13 +90,29 @@ SOURCES = {
 # convenient; overlap costs nothing and a gap is a visible seam.
 CLIPPED_BY = {"sky": "face"}
 
-# A stand-in until `art/sky_2.png` exists, in the tradition of the nine grey
-# placeholder layers this piece was built against: correct in position, size and
-# stacking, and honest about being a shape rather than a drawing. A dome over the
-# lid's own bounding box, carried well below the tear and then cut off by it.
+# --- three ways to supply the sky, in order of preference -------------------
 #
-# It is flat on purpose. A gradient here would start to look like a decision, and
-# the only decision it is entitled to make is "there is colour behind the cut".
+# The *shape* of the sky is not worth drawing. It is the missing cap: its width
+# is the head's own width at the tear, its rise is the height of the lid, and
+# its bottom edge is the face's alpha. All three are already in the two cuts, so
+# the dome is derived and only the **fill** has to come from outside.
+#
+#   1. art/sky-fill.png   any rectangle of colour and texture. No transparency,
+#                         no alignment, no size to hit — it is cover-fitted
+#                         through the derived dome. This is the easy one, and it
+#                         is what an image model is actually good at.
+#   2. art/sky_2.png      a cut layer with its own alpha, placed at LID_OFFSET
+#                         like the lid. Use this to draw a silhouette that is
+#                         not the derived dome.
+#   3. neither            a flat placeholder in the dome, in the tradition of
+#                         the nine grey layers this piece was built against:
+#                         correct in position, size and stacking, and honest
+#                         about being a shape rather than a drawing.
+SKY_FILL = "sky-fill.png"
+
+# Flat on purpose. A gradient here would start to look like a decision, and the
+# only decision a placeholder is entitled to make is "there is colour behind the
+# cut".
 SKY_PLACEHOLDER_RGB = (0x6F, 0x8C, 0xA8)
 
 # Layers a source already contains, written as fully transparent.
@@ -121,8 +137,8 @@ HEAD_TOP_UNITS = 180
 HEAD_HEIGHT_UNITS = 900
 
 
-def placeholder_sky(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, str]:
-    """A flat dome the shape of the missing cap, derived from the two real cuts.
+def dome_mask(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, tuple, str]:
+    """The shape of the missing cap, derived from the two real cuts.
 
     Works in artboard space and takes both its dimensions from the drawing, so
     it needs no offset and no measurement of its own:
@@ -133,12 +149,14 @@ def placeholder_sky(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, s
     The first version sized this to the lid's *bounding box*, which is much
     wider than his skull because the hair sweeps out to one side. It rendered as
     a blue disc behind him instead of a hole in his head — a good illustration
-    of why a placeholder still has to be derived rather than guessed.
+    of why even a stand-in has to be measured off the drawing.
+
+    Returns the mask, the box it occupies, and a line for the build log.
     """
     fa, la = face.getchannel("A"), lid.getchannel("A")
     fbox, lbox = fa.getbbox(), la.getbbox()
     if not fbox or not lbox:
-        raise SystemExit("cannot derive a placeholder sky without face and lid")
+        raise SystemExit("cannot derive the sky's shape without face and lid")
 
     tear_top = fbox[1]
     # The head's width where the cut is: ink in the first rows of the face.
@@ -147,14 +165,36 @@ def placeholder_sky(face: Image.Image, lid: Image.Image) -> tuple[Image.Image, s
     cx, w = (left + right) / 2, right - left
     rise = tear_top - lbox[1]
 
-    img = Image.new("RGBA", face.size, (0, 0, 0, 0))
-    ImageDraw.Draw(img).ellipse(
-        # Centred on the tear, so the upper half is the dome and the lower half
-        # runs under the face to be clipped away by it.
-        (cx - w / 2, tear_top - rise, cx + w / 2, tear_top + rise),
-        fill=(*SKY_PLACEHOLDER_RGB, 255),
-    )
-    return img, f"dome {int(w)}x{int(rise)} on the tear at y{tear_top}"
+    # Centred on the tear, so the upper half is the dome and the lower half runs
+    # under the face to be clipped away by it.
+    box = (cx - w / 2, tear_top - rise, cx + w / 2, tear_top + rise)
+    mask = Image.new("L", face.size, 0)
+    ImageDraw.Draw(mask).ellipse(box, fill=255)
+    return mask, box, f"dome {int(w)}x{int(rise)} on the tear at y{tear_top}"
+
+
+def fill_dome(mask: Image.Image, box: tuple, texture: Image.Image | None) -> Image.Image:
+    """Put something inside the dome: a supplied texture, or a flat colour.
+
+    The texture is cover-fitted to the dome's own box rather than to the whole
+    artboard, so its grain lands at the size it was drawn at instead of being
+    stretched across a canvas four times too big.
+    """
+    img = Image.new("RGBA", mask.size, (0, 0, 0, 0))
+    if texture is None:
+        img.paste((*SKY_PLACEHOLDER_RGB, 255), (0, 0) + mask.size)
+    else:
+        bw, bh = int(box[2] - box[0]), int(box[3] - box[1])
+        k = max(bw / texture.width, bh / texture.height)
+        t = texture.convert("RGB").resize(
+            (max(bw, int(texture.width * k)), max(bh, int(texture.height * k))),
+            Image.LANCZOS,
+        )
+        # Centre-crop to the box, then paste it where the box is.
+        ox, oy = (t.width - bw) // 2, (t.height - bh) // 2
+        img.paste(t.crop((ox, oy, ox + bw, oy + bh)), (int(box[0]), int(box[1])))
+    img.putalpha(mask)
+    return img
 
 
 def clip_out(layer: Image.Image, cutter: Image.Image) -> Image.Image:
@@ -216,11 +256,18 @@ def main() -> None:
         )
         placed[name] = canvas
 
-    # The placeholder is built last and in artboard space, because it derives
-    # its shape from the two real cuts once they are registered.
+    # The dome is built last and in artboard space, because it derives its shape
+    # from the two real cuts once they are registered.
     if "sky" not in placed and {"face", "lid"} <= placed.keys():
-        placed["sky"], how = placeholder_sky(placed["face"], placed["lid"])
-        notes["sky"] = f"PLACEHOLDER {how} — replace with art/{SOURCES['sky'][0]}"
+        mask, box, how = dome_mask(placed["face"], placed["lid"])
+        fill = ART / SKY_FILL
+        texture = Image.open(fill) if fill.exists() else None
+        placed["sky"] = fill_dome(mask, box, texture)
+        notes["sky"] = (
+            f"{how}, filled with {SKY_FILL}"
+            if texture is not None
+            else f"PLACEHOLDER {how} — drop a texture at art/{SKY_FILL}"
+        )
 
     for name, cutter in CLIPPED_BY.items():
         if name not in placed or cutter not in placed:
