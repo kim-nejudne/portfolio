@@ -78,10 +78,14 @@ Two traps, both of which have already fired:
   saying anything. It now skips any layer `compose-art.py` owns unless you pass
   `--all`.
 
-Then check `CUT_Y` / `CAVITY_RX` / `CAVITY_RY` / `EYE_CY` in `src/head.ts`
-against where the artwork actually puts them, re-measure `HINGE` off the new
-lid, and let `npm run verify` tell you whether `HEAD_OPEN_RISE` is still right
-— it prints the measurements to derive it from.
+Then re-measure the geometry against the new cut. **`CUT_Y` / `CAVITY_RX` /
+`CAVITY_RY` / `EYE_CY` exist in two places** — `src/head.ts` and
+`scripts/placeholder-head.py` — and they have to move together, because the
+first says where the opening *is* and the second draws it. Changing one alone
+slides `SKY_CLIP` off a rim that has not moved with it, which is what put a
+smear of blue sky on his forehead the first time. Then re-measure `HINGE` off
+the new lid, re-tune `LID_ANGLE`, and let `npm run verify` tell you whether
+`HEAD_OPEN_RISE` is still right — it prints the measurements to derive it from.
 
 **The hinge.** The lid rotates **in the picture plane** about the bottom-right
 corner of the tear: a hinge, the way a flip-top lid swings aside. No
@@ -97,10 +101,12 @@ fixed that but ended flat-on to the viewer, which meant maintaining a two-plate
 3D hinge and an entire extra layer to fill the backface. The in-plane hinge
 reveals the opening as directly as the door does and costs one `rotate`.
 
-The angle matters more than it looks. The cap's far corner passes through
-vertical at about 61°, the peak of the arc — at 132° the cap was still the
-tallest thing on the artboard and pushed the cards into it. By 150° it has come
-back down past the crown of `head-back`, which becomes the ceiling instead.
+The angle matters more than it looks, and it belongs to the artwork rather than
+to the choreography. The cap's far corner passes through vertical at roughly a
+third of the way round — the peak of the arc — and stays the tallest thing on
+the artboard well past it, so a swing that stops too early parks the cap in the
+sky the cards need. Re-measure it whenever the lid is re-cut: it was 150° for
+the photographic cut and is 165° for the pen drawing.
 
 ## The three files that carry the design
 

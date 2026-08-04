@@ -89,13 +89,17 @@ export const HEAD_HEIGHT_VH = { mobile: 42, desktop: 58 } as const;
  * its own pivot, clockwise sweeps it up and over to the right, and the tear
  * line rotates from pointing left, through vertical, to pointing right.
  *
- * 150 rather than something smaller, for a reason that is not taste. The cap's
- * far corner passes through vertical at about 61 degrees, and that is the peak
- * of the whole arc — at 132 the cap was still high enough to be the tallest
- * thing on the artboard, which pushed the cards down into it and cost 34px of
- * overlap. By 150 the cap has come back down past the crown of `head-back`,
- * which becomes the ceiling instead, and the cards get their sky back. Swinging
- * further to 165 buys nothing and starts to read as thrown rather than hinged.
+ * The value is measured against the artwork, not chosen. The cap's far corner
+ * passes through vertical at about 69 degrees — the peak of the whole arc — and
+ * stays the tallest thing on the artboard for a long way past it, so a swing
+ * that stops too early leaves the cap sitting in the sky the cards need. Against
+ * the pen drawing, 155 still throws it, 160 overlaps a card by 16px, and 175
+ * lies flat enough to read as flipped over rather than hinged open. 165 clears
+ * by 21px and keeps some lift.
+ *
+ * It was 150 against the photographic cut, which had a shallower cap and a
+ * lower pivot. Expect to re-measure whenever the lid is re-cut: this number
+ * belongs to the artwork at least as much as to the choreography.
  *
  * `npm run verify` measures all of that: that the swing lands on this number,
  * and separately, in pixels, that the opening is actually uncovered at the end
@@ -105,7 +109,7 @@ export const HEAD_HEIGHT_VH = { mobile: 42, desktop: 58 } as const;
  * The two rotations this replaced were a `rotateY` door plus a few degrees of
  * in-plane tilt. One number where there were two.
  */
-export const LID_ANGLE = 150;
+export const LID_ANGLE = 165;
 
 /** The gaze change. Its own easing, its own duration, in real seconds. */
 export const FLICK_SECONDS = 0.12;

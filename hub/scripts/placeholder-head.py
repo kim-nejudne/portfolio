@@ -34,14 +34,14 @@ W, H = 1200, 1600
 # --- the head's geometry, in canvas units -----------------------------------
 # Everything below derives from these five numbers. The real art has to match
 # them or the hinge will not land on the seam.
-HEAD_CX, HEAD_CY = 600, 630
-HEAD_RX, HEAD_RY = 280, 450          # head spans y 180..1080, x 320..880
-CUT_Y = 410                          # where the cranium separates
+HEAD_CX, HEAD_CY = 600, 631
+HEAD_RX, HEAD_RY = 417, 449          # measured off Kim's drawing, not invented
+CUT_Y = 560                          # where the cranium separates
 
 # Half-width of the head at the cut line: 280 * sqrt(1 - ((410-630)/450)^2).
 # The cavity ellipse has to be exactly this wide or the opening will not sit
 # flush in the silhouette.
-CAVITY_RX = 244
+CAVITY_RX = 394
 
 # How deep the bowl is, and the single biggest thing that was wrong with the
 # piece.
@@ -52,18 +52,18 @@ CAVITY_RX = 244
 # scroll the head looked completely unchanged and the whole gesture read as
 # nothing happening. The rotation was running the entire time — it just had
 # nothing to reveal. You cannot open something with no inside.
-CAVITY_RY = 140
+CAVITY_RY = 130
 
-SKY_RX, SKY_RY = 262, 168             # larger than the opening, smaller than the head:
+SKY_RX, SKY_RY = 420, 158             # larger than the opening, smaller than the head:
                                      # it must have room to parallax and no room to spill
 
-EYE_CY = 640
-EYE_L_CX, EYE_R_CX = 505, 695
-EYE_RX, EYE_RY = 52, 30
+EYE_CY = 754
+EYE_L_CX, EYE_R_CX = 490, 795
+EYE_RX, EYE_RY = 60, 32
 
 # The cropped box the eye layers are exported at. Declared in canvas units and
 # mirrored as percentages in src/head.ts.
-EYE_BOX = (430, 560, 340, 160)       # x, y, w, h
+EYE_BOX = (410, 690, 480, 130)       # x, y, w, h
 
 PAPER = "#F7F4EC"
 INK = "#16181D"
@@ -102,7 +102,7 @@ def layer_head_back() -> str:
     """Everything behind the cavity: the rear of the skull, and the far inner
     rim you see across the opening once the lid is up."""
     return svg(
-        f'<g fill="{TONE_BACK}">{head_path_clipped(CUT_Y - 230, 1600)}</g>'
+        f'<g fill="{TONE_BACK}">{head_path_clipped(CUT_Y - 150, 1600)}</g>'
         # the far rim, arcing up behind the sky
         f'<path d="M {HEAD_CX - CAVITY_RX} {CUT_Y} '
         f"a {CAVITY_RX} {CAVITY_RY} 0 0 1 {CAVITY_RX * 2} 0 Z\" "

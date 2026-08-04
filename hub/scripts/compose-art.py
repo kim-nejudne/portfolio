@@ -8,7 +8,7 @@ the one thing the whole piece depends on: a shared origin. Every layer in
 hinges away from a seam that is somewhere else.
 
 So this script is the seam between "art as cut" and "art as shipped". It knows
-two things and nothing else — where each source sits relative to `face.png`, and
+two things and nothing else — where each source sits relative to the face, and
 how the composite maps onto the artboard — and it writes every layer through the
 same transform, which is what makes registration a property of the build rather
 than something to get right nine times by hand.
@@ -24,8 +24,13 @@ the original photo and export the layer with "trim transparent pixels" OFF. Then
 its offset here is (0, 0) and there is nothing to recover. Add a line to SOURCES.
 
 If you do trim it, `scripts/align-art.py` recovers the offset by matching cut
-edges — that is how LID_OFFSET below was found (2.8px RMS over 1323 columns).
-Recovering is a fallback, not the plan; exporting untrimmed is free.
+edges — that is how LID_OFFSET below was found. Recovering is a fallback, not
+the plan; exporting untrimmed is free.
+
+Everything downstream is measured off whatever lands here, so re-cutting the art
+means re-measuring `HINGE` and `LID_ANGLE` and letting `npm run verify` re-derive
+`HEAD_OPEN_RISE`. None of those three are constants of the design; they are
+constants of the drawing.
 """
 
 from pathlib import Path
@@ -42,38 +47,50 @@ ART = ROOT / "art"
 OUT = ROOT / "public" / "head"
 
 # --- the artboard -----------------------------------------------------------
-# `src/head.ts` works in a 1200x1600 coordinate space; the files ship at 2x so
-# they hold up on a retina display at the ~58vh the head occupies.
+# `src/head.ts` works in a 1200x1600 coordinate space. The output multiplier is
+# a judgement about the *source*, not a constant: at 2x the artboard wants an
+# 1800px head, and the drawing supplies 856px, so it would be a 2.1x Lanczos
+# upscale of pen line — which invents nothing and softens hairlines. 1.5x asks
+# for 1350px, still an upscale but a modest one, and covers a retina desktop
+# where the head occupies ~58vh (about 1044 device pixels on a 1440x900 screen
+# at DPR 2). Raise it when a denser scan arrives; there is no point before.
 CANVAS_W, CANVAS_H = 1200, 1600
-SCALE_OUT = 2
+SCALE_OUT = 1.5
 
-# --- where each source sits, in face.png pixel coordinates ------------------
-# face.png is the origin by definition. The lid was trimmed on export, so its
-# offset was recovered from the cut edge it shares with the face.
-LID_OFFSET = (768, -439)
+# --- where each source sits, in the face layer's pixel coordinates ----------
+# The face is the origin by definition. The lid was trimmed on export, so its
+# offset was recovered by `align-art.py` from the tear the two share.
+#
+# That recovery reported 28.8px RMS and flagged itself SUSPECT, which was the
+# tool being right to be suspicious and wrong about the cause. The scales agree
+# exactly — the head is 728px wide across the tear in both files — but this cut
+# is a drawing, and the lid's bottom edge trails wispy pen strokes past the
+# tear line while the face's edge does not. Per-column extremes disagree by the
+# length of a stray hair. Checked by eye afterwards rather than trusted.
+LID_OFFSET = (388, -276)
 
 SOURCES = {
-    # layer name  ->  (file, offset in face.png coordinates)
-    "face": ("face.png", (0, 0)),
-    "lid": ("head.png", LID_OFFSET),
+    # layer name  ->  (file, offset in the face layer's coordinates)
+    "face": ("face_2.png", (0, 0)),
+    "lid": ("head_2.png", LID_OFFSET),
 }
 
 # Layers a source already contains, written as fully transparent.
 #
-# `face.png` was cut with the neck, collar and shoulders attached, so the
+# The face was cut with the neck, collar and shoulders attached, so the
 # placeholder neck would paint a grey slab across his chest. Blanking is not the
 # same as deleting: the layer stays in STACK, costs one cached empty PNG, and
 # becomes real the day a neck is cut separately. This is a line of policy rather
 # than a manual step because `npm run art` restores anything it is not told
 # about — which it did, once.
-SUBSUMED = {"neck": "face.png"}
+SUBSUMED = {"neck": "face_2.png"}
 
 # --- how the composite maps onto the artboard -------------------------------
-# Measured off face.png, in its own pixels. The crown is the top of the lid;
+# Measured off the face layer, in its own pixels. The crown is the top of the lid;
 # the chin is where the jaw stops and the collar takes over.
-CROWN_Y = LID_OFFSET[1]          # -439
-CHIN_Y = 1150
-HEAD_CENTRE_X = 1418             # midpoint of the head at its widest (y≈700)
+CROWN_Y = LID_OFFSET[1]          # -276
+CHIN_Y = 580                     # where the jaw stops and the collar flares out
+HEAD_CENTRE_X = 764              # midpoint of the head at its widest (y≈317)
 
 # The framing: reproduce the placeholder's, so the timing tuned against it still
 # holds on the first run. Head crown to chin fills 900 of the 1600-unit canvas,
@@ -88,14 +105,14 @@ def main() -> None:
         sys.exit(f"no source art at {ART}")
 
     scale = (HEAD_HEIGHT_UNITS * SCALE_OUT) / (CHIN_Y - CROWN_Y)
-    out_w, out_h = CANVAS_W * SCALE_OUT, CANVAS_H * SCALE_OUT
+    out_w, out_h = int(CANVAS_W * SCALE_OUT), int(CANVAS_H * SCALE_OUT)
 
-    # Where face.png's origin lands on the artboard, in output pixels.
+    # Where the face layer's origin lands on the artboard, in output pixels.
     origin_x = (out_w / 2) - (HEAD_CENTRE_X * scale)
     origin_y = (HEAD_TOP_UNITS * SCALE_OUT) - (CROWN_Y * scale)
 
     print(f"artboard {out_w}x{out_h}   scale {scale:.5f}")
-    print(f"face.png origin lands at ({origin_x:.1f}, {origin_y:.1f})\n")
+    print(f"face origin lands at ({origin_x:.1f}, {origin_y:.1f})\n")
 
     for name, owner in SUBSUMED.items():
         if not (ART / owner).exists():

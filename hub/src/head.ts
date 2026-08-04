@@ -18,24 +18,30 @@ export const CANVAS = { w: 1200, h: 1600 } as const;
 /**
  * Landmarks, in canvas units.
  *
- * These still describe the *placeholder* cavity, not Kim's tear — his runs from
- * y 429 to 613 with a half-width of about 374, against the 410/244 below. They
- * move as a set the day the real cavity and sky are cut, because moving them
- * alone would slide `SKY_CLIP` off a painted rim that had not moved with it.
+ * Measured off Kim's drawing, not invented — and they move as a *set*, together
+ * with the same constants in `scripts/placeholder-head.py`, because these
+ * describe where the opening is and that script draws it. Changing one side
+ * alone slides `SKY_CLIP` off a painted rim that has not moved with it, which
+ * is exactly what put a smear of blue sky on his forehead the first time.
+ *
+ * The tear itself is a hand-drawn wave running from y 471 at the temples down
+ * to y 757 in the middle, so `CUT_Y` is a level *through* it rather than a line
+ * it follows. The ellipse is an approximation of a wavy cut and will stay one
+ * until the real `cavity` layer is drawn against that wave.
  *
  * `HEAD_CX` used to live here to derive the hinge. It does not any more: the
  * hinge is measured off the real lid, so a constant claiming to know where the
  * centre of the head is would have been a second, disagreeing source of truth.
  */
-const CUT_Y = 410;
-const CAVITY_RY = 140;
-const CAVITY_RX = 244;
-const EYE_CY = 640;
+const CUT_Y = 560;
+const CAVITY_RY = 130;
+const CAVITY_RX = 394;
+const EYE_CY = 754;
 
 /** Where the cards are born: the centre of the opening. */
 export const CAVITY_POINT = {
   x: 50,
-  y: (CUT_Y / CANVAS.h) * 100, // 26.875%
+  y: (CUT_Y / CANVAS.h) * 100, // 35%
 } as const;
 
 /**
@@ -77,8 +83,8 @@ export const SKY_CLIP = `ellipse(${((CAVITY_RX / CANVAS.w) * 100 + 0.3).toFixed(
  * has nothing left to do and is no longer in `STACK`.
  */
 export const HINGE = {
-  x: 81.917, // 983 of 1200
-  y: 37.125, // 594 of 1600
+  x: 82.889, // 995 of 1200
+  y: 30.833, // 493 of 1600
 } as const;
 
 /**
@@ -87,7 +93,7 @@ export const HINGE = {
  * he is looking, and "the eyes reach the bottom of the screen" is the
  * instruction the descent has to satisfy at any viewport size.
  */
-export const EYE_LINE = EYE_CY / CANVAS.h; // 0.40
+export const EYE_LINE = EYE_CY / CANVAS.h; // 0.471
 
 /**
  * The visible head — crown to chin — as a fraction of the canvas height. The
@@ -103,8 +109,8 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * It is not the cut line, which is the number the layout used first and the
  * reason the cards landed on his forehead. The rear wall of the skull stands
  * above the cut whatever the lid is doing, and depending on how far the lid has
- * swung, the lid itself may stand above *that* — at `LID_ANGLE` 132 it did, and
- * cost 34px of overlap.
+ * swung, the lid itself may stand above *that* — against the pen drawing the
+ * lid is the ceiling at every angle up to about 170.
  *
  * It is not derived, because it depends on the hinge angle and on artwork that
  * does not exist yet. It is *checked* instead:
@@ -113,7 +119,7 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * be wrong and the suite will say so — which is what happened both times it
  * was wrong before.
  */
-export const HEAD_OPEN_RISE = 0.315;
+export const HEAD_OPEN_RISE = 0.33;
 
 /**
  * The eye pair is the one layer that is not full-bleed. It is cross-faded on
@@ -123,10 +129,10 @@ export const HEAD_OPEN_RISE = 0.315;
  * percentages so it can be positioned without any script.
  */
 export const EYE_BOX = {
-  left: (430 / CANVAS.w) * 100,
-  top: (560 / CANVAS.h) * 100,
-  width: (340 / CANVAS.w) * 100,
-  height: (160 / CANVAS.h) * 100,
+  left: (410 / CANVAS.w) * 100,
+  top: (690 / CANVAS.h) * 100,
+  width: (480 / CANVAS.w) * 100,
+  height: (130 / CANVAS.h) * 100,
 } as const;
 
 export type LayerName =
