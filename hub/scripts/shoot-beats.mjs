@@ -33,20 +33,20 @@ const PORT = 9333;
  */
 const SHOTS = [
   ['0-rest', 0],
-  ['1-card1-birth', 0.04],
-  /* The constraint the whole sequence was re-timed around: the first card is
-     already visible when the lid passes vertical. */
+  ['1-card1-emerges', 0.05],
+  /* The constraint the sequence was re-timed around: the first card is already
+     visible when the lid passes vertical. */
   ['1-lid-90', 0.08],
-  ['1-card1-rise', 0.11],
-  ['4-card1-hold', 0.17],
+  ['1-card1-flies', 0.16],
   /* The lid finishes *after* the first card has arrived, which is new. */
   ['1-lid-open', 0.22],
-  /* One settled, the next already climbing — the overlap, which is the other
-     reason the sequence is timed the way it is. */
-  ['4-crossover', 0.24],
-  ['4-card2-hold', 0.34],
-  ['4-card3-hold', 0.51],
-  ['4-card4-hold', 0.68],
+  /* The steady state, and the point of the whole arrangement: one card on
+     stage, the next already waiting in the opening. */
+  ['4-card1-hold-card2-queued', 0.28],
+  ['4-crossover', 0.33],
+  ['4-card2-hold', 0.43],
+  ['4-card3-hold', 0.58],
+  ['4-card4-hold', 0.73],
   ['4-card5-hold', 0.88],
   ['5-end', 1.0],
 ];

@@ -58,6 +58,16 @@ export const BEATS = {
 } as const;
 
 /**
+ * When a card's flight begins, relative to its birth: after it has emerged and
+ * waited its turn. Derived rather than declared, so the queue cannot silently
+ * fall out of the chain.
+ */
+export const cardFlies = (born: number) => born + CARD_EMERGE + CARD_QUEUE;
+
+/** When it lands. */
+export const cardSettles = (born: number) => cardFlies(born) + CARD_RISE;
+
+/**
  * The descent's easing, named rather than inlined.
  *
  * `useHubTimeline` both *runs* this tween and *samples* it, to find where the
@@ -169,26 +179,41 @@ export const LID_ANGLE = 165;
 /* ------------------------------------------------------------------ *
  * The genie
  *
- * One card at a time. Each is born tiny at the mouth of the opening, arcs up
- * into the middle of the sky, holds still long enough to be read, then drifts
- * on up and out of frame — and the next one is out of the opening and climbing
- * before it goes.
+ * A card's life has four movements, not two. It **emerges** from the opening
+ * and stops — out of his head, small, unmistakably a card. It **queues** there
+ * while the card above it is being read. It **flies** up into the sky. It
+ * **holds**, and then it **leaves**.
  *
- * That overlap is the design, and it is an arithmetic relationship between four
- * numbers rather than a feel. Writing S, R, H, L for the four below:
+ * The queue is the whole reason this is not simply "a longer rise", and it was
+ * arrived at by trying that first and failing on geometry rather than on
+ * timing. A card is nearly as tall as the distance it climbs — the sky is one
+ * card deep. So a card far enough along its rise to be *seen below* the settled
+ * one is already far enough along to be printed *over* it, and no easing curve
+ * escapes that, because it is a fact about the layout and not about the motion.
+ * Every attempt to buy visibility by starting the rise earlier either hid the
+ * newcomer or obscured the caption of the card being read.
  *
- *   S < R + H   — the next card is born while the current one is still being
- *                 read, so there is always something visibly on its way up.
- *   S > H       — and it does not *arrive* before the current one gives up the
- *                 spot. Every card shares one position in the layout, so below
- *                 this two of them are printed on top of each other.
- *   S > H + L   — the stricter line actually taken: the outgoing card has
- *                 finished fading before the incoming one lands, so the two are
- *                 never even near the destination together.
+ * Splitting the climb in two dissolves it. The emergence is short and travels
+ * almost nowhere, so a queued card sits *in the opening* rather than in the
+ * sky, where there is room for it and where it reads as the next idea waiting
+ * its turn. The flight keeps the arc it always had.
  *
- * All three hold here: 17 < 23, 17 > 11, 17 > 15. That leaves a six-unit window
- * where one card is on stage and the next is climbing towards it, and a ten-unit
- * window where two cards are on screen at all.
+ * The overlap is arithmetic, not feel. Writing S for the stride and E, Q, R, H,
+ * L for the five phases, with the climb C = E + Q + R:
+ *
+ *   S + 0.6E < C   — the next card has finished appearing before the current
+ *                    one even lands, which is Kim's requirement stated exactly:
+ *                    whenever a card is on stage, the next is already visible.
+ *   S > H          — and it does not *arrive* before the current one gives up
+ *                    the spot. Every card shares one position in the layout, so
+ *                    below this two of them are printed on top of each other.
+ *   S > H + L      — the stricter line actually taken: the outgoing card has
+ *                    finished fading before the incoming one lands, so the two
+ *                    are never even near the destination together.
+ *
+ * All three hold here: 16.8 < 20, 15 > 10, 15 > 14. A card is on screen for 34
+ * units against a stride of 15, so for the whole of the middle of the sequence
+ * there are two — one being read, one waiting in his head.
  *
  * The middle line was written as `S > H + L` at first and it was wrong — the two
  * conditions are different constraints and only the weaker one is a collision.
@@ -199,36 +224,56 @@ export const LID_ANGLE = 165;
  * ------------------------------------------------------------------ */
 
 /** Scroll units from one card's birth to the next one's. */
-export const CARD_STRIDE = 17;
+export const CARD_STRIDE = 15;
 
 /**
- * Out of the opening: the genie itself. More than three times what it was, in
- * two steps and for two different reasons. First because a card that crosses
- * the whole sky in 3.4 units is not visible *travelling* long enough to read as
- * the next one coming — it is just suddenly there. Then because the first card
- * now launches at unit 3 and must not have finished arriving by the time the
- * lid is still swinging behind it.
- *
- * One number falls out of this rather than being chosen. The fade-in runs for
- * 35% of the rise, so card one reaches full opacity at unit 3 + 4.2 = 7.2 —
- * which is where the lid passes 90 degrees. Kim asked for the card to be
- * visible at that moment; it finishes becoming visible exactly on it.
+ * Out of the opening and no further. Short, because this is an appearance
+ * rather than a journey — the card clears the tear, becomes legible as a card,
+ * and stops.
  */
-export const CARD_RISE = 12;
+export const CARD_EMERGE = 3;
+
+/**
+ * Waiting its turn at the mouth of the opening, while the card above it is
+ * read. This is the beat Kim asked for twice: "when a card is on stage, the
+ * next card should already be visible."
+ */
+export const CARD_QUEUE = 9;
+
+/**
+ * The flight: mouth of the opening to the middle of the sky. The genie itself.
+ *
+ * One number falls out of the chain rather than being chosen. Card one is born
+ * at unit 3 and the emergence fades in over 60% of `CARD_EMERGE`, so it is
+ * fully visible at 4.8 — comfortably before unit 7, where the lid passes 90
+ * degrees and Kim asked for a card to be there.
+ */
+export const CARD_RISE = 8;
 
 /** On stage, unmoving, being read. */
-export const CARD_HOLD = 11;
+export const CARD_HOLD = 10;
 
 /** Up and away. */
 export const CARD_LEAVE = 4;
 
 /**
  * How small a card is at the instant it leaves the cavity. Small enough to
- * read as coming *out of* the opening, large enough not to pop — and large
- * enough now to be legible as a card while it is still down there, since being
- * seen early is the whole job.
+ * read as coming *out of* the opening, large enough not to pop.
  */
 export const CARD_BIRTH_SCALE = 0.14;
+
+/**
+ * How big it is once it has emerged, and how far up it has come — as a fraction
+ * of the whole climb.
+ *
+ * Both are deliberately small. A queued card has to be legible as a card and
+ * illegible as *the* card: big enough that you can see something is coming,
+ * low enough that it is plainly still in his head and not competing with the
+ * one being read. Push the travel much past a fifth and it starts covering the
+ * caption of the card above it, which is the failure the queue exists to avoid.
+ */
+export const CARD_QUEUE_SCALE = 0.3;
+export const CARD_QUEUE_TRAVEL = 0.18;
 
 /**
  * Per-card character. Nothing moves in parallel with anything else: each card
@@ -237,14 +282,18 @@ export const CARD_BIRTH_SCALE = 0.14;
  * paying for a motion-path plugin. No pair here is the same curve twice — two
  * identical eases would travel a straight line.
  *
+ * These govern the **flight** only. The emergence has a fixed ease of its own,
+ * because it is the same gesture for every card — five different ways of poking
+ * out of a hole would be noise.
+ *
  * **Every y ease is `inOut`, and that is load-bearing rather than taste.** They
  * were all `out` while the cards ran one at a time, which front-loads the
  * travel: an `out` curve is already 77% of the way up a third of the way
- * through its rise. Fine in isolation, fatal under overlap — the incoming card
- * would arrive almost on top of the outgoing one while it was still being read.
- * `inOut` holds the new card low and small for the first third, then swoops it
- * into place as the stage clears. The arithmetic above says a collision cannot
- * happen; the easing is what makes the near-miss look deliberate.
+ * through its flight. Fine in isolation, fatal under overlap — the incoming
+ * card would arrive almost on top of the outgoing one while it was still being
+ * read. `inOut` holds it low for the first third, then swoops it into place as
+ * the stage clears. The arithmetic above says a collision cannot happen; the
+ * easing is what makes the near-miss look deliberate.
  */
 export const CARD_ARCS = [
   { rotate: -9, xEase: 'power1.inOut', yEase: 'power3.inOut' },

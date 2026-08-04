@@ -303,6 +303,7 @@ async function main() {
     let holdsSeen = 0;
     let emptyFrames = 0;
     let crossovers = 0;
+    const lonelyHolds = [];
     const SAMPLES = 32;
     for (let i = 0; i <= SAMPLES; i++) {
       /*
@@ -316,22 +317,30 @@ async function main() {
       await ev(`window.scrollTo(0, ${Math.round(at * pin)})`);
       await sleep(280);
       const s = JSON.parse(await ev(`(() => {
-        let settled = 0, visible = 0;
-        for (const c of document.querySelectorAll('.card')) {
+        const all = [...document.querySelectorAll('.card')];
+        let settled = 0, visible = 0, settledIndex = -1;
+        all.forEach((c, i) => {
           const cs = getComputedStyle(c);
-          if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.05) continue;
+          if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.05) return;
           visible++;
           const m = new DOMMatrixReadOnly(cs.transform);
           /* At rest: no scale, no rotation, no offset. m.a is scale*cos(rot). */
           if (Number(cs.opacity) > 0.9 && Math.abs(m.a - 1) < 0.04 &&
-              Math.abs(m.e) < 24 && Math.abs(m.f) < 24) settled++;
-        }
-        return JSON.stringify({ settled, visible });
+              Math.abs(m.e) < 24 && Math.abs(m.f) < 24) { settled++; settledIndex = i; }
+        });
+        return JSON.stringify({ settled, visible, settledIndex, total: all.length });
       })()`));
       maxSettled = Math.max(maxSettled, s.settled);
       if (s.settled === 1) holdsSeen++;
       if (s.visible === 0) emptyFrames++;
       if (s.settled === 1 && s.visible > 1) crossovers++;
+      /*
+       * The requirement, stated exactly: whenever a card is on stage, the next
+       * one is already visible. Excludes the last card, which has no next.
+       */
+      if (s.settled === 1 && s.settledIndex < s.total - 1 && s.visible < 2) {
+        lonelyHolds.push(`${(at * 100).toFixed(0)}%`);
+      }
     }
     check(
       'never more than one card is settled on stage',
@@ -358,6 +367,21 @@ async function main() {
       'the next card is already climbing while the current one is read',
       crossovers >= 3,
       `${crossovers} samples with one card settled and another in flight`,
+    );
+    /*
+     * The strong form, and the one Kim actually asked for — twice. The count
+     * above only says the overlap happens *somewhere*; a sequence can satisfy it
+     * and still leave you scrolling through most of a hold looking at one card
+     * on an empty page, which is exactly what the first two attempts did. This
+     * says it happens **every time**: no sample may find a card on stage with
+     * nothing behind it, unless it is the last card, which has no next.
+     */
+    check(
+      'a card is never alone on stage while another is still to come',
+      lonelyHolds.length === 0,
+      lonelyHolds.length
+        ? `alone at ${lonelyHolds.join(', ')} of the pin`
+        : `${holdsSeen} holds sampled, every one with the next card already showing`,
     );
 
     /*
@@ -446,7 +470,7 @@ async function main() {
      * pose. It is a moving target now.
      */
     let sampled = 0;
-    for (const hold of [0.17, 0.34, 0.51, 0.68, 0.88]) {
+    for (const hold of [0.28, 0.43, 0.58, 0.73, 0.88]) {
       const m = await headTopUnderCard(hold);
       if (!m) continue;
       sampled++;

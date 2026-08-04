@@ -196,12 +196,12 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 29 assertions in a real browser
+npm run verify            # 30 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 29 assertions,
-thirteen of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 30 assertions,
+fourteen of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
@@ -209,10 +209,18 @@ assistive technology while nothing tabbable is buried inside an `aria-hidden`
 subtree, that layer promotion is released when unpinned, and the colour rule.
 
 It also *walks* the showcase rather than spot-checking it: 33 samples from the
-first card's birth to the head's exit, asserting four things about the overlap
+first card's birth to the head's exit, asserting five things about the overlap
 between one card and the next — never two settled at once, a card on stage for
-most of the sequence, never a blank frame, and the next card visibly climbing
-while the current one is read.
+most of the sequence, never a blank frame, the next card visibly climbing while
+the current one is read, and **never a card alone on stage while another is
+still to come**.
+
+That last one is the strong form of the one above it, and it exists because the
+weak form is satisfiable by a sequence that still feels wrong. "The overlap
+happens somewhere" passed twice on layouts where you scrolled through most of a
+hold looking at a single card on an empty page. Setting `CARD_QUEUE` to 0 is the
+sabotage: the crossover count stays healthy at 12 samples and the strong check
+names the eight scroll positions where a card was stranded.
 
 What it counts changed when the cards were made to overlap, and the change is
 the interesting part. It used to count cards that were merely **opaque**, a fair
@@ -239,7 +247,26 @@ differencing a frame against the same frame with the lid hidden, and fails if
 the flipped lid looks like the closed one — which is what a lost 3D context
 looks like, and it is invisible in the computed styles.
 
-### The showcase now runs *through* the mechanism, and two checks came out of it
+### A card's life has four movements, and the middle one is doing nothing
+
+Emerge, queue, fly, hold, leave. The queue — the card sitting in the opening,
+out of his head and plainly next, while the card above it is being read — is
+what "the next card is already visible" actually required, and it was reached
+by trying the obvious thing twice and failing on geometry rather than timing.
+
+**A card is nearly as tall as the distance it climbs.** The sky is one card
+deep. So a card far enough along its rise to be *seen below* the settled one is
+already far enough along to be printed *over* its caption, and no easing curve
+escapes that, because it is a fact about the layout. Both attempts to buy
+visibility by starting the rise earlier ended in the same place: either the
+newcomer was invisible or it was covering the thing you were reading.
+
+Splitting the climb dissolves it. The emergence is three units and travels 18%
+of the way, so a queued card sits *in the opening*, where there is room and
+where it reads as the next idea waiting its turn rather than as a card in the
+wrong place. The flight keeps the arc it always had.
+
+### The showcase runs *through* the mechanism, and two checks came out of it
 
 The first card used to wait for the lid to finish and the head to stop sinking.
 It is born at unit 3 instead, to meet "the card is already visible when the head

@@ -4,10 +4,15 @@ import {
   BEATS,
   CARD_ARCS,
   CARD_BIRTH_SCALE,
+  CARD_EMERGE,
   CARD_HOLD,
   CARD_LEAVE,
+  CARD_QUEUE_SCALE,
+  CARD_QUEUE_TRAVEL,
   CARD_RISE,
   CARD_STRIDE,
+  cardFlies,
+  cardSettles,
   DESCENT_EASE,
   LIP_END_VH,
   LIP_REST_VH,
@@ -211,11 +216,17 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
          * 4 · the genie.
          *
          * One card *on stage* at a time — which is not the same as one card on
-         * screen, and the difference is the point. Each is born tiny at the
-         * mouth of the opening, arced up into the middle of the sky, held still
-         * long enough to be read, then drifted on up and out. The next one is
-         * born three units before that departure, so it is already out of the
-         * head and climbing while the current card is still being read.
+         * screen, and the difference is the point. Four movements each: it
+         * **emerges** from the tear and stops, **queues** there while the card
+         * above it is read, **flies** up into the sky, **holds**, and leaves.
+         *
+         * The queue is what makes "the next card is already visible" possible
+         * at all. A card is nearly as tall as the distance it climbs, so any
+         * card far enough up its flight to be seen below the settled one is
+         * also far enough up to be printed over its caption. That is a fact
+         * about the layout, not the motion, and no easing curve gets around it.
+         * A card parked at the mouth of the opening is in his head, where there
+         * is room.
          *
          * All five cards occupy the same position in the layout, stacked, so
          * every one of them travels the same route from the same origin. Only
@@ -227,32 +238,49 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         cards.forEach((card, i) => {
           const arc = CARD_ARCS[i % CARD_ARCS.length];
           const born = BEATS.showcaseStart + i * CARD_STRIDE;
-          const from = (k: 'dx' | 'dy') => () => launch[i]?.[k] ?? 0;
+          const at = (k: 'dx' | 'dy', f: number) => () => (launch[i]?.[k] ?? 0) * f;
 
+          /* 4a · emerge — out of the tear, and no further. */
           tl.fromTo(
             card,
             {
-              x: from('dx'),
-              y: from('dy'),
+              x: at('dx', 1),
+              y: at('dy', 1),
               scale: CARD_BIRTH_SCALE,
               rotate: arc.rotate,
               autoAlpha: 0,
             },
-            { autoAlpha: 1, duration: CARD_RISE * 0.35 },
+            { autoAlpha: 1, duration: CARD_EMERGE * 0.6 },
+            born,
+          );
+          tl.to(
+            card,
+            {
+              x: at('dx', 1 - CARD_QUEUE_TRAVEL),
+              y: at('dy', 1 - CARD_QUEUE_TRAVEL),
+              scale: CARD_QUEUE_SCALE,
+              duration: CARD_EMERGE,
+              ease: 'power2.out',
+              immediateRender: false,
+            },
             born,
           );
 
+          /* 4b · queue — CARD_QUEUE units of deliberately nothing. */
+
           /*
-           * x and y run on different curves. That is the whole trick behind the
-           * arc: two eases that disagree bend a straight line into one, without
-           * a motion-path plugin and without a single non-composited property.
+           * 4c · fly. x and y run on different curves, which is the whole trick
+           * behind the arc: two eases that disagree bend a straight line into
+           * one, without a motion-path plugin and without a single
+           * non-composited property.
            */
-          tl.to(card, { x: 0, duration: CARD_RISE, ease: arc.xEase, immediateRender: false }, born);
-          tl.to(card, { y: 0, duration: CARD_RISE, ease: arc.yEase, immediateRender: false }, born);
+          const flies = cardFlies(born);
+          tl.to(card, { x: 0, duration: CARD_RISE, ease: arc.xEase, immediateRender: false }, flies);
+          tl.to(card, { y: 0, duration: CARD_RISE, ease: arc.yEase, immediateRender: false }, flies);
           /*
            * Scale is eased `inOut` for the same reason y is: an `out` curve
            * brings the card to nearly full size in the first third of its
-           * rise, which is exactly the stretch where the *previous* card is
+           * flight, which is exactly the stretch where the *previous* card is
            * still on stage. A full-size card climbing past a full-size card
            * reads as a collision. Staying small while it is low is what makes
            * the overlap read as depth.
@@ -260,7 +288,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
           tl.to(
             card,
             { scale: 1, rotate: 0, duration: CARD_RISE, ease: 'power2.inOut', immediateRender: false },
-            born,
+            flies,
           );
 
           /*
@@ -274,7 +302,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
            */
           if (i === cards.length - 1) return;
 
-          const leaves = born + CARD_RISE + CARD_HOLD;
+          const leaves = cardSettles(born) + CARD_HOLD;
           const away = () => -(card.getBoundingClientRect().bottom + 48);
 
           tl.to(
