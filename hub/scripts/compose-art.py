@@ -94,7 +94,7 @@ SCALE_OUT = 1.5
 # to fix in that — a nudge judged by eye at one size is a nudge judged by eye —
 # but it is why the reference is written down rather than the ratio alone.
 NUDGE_X_CSS_PX = 2 / 0.6098
-LID_OFFSET = (376 + NUDGE_X_CSS_PX, -467)
+LID_OFFSET = (380 + NUDGE_X_CSS_PX, -467)
 
 SOURCES = {
     # layer name  ->  (file, offset in the face layer's coordinates)
