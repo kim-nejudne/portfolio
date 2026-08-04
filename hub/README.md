@@ -1,10 +1,17 @@
 # The hub — `kimnejudne.dev`
 
-The homepage. A pen-and-ink portrait fills the hero; on scroll the top of the
-head swings open on a hinge, the head sinks until the eyes are at the bottom of
-the screen, and the five projects come out of the opening **one at a time** —
-each held big and still in the sky above him, then drifting away as the next
-arrives. A quiet index follows, so nothing depends on having watched.
+The homepage. The pitch is set at the top of the page and a pen-and-ink
+portrait hangs below it, low enough that his lower lip is almost touching the
+bottom edge. On scroll the top of the head swings open on a hinge, the head
+sinks a little further, and the five projects come out of the opening **one at
+a time** — each held big and still in the sky above him, then drifting away as
+the next arrives. A quiet index follows, so nothing depends on having watched.
+
+**The whole composition hangs off one landmark.** The head is positioned by the
+lower lip, not by its top edge and not by the eye line — "the lip almost
+touching the bottom" is the instruction, and how much sky the pitch gets, where
+the eyes land and how far the descent has left to travel all fall out of it. See
+`LIP_LINE` in `src/head.ts`.
 
 `../hub-brief.md` is the source of truth for the art direction and the beats.
 This file covers the build.

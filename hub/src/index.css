@@ -119,7 +119,7 @@ body {
 
 .stage {
   --head-height: calc(var(--head-vh-mobile) * 1vh);
-  --eye-rest-bp: calc(var(--eye-rest-mobile) * 1vh);
+  --lip-rest-bp: calc(var(--lip-rest-mobile) * 1vh);
   --canvas-h: calc(var(--head-height) / var(--head-fraction));
   --canvas-w: calc(var(--canvas-h) * var(--canvas-aspect));
   position: relative;
@@ -133,7 +133,7 @@ body {
 @media (min-width: 768px) {
   .stage {
     --head-height: calc(var(--head-vh-desktop) * 1vh);
-    --eye-rest-bp: calc(var(--eye-rest-desktop) * 1vh);
+    --lip-rest-bp: calc(var(--lip-rest-desktop) * 1vh);
   }
 }
 
@@ -147,7 +147,7 @@ body {
 .head {
   position: absolute;
   left: calc(50% - var(--canvas-w) / 2);
-  top: calc(var(--eye-rest-bp) - var(--eye-line) * var(--canvas-h));
+  top: calc(var(--lip-rest-bp) - var(--lip-line) * var(--canvas-h));
   width: var(--canvas-w);
   height: var(--canvas-h);
   /* No transform here, deliberately: GSAP writes `transform` on this element
@@ -231,18 +231,26 @@ body {
   color: var(--color-muted);
 }
 
+/*
+ * On a wide screen the pitch stays where it is on a phone — top left, above
+ * the crown — and only grows.
+ *
+ * It used to be a column beside the head: pinned to the left edge, vertically
+ * centred, `min(31ch, 34vw)` wide. That layout wanted the head centred in the
+ * remaining space and read as two things sharing a screen. Above the head it
+ * reads as one thing: a line of type, and beneath it the head it is about.
+ *
+ * The measure is wider than the old column but not by as much as the space
+ * allows — `48ch` at the largest, because a Didone at three rem across a
+ * 1440px viewport would be a headline you scan rather than read.
+ */
 @media (min-width: 768px) {
   .pitch {
     left: 4vw;
-    right: auto;
+    right: 4vw;
     top: 0;
-    bottom: 0;
-    width: min(31ch, 34vw);
-    padding-top: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    /* No transform for vertical centring — GSAP owns this element's. */
+    padding-top: 3.5vh;
+    max-width: 48ch;
   }
   .pitch-line {
     font-size: clamp(2.1rem, 3.4vw, 3.1rem);
@@ -285,7 +293,7 @@ body {
   /* The sky above the *open* head once it has finished sinking — not above
      the opening. Sizing this to the cut line was a quiet lie about where the
      head ends, and it put the cards across his forehead. */
-  height: calc(var(--eye-end) - var(--head-open-rise) * var(--canvas-h));
+  height: calc(var(--lip-end) - var(--head-open-rise) * var(--canvas-h));
   z-index: var(--card-z);
   pointer-events: none;
 }

@@ -8,8 +8,8 @@ import {
   CARD_LEAVE,
   CARD_RISE,
   CARD_STRIDE,
-  EYE_END_VH,
-  EYE_REST_VH,
+  LIP_END_VH,
+  LIP_REST_VH,
   LID_ANGLE,
   PIN_LENGTH,
   TOTAL,
@@ -75,7 +75,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
          */
         stage.setAttribute('data-ready', '');
 
-        const descent = () => ((EYE_END_VH - EYE_REST_VH[bp]) / 100) * window.innerHeight;
+        const descent = () => ((LIP_END_VH - LIP_REST_VH[bp]) / 100) * window.innerHeight;
 
         /*
          * Where each card is born, relative to where CSS has already put it.

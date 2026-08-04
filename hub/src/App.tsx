@@ -4,8 +4,8 @@ import Head from './components/Head';
 import Index from './components/Index';
 import Pitch from './components/Pitch';
 import Showcase from './components/Showcase';
-import { CANVAS, CARD_Z, EYE_LINE, HEAD_FRACTION, HEAD_OPEN_RISE } from './head';
-import { EYE_END_VH, EYE_REST_VH, HEAD_HEIGHT_VH, LID_ANGLE } from './choreography';
+import { CANVAS, CARD_Z, HEAD_FRACTION, HEAD_OPEN_RISE, LIP_LINE } from './head';
+import { HEAD_HEIGHT_VH, LID_ANGLE, LIP_END_VH, LIP_REST_VH } from './choreography';
 import { useHubTimeline } from './hooks/useHubTimeline';
 
 /**
@@ -20,10 +20,10 @@ import { useHubTimeline } from './hooks/useHubTimeline';
  * sizing by it makes the head itself unpredictably small.
  */
 const vars = {
-  '--eye-rest-mobile': EYE_REST_VH.mobile,
-  '--eye-rest-desktop': EYE_REST_VH.desktop,
-  '--eye-end': `${EYE_END_VH}vh`,
-  '--eye-line': EYE_LINE,
+  '--lip-rest-mobile': LIP_REST_VH.mobile,
+  '--lip-rest-desktop': LIP_REST_VH.desktop,
+  '--lip-end': `${LIP_END_VH}vh`,
+  '--lip-line': LIP_LINE,
   '--head-fraction': HEAD_FRACTION,
   '--head-open-rise': HEAD_OPEN_RISE,
   '--head-vh-mobile': HEAD_HEIGHT_VH.mobile,

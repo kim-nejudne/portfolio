@@ -46,18 +46,24 @@ export const TOTAL = 100;
 export const PIN_LENGTH = '+=560%';
 
 /**
- * Where the eyes sit, as a percentage of viewport height, at rest and at the
- * end of the descent.
+ * Where the **lower lip** sits, as a percentage of viewport height, at rest and
+ * at the end of the descent.
  *
- * The second number is the whole answer to the portrait-phone problem. A head
- * that fills a 390x844 screen leaves nowhere for a card to rise into — so the
- * head does not stay put. It sinks as it opens until the eyes are at the
- * bottom of the screen, which frees the entire viewport above it, keeps the
- * gaze pointing at the space the cards arrive in, and means the last beat
- * needs no dissolve: the head simply carries on and leaves.
+ * At rest the lip is almost touching the bottom of the page. That is the whole
+ * composition: the head sits low, and the pitch goes in the sky above the crown
+ * rather than in a column beside it. It also answers the portrait-phone problem
+ * outright — a head that fills a 390x844 screen leaves nowhere for a card to
+ * rise into, and this one does not fill it, it hangs off the bottom of it.
+ *
+ * The descent survives, smaller. It used to carry the head from the middle of
+ * the screen to the floor, about 42vh of travel, because that was the only way
+ * to free the sky. The new resting position frees the sky by itself, so what is
+ * left is a 12vh slide that puts the eyes on the bottom edge — which is where
+ * Kim asked for them — and gives the exit at beat 5 something continuous to
+ * carry on from rather than starting cold.
  */
-export const EYE_REST_VH = { mobile: 52, desktop: 46 } as const;
-export const EYE_END_VH = 88;
+export const LIP_REST_VH = { mobile: 94, desktop: 95 } as const;
+export const LIP_END_VH = 107;
 
 /**
  * Head size, crown to chin, as a percentage of viewport height — not of the

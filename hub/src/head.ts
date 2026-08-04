@@ -22,7 +22,7 @@ export const CANVAS = { w: 1200, h: 1600 } as const;
  * the middle. Nothing paints it any more; it is only where the cards are born.
  */
 const CUT_Y = 560;
-const EYE_CY = 754;
+const LIP_Y = 1050;
 
 /**
  * Where the cards are born: the mouth of the opening.
@@ -59,15 +59,25 @@ export const HINGE = {
 } as const;
 
 /**
- * The eye line, as a fraction of the canvas. The layout positions the head by
- * this rather than by its top edge: the whole piece is composed around where
- * he is looking, and "the eyes reach the bottom of the screen" is the
- * instruction the descent has to satisfy at any viewport size.
+ * The lower lip, as a fraction of the canvas.
  *
- * It survives the eye *layers* being deleted, because it was never about them.
- * The eyes are drawn into `face`, and this is where they are.
+ * The layout positions the head by this rather than by its top edge, because
+ * the composition is an instruction about where the head *ends* on screen:
+ * "the lower lip almost touching the bottom of the page". Everything else — how
+ * much sky the pitch gets above the crown, where the eyes land, how far the
+ * descent has left to travel — falls out of it.
+ *
+ * It replaced the eye line, which had been the anchor while the pitch sat in a
+ * column beside the head and the head was vertically centred against it. With
+ * the pitch above the head there is nothing to centre against; there is a
+ * bottom edge to sit on.
+ *
+ * Measured off `public/head/face.png`, and worth knowing it lands *below*
+ * `HEAD_FRACTION`'s notional chin at canvas 1080 — that figure was taken where
+ * the collar flares, not at the jaw, so "crown to chin" is really crown to
+ * about the mouth. The name is inherited; the number is what the framing uses.
  */
-export const EYE_LINE = EYE_CY / CANVAS.h; // 0.471
+export const LIP_LINE = LIP_Y / CANVAS.h; // 0.656
 
 /**
  * The visible head — crown to chin — as a fraction of the canvas height. The
@@ -77,7 +87,7 @@ export const EYE_LINE = EYE_CY / CANVAS.h; // 0.471
 export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
 
 /**
- * How far the *open* head reaches above the eye line, as a fraction of the
+ * How far the *open* head reaches above the lip line, as a fraction of the
  * canvas. This is the ceiling the cards have to clear.
  *
  * It is not the cut line, which is the number the layout used first and the
@@ -90,7 +100,7 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * overlaps it. So this can be wrong and the suite will say so — which is what
  * happened every time it was wrong before.
  */
-export const HEAD_OPEN_RISE = 0.33;
+export const HEAD_OPEN_RISE = 0.52;
 
 export type LayerName = 'face' | 'neck' | 'lid';
 
