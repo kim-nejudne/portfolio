@@ -196,22 +196,23 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 27 assertions in a real browser
+npm run verify            # 29 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 27 assertions,
-eleven of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 29 assertions,
+thirteen of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
 assistive technology while nothing tabbable is buried inside an `aria-hidden`
 subtree, that layer promotion is released when unpinned, and the colour rule.
 
-It also *walks* the showcase rather than spot-checking it: 33 samples across the
-sequence, asserting four things about the overlap between one card and the next
-— never two settled at once, a card on stage for most of the sequence, never a
-blank frame, and the next card visibly climbing while the current one is read.
+It also *walks* the showcase rather than spot-checking it: 33 samples from the
+first card's birth to the head's exit, asserting four things about the overlap
+between one card and the next — never two settled at once, a card on stage for
+most of the sequence, never a blank frame, and the next card visibly climbing
+while the current one is read.
 
 What it counts changed when the cards were made to overlap, and the change is
 the interesting part. It used to count cards that were merely **opaque**, a fair
@@ -237,6 +238,41 @@ technically open and visibly shut. And one isolates the lid's own pixels, by
 differencing a frame against the same frame with the lid hidden, and fails if
 the flipped lid looks like the closed one — which is what a lost 3D context
 looks like, and it is invisible in the computed styles.
+
+### The showcase now runs *through* the mechanism, and two checks came out of it
+
+The first card used to wait for the lid to finish and the head to stop sinking.
+It is born at unit 3 instead, to meet "the card is already visible when the head
+is at 90 degrees". Two assertions exist because that change quietly invalidated
+things that had been safely true for the whole life of the piece:
+
+**`the first card is born at the opening, not where the opening will be`.** The
+launch measurement added the *whole* descent to every card, on the reasoning
+that the head had finished sinking before any card emerged. Card one is now born
+before the head has sunk at all, and launched a full 108px below the tear — out
+of his jaw. Cards two to five are born after the descent ends and stayed
+correct, so four fifths of the sequence looked right; the wrong fifth just read
+as "a bit off". The cavity marker is the only thing on the page that knows where
+the opening is, so the check asks it, on the frame the card is created.
+
+**`the first card is visible by the time the lid reaches 90 degrees`.** Kim's
+constraint, kept in his terms. Deliberately *not* written as "unit 7", which is
+where the arithmetic puts vertical — that figure depends on the lid's easing as
+much as its duration, and `power1.out` passes 90 degrees a third of the way
+through the swing rather than halfway. The check walks the scroll, reads the
+rotation off the matrix, and asks what the card is doing wherever 90 actually
+lands.
+
+The clearance check had to be corrected twice in the same pass, and both were
+the check being wrong rather than the page. It compared the head's topmost pixel
+*anywhere in the frame* against the card's bottom, which is only meaningful when
+the tallest ink is directly behind the card — true at every settled pose, false
+mid-swing, when the highest ink is the hair sweeping out to the right. It
+reported a 254px collision between two things hundreds of pixels apart in x. It
+crops to the card's own columns now. Then it was pointed at the lowest *visible*
+card, which mid-sequence is a newborn sitting **inside his head**, because that
+is where cards come from. It picks the settled card and skips samples that have
+none.
 
 **Do not verify motion through a visible browser tab that is not focused.** A
 backgrounded tab throttles `requestAnimationFrame` to nothing and GSAP's ticker

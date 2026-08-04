@@ -19,24 +19,53 @@ export const BEATS = {
   descentEnd: 24,
 
   /**
-   * 4 · Showcase — the ideas come out one at a time. It begins on the frame the
-   * head finishes sinking, which is also the frame the launch point becomes
-   * true, so the first card leaves an opening that has stopped moving.
+   * 4 · Showcase — the ideas come out, **while the head is still opening**.
    *
-   * There used to be a pause here, six units of nothing between the lid
-   * settling and the first card, and the brief said in as many words not to
-   * fill it. Its justification was the eye-flick: he looked up at empty sky and
-   * the viewer's gaze followed his to the spot the card then arrived in. The
-   * eyes are drawn into `face` now and cannot move, so the cue the pause was
-   * built around no longer exists and what was left was just waiting. Removing
-   * it is the eye layers' bill arriving, not a change of mind about pacing.
+   * This used to wait for the mechanism: the lid finished, the head finished
+   * sinking, a pause, and then the first card. It has moved twice, and the
+   * second move is a different kind of change from the first.
+   *
+   * The first was deleting the pause. That was the eye-flick's bill arriving —
+   * six units of nothing only earned their place as *anticipation*, and
+   * anticipation needs him to look at the spot the card is about to occupy.
+   * The eyes are drawn into `face` and cannot move, so what was left was
+   * waiting.
+   *
+   * The second is the sequential reading of the whole thing: open, then show.
+   * Kim's constraint was "the card is already visible when the head is at 90
+   * degrees", which is unit 7 of 100 — the lid eases *out*, so it passes
+   * vertical a third of the way through its swing, not halfway. Meeting it
+   * means the first card is born at 3, before the lid is a quarter open and
+   * before the head has begun to sink.
+   *
+   * Two things follow, and neither is optional:
+   *
+   *  - **The launch point can no longer assume a stationary head.** The comment
+   *    it used to carry — "by the time a card emerges the head has finished
+   *    sinking, so its launch point is the opening's final position" — is
+   *    exactly false for card one now. `useHubTimeline` samples the descent
+   *    curve at each card's own birth instead. Cards two to five are born after
+   *    `descentEnd` and are unaffected, which is why this could be wrong by a
+   *    whole descent and still look nearly right.
+   *  - **The pitch has to clear much sooner**, because the sky it occupies is
+   *    the sky the first card climbs into.
    */
-  showcaseStart: 24,
+  showcaseStart: 3,
 
   /** 5 · Settle — the head leaves the bottom of the frame. */
-  exitStart: 88,
+  exitStart: 90,
   exitEnd: 100,
 } as const;
+
+/**
+ * The descent's easing, named rather than inlined.
+ *
+ * `useHubTimeline` both *runs* this tween and *samples* it, to find where the
+ * opening is at the instant a card is born. Two copies of the curve would agree
+ * until one of them was changed, and the symptom would be cards launching from
+ * slightly the wrong place — which is precisely the bug that is invisible.
+ */
+export const DESCENT_EASE = 'power2.inOut';
 
 /** The timeline is built in these units: 1 unit = 1% of the pinned scroll. */
 export const TOTAL = 100;
@@ -49,18 +78,24 @@ export const TOTAL = 100;
  * in a flick is not a showcase. At this length each card owns roughly 58% of a
  * viewport of scrolling — about one unhurried wheel gesture.
  *
- * That per-card figure is the number to hold constant, which is why this moved
- * when `CARD_STRIDE` did. The stride grew from 10.5 units to 12 to buy the
- * overlap between cards, and units are a percentage of *this*, so leaving it at
- * 560% would have made every card 14% slower to get through — the opposite of
- * the ask. 480% keeps a card's stride at the same physical distance and takes
- * most of a viewport off the front of the page, where the waiting was.
+ * **That per-card figure is the number held constant**, and it is the reason
+ * this has moved twice while the sequence got faster. Units are a percentage of
+ * *this*, so growing `CARD_STRIDE` without shrinking the pin makes every card
+ * slower to scroll through — the opposite of the ask, arrived at by doing what
+ * looks like the right thing. 560% -> 480% paid for a stride of 12; 480% -> 340%
+ * pays for a stride of 17.
+ *
+ * What actually got cut, both times, was the front of the page: a pause, and
+ * then the assumption that the head had to finish opening before anything could
+ * come out of it. The showcase now runs *through* the mechanism rather than
+ * after it, so an entire viewport and a half of scrolling disappeared without a
+ * single card being rushed.
  *
  * The skim risk that a long pin creates is real, and the index below it is the
  * answer: a reader who flings past the whole sequence still lands on a complete
  * list of the work.
  */
-export const PIN_LENGTH = '+=480%';
+export const PIN_LENGTH = '+=340%';
 
 /**
  * Where the **lower lip** sits, as a percentage of viewport height, at rest and
@@ -151,8 +186,8 @@ export const LID_ANGLE = 165;
  *                 finished fading before the incoming one lands, so the two are
  *                 never even near the destination together.
  *
- * All three hold here: 12 < 15, 12 > 8, 12 > 11. That leaves a three-unit window
- * where one card is on stage and the next is climbing towards it, and a six-unit
+ * All three hold here: 17 < 23, 17 > 11, 17 > 15. That leaves a six-unit window
+ * where one card is on stage and the next is climbing towards it, and a ten-unit
  * window where two cards are on screen at all.
  *
  * The middle line was written as `S > H + L` at first and it was wrong — the two
@@ -164,20 +199,28 @@ export const LID_ANGLE = 165;
  * ------------------------------------------------------------------ */
 
 /** Scroll units from one card's birth to the next one's. */
-export const CARD_STRIDE = 12;
+export const CARD_STRIDE = 17;
 
 /**
- * Out of the opening: the genie itself. Twice what it was, because a card that
- * crosses the whole sky in 3.4 units is not visible *travelling* for long
- * enough to read as the next one coming — it is just suddenly there.
+ * Out of the opening: the genie itself. More than three times what it was, in
+ * two steps and for two different reasons. First because a card that crosses
+ * the whole sky in 3.4 units is not visible *travelling* long enough to read as
+ * the next one coming — it is just suddenly there. Then because the first card
+ * now launches at unit 3 and must not have finished arriving by the time the
+ * lid is still swinging behind it.
+ *
+ * One number falls out of this rather than being chosen. The fade-in runs for
+ * 35% of the rise, so card one reaches full opacity at unit 3 + 4.2 = 7.2 —
+ * which is where the lid passes 90 degrees. Kim asked for the card to be
+ * visible at that moment; it finishes becoming visible exactly on it.
  */
-export const CARD_RISE = 7;
+export const CARD_RISE = 12;
 
 /** On stage, unmoving, being read. */
-export const CARD_HOLD = 8;
+export const CARD_HOLD = 11;
 
 /** Up and away. */
-export const CARD_LEAVE = 3;
+export const CARD_LEAVE = 4;
 
 /**
  * How small a card is at the instant it leaves the cavity. Small enough to

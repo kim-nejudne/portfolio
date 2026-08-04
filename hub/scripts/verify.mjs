@@ -23,12 +23,14 @@ import { setTimeout as sleep } from 'node:timers/promises';
  * would agree with the first right up until someone changed one of them, and
  * then the check would be asserting history.
  */
-const LID_ANGLE = Number(
-  /export const LID_ANGLE = (-?[\d.]+)/.exec(
-    readFileSync(new URL('../src/choreography.ts', import.meta.url), 'utf8'),
-  )?.[1],
-);
-if (!Number.isFinite(LID_ANGLE)) throw new Error('could not read LID_ANGLE from src/choreography.ts');
+const CHOREOGRAPHY = readFileSync(new URL('../src/choreography.ts', import.meta.url), 'utf8');
+const num = (re, what) => {
+  const v = Number(re.exec(CHOREOGRAPHY)?.[1]);
+  if (!Number.isFinite(v)) throw new Error(`could not read ${what} from src/choreography.ts`);
+  return v;
+};
+const LID_ANGLE = num(/export const LID_ANGLE = (-?[\d.]+)/, 'LID_ANGLE');
+const SHOWCASE_START = num(/showcaseStart: (-?[\d.]+)/, 'BEATS.showcaseStart');
 
 const URL_ARG = process.argv[2] ?? 'http://localhost:4501/';
 const PORT = 9336;
@@ -211,6 +213,92 @@ async function main() {
       return String(s.getBoundingClientRect().height - st.getBoundingClientRect().height);
     })()`);
     const pin = Number(stage);
+
+    /*
+     * The first card is born at the mouth of the opening — *where the opening
+     * is at that instant*, not where it will end up.
+     *
+     * This exists because the launch measurement used to add the whole descent
+     * to every card, on the reasoning that the head had finished sinking before
+     * any card emerged. True until the first card moved to unit 3 to meet the
+     * "visible at 90 degrees" constraint, and then false by the entire descent
+     * — a card launching out of his jaw instead of out of the tear.
+     *
+     * Nothing else here could have caught it. Cards two to five are born after
+     * the descent ends and stay correct, the sequence still runs, and a card
+     * that is 10% of full size and 12vh low simply reads as "a bit off". The
+     * cavity marker is the only thing on the page that knows where the opening
+     * actually is, so ask it, on the frame the card is created.
+     */
+    const birth = SHOWCASE_START / 100;
+    await ev(`window.scrollTo(0, ${Math.round(birth * pin)})`);
+    await sleep(900);
+    const bornAt = JSON.parse(await ev(`(() => {
+      const c = document.querySelector('[data-cavity]').getBoundingClientRect();
+      /* The card is autoAlpha 0 on this frame, but visibility:hidden elements
+         still have a box — which is exactly the box being asserted about. */
+      const r = document.querySelector('.card').getBoundingClientRect();
+      return JSON.stringify({
+        dx: (r.left + r.width / 2) - (c.left + c.width / 2),
+        dy: (r.top + r.height / 2) - (c.top + c.height / 2),
+      });
+    })()`));
+    const bornOff = Math.hypot(bornAt.dx, bornAt.dy);
+    check(
+      'the first card is born at the opening, not where the opening will be',
+      bornOff < 30,
+      `${bornOff.toFixed(0)}px from the cavity marker at unit ${SHOWCASE_START}`,
+    );
+
+    /*
+     * Kim's constraint, stated as he stated it: **the first card is already
+     * visible when the head is at 90 degrees.**
+     *
+     * Deliberately not expressed as "unit 7", which is where the arithmetic
+     * says the lid passes vertical. That figure depends on the lid's duration
+     * *and* on its easing — `power1.out` puts 90 degrees a third of the way
+     * through the swing rather than halfway, which is not obvious and is the
+     * sort of thing a later re-tune would quietly move. So find the scroll
+     * position where the lid is actually at 90 by walking it and reading the
+     * matrix, then ask what the card is doing there.
+     */
+    const lidRotation = () =>
+      ev(`(() => {
+        const m = new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.lid-hinge')).transform);
+        return (Math.atan2(m.b, m.a) * 180) / Math.PI;
+      })()`);
+    let ninetyAt = null;
+    for (let f = 0; f <= 0.4; f += 0.01) {
+      await ev(`window.scrollTo(0, ${Math.round(f * pin)})`);
+      await sleep(320);
+      if (Number(await lidRotation()) >= 90) {
+        ninetyAt = f;
+        break;
+      }
+    }
+    if (ninetyAt === null) {
+      check('the first card is visible by the time the lid reaches 90 degrees', false,
+        'the lid never reached 90 degrees in the first 40% of the pin');
+    } else {
+      await ev(`window.scrollTo(0, ${Math.round(ninetyAt * pin)})`);
+      await sleep(900);
+      const at90 = JSON.parse(await ev(`(() => {
+        const c = document.querySelector('.card');
+        const cs = getComputedStyle(c);
+        return JSON.stringify({
+          opacity: Number(cs.opacity),
+          shown: cs.visibility === 'visible',
+          onScreen: c.getBoundingClientRect().top < window.innerHeight,
+        });
+      })()`));
+      check(
+        'the first card is visible by the time the lid reaches 90 degrees',
+        at90.shown && at90.opacity > 0.5 && at90.onScreen,
+        `lid 90deg at ${(ninetyAt * 100).toFixed(0)}% of the pin, card at opacity ${at90.opacity.toFixed(2)}` +
+          ` (unit ${SHOWCASE_START} birth, ${(Number(await lidRotation())).toFixed(0)}deg measured)`,
+      );
+    }
+
     let maxSettled = 0;
     let holdsSeen = 0;
     let emptyFrames = 0;
@@ -224,7 +312,7 @@ async function main() {
        * an empty stage that says nothing about the sequence. It did, the first
        * time this ran.
        */
-      const at = 0.25 + (i / SAMPLES) * 0.63;
+      const at = 0.05 + (i / SAMPLES) * 0.85;
       await ev(`window.scrollTo(0, ${Math.round(at * pin)})`);
       await sleep(280);
       const s = JSON.parse(await ev(`(() => {
@@ -285,10 +373,47 @@ async function main() {
      *
      * `-trim` reports the offset of the first row that is not the background
      * colour, which after the pitch has faded out is the head and nothing else.
+     *
+     * **It is cropped to the card's own columns first**, and that is not a
+     * refinement — the uncropped version is wrong now. It compared the head's
+     * topmost pixel *anywhere in the frame* against the card's bottom, which
+     * only holds while the tallest thing on the artboard is directly behind the
+     * card. That was true when this only ran at the settled poses. Extending it
+     * into the swing broke it immediately: mid-flip the highest ink is the hair
+     * sweeping out to the right, several hundred pixels clear of the card in x,
+     * and the check reported a 254px collision between two things that never
+     * touch. Cropping to the card's span asks the question the design actually
+     * cares about — is there head *underneath this card*.
      */
-    const headTopWhenOpen = async (holdAt) => {
+    const headTopUnderCard = async (holdAt) => {
       await ev(`window.scrollTo(0, ${Math.round(holdAt * pin)})`);
       await sleep(900);
+      /*
+       * The **settled** card, and the columns it occupies — not the lowest
+       * visible one, which is a different and much dumber question now that
+       * cards overlap. A card in flight is *born inside his head*: it starts at
+       * the mouth of the opening and climbs out. Asking whether it overlaps the
+       * head is asking whether it came out of the head, and the answer had
+       * better be yes. Only a card that has arrived owes the head clearance.
+       */
+      const card = JSON.parse(await ev(`(() => {
+        const c = [...document.querySelectorAll('.card')].find(x => {
+          const cs = getComputedStyle(x);
+          if (cs.visibility !== 'visible' || Number(cs.opacity) <= 0.9) return false;
+          const m = new DOMMatrixReadOnly(cs.transform);
+          return Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24;
+        });
+        if (!c) return 'null';
+        const r = c.getBoundingClientRect();
+        const left = Math.max(0, Math.round(r.left));
+        return JSON.stringify({
+          bottom: r.bottom,
+          left,
+          width: Math.min(window.innerWidth - left, Math.round(r.width)),
+          h: window.innerHeight,
+        });
+      })()`));
+      if (!card) return null;
       await ev(`document.querySelector('.showcase').style.visibility = 'hidden'`);
       await sleep(120);
       const shot = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
@@ -296,29 +421,41 @@ async function main() {
       await ev(`document.querySelector('.showcase').style.visibility = ''`);
       await sleep(120);
       const out = execFileSync('magick', [
-        '/tmp/hub-headtop.png', '-fuzz', '4%', '-trim',
+        '/tmp/hub-headtop.png',
+        '-crop', `${card.width}x${card.h}+${card.left}+0`, '+repage',
+        '-fuzz', '4%', '-trim',
         '-format', '%[fx:page.y]', 'info:',
       ]).toString().trim();
-      return Number(out);
+      /* An all-paper column trims to nothing; magick reports 0. Treat it as
+         "no head in this column", which is the roomiest possible answer. */
+      const top = Number(out);
+      return { top: Number.isFinite(top) && top > 0 ? top : card.h, bottom: card.bottom };
     };
 
     let worstGap = Infinity;
     let tightest = null;
-    /* Mid-hold for cards 1, 3 and 5 — see the slot arithmetic in
-       `choreography.ts`. These move whenever the stride does. */
-    for (const hold of [0.35, 0.59, 0.83]) {
-      const top = await headTopWhenOpen(hold);
-      const bottom = await ev(`(() => {
-        const c = [...document.querySelectorAll('.card')]
-          .filter(x => getComputedStyle(x).visibility === 'visible')
-          .map(x => x.getBoundingClientRect().bottom);
-        return c.length ? Math.max(...c) : -1;
-      })()`);
-      if (bottom > 0 && top - bottom < worstGap) {
-        worstGap = top - bottom;
-        tightest = { top, bottom };
+    /*
+     * Mid-hold for every card — see the slot arithmetic in `choreography.ts`.
+     * These move whenever the stride does, and a sample that lands outside a
+     * hold is skipped rather than silently measuring a card in flight.
+     *
+     * Card one's hold is the one that matters most now and is new: it settles
+     * at unit 15, while the lid is still swinging and the head still sinking.
+     * Every earlier version of this sequence had the mechanism finished before
+     * a card arrived, so the tightest clearance was always the same static
+     * pose. It is a moving target now.
+     */
+    let sampled = 0;
+    for (const hold of [0.17, 0.34, 0.51, 0.68, 0.88]) {
+      const m = await headTopUnderCard(hold);
+      if (!m) continue;
+      sampled++;
+      if (m.top - m.bottom < worstGap) {
+        worstGap = m.top - m.bottom;
+        tightest = m;
       }
     }
+    if (sampled < 4) check('the clearance samples land on holds', false, `only ${sampled}/5 found a settled card`);
     /*
      * The detail line is the point as much as the pass/fail. HEAD_OPEN_RISE is
      * how much sky the layout reserves above the head, and it is only ever

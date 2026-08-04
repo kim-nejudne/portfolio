@@ -33,16 +33,21 @@ const PORT = 9333;
  */
 const SHOTS = [
   ['0-rest', 0],
-  ['1-lid-open', 0.24],
-  ['4-card1-rise', 0.28],
-  ['4-card1-hold', 0.35],
-  /* One settled, the next already climbing — the overlap, which is the whole
+  ['1-card1-birth', 0.04],
+  /* The constraint the whole sequence was re-timed around: the first card is
+     already visible when the lid passes vertical. */
+  ['1-lid-90', 0.08],
+  ['1-card1-rise', 0.11],
+  ['4-card1-hold', 0.17],
+  /* The lid finishes *after* the first card has arrived, which is new. */
+  ['1-lid-open', 0.22],
+  /* One settled, the next already climbing — the overlap, which is the other
      reason the sequence is timed the way it is. */
-  ['4-crossover', 0.38],
-  ['4-card2-hold', 0.47],
-  ['4-card3-hold', 0.59],
-  ['4-card4-hold', 0.71],
-  ['4-card5-hold', 0.83],
+  ['4-crossover', 0.24],
+  ['4-card2-hold', 0.34],
+  ['4-card3-hold', 0.51],
+  ['4-card4-hold', 0.68],
+  ['4-card5-hold', 0.88],
   ['5-end', 1.0],
 ];
 

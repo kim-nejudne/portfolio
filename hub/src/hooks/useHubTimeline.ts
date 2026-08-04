@@ -8,6 +8,7 @@ import {
   CARD_LEAVE,
   CARD_RISE,
   CARD_STRIDE,
+  DESCENT_EASE,
   LIP_END_VH,
   LIP_REST_VH,
   LID_ANGLE,
@@ -78,6 +79,18 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         const descent = () => ((LIP_END_VH - LIP_REST_VH[bp]) / 100) * window.innerHeight;
 
         /*
+         * How far the head has already sunk at timeline position `t`.
+         *
+         * The same curve the descent tween below runs, sampled rather than
+         * animated. `DESCENT_EASE` is shared so there is one copy of it.
+         */
+        const descentAt = (t: number) => {
+          const span = BEATS.descentEnd - BEATS.descentStart;
+          const p = gsap.utils.clamp(0, 1, (t - BEATS.descentStart) / span);
+          return gsap.parseEase(DESCENT_EASE)(p) * descent();
+        };
+
+        /*
          * Where each card is born, relative to where CSS has already put it.
          *
          * Measured with transforms cleared, because after the first refresh
@@ -85,17 +98,26 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
          * would compound the offset a little more on each resize until the
          * cards launched from somewhere off-screen.
          *
-         * The cavity is measured at rest and the descent added, rather than
-         * measured live: by the time a card emerges the head has finished
-         * sinking, so its launch point is the opening's *final* position.
+         * The cavity is measured at rest, and then each card gets the descent
+         * **as it stands at that card's own birth**. This used to add the whole
+         * descent to all five, on the reasoning that the head had finished
+         * sinking before any card emerged. That was true, and stopped being
+         * true the moment the first card was moved to unit 3 to meet the
+         * "visible at 90 degrees" constraint: card one is now born before the
+         * head has sunk at all, and would have launched a full descent below
+         * the opening — out of his jaw rather than out of the tear.
+         *
+         * Cards two to five are born after `descentEnd`, so they sample 1 and
+         * are unchanged. That is what makes this the kind of bug worth a test:
+         * four fifths of it stays right.
          */
         let launch: { dx: number; dy: number }[] = [];
         const measure = () => {
           gsap.set([head, ...cards], { clearProps: 'transform' });
           const c = cavity.getBoundingClientRect();
           const cx = c.left + c.width / 2;
-          const cy = c.top + c.height / 2 + descent();
-          launch = cards.map((card) => {
+          launch = cards.map((card, i) => {
+            const cy = c.top + c.height / 2 + descentAt(BEATS.showcaseStart + i * CARD_STRIDE);
             const r = card.getBoundingClientRect();
             return { dx: cx - (r.left + r.width / 2), dy: cy - (r.top + r.height / 2) };
           });
@@ -166,14 +188,24 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
           {
             y: descent,
             duration: BEATS.descentEnd - BEATS.descentStart,
-            ease: 'power2.inOut',
+            ease: DESCENT_EASE,
           },
           BEATS.descentStart,
         );
 
-        /* the pitch and the scroll cue step aside before anything else moves */
-        if (pitch) tl.to(pitch, { autoAlpha: 0, y: -28, duration: 14, ease: 'power1.in' }, 2);
-        if (cue) tl.to(cue, { autoAlpha: 0, duration: 6 }, 0);
+        /*
+         * The pitch and the scroll cue step aside — and now they have to hurry.
+         *
+         * The pitch occupies the sky, and the sky is where the first card
+         * climbs. It used to have fourteen units to clear because nothing came
+         * out of the head until unit 36. The first card is born at 3 and is
+         * high enough to reach the headline by about 10, so that is the budget.
+         * It is a scrubbed fade, so it still tracks the hand rather than
+         * snapping — and the pitch is fully readable at rest, before any of
+         * this starts.
+         */
+        if (pitch) tl.to(pitch, { autoAlpha: 0, y: -28, duration: 10, ease: 'power1.in' }, 0);
+        if (cue) tl.to(cue, { autoAlpha: 0, duration: 4 }, 0);
 
         /*
          * 4 · the genie.
