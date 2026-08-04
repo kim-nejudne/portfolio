@@ -18,10 +18,7 @@ export const BEATS = {
   descentStart: 3,
   descentEnd: 30,
 
-  /** 2 · Look — the eyes flick up. Triggered, not scrubbed. */
-  look: 32,
-
-  /** 3 · Beat — nothing. Do not fill it. */
+  /** 2 · Beat — nothing between the lid settling and the first card. */
 
   /** 4 · Showcase — the ideas come out one at a time. */
   showcaseStart: 36,
@@ -110,9 +107,6 @@ export const HEAD_HEIGHT_VH = { mobile: 42, desktop: 58 } as const;
  * in-plane tilt. One number where there were two.
  */
 export const LID_ANGLE = 165;
-
-/** The gaze change. Its own easing, its own duration, in real seconds. */
-export const FLICK_SECONDS = 0.12;
 
 /* ------------------------------------------------------------------ *
  * The genie

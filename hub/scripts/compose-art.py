@@ -77,12 +77,9 @@ SOURCES = {
 
 # Layers a source already contains, written as fully transparent.
 #
-# The face was cut with the neck, collar and shoulders attached, so the
-# placeholder neck would paint a grey slab across his chest. Blanking is not the
-# same as deleting: the layer stays in STACK, costs one cached empty PNG, and
-# becomes real the day a neck is cut separately. This is a line of policy rather
-# than a manual step because `npm run art` restores anything it is not told
-# about — which it did, once.
+# The face was cut with the neck, collar and shoulders attached. Blanking is not
+# the same as deleting: the layer stays in STACK, costs one cached empty PNG,
+# and becomes real the day a neck is cut separately.
 SUBSUMED = {"neck": "face_2.png"}
 
 # --- how the composite maps onto the artboard -------------------------------

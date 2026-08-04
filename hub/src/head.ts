@@ -2,65 +2,41 @@
  * The head's asset contract.
  *
  * This file is the seam between the choreography and the artwork. Nothing else
- * in the app knows a filename, a stacking order or where the hinge is — so when
- * the real duotone layers replace the placeholders, this is the only file that
- * can possibly need to change, and most likely it will not.
+ * in the app knows a filename, a stacking order or where the hinge is.
  *
  * Everything is expressed as a percentage of the shared 1200x1600 canvas, so
  * the numbers are resolution-independent and the layers register by
- * construction. `scripts/placeholder-head.py` draws to the same canvas and the
- * same geometry; the real art has to as well.
+ * construction. `scripts/compose-art.py` places every layer through one
+ * transform onto that canvas, which is what makes registration a property of
+ * the build rather than three careful exports.
  */
 
 /** Canvas aspect. Every full-bleed layer is exactly this shape. */
 export const CANVAS = { w: 1200, h: 1600 } as const;
 
 /**
- * Landmarks, in canvas units.
+ * Landmarks, in canvas units, measured off Kim's drawing.
  *
- * Measured off Kim's drawing, not invented — and they move as a *set*, together
- * with the same constants in `scripts/placeholder-head.py`, because these
- * describe where the opening is and that script draws it. Changing one side
- * alone slides `SKY_CLIP` off a painted rim that has not moved with it, which
- * is exactly what put a smear of blue sky on his forehead the first time.
- *
- * The tear itself is a hand-drawn wave running from y 471 at the temples down
- * to y 757 in the middle, so `CUT_Y` is a level *through* it rather than a line
- * it follows. The ellipse is an approximation of a wavy cut and will stay one
- * until the real `cavity` layer is drawn against that wave.
- *
- * `HEAD_CX` used to live here to derive the hinge. It does not any more: the
- * hinge is measured off the real lid, so a constant claiming to know where the
- * centre of the head is would have been a second, disagreeing source of truth.
+ * `CUT_Y` is a level *through* the tear rather than a line it follows — the
+ * tear is a hand-drawn wave running from y 471 at the temples down to y 757 in
+ * the middle. Nothing paints it any more; it is only where the cards are born.
  */
 const CUT_Y = 560;
-const CAVITY_RY = 130;
-const CAVITY_RX = 394;
 const EYE_CY = 754;
 
-/** Where the cards are born: the centre of the opening. */
+/**
+ * Where the cards are born: the mouth of the opening.
+ *
+ * The one landmark that survived the layers being deleted. `Head.tsx` renders a
+ * zero-size marker here and the timeline measures the launch point off that
+ * element rather than recomputing canvas geometry — so the geometry lives in
+ * this file alone, and moving the tear cannot silently leave the cards flying
+ * out of his forehead.
+ */
 export const CAVITY_POINT = {
   x: 50,
   y: (CUT_Y / CANVAS.h) * 100, // 35%
 } as const;
-
-/**
- * The opening, as a clip path.
- *
- * The sky is drawn larger than the hole it shows through so it has room to
- * parallax, and the first attempt left the cavity layer in front of it to do
- * the masking. That works until the sky actually moves: a 15px drift put its
- * top edge above the mask and two blue crescents appeared beside his ears.
- *
- * Clipping the sky to the opening itself makes the failure impossible rather
- * than merely unlikely — the sky can be any size and travel any distance and
- * still cannot be seen anywhere except through the hole. A hair larger than
- * the cavity ellipse so the rim's own edge covers the seam.
- */
-export const SKY_CLIP = `ellipse(${((CAVITY_RX / CANVAS.w) * 100 + 0.3).toFixed(3)}% ${(
-  (CAVITY_RY / CANVAS.h) * 100 +
-  0.2
-).toFixed(3)}% at ${CAVITY_POINT.x}% ${CAVITY_POINT.y}%)`;
 
 /**
  * The hinge: the **bottom-right corner of the lid**, where the tear meets the
@@ -72,15 +48,10 @@ export const SKY_CLIP = `ellipse(${((CAVITY_RX / CANVAS.w) * 100 + 0.3).toFixed(
  * of the skull, whose perspective-magnified projection swept straight back down
  * over the hole it had just made, and a `rotateY` book-cover door.
  *
- * Measured off `public/head/lid.png` rather than derived from the cut ellipse,
- * because the pivot has to be on Kim's tear and not on the placeholder's. If
- * the lid is re-cut, re-measure: the furthest point of its silhouette in the
- * +x+y direction is the corner, and `scripts/compose-art.py` puts every layer
- * in the same coordinate space so the number stays meaningful.
- *
- * A consequence worth naming: an in-plane rotation never shows a backface, so
- * the cap presents its outside — its hair — all the way round. `lid-underside`
- * has nothing left to do and is no longer in `STACK`.
+ * Measured off `public/head/lid.png`, not derived. If the lid is re-cut,
+ * re-measure: the furthest point of its silhouette in the +x+y direction is the
+ * corner, and `compose-art.py` puts every layer in the same coordinate space so
+ * the number stays meaningful.
  */
 export const HINGE = {
   x: 82.889, // 995 of 1200
@@ -92,6 +63,9 @@ export const HINGE = {
  * this rather than by its top edge: the whole piece is composed around where
  * he is looking, and "the eyes reach the bottom of the screen" is the
  * instruction the descent has to satisfy at any viewport size.
+ *
+ * It survives the eye *layers* being deleted, because it was never about them.
+ * The eyes are drawn into `face`, and this is where they are.
  */
 export const EYE_LINE = EYE_CY / CANVAS.h; // 0.471
 
@@ -104,93 +78,56 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
 
 /**
  * How far the *open* head reaches above the eye line, as a fraction of the
- * canvas. This is the ceiling the settled cards have to clear.
+ * canvas. This is the ceiling the cards have to clear.
  *
  * It is not the cut line, which is the number the layout used first and the
- * reason the cards landed on his forehead. The rear wall of the skull stands
- * above the cut whatever the lid is doing, and depending on how far the lid has
- * swung, the lid itself may stand above *that* — against the pen drawing the
- * lid is the ceiling at every angle up to about 170.
+ * reason the cards landed on his forehead. Against this drawing the swung lid
+ * is the tallest thing on the artboard at every angle up to about 170.
  *
- * It is not derived, because it depends on the hinge angle and on artwork that
- * does not exist yet. It is *checked* instead:
- * `scripts/verify.mjs` photographs the open head with the showcase hidden,
- * finds its real topmost pixel, and fails if a card overlaps it. So this can
- * be wrong and the suite will say so — which is what happened both times it
- * was wrong before.
+ * It is not derived, because it depends on the hinge angle and on the artwork.
+ * It is *checked* instead: `scripts/verify.mjs` photographs the open head with
+ * the showcase hidden, finds its real topmost pixel, and fails if a card
+ * overlaps it. So this can be wrong and the suite will say so — which is what
+ * happened every time it was wrong before.
  */
 export const HEAD_OPEN_RISE = 0.33;
 
-/**
- * The eye pair is the one layer that is not full-bleed. It is cross-faded on
- * every gaze change, and promoting a 1200x1600 texture to composite two
- * eyeballs is exactly the kind of waste that loses the frame budget on the
- * mid-range phone the brief insists on. Box in canvas units, expressed as
- * percentages so it can be positioned without any script.
- */
-export const EYE_BOX = {
-  left: (410 / CANVAS.w) * 100,
-  top: (690 / CANVAS.h) * 100,
-  width: (480 / CANVAS.w) * 100,
-  height: (130 / CANVAS.h) * 100,
-} as const;
-
-export type LayerName =
-  | 'head-back'
-  | 'sky'
-  | 'cavity'
-  | 'face'
-  | 'neck'
-  | 'lid'
-  | 'eyes-forward'
-  | 'eyes-up';
+export type LayerName = 'face' | 'neck' | 'lid';
 
 /**
- * Back to front. The order is not arbitrary and two entries in it were wrong
- * on the first pass:
+ * Back to front. Three layers, down from nine.
  *
- *  - `cavity` sits in *front* of `sky` because the sky is drawn larger than
- *    the opening so it can parallax; the cavity's rim is what stops it
- *    escaping.
- *  - `lid` sits in *front* of `face`, not behind it. The brief says the lid
- *    tips toward you — so it tips over the face, and with the face on top the
- *    seam rendered as a flat horizontal line instead of the front lip of a cut
- *    ellipse.
+ * `lid` sits in *front* of `face`, not behind it — it is the hair that swings
+ * off the top, and with the face on top the tear rendered as a flat line
+ * instead of an edge.
  *
- * The eye pair sits behind `face`, showing through the sockets that layer has
- * cut out of it, so the gaze can change without redrawing a single feature.
+ * What used to be here: `head-back`, `sky`, `cavity`, `eyes-forward`,
+ * `eyes-up`, and briefly `lid-underside`. Every one was a placeholder grey
+ * shape standing in for art that was never drawn, and the decision was to
+ * delete them rather than draw them. The consequences are real and belong here
+ * rather than in a commit message nobody reads: the head no longer opens onto a
+ * cavity, it opens onto his drawn scalp; there is no sky, so the **only colour
+ * left on the page is the five project crops**; and the eye-flick beat is gone,
+ * because the eyes are drawn into `face` and cannot change.
  *
- * `lid-underside` used to sit between `neck` and `lid` as the back plate of a
- * two-sided hinge. The hinge is an in-plane rotation now, which never turns the
- * cap away from the viewer, so there is no backface to fill and the layer is
- * gone rather than left rendering nothing.
+ * `neck` is written fully transparent — the face was cut with the collar and
+ * shoulders attached. It stays in the stack because a separately cut neck is a
+ * one-line change, and it costs one cached empty PNG.
  */
-export const STACK: readonly LayerName[] = [
-  'head-back',
-  'sky',
-  'cavity',
-  'eyes-forward',
-  'eyes-up',
-  'face',
-  'neck',
-  'lid',
-];
+export const STACK: readonly LayerName[] = ['face', 'neck', 'lid'];
 
-/**
- * The cards fly above everything.
- *
- * Strictly they ought to emerge from *between* the cavity and the lid, so the
- * open lid occludes the first frames of a card's rise. That reads better and
- * is a one-line change here once the real art exists — but it only pays off
- * when the lid is an opaque photographic crown rather than a grey shape, and
- * until then it costs a stacking context around the flight path for no visible
- * gain. Noted rather than quietly dropped.
- */
+/** The cards fly above everything. */
 export const CARD_Z = 20;
 
 const base = (name: LayerName) => `/head/${name}`;
 
-/** AVIF with a PNG fallback. Both are written by the generator script. */
+/**
+ * AVIF with a PNG fallback, both written by `compose-art.py`.
+ *
+ * The AVIF is offered first, so a stale one silently wins over a PNG that was
+ * just rewritten and the page shows the previous cut with no error anywhere.
+ * That is why the composer always writes both.
+ */
 export const sources = (name: LayerName) => ({
   avif: `${base(name)}.avif`,
   png: `${base(name)}.png`,

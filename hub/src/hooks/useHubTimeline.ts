@@ -10,7 +10,6 @@ import {
   CARD_STRIDE,
   EYE_END_VH,
   EYE_REST_VH,
-  FLICK_SECONDS,
   LID_ANGLE,
   PIN_LENGTH,
   TOTAL,
@@ -54,9 +53,6 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         const q = <T extends HTMLElement>(sel: string) => stage.querySelector<T>(sel);
         const head = q('[data-head]');
         const lid = q('[data-lid]');
-        const sky = q<HTMLImageElement>('[data-layer="sky"]');
-        const eyesForward = q<HTMLImageElement>('[data-layer="eyes-forward"]');
-        const eyesUp = q<HTMLImageElement>('[data-layer="eyes-up"]');
         const cavity = q('[data-cavity]');
         const pitch = q('[data-pitch]');
         const cue = q('[data-cue]');
@@ -107,29 +103,19 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         measure();
         ScrollTrigger.addEventListener('refreshInit', measure);
 
-        /* ---- the gaze: triggered, never scrubbed ---------------------- */
-
-        let gaze: 'forward' | 'up' = 'forward';
-        gsap.set(eyesUp, { autoAlpha: 0 });
-        gsap.set(eyesForward, { autoAlpha: 1 });
-
-        const setGaze = (next: 'forward' | 'up') => {
-          if (next === gaze) return;
-          gaze = next;
-          const up = next === 'up';
-          gsap.to(eyesUp, {
-            autoAlpha: up ? 1 : 0,
-            duration: FLICK_SECONDS,
-            ease: 'power2.out',
-            overwrite: true,
-          });
-          gsap.to(eyesForward, {
-            autoAlpha: up ? 0 : 1,
-            duration: FLICK_SECONDS,
-            ease: 'power2.out',
-            overwrite: true,
-          });
-        };
+        /*
+         * The gaze used to live here: a triggered cross-fade between an
+         * `eyes-forward` and an `eyes-up` layer showing through sockets cut out
+         * of the face, running on its own easing rather than on the scroll.
+         *
+         * It is gone with those layers. The eyes are drawn into `face` and
+         * cannot change, so beat 2 has nothing to perform. What that costs is
+         * worth naming: the flick was the piece's argument for why the pause
+         * before the first card exists — he looked up at empty sky, and the
+         * viewer's gaze followed his to the spot the card then arrived in. The
+         * pause is still there and still worth having, but it is a breath now
+         * rather than a cue.
+         */
 
         /* ---- the mechanism: scrubbed --------------------------------- */
 
@@ -149,7 +135,6 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
             scrub: 0.4,
             invalidateOnRefresh: true,
             onToggle: (self) => stage.classList.toggle('is-pinned', self.isActive),
-            onUpdate: (self) => setGaze(self.progress >= BEATS.look / TOTAL ? 'up' : 'forward'),
           },
         });
 
@@ -186,18 +171,13 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
           BEATS.descentStart,
         );
 
-        /* the sky drifts against the descent — the only depth cue in the piece */
-        if (sky) {
-          tl.fromTo(sky, { yPercent: -1.2 }, { yPercent: 1.2, duration: TOTAL }, 0);
-        }
-
         /* the pitch and the scroll cue step aside before anything else moves */
         if (pitch) tl.to(pitch, { autoAlpha: 0, y: -28, duration: 14, ease: 'power1.in' }, 2);
         if (cue) tl.to(cue, { autoAlpha: 0, duration: 6 }, 0);
 
         /*
-         * 3 · beat — nothing between the flick and the first card. It will
-         * feel wrong in isolation and right in sequence. Do not fill it.
+         * 2 · beat — nothing between the lid settling and the first card. It
+         * will feel wrong in isolation and right in sequence. Do not fill it.
          */
 
         /*

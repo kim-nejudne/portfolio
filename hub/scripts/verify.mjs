@@ -521,15 +521,18 @@ async function main() {
         : `expected a 2D matrix, got ${a.length} and ${b.length} components`,
     );
 
+    /*
+     * The "and looking up" half of this check is gone with the eye layers —
+     * the eyes are drawn into `face` now and cannot change. What is left is the
+     * half that still has a claim behind it: under reduced motion the head must
+     * render *already open*, not closed and waiting for a scroll that will
+     * never drive anything.
+     */
     check(
-      'reduced motion shows the head already open and looking up',
+      'reduced motion shows the head already open',
       await ev(`(() => {
-        const up = document.querySelector('[data-layer="eyes-up"]');
-        const fwd = document.querySelector('[data-layer="eyes-forward"]');
         const lid = getComputedStyle(document.querySelector('.lid-hinge')).transform;
-        return getComputedStyle(up).opacity === '1'
-            && getComputedStyle(fwd).opacity === '0'
-            && lid !== 'none' && lid !== 'matrix(1, 0, 0, 1, 0, 0)';
+        return lid !== 'none' && lid !== 'matrix(1, 0, 0, 1, 0, 0)';
       })()`),
     );
     check(

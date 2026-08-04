@@ -33,12 +33,16 @@
 /*
  * THE ONE COLOUR RULE
  *
- * The hub is paper and ink. The only colour on the page is the sky inside his
- * head and the five project crops — both of which arrive as images, never as
- * a token. There is no accent, no gradient, no tinted state. That single
- * discipline is what keeps a statement hub from competing with five loud
- * spokes, and it makes the reveal land: colour appears at the exact moment the
- * head opens.
+ * The hub is paper and ink. The only colour on the page is **the five project
+ * crops**, which arrive as images and never as a token. There is no accent, no
+ * gradient, no tinted state. That single discipline is what keeps a statement
+ * hub from competing with five loud spokes.
+ *
+ * It used to be the crops *and the sky inside his head*, and the reveal was
+ * built on it: colour appeared at the exact moment the head opened. The sky was
+ * one of five placeholder layers deleted rather than drawn, so the head now
+ * opens onto his drawn scalp and the first colour on the page is the first
+ * card. The rule got stricter; the beat it paid for is gone.
  *
  * If you find yourself wanting a hex value here that is not paper, ink or a
  * mix of the two, the design has gone wrong somewhere else.
@@ -169,18 +173,6 @@ body {
   user-select: none;
 }
 
-/* Placed against the artboard in canvas percentages — see EYE_BOX. */
-.layer-eye {
-  inset: auto;
-}
-
-/* Until the timeline says otherwise the gaze meets yours. Under reduced
-   motion this is flipped below, so the static page shows him already looking
-   up at the work. */
-.layer[data-layer='eyes-up'] {
-  opacity: 0;
-}
-
 /*
  * The hinge. One element, one rotation, and `transformOrigin` set from
  * `HINGE` in `head.ts` — the bottom-right corner of Kim's tear.
@@ -197,12 +189,6 @@ body {
 .lid-hinge {
   position: absolute;
   inset: 0;
-}
-
-.sky-clip {
-  position: absolute;
-  inset: 0;
-  display: block;
 }
 
 .cavity-point {
@@ -509,7 +495,7 @@ body {
 
 /*
  * Promotion is not free: each composited layer is a texture the GPU has to
- * hold, and the head is eight of them. They are promoted when the section pins
+ * hold, and the head is three of them. They are promoted when the section pins
  * and demoted the moment it does not, so scrolling the rest of the page costs
  * nothing. The cards are five more textures, but only one is ever visible, so
  * the four hidden ones cost nothing to hold.
@@ -523,7 +509,6 @@ body {
  * compositor either way.
  */
 .stage.is-pinned .head,
-.stage.is-pinned .layer[data-layer='sky'],
 .stage.is-pinned .card {
   will-change: transform, opacity;
 }
@@ -539,7 +524,7 @@ body {
  * it. The timeline is never built under this query (see gsapSetup.ts), so
  * there is nothing here to fight and nothing to remember to guard.
  *
- * The head renders already open, eyes already up, sky visible. The showcase
+ * The head renders already open. The showcase
  * never appears at all — it is a performance, and `Index` below it is the work
  * — which is why this block is mostly about turning the stage back into
  * ordinary flow. Every word readable, nothing moves. The page still says what
@@ -604,13 +589,6 @@ body {
    */
   .lid-hinge {
     transform: rotate(var(--lid-angle));
-  }
-
-  .layer[data-layer='eyes-up'] {
-    opacity: 1;
-  }
-  .layer[data-layer='eyes-forward'] {
-    opacity: 0;
   }
 
   .cue {
