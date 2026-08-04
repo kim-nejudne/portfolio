@@ -129,7 +129,7 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * card in front of the colour it came out of is the arrangement working — so it
  * measures the 0.237 and reports the slack rather than binding on it.
  */
-export const HEAD_OPEN_RISE = 0.400;
+export const HEAD_OPEN_RISE = 0.427;
 
 export type LayerName = 'sky' | 'face' | 'neck' | 'lid';
 

@@ -124,7 +124,7 @@ What did move, and what it cost:
 |---|---|---|
 | `CUT_Y` | 560 | 692 — the tear is at the brow, so the whole cranium hinges away |
 | `HINGE` | 82.889%, 30.833% | 82.222%, 42.833% |
-| `HEAD_OPEN_RISE` | 0.52 | 0.400, and now bounded by the **sky** rather than the swung lid — barely, at 0.387 |
+| `HEAD_OPEN_RISE` | 0.52 | 0.427, and now bounded by the **sky** rather than the swung lid, at 0.387 |
 | head paints in front of cards | proven by natural overlap | overlap manufactured — see below |
 
 `LID_OFFSET` carries a nudge on x on top of the measured value — Kim's, by eye,
@@ -406,7 +406,7 @@ tear**.
 
 That derived answer is the *baseline*, not the shipped shape. `SKY_RADIUS_SCALE`
 and `SKY_CENTRE_NUDGE_X` scale and shift it, and both are Kim's by eye — the dome
-currently ships at **0.6× and 40 canvas units right**, so it covers 62% of the
+currently ships at **0.7× and 70 canvas units right**, so it covers 72% of the
 tear and paper shows inside his head at both ends of the cut. Which is a
 legitimate thing to want: a window of sky rather than the whole inside of a
 skull. It is also, pixel for pixel, the defect above. So the composer holds two
@@ -420,8 +420,19 @@ different lines:
   60-row band names 264.
 - **Leaving the head is an error with no opt-out.** There is no version of this
   design where a crescent of colour beside his ear is wanted, and the piece has
-  shipped that once already. Nudging the circle 200 units right instead of 40
+  shipped that once already. Nudging the circle 200 units right instead of 70
   reports 37,273 stray pixels and refuses to write.
+
+The two knobs are **in direct tension, because a skull is not a circle.** Moving
+the dome right runs it into the right side of his cranium, which slopes in above
+the tear, so every step right costs size. Measured against this cut:
+
+| `SKY_RADIUS_SCALE` | 0.60 | 0.70 | 0.80 | 0.90 |
+|---|---|---|---|---|
+| **max `SKY_CENTRE_NUDGE_X`** | 115 | 70 | 30 | 0 |
+
+At the shipped 0.70 the rightward headroom is spent exactly: 70 passes, 75 does
+not. Further right has to be paid for with a smaller circle.
 
 `sky-fill.png` is the one to reach for. No transparency, no alignment, no size
 to hit — and it is the shape of asset an image model can actually produce,

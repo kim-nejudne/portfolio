@@ -153,8 +153,8 @@ SKY_FILL = "sky-fill.png"
 # defect that went unnoticed for three commits when it happened by accident, so
 # the composer prints the uncovered fraction on every run and refuses only when
 # nobody asked for it. Coverage is reported; leaving the head is still an error.
-SKY_RADIUS_SCALE = 0.60       # 40% smaller than the circle that fills the tear
-SKY_CENTRE_NUDGE_X = 40       # canvas units right of the tear's midpoint
+SKY_RADIUS_SCALE = 0.70       # of the circle that would exactly fill the tear
+SKY_CENTRE_NUDGE_X = 70       # canvas units right of the tear's midpoint
 
 # The fill in `art/` is a riso-style sky from an image model, with one manual
 # step that has to be repeated if it is ever regenerated: **crop the border
