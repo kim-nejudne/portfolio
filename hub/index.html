@@ -11,9 +11,17 @@
     <link rel="canonical" href="https://kimnejudne.dev/" />
     <meta name="theme-color" content="#f7f4ec" />
 
-    <!-- The closed head is the first paint. Its back plate and face carry it;
-         everything else can arrive a frame later. -->
-    <link rel="preload" as="image" href="/head/head-back.avif" type="image/avif" />
+    <!-- The closed head is the first paint, and the closed head is exactly these
+         two: `face` below the tear and `lid` above it. `sky` is deliberately not
+         here — it is behind them at opacity 0 until the head opens, so preloading
+         it would fetch 80KB nobody can see on the critical path.
+
+         This listed `head-back.avif` until the deploy, a layer deleted weeks
+         earlier along with five others. It was a 404 on every page load, first
+         in the list, spending a connection on the critical path to fetch
+         nothing. Nothing noticed: 35 browser assertions pass either way, a
+         failed preload is silent by design, and the page it holds up renders
+         correctly regardless. -->
     <link rel="preload" as="image" href="/head/face.avif" type="image/avif" />
     <link rel="preload" as="image" href="/head/lid.avif" type="image/avif" />
 

@@ -139,6 +139,48 @@ async function main() {
       await ev(`[...document.querySelectorAll('.layer')].every(i => i.getAttribute('alt') === '')`),
     );
 
+    /*
+     * Every preload resolves.
+     *
+     * A `<link rel=preload>` that 404s is silent in every direction that
+     * matters: the console warns and nothing else changes, the page renders
+     * correctly, and no assertion about the rendered result can see it. This
+     * file shipped `head-back.avif` in that list for weeks after the layer was
+     * deleted — first in the list, so it spent a connection on the critical path
+     * fetching nothing, on the one page whose whole job is to load fast.
+     *
+     * Fetched rather than inspected, because the failure is entirely about
+     * whether the bytes are there.
+     *
+     * **A 200 is not enough, and the first version of this check was decoration
+     * because of it.** `vite preview` answers an unknown path with `index.html`
+     * and status 200, so pointing a preload at a deleted layer sabotaged
+     * nothing — the check passed on exactly the bug it was written for. nginx
+     * is configured `try_files $uri =404` and would have 404'd, but a check that
+     * only works against production is not a check. So the content type has to
+     * agree with what was asked for: a preload declaring `as="image"` that comes
+     * back as HTML is the fallback answering, whatever the status says.
+     */
+    const preloads = JSON.parse(await ev(`(async () => {
+      const links = [...document.querySelectorAll('link[rel="preload"]')];
+      const bad = [];
+      for (const l of links) {
+        const r = await fetch(l.href, { method: 'GET' }).catch(() => null);
+        if (!r || !r.ok) { bad.push(l.getAttribute('href') + ' -> ' + (r ? r.status : 'failed')); continue; }
+        const got = r.headers.get('content-type') || '';
+        const want = l.getAttribute('as');
+        if (want && !got.startsWith(want + '/')) {
+          bad.push(l.getAttribute('href') + ' -> ' + got + ', wanted ' + want);
+        }
+      }
+      return JSON.stringify({ n: links.length, bad });
+    })()`));
+    check(
+      'every preloaded asset actually exists',
+      preloads.n > 0 && preloads.bad.length === 0,
+      preloads.bad.length ? preloads.bad.join(', ') : `${preloads.n} preloads, all 200`,
+    );
+
     const links = await ev(
       `JSON.stringify([...document.querySelectorAll('.index-list > li > a.index-link')]
          .map(a => ({ name: a.textContent.replace(/\\s+/g,' ').trim().slice(0, 24), href: a.getAttribute('href') })))`,
