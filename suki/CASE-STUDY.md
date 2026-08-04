@@ -508,8 +508,6 @@ Stated rather than quietly omitted:
   matter more here than on any other spoke, because "works one-handed on a
   cheap Android in the sun" is this spoke's central claim, and a headless
   measurement at 360px is not the same as a thumb.
-- **Redeploying the cart page.** The Till change above landed after the site
-  went live, and `suki.kimnejudne.dev` is still serving the tray build.
 - **A stock cap on the cart.** Nothing stops a sale of eight from an item with
   three left; the stock overlay clamps at zero afterwards and the count is
   quietly wrong. Pre-dates the cart page and was left alone by it, because the
