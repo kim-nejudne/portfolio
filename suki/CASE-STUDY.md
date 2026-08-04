@@ -334,6 +334,58 @@ The PIN being visible is correct — this is a walkable demo — but it has to r
 as a deliberate affordance for a shopkeeper, not a note to whoever is marking
 the work. It now reads *"Demo shop — the PIN is 1234"*.
 
+### The one the audit missed, found by using it
+
+Everything above was found by measuring. This one was found by selling.
+
+The sale in progress used to unroll as a fixed tray over the Till, and the
+shelf behind it was cleared by `paddingBottom: 220`. Those two numbers were
+never checked against each other, and they cannot agree: the tray is a list
+capped at `32dvh`, plus a total block, plus two 56px buttons. On a 640px phone
+that is comfortably past 300px, so the bottom row of the shelf sat under the
+tray — and the more you had bought, the more of the shop you could not reach.
+
+The failure mode is worth naming, because it is the same one as
+`prefers-reduced-motion` being *declared* rather than enforced: **a constant
+standing in for a measurement.** 220 was a plausible number someone typed while
+looking at a screen with three items in the tray. Nothing would ever tell it it
+was wrong.
+
+The fix is a **cart page**. The lines moved off the Till entirely; what stays is
+one row of known height — the running total, and the way in. The Till clears it
+with `calc(var(--sale-bar-height) + var(--space-4))`, the same token that sets
+the bar, so the two cannot drift. On the cart page the action block is `sticky`
+rather than `fixed`, which is the structural reason the bug cannot recur there:
+a sticky element occupies flow, so a list of any length ends above it.
+
+Three things fell out of the move that were not the point of it:
+
+- **The sale outlived its screen.** Once the lines were on their own route,
+  component state could not hold them, so the sale lifted to a provider above
+  both screens — and once it was in a provider, persisting the draft to
+  IndexedDB was fifteen lines. That matters on the target device: the phone has
+  the shop's Facebook page open in another tab, and backgrounding a PWA on a
+  cheap Android is enough to have the tab evicted. Losing a *recorded* sale was
+  already impossible; losing eight items you had just walked the shelf for was
+  not, and nothing was protecting it. The draft write is deliberately
+  fire-and-forget, unlike every write in `sales.ts` — a draft is not a promise.
+- **`void recordCashSale(...)`.** The tray fired the commit and dropped the
+  promise, resetting the UI while the IndexedDB write was still in flight. The
+  comment at the top of `sales.ts` describes closing exactly that window; its
+  only caller had reopened it. The cart page awaits.
+- **Clear moved away from Bayad.** In the tray they shared a screen edge, a
+  thumb's width apart. Throwing away a full sale and recording one should not be
+  neighbours.
+
+Verified in pixels rather than by eye, at 360×640 with touch emulation, over
+CDP: the last shelf cell clears the bar by 32px and its bottom-left corner
+hit-tests to the cell rather than to the bar; the cart's last line clears the
+sticky block by 0px and no more; the draft survives a reload; Bayad lands back
+on the Till with the total reported, `cash-sale` on disk and the draft emptied.
+Nineteen assertions, and the two that exist for the original bug were confirmed
+to fail — one by restoring the old padding, one by turning the sticky block back
+into a fixed one.
+
 ---
 
 ## 8. Designed for a droplet, not a platform
@@ -456,9 +508,16 @@ Stated rather than quietly omitted:
   matter more here than on any other spoke, because "works one-handed on a
   cheap Android in the sun" is this spoke's central claim, and a headless
   measurement at 360px is not the same as a thumb.
-- **The live deploy itself**, which needs an A record added by hand at
-  Namecheap before certbot can issue. Every artifact is built and exercised;
-  the DNS is a manual step.
+- **Redeploying the cart page.** The Till change above landed after the site
+  went live, and `suki.kimnejudne.dev` is still serving the tray build.
+- **A stock cap on the cart.** Nothing stops a sale of eight from an item with
+  three left; the stock overlay clamps at zero afterwards and the count is
+  quietly wrong. Pre-dates the cart page and was left alone by it, because the
+  fix is a decision about what the till should do at the boundary — refuse,
+  warn, or let her sell what she can see on the shelf — and that is the
+  shopkeeper's answer, not mine.
+- **The sync indicator overflows the tab bar** at 360px: `SYNCED` in Martian
+  Mono is wider than a fifth of the screen and clips at the right edge.
 
 ---
 

@@ -1,102 +1,51 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
 import { listItems } from '../lib/api/items';
-import { listCustomersWithBalance } from '../lib/api/customers';
-import { collectQueueEntries } from '../lib/api/ledger';
-import { recordCashSale, recordCreditSale } from '../lib/api/sales';
-import { getSessionSync } from '../lib/api/session';
 import { formatPeso } from '@suki/domain';
-import type { Item, SaleItem } from '@suki/domain';
+import type { Item } from '@suki/domain';
 import { MonogramChip } from '../components/MonogramChip';
-import { BigButton } from '../components/BigButton';
-import { CustomerPicker } from '../components/CustomerPicker';
-import { useNavigate } from 'react-router-dom';
-
-interface LineState {
-  itemId: string;
-  name: string;
-  qty: number;
-  unitPrice: number;
-}
+import { SaleBar } from '../components/SaleBar';
+import { useSale } from '../lib/sale';
 
 export function TillPage() {
   const { data: items, loaded } = useAsync(() => listItems(), []);
   const [query, setQuery] = useState('');
-  const [lines, setLines] = useState<LineState[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const sale = useSale();
+  const location = useLocation();
   const navigate = useNavigate();
+
+  // The cart page leaves by navigating here, so this is the only screen that
+  // can tell the shopkeeper the sale landed. Credit sales report themselves —
+  // they land on the customer's page with the new balance on it — so only cash
+  // needs saying.
+  const [receipt, setReceipt] = useState<number | null>(
+    () => (location.state as { receipt?: number } | null)?.receipt ?? null,
+  );
+
+  // Consume it. Without this the line comes back on every reload, because
+  // history state outlives the render that read it.
+  useEffect(() => {
+    if ((location.state as { receipt?: number } | null)?.receipt != null) {
+      navigate('.', { replace: true, state: null });
+    }
+  }, [location, navigate]);
 
   const inStock = (items ?? []).filter((i) => i.stock > 0);
   const filtered = query.trim()
     ? inStock.filter((i) => i.name.toLowerCase().includes(query.trim().toLowerCase()))
     : inStock;
 
-  const total = useMemo(() => lines.reduce((s, l) => s + l.qty * l.unitPrice, 0), [lines]);
-
   function addOne(item: Item) {
-    setLines((prev) => {
-      const existing = prev.find((l) => l.itemId === item.id);
-      if (existing) {
-        return prev.map((l) => (l.itemId === item.id ? { ...l, qty: l.qty + 1 } : l));
-      }
-      return [...prev, { itemId: item.id, name: item.name, qty: 1, unitPrice: item.sellPrice }];
-    });
+    // The receipt is about the sale that just finished. Starting the next one
+    // is what makes it stale, so that is what dismisses it — no timer, and
+    // nothing that disappears while it is being read.
+    setReceipt(null);
+    sale.add(item);
     setFlash(item.id);
     window.setTimeout(() => setFlash(null), 200);
   }
-
-  function incrementByLine(itemId: string) {
-    setLines((prev) =>
-      prev.map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + 1 } : l)),
-    );
-    setFlash(itemId);
-    window.setTimeout(() => setFlash(null), 200);
-  }
-
-  function removeOne(itemId: string) {
-    setLines((prev) =>
-      prev
-        .map((l) => (l.itemId === itemId ? { ...l, qty: l.qty - 1 } : l))
-        .filter((l) => l.qty > 0),
-    );
-  }
-
-  function reset() {
-    setLines([]);
-    setQuery('');
-  }
-
-  function completeCash() {
-    if (lines.length === 0) return;
-    const items: SaleItem[] = lines.map((l) => ({
-      itemId: l.itemId,
-      name: l.name,
-      qty: l.qty,
-      unitPrice: l.unitPrice,
-      lineTotal: l.qty * l.unitPrice,
-    }));
-    void recordCashSale({ items, total });
-    reset();
-  }
-
-  function completeCredit(customerId: string) {
-    if (lines.length === 0) return;
-    const items: SaleItem[] = lines.map((l) => ({
-      itemId: l.itemId,
-      name: l.name,
-      qty: l.qty,
-      unitPrice: l.unitPrice,
-      lineTotal: l.qty * l.unitPrice,
-    }));
-    void recordCreditSale({ items, total, customerId });
-    setPickerOpen(false);
-    reset();
-    navigate(`/lista/${customerId}`);
-  }
-
-  const { data: customers } = useAsync(() => listCustomersWithBalance(collectQueueEntries()), []);
-  const today = getSessionSync().today;
 
   return (
     <>
@@ -119,7 +68,27 @@ export function TillPage() {
         />
       </div>
 
-      <div className="px-4 py-3" style={{ paddingBottom: lines.length > 0 ? 220 : 24 }}>
+      {receipt !== null && (
+        <p
+          className="rule px-4 py-2 mono text-[13px] anim-fade-in"
+          role="status"
+          data-testid="till-receipt"
+        >
+          Sold · {formatPeso(receipt)} · cash in the tin
+        </p>
+      )}
+
+      <div
+        className="px-4 py-3"
+        style={{
+          // Exact, not estimated. The sale bar is one row of a known height,
+          // declared once in `index.css` and cleared here by the same token —
+          // which is the difference between this and the 220px that used to be
+          // guessed against a tray that could grow to 32dvh plus its chrome.
+          paddingBottom:
+            sale.lines.length > 0 ? 'calc(var(--sale-bar-height) + var(--space-4))' : 'var(--space-6)',
+        }}
+      >
         {!loaded ? (
           <p className="text-muted text-[14px]">Reading the shelf…</p>
         ) : filtered.length === 0 ? (
@@ -166,82 +135,7 @@ export function TillPage() {
         )}
       </div>
 
-      {lines.length > 0 && (
-        <SaleTray
-          lines={lines}
-          total={total}
-          onIncrement={incrementByLine}
-          onDecrement={removeOne}
-          onCash={completeCash}
-          onCredit={() => setPickerOpen(true)}
-          onClear={reset}
-        />
-      )}
-
-      {pickerOpen && customers && (
-        <CustomerPicker
-          today={today}
-          customers={customers}
-          onPick={(id) => completeCredit(id)}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
+      {sale.lines.length > 0 && <SaleBar count={sale.count} total={sale.total} />}
     </>
-  );
-}
-
-interface TrayProps {
-  lines: LineState[];
-  total: number;
-  onIncrement: (itemId: string) => void;
-  onDecrement: (itemId: string) => void;
-  onCash: () => void;
-  onCredit: () => void;
-  onClear: () => void;
-}
-
-function SaleTray({ lines, total, onIncrement, onDecrement, onCash, onCredit, onClear }: TrayProps) {
-  return (
-    <aside
-      aria-label="Current sale"
-      className="fixed left-0 right-0 anim-slide-in"
-      style={{
-        bottom: 'var(--bottom-bar-height)',
-        background: 'var(--color-paper)',
-        borderTop: '1px solid var(--color-rule)',
-      }}
-    >
-      <div style={{ maxHeight: '32dvh', overflowY: 'auto' }}>
-        <ul>
-          {lines.map((l) => (
-            <li key={l.itemId} className="rule px-4 py-2 flex items-center gap-3">
-              <span className="flex-1 truncate text-[14px]">{l.name}</span>
-              <div className="flex items-center gap-1">
-                <button type="button" aria-label={`Remove one ${l.name}`}
-                  onClick={() => onDecrement(l.itemId)}
-                  className="mono text-[18px]" style={{ minWidth: 'var(--tap-min)', minHeight: 'var(--tap-min)', border: '1px solid var(--color-rule)', borderRadius: 'var(--radius-tap)' }}>−</button>
-                <span className="mono text-[15px] w-8 text-center">{l.qty}</span>
-                <button type="button" aria-label={`Add one more ${l.name}`}
-                  onClick={() => onIncrement(l.itemId)}
-                  className="mono text-[18px]" style={{ minWidth: 'var(--tap-min)', minHeight: 'var(--tap-min)', border: '1px solid var(--color-rule)', borderRadius: 'var(--radius-tap)' }}>+</button>
-              </div>
-              <span className="amount text-[15px] w-16">{formatPeso(l.qty * l.unitPrice)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="px-4 py-3 flex items-center justify-between rule">
-        <button type="button" onClick={onClear} className="mono text-[12px] uppercase text-muted"
-          style={{ minHeight: 'var(--tap-min)' }}>Clear</button>
-        <div className="text-right">
-          <p className="mono uppercase text-[11px] text-muted">Total</p>
-          <p className="amount text-[28px]" data-testid="till-total">{formatPeso(total)}</p>
-        </div>
-      </div>
-      <div className="px-4 pt-1 pb-3 flex gap-2">
-        <BigButton variant="outline" onClick={onCredit} data-testid="till-lista" style={{ flex: 1 }}>Lista</BigButton>
-        <BigButton variant="ink" onClick={onCash} data-testid="till-bayad" style={{ flex: 1 }}>Bayad</BigButton>
-      </div>
-    </aside>
   );
 }

@@ -11,7 +11,10 @@
  * - `operations` — the append-only log of everything the shopkeeper did. Rows
  *   are only ever added, or have their `status` moved from pending to synced.
  *   Never edited, never deleted.
- * - `meta` — the sync cursor and this device's id. One row each.
+ * - `meta` — the sync cursor, this device's id, and the draft sale. One row
+ *   each. The draft is the only one of the three that is disposable: it is a
+ *   sale that has not been recorded yet, kept so that backgrounding the app
+ *   mid-sale does not mean walking the shelf again. See `lib/sale.tsx`.
  *
  * The base catalogue (items, customers, seeded ledger) stays in the fixture
  * modules. That is deliberate for a demo shop: the interesting durability
@@ -21,7 +24,7 @@ import Dexie, { type Table } from 'dexie';
 import type { Operation } from '@suki/domain';
 
 export interface MetaRow {
-  key: 'cursor' | 'clientId';
+  key: 'cursor' | 'clientId' | 'draft';
   value: string;
 }
 

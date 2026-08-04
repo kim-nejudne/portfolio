@@ -33,6 +33,9 @@
 
   /* Chrome */
   --bottom-bar-height: 68px;
+  /* One row: the running total and the way into the sale. Declared here so the
+     Till can clear it exactly rather than pad against a guess. */
+  --sale-bar-height: 64px;
   --tap-min: 48px;
   --rule-width: 1px;
   --radius-tap: 4px;
@@ -91,6 +94,14 @@ input, textarea, select {
 :focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
+}
+
+/* The sale bar is the one surface printed paper-on-ink, so the global ink
+   focus ring would be invisible on it. Inverted and inset, since the bar runs
+   to both screen edges and an outset ring would be clipped. */
+.sale-bar:focus-visible {
+  outline-color: var(--color-paper);
+  outline-offset: -4px;
 }
 
 /* Selection — quiet */
