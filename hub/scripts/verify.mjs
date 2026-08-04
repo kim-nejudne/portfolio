@@ -299,6 +299,194 @@ async function main() {
       );
     }
 
+    /*
+     * The head is in front of the cards, and both halves of that need proving
+     * in pixels because both halves can fail silently.
+     *
+     * A z-index is trivially readable from the computed styles and says almost
+     * nothing — stacking contexts, `will-change` and transforms all rearrange
+     * what it means, and this project has already shipped one bug where a
+     * `will-change` quietly changed what a rendering property did. So neither
+     * of these looks at CSS. They photograph the frame twice, once with the
+     * showcase hidden, and ask what the *cards* actually contributed where.
+     *
+     *   below the crown — nothing, or the card is printed on his face
+     *   above the crown — something, or the drawing has swallowed the card and
+     *                     "the next card is already visible" is a lie
+     *
+     * Run at whichever queue frame has the most at stake, **found rather than
+     * chosen**. A hand-picked scroll position has drifted three times in a
+     * single afternoon of re-timing, and the failure mode is silent: the
+     * constant still names a legal frame, the check still passes, and it is no
+     * longer looking at the pose it was written for. So probe the stretch where
+     * a card is waiting in the opening and keep the frame where the card and
+     * the drawing actually fight over the most pixels.
+     */
+    const probeFrames = [0.06, 0.1, 0.14, 0.22, 0.26, 0.3];
+    const readQueued = async () => JSON.parse(await ev(`(() => {
+      const q = [...document.querySelectorAll('.card')].filter(c => {
+        const cs = getComputedStyle(c);
+        if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.5) return false;
+        const m = new DOMMatrixReadOnly(cs.transform);
+        return !(Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24);
+      });
+      if (q.length !== 1) return 'null';
+      const r = q[0].getBoundingClientRect();
+      const h = document.querySelector('.head').getBoundingClientRect();
+      const left = Math.max(0, Math.round(r.left));
+      return JSON.stringify({
+        left, width: Math.min(window.innerWidth - left, Math.round(r.width)),
+        top: Math.round(r.top), bottom: Math.round(r.bottom), headTop: Math.round(h.top),
+      });
+    })()`));
+    const shot = async (file) => {
+      const s = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
+      writeFileSync(file, Buffer.from(s.data, 'base64'));
+    };
+    const hide = (sel, on) =>
+      ev(`document.querySelector('${sel}').style.visibility = '${on ? 'hidden' : ''}'`);
+
+    let best = null;
+    for (const frameAt of probeFrames) {
+      await ev(`window.scrollTo(0, ${Math.round(frameAt * pin)})`);
+      await sleep(700);
+      const queued = await readQueued();
+      if (!queued) continue;
+
+      /* Four frames: both, head alone, cards alone, neither. */
+      await shot('/tmp/hub-z-all.png');
+      await hide('.showcase', true);
+      await sleep(150);
+      await shot('/tmp/hub-z-head.png');
+      await hide('.head', true);
+      await sleep(150);
+      await shot('/tmp/hub-z-bare.png');
+      await hide('.showcase', false);
+      await sleep(150);
+      await shot('/tmp/hub-z-cards.png');
+      await hide('.head', false);
+
+      /*
+       * Judge the **contended pixels** — the ones where the head and a card
+       * would both paint — and ask which of them the real frame agrees with.
+       *
+       * Two earlier versions of this measured the wrong thing, and the second
+       * failure is the instructive one. Taking the head's topmost row as a
+       * horizon and calling everything below it "head" ignored that his tear is
+       * a hand-drawn wave: most of that band is bare paper the card may
+       * perfectly well paint on, so it failed a correct page. Replacing the
+       * horizon with a real silhouette fixed that but still measured *how much
+       * ink changed*, and putting the head back behind the cards moved the
+       * number only from 0.00% to 0.25% — under the threshold, passing the
+       * exact regression it existed to catch. The reason is that a card's body
+       * and his paper are both pale, so an occlusion that is glaring to the eye
+       * is nearly invisible as a difference in ink.
+       *
+       * Comparing against both candidate frames removes the judgement call.
+       * Where the two contend, the composite matches one of them almost
+       * exactly and the other hardly at all, and which is which *is* the
+       * stacking order. No threshold has to be guessed.
+       */
+      const binaryDiff = (a, b, out, pct) =>
+        execFileSync('magick', [a, b, '-compose', 'difference', '-composite',
+          '-colorspace', 'Gray', '-threshold', pct, out]);
+      binaryDiff('/tmp/hub-z-head.png', '/tmp/hub-z-bare.png', '/tmp/hub-z-m1.png', '2%');
+      binaryDiff('/tmp/hub-z-cards.png', '/tmp/hub-z-bare.png', '/tmp/hub-z-m2.png', '2%');
+      /* Contention: both would paint here. */
+      execFileSync('magick', ['/tmp/hub-z-m1.png', '/tmp/hub-z-m2.png',
+        '-compose', 'multiply', '-composite', '/tmp/hub-z-contended.png']);
+
+      const box = `${queued.width}x${queued.bottom - queued.top}+${queued.left}+${queued.top}`;
+      const meanIn = (img) => Number(
+        execFileSync('magick', [img, '-crop', box, '+repage',
+          '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:']).toString().trim(),
+      );
+      const contendedArea = meanIn('/tmp/hub-z-contended.png');
+      /* Mean disagreement with each candidate, over the contended pixels only. */
+      const agreementWith = (frame) => {
+        execFileSync('magick', ['/tmp/hub-z-all.png', frame,
+          '-compose', 'difference', '-composite', '-colorspace', 'Gray',
+          '/tmp/hub-z-d.png']);
+        execFileSync('magick', ['/tmp/hub-z-d.png', '/tmp/hub-z-contended.png',
+          '-compose', 'multiply', '-composite', '/tmp/hub-z-dm.png']);
+        return meanIn('/tmp/hub-z-dm.png') / (contendedArea || 1);
+      };
+      const offHead = agreementWith('/tmp/hub-z-head.png');
+      const offCards = agreementWith('/tmp/hub-z-cards.png');
+
+      /*
+       * In pixels, not as a fraction of the card's box. The box is mostly the
+       * caption, which is transparent between the glyphs, and the card's solid
+       * image body clears his crown entirely — so what actually contends is the
+       * lettering crossing his scalp, and that is under 1% of the box however
+       * unambiguous it looks on screen. A fraction-of-the-box guard called it
+       * "nothing to judge" and refused to judge the very thing it was built for.
+       */
+      const contendedPx = Math.round(contendedArea * queued.width * (queued.bottom - queued.top));
+      const clear = meanIn('/tmp/hub-z-m2.png') - contendedArea;
+      if (!best || contendedPx > best.contendedPx) {
+        best = { frameAt, contendedPx, offHead, offCards, clear };
+      }
+    }
+
+    if (!best) {
+      check('the head paints in front of the cards', false, 'no queued card found at any probe frame');
+    } else {
+      check(
+        'the head paints in front of the cards',
+        best.contendedPx > 150 && best.offHead < best.offCards * 0.25,
+        best.contendedPx <= 150
+          ? `only ${best.contendedPx}px of the card ever falls on him — nothing to judge`
+          : `at ${(best.frameAt * 100).toFixed(0)}% of the pin, over the ${best.contendedPx}px where they ` +
+            `contend the frame is ${best.offHead < best.offCards ? 'the head' : 'the card'}: ` +
+            `off-head ${best.offHead.toFixed(4)} vs off-card ${best.offCards.toFixed(4)}`,
+      );
+      check(
+        'and the queued card is still visible beside it',
+        best.clear > 0.05,
+        `${(best.clear * 100).toFixed(0)}% of its box is card ink clear of him`,
+      );
+
+      /*
+       * And the card on stage is still clickable.
+       *
+       * The head's element is the whole 1200x1600 artboard and most of that box
+       * is transparent, so raising it above the cards hands it a screen-sized
+       * invisible shield over them. It paints nothing there and would swallow
+       * every click. `pointer-events: none` on `.head` is what stops that, and
+       * this is the assertion that would notice if it were ever removed — the
+       * pixels would be identical and the links would simply stop working.
+       *
+       * Needs its own scroll position rather than reusing the probe's. The
+       * probe lands on maximum contention, which turns out to be the *first*
+       * card emerging — and at that point nothing is on stage yet, so the test
+       * had nothing to click and said so. "A queued card implies a settled one"
+       * is true for cards two to five and false for the one the probe picks.
+       */
+      await ev(`window.scrollTo(0, ${Math.round(0.28 * pin)})`);
+      await sleep(900);
+      const hit = JSON.parse(await ev(`(() => {
+        const c = [...document.querySelectorAll('.card')].find(x => {
+          const cs = getComputedStyle(x);
+          if (cs.visibility !== 'visible' || Number(cs.opacity) <= 0.9) return false;
+          const m = new DOMMatrixReadOnly(cs.transform);
+          return Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24;
+        });
+        if (!c) return 'null';
+        const r = c.getBoundingClientRect();
+        const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return JSON.stringify({
+          ok: !!el && c.contains(el),
+          got: el ? (el.getAttribute('class') || el.tagName) : 'nothing',
+        });
+      })()`));
+      check(
+        'the card on stage is still what a click lands on',
+        hit && hit.ok,
+        hit ? `hit test found "${hit.got}"` : 'no settled card to test',
+      );
+    }
+
     let maxSettled = 0;
     let holdsSeen = 0;
     let emptyFrames = 0;

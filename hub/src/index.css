@@ -152,6 +152,18 @@ body {
   height: var(--canvas-h);
   /* No transform here, deliberately: GSAP writes `transform` on this element
      and a CSS translate for centring would be silently overwritten. */
+
+  /*
+   * In front of the cards. See `HEAD_Z` in `head.ts` — this is what makes the
+   * tear an opening rather than a line the cards happen to start on: a card
+   * leaving it passes *behind* his scalp and is cut by the drawing.
+   *
+   * `pointer-events: none` is not optional alongside it. The head is
+   * `aria-hidden` decoration covering part of a real link, and without this it
+   * would quietly eat clicks on the bottom edge of every queued card.
+   */
+  z-index: var(--head-z);
+  pointer-events: none;
 }
 
 /*
@@ -199,7 +211,15 @@ body {
 
 /* ---- the pitch --------------------------------------------------- */
 
+/*
+ * Chrome sits above the scene. The pitch and the scroll cue are page furniture
+ * rather than part of the picture, and the head — which is now in front of the
+ * cards — fills the bottom of the screen at rest, exactly where the cue lives.
+ * Without this the very first thing a visitor is told to do would be printed
+ * behind his chin.
+ */
 .pitch {
+  z-index: var(--chrome-z);
   position: absolute;
   left: 1.25rem;
   right: 1.25rem;
@@ -261,6 +281,7 @@ body {
 }
 
 .cue {
+  z-index: var(--chrome-z);
   position: absolute;
   left: 0;
   right: 0;

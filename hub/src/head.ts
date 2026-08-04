@@ -126,8 +126,31 @@ export type LayerName = 'face' | 'neck' | 'lid';
  */
 export const STACK: readonly LayerName[] = ['face', 'neck', 'lid'];
 
-/** The cards fly above everything. */
+/**
+ * Stacking. Three tiers, and the middle one is the whole paper-craft illusion.
+ *
+ * **The head is in front of the cards.** That is the correction that makes the
+ * opening an opening: a card leaving the tear passes *behind* his scalp, so its
+ * lower edge is cut by the drawing rather than laid over it, and a queued card
+ * reads as something rising out of his head instead of a rectangle parked on his
+ * forehead. The cards were on top for most of this build and it was wrong the
+ * whole time — it only became obvious once one of them sat still long enough to
+ * be looked at.
+ *
+ * It has a cost that has to be paid rather than ignored: the head can now hide a
+ * card. `.head` is therefore `pointer-events: none`, so a link stays clickable
+ * where the drawing covers it, and `scripts/verify.mjs` asserts in pixels both
+ * that the head really does paint over the overlap *and* that a queued card
+ * still contributes visible ink above the crown. One without the other is a
+ * card that is either in front of his face or invisible.
+ *
+ * Chrome — the pitch and the scroll cue — sits above both. They are page
+ * furniture rather than part of the scene, and at rest the head fills the bottom
+ * of the screen where the cue lives.
+ */
 export const CARD_Z = 20;
+export const HEAD_Z = 30;
+export const CHROME_Z = 40;
 
 const base = (name: LayerName) => `/head/${name}`;
 

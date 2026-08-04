@@ -196,12 +196,12 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 30 assertions in a real browser
+npm run verify            # 33 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 30 assertions,
-fourteen of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 33 assertions,
+seventeen of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
@@ -247,6 +247,30 @@ differencing a frame against the same frame with the lid hidden, and fails if
 the flipped lid looks like the closed one — which is what a lost 3D context
 looks like, and it is invisible in the computed styles.
 
+### The head is in front of the cards
+
+That one line is what makes the tear an *opening* rather than a line the cards
+happen to start on. A card leaving it passes behind his scalp and is cut by the
+drawing, so a queued card reads as something rising out of his head instead of a
+rectangle parked on his forehead. The cards were on top for most of this build
+and it was wrong the whole time — it only became visible once one of them sat
+still long enough to be looked at.
+
+Three things had to move with it, and each is a bug someone would otherwise
+reintroduce:
+
+- **`pointer-events: none` on `.head`.** The head's element is the whole
+  1200×1600 artboard and most of that box is transparent. Raising it above the
+  cards hands it a screen-sized invisible shield that paints nothing and
+  swallows every click. Removing this line changes not one pixel and breaks
+  every link.
+- **The pitch and the scroll cue moved above both.** They are page furniture,
+  not part of the picture, and at rest the head fills the bottom of the screen —
+  exactly where the cue lives. Without it the first instruction a visitor gets
+  is printed behind his chin.
+- **The head can now hide a card**, so "in front" and "still visible" are two
+  assertions, not one. Either alone is satisfiable by a broken page.
+
 ### A card's life has four movements, and the middle one is doing nothing
 
 Emerge, queue, fly, hold, leave. The queue — the card sitting in the opening,
@@ -289,6 +313,39 @@ much as its duration, and `power1.out` passes 90 degrees a third of the way
 through the swing rather than halfway. The check walks the scroll, reads the
 rotation off the matrix, and asks what the card is doing wherever 90 actually
 lands.
+
+### Asking which layer won, in pixels
+
+Proving the head is in front took three attempts, and the failures are worth
+more than the answer. A `z-index` is trivially readable from the computed styles
+and says almost nothing — stacking contexts, transforms and `will-change` all
+change what it means, and this project has already shipped one bug where a
+`will-change` silently altered what a rendering property did. So the check works
+from photographs.
+
+1. **A horizon.** Take the head's topmost row in the card's columns, call
+   everything below it "head". His tear is a hand-drawn wave running 300 canvas
+   units side to side, so most of that band is bare paper the card may perfectly
+   well paint on. It failed a correct page.
+2. **A silhouette, measuring how much ink changed.** Correct region, wrong
+   question: putting the head back behind the cards moved the number from 0.00%
+   to 0.25%, under the threshold, *passing the exact regression it existed to
+   catch*. A card's body and his paper are both pale, so an occlusion that is
+   glaring to the eye is nearly invisible as a difference in ink.
+3. **Four frames — both, head alone, cards alone, neither.** Intersect the two
+   silhouettes to get the pixels they genuinely contend for, then ask which
+   candidate the real frame agrees with. Where they contend the composite
+   matches one almost exactly and the other hardly at all, and which is which
+   *is* the stacking order. Off-head 0.0032 against off-card 0.0883 with the
+   head in front; the two swap under sabotage. No threshold to guess.
+
+The frame it judges is **found, not chosen**. A hand-picked scroll position
+drifted three times in one afternoon of re-timing, and it fails silently — the
+constant still names a legal frame and the check still passes, it is just no
+longer looking at the pose it was written for. The probe walks the queue window
+and keeps the frame with the most contended pixels. It picks 6% of the pin: the
+first card emerging into the tear, not any of the positions I would have chosen
+by hand.
 
 The clearance check had to be corrected twice in the same pass, and both were
 the check being wrong rather than the page. It compared the head's topmost pixel
