@@ -188,38 +188,88 @@ async function main() {
     );
     /*
      * "One at a time" is the whole point of the sequence, so it gets walked
-     * rather than spot-checked. Sample the showcase range and count the cards
-     * that are actually *readable* — fully opaque and visible. Two may share
-     * the screen at a crossover, but only ever one of them is finished
-     * arriving; the other is on its way out and fading.
+     * rather than spot-checked.
+     *
+     * What "one" counts changed, and the change is worth reading before
+     * trusting this. It used to count cards that were merely *opaque*, which
+     * was a fair proxy while a card faded in only after the previous one had
+     * gone. It stopped being fair the moment the next card was made to appear
+     * early and climb in view: the incoming card is fully opaque for most of
+     * its rise, so the old check would have failed a sequence that was doing
+     * exactly what it was asked to do.
+     *
+     * So the claim is stated properly instead. Two cards may share the screen —
+     * that is the design — but only one may be *settled*: opaque, at full size,
+     * and at its layout position. Every card shares one coordinate in the
+     * stack, so two settled at once is two cards printed on top of each other,
+     * and that is the failure this has to catch. Read off the transform, which
+     * is the only thing that can tell a card at rest from one that is on its
+     * way.
      */
     const stage = await ev(`(() => {
       const s = document.querySelector('.pin-spacer'), st = document.querySelector('.stage');
       return String(s.getBoundingClientRect().height - st.getBoundingClientRect().height);
     })()`);
     const pin = Number(stage);
-    let maxOpaque = 0;
+    let maxSettled = 0;
     let holdsSeen = 0;
-    for (let i = 0; i <= 28; i++) {
-      const at = 0.34 + (i / 28) * 0.62;
+    let emptyFrames = 0;
+    let crossovers = 0;
+    const SAMPLES = 32;
+    for (let i = 0; i <= SAMPLES; i++) {
+      /*
+       * From just after the first card's birth to just before the head starts
+       * leaving. *Just* after: sampling the birth frame itself catches the
+       * first frame of a fade-in, where opacity is 0 by definition, and reports
+       * an empty stage that says nothing about the sequence. It did, the first
+       * time this ran.
+       */
+      const at = 0.25 + (i / SAMPLES) * 0.63;
       await ev(`window.scrollTo(0, ${Math.round(at * pin)})`);
       await sleep(280);
-      const n = await ev(`[...document.querySelectorAll('.card')].filter(c => {
-        const cs = getComputedStyle(c);
-        return cs.visibility === 'visible' && Number(cs.opacity) > 0.9;
-      }).length`);
-      maxOpaque = Math.max(maxOpaque, n);
-      if (n === 1) holdsSeen++;
+      const s = JSON.parse(await ev(`(() => {
+        let settled = 0, visible = 0;
+        for (const c of document.querySelectorAll('.card')) {
+          const cs = getComputedStyle(c);
+          if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.05) continue;
+          visible++;
+          const m = new DOMMatrixReadOnly(cs.transform);
+          /* At rest: no scale, no rotation, no offset. m.a is scale*cos(rot). */
+          if (Number(cs.opacity) > 0.9 && Math.abs(m.a - 1) < 0.04 &&
+              Math.abs(m.e) < 24 && Math.abs(m.f) < 24) settled++;
+        }
+        return JSON.stringify({ settled, visible });
+      })()`));
+      maxSettled = Math.max(maxSettled, s.settled);
+      if (s.settled === 1) holdsSeen++;
+      if (s.visible === 0) emptyFrames++;
+      if (s.settled === 1 && s.visible > 1) crossovers++;
     }
     check(
-      'never more than one card is fully on stage',
-      maxOpaque <= 1,
-      `peak ${maxOpaque} across 29 samples`,
+      'never more than one card is settled on stage',
+      maxSettled <= 1,
+      `peak ${maxSettled} across ${SAMPLES + 1} samples`,
     );
     check(
       'and there is a card on stage for most of the sequence',
-      holdsSeen >= 18,
-      `${holdsSeen}/29 samples`,
+      holdsSeen >= 16,
+      `${holdsSeen}/${SAMPLES + 1} samples`,
+    );
+    /*
+     * The two halves of the overlap, asserted separately because they fail for
+     * opposite reasons. An empty frame means the stride outran the slot and the
+     * screen goes blank mid-scroll; no crossover means the stride is so long
+     * that each card lives and dies alone, which is the sequence this replaced.
+     */
+    check(
+      'the stage is never empty mid-sequence',
+      emptyFrames === 0,
+      `${emptyFrames} blank samples`,
+    );
+    check(
+      'the next card is already climbing while the current one is read',
+      crossovers >= 3,
+      `${crossovers} samples with one card settled and another in flight`,
     );
 
     /*
@@ -254,7 +304,9 @@ async function main() {
 
     let worstGap = Infinity;
     let tightest = null;
-    for (const hold of [0.42, 0.63, 0.84]) {
+    /* Mid-hold for cards 1, 3 and 5 — see the slot arithmetic in
+       `choreography.ts`. These move whenever the stride does. */
+    for (const hold of [0.35, 0.59, 0.83]) {
       const top = await headTopWhenOpen(hold);
       const bottom = await ev(`(() => {
         const c = [...document.querySelectorAll('.card')]

@@ -176,20 +176,21 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         if (cue) tl.to(cue, { autoAlpha: 0, duration: 6 }, 0);
 
         /*
-         * 2 · beat — nothing between the lid settling and the first card. It
-         * will feel wrong in isolation and right in sequence. Do not fill it.
-         */
-
-        /*
          * 4 · the genie.
          *
-         * One card at a time: born tiny at the mouth of the opening, arced up
-         * into the middle of the sky, held still long enough to be read, then
-         * drifting on up and out while the next is already on its way.
+         * One card *on stage* at a time — which is not the same as one card on
+         * screen, and the difference is the point. Each is born tiny at the
+         * mouth of the opening, arced up into the middle of the sky, held still
+         * long enough to be read, then drifted on up and out. The next one is
+         * born three units before that departure, so it is already out of the
+         * head and climbing while the current card is still being read.
          *
          * All five cards occupy the same position in the layout, stacked, so
          * every one of them travels the same route from the same origin. Only
-         * the arc differs.
+         * the arc differs — and because they share a destination, the overlap
+         * is only safe while `CARD_STRIDE > CARD_HOLD` holds. `choreography.ts`
+         * states that constraint and two others alongside it;
+         * `scripts/verify.mjs` samples the sequence and enforces them.
          */
         cards.forEach((card, i) => {
           const arc = CARD_ARCS[i % CARD_ARCS.length];
@@ -216,9 +217,17 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
            */
           tl.to(card, { x: 0, duration: CARD_RISE, ease: arc.xEase, immediateRender: false }, born);
           tl.to(card, { y: 0, duration: CARD_RISE, ease: arc.yEase, immediateRender: false }, born);
+          /*
+           * Scale is eased `inOut` for the same reason y is: an `out` curve
+           * brings the card to nearly full size in the first third of its
+           * rise, which is exactly the stretch where the *previous* card is
+           * still on stage. A full-size card climbing past a full-size card
+           * reads as a collision. Staying small while it is low is what makes
+           * the overlap read as depth.
+           */
           tl.to(
             card,
-            { scale: 1, rotate: 0, duration: CARD_RISE, ease: 'power2.out', immediateRender: false },
+            { scale: 1, rotate: 0, duration: CARD_RISE, ease: 'power2.inOut', immediateRender: false },
             born,
           );
 
@@ -241,11 +250,18 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
             { y: away, scale: 0.94, rotate: arc.rotate * 0.35, duration: CARD_LEAVE, ease: 'power1.in', immediateRender: false },
             leaves,
           );
-          /* Fading only over the back half, so it is gone before the edge. */
+          /*
+           * Fading over the back three-quarters, so it is gone before the edge
+           * — and, more to the point, so it is visibly receding by the time the
+           * incoming card climbs past it. It used to hold full opacity for
+           * nearly half its exit, which was fine when nothing else was on
+           * screen and became a departing card sitting opaquely on top of an
+           * arriving one the moment the two were made to overlap.
+           */
           tl.to(
             card,
-            { autoAlpha: 0, duration: CARD_LEAVE * 0.55, ease: 'none', immediateRender: false },
-            leaves + CARD_LEAVE * 0.45,
+            { autoAlpha: 0, duration: CARD_LEAVE * 0.75, ease: 'none', immediateRender: false },
+            leaves + CARD_LEAVE * 0.25,
           );
         });
 

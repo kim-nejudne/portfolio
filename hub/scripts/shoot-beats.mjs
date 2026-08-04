@@ -21,19 +21,28 @@ const URL_ARG = process.argv[2] ?? 'http://localhost:4501/';
 const OUT = process.argv[3] ?? '/tmp/hub-beats';
 const PORT = 9333;
 
-/** The beats, as fractions of the pinned scroll. Mirrors BEATS in src. */
+/**
+ * The beats, as fractions of the pinned scroll. Mirrors BEATS in src — the
+ * timeline is `TOTAL` units long and scrubbed across the whole pin, so a beat
+ * at unit *n* is at fraction *n*/100 and these can be read straight off
+ * `choreography.ts` rather than hunted for.
+ *
+ * `2-look` and `3-beat` used to sit between the lid and the first card. The
+ * first went with the eye layers and the second went with the pause it was
+ * named after.
+ */
 const SHOTS = [
   ['0-rest', 0],
-  ['1-lid-open', 0.28],
-  ['2-look', 0.335],
-  ['3-beat', 0.35],
-  ['4-card1-rise', 0.382],
-  ['4-card1-hold', 0.42],
-  ['4-crossover', 0.462],
-  ['4-card2-hold', 0.525],
-  ['4-card3-hold', 0.63],
-  ['4-card4-hold', 0.735],
-  ['4-card5-hold', 0.84],
+  ['1-lid-open', 0.24],
+  ['4-card1-rise', 0.28],
+  ['4-card1-hold', 0.35],
+  /* One settled, the next already climbing — the overlap, which is the whole
+     reason the sequence is timed the way it is. */
+  ['4-crossover', 0.38],
+  ['4-card2-hold', 0.47],
+  ['4-card3-hold', 0.59],
+  ['4-card4-hold', 0.71],
+  ['4-card5-hold', 0.83],
   ['5-end', 1.0],
 ];
 

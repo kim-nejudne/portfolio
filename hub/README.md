@@ -196,22 +196,37 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 23 assertions in a real browser
+npm run verify            # 27 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 23 assertions,
-nine of which have been sabotaged to confirm they fail on the thing they exist
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 27 assertions,
+eleven of which have been sabotaged to confirm they fail on the thing they exist
 to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
 assistive technology while nothing tabbable is buried inside an `aria-hidden`
 subtree, that layer promotion is released when unpinned, and the colour rule.
 
-It also *walks* the showcase rather than spot-checking it: 29 samples across
-the sequence, asserting that no more than one card is ever fully on stage and
-that a card is on stage for most of it. Collapsing `CARD_STRIDE` makes it
-report a peak of five.
+It also *walks* the showcase rather than spot-checking it: 33 samples across the
+sequence, asserting four things about the overlap between one card and the next
+— never two settled at once, a card on stage for most of the sequence, never a
+blank frame, and the next card visibly climbing while the current one is read.
+
+What it counts changed when the cards were made to overlap, and the change is
+the interesting part. It used to count cards that were merely **opaque**, a fair
+proxy while each card faded in only after the previous had gone — and a check
+that would have *failed* the sequence for doing exactly what it was later asked
+to do. It now counts cards that are **settled**: opaque, at full size, and at
+their layout position, read off the transform matrix. Two cards on screen is the
+design; two cards on the same coordinate is the bug.
+
+Sabotaging `CARD_STRIDE` in either direction proves both halves. At 16 — longer
+than `CARD_RISE + CARD_HOLD` — no card ever overlaps the next and the crossover
+check reports zero. At 6, shorter than `CARD_HOLD`, two cards settle on the same
+spot and the peak reads two. A first attempt at 10 passed both, which is how the
+constraint in `choreography.ts` got corrected: `S > CARD_HOLD` is the collision
+line, `S > CARD_HOLD + CARD_LEAVE` is the comfort margin actually taken.
 
 Three checks exist because three things broke in ways nothing else could see.
 One photographs the open head and fails if a card overlaps it, printing the
