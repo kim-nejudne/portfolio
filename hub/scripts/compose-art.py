@@ -110,6 +110,15 @@ CLIPPED_BY = {"sky": "face"}
 #                         about being a shape rather than a drawing.
 SKY_FILL = "sky-fill.png"
 
+# The fill in `art/` is a riso-style sky from an image model, with one manual
+# step that has to be repeated if it is ever regenerated: **crop the border
+# off**. The model printed the sky as a block on a sheet of cream paper, and a
+# cream margin inside the dome reads as a ring, not as paper. `-trim` will not
+# find it — the border has grain, so it is not uniform. What does find it is the
+# hue: the print is cool and the paper is warm, so thresholding blue-minus-red
+# isolates the block exactly. Then inset ~1%, because the block's own edge
+# carries a lighter rim.
+
 # Flat on purpose. A gradient here would start to look like a decision, and the
 # only decision a placeholder is entitled to make is "there is colour behind the
 # cut".
