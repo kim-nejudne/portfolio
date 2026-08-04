@@ -279,12 +279,48 @@ def need(tool: str) -> None:
         sys.exit(f"missing {tool}")
 
 
+def real_layers() -> set:
+    """
+    Layer names that `compose-art.py` owns, read from its SOURCES map.
+
+    This script writes all nine layers, which was harmless while all nine were
+    placeholder. It is not harmless now: a stray `npm run art` would silently
+    overwrite Kim's cut face and lid with grey ellipses, and the only warning
+    would be the page looking wrong afterwards. Real art wins by default; pass
+    `--all` to flatten everything back to placeholder deliberately.
+    """
+    compose = Path(__file__).resolve().parent / "compose-art.py"
+    if not compose.exists():
+        return set()
+    ns: dict = {}
+    for line in compose.read_text().splitlines():
+        # Only the SOURCES literal is needed, and importing the module would
+        # require Pillow for a question that is answerable by reading.
+        stripped = line.strip()
+        if stripped.startswith('"') and '": ("' in stripped:      # a SOURCES entry
+            name = stripped.split('"')[1]
+            filename = stripped.split('": ("')[1].split('"')[0]
+        elif stripped.startswith('SUBSUMED = {'):                  # the one-line SUBSUMED map
+            name = stripped.split('"')[1]
+            filename = stripped.split('"')[3]
+        else:
+            continue
+        if (compose.parent.parent / "art" / filename).exists():
+            ns[name] = True
+    return set(ns)
+
+
 def main() -> None:
     need("rsvg-convert")
     need("avifenc")
     OUT.mkdir(parents=True, exist_ok=True)
 
+    protected = set() if "--all" in sys.argv else real_layers()
+
     for name, draw in LAYERS.items():
+        if name in protected:
+            print(f"{name:16} skipped — real art, see scripts/compose-art.py (--all to override)")
+            continue
         svg_path = OUT / f"{name}.svg"
         png_path = OUT / f"{name}.png"
         avif_path = OUT / f"{name}.avif"

@@ -88,8 +88,15 @@ once in TypeScript and handed to the stylesheet as custom properties from
 is the sky inside his head and the five project crops — both images, never
 tokens. That is what keeps a statement hub from competing with five loud
 spokes, and it is why the reveal lands: colour arrives at the exact moment the
-head opens. `npm run verify` asserts it, by projecting every painted colour
-onto the paper-to-ink line and failing anything that misses.
+head opens.
+
+`npm run verify` projects every **CSS-painted** colour onto the paper-to-ink
+line and fails anything that misses. Note the limit, because it was overstated
+here until the real art arrived: it reads `getComputedStyle`, not pixels. A
+full-colour photograph in a head layer passes it silently, which is exactly what
+happened the day Kim's cut face and lid landed untreated. The check is worth
+having — it is what caught the colophon hairline — but the duotone treatment is
+enforced by nobody. Applying it is a step someone has to remember.
 
 **Scrub the mechanism, trigger the performances.** The lid, the descent and the
 cards are tied 1:1 to the scroll — the viewer is the one opening the head. The
