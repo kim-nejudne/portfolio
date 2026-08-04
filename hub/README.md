@@ -95,12 +95,47 @@ One trap, which has already fired: **a stale `.avif` silently beats a fresh
 `.png`.** `sources()` offers AVIF first, so writing only the PNG shows the
 *previous* cut with no error anywhere. `compose-art.py` always writes both.
 
-Then re-measure. `HINGE`, `LID_ANGLE` and `HEAD_OPEN_RISE` are constants of the
-*drawing*, not of the design, and all three moved when the photograph was
-replaced by the pen cut. Measure `HINGE` off the new lid — the furthest point
-of its silhouette in the +x+y direction — re-tune `LID_ANGLE` by eye and by the
-clearance the suite prints, and let `npm run verify` tell you whether
-`HEAD_OPEN_RISE` is still right.
+Then re-measure. `HINGE`, `CUT_Y` and `HEAD_OPEN_RISE` are constants of the
+*drawing*, not of the design, and every one of them has moved twice — once when
+the photograph was replaced by the pen cut, and again when the pen cut was
+re-torn lower. Measure `HINGE` off the new lid — the furthest point of its
+silhouette in the +x+y direction — set `CUT_Y` to where the tear crosses the
+middle of the canvas, re-tune `LID_ANGLE` by eye and by the clearance the suite
+prints, and let `npm run verify` tell you whether `HEAD_OPEN_RISE` is still
+right.
+
+**The second cut is a worked example, and the cheapest thing about it was the
+alignment.** `head_bottom.png` and `head_top.png` are the same master drawing
+torn at the brow instead of the mid-forehead. Because it is the same master, the
+new lid could be correlated against the old one directly rather than aligned by
+its edge: it matches at `(-12, 0)` in the old lid's coordinates with a mean
+absolute difference of **0.0** across 149,307 pixels — identical pixels, not a
+good fit. Carried through the old registration that gives `LID_OFFSET =
+(376, -467)`, which is exactly what `align-art.py` reports from the tear alone.
+Two independent methods, one answer, and the tool's habitual `SUSPECT` flag
+(~30px RMS, from wispy pen strokes trailing past the tear) shown up for what it
+is. **Crown to chin is 856 source pixels in both cuts**, so the scale never
+changed and the drawing lands on the artboard exactly where it did — which is
+why `LIP_LINE`, `HEAD_FRACTION` and `HEAD_CENTRE_X` did not have to move.
+
+What did move, and what it cost:
+
+| | first cut | second cut |
+|---|---|---|
+| `CUT_Y` | 560 | 692 — the tear is at the brow, so the whole cranium hinges away |
+| `HINGE` | 82.889%, 30.833% | 81.556%, 42.833% |
+| `HEAD_OPEN_RISE` | 0.52 | 0.544, and now bounded by the **sky** rather than the swung lid |
+| head paints in front of cards | proven by natural overlap | overlap manufactured — see below |
+
+Two consequences worth knowing before the third cut. The sky got bigger for
+free, because `compose-art.py` derives the dome's rise from the height of the
+lid; the open head is therefore exactly as tall as the closed head. And the
+cards stopped touching the drawing at all — the opening is now larger than a
+card, so a sweep of the whole pin finds 86 contended pixels at one frame and
+zero everywhere else. That broke the check that the head paints in front of the
+cards, which had depended on the art happening to overlap. It now pushes a card
+onto the drawing for the length of one measurement, so it rests on the
+stylesheet alone and will survive the next re-cut.
 
 **The hinge.** The lid rotates **in the picture plane** about the bottom-right
 corner of the tear: a hinge, the way a flip-top lid swings aside. No
@@ -202,8 +237,11 @@ npm run beats             # photograph every beat, desktop and phone
 ```
 
 `verify.mjs` drives headless Chrome over the DevTools Protocol — 35 assertions,
-twenty of which have been sabotaged to confirm they fail on the thing they exist
-to catch. It checks what a stylesheet cannot demonstrate: that reduced motion
+twenty-one of which have been sabotaged to confirm they fail on the thing they
+exist to catch. One of those twenty-one was on the list and did not deserve to
+be: deleting `pointer-events: none` from `.head` left the click check passing,
+because the card it probes had drifted out from under the head's element box. It
+is on the list honestly now. It checks what a stylesheet cannot demonstrate: that reduced motion
 builds no timeline rather than a quieter one, that the work is reachable
 without the performance running, that the head and showcase are invisible to
 assistive technology while nothing tabbable is buried inside an `aria-hidden`
@@ -248,6 +286,38 @@ differencing a frame against the same frame with the lid hidden, and fails if
 the flipped lid looks like the closed one — which is what a lost 3D context
 looks like, and it is invisible in the computed styles.
 
+### The check that stopped having evidence
+
+The head paints in front of the cards, and that had been proven by finding
+whichever queue frame had the most natural overlap between a card and the
+drawing. The second cut moved the tear to the brow, the opening became bigger
+than a card, and the cards now sit entirely inside it: **a sweep of the whole
+pin at 2% steps finds 86 contended pixels at one frame and zero at every other
+one.** The stacking order stopped being observable and the check went from
+proving something to reporting "nothing to judge" — which is a failure, and it
+reported one.
+
+No amount of hunting would have fixed that, because the evidence is genuinely
+gone. So the check now *pushes a settled card onto the drawing* — far enough
+that a third of its height is past the topmost ink in its own columns, measured
+rather than assumed — takes its four frames, and undoes the push. It is a
+stronger test than the one it replaces: the claim was always about the
+stylesheet, and it now depends on the stylesheet alone rather than on the
+artwork happening to produce an overlap. It survives the next re-cut for free.
+`translate` and not `transform`, because GSAP owns the transform matrix.
+
+The same push repaired a check that had quietly stopped guarding anything.
+`pointer-events: none` on `.head` is what stops a mostly-transparent
+screen-sized artboard from eating clicks on the links underneath it — but the
+settled card now sits *above* the top edge of the head's element box, so its
+centre was not under the head at all. Deleting `pointer-events: none` outright
+left the hit test passing. Asked while the card is pushed, it fails. Two smaller
+traps inside that one probe, both of which produced a false failure first: the
+push lands the card on top of the card queued in the opening, a sibling at the
+same z-index, so every other card is hidden for the hit test — and restoring
+those cards with `style.visibility = ''` un-hides the ones GSAP's `autoAlpha`
+had legitimately hidden, so the exact prior inline value goes back instead.
+
 ### The sky came back, and it cost one drawing
 
 The brief lists it among six deletions and treats restoring it as a real
@@ -285,7 +355,7 @@ the *fill* comes from outside, which is why there are three intake paths:
 
 ```sh
 art/sky-fill.png   # any rectangle of colour. Cover-fitted through the dome.
-art/sky_2.png      # a cut layer with its own alpha, placed like the lid.
+art/sky_cut.png    # a cut layer with its own alpha, placed like the lid.
 # neither          # a flat placeholder in the dome.
 ```
 
@@ -387,16 +457,22 @@ from photographs.
    silhouettes to get the pixels they genuinely contend for, then ask which
    candidate the real frame agrees with. Where they contend the composite
    matches one almost exactly and the other hardly at all, and which is which
-   *is* the stacking order. Off-head 0.0032 against off-card 0.0883 with the
+   *is* the stacking order. Off-head 0.0015 against off-card 0.3276 with the
    head in front; the two swap under sabotage. No threshold to guess.
 
-The frame it judges is **found, not chosen**. A hand-picked scroll position
-drifted three times in one afternoon of re-timing, and it fails silently — the
-constant still names a legal frame and the check still passes, it is just no
-longer looking at the pose it was written for. The probe walks the queue window
-and keeps the frame with the most contended pixels. It picks 6% of the pin: the
-first card emerging into the tear, not any of the positions I would have chosen
-by hand.
+The frame it judges used to be **found, not chosen** — the probe walked the
+queue window and kept the frame with the most contended pixels, because a
+hand-picked scroll position had drifted three times in one afternoon of
+re-timing and fails silently when it does.
+
+**Then the second cut removed the contention entirely** and finding the best of
+several nothings is still nothing. So the overlap is manufactured now: a settled
+card is pushed onto the drawing, far enough that a third of its height clears
+the topmost ink in its own columns, and put back afterwards. There is no frame
+to pick and nothing to drift. It is the stronger version of the check — the
+claim was always about the stylesheet — and the push is what makes the
+`pointer-events` hit test real as well. See *The check that stopped having
+evidence* above.
 
 The clearance check had to be corrected twice in the same pass, and both were
 the check being wrong rather than the page. It compared the head's topmost pixel

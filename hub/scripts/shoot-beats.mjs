@@ -24,7 +24,7 @@ const PORT = 9333;
 /**
  * The beats, as fractions of the pinned scroll. Mirrors BEATS in src — the
  * timeline is `TOTAL` units long and scrubbed across the whole pin, so a beat
- * at unit *n* is at fraction *n*/100 and these can be read straight off
+ * at unit `n` is at fraction `n / 100`, so these can be read straight off
  * `choreography.ts` rather than hunted for.
  *
  * `2-look` and `3-beat` used to sit between the lid and the first card. The

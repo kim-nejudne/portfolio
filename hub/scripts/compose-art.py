@@ -61,22 +61,31 @@ SCALE_OUT = 1.5
 # The face is the origin by definition. The lid was trimmed on export, so its
 # offset was recovered by `align-art.py` from the tear the two share.
 #
-# That recovery reported 28.8px RMS and flagged itself SUSPECT, which was the
-# tool being right to be suspicious and wrong about the cause. The scales agree
-# exactly — the head is 728px wide across the tear in both files — but this cut
-# is a drawing, and the lid's bottom edge trails wispy pen strokes past the
-# tear line while the face's edge does not. Per-column extremes disagree by the
-# length of a stray hair. Checked by eye afterwards rather than trusted.
-LID_OFFSET = (388, -276)
+# That recovery reports ~30px RMS and flags itself SUSPECT, which is the tool
+# being right to be suspicious and wrong about the cause. The scales agree
+# exactly, but this cut is a drawing, and the lid's bottom edge trails wispy pen
+# strokes past the tear line while the face's edge does not. Per-column extremes
+# disagree by the length of a stray hair.
+#
+# For this cut the offset did not have to be trusted on that evidence alone. The
+# second cut is the *same master* re-cut lower, so the new lid could be
+# correlated against the old one directly: it matches at (-12, 0) in the old
+# lid's coordinates with a mean absolute difference of **0.0** over 149,307
+# pixels — identical pixels, not merely a good fit. Carried through the old
+# registration that gives exactly (376, -467), which is what align-art.py says
+# on its own. Two independent methods, one answer.
+LID_OFFSET = (376, -467)
 
 SOURCES = {
     # layer name  ->  (file, offset in the face layer's coordinates)
-    "face": ("face_2.png", (0, 0)),
-    "lid": ("head_2.png", LID_OFFSET),
+    # Kim's names: the drawing was torn in two, top and bottom. `head_top` is
+    # the lid — hair and forehead, everything above the tear.
+    "face": ("head_bottom.png", (0, 0)),
+    "lid": ("head_top.png", LID_OFFSET),
     # The sky shares the lid's offset by construction: it is the same cap, filled
-    # in. Draw it on a layer *under* head_2.png in the same document and export
-    # that layer alone, and there is nothing to align.
-    "sky": ("sky_2.png", LID_OFFSET),
+    # in. Draw it on a layer *under* the lid in the same document and export that
+    # layer alone, and there is nothing to align.
+    "sky": ("sky_cut.png", LID_OFFSET),
 }
 
 # --- the sky ----------------------------------------------------------------
@@ -101,7 +110,7 @@ CLIPPED_BY = {"sky": "face"}
 #                         no alignment, no size to hit — it is cover-fitted
 #                         through the derived dome. This is the easy one, and it
 #                         is what an image model is actually good at.
-#   2. art/sky_2.png      a cut layer with its own alpha, placed at LID_OFFSET
+#   2. art/sky_cut.png    a cut layer with its own alpha, placed at LID_OFFSET
 #                         like the lid. Use this to draw a silhouette that is
 #                         not the derived dome.
 #   3. neither            a flat placeholder in the dome, in the tradition of
@@ -129,14 +138,19 @@ SKY_PLACEHOLDER_RGB = (0x6F, 0x8C, 0xA8)
 # The face was cut with the neck, collar and shoulders attached. Blanking is not
 # the same as deleting: the layer stays in STACK, costs one cached empty PNG,
 # and becomes real the day a neck is cut separately.
-SUBSUMED = {"neck": "face_2.png"}
+SUBSUMED = {"neck": "head_bottom.png"}
 
 # --- how the composite maps onto the artboard -------------------------------
 # Measured off the face layer, in its own pixels. The crown is the top of the lid;
 # the chin is where the jaw stops and the collar takes over.
-CROWN_Y = LID_OFFSET[1]          # -276
-CHIN_Y = 580                     # where the jaw stops and the collar flares out
-HEAD_CENTRE_X = 764              # midpoint of the head at its widest (y≈317)
+#
+# The second cut moved the tear down to the brow, so the face layer starts 191px
+# lower than it used to and every y here moved with it. Crown to chin is 856px in
+# both cuts, which is the useful check: the *scale* did not change, so the drawing
+# lands on the artboard exactly where it did and nothing in the layout had to move.
+CROWN_Y = LID_OFFSET[1]          # -467
+CHIN_Y = 389                     # where the jaw stops and the collar flares out
+HEAD_CENTRE_X = 764              # midpoint of the head at its widest
 
 # The framing: reproduce the placeholder's, so the timing tuned against it still
 # holds on the first run. Head crown to chin fills 900 of the 1600-unit canvas,

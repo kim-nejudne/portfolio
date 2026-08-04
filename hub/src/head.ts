@@ -18,10 +18,16 @@ export const CANVAS = { w: 1200, h: 1600 } as const;
  * Landmarks, in canvas units, measured off Kim's drawing.
  *
  * `CUT_Y` is a level *through* the tear rather than a line it follows — the
- * tear is a hand-drawn wave running from y 471 at the temples down to y 757 in
- * the middle. Nothing paints it any more; it is only where the cards are born.
+ * tear is a hand-drawn wave, and this is where it crosses the middle of the
+ * canvas. Nothing paints it any more; it is only where the cards are born.
+ *
+ * The second cut moved the tear down from the mid-forehead to the brow, so this
+ * went from 560 to 692 and the opening got much bigger. The drawing's placement
+ * on the artboard did not move at all — crown to chin is 856 source pixels in
+ * both cuts — so `LIP_Y` and `HEAD_FRACTION` below are untouched. Only the tear
+ * moved, and only these two numbers and `HINGE` describe the tear.
  */
-const CUT_Y = 560;
+const CUT_Y = 692;
 const LIP_Y = 1050;
 
 /**
@@ -32,10 +38,16 @@ const LIP_Y = 1050;
  * element rather than recomputing canvas geometry — so the geometry lives in
  * this file alone, and moving the tear cannot silently leave the cards flying
  * out of his forehead.
+ *
+ * `x` stays at the middle of the canvas rather than the middle of the opening,
+ * which sits at 53.5% because his head is turned. The opening spans 22%–85%, so
+ * 50% is comfortably inside its mouth, and the cards fly up to a centred
+ * position — launching them off-centre would put a lean in every arc to pay for
+ * a difference of 3.5% of the canvas at the one moment the card is smallest.
  */
 export const CAVITY_POINT = {
   x: 50,
-  y: (CUT_Y / CANVAS.h) * 100, // 35%
+  y: (CUT_Y / CANVAS.h) * 100, // 43.25%
 } as const;
 
 /**
@@ -54,8 +66,8 @@ export const CAVITY_POINT = {
  * the number stays meaningful.
  */
 export const HINGE = {
-  x: 82.889, // 995 of 1200
-  y: 30.833, // 493 of 1600
+  x: 81.556, // 979 of 1200
+  y: 42.833, // 685 of 1600
 } as const;
 
 /**
@@ -91,16 +103,28 @@ export const HEAD_FRACTION = 900 / CANVAS.h; // 0.5625
  * canvas. This is the ceiling the cards have to clear.
  *
  * It is not the cut line, which is the number the layout used first and the
- * reason the cards landed on his forehead. Against this drawing the swung lid
- * is the tallest thing on the artboard at every angle up to about 170.
+ * reason the cards landed on his forehead.
  *
- * It is not derived, because it depends on the hinge angle and on the artwork.
- * It is *checked* instead: `scripts/verify.mjs` photographs the open head with
- * the showcase hidden, finds its real topmost pixel, and fails if a card
- * overlaps it. So this can be wrong and the suite will say so — which is what
- * happened every time it was wrong before.
+ * **What it is holding off changed with the second cut**, and the answer is
+ * better than the one it replaced. Measured off the composed layers: the
+ * drawing below the tear rises 0.237 above the lip line, the swung lid 0.387 —
+ * and the sky 0.544, which makes the sky the tallest thing on the open head by
+ * a wide margin. That is not a coincidence to be tuned around. `compose-art.py`
+ * derives the dome's rise as the height of the lid, so the sky fills precisely
+ * the space the lid vacates: **the open head is exactly as tall as the closed
+ * head**, and this number is the closed head's own rise. Under the first cut
+ * the swung lid was the tallest thing and 0.52 was fitted to it, which is why
+ * the sky then poked ~20px above the reservation and the caption of the settled
+ * card grazed the dome.
+ *
+ * It is still not derived in code, because it depends on the hinge angle and on
+ * the artwork, and it is still *checked* instead: `scripts/verify.mjs`
+ * photographs the open head with the showcase hidden, finds its real topmost
+ * pixel, and fails if a card overlaps it. Note that check hides the sky — a
+ * card in front of the colour it came out of is the arrangement working — so it
+ * measures the 0.237 and reports the slack rather than binding on it.
  */
-export const HEAD_OPEN_RISE = 0.52;
+export const HEAD_OPEN_RISE = 0.544;
 
 export type LayerName = 'sky' | 'face' | 'neck' | 'lid';
 

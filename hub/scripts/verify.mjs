@@ -309,45 +309,53 @@ async function main() {
     }
 
     /*
-     * The head is in front of the cards, and both halves of that need proving
-     * in pixels because both halves can fail silently.
+     * The head is in front of the cards, and that has to be proven in pixels.
      *
      * A z-index is trivially readable from the computed styles and says almost
      * nothing — stacking contexts, `will-change` and transforms all rearrange
      * what it means, and this project has already shipped one bug where a
-     * `will-change` quietly changed what a rendering property did. So neither
-     * of these looks at CSS. They photograph the frame twice, once with the
-     * showcase hidden, and ask what the *cards* actually contributed where.
+     * `will-change` quietly changed what a rendering property did. So this does
+     * not read CSS. It photographs the frame four times — both, head alone,
+     * cards alone, neither — and asks, over the pixels where the two would
+     * *both* paint, which of the two candidates the real frame agrees with.
+     * Where they contend the composite matches one almost exactly and the other
+     * hardly at all, and which is which *is* the stacking order. No threshold
+     * has to be guessed.
      *
-     *   below the crown — nothing, or the card is printed on his face
-     *   above the crown — something, or the drawing has swallowed the card and
-     *                     "the next card is already visible" is a lie
+     * Two earlier versions measured the wrong thing, and the second failure is
+     * the instructive one. Taking the head's topmost row as a horizon and
+     * calling everything below it "head" ignored that his tear is a hand-drawn
+     * wave: most of that band is bare paper a card may perfectly well paint on,
+     * so it failed a correct page. Replacing the horizon with a real silhouette
+     * fixed that but still measured *how much ink changed*, and putting the head
+     * back behind the cards moved the number only from 0.00% to 0.25% — under
+     * the threshold, passing the exact regression it existed to catch. A card's
+     * body and his paper are both pale, so an occlusion that is glaring to the
+     * eye is nearly invisible as a difference in ink.
      *
-     * Run at whichever queue frame has the most at stake, **found rather than
-     * chosen**. A hand-picked scroll position has drifted three times in a
-     * single afternoon of re-timing, and the failure mode is silent: the
-     * constant still names a legal frame, the check still passes, and it is no
-     * longer looking at the pose it was written for. So probe the stretch where
-     * a card is waiting in the opening and keep the frame where the card and
-     * the drawing actually fight over the most pixels.
+     * **The overlap is manufactured, and that is what the second cut forced.**
+     * This used to hunt the queue frames for whichever had the most natural
+     * contention. The first cut put the tear on the mid-forehead, so a card
+     * climbing out was sliced by his scalp and there were always thousands of
+     * contended pixels to judge. The second cut moved the tear down to the brow;
+     * the opening became far bigger than a card, and the cards now sit entirely
+     * inside it. A sweep of the whole pin at 2% steps finds 86 contended pixels
+     * at a single frame and zero at every other one. The stacking order stopped
+     * being observable, and the check went from proving something to reporting
+     * "nothing to judge" — which is a FAIL, and correctly so.
+     *
+     * Hunting harder would not have helped, because the evidence is genuinely
+     * gone. So a card is *moved onto the drawing* for the length of one
+     * measurement. That is a stronger test than the one it replaces, not a
+     * weaker one: the claim was always about the stylesheet — that `.head`
+     * paints above `.card` — and it now rests on the stylesheet alone instead
+     * of on the artwork happening to produce an overlap. Re-cut the head again
+     * and this still works.
+     *
+     * `translate` and not `transform`, because GSAP owns the transform matrix
+     * and would overwrite anything written there on the next tick. The
+     * independent `translate` property composes with it and is ours alone.
      */
-    const probeFrames = [0.06, 0.1, 0.14, 0.22, 0.26, 0.3];
-    const readQueued = async () => JSON.parse(await ev(`(() => {
-      const q = [...document.querySelectorAll('.card')].filter(c => {
-        const cs = getComputedStyle(c);
-        if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.5) return false;
-        const m = new DOMMatrixReadOnly(cs.transform);
-        return !(Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24);
-      });
-      if (q.length !== 1) return 'null';
-      const r = q[0].getBoundingClientRect();
-      const h = document.querySelector('.head').getBoundingClientRect();
-      const left = Math.max(0, Math.round(r.left));
-      return JSON.stringify({
-        left, width: Math.min(window.innerWidth - left, Math.round(r.width)),
-        top: Math.round(r.top), bottom: Math.round(r.bottom), headTop: Math.round(h.top),
-      });
-    })()`));
     const shot = async (file) => {
       const s = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
       writeFileSync(file, Buffer.from(s.data, 'base64'));
@@ -355,12 +363,53 @@ async function main() {
     const hide = (sel, on) =>
       ev(`document.querySelector('${sel}').style.visibility = '${on ? 'hidden' : ''}'`);
 
-    let best = null;
-    for (const frameAt of probeFrames) {
-      await ev(`window.scrollTo(0, ${Math.round(frameAt * pin)})`);
-      await sleep(700);
-      const queued = await readQueued();
-      if (!queued) continue;
+    /* A hold: one card settled and being read, one queued in the opening. */
+    const Z_FRAME = 0.28;
+    await ev(`window.scrollTo(0, ${Math.round(Z_FRAME * pin)})`);
+    await sleep(900);
+
+    const settled = JSON.parse(await ev(`(() => {
+      const c = [...document.querySelectorAll('.card')].find(x => {
+        const cs = getComputedStyle(x);
+        if (cs.visibility !== 'visible' || Number(cs.opacity) <= 0.9) return false;
+        const m = new DOMMatrixReadOnly(cs.transform);
+        return Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24;
+      });
+      if (!c) return 'null';
+      c.dataset.zProbe = '1';
+      const r = c.getBoundingClientRect();
+      const left = Math.max(0, Math.round(r.left));
+      return JSON.stringify({
+        left, width: Math.min(window.innerWidth - left, Math.round(r.width)),
+        top: Math.round(r.top), height: Math.round(r.height),
+        bottom: Math.round(r.bottom), viewport: window.innerHeight,
+      });
+    })()`));
+
+    /*
+     * How far to push it: until a third of the card's height is past the top of
+     * his drawing in the card's own columns. Measured rather than assumed, so
+     * the probe lands on ink whatever the art is. The sky is hidden for the
+     * measurement — it is the hole, it belongs behind the cards, and including
+     * it would find the top of the colour instead of the top of the drawing.
+     */
+    if (!settled) {
+      check('the head paints in front of the cards', false, `no settled card at ${Z_FRAME * 100}% of the pin`);
+    } else {
+      await ev(`document.querySelector('.showcase').style.visibility = 'hidden';
+                document.querySelector('.head-sky').style.visibility = 'hidden';`);
+      await sleep(150);
+      await shot('/tmp/hub-z-inkonly.png');
+      await ev(`document.querySelector('.showcase').style.visibility = '';
+                document.querySelector('.head-sky').style.visibility = '';`);
+      const inkTop = Number(execFileSync('magick', [
+        '/tmp/hub-z-inkonly.png',
+        '-crop', `${settled.width}x${settled.viewport}+${settled.left}+0`, '+repage',
+        '-fuzz', '4%', '-trim', '-format', '%[fx:page.y]', 'info:',
+      ]).toString().trim());
+      const push = Math.round(inkTop - settled.bottom + settled.height / 3);
+      await ev(`document.querySelector('[data-z-probe]').style.translate = '0px ${push}px'`);
+      await sleep(250);
 
       /* Four frames: both, head alone, cards alone, neither. */
       await shot('/tmp/hub-z-all.png');
@@ -375,27 +424,6 @@ async function main() {
       await shot('/tmp/hub-z-cards.png');
       await hide('.head', false);
 
-      /*
-       * Judge the **contended pixels** — the ones where the head and a card
-       * would both paint — and ask which of them the real frame agrees with.
-       *
-       * Two earlier versions of this measured the wrong thing, and the second
-       * failure is the instructive one. Taking the head's topmost row as a
-       * horizon and calling everything below it "head" ignored that his tear is
-       * a hand-drawn wave: most of that band is bare paper the card may
-       * perfectly well paint on, so it failed a correct page. Replacing the
-       * horizon with a real silhouette fixed that but still measured *how much
-       * ink changed*, and putting the head back behind the cards moved the
-       * number only from 0.00% to 0.25% — under the threshold, passing the
-       * exact regression it existed to catch. The reason is that a card's body
-       * and his paper are both pale, so an occlusion that is glaring to the eye
-       * is nearly invisible as a difference in ink.
-       *
-       * Comparing against both candidate frames removes the judgement call.
-       * Where the two contend, the composite matches one of them almost
-       * exactly and the other hardly at all, and which is which *is* the
-       * stacking order. No threshold has to be guessed.
-       */
       const binaryDiff = (a, b, out, pct) =>
         execFileSync('magick', [a, b, '-compose', 'difference', '-composite',
           '-colorspace', 'Gray', '-threshold', pct, out]);
@@ -405,7 +433,7 @@ async function main() {
       execFileSync('magick', ['/tmp/hub-z-m1.png', '/tmp/hub-z-m2.png',
         '-compose', 'multiply', '-composite', '/tmp/hub-z-contended.png']);
 
-      const box = `${queued.width}x${queued.bottom - queued.top}+${queued.left}+${queued.top}`;
+      const box = `${settled.width}x${settled.height}+${settled.left}+${settled.top + push}`;
       const meanIn = (img) => Number(
         execFileSync('magick', [img, '-crop', box, '+repage',
           '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:']).toString().trim(),
@@ -422,38 +450,24 @@ async function main() {
       };
       const offHead = agreementWith('/tmp/hub-z-head.png');
       const offCards = agreementWith('/tmp/hub-z-cards.png');
-
       /*
-       * In pixels, not as a fraction of the card's box. The box is mostly the
-       * caption, which is transparent between the glyphs, and the card's solid
-       * image body clears his crown entirely — so what actually contends is the
-       * lettering crossing his scalp, and that is under 1% of the box however
-       * unambiguous it looks on screen. A fraction-of-the-box guard called it
-       * "nothing to judge" and refused to judge the very thing it was built for.
+       * In pixels, not as a fraction of the card's box — a guard expressed as a
+       * fraction once called an unambiguous overlap "nothing to judge", because
+       * most of the box is caption and transparent between the glyphs. This
+       * number is now also the proof that the *probe itself* worked: if the
+       * push failed to land the card on him there is nothing to judge and the
+       * check must fail rather than pass vacuously.
        */
-      const contendedPx = Math.round(contendedArea * queued.width * (queued.bottom - queued.top));
-      const clear = meanIn('/tmp/hub-z-m2.png') - contendedArea;
-      if (!best || contendedPx > best.contendedPx) {
-        best = { frameAt, contendedPx, offHead, offCards, clear };
-      }
-    }
+      const contendedPx = Math.round(contendedArea * settled.width * settled.height);
 
-    if (!best) {
-      check('the head paints in front of the cards', false, 'no queued card found at any probe frame');
-    } else {
       check(
         'the head paints in front of the cards',
-        best.contendedPx > 150 && best.offHead < best.offCards * 0.25,
-        best.contendedPx <= 150
-          ? `only ${best.contendedPx}px of the card ever falls on him — nothing to judge`
-          : `at ${(best.frameAt * 100).toFixed(0)}% of the pin, over the ${best.contendedPx}px where they ` +
-            `contend the frame is ${best.offHead < best.offCards ? 'the head' : 'the card'}: ` +
-            `off-head ${best.offHead.toFixed(4)} vs off-card ${best.offCards.toFixed(4)}`,
-      );
-      check(
-        'and the queued card is still visible beside it',
-        best.clear > 0.05,
-        `${(best.clear * 100).toFixed(0)}% of its box is card ink clear of him`,
+        contendedPx > 150 && offHead < offCards * 0.25,
+        contendedPx <= 150
+          ? `pushing the card ${push}px onto him produced only ${contendedPx}px of contention — the probe missed`
+          : `card pushed ${push}px onto the drawing; over the ${contendedPx}px where they contend the frame ` +
+            `is ${offHead < offCards ? 'the head' : 'the card'}: ` +
+            `off-head ${offHead.toFixed(4)} vs off-card ${offCards.toFixed(4)}`,
       );
 
       /*
@@ -466,24 +480,34 @@ async function main() {
        * this is the assertion that would notice if it were ever removed — the
        * pixels would be identical and the links would simply stop working.
        *
-       * Needs its own scroll position rather than reusing the probe's. The
-       * probe lands on maximum contention, which turns out to be the *first*
-       * card emerging — and at that point nothing is on stage yet, so the test
-       * had nothing to click and said so. "A queued card implies a settled one"
-       * is true for cards two to five and false for the one the probe picks.
+       * Asked **while the card is still pushed onto him**, which is the whole
+       * reason the push is not undone until after this. Left where the design
+       * puts it, the settled card sits above the top edge of the head's element
+       * box, so its centre is not under the head at all and the hit test cannot
+       * see the guard: removing `pointer-events: none` altogether left this
+       * passing. The push that manufactures the paint overlap manufactures the
+       * hit-testing overlap too, and one probe now covers both.
        */
-      await ev(`window.scrollTo(0, ${Math.round(0.28 * pin)})`);
-      await sleep(900);
       const hit = JSON.parse(await ev(`(() => {
-        const c = [...document.querySelectorAll('.card')].find(x => {
-          const cs = getComputedStyle(x);
-          if (cs.visibility !== 'visible' || Number(cs.opacity) <= 0.9) return false;
-          const m = new DOMMatrixReadOnly(cs.transform);
-          return Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24;
-        });
+        const c = document.querySelector('[data-z-probe]');
         if (!c) return 'null';
+        /*
+         * Every other card is hidden for the duration. Pushed down into the
+         * opening, the probe lands on top of the card queued there — a sibling
+         * at the same z-index, so the hit test found *that* and reported a
+         * failure the page had not committed. Only the probe and the drawing
+         * may be candidates, or the answer is about the wrong pair.
+         */
+        const others = [...document.querySelectorAll('.card')].filter(x => x !== c);
+        /* Put back the exact inline value, not the empty string: GSAP's
+           autoAlpha writes visibility inline, so clearing it would un-hide
+           every card it had legitimately hidden — which is what happened, and
+           the next check then found four queued cards instead of one. */
+        const was = others.map(x => x.style.visibility);
+        others.forEach(x => { x.style.visibility = 'hidden'; });
         const r = c.getBoundingClientRect();
         const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        others.forEach((x, i) => { x.style.visibility = was[i]; });
         return JSON.stringify({
           ok: !!el && c.contains(el),
           got: el ? (el.getAttribute('class') || el.tagName) : 'nothing',
@@ -492,8 +516,55 @@ async function main() {
       check(
         'the card on stage is still what a click lands on',
         hit && hit.ok,
-        hit ? `hit test found "${hit.got}"` : 'no settled card to test',
+        hit ? `hit test found "${hit.got}" under the head's box` : 'no settled card to test',
       );
+      await ev(`document.querySelector('[data-z-probe]').style.translate = ''`);
+      await sleep(200);
+      /*
+       * And the head has not swallowed a card that is where it belongs.
+       *
+       * The mirror of the check above, and the reason both are needed: a head
+       * in front of the cards can hide one completely, and "the next card is
+       * already visible" would be a lie told by a correct stacking order. So
+       * with the probe undone, ask what the queued card actually contributes to
+       * the real frame — not what it would contribute on bare paper.
+       */
+      const queued = JSON.parse(await ev(`(() => {
+        const q = [...document.querySelectorAll('.card')].filter(c => {
+          const cs = getComputedStyle(c);
+          if (cs.visibility !== 'visible' || Number(cs.opacity) < 0.5) return false;
+          const m = new DOMMatrixReadOnly(cs.transform);
+          return !(Math.abs(m.a - 1) < 0.04 && Math.abs(m.e) < 24 && Math.abs(m.f) < 24);
+        });
+        if (q.length !== 1) return 'null';
+        const r = q[0].getBoundingClientRect();
+        const left = Math.max(0, Math.round(r.left));
+        return JSON.stringify({
+          left, width: Math.min(window.innerWidth - left, Math.round(r.width)),
+          top: Math.round(r.top), height: Math.round(r.height),
+        });
+      })()`));
+      if (!queued) {
+        check('and the queued card is still visible beside it', false, 'no queued card to measure');
+      } else {
+        await shot('/tmp/hub-z-all.png');
+        await hide('.showcase', true);
+        await sleep(150);
+        await shot('/tmp/hub-z-head.png');
+        await hide('.showcase', false);
+        binaryDiff('/tmp/hub-z-all.png', '/tmp/hub-z-head.png', '/tmp/hub-z-vis.png', '2%');
+        const qbox = `${queued.width}x${queued.height}+${queued.left}+${queued.top}`;
+        const visible = Number(
+          execFileSync('magick', ['/tmp/hub-z-vis.png', '-crop', qbox, '+repage',
+            '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:']).toString().trim(),
+        );
+        check(
+          'and the queued card is still visible beside it',
+          visible > 0.05,
+          `${(visible * 100).toFixed(0)}% of its box is ink the card put on the real frame`,
+        );
+      }
+
     }
 
     /* ---- the sky ----------------------------------------------------- */
