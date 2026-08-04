@@ -75,12 +75,26 @@ SCALE_OUT = 1.5
 # registration that gives exactly (376, -467), which is what align-art.py says
 # on its own. Two independent methods, one answer.
 #
-# The +2 on x is Kim's, by eye, after looking at the composed page: the tear
-# reads better with the lid a touch right of where both measurements put it.
-# Two source pixels is about three on the artboard and just over one CSS pixel
-# at the size the head is drawn, so it is a nudge and not a correction — the
-# measured value is the one above, and this is the number the page uses.
-LID_OFFSET = (376 + 2, -467)
+# The offset on x is Kim's, by eye, after looking at the composed page: the tear
+# reads better with the lid a touch right of where both measurements put it. It
+# is a nudge and not a correction — the measured value is the one above, and the
+# sum is what the page uses.
+#
+# **Asked for in screen pixels, so it is converted rather than pasted in.** A
+# source pixel is not a CSS pixel and the ratio is not close to one: the chain is
+# source -> artboard (x SCALE_OUT-relative `scale`, 1.577) -> canvas units
+# (/ SCALE_OUT) -> CSS (x the head element's height over 1600). At the desktop
+# reference — a 900px-tall viewport, where `HEAD_HEIGHT_VH` puts the artboard at
+# 928px — that is 0.610 CSS px per source pixel, so 2 on screen is 3.28 here.
+# Taking "2px" at face value would have moved it 1.22 CSS px, a little over half
+# of what was asked for.
+#
+# It is exact only at that viewport height. The head is sized in `vh`, so a
+# taller window makes every source pixel worth more on screen. There is nothing
+# to fix in that — a nudge judged by eye at one size is a nudge judged by eye —
+# but it is why the reference is written down rather than the ratio alone.
+NUDGE_X_CSS_PX = 2 / 0.6098
+LID_OFFSET = (376 + NUDGE_X_CSS_PX, -467)
 
 SOURCES = {
     # layer name  ->  (file, offset in the face layer's coordinates)

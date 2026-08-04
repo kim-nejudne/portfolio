@@ -66,7 +66,7 @@ export const CAVITY_POINT = {
  * the number stays meaningful.
  */
 export const HINGE = {
-  x: 81.722, // 981 of 1200
+  x: 81.833, // 982 of 1200
   y: 42.833, // 685 of 1600
 } as const;
 

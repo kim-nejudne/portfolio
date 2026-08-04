@@ -123,14 +123,23 @@ What did move, and what it cost:
 | | first cut | second cut |
 |---|---|---|
 | `CUT_Y` | 560 | 692 — the tear is at the brow, so the whole cranium hinges away |
-| `HINGE` | 82.889%, 30.833% | 81.722%, 42.833% |
+| `HINGE` | 82.889%, 30.833% | 81.833%, 42.833% |
 | `HEAD_OPEN_RISE` | 0.52 | 0.448, and now bounded by the **sky** rather than the swung lid |
 | head paints in front of cards | proven by natural overlap | overlap manufactured — see below |
 
-`LID_OFFSET` carries `+2` on x on top of the measured value. That is Kim's, by
-eye, after looking at the composed page — about three artboard pixels and just
-over one CSS pixel at the size the head is drawn. It is written as `376 + 2` so
-the measurement and the nudge stay legible as two different kinds of number.
+`LID_OFFSET` carries a nudge on x on top of the measured value — Kim's, by eye,
+after looking at the composed page. It is written as a sum so the measurement
+and the nudge stay legible as two different kinds of number.
+
+**It was asked for in screen pixels and it is stored in source pixels, and the
+two are not close.** The chain is source → artboard (×1.577) → canvas units
+(÷1.5) → CSS (× the head element's height over 1600), which at the desktop
+reference — a 900px-tall viewport, artboard 928px — comes to **0.610 CSS px per
+source pixel**. So "move it 2px right" is `+3.28` here, and taking the 2 at face
+value moved it 1.22 CSS px, a little over half of what was asked for. The
+composer writes the conversion out rather than the answer. It is exact only at
+that viewport height, because the head is sized in `vh` — which is fine for a
+nudge judged by eye, and the reason the reference is recorded next to it.
 
 Two consequences worth knowing before the third cut. The sky got bigger for
 free, because `compose-art.py` derived the dome's rise from the height of the
