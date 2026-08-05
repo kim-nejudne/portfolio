@@ -34,15 +34,20 @@
  * THE ONE COLOUR RULE
  *
  * The hub is paper and ink. The only colour on the page is **the five project
- * crops**, which arrive as images and never as a token. There is no accent, no
- * gradient, no tinted state. That single discipline is what keeps a statement
- * hub from competing with five loud spokes.
+ * crops and the sky inside his head**, both of which arrive as images and never
+ * as a token. There is no accent, no gradient, no tinted state. That single
+ * discipline is what keeps a statement hub from competing with five loud spokes.
  *
- * It used to be the crops *and the sky inside his head*, and the reveal was
- * built on it: colour appeared at the exact moment the head opened. The sky was
- * one of five placeholder layers deleted rather than drawn, so the head now
- * opens onto his drawn scalp and the first colour on the page is the first
- * card. The rule got stricter; the beat it paid for is gone.
+ * The sky is the one colour here that is not a project, which is what the reveal
+ * is built on: colour arrives at the exact moment the head opens. It was briefly
+ * gone — deleted as one of five undrawn placeholder layers, which cost the beat
+ * and made the rule stricter than it was meant to be — and it came back for the
+ * price of a single drawing, because `face.png` is transparent above the tear
+ * and so needed no cavity and no back of skull behind it.
+ *
+ * `public/favicon.svg` is the sky blue for this reason: the mark carries the
+ * hub's own colour rather than borrowing a spoke's. It is not painted on the
+ * page, so `verify.mjs`'s paper-to-ink check neither sees it nor should.
  *
  * If you find yourself wanting a hex value here that is not paper, ink or a
  * mix of the two, the design has gone wrong somewhere else.

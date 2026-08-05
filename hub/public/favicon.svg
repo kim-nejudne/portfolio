@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 2000" role="img" aria-label="Kim Nejudne">
+  <!--
+    The hub in one mark: the circle of sky the head opens onto, with the initial
+    set in the page's own display face.
+
+    The K is the real Bodoni Moda outline at wght 700, lifted out of the
+    vendored variable font by `scripts/glyph-path.py` rather than drawn by hand.
+    A Didone's whole character is the ratio between the stem and the hairlines,
+    and eyeballing that produces a letter that is *almost* right — which is a
+    worse failure than plainly being something else. The letter in the tab strip
+    and the letter in the headline come from one file.
+
+    The colour is the sky: the only colour on this site that is not a project,
+    so the mark carries the hub's own rather than borrowing a spoke's.
+
+    **Full-bleed disc, not a glyph on a paper square.** Three treatments were
+    rendered at 16/32/64px on both a light and a dark tab strip and compared. A
+    paper square wastes the radius that legibility needs — at 16px its margin is
+    about one pixel, too thin to do the job it was added for — and the K's
+    top-right serif broke a circle sized to leave any margin at all. The disc
+    has enough contrast against both strips on its own.
+
+    Sized so the letter fills the disc: favicons are read at 16px, where the
+    polite margins that look correct at 512px erase the letter.
+
+    Corners are transparent, which is right for a tab strip and wrong for iOS —
+    it composites `apple-touch-icon` onto black. That icon is therefore rendered
+    over paper by `scripts/brand.sh`. Divergence on purpose, in one direction,
+    written down.
+  -->
+  <circle cx="1000" cy="1000" r="1000" fill="#6f8ca8"/>
+  <g transform="translate(1000,1000) scale(0.82) translate(-791,-1250)" fill="#16181d">
+    <path d="M300 1566 1178 539H966V500H1445.5V539.0H1233.5L355.5 1566.0ZM45.5 2000.0V1961.0H226V539H45.5V500.0H736V539H536.5V1961.0H716V2000ZM816 2000V1961H998L589.5 1242.5L796 1013L1357 1961H1536V2000Z"/>
+  </g>
+</svg>

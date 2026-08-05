@@ -181,6 +181,75 @@ async function main() {
       preloads.bad.length ? preloads.bad.join(', ') : `${preloads.n} preloads, all 200`,
     );
 
+    /*
+     * The share card and the icons, checked the same way and for the same
+     * reason: nothing on the page renders them, so nothing on the page can fail
+     * when they are missing. An og:image that 404s costs every share the site
+     * will ever get, and the only symptom is a card that quietly does not
+     * appear on somebody else's timeline.
+     *
+     * The declared dimensions are checked against the real ones rather than
+     * trusted. og:image:width is a promise to the scraper about how to lay the
+     * card out before it has finished downloading it, and a card that disagrees
+     * with its own metadata gets cropped or letterboxed by whoever believed it.
+     *
+     * The icon href set is read off the document, not hardcoded here, so adding
+     * a `rel="icon"` and forgetting to generate it fails rather than passes.
+     */
+    const brand = JSON.parse(await ev(`(async () => {
+      const want = [...document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')]
+        .map(l => ({ href: l.getAttribute('href'), type: l.getAttribute('type') || 'image/' }));
+      /*
+       * og:image is absolute on purpose — several scrapers drop a relative one.
+       * But this suite runs against a local build, so fetching that URL would
+       * check production and pass while the thing about to be shipped is
+       * broken. Take the path and resolve it against the site under test, and
+       * assert the absolute form separately.
+       */
+      const og = document.querySelector('meta[property="og:image"]');
+      if (og) {
+        const raw = og.getAttribute('content') || '';
+        let path = null;
+        try { path = new URL(raw).pathname; } catch { path = null; }
+        const canonical = document.querySelector('link[rel="canonical"]');
+        const sameOrigin = canonical && raw.startsWith(new URL(canonical.href).origin + '/');
+        want.push({ href: path, absolute: raw, sameOrigin, type: 'image/', og: true });
+      }
+
+      const bad = [];
+      for (const w of want) {
+        if (w.og) {
+          if (!w.href) { bad.push('og:image is not an absolute URL: ' + w.absolute); continue; }
+          if (!w.sameOrigin) { bad.push('og:image is not on the canonical origin: ' + w.absolute); continue; }
+        }
+        const r = await fetch(w.href, { method: 'GET' }).catch(() => null);
+        if (!r || !r.ok) { bad.push(w.href + ' -> ' + (r ? r.status : 'failed')); continue; }
+        const got = r.headers.get('content-type') || '';
+        if (!got.startsWith(w.type)) { bad.push(w.href + ' -> ' + got + ', wanted ' + w.type); continue; }
+
+        if (w.og) {
+          /* Decode it and compare against what the tags promise. */
+          const bmp = await createImageBitmap(await r.blob()).catch(() => null);
+          if (!bmp) { bad.push(w.href + ' -> did not decode'); continue; }
+          const dw = document.querySelector('meta[property="og:image:width"]');
+          const dh = document.querySelector('meta[property="og:image:height"]');
+          if (!dw || !dh) { bad.push('og:image has no declared dimensions'); continue; }
+          if (+dw.content !== bmp.width || +dh.content !== bmp.height) {
+            bad.push('og:image is ' + bmp.width + 'x' + bmp.height + ' but declares ' + dw.content + 'x' + dh.content);
+          }
+          /* Under 5MB, which is the tightest of the common scraper limits. */
+          const bytes = +r.headers.get('content-length') || 0;
+          if (bytes > 5 * 1024 * 1024) bad.push('og:image is ' + Math.round(bytes/1024) + 'KB, over the 5MB limit');
+        }
+      }
+      return JSON.stringify({ n: want.length, bad });
+    })()`));
+    check(
+      'the icons and the share card all exist and are what they claim',
+      brand.n >= 4 && brand.bad.length === 0,
+      brand.bad.length ? brand.bad.join('; ') : `${brand.n} assets, all 200 and correctly typed`,
+    );
+
     const links = await ev(
       `JSON.stringify([...document.querySelectorAll('.index-list > li > a.index-link')]
          .map(a => ({ name: a.textContent.replace(/\\s+/g,' ').trim().slice(0, 24), href: a.getAttribute('href') })))`,

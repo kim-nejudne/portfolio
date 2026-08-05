@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>icon source</title>
+    <!--
+      Raster icons, rendered *from* `public/favicon.svg` rather than alongside
+      it. The SVG is the only definition of the mark; these cannot drift from it
+      because they are screenshots of it.
+
+      Two variants, chosen by query string:
+
+        icon.html          transparent corners — the PNG favicon fallback, for
+                           browsers without SVG favicon support
+        icon.html?paper    the disc composited on paper — for iOS, which
+                           composites `apple-touch-icon` onto black and would
+                           otherwise put a blue circle in a black square
+
+      The window is the icon: no padding, no margin, the image fills it exactly,
+      so `--window-size` alone decides the output size.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; }
+      body { background: transparent; }
+      body.paper { background: #f7f4ec; }
+      img { display: block; width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <img src="/public/favicon.svg" alt="" />
+    <script>
+      if (location.search.includes('paper')) document.body.classList.add('paper');
+    </script>
+  </body>
+</html>

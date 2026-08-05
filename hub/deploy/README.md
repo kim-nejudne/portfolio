@@ -321,12 +321,19 @@ wrong form is an `nginx -t` failure, which is the good kind.
 
 Not blockers, but they are on the apex, which is where they cost most:
 
-- **No `og:image`.** `index.html` has `og:title`, `og:description` and `og:url`
-  but no card, so every share of the portfolio's front door renders imageless.
-  PLINTH solves this with `frontend/scripts/brand.sh`, which renders a card
-  through headless chromium and needs no image dependency; the same approach
-  applies here.
-- **No favicon, no `robots.txt`.** Both 404 correctly rather than returning the
-  document, which is the right failure, but both should exist on an apex.
+- **No `robots.txt`.** It 404s correctly rather than returning the document,
+  which is the right failure, but it should exist on an apex.
+
+Closed since: the share card and the icons, added 2026-08-05. `scripts/brand.sh`
+renders them through headless chromium off the real fonts and the real head
+layers, `public/favicon.svg` is the Bodoni K lifted out of the vendored variable
+font, and a 37th assertion fetches every one of them and checks the type and the
+declared dimensions — sabotage-proven five ways, including against `vite
+preview`'s SPA fallback.
+
+They are served from their own `location` block, with the artwork's week rather
+than `/assets/`'s year or `location /`'s `no-cache`. A year would pin the first
+card any platform ever scraped; `no-cache` would make every scrape and every tab
+revalidate a file that changes about never.
 - **The five crops are headless screenshots**, not chosen crops. Long-standing;
   see `../README.md`.
