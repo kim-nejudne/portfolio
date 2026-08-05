@@ -12,10 +12,11 @@ The apex. `kimnejudne.dev` itself, on the shared DigitalOcean droplet
 | Auth | none; the site is public |
 | App source | the `hub/` directory (Vite 6 + React 19 + TS + GSAP) |
 
-## Status — live, with one DNS record still to delete
+## Status — live
 
-**Deployed 2026-08-05.** A records added, certificate issued for both names,
-`hub.conf` installed over the bootstrap vhost, all four confirmations passing:
+**Deployed 2026-08-05.** A records added, both URL Redirect Records deleted,
+certificate issued for both names, `hub.conf` installed over the bootstrap vhost,
+all four confirmations passing:
 
 ```
 https://kimnejudne.dev/          200
@@ -27,42 +28,63 @@ https://kimnejudne.dev/no-such   404      (not the SPA fallback)
 Certificate expires **2026-11-02**; certbot's timer renews it, webroot against
 `/var/www/certbot`, which the port-80 block keeps reachable.
 
-### Outstanding: the URL Redirect Record on `@` — delete it
+Verified against the deployed site rather than the build: `verify.mjs` takes a
+URL, so all **36 assertions were run against `https://kimnejudne.dev/`** through
+nginx and TLS, and pass. That is a stronger claim than the pre-ship run, which
+only ever sees `vite preview`.
 
-The A record was added but the **URL Redirect Record was left in place**, so the
-apex still answers from two addresses:
+### Resolved: the two URL Redirect Records
+
+Worth keeping, because the failure mode is not obvious and a future domain will
+have the same records by default.
+
+Adding the A records was not sufficient — Namecheap had **two** URL Redirect
+Records, and a redirect record answers as an A record pointing at the forwarder.
+So the apex resolved to two addresses:
 
 ```
 kimnejudne.dev.  A  165.245.189.5     the droplet
 kimnejudne.dev.  A  192.64.119.15     Namecheap URL Forward
 ```
 
-**That second address has no TLS at all.** Port 80 is open and 302s to `www`;
-port 443 is filtered — it does not refuse, it *hangs*:
+**The forwarder has no TLS listener at all.** Port 80 open, port 443 filtered —
+it does not refuse, it *hangs*:
 
 ```sh
 curl -m 20 --resolve kimnejudne.dev:443:192.64.119.15 https://kimnejudne.dev/
 # curl: (28) Connection timed out after 20002 milliseconds
 ```
 
-So a visitor whose resolver hands them `192.64.119.15` gets a twenty-second hang
-and then nothing. It is intermittent by address, which is the worst shape for a
-bug to have: it works when you test it and fails for the person you sent it to.
+Which address a visitor got was their resolver's choice, so it worked when tested
+and failed for the person the link was sent to. **HSTS made it permanent rather
+than self-healing**: the apex sends `max-age=31536000`, so a browser that had
+loaded the site once would not fall back to the port that answers.
 
-**HSTS makes it permanent rather than self-healing.** The apex now sends
-`Strict-Transport-Security: max-age=31536000`, so once a browser has loaded the
-site successfully it will refuse to try HTTP for a year. There is no downgrade to
-the working port 80 — the browser is committed to 443, and 443 on that address
-never answers.
+The second record's host was `kimnejudne`, i.e. `kimnejudne.kimnejudne.dev` — a
+stuttering subdomain with no vhost and no certificate, which could only ever have
+served plain HTTP from a parking service. Both deleted. Both had redirected over
+`http://`; nginx now does the same redirect over TLS.
 
-Namecheap → Advanced DNS → delete the URL Redirect Record on `@`. Nothing else
-changes; the `A` records stay as they are.
-
-Confirm it is gone — one address, not two:
+Authoritative is clean:
 
 ```sh
-dig +short kimnejudne.dev      # expect only 165.245.189.5
+dig +short @pdns1.registrar-servers.com kimnejudne.dev A       # 165.245.189.5
+dig +short @pdns1.registrar-servers.com www.kimnejudne.dev A   # 165.245.189.5
 ```
+
+Public resolvers lag by the TTL (1799s), and **anycast resolvers lag unevenly** —
+consecutive queries to the same address hit different nodes with different cache
+state, so a single `dig` is not evidence either way. Sample repeatedly:
+
+```sh
+for r in 1.1.1.1 8.8.8.8 9.9.9.9 208.67.222.222; do
+  printf '%-16s ' "$r"
+  for i in $(seq 1 10); do printf '%s' "$(dig +short @$r kimnejudne.dev A | grep -c .)"; done
+  echo   # want ten 1s; a 2 is a node still holding the old pair
+done
+```
+
+The `MX` records and SPF `TXT` were checked after the change and are untouched.
 
 ## How it was deployed
 
