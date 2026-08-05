@@ -12,26 +12,62 @@ The apex. `kimnejudne.dev` itself, on the shared DigitalOcean droplet
 | Auth | none; the site is public |
 | App source | the `hub/` directory (Vite 6 + React 19 + TS + GSAP) |
 
-## Status — half-deployed, and DNS is the blocking half
+## Status — live, with one DNS record still to delete
 
-**The files are on the droplet and nginx is serving them.** Verified by `Host`
-header against the IP, since the name does not point here yet:
+**Deployed 2026-08-05.** A records added, certificate issued for both names,
+`hub.conf` installed over the bootstrap vhost, all four confirmations passing:
 
-```sh
-curl -I -H 'Host: kimnejudne.dev' http://165.245.189.5/     # 200
+```
+https://kimnejudne.dev/          200
+http://kimnejudne.dev/           301 -> https
+https://www.kimnejudne.dev/      301 -> apex
+https://kimnejudne.dev/no-such   404      (not the SPA fallback)
 ```
 
-**What is not done: DNS, and therefore TLS.** `kimnejudne.dev` currently resolves
-to `75.2.60.5` and `192.64.119.15` — Namecheap's parking/redirect service — and
-302s to `www.kimnejudne.dev`, which has no A record at all. So the apex is
-*already broken* for visitors today, independently of this deploy: it redirects
-to a hostname that does not resolve.
+Certificate expires **2026-11-02**; certbot's timer renews it, webroot against
+`/var/www/certbot`, which the port-80 block keeps reachable.
 
-Until the A records move, the droplet is running the **bootstrap** vhost
-(`nginx/hub-bootstrap.conf`): HTTP only, no redirect, no security headers. That
-is not the shipped configuration and must not be left installed.
+### Outstanding: the URL Redirect Record on `@` — delete it
 
-## Finishing the deploy
+The A record was added but the **URL Redirect Record was left in place**, so the
+apex still answers from two addresses:
+
+```
+kimnejudne.dev.  A  165.245.189.5     the droplet
+kimnejudne.dev.  A  192.64.119.15     Namecheap URL Forward
+```
+
+**That second address has no TLS at all.** Port 80 is open and 302s to `www`;
+port 443 is filtered — it does not refuse, it *hangs*:
+
+```sh
+curl -m 20 --resolve kimnejudne.dev:443:192.64.119.15 https://kimnejudne.dev/
+# curl: (28) Connection timed out after 20002 milliseconds
+```
+
+So a visitor whose resolver hands them `192.64.119.15` gets a twenty-second hang
+and then nothing. It is intermittent by address, which is the worst shape for a
+bug to have: it works when you test it and fails for the person you sent it to.
+
+**HSTS makes it permanent rather than self-healing.** The apex now sends
+`Strict-Transport-Security: max-age=31536000`, so once a browser has loaded the
+site successfully it will refuse to try HTTP for a year. There is no downgrade to
+the working port 80 — the browser is committed to 443, and 443 on that address
+never answers.
+
+Namecheap → Advanced DNS → delete the URL Redirect Record on `@`. Nothing else
+changes; the `A` records stay as they are.
+
+Confirm it is gone — one address, not two:
+
+```sh
+dig +short kimnejudne.dev      # expect only 165.245.189.5
+```
+
+## How it was deployed
+
+Kept because renewal, a rebuild of the box, or a second apex would walk the same
+path.
 
 ### 1. DNS — at Namecheap, by hand
 
@@ -43,8 +79,8 @@ Host Records:
 | A | `@` | `165.245.189.5` | Automatic |
 | A | `www` | `165.245.189.5` | Automatic |
 
-Delete the **URL Redirect Record** on `@` that currently sends the apex to
-`www` — it is what returns the 302 today, and it will shadow the A record.
+And delete the **URL Redirect Record** on `@` — see above; this is the step that
+was missed.
 
 **Leave everything else alone.** In particular the `MX` records
 (`eforward1–5.registrar-servers.com`) and the SPF `TXT`
@@ -54,15 +90,33 @@ those records does.
 
 The five spoke subdomains are separate A records and are not touched.
 
-Wait for propagation before step 2 — certbot validates over HTTP against the
-real name, and a failed attempt counts against Let's Encrypt's rate limit
-(5 failures per account per hostname per hour):
+### 2. Prove the ACME path before spending a certbot attempt
+
+A failed validation counts against Let's Encrypt's rate limit (5 per account per
+hostname per hour), and certbot gives a poor account of *why* it failed. Serving
+a token by hand and fetching it over the real name costs nothing and answers the
+question outright:
 
 ```sh
-dig +short kimnejudne.dev www.kimnejudne.dev    # both -> 165.245.189.5
+TOKEN="probe-$(date -u +%s)"
+ssh root@165.245.189.5 "mkdir -p /var/www/certbot/.well-known/acme-challenge \
+  && printf '%s' '$TOKEN' > /var/www/certbot/.well-known/acme-challenge/$TOKEN \
+  && chown -R www-data:www-data /var/www/certbot"
+
+# -L, and force each address the apex resolves to
+for ip in 165.245.189.5 192.64.119.15; do
+  curl -sS -L --resolve "kimnejudne.dev:80:$ip" \
+    "http://kimnejudne.dev/.well-known/acme-challenge/$TOKEN"
+done
+curl -sS -L "http://www.kimnejudne.dev/.well-known/acme-challenge/$TOKEN"
 ```
 
-### 2. Certificate
+All three returned the token, which is why issuance was not a gamble despite the
+apex resolving to two addresses. The `-L` is the whole point: HTTP-01 follows
+redirects, so the parking address reaching the droplet via its own 302 to `www`
+is a *pass*. Delete the token afterwards.
+
+### 3. Certificate
 
 Webroot, matching every other site on this box. Both names on one certificate,
 because the `www` vhost needs its own TLS to be able to redirect at all — a
@@ -73,21 +127,22 @@ rather than a redirect.
 ```sh
 ssh root@165.245.189.5 \
   'certbot certonly --webroot -w /var/www/certbot \
-     -d kimnejudne.dev -d www.kimnejudne.dev'
+     -d kimnejudne.dev -d www.kimnejudne.dev --keep-until-expiring'
 ```
 
-### 3. Swap the bootstrap vhost for the real one
+### 4. Swap the bootstrap vhost for the real one
 
 ```sh
+ssh root@165.245.189.5 'cp /etc/nginx/sites-available/hub /etc/nginx/sites-available/hub.bootstrap.bak'
 scp deploy/nginx/hub.conf root@165.245.189.5:/etc/nginx/sites-available/hub
 ssh root@165.245.189.5 'nginx -t && systemctl reload nginx'
 ```
 
 `nginx -t` is the guard that matters here: `hub.conf` references the certificate
-paths, so it cannot pass until step 2 has actually succeeded. If it fails,
+paths, so it cannot pass until step 3 has actually succeeded. If it fails,
 nothing reloads and the six live sites keep running.
 
-### 4. Confirm
+### 5. Confirm
 
 ```sh
 curl -sI https://kimnejudne.dev/            | head -1   # 200
@@ -97,6 +152,14 @@ curl -sI https://kimnejudne.dev/no-such     | head -1   # 404, NOT 200
 ```
 
 That last one is not a formality — see *Caching and the SPA fallback* below.
+
+Worth also confirming the five spokes still answer, since a reload is box-wide:
+
+```sh
+for s in tallow plinth forme poketrack suki; do
+  curl -sS -o /dev/null -w "$s %{http_code}\n" "https://$s.kimnejudne.dev/"
+done
+```
 
 ## Deploying
 
@@ -190,13 +253,47 @@ Pull it back from the droplet after any change so the two cannot drift.
 `deploy.sh` does not touch it — it only reloads.
 
 `nginx/hub-bootstrap.conf` is the HTTP-only vhost used to break the
-certificate/nginx chicken-and-egg. Currently installed. Delete it from the
-droplet's config by overwriting with `hub.conf` at step 3.
+certificate/nginx chicken-and-egg. **No longer installed** — `hub.conf` was
+written over it at step 4, and the version it replaced is kept on the droplet at
+`/etc/nginx/sites-available/hub.bootstrap.bak`. Keep the file here: a rebuilt box
+needs it again, in the same order.
 
 nginx does **not** merge `add_header` across levels: any location block with an
 `add_header` discards every header inherited from the server block. The security
 headers are therefore repeated per location rather than set once at server level,
 where they would silently apply to nothing.
+
+## HTTP/2 — a box-wide decision, currently off
+
+Every site on this droplet, the hub included, serves **HTTP/1.1**. That is not an
+oversight in the hub's config; it is the state of the whole box, and it cannot be
+changed for the hub alone.
+
+`http2` in nginx 1.24 is a parameter of `listen`, and `listen` binds a **socket**,
+not a server block. The first block to claim `0.0.0.0:443` sets the protocol
+options for every vhost sharing that socket; the rest get a warning and are
+ignored:
+
+```
+[warn] protocol options redefined for [::]:443 in /etc/nginx/sites-enabled/plinth:88
+```
+
+This was measured, not reasoned about. Adding `http2` to the hub's `listen` and
+reloading put **all five spokes and both co-tenants** — `n8n`, `vpuaas` — onto
+HTTP/2, from one line in one file. `sites-enabled` is read alphabetically, so
+`hub` comes before `plinth`, `poketrack`, `suki` and `tallow` and wins the socket.
+
+It was reverted. Not because HTTP/2 is wrong — it is a real improvement, and this
+is the page that most wants it: two large art layers plus JS and CSS, plus two
+preloads, against HTTP/1.1's six-connection limit and no header compression. It
+was reverted because a change that reaches two co-tenant services is not a side
+effect of deploying the apex.
+
+To turn it on deliberately, put it on **every** `:443` block on the box in one
+change, so the config states what is actually happening rather than eight files
+claiming HTTP/1.1 and getting HTTP/2. On this nginx that is the `listen`
+parameter, not the `http2 on;` directive — that arrived in 1.25.1, and using the
+wrong form is an `nginx -t` failure, which is the good kind.
 
 ## Known gaps
 
