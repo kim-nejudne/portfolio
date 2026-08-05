@@ -60,6 +60,31 @@ bundle, so rotating it doesn't need a rebuild.
 The cover maths, the sitting loads and the 86 board are all live in the demo.
 Nothing is faked for the tour.
 
+**Then the invitation was measured, and it failed.** Having built the demo role,
+the sign-in screen announced it in a 10px brass caption tucked under the PIN
+field — `#8C6E43` on `#F7F4EE`, which measures **4.32:1** against AA's 4.5:1
+floor for normal text, and 10px is nowhere near the large-text exemption. The
+one screen written to be read by a stranger was the one place the contrast
+budget had been quietly overspent, and it survived because nobody had pointed a
+contrast checker at a *hint* — hints read as decoration until you need one.
+
+It is now the same brass notice the dashboard already uses for its read-only
+banner, moved above the form: `#5C4A2E` on `#EFE6D5` at 11px, **6.85:1**,
+verified against `getComputedStyle` in a real browser rather than against the
+stylesheet. No new colour was invented — the fix was to stop inventing one and
+reuse the pair that already passed.
+
+The screen also stopped asking a reviewer to do transcription. Reading a PIN and
+typing it into a password field is three chances to give up, so there is a
+second button that signs in with the PIN the server already publishes. It is
+deliberately the *secondary* control even though it is the only one a public
+visitor can complete: making it primary would turn a staff portal into a
+portfolio demo, and the PIN field is what proves the lock is real. Both controls
+share one code path and one in-flight flag, so the button is not a second kind
+of sign-in that can drift from the first — it is the same POST. Where `DEMO_PIN`
+is unset, the banner and the button both vanish and an ordinary staff sign-in is
+left behind.
+
 ## 2. Accessibility: three attributes to a keyboard-operable app
 
 The scaffold shipped one `aria-label` and a single `prefers-reduced-motion` rule
