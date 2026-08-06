@@ -158,6 +158,17 @@ for (const spoke of SPOKES) {
     .replaceAll('{{CANONICAL}}', attr(canonical))
     .replaceAll('{{HREF}}', attr(spoke.href))
     .replaceAll('{{HOST}}', text(new URL(spoke.href).host))
+    .replaceAll('{{REPO}}', attr(spoke.repo))
+    /*
+     * `kim-nejudne/forme`, GitHub's own owner/repo shorthand, rather than the
+     * full URL. The full form is 44 characters for `poketrack` and this row is
+     * mono inside a 350px column at 390px wide — measured at about 339px, which
+     * fits by nine pixels and would fail the no-overflow assertion the moment a
+     * spoke were named anything longer. The shorthand is half the width and,
+     * next to the word "Source", loses nothing. Derived from the URL, so the
+     * label and the href cannot disagree.
+     */
+    .replaceAll('{{REPO_LABEL}}', text(new URL(spoke.repo).pathname.replace(/^\//, '')))
     .replaceAll('{{OTHERS}}', others(spoke))
     .replaceAll('{{BODY}}', renderCaseStudy(markdown));
 

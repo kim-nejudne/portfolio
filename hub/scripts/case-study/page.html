@@ -59,9 +59,22 @@
     </main>
 
     <footer class="cs-foot">
+      <!-- Two links, one row. The live site is what the case study describes;
+           the repository is the claim underneath it. They belong together at
+           the foot of the argument rather than in the masthead, because a
+           reader who has finished the piece is the one with a reason to open
+           either. `rel="noopener"` matches what `render.mjs` puts on every
+           external link inside the prose. -->
       <p class="cs-live mono">
-        <span class="cs-live-label">Live at</span>
-        <a href="{{HREF}}">{{HOST}}</a>
+        <span class="cs-live-pair">
+          <span class="cs-live-label">Live at</span>
+          <a href="{{HREF}}">{{HOST}}</a>
+          <span class="cs-live-sep" aria-hidden="true">·</span>
+        </span>
+        <span class="cs-live-pair">
+          <span class="cs-live-label">Source</span>
+          <a href="{{REPO}}" rel="noopener">{{REPO_LABEL}}</a>
+        </span>
       </p>
 
       <nav class="cs-others" aria-labelledby="cs-others-heading">

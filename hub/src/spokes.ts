@@ -26,6 +26,25 @@ export type Spoke = {
    * `deploy.sh` refuses to ship a build that is missing any of the five.
    */
   readonly caseStudy?: string;
+  /**
+   * The public source, on GitHub.
+   *
+   * All six repositories were private until 2026-08-06, which made the one
+   * GitHub link on this site — in `Colophon.tsx` — an argument against the
+   * page carrying it: it pointed at a profile whose visible work was four
+   * React concept projects from 2025. `positioning-brief.md` rests its first
+   * differentiator on "real engineering depth", and the only evidence offered
+   * for it showed the opposite.
+   *
+   * Linking the repository from the case study rather than only from the
+   * profile is the stronger placement. Someone who has just read why the
+   * preflight engine measures a PDF instead of trusting it is one click from
+   * the code that measures it; a profile link asks them to go and find it.
+   *
+   * Required, unlike `caseStudy`. A spoke with no public source has nothing to
+   * say here, and `verify.mjs` fetches every one of these.
+   */
+  readonly repo: string;
 };
 
 export const SPOKES: readonly Spoke[] = [
@@ -35,6 +54,7 @@ export const SPOKES: readonly Spoke[] = [
     line: 'Dry-aged, live fire, and an 86 board wired to the kitchen.',
     href: 'https://tallow.kimnejudne.dev/',
     caseStudy: '/work/tallow/',
+    repo: 'https://github.com/kim-nejudne/tallow',
   },
   {
     id: 'plinth',
@@ -42,6 +62,7 @@ export const SPOKES: readonly Spoke[] = [
     line: 'Sixteen weeks of strength, told entirely in type. No photography anywhere.',
     href: 'https://plinth.kimnejudne.dev/',
     caseStudy: '/work/plinth/',
+    repo: 'https://github.com/kim-nejudne/plinth',
   },
   {
     id: 'forme',
@@ -49,6 +70,7 @@ export const SPOKES: readonly Spoke[] = [
     line: "A trade printer's floor. The preflight engine measures your PDF rather than trusting it.",
     href: 'https://forme.kimnejudne.dev/',
     caseStudy: '/work/forme/',
+    repo: 'https://github.com/kim-nejudne/forme',
   },
   {
     id: 'poketrack',
@@ -56,6 +78,7 @@ export const SPOKES: readonly Spoke[] = [
     line: "Project tracking that levels up. A partner's whole state is a sum of XP events.",
     href: 'https://poketrack.kimnejudne.dev/',
     caseStudy: '/work/poketrack/',
+    repo: 'https://github.com/kim-nejudne/poketrack',
   },
   {
     id: 'suki',
@@ -63,6 +86,7 @@ export const SPOKES: readonly Spoke[] = [
     line: "A neighbourhood shop's ledger. Works with no signal, and the sums cannot disagree.",
     href: 'https://suki.kimnejudne.dev/',
     caseStudy: '/work/suki/',
+    repo: 'https://github.com/kim-nejudne/suki',
   },
 ];
 

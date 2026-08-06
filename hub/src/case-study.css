@@ -448,6 +448,32 @@ body.cs {
   margin-right: 0.6rem;
 }
 
+/*
+ * The row stays inline rather than becoming a flex line, so it wraps at its own
+ * whitespace when the two pairs no longer fit side by side — which at 390px
+ * they do not. A flex row would need `flex-wrap` plus a gap that fought the
+ * label's `margin-right`, to arrive at what inline text already does.
+ *
+ * `nowrap` on each pair is what makes that wrap land in the right place. Left
+ * to itself the line broke between "SOURCE" and `kim-nejudne/forme`, stranding
+ * a label on the line above its own link — the one break in the row that reads
+ * as a mistake rather than as a fold. The only legal break is now the space
+ * *between* the pairs, so 390px gives one pair per line.
+ *
+ * The separator sits inside the first pair rather than between them, so it can
+ * only ever end a line, never begin one. A middot alone at the start of a line
+ * is a typographic orphan; at the end of one it reads as a continuation, which
+ * is what it is.
+ */
+.cs-live-pair {
+  white-space: nowrap;
+}
+
+.cs-live-sep {
+  margin: 0 0.7rem;
+  color: var(--color-muted);
+}
+
 .cs-live a,
 .cs-colophon a {
   color: var(--color-ink);

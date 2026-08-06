@@ -1758,6 +1758,46 @@ async function main() {
       );
 
       /*
+       * The source link: present, labelled from its own href, and reachable by
+       * a stranger.
+       *
+       * The last clause is the one that earns the network call. All six
+       * repositories were private until 2026-08-06 while `Colophon.tsx` linked
+       * GitHub as the evidence for "real engineering depth" — so the site's
+       * only claim on its own source resolved, for everyone except Kim, to
+       * nothing. GitHub answers an anonymous request for a private repository
+       * with **404, not 403**, deliberately: a stranger cannot tell a private
+       * repo from one that was never there. That is precisely the visitor's
+       * experience, so an unauthenticated fetch is the whole test, and a repo
+       * flipped back to private fails the deploy instead of quietly going dark.
+       *
+       * The label is compared against the href rather than against a constant,
+       * so the pair cannot drift — a renamed repository with a stale label is
+       * the failure this catches, and it is invisible by eye because both
+       * halves look right on their own.
+       */
+      const repoDom = JSON.parse(
+        await ev(`JSON.stringify((() => {
+          const a = [...document.querySelectorAll('.cs-live a')]
+            .find(a => a.href === ${JSON.stringify(s.repo)});
+          if (!a) return { ok: false, why: 'no .cs-live link with that href' };
+          if (a.rel !== 'noopener') return { ok: false, why: 'rel is "' + a.rel + '"' };
+          const want = new URL(a.href).pathname.replace(/^\\//, '');
+          const got = a.textContent.trim();
+          if (got !== want) return { ok: false, why: 'label "' + got + '" does not match ' + want };
+          return { ok: true };
+        })())`),
+      );
+      const repoRes = repoDom.ok
+        ? await fetch(s.repo).catch((e) => ({ status: `fetch failed: ${e.message}` }))
+        : null;
+      check(
+        `${s.id}: its source link is labelled from its href and public`,
+        repoDom.ok && repoRes?.status === 200,
+        repoDom.ok ? `${s.repo} -> ${repoRes?.status}` : repoDom.why,
+      );
+
+      /*
        * No horizontal overflow on a phone.
        *
        * PLINTH's own case study — one of the five documents this renders — is
