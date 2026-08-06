@@ -1,8 +1,13 @@
 # TALLOW — droplet deployment
 
-Runs on the shared DigitalOcean droplet `165.245.189.5` (sgp1) alongside `n8n`,
-`netint-vpuaas`, `poketrack` and — for now — `marrow`. 1.9GB of RAM total, so every
-service is memory-capped.
+Runs on the shared DigitalOcean droplet (sgp1) alongside `n8n`,
+`netint-vpuaas`, `poketrack` and the static `plinth` vhost. 2 vCPU and 1.9GB of RAM
+total, so every service is memory-capped.
+
+> **Two placeholders run through this file.** `$DEPLOY_HOST` is the droplet as
+> `user@host`, for ssh, scp and rsync; `$DROPLET_IP` is its IPv4, for DNS records
+> and `dig` checks. Neither is recorded in this repository — export both in your
+> shell profile before following anything below.
 
 | | |
 |---|---|
@@ -42,29 +47,51 @@ to 1 so that limiter keys on the real client IP rather than nginx's.
 
 ## Deploying a new build
 
-The droplet has 1 vCPU and should not run `npm ci`. Build on a workstation and
-ship the image:
+The droplet shares 1.9GB of RAM with four other services and should not run
+`npm ci` or `docker build`. Build on a workstation and ship the image:
 
 ```bash
 # on the workstation, in tallow/
 TAG=$(git rev-parse --short HEAD)
 docker build -t tallow:$TAG .
-docker save tallow:$TAG | gzip -1 | ssh root@165.245.189.5 'gunzip | docker load'
+docker save tallow:$TAG | gzip -1 | ssh $DEPLOY_HOST 'gunzip | docker load'
 
 # on the droplet
-ssh root@165.245.189.5
+ssh $DEPLOY_HOST
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/" /opt/tallow/.env
 cd /opt/tallow && docker compose up -d
 ```
 
-`migrate` runs to completion before `app` starts, and is idempotent — it applies
-the schema, then seeds only if the tables are empty.
+`migrate` runs to completion before `app` starts, and is idempotent. It applies the
+schema, seeds only if the tables are empty, then runs any pending data migration.
 
 ## Seed data
 
 The runtime image carries no `data/` directory, so migrate seeds from the bundled
 `src/data/initialData.ts`: 12 menu items and 5 **fictional** reservations
 (555 phone numbers). No real guest data is shipped.
+
+## Data migrations
+
+Seeding is guarded by "are the tables empty", which says nothing about whether a
+long-lived database has had a given rewrite applied. `schema_migrations` answers
+that: one row per applied migration, defined in `MIGRATIONS` in `migrate.ts`.
+
+A database seeded from the *current* seed file already has the shape every
+migration produces, so a fresh seed **baselines** each id — records it as applied
+without running it. Without that, `001_gbp_to_php` would convert pesos to pesos.
+The baseline is keyed on `menu_items` having been empty, not on the seed having
+run, because a re-seed triggered by an empty `reservations` table leaves existing
+menu rows untouched and they still need converting.
+
+Check what a database has applied:
+
+```bash
+docker compose exec db psql -U tallow -c 'SELECT * FROM schema_migrations;'
+```
+
+Migrations are forward-only — there is no down step. Reverting `001` means
+writing `002`; rolling the image back does **not** restore pre-migration data.
 
 ## TLS
 
@@ -79,6 +106,6 @@ Certbot edits the vhost in place; leave its managed lines alone.
 
 ## Backups
 
-**Not yet configured.** Marrow has `marrow-backup.timer`; tallow has no equivalent.
+**Not yet configured.** No dump timer exists for the `tallow_tallow-db` volume.
 Currently acceptable because all data is regenerable demo seed, but any real content
 added through the staff dashboard is unprotected until a timer is added.
