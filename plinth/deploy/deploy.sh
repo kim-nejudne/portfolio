@@ -2,7 +2,13 @@
 #
 # Ships a fresh build to the droplet. Run from the repo root:
 #
-#   ./deploy/deploy.sh
+#   PLINTH_HOST=user@host ./deploy/deploy.sh
+#
+# The target is required rather than defaulted. It used to default to the
+# production droplet, which is convenient exactly once and wrong every other
+# way: a hardcoded production host in a repo is a target string for anyone
+# reading it, and a script that ships to production when run with no arguments
+# has no safe way to be tried out. Export it once in your shell profile.
 #
 # PLINTH is static, so there is no image to build and no container to restart —
 # this is a build, a precompress, a backup, and an rsync.
@@ -13,7 +19,7 @@
 #      takes a restorable backup before the destructive rsync --delete
 set -euo pipefail
 
-HOST="${PLINTH_HOST:-root@165.245.189.5}"
+HOST="${PLINTH_HOST:?set PLINTH_HOST to the droplet, as user@host}"
 REMOTE="/var/www/plinth"
 APP_DIR="frontend"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"

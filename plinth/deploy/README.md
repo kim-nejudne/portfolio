@@ -1,7 +1,12 @@
 # PLINTH — droplet deployment
 
-Runs on the shared DigitalOcean droplet `165.245.189.5` (sgp1) alongside `n8n`,
+Runs on the shared DigitalOcean droplet (sgp1) alongside `n8n`,
 `netint-vpuaas`, `poketrack` and `tallow`. 1.9GB of RAM total.
+
+> **Two placeholders run through this file.** `$DEPLOY_HOST` is the droplet as
+> `user@host`, for ssh, scp and rsync; `$DROPLET_IP` is its IPv4, for DNS records
+> and `dig` checks. Neither is recorded in this repository — export both in your
+> shell profile before following anything below.
 
 | | |
 |---|---|
@@ -43,14 +48,14 @@ Typechecks and builds in `frontend/`, precompresses (`gzip -9`, served by
 current `/var/www/plinth` to `/var/backups/plinth-<UTC-stamp>.tar.gz`**, rsyncs
 with `--delete` so stale asset hashes don't accumulate, then reloads nginx.
 
-Override the target with `PLINTH_HOST=root@host ./deploy/deploy.sh`.
+`PLINTH_HOST` is required and has no default — `PLINTH_HOST=user@host ./deploy/deploy.sh`.
 
 ## Rollback
 
 Every run prints the exact restore command for the backup it just took:
 
 ```bash
-ssh root@165.245.189.5 'rm -rf /var/www/plinth/* \
+ssh $DEPLOY_HOST 'rm -rf /var/www/plinth/* \
   && tar -xzf /var/backups/plinth-<STAMP>.tar.gz -C /var/www/plinth \
   && chown -R www-data:www-data /var/www/plinth && systemctl reload nginx'
 ```
@@ -69,7 +74,7 @@ where they would silently apply to nothing.
 ## DNS and TLS
 
 Both already in place from the previous site — the A record (`plinth` →
-`165.245.189.5`, at **Namecheap**, not DigitalOcean) and the certbot certificate
+`$DROPLET_IP`, at **Namecheap**, not DigitalOcean) and the certbot certificate
 for `plinth.kimnejudne.dev` are unchanged by this deploy. Nothing to redo.
 
 ## nginx
@@ -81,8 +86,8 @@ change so the two cannot drift. `deploy.sh` does not touch it — it only reload
 To change the vhost, edit it there, copy it up, and pull it back:
 
 ```bash
-scp deploy/nginx/plinth.conf root@165.245.189.5:/tmp/plinth.conf
-ssh root@165.245.189.5 '
+scp deploy/nginx/plinth.conf $DEPLOY_HOST:/tmp/plinth.conf
+ssh $DEPLOY_HOST '
   cp /etc/nginx/sites-available/plinth /root/plinth.conf.bak-$(date -u +%Y%m%dT%H%M%SZ)
   cp /tmp/plinth.conf /etc/nginx/sites-available/plinth
   nginx -t && systemctl reload nginx'
