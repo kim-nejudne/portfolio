@@ -111,8 +111,28 @@ export default function Landing() {
         ))}
       </section>
 
+      {/*
+        The way back to the portfolio. The hub links out to every spoke; until
+        2026-08-06 nothing linked back, so anyone who arrived on this domain
+        from a shared link had no route to the write-up or the other four.
+      */}
       <footer className="text-center text-white/40 text-xs font-body mt-10 pb-6">
-        A hobby project. Pokémon are Nintendo IP — sprites via PokeAPI.
+        <p>A hobby project. Pokémon are Nintendo IP — sprites via PokeAPI.</p>
+        <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <a
+            href="https://kimnejudne.dev/work/poketrack/"
+            className="underline underline-offset-2 hover:text-type-electric transition-colors"
+          >
+            Read the case study
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://kimnejudne.dev/"
+            className="underline underline-offset-2 hover:text-type-electric transition-colors"
+          >
+            More work by Kim Nejudne
+          </a>
+        </p>
       </footer>
     </div>
   );

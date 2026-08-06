@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PokéTrack — share card source</title>
+    <style>
+      /* The app's own two faces, from node_modules — DotGothic16 is the whole
+         voice of this spoke and an approximation of it would be obvious. */
+      @font-face {
+        font-family: 'DotGothic16';
+        src: url('/node_modules/@fontsource/dotgothic16/files/dotgothic16-0-400-normal.woff2') format('woff2');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url('/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')
+          format('woff2-variations');
+        font-weight: 100 900;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1200px; height: 630px; }
+
+      /* #070A12 and #EAF0FF are src/index.css; the gradient is the same
+         top-lit wash the landing page uses behind the hero. */
+      body {
+        background: #070a12;
+        background-image: radial-gradient(ellipse 900px 500px at 78% 8%, #101b3a 0%, transparent 62%);
+        color: #eaf0ff;
+        font-family: 'Inter Variable', sans-serif;
+        padding: 52px 64px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .kicker {
+        font-family: 'DotGothic16', monospace;
+        font-size: 17px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: #f7d02c;
+      }
+
+      h1 {
+        font-family: 'DotGothic16', monospace;
+        font-size: 84px;
+        line-height: 1.02;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+        margin-top: 14px;
+      }
+
+      .sub {
+        font-size: 23px;
+        line-height: 1.45;
+        color: #b9c4dd;
+        max-width: 620px;
+        margin-top: 20px;
+      }
+
+      .stage { display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; }
+
+      /*
+       * The XP bar, which is the one mechanic worth putting on a card: the
+       * partner's whole state is a sum of XP events, so a level and a bar is
+       * literally what the engine derives. Drawn rather than screenshotted —
+       * the app's sprites come from PokéAPI over the network, and a share card
+       * that needs a third-party fetch to render is a card that will one day
+       * render empty.
+       *
+       * The figures are real. Charmander's line is **medium-slow**, and from
+       * `backend/poc/_cache/growth-rate__medium-slow.json` that curve puts
+       * Lv 27 at 15,244 XP, Lv 28 at 17,242 and Lv 36 — where Charmeleon
+       * becomes Charizard — at 40,007. So 16,402 XP is a partner 1,158 into a
+       * 1,998-wide level, and the bar is filled to 58% because that is what
+       * 1158/1998 is. The spoke's whole pitch is "real PokéAPI growth curves";
+       * inventing plausible numbers on the one image most people will ever see
+       * would undercut exactly the claim the card is there to make.
+       */
+      .partner { flex: 1; max-width: 560px; }
+      .partner-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-family: 'DotGothic16', monospace;
+        font-size: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .lv { color: #f7d02c; }
+      .track {
+        height: 16px;
+        background: #0b1020;
+        border: 2px solid #2a3557;
+        position: relative;
+        overflow: hidden;
+      }
+      .fill { position: absolute; inset: 0 42% 0 0; background: linear-gradient(90deg, #6390f0, #7ac74c); }
+      .xp {
+        margin-top: 10px;
+        font-family: 'DotGothic16', monospace;
+        font-size: 15px; letter-spacing: 0.12em; color: #8fa0c4;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The Game Boy dialogue box, the app's signature furniture. */
+      .dialogue {
+        flex: 1;
+        max-width: 480px;
+        background: #f7f7fb;
+        color: #16171d;
+        border: 4px solid #16171d;
+        outline: 3px solid #f7f7fb;
+        padding: 20px 22px;
+        font-family: 'DotGothic16', monospace;
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      .foot {
+        border-top: 1px solid #1c2540;
+        padding-top: 16px;
+        display: flex;
+        justify-content: space-between;
+        font-family: 'DotGothic16', monospace;
+        font-size: 14px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #6f7fa3;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="kicker">A new adventure begins</div>
+      <h1>Level up<br />your team.</h1>
+      <p class="sub">
+        Every story point you ship becomes real XP. Cross the right level and your partner
+        evolves &mdash; and un-checking the ticket takes it back.
+      </p>
+    </div>
+
+    <div class="stage">
+      <div class="partner">
+        <div class="partner-row">
+          <span>Charmeleon</span>
+          <span class="lv">Lv 27</span>
+        </div>
+        <div class="track"><div class="fill"></div></div>
+        <div class="xp">16,402 / 17,242 XP &middot; Charizard at Lv 36</div>
+      </div>
+
+      <div class="dialogue">
+        State is never stored.<br />
+        It is the sum of the ledger, every read.
+      </div>
+    </div>
+
+    <div class="foot">
+      <span>poketrack.kimnejudne.dev</span>
+      <span>Real PokéAPI growth curves</span>
+    </div>
+  </body>
+</html>
