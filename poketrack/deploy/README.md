@@ -3,13 +3,18 @@
 Authority for ports, env and exact commands for `poketrack.kimnejudne.dev`.
 If something here disagrees with the root `CLAUDE.md`, this file wins.
 
+> **Two placeholders run through this file.** `$DEPLOY_HOST` is the droplet as
+> `user@host`, for ssh, scp and rsync; `$DROPLET_IP` is its IPv4, for DNS records
+> and `dig` checks. Neither is recorded in this repository — export both in your
+> shell profile before following anything below.
+
 ## Shape
 
 Two artifacts, two paths, one hostname:
 
 | | |
 |---|---|
-| Host | DigitalOcean droplet `165.245.189.5` (sgp1), shared with `n8n`, `tallow`, `netint-vpuaas` |
+| Host | DigitalOcean droplet (sgp1), shared with `n8n`, `tallow`, `netint-vpuaas` |
 | API | `poketrack:<tag>` container, uvicorn on **loopback `127.0.0.1:3004`** → nginx `/api/` |
 | SPA | CRA build served off disk by nginx from **`/var/www/poketrack`** → nginx `/` |
 | Data | `mongo:7` on the compose-internal network, **no published port**, volume `poketrack_poketrack-mongo` |
@@ -35,18 +40,18 @@ TAG=$(git rev-parse --short HEAD)
 
 # 1. API image -> droplet
 docker build -t poketrack:$TAG .
-docker save poketrack:$TAG | ssh root@165.245.189.5 'docker load'
+docker save poketrack:$TAG | ssh $DEPLOY_HOST 'docker load'
 
 # 2. SPA bundle -> droplet
 #    REACT_APP_BACKEND_URL is deliberately empty: the SPA is same-origin, so
 #    src/lib/api.js resolves the API to a relative /api. Setting it to the full
 #    host would work but would start sending needless CORS preflights.
 ( cd frontend && REACT_APP_BACKEND_URL= GENERATE_SOURCEMAP=false yarn build )
-rsync -az --delete frontend/build/ root@165.245.189.5:/var/www/poketrack/
-ssh root@165.245.189.5 'chown -R www-data:www-data /var/www/poketrack'
+rsync -az --delete frontend/build/ $DEPLOY_HOST:/var/www/poketrack/
+ssh $DEPLOY_HOST 'chown -R www-data:www-data /var/www/poketrack'
 
 # 3. point the stack at the new tag and restart the API
-ssh root@165.245.189.5 "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' /opt/poketrack/.env \
+ssh $DEPLOY_HOST "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' /opt/poketrack/.env \
   && cd /opt/poketrack && docker compose up -d"
 ```
 
@@ -62,8 +67,8 @@ image, and survives. On a **fresh volume** it has to be built once — see
 Previous images stay on the box. Roll back without rebuilding:
 
 ```bash
-ssh root@165.245.189.5 'docker images poketrack'          # list known-good tags
-ssh root@165.245.189.5 "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<good-sha>/' /opt/poketrack/.env \
+ssh $DEPLOY_HOST 'docker images poketrack'          # list known-good tags
+ssh $DEPLOY_HOST "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<good-sha>/' /opt/poketrack/.env \
   && cd /opt/poketrack && docker compose up -d app"
 ```
 
@@ -90,8 +95,8 @@ checking out the old sha and re-running step 2.
 ```bash
 curl -s https://poketrack.kimnejudne.dev/api/health          # {"ok":true}
 curl -s https://poketrack.kimnejudne.dev/api/                # {"service":"poketrack",...}
-ssh root@165.245.189.5 'docker ps --filter name=poketrack'   # both Up (healthy)
-ssh root@165.245.189.5 'docker stats --no-stream --format "{{.Name}}\t{{.MemUsage}}"'
+ssh $DEPLOY_HOST 'docker ps --filter name=poketrack'   # both Up (healthy)
+ssh $DEPLOY_HOST 'docker stats --no-stream --format "{{.Name}}\t{{.MemUsage}}"'
 ```
 
 On boot the app kicks off a background PokéAPI prewarm (27 starters plus their
@@ -123,7 +128,7 @@ in a host process list.
 Check it is running:
 
 ```bash
-ssh root@165.245.189.5 'tail -5 /opt/poketrack/backups/backup.log; ls -la /opt/poketrack/backups'
+ssh $DEPLOY_HOST 'tail -5 /opt/poketrack/backups/backup.log; ls -la /opt/poketrack/backups'
 ```
 
 ### Restoring
@@ -144,11 +149,11 @@ docker exec -i poketrack-db-1 sh -c 'mongorestore --archive --gzip \
 To restore for real, over the live database:
 
 ```bash
-ssh root@165.245.189.5 'cd /opt/poketrack && docker compose stop app'   # no writes mid-restore
+ssh $DEPLOY_HOST 'cd /opt/poketrack && docker compose stop app'   # no writes mid-restore
 docker exec -i poketrack-db-1 sh -c 'mongorestore --archive --gzip --drop \
   --username="$MONGO_INITDB_ROOT_USERNAME" --password="$MONGO_INITDB_ROOT_PASSWORD" \
   --authenticationDatabase=admin' < "$ARCHIVE"
-ssh root@165.245.189.5 'cd /opt/poketrack && docker compose start app'
+ssh $DEPLOY_HOST 'cd /opt/poketrack && docker compose start app'
 ```
 
 `--drop` clears each collection as it restores it. Collections created *after* the
@@ -183,7 +188,7 @@ UI and the level really does fall, because the app derives it the same way.
 The script ships in the image (`COPY backend/ ./`), so on a fresh volume:
 
 ```bash
-ssh root@165.245.189.5 'docker exec poketrack-app-1 python seed_demo.py'
+ssh $DEPLOY_HOST 'docker exec poketrack-app-1 python seed_demo.py'
 ```
 
 It takes a few seconds and is safe to re-run. Then install the cron below.
@@ -210,7 +215,7 @@ never lands mid-`mongodump`:
 Run it by hand any time — before sending the link to someone, for instance:
 
 ```bash
-ssh root@165.245.189.5 /opt/poketrack/scripts/reset-demo.sh
+ssh $DEPLOY_HOST /opt/poketrack/scripts/reset-demo.sh
 ```
 
 Two properties make that safe on a live box:
@@ -228,7 +233,7 @@ Two properties make that safe on a live box:
 Check it is running, and read what it wrote:
 
 ```bash
-ssh root@165.245.189.5 'tail -5 /opt/poketrack/backups/reset-demo.log'
+ssh $DEPLOY_HOST 'tail -5 /opt/poketrack/backups/reset-demo.log'
 ```
 
 `--quiet` keeps the `wiped:`/`seeded:` summary — that line is the log's only
@@ -239,7 +244,7 @@ a trainer did not land on the level the config asked for.
 ### Removing it
 
 ```bash
-ssh root@165.245.189.5 'docker exec poketrack-app-1 python seed_demo.py --wipe-only'
+ssh $DEPLOY_HOST 'docker exec poketrack-app-1 python seed_demo.py --wipe-only'
 ```
 
 Then drop the cron line. With no demo users in the database
@@ -263,7 +268,7 @@ Read it at **`https://poketrack.kimnejudne.dev/_stats/`**, behind basic auth
 (`/etc/nginx/poketrack-stats.htpasswd`, user `kim`). Rotate the password with:
 
 ```bash
-ssh root@165.245.189.5 'printf "kim:%s\n" "$(openssl passwd -apr1 NEWPASSWORD)" \
+ssh $DEPLOY_HOST 'printf "kim:%s\n" "$(openssl passwd -apr1 NEWPASSWORD)" \
   > /etc/nginx/poketrack-stats.htpasswd && systemctl reload nginx'
 ```
 
