@@ -140,10 +140,31 @@ export default function Close() {
       />
 
 
-      <footer className="mt-24 flex flex-col justify-between gap-4 border-t border-ink pt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-muted md:flex-row">
-        <span className="font-bold text-ink">Plinth</span>
-        <span>Accumulate · Intensify · Realise · Restore</span>
-        <span>Set in Archivo &amp; Space Mono · No photographs · MMXXVI</span>
+      <footer className="mt-24 border-t border-ink pt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+        <div className="flex flex-col justify-between gap-4 md:flex-row">
+          <span className="font-bold text-ink">Plinth</span>
+          <span>Accumulate · Intensify · Realise · Restore</span>
+          <span>Set in Archivo &amp; Space Mono · No photographs · MMXXVI</span>
+        </div>
+
+        {/*
+          The way back to the portfolio. The hub links out to every spoke; until
+          2026-08-06 nothing linked back, so anyone arriving on this domain from
+          a shared link had no route to the write-up or the other four.
+
+          Underlined rather than coloured: blue is "the plan" and vermilion is
+          "the effort" on this page, and neither of them means "link". Borrowing
+          one here would break the semantic the whole art direction rests on.
+        */}
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ink/20 pt-5">
+          <span>Demo · a portfolio piece</span>
+          <a className="underline underline-offset-4 hover:text-ink" href="https://kimnejudne.dev/work/plinth/">
+            Case study
+          </a>
+          <a className="underline underline-offset-4 hover:text-ink" href="https://kimnejudne.dev/">
+            More work by Kim Nejudne
+          </a>
+        </div>
       </footer>
     </section>
   );
