@@ -8,9 +8,14 @@ Everything is built **on the workstation** and shipped over ssh. The droplet
 shares 1.9GB with `n8n`, `netint-vpuaas`, `poketrack`, `tallow` and `forme`; it
 does not run `npm ci` or `docker build`.
 
+> **Two placeholders run through this file.** `$DEPLOY_HOST` is the droplet as
+> `user@host`, for ssh, scp and rsync; `$DROPLET_IP` is its IPv4, for DNS records
+> and `dig` checks. Neither is recorded in this repository — export both in your
+> shell profile before following anything below.
+
 | | |
 |---|---|
-| Host | `165.245.189.5` (sgp1) |
+| Host | the droplet (sgp1) |
 | Stack dir | `/opt/suki` |
 | Static root | `/var/www/suki` |
 | API port | `127.0.0.1:3007` → container `4100` |
@@ -32,11 +37,11 @@ the one request path that runs on a phone with one bar of signal.
 
 ### 1. DNS, by hand, before anything else
 
-An A record for `suki` → `165.245.189.5` at **Namecheap** (DNS is not with
+An A record for `suki` → `$DROPLET_IP` at **Namecheap** (DNS is not with
 DigitalOcean). Certbot cannot issue until it resolves:
 
 ```sh
-dig +short suki.kimnejudne.dev    # must print 165.245.189.5
+dig +short suki.kimnejudne.dev    # must print $DROPLET_IP
 ```
 
 ### 2. Secrets
@@ -44,7 +49,7 @@ dig +short suki.kimnejudne.dev    # must print 165.245.189.5
 On the droplet, `/opt/suki/.env` — never committed, never in the image:
 
 ```sh
-ssh root@165.245.189.5 'mkdir -p /opt/suki && chmod 700 /opt/suki'
+ssh $DEPLOY_HOST 'mkdir -p /opt/suki && chmod 700 /opt/suki'
 ```
 
 ```ini
@@ -62,7 +67,7 @@ IMAGE_TAG=local
 ```
 
 ```sh
-ssh root@165.245.189.5 'chmod 600 /opt/suki/.env'
+ssh $DEPLOY_HOST 'chmod 600 /opt/suki/.env'
 ```
 
 ### 3. Ship the API image
@@ -72,15 +77,15 @@ From the repo root (the build context is the workspace root — the API imports
 
 ```sh
 docker build -f api/Dockerfile -t suki-api:local .
-docker save suki-api:local | gzip | ssh root@165.245.189.5 'gunzip | docker load'
-scp deploy/compose.deploy.yaml root@165.245.189.5:/opt/suki/compose.yaml
+docker save suki-api:local | gzip | ssh $DEPLOY_HOST 'gunzip | docker load'
+scp deploy/compose.deploy.yaml $DEPLOY_HOST:/opt/suki/compose.yaml
 ```
 
 ### 4. Start the stack
 
 ```sh
-ssh root@165.245.189.5 'cd /opt/suki && docker compose up -d'
-ssh root@165.245.189.5 'curl -s localhost:3007/api/health'
+ssh $DEPLOY_HOST 'cd /opt/suki && docker compose up -d'
+ssh $DEPLOY_HOST 'curl -s localhost:3007/api/health'
 ```
 
 `migrate` runs to completion before `api` starts; `api` waits on both it and the
@@ -94,7 +99,7 @@ database healthcheck.
 ```sh
 cd frontend
 VITE_API_URL=/api VITE_DEVICE_KEY='<the key>' npm run build
-rsync -av --delete dist/ root@165.245.189.5:/var/www/suki/
+rsync -av --delete dist/ $DEPLOY_HOST:/var/www/suki/
 ```
 
 `--delete` matters: stale content-hashed assets accumulate otherwise, and an
@@ -104,9 +109,9 @@ that no longer exist.
 ### 6. nginx and TLS
 
 ```sh
-scp deploy/nginx/suki.conf root@165.245.189.5:/etc/nginx/sites-available/suki.conf
-ssh root@165.245.189.5 'ln -sf /etc/nginx/sites-available/suki.conf /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx'
-ssh root@165.245.189.5 'certbot --nginx -d suki.kimnejudne.dev'
+scp deploy/nginx/suki.conf $DEPLOY_HOST:/etc/nginx/sites-available/suki.conf
+ssh $DEPLOY_HOST 'ln -sf /etc/nginx/sites-available/suki.conf /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx'
+ssh $DEPLOY_HOST 'certbot --nginx -d suki.kimnejudne.dev'
 ```
 
 Certbot rewrites the `listen` lines and adds the TLS block. Leave those alone
@@ -115,10 +120,10 @@ on subsequent edits.
 ### 7. Backups
 
 ```sh
-scp deploy/backup/suki-backup.sh root@165.245.189.5:/usr/local/bin/
-scp deploy/backup/suki-backup.{service,timer} root@165.245.189.5:/etc/systemd/system/
-ssh root@165.245.189.5 'chmod 755 /usr/local/bin/suki-backup.sh && systemctl daemon-reload && systemctl enable --now suki-backup.timer'
-ssh root@165.245.189.5 'systemctl start suki-backup.service && journalctl -u suki-backup.service -n 20 --no-pager'
+scp deploy/backup/suki-backup.sh $DEPLOY_HOST:/usr/local/bin/
+scp deploy/backup/suki-backup.{service,timer} $DEPLOY_HOST:/etc/systemd/system/
+ssh $DEPLOY_HOST 'chmod 755 /usr/local/bin/suki-backup.sh && systemctl daemon-reload && systemctl enable --now suki-backup.timer'
+ssh $DEPLOY_HOST 'systemctl start suki-backup.service && journalctl -u suki-backup.service -n 20 --no-pager'
 ```
 
 Run it once by hand and read the output. The script refuses to keep a dump that
@@ -140,9 +145,9 @@ somebody typed into a note. `suki-reset.timer` wipes the shop at 03:50 so every
 visitor starts from the seeded fixtures.
 
 ```sh
-scp deploy/backup/suki-reset.sh root@165.245.189.5:/usr/local/bin/
-scp deploy/backup/suki-reset.{service,timer} root@165.245.189.5:/etc/systemd/system/
-ssh root@165.245.189.5 'chmod 755 /usr/local/bin/suki-reset.sh && systemctl daemon-reload && systemctl enable --now suki-reset.timer'
+scp deploy/backup/suki-reset.sh $DEPLOY_HOST:/usr/local/bin/
+scp deploy/backup/suki-reset.{service,timer} $DEPLOY_HOST:/etc/systemd/system/
+ssh $DEPLOY_HOST 'chmod 755 /usr/local/bin/suki-reset.sh && systemctl daemon-reload && systemctl enable --now suki-reset.timer'
 ```
 
 It runs **ten minutes after the backup**, deliberately: the night's dump
@@ -172,7 +177,7 @@ schema the case study describes.
 To reset by hand — before sending the link to someone specific, say:
 
 ```sh
-ssh root@165.245.189.5 'systemctl start suki-reset.service && journalctl -u suki-reset.service -n 5 --no-pager -o cat'
+ssh $DEPLOY_HOST 'systemctl start suki-reset.service && journalctl -u suki-reset.service -n 5 --no-pager -o cat'
 ```
 
 ## Updating
@@ -181,15 +186,15 @@ API only:
 
 ```sh
 docker build -f api/Dockerfile -t suki-api:local .
-docker save suki-api:local | gzip | ssh root@165.245.189.5 'gunzip | docker load'
-ssh root@165.245.189.5 'cd /opt/suki && docker compose up -d api'
+docker save suki-api:local | gzip | ssh $DEPLOY_HOST 'gunzip | docker load'
+ssh $DEPLOY_HOST 'cd /opt/suki && docker compose up -d api'
 ```
 
 Web only:
 
 ```sh
 cd frontend && VITE_API_URL=/api VITE_DEVICE_KEY='<the key>' npm run build
-rsync -av --delete dist/ root@165.245.189.5:/var/www/suki/
+rsync -av --delete dist/ $DEPLOY_HOST:/var/www/suki/
 ```
 
 No nginx reload is needed for a web update — the files are read per request.
@@ -260,7 +265,7 @@ The dumps are `pg_dump --clean --if-exists`, so they replay over a live
 database:
 
 ```sh
-ssh root@165.245.189.5
+ssh $DEPLOY_HOST
 cd /opt/suki
 zcat /var/backups/suki/suki-<stamp>.sql.gz | docker compose exec -T db psql -U suki -d suki
 ```
@@ -300,5 +305,5 @@ app removed and reinstalled; there is no server-side fix.
 before blaming SUKI:
 
 ```sh
-ssh root@165.245.189.5 'free -m && docker stats --no-stream --format "{{.Name}} {{.MemUsage}}"'
+ssh $DEPLOY_HOST 'free -m && docker stats --no-stream --format "{{.Name}} {{.MemUsage}}"'
 ```
