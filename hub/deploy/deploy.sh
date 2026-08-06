@@ -2,7 +2,13 @@
 #
 # Ships a fresh build to the droplet. Run from the hub directory:
 #
-#   ./deploy/deploy.sh
+#   HUB_HOST=user@host ./deploy/deploy.sh
+#
+# The target is required rather than defaulted. It used to default to the
+# production droplet, which is convenient exactly once and wrong every other
+# way: a hardcoded production host in a repo is a target string for anyone
+# reading it, and a script that ships to production when run with no arguments
+# has no safe way to be tried out. Export it once in your shell profile.
 #
 # The hub is static, so there is no image to build and no container to restart —
 # this is a verify, a build, a precompress, a backup, and an rsync. Adapted from
@@ -18,7 +24,7 @@
 #      301 rather than a second copy.
 set -euo pipefail
 
-HOST="${HUB_HOST:-root@165.245.189.5}"
+HOST="${HUB_HOST:?set HUB_HOST to the droplet, as user@host}"
 REMOTE="/var/www/hub"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP="/var/backups/hub-${STAMP}.tar.gz"

@@ -1,8 +1,12 @@
 # The hub — droplet deployment
 
-The apex. `kimnejudne.dev` itself, on the shared DigitalOcean droplet
-`165.245.189.5` (sgp1), alongside `n8n`, `netint-vpuaas`, and the five spokes.
-1.9GB of RAM total.
+The apex. `kimnejudne.dev` itself, on the shared DigitalOcean droplet (sgp1),
+alongside `n8n`, `netint-vpuaas`, and the five spokes. 1.9GB of RAM total.
+
+> **Two placeholders run through this file.** `$DEPLOY_HOST` is the droplet as
+> `user@host`, for ssh, scp and rsync; `$DROPLET_IP` is its IPv4, for DNS records
+> and `dig` checks. Neither is recorded in this repository — export both in your
+> shell profile before following anything below.
 
 | | |
 |---|---|
@@ -53,8 +57,8 @@ Records, and a redirect record answers as an A record pointing at the forwarder.
 So the apex resolved to two addresses:
 
 ```
-kimnejudne.dev.  A  165.245.189.5     the droplet
-kimnejudne.dev.  A  192.64.119.15     Namecheap URL Forward
+kimnejudne.dev.  A  $DROPLET_IP      the droplet
+kimnejudne.dev.  A  192.64.119.15    Namecheap URL Forward
 ```
 
 **The forwarder has no TLS listener at all.** Port 80 open, port 443 filtered —
@@ -78,8 +82,8 @@ served plain HTTP from a parking service. Both deleted. Both had redirected over
 Authoritative is clean:
 
 ```sh
-dig +short @pdns1.registrar-servers.com kimnejudne.dev A       # 165.245.189.5
-dig +short @pdns1.registrar-servers.com www.kimnejudne.dev A   # 165.245.189.5
+dig +short @pdns1.registrar-servers.com kimnejudne.dev A       # $DROPLET_IP
+dig +short @pdns1.registrar-servers.com www.kimnejudne.dev A   # $DROPLET_IP
 ```
 
 Public resolvers lag by the TTL (1799s), and **anycast resolvers lag unevenly** —
@@ -108,8 +112,8 @@ Host Records:
 
 | Type | Host | Value | TTL |
 |---|---|---|---|
-| A | `@` | `165.245.189.5` | Automatic |
-| A | `www` | `165.245.189.5` | Automatic |
+| A | `@` | `$DROPLET_IP` | Automatic |
+| A | `www` | `$DROPLET_IP` | Automatic |
 
 And delete the **URL Redirect Record** on `@` — see above; this is the step that
 was missed.
@@ -131,12 +135,12 @@ question outright:
 
 ```sh
 TOKEN="probe-$(date -u +%s)"
-ssh root@165.245.189.5 "mkdir -p /var/www/certbot/.well-known/acme-challenge \
+ssh $DEPLOY_HOST "mkdir -p /var/www/certbot/.well-known/acme-challenge \
   && printf '%s' '$TOKEN' > /var/www/certbot/.well-known/acme-challenge/$TOKEN \
   && chown -R www-data:www-data /var/www/certbot"
 
 # -L, and force each address the apex resolves to
-for ip in 165.245.189.5 192.64.119.15; do
+for ip in $DROPLET_IP 192.64.119.15; do
   curl -sS -L --resolve "kimnejudne.dev:80:$ip" \
     "http://kimnejudne.dev/.well-known/acme-challenge/$TOKEN"
 done
@@ -157,7 +161,7 @@ redirect, so `https://www.` without a cert covering `www` is a security warning
 rather than a redirect.
 
 ```sh
-ssh root@165.245.189.5 \
+ssh $DEPLOY_HOST \
   'certbot certonly --webroot -w /var/www/certbot \
      -d kimnejudne.dev -d www.kimnejudne.dev --keep-until-expiring'
 ```
@@ -165,9 +169,9 @@ ssh root@165.245.189.5 \
 ### 4. Swap the bootstrap vhost for the real one
 
 ```sh
-ssh root@165.245.189.5 'cp /etc/nginx/sites-available/hub /etc/nginx/sites-available/hub.bootstrap.bak'
-scp deploy/nginx/hub.conf root@165.245.189.5:/etc/nginx/sites-available/hub
-ssh root@165.245.189.5 'nginx -t && systemctl reload nginx'
+ssh $DEPLOY_HOST 'cp /etc/nginx/sites-available/hub /etc/nginx/sites-available/hub.bootstrap.bak'
+scp deploy/nginx/hub.conf $DEPLOY_HOST:/etc/nginx/sites-available/hub
+ssh $DEPLOY_HOST 'nginx -t && systemctl reload nginx'
 ```
 
 `nginx -t` is the guard that matters here: `hub.conf` references the certificate
@@ -205,7 +209,7 @@ request), tars the current `/var/www/hub` to
 `/var/backups/hub-<UTC-stamp>.tar.gz`, rsyncs with `--delete` so stale asset
 hashes don't accumulate, then reloads nginx.
 
-Override the target with `HUB_HOST=root@host ./deploy/deploy.sh`.
+`HUB_HOST` is required and has no default — `HUB_HOST=user@host ./deploy/deploy.sh`.
 
 **`npm run verify` is a gate here, not a habit.** `HUB_SKIP_VERIFY=1` exists and
 should feel uncomfortable to type. This is the page a recruiter sees first and
@@ -217,7 +221,7 @@ where a broken spoke loses one of five.
 Every run prints the exact restore command for the backup it just took:
 
 ```sh
-ssh root@165.245.189.5 'rm -rf /var/www/hub/* \
+ssh $DEPLOY_HOST 'rm -rf /var/www/hub/* \
   && tar -xzf /var/backups/hub-<STAMP>.tar.gz -C /var/www/hub \
   && chown -R www-data:www-data /var/www/hub && systemctl reload nginx'
 ```
