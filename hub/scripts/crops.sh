@@ -21,14 +21,27 @@
 # To re-derive a chosen crop from its source instead, which is what you almost
 # certainly want:
 #
-#   magick art/crops/$n.png -gravity north -crop 2880x1920+0+0 +repage \
+#   magick art/crops/$n.png -gravity north -crop <SRC_W>x<SRC_H>+0+0 +repage \
 #     -resize 900x600 public/crops/$n.png
 #   avifenc -q 62 --speed 4 public/crops/$n.png public/crops/$n.avif
 #
-# The captures are 2880x2048 — 1440x1024 at DPR 2, which is 1.40 rather than
-# 3:2, so 64 CSS px comes off the bottom. On SUKI that is deliberate: it drops
-# the tab bar and leaves the dark total bar (source rows 1784-1911) as the
-# closing edge of the frame, with nine pixels to spare.
+# The two chosen sources are not the same size, because they were framed rather
+# than merely taken, and the frame is the decision:
+#
+#   poketrack  2880x2048  = 1440x1024 at DPR 2, which is 1.40 rather than 3:2,
+#                           so 64 CSS px comes off the bottom: -crop 2880x1920.
+#   suki       2244x1496  = 1122x748 at DPR 2, exactly 3:2, so the crop above is
+#                           an identity and only the resize does work.
+#
+# SUKI is shot at 1122 rather than 1440 on purpose. Its landing page is quiet by
+# art direction — paper, hairlines and small type — and at a 1440 viewport it
+# reduces to a card of grey texture. 1122 is the widest viewport whose bottom
+# edge still lands on clean paper below the specimen rather than slicing through
+# the first line of the definitions, and it carries the headline, the ink CTA
+# and the ledger's red and green at a size that reads. Measured, not guessed:
+# 1440 gives a standard deviation of 31.3 against the set's 32.4-67.7, and 1122
+# gives 37.4 — level with the Till screen this replaced (38.3), and warm at
+# R-B +9.6 where the brief wants the four paper crops between +7 and +17.
 #
 # Whichever route, write BOTH formats. sources() offers AVIF first, so a fresh
 # PNG beside a stale AVIF ships the stale image and looks like nothing happened.

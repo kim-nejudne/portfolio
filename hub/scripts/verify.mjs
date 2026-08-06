@@ -1485,6 +1485,91 @@ async function main() {
       await ev(`getComputedStyle(document.querySelector('.mono')).fontFamily`),
     );
 
+    /* ---- the crops --------------------------------------------------- */
+
+    /*
+     * The five crops are the only colour on the page, and until now nothing
+     * here looked at them.
+     *
+     * That was a real hole rather than a theoretical one. `.card-frame img`
+     * sets `object-fit: cover` under `aspect-ratio: 3/2`, which is a pair
+     * chosen to make the frame identical whatever it is handed — so a 4:3
+     * capture, a portrait phone screenshot and a 404 all render as a
+     * confidently-framed card, and the geometry assertions above keep passing
+     * because they measure the frame rather than what is in it.
+     *
+     * The file list is read off the document, not restated here: a spoke added
+     * to `spokes.ts` without a crop fails rather than goes unchecked.
+     */
+    const crops = JSON.parse(await ev(`(async () => {
+      const pictures = [...document.querySelectorAll('.card-frame picture')];
+      const bad = [];
+
+      /* Mean RGB of a decoded image, on a small fixed grid so the two formats
+         are compared at the same resolution and the cost is trivial. */
+      const signature = async (blob) => {
+        const bmp = await createImageBitmap(blob).catch(() => null);
+        if (!bmp) return null;
+        const N = 32;
+        const c = new OffscreenCanvas(N, N);
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bmp, 0, 0, N, N);
+        return { w: bmp.width, h: bmp.height, px: [...ctx.getImageData(0, 0, N, N).data] };
+      };
+
+      for (const pic of pictures) {
+        const png = pic.querySelector('img')?.getAttribute('src');
+        const avif = pic.querySelector('source[type="image/avif"]')?.getAttribute('srcset');
+        if (!png || !avif) { bad.push('a card is missing one of its two formats'); continue; }
+
+        const sigs = {};
+        for (const [fmt, href] of [['png', png], ['avif', avif]]) {
+          const r = await fetch(href).catch(() => null);
+          if (!r || !r.ok) { bad.push(href + ' -> ' + (r ? r.status : 'failed')); continue; }
+          const type = r.headers.get('content-type') || '';
+          if (!type.includes(fmt)) { bad.push(href + ' -> ' + type + ', wanted image/' + fmt); continue; }
+          const s = await signature(await r.blob());
+          if (!s) { bad.push(href + ' -> did not decode'); continue; }
+          /* 900x600 is the contract crops.sh writes and the width/height the
+             <img> declares; anything else reflows the card or gets silently
+             absorbed by object-fit. */
+          if (s.w !== 900 || s.h !== 600) {
+            bad.push(href + ' is ' + s.w + 'x' + s.h + ', wanted 900x600');
+            continue;
+          }
+          sigs[fmt] = s;
+        }
+
+        /*
+         * And the two formats have to be the same picture.
+         *
+         * This is the failure crops.sh warns about in prose and nothing has
+         * ever checked: <source> offers AVIF first, so re-deriving the PNG and
+         * forgetting the AVIF ships the *old* image to every browser while the
+         * file you just looked at sits there unused. Dimensions cannot see it —
+         * both are 900x600 — so compare the pixels. AVIF at q62 is lossy, so
+         * the threshold is generous; two different screenshots of the same site
+         * land far above it.
+         */
+        if (sigs.png && sigs.avif) {
+          let sum = 0;
+          for (let i = 0; i < sigs.png.px.length; i += 4) {
+            sum += Math.abs(sigs.png.px[i] - sigs.avif.px[i])
+                 + Math.abs(sigs.png.px[i + 1] - sigs.avif.px[i + 1])
+                 + Math.abs(sigs.png.px[i + 2] - sigs.avif.px[i + 2]);
+          }
+          const mad = sum / (32 * 32 * 3);
+          if (mad > 6) bad.push(png + ' and its AVIF differ by ' + mad.toFixed(1) + ' per channel — one is stale');
+        }
+      }
+      return JSON.stringify({ n: pictures.length, bad });
+    })()`));
+    check(
+      'every crop is 900x600 in both formats, and the two are the same picture',
+      crops.n === SPOKES.length && crops.bad.length === 0,
+      crops.bad.length ? crops.bad.join('; ') : `${crops.n} crops, both formats, PNG and AVIF agree`,
+    );
+
     /* ---- the case studies ------------------------------------------- */
 
     /*
