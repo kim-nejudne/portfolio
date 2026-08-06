@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FORME — share card source</title>
+    <style>
+      /* The app's own two faces, from node_modules at the monorepo root. */
+      @font-face {
+        font-family: 'IBM Plex Sans Variable';
+        src: url('/node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2') format('woff2-variations');
+        font-weight: 100 700;
+      }
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        src: url('/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        src: url('/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+        font-weight: 600;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1200px; height: 630px; }
+
+      /* Paper, ink, rule and the four process colours — verbatim from
+         src/app/globals.css. Radius 0, no shadows, no gradients. */
+      body {
+        background: #f4f2ed;
+        color: #0b0b0b;
+        font-family: 'IBM Plex Sans Variable', sans-serif;
+        padding: 46px 56px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+      }
+
+      /* Crop marks, the way the proof frame carries them. Prepress furniture
+         used as interface furniture is the whole art direction. */
+      .mark { position: absolute; width: 26px; height: 26px; }
+      .mark::before, .mark::after { content: ''; position: absolute; background: #0b0b0b; }
+      .mark::before { width: 100%; height: 1px; top: 50%; }
+      .mark::after { height: 100%; width: 1px; left: 50%; }
+      .m-tl { top: 14px; left: 14px; }
+      .m-tr { top: 14px; right: 14px; }
+      .m-bl { bottom: 14px; left: 14px; }
+      .m-br { bottom: 14px; right: 14px; }
+
+      .rail {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase;
+        color: #6b675f;
+        border-bottom: 1px solid #cdc9be; padding-bottom: 14px;
+      }
+      .wordmark { color: #0b0b0b; font-weight: 600; letter-spacing: 0.3em; font-size: 17px; }
+
+      .body { display: grid; grid-template-columns: 1fr 1.05fr; gap: 52px; align-items: center; }
+
+      h1 { font-size: 62px; line-height: 1.02; font-weight: 600; letter-spacing: -0.025em; }
+      .sub { margin-top: 20px; font-size: 19px; line-height: 1.5; color: #6b675f; max-width: 460px; }
+
+      /*
+       * The preflight report, which is the spoke's signature technical moment
+       * and the only thing on it a recruiter cannot pattern-match to a CRUD app.
+       *
+       * The twelve check ids are the real ones from packages/domain/preflight.ts.
+       * The SKIPPED row is deliberately on the card rather than hidden: nine of
+       * the twelve checks are genuine measurements through poppler and
+       * ghostscript, and the other three say so instead of quietly passing. That
+       * distinction is the most honest thing about the spoke and it belongs on
+       * the image, not three clicks in.
+       */
+      .report { border-top: 2px solid #0b0b0b; }
+      .report-cap {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+        color: #6b675f; padding: 11px 0 9px;
+        display: flex; justify-content: space-between;
+      }
+      .chk {
+        display: grid; grid-template-columns: 15px 1fr auto 74px;
+        gap: 0 13px; align-items: baseline;
+        padding: 9px 0; border-top: 1px solid #cdc9be;
+        font-family: 'IBM Plex Mono', monospace; font-size: 14px;
+        font-variant-numeric: tabular-nums;
+      }
+      /* Status is never colour alone: every row carries a mark shape and a word
+         as well as a hue. Same rule the app holds itself to. */
+      .dot { width: 9px; height: 9px; }
+      .sq { background: #00a0d8; }
+      .di { background: #d6006e; transform: rotate(45deg); }
+      .ho { border: 1px solid #6b675f; }
+      .id { letter-spacing: 0.02em; }
+      .val { color: #6b675f; font-size: 13px; text-align: right; }
+      .sev { font-weight: 600; letter-spacing: 0.1em; text-align: right; font-size: 12px; }
+      .sev-pass { color: #00a0d8; }
+      .sev-fail { color: #d6006e; }
+      .sev-skip { color: #6b675f; }
+
+      .foot { display: flex; justify-content: space-between; align-items: flex-end; }
+      .foot-text {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: #6b675f;
+      }
+      /* The CMYK colour bar the press sheet carries on its tail. */
+      .bar { display: flex; height: 13px; width: 340px; }
+      .bar span { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <i class="mark m-tl"></i><i class="mark m-tr"></i><i class="mark m-bl"></i><i class="mark m-br"></i>
+
+    <div class="rail">
+      <span class="wordmark">FORME</span>
+      <span>Trade printer &middot; Manila &middot; Litho and digital</span>
+    </div>
+
+    <div class="body">
+      <div>
+        <h1>We measure your PDF. We don&rsquo;t trust it.</h1>
+        <p class="sub">
+          Twelve preflight checks on every file before it goes near a plate. Nine are real
+          measurements; the other three say so.
+        </p>
+      </div>
+
+      <div class="report">
+        <div class="report-cap">
+          <span>Preflight &mdash; job FRM-4471</span>
+          <span>PDF/X-4 &middot; 16pp</span>
+        </div>
+
+        <div class="chk">
+          <i class="dot sq"></i><span class="id">trim-size</span>
+          <span class="val">210 &times; 297mm</span><span class="sev sev-pass">PASS</span>
+        </div>
+        <div class="chk">
+          <i class="dot di"></i><span class="id">bleed</span>
+          <span class="val">1.4mm &lt; 3mm</span><span class="sev sev-fail">FAIL</span>
+        </div>
+        <div class="chk">
+          <i class="dot sq"></i><span class="id">image-resolution</span>
+          <span class="val">412 dpi min</span><span class="sev sev-pass">PASS</span>
+        </div>
+        <div class="chk">
+          <i class="dot sq"></i><span class="id">total-area-coverage</span>
+          <span class="val">287% &le; 300%</span><span class="sev sev-pass">PASS</span>
+        </div>
+        <div class="chk">
+          <i class="dot ho"></i><span class="id">spot-colours</span>
+          <span class="val">needs content stream</span><span class="sev sev-skip">SKIPPED</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="foot-text">
+        forme.kimnejudne.dev<br />
+        <span style="letter-spacing: 0.12em">Next.js &middot; NestJS &middot; Postgres &middot; poppler &middot; ghostscript</span>
+      </div>
+      <div class="bar">
+        <span style="background:#00a0d8"></span>
+        <span style="background:#d6006e"></span>
+        <span style="background:#f2b705"></span>
+        <span style="background:#0b0b0b"></span>
+        <span style="background:#7fd0ec"></span>
+        <span style="background:#eb7fb7"></span>
+        <span style="background:#f8db82"></span>
+        <span style="background:#a8a49a"></span>
+      </div>
+    </div>
+  </body>
+</html>

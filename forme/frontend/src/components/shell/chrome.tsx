@@ -130,6 +130,26 @@ export function Footer() {
           </li>
         </ul>
       </div>
+
+      {/*
+        The way back to the portfolio, and the only place that says what FORME
+        is. The shop presents as a real Manila trade printer down to its press
+        list and its turnaround, which is the right register for the work — but
+        the hub links out to every spoke and until 2026-08-06 nothing linked
+        back, so a shared forme.kimnejudne.dev link was a dead end rather than a
+        door.
+      */}
+      <div className="border-t border-rule">
+        <div className="mx-auto flex max-w-[72rem] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-4 text-xs text-muted">
+          <span className="label-caps">Demo &middot; a portfolio piece</span>
+          <a className="border-b border-rule-strong pb-0.5" href="https://kimnejudne.dev/work/forme/">
+            Case study
+          </a>
+          <a className="border-b border-rule-strong pb-0.5" href="https://kimnejudne.dev/">
+            More work by Kim Nejudne
+          </a>
+        </div>
+      </div>
     </footer>
   );
 }
