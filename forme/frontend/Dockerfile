@@ -39,6 +39,14 @@ RUN apk add --no-cache dumb-init
 COPY --from=build /repo/frontend/.next/standalone ./
 COPY --from=build /repo/frontend/.next/static ./frontend/.next/static
 
+# `public/` is not part of the traced output either, and needs the same
+# treatment. It did not exist here at all until the share card was added, so
+# nothing was missing and the omission was invisible — the first deploy after
+# adding it served `/og-card.png` as a 404 while the `og:image` tag in
+# `layout.tsx` pointed straight at it, which is the broken-preview state the
+# card was added to fix.
+COPY --from=build /repo/frontend/public ./frontend/public
+
 USER node
 EXPOSE 3000
 
