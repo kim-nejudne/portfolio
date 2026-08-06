@@ -99,7 +99,8 @@ input, textarea, select {
 /* The sale bar is the one surface printed paper-on-ink, so the global ink
    focus ring would be invisible on it. Inverted and inset, since the bar runs
    to both screen edges and an outset ring would be clipped. */
-.sale-bar:focus-visible {
+.sale-bar:focus-visible,
+.landing-cta:focus-visible {
   outline-color: var(--color-paper);
   outline-offset: -4px;
 }
@@ -126,6 +127,336 @@ input, textarea, select {
   z-index: 100;
 }
 .skip-link:focus { left: 12px; top: 12px; }
+
+/* ---------- Landing ----------
+   The public front door, and the only screen in this app that a desktop
+   browser is a first-class target for. Everything else is designed for a phone
+   held in one hand behind a counter; this one has to work at 360 *and* compose
+   at 1440, because the hub's card for this spoke is a crop of its top band.
+
+   Same rules as the rest of the app: rows and hairlines rather than cards, no
+   shadow, no elevation, radius only on the tap target. */
+.landing {
+  --landing-pad: var(--space-5);
+  min-height: 100dvh;
+  background: var(--color-paper);
+  padding: 0 var(--landing-pad) var(--space-10);
+  margin: 0 auto;
+  max-width: 68rem;
+}
+
+.landing-masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-5) 0 var(--space-3);
+}
+
+.landing-wordmark {
+  font-size: 13px;
+  letter-spacing: 0.22em;
+}
+
+.landing-standfirst-small {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.landing-body {
+  display: grid;
+  gap: var(--space-8);
+  padding-top: var(--space-6);
+}
+
+.landing-headline {
+  font-size: var(--text-hero);
+  line-height: 1.15;
+  text-wrap: balance;
+  margin-bottom: var(--space-5);
+}
+
+.landing-lede {
+  font-size: 16px;
+  line-height: 1.55;
+  max-width: 34rem;
+  margin-bottom: var(--space-4);
+}
+
+.landing-way-in {
+  margin-top: var(--space-6);
+}
+
+/* The one paper-on-ink surface on the page, the same inversion the sale bar
+   uses — it is the loudest thing here because it is the only thing being
+   asked for. Full width on a phone, thumb-sized everywhere. */
+.landing-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: 0 var(--space-6);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border-radius: var(--radius-tap);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-pin {
+  margin-top: var(--space-3);
+  font-size: 12px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.landing-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--color-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* --- The specimen --- */
+.landing-tingi {
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.landing-tingi-name {
+  font-size: 15px;
+}
+
+.landing-tingi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-3);
+}
+
+.landing-tingi-grid dt {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.landing-tingi-grid dd {
+  font-size: var(--text-amount);
+  text-align: left;
+}
+
+.landing-unit {
+  font-size: 11px;
+  color: var(--color-muted);
+  letter-spacing: 0;
+}
+
+.landing-ledger {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* `display: flex` on a <caption> drops it out of the table box and Chrome
+   paints it after the header row — the customer's name appeared *below* the
+   column headings, which is not what a page of a notebook looks like. Left as
+   a table-caption and spaced with margins instead. */
+.landing-ledger-caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: var(--space-2);
+}
+
+.landing-ledger-name {
+  font-size: 15px;
+}
+
+.landing-ledger-purok {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-left: var(--space-2);
+}
+
+.landing-ledger th {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  text-align: left;
+  font-weight: 400;
+  padding: var(--space-2) 0;
+  border-bottom: var(--rule-width) solid var(--color-rule);
+}
+
+.landing-ledger td {
+  padding: var(--space-3) 0;
+  border-bottom: var(--rule-width) solid var(--color-rule);
+  font-size: 14px;
+  vertical-align: baseline;
+}
+
+/* Two right-aligned money columns run into each other without this — the
+   headings read `AMOUNTBALANCE` as one word. Gutters go on the left of every
+   column but the first, so the table still ends flush with the rule. */
+.landing-ledger th + th,
+.landing-ledger td + td {
+  padding-left: var(--space-4);
+}
+
+.landing-ledger .landing-num,
+.landing-ledger .amount {
+  text-align: right;
+}
+
+.landing-date {
+  font-size: 12px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.landing-kind {
+  font-size: 14px;
+}
+
+.landing-note {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.landing-brought-forward td {
+  font-size: 11px;
+  color: var(--color-muted);
+  padding: var(--space-2) 0;
+}
+
+.landing-running {
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-balance {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: var(--rule-width) solid var(--color-rule);
+}
+
+.landing-balance-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--color-muted);
+}
+
+.landing-balance-figure {
+  font-size: var(--text-balance);
+  line-height: 1;
+}
+
+.landing-caption {
+  margin-top: var(--space-3);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-muted);
+  max-width: 32rem;
+}
+
+/* --- The three ideas --- */
+.landing-definitions {
+  margin-top: var(--space-10);
+}
+
+.landing-definition {
+  padding: var(--space-4) 0;
+}
+
+.landing-definition dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.landing-term {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+}
+
+.landing-gloss {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.landing-definition dd {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 42rem;
+}
+
+.landing-footer {
+  margin-top: var(--space-8);
+  padding: var(--space-5) 0;
+  border-bottom: 0;
+  border-top: var(--rule-width) solid var(--color-rule);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.landing-footer p {
+  max-width: 34rem;
+}
+
+.landing-link {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Two columns once there is room for the specimen to sit beside the pitch.
+   This is what puts the ledger — and the only two accent colours in the
+   palette — inside the top band that becomes the hub's card. */
+@media (min-width: 60rem) {
+  .landing {
+    --landing-pad: var(--space-10);
+  }
+
+  .landing-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-10);
+    align-items: start;
+    padding-top: var(--space-10);
+  }
+
+  .landing-headline {
+    font-size: 44px;
+  }
+
+  .landing-cta {
+    display: inline-flex;
+  }
+
+  .landing-pin {
+    text-align: left;
+    margin-left: var(--space-1);
+  }
+
+  .landing-definitions {
+    display: grid;
+  }
+
+  .landing-definitions dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 var(--space-8);
+  }
+}
 
 /* ---------- Motion (allowed moments only) ---------- */
 @media (prefers-reduced-motion: no-preference) {

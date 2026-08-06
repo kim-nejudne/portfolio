@@ -9,6 +9,7 @@ import { ItemPage } from './routes/ItemPage';
 import { RestockPage } from './routes/RestockPage';
 import { DayPage } from './routes/DayPage';
 import { UnlockPage } from './routes/UnlockPage';
+import { LandingPage } from './routes/LandingPage';
 import { SettingsPage } from './routes/SettingsPage';
 import { NotFoundPage } from './routes/NotFoundPage';
 import { UnlockProvider, useUnlock } from './lib/unlock';
@@ -24,6 +25,11 @@ export function App() {
   return (
     <UnlockProvider>
       <Routes>
+        {/* The two public routes. The landing page owns `/` because the bare
+            domain is what gets linked to and what a stranger types, and a
+            keypad answering that question told them nothing. The shop starts
+            at `/till`. */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="/unlock" element={<UnlockPage />} />
         <Route
           element={
@@ -39,7 +45,7 @@ export function App() {
             </Gate>
           }
         >
-          <Route path="/" element={<TillPage />} />
+          <Route path="/till" element={<TillPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/lista" element={<ListaPage />} />
           <Route path="/lista/:customerId" element={<CustomerPage />} />

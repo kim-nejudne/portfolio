@@ -19,7 +19,7 @@ export function AppShell() {
         style={{ height: 'var(--bottom-bar-height)', background: 'var(--color-paper)', borderTop: '1px solid var(--color-rule)' }}
       >
         <ul className="grid grid-cols-5 h-full">
-          <TabItem to="/" label="Till" />
+          <TabItem to="/till" label="Till" />
           <TabItem to="/lista" label="Lista" />
           <TabItem to="/stock" label="Stock" />
           <TabItem to="/day" label="Day" />
@@ -35,9 +35,14 @@ export function AppShell() {
 function TabItem({ to, label }: { to: string; label: string }) {
   return (
     <li className="contents">
+      {/* No `end`: prefix matching is what keeps Lista lit on a customer's
+          page. It used to be forced on for the Till because the Till was `/`
+          and would otherwise have matched every route in the app; now that it
+          is `/till` there is no path left that needs the exception. `/cart`
+          still matches no tab, which is deliberate — the cart is somewhere you
+          are sent mid-sale, not a place in the shop. */}
       <NavLink
         to={to}
-        end={to === '/'}
         className={({ isActive }) =>
           [
             'flex flex-col items-center justify-center text-[13px] tracking-wide',

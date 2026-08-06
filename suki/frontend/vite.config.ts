@@ -29,7 +29,16 @@ export default defineConfig({
         orientation: 'portrait',
         background_color: '#FBF8F0',
         theme_color: '#FBF8F0',
-        start_url: '/',
+        /**
+         * The shop, not the front door. `/` is now a public landing page for
+         * whoever arrives cold; an installed app belongs to the shopkeeper,
+         * and she wants the till. It bounces to `/unlock` while locked, which
+         * is the right first screen for someone who already knows what this is.
+         *
+         * `scope` stays `/` so the landing page is inside the service worker's
+         * control and gets precached with everything else.
+         */
+        start_url: '/till',
         scope: '/',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

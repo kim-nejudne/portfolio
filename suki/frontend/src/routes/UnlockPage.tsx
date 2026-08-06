@@ -17,7 +17,7 @@ export function UnlockPage() {
     if (next.length === LENGTH) {
       const ok = unlock(next);
       if (ok) {
-        navigate('/', { replace: true });
+        navigate('/till', { replace: true });
       } else {
         setError('That is not the PIN.');
         window.setTimeout(() => {

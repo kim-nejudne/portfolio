@@ -13,6 +13,10 @@ export default defineConfig({
     // would prove the queue calls the functions it calls, which is not the
     // question — the question is whether a write survives a restart.
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.ts'],
+    // `.tsx` too: the routing test has to mount the real `<App />` to prove
+    // which screen a URL actually lands on, and it opts into jsdom with a
+    // per-file `@vitest-environment` docblock rather than making every test
+    // pay for a DOM.
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });

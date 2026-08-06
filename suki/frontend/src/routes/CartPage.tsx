@@ -39,7 +39,7 @@ export function CartPage() {
   // Nothing to sell — someone typed the URL, or emptied the last line. Wait for
   // hydration first, or a restored draft would bounce straight back to the Till.
   if (sale.hydrated && sale.lines.length === 0 && !committing) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/till" replace />;
   }
 
   async function completeCash() {
@@ -52,7 +52,7 @@ export function CartPage() {
     // flight. That is the exact window `sales.ts` says it exists to close.
     await recordCashSale({ items: sale.toSaleItems(), total });
     sale.clear();
-    navigate('/', { replace: true, state: { receipt: total } });
+    navigate('/till', { replace: true, state: { receipt: total } });
   }
 
   async function completeCredit(customerId: string) {
@@ -68,7 +68,7 @@ export function CartPage() {
     <>
       <PageHeader
         title="Sale"
-        back="/"
+        back="/till"
         right={
           // Up here on purpose. In the tray, Clear sat on the same row as the
           // total and a thumb's width from Bayad; a mis-tap threw away a walk
