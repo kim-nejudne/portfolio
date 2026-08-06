@@ -1,9 +1,14 @@
 # FORME — droplet deployment
 
-Runs on the shared DigitalOcean droplet `165.245.189.5` (sgp1) alongside `n8n`,
+Runs on the shared DigitalOcean droplet (sgp1) alongside `n8n`,
 `netint-vpuaas`, `poketrack`, `tallow` and the static `plinth` vhost. 1.9GB of
 RAM total and a 2GB swapfile that is already ~450MB in use, so every service is
 memory-capped and nothing here builds on the box.
+
+> **Two placeholders run through this file.** `$DEPLOY_HOST` is the droplet as
+> `user@host`, for ssh, scp and rsync; `$DROPLET_IP` is its IPv4, for DNS records
+> and `dig` checks. Neither is recorded in this repository — export both in your
+> shell profile before following anything below.
 
 | | |
 |---|---|
@@ -49,21 +54,21 @@ stack.
 scripted from the droplet. Add an A record by hand:
 
 ```
-Type: A    Host: forme    Value: 165.245.189.5    TTL: Automatic
+Type: A    Host: forme    Value: $DROPLET_IP    TTL: Automatic
 ```
 
 Confirm it has propagated before continuing — certbot validates over HTTP-01
 and a failed run counts against Let's Encrypt's rate limit:
 
 ```bash
-dig +short forme.kimnejudne.dev A     # must print 165.245.189.5
+dig +short forme.kimnejudne.dev A     # must print $DROPLET_IP
 ```
 
 **2. TLS.** The port-80 vhost is already installed and answering, which is what
 the challenge needs:
 
 ```bash
-ssh root@165.245.189.5 'certbot --nginx -d forme.kimnejudne.dev'
+ssh $DEPLOY_HOST 'certbot --nginx -d forme.kimnejudne.dev'
 ```
 
 Certbot edits the vhost in place to add the TLS block and the port-80 redirect.
@@ -85,10 +90,10 @@ TAG=$(git rev-parse --short HEAD)
 docker build -f api/Dockerfile      -t forme-api:$TAG .   # context is the REPO ROOT
 docker build -f frontend/Dockerfile -t forme-web:$TAG .
 docker save forme-api:$TAG forme-web:$TAG | gzip -1 \
-  | ssh root@165.245.189.5 'gunzip | docker load'
+  | ssh $DEPLOY_HOST 'gunzip | docker load'
 
 # on the droplet
-ssh root@165.245.189.5
+ssh $DEPLOY_HOST
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/" /opt/forme/.env
 cd /opt/forme && docker compose up -d
 ```
@@ -104,7 +109,7 @@ The deployed tag is the commit it was built from — currently `f310acd`. Check
 what is actually running before assuming:
 
 ```bash
-ssh root@165.245.189.5 'cd /opt/forme && docker compose ps --format "{{.Name}}\t{{.Image}}"'
+ssh $DEPLOY_HOST 'cd /opt/forme && docker compose ps --format "{{.Name}}\t{{.Image}}"'
 ```
 
 ## Old images
@@ -113,7 +118,7 @@ ssh root@165.245.189.5 'cd /opt/forme && docker compose ps --format "{{.Name}}\t
 of disk faster than it sounds. After a few deploys:
 
 ```bash
-ssh root@165.245.189.5 'docker image prune -a --filter "until=336h" -f'
+ssh $DEPLOY_HOST 'docker image prune -a --filter "until=336h" -f'
 ```
 
 ## Secrets
@@ -187,7 +192,7 @@ Verified working — a dump was replayed into a scratch database and returned th
 expected row counts (24 jobs, 126 job events, 40 price rates).
 
 ```bash
-ssh root@165.245.189.5
+ssh $DEPLOY_HOST
 set -a; . /opt/forme/.env; set +a
 C=$(cd /opt/forme && docker compose ps -q db)
 DUMP=/var/backups/forme/forme-<stamp>.sql.gz
@@ -210,7 +215,7 @@ same gap for its own database and has no timer at all.
 Images are kept, so a rollback is a tag change:
 
 ```bash
-ssh root@165.245.189.5
+ssh $DEPLOY_HOST
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<previous>/" /opt/forme/.env
 cd /opt/forme && docker compose up -d
 ```

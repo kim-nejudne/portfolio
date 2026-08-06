@@ -4,6 +4,9 @@ A production system for a trade printer in Manila. Litho and digital: a customer
 prepress queue with an imposition planner, a press floor board and an admin price matrix, plus
 the public pages that price the work.
 
+Live at [forme.kimnejudne.dev](https://forme.kimnejudne.dev). The sign-in screen
+carries a demo account for each role.
+
 ```
 packages/domain/   types, money, working-day dates, the quote engine, imposition geometry
 api/               NestJS — Postgres via Drizzle, pg-boss queue, preflight worker, socket.io
@@ -110,8 +113,11 @@ a workstation and shipped with `docker save | docker load` because the box has
 1.9GB shared with six other containers and cannot afford a build.
 
 `deploy/README.md` is the authority on ports, env, memory caps and the release
-procedure. The stack is deployed and healthy; it is not yet public, pending a
-DNS record at Namecheap and a certbot run.
+procedure.
+
+**The artwork volume is not backed up.** The database is, nightly, with a
+verified restore path — but `forme_forme-artwork` holds uploaded PDFs and nothing
+dumps it. Acceptable only while those are test files.
 
 ## Provenance
 
