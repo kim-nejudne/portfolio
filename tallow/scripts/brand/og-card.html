@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>TALLOW — share card source</title>
+    <style>
+      /* The four faces, from src/fonts/ — the same files the app self-hosts, so
+         the card is set in the page's type rather than in an approximation of
+         it. Paths are relative to the repo root, which is what brand.sh serves. */
+      @font-face {
+        font-family: 'Instrument Serif';
+        src: url('/src/fonts/instrument-serif-400-normal.woff2') format('woff2');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'Newsreader';
+        src: url('/src/fonts/newsreader-400-normal.woff2') format('woff2');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'Newsreader';
+        src: url('/src/fonts/newsreader-400-italic.woff2') format('woff2');
+        font-weight: 400;
+        font-style: italic;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('/src/fonts/jetbrains-mono-400-700-normal.woff2') format('woff2');
+        font-weight: 400 700;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1200px; height: 630px; }
+
+      /* Paper, ink, oxblood, brass, hairline — verbatim from src/index.css. */
+      body {
+        background: #f7f4ee;
+        color: #1a1715;
+        font-family: 'Newsreader', serif;
+        padding: 52px 64px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        /* The paper grain the app carries, at the same weight. */
+        background-image: radial-gradient(circle at 30% 20%, rgba(140, 110, 67, 0.05), transparent 60%);
+      }
+
+      .rail {
+        display: flex;
+        justify-content: space-between;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: #8c6e43;
+      }
+
+      h1 {
+        font-family: 'Instrument Serif', serif;
+        font-size: 92px;
+        font-weight: 400;
+        line-height: 0.94;
+        letter-spacing: 0.01em;
+      }
+      h1 em { font-style: italic; }
+
+      .board { border-top: 2px solid #1a1715; }
+
+      .board-cap {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #8c6e43;
+        padding: 12px 0 6px;
+      }
+
+      /* A menu line: cut, leader, weight, price. The leader is the print detail
+         that makes it read as a menu rather than as a table. */
+      .cut {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: baseline;
+        gap: 0 16px;
+        padding: 13px 0;
+        border-top: 1px solid #ddd6c8;
+        font-size: 27px;
+      }
+      .name { white-space: nowrap; }
+      .leader { border-bottom: 1px dotted #ddd6c8; transform: translateY(-6px); }
+      .aged {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #8c6e43;
+        font-variant-numeric: tabular-nums;
+      }
+      .price {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 22px;
+        font-variant-numeric: tabular-nums;
+        min-width: 112px;
+        text-align: right;
+      }
+
+      /*
+       * The 86 line. This is the whole reason the card is a menu.
+       *
+       * `.item-86` in src/index.css is `opacity: .45` plus a
+       * `text-decoration-color` of oxblood — the strike is drawn in the accent
+       * while the type stays ink, which is what makes it read as *struck* rather
+       * than as merely faded. Reproduced here rather than approximated, because
+       * a card that showed the signature move wrong would be worse than one that
+       * did not show it.
+       *
+       * The strike and the fade go on the struck *cells*, not on the row.
+       * `text-decoration` propagates to descendants and cannot be cancelled by
+       * one — a `text-decoration: none` on the stamp inside a struck row is
+       * simply ignored, and the first render came out with a line through the
+       * 86 itself, which is the one mark on the card that has to stay crisp.
+       */
+      .cut.is-86 .struck {
+        opacity: 0.45;
+        text-decoration: line-through;
+        text-decoration-color: #7a2322;
+        text-decoration-thickness: 2px;
+      }
+      .stamp {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.18em;
+        color: #7a2322;
+        display: inline-block;
+        margin-left: 18px;
+        vertical-align: 3px;
+      }
+
+      .foot {
+        border-top: 1px solid #ddd6c8;
+        padding-top: 16px;
+        display: flex;
+        justify-content: space-between;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #8c6e43;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="rail">
+      <span>Tallow &mdash; Soho</span>
+      <span>Dry-aged &middot; Live fire</span>
+    </div>
+
+    <h1>Whole primals,<br /><em>forty-five days</em> in salt.</h1>
+
+    <div class="board">
+      <div class="board-cap">Current service &mdash; the 86 board is live</div>
+
+      <div class="cut">
+        <span class="name">C&ocirc;te de Boeuf</span>
+        <span class="leader"></span>
+        <span class="aged">52 days &middot; 1.2kg</span>
+        <span class="price">&pound;96</span>
+      </div>
+
+      <div class="cut is-86">
+        <span class="name"><span class="struck">Bone-in Sirloin</span><span class="stamp">86</span></span>
+        <span class="leader"></span>
+        <span class="aged struck">60 days &middot; 400g</span>
+        <span class="price struck">&pound;54</span>
+      </div>
+
+      <div class="cut">
+        <span class="name">Salt-aged Rump Cap</span>
+        <span class="leader"></span>
+        <span class="aged">45 days &middot; 300g</span>
+        <span class="price">&pound;38</span>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span>tallow.kimnejudne.dev</span>
+      <span>Reservations &middot; 86 board &middot; Dish of the day</span>
+    </div>
+  </body>
+</html>

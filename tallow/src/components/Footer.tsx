@@ -68,7 +68,36 @@ export const Footer: React.FC = () => {
 
       <div className="max-w-6xl mx-auto border-t border-[#38322D] mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center text-[10px] font-mono-data text-[#8A827A] gap-2">
         <p>© {new Date().getFullYear()} TALLOW RESTAURANTS LTD. 14 BEAK STREET, LONDON W1F 9RD.</p>
-        <p className="uppercase tracking-widest">NO THEATRE · REAL BASELINE GRID · PRINT DISCIPLINE</p>
+
+        {/*
+          The way back to the portfolio, and the only place on the site that
+          says out loud what this is.
+
+          TALLOW presents as a real Soho restaurant down to a street address and
+          a registered company, which is the right register for the work and the
+          wrong thing to leave un-labelled — somebody arriving on this domain
+          cold from a shared link had nothing telling them otherwise and no
+          route to the other four spokes or the write-up. The hub links out to
+          every spoke; until now nothing linked back, so a spoke URL was a dead
+          end rather than a door.
+        */}
+        <p className="uppercase tracking-widest flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <span>Demo · a portfolio piece</span>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://kimnejudne.dev/work/tallow/"
+            className="text-[#8C6E43] underline hover:text-[#F7F4EE] transition-colors"
+          >
+            Case study
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://kimnejudne.dev/"
+            className="text-[#8C6E43] underline hover:text-[#F7F4EE] transition-colors"
+          >
+            More work
+          </a>
+        </p>
       </div>
     </footer>
   );
