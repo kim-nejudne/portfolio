@@ -746,7 +746,16 @@ async function main() {
       const img = q[0] && q[0].querySelector('img');
       if (!img) return 'null';
       const r = img.getBoundingClientRect();
-      const pad = 26;
+      /*
+       * A fifth of the image, not 26px. The queued card is a fraction of the
+       * settled one, and the settled one is now sized off the viewport — so on a
+       * short window the queued crop is only ~64px tall and a fixed 26px inset
+       * from every edge leaves a 12px strip, below the 40px floor below. The
+       * check then reported "no queued card image to test against" on a page
+       * where the cards were in front of the sky exactly as they should be:
+       * a measurement failing because the ruler stopped fitting.
+       */
+      const pad = Math.max(8, Math.round(Math.min(r.width, r.height) * 0.2));
       return JSON.stringify({
         inner: [Math.round(r.width - pad * 2), Math.round(r.height - pad * 2),
                 Math.round(r.left + pad), Math.round(r.top + pad)],
@@ -904,9 +913,13 @@ async function main() {
         });
         if (!c) return 'null';
         const r = c.getBoundingClientRect();
+        const sky = document.querySelector('.showcase').getBoundingClientRect();
         const left = Math.max(0, Math.round(r.left));
         return JSON.stringify({
+          top: r.top,
           bottom: r.bottom,
+          skyTop: sky.top,
+          skyBottom: sky.bottom,
           left,
           width: Math.min(window.innerWidth - left, Math.round(r.width)),
           h: window.innerHeight,
@@ -939,11 +952,19 @@ async function main() {
       /* An all-paper column trims to nothing; magick reports 0. Treat it as
          "no head in this column", which is the roomiest possible answer. */
       const top = Number(out);
-      return { top: Number.isFinite(top) && top > 0 ? top : card.h, bottom: card.bottom };
+      return {
+        top: Number.isFinite(top) && top > 0 ? top : card.h,
+        bottom: card.bottom,
+        cardTop: card.top,
+        skyTop: card.skyTop,
+        skyBottom: card.skyBottom,
+      };
     };
 
     let worstGap = Infinity;
     let tightest = null;
+    let worstFit = Infinity;
+    let tightestFit = null;
     /*
      * Mid-hold for every card — see the slot arithmetic in `choreography.ts`.
      * These move whenever the stride does, and a sample that lands outside a
@@ -963,6 +984,11 @@ async function main() {
       if (m.top - m.bottom < worstGap) {
         worstGap = m.top - m.bottom;
         tightest = m;
+      }
+      const fit = Math.min(m.cardTop - m.skyTop, m.skyBottom - m.bottom);
+      if (fit < worstFit) {
+        worstFit = fit;
+        tightestFit = m;
       }
     }
     if (sampled < 4) check('the clearance samples land on holds', false, `only ${sampled}/5 found a settled card`);
@@ -986,6 +1012,42 @@ async function main() {
           ? ` (head top ${Math.round(tightest.top)}, card bottom ${Math.round(tightest.bottom)}, ` +
             `artboard ${canvasH}px — slack is ${(worstGap / canvasH).toFixed(3)} of HEAD_OPEN_RISE)`
           : ''),
+    );
+
+    /*
+     * And the card still fits the sky it is centred in.
+     *
+     * This is new because the card is new. For most of this build it was a flat
+     * `30rem` and only its bottom edge could move, so its bottom edge was the
+     * only thing ever asked about. It is sized off the viewport now —
+     * `min(max(46vw, 23rem), 62vh)` — so it grows until something stops it, and
+     * the `62vh` ceiling is *arithmetic*: it assumes a caption of about 116px
+     * that no viewport unit knows the height of. If that assumption is wrong the
+     * card is simply too tall for the reservation, and this is what says so.
+     *
+     * The obvious version of this check was wrong and the sabotage caught it. It
+     * asked whether the card's top had gone above the stage, and the answer is
+     * that it never can: grid clamps an overflowing centred item to the start
+     * edge rather than letting it hang off both ends, so `top` sticks at the
+     * 1rem padding no matter how big the card gets. The check passed on a card
+     * more than 100px too tall — decoration, by this file's own standard.
+     *
+     * So it asks about the reservation instead, which is the thing the size was
+     * derived from: both edges of the card inside `.showcase`, whose height is
+     * `LIP_END_VH - HEAD_OPEN_RISE * canvas-h`. An oversized card breaks it at
+     * the bottom, where the consequence lives, and it breaks it long before the
+     * head-clearance check above notices — that one still read a passing 12px on
+     * a card this one failed by 113px, because the head's real ink sits well
+     * inside the sky the layout reserves for it.
+     */
+    check(
+      'the card on stage fits the sky reserved for it',
+      worstFit >= 0,
+      tightestFit
+        ? `tightest edge ${Math.round(worstFit)}px inside the reservation ` +
+          `(card ${Math.round(tightestFit.cardTop)}–${Math.round(tightestFit.bottom)}, ` +
+          `sky ${Math.round(tightestFit.skyTop)}–${Math.round(tightestFit.skyBottom)})`
+        : 'no settled card to measure',
     );
 
     /*

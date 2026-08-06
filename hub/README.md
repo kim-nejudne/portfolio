@@ -71,8 +71,45 @@ here rather than absorbed quietly:
   spot the card then arrives in — went with the layers.
 
 ```sh
-npm run crops    # re-grab a crop from each live spoke
+npm run crops    # re-shoot the three spokes still on stand-in crops
 ```
+
+### The card crops
+
+`public/crops/` holds five 900×600 images, one per spoke, and `src/spokes.ts`
+builds their paths from the spoke `id` — the filenames and the 3:2 ratio are the
+whole contract. They come from two different places and that distinction is
+load-bearing:
+
+- **`poketrack` and `suki` are chosen captures.** Taken at 2× from a real
+  browser; the sources are kept in `art/crops/` so the crop is reproducible from
+  the repo. `suki`'s stand-in was the PIN lock screen — cream, a keypad, and
+  none of the ledger; `poketrack`'s was a stale build with the wrong CTA copy.
+- **`tallow`, `plinth` and `forme` are still headless screenshots**, and the
+  brief is clear that a screenshot is not the decision: the real crop is chosen
+  for silhouette and colour, not legibility.
+
+`npm run crops` defaults to those three, so it cannot quietly overwrite a chosen
+crop. Naming one opts in and clobbers it. To re-derive a chosen crop from its
+source instead — which is nearly always what you want:
+
+```sh
+magick art/crops/suki.png -gravity north -crop 2880x1920+0+0 +repage \
+  -resize 900x600 public/crops/suki.png
+avifenc -q 62 --speed 4 public/crops/suki.png public/crops/suki.avif
+```
+
+The captures are 2880×2048 — 1440×1024 at DPR 2, which is 1.40 rather than 3:2,
+so 64 CSS px comes off the bottom. On SUKI that is the point: it drops the tab
+bar and leaves the dark total bar (source rows 1784–1911) as the closing edge of
+the frame, with nine pixels to spare.
+
+**Write both formats.** The same stale-`.avif` trap described below for the head
+applies here — `sources()` offers AVIF first, so a fresh PNG beside a stale AVIF
+ships the stale image and looks like nothing happened.
+
+Nothing in `verify.mjs` checks these files. A 404 or a wrong aspect ratio would
+pass, because `object-fit: cover` plus `aspect-ratio: 3 / 2` absorbs both.
 
 ### Replacing or re-cutting the art
 
@@ -246,12 +283,12 @@ on stage is live" with no bookkeeping.
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 35 assertions in a real browser
+npm run verify            # 38 assertions in a real browser
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 35 assertions,
-twenty-one of which have been sabotaged to confirm they fail on the thing they
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 38 assertions,
+twenty-two of which have been sabotaged to confirm they fail on the thing they
 exist to catch. One of those twenty-one was on the list and did not deserve to
 be: deleting `pointer-events: none` from `.head` left the click check passing,
 because the card it probes had drifted out from under the head's element box. It
@@ -486,6 +523,57 @@ of the way, so a queued card sits *in the opening*, where there is room and
 where it reads as the next idea waiting its turn rather than as a card in the
 wrong place. The flight keeps the arc it always had.
 
+### The card is sized from the sky, and for a long time it was not sized at all
+
+It was `min(30rem, 46vw)`, and the `46vw` never once bound. Past about 1044px
+wide the rem always won, so the card was **480px on a 1280 laptop and 480px on a
+4K monitor** — the thumbnail marooned in the middle of a wide screen that the
+comment beside it claimed to be avoiding, produced by the rule itself. On the
+monitor it was measured on there were 385px of unused sky above the head.
+
+It is `min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 9.5rem) * 1.5))` now,
+and the middle term is the interesting one: **the reservation's own height,
+solved backwards.** A card is a 3:2 crop with a caption under it, so its height
+is `(w - mount) * 2/3 + caption`; setting that equal to `--sky-h` less the
+stack's padding and solving for `w` is where the `* 1.5` comes from. `--sky-h`
+is the same custom property `.showcase` sizes itself with rather than a copy of
+it, so `HEAD_OPEN_RISE` or `HEAD_HEIGHT_VH` moving takes the card along.
+
+Everything else about the card descends from that one number — the crop takes it
+as a width, the caption takes it as a type scale, the mount as a padding — so a
+bigger card cannot arrive still wearing the type it had when it was small.
+
+**A flat `62vh` was tried first, and the mistake is worth keeping.** It fits a
+1440x900 window with 48px to spare and misses a 1280x720 one by 15px, because
+the caption is a *fixed* number of pixels that no viewport unit knows about.
+Nothing looks broken when it happens: grid clamps an item taller than its cell to
+the start edge rather than centring it, so the card silently stops being centred
+in the sky and starts hanging from the top of it, and the head-clearance check
+below reads a comfortable pass because a card growing downward off the padding is
+still nowhere near his forehead. The subtraction is what makes one rule correct
+at both ends.
+
+**`the card on stage fits the sky reserved for it`** is the check that says so —
+both edges of the settled card inside `.showcase`, at all five holds. It earned
+its place before the change it was written for: pointed at the *old* fixed
+`30rem` card in a 1366x620 window, it fails by 62px. That card had been
+overflowing the sky on short screens the whole time, and the only visible symptom
+was that it sat slightly high.
+
+The obvious version of the check was wrong, and the sabotage is what caught it.
+It asked whether the card's top had risen above the stage — and the answer is
+that it never can, for the same clamping reason. It passed on a card more than
+100px too tall. A check that cannot fail is decoration, so it asks about the
+reservation instead, where the consequence actually lives.
+
+One unrelated probe had to be made scale-independent by the same change. `the
+cards are in front of the sky` insets a fixed 26px from every edge of the queued
+card's crop; the queued card is a fraction of the settled one, so on a short
+window that crop is ~64px tall and the inset leaves nothing to measure. It
+reported "no queued card image to test against" on a page where the stacking was
+exactly right — a measurement failing because the ruler stopped fitting. The
+inset is a fifth of the image now.
+
 ### The showcase runs *through* the mechanism, and two checks came out of it
 
 The first card used to wait for the lid to finish and the head to stop sinking.
@@ -573,7 +661,7 @@ a modern browser fetches none of them.
 | | Budget | Now |
 |---|---|---|
 | Head layers | ≤ 600KB | 56KB *(placeholder)* |
-| Card crops | ≤ 400KB | 78KB *(placeholder)* |
+| Card crops | ≤ 400KB | 83KB *(three still placeholders)* |
 | Fonts | ≤ 90KB | 41KB |
 | JS, gzipped | ≤ 120KB | 111KB |
 | CSS + HTML, gzipped | — | 5KB |

@@ -231,7 +231,7 @@ A deploy is a build plus an rsync. There is no image and no container.
 | | |
 |---|---|
 | `head/` | 7.1MB — four layers × (AVIF + PNG fallback) |
-| `crops/` | 808KB — five spoke screenshots × (AVIF + PNG) |
+| `crops/` | 875KB — five spoke crops × (AVIF + PNG); 83KB of it is the AVIF |
 | `assets/` | 376KB — JS 320KB (110KB gzipped) + CSS |
 | `index.html` | 4KB |
 
@@ -335,5 +335,6 @@ They are served from their own `location` block, with the artwork's week rather
 than `/assets/`'s year or `location /`'s `no-cache`. A year would pin the first
 card any platform ever scraped; `no-cache` would make every scrape and every tab
 revalidate a file that changes about never.
-- **The five crops are headless screenshots**, not chosen crops. Long-standing;
-  see `../README.md`.
+- **Three of the five crops are headless screenshots**, not chosen crops —
+  `tallow`, `plinth` and `forme`. `poketrack` and `suki` are chosen captures
+  with sources in `art/crops/`. Long-standing; see `../README.md`.

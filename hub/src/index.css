@@ -351,8 +351,13 @@ body {
   top: 0;
   /* The sky above the *open* head once it has finished sinking — not above
      the opening. Sizing this to the cut line was a quiet lie about where the
-     head ends, and it put the cards across his forehead. */
-  height: calc(var(--lip-end) - var(--head-open-rise) * var(--canvas-h));
+     head ends, and it put the cards across his forehead.
+
+     Named as well as applied, because the card is sized from it — see
+     `--card-w`. One expression, so a card cannot be scaled against a sky that
+     has since moved. */
+  --sky-h: calc(var(--lip-end) - var(--head-open-rise) * var(--canvas-h));
+  height: var(--sky-h);
   z-index: var(--card-z);
   pointer-events: none;
 }
@@ -372,7 +377,11 @@ body {
 .card {
   /* Every card in the same grid cell: that is the stack. */
   grid-area: 1 / 1;
-  width: min(21rem, 86vw);
+  /* The one number the card is made of. The crop takes it as a width and the
+     caption takes it as a type scale, so a bigger card cannot arrive with the
+     type it had when it was small. */
+  --card-w: min(23rem, 92vw);
+  width: var(--card-w);
   pointer-events: auto;
   /* Hidden until the timeline hands it its beat. GSAP writes both of these
      inline via autoAlpha, so this is only the state before the first frame. */
@@ -382,11 +391,42 @@ body {
 
 @media (min-width: 768px) {
   .card {
-    /* Big enough to be the subject of the screen. At 32rem it read as a
-       thumbnail marooned in the middle of a wide monitor; the sky around it is
-       supposed to be air, not emptiness. Capped by how much sky there is above
-       an open head — see HEAD_OPEN_RISE, which the verify suite checks. */
-    width: min(30rem, 46vw);
+    /*
+     * Big enough to be the subject of the screen, and it finally is.
+     *
+     * This was `min(30rem, 46vw)`, and the `46vw` never once bound: past about
+     * 1044px wide the rem always won, so the card was 480px on a 1280 laptop
+     * and 480px on a 4K monitor — the "thumbnail marooned in the middle of a
+     * wide monitor" this rule was written to avoid, produced by the rule
+     * itself. Three terms now, each holding a different edge.
+     *
+     * **`46vw` is the intent**: the card grows with the screen.
+     *
+     * **The middle term is the ceiling, and it is the sky's own height solved
+     * backwards.** The card is a 3:2 crop with a caption under it, so its height
+     * is `(w - mount) * 2/3 + caption`; setting that equal to the reservation
+     * minus the stack's 1rem padding and solving for `w` gives the `* 1.5`.
+     * `--sky-h` is the reservation itself rather than a copy of it, so
+     * HEAD_OPEN_RISE or HEAD_HEIGHT_VH moving takes the card with it.
+     *
+     * A flat `62vh` was tried first and is the mistake worth recording: it fits
+     * a 1440x900 window with 48px to spare and misses a 1280x720 one by 15px,
+     * because the caption is a *fixed* number of pixels and no viewport unit
+     * knows that. Grid hides the symptom — an item taller than its cell is
+     * clamped to the start edge rather than centred — so the card silently stops
+     * being centred in the sky and starts hanging from the top of it. The
+     * subtraction is what makes one rule right at both ends.
+     *
+     * `9.5rem` is the caption and mount at their *worst*: the third line the
+     * description wraps to on a narrow card. Measured, not budgeted — and
+     * `verify.mjs` asserts the fit rather than trusting this arithmetic, which
+     * is the only reason it is safe to write arithmetic here at all.
+     *
+     * **`max(…, 23rem)` only keeps the size continuous across this breakpoint.**
+     * Without it the card *shrinks* by 15px as it crosses out of the mobile
+     * rule, which is a strange thing to watch happen on a resize.
+     */
+    --card-w: min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 9.5rem) * 1.5));
   }
 }
 
@@ -396,14 +436,19 @@ body {
   color: inherit;
 }
 
+/*
+ * The mount, and it scales too — a 6px border of paper reads as a hairline
+ * once the card is half again as wide, which is a mat board turning into a
+ * mistake. Both are derived from the card so they cannot be left behind again.
+ */
 .card-frame {
   display: block;
   background: var(--color-paper);
-  padding: 6px;
+  padding: clamp(6px, calc(var(--card-w) * 0.011), 9px);
   box-shadow:
     0 0 0 1px var(--color-rule),
     0 22px 34px -26px rgb(22 24 29 / 0.6);
-  margin-bottom: 0.9rem;
+  margin-bottom: clamp(0.9rem, calc(var(--card-w) * 0.024), 1.15rem);
 }
 
 .card-frame img {
@@ -414,9 +459,23 @@ body {
   object-fit: cover;
 }
 
+/*
+ * The caption is set off the card's own width, not off a breakpoint.
+ *
+ * That is the fix for the thing a size change usually gets wrong: a card that
+ * grows by half while its headline stays at 2rem stops being a bigger card and
+ * becomes the same card holding a bigger picture. The floors are the phone
+ * values, so nothing below 768px moves; the ceilings stop a very tall window
+ * setting the line in something that argues with the pitch above it.
+ *
+ * The coefficients are deliberately *below* proportional — 0.058 against the
+ * 0.067 that would hold the ratio exactly. Type scaled one-for-one with a card
+ * 60% wider reads as shouting; this lands the name about 30% up, which is the
+ * amount that reads as "set for this card" rather than "enlarged".
+ */
 .card-count {
   display: block;
-  font-size: 0.6rem;
+  font-size: clamp(0.6rem, calc(var(--card-w) * 0.0145), 0.75rem);
   letter-spacing: 0.18em;
   color: var(--color-muted);
 }
@@ -424,7 +483,7 @@ body {
 .card-name {
   display: block;
   margin-top: 0.3rem;
-  font-size: 1.45rem;
+  font-size: clamp(1.45rem, calc(var(--card-w) * 0.058), 2.6rem);
   line-height: 1.1;
   letter-spacing: -0.015em;
   font-weight: 500;
@@ -433,19 +492,10 @@ body {
 .card-line {
   display: block;
   margin-top: 0.5rem;
-  font-size: 0.66rem;
+  font-size: clamp(0.66rem, calc(var(--card-w) * 0.0185), 0.95rem);
   line-height: 1.55;
   color: var(--color-muted);
   text-wrap: pretty;
-}
-
-@media (min-width: 768px) {
-  .card-name {
-    font-size: 2rem;
-  }
-  .card-line {
-    font-size: 0.72rem;
-  }
 }
 
 /* ---- the index --------------------------------------------------- *
