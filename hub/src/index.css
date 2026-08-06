@@ -1,65 +1,16 @@
 @import 'tailwindcss';
 
-/*
- * Two faces, two files, Latin only — declared by hand rather than imported
- * from `@fontsource`'s index, which ships Cyrillic, Greek, Vietnamese, math
- * and symbol subsets. A browser would never *fetch* the unused ones thanks to
- * `unicode-range`, but they all land in `dist/` and every one of them is a
- * file the deploy has to copy and the runbook has to explain. The two that
- * matter are vendored into `src/fonts/` so Vite hashes them like any other
- * asset.
+/* The faces and the palette — shared with the case-study pages. See there for
+ * the one colour rule, which is the tightest constraint on this stylesheet.
  *
- * Bodoni Moda is a Didone: the highest-contrast serif in common use, and
- * nothing in the five spokes is a serif at all — so it reads instantly as a
- * different voice. That is the point. The hub is the frame, not a sixth art
- * direction.
- */
-@font-face {
-  font-family: 'Bodoni Moda';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('./fonts/bodoni-moda-latin-wght-normal.woff2') format('woff2-variations');
-}
-
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('./fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
-}
-
-/*
- * THE ONE COLOUR RULE
- *
- * The hub is paper and ink. The only colour on the page is **the five project
- * crops and the sky inside his head**, both of which arrive as images and never
- * as a token. There is no accent, no gradient, no tinted state. That single
- * discipline is what keeps a statement hub from competing with five loud spokes.
- *
- * The sky is the one colour here that is not a project, which is what the reveal
- * is built on: colour arrives at the exact moment the head opens. It was briefly
- * gone — deleted as one of five undrawn placeholder layers, which cost the beat
- * and made the rule stricter than it was meant to be — and it came back for the
- * price of a single drawing, because `face.png` is transparent above the tear
- * and so needed no cavity and no back of skull behind it.
- *
- * `public/favicon.svg` is the sky blue for this reason: the mark carries the
- * hub's own colour rather than borrowing a spoke's. It is not painted on the
- * page, so `verify.mjs`'s paper-to-ink check neither sees it nor should.
- *
- * If you find yourself wanting a hex value here that is not paper, ink or a
- * mix of the two, the design has gone wrong somewhere else.
- */
-@theme {
-  --color-paper: #f7f4ec;
-  --color-ink: #16181d;
-  --color-muted: #6f727a;
-  --color-rule: #d9d4c8;
-  --font-display: 'Bodoni Moda', Georgia, serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-}
+ * This import must stay *after* Tailwind's. `--font-mono` is a name Tailwind
+ * also defines, and while the tokens lived in an `@theme` block they replaced
+ * its default inside the theme layer. As plain `:root` they win on source
+ * order instead, which is a weaker guarantee: swap these two lines and every
+ * `.mono` element on the site silently falls back to the system monospace,
+ * with nothing to say so. `verify.mjs` asserts the computed face for exactly
+ * that reason. */
+@import './tokens.css';
 
 html {
   background: var(--color-paper);
@@ -565,6 +516,18 @@ body {
   text-wrap: pretty;
 }
 
+/*
+ * The link to the write-up, one per row.
+ *
+ * This rule was written months before it rendered anything: `caseStudy` was
+ * unset on all five spokes, so `Index.tsx` emitted nothing and the styling was
+ * never seen. The first time it appeared — when the case studies were
+ * published — it was a mono-caps label in muted grey with `text-decoration:
+ * none` inherited from preflight and no hover state, which is to say it did
+ * not look like a link at all and gave a pointer nothing to find. The
+ * underline is the same one `.colophon-facts a` uses: a hairline in the rule
+ * colour that comes up to full ink on hover.
+ */
 .index-aside {
   display: inline-block;
   margin: 0 0 1rem 3.25rem;
@@ -572,6 +535,16 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--color-rule);
+}
+
+.index-aside:hover,
+.index-aside:focus-visible {
+  color: var(--color-ink);
+  text-decoration-color: currentColor;
 }
 
 @media (min-width: 768px) {

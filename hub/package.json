@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/case-studies.mjs",
     "dev": "vite",
+    "cases": "node scripts/case-studies.mjs",
+    "prebuild": "node scripts/case-studies.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
@@ -19,14 +22,15 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@fontsource-variable/bodoni-moda": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.2.6",
     "@tailwindcss/vite": "^4.1.7",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.4.1",
+    "markdown-it": "^15.0.0",
     "tailwindcss": "^4.1.7",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5",
-    "@fontsource-variable/bodoni-moda": "^5.3.0",
-    "@fontsource/ibm-plex-mono": "^5.2.6"
+    "vite": "^6.3.5"
   }
 }

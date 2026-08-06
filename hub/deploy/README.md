@@ -14,23 +14,33 @@ The apex. `kimnejudne.dev` itself, on the shared DigitalOcean droplet
 
 ## Status — live
 
-**Deployed 2026-08-05.** A records added, both URL Redirect Records deleted,
+**Deployed 2026-08-05; redeployed 2026-08-06** — twice: the card on stage sized
+off the sky reservation with two chosen crops, then **the five case studies at
+`/work/<spoke>/`**. A records added, both URL Redirect Records deleted,
 certificate issued for both names, `hub.conf` installed over the bootstrap vhost,
-all four confirmations passing:
+all confirmations passing:
 
 ```
 https://kimnejudne.dev/          200
 http://kimnejudne.dev/           301 -> https
 https://www.kimnejudne.dev/      301 -> apex
 https://kimnejudne.dev/no-such   404      (not the SPA fallback)
+https://kimnejudne.dev/work/*/   200      (all five)
+https://kimnejudne.dev/work/*    301 -> trailing slash
 ```
+
+**The case studies needed no change to `hub.conf`.** `try_files $uri $uri/ =404`
+already resolves `/work/tallow/` to `/var/www/hub/work/tallow/index.html`, and
+nginx 301s the slashless form itself. The last two lines above are checked by
+`deploy.sh` after every reload, because they are the only part of this that
+`vite preview` reaches by a different code path and so cannot answer.
 
 Certificate expires **2026-11-02**; certbot's timer renews it, webroot against
 `/var/www/certbot`, which the port-80 block keeps reachable.
 
 Verified against the deployed site rather than the build: `verify.mjs` takes a
-URL, so all **36 assertions were run against `https://kimnejudne.dev/`** through
-nginx and TLS, and pass. That is a stronger claim than the pre-ship run, which
+URL, so all **95 assertions were run against `https://kimnejudne.dev/`** through
+nginx and TLS, and pass — the homepage and all five case studies. That is a stronger claim than the pre-ship run, which
 only ever sees `vite preview`.
 
 ### Resolved: the two URL Redirect Records
@@ -189,7 +199,7 @@ done
 ./deploy/deploy.sh
 ```
 
-Typechecks, builds, **runs the 36 browser assertions**, precompresses
+Typechecks, builds, **runs the 95 browser assertions**, precompresses
 (`gzip -9`, served by `gzip_static` so the shared vCPU isn't recompressing per
 request), tars the current `/var/www/hub` to
 `/var/backups/hub-<UTC-stamp>.tar.gz`, rsyncs with `--delete` so stale asset

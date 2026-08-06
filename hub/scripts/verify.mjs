@@ -19,6 +19,18 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 /*
+ * The spoke list and the disclosure rule, both read from the source rather
+ * than restated — same doctrine as the `choreography.ts` read below. Node has
+ * stripped types since 22.18, so the `.ts` import needs no build step.
+ *
+ * `policy.mjs` is shared with `scripts/case-studies.mjs`, which enforces the
+ * same rule at build time. Two copies of a policy agree right up until someone
+ * edits one of them.
+ */
+import { SPOKES } from '../src/spokes.ts';
+import { checkDisclosure } from './case-study/policy.mjs';
+
+/*
  * Read from the source rather than restated here. A second copy of the angle
  * would agree with the first right up until someone changed one of them, and
  * then the check would be asserting history.
@@ -48,6 +60,55 @@ const rpc = (ws, method, params = {}) =>
     ws.addEventListener('message', onMessage);
     ws.send(JSON.stringify({ id, method, params }));
   });
+
+/*
+ * The one colour rule, as an expression, hoisted so the homepage and the five
+ * case studies are judged by the same arithmetic rather than by two copies of
+ * it that agree until someone edits one.
+ *
+ * Nothing painted may be colour: only the sky and the five crops, and both of
+ * those are images. The first version of this test asked whether each computed
+ * colour was a *grey* — r, g and b within a hair of each other — and it failed
+ * the hairline above the colophon, which is `#d9d4c8`. That was the test being
+ * wrong, not the design: the palette is deliberately a warm paper and a cool
+ * ink, so channel spread says nothing useful.
+ *
+ * What the rule actually claims is that every painted colour is a blend of
+ * those two. So project each colour onto the paper-to-ink line and measure how
+ * far off it lands. A tint of paper sits on the line; vermilion does not, and
+ * misses by 178.
+ *
+ * Two things it cannot see, both worth knowing before trusting it. It reads
+ * `getComputedStyle` rather than pixels, so an untreated full-colour image in
+ * a layer passes in silence — and one does. And the regex matches only `rgb()`
+ * and `rgba()`: Chrome serialises `color-mix()` as `color(srgb …)` and
+ * `oklch()` as itself, so a colour written either way is skipped rather than
+ * judged. `src/tokens.css` carries that warning where the tones are chosen.
+ */
+const COLOUR_RULE = `(() => {
+  const P = [247, 244, 236], K = [22, 24, 29];
+  const D = K.map((k, i) => k - P[i]);
+  const len2 = D.reduce((s, d) => s + d * d, 0);
+  const residual = (c) => {
+    const v = c.map((x, i) => x - P[i]);
+    const t = Math.min(1, Math.max(0, v.reduce((s, x, i) => s + x * D[i], 0) / len2));
+    return Math.hypot(...v.map((x, i) => x - t * D[i]));
+  };
+  const bad = [];
+  for (const el of document.querySelectorAll('*')) {
+    const cs = getComputedStyle(el);
+    for (const prop of ['color', 'backgroundColor', 'borderTopColor', 'outlineColor']) {
+      if (prop === 'outlineColor' && cs.outlineStyle === 'none') continue;
+      const m = cs[prop].match(/rgba?\\((\\d+), (\\d+), (\\d+)(?:, ([\\d.]+))?\\)/);
+      if (!m) continue;
+      if (m[4] !== undefined && +m[4] === 0) continue;
+      const c = [+m[1], +m[2], +m[3]];
+      const d = residual(c);
+      if (d > 12) bad.push(el.tagName + '.' + el.className + ' ' + prop + '=' + cs[prop] + ' off by ' + d.toFixed(0));
+    }
+  }
+  return JSON.stringify([...new Set(bad)].slice(0, 6));
+})()`;
 
 const results = [];
 function check(name, ok, detail = '') {
@@ -88,6 +149,41 @@ async function main() {
     await rpc(ws, 'Page.enable');
     await rpc(ws, 'Runtime.enable');
 
+    /*
+     * Make the page believe it is focused.
+     *
+     * A headless tab reports `document.hasFocus() === false`, and CSS `:focus`
+     * does not match in an unfocused document — so *every* focus style in this
+     * project was untestable here, silently. Calling `.focus()` moved
+     * `document.activeElement` and changed nothing about what painted, which
+     * means an assertion written the obvious way fails against correct CSS and
+     * would be "fixed" by weakening it.
+     *
+     * Found while adding the skip-link check for the case studies. It is worth
+     * knowing that the older assertion above — that the skip link's *target*
+     * exists and is visible — never exercised `:focus` at all, so the reveal
+     * itself had never been verified on any page here.
+     */
+    await rpc(ws, 'Emulation.setFocusEmulationEnabled', { enabled: true });
+
+    /*
+     * Every navigation is a cold load.
+     *
+     * `--user-data-dir=/tmp/hub-verify-profile` persists between runs, so the
+     * second run of the day fetches almost nothing and `transferSize` reports
+     * near zero. That was caught in the deploy output: a case study weighing
+     * 8KB on a cold load printed **1KB**, and the budget assertion passed on a
+     * number that described the cache rather than the page. It could never
+     * fail wrongly — only pass when it should not, which is this file's
+     * definition of decoration.
+     *
+     * It also sharpens the font check below: with the cache off, every face a
+     * page actually uses is fetched on every page, so "emitted once and shared
+     * by all six" is measured rather than inferred from one warm visit.
+     */
+    await rpc(ws, 'Network.enable');
+    await rpc(ws, 'Network.setCacheDisabled', { cacheDisabled: true });
+
     const ev = async (expression) => {
       const { result, exceptionDetails } = await rpc(ws, 'Runtime.evaluate', {
         expression,
@@ -102,7 +198,15 @@ async function main() {
       return result.value;
     };
 
-    const load = async ({ reduce, width = 1440, height = 900 }) => {
+    /*
+     * `url` and `settle` are for the case-study pages at the end of this file.
+     * Both existing call sites pass neither and behave exactly as they did:
+     * the homepage, and 2200ms for the timeline to build and settle. The
+     * reading pages have no timeline — no script at all — so they are given
+     * 400ms, which keeps ten extra navigations from adding twenty seconds to
+     * a gate that runs on every deploy.
+     */
+    const load = async ({ reduce, width = 1440, height = 900, url = URL_ARG, settle = 2200 }) => {
       await rpc(ws, 'Emulation.setEmulatedMedia', {
         features: [{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }],
       });
@@ -112,8 +216,8 @@ async function main() {
         deviceScaleFactor: 1,
         mobile: width < 500,
       });
-      await rpc(ws, 'Page.navigate', { url: URL_ARG });
-      await sleep(2200);
+      await rpc(ws, 'Page.navigate', { url });
+      await sleep(settle);
     };
 
     /* ---- semantics -------------------------------------------------- */
@@ -261,11 +365,47 @@ async function main() {
       `${parsed.length} links`,
     );
 
-    check(
-      'no dead case-study links are rendered',
+    /*
+     * The case-study links resolve.
+     *
+     * This check existed before the pages did and passed for months without
+     * ever running: `.every()` over an empty NodeList is `true`, and no
+     * `.index-aside` was rendered because `caseStudy` was unset on all five
+     * spokes. It was decoration by this file's own standard. Wiring the field
+     * is what gives it something to judge, so it is worth making it judge
+     * properly.
+     *
+     * Fetched from node rather than the page, and **a 200 is not the
+     * assertion**. `vite preview` answers an unknown path with `index.html` at
+     * status 200, which is the same trap that made the preload check
+     * decoration further up this file. So the discriminator is content: the
+     * page that comes back must carry the canonical URL of the spoke that was
+     * asked for. A fallback cannot fake that.
+     */
+    const asideHrefs = JSON.parse(
       await ev(
-        `[...document.querySelectorAll('.index-aside')].every(a => (a.getAttribute('href')||'').length > 0)`,
+        `JSON.stringify([...document.querySelectorAll('.index-aside')].map(a => a.href))`,
       ),
+    );
+    const asideFails = [];
+    for (const s of SPOKES) {
+      const want = new URL(`/work/${s.id}/`, URL_ARG).href;
+      const linked = asideHrefs.find((h) => new URL(h).pathname === `/work/${s.id}/`);
+      if (!linked) {
+        asideFails.push(`${s.id}: no case-study link in the index`);
+        continue;
+      }
+      const res = await fetch(want).catch((e) => ({ status: `fetch failed: ${e.message}` }));
+      const body = res.text ? await res.text() : '';
+      if (res.status !== 200) asideFails.push(`${s.id}: ${res.status}`);
+      else if (!body.includes(`href="https://kimnejudne.dev/work/${s.id}/"`)) {
+        asideFails.push(`${s.id}: 200 but not the case study — the SPA fallback answered`);
+      }
+    }
+    check(
+      'every case-study link in the index resolves to that spoke’s own page',
+      asideFails.length === 0 && asideHrefs.length === SPOKES.length,
+      asideFails.join(' | ') || `${asideHrefs.length} links`,
     );
 
     /*
@@ -1321,34 +1461,272 @@ async function main() {
      * how far off it lands. A tint of paper sits on the line; vermilion does
      * not, and misses by 178.
      */
-    const offenders = await ev(`(() => {
-      const P = [247, 244, 236], K = [22, 24, 29];
-      const D = K.map((k, i) => k - P[i]);
-      const len2 = D.reduce((s, d) => s + d * d, 0);
-      const residual = (c) => {
-        const v = c.map((x, i) => x - P[i]);
-        const t = Math.min(1, Math.max(0, v.reduce((s, x, i) => s + x * D[i], 0) / len2));
-        return Math.hypot(...v.map((x, i) => x - t * D[i]));
-      };
-      const bad = [];
-      for (const el of document.querySelectorAll('*')) {
-        const cs = getComputedStyle(el);
-        for (const prop of ['color', 'backgroundColor', 'borderTopColor', 'outlineColor']) {
-          if (prop === 'outlineColor' && cs.outlineStyle === 'none') continue;
-          const m = cs[prop].match(/rgba?\\((\\d+), (\\d+), (\\d+)(?:, ([\\d.]+))?\\)/);
-          if (!m) continue;
-          if (m[4] !== undefined && +m[4] === 0) continue;
-          const c = [+m[1], +m[2], +m[3]];
-          const d = residual(c);
-          if (d > 12) bad.push(el.tagName + '.' + el.className + ' ' + prop + '=' + cs[prop] + ' off by ' + d.toFixed(0));
-        }
-      }
-      return JSON.stringify([...new Set(bad)].slice(0, 6));
-    })()`);
+    const offenders = await ev(COLOUR_RULE);
     check(
       'nothing painted on the page is off the paper-to-ink line',
       JSON.parse(offenders).length === 0,
       JSON.parse(offenders).join(' | '),
+    );
+
+    /*
+     * The mono face actually resolves.
+     *
+     * `--font-mono` is a name Tailwind also defines. While the tokens lived in
+     * an `@theme` block they replaced its default inside the theme layer; as
+     * plain `:root` in `tokens.css` they win on source order instead, which
+     * holds only while that `@import` stays after Tailwind's. Swap the two and
+     * every `.mono` element falls back to the system monospace — a change
+     * nothing else here would notice, because a system mono still passes every
+     * other assertion in this file and still looks like a monospace.
+     */
+    check(
+      'the mono face is IBM Plex Mono, not the system fallback',
+      await ev(`getComputedStyle(document.querySelector('.mono')).fontFamily.includes('IBM Plex Mono')`),
+      await ev(`getComputedStyle(document.querySelector('.mono')).fontFamily`),
+    );
+
+    /* ---- the case studies ------------------------------------------- */
+
+    /*
+     * Five reading pages at `/work/<spoke>/`, generated from each spoke's own
+     * CASE-STUDY.md. They are the portfolio's argument in prose, and they are
+     * the only pages here that carry no JavaScript at all — so most of what
+     * follows is asserting an absence.
+     *
+     * Fonts are accumulated across all six pages and judged once, after the
+     * loop.
+     *
+     * The first version of this compared each case study's fonts against the
+     * homepage's and demanded a subset — which failed immediately and
+     * correctly: the reading pages fetch the italic and the homepage has no
+     * italics to fetch. That was the wrong instrument. *Which* faces a page
+     * downloads depends on the glyphs it sets; the claim worth checking is
+     * that the whole site emits **one hashed copy per face**, which is the
+     * entire reason `tokens.css` was extracted rather than duplicated. A
+     * second `@font-face` in a second stylesheet would emit the same bytes
+     * under a second hash, double the download for anyone reading both, and
+     * look identical on every page.
+     */
+    const allFonts = new Set(
+      JSON.parse(
+        await ev(`JSON.stringify(performance.getEntriesByType('resource')
+          .map(r => new URL(r.name).pathname).filter(p => p.endsWith('.woff2')))`),
+      ),
+    );
+
+    for (const s of SPOKES) {
+      const url = new URL(`/work/${s.id}/`, URL_ARG).href;
+      await load({ reduce: false, url, settle: 400 });
+
+      check(
+        `${s.id}: serves its own page, in UTF-8`,
+        await ev(`(() => {
+          const c = document.querySelector('link[rel="canonical"]')?.href;
+          return c === ${JSON.stringify(`https://kimnejudne.dev/work/${s.id}/`)}
+            && document.title.includes(${JSON.stringify(s.name)})
+            && document.characterSet === 'UTF-8';
+        })()`),
+        await ev(`document.title`),
+      );
+
+      /*
+       * The charset half of that matters more than it looks. `hub.conf` sets
+       * no `charset` directive, so these documents arrive as `text/html` with
+       * no charset parameter and the browser has only the meta tag to go on.
+       * Every one of these files is full of em dashes, `·`, `Σ`, `×` and the
+       * `é` in PokéTrack. This catches the other end of the same pipe: a
+       * `readFileSync` without `'utf8'`, or a write in latin1.
+       */
+      check(
+        `${s.id}: no mojibake survived the pipeline`,
+        await ev(`!/\\uFFFD|Ã.|â€/.test(document.body.textContent)`),
+      );
+
+      /*
+       * The markdown was parsed rather than pasted. A substitution bug that
+       * dropped the rendered HTML in as text would still produce a page with a
+       * title, a stylesheet and roughly the right length — and it would be
+       * obvious to a human and invisible to every other check here.
+       */
+      check(
+        `${s.id}: the case study rendered as markup, not as source`,
+        await ev(`(() => {
+          const b = document.querySelector('.cs-body');
+          if (!b) return false;
+          const t = b.textContent;
+          return t.length > 4000 && !t.includes('\\u0060\\u0060\\u0060') && !t.includes('](http')
+            && b.querySelectorAll('h2').length >= 3 && !!b.querySelector('.cs-lede');
+        })()`),
+        `${await ev(`document.querySelector('.cs-body').textContent.length`)} chars`,
+      );
+
+      /*
+       * The disclosure, checked against the rendered DOM.
+       *
+       * `scripts/case-studies.mjs` runs the same rule over the source markdown
+       * and refuses to build without it, but that is the cheap half. This is
+       * the half that matters: what a reader is actually served. Both import
+       * `case-study/policy.mjs`, so there is one rule rather than two.
+       *
+       * Reconstructing markdown from the DOM would be silly, so the sections
+       * are read back out of the page and handed to the same function in the
+       * shape it expects.
+       */
+      const sections = JSON.parse(
+        await ev(`JSON.stringify([...document.querySelectorAll('.cs-body h2')].map(h => {
+          let t = '', n = h.nextElementSibling;
+          while (n && n.tagName !== 'H2') { t += ' ' + n.textContent; n = n.nextElementSibling; }
+          return { heading: h.textContent.trim(), body: t.trim() };
+        }))`),
+      );
+      const asMarkdown = sections.map((x) => `## ${x.heading}\n\n${x.body}`).join('\n\n');
+      const wrong = checkDisclosure(asMarkdown);
+      check(`${s.id}: the AI-scaffold origin is disclosed plainly`, wrong === null, wrong ?? '');
+
+      /*
+       * Nothing runs, and none of the 7MB of head art is fetched. These pages
+       * are HTML and one stylesheet; the whole argument for hosting them here
+       * rather than inside the SPA is that they cost nothing to read.
+       */
+      const runtime = JSON.parse(
+        await ev(`JSON.stringify({
+          scripts: document.querySelectorAll('script').length,
+          gsap: typeof window.gsap,
+          scripted: performance.getEntriesByType('resource').filter(r => r.initiatorType === 'script').length,
+          head: performance.getEntriesByType('resource').filter(r => new URL(r.name).pathname.startsWith('/head/')).length,
+        })`),
+      );
+      check(
+        `${s.id}: nothing runs and no head art loads`,
+        runtime.scripts === 0 &&
+          runtime.gsap === 'undefined' &&
+          runtime.scripted === 0 &&
+          runtime.head === 0,
+        JSON.stringify(runtime),
+      );
+
+      const weight = await ev(`(() => {
+        const rs = performance.getEntriesByType('resource').reduce((n, r) => n + (r.transferSize || 0), 0);
+        const doc = performance.getEntriesByType('navigation')[0]?.transferSize || 0;
+        return Math.round((rs + doc) / 1024);
+      })()`);
+      check(`${s.id}: the page is under 250KB over the wire`, weight < 250, `${weight}KB`);
+
+      const pageFonts = JSON.parse(
+        await ev(`JSON.stringify(performance.getEntriesByType('resource')
+          .map(r => new URL(r.name).pathname).filter(p => p.endsWith('.woff2')))`),
+      );
+      pageFonts.forEach((f) => allFonts.add(f));
+      check(
+        `${s.id}: its faces are hashed build assets`,
+        pageFonts.length > 0 && pageFonts.every((f) => f.startsWith('/assets/')),
+        pageFonts.map((f) => f.replace('/assets/', '')).join(', ') || 'no faces fetched',
+      );
+
+      const csOffenders = await ev(COLOUR_RULE);
+      check(
+        `${s.id}: nothing painted is off the paper-to-ink line`,
+        JSON.parse(csOffenders).length === 0,
+        JSON.parse(csOffenders).join(' | '),
+      );
+
+      /*
+       * A way back and a way out. These are the deepest pages on the site and
+       * the likeliest to be opened cold from a link somebody was sent, with no
+       * history to go back through.
+       */
+      /*
+       * The skip link reveals itself on focus.
+       *
+       * Worth its own assertion because it is unfalsifiable by eye: the link
+       * is parked off-screen at `left: -9999px` and only `:focus` brings it
+       * back, and `:focus` does not match unless the *document* has focus — so
+       * clicking around a page in a background window shows nothing wrong
+       * whether the rule works or not. A headless run is focused, which makes
+       * this one of the few places the question can actually be asked.
+       */
+      check(
+        `${s.id}: the skip link reveals itself on focus and points at the prose`,
+        await ev(`(() => {
+          const skip = document.querySelector('.skip');
+          if (!skip) return false;
+          const target = document.querySelector(skip.getAttribute('href'));
+          if (!target || target.getBoundingClientRect().height <= 0) return false;
+          const hidden = skip.getBoundingClientRect();
+          skip.focus();
+          const shown = skip.getBoundingClientRect();
+          skip.blur();
+          return hidden.right <= 0 && shown.left >= 0 && shown.width > 0;
+        })()`),
+      );
+
+      const otherIds = SPOKES.filter((o) => o.id !== s.id).map((o) => `/work/${o.id}/`);
+      check(
+        `${s.id}: links home, to its spoke, and to the other four`,
+        await ev(`(() => {
+          const back = !!document.querySelector('a[href="/#work"]');
+          const live = [...document.querySelectorAll('a')].some(a => a.href === ${JSON.stringify(s.href)});
+          const others = [...document.querySelectorAll('.cs-others-link')].map(a => new URL(a.href).pathname).sort();
+          const want = ${JSON.stringify(otherIds.slice().sort())};
+          return back && live && others.length === 4 && others.every((p, i) => p === want[i]);
+        })()`),
+      );
+
+      /*
+       * No horizontal overflow on a phone.
+       *
+       * PLINTH's own case study — one of the five documents this renders — is
+       * partly about shipping a page with two horizontal scrollbars and a
+       * 4,320px document, so this is that lesson turned into a gate. It is the
+       * assertion most likely to fire while editing: the longest inline code
+       * span in the corpus is 69 characters and the longest fenced line is 84,
+       * and either will widen a 390px page if the stylesheet stops handling
+       * them.
+       *
+       * The second half is what stops it being satisfiable the wrong way.
+       * `overflow-x: hidden` on `body` would silence the first half while
+       * leaving the content just as unreachable, so anything genuinely wider
+       * than the viewport has to be a `pre` or a `.cs-scroll` — an element that
+       * scrolls on purpose, and that a keyboard can reach.
+       */
+      await load({ reduce: false, url, width: 390, height: 780, settle: 400 });
+      const narrow = JSON.parse(
+        await ev(`JSON.stringify((() => {
+          const d = document.documentElement;
+          const wide = [...document.querySelectorAll('body *')]
+            .filter(e => e.getBoundingClientRect().width > d.clientWidth + 1)
+            .filter(e => !(e.tagName === 'PRE' || e.classList.contains('cs-scroll')))
+            .map(e => e.tagName + '.' + e.className);
+          return { scrollW: d.scrollWidth, clientW: d.clientWidth, wide: [...new Set(wide)].slice(0, 5) };
+        })())`),
+      );
+      check(
+        `${s.id}: no horizontal overflow at 390px`,
+        narrow.scrollW <= narrow.clientW + 1 && narrow.wide.length === 0,
+        narrow.wide.length ? narrow.wide.join(' | ') : `${narrow.scrollW}px in ${narrow.clientW}px`,
+      );
+    }
+
+    /*
+     * One hashed copy per face across the whole site.
+     *
+     * Vite appends an 8-character hash before the extension, so stripping it
+     * leaves the face's own name. Two hashes under one name means the same
+     * bytes were emitted twice — which is exactly what happens if a stylesheet
+     * declares its own `@font-face` instead of importing `src/tokens.css`.
+     */
+    const byFace = new Map();
+    for (const f of allFonts) {
+      const face = f.replace(/^\/assets\//, '').replace(/-[A-Za-z0-9_-]{8}\.woff2$/, '');
+      byFace.set(face, [...(byFace.get(face) ?? []), f]);
+    }
+    const duplicated = [...byFace].filter(([, urls]) => urls.length > 1);
+    check(
+      'every face is emitted once and shared by all six pages',
+      duplicated.length === 0 && byFace.size > 0,
+      duplicated.length
+        ? duplicated.map(([face, urls]) => `${face} x${urls.length}`).join(' | ')
+        : `${byFace.size} faces: ${[...byFace.keys()].join(', ')}`,
     );
 
     ws.close();
