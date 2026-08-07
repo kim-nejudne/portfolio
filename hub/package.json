@@ -1,0 +1,39 @@
+{
+  "name": "hub",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/identity-check.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",
+    "dev": "vite",
+    "cases": "node scripts/case-studies.mjs",
+    "identity": "node scripts/identity-check.mjs",
+    "prebuild": "node scripts/identity-check.mjs && node scripts/case-study-cards.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "crops": "bash scripts/crops.sh",
+    "verify": "node scripts/verify.mjs",
+    "beats": "node scripts/shoot-beats.mjs",
+    "seo": "node scripts/seo.mjs",
+    "cards": "node scripts/case-study-cards.mjs"
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "gsap": "^3.13.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/bodoni-moda": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.2.6",
+    "@tailwindcss/vite": "^4.1.7",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "markdown-it": "^15.0.0",
+    "tailwindcss": "^4.1.7",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

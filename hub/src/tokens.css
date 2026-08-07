@@ -1,0 +1,125 @@
+/*
+ * The two things every page on this site shares: the faces, and the palette.
+ *
+ * Extracted from `index.css` when the case studies were published. They are
+ * the only pages other than the homepage, they are set in the same type on the
+ * same paper, and the alternative — a second `@font-face` block in a second
+ * stylesheet — would have emitted the same woff2 under two hashes and made
+ * every reader who visits both download 40KB twice. Vite keys emitted assets
+ * by resolved file id, so importing this one file from both entries gets each
+ * face hashed once and fetched once.
+ *
+ * Plain CSS, not `@theme`. Tailwind is in the build for preflight and for the
+ * `@theme` → `:root` mechanism, but *nothing in this codebase uses a Tailwind
+ * utility class* — all 35 are hand-written and defined in `index.css`. With no
+ * utility consuming the theme, `@theme` and `:root` emit identical variables,
+ * and `:root` is the one that works in a stylesheet that does not import
+ * Tailwind at all. The reading pages do not: a second `@import 'tailwindcss'`
+ * would emit a second copy of preflight, and preflight strips list markers,
+ * which is right for the hub's index and wrong for a page of prose.
+ */
+
+/*
+ * Two faces, two files, Latin only — declared by hand rather than imported
+ * from `@fontsource`'s index, which ships Cyrillic, Greek, Vietnamese, math
+ * and symbol subsets. A browser would never *fetch* the unused ones thanks to
+ * `unicode-range`, but they all land in `dist/` and every one of them is a
+ * file the deploy has to copy and the runbook has to explain. The two that
+ * matter are vendored into `src/fonts/` so Vite hashes them like any other
+ * asset.
+ *
+ * Bodoni Moda is a Didone: the highest-contrast serif in common use, and
+ * nothing in the five spokes is a serif at all — so it reads instantly as a
+ * different voice. That is the point. The hub is the frame, not a sixth art
+ * direction.
+ */
+@font-face {
+  font-family: 'Bodoni Moda';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./fonts/bodoni-moda-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/*
+ * The italic exists for the case studies and only for them.
+ *
+ * The homepage has no italics — nine words of pitch, five project lines and a
+ * colophon — so for months there was no italic face on the site at all. The
+ * five case studies are 13KB to 26KB of prose each and use emphasis
+ * constantly, and meaningfully: *suki* is a Tagalog word being glossed, *is*
+ * is carrying the weight of a sentence. Without a real italic a browser
+ * synthesises one by shearing the upright, and a sheared Didone — hairline
+ * serifs, extreme stroke contrast — is not a near miss, it is a smear.
+ *
+ * The homepage pays nothing for it. An `@font-face` nobody matches triggers no
+ * request, so this rule costs the hub one unused declaration and the reading
+ * pages a face they need. It is declared here rather than in
+ * `case-study.css` so that all three faces stay in one place: an `<em>` added
+ * to the hub tomorrow should find a real italic waiting, not discover this
+ * comment afterwards.
+ */
+@font-face {
+  font-family: 'Bodoni Moda';
+  font-style: italic;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./fonts/bodoni-moda-latin-wght-italic.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+
+/*
+ * THE ONE COLOUR RULE
+ *
+ * The hub is paper and ink. The only colour on the page is **the five project
+ * crops and the sky inside his head**, both of which arrive as images and never
+ * as a token. There is no accent, no gradient, no tinted state. That single
+ * discipline is what keeps a statement hub from competing with five loud spokes.
+ *
+ * The sky is the one colour here that is not a project, which is what the reveal
+ * is built on: colour arrives at the exact moment the head opens. It was briefly
+ * gone — deleted as one of five undrawn placeholder layers, which cost the beat
+ * and made the rule stricter than it was meant to be — and it came back for the
+ * price of a single drawing, because `face.png` is transparent above the tear
+ * and so needed no cavity and no back of skull behind it.
+ *
+ * `public/favicon.svg` is the sky blue for this reason: the mark carries the
+ * hub's own colour rather than borrowing a spoke's. It is not painted on the
+ * page, so `verify.mjs`'s paper-to-ink check neither sees it nor should.
+ *
+ * If you find yourself wanting a hex value here that is not paper, ink or a
+ * mix of the two, the design has gone wrong somewhere else.
+ *
+ * The rule is machine-checked: `verify.mjs` projects every painted colour onto
+ * the paper-to-ink line and fails anything more than 12 units off it. Two
+ * caveats worth knowing before adding a tone. The check reads
+ * `getComputedStyle`, so it sees CSS and not pixels — an untreated full-colour
+ * image passes in silence, and one does. And its regex matches only `rgb()`
+ * and `rgba()`: Chrome serialises `color-mix()` as `color(srgb …)` and
+ * `oklch()` as itself, so a vermilion written either way would sail straight
+ * through the one assertion that exists to stop it. **Literal hex or `rgb()`
+ * only.**
+ *
+ * New tones are a blend of the two endpoints, which lands on the line by
+ * construction rather than by luck:
+ *
+ *   tint(t) = rgb(247 − 225t, 244 − 220t, 236 − 207t)
+ *
+ * There is less headroom than the threshold suggests — `--color-rule` is
+ * already 6.3 off the line and `--color-muted` 8.4, against a limit of 12.
+ */
+:root {
+  --color-paper: #f7f4ec;
+  --color-ink: #16181d;
+  --color-muted: #6f727a;
+  --color-rule: #d9d4c8;
+  --font-display: 'Bodoni Moda', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}

@@ -1,0 +1,575 @@
+/*
+ * The reading pages — `/work/<spoke>/`.
+ *
+ * Five case studies, 9KB to 26KB of prose each, generated from the spokes' own
+ * markdown by `scripts/case-studies.mjs`. This is the only stylesheet they
+ * load, and they load no JavaScript at all.
+ *
+ * They are set in the hub's type rather than in each spoke's, and that is the
+ * argument the whole portfolio rests on. `positioning-brief.md` puts coherence
+ * not in shared visuals but in "the curator's hand" — a consistent craft bar
+ * and a consistent voice in the writing. Five case studies in five art
+ * directions would be five more spokes. Five in one paper-and-ink frame is a
+ * curator with five subjects, which is the claim being made.
+ */
+
+/*
+ * Deliberately no `@import 'tailwindcss'`.
+ *
+ * Nothing in this codebase uses a Tailwind utility class, so the framework is
+ * only supplying preflight — and a second `@import` would emit a second full
+ * copy of it into a second bundle. More to the point, preflight strips list
+ * markers. That is right for the homepage, whose only list is a row of framed
+ * links; it is wrong for a page with forty bullets and three ordered lists,
+ * where it would mean spending rules putting back what a reset had just taken
+ * away. Twelve lines of reset below instead, chosen rather than inherited.
+ */
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/*
+ * Note what is *not* here: `overflow-x: hidden`, which `index.css` sets on
+ * `body` for the pinned stage. Copying it across would hide horizontal
+ * overflow rather than prevent it — and PLINTH's case study, one of the five
+ * documents this stylesheet renders, is partly about shipping a page with two
+ * horizontal scrollbars and a 4,320px document. The `verify.mjs` assertion
+ * that no page overflows at 390px is only meaningful while nothing is
+ * suppressing the evidence.
+ */
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body.cs {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+/* The skip link, same shape as the homepage's: off-screen until focused. The
+   content sits below a masthead, so there is something to skip. */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+.skip:focus {
+  left: 0;
+}
+
+/* ---- the frame ---------------------------------------------------- */
+
+/*
+ * A plain block with `margin-inline: auto`, and it matters that it is not a
+ * flex or grid child. A flex/grid item defaults to `min-width: auto`, which
+ * lets an `overflow-x: auto` descendant — every `pre` and every table on these
+ * pages — push its track wider instead of scrolling inside it. That is the
+ * most common way this exact layout breaks, and avoiding it costs nothing.
+ */
+/*
+ * 44rem, and the number was measured rather than chosen.
+ *
+ * It started at 36rem on the usual advice that a measure should hold 65–75
+ * characters. That advice assumes a typical serif at about 0.5em average
+ * character width; Bodoni Moda runs 0.58em, so 36rem held **52 characters** —
+ * a narrow, choppy column that turns a 26KB case study into a lot of short
+ * lines. Counted in the browser off real paragraphs, not estimated: a range
+ * over each `<p>`, its client rects grouped by top edge, characters divided by
+ * lines.
+ *
+ * 44rem lands at about 63. If the size or the face changes, measure again —
+ * the relationship is a property of this typeface and nothing here derives it.
+ */
+.cs-mast,
+.cs-body,
+.cs-foot > * {
+  width: min(100% - 2.5rem, 44rem);
+  margin-inline: auto;
+}
+
+.cs-mast {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.6rem 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-rule);
+  /* Static, not sticky. A sticky header costs a compositing layer on a page
+     whose entire proposition is that it costs nothing. */
+}
+
+.cs-mast a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.cs-mast a:hover,
+.cs-mast a:focus-visible {
+  color: var(--color-ink);
+}
+
+.cs-body {
+  padding: 3.5rem 0 1rem;
+}
+
+/* ---- the prose ----------------------------------------------------- */
+
+/*
+ * 19px is large for body text and it is the point. Bodoni Moda is a Didone —
+ * the highest-contrast serif in common use — and its hairlines start to
+ * disappear below about 17px on a light ground, which reads as a page that
+ * sparkles and tires. Set large, with air, it reads like a magazine, which is
+ * the register the whole portfolio is arguing from.
+ *
+ * Weight 450 rather than 400 for the same reason: the variable axis runs
+ * 400–900 and a hair of extra weight puts the thin strokes back without
+ * making the page look bold.
+ */
+.cs-body {
+  font-size: 1.1875rem; /* 19px */
+  line-height: 1.72;
+  font-weight: 450;
+  /* Never justified. Justification without hyphenation opens rivers, and a
+     Didone's contrast makes every river visible. */
+  text-align: left;
+  text-wrap: pretty;
+}
+
+.cs-body > * {
+  margin-block: 0;
+}
+
+.cs-body p {
+  margin-top: 1.15em;
+}
+
+.cs-body h1 {
+  font-size: clamp(2.1rem, 5.5vw, 3.2rem);
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  margin-bottom: 1.6rem;
+}
+
+.cs-lede {
+  font-size: 1.4rem;
+  line-height: 1.5;
+  font-weight: 500;
+  margin-top: 0;
+  margin-bottom: 2.2rem;
+}
+
+/*
+ * No `::before` counter on the headings. Four of the five sources number their
+ * own sections in the markdown and PLINTH does not — it is a marketing page
+ * and its structure is prose rather than a list of fixes. A generated counter
+ * would double the numbers on four pages and invent them on the fifth. The
+ * renderer assumes nothing about structure and neither does this.
+ */
+.cs-body h2 {
+  font-size: 1.6rem;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-top: 3.4rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--color-rule);
+  text-wrap: balance;
+}
+
+/*
+ * PLINTH's h3s are full sentences — "The one that mattered most: the page
+ * argued with itself" — so this cannot be the mono-caps label the rest of the
+ * site uses for small headings. It is a smaller, heavier serif instead.
+ */
+.cs-body h3 {
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-weight: 600;
+  margin-top: 2.2rem;
+  text-wrap: balance;
+}
+
+.cs-body h2 + p,
+.cs-body h3 + p {
+  margin-top: 0.9rem;
+}
+
+.cs-body strong {
+  font-weight: 700;
+}
+
+.cs-body em {
+  font-style: italic;
+}
+
+.cs-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--color-rule);
+}
+
+.cs-body a:hover,
+.cs-body a:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+/* ---- lists --------------------------------------------------------- */
+
+.cs-body ul,
+.cs-body ol {
+  margin-top: 1.15em;
+  padding-left: 1.6em;
+}
+
+.cs-body li + li {
+  margin-top: 0.6em;
+}
+
+.cs-body li > ul,
+.cs-body li > ol {
+  margin-top: 0.6em;
+}
+
+/* An en dash rather than a bullet: the page has no round shapes anywhere else
+   in it, and a rule-and-dash vocabulary is what the homepage index uses. */
+.cs-body ul > li::marker {
+  content: '–  ';
+  color: var(--color-muted);
+}
+
+.cs-body ol > li::marker {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--color-muted);
+}
+
+/* ---- code ---------------------------------------------------------- */
+
+/*
+ * Inline code is a real overflow risk on these pages, not a theoretical one.
+ * The longest span in the corpus is 69 characters — SUKI's `Sale total
+ * ${payload.total} does not match its lines (${computed}).` — which in Plex
+ * Mono at this size is about 676px, wider than both the measure and a 390px
+ * phone. `overflow-wrap: anywhere` lets it break rather than widen the page.
+ *
+ * 0.86em because Plex Mono's x-height is larger than Bodoni's; at 1em it looks
+ * oversized beside the prose rather than matched to it.
+ */
+.cs-body :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: #ece9e2; /* tint(0.05) — on the paper-to-ink line by construction */
+  padding: 0.12em 0.32em;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Fenced blocks scroll inside themselves rather than widening the document.
+ *
+ * The longest real line in the corpus is 84 characters — a JWT default in
+ * PokéTrack — which at this size is about 645px and so fits inside the 44rem
+ * measure without a scrollbar. That is a happy accident of the measure, not a
+ * guarantee: `overflow-x` is what makes it safe, and it is what carries every
+ * narrow viewport, where the block scrolls and the page does not.
+ *
+ * No syntax highlighting, and not for weight — highlighters exist to emit
+ * colour and the one colour rule forbids it. Ink at one weight.
+ */
+.cs-body pre {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  background: #ece9e2;
+  border-top: 1px solid var(--color-rule);
+  border-bottom: 1px solid var(--color-rule);
+  padding: 1rem 1.1rem;
+  margin-top: 1.6rem;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.cs-body pre > code {
+  display: block;
+  white-space: pre;
+  background: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: inherit;
+  overflow-wrap: normal;
+}
+
+/* ---- tables -------------------------------------------------------- */
+
+/*
+ * The renderer wraps every table in `.cs-scroll`, which is a keyboard-focusable
+ * scroll region — a region that scrolls but cannot be reached by keyboard puts
+ * its right-hand columns out of reach of anyone not using a pointer.
+ */
+.cs-scroll {
+  overflow-x: auto;
+  margin-top: 1.8rem;
+  border-top: 1px solid var(--color-rule);
+}
+
+.cs-body table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* The same mono-caps label the homepage uses for `.index-heading` and the
+   colophon's `dt`. Ruled rows, no verticals, no zebra. */
+.cs-body th {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cs-body th,
+.cs-body td {
+  border-bottom: 1px solid var(--color-rule);
+  padding: 0.7rem 1.4rem 0.7rem 0;
+  vertical-align: baseline;
+}
+
+.cs-body td:last-child,
+.cs-body th:last-child {
+  padding-right: 0;
+}
+
+/* ---- rules --------------------------------------------------------- */
+
+/*
+ * Between three and thirteen `---` per document, and they frequently sit
+ * immediately before an h2 that already carries a `border-top`. A full-width
+ * rule there would double up, so this is a centred dot leader instead — a
+ * section break rather than a line — and the h2 that follows one drops its own
+ * rule.
+ */
+.cs-body hr {
+  border: 0;
+  margin: 3.4rem 0 0;
+  text-align: center;
+}
+
+.cs-body hr::before {
+  content: '·  ·  ·';
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.7em;
+  color: var(--color-muted);
+}
+
+.cs-body hr + h2 {
+  border-top: 0;
+  margin-top: 1.6rem;
+  padding-top: 0;
+}
+
+/* Defensive: no source uses a blockquote today, but the renderer assumes
+   nothing about structure and these five files live in other repositories. */
+.cs-body blockquote {
+  margin: 1.6rem 0;
+  padding-left: 1.2rem;
+  border-left: 2px solid var(--color-rule);
+  color: var(--color-muted);
+}
+
+/* ---- the foot ------------------------------------------------------ */
+
+.cs-foot {
+  margin-top: 4.5rem;
+  padding: 2.5rem 0 4rem;
+  border-top: 1px solid var(--color-rule);
+  font-size: 0.8rem;
+}
+
+.cs-live {
+  margin: 0 auto 3rem;
+  letter-spacing: 0.04em;
+}
+
+.cs-live-label {
+  color: var(--color-muted);
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  margin-right: 0.6rem;
+}
+
+/*
+ * The row stays inline rather than becoming a flex line, so it wraps at its own
+ * whitespace when the two pairs no longer fit side by side — which at 390px
+ * they do not. A flex row would need `flex-wrap` plus a gap that fought the
+ * label's `margin-right`, to arrive at what inline text already does.
+ *
+ * `nowrap` on each pair is what makes that wrap land in the right place. Left
+ * to itself the line broke between "SOURCE" and `kim-nejudne/forme`, stranding
+ * a label on the line above its own link — the one break in the row that reads
+ * as a mistake rather than as a fold. The only legal break is now the space
+ * *between* the pairs, so 390px gives one pair per line.
+ *
+ * The separator sits inside the first pair rather than between them, so it can
+ * only ever end a line, never begin one. A middot alone at the start of a line
+ * is a typographic orphan; at the end of one it reads as a continuation, which
+ * is what it is.
+ */
+.cs-live-pair {
+  white-space: nowrap;
+}
+
+.cs-live-sep {
+  margin: 0 0.7rem;
+  color: var(--color-muted);
+}
+
+.cs-live a,
+.cs-colophon a {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--color-rule);
+}
+
+.cs-live a:hover,
+.cs-colophon a:hover,
+.cs-live a:focus-visible,
+.cs-colophon a:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+/*
+ * "The other four", not prev/next.
+ *
+ * These are the deepest pages on the site and the likeliest to be opened cold
+ * from a shared link, with no route back except the browser's. Prev/next would
+ * imply an order the five do not have — the homepage numbers them 01–05, but
+ * that is presentation. All four present means every case study is one click
+ * from every other, which is what turns five orphans into a body of work.
+ */
+.cs-others-heading {
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin: 0 0 0.5rem;
+}
+
+.cs-others-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cs-others-row {
+  border-top: 1px solid var(--color-rule);
+}
+
+.cs-others-link {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.15rem;
+  padding: 0.9rem 0;
+  text-decoration: none;
+  color: var(--color-ink);
+}
+
+.cs-others-name {
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.cs-others-line {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.cs-others-link:hover .cs-others-line,
+.cs-others-link:focus-visible .cs-others-line {
+  color: var(--color-ink);
+}
+
+.cs-colophon {
+  margin: 3rem auto 0;
+  color: var(--color-muted);
+  letter-spacing: 0.08em;
+}
+
+/* ---- small screens -------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .cs-body {
+    font-size: 1.09375rem; /* 17.5px */
+    line-height: 1.65;
+    padding-top: 2.5rem;
+  }
+
+  .cs-body h2 {
+    margin-top: 2.6rem;
+    font-size: 1.4rem;
+  }
+
+  .cs-lede {
+    font-size: 1.15rem;
+  }
+}
+
+/*
+ * There is no motion on these pages to reduce — no timeline, no transition,
+ * no transform. `prefers-reduced-motion` is honoured by there being nothing to
+ * honour, which is the strongest form of it and worth saying out loud so the
+ * absence does not read as an oversight.
+ */

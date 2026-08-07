@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kim Nejudne: CV</title>
+    <!--
+      The stand-in behind /cv.pdf.
+
+      It exists so that everything *around* the CV (the two buttons, the
+      download attribute, the content-type, the assertions, the deploy gate)
+      can be built and proven before the CV itself is written. The same bet the
+      head art was built under: nine grey placeholder layers let the
+      choreography be tuned before a line was drawn, and it found four real
+      defects that would otherwise have surfaced after the drawing.
+
+      It is deliberately not designed. A handsome placeholder is a placeholder
+      that ships. `hub/cv/PLACEHOLDER` is the sentinel that stops it, and
+      `deploy/deploy.sh` refuses while that file exists.
+
+      Set in the page's own two faces off `src/fonts/`, served over http by
+      build-placeholder.sh so the @font-face URLs resolve as they do in the app.
+    -->
+    <style>
+      @font-face {
+        font-family: 'Bodoni Moda';
+        src: url('/src/fonts/bodoni-moda-latin-wght-normal.woff2') format('woff2-variations');
+        font-weight: 400 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        src: url('/src/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+        font-weight: 400;
+        font-display: block;
+      }
+
+      /* A4, because a CV is a document and gets printed. */
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        width: 210mm;
+        height: 297mm;
+        box-sizing: border-box;
+        padding: 32mm 26mm;
+        background: #f7f4ec;
+        color: #16181d;
+        font-family: 'Bodoni Moda', Georgia, serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .mono {
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
+      }
+
+      .name {
+        font-size: 9pt;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #6f727a;
+        margin: 0;
+      }
+
+      .line {
+        margin: 6mm 0 0;
+        font-size: 30pt;
+        line-height: 1.04;
+        letter-spacing: -0.02em;
+        font-weight: 500;
+      }
+
+      hr {
+        border: 0;
+        border-top: 1px solid #d9d4c8;
+        margin: 10mm 0;
+      }
+
+      .note {
+        font-size: 12pt;
+        line-height: 1.5;
+        max-width: 34em;
+        margin: 0 0 5mm;
+      }
+
+      .foot {
+        position: absolute;
+        bottom: 26mm;
+        font-size: 8pt;
+        line-height: 1.8;
+        letter-spacing: 0.06em;
+        color: #6f727a;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="name mono">Kim Nejudne · Senior Full-Stack Engineer</p>
+    <h1 class="line">
+      Senior full-stack engineer<br />
+      with a designer&rsquo;s eye.
+    </h1>
+
+    <hr />
+
+    <p class="note">
+      This is a placeholder. The CV has not been written yet, and this file
+      exists only so that the page linking to it can be built and verified
+      first.
+    </p>
+    <p class="note">
+      The work itself is at <strong>kimnejudne.dev</strong>: five standalone
+      products, each with its own art direction, each with a write-up of why it
+      wanted that art direction.
+    </p>
+
+    <div class="foot mono">
+      august.nejudne@gmail.com<br />
+      github.com/kim-nejudne<br />
+      kimnejudne.dev
+    </div>
+  </body>
+</html>

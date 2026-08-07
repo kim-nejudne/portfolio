@@ -1,0 +1,988 @@
+@import 'tailwindcss';
+
+/* The faces and the palette — shared with the case-study pages. See there for
+ * the one colour rule, which is the tightest constraint on this stylesheet.
+ *
+ * This import must stay *after* Tailwind's. `--font-mono` is a name Tailwind
+ * also defines, and while the tokens lived in an `@theme` block they replaced
+ * its default inside the theme layer. As plain `:root` they win on source
+ * order instead, which is a weaker guarantee: swap these two lines and every
+ * `.mono` element on the site silently falls back to the system monospace,
+ * with nothing to say so. `verify.mjs` asserts the computed face for exactly
+ * that reason. */
+@import './tokens.css';
+
+html {
+  background: var(--color-paper);
+  /* The root carries the ink too, not just `body`. Otherwise the root element
+     keeps the user agent's black, which is off the paper-to-ink line and makes
+     the colour rule false at the very top of the tree — nothing renders with
+     it, but a rule with an exception is not a rule. */
+  color: var(--color-ink);
+  /* No smooth scrolling. The pinned section is scrub-driven and a smoothed
+     scroll fights the scrub, which reads as lag rather than as polish. */
+  scroll-behavior: auto;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.skip {
+  position: fixed;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 100;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  padding: 0.6rem 1rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: top 120ms ease;
+}
+.skip:focus {
+  top: 0.75rem;
+}
+
+/* ---- the CV button ----------------------------------------------- *
+ *
+ * The only solid block on the page besides the skip link above, and it borrows
+ * that link's vocabulary rather than inventing a button style: ink ground,
+ * paper type, mono caps at a wide track. The site has no buttons at all
+ * otherwise — every other interactive thing is an anchor with a hairline — so
+ * this is the loudest element here, which is the point. It is the one thing a
+ * visitor can take away.
+ *
+ * Both colours are literal `var(--color-ink)` / `var(--color-paper)`. Not
+ * `color-mix()` and not `oklch()`: the colour-rule sweep in `verify.mjs` reads
+ * computed `rgb()`, and those two serialise to forms its regex does not match,
+ * so a new colour written that way would pass the rule by being invisible to it
+ * rather than by obeying it.
+ *
+ * The hover is an inversion to paper with an ink hairline, so the block keeps
+ * its exact footprint — a fill that changed size would shove the pitch's
+ * measure around on a page whose whole argument is set type.
+ * ------------------------------------------------------------------ */
+
+.cta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  /* A hairline in the ground colour, so the box is the same size in both
+     states and the inversion below only has to change two colours. */
+  border: 1px solid var(--color-ink);
+  padding: 0.85rem 1.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.cta:hover,
+.cta:focus-visible {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/*
+ * The format, for the eye only — `aria-hidden` in the component, because
+ * "Download my CV PDF" is a worse accessible name than "Download my CV" and
+ * the anchor already announces itself as a download.
+ */
+.cta-tag {
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  opacity: 0.6;
+}
+
+/* Placement, and nothing else. The block above is the same in both homes. */
+.pitch .cta {
+  margin-top: 1.5rem;
+}
+
+.colophon .cta {
+  margin-top: 2.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The stage
+ *
+ * Derived sizes. Everything here descends from four numbers injected by
+ * App.tsx out of the same constants the timeline reads, so the stylesheet and
+ * the choreography cannot disagree about where the eyes are.
+ * ------------------------------------------------------------------ */
+
+.stage {
+  --head-height: calc(var(--head-vh-mobile) * 1vh);
+  --lip-rest-bp: calc(var(--lip-rest-mobile) * 1vh);
+  --canvas-h: calc(var(--head-height) / var(--head-fraction));
+  --canvas-w: calc(var(--canvas-h) * var(--canvas-aspect));
+  position: relative;
+  /* svh, not dvh: a pinned section must not resize when a mobile URL bar
+     collapses, or ScrollTrigger re-pins mid-scroll and the head jumps. */
+  height: 100vh;
+  height: 100svh;
+  overflow: clip;
+}
+
+@media (min-width: 768px) {
+  .stage {
+    --head-height: calc(var(--head-vh-desktop) * 1vh);
+    --lip-rest-bp: calc(var(--lip-rest-desktop) * 1vh);
+  }
+}
+
+.stage-inner {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---- the head ---------------------------------------------------- */
+
+/*
+ * The plate carries the geometry, and carries **no z-index and no transform**.
+ *
+ * That is the whole reason it exists. Its two children have to end up on
+ * opposite sides of the showcase in paint order — the sky behind a card, his
+ * face in front of it — and a stacking context here would glue them together
+ * and make the pair atomic. So the plate positions, and the children stack and
+ * move.
+ */
+.head-plate {
+  position: absolute;
+  left: calc(50% - var(--canvas-w) / 2);
+  top: calc(var(--lip-rest-bp) - var(--lip-line) * var(--canvas-h));
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+}
+
+.head,
+.head-sky {
+  position: absolute;
+  inset: 0;
+  /* No transform here, deliberately: GSAP writes `transform` on these and a
+     CSS translate for centring would be silently overwritten. */
+
+  /*
+   * `pointer-events: none` is not optional. The head is `aria-hidden`
+   * decoration whose box is the entire artboard and mostly transparent, sitting
+   * over a real link — without this it would quietly eat clicks on the bottom
+   * edge of every queued card while painting nothing there.
+   */
+  pointer-events: none;
+}
+
+/*
+ * In front of the cards. See `HEAD_Z` in `head.ts` — this is what makes the
+ * tear an opening rather than a line the cards happen to start on: a card
+ * leaving it passes *behind* his face and is cut by the drawing.
+ */
+.head {
+  z-index: var(--head-z);
+}
+
+/*
+ * And behind them, because a card comes *out of* the sky.
+ *
+ * Hidden at rest and revealed as the lid swings — see `SKY_REVEAL`. It cannot
+ * simply sit there waiting to be uncovered: the lid is hair, about 57% coverage
+ * inside its own box, so a solid colour behind it speckles through the strands
+ * and the reveal is spent before the scroll starts.
+ */
+.head-sky {
+  z-index: var(--sky-z);
+  opacity: 0;
+}
+
+/*
+ * No `perspective` here any more. The lid hinges in the picture plane, so
+ * nothing on this canvas leaves it, and a perspective container with no 3D
+ * child is an invitation to reintroduce one by accident.
+ */
+.canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+}
+
+/*
+ * The hinge. One element, one rotation, and `transformOrigin` set from
+ * `HINGE` in `head.ts` — the bottom-right corner of Kim's tear.
+ *
+ * What used to be here: `transform-style: preserve-3d`, two coplanar plates
+ * separated by half a pixel of z so they would not fight, `backface-visibility`
+ * on both, and a comment explaining why the back one was rotated about Y rather
+ * than X. All of it existed to show the inside of the cranium as the lid turned
+ * away from the viewer. An in-plane rotation never turns away, so all of it is
+ * gone — along with the trap where `will-change: opacity` on this element made
+ * it a grouping element, forced `transform-style` back to flat, and silently
+ * disabled the backface culling the whole arrangement depended on.
+ */
+.lid-hinge {
+  position: absolute;
+  inset: 0;
+}
+
+.cavity-point {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* ---- the pitch --------------------------------------------------- */
+
+/*
+ * Chrome sits above the scene. The pitch and the scroll cue are page furniture
+ * rather than part of the picture, and the head — which is now in front of the
+ * cards — fills the bottom of the screen at rest, exactly where the cue lives.
+ * Without this the very first thing a visitor is told to do would be printed
+ * behind his chin.
+ */
+.pitch {
+  z-index: var(--chrome-z);
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  top: 0;
+  padding-top: 1.75rem;
+}
+
+.pitch-name {
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/*
+ * The phone size, eased from `clamp(1.65rem, 7.4vw, 2.1rem)` on 2026-08-07 for
+ * the same reason as the desktop measure below: the H1 gained "Senior" and the
+ * first line stopped fitting.
+ *
+ * The failure this avoids is specifically ugly rather than merely tight. The
+ * only break opportunity inside "full-stack" is its hyphen, so an overrun does
+ * not wrap at a space — it sets "Senior full-" over "stack engineer", which
+ * splits the compound and reads as a typesetting accident on the one line the
+ * whole page rests on.
+ *
+ * Sized against a 360px phone, the design target: the column is 320px there and
+ * the first line comes to 295px. The old numbers gave it 9px, and 1px at 350px
+ * wide.
+ *
+ * The *minimum* is the part that had to be measured rather than guessed. Below
+ * about 310px the `vw` term drops under the floor and the floor becomes the
+ * size, so it is the floor that decides whether a 320px phone wraps — a first
+ * pass set it to 1.55rem and overflowed 320px by 10px while looking safe,
+ * because every viewport anyone tests on is governed by the middle term. 320
+ * is where this stops being checked: no mainstream browser reports a narrower
+ * viewport.
+ */
+.pitch-line {
+  margin-top: 0.85rem;
+  font-size: clamp(1.35rem, 7vw, 1.95rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+.pitch-meta {
+  margin-top: 0.9rem;
+  font-size: 0.6rem;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+}
+
+/*
+ * On a wide screen the pitch stays where it is on a phone — top left, above
+ * the crown — and only grows.
+ *
+ * It used to be a column beside the head: pinned to the left edge, vertically
+ * centred, `min(31ch, 34vw)` wide. That layout wanted the head centred in the
+ * remaining space and read as two things sharing a screen. Above the head it
+ * reads as one thing: a line of type, and beneath it the head it is about.
+ *
+ * The measure is wider than the old column but not by as much as the space
+ * allows — because a Didone at three rem across a 1440px viewport would be a
+ * headline you scan rather than read.
+ *
+ * `48ch` until 2026-08-07, when the H1 gained the word "Senior" and stopped
+ * fitting. Worth recording what the numbers actually were, because the old
+ * value looked comfortable and was not: the column is 476px at the widest, the
+ * old first line measured 432px and the second measures **467px**. It was
+ * running at 98% of the measure with 8px to spare, so the copy could not have
+ * grown by a single word in either line. "Senior " costs 148px.
+ *
+ * Note that `ch` here is the width of a zero in the *inherited* font at 1rem,
+ * not in the H1's 3.1rem Bodoni — so `48ch` never meant 48 characters of
+ * headline. The H1 holds about 17. The unit is doing nothing but expressing a
+ * pixel width in a way that reads like a measure, which is how a column that
+ * tight passed review.
+ *
+ * 62ch is 615px: enough for the 580px first line with room that a font
+ * fallback cannot eat, and still a third of a 1682px viewport.
+ */
+@media (min-width: 768px) {
+  .pitch {
+    left: 4vw;
+    right: 4vw;
+    top: 0;
+    padding-top: 3.5vh;
+    max-width: 62ch;
+  }
+  .pitch-line {
+    font-size: clamp(2.1rem, 3.4vw, 3.1rem);
+  }
+  .pitch-meta {
+    font-size: 0.66rem;
+  }
+}
+
+.cue {
+  z-index: var(--chrome-z);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1rem;
+  text-align: center;
+  font-size: 0.6rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* ---- the showcase ------------------------------------------------ *
+ *
+ * One card at a time. All five sit stacked in the same place in the sky above
+ * his head, and the timeline brings them out of the opening in turn — so only
+ * one is ever visible and the stack never reads as a stack.
+ *
+ * It renders nothing until the timeline claims the stage. That is the right
+ * default for a pile of five absolutely-positioned cards on top of one
+ * another, and it is what makes the reduced-motion branch below almost empty:
+ * the showcase simply never appears, and `Index` carries the work.
+ * ------------------------------------------------------------------ */
+
+.showcase {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  /* The sky above the *open* head once it has finished sinking — not above
+     the opening. Sizing this to the cut line was a quiet lie about where the
+     head ends, and it put the cards across his forehead.
+
+     Named as well as applied, because the card is sized from it — see
+     `--card-w`. One expression, so a card cannot be scaled against a sky that
+     has since moved. */
+  --sky-h: calc(var(--lip-end) - var(--head-open-rise) * var(--canvas-h));
+  height: var(--sky-h);
+  z-index: var(--card-z);
+  pointer-events: none;
+}
+
+.stage[data-ready] .showcase {
+  display: block;
+}
+
+.showcase-stack {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.card {
+  /* Every card in the same grid cell: that is the stack. */
+  grid-area: 1 / 1;
+  /* The one number the card is made of. The crop takes it as a width and the
+     caption takes it as a type scale, so a bigger card cannot arrive with the
+     type it had when it was small. */
+  --card-w: min(23rem, 92vw);
+  width: var(--card-w);
+  pointer-events: auto;
+  /* Hidden until the timeline hands it its beat. GSAP writes both of these
+     inline via autoAlpha, so this is only the state before the first frame. */
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (min-width: 768px) {
+  .card {
+    /*
+     * Big enough to be the subject of the screen, and it finally is.
+     *
+     * This was `min(30rem, 46vw)`, and the `46vw` never once bound: past about
+     * 1044px wide the rem always won, so the card was 480px on a 1280 laptop
+     * and 480px on a 4K monitor — the "thumbnail marooned in the middle of a
+     * wide monitor" this rule was written to avoid, produced by the rule
+     * itself. Three terms now, each holding a different edge.
+     *
+     * **`46vw` is the intent**: the card grows with the screen.
+     *
+     * **The middle term is the ceiling, and it is the sky's own height solved
+     * backwards.** The card is a 3:2 crop with a caption under it, so its height
+     * is `(w - mount) * 2/3 + caption`; setting that equal to the reservation
+     * minus the stack's 1rem padding and solving for `w` gives the `* 1.5`.
+     * `--sky-h` is the reservation itself rather than a copy of it, so
+     * HEAD_OPEN_RISE or HEAD_HEIGHT_VH moving takes the card with it.
+     *
+     * A flat `62vh` was tried first and is the mistake worth recording: it fits
+     * a 1440x900 window with 48px to spare and misses a 1280x720 one by 15px,
+     * because the caption is a *fixed* number of pixels and no viewport unit
+     * knows that. Grid hides the symptom — an item taller than its cell is
+     * clamped to the start edge rather than centred — so the card silently stops
+     * being centred in the sky and starts hanging from the top of it. The
+     * subtraction is what makes one rule right at both ends.
+     *
+     * `9.5rem` is the caption and mount at their *worst*: the third line the
+     * description wraps to on a narrow card. Measured, not budgeted — and
+     * `verify.mjs` asserts the fit rather than trusting this arithmetic, which
+     * is the only reason it is safe to write arithmetic here at all.
+     *
+     * **`max(…, 23rem)` only keeps the size continuous across this breakpoint.**
+     * Without it the card *shrinks* by 15px as it crosses out of the mobile
+     * rule, which is a strange thing to watch happen on a resize.
+     */
+    --card-w: min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 9.5rem) * 1.5));
+  }
+}
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+/*
+ * The mount, and it scales too — a 6px border of paper reads as a hairline
+ * once the card is half again as wide, which is a mat board turning into a
+ * mistake. Both are derived from the card so they cannot be left behind again.
+ */
+.card-frame {
+  display: block;
+  background: var(--color-paper);
+  padding: clamp(6px, calc(var(--card-w) * 0.011), 9px);
+  box-shadow:
+    0 0 0 1px var(--color-rule),
+    0 22px 34px -26px rgb(22 24 29 / 0.6);
+  margin-bottom: clamp(0.9rem, calc(var(--card-w) * 0.024), 1.15rem);
+}
+
+.card-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+/*
+ * The caption is set off the card's own width, not off a breakpoint.
+ *
+ * That is the fix for the thing a size change usually gets wrong: a card that
+ * grows by half while its headline stays at 2rem stops being a bigger card and
+ * becomes the same card holding a bigger picture. The floors are the phone
+ * values, so nothing below 768px moves; the ceilings stop a very tall window
+ * setting the line in something that argues with the pitch above it.
+ *
+ * The coefficients are deliberately *below* proportional — 0.058 against the
+ * 0.067 that would hold the ratio exactly. Type scaled one-for-one with a card
+ * 60% wider reads as shouting; this lands the name about 30% up, which is the
+ * amount that reads as "set for this card" rather than "enlarged".
+ */
+.card-count {
+  display: block;
+  font-size: clamp(0.6rem, calc(var(--card-w) * 0.0145), 0.75rem);
+  letter-spacing: 0.18em;
+  color: var(--color-muted);
+}
+
+.card-name {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: clamp(1.45rem, calc(var(--card-w) * 0.058), 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 500;
+}
+
+.card-line {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: clamp(0.66rem, calc(var(--card-w) * 0.0185), 0.95rem);
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-wrap: pretty;
+}
+
+/* ---- the index --------------------------------------------------- *
+ *
+ * The contents page. The showcase is a performance and it leaves; this does
+ * not. Quiet on purpose — no crops, no frames, ink on paper — because it comes
+ * straight after the loudest thing on the site and must not argue with it.
+ * ------------------------------------------------------------------ */
+
+.index {
+  padding: 4rem 1.25rem 1rem;
+}
+
+.index-heading {
+  max-width: 68rem;
+  margin: 0 auto;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.index-list {
+  max-width: 68rem;
+  margin: 1.5rem auto 0;
+  list-style: none;
+}
+
+.index-row {
+  border-top: 1px solid var(--color-rule);
+}
+
+.index-row:last-child {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.index-link {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
+  align-items: baseline;
+  padding: 1.15rem 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.index-num {
+  font-size: 0.62rem;
+  color: var(--color-muted);
+}
+
+.index-name {
+  position: relative;
+  justify-self: start;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+.index-line {
+  grid-column: 2;
+  font-size: 0.66rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-wrap: pretty;
+}
+
+/*
+ * The link to the write-up, one per row.
+ *
+ * This rule was written months before it rendered anything: `caseStudy` was
+ * unset on all five spokes, so `Index.tsx` emitted nothing and the styling was
+ * never seen. The first time it appeared — when the case studies were
+ * published — it was a mono-caps label in muted grey with `text-decoration:
+ * none` inherited from preflight and no hover state, which is to say it did
+ * not look like a link at all and gave a pointer nothing to find. The
+ * underline is the same one `.colophon-facts a` uses: a hairline in the rule
+ * colour that comes up to full ink on hover.
+ */
+.index-aside {
+  display: inline-block;
+  margin: 0 0 1rem 3.25rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--color-rule);
+}
+
+.index-aside:hover,
+.index-aside:focus-visible {
+  color: var(--color-ink);
+  text-decoration-color: currentColor;
+}
+
+@media (min-width: 768px) {
+  .index-link {
+    grid-template-columns: 3rem minmax(0, 14rem) 1fr;
+    align-items: baseline;
+    row-gap: 0;
+    padding: 1.4rem 0;
+  }
+  .index-line {
+    grid-column: 3;
+  }
+  .index-name {
+    font-size: 1.6rem;
+  }
+}
+
+/* ---- where the nine years went ----------------------------------- *
+ *
+ * Directly under the index and built from the same parts: same measure, same
+ * hairline rules, same `.index-heading`. It is not a second art direction, it
+ * is the same table set one step quieter — because the work above it is the
+ * argument and this is the support for it, and a support that shouts over its
+ * own claim has the order backwards.
+ *
+ * Nothing here is a link. Every employer has a website and every one of them
+ * leads away from a page whose whole job is to push people into the spokes.
+ * ------------------------------------------------------------------ */
+
+.roles {
+  padding: 2.5rem 1.25rem 1rem;
+}
+
+.roles-list {
+  max-width: 68rem;
+  margin: 1.5rem auto 0;
+  list-style: none;
+}
+
+/*
+ * Mobile: employer on its own line, then title and dates sharing the next.
+ * `auto` on the last column rather than `1fr` so the range keeps its own width
+ * and the title is what gives when the row is tight — a truncated job title is
+ * legible, a truncated date range is a typo.
+ */
+.roles-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 1rem;
+  row-gap: 0.3rem;
+  align-items: baseline;
+  padding: 1rem 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.roles-row:last-child {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.roles-employer {
+  grid-column: 1 / -1;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.roles-title {
+  font-size: 0.66rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-wrap: pretty;
+}
+
+.roles-dates {
+  font-size: 0.62rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-align: right;
+  /*
+   * A range broken over two lines reads as two dates, so this column must not
+   * wrap.
+   *
+   * Worth being honest about what the declaration is doing, because a sabotage
+   * of it changed nothing: the column is `auto` in both grids, so it already
+   * sizes to max-content wherever there is room, and removing this at 390px
+   * leaves the dates on one line regardless. It is insurance against the column
+   * becoming constrained later, not a fix for a live problem. The assertion in
+   * `verify.mjs` is what would actually catch a wrap, and it does — proven by
+   * squeezing the column rather than by trusting this line.
+   */
+  white-space: nowrap;
+}
+
+/*
+ * The compressed row. Three employers across five years, and it is here to
+ * show the nine years are continuous rather than to be read, so it sits at the
+ * meta size throughout.
+ */
+.roles-row--earlier .roles-employer {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+@media (min-width: 768px) {
+  .roles {
+    padding-top: 3rem;
+  }
+  /*
+   * This is `.index-link`'s grid exactly — `3rem minmax(0, 14rem) 1fr` at a
+   * 0.75rem gap — with a fourth `auto` column for the dates. Sharing the track
+   * sizes is the whole point: employer names land on the same vertical as the
+   * spoke names above them and the job titles on the same vertical as the spoke
+   * lines, so the two tables read as one document instead of two blocks that
+   * happen to be adjacent.
+   *
+   * The first column is the index's numeral gutter and is deliberately empty.
+   * Numbering the five products is a contents page; numbering a career is not
+   * a thing anyone does, and leaving the track in place is what buys the
+   * alignment.
+   *
+   * A first pass set `minmax(0, 17rem)` with no gutter and eyeballed it. The
+   * employer names came out flush left against indented spoke names and the
+   * titles missed `.index-line` by 8px, which is the worst of both: near enough
+   * to look intended, far enough to look wrong.
+   */
+  .roles-row {
+    grid-template-columns: 3rem minmax(0, 14rem) 1fr auto;
+    column-gap: 0.75rem;
+    row-gap: 0;
+    padding: 1.15rem 0;
+  }
+  .roles-employer {
+    grid-column: 2;
+    font-size: 1.2rem;
+  }
+  .roles-row--earlier .roles-employer {
+    font-size: 0.66rem;
+  }
+}
+
+/* A hairline that draws on hover — transform only, so it composites. */
+.index-name::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.index-link:hover .index-name::after,
+.index-link:focus-visible .index-name::after {
+  transform: scaleX(1);
+}
+
+/* ---- will-change, and only while it is earning its keep ---------- */
+
+/*
+ * Promotion is not free: each composited layer is a texture the GPU has to
+ * hold, and the head is three of them. They are promoted when the section pins
+ * and demoted the moment it does not, so scrolling the rest of the page costs
+ * nothing. The cards are five more textures, but only one is ever visible, so
+ * the four hidden ones cost nothing to hold.
+ *
+ * The lid is still listed separately and still *only* for `transform`. The
+ * reason it had to be is gone with the 3D — `will-change: opacity` makes an
+ * element a grouping element, a grouping element forces `transform-style` back
+ * to `flat`, and that silently disabled the backface culling the old two-plate
+ * hinge depended on. Nothing here depends on it now, but the lid only ever
+ * animates transform, so promising opacity as well would be a lie to the
+ * compositor either way.
+ */
+.stage.is-pinned .head,
+.stage.is-pinned .head-sky,
+.stage.is-pinned .card {
+  will-change: transform, opacity;
+}
+
+.stage.is-pinned .lid-hinge {
+  will-change: transform;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion
+ *
+ * Not a variant of the animated page — a different layout, and CSS owns all of
+ * it. The timeline is never built under this query (see gsapSetup.ts), so
+ * there is nothing here to fight and nothing to remember to guard.
+ *
+ * The head renders already open. The showcase
+ * never appears at all — it is a performance, and `Index` below it is the work
+ * — which is why this block is mostly about turning the stage back into
+ * ordinary flow. Every word readable, nothing moves. The page still says what
+ * it means; it says it as a picture instead of as a performance.
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    height: auto;
+    overflow: visible;
+    padding: 3rem 0 0;
+  }
+
+  .stage-inner {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pitch {
+    position: static;
+    display: block;
+    width: min(46rem, 90vw);
+    padding: 0 0 2.5rem;
+  }
+
+  /*
+   * Sized by width, not by `vh`.
+   *
+   * In the pinned layout the head is measured against the viewport, which is
+   * right — it is a stage. In flow it is a plate on a page, and carrying the
+   * viewport-height sizing over meant the head scaled with the *document*: on
+   * a long page it grew to several thousand pixels and ran off the right edge.
+   * The shoulders are cropped away because in flow the artboard's lower margin
+   * is just a large empty gap between the portrait and the work.
+   */
+  .head-plate {
+    position: relative;
+    left: auto;
+    top: auto;
+    margin: 0 auto;
+    width: min(80vw, 26rem);
+    height: auto;
+    aspect-ratio: 1200 / 1088;
+    overflow: clip;
+  }
+
+  /*
+   * The sky is on in the static layout, because the static head renders
+   * *already open* — there is no swing to reveal it, so there is nothing for it
+   * to be waiting for. It is the one place the two branches say different
+   * things about the same layer and the difference is the point.
+   */
+  .head-sky {
+    opacity: 1;
+  }
+
+  .canvas {
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: auto;
+    aspect-ratio: var(--canvas-aspect);
+  }
+
+  /*
+   * The same pose the timeline ends on. One rotation now rather than an
+   * in-plane tilt composed with a flip, which is a good deal less to keep in
+   * step — but it is still written twice, here and in the timeline, and the
+   * two have drifted before. The verify suite compares them rather than
+   * trusting them.
+   */
+  .lid-hinge {
+    transform: rotate(var(--lid-angle));
+  }
+
+  .cue {
+    display: none;
+  }
+
+  .index {
+    padding-top: 2.5rem;
+  }
+
+  .index-name::after {
+    transition: none;
+  }
+}
+
+/* ---- colophon ---------------------------------------------------- */
+
+.colophon {
+  border-top: 1px solid var(--color-rule);
+  padding: 3.5rem 1.25rem 4rem;
+}
+
+.colophon-inner {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.colophon-lede {
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+  line-height: 1.35;
+  max-width: 32ch;
+  text-wrap: balance;
+}
+
+.colophon-facts {
+  margin-top: 2.5rem;
+  display: grid;
+  gap: 1.1rem;
+  font-size: 0.66rem;
+  line-height: 1.6;
+}
+
+.colophon-facts dt {
+  color: var(--color-muted);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.58rem;
+}
+
+.colophon-facts a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+@media (min-width: 768px) {
+  .colophon-facts {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+}
