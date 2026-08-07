@@ -1,0 +1,23 @@
+# poketrack.kimnejudne.dev
+#
+# The disallow list is not a security control and is not doing security's job:
+# all 24 team-scoped API routes are behind membership checks, and the frontend
+# cannot show a team it cannot fetch. It is here so team boards, project
+# settings and invite links do not turn up in a search result, and so crawl
+# budget goes to the two pages that are meant to be found.
+#
+# /invite/ matters most of the three. Those URLs carry a single-use token and
+# are sent to a person; a crawler following one out of a shared link is the one
+# case here with a real consequence rather than a cosmetic one.
+#
+# /_stats/ is the GoAccess report. It is behind HTTP basic auth, so a crawler
+# gets a 401 rather than data — but there is no reason to send one at all.
+
+User-agent: *
+Allow: /
+Disallow: /teams
+Disallow: /projects
+Disallow: /invite
+Disallow: /_stats
+
+Sitemap: https://poketrack.kimnejudne.dev/sitemap.xml
