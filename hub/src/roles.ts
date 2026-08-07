@@ -62,7 +62,7 @@ export const ROLES: readonly Role[] = [
   {
     id: 'd-launch',
     employer: 'D-Launch',
-    title: 'Software Engineer',
+    title: 'Full Stack Engineer',
     dates: 'April 2026 – Present',
   },
   {

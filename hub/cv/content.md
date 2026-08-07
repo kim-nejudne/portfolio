@@ -92,7 +92,7 @@ distinct art directions, a written case study each, public source for all five.
 
 ## Experience
 
-### Software Engineer, D-Launch · April 2026 – Present
+### Full Stack Engineer, D-Launch · April 2026 – Present
 
 - Built the automation pipeline behind a fully automated newsletter site for
   the streaming industry, from source collection through to a published issue
@@ -110,6 +110,26 @@ distinct art directions, a written case study each, public source for all five.
 > with a designer's eye; a pipeline role broadens that rather than contradicting
 > it, and scrapers into n8n with LLM steps is the most current-sounding work
 > here by some distance.
+>
+> **The title changed on 2026-08-07, per Kim: `Software Engineer` became
+> `Full Stack Engineer`.** Worth recording because it is the class of edit this
+> document warns about two sections down, where past titles are deliberately
+> *not* normalised up to match the site's new one. This one is different on both
+> counts and the distinction is the whole reason it is safe: it is a change of
+> specificity rather than of seniority, and it is the *current* employer, so it
+> is the one title Kim can state from his own contract rather than reconstruct
+> from memory. The rule that stands is the one about inflation, and `Software`
+> to `Full Stack` does not inflate.
+>
+> It does mean the two most recent rows on the homepage now read
+> `Full Stack Engineer` in succession. That is what the jobs were called, and
+> the alternative is varying a title for visual relief, which is the worst
+> possible reason to change one.
+>
+> The words live in `src/roles.ts`, not here: `scripts/identity-check.mjs`
+> fails the build if `cv/cv.html` does not name every employer and title in it,
+> so this heading and `cv.html:495` have to move together and the check is what
+> makes that true rather than diligence.
 
 ### Full Stack Engineer, Xergy · June 2025 – March 2026
 
@@ -269,13 +289,43 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 
 ## Background
 
-Desktop publishing and magazine design before software: print production,
-typesetting and layout on real deadlines. It is where the typography comes
-from, and it is the part of this work that does not come from a framework.
+Nine years of production JavaScript, full-stack throughout: ERP modules, a
+storefront under real traffic, an MVP from empty schema to its first users.
+Before software, a decade of desktop publishing and magazine design, the part
+of this work that does not come from a framework.
 
 > The theology degree is cut per the 2026-08-07 decision. Worth noting the
 > document now says nothing about formal education at all, which reads as a
 > deliberate omission rather than an absence, and that is the intended effect.
+>
+> **Rebalanced 2026-08-07, per Kim: the section was all editorial and no
+> engineer.** Every one of its 41 words was about print, on the last block of a
+> CV for a senior full-stack role, so the document closed on typography. The
+> print half is now the subordinate clause and the nine years lead.
+>
+> **Four lines is the hard budget, and it is set by the folio, not by taste.**
+> The folio is absolutely positioned in the bottom margin and the section head
+> sits where it sits, so there are about 84pt between them. A first draft ran
+> to 82 words and printed its last two lines straight through `2 / 2`; a second
+> at 57 words still collided by one. Nothing in `build.sh` catches this: the
+> page count stays 2 and the magic bytes are fine, because absolute positioning
+> means overlap is not overflow. It has to be looked at. Render to a scratch
+> path (`./cv/build.sh /tmp/draft.pdf`) and rasterise page 2.
+>
+> **What was cut, and why it was the right thing to lose.** "It is where the
+> typography comes from" went, and the closing clause absorbed its job. It was
+> the third print claim in a row on a document that already says "with a
+> designer's eye" in the pitch and lists typography under Craft, and cutting it
+> is the cheapest 11 words available. Automation went too, despite being the
+> current role and the most sought-after work here, because Skills carries an
+> `Automation & AI` row four lines above and D-Launch opens page 1.
+>
+> **The engineering half is a synthesis, not a re-list.** ERP, storefront under
+> traffic, MVP from zero: those are the *kinds* of system, which is the senior
+> argument and the one thing four reverse-chronological role blocks never
+> actually state. It deliberately avoids repeating the pitch's layer list
+> ("interface, motion, API, schema, pipeline"), which is the obvious way to
+> write this paragraph and would have said nothing new on page 2.
 
 ---
 
