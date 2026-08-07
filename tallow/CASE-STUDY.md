@@ -235,7 +235,7 @@ paragraph.
 
 ## What the numbers say
 
-| | Scaffold | Shipped |
+| Measure | Scaffold | Shipped |
 |---|---|---|
 | Admin routes behind auth | 0 of 6 | 6 of 6 |
 | ARIA attributes | 1 | 85 |

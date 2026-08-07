@@ -125,7 +125,7 @@ interface, which is what the design brief asked for.
 Deleting them, and the 49 dependencies that existed only to serve them, produced
 a result worth being precise about:
 
-| | before | after |
+| Measurement | before | after |
 |---|---|---|
 | JS bundle (gzip) | 172.81 kB | **172.81 kB** |
 | CSS bundle (gzip) | 11.54 kB | **7.47 kB** |
