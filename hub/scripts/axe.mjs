@@ -155,7 +155,7 @@ try {
           incomplete: r.incomplete.length,
           violations: r.violations.map(v => ({
             id: v.id, impact: v.impact, help: v.help, n: v.nodes.length,
-            where: v.nodes.slice(0, 4).map(n => ({
+            where: v.nodes.slice(0, ${Number(process.env.AXE_NODES) || 4}).map(n => ({
               target: n.target.join(' '),
               why: (n.failureSummary || '').split('\\n').filter(Boolean).slice(1).join(' '),
             })),
