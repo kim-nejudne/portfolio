@@ -31,6 +31,29 @@ BACKUP="/var/backups/hub-${STAMP}.tar.gz"
 
 cd "$(dirname "$0")/.."
 
+# The CV is a placeholder until this marker is deleted, and a button promising a
+# CV over a stub PDF is worse than no button at all — the page would be making
+# its one takeaway offer and then failing to honour it, in front of exactly the
+# reader it was built for.
+#
+# The marker is a sidecar file rather than a string inside the PDF because
+# chromium writes page text into a FlateDecode stream: a `grep` for a sentinel
+# would never match, and this guard would pass in silence, which is the one
+# failure mode a guard is not allowed to have.
+#
+# No override flag. An escape hatch on a gate whose entire purpose is to stop a
+# known-bad file is a gate that will be escaped exactly when it matters. Checked
+# before the build, because there is no reason to spend two minutes on a `dist/`
+# that cannot ship.
+#
+# Written as `if` rather than the `[ -f X ] && { … }` this file uses elsewhere:
+# that form survives `set -e` only by the &&-list exemption, and a guard whose
+# correctness depends on a footnote in the bash manual is not a guard.
+if [ -f cv/PLACEHOLDER ]; then
+  echo "public/cv.pdf is still the placeholder — replace it, then rm cv/PLACEHOLDER (see cv/README.md)" >&2
+  exit 1
+fi
+
 echo "==> Typecheck and build"
 npm run build
 
@@ -58,6 +81,14 @@ for spoke in tallow plinth forme poketrack suki; do
     exit 1
   }
 done
+
+# And the CV, which reaches `dist/` only by sitting in `public/`. Anything
+# hand-placed on the droplet is destroyed by the `--delete` below, so a CV that
+# is not in this build is a 404 behind two buttons a minute from now.
+[ -f "${DIST}/cv.pdf" ] || {
+  echo "missing ${DIST}/cv.pdf — it belongs in public/, not on the server" >&2
+  exit 1
+}
 
 # Against the freshly built `dist/`, served by `vite preview`. Not against the
 # droplet: these assertions drive a headless browser through the whole scroll and
@@ -117,6 +148,18 @@ for spoke in tallow plinth forme poketrack suki; do
   [ "$slash" = "200" ] || { echo "    ^ expected 200" >&2; exit 1; }
   [ "$bare" = "301" ] || { echo "    ^ expected 301 to the trailing-slash form" >&2; exit 1; }
 done
+
+# And the CV through nginx, where `/cv.pdf` falls past the root-asset regex into
+# `location /`. The content type is the assertion, not the status: `try_files`
+# ends in `=404` here so a missing file is honest, but the type is what proves
+# nginx is serving the PDF as a PDF rather than as a download of last resort.
+echo "==> Confirm the CV through nginx"
+cvtype="$(curl -sI "https://kimnejudne.dev/cv.pdf" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}')"
+printf '    /cv.pdf  %s\n' "${cvtype:-<none>}"
+case "$cvtype" in
+  application/pdf*) ;;
+  *) echo "    ^ expected application/pdf" >&2; exit 1 ;;
+esac
 
 cat <<EOF
 ==> Done: https://kimnejudne.dev

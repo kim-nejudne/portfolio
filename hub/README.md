@@ -347,17 +347,56 @@ state, including a manual pass: `:focus` will not match while the Chrome window
 is in the background, so a skip link checked by clicking around a page in an
 unfocused window looks broken whether it is or not.
 
+There is a second, worse form of the same trap, found while checking the CV
+button's focus style by hand. An unfocused *or unrendered* window does not
+advance CSS transitions either — so `getComputedStyle` keeps returning the
+pre-focus colour indefinitely, and the button reports as having no focus style
+while `:hover` and `:focus-visible` both match. The rule was correct the whole
+time. Nothing about that reads as an environment problem; it reads as a cascade
+bug, and the obvious "fix" is to weaken or delete a working rule. The assertion
+that settles it lives in `verify.mjs`, waits out the transition, and runs in a
+headless tab where focus emulation is on.
+
+## The CV — `/cv.pdf`
+
+Two buttons, one component (`src/components/CvButton.tsx`), one source of truth
+(`src/cv.ts`): at the top inside `Pitch`, and at the bottom inside `Colophon`.
+`positioning-brief.md` had "no CV or résumé anywhere" under open items, and a
+page whose only takeaway was an email address is what that gap looked like.
+
+The top copy is inside `[data-pitch]` on purpose, so the timeline's existing
+`autoAlpha` fade carries it away with the rest of the rest-state — the sky it
+occupies is where the first card climbs. `autoAlpha` rather than `opacity` is
+load-bearing: it writes `visibility: hidden`, which takes the anchor out of the
+tab order. Swapping it for `opacity` would look identical at every scroll
+position and leave an invisible, focusable, clickable button sitting over the
+performance. There is an assertion for that, and it has been sabotaged.
+
+**The file is currently a placeholder.** `deploy/deploy.sh` refuses to run while
+`cv/PLACEHOLDER` exists — see `cv/README.md` for the swap. The sentinel is a
+sidecar file rather than a string inside the PDF because chromium writes page
+text into a compressed stream, so a `grep` for a marker would never match and
+the guard would pass in silence.
+
+`verify.mjs` checks the *shape* of the file — 200, `application/pdf`, and the
+`%PDF-` magic bytes — so the suite keeps working across that swap. The status is
+not the assertion: `vite preview` answers a missing `/cv.pdf` with `index.html`
+at **200**, which is the same trap the crops and the case-study links fell into.
+
+`/cv.pdf` is deliberately **not** in `sitemap.xml`: `verify.mjs` enforces set
+equality on that file in both directions, so an extra entry fails as "unknown".
+
 ## Verifying
 
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 95 assertions in a real browser, over all six pages
+npm run verify            # 112 assertions in a real browser, over all six pages
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 95 assertions
-across six pages, twenty-nine of which have been sabotaged to confirm they fail
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 112 assertions
+across six pages, thirty-six of which have been sabotaged to confirm they fail
 on the thing they exist to catch. One of those was on the list and did not
 deserve to be: deleting `pointer-events: none` from `.head` left the click check
 passing, because the card it probes had drifted out from under the head's

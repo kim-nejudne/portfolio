@@ -43,7 +43,7 @@ Certificate expires **2026-11-02**; certbot's timer renews it, webroot against
 `/var/www/certbot`, which the port-80 block keeps reachable.
 
 Verified against the deployed site rather than the build: `verify.mjs` takes a
-URL, so all **95 assertions were run against `https://kimnejudne.dev/`** through
+URL, so the **whole suite was run against `https://kimnejudne.dev/`** through
 nginx and TLS, and pass — the homepage and all five case studies. That is a stronger claim than the pre-ship run, which
 only ever sees `vite preview`.
 
@@ -203,7 +203,7 @@ done
 ./deploy/deploy.sh
 ```
 
-Typechecks, builds, **runs the 95 browser assertions**, precompresses
+Typechecks, builds, **runs the 112 browser assertions**, precompresses
 (`gzip -9`, served by `gzip_static` so the shared vCPU isn't recompressing per
 request), tars the current `/var/www/hub` to
 `/var/backups/hub-<UTC-stamp>.tar.gz`, rsyncs with `--delete` so stale asset

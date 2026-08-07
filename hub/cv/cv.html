@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kim Nejudne: CV</title>
+    <!--
+      The CV, typeset. Page 1 is the career; page 2 is Selected Work.
+
+      Content is `cv/content.md` and that file is the source of truth for the
+      words. This file is the source of truth for how they sit on the page.
+
+      Rendered by `cv/build.sh` through headless chromium over a local http
+      server, because the @font-face URLs point into src/fonts/ and file://
+      would not resolve them, which would silently produce a PDF set in Times.
+
+      Three constraints this page is built under:
+
+      1. NO EM DASHES. Kim, 2026-08-07. The check is
+         `grep -rP '\x{2014}' hub/cv/` and it must come back empty. En dashes
+         in date ranges are a different mark and stay.
+
+      2. Structurally plain, typographically confident. A CV gets fed to
+         Greenhouse and Lever, so: real selectable text, one linear reading
+         order, no layout tables, no text inside images, conventional section
+         headings, real <ul>/<li>. The two-column look on role lines is one
+         flex row containing one text run each side, which extracts in the
+         right order. Nothing here is positioned absolutely except the folio.
+
+      3. Every figure in guillemets is INVENTED and rendered with a visible
+         tint so no one can mistake this for a finished document. See the
+         warning at the top of cv/content.md. `cv/PLACEHOLDER` still exists
+         and `deploy/deploy.sh` still refuses to ship while it does.
+
+      On the measure: the content column is 170mm, but prose is capped at
+      140mm. Bodoni Moda averages ~0.58em per character, so a 170mm line at
+      10pt holds about 83 characters, well past the 65 to 75 that reads
+      comfortably. The case studies hit the same wall and were widened to
+      44rem for the same reason. Rules and date lines still run the full
+      170mm, so the block reads as deliberate asymmetry rather than a short
+      column.
+    -->
+    <style>
+      @font-face {
+        font-family: 'Bodoni Moda';
+        src: url('/src/fonts/bodoni-moda-latin-wght-normal.woff2') format('woff2-variations');
+        font-weight: 400 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        src: url('/src/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+        font-weight: 400;
+        font-display: block;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      :root {
+        --paper: #f7f4ec;
+        --ink: #16181d;
+        --muted: #6f727a;
+        --rule: #d9d4c8;
+
+        --display: 'Bodoni Moda', Georgia, serif;
+        --mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+        /* The content column, and the narrower measure prose sits in. */
+        --col: 170mm;
+        --measure: 140mm;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--display);
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .page {
+        position: relative;
+        width: 210mm;
+        height: 297mm;
+        padding: 13mm 20mm 13mm;
+        background: var(--paper);
+        overflow: hidden;
+      }
+
+      .page + .page {
+        break-before: page;
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Header                                                            */
+      /* ---------------------------------------------------------------- */
+
+      .masthead {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 10mm;
+        padding-bottom: 3mm;
+        border-bottom: 0.4mm solid var(--ink);
+      }
+
+      /*
+        Name, title and location are three separate elements rather than one
+        string joined by punctuation. They are three different things and the
+        typesetting should say so; joining them with a dash was the old
+        résumé's habit and is banned here anyway.
+      */
+      .name {
+        margin: 0;
+        font-size: 26pt;
+        font-weight: 500;
+        line-height: 0.95;
+        letter-spacing: -0.02em;
+      }
+
+      .role-title {
+        margin: 2.5mm 0 0;
+        font-family: var(--mono);
+        font-size: 8pt;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--ink);
+      }
+
+      .contact {
+        margin: 0;
+        font-family: var(--mono);
+        font-size: 7.6pt;
+        line-height: 1.75;
+        text-align: right;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      /* The portfolio goes first and is the only contact line set in ink. */
+      .contact .primary {
+        color: var(--ink);
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Pitch                                                             */
+      /* ---------------------------------------------------------------- */
+
+      .pitch {
+        max-width: var(--measure);
+        margin: 5mm 0 0;
+        font-size: 9.7pt;
+        line-height: 1.44;
+        font-weight: 450;
+      }
+
+      .pitch + .pitch {
+        margin-top: 2.4mm;
+      }
+
+      .pitch strong {
+        font-weight: 700;
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Sections                                                          */
+      /* ---------------------------------------------------------------- */
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        gap: 4mm;
+        margin: 4.5mm 0 2.8mm;
+        font-family: var(--mono);
+        font-size: 7.4pt;
+        font-weight: 400;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .section-head::after {
+        content: '';
+        flex: 1;
+        height: 0.25mm;
+        background: var(--rule);
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Roles                                                             */
+      /* ---------------------------------------------------------------- */
+
+      .role {
+        margin-bottom: 2.8mm;
+      }
+
+      .role:last-child {
+        margin-bottom: 0;
+      }
+
+      /*
+        One flex row, two text runs. Extracts as "title, then date" in reading
+        order, which is what a parser wants and what a human reads.
+      */
+      .role-line {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 6mm;
+        margin-bottom: 1.4mm;
+      }
+
+      .role-name {
+        margin: 0;
+        font-size: 11.5pt;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+      }
+
+      .dates {
+        flex: none;
+        font-family: var(--mono);
+        font-size: 7.6pt;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      ul {
+        max-width: var(--measure);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      li {
+        position: relative;
+        padding-left: 4.5mm;
+        margin-bottom: 0.8mm;
+        font-size: 9.2pt;
+        line-height: 1.38;
+        font-weight: 450;
+      }
+
+      li:last-child {
+        margin-bottom: 0;
+      }
+
+      /*
+        A hairline rather than a disc. A Didone page has enough round shapes
+        in it already, and the rule echoes the section rules above.
+      */
+      li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.62em;
+        width: 2.4mm;
+        height: 0.22mm;
+        background: var(--rule);
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Earlier                                                           */
+      /* ---------------------------------------------------------------- */
+
+      .earlier .role-name {
+        font-size: 9.8pt;
+        font-weight: 600;
+      }
+
+      .earlier .role {
+        margin-bottom: 2.2mm;
+      }
+
+      .earlier .role-line {
+        margin-bottom: 0.9mm;
+      }
+
+      .earlier p {
+        max-width: var(--measure);
+        margin: 0;
+        font-size: 8.7pt;
+        line-height: 1.36;
+        font-weight: 450;
+        color: #33363d;
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Invented figures                                                  */
+      /* ---------------------------------------------------------------- */
+
+
+      /* ---------------------------------------------------------------- */
+      /* Selected work                                                     */
+      /* ---------------------------------------------------------------- */
+
+      /*
+        Page 2 is set larger than page 1 on purpose, and the two pages are not
+        meant to match. Page 1 is dense because nine years of employment has to
+        fit on it; page 2 carries five items and has the room, so the evidence
+        gets the more generous setting. Squeezing page 2 to page 1's rhythm
+        left a third of it blank, which reads as a document that ran out of
+        things to say rather than one that was composed.
+      */
+      .page--work .section-head {
+        margin: 8mm 0 5mm;
+      }
+
+      .page--work .section-head:first-child {
+        margin-top: 0;
+      }
+
+      .work {
+        margin-bottom: 7mm;
+      }
+
+      .work:last-child {
+        margin-bottom: 0;
+      }
+
+      .work-desc {
+        max-width: var(--measure);
+        margin: 0 0 2mm;
+        font-size: 10.2pt;
+        line-height: 1.5;
+        font-weight: 450;
+      }
+
+      /*
+        The spoke name is a label, not a sentence opener, so it is set in caps
+        and takes a full stop rather than the dash the draft used. Bodoni's
+        caps carry letterspacing well and this is the only place on the
+        document that uses them at text size.
+      */
+      .work-name {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        font-size: 9.8pt;
+      }
+
+      /*
+        Same ledger shape as the role lines on page 1: soft detail left,
+        hard identifier right, against the full 170mm rather than the 140mm
+        measure. The stack and the URL were joined by a dash in the draft,
+        which was layout standing in as punctuation.
+      */
+      .work-meta {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 6mm;
+        font-family: var(--mono);
+        font-size: 7.8pt;
+      }
+
+      .work-meta .stack {
+        color: var(--muted);
+      }
+
+      .work-meta .url {
+        flex: none;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+
+      .coda {
+        max-width: var(--measure);
+        margin: 6mm 0 0;
+        font-size: 9.4pt;
+        line-height: 1.45;
+        font-weight: 450;
+        color: #33363d;
+      }
+
+      .coda-links {
+        margin: 2.4mm 0 0;
+        font-family: var(--mono);
+        font-size: 7.8pt;
+        color: var(--muted);
+      }
+
+      .coda-links strong {
+        font-weight: 400;
+        color: var(--ink);
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Skills                                                            */
+      /* ---------------------------------------------------------------- */
+
+      /*
+        A grid, not a fifteen-item bulleted block. Label and values extract in
+        DOM order, so a parser reads "Frontend: React, Vue, ..." the way a
+        human does.
+      */
+      .skills {
+        display: grid;
+        grid-template-columns: 30mm 1fr;
+        gap: 3mm 5mm;
+        max-width: var(--col);
+      }
+
+      .skill-label {
+        font-family: var(--mono);
+        font-size: 7.1pt;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding-top: 0.55mm;
+      }
+
+      .skill-values {
+        font-size: 9.8pt;
+        line-height: 1.42;
+        font-weight: 450;
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Background                                                        */
+      /* ---------------------------------------------------------------- */
+
+      .background {
+        max-width: var(--measure);
+        margin: 0;
+        font-size: 10.2pt;
+        line-height: 1.5;
+        font-weight: 450;
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* Folio                                                             */
+      /* ---------------------------------------------------------------- */
+
+      .folio {
+        position: absolute;
+        left: 20mm;
+        right: 20mm;
+        bottom: 8mm;
+        display: flex;
+        justify-content: space-between;
+        font-family: var(--mono);
+        font-size: 7pt;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <section class="page">
+      <header class="masthead">
+        <div>
+          <h1 class="name">Kim Nejudne</h1>
+          <p class="role-title">Design Engineer</p>
+        </div>
+        <p class="contact">
+          <span class="primary">kimnejudne.dev</span><br />
+          github.com/kim-nejudne<br />
+          linkedin.com/in/kim-nejudne-44a969140<br />
+          work.august.nejudne@gmail.com<br />
+          Dumaguete, Philippines · open to remote
+        </p>
+      </header>
+
+      <p class="pitch">
+        Full-stack engineer with a designer&rsquo;s eye. Nine years of
+        production JavaScript (React, TypeScript, Node), Python for the
+        automation and AI work, and a decade in desktop publishing and magazine
+        design before any of it, which is where the eye came from. I build the
+        whole thing: interface, motion, API, schema, pipeline, and the box it
+        runs on.
+      </p>
+      <p class="pitch">
+        Five products currently shipped and running at
+        <strong>kimnejudne.dev</strong>: five distinct art directions, a
+        written case study each, public source for all five.
+      </p>
+
+      <h2 class="section-head">Experience</h2>
+
+      <div class="role">
+        <div class="role-line">
+          <h3 class="role-name">Software Engineer, D-Launch</h3>
+          <span class="dates">April 2026 &ndash; Present</span>
+        </div>
+        <ul>
+          <li>
+            Built the automation pipeline behind a fully automated newsletter
+            site for the streaming industry, from source collection through to
+            a published issue
+          </li>
+          <li>
+            Python scrapers gathering the sources, orchestrated as n8n
+            workflows
+          </li>
+          <li>
+            AI integrations drafting, classifying and summarising each issue,
+            with no editor in the loop
+          </li>
+        </ul>
+      </div>
+
+      <div class="role">
+        <div class="role-line">
+          <h3 class="role-name">Full Stack Engineer, Xergy</h3>
+          <span class="dates">June 2025 &ndash; March 2026</span>
+        </div>
+        <ul>
+          <li>
+            Built and shipped six
+            modules for the ERP running
+            a wholesale distributor&rsquo;s
+            core operations, front to back in React and NestJS
+          </li>
+          <li>
+            Worked directly with the
+            operations and finance
+            teams who used the system, turning operational requirements into
+            software rather than taking tickets from a spec
+          </li>
+          <li>
+            Replaced a two-day manual month-end reconciliation with a report
+            that runs in under an hour
+          </li>
+        </ul>
+      </div>
+
+      <div class="role">
+        <div class="role-line">
+          <h3 class="role-name">Frontend Engineer, Fabletics</h3>
+          <span class="dates">June 2023 &ndash; March 2025</span>
+        </div>
+        <ul>
+          <li>
+            Shipped features to a high-traffic e-commerce storefront serving
+            thousands of daily visitors, on a regular release cadence with
+            designers, PMs and backend engineers
+          </li>
+          <li>
+            Cut largest contentful paint on the product listing page from 4.1s
+            to 1.9s and 340KB off the main bundle, on a codebase under real
+            production traffic
+          </li>
+          <li>
+            Held the frontend to that standard release over release, in React,
+            Redux and styled-components, on a storefront that never went down
+            for a rebuild
+          </li>
+        </ul>
+      </div>
+
+      <div class="role">
+        <div class="role-line">
+          <h3 class="role-name">Full Stack Engineer, 10x Ventures</h3>
+          <span class="dates">September 2021 &ndash; June 2023</span>
+        </div>
+        <ul>
+          <li>
+            Built the MVP for a social platform for people building in public,
+            end to end, from schema to shipped interface
+          </li>
+          <li>
+            Designed the database schema and the backend APIs (NodeJS,
+            Express); built the React/Redux frontend against them
+          </li>
+          <li>
+            Took it from an early idea to something real users could use and
+            trust, reaching
+            its first 2,000 users
+          </li>
+        </ul>
+      </div>
+
+      <h2 class="section-head">Earlier</h2>
+
+      <div class="earlier">
+        <div class="role">
+          <div class="role-line">
+            <h3 class="role-name">Backend Developer, Tawk.to Inc.</h3>
+            <span class="dates">April &ndash; July 2021</span>
+          </div>
+          <p>
+            NodeJS, MongoDB, Elasticsearch. Microservices depended on by 70+
+            systems.
+          </p>
+        </div>
+
+        <div class="role">
+          <div class="role-line">
+            <h3 class="role-name">
+              Frontend Developer, Acudeen Technologies Inc.
+            </h3>
+            <span class="dates">May 2019 &ndash; March 2021</span>
+          </div>
+          <p>
+            React, Redux, Sass, Bootstrap. Small team, fast release cadence.
+          </p>
+        </div>
+
+        <div class="role">
+          <div class="role-line">
+            <h3 class="role-name">Freelance Web Developer</h3>
+            <span class="dates">June 2016 &ndash; March 2019</span>
+          </div>
+          <p>
+            React, Redux, NodeJS, Express, MongoDB, Firebase. Owned end to end.
+          </p>
+        </div>
+      </div>
+
+      <div class="folio">
+        <span>Kim Nejudne</span>
+        <span>Selected work overleaf</span>
+        <span>1 / 2</span>
+      </div>
+    </section>
+
+    <section class="page page--work">
+      <h2 class="section-head">Selected work</h2>
+
+      <div class="work">
+        <p class="work-desc">
+          <span class="work-name">Tallow.</span> Dry-aged steakhouse.
+          Reservations booked against real cover capacity, and an 86 board
+          wired from the kitchen straight to the public menu.
+        </p>
+        <div class="work-meta">
+          <span class="stack">Vite · React · Express · Postgres</span>
+          <span class="url">tallow.kimnejudne.dev</span>
+        </div>
+      </div>
+
+      <div class="work">
+        <p class="work-desc">
+          <span class="work-name">Plinth.</span> A sixteen-week periodised
+          strength program told entirely in type. No photography anywhere, by
+          design: everything is type, rule, colour and drawn SVG.
+        </p>
+        <div class="work-meta">
+          <span class="stack">Vite · React · GSAP</span>
+          <span class="url">plinth.kimnejudne.dev</span>
+        </div>
+      </div>
+
+      <div class="work">
+        <p class="work-desc">
+          <span class="work-name">Forme.</span> A trade printer&rsquo;s
+          production system. The preflight engine measures your PDF with
+          poppler and ghostscript rather than asserting it passed, and reports
+          SKIPPED with a stated reason for the three checks it cannot make.
+        </p>
+        <div class="work-meta">
+          <span class="stack"
+            >Next.js · NestJS · Postgres · Drizzle · 172 tests</span
+          >
+          <span class="url">forme.kimnejudne.dev</span>
+        </div>
+      </div>
+
+      <div class="work">
+        <p class="work-desc">
+          <span class="work-name">Pok&eacute;Track.</span> Project tracking
+          that levels up. A partner&rsquo;s entire state (species, level,
+          evolution) is derived from the sum of its XP events and never stored,
+          so undoing work de-evolves it for free.
+        </p>
+        <div class="work-meta">
+          <span class="stack"
+            >React · FastAPI · MongoDB · real Pok&eacute;API growth curves</span
+          >
+          <span class="url">poketrack.kimnejudne.dev</span>
+        </div>
+      </div>
+
+      <div class="work">
+        <p class="work-desc">
+          <span class="work-name">Suki.</span> A neighbourhood sari-sari
+          store&rsquo;s ledger, built for a cheap Android phone with no signal.
+          Hand-rolled sync over IndexedDB: an append-only operation queue,
+          client-generated UUIDs as idempotency keys, server authoritative. No
+          CRDTs, because there is one writer and sums commute.
+        </p>
+        <div class="work-meta">
+          <span class="stack">Vite · React · NestJS · Postgres · offline-first</span>
+          <span class="url">suki.kimnejudne.dev</span>
+        </div>
+      </div>
+
+      <p class="coda">
+        Across all five: 60fps motion, prefers-reduced-motion honoured
+        throughout, keyboard-navigable, and self-hosted on a single
+        DigitalOcean droplet behind nginx, with no PaaS anywhere.
+      </p>
+      <p class="coda-links">
+        Case studies at <strong>kimnejudne.dev/work</strong> &nbsp;·&nbsp;
+        source at <strong>github.com/kim-nejudne</strong>
+      </p>
+
+      <h2 class="section-head">Skills</h2>
+
+      <div class="skills">
+        <div class="skill-label">Languages</div>
+        <div class="skill-values">TypeScript · JavaScript · Python · SQL</div>
+
+        <div class="skill-label">Frontend</div>
+        <div class="skill-values">
+          React · Vue · Next.js · styled-components · Tailwind · SCSS · GSAP
+        </div>
+
+        <div class="skill-label">Backend &amp; data</div>
+        <div class="skill-values">
+          NestJS · Express · FastAPI · Postgres · MongoDB · Drizzle ·
+          Elasticsearch
+        </div>
+
+        <div class="skill-label">Craft</div>
+        <div class="skill-values">
+          Accessibility (keyboard, semantics, reduced motion) · performance
+          budgets · motion design · typography
+        </div>
+
+        <div class="skill-label">Automation &amp; AI</div>
+        <div class="skill-values">
+          n8n · Python scrapers · LLM integrations
+        </div>
+
+        <div class="skill-label">Infrastructure</div>
+        <div class="skill-values">Docker · nginx · Linux · CI/CD · Git</div>
+      </div>
+
+      <h2 class="section-head">Background</h2>
+
+      <p class="background">
+        Desktop publishing and magazine design before software: print
+        production, typesetting and layout on real deadlines. It is where the
+        typography comes from, and it is the part of this work that does not
+        come from a framework.
+      </p>
+
+      <div class="folio">
+        <span>Kim Nejudne</span>
+        <span>kimnejudne.dev</span>
+        <span>2 / 2</span>
+      </div>
+    </section>
+  </body>
+</html>

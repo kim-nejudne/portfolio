@@ -28,6 +28,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
  * edits one of them.
  */
 import { SPOKES } from '../src/spokes.ts';
+import { CV } from '../src/cv.ts';
 import { checkDisclosure } from './case-study/policy.mjs';
 
 /*
@@ -536,6 +537,131 @@ async function main() {
         }
         return true;
       })()`),
+    );
+
+    /* ---- the CV ------------------------------------------------------ *
+     *
+     * The one thing a visitor can take away. Three claims, and they fail
+     * independently on purpose: where the buttons are, what they promise, and
+     * whether the file behind them is real.
+     * ------------------------------------------------------------------ */
+
+    /*
+     * Top and bottom, which is the actual requirement — so it is counted by
+     * *position* rather than by total. Two links with the right href sitting
+     * side by side in the footer would satisfy "there are two of them" and
+     * satisfy nobody who scrolls.
+     */
+    const cvPlaces = JSON.parse(await ev(`(() => {
+      const all = [...document.querySelectorAll('a.cta')];
+      return JSON.stringify({
+        total: all.length,
+        top: all.filter(a => a.closest('[data-pitch]')).length,
+        bottom: all.filter(a => a.closest('.colophon')).length,
+      });
+    })()`));
+    check(
+      'the CV button is at the top and at the bottom, and nowhere else',
+      cvPlaces.total === 2 && cvPlaces.top === 1 && cvPlaces.bottom === 1,
+      `${cvPlaces.total} total — ${cvPlaces.top} in the pitch, ${cvPlaces.bottom} in the colophon`,
+    );
+
+    /*
+     * Both promise the same download. `src/cv.ts` is imported rather than
+     * restated, so this cannot drift into agreement with a page that has moved.
+     *
+     * `download` is the half worth asserting: without it the browser opens the
+     * PDF in a tab, which is a defensible thing for a link to do and not the
+     * thing this link's label says it does.
+     */
+    const cvAttrs = JSON.parse(
+      await ev(
+        `JSON.stringify([...document.querySelectorAll('a.cta')]
+           .map(a => ({ path: new URL(a.href).pathname, dl: a.getAttribute('download'), text: a.textContent.replace(/\\s+/g,' ').trim() })))`,
+      ),
+    );
+    const attrBad = cvAttrs
+      .filter((a) => a.path !== CV.href || a.dl !== CV.filename || !a.text.startsWith(CV.label))
+      .map((a) => `${a.path} download=${a.dl} "${a.text}"`);
+    check(
+      'both CV buttons offer the same file, as a download, under the same label',
+      cvAttrs.length === 2 && attrBad.length === 0,
+      attrBad.join(' | ') || `${CV.href} -> ${CV.filename}`,
+    );
+
+    /*
+     * And the file is a PDF.
+     *
+     * **A 200 is not the assertion** — the trap this file keeps running into.
+     * `vite preview` answers an unknown path with `index.html` at status 200, so
+     * deleting the CV leaves a naive status check perfectly green. The
+     * discriminators are the content type and the first five bytes, and the
+     * bytes are the stronger of the two: a `.pdf` that is really a text file
+     * still gets served as `application/pdf` by anything that maps by
+     * extension.
+     *
+     * Deliberately shape rather than substance, so it goes on holding when the
+     * placeholder is swapped for the real CV. What stops the *placeholder*
+     * shipping is `cv/PLACEHOLDER` and the gate in `deploy/deploy.sh`; that is
+     * not a job a browser can do.
+     */
+    const cvUrl = new URL(CV.href, URL_ARG).href;
+    const cvRes = await fetch(cvUrl).catch((e) => ({ status: `fetch failed: ${e.message}` }));
+    const cvType = cvRes.headers?.get('content-type') ?? '';
+    const cvHead = cvRes.arrayBuffer
+      ? new TextDecoder().decode((await cvRes.arrayBuffer()).slice(0, 5))
+      : '';
+    const cvWhy =
+      cvRes.status !== 200
+        ? `${cvRes.status}`
+        : !cvType.startsWith('application/pdf')
+          ? `served as ${cvType} — the SPA fallback answered`
+          : cvHead !== '%PDF-'
+            ? `starts ${JSON.stringify(cvHead)}, not "%PDF-"`
+            : '';
+    check('the CV is a real PDF at the URL both buttons point at', cvWhy === '', cvWhy || CV.href);
+
+    /*
+     * And it answers the keyboard visibly.
+     *
+     * The button is the loudest thing on the page — a solid ink block — which
+     * makes its focus state the easiest one on the site to get wrong and not
+     * notice: the global ring is `2px solid var(--color-ink)`, and an ink ring
+     * around an ink block is only legible because of a 3px offset. So the block
+     * inverts to paper as well, and this is the check that the inversion is
+     * real rather than intended.
+     *
+     * It has to *wait*. `transition: background-color 140ms` means the computed
+     * value the instant after `.focus()` is still the unfocused one, so a naive
+     * read asserts the opposite of the truth and passes only by accident when
+     * the transition is removed. That is not hypothetical: it is exactly what a
+     * hand-check of this button reported in a browser window that was not
+     * rendering frames, where the transition never advanced at all.
+     *
+     * `Emulation.setFocusEmulationEnabled` is already on above — without it a
+     * headless document is unfocused, `:focus-visible` never matches, and this
+     * would fail against correct CSS.
+     */
+    const cvFocus = JSON.parse(await ev(`(async () => {
+      const a = document.querySelector('.pitch .cta');
+      const read = () => { const c = getComputedStyle(a); return { bg: c.backgroundColor, fg: c.color, ring: c.outlineWidth }; };
+      const rest = read();
+      a.focus({ focusVisible: true });
+      await new Promise((r) => setTimeout(r, 350));
+      const focused = read();
+      a.blur();
+      return JSON.stringify({ rest, focused, matched: a.matches !== undefined });
+    })()`));
+    const inverted =
+      cvFocus.rest.bg !== cvFocus.focused.bg &&
+      cvFocus.rest.fg !== cvFocus.focused.fg &&
+      cvFocus.focused.bg === cvFocus.rest.fg &&
+      cvFocus.focused.fg === cvFocus.rest.bg &&
+      parseFloat(cvFocus.focused.ring) >= 2;
+    check(
+      'the CV button inverts and takes a ring when focused from the keyboard',
+      inverted,
+      `${cvFocus.rest.bg} on rest -> ${cvFocus.focused.bg} focused, ring ${cvFocus.focused.ring}`,
     );
 
     /* ---- the animated branch ---------------------------------------- */
@@ -1075,6 +1201,49 @@ async function main() {
       'never more than one card is settled on stage',
       maxSettled <= 1,
       `peak ${maxSettled} across ${SAMPLES + 1} samples`,
+    );
+
+    /*
+     * The CV button leaves with the pitch — out of sight *and* out of reach.
+     *
+     * The pitch fades because the sky it occupies is where the first card
+     * climbs, and the button rides along. That is only safe because the fade is
+     * `autoAlpha`, which writes `visibility: hidden` and so takes the anchor out
+     * of the tab order too. Plain `opacity: 0` would look identical at every
+     * scroll position and leave an invisible, focusable, clickable button
+     * sitting over the performance — the exact defect `aria-hidden` audits are
+     * written to catch, in a form no audit here would see.
+     *
+     * So the claim is `.focus()` being *refused*, not the element merely being
+     * faint: a hidden element cannot take focus, and that is a property no
+     * opacity value can fake. The bottom copy must stay reachable throughout,
+     * or "prominent at the bottom" is a claim about a button nobody can use.
+     */
+    await ev(`window.scrollTo(0, ${Math.round(0.5 * pin)})`);
+    await sleep(600);
+    const faded = JSON.parse(await ev(`(() => {
+      const top = document.querySelector('.pitch .cta');
+      const bottom = document.querySelector('.colophon .cta');
+      top.focus({ focusVisible: true });
+      const tookFocus = document.activeElement === top;
+      top.blur();
+      bottom.focus({ focusVisible: true });
+      const bottomTookFocus = document.activeElement === bottom;
+      bottom.blur();
+      return JSON.stringify({
+        topVisibility: getComputedStyle(top).visibility,
+        tookFocus,
+        bottomVisibility: getComputedStyle(bottom).visibility,
+        bottomTookFocus,
+      });
+    })()`));
+    check(
+      'the CV button leaves the tab order as the pitch fades, and the footer copy does not',
+      faded.topVisibility === 'hidden' &&
+        faded.tookFocus === false &&
+        faded.bottomVisibility === 'visible' &&
+        faded.bottomTookFocus === true,
+      `top ${faded.topVisibility}/focusable=${faded.tookFocus}, bottom ${faded.bottomVisibility}/focusable=${faded.bottomTookFocus}`,
     );
     check(
       'and there is a card on stage for most of the sequence',

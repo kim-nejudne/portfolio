@@ -65,6 +65,77 @@ body {
   top: 0.75rem;
 }
 
+/* ---- the CV button ----------------------------------------------- *
+ *
+ * The only solid block on the page besides the skip link above, and it borrows
+ * that link's vocabulary rather than inventing a button style: ink ground,
+ * paper type, mono caps at a wide track. The site has no buttons at all
+ * otherwise — every other interactive thing is an anchor with a hairline — so
+ * this is the loudest element here, which is the point. It is the one thing a
+ * visitor can take away.
+ *
+ * Both colours are literal `var(--color-ink)` / `var(--color-paper)`. Not
+ * `color-mix()` and not `oklch()`: the colour-rule sweep in `verify.mjs` reads
+ * computed `rgb()`, and those two serialise to forms its regex does not match,
+ * so a new colour written that way would pass the rule by being invisible to it
+ * rather than by obeying it.
+ *
+ * The hover is an inversion to paper with an ink hairline, so the block keeps
+ * its exact footprint — a fill that changed size would shove the pitch's
+ * measure around on a page whose whole argument is set type.
+ * ------------------------------------------------------------------ */
+
+.cta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  /* A hairline in the ground colour, so the box is the same size in both
+     states and the inversion below only has to change two colours. */
+  border: 1px solid var(--color-ink);
+  padding: 0.85rem 1.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.cta:hover,
+.cta:focus-visible {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/*
+ * The format, for the eye only — `aria-hidden` in the component, because
+ * "Download my CV PDF" is a worse accessible name than "Download my CV" and
+ * the anchor already announces itself as a download.
+ */
+.cta-tag {
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  opacity: 0.6;
+}
+
+/* Placement, and nothing else. The block above is the same in both homes. */
+.pitch .cta {
+  margin-top: 1.5rem;
+}
+
+.colophon .cta {
+  margin-top: 2.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    transition: none;
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * The stage
  *
