@@ -15,9 +15,15 @@ export type Spoke = {
    * The write-up, at `/work/<id>/`.
    *
    * Each spoke's case study lives as `CASE-STUDY.md` in that spoke's own
-   * repository; `scripts/case-studies.mjs` reads them across the repo boundary
-   * at build time and renders them into this site, so the five are set in one
+   * directory; `scripts/case-studies.mjs` reads them from the siblings at
+   * build time and renders them into this site, so the five are set in one
    * type and read as one voice rather than as five more art directions.
+   *
+   * Those five were separate repositories until the six were merged, and that
+   * read genuinely crossed a repo boundary. It is an ordinary sibling read
+   * now, which is exactly why `case-studies.mjs` needed no change: the
+   * invariant it rests on was never "hub is a repository root", it was
+   * "hub/ sits beside the five", and that is still true.
    *
    * Optional, and the card still renders the link only when it is set — a dead
    * "Case study" link on the homepage is worse than no link at all. It is not
@@ -36,10 +42,18 @@ export type Spoke = {
    * differentiator on "real engineering depth", and the only evidence offered
    * for it showed the opposite.
    *
-   * Linking the repository from the case study rather than only from the
-   * profile is the stronger placement. Someone who has just read why the
-   * preflight engine measures a PDF instead of trusting it is one click from
-   * the code that measures it; a profile link asks them to go and find it.
+   * Linking the source from the case study rather than only from the profile
+   * is the stronger placement. Someone who has just read why the preflight
+   * engine measures a PDF instead of trusting it is one click from the code
+   * that measures it; a profile link asks them to go and find it.
+   *
+   * These were six repository roots until the merge and are now directories
+   * inside one, so each is a `/tree/main/<id>` deep link. The label rendered
+   * from it is NOT the URL pathname any more — see the note in
+   * `scripts/case-studies.mjs`, where the width is measured. GitHub answers an
+   * anonymous request for a private repository with 404 rather than 403, and a
+   * `/tree/` path on a public repository answers 200, so the assertion still
+   * catches the repository going dark.
    *
    * Required, unlike `caseStudy`. A spoke with no public source has nothing to
    * say here, and `verify.mjs` fetches every one of these.
@@ -54,7 +68,7 @@ export const SPOKES: readonly Spoke[] = [
     line: 'Dry-aged, live fire, and an 86 board wired to the kitchen.',
     href: 'https://tallow.kimnejudne.dev/',
     caseStudy: '/work/tallow/',
-    repo: 'https://github.com/kim-nejudne/tallow',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/tallow',
   },
   {
     id: 'plinth',
@@ -62,7 +76,7 @@ export const SPOKES: readonly Spoke[] = [
     line: 'Sixteen weeks of strength, told entirely in type. No photography anywhere.',
     href: 'https://plinth.kimnejudne.dev/',
     caseStudy: '/work/plinth/',
-    repo: 'https://github.com/kim-nejudne/plinth',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/plinth',
   },
   {
     id: 'forme',
@@ -70,7 +84,7 @@ export const SPOKES: readonly Spoke[] = [
     line: "A trade printer's floor. The preflight engine measures your PDF rather than trusting it.",
     href: 'https://forme.kimnejudne.dev/',
     caseStudy: '/work/forme/',
-    repo: 'https://github.com/kim-nejudne/forme',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/forme',
   },
   {
     id: 'poketrack',
@@ -78,7 +92,7 @@ export const SPOKES: readonly Spoke[] = [
     line: "Project tracking that levels up. A partner's whole state is a sum of XP events.",
     href: 'https://poketrack.kimnejudne.dev/',
     caseStudy: '/work/poketrack/',
-    repo: 'https://github.com/kim-nejudne/poketrack',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
   },
   {
     id: 'suki',
@@ -86,7 +100,7 @@ export const SPOKES: readonly Spoke[] = [
     line: "A neighbourhood shop's ledger. Works with no signal, and the sums cannot disagree.",
     href: 'https://suki.kimnejudne.dev/',
     caseStudy: '/work/suki/',
-    repo: 'https://github.com/kim-nejudne/suki',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/suki',
   },
 ];
 
@@ -100,3 +114,32 @@ export const crop = (id: string) => ({
   avif: `/crops/${id}.avif`,
   png: `/crops/${id}.png`,
 });
+
+/**
+ * The visible text for a `repo` link: the repository name and the directory
+ * inside it, `portfolio/forme`.
+ *
+ * It lives here, beside the URLs it reads, because two places need it and they
+ * must not disagree: `scripts/case-studies.mjs` renders it, and `verify.mjs`
+ * asserts the rendered label against it. That is the shape
+ * `scripts/case-study/policy.mjs` already uses for the disclosure rule — one
+ * function, imported by the generator that writes and the check that refuses
+ * to ship.
+ *
+ * It was `new URL(repo).pathname` inline in the generator until the six
+ * repositories became one. A `/tree/main/<id>` pathname is 41 characters and
+ * the row it sits in is mono in a 350px column; see the measurement in
+ * `case-studies.mjs`. What survives the change is the part worth keeping — the
+ * label is computed from the href, so it cannot advertise a destination the
+ * link does not go to.
+ *
+ * Falls back to the bare repository name when the URL is not a deep link, so a
+ * spoke that ever goes back to having its own repository still reads sensibly
+ * rather than as `tallow/tallow`.
+ */
+export const repoLabel = (repo: string): string => {
+  const segments = new URL(repo).pathname.split('/').filter(Boolean);
+  const [, name, ...rest] = segments;
+  const leaf = rest[rest.length - 1];
+  return leaf && leaf !== name ? `${name}/${leaf}` : name;
+};

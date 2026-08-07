@@ -13,8 +13,8 @@ touching the bottom" is the instruction, and how much sky the pitch gets, where
 the eyes land and how far the descent has left to travel all fall out of it. See
 `LIP_LINE` in `src/head.ts`.
 
-`../hub-brief.md` is the source of truth for the art direction and the beats.
-This file covers the build.
+`hub-brief.md`, in the private planning repository, is the source of truth for
+the art direction and the beats. This file covers the build.
 
 ## Four layers, and it was built against nine
 
@@ -285,11 +285,16 @@ each spoke's own `CASE-STUDY.md`. They are what the index's second link points
 at, and they are the pages a recruiter reads if the homepage works.
 
 **The build reads five sibling directories.** `tallow/`, `plinth/`, `forme/`,
-`poketrack/` and `suki/` must be checked out beside `hub/`, because the case
-studies live in those repositories and this one cannot fetch them. A missing
-file fails the build with the path it wanted — never a silent publish of four
-pages out of five. Wired to `prebuild` and `predev`, so nothing depends on
-remembering; `npm run cases` runs it alone.
+`poketrack/` and `suki/` must sit beside `hub/`, because the case studies live
+in those directories. A missing file fails the build with the path it wanted —
+never a silent publish of four pages out of five. Wired to `prebuild` and
+`predev`, so nothing depends on remembering; `npm run cases` runs it alone.
+
+Those five were separate repositories until the six were merged into one, and
+that read genuinely crossed a boundary this build had no way to fetch across.
+The path resolution did not change by a character, because what it rests on was
+never "hub is a repository root" but "hub/ sits beside the five" — which is the
+reason the monorepo puts all six at the top level rather than under `apps/`.
 
 They are hosted here rather than on each spoke's own subdomain, and that is the
 argument rather than the convenience. `positioning-brief.md` locates coherence

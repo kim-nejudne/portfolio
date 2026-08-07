@@ -1,12 +1,17 @@
 # syntax=docker/dockerfile:1
 #
-# The web image. Build context is the REPO ROOT:
+# The web image. Build context is forme/, the workspace root. Run it from
+# forme/:
 #
 #   docker build -f frontend/Dockerfile -t forme-web:$TAG .
 #
-# `output: 'standalone'` plus `outputFileTracingRoot` pointed at the repo root
-# means Next traces @forme/domain out of the workspace and emits a self-contained
-# server — so the runtime stage carries no node_modules install at all.
+# `output: 'standalone'` plus `outputFileTracingRoot` pointed at that workspace
+# root means Next traces @forme/domain out of the workspace and emits a
+# self-contained server — so the runtime stage carries no node_modules install
+# at all. next.config.ts derives that root from its own location, so it needed
+# no change when forme stopped being a repository and became a directory in the
+# portfolio monorepo. This comment did: run from the monorepo root, the command
+# above ships all six spokes as build context and then fails.
 
 # ---- deps
 FROM node:22-alpine AS deps

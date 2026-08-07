@@ -86,8 +86,8 @@ or `docker build`. Build on a workstation and ship the images:
 
 ```bash
 # on the workstation, in forme/
-TAG=$(git rev-parse --short HEAD)
-docker build -f api/Dockerfile      -t forme-api:$TAG .   # context is the REPO ROOT
+TAG=$(git log -1 --format=%h -- .)
+docker build -f api/Dockerfile      -t forme-api:$TAG .   # context is forme/
 docker build -f frontend/Dockerfile -t forme-web:$TAG .
 docker save forme-api:$TAG forme-web:$TAG | gzip -1 \
   | ssh $DEPLOY_HOST 'gunzip | docker load'
@@ -98,8 +98,20 @@ sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/" /opt/forme/.env
 cd /opt/forme && docker compose up -d
 ```
 
-Both Dockerfiles take the **repo root** as build context, not their own
-directory — the workspace lockfile and `@forme/domain` both live above them.
+Both Dockerfiles take **`forme/`** as build context, not their own directory —
+the workspace lockfile and `@forme/domain` both live above them. That used to
+be the repository root and the comments here said so; since the six spokes were
+merged into one repo it is a directory inside it, and the distinction now
+matters. Running `docker build -f forme/frontend/Dockerfile .` from the
+monorepo root uploads every other spoke as context — including any untracked
+`node_modules` — before failing on a `COPY package.json` that is not there.
+
+`TAG` is `git log -1 --format=%h -- .`, the last commit that touched `forme/`,
+rather than `git rev-parse HEAD`. In one repository `HEAD` moves when any spoke
+changes, so a typo in `suki/` would mint a new tag for a byte-identical forme
+image and ship it to a droplet with no memory to spare — and the tag would stop
+meaning "the commit that built this", which is what makes the rollback below
+work.
 
 `migrate` runs to completion before `api` starts. It applies pending drizzle
 migrations, then seeds *only if the tables are empty*, so re-running it against

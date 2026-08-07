@@ -2,8 +2,11 @@
 # The droplet never runs this — it shares 1.9GB with n8n, netint-vpuaas,
 # poketrack, tallow and forme, and has no headroom for `npm ci`.
 #
-# Context is the workspace root, not api/, because the API imports @suki/domain
-# from a sibling workspace.
+# Context is suki/, the workspace root, not api/ — the API imports @suki/domain
+# from a sibling workspace. Run it from suki/. That workspace root was also the
+# repository root until the six spokes were merged into one repo; it is a
+# directory inside it now, and building from the monorepo root would upload
+# every spoke as context and then fail.
 FROM node:22-alpine AS build
 
 WORKDIR /repo

@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 #
-# Ships a fresh build to the droplet. Run from the repo root:
+# Ships a fresh build to the droplet. Run from plinth/:
 #
 #   PLINTH_HOST=user@host ./deploy/deploy.sh
+#
+# That was the repo root until the six spokes were merged into one repository.
+# The script never cared — it does `cd "$(dirname "$0")/.."` below and locates
+# itself — but the instruction had to stop saying "repo root", which now names
+# somewhere else entirely.
 #
 # The target is required rather than defaulted. It used to default to the
 # production droplet, which is convenient exactly once and wrong every other

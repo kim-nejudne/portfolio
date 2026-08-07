@@ -27,7 +27,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
  * same rule at build time. Two copies of a policy agree right up until someone
  * edits one of them.
  */
-import { SPOKES } from '../src/spokes.ts';
+import { SPOKES, repoLabel } from '../src/spokes.ts';
 import { CV } from '../src/cv.ts';
 import { CONTACT } from '../src/contact.ts';
 import { checkDisclosure } from './case-study/policy.mjs';
@@ -2267,10 +2267,19 @@ async function main() {
        * experience, so an unauthenticated fetch is the whole test, and a repo
        * flipped back to private fails the deploy instead of quietly going dark.
        *
-       * The label is compared against the href rather than against a constant,
-       * so the pair cannot drift — a renamed repository with a stale label is
-       * the failure this catches, and it is invisible by eye because both
-       * halves look right on their own.
+       * The label is compared against a value *derived from the href* rather
+       * than against a constant, so the pair cannot drift — a renamed
+       * repository with a stale label is the failure this catches, and it is
+       * invisible by eye because both halves look right on their own.
+       *
+       * It compared the label to the raw pathname until the six repositories
+       * became one. It cannot any more: a `/tree/main/<id>` pathname is 41
+       * mono characters in a 350px column and would fail the overflow check
+       * two assertions down. The expected label is computed here by the same
+       * `repoLabel` the generator renders with, imported from `spokes.ts`, so
+       * this is a stronger check than the old string equality rather than a
+       * weaker one — it would catch the generator and this file drifting
+       * apart, which re-implementing the rule inside the page script could not.
        */
       /*
        * Its own share card, not the hub's.
@@ -2323,7 +2332,7 @@ async function main() {
             .find(a => a.href === ${JSON.stringify(s.repo)});
           if (!a) return { ok: false, why: 'no .cs-live link with that href' };
           if (a.rel !== 'noopener') return { ok: false, why: 'rel is "' + a.rel + '"' };
-          const want = new URL(a.href).pathname.replace(/^\\//, '');
+          const want = ${JSON.stringify(repoLabel(s.repo))};
           const got = a.textContent.trim();
           if (got !== want) return { ok: false, why: 'label "' + got + '" does not match ' + want };
           return { ok: true };

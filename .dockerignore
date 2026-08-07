@@ -1,0 +1,24 @@
+# A guard, not a build input. Nothing is meant to be built from this directory.
+#
+# Every image in this repository takes its own project directory as context --
+# `forme/`, `suki/`, `tallow/`, `poketrack/` -- and each of those has its own
+# .dockerignore that is the real one. This file exists for the mistake those
+# cannot catch: running `docker build -f forme/frontend/Dockerfile .` from here,
+# which the Dockerfile comments used to invite by saying "the repo root" back
+# when that meant forme/.
+#
+# Without this, that command uploads all six projects as build context --
+# including any untracked node_modules, which is over 100MB in plinth/ alone --
+# and only then fails on a COPY that is not there. The failure is loud either
+# way; this keeps it from being slow and from heating the daemon first.
+*/node_modules
+*/*/node_modules
+*/.venv
+*/*/.venv
+*/dist
+*/*/dist
+*/build
+*/*/build
+*/.next
+*/*/.next
+.git

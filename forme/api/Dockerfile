@@ -1,9 +1,14 @@
 # syntax=docker/dockerfile:1
 #
-# The API image. Build context is the REPO ROOT, not api/ — the workspace
-# lockfile and @forme/domain both live above this directory:
+# The API image. Build context is forme/, not api/ — the workspace lockfile
+# and @forme/domain both live above this directory. Run it from forme/:
 #
 #   docker build -f api/Dockerfile -t forme-api:$TAG .
+#
+# This read "the REPO ROOT" while forme was its own repository. It is a
+# directory inside the portfolio monorepo now, and the difference is not
+# pedantic: run from the monorepo root the same command uploads all six spokes
+# as context, then fails on a COPY that is not there.
 #
 # Built on a workstation and shipped with `docker save | docker load`. The
 # droplet shares 1.9GB with four other services and must never run npm ci.

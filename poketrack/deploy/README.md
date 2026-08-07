@@ -36,7 +36,12 @@ kind — it has not the memory headroom next to its co-tenants.
 From `poketrack/`:
 
 ```bash
-TAG=$(git rev-parse --short HEAD)
+# The last commit that touched poketrack/, not the repo HEAD. The six spokes
+# share one repository, so HEAD moves when any of them changes -- tagging from
+# it would re-ship a byte-identical image on someone else's commit, and would
+# stop the tag meaning "the commit that built this", which is what the rollback
+# below relies on.
+TAG=$(git log -1 --format=%h -- .)
 
 # 1. API image -> droplet
 docker build -t poketrack:$TAG .

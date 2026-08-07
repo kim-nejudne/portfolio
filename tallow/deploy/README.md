@@ -52,7 +52,11 @@ The droplet shares 1.9GB of RAM with four other services and should not run
 
 ```bash
 # on the workstation, in tallow/
-TAG=$(git rev-parse --short HEAD)
+# The last commit that touched tallow/, not the repo HEAD: the six spokes share
+# one repository, so HEAD moves when any of them changes. Tagging from it would
+# re-ship a byte-identical image on someone else's commit, and the tag would
+# stop meaning "the commit that built this", which the rollback below needs.
+TAG=$(git log -1 --format=%h -- .)
 docker build -t tallow:$TAG .
 docker save tallow:$TAG | gzip -1 | ssh $DEPLOY_HOST 'gunzip | docker load'
 

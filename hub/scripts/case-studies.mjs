@@ -2,17 +2,23 @@
  * Generate the five case-study pages.
  *
  * Each spoke's write-up lives at `../<spoke>/CASE-STUDY.md`, in that spoke's
- * own git repository. This script reads them across the repo boundary at build
- * time and emits `work/<spoke>/index.html`, which Vite then treats as an
- * ordinary multi-page entry — so the pages share the homepage's stylesheet
- * pipeline, its content-hashed fonts and its deploy.
+ * own directory beside this one. This script reads them at build time and
+ * emits `work/<spoke>/index.html`, which Vite then treats as an ordinary
+ * multi-page entry — so the pages share the homepage's stylesheet pipeline,
+ * its content-hashed fonts and its deploy.
+ *
+ * That read crossed a *repository* boundary until the six spokes were merged
+ * into one repo, and this file used to say so at length. The path resolution
+ * below did not change by a character, because the invariant it rests on was
+ * never "hub is a repository root" — it is "hub/ sits beside the five", which
+ * is why the flat top-level layout was chosen over an `apps/` prefix.
  *
  * Why a script and not a Vite plugin. `transformIndexHtml` cannot *create* the
  * five entries; it only transforms HTML that already exists, so a plugin would
  * still need five files on disk and a way to keep their metadata in step. More
  * to the point, `../tallow/CASE-STUDY.md` is outside the project root, outside
  * the module graph, unwatched and not part of any invalidation — doing that
- * read inside a bundler hook would smuggle a cross-repo dependency into a
+ * read inside a bundler hook would smuggle a dependency Vite cannot see into a
  * place that looks like it understands dependencies. A script is honest about
  * being five `readFileSync` calls on paths that may not exist, and it fails
  * before Vite starts rather than inside a rollup stack trace.
@@ -44,7 +50,7 @@ import { checkDisclosure } from './case-study/policy.mjs';
  * two scalars out with a regex: that is defensible for a number, and would not
  * be for an array of objects whose strings contain apostrophes.
  */
-const { SPOKES } = await import('../src/spokes.ts').catch((err) => {
+const { SPOKES, repoLabel } = await import('../src/spokes.ts').catch((err) => {
   throw new Error(
     `Could not import src/spokes.ts (node ${process.version}).\n` +
       `This script relies on Node's built-in TypeScript type stripping,\n` +
@@ -66,11 +72,17 @@ const text = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').repla
 /**
  * Read one spoke's case study, or fail with something a person can act on.
  *
- * This is the failure the whole design has to get right. The hub is built on a
- * workstation where all six repositories sit side by side; anywhere else, this
- * file is simply not there. Publishing four pages of five and saying nothing
- * would be the worst available outcome — the homepage would link to a URL that
- * does not exist, and the deploy would be green.
+ * This is the failure the whole design has to get right. Publishing four pages
+ * of five and saying nothing would be the worst available outcome — the
+ * homepage would link to a URL that does not exist, and the deploy would be
+ * green.
+ *
+ * It used to be likelier than it is now: the six were separate repositories,
+ * so a fresh checkout of the hub alone had none of the five beside it and this
+ * error was the only thing standing between that and a half-published site.
+ * One repository makes the files arrive together, so the remaining ways to
+ * reach here are a build run from the wrong directory or a spoke added to
+ * `spokes.ts` before its write-up exists. Both still deserve a name and a path.
  */
 function readSource(spoke) {
   const url = new URL(`../../${spoke.id}/CASE-STUDY.md`, import.meta.url);
@@ -82,8 +94,8 @@ function readSource(spoke) {
       `no CASE-STUDY.md for "${spoke.id}"\n` +
         `  expected at: ${fileURLToPath(url)}\n\n` +
         `The hub reads each spoke's case study from a sibling directory at build\n` +
-        `time. The spokes are separate git repositories and the hub cannot fetch\n` +
-        `them — check out ${spoke.id}/ beside hub/ and build again.`,
+        `time — ${spoke.id}/ must sit beside hub/. Check you are building from\n` +
+        `hub/ inside the monorepo, and that ${spoke.id}/CASE-STUDY.md exists.`,
     );
   }
 
@@ -174,15 +186,25 @@ for (const spoke of SPOKES) {
     .replaceAll('{{HOST}}', text(new URL(spoke.href).host))
     .replaceAll('{{REPO}}', attr(spoke.repo))
     /*
-     * `kim-nejudne/forme`, GitHub's own owner/repo shorthand, rather than the
-     * full URL. The full form is 44 characters for `poketrack` and this row is
-     * mono inside a 350px column at 390px wide — measured at about 339px, which
-     * fits by nine pixels and would fail the no-overflow assertion the moment a
-     * spoke were named anything longer. The shorthand is half the width and,
-     * next to the word "Source", loses nothing. Derived from the URL, so the
-     * label and the href cannot disagree.
+     * `portfolio/forme` — the repository name and the directory inside it,
+     * rather than the whole pathname.
+     *
+     * This used to be the full pathname, which was fine while that meant the
+     * `kim-nejudne/forme` shorthand and each spoke was its own repository. The
+     * six are one repository now and the pathname is
+     * `kim-nejudne/portfolio/tree/main/poketrack` — 41 characters. This row is
+     * mono inside a 350px column at 390px wide, and the *old* full URL was
+     * measured at about 339px of that 350, fitting by nine pixels; the new
+     * pathname is longer again, so equality with the pathname is no longer
+     * available at any width.
+     *
+     * The label is therefore no longer the pathname, but it is still derived
+     * from the href rather than written by hand, which is the property that
+     * was ever worth having: the label cannot advertise one destination while
+     * the href points at another. `verify.mjs` asserts that derivation instead
+     * of string equality.
      */
-    .replaceAll('{{REPO_LABEL}}', text(new URL(spoke.repo).pathname.replace(/^\//, '')))
+    .replaceAll('{{REPO_LABEL}}', text(repoLabel(spoke.repo)))
     .replaceAll('{{OTHERS}}', others(spoke))
     .replaceAll('{{BODY}}', renderCaseStudy(markdown));
 
