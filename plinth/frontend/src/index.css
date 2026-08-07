@@ -109,14 +109,36 @@ section[id] {
     animation: cue-drift 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
   }
 
+  /*
+   * Transform only. The opacity was removed on 2026-08-07.
+   *
+   * It ran to 0.55 at the midpoint, and `--color-muted` (#5f5a52) composited on
+   * bone at that opacity is **2.34:1**, against AA's 4.5. axe-core over
+   * production caught it, which was a small surprise: the *authored* colour is
+   * 5.91 and passes comfortably. The violation existed only while the animation
+   * was running, which is to say for all of the time anyone was looking at it.
+   *
+   * That is the shape of the bug worth remembering. A contrast audit of this
+   * stylesheet, or of the palette, or of any static render, finds nothing here.
+   * The token was never wrong. The animation made a passing colour fail forty
+   * times a minute, and nothing that reads CSS values rather than composited
+   * pixels can see it.
+   *
+   * Three ways out and only one of them is honest. Raising the floor to 0.88
+   * clears AA and leaves a pulse too faint to read as a pulse. Darkening the
+   * token until it survives 0.55 needs a base of about #040301, which is black
+   * and is not this colour. Deleting the opacity keeps the whole gesture: the
+   * cue already travels 6px, which is what says "there is more below", and the
+   * fade was decoration layered on a signal that did not need it. The brief
+   * says motion serves meaning and never decoration, so this is the stylesheet
+   * catching up with the brief rather than a compromise made for a checker.
+   */
   @keyframes cue-drift {
     0%, 100% {
       transform: translateY(0);
-      opacity: 1;
     }
     50% {
       transform: translateY(6px);
-      opacity: 0.55;
     }
   }
 }
