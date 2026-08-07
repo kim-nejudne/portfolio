@@ -29,6 +29,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
  */
 import { SPOKES } from '../src/spokes.ts';
 import { CV } from '../src/cv.ts';
+import { CONTACT } from '../src/contact.ts';
 import { checkDisclosure } from './case-study/policy.mjs';
 
 /*
@@ -662,6 +663,46 @@ async function main() {
       'the CV button inverts and takes a ring when focused from the keyboard',
       inverted,
       `${cvFocus.rest.bg} on rest -> ${cvFocus.focused.bg} focused, ring ${cvFocus.focused.ring}`,
+    );
+
+    /*
+     * The contact address says the same thing twice.
+     *
+     * This is the page's one call to action and it was the only outbound link
+     * on the site that nothing checked. The five repositories are fetched, the
+     * five case studies are fetched, the CV is fetched; the address a reader is
+     * meant to write to was two hand-typed copies in `Colophon.tsx`, once in
+     * the `mailto:` and once as the label.
+     *
+     * A link whose visible text is not its destination is the failure that
+     * actually happens here, and it is invisible: the footer looks right, and
+     * anyone who reads the address off the screen rather than clicking it
+     * writes to the wrong mailbox. Both now come from `CONTACT.email`, and this
+     * asserts the rendered page agrees with that source rather than that the
+     * two copies agree with each other, which they always would.
+     *
+     * It cannot prove the mailbox exists. Nothing here can, short of sending
+     * mail, and a suite that sends mail on every deploy is worse than the
+     * defect. Address-shaped, correct against source, and label-matches-href is
+     * the whole claim.
+     */
+    const contact = await ev(`(() => {
+      const dd = [...document.querySelectorAll('.colophon-facts dt')]
+        .find(t => t.textContent.trim() === 'Contact')?.nextElementSibling;
+      const a = dd?.querySelector('a[href^="mailto:"]');
+      return a ? { href: a.getAttribute('href'), text: a.textContent.trim() } : null;
+    })()`);
+    const contactWhy = !contact
+      ? 'no mailto link under Contact'
+      : contact.href !== `mailto:${CONTACT.email}`
+        ? `href is ${contact.href}`
+        : contact.text !== CONTACT.email
+          ? `label is ${contact.text}, href is ${contact.href}`
+          : '';
+    check(
+      'the contact address matches its source, and its label matches its href',
+      contactWhy === '',
+      contactWhy || CONTACT.email,
     );
 
     /* ---- the animated branch ---------------------------------------- */

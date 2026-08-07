@@ -1,3 +1,4 @@
+import { CONTACT } from '../contact';
 import CvButton from './CvButton';
 
 /**
@@ -33,9 +34,9 @@ export default function Colophon() {
           <div>
             <dt>Contact</dt>
             <dd>
-              <a href="mailto:august.nejudne@gmail.com">august.nejudne@gmail.com</a>
+              <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
               <span aria-hidden="true"> · </span>
-              <a href="https://github.com/kim-nejudne">github.com/kim-nejudne</a>
+              <a href={CONTACT.github}>{CONTACT.githubLabel}</a>
             </dd>
           </div>
         </dl>
