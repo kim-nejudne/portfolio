@@ -162,6 +162,43 @@ function check(name, ok, detail = '') {
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
 }
 
+/**
+ * A fetch that survives a blip, for the only third-party requests in this suite.
+ *
+ * The five repository links are the one thing here that leaves this network:
+ * everything else is the origin under test. They gate a deploy, and until
+ * 2026-08-07 they were a single un-retried `fetch` each, which makes a
+ * momentary DNS or TLS failure indistinguishable from a repository going
+ * private. A production run reported 110/113 that day and five reruns could not
+ * reproduce it; 60 direct requests to the same five URLs came back 200 every
+ * time. The cause was never identified, which is the argument for this rather
+ * than against it: the suite should not fail a deploy on one packet.
+ *
+ * **404 is not retried.** A private repository answers 404 rather than 403, and
+ * catching that is the entire point of the assertion. It is an answer, not a
+ * failure to get one, so it returns immediately: retrying it would triple the
+ * wait for the one result this check exists to report.
+ *
+ * The attempt count comes back with the status and is printed when it is
+ * greater than one. A retry that silently succeeds is a suite quietly hiding a
+ * degrading network, and the next person to see 110/113 deserves to know it has
+ * been getting worse.
+ */
+async function fetchPublic(url, attempts = 3) {
+  let last = 'no attempt';
+  for (let i = 1; i <= attempts; i++) {
+    if (i > 1) await sleep(400 * 2 ** (i - 2));
+    try {
+      const r = await fetch(url);
+      if (r.ok || r.status === 404) return { status: r.status, tries: i };
+      last = String(r.status);
+    } catch (e) {
+      last = `fetch failed: ${e.message}`;
+    }
+  }
+  return { status: last, tries: attempts };
+}
+
 async function main() {
   const chrome = spawn(
     'chromium',
@@ -2140,13 +2177,13 @@ async function main() {
           return { ok: true };
         })())`),
       );
-      const repoRes = repoDom.ok
-        ? await fetch(s.repo).catch((e) => ({ status: `fetch failed: ${e.message}` }))
-        : null;
+      const repoRes = repoDom.ok ? await fetchPublic(s.repo) : null;
       check(
         `${s.id}: its source link is labelled from its href and public`,
         repoDom.ok && repoRes?.status === 200,
-        repoDom.ok ? `${s.repo} -> ${repoRes?.status}` : repoDom.why,
+        repoDom.ok
+          ? `${s.repo} -> ${repoRes?.status}${repoRes?.tries > 1 ? ` (${repoRes.tries} tries)` : ''}`
+          : repoDom.why,
       );
 
       /*
@@ -2211,7 +2248,26 @@ async function main() {
     chrome.kill();
   }
 
+  /*
+   * The failures again, at the end, where they can actually be read.
+   *
+   * They are already printed inline, interleaved among a hundred-odd `ok`
+   * lines. That is fine while watching a run and useless afterwards, which is
+   * not hypothetical: a production run reported 110/113 on 2026-08-07, the
+   * output was read with `tail`, and the three causes were lost. Five reruns
+   * passed and the flake has never been seen again, so whatever it was is now
+   * unknowable. A suite that reports a number it cannot explain teaches you to
+   * stop believing the number.
+   *
+   * `deploy.sh` pipes this, and anyone debugging a failed deploy reads the end
+   * of the output first. Repeating the failures there costs nothing on a green
+   * run, which prints one line, and is the whole diagnosis on a red one.
+   */
   const failed = results.filter((r) => !r.ok);
+  if (failed.length) {
+    console.log(`\n${failed.length} failed:`);
+    for (const f of failed) console.log(`  FAIL  ${f.name}${f.detail ? `  — ${f.detail}` : ''}`);
+  }
   console.log(`\n${results.length - failed.length}/${results.length} passed`);
   if (failed.length) process.exit(1);
 }
