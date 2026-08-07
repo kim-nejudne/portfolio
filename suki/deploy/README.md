@@ -72,8 +72,11 @@ ssh $DEPLOY_HOST 'chmod 600 /opt/suki/.env'
 
 ### 3. Ship the API image
 
-From the repo root (the build context is the workspace root — the API imports
-`@suki/domain` from a sibling workspace):
+From `suki/`, the workspace root — the build context has to be it, because the
+API imports `@suki/domain` from a sibling workspace. That used to be the
+repository root as well; since the six spokes were merged into one repo it is a
+directory inside it, and building from the monorepo root would upload every
+spoke as context and then fail:
 
 ```sh
 docker build -f api/Dockerfile -t suki-api:local .
@@ -96,10 +99,16 @@ database healthcheck.
 `VITE_DEVICE_KEY` must match `DEVICE_KEY` in `/opt/suki/.env`, and
 `VITE_API_URL` is same-origin in production so nginx proxies it:
 
+Build from `suki/`, **not** from `frontend/`:
+
 ```sh
-cd frontend
+# in suki/ -- npm run build here is `--workspaces`, which builds @suki/domain
+# before @suki/web. Running it inside frontend/ instead fails on a clean
+# checkout with 30-odd "Cannot find module '@suki/domain'" errors from `tsc -b`,
+# because the domain package has no dist/ yet. It only appears to work on a
+# machine where something built the workspace earlier.
 VITE_API_URL=/api VITE_DEVICE_KEY='<the key>' npm run build
-rsync -av --delete dist/ $DEPLOY_HOST:/var/www/suki/
+rsync -av --delete frontend/dist/ $DEPLOY_HOST:/var/www/suki/
 ```
 
 `--delete` matters: stale content-hashed assets accumulate otherwise, and an
