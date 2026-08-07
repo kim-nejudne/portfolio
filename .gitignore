@@ -1,0 +1,18 @@
+# Root ignores only. Each project keeps its own .gitignore and those are the
+# authority on their own build output.
+#
+# Deliberately NOT a concatenation of the six. A leading slash in a .gitignore
+# anchors to the directory containing that file, not to the repository root, so
+# the six sibling files already mean exactly what they meant as repo roots.
+# Merging them here would push poketrack's `venv/`, `*pyc*` and `.yarn/*` over
+# every project, and hub's `work/` would swallow any directory named `work`
+# anywhere in the tree.
+
+# Never
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+.DS_Store
