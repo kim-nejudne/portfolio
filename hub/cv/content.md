@@ -100,7 +100,7 @@ distinct art directions, a written case study each, public source for all five.
 - AI integrations drafting, classifying and summarising each issue, with no
   editor in the loop
 
-> Nothing in this entry is invented, unlike the eight figures below. A
+> Nothing in this entry is invented, unlike the unsourced figures below. A
 > fabricated job description at a *current* employer is a different order of
 > risk from a fabricated metric at a past one: D-Launch can be contacted, and
 > this is the role an interview will spend most of its time on.
@@ -157,8 +157,42 @@ distinct art directions, a written case study each, public source for all five.
 - Cut largest contentful paint on the product listing page by giving the lead
   product image priority and correct sizing, and removing a client-side data
   waterfall ahead of first render
-- Held the frontend to that standard release over release, in React, Redux and
-  styled-components, on a storefront that never went down for a rebuild
+- Set the review, performance and component standards the frontend was held to
+  in an org of 15+, and wrote the onboarding new joiners came up through, in
+  React and Redux
+
+> **Replaced on 2026-08-07, and it is the only bullet on the document about
+> other engineers.** It read "Held the frontend to that standard release over
+> release, in React, Redux and styled-components, on a storefront that never
+> went down for a rebuild".
+>
+> The old one restated the bullet above it. Everything on this CV and all five
+> products in the portfolio were evidence of what Kim can build alone, and a
+> senior hire on a product team is bought for judgment applied to *other
+> people's* work: review, mentoring, technical direction, disagreeing well.
+> There was no evidence of any of it. `EARLIER` had the only such line on the
+> document, Tawk.to's "a team of fifteen with a strong code-review culture", and
+> it was cut for space earlier the same day.
+>
+> **Confirmed by Kim, not inferred:** code review at volume, mentoring and
+> onboarding, technical direction others adopted (performance practices,
+> component conventions, review and testing standards, onboarding docs), and an
+> org of more than fifteen engineers. Fabletics is where all of it happened and
+> is also the longest recent role, so it is the right place to spend the line.
+>
+> **It replaces rather than adds, because page 1 has no room.** Every role here
+> is three bullets and the clearance is about 3.2mm. A first draft ran to three
+> lines and **printed the Freelance entry straight through the folio** -- the
+> exact failure this file warns about two sections down. Page count stayed 2,
+> `build.sh` reported nothing, and the magic bytes were fine, because absolute
+> positioning means overlap is not overflow. Caught by rasterising page 1, which
+> is the only way it can be caught.
+>
+> **What came off, and why it is affordable.** "On a storefront that never went
+> down for a rebuild" was the nicest phrase in the block and is flavour rather
+> than evidence. `styled-components` survives in the Skills row and Redux
+> survives at 10x Ventures, so the stack is still on the document; this was the
+> cheapest 30 characters available and buying two lines back required them.
 
 > **The two figures came off on 2026-08-07, per Kim, and the technique went in
 > instead.** It read "from 4.1s to 1.9s and 340KB off the main bundle, on a
