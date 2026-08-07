@@ -21,7 +21,7 @@ const STATUS_KEYS: Record<string, ReservationStatus> = {
 
 const STATUS_STYLES: Record<ReservationStatus, string> = {
   seated: 'bg-[#7A2322] text-[#F7F4EE]',
-  confirmed: 'bg-[#8C6E43] text-[#F7F4EE]',
+  confirmed: 'bg-[#755C38] text-[#F7F4EE]',
   completed: 'bg-[#38322D] text-[#F7F4EE]',
   cancelled: 'bg-[#DDD6C8] text-[#1A1715]',
 };
@@ -153,7 +153,7 @@ export const ReservationsPanel: React.FC<ReservationsPanelProps> = ({
             <kbd className="px-1.5 py-0.5 bg-[#38322D]">4</kbd> Cancelled
           </span>
         </div>
-        <span className="text-[#8C6E43]">{filtered.length} Bookings Shown</span>
+        <span className="text-[#755C38]">{filtered.length} Bookings Shown</span>
       </div>
 
       <p aria-live="polite" className="sr-only">{announcement}</p>
@@ -164,7 +164,7 @@ export const ReservationsPanel: React.FC<ReservationsPanelProps> = ({
           <label htmlFor={`${fieldId}-search`} className="sr-only">
             Filter bookings by name, phone, email or token
           </label>
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#6B635A]" aria-hidden="true" />
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#665E56]" aria-hidden="true" />
           <input
             id={`${fieldId}-search`}
             ref={filterInputRef}
@@ -217,7 +217,7 @@ export const ReservationsPanel: React.FC<ReservationsPanelProps> = ({
           <tbody className="divide-y divide-[#DDD6C8]">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-[#6B635A] italic">
+                <td colSpan={8} className="p-8 text-center text-[#665E56] italic">
                   {loading
                     ? 'Loading the reservation book…'
                     : `No reservations found matching filter criteria for ${selectedDate}.`}

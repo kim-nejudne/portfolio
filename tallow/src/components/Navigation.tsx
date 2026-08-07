@@ -26,7 +26,7 @@ export const Navigation: React.FC<NavigationProps> = ({ staffAuthenticated }) =>
           <span className="font-display text-2xl sm:text-3xl tracking-wider text-[#1A1715] group-hover:text-[#7A2322] transition-colors">
             TALLOW
           </span>
-          <span className="text-[10px] tracking-[0.25em] uppercase font-mono-data text-[#6B635A]">
+          <span className="text-[10px] tracking-[0.25em] uppercase font-mono-data text-[#665E56]">
             Dry-Aged · Live-Fire
           </span>
         </Link>
@@ -45,7 +45,7 @@ export const Navigation: React.FC<NavigationProps> = ({ staffAuthenticated }) =>
                 className={`pb-1 transition-colors relative ${
                   isCurrent
                     ? 'text-[#1A1715] font-semibold border-b border-[#7A2322]'
-                    : 'text-[#6B635A] hover:text-[#1A1715]'
+                    : 'text-[#665E56] hover:text-[#1A1715]'
                 }`}
               >
                 {label}
@@ -74,7 +74,7 @@ export const Navigation: React.FC<NavigationProps> = ({ staffAuthenticated }) =>
             className={`p-2 transition-colors border ${
               currentPath.startsWith('/staff')
                 ? 'border-[#7A2322] text-[#7A2322] bg-[#7A2322]/5'
-                : 'border-[#DDD6C8] text-[#6B635A] hover:text-[#1A1715] hover:border-[#1A1715]'
+                : 'border-[#DDD6C8] text-[#665E56] hover:text-[#1A1715] hover:border-[#1A1715]'
             }`}
           >
             {/* The key glyph is the entire control, so the name has to be text:
@@ -90,7 +90,7 @@ export const Navigation: React.FC<NavigationProps> = ({ staffAuthenticated }) =>
       {/* Mobile Sub-Navigation Bar */}
       <nav
         aria-label="Main"
-        className="md:hidden flex items-center justify-around border-t border-[#DDD6C8] py-2 px-2 bg-[#F7F4EE] text-[11px] uppercase tracking-wider text-[#6B635A]"
+        className="md:hidden flex items-center justify-around border-t border-[#DDD6C8] py-2 px-2 bg-[#F7F4EE] text-[11px] uppercase tracking-wider text-[#665E56]"
       >
         {NAV_LINKS.map(({ to, short }) => {
           const isCurrent = currentPath === to;

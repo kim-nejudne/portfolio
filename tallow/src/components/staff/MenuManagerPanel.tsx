@@ -107,12 +107,12 @@ export const MenuManagerPanel: React.FC<MenuManagerPanelProps> = ({ menuItems, o
               <div className="flex items-center space-x-2">
                 <h3 className="font-display text-xl text-[#1A1715]">{item.name}</h3>
                 {item.isDishOfDay && (
-                  <span className="text-[10px] font-mono-data bg-[#8C6E43] text-[#F7F4EE] px-2 py-0.5 uppercase">
+                  <span className="text-[10px] font-mono-data bg-[#755C38] text-[#F7F4EE] px-2 py-0.5 uppercase">
                     Current Dish of Day
                   </span>
                 )}
               </div>
-              <p className="text-xs font-mono-data text-[#8C6E43] uppercase">
+              <p className="text-xs font-mono-data text-[#755C38] uppercase">
                 Cat: {item.category} · Price: {formatPrice(item.price)} ·{' '}
                 {item.agingDays ? `${item.agingDays}d Aged` : 'Fresh'} ·{' '}
                 {item.weightGrams ? `${item.weightGrams}g` : 'Standard'}
@@ -125,7 +125,7 @@ export const MenuManagerPanel: React.FC<MenuManagerPanelProps> = ({ menuItems, o
                   type="button"
                   onClick={() => handleSetDishOfDay(item)}
                   {...writeProps}
-                  className={`px-3 py-1.5 border border-[#8C6E43] text-[#8C6E43] hover:bg-[#8C6E43] hover:text-[#F7F4EE] text-xs font-mono-data uppercase${writeClass}`}
+                  className={`px-3 py-1.5 border border-[#755C38] text-[#755C38] hover:bg-[#755C38] hover:text-[#F7F4EE] text-xs font-mono-data uppercase${writeClass}`}
                 >
                   Make Dish of Day
                   <span className="sr-only"> — {item.name}</span>

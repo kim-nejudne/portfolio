@@ -31,14 +31,14 @@ export const DishOfTheDayInsert: React.FC<DishOfTheDayInsertProps> = ({ dish, on
 
         <div className="flex justify-between items-start pt-2 mb-4 border-b border-[#38322D]/15 pb-3">
           <div>
-            <span className="text-xs uppercase tracking-widest font-mono-data text-[#8C6E43]">
+            <span className="text-xs uppercase tracking-widest font-mono-data text-[#755C38]">
               Hearth Feature No. {dish.agingDays || 45}
             </span>
             <h2 className="font-display text-2xl sm:text-3xl text-[#1A1715] mt-1 leading-tight">
               {dish.name}
             </h2>
             {dish.cutName && (
-              <p className="text-xs italic font-serif-body text-[#6B635A]">
+              <p className="text-xs italic font-serif-body text-[#665E56]">
                 {dish.cutName}
               </p>
             )}
@@ -48,7 +48,7 @@ export const DishOfTheDayInsert: React.FC<DishOfTheDayInsertProps> = ({ dish, on
             <span className="font-display text-2xl sm:text-3xl text-[#7A2322]">
               {formatPrice(dish.price)}
             </span>
-            <p className="text-[10px] font-mono-data uppercase tracking-wider text-[#6B635A]">
+            <p className="text-[10px] font-mono-data uppercase tracking-wider text-[#665E56]">
               per portion
             </p>
           </div>
@@ -57,15 +57,15 @@ export const DishOfTheDayInsert: React.FC<DishOfTheDayInsertProps> = ({ dish, on
         {/* Structured Spec Grid */}
         <dl className="grid grid-cols-3 gap-2 py-2 mb-3 bg-[#1A1715]/5 px-3 text-center text-xs font-mono-data border border-[#38322D]/10">
           <div>
-            <dt className="block text-[9px] uppercase text-[#6B635A]">Cut Spec</dt>
+            <dt className="block text-[9px] uppercase text-[#665E56]">Cut Spec</dt>
             <dd className="font-medium text-[#1A1715]">{dish.cutName || 'Primal Cut'}</dd>
           </div>
           <div>
-            <dt className="block text-[9px] uppercase text-[#6B635A]">Dry Aging</dt>
+            <dt className="block text-[9px] uppercase text-[#665E56]">Dry Aging</dt>
             <dd className="font-medium text-[#1A1715]">{dish.agingDays ? `${dish.agingDays} Days` : 'Fresh Cut'}</dd>
           </div>
           <div>
-            <dt className="block text-[9px] uppercase text-[#6B635A]">Portion Weight</dt>
+            <dt className="block text-[9px] uppercase text-[#665E56]">Portion Weight</dt>
             <dd className="font-medium text-[#1A1715]">{dish.weightGrams ? `${dish.weightGrams}g` : 'Shared'}</dd>
           </div>
         </dl>
@@ -81,7 +81,7 @@ export const DishOfTheDayInsert: React.FC<DishOfTheDayInsertProps> = ({ dish, on
               <span className="line-through font-bold">86'd — Sold Out for Today's Service</span>
             </p>
           ) : (
-            <p className="flex items-center space-x-2 text-xs font-mono-data text-[#8C6E43] uppercase tracking-wider">
+            <p className="flex items-center space-x-2 text-xs font-mono-data text-[#755C38] uppercase tracking-wider">
               <Flame className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Oak Ember Seared · Limited Sittings</span>
             </p>

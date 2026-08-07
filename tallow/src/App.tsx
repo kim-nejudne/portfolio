@@ -109,7 +109,7 @@ export default function App() {
               {/* Teaser Printed Menu Section */}
               <section aria-labelledby="highlights-heading" className="py-12 border-b border-[#DDD6C8]">
                 <div className="max-w-4xl mx-auto px-4 text-center mb-8">
-                  <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#8C6E43]">
+                  <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#755C38]">
                     Selected Cut Teaser
                   </span>
                   <h2 id="highlights-heading" className="font-display text-3xl sm:text-4xl text-[#1A1715] mt-1">

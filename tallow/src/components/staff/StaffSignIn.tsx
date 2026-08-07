@@ -72,7 +72,7 @@ export const StaffSignIn: React.FC<StaffSignInProps> = ({ onAuthenticated }) => 
           <Key className="w-5 h-5" aria-hidden="true" />
         </div>
         <h1 className="font-display text-2xl text-[#1A1715]">STAFF SERVICE PORTAL</h1>
-        <p className="font-serif-body text-xs text-[#6B635A] italic mt-1">
+        <p className="font-serif-body text-xs text-[#665E56] italic mt-1">
           Back-of-house cover dashboard &amp; 86 board control
         </p>
       </div>
@@ -97,7 +97,7 @@ export const StaffSignIn: React.FC<StaffSignInProps> = ({ onAuthenticated }) => 
         <div
           id={hintId}
           role="status"
-          className="flex items-start gap-3 mb-6 p-3 border border-[#8C6E43] bg-[#EFE6D5] text-[#5C4A2E]"
+          className="flex items-start gap-3 mb-6 p-3 border border-[#755C38] bg-[#EFE6D5] text-[#5C4A2E]"
         >
           <Eye className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
           <p className="text-[11px] font-mono-data leading-relaxed">

@@ -42,7 +42,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <div className="relative z-10 max-w-5xl mx-auto text-center">
 
         {/* Subtle Top Colophon Header */}
-        <div className="mb-6 flex items-center justify-center space-x-3 text-xs font-mono-data tracking-[0.25em] text-[#6B635A] uppercase">
+        <div className="mb-6 flex items-center justify-center space-x-3 text-xs font-mono-data tracking-[0.25em] text-[#665E56] uppercase">
           <span>London · Soho</span>
           <span aria-hidden="true">—</span>
           <span>Open Wood Hearth</span>

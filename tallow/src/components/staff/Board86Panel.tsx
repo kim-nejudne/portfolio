@@ -61,7 +61,7 @@ export const Board86Panel: React.FC<Board86PanelProps> = ({ menuItems, onMenuUpd
           >
             <div className="flex justify-between items-start mb-2">
               <div>
-                <span className="text-[10px] font-mono-data uppercase text-[#8C6E43]">
+                <span className="text-[10px] font-mono-data uppercase text-[#755C38]">
                   {item.category}
                 </span>
                 <h3 className={`menu-line font-display text-xl ${item.is86 ? 'item-86 text-[#7A2322]' : 'text-[#1A1715]'}`}>
@@ -76,7 +76,7 @@ export const Board86Panel: React.FC<Board86PanelProps> = ({ menuItems, onMenuUpd
                 {item.is86 ? (
                   <span className="text-[#7A2322] font-bold">STRIKE (86'd)</span>
                 ) : (
-                  <span className="text-[#8C6E43]">AVAILABLE</span>
+                  <span className="text-[#755C38]">AVAILABLE</span>
                 )}
               </span>
 
@@ -87,7 +87,7 @@ export const Board86Panel: React.FC<Board86PanelProps> = ({ menuItems, onMenuUpd
                 disabled={writeProps.disabled || pendingId === item.id}
                 className={`px-3 py-1.5 text-xs font-mono-data uppercase tracking-wider transition-colors ${
                   item.is86
-                    ? 'bg-[#1A1715] text-[#F7F4EE] hover:bg-[#8C6E43]'
+                    ? 'bg-[#1A1715] text-[#F7F4EE] hover:bg-[#755C38]'
                     : 'bg-[#7A2322] text-[#F7F4EE] hover:bg-[#581413]'
                 }${writeClass}`}
               >

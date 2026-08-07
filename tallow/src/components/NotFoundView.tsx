@@ -8,13 +8,13 @@ import { Link } from 'react-router-dom';
 export const NotFoundView: React.FC = () => {
   return (
     <div className="max-w-xl mx-auto py-20 px-4 sm:px-8 text-center">
-      <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#8C6E43] block mb-2">
+      <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#755C38] block mb-2">
         Error 404 · Off the printed index
       </span>
       <h1 className="font-display text-4xl sm:text-5xl text-[#1A1715] tracking-tight">
         NO SUCH PAGE
       </h1>
-      <p className="font-serif-body text-base text-[#6B635A] italic mt-3 mb-8">
+      <p className="font-serif-body text-base text-[#665E56] italic mt-3 mb-8">
         This edition of the menu does not carry that entry.
       </p>
 

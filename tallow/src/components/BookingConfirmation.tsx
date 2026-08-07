@@ -104,7 +104,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
   if (loading) {
     return (
-      <div className="max-w-xl mx-auto py-16 px-4 text-center font-mono-data text-xs text-[#6B635A]" role="status">
+      <div className="max-w-xl mx-auto py-16 px-4 text-center font-mono-data text-xs text-[#665E56]" role="status">
         Retrieving tokenised booking record...
       </div>
     );
@@ -115,7 +115,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       <div className="max-w-xl mx-auto py-16 px-4 text-center border border-[#7A2322] bg-[#7A2322]/5 my-8" role="alert">
         <AlertTriangle className="w-8 h-8 text-[#7A2322] mx-auto mb-3" aria-hidden="true" />
         <h1 className="font-display text-2xl text-[#1A1715] mb-2">Booking Token Unresolved</h1>
-        <p className="font-serif-body text-sm text-[#6B635A] mb-6">
+        <p className="font-serif-body text-sm text-[#665E56] mb-6">
           {error || 'No matching reservation token was found.'}
         </p>
         <button
@@ -138,7 +138,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         {/* Token Stamp */}
         <div className="flex justify-between items-start border-b-2 border-[#1A1715] pb-4 mb-6">
           <div>
-            <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#8C6E43]">
+            <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#755C38]">
               Confirmed Sitting Voucher
             </span>
             <h1 className="font-display text-3xl sm:text-4xl text-[#1A1715] mt-1">
@@ -147,7 +147,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </div>
 
           <div className="text-right">
-            <span className="font-mono-data text-xs uppercase text-[#6B635A] block" id="token-label">
+            <span className="font-mono-data text-xs uppercase text-[#665E56] block" id="token-label">
               Booking Token
             </span>
             <span
@@ -166,7 +166,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               Sitting Cancelled — Table Released
             </p>
           ) : (
-            <p className="flex items-center space-x-2 text-xs font-mono-data text-[#8C6E43] uppercase tracking-wider mb-6">
+            <p className="flex items-center space-x-2 text-xs font-mono-data text-[#755C38] uppercase tracking-wider mb-6">
               <CheckCircle className="w-4 h-4 text-[#7A2322]" aria-hidden="true" />
               <span>Guaranteed Hearth Sitting Confirmed</span>
             </p>
@@ -176,27 +176,27 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         {/* Structured Booking Details */}
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8 bg-[#1A1715]/5 p-4 border border-[#38322D]/10 text-xs font-mono-data">
           <div>
-            <dt className="text-[10px] uppercase text-[#6B635A] block">Date</dt>
+            <dt className="text-[10px] uppercase text-[#665E56] block">Date</dt>
             <dd className="font-bold text-[#1A1715] text-sm">{reservation.date}</dd>
           </div>
           <div>
-            <dt className="text-[10px] uppercase text-[#6B635A] block">Sitting Time</dt>
+            <dt className="text-[10px] uppercase text-[#665E56] block">Sitting Time</dt>
             <dd className="font-bold text-[#1A1715] text-sm">{reservation.time}</dd>
           </div>
           <div>
-            <dt className="text-[10px] uppercase text-[#6B635A] block">Party Size</dt>
+            <dt className="text-[10px] uppercase text-[#665E56] block">Party Size</dt>
             <dd className="font-bold text-[#1A1715] text-sm">{reservation.partySize} Guests</dd>
           </div>
           <div>
-            <dt className="text-[10px] uppercase text-[#6B635A] block">Primary Guest</dt>
+            <dt className="text-[10px] uppercase text-[#665E56] block">Primary Guest</dt>
             <dd className="font-medium text-[#1A1715]">{reservation.name}</dd>
           </div>
           <div>
-            <dt className="text-[10px] uppercase text-[#6B635A] block">Contact Phone</dt>
+            <dt className="text-[10px] uppercase text-[#665E56] block">Contact Phone</dt>
             <dd className="font-medium text-[#1A1715]">{reservation.phone}</dd>
           </div>
           <div>
-            <dt className="text-[10px] uppercase text-[#6B635A] block">Email</dt>
+            <dt className="text-[10px] uppercase text-[#665E56] block">Email</dt>
             <dd className="font-medium text-[#1A1715] truncate">{reservation.email}</dd>
           </div>
         </dl>
@@ -208,12 +208,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         )}
 
         {/* Venue Location Block */}
-        <div className="border-t border-[#DDD6C8] pt-6 mb-8 text-xs font-serif-body text-[#6B635A] space-y-1">
+        <div className="border-t border-[#DDD6C8] pt-6 mb-8 text-xs font-serif-body text-[#665E56] space-y-1">
           <h2 className="font-bold text-[#1A1715] uppercase font-sans-ui text-[11px] tracking-wider">
             TALLOW Soho Location
           </h2>
           <address className="not-italic">14 Beak Street, Soho, London W1F 9RD</address>
-          <p className="text-[11px] font-mono-data text-[#8C6E43] break-all">
+          <p className="text-[11px] font-mono-data text-[#755C38] break-all">
             Direct link for this booking: {window.location.origin}/?token={reservation.token}
           </p>
         </div>
@@ -229,7 +229,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           <button
             type="button"
             onClick={onReturnHome}
-            className="flex items-center space-x-2 text-xs font-sans-ui uppercase tracking-wider text-[#6B635A] hover:text-[#1A1715]"
+            className="flex items-center space-x-2 text-xs font-sans-ui uppercase tracking-wider text-[#665E56] hover:text-[#1A1715]"
           >
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Return to Site</span>

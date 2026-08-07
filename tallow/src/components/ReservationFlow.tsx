@@ -164,13 +164,13 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
 
       {/* Header */}
       <div className="text-center mb-8 border-b border-[#DDD6C8] pb-6">
-        <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#8C6E43] block mb-1">
+        <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#755C38] block mb-1">
           Direct Table Sittings · TALLOW Soho
         </span>
         <h1 className="font-display text-3xl sm:text-4xl text-[#1A1715]">
           RESERVE A SITTING
         </h1>
-        <p className="font-serif-body text-sm text-[#6B635A] italic mt-1">
+        <p className="font-serif-body text-sm text-[#665E56] italic mt-1">
           Guaranteed real-time availability. 16 covers maximum per sitting window.
         </p>
       </div>
@@ -196,7 +196,7 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
                   className={`w-full text-left pb-1 transition-colors ${
                     isCurrent
                       ? 'border-b-2 border-[#7A2322] text-[#7A2322] font-bold'
-                      : `text-[#6B635A]${locked ? ' opacity-50 cursor-not-allowed' : ''}`
+                      : `text-[#665E56]${locked ? ' opacity-50 cursor-not-allowed' : ''}`
                   }`}
                 >
                   {n}. {label}
@@ -261,7 +261,7 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
                 className="w-full sm:w-auto px-4 py-3 bg-[#EFE6D5] border border-[#38322D] font-mono-data text-sm text-[#1A1715]"
               />
             </div>
-            <span id={`${fieldId}-date-hint`} className="text-xs font-serif-body text-[#6B635A] italic">
+            <span id={`${fieldId}-date-hint`} className="text-xs font-serif-body text-[#665E56] italic">
               Reservations open {BOOKING_WINDOW_DAYS} days in advance.
             </span>
           </div>
@@ -282,7 +282,7 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
               <Users className="w-4 h-4 text-[#7A2322]" aria-hidden="true" />
               <span>Select Guest Count ({date})</span>
             </h2>
-            <button type="button" onClick={() => goToStep(1)} className="text-xs text-[#6B635A] underline">
+            <button type="button" onClick={() => goToStep(1)} className="text-xs text-[#665E56] underline">
               Change Date
             </button>
           </div>
@@ -330,13 +330,13 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
               <Clock className="w-4 h-4 text-[#7A2322]" aria-hidden="true" />
               <span>Available Sitting Times for {partySize} guests on {date}</span>
             </h2>
-            <button type="button" onClick={() => goToStep(2)} className="text-xs text-[#6B635A] underline">
+            <button type="button" onClick={() => goToStep(2)} className="text-xs text-[#665E56] underline">
               Edit Party ({partySize})
             </button>
           </div>
 
           {loadingSlots ? (
-            <p className="py-8 text-center text-xs font-mono-data text-[#6B635A] animate-pulse">
+            <p className="py-8 text-center text-xs font-mono-data text-[#665E56] animate-pulse">
               Querying live hearth capacity...
             </p>
           ) : (
@@ -401,14 +401,14 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
         <form onSubmit={handleSubmit} className={panelClass} aria-describedby={errorMsg ? errorId : undefined}>
           <div className="border-b border-[#DDD6C8] pb-4 flex justify-between items-center">
             <div>
-              <span className="text-xs font-mono-data text-[#8C6E43] uppercase tracking-wider">
+              <span className="text-xs font-mono-data text-[#755C38] uppercase tracking-wider">
                 Sitting Selected
               </span>
               <h2 id={`${fieldId}-step4`} ref={stepHeadingRef} tabIndex={-1} className="font-display text-2xl text-[#1A1715]">
                 {date} at {selectedTime} · {partySize} Guests
               </h2>
             </div>
-            <button type="button" onClick={() => goToStep(3)} className="text-xs text-[#6B635A] underline">
+            <button type="button" onClick={() => goToStep(3)} className="text-xs text-[#665E56] underline">
               Change Time
             </button>
           </div>
@@ -477,7 +477,7 @@ export const ReservationFlow: React.FC<ReservationFlowProps> = ({
             </div>
           </div>
 
-          <p className="p-4 bg-[#1A1715]/5 border border-[#DDD6C8] text-xs font-serif-body text-[#6B635A] italic">
+          <p className="p-4 bg-[#1A1715]/5 border border-[#DDD6C8] text-xs font-serif-body text-[#665E56] italic">
             Reservations are held for 15 minutes past sitting time. Sittings last 1 hour 45 minutes.
           </p>
 

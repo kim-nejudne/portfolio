@@ -34,13 +34,13 @@ export const VisitView: React.FC = () => {
 
       {/* Header */}
       <div className="text-center border-b-2 border-[#1A1715] pb-8">
-        <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#8C6E43] block mb-2">
+        <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#755C38] block mb-2">
           Location & Operating Hours
         </span>
         <h1 className="font-display text-4xl sm:text-6xl text-[#1A1715] tracking-tight">
           VISIT TALLOW
         </h1>
-        <p className="font-serif-body text-base text-[#6B635A] max-w-xl mx-auto mt-2 italic">
+        <p className="font-serif-body text-base text-[#665E56] max-w-xl mx-auto mt-2 italic">
           Soho, London. Four minutes walk from Piccadilly Circus Station.
         </p>
       </div>
@@ -51,7 +51,7 @@ export const VisitView: React.FC = () => {
         <div className="md:col-span-6 space-y-8 bg-[#F7F4EE] p-6 border border-[#DDD6C8]">
 
           <section aria-labelledby={`${fieldId}-hours`}>
-            <h2 id={`${fieldId}-hours`} className="flex items-center space-x-2 text-xs font-mono-data text-[#8C6E43] uppercase tracking-widest mb-3">
+            <h2 id={`${fieldId}-hours`} className="flex items-center space-x-2 text-xs font-mono-data text-[#755C38] uppercase tracking-widest mb-3">
               <Clock className="w-4 h-4 text-[#7A2322]" aria-hidden="true" />
               <span>Service Sittings</span>
             </h2>
@@ -59,7 +59,7 @@ export const VisitView: React.FC = () => {
               {HOURS.map(({ days, times }) => (
                 <div key={days} className="flex justify-between border-b border-[#DDD6C8] pb-1">
                   <dt className="font-bold text-[#1A1715]">{days}</dt>
-                  <dd className="text-[#6B635A]">{times}</dd>
+                  <dd className="text-[#665E56]">{times}</dd>
                 </div>
               ))}
               <div className="flex justify-between text-[#7A2322]">
@@ -70,7 +70,7 @@ export const VisitView: React.FC = () => {
           </section>
 
           <section aria-labelledby={`${fieldId}-address`}>
-            <h2 id={`${fieldId}-address`} className="flex items-center space-x-2 text-xs font-mono-data text-[#8C6E43] uppercase tracking-widest mb-3">
+            <h2 id={`${fieldId}-address`} className="flex items-center space-x-2 text-xs font-mono-data text-[#755C38] uppercase tracking-widest mb-3">
               <MapPin className="w-4 h-4 text-[#7A2322]" aria-hidden="true" />
               <span>Address &amp; Direct Contacts</span>
             </h2>
@@ -84,7 +84,7 @@ export const VisitView: React.FC = () => {
                 </a>
               </p>
               <p>
-                <a href="mailto:hearth@tallow-soho.co.uk" className="text-[#6B635A] underline underline-offset-2">
+                <a href="mailto:hearth@tallow-soho.co.uk" className="text-[#665E56] underline underline-offset-2">
                   Reservations: hearth@tallow-soho.co.uk
                 </a>
               </p>
@@ -99,7 +99,7 @@ export const VisitView: React.FC = () => {
             <h2 className="font-mono-data text-xs uppercase tracking-wider text-[#1A1715] font-bold">
               Soho Map Location
             </h2>
-            <span className="font-mono-data text-[10px] text-[#8C6E43] uppercase">
+            <span className="font-mono-data text-[10px] text-[#755C38] uppercase">
               Beak St &amp; Regent St Corner
             </span>
           </div>
@@ -108,7 +108,7 @@ export const VisitView: React.FC = () => {
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#F7F4EE_1px,transparent_1px)] [background-size:16px_16px]" aria-hidden="true"></div>
 
             <div className="relative z-10">
-              <span className="text-[10px] font-mono-data text-[#8C6E43] uppercase tracking-widest">
+              <span className="text-[10px] font-mono-data text-[#755C38] uppercase tracking-widest">
                 LONDON W1F 9RD
               </span>
               <p className="font-display text-2xl text-[#F7F4EE] mt-1">14 BEAK STREET</p>
@@ -116,7 +116,7 @@ export const VisitView: React.FC = () => {
 
             <div className="relative z-10 p-3 bg-[#F7F4EE] text-[#1A1715] border-l-4 border-[#7A2322]">
               <p className="font-mono-data text-xs font-bold uppercase">TALLOW HEARTH</p>
-              <p className="font-serif-body text-xs text-[#6B635A]">4 min walk from Piccadilly Circus Station (Bakerloo / Piccadilly lines)</p>
+              <p className="font-serif-body text-xs text-[#665E56]">4 min walk from Piccadilly Circus Station (Bakerloo / Piccadilly lines)</p>
             </div>
           </div>
 
@@ -137,13 +137,13 @@ export const VisitView: React.FC = () => {
       {/* Private Dining Inquiry Block */}
       <section aria-labelledby={`${fieldId}-private`} className="insert-stock p-8 border border-[#38322D]/20 max-w-3xl mx-auto">
         <div className="text-center mb-6">
-          <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#8C6E43]">
+          <span className="font-mono-data text-[10px] uppercase tracking-[0.25em] text-[#755C38]">
             Exclusive Sittings
           </span>
           <h2 id={`${fieldId}-private`} className="font-display text-3xl text-[#1A1715] mt-1">
             PRIVATE DINING ROOM & FULL HEARTH HIRE
           </h2>
-          <p className="font-serif-body text-sm text-[#6B635A] max-w-lg mx-auto mt-1">
+          <p className="font-serif-body text-sm text-[#665E56] max-w-lg mx-auto mt-1">
             Our private dining room accommodates up to 14 guests around a single oak table overlooking the dry-ageing chamber.
           </p>
         </div>
@@ -153,11 +153,11 @@ export const VisitView: React.FC = () => {
             ref={confirmationRef}
             tabIndex={-1}
             role="status"
-            className="p-6 bg-[#1A1715]/5 border border-[#8C6E43] text-center space-y-2"
+            className="p-6 bg-[#1A1715]/5 border border-[#755C38] text-center space-y-2"
           >
             <CheckCircle className="w-6 h-6 text-[#7A2322] mx-auto" aria-hidden="true" />
             <h3 className="font-display text-xl text-[#1A1715]">Private Sitting Enquiry Noted</h3>
-            <p className="font-serif-body text-xs text-[#6B635A]">
+            <p className="font-serif-body text-xs text-[#665E56]">
               Private hire for {inquiryGuests === 'full' ? 'the full restaurant' : `${inquiryGuests} guests`} is
               arranged by hand rather than through the booking engine. Write to{' '}
               <a href="mailto:hearth@tallow-soho.co.uk" className="text-[#7A2322] underline underline-offset-2">

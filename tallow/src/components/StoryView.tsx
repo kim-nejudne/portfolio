@@ -6,13 +6,13 @@ export const StoryView: React.FC = () => {
       
       {/* Title Header */}
       <div className="text-center border-b-2 border-[#1A1715] pb-8">
-        <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#8C6E43] block mb-2">
+        <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#755C38] block mb-2">
           Method & Philosophy
         </span>
         <h1 className="font-display text-4xl sm:text-6xl text-[#1A1715] tracking-tight">
           THE CRAFT AT TALLOW
         </h1>
-        <p className="font-serif-body text-base text-[#6B635A] max-w-xl mx-auto mt-2 italic">
+        <p className="font-serif-body text-base text-[#665E56] max-w-xl mx-auto mt-2 italic">
           No theatre. No smoke machines. Only beef, wood, salt and time.
         </p>
       </div>
@@ -20,7 +20,7 @@ export const StoryView: React.FC = () => {
       {/* Section 1: Sourcing */}
       <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center border-b border-[#DDD6C8] pb-12">
         <div className="md:col-span-6 space-y-4">
-          <div className="font-mono-data text-xs text-[#8C6E43] uppercase tracking-widest">
+          <div className="font-mono-data text-xs text-[#755C38] uppercase tracking-widest">
             01 / SOURCING & BREED
           </div>
           <h2 className="font-display text-3xl text-[#1A1715]">
@@ -31,11 +31,11 @@ export const StoryView: React.FC = () => {
           </p>
           <div className="grid grid-cols-2 gap-3 text-xs font-mono-data bg-[#1A1715]/5 p-3 border border-[#38322D]/10">
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Breed</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Breed</span>
               <span className="font-bold text-[#1A1715]">Aberdeen Angus & Hereford</span>
             </div>
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Farm Provenance</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Farm Provenance</span>
               <span className="font-bold text-[#1A1715]">Aberdeenshire, UK</span>
             </div>
           </div>
@@ -58,7 +58,7 @@ export const StoryView: React.FC = () => {
       {/* Section 2: Dry Ageing Room */}
       <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center border-b border-[#DDD6C8] pb-12">
         <div className="md:col-span-6 md:order-2 space-y-4">
-          <div className="font-mono-data text-xs text-[#8C6E43] uppercase tracking-widest">
+          <div className="font-mono-data text-xs text-[#755C38] uppercase tracking-widest">
             02 / THE AGEING ROOM
           </div>
           <h2 className="font-display text-3xl text-[#1A1715]">
@@ -69,15 +69,15 @@ export const StoryView: React.FC = () => {
           </p>
           <div className="grid grid-cols-3 gap-2 text-xs font-mono-data bg-[#1A1715]/5 p-3 border border-[#38322D]/10 text-center">
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Temp</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Temp</span>
               <span className="font-bold text-[#1A1715]">1.5°C</span>
             </div>
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Humidity</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Humidity</span>
               <span className="font-bold text-[#1A1715]">78% RH</span>
             </div>
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Salt Wall</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Salt Wall</span>
               <span className="font-bold text-[#1A1715]">400 Bricks</span>
             </div>
           </div>
@@ -100,7 +100,7 @@ export const StoryView: React.FC = () => {
       {/* Section 3: Live Fire Hearth */}
       <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pb-8">
         <div className="md:col-span-6 space-y-4">
-          <div className="font-mono-data text-xs text-[#8C6E43] uppercase tracking-widest">
+          <div className="font-mono-data text-xs text-[#755C38] uppercase tracking-widest">
             03 / THE LIVE HEARTH
           </div>
           <h2 className="font-display text-3xl text-[#1A1715]">
@@ -111,11 +111,11 @@ export const StoryView: React.FC = () => {
           </p>
           <div className="grid grid-cols-2 gap-3 text-xs font-mono-data bg-[#1A1715]/5 p-3 border border-[#38322D]/10">
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Fuel</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Fuel</span>
               <span className="font-bold text-[#1A1715]">Red Oak & White Birch</span>
             </div>
             <div>
-              <span className="block text-[9px] uppercase text-[#6B635A]">Sear Heat</span>
+              <span className="block text-[9px] uppercase text-[#665E56]">Sear Heat</span>
               <span className="font-bold text-[#1A1715]">450°C Direct Grate</span>
             </div>
           </div>

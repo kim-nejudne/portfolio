@@ -11,7 +11,7 @@ export const Footer: React.FC = () => {
         {/* Brand Colophon */}
         <div className="md:col-span-5 space-y-3">
           <h2 className="font-display text-3xl tracking-widest text-[#F7F4EE]">TALLOW</h2>
-          <p className="text-[#8C6E43] uppercase tracking-[0.2em] text-[10px]">
+          <p className="text-[#755C38] uppercase tracking-[0.2em] text-[10px]">
             Dry-Aged · Live-Fire Steakhouse · London Soho
           </p>
           <p className="font-serif-body text-sm text-[#DDD6C8]/80 leading-relaxed max-w-sm">
@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
 
         {/* Operating Sittings */}
         <div className="md:col-span-4 space-y-2 text-[#DDD6C8]/90">
-          <h2 className="text-[#8C6E43] uppercase tracking-wider block font-bold mb-2">
+          <h2 className="text-[#755C38] uppercase tracking-wider block font-bold mb-2">
             Service Hours
           </h2>
           <p>Wednesday – Friday: 17:00 – 23:00</p>
@@ -32,7 +32,7 @@ export const Footer: React.FC = () => {
 
         {/* Quick Navigation */}
         <nav aria-label="Footer" className="md:col-span-3 space-y-2 uppercase tracking-wider text-[11px]">
-          <h2 className="text-[#8C6E43] uppercase tracking-wider block font-bold mb-2">
+          <h2 className="text-[#755C38] uppercase tracking-wider block font-bold mb-2">
             Index
           </h2>
           <ul className="space-y-1.5 text-[#DDD6C8]">
@@ -57,7 +57,7 @@ export const Footer: React.FC = () => {
               </Link>
             </li>
             <li className="pt-2">
-              <Link to="/staff" className="text-[#8C6E43] hover:text-[#F7F4EE] underline inline-block">
+              <Link to="/staff" className="text-[#755C38] hover:text-[#F7F4EE] underline inline-block">
                 Staff Control Portal (86 Board)
               </Link>
             </li>
@@ -86,14 +86,14 @@ export const Footer: React.FC = () => {
           <span aria-hidden="true">·</span>
           <a
             href="https://kimnejudne.dev/work/tallow/"
-            className="text-[#8C6E43] underline hover:text-[#F7F4EE] transition-colors"
+            className="text-[#755C38] underline hover:text-[#F7F4EE] transition-colors"
           >
             Case study
           </a>
           <span aria-hidden="true">·</span>
           <a
             href="https://kimnejudne.dev/"
-            className="text-[#8C6E43] underline hover:text-[#F7F4EE] transition-colors"
+            className="text-[#755C38] underline hover:text-[#F7F4EE] transition-colors"
           >
             More work
           </a>

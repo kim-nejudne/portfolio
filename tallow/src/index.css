@@ -65,14 +65,38 @@
     --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
+    /*
+     * The two text tones were darkened on 2026-08-07 to clear WCAG AA, which
+     * neither had ever done. axe-core over production found thirteen contrast
+     * violations on the landing page, which was every violation this spoke had.
+     *
+     * They are solved against three grounds, not one, and that is the part
+     * worth keeping. `--text-muted` passes on `--bg-paper` (5.38) and on
+     * `--bg-insert` (4.76), and failed at **4.33** on the ground it is actually
+     * set against: `.insert-stock` under its own 6% ink shadow, which
+     * composites to about `#E4DCCB`. A token audited against the token it names
+     * would have been called clean.
+     *
+     *   --text-muted    #6B635A -> paper 5.38  insert 4.76  insert+grain 4.33
+     *                   #665E56 -> paper 5.80  insert 5.14  insert+grain 4.67
+     *   --accent-brass  #8C6E43 -> paper 4.32  insert 3.83  insert+grain 3.48
+     *                   #755C38 -> paper 5.72  insert 5.07  insert+grain 4.60
+     *
+     * Both hold hue and saturation and move on value alone, so the warm brass
+     * and the grey-brown muted are the same two colours, printed a little
+     * heavier. Solved for 4.6 rather than 4.5 so a ground a shade darker than
+     * `#E4DCCB` does not quietly put them back under.
+     *
+     * `npm run axe` in the hub sweeps this domain. Run it after touching these.
+     */
     --bg-paper: #F7F4EE;
     --bg-insert: #EFE6D5;
     --text-ink: #1A1715;
-    --text-muted: #6B635A;
+    --text-muted: #665E56;
     --border-hairline: #DDD6C8;
     --border-dark: #38322D;
     --accent-oxblood: #7A2322;
-    --accent-brass: #8C6E43;
+    --accent-brass: #755C38;
   }
 
   body {

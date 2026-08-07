@@ -75,7 +75,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
       <section className={wrapperClass}>
         <div role="alert" className="max-w-xl mx-auto my-8 p-6 border border-[#7A2322] bg-[#7A2322]/5 text-center">
           <h2 className="font-display text-2xl text-[#1A1715] mb-2">The Menu Is Unavailable</h2>
-          <p className="font-serif-body text-sm text-[#6B635A]">{error}</p>
+          <p className="font-serif-body text-sm text-[#665E56]">{error}</p>
         </div>
       </section>
     );
@@ -87,13 +87,13 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
       {/* Printed Menu Header */}
       {!isTeaser && (
         <div className="text-center mb-12 border-b-2 border-[#1A1715] pb-8">
-          <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#6B635A] block mb-2">
+          <span className="font-mono-data text-[10px] uppercase tracking-[0.3em] text-[#665E56] block mb-2">
             Daily Printed Menu · Evening Sittings
           </span>
           <h1 id={headingId} className="font-display text-4xl sm:text-6xl text-[#1A1715] tracking-tight">
             TALLOW
           </h1>
-          <p className="font-serif-body text-sm sm:text-base text-[#6B635A] max-w-xl mx-auto mt-2 italic">
+          <p className="font-serif-body text-sm sm:text-base text-[#665E56] max-w-xl mx-auto mt-2 italic">
             Prices inclusive of VAT. A discretionary 12.5% service charge is added to all bills.
           </p>
 
@@ -110,7 +110,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
               className={`px-3 py-1 transition-colors ${
                 selectedCategory === 'all'
                   ? 'bg-[#1A1715] text-[#F7F4EE]'
-                  : 'text-[#6B635A] hover:text-[#1A1715]'
+                  : 'text-[#665E56] hover:text-[#1A1715]'
               }`}
             >
               All Courses
@@ -124,7 +124,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
                 className={`px-3 py-1 transition-colors ${
                   selectedCategory === cat
                     ? 'bg-[#1A1715] text-[#F7F4EE]'
-                    : 'text-[#6B635A] hover:text-[#1A1715]'
+                    : 'text-[#665E56] hover:text-[#1A1715]'
                 }`}
               >
                 {CATEGORY_LABELS[cat].title}
@@ -141,11 +141,11 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
       )}
 
       {loading ? (
-        <p className="py-16 text-center font-mono-data text-xs uppercase tracking-widest text-[#6B635A]">
+        <p className="py-16 text-center font-mono-data text-xs uppercase tracking-widest text-[#665E56]">
           Setting today's menu…
         </p>
       ) : menuItems.length === 0 ? (
-        <p className="py-16 text-center font-serif-body text-sm italic text-[#6B635A]">
+        <p className="py-16 text-center font-serif-body text-sm italic text-[#665E56]">
           No selections are listed for this service.
         </p>
       ) : (
@@ -168,11 +168,11 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
                     <CourseHeading className="font-display text-2xl sm:text-3xl text-[#1A1715] tracking-wider uppercase">
                       {CATEGORY_LABELS[cat].title}
                     </CourseHeading>
-                    <p className="text-xs font-serif-body text-[#6B635A] italic">
+                    <p className="text-xs font-serif-body text-[#665E56] italic">
                       {CATEGORY_LABELS[cat].subtitle}
                     </p>
                   </div>
-                  <span className="font-mono-data text-xs text-[#8C6E43] uppercase tracking-widest">
+                  <span className="font-mono-data text-xs text-[#755C38] uppercase tracking-widest">
                     {courseItems.length} {courseItems.length === 1 ? 'Selection' : 'Selections'}
                   </span>
                 </div>
@@ -227,7 +227,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
                               {item.name}
                             </h3>
                             {item.isDishOfDay && (
-                              <span className="text-[10px] font-mono-data uppercase bg-[#8C6E43] text-[#F7F4EE] px-2 py-0.5">
+                              <span className="text-[10px] font-mono-data uppercase bg-[#755C38] text-[#F7F4EE] px-2 py-0.5">
                                 Featured
                               </span>
                             )}
@@ -244,7 +244,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
 
                         {/* Structured Fields Line for Cuts: Cut name, Weight, Aging */}
                         {(item.cutName || item.weightGrams || item.agingDays) && (
-                          <div className="text-xs font-mono-data text-[#8C6E43] uppercase tracking-wider mb-2 flex items-center space-x-4">
+                          <div className="text-xs font-mono-data text-[#755C38] uppercase tracking-wider mb-2 flex items-center space-x-4">
                             {item.cutName && <span>Cut: {item.cutName}</span>}
                             {item.agingDays && <span>Aging: {item.agingDays} Days</span>}
                             {item.weightGrams && <span>Weight: {item.weightGrams}g</span>}
@@ -259,7 +259,7 @@ export const PublicMenu: React.FC<PublicMenuProps> = ({
                           <button
                             type="button"
                             onClick={() => onReserveForDish(item.name)}
-                            className="text-[11px] font-sans-ui uppercase tracking-widest text-[#6B635A] hover:text-[#7A2322] underline underline-offset-4 transition-colors"
+                            className="text-[11px] font-sans-ui uppercase tracking-widest text-[#665E56] hover:text-[#7A2322] underline underline-offset-4 transition-colors"
                           >
                             Reserve table for this cut
                             <span className="sr-only"> — {item.name}</span>

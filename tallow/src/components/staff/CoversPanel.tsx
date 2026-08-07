@@ -8,9 +8,9 @@ interface CoversPanelProps {
 }
 
 const SITTING_WINDOWS = [
-  { key: 'early', label: 'Early Sitting (17:00 – 18:30)', accent: 'text-[#8C6E43]', figure: 'text-[#1A1715]' },
+  { key: 'early', label: 'Early Sitting (17:00 – 18:30)', accent: 'text-[#755C38]', figure: 'text-[#1A1715]' },
   { key: 'prime', label: 'Prime Sitting (18:30 – 20:30)', accent: 'text-[#7A2322]', figure: 'text-[#7A2322]' },
-  { key: 'late', label: 'Late Sitting (20:30 – 22:30)', accent: 'text-[#8C6E43]', figure: 'text-[#1A1715]' },
+  { key: 'late', label: 'Late Sitting (20:30 – 22:30)', accent: 'text-[#755C38]', figure: 'text-[#1A1715]' },
 ] as const;
 
 /** A figure that is not in yet reads as "—", not as a confident zero. */
@@ -26,22 +26,22 @@ export const CoversPanel: React.FC<CoversPanelProps> = ({ selectedDate, summary,
 
       <dl className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="p-5 bg-[#F7F4EE] border border-[#DDD6C8]">
-          <dt className="text-[10px] font-mono-data uppercase text-[#6B635A] block">Date</dt>
+          <dt className="text-[10px] font-mono-data uppercase text-[#665E56] block">Date</dt>
           <dd className="font-display text-2xl text-[#1A1715]">{selectedDate}</dd>
         </div>
         <div className="p-5 bg-[#F7F4EE] border border-[#DDD6C8]">
-          <dt className="text-[10px] font-mono-data uppercase text-[#6B635A] block">Total Booked Covers</dt>
+          <dt className="text-[10px] font-mono-data uppercase text-[#665E56] block">Total Booked Covers</dt>
           <dd className="font-display text-3xl text-[#7A2322]">{figure(loading, summary?.totalCovers)}</dd>
         </div>
         <div className="p-5 bg-[#F7F4EE] border border-[#DDD6C8]">
-          <dt className="text-[10px] font-mono-data uppercase text-[#6B635A] block">Total Parties</dt>
+          <dt className="text-[10px] font-mono-data uppercase text-[#665E56] block">Total Parties</dt>
           <dd className="font-display text-3xl text-[#1A1715]">{figure(loading, summary?.totalReservations)}</dd>
         </div>
         <div className="p-5 bg-[#F7F4EE] border border-[#DDD6C8]">
-          <dt className="text-[10px] font-mono-data uppercase text-[#6B635A] block">Cap Capacity</dt>
+          <dt className="text-[10px] font-mono-data uppercase text-[#665E56] block">Cap Capacity</dt>
           {/* Read from the summary rather than printed as a literal: the cap is
               configurable per deployment via MAX_SLOT_COVERS. */}
-          <dd className="font-display text-2xl text-[#8C6E43]">
+          <dd className="font-display text-2xl text-[#755C38]">
             {summary ? `${summary.maxSlotCovers} Covers / Sitting` : '—'}
           </dd>
         </div>

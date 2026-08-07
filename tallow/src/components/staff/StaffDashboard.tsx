@@ -89,7 +89,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
         {readOnly && (
           <div
-            className="flex items-start gap-3 mb-6 p-3 border border-[#8C6E43] bg-[#EFE6D5] text-[#5C4A2E]"
+            className="flex items-start gap-3 mb-6 p-3 border border-[#755C38] bg-[#EFE6D5] text-[#5C4A2E]"
             role="status"
           >
             <Eye className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
@@ -128,7 +128,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
             <button
               type="button"
               onClick={() => { setRole(null); onSignOut(); }}
-              className="mt-1 text-[10px] font-mono-data uppercase tracking-wider text-[#6B635A] hover:text-[#7A2322] underline"
+              className="mt-1 text-[10px] font-mono-data uppercase tracking-wider text-[#665E56] hover:text-[#7A2322] underline"
             >
               Sign out
             </button>
