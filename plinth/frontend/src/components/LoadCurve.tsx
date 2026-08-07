@@ -160,15 +160,16 @@ export default function LoadCurve() {
             ))}
             {/* The only literal copy of the blue in the app: `stroke` takes no
                 Tailwind colour utility, so this cannot read `--color-blue` the
-                way every other use does. Moved from #1F2BFF with the token on
-                2026-08-07 and has to be kept in step by hand. The legend swatch
-                below is `bg-blue`, so a drift shows up as a curve that does not
-                match its own key. */}
+                way every other use does, and has to be kept in step by hand.
+                The legend swatch below is `bg-blue`, so a drift shows up as a
+                curve that does not match its own key. Deliberately NOT
+                `--color-blue-display`: that one exists only for the block
+                numerals on ink. */}
             <path
               ref={tonnageRef}
               d={TONNAGE_D}
               fill="none"
-              stroke="#3540FF"
+              stroke="#1F2BFF"
               strokeWidth="3.5"
             />
             <path

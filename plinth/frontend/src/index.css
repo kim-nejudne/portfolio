@@ -3,31 +3,42 @@
 @theme {
   --color-bone: #f2eee6;
   --color-ink: #101010;
+  --color-blue: #1f2bff;
   /*
-   * #1f2bff until 2026-08-07. The block numerals set it on `--color-ink` at
-   * 171px, which is **2.58:1** against the 3:1 large-text threshold, and axe
-   * over production found those two nodes.
+   * The blue, desaturated just enough for one job: the block numerals, which
+   * set it on `--color-ink` at 171px. That is **2.58:1** against the 3:1
+   * large-text threshold, and axe over production found those two nodes on
+   * 2026-08-07. It could not be lightened in hue, because `#1f2bff` is already
+   * at full value, so saturation comes down instead, 0.88 to 0.79. The margin
+   * is 3.02 against 3.0, which is thin, and thin because this is the one place
+   * the palette is asked to do something it is not shaped for.
    *
-   * It could not be lightened in hue: #1f2bff is already at full value. So the
-   * saturation comes down instead, 0.88 to 0.79, which is the smallest move
-   * that clears the threshold and is not visible as a change of colour.
+   * ## It was applied to `--color-blue` first, and that broke four other things
    *
-   * Changed on the token rather than scoped to the numerals, because it is safe
-   * everywhere the blue is used and one blue is worth more than two:
+   * The reasoning was that one blue beats two, and the arithmetic looked clean:
+   * `text-blue` on bone went 6.37 to 5.45 and bone on blue went 6.37 to 5.45,
+   * both well clear of 4.5. Every use was checked, including the two axe cannot
+   * see -- Nav's hover state and the week-one dialog's 10px day labels.
    *
-   *                                        #1f2bff   #3540ff   needs
-   *   numerals, text-blue on ink, 171px       2.58      3.02     3.0
-   *   text-blue on bone (Nav hover,
-   *     Planner, the week-one dialog)         6.37      5.45     4.5
-   *   bone on blue (every bg-blue button)     6.37      5.45     4.5
+   * It shipped and the sweep came back with **four new violations**: `#d6d4ea`
+   * on `#3540ff` = 4.34. That is bone under `opacity-85` on a blue panel, the
+   * sibling of the very numeral being fixed (`Blocks.tsx`). Full-opacity bone
+   * on blue was checked; bone at 85% was not, because the opacity is on the
+   * element and the colour is on an ancestor, so no reading of the palette
+   * shows the pair.
    *
-   * The margin on the numerals is 0.02, which is thin, and it is thin because
-   * this is the one place the palette is asked to do something it is not shaped
-   * for. Note that a *small* `text-blue` on ink would still fail: it needs 4.5
-   * and would get 3.02. There is none today, and the two grounds this app uses
-   * are bone and ink, so check before putting one there.
+   *   bone/100 on blue   #1f2bff 6.37   #3540ff 5.45
+   *   bone/85  on blue   #1f2bff 4.93   #3540ff 4.34   <- needs 4.5
+   *
+   * That 4.93 is not a coincidence: it is the figure `CASE-STUDY.md` cites as
+   * this app's lowest text contrast. The global change would have quietly
+   * falsified a published measurement.
+   *
+   * So the token is unchanged and this is scoped to the numerals, which is all
+   * that ever needed it. The third time in one afternoon that an opacity
+   * composite hid a contrast failure from a palette-level reading of the CSS.
    */
-  --color-blue: #3540ff;
+  --color-blue-display: #3540ff;
   --color-vermilion: #ff3b14;
   --color-muted: #5f5a52;
   --color-muted-ink: #a5a099;

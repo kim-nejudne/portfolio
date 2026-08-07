@@ -85,7 +85,7 @@ export default function Blocks() {
               <div className="flex items-start justify-between gap-6">
                 <span
                   className={`block-reveal stretch-narrow font-display text-[clamp(7rem,22vw,17rem)] font-black leading-[0.8] tracking-[-0.03em] tabular-nums ${
-                    onBlue ? 'text-bone' : 'text-blue'
+                    onBlue ? 'text-bone' : 'text-blue-display'
                   }`}
                 >
                   {b.n}
