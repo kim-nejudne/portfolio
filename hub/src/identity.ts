@@ -66,6 +66,37 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
 export const PITCH_META =
   'Nine years of production JavaScript · An editorial background · Motion that ships at 60fps';
 
+/**
+ * `PITCH_META` typeset: the same line, bound so it can only break between its
+ * three facts.
+ *
+ * Left to itself it broke wherever it ran out of room, and at the desktop
+ * measure that was **after "at"**, leaving `60fps` alone on line two. The line
+ * is three claims and a reader parses it as three; breaking inside the third
+ * one, a word from its end, reads as a rendering fault rather than a fold.
+ *
+ * It is marginal rather than badly over: the run measures about 620px against
+ * `.pitch`'s 615px, so five pixels decide it. Shaving the tracking or the size
+ * would buy those five pixels at this width and lose them again at the next
+ * font fallback or the next word added. Binding the segments is true at every
+ * width instead: wide, it is one line; narrow, it folds at a separator.
+ *
+ * The join is a **non-breaking space then the middot**, the shape `roles.ts`
+ * arrived at for `EARLIER_LINE` and for the same reason. It leaves the ordinary
+ * space *after* each separator as the only break opportunity, so a middot can
+ * only ever end a line and never begin one. A separator starting a line reads
+ * as a bullet, which is the one break in this run that looks like a defect.
+ *
+ * Derived rather than written out, so there is no second copy of the sentence
+ * to keep in step. `verify.mjs` compares the rendered line to `PITCH_META`
+ * through a `\s+` collapse and JavaScript's `\s` matches U+00A0, so the
+ * assertion sees the plain sentence and is unaffected. That was checked rather
+ * than assumed, because it is luck rather than design.
+ */
+export const PITCH_META_SET = PITCH_META.split(' · ')
+  .map((fact) => fact.replace(/ /g, ' '))
+  .join(' · ');
+
 /** `<meta name="description">`. The pitch plus the evidence, spelled out. */
 export const DESCRIPTION = `${PITCH_SENTENCE} Nine years of production JavaScript, an editorial background, and motion that ships at 60fps.`;
 

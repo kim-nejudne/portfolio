@@ -1,5 +1,5 @@
 import CvButton from './CvButton';
-import { NAME, PITCH_LINES, PITCH_META } from '../identity';
+import { NAME, PITCH_LINES, PITCH_META_SET } from '../identity';
 
 /**
  * The rest state.
@@ -23,7 +23,10 @@ export default function Pitch() {
         <br />
         {PITCH_LINES[1]}
       </h1>
-      <p className="pitch-meta mono">{PITCH_META}</p>
+      {/* The typeset form, bound so it can only fold between its three facts.
+          `identity.ts` has the measurements; the short version is that it broke
+          after "at" and left "60fps" alone on a line. */}
+      <p className="pitch-meta mono">{PITCH_META_SET}</p>
       {/*
         Inside the pitch on purpose, so it fades with it.
 

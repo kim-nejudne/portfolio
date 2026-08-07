@@ -287,8 +287,20 @@ body {
   padding-top: 1.75rem;
 }
 
+/*
+ * 0.82rem, up from 0.66rem on 2026-08-07, per Kim: it was too small.
+ *
+ * It was 10.56px, which is under the size at which a mono face tracked out to
+ * 0.2em reads as a name rather than as a caption -- and it is the only place on
+ * the page his name appears. The eyebrow has to stay subordinate to a 3.1rem
+ * Didone H1, which it does at 13.1px: still a quarter of the headline, and now
+ * legible at a glance instead of on inspection.
+ *
+ * One value for both breakpoints. "KIM NEJUDNE" is eleven characters and
+ * measures about 120px at this size, so it is nowhere near binding at 390px.
+ */
 .pitch-name {
-  font-size: 0.66rem;
+  font-size: 0.82rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-muted);
