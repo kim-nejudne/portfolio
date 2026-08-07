@@ -1,0 +1,41 @@
+{
+  "name": "tallow",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "prebuild": "node scripts/seo.mjs",
+    "build": "vite build && npm run build:server",
+    "build:server": "esbuild server.ts migrate.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outdir=dist-server --out-extension:.js=.cjs",
+    "start": "node dist-server/server.cjs",
+    "migrate": "node dist-server/migrate.cjs",
+    "seo": "node scripts/seo.mjs",
+    "clean": "rm -rf dist dist-server server.js",
+    "lint": "tsc --noEmit"
+  },
+  "comment": "Only express/pg/dotenv are needed at runtime — the client is bundled into dist/ at build time, so everything else is a build dependency and is omitted from the production image.",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.0.4",
+    "esbuild": "^0.25.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-router-dom": "^7.18.2",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.3"
+  }
+}
