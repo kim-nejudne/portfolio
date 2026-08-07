@@ -1,0 +1,2 @@
+/* Reset the template App.css — PokeTrack does not use App-header / App-link */
+.App { min-height: 100vh; }

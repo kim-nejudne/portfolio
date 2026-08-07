@@ -1,0 +1,23 @@
+# The image carries the FastAPI backend only. Keep the build context small so
+# `docker save | ssh docker load` over a home connection stays quick.
+
+.git
+.github
+.emergent
+frontend
+memory
+tests
+test_reports
+deploy
+
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+
+backend/.env
+backend/poc/test_core.py
+backend_test.py
+
+*.md
+!backend/**/*.md

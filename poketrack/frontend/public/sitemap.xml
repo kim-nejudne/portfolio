@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Three URLs, because three is how many pages this app has that a stranger can
+  see. Everything else — /teams, /projects, /invite/:token — needs a session and
+  a membership, and would be a sign-in redirect to a crawler.
+
+  Kept in step with `deploy/nginx/poketrack.conf`, whose route allowlist names
+  the same trees from the other direction: that file says which paths may
+  return 200, this one says which are worth indexing.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://poketrack.kimnejudne.dev/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://poketrack.kimnejudne.dev/sign-in</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://poketrack.kimnejudne.dev/sign-up</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>
