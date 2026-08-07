@@ -8,6 +8,7 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import { MenuItem, Reservation, TimeSlotAvailability, CoverSummary } from './src/types.js';
+import { isAppRoute } from './src/routes.js';
 import {
   MAX_SLOT_COVERS,
   waitForDb,
@@ -338,8 +339,39 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+
+    /*
+     * The catch-all, which used to answer *everything* with `index.html` at
+     * status 200 — `/robots.txt`, `/og-card.png` before it existed, `/zzz-nope`,
+     * any typo at all. Nothing on this site ever returned a 404, so a crawler
+     * could index unlimited duplicate URLs and anything checking a status code
+     * rather than a body read a missing file as present.
+     *
+     * Three different answers now, because these are three different mistakes:
+     *
+     *   an unknown *API* path -> JSON, in the same envelope every other route
+     *                        here uses. A client that asked for JSON and got a
+     *                        page of HTML at status 200 has no way to tell it
+     *                        went wrong — `/api/nope` did exactly that.
+     *   a missing *file*  -> a plain 404. Nobody wants a page of HTML in
+     *                        response to a request for a PNG.
+     *   an unknown *route* -> the app, so `NotFoundView` renders and the visitor
+     *                        gets the site rather than a bare error — but at
+     *                        status 404, so the response is honest.
+     *
+     * `isAppRoute` comes from `src/routes.ts`, shared with `App.tsx`, so the two
+     * cannot drift into disagreeing about which paths exist.
+     */
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api/')) {
+        res.status(404).json({ error: 'Not found.' });
+        return;
+      }
+      if (path.extname(req.path)) {
+        res.status(404).type('text/plain').send('Not found');
+        return;
+      }
+      res.status(isAppRoute(req.path) ? 200 : 404).sendFile(path.join(distPath, 'index.html'));
     });
   }
 

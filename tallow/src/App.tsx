@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import { MenuItem, Reservation } from './types';
+import { ROUTES, ROUTE_PREFIXES } from './routes';
 import { getToken, clearSession } from './lib/session';
 import { Navigation } from './components/Navigation';
 import { RouteAnnouncer } from './components/RouteAnnouncer';
@@ -97,7 +98,7 @@ export default function App() {
       <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-grow">
 
         <Routes>
-          <Route path="/" element={
+          <Route path={ROUTES.home} element={
             <div>
               <HeroSection
                 dishOfDay={dishOfDay}
@@ -136,7 +137,7 @@ export default function App() {
             </div>
           } />
 
-          <Route path="/menu" element={
+          <Route path={ROUTES.menu} element={
             <PublicMenu
               menuItems={menuItems}
               loading={loadingMenu}
@@ -145,18 +146,18 @@ export default function App() {
             />
           } />
 
-          <Route path="/story" element={<StoryView />} />
+          <Route path={ROUTES.story} element={<StoryView />} />
 
-          <Route path="/visit" element={<VisitView />} />
+          <Route path={ROUTES.visit} element={<VisitView />} />
 
-          <Route path="/reserve" element={
+          <Route path={ROUTES.reserve} element={
             <ReservationFlow
               onBookingComplete={handleBookingComplete}
               initialDishPreference={dishPreference}
             />
           } />
 
-          <Route path="/confirmation" element={
+          <Route path={ROUTES.confirmation} element={
             <BookingConfirmation
               reservationToken={tokenParam || undefined}
               reservationData={activeReservation}
@@ -164,7 +165,7 @@ export default function App() {
             />
           } />
 
-          <Route path="/staff/*" element={
+          <Route path={`${ROUTE_PREFIXES.staff}/*`} element={
             <StaffDashboard
               authenticated={staffAuthenticated}
               onAuthenticate={() => setStaffAuthenticated(true)}
