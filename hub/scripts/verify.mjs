@@ -2597,6 +2597,65 @@ async function main() {
         : `${byFace.size} faces: ${[...byFace.keys()].join(', ')}`,
     );
 
+    /*
+     * The text tokens clear WCAG AA against paper.
+     *
+     * `--color-muted` was `#6f727a` = **4.37:1**, failing 4.5 by 0.13, and it
+     * had been since the palette was written. axe-core over production found it
+     * as 33 nodes on the homepage and 12 on every case study — one violation
+     * type across the whole site, and the only one axe found at all.
+     *
+     * **This is a regression guard, not a sweep, and the distinction matters.**
+     * It checks the two pairs that can legally meet as text on a background,
+     * which is what the palette makes available and is exactly where the defect
+     * was. It cannot see a colour introduced by a component, text over an
+     * image, or a contrast lost to `opacity`. axe remains the sweep; this
+     * exists so the specific value that was wrong for months cannot quietly go
+     * back to being wrong, which no assertion here could previously have said.
+     *
+     * Read off `getComputedStyle` at the document root rather than parsed out
+     * of the stylesheet, so it measures what the browser resolved. Both
+     * `index.css` and `case-study.css` `@import './tokens.css'`, so the tokens
+     * are live on every page; the homepage is loaded explicitly rather than
+     * inheriting whatever page the case-study loop happened to leave behind.
+     */
+    await load({ reduce: false, settle: 400 });
+    const contrast = JSON.parse(
+      await ev(`(() => {
+        const css = getComputedStyle(document.documentElement);
+        const rgb = (v) => {
+          const d = document.createElement('div');
+          d.style.color = v; document.body.appendChild(d);
+          const m = getComputedStyle(d).color.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          d.remove(); return m;
+        };
+        const lum = (c) => {
+          const [r, g, b] = c.map((v) => {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const ratio = (a, b) => {
+          const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p);
+          return (x + 0.05) / (y + 0.05);
+        };
+        const paper = css.getPropertyValue('--color-paper').trim();
+        const pairs = ['--color-ink', '--color-muted'].map((name) => {
+          const value = css.getPropertyValue(name).trim();
+          return { name, value, r: Math.round(ratio(value, paper) * 1000) / 1000 };
+        });
+        return JSON.stringify({ paper, pairs, bad: pairs.filter((p) => p.r < 4.5) });
+      })()`),
+    );
+    check(
+      'every text token clears WCAG AA against paper',
+      contrast.bad.length === 0,
+      contrast.bad.length
+        ? contrast.bad.map((p) => `${p.name} ${p.value} is ${p.r}:1, needs 4.5`).join(' | ')
+        : contrast.pairs.map((p) => `${p.name} ${p.r}:1`).join(', '),
+    );
+
     ws.close();
   } finally {
     chrome.kill();

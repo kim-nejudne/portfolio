@@ -113,12 +113,40 @@
  *   tint(t) = rgb(247 − 225t, 244 − 220t, 236 − 207t)
  *
  * There is less headroom than the threshold suggests — `--color-rule` is
- * already 6.3 off the line and `--color-muted` 8.4, against a limit of 12.
+ * already 6.3 off the line and `--color-muted` 8.3, against a limit of 12.
+ *
+ * ## `--color-muted` and WCAG AA, 2026-08-07
+ *
+ * It was `#6f727a`, which is **4.37:1** on paper against AA's 4.5. axe-core
+ * over production found that as 33 nodes on the homepage and 12 on every case
+ * study: the eyebrow, the evidence line under the H1, `WHERE THE NINE YEARS
+ * WENT`, every spoke line in the index, every mono label on every case study.
+ * One violation type across the whole site, and the only one axe found.
+ *
+ * It failed by 0.13, which is the worst way to fail it. A site whose craft bar
+ * says accessible and whose brief calls the axe sweep the one item that bar
+ * rests on had never had the sweep run, and this is what it says.
+ *
+ * `#6d7078` is 4.507. Two steps down the same hue at the same saturation, so
+ * nothing about the design changes.
+ *
+ * **The other candidate is recorded rather than taken, because it is a design
+ * decision and not a fix.** The formula above, solved for AA, gives
+ * `tint(0.598)` = `#707070` at 4.506 — the same contrast, but **0.17** off the
+ * line instead of 8.3, which would hand back most of a 12-unit budget that
+ * `--color-rule` is also spending from. It is a pure neutral: paper is warm
+ * (247 > 244 > 236) and ink is cool (22 < 24 < 29), so a true blend of them
+ * crosses to grey in the middle. Taking it would strip the cool cast from
+ * every secondary element on the site. That may well be the right call one day;
+ * it is not a contrast fix, and folding it into one would be smuggling.
+ *
+ * `verify.mjs` asserts the ratio now, so this cannot drift back.
  */
 :root {
   --color-paper: #f7f4ec;
   --color-ink: #16181d;
-  --color-muted: #6f727a;
+  /* 4.507:1 on --color-paper. See the AA note above before changing it. */
+  --color-muted: #6d7078;
   --color-rule: #d9d4c8;
   --font-display: 'Bodoni Moda', Georgia, serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;

@@ -106,7 +106,7 @@ const page = (spoke) => `<!doctype html>
       :root {
         --paper: #f7f4ec;
         --ink: #16181d;
-        --muted: #6f727a;
+        --muted: #6d7078;
         --rule: #d9d4c8;
       }
 
