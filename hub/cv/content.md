@@ -154,10 +154,50 @@ distinct art directions, a written case study each, public source for all five.
 - Shipped features to a high-traffic e-commerce storefront serving thousands of
   daily visitors, on a regular release cadence with designers, PMs and backend
   engineers
-- Cut largest contentful paint on the product listing page from 4.1s to 1.9s
-  and 340KB off the main bundle, on a codebase under real production traffic
+- Cut largest contentful paint on the product listing page by giving the lead
+  product image priority and correct sizing, and removing a client-side data
+  waterfall ahead of first render
 - Held the frontend to that standard release over release, in React, Redux and
   styled-components, on a storefront that never went down for a rebuild
+
+> **The two figures came off on 2026-08-07, per Kim, and the technique went in
+> instead.** It read "from 4.1s to 1.9s and 340KB off the main bundle, on a
+> codebase under real production traffic". Both numbers were on the unsourced
+> list below, and an attempt to source them established that they cannot be:
+>
+> - There is no `git log`. Kim left in March 2025 and has no repository access.
+> - The PLP is not publicly measurable. `www.fabletics.com` gates behind a
+>   membership sign-in; an anonymous session reaches an interstitial carrying
+>   one outbound link. Tried three ways: curl (403), the PageSpeed Insights API
+>   (keyless quota exhausted), and headless Chrome with a real mobile UA, which
+>   loads the gate and nothing else.
+> - Today's site is seventeen months of other people's work regardless.
+> - The June 2023 baseline has no observable source by any means.
+>
+> Measuring what *could* be measured argued against keeping them. The homepage
+> today is **LCP 4,776ms** with a **1,202KB** main bundle and 8.98MB of decoded
+> JavaScript, so anyone who runs PageSpeed on fabletics.com sees a number
+> sitting beside this bullet's old *before* rather than its *after*. That has an
+> easy true answer, but it is a question the bullet no longer has to invite. And
+> against a 1.2MB main bundle, "340KB off" was real but small.
+>
+> The replacement names **what was slow and what changed**, which is the half
+> Kim can defend from memory in a room. Decimal precision is what invites "how
+> did you measure that?"; a technique invites "tell me more", which is the
+> question you want.
+>
+> **It cost no vertical space**, measured in the render rather than estimated:
+> two lines before and two lines after, page count still 2.
+>
+> **"That standard" in the next bullet still has a referent.** It pointed at the
+> numbers and now points at the performance work described above it, which is
+> what it always meant.
+>
+> **CrUX History and HTTP Archive are the only external corroboration that
+> exists**, and both are origin-level: they could support "the site got faster
+> while I owned the frontend" and could never support a personal before/after.
+> The CrUX History API needs a free key; unregistered callers get 403, tested.
+> See `readiness-brief.md`.
 
 ### Full Stack Engineer, 10x Ventures · September 2021 – June 2023
 
@@ -331,15 +371,19 @@ of this work that does not come from a framework.
 
 ## Figures that were never sourced
 
-Kim took these eight as final on 2026-08-07, after the risk was raised twice
-and reaffirmed both times. They are set as plain fact on the page now: the
-draft tinting, the guillemets and the build guard are all gone, because a
-document cannot be half-published.
+Kim took these as final on 2026-08-07, after the risk was raised twice and
+reaffirmed both times. They are set as plain fact on the page: the draft
+tinting, the guillemets and the build guard are all gone, because a document
+cannot be half-published.
 
 This list is the only place the distinction survives, and it exists for one
-purpose: **these are the eight things an interviewer can ask about.** Kim said
-he would deal with defending them. Knowing exactly which eight is the cheapest
-possible preparation.
+purpose: **these are the things an interviewer can ask about.** Kim said he
+would deal with defending them. Knowing exactly which is the cheapest possible
+preparation.
+
+**It was eight and it is six.** The two Fabletics figures came off the document
+later the same day, replaced by the technique behind them. See the note under
+that role.
 
 | Role | Figure |
 |---|---|
@@ -348,15 +392,22 @@ possible preparation.
 | Xergy | the **operations and finance** teams |
 | Xergy | a bad write surfaces as a wrong **invoice** |
 | Xergy | **a two-day manual month-end reconciliation**, now **under an hour** |
-| Fabletics | LCP on the PLP, **4.1s to 1.9s** |
-| Fabletics | **340KB** off the main bundle |
 | 10x Ventures | its first **2,000 users** |
 
-Two of the eight can still be turned from invented into sourced without anyone
-telling Kim anything: the Fabletics LCP and bundle figures can be measured
-today against the live storefront, and `git log` around the performance commits
-will say what actually changed. That is the highest-value bullet on the
-document and the least effort to make true.
+~~Two of the eight can still be turned from invented into sourced~~ **This was
+wrong, and finding out cost an afternoon.** It said the Fabletics LCP and bundle
+figures could be measured against the live storefront with `git log` alongside.
+Neither is available: Kim left in March 2025 so there is no repository, and the
+PLP sits behind a membership gate so the page the bullet named cannot be loaded
+anonymously by any tool. Kept struck through rather than deleted, because it is
+the plausible-sounding wrong idea and somebody will have it again.
+
+**The remaining six have no equivalent escape route.** All are internal facts
+about private systems at past employers, so no measurement, archive or public
+dataset can reach any of them. The Fabletics pair looked sourceable only because
+a storefront is public, and even that turned out not to be true. What worked
+there was rewriting the claim to something Kim can defend from memory, and it is
+the only move available for the other six as well.
 
 ## Open questions
 
