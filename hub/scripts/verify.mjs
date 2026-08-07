@@ -2391,8 +2391,23 @@ async function main() {
      *
      * Run here, at the end, because it changes the viewport and every homepage
      * assertion above assumes the desktop one.
+     *
+     * The wait is a poll rather than a sleep, and that is not fussiness. This
+     * first shipped with `settle: 300` and passed every local run, then failed
+     * against production on the same build with "the section did not render at
+     * all" — 300ms is plenty for `vite preview` over loopback and nowhere near
+     * enough to pull a 321KB bundle from Singapore over TLS and mount React.
+     * The case-study pages settle in 400ms because they ship no JavaScript at
+     * all, which is exactly why their number does not transfer here.
+     *
+     * A bigger constant would have hidden it rather than fixed it: the right
+     * question is "has it rendered", and that is answerable. `load`'s blind
+     * sleep stays as it is for the rest of the suite.
      */
-    await load({ reduce: true, url: URL_ARG, width: 390, height: 780, settle: 300 });
+    await load({ reduce: true, url: URL_ARG, width: 390, height: 780, settle: 400 });
+    for (let i = 0; i < 40 && !(await ev(`!!document.querySelector('.roles-row')`)); i++) {
+      await sleep(250);
+    }
     const narrowRoles = JSON.parse(
       await ev(`JSON.stringify((() => {
         const d = document.documentElement;
