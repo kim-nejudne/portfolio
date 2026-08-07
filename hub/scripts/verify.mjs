@@ -354,6 +354,67 @@ async function main() {
       brand.bad.length ? brand.bad.join('; ') : `${brand.n} assets, all 200 and correctly typed`,
     );
 
+    /*
+     * robots.txt and sitemap.xml, and the sitemap listing exactly the pages
+     * this site has.
+     *
+     * The second half is the part worth writing. `scripts/seo.mjs` derives the
+     * sitemap from `SPOKES`, so this cannot drift *today* — but the whole point
+     * of an assertion is that it survives someone deciding to hand-edit the
+     * file, and the failure it guards is silent. A spoke added to `spokes.ts`
+     * gets an index row, a card, a case study and eleven assertions; a sitemap
+     * left behind is the one omission with nothing to announce it.
+     *
+     * Compared as sets rather than by count, because a sitemap with six entries
+     * and the wrong six is the interesting failure and a length check passes it.
+     *
+     * These come off the origin under test rather than off disk: a file that
+     * exists in `public/` and never reaches the server is the exact defect this
+     * is here to catch, and `vite preview` and nginx are different code paths.
+     *
+     * But the URLs *inside* them are compared against the canonical origin, not
+     * against wherever the suite happens to be pointed. A sitemap has to name
+     * absolute production URLs whatever host serves it — a localhost sitemap is
+     * not a passing sitemap, it is a broken one — so the file is right and the
+     * first version of this assertion was wrong, checking `vite preview`'s own
+     * origin and failing every entry.
+     */
+    const seoBase = new URL(URL_ARG).origin;
+    const CANON = 'https://kimnejudne.dev';
+    const seo = { bad: [] };
+    {
+      const r = await fetch(`${seoBase}/robots.txt`).catch(() => null);
+      if (!r || r.status !== 200) seo.bad.push(`robots.txt -> ${r ? r.status : 'failed'}`);
+      else {
+        const type = r.headers.get('content-type') || '';
+        const body = await r.text();
+        if (!type.includes('text/plain')) seo.bad.push(`robots.txt is ${type}`);
+        if (!body.includes(`Sitemap: ${CANON}/sitemap.xml`)) {
+          seo.bad.push('robots.txt does not point at the sitemap');
+        }
+      }
+    }
+    {
+      const r = await fetch(`${seoBase}/sitemap.xml`).catch(() => null);
+      if (!r || r.status !== 200) seo.bad.push(`sitemap.xml -> ${r ? r.status : 'failed'}`);
+      else {
+        const type = r.headers.get('content-type') || '';
+        if (!/xml/.test(type)) seo.bad.push(`sitemap.xml is ${type}`);
+        const body = await r.text();
+        const got = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).sort();
+        const want = [`${CANON}/`, ...SPOKES.map((s) => `${CANON}/work/${s.id}/`)].sort();
+        const missing = want.filter((u) => !got.includes(u));
+        const extra = got.filter((u) => !want.includes(u));
+        if (missing.length) seo.bad.push(`sitemap missing: ${missing.join(', ')}`);
+        if (extra.length) seo.bad.push(`sitemap has unknown: ${extra.join(', ')}`);
+      }
+    }
+    check(
+      'robots.txt and sitemap.xml exist, and the sitemap lists exactly this site',
+      seo.bad.length === 0,
+      seo.bad.length ? seo.bad.join('; ') : `1 + ${SPOKES.length} URLs, robots points at it`,
+    );
+
     const links = await ev(
       `JSON.stringify([...document.querySelectorAll('.index-list > li > a.index-link')]
          .map(a => ({ name: a.textContent.replace(/\\s+/g,' ').trim().slice(0, 24), href: a.getAttribute('href') })))`,
