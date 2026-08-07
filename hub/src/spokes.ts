@@ -61,7 +61,45 @@ export type Spoke = {
   readonly repo: string;
 };
 
+/**
+ * The order here is the running order everywhere.
+ *
+ * Nothing reads a spoke by position: `Showcase` numbers the cards off the
+ * index, `Index` and the `/work/` table render rows in sequence, and the
+ * sitemap, the five case-study pages and their asides all derive from this
+ * array. So this list is the only place the sequence is stated, and moving a
+ * row here moves the showcase, the index, the roster and the sitemap together.
+ *
+ * Kim's ordering, 2026-08-08. Suki leads: it is the only spoke where
+ * offline-first is a requirement rather than a feature, and the warmest thing
+ * in the set, which is what a visitor who watches exactly one card come out of
+ * the head should be handed.
+ */
 export const SPOKES: readonly Spoke[] = [
+  {
+    id: 'suki',
+    name: 'Suki',
+    line: "A neighbourhood shop's ledger. Works with no signal, and the sums cannot disagree.",
+    href: 'https://suki.kimnejudne.dev/',
+    caseStudy: '/work/suki/',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/suki',
+  },
+  {
+    id: 'poketrack',
+    name: 'PokéTrack',
+    line: "Project tracking that levels up. A partner's whole state is a sum of XP events.",
+    href: 'https://poketrack.kimnejudne.dev/',
+    caseStudy: '/work/poketrack/',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
+  },
+  {
+    id: 'forme',
+    name: 'Forme',
+    line: "A trade printer's floor. The preflight engine measures your PDF rather than trusting it.",
+    href: 'https://forme.kimnejudne.dev/',
+    caseStudy: '/work/forme/',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/forme',
+  },
   {
     id: 'tallow',
     name: 'Tallow',
@@ -77,30 +115,6 @@ export const SPOKES: readonly Spoke[] = [
     href: 'https://plinth.kimnejudne.dev/',
     caseStudy: '/work/plinth/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/plinth',
-  },
-  {
-    id: 'forme',
-    name: 'Forme',
-    line: "A trade printer's floor. The preflight engine measures your PDF rather than trusting it.",
-    href: 'https://forme.kimnejudne.dev/',
-    caseStudy: '/work/forme/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/forme',
-  },
-  {
-    id: 'poketrack',
-    name: 'PokéTrack',
-    line: "Project tracking that levels up. A partner's whole state is a sum of XP events.",
-    href: 'https://poketrack.kimnejudne.dev/',
-    caseStudy: '/work/poketrack/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
-  },
-  {
-    id: 'suki',
-    name: 'Suki',
-    line: "A neighbourhood shop's ledger. Works with no signal, and the sums cannot disagree.",
-    href: 'https://suki.kimnejudne.dev/',
-    caseStudy: '/work/suki/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/suki',
   },
 ];
 

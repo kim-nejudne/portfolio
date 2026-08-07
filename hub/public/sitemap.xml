@@ -9,15 +9,7 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://kimnejudne.dev/work/tallow/</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://kimnejudne.dev/work/plinth/</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://kimnejudne.dev/work/forme/</loc>
+    <loc>https://kimnejudne.dev/work/suki/</loc>
     <changefreq>monthly</changefreq>
   </url>
   <url>
@@ -25,7 +17,15 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://kimnejudne.dev/work/suki/</loc>
+    <loc>https://kimnejudne.dev/work/forme/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://kimnejudne.dev/work/tallow/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://kimnejudne.dev/work/plinth/</loc>
     <changefreq>monthly</changefreq>
   </url>
 </urlset>
