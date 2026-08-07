@@ -58,9 +58,31 @@ const { SPOKES, repoLabel } = await import('../src/spokes.ts').catch((err) => {
   );
 });
 
+/* The hub's own share-card alt text, for `work/index.html`, which declares the
+   hub's card. Same type-stripping import as `spokes.ts` above. */
+const { OG_IMAGE_ALT } = await import('../src/identity.ts');
+
 const root = (p) => fileURLToPath(new URL(p, import.meta.url));
 const TEMPLATE = readFileSync(root('./case-study/page.html'), 'utf8');
+const INDEX_TEMPLATE = readFileSync(root('./case-study/index.html'), 'utf8');
 const OUT = root('../work');
+
+/**
+ * The lede on `/work/`, and its meta description, and its `og:description`.
+ *
+ * One string for all three because they are one sentence, and because the
+ * repository has already paid for the alternative once: `identity.ts` exists
+ * because the site's title lived in ten places and had drifted in three.
+ *
+ * It names the scaffold origin deliberately. `case-study/policy.mjs` holds each
+ * of the five pages to disclosing it, and an index that summarised five
+ * disclosed write-ups without disclosing anything would be the one surface in
+ * the set that reads as a claim of hand-built-from-zero.
+ */
+const INDEX_LEDE =
+  'Five standalone products, each with its own art direction, and a written case ' +
+  'study for every one. Each began as an AI-generated scaffold: these are about ' +
+  'the distance from that draft to what is live, which is where the engineering is.';
 
 /** HTML-escape a value going into an attribute. */
 const attr = (s) =>
@@ -126,18 +148,28 @@ function readSource(spoke) {
   return markdown;
 }
 
+/**
+ * One row of a `.cs-others-list`.
+ *
+ * Shared by the "other four" at the foot of each page and by the five on
+ * `work/index.html`, because they are the same object seen from two places. A
+ * second copy would be a second thing to remember when the row grows a column.
+ */
+function row(spoke) {
+  return (
+    `          <li class="cs-others-row">\n` +
+    `            <a class="cs-others-link" href="/work/${spoke.id}/">\n` +
+    `              <span class="cs-others-name">${text(spoke.name)}</span>\n` +
+    `              <span class="cs-others-line mono">${text(spoke.line)}</span>\n` +
+    `            </a>\n` +
+    `          </li>`
+  );
+}
+
 /** The "other four" list at the foot of each page. */
 function others(self) {
   return SPOKES.filter((s) => s.id !== self.id)
-    .map(
-      (s) =>
-        `          <li class="cs-others-row">\n` +
-        `            <a class="cs-others-link" href="/work/${s.id}/">\n` +
-        `              <span class="cs-others-name">${text(s.name)}</span>\n` +
-        `              <span class="cs-others-line mono">${text(s.line)}</span>\n` +
-        `            </a>\n` +
-        `          </li>`,
-    )
+    .map(row)
     .join('\n');
 }
 
@@ -223,4 +255,32 @@ for (const spoke of SPOKES) {
   console.log(`  work/${spoke.id}/index.html  ← ${spoke.id}/CASE-STUDY.md (${markdown.length} bytes)`);
 }
 
-console.log(`${SPOKES.length} case studies generated`);
+/*
+ * `work/index.html`.
+ *
+ * `/work/` answered **403** until this existed, not 404: nginx's
+ * `try_files $uri $uri/` resolved the directory, found no index and fell to
+ * autoindex, which is off. So the one path on this site that was genuinely
+ * broken was also the one that could not be caught by a 404 sweep.
+ *
+ * It matters because the shipped CV prints "Case studies at kimnejudne.dev/work"
+ * on page 2. A reader who typed what the document told them to type got
+ * Forbidden. The five pages were only ever reachable from the homepage index or
+ * from each other, which is fine for someone browsing and useless for the one
+ * URL that is in print and cannot be edited after it is emailed.
+ */
+writeFileSync(
+  root('../work/index.html'),
+  INDEX_TEMPLATE.replaceAll('{{CANONICAL}}', attr(`https://kimnejudne.dev/work/`))
+    .replaceAll('{{DESCRIPTION}}', attr(INDEX_LEDE))
+    /* The hub's card, so the hub's own alt text. Imported rather than retyped:
+       this page declares `og-card.png`, and a second hand-written description
+       of the same picture is exactly the drift `identity.ts` was created to
+       end. `case-study-cards.mjs` already imports from there. */
+    .replaceAll('{{CARD_ALT}}', attr(OG_IMAGE_ALT))
+    .replaceAll('{{ROWS}}', SPOKES.map(row).join('\n')),
+  'utf8',
+);
+console.log(`  work/index.html  ← ${SPOKES.length} rows`);
+
+console.log(`${SPOKES.length} case studies generated, plus their index`);

@@ -637,7 +637,11 @@ async function main() {
         if (!/xml/.test(type)) seo.bad.push(`sitemap.xml is ${type}`);
         const body = await r.text();
         const got = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).sort();
-        const want = [`${CANON}/`, ...SPOKES.map((s) => `${CANON}/work/${s.id}/`)].sort();
+        const want = [
+          `${CANON}/`,
+          `${CANON}/work/`,
+          ...SPOKES.map((s) => `${CANON}/work/${s.id}/`),
+        ].sort();
         const missing = want.filter((u) => !got.includes(u));
         const extra = got.filter((u) => !want.includes(u));
         if (missing.length) seo.bad.push(`sitemap missing: ${missing.join(', ')}`);
@@ -647,7 +651,58 @@ async function main() {
     check(
       'robots.txt and sitemap.xml exist, and the sitemap lists exactly this site',
       seo.bad.length === 0,
-      seo.bad.length ? seo.bad.join('; ') : `1 + ${SPOKES.length} URLs, robots points at it`,
+      seo.bad.length ? seo.bad.join('; ') : `2 + ${SPOKES.length} URLs, robots points at it`,
+    );
+
+    /*
+     * `/work/` is a page, and it lists all five.
+     *
+     * This URL is printed on the CV, which is a PDF that gets emailed around
+     * and cannot be corrected after it is sent. It answered **403** for as long
+     * as the case studies had been published: nginx's `try_files $uri $uri/`
+     * resolved `work/` as a directory, found no index, and fell through to
+     * autoindex, which is off. So it was never a 404 and a 404 sweep could not
+     * have found it.
+     *
+     * The status is checked *and* so is the content, because a status check
+     * alone would not have caught the original defect's mirror image: `vite
+     * preview` answers an unknown path with `index.html` at 200, the trap this
+     * suite has already been bitten by once. The canonical tag is the
+     * discriminator, the same one the per-page assertions use.
+     *
+     * Five rows compared as a set against `SPOKES`, not a count: an index with
+     * five rows and the wrong five is the interesting failure, and it is
+     * exactly what a hand-edited page would produce.
+     */
+    const workIndex = { bad: [] };
+    {
+      const r = await fetch(`${seoBase}/work/`).catch(() => null);
+      if (!r || r.status !== 200) workIndex.bad.push(`/work/ -> ${r ? r.status : 'failed'}`);
+      else {
+        const body = await r.text();
+        const canon = body.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
+        if (canon !== `${CANON}/work/`) {
+          workIndex.bad.push(`canonical is ${canon || '<none>'}, not ${CANON}/work/`);
+        }
+        const hrefs = [...body.matchAll(/class="cs-others-link" href="([^"]+)"/g)].map((m) => m[1]);
+        const wantHrefs = SPOKES.map((s) => `/work/${s.id}/`);
+        const missing = wantHrefs.filter((h) => !hrefs.includes(h));
+        const extra = hrefs.filter((h) => !wantHrefs.includes(h));
+        if (missing.length) workIndex.bad.push(`index missing: ${missing.join(', ')}`);
+        if (extra.length) workIndex.bad.push(`index has unknown: ${extra.join(', ')}`);
+        /* The disclosure, on the one page in the set that summarises five
+           disclosed write-ups. `policy.mjs` cannot reach here — it reads
+           markdown sources and this page has none — so the rule it enforces is
+           asserted directly. */
+        if (!/scaffold/i.test(body)) {
+          workIndex.bad.push('the index does not name the scaffold origin');
+        }
+      }
+    }
+    check(
+      '/work/ is a page, canonical, listing exactly the five case studies',
+      workIndex.bad.length === 0,
+      workIndex.bad.length ? workIndex.bad.join('; ') : `${SPOKES.length} rows, discloses origin`,
     );
 
     const links = await ev(
@@ -2477,7 +2532,8 @@ async function main() {
      * and they were changed by hand; the failure worth catching is the tenth
      * that nobody remembered, and it will not announce itself.
      *
-     * All six documents, fetched as **raw HTML** rather than read off the DOM.
+     * Every HTML document this origin serves, fetched as **raw HTML** rather
+     * than read off the DOM.
      * Four of the places the label lived were `<title>`, `og:title` and two
      * descriptions, none of which is in `textContent` and all of which are what
      * a recruiter's link preview and a search result actually show. Comments
@@ -2489,7 +2545,13 @@ async function main() {
      * time. Writing the regexes out again here would be a second copy of a
      * policy, which is the thing `policy.mjs` exists to avoid.
      */
-    const pages = ['/', ...SPOKES.map((s) => `/work/${s.id}/`)];
+    /* `/work/` is in this list and not only in its own assertion above. It is a
+       seventh document with a `<title>`, an `og:title` and two descriptions —
+       the four slots the label actually lived in — and a sweep that means
+       "nowhere" has to enumerate every page or it means "the pages I thought
+       of". Adding a surface and forgetting this line is the exact failure the
+       retitle paid for once. */
+    const pages = ['/', '/work/', ...SPOKES.map((s) => `/work/${s.id}/`)];
     const retired = JSON.parse(
       await ev(`(async () => {
         const flatten = ${flatten.toString()};

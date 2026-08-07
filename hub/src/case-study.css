@@ -122,6 +122,7 @@ body.cs {
  */
 .cs-mast,
 .cs-body,
+.cs-index,
 .cs-foot > * {
   width: min(100% - 2.5rem, 44rem);
   margin-inline: auto;
@@ -540,6 +541,24 @@ body.cs {
 .cs-others-link:hover .cs-others-line,
 .cs-others-link:focus-visible .cs-others-line {
   color: var(--color-ink);
+}
+
+/*
+ * On `/work/` the list is the page rather than a coda to one.
+ *
+ * It closes with a rule of its own, and that was worth checking rather than
+ * assuming: `.cs-foot` already draws a full-width one 2.5rem below. Two rules
+ * that close in different places is not a duplicate — the inset one ends the
+ * list at the measure, the full-width one ends the page — and without the
+ * inset one the last row's descriptive line simply stops in open paper while
+ * every row above it sits in a ruled band. Looked at both ways in a browser.
+ */
+.cs-index {
+  margin-top: 2.5rem;
+}
+
+.cs-index .cs-others-list {
+  border-bottom: 1px solid var(--color-rule);
 }
 
 .cs-colophon {

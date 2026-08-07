@@ -82,6 +82,16 @@ for spoke in tallow plinth forme poketrack suki; do
   }
 done
 
+# And their index. Checked separately from the loop above because its failure
+# mode is different: without it `/work/` does not 404, it **403**s. nginx
+# resolves the directory through `try_files $uri $uri/`, finds no index and
+# falls to autoindex, which is off. That URL is printed on the CV, which is a
+# PDF that cannot be corrected once it has been emailed.
+[ -f "${DIST}/work/index.html" ] || {
+  echo "missing ${DIST}/work/index.html — did prebuild run? try: npm run cases" >&2
+  exit 1
+}
+
 # And the CV, which reaches `dist/` only by sitting in `public/`. Anything
 # hand-placed on the droplet is destroyed by the `--delete` below, so a CV that
 # is not in this build is a 404 behind two buttons a minute from now.
@@ -140,11 +150,16 @@ ssh "$HOST" "chown -R www-data:www-data ${REMOTE} && nginx -t && systemctl reloa
 # index, and that the slashless form 301s to the canonical one. Neither is a
 # code change — `hub.conf` is untouched by the case studies — so this is
 # confirmation rather than a test, but it is the only place it can happen.
+#
+# The index at `/work/` goes through the same two checks and is listed first,
+# because it is the one path here that failed differently — 403, not 404, since
+# `$uri/` resolved the directory and autoindex is off — and the only one that
+# is printed on the CV.
 echo "==> Confirm the case studies through nginx"
-for spoke in tallow plinth forme poketrack suki; do
-  slash="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/work/${spoke}/")"
-  bare="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/work/${spoke}")"
-  printf '    /work/%-10s %s (bare: %s)\n' "${spoke}/" "$slash" "$bare"
+for path in work work/tallow work/plinth work/forme work/poketrack work/suki; do
+  slash="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/${path}/")"
+  bare="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/${path}")"
+  printf '    /%-15s %s (bare: %s)\n' "${path}/" "$slash" "$bare"
   [ "$slash" = "200" ] || { echo "    ^ expected 200" >&2; exit 1; }
   [ "$bare" = "301" ] || { echo "    ^ expected 301 to the trailing-slash form" >&2; exit 1; }
 done

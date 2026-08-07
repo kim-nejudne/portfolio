@@ -37,14 +37,14 @@ const ORIGIN = 'https://kimnejudne.dev';
 const root = (p) => fileURLToPath(new URL(p, import.meta.url));
 
 /*
- * The homepage first, then one entry per case study.
+ * The homepage first, then the case-study index, then one entry per case study.
  *
  * The spokes themselves are deliberately absent. They live on their own
  * origins, and a sitemap may only list URLs under the host that serves it —
  * a cross-host entry is ignored at best and treated as an error at worst.
  * Each spoke carries its own sitemap for its own pages.
  */
-const urls = [`${ORIGIN}/`, ...SPOKES.map((s) => `${ORIGIN}/work/${s.id}/`)];
+const urls = [`${ORIGIN}/`, `${ORIGIN}/work/`, ...SPOKES.map((s) => `${ORIGIN}/work/${s.id}/`)];
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -75,4 +75,6 @@ writeFileSync(root('../public/robots.txt'), robots, 'utf8');
 writeFileSync(root('../public/sitemap.xml'), sitemap, 'utf8');
 
 console.log(`  public/robots.txt`);
-console.log(`  public/sitemap.xml  ← ${urls.length} URLs (1 + ${SPOKES.length} case studies)`);
+console.log(
+  `  public/sitemap.xml  ← ${urls.length} URLs (home + /work/ + ${SPOKES.length} case studies)`,
+);
