@@ -58,6 +58,30 @@ cd poketrack/frontend && npm ci && npm run build   # Python API under backend/
 is missing, because publishing four case studies of five silently is the worst
 outcome available.
 
+## `spoke-plinth-recovered-craft-pass` is an archive, not a feature branch
+
+> [!WARNING]
+> **Do not merge this branch.** GitHub will offer a "Compare & pull request"
+> button for it after any push, and the name reads like ordinary
+> work-in-progress. It is not.
+
+It holds the **retired PLINTH gym marketing site**, replaced on 2026-08-02 by
+the sixteen-week strength program that `plinth/` carries today. Twelve commits
+and ninety-four files that exist nowhere else in this graph, on a **disjoint
+root** — it shares no merge base with `main` at all, so merging it would need
+`--allow-unrelated-histories` and would graft a dead site into the live tree.
+
+It survives because `plinth-brief.md` records it as the preservation copy of
+that site, and because it was the one ref in the six-repository merge that
+genuinely had nowhere else to live. The tag `recovery/plinth-2026-07-31` points
+at the same commit.
+
+Three other `spoke-*` branches were carried across in the merge and have since
+been deleted: they held zero commits that were not already in `main`, so they
+duplicated refs already preserved on the archived source repositories while
+adding three more chances to misread the warning above. `main` is the only
+branch here that is meant to move.
+
 ## Deployment
 
 Everything runs on one DigitalOcean droplet behind nginx, with TLS per
