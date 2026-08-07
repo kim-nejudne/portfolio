@@ -3,7 +3,31 @@
 @theme {
   --color-bone: #f2eee6;
   --color-ink: #101010;
-  --color-blue: #1f2bff;
+  /*
+   * #1f2bff until 2026-08-07. The block numerals set it on `--color-ink` at
+   * 171px, which is **2.58:1** against the 3:1 large-text threshold, and axe
+   * over production found those two nodes.
+   *
+   * It could not be lightened in hue: #1f2bff is already at full value. So the
+   * saturation comes down instead, 0.88 to 0.79, which is the smallest move
+   * that clears the threshold and is not visible as a change of colour.
+   *
+   * Changed on the token rather than scoped to the numerals, because it is safe
+   * everywhere the blue is used and one blue is worth more than two:
+   *
+   *                                        #1f2bff   #3540ff   needs
+   *   numerals, text-blue on ink, 171px       2.58      3.02     3.0
+   *   text-blue on bone (Nav hover,
+   *     Planner, the week-one dialog)         6.37      5.45     4.5
+   *   bone on blue (every bg-blue button)     6.37      5.45     4.5
+   *
+   * The margin on the numerals is 0.02, which is thin, and it is thin because
+   * this is the one place the palette is asked to do something it is not shaped
+   * for. Note that a *small* `text-blue` on ink would still fail: it needs 4.5
+   * and would get 3.02. There is none today, and the two grounds this app uses
+   * are bone and ink, so check before putting one there.
+   */
+  --color-blue: #3540ff;
   --color-vermilion: #ff3b14;
   --color-muted: #5f5a52;
   --color-muted-ink: #a5a099;

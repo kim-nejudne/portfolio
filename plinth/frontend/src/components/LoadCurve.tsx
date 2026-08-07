@@ -158,11 +158,17 @@ export default function LoadCurve() {
                 {String(i + 1).padStart(2, '0')}
               </text>
             ))}
+            {/* The only literal copy of the blue in the app: `stroke` takes no
+                Tailwind colour utility, so this cannot read `--color-blue` the
+                way every other use does. Moved from #1F2BFF with the token on
+                2026-08-07 and has to be kept in step by hand. The legend swatch
+                below is `bg-blue`, so a drift shows up as a curve that does not
+                match its own key. */}
             <path
               ref={tonnageRef}
               d={TONNAGE_D}
               fill="none"
-              stroke="#1F2BFF"
+              stroke="#3540FF"
               strokeWidth="3.5"
             />
             <path

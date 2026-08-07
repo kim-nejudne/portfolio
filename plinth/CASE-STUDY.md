@@ -214,7 +214,7 @@ it; a year of immutability would pin the first card forever.
 Driven in a real browser over CDP, not inspected by eye. Layout claims are
 measurements:
 
-| | before | after |
+| Measurement | before | after |
 |---|---|---|
 | Horizontal overflow @1440 | 4320px | 0 |
 | Horizontal overflow @390 | 20px | 0 |
