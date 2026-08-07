@@ -87,6 +87,36 @@
      * heavier. Solved for 4.6 rather than 4.5 so a ground a shade darker than
      * `#E4DCCB` does not quietly put them back under.
      *
+     * ## The footer needs its own two, and no single value can serve both
+     *
+     * Darkening these fixed the six violations on paper and left seven on the
+     * one dark surface in the app, `Footer.tsx`, where `--text-ink` is the
+     * *background*. It made those worse: brass on ink went 3.76 to 2.84. They
+     * were already failing, and this pushed them further.
+     *
+     * There is no value that clears 4.5 on both grounds, and it is not a matter
+     * of searching harder. Against `#E4DCCB` a colour needs relative luminance
+     * at or below 0.121; against `#1A1715` it needs 0.215 or above. The two
+     * constraints do not overlap, so the answer is two colours, not a better
+     * one:
+     *
+     *   brass    on ink  #8C6E43 = 3.76  ->  #9D7C4B = 4.60
+     *   oxblood  on ink  #7A2322 = 1.78  ->  #EB4442 = 4.62
+     *
+     * Both lift value alone and keep hue and saturation exactly, so they are
+     * the same two colours turned up for a dark ground rather than new ones.
+     *
+     * The oxblood is the one visible change on the site. At 1.78 it was reading
+     * as near-black on near-black: the line it sets is "Monday & Tuesday:
+     * Closed for Butchery", so the notice a guest most needs from a footer was
+     * the least legible thing in it. That is a design defect that happened to
+     * be found by a contrast checker, not a checker's demand.
+     *
+     * Written as literals in `Footer.tsx` rather than as two more custom
+     * properties, because this palette is already spelled as Tailwind arbitrary
+     * values 103 times and two variables nothing else uses would be decoration.
+     * This comment is the record.
+     *
      * `npm run axe` in the hub sweeps this domain. Run it after touching these.
      */
     --bg-paper: #F7F4EE;

@@ -5,13 +5,28 @@ export const Footer: React.FC = () => {
   return (
     // on-dark switches the focus ring to paper: oxblood on near-black does not
     // clear contrast, and this is the one dark surface in the app.
+    //
+    // That note was right and stopped one line short. The *text* here had the
+    // same problem and kept it. On 2026-08-07 axe found seven contrast
+    // violations on this domain and all seven were in this component. Brass and
+    // oxblood are set against `#1A1715` here and against paper everywhere else,
+    // and no single value clears 4.5 on both grounds: the luminance windows do
+    // not overlap. `#9D7C4B` and `#EB4442` are those two colours lifted for a
+    // dark ground, hue and saturation held. `index.css` carries the numbers.
+    //
+    // The four `hover:` states below are the part axe could not have found,
+    // because no automated rule evaluates a hover state. Hovering a nav link
+    // used to take it from `#DDD6C8` to `#7A2322`, which is **1.78:1**, so
+    // pointing at a link is what made it unreadable.
+    //
+    // `border-t-4` stays oxblood. It is a rule, not text, and has no threshold.
     <footer className="on-dark bg-[#1A1715] text-[#F7F4EE] border-t-4 border-[#7A2322] pt-12 pb-16 px-4 sm:px-8 mt-20">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 text-xs font-mono-data">
         
         {/* Brand Colophon */}
         <div className="md:col-span-5 space-y-3">
           <h2 className="font-display text-3xl tracking-widest text-[#F7F4EE]">TALLOW</h2>
-          <p className="text-[#755C38] uppercase tracking-[0.2em] text-[10px]">
+          <p className="text-[#9D7C4B] uppercase tracking-[0.2em] text-[10px]">
             Dry-Aged · Live-Fire Steakhouse · London Soho
           </p>
           <p className="font-serif-body text-sm text-[#DDD6C8]/80 leading-relaxed max-w-sm">
@@ -21,43 +36,43 @@ export const Footer: React.FC = () => {
 
         {/* Operating Sittings */}
         <div className="md:col-span-4 space-y-2 text-[#DDD6C8]/90">
-          <h2 className="text-[#755C38] uppercase tracking-wider block font-bold mb-2">
+          <h2 className="text-[#9D7C4B] uppercase tracking-wider block font-bold mb-2">
             Service Hours
           </h2>
           <p>Wednesday – Friday: 17:00 – 23:00</p>
           <p>Saturday: 12:00 – 15:30 · 17:00 – 23:30</p>
           <p>Sunday: 12:00 – 21:00 (Hearth Feast)</p>
-          <p className="text-[#7A2322] font-bold pt-1">Monday & Tuesday: Closed for Butchery</p>
+          <p className="text-[#EB4442] font-bold pt-1">Monday & Tuesday: Closed for Butchery</p>
         </div>
 
         {/* Quick Navigation */}
         <nav aria-label="Footer" className="md:col-span-3 space-y-2 uppercase tracking-wider text-[11px]">
-          <h2 className="text-[#755C38] uppercase tracking-wider block font-bold mb-2">
+          <h2 className="text-[#9D7C4B] uppercase tracking-wider block font-bold mb-2">
             Index
           </h2>
           <ul className="space-y-1.5 text-[#DDD6C8]">
             <li>
-              <Link to="/menu" className="hover:text-[#7A2322] transition-colors inline-block">
+              <Link to="/menu" className="hover:text-[#EB4442] transition-colors inline-block">
                 The Printed Menu
               </Link>
             </li>
             <li>
-              <Link to="/reserve" className="hover:text-[#7A2322] transition-colors inline-block">
+              <Link to="/reserve" className="hover:text-[#EB4442] transition-colors inline-block">
                 Reserve Sittings
               </Link>
             </li>
             <li>
-              <Link to="/story" className="hover:text-[#7A2322] transition-colors inline-block">
+              <Link to="/story" className="hover:text-[#EB4442] transition-colors inline-block">
                 Ageing & Live Hearth Craft
               </Link>
             </li>
             <li>
-              <Link to="/visit" className="hover:text-[#7A2322] transition-colors inline-block">
+              <Link to="/visit" className="hover:text-[#EB4442] transition-colors inline-block">
                 Location & Private Dining
               </Link>
             </li>
             <li className="pt-2">
-              <Link to="/staff" className="text-[#755C38] hover:text-[#F7F4EE] underline inline-block">
+              <Link to="/staff" className="text-[#9D7C4B] hover:text-[#F7F4EE] underline inline-block">
                 Staff Control Portal (86 Board)
               </Link>
             </li>
@@ -86,14 +101,14 @@ export const Footer: React.FC = () => {
           <span aria-hidden="true">·</span>
           <a
             href="https://kimnejudne.dev/work/tallow/"
-            className="text-[#755C38] underline hover:text-[#F7F4EE] transition-colors"
+            className="text-[#9D7C4B] underline hover:text-[#F7F4EE] transition-colors"
           >
             Case study
           </a>
           <span aria-hidden="true">·</span>
           <a
             href="https://kimnejudne.dev/"
-            className="text-[#755C38] underline hover:text-[#F7F4EE] transition-colors"
+            className="text-[#9D7C4B] underline hover:text-[#F7F4EE] transition-colors"
           >
             More work
           </a>
