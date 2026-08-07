@@ -139,10 +139,23 @@
         color: var(--muted);
       }
 
+      /*
+        56px until 2026-08-07, when the headline gained the word "Senior" and
+        stopped fitting. `.pitch` is 700px less 130px of padding, so the measure
+        is 570px, and "Senior full-stack engineer" set at 56px is about 625px:
+        it wrapped, which turned an authored two-line break into three lines and
+        pushed the last one across the portrait's glasses.
+
+        48px puts the long line back inside the measure and leaves the card's
+        rightmost ink almost exactly where it was before. Note that
+        `identity-check.mjs` could not have caught this and says so in its own
+        header: it compares the words in the H1, not the box they have to fit.
+        Changing this copy means looking at the PNG.
+      */
       .line {
         font-family: 'Bodoni Moda', Georgia, serif;
         font-weight: 500;
-        font-size: 56px;
+        font-size: 48px;
         line-height: 1.06;
         letter-spacing: -0.02em;
         margin-top: 22px;
@@ -172,8 +185,12 @@
     </div>
 
     <div class="pitch">
-      <p class="name mono">Kim Nejudne — Design Engineer</p>
-      <h1 class="line">Full-stack engineer<br />with a designer&rsquo;s eye.</h1>
+      <!-- Verbatim from `src/identity.ts`, and checked against it by
+           `scripts/identity-check.mjs` at `prebuild`. The eyebrow is the name
+           alone here for the same reason it is on the page: the H1 below
+           already says the title. -->
+      <p class="name mono">Kim Nejudne</p>
+      <h1 class="line">Senior full-stack engineer<br />with a designer&rsquo;s eye.</h1>
       <div class="rule"></div>
       <p class="meta mono">
         Nine years of production JavaScript<br />

@@ -294,9 +294,32 @@ body {
   color: var(--color-muted);
 }
 
+/*
+ * The phone size, eased from `clamp(1.65rem, 7.4vw, 2.1rem)` on 2026-08-07 for
+ * the same reason as the desktop measure below: the H1 gained "Senior" and the
+ * first line stopped fitting.
+ *
+ * The failure this avoids is specifically ugly rather than merely tight. The
+ * only break opportunity inside "full-stack" is its hyphen, so an overrun does
+ * not wrap at a space — it sets "Senior full-" over "stack engineer", which
+ * splits the compound and reads as a typesetting accident on the one line the
+ * whole page rests on.
+ *
+ * Sized against a 360px phone, the design target: the column is 320px there and
+ * the first line comes to 295px. The old numbers gave it 9px, and 1px at 350px
+ * wide.
+ *
+ * The *minimum* is the part that had to be measured rather than guessed. Below
+ * about 310px the `vw` term drops under the floor and the floor becomes the
+ * size, so it is the floor that decides whether a 320px phone wraps — a first
+ * pass set it to 1.55rem and overflowed 320px by 10px while looking safe,
+ * because every viewport anyone tests on is governed by the middle term. 320
+ * is where this stops being checked: no mainstream browser reports a narrower
+ * viewport.
+ */
 .pitch-line {
   margin-top: 0.85rem;
-  font-size: clamp(1.65rem, 7.4vw, 2.1rem);
+  font-size: clamp(1.35rem, 7vw, 1.95rem);
   line-height: 1.04;
   letter-spacing: -0.02em;
   font-weight: 500;
@@ -321,8 +344,24 @@ body {
  * reads as one thing: a line of type, and beneath it the head it is about.
  *
  * The measure is wider than the old column but not by as much as the space
- * allows — `48ch` at the largest, because a Didone at three rem across a
- * 1440px viewport would be a headline you scan rather than read.
+ * allows — because a Didone at three rem across a 1440px viewport would be a
+ * headline you scan rather than read.
+ *
+ * `48ch` until 2026-08-07, when the H1 gained the word "Senior" and stopped
+ * fitting. Worth recording what the numbers actually were, because the old
+ * value looked comfortable and was not: the column is 476px at the widest, the
+ * old first line measured 432px and the second measures **467px**. It was
+ * running at 98% of the measure with 8px to spare, so the copy could not have
+ * grown by a single word in either line. "Senior " costs 148px.
+ *
+ * Note that `ch` here is the width of a zero in the *inherited* font at 1rem,
+ * not in the H1's 3.1rem Bodoni — so `48ch` never meant 48 characters of
+ * headline. The H1 holds about 17. The unit is doing nothing but expressing a
+ * pixel width in a way that reads like a measure, which is how a column that
+ * tight passed review.
+ *
+ * 62ch is 615px: enough for the 580px first line with room that a font
+ * fallback cannot eat, and still a third of a 1682px viewport.
  */
 @media (min-width: 768px) {
   .pitch {
@@ -330,7 +369,7 @@ body {
     right: 4vw;
     top: 0;
     padding-top: 3.5vh;
-    max-width: 48ch;
+    max-width: 62ch;
   }
   .pitch-line {
     font-size: clamp(2.1rem, 3.4vw, 3.1rem);

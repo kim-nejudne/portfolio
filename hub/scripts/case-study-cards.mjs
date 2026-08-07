@@ -44,6 +44,21 @@ const { SPOKES } = await import('../src/spokes.ts').catch((err) => {
   );
 });
 
+/*
+ * The rail on every one of these five cards names Kim, so it is a tenth
+ * surface for the title and it drifted for exactly as long as the others did.
+ * Importing beats checking: these two strings now cannot disagree with the
+ * homepage, and `identity-check.mjs` only has to police the files that have no
+ * way to import.
+ */
+const { NAME, TITLE } = await import('../src/identity.ts').catch((err) => {
+  throw new Error(
+    `Could not import src/identity.ts (node ${process.version}).\n` +
+      `This script relies on Node's built-in TypeScript type stripping,\n` +
+      `unflagged since 22.18. Upgrade Node.\n\n${err.message}`,
+  );
+});
+
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -186,7 +201,7 @@ const page = (spoke) => `<!doctype html>
   </head>
   <body>
     <div class="rail mono">
-      <span><strong>Kim Nejudne</strong> &mdash; Design Engineer</span>
+      <span><strong>${esc(NAME)}</strong> &middot; ${esc(TITLE)}</span>
       <span>Case study</span>
     </div>
 

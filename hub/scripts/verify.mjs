@@ -33,6 +33,20 @@ import { CONTACT } from '../src/contact.ts';
 import { checkDisclosure } from './case-study/policy.mjs';
 
 /*
+ * Who the site says Kim is, and the rule about it. Same arrangement as
+ * `policy.mjs` above: `identity-check.mjs` enforces this over four static files
+ * at `prebuild`, and the two assertions below enforce it over what a browser
+ * actually receives, which is the version that decides anything.
+ *
+ * Both are needed and neither is redundant. The build-time check can read the
+ * share-card template, which never reaches a browser; this one can read the
+ * five generated case-study pages and whatever nginx is really serving, which
+ * the build cannot.
+ */
+import * as IDENTITY from '../src/identity.ts';
+import { BANNED, flatten } from './identity-policy.mjs';
+
+/*
  * Read from the source rather than restated here. A second copy of the angle
  * would agree with the first right up until someone changed one of them, and
  * then the check would be asserting history.
@@ -435,6 +449,72 @@ async function main() {
       'the icons and the share card all exist and are what they claim',
       brand.n >= 4 && brand.bad.length === 0,
       brand.bad.length ? brand.bad.join('; ') : `${brand.n} assets, all 200 and correctly typed`,
+    );
+
+    /*
+     * The page and its head tags tell one story about who Kim is.
+     *
+     * Six strings across five elements, all of which said the same thing in
+     * different words and none of which was checked by anything until
+     * 2026-08-07. `index.html` carried a comment admitting it: "nothing here
+     * will tell you it has gone stale."
+     *
+     * Compared against `src/identity.ts` rather than against literals here, so
+     * this asserts agreement rather than history. A literal copy of the pitch
+     * in this file would agree with the page right up until someone changed one
+     * of them, which is the failure mode being closed, reintroduced one level
+     * up.
+     *
+     * The H1 is read from `innerHTML` with its tags swapped for spaces, not
+     * from `textContent`. It is authored as two expressions either side of a
+     * `<br />`, and JSX drops the whitespace around an element on its own line,
+     * so `textContent` returns "engineerwith" welded together with nothing to
+     * collapse. The first version of this assertion used `textContent` and
+     * failed on exactly that, which is the assertion doing its job on its first
+     * run and worth leaving recorded.
+     */
+    const identity = JSON.parse(
+      await ev(`JSON.stringify((() => {
+        const flat = (s) => (s || '').replace(/\\s+/g, ' ').trim();
+        const meta = (sel) => document.querySelector(sel)?.getAttribute('content');
+        const el = (sel) => document.querySelector(sel)?.textContent;
+        const spaced = (sel) =>
+          (document.querySelector(sel)?.innerHTML || '').replace(/<[^>]*>/g, ' ');
+        return {
+          eyebrow: flat(el('.pitch-name')),
+          pitch: flat(spaced('.pitch-line')),
+          evidence: flat(el('.pitch-meta')),
+          title: flat(document.title),
+          ogTitle: flat(meta('meta[property="og:title"]')),
+          description: flat(meta('meta[name="description"]')),
+          ogDescription: flat(meta('meta[property="og:description"]')),
+          ogAlt: flat(meta('meta[property="og:image:alt"]')),
+        };
+      })())`),
+    );
+    const wantIdentity = {
+      eyebrow: IDENTITY.NAME,
+      pitch: IDENTITY.PITCH_SENTENCE,
+      evidence: IDENTITY.PITCH_META,
+      title: IDENTITY.HEAD_TITLE,
+      ogTitle: IDENTITY.HEAD_TITLE,
+      description: IDENTITY.DESCRIPTION,
+      ogDescription: IDENTITY.OG_DESCRIPTION,
+      ogAlt: IDENTITY.OG_IMAGE_ALT,
+    };
+    /*
+     * The apostrophe is `’` in the module and a plain `'` in the meta tags,
+     * where ASCII travels furthest through the scrapers that read them. Both
+     * are correct where they are, so they are compared as words.
+     */
+    const straighten = (s) => String(s).replace(/[’‘]/g, "'");
+    const drifted = Object.entries(wantIdentity)
+      .filter(([k, want]) => straighten(identity[k]) !== straighten(want))
+      .map(([k]) => `${k}: "${identity[k]}"`);
+    check(
+      'the pitch and every head tag agree with src/identity.ts',
+      drifted.length === 0,
+      drifted.length ? drifted.join(' | ') : `${Object.keys(wantIdentity).length} strings, one source`,
     );
 
     /*
@@ -2220,6 +2300,51 @@ async function main() {
         narrow.wide.length ? narrow.wide.join(' | ') : `${narrow.scrollW}px in ${narrow.clientW}px`,
       );
     }
+
+    /*
+     * No page on this site still serves the retired title.
+     *
+     * The assertion above proves the homepage says the right thing. This one
+     * proves nothing anywhere says the old thing, which is a different claim
+     * and the one that survives a partial edit. Nine surfaces carried the label
+     * and they were changed by hand; the failure worth catching is the tenth
+     * that nobody remembered, and it will not announce itself.
+     *
+     * All six documents, fetched as **raw HTML** rather than read off the DOM.
+     * Four of the places the label lived were `<title>`, `og:title` and two
+     * descriptions, none of which is in `textContent` and all of which are what
+     * a recruiter's link preview and a search result actually show. Comments
+     * count too: a retired label left in one is not shipped to a reader, but it
+     * is what the next person copies.
+     *
+     * `flatten` and `BANNED` are injected by source rather than restated, so
+     * the browser applies the same rule `identity-check.mjs` applies at build
+     * time. Writing the regexes out again here would be a second copy of a
+     * policy, which is the thing `policy.mjs` exists to avoid.
+     */
+    const pages = ['/', ...SPOKES.map((s) => `/work/${s.id}/`)];
+    const retired = JSON.parse(
+      await ev(`(async () => {
+        const flatten = ${flatten.toString()};
+        const banned = ${JSON.stringify(BANNED)};
+        const hits = [];
+        for (const path of ${JSON.stringify(pages)}) {
+          const r = await fetch(path).catch(() => null);
+          if (!r || !r.ok) { hits.push(path + ' -> ' + (r ? r.status : 'failed')); continue; }
+          const flat = flatten(await r.text());
+          for (const phrase of banned) {
+            const at = flat.indexOf(flatten(phrase));
+            if (at !== -1) hits.push(path + ': "' + flat.slice(Math.max(0, at - 40), at + 60).trim() + '"');
+          }
+        }
+        return JSON.stringify({ n: ${pages.length}, hits });
+      })()`),
+    );
+    check(
+      'no page serves the retired title',
+      retired.hits.length === 0,
+      retired.hits.length ? retired.hits.join(' | ') : `${retired.n} pages clean of: ${BANNED.join(', ')}`,
+    );
 
     /*
      * One hashed copy per face across the whole site.

@@ -4,10 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/case-studies.mjs && node scripts/seo.mjs",
+    "predev": "node scripts/identity-check.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",
     "dev": "vite",
     "cases": "node scripts/case-studies.mjs",
-    "prebuild": "node scripts/case-study-cards.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",
+    "identity": "node scripts/identity-check.mjs",
+    "prebuild": "node scripts/identity-check.mjs && node scripts/case-study-cards.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",

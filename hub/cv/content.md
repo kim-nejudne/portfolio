@@ -21,7 +21,7 @@ rule its own first violation, and the check would never pass.
 ## Header
 
 **KIM NEJUDNE**
-Design Engineer
+Senior Full-Stack Engineer
 Dumaguete, Philippines · open to remote
 
 kimnejudne.dev · github.com/kim-nejudne · linkedin.com/in/kim-nejudne-44a969140
@@ -44,16 +44,27 @@ work.august.nejudne@gmail.com
 > masthead is name and title on the left against everything-to-reach-him on
 > the right. `cv.html` is the authority on placement; this file stays the
 > authority on the words.
+>
+> **The title changed, 2026-08-07.** It read `Design Engineer` and now reads
+> `Senior Full-Stack Engineer`, per Kim, who does not identify with the first
+> one. Two reasons beyond preference. The label was undercharging the work:
+> design engineer usually means frontend plus taste, and four of the five
+> shipped spokes have a real backend behind them. And "Senior" appeared
+> nowhere on this document or on the site, next to nine years of production
+> JavaScript. The past role headings below are untouched, because those are
+> what the jobs were actually called and are checkable. The words on this
+> document now come from `hub/src/identity.ts`, which is checked against the
+> typeset `cv.html` at every hub build.
 
 ---
 
 ## Pitch
 
-Full-stack engineer with a designer's eye. Nine years of production JavaScript
-(React, TypeScript, Node), Python for the automation and AI work, and a decade
-in desktop publishing and magazine design before any of it, which is where the
-eye came from. I build the whole thing: interface, motion, API, schema,
-pipeline, and the box it runs on.
+Senior full-stack engineer with a designer's eye. Nine years of production
+JavaScript (React, TypeScript, Node), Python for the automation and AI work,
+and a decade in desktop publishing and magazine design before any of it, which
+is where the eye came from. I build the whole thing: interface, motion, API,
+schema, pipeline, and the box it runs on.
 
 Five products currently shipped and running at **kimnejudne.dev**: five
 distinct art directions, a written case study each, public source for all five.
@@ -232,8 +243,11 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 
 > Grouped rather than a fifteen-item grid, and cut to what argues for this
 > role. `Craft` is the row that does the actual work here. It is the only
-> place on the document where design engineering is named as a skill rather
-> than implied.
+> place on the document where the design half of the pitch is named as a set
+> of skills rather than implied, and it matters more now that the title says
+> engineer twice over: the title claims the seniority and the stack, and this
+> row is the only hard evidence for "with a designer's eye" outside the
+> portfolio itself.
 >
 > Python and SQL were inferred from POKÉTRACK's FastAPI backend and the
 > Postgres work rather than from the old résumé, and Kim confirmed both as
@@ -242,7 +256,9 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 > which is the strongest support any language on this list has.
 >
 > **n8n was cut and then came back, and the reversal is the point.** It came
-> off because it "argues for a different job" than design engineering. Then
+> off because it "argues for a different job" than the one being applied for.
+> (That job was called design engineering at the time; see the header note.)
+> Then
 > D-Launch turned out to be scrapers into n8n with LLM steps, so the thing
 > that looked like résumé clutter is the current role. `Automation & AI` is a
 > row of its own rather than three items appended to `Infrastructure`,
@@ -301,6 +317,15 @@ document and the least effort to make true.
    Kim's call on 2026-08-07, with the consequence stated: D-Launch can discover
    he is looking by opening kimnejudne.dev.
 
-3. **Nothing is left blocking the swap.** `public/cv.pdf` is still the
-   placeholder and `cv/PLACEHOLDER` still exists. Deleting the sentinel and
-   running `./cv/build.sh` ships the real document.
+3. **The swap has happened.** `public/cv.pdf` is the real document and
+   `cv/PLACEHOLDER` is gone. This paragraph said the opposite until 2026-08-07,
+   which is how the retitle nearly missed the PDF: the note claimed the shipped
+   file was a placeholder nobody had to update, and the shipped file was the
+   real CV serving `DESIGN ENGINEER` from the homepage's two download buttons.
+
+   **The PDF does not update when `cv.html` does**, and nothing said so. It is a
+   render, so every text check in this repository looked straight past it:
+   chromium writes page text into a compressed stream and a grep finds nothing.
+   `scripts/identity-check.mjs` now decodes it with `pdftotext -layout` at every
+   hub build and fails naming the file. Editing the words above means running
+   `./cv/build.sh` afterwards.

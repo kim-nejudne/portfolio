@@ -3,10 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kim Nejudne — Design Engineer</title>
+    <!-- Name, title, pitch and both descriptions are `src/identity.ts`, which
+         is the only place they are authored. This file cannot import it, so
+         `scripts/identity-check.mjs` reads this one as text at `prebuild` and
+         fails the build naming the line that has drifted. The separator is a
+         middot rather than an em dash on purpose: see that module. -->
+    <title>Kim Nejudne · Senior Full-Stack Engineer</title>
     <meta
       name="description"
-      content="Full-stack engineer with a designer's eye. Nine years of production JavaScript, an editorial background, and motion that ships at 60fps."
+      content="Senior full-stack engineer with a designer's eye. Nine years of production JavaScript, an editorial background, and motion that ships at 60fps."
     />
     <link rel="canonical" href="https://kimnejudne.dev/" />
     <meta name="theme-color" content="#f7f4ec" />
@@ -40,26 +45,31 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Kim Nejudne" />
     <meta property="og:url" content="https://kimnejudne.dev/" />
-    <meta property="og:title" content="Kim Nejudne — Design Engineer" />
+    <meta property="og:title" content="Kim Nejudne · Senior Full-Stack Engineer" />
     <meta
       property="og:description"
-      content="Full-stack engineer with a designer's eye. Five standalone products, each with its own art direction."
+      content="Senior full-stack engineer with a designer's eye. Five standalone products, each with its own art direction."
     />
 
     <!-- Absolute, not root-relative: several scrapers resolve og:image against
          nothing at all and simply drop a relative one.
 
          The card is rendered from this site's own artwork and fonts by
-         `scripts/brand.sh` — the head layers at the real hinge, the pitch
-         verbatim from `src/components/Pitch.tsx`. Rebuild it whenever either
-         changes; nothing here will tell you it has gone stale. -->
+         `scripts/brand.sh`: the head layers at the real hinge, the pitch
+         verbatim from `src/identity.ts`. Rebuild it whenever either changes.
+
+         "Nothing here will tell you it has gone stale" was true of the words
+         until 2026-08-07 and is not any more. `scripts/identity-check.mjs`
+         holds the card template to the same strings this file uses, so the two
+         cannot disagree about the pitch. The *picture* is still on trust: a
+         re-cut of the head silently leaves an old card in place. -->
     <meta property="og:image" content="https://kimnejudne.dev/og-card.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="A pen-and-ink portrait of Kim, the top of his head hinged open onto a circle of sky. Beside it: full-stack engineer with a designer's eye."
+      content="A pen-and-ink portrait of Kim, the top of his head hinged open onto a circle of sky. Beside it: senior full-stack engineer with a designer's eye."
     />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
