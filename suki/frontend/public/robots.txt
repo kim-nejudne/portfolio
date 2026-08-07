@@ -1,0 +1,30 @@
+# suki.kimnejudne.dev
+#
+# This spoke is almost entirely private. `/` is a public landing page — a
+# printed prospectus explaining tingi, the lista and the payday rhythm — and
+# everything else is the shop, behind a PIN. So the sitemap has exactly one URL
+# and this file names the rest so a crawler does not spend its budget on them.
+#
+# Not a security control, and the gate it sits in front of is a coarse one by
+# design: `VITE_DEVICE_KEY` ships inside the bundle and is therefore not a
+# secret, which `deploy/README.md` says plainly. SUKI has no accounts on
+# purpose. This is about what belongs in a search result, nothing more.
+#
+# /unlock is disallowed for a different reason from the rest: it is reachable
+# without a PIN, so a crawler *can* index it — and a keypad with a demo code
+# printed on it is the single worst page on this origin to land a stranger on.
+# That is the mistake the landing page was built to fix; leaving /unlock
+# indexable would reintroduce it through the back door.
+
+User-agent: *
+Allow: /
+Disallow: /till
+Disallow: /cart
+Disallow: /lista
+Disallow: /stock
+Disallow: /day
+Disallow: /restock
+Disallow: /settings
+Disallow: /unlock
+
+Sitemap: https://suki.kimnejudne.dev/sitemap.xml
