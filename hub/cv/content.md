@@ -147,7 +147,7 @@ distinct art directions, a written case study each, public source for all five.
 
 ### EARLIER
 
-**Backend Developer, Tawk.to Inc.** · April – July 2021
+**Backend Developer, Tawk.to Inc.** · March – September 2021
 NodeJS, MongoDB, Elasticsearch. Microservices depended on by 70+ systems.
 
 **Frontend Developer, Acudeen Technologies Inc.** · May 2019 – March 2021
