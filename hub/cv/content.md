@@ -24,7 +24,7 @@ rule its own first violation, and the check would never pass.
 Senior Full-Stack Engineer
 Dumaguete, Philippines · open to remote
 
-kimnejudne.dev · github.com/kim-nejudne · linkedin.com/in/kim-nejudne-44a969140
+kimnejudne.dev · github.com/kim-nejudne · linkedin.com/in/kim-nejudne
 work.august.nejudne@gmail.com
 
 > The portfolio goes first, before GitHub and LinkedIn. It is the strongest
@@ -55,6 +55,15 @@ work.august.nejudne@gmail.com
 > what the jobs were actually called and are checkable. The words on this
 > document now come from `hub/src/identity.ts`, which is checked against the
 > typeset `cv.html` at every hub build.
+>
+> **The LinkedIn URL changed, 2026-08-08.** Kim set the vanity URL, so the
+> line reads `linkedin.com/in/kim-nejudne` instead of the auto-generated
+> `linkedin.com/in/kim-nejudne-44a969140`. It now matches the domain, the
+> GitHub handle and the masthead on all five case studies, which is the whole
+> point: the contact stack was asking a reader to retype nine digits of noise.
+> LinkedIn keeps the old slug redirecting, so every PDF already emailed out
+> stays live. Nothing checks this string, so it exists in exactly two places
+> and both are listed here: this line and `cv.html:471`.
 
 ---
 
