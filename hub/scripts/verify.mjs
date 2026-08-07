@@ -110,6 +110,50 @@ const COLOUR_RULE = `(() => {
   return JSON.stringify([...new Set(bad)].slice(0, 6));
 })()`;
 
+/**
+ * Every `.woff2` a page *declares*, as a same-origin pathname.
+ *
+ * Read from the CSSOM rather than from resource timing, and that change fixed
+ * four production-only failures that had nothing to do with the site.
+ *
+ * The old instrument was `performance.getEntriesByType('resource')` — i.e. the
+ * faces the browser happened to *download* on this navigation. Against
+ * `vite preview` that is every face on every page, so it passed. Against
+ * production, `/assets/` is served `immutable` for a year and the renderer
+ * keeps decoded faces in memory across same-origin navigations, so only the
+ * *first* case study visited registered a font and the other four reported "no
+ * faces fetched". `Network.setCacheDisabled` does not reach that memory cache.
+ * The pages were fine throughout: all three faces are declared and all three
+ * serve `200 font/woff2`.
+ *
+ * It is also the better instrument on the merits. The claim is "the faces this
+ * page uses are hashed build assets" — a face declared from a CDN is a failure
+ * whether or not the browser bothered to fetch it this time, and a download is
+ * only ever a proxy for a declaration.
+ *
+ * `sheet.cssRules` throws on a cross-origin stylesheet. This site has none, so
+ * the throw is reported rather than swallowed — a third-party stylesheet
+ * appearing here would be a finding in itself.
+ */
+const FACE_SOURCES = `JSON.stringify((() => {
+  const out = [];
+  const walk = (rules) => {
+    for (const rule of rules) {
+      if (rule.cssRules) { walk(rule.cssRules); continue; }
+      if (rule.constructor.name !== 'CSSFontFaceRule') continue;
+      const src = rule.style.getPropertyValue('src') || '';
+      for (const m of src.matchAll(/url\\((["']?)([^"')]+)\\1\\)/g)) {
+        try { out.push(new URL(m[2], location.href).pathname); } catch { out.push(m[2]); }
+      }
+    }
+  };
+  for (const sheet of document.styleSheets) {
+    try { walk(sheet.cssRules); }
+    catch { out.push('<cross-origin stylesheet: ' + (sheet.href || '?') + '>'); }
+  }
+  return [...new Set(out)].filter(p => p.endsWith('.woff2'));
+})())`;
+
 const results = [];
 function check(name, ok, detail = '') {
   results.push({ name, ok, detail });
@@ -1653,12 +1697,7 @@ async function main() {
      * under a second hash, double the download for anyone reading both, and
      * look identical on every page.
      */
-    const allFonts = new Set(
-      JSON.parse(
-        await ev(`JSON.stringify(performance.getEntriesByType('resource')
-          .map(r => new URL(r.name).pathname).filter(p => p.endsWith('.woff2')))`),
-      ),
-    );
+    const allFonts = new Set(JSON.parse(await ev(FACE_SOURCES)));
 
     for (const s of SPOKES) {
       const url = new URL(`/work/${s.id}/`, URL_ARG).href;
@@ -1758,15 +1797,12 @@ async function main() {
       })()`);
       check(`${s.id}: the page is under 250KB over the wire`, weight < 250, `${weight}KB`);
 
-      const pageFonts = JSON.parse(
-        await ev(`JSON.stringify(performance.getEntriesByType('resource')
-          .map(r => new URL(r.name).pathname).filter(p => p.endsWith('.woff2')))`),
-      );
+      const pageFonts = JSON.parse(await ev(FACE_SOURCES));
       pageFonts.forEach((f) => allFonts.add(f));
       check(
         `${s.id}: its faces are hashed build assets`,
         pageFonts.length > 0 && pageFonts.every((f) => f.startsWith('/assets/')),
-        pageFonts.map((f) => f.replace('/assets/', '')).join(', ') || 'no faces fetched',
+        pageFonts.map((f) => f.replace('/assets/', '')).join(', ') || 'no faces declared',
       );
 
       const csOffenders = await ev(COLOUR_RULE);
