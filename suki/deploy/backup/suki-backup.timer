@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly SUKI Postgres dump
+
+[Timer]
+# 03:40 local. Twenty minutes after FORME's dump so two pg_dumps never compete
+# for a 2-vCPU box, and clear of certbot's renewal window.
+OnCalendar=*-*-* 03:40:00
+# If the droplet was off at 03:40, run on the next boot rather than skipping.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

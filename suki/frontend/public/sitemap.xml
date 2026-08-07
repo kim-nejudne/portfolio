@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One URL, and that is the honest number rather than a stub.
+
+  Every other route in this app is the shop — the till, the lista, the stock
+  book — and sits behind the PIN. The landing page is the only thing here a
+  stranger is meant to see, and it is the whole public surface of the spoke.
+
+  The manifest's `start_url` is deliberately `/till` and not this: an installed
+  app belongs to the shopkeeper and she wants the counter. A sitemap is for
+  people arriving cold, which is the opposite audience.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://suki.kimnejudne.dev/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+</urlset>

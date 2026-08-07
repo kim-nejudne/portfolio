@@ -1,0 +1,16 @@
+[Unit]
+Description=Nightly reset of the SUKI demo shop
+
+[Timer]
+# 03:50, ten minutes after suki-backup.timer. The ordering is the point: the
+# night's dump captures whatever visitors did before this wipes it, so the log
+# is still recoverable if anything interesting turns up in it.
+OnCalendar=*-*-* 03:50:00
+# Deliberately NOT Persistent. A missed reset is a shop that drifts for one
+# more day; catching up on boot would instead wipe a shop somebody might be
+# looking at right then.
+Persistent=false
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

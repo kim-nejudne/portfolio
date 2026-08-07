@@ -1,0 +1,100 @@
+# Droplet stack. Lives at /opt/suki/compose.yaml alongside a .env holding secrets.
+#
+# The image is built on a workstation and shipped with `docker save | docker load`,
+# so there is no build context here — the box should not be running npm ci.
+#
+#   docker compose up -d
+#
+# Only the API and its database are here. The web app is static and served
+# straight off disk by nginx from /var/www/suki, because a Node process whose
+# entire job is returning files it already has is 60MB of RSS this box cannot
+# spare next to n8n, netint-vpuaas, poketrack, tallow and forme.
+
+name: suki
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Deliberately no `ports:`. Postgres is reachable only on the private
+    # compose network — it has no path to the internet at all.
+    volumes:
+      - suki-db:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - effective_cache_size=96MB
+      - -c
+      - maintenance_work_mem=24MB
+      - -c
+      - work_mem=2MB
+      - -c
+      - max_connections=20
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 192m
+
+  # Applies migrations, then exits. The API waits for it to finish.
+  migrate:
+    image: suki-api:${IMAGE_TAG:-local}
+    restart: 'no'
+    command: ['node', 'dist/db/migrate.js']
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # migrate.js reads DATABASE_URL directly and never boots Nest, but the
+      # image is the same one, so give it a key rather than leave the variable
+      # unset and confusing.
+      DEVICE_KEY: ${DEVICE_KEY}
+    mem_limit: 192m
+
+  api:
+    image: suki-api:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Every sync request must present this. The API refuses to boot without
+      # it — see api/src/config/env.validation.ts.
+      DEVICE_KEY: ${DEVICE_KEY}
+      # The browser origin allowed to sync. Same host as the static site.
+      WEB_ORIGIN: ${WEB_ORIGIN:-https://suki.kimnejudne.dev}
+    # Loopback only — nginx terminates TLS in front. Never expose this publicly.
+    ports:
+      - '127.0.0.1:3007:4100'
+    healthcheck:
+      # node, not curl: the image has no curl and adding one to check the thing
+      # is running is a package more than it needs.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: 256m
+
+volumes:
+  suki-db:

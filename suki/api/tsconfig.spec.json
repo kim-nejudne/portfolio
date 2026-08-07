@@ -1,0 +1,7 @@
+{
+  // Tests compile with the same options but are never emitted, so they can reach
+  // outside src/ without dragging the build output layout with them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "noEmit": true },
+  "include": ["src/**/*", "test/**/*"]
+}
