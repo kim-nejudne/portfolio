@@ -39,7 +39,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { findBanned, flatten, isCopy, opensWithCopy } from './identity-policy.mjs';
+import { containsCopy, findBanned, flatten, isCopy, opensWithCopy } from './identity-policy.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
@@ -53,6 +53,14 @@ const IDENTITY = await import('../src/identity.ts').catch((err) => {
 
 const { NAME, TITLE, HEAD_TITLE, PITCH_LINES, PITCH_SENTENCE, PITCH_META, DESCRIPTION, OG_DESCRIPTION, OG_IMAGE_ALT } =
   IDENTITY;
+
+const { ROLES, EARLIER } = await import('../src/roles.ts').catch((err) => {
+  throw new Error(
+    `Could not import src/roles.ts (node ${process.version}).\n` +
+      `This script relies on Node's built-in TypeScript type stripping,\n` +
+      `unflagged since 22.18. Upgrade Node.\n\n${err.message}`,
+  );
+});
 
 /*
  * What each file has to say, where it has to say it, and nothing about how.
@@ -154,6 +162,55 @@ for (const surface of SURFACES) {
       `${surface.file}: still contains the retired copy "${phrase}".\n` +
         `    See BANNED in scripts/identity-policy.mjs for why it is retired.`,
     );
+  }
+}
+
+/*
+ * The homepage and the CV agree about where Kim has worked.
+ *
+ * `src/roles.ts` feeds the list under the index. `cv/content.md` is the
+ * authority on the bullets under each role and `cv/cv.html` is what gets
+ * typeset. Those are three files describing one employment history, and the
+ * whole reason this script exists is that the same arrangement for the job
+ * title had quietly drifted in three places out of ten.
+ *
+ * Every employer and every job title in `roles.ts` has to appear in the typeset
+ * CV. Not the reverse: the CV carries three older roles the homepage compresses
+ * into one `EARLIER` line on purpose, so requiring a match in both directions
+ * would fail the compression that is the point of it.
+ *
+ * The dates are deliberately not compared. They are printed ranges with en
+ * dashes in one file and typeset spans in the other, and a string equality on
+ * them would fail on formatting rather than on fact. What matters is that no
+ * employer appears on the homepage who is absent from the document a recruiter
+ * gets sent.
+ */
+{
+  const cv = await readFile(resolve(ROOT, 'cv/cv.html'), 'utf8').catch(() => null);
+  if (cv === null) {
+    problems.push('cv/cv.html: could not be read, so the roles could not be checked against it');
+  } else {
+    for (const r of ROLES) {
+      if (!containsCopy(cv, r.employer)) {
+        problems.push(
+          `cv/cv.html: does not name "${r.employer}", which src/roles.ts puts on the homepage.\n` +
+            `    The homepage would claim a job the CV does not list.`,
+        );
+      } else if (!containsCopy(cv, `${r.title}, ${r.employer}`)) {
+        problems.push(
+          `cv/cv.html: names "${r.employer}" but not as "${r.title}, ${r.employer}".\n` +
+            `    src/roles.ts and the CV disagree about the job title.\n` +
+            `    Past titles are what the jobs were actually called; fix the one that is wrong.`,
+        );
+      }
+    }
+    for (const e of EARLIER.employers) {
+      /* "freelance" is a description rather than an employer; the CV writes it
+         as "Freelance Web Developer", which contains it either way. */
+      if (!containsCopy(cv, e)) {
+        problems.push(`cv/cv.html: does not mention "${e}", listed under EARLIER in src/roles.ts.`);
+      }
+    }
   }
 }
 
@@ -262,5 +319,6 @@ if (problems.length) {
 
 console.log(
   `identity-check: ${SURFACES.length} static surfaces agree with src/identity.ts` +
+    `\nidentity-check: ${ROLES.length} roles + ${EARLIER.employers.length} earlier are all in cv/cv.html` +
     (pdfNote ? `\nidentity-check: ${pdfNote}` : ''),
 );

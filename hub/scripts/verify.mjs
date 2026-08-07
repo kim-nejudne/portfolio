@@ -44,6 +44,7 @@ import { checkDisclosure } from './case-study/policy.mjs';
  * the build cannot.
  */
 import * as IDENTITY from '../src/identity.ts';
+import { EARLIER, ROLES } from '../src/roles.ts';
 import { BANNED, flatten } from './identity-policy.mjs';
 
 /*
@@ -515,6 +516,68 @@ async function main() {
       'the pitch and every head tag agree with src/identity.ts',
       drifted.length === 0,
       drifted.length ? drifted.join(' | ') : `${Object.keys(wantIdentity).length} strings, one source`,
+    );
+
+    /*
+     * The employment history, under the index.
+     *
+     * This is the evidence for the word "Senior" in the H1. Until 2026-08-07 the
+     * homepage offered five side projects, a droplet and a PDF you had to
+     * download, which is a thin page to make a seniority claim on.
+     *
+     * Three things, and the second is the one worth having. That every role in
+     * `roles.ts` renders. That they are in the order the module declares, which
+     * for a career means newest first — an employment list a recruiter has to
+     * re-sort in their head is worse than no list, and `.map` over an array is
+     * exactly the thing that silently starts rendering in whatever order
+     * someone last edited the file in. And that none of them is a link: every
+     * employer has a website, all of them lead away from a page whose whole job
+     * is to push people into the spokes.
+     *
+     * Dates are compared as printed strings, en dashes and all. They are copy
+     * here, not data — `roles.ts` says so — and the assertion should fail if the
+     * page starts showing something other than what the module says.
+     */
+    const rolesDom = JSON.parse(
+      await ev(`JSON.stringify((() => {
+        const rows = [...document.querySelectorAll('.roles-row')];
+        if (!rows.length) return { rows: [], anchors: 0, heading: null };
+        const flat = (s) => (s || '').replace(/\\s+/g, ' ').trim();
+        return {
+          heading: flat(document.querySelector('#roles-heading')?.textContent),
+          labelled: !!document.querySelector('section[aria-labelledby="roles-heading"]'),
+          anchors: document.querySelectorAll('.roles-row a').length,
+          rows: rows.map(r => ({
+            employer: flat(r.querySelector('.roles-employer')?.textContent),
+            title: flat(r.querySelector('.roles-title')?.textContent),
+            dates: flat(r.querySelector('.roles-dates')?.textContent),
+          })),
+        };
+      })())`),
+    );
+    const wantRows = [
+      ...ROLES.map((r) => ({ employer: r.employer, title: r.title, dates: r.dates })),
+      { employer: 'Earlier', title: EARLIER.employers.join(' · '), dates: EARLIER.dates },
+    ];
+    const roleFails = [];
+    if (!rolesDom.labelled) roleFails.push('the section is not labelled by its heading');
+    if (rolesDom.anchors > 0) roleFails.push(`${rolesDom.anchors} employer rows are links, and none should be`);
+    if (rolesDom.rows.length !== wantRows.length) {
+      roleFails.push(`${rolesDom.rows.length} rows, wanted ${wantRows.length}`);
+    } else {
+      wantRows.forEach((want, i) => {
+        const got = rolesDom.rows[i];
+        for (const k of ['employer', 'title', 'dates']) {
+          if (got[k] !== want[k]) roleFails.push(`row ${i + 1} ${k}: "${got[k]}" wanted "${want[k]}"`);
+        }
+      });
+    }
+    check(
+      'the work history renders newest first, exactly as src/roles.ts declares it',
+      roleFails.length === 0,
+      roleFails.length
+        ? roleFails.slice(0, 4).join(' | ')
+        : `${wantRows.length} rows, ${rolesDom.rows[0]?.employer} first, no links`,
     );
 
     /*
@@ -2300,6 +2363,62 @@ async function main() {
         narrow.wide.length ? narrow.wide.join(' | ') : `${narrow.scrollW}px in ${narrow.clientW}px`,
       );
     }
+
+    /*
+     * The work history holds up on a phone.
+     *
+     * It is a four-column grid on desktop and the dates are the column that
+     * cannot give: "September 2021 – June 2023" broken over two lines reads as
+     * two dates rather than one range, which is why `.roles-dates` is
+     * `white-space: nowrap`. `nowrap` is also exactly how a table stops being
+     * responsive and starts pushing a scrollbar onto the document, so the two
+     * have to be checked together — the rule that fixes the wrap is the rule
+     * that could break the page.
+     *
+     * Both halves were proven to fire, and the two sabotages that did *not*
+     * fire are the more useful finding. Deleting `nowrap` changes nothing at
+     * this width, and neither does forcing the desktop four-column grid onto
+     * the phone: the dates column is `auto` in both grids and already sizes to
+     * max-content, and `minmax(0, …)` plus `1fr` shrink rather than overflow.
+     * So this assertion guards a real failure that today's stylesheet is not
+     * close to — reached by enlarging the type and by squeezing the column,
+     * both of which fail it loudly.
+     *
+     * 390px rather than 360 because that is what the case-study pages are held
+     * to a few hundred lines above, and one narrow width across the site beats
+     * two. The homepage's own art is checked at other sizes elsewhere; this is
+     * about the table.
+     *
+     * Run here, at the end, because it changes the viewport and every homepage
+     * assertion above assumes the desktop one.
+     */
+    await load({ reduce: true, url: URL_ARG, width: 390, height: 780, settle: 300 });
+    const narrowRoles = JSON.parse(
+      await ev(`JSON.stringify((() => {
+        const d = document.documentElement;
+        const rows = [...document.querySelectorAll('.roles-row')];
+        const wide = [...document.querySelectorAll('.roles *')]
+          .filter(e => e.getBoundingClientRect().width > d.clientWidth + 1)
+          .map(e => e.className);
+        /* One line each. A wrapped range is the failure this is here for. */
+        const wrappedDates = [...document.querySelectorAll('.roles-dates')]
+          .filter(e => e.getBoundingClientRect().height > parseFloat(getComputedStyle(e).lineHeight) * 1.4)
+          .map(e => e.textContent.trim());
+        return { rows: rows.length, scrollW: d.scrollWidth, clientW: d.clientWidth, wide, wrappedDates };
+      })())`),
+    );
+    const narrowFails = [];
+    if (narrowRoles.rows === 0) narrowFails.push('the section did not render at all');
+    if (narrowRoles.scrollW > narrowRoles.clientW + 1) {
+      narrowFails.push(`document is ${narrowRoles.scrollW}px in ${narrowRoles.clientW}px`);
+    }
+    if (narrowRoles.wide.length) narrowFails.push(`wider than the viewport: ${narrowRoles.wide.join(', ')}`);
+    if (narrowRoles.wrappedDates.length) narrowFails.push(`date range wrapped: ${narrowRoles.wrappedDates.join(' | ')}`);
+    check(
+      'the work history fits a 390px phone with no date range broken in two',
+      narrowFails.length === 0,
+      narrowFails.length ? narrowFails.join(' | ') : `${narrowRoles.rows} rows in ${narrowRoles.clientW}px`,
+    );
 
     /*
      * No page on this site still serves the retired title.

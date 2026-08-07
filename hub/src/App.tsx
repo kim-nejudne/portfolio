@@ -3,6 +3,7 @@ import Colophon from './components/Colophon';
 import Head from './components/Head';
 import Index from './components/Index';
 import Pitch from './components/Pitch';
+import Roles from './components/Roles';
 import Showcase from './components/Showcase';
 import {
   CANVAS,
@@ -71,6 +72,12 @@ export default function App() {
           </p>
         </section>
         <Index />
+        {/*
+          Under the index, not inside it: the work is the argument and this is
+          the support for it, and the skip link's `#work` target stays one
+          section about one subject.
+        */}
+        <Roles />
         <Colophon />
       </main>
     </>

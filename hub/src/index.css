@@ -672,6 +672,132 @@ body {
   }
 }
 
+/* ---- where the nine years went ----------------------------------- *
+ *
+ * Directly under the index and built from the same parts: same measure, same
+ * hairline rules, same `.index-heading`. It is not a second art direction, it
+ * is the same table set one step quieter — because the work above it is the
+ * argument and this is the support for it, and a support that shouts over its
+ * own claim has the order backwards.
+ *
+ * Nothing here is a link. Every employer has a website and every one of them
+ * leads away from a page whose whole job is to push people into the spokes.
+ * ------------------------------------------------------------------ */
+
+.roles {
+  padding: 2.5rem 1.25rem 1rem;
+}
+
+.roles-list {
+  max-width: 68rem;
+  margin: 1.5rem auto 0;
+  list-style: none;
+}
+
+/*
+ * Mobile: employer on its own line, then title and dates sharing the next.
+ * `auto` on the last column rather than `1fr` so the range keeps its own width
+ * and the title is what gives when the row is tight — a truncated job title is
+ * legible, a truncated date range is a typo.
+ */
+.roles-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 1rem;
+  row-gap: 0.3rem;
+  align-items: baseline;
+  padding: 1rem 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.roles-row:last-child {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.roles-employer {
+  grid-column: 1 / -1;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.roles-title {
+  font-size: 0.66rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-wrap: pretty;
+}
+
+.roles-dates {
+  font-size: 0.62rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  text-align: right;
+  /*
+   * A range broken over two lines reads as two dates, so this column must not
+   * wrap.
+   *
+   * Worth being honest about what the declaration is doing, because a sabotage
+   * of it changed nothing: the column is `auto` in both grids, so it already
+   * sizes to max-content wherever there is room, and removing this at 390px
+   * leaves the dates on one line regardless. It is insurance against the column
+   * becoming constrained later, not a fix for a live problem. The assertion in
+   * `verify.mjs` is what would actually catch a wrap, and it does — proven by
+   * squeezing the column rather than by trusting this line.
+   */
+  white-space: nowrap;
+}
+
+/*
+ * The compressed row. Three employers across five years, and it is here to
+ * show the nine years are continuous rather than to be read, so it sits at the
+ * meta size throughout.
+ */
+.roles-row--earlier .roles-employer {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+@media (min-width: 768px) {
+  .roles {
+    padding-top: 3rem;
+  }
+  /*
+   * This is `.index-link`'s grid exactly — `3rem minmax(0, 14rem) 1fr` at a
+   * 0.75rem gap — with a fourth `auto` column for the dates. Sharing the track
+   * sizes is the whole point: employer names land on the same vertical as the
+   * spoke names above them and the job titles on the same vertical as the spoke
+   * lines, so the two tables read as one document instead of two blocks that
+   * happen to be adjacent.
+   *
+   * The first column is the index's numeral gutter and is deliberately empty.
+   * Numbering the five products is a contents page; numbering a career is not
+   * a thing anyone does, and leaving the track in place is what buys the
+   * alignment.
+   *
+   * A first pass set `minmax(0, 17rem)` with no gutter and eyeballed it. The
+   * employer names came out flush left against indented spoke names and the
+   * titles missed `.index-line` by 8px, which is the worst of both: near enough
+   * to look intended, far enough to look wrong.
+   */
+  .roles-row {
+    grid-template-columns: 3rem minmax(0, 14rem) 1fr auto;
+    column-gap: 0.75rem;
+    row-gap: 0;
+    padding: 1.15rem 0;
+  }
+  .roles-employer {
+    grid-column: 2;
+    font-size: 1.2rem;
+  }
+  .roles-row--earlier .roles-employer {
+    font-size: 0.66rem;
+  }
+}
+
 /* A hairline that draws on hover — transform only, so it composites. */
 .index-name::after {
   content: '';
