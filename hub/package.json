@@ -7,14 +7,15 @@
     "predev": "node scripts/case-studies.mjs && node scripts/seo.mjs",
     "dev": "vite",
     "cases": "node scripts/case-studies.mjs",
-    "prebuild": "node scripts/case-studies.mjs && node scripts/seo.mjs",
+    "prebuild": "node scripts/case-study-cards.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "crops": "bash scripts/crops.sh",
     "verify": "node scripts/verify.mjs",
     "beats": "node scripts/shoot-beats.mjs",
-    "seo": "node scripts/seo.mjs"
+    "seo": "node scripts/seo.mjs",
+    "cards": "node scripts/case-study-cards.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

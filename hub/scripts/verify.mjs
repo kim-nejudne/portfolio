@@ -1837,6 +1837,51 @@ async function main() {
        * the failure this catches, and it is invisible by eye because both
        * halves look right on their own.
        */
+      /*
+       * Its own share card, not the hub's.
+       *
+       * All five declared `/og-card.png` until 2026-08-07, so every case study
+       * previewed as the same picture of Kim's head — five arguments, one
+       * image, and nothing failing anywhere.
+       *
+       * The clause that makes this more than a string comparison is the decode.
+       * A card is a *generated* asset, and the generated-asset failure here is
+       * always the same shape: the tag is right, the file is stale or missing,
+       * and only the bytes can tell you. `vite preview` answers a missing card
+       * with index.html at status 200, so the content type is what catches a
+       * deletion, exactly as it does for the crops.
+       */
+      const card = JSON.parse(
+        await ev(`(async () => {
+          const og = document.querySelector('meta[property="og:image"]');
+          if (!og) return JSON.stringify({ ok: false, why: 'no og:image' });
+          const href = og.getAttribute('content');
+          const want = '/cards/' + ${JSON.stringify(s.id)} + '.png';
+          if (!/^https:\\/\\//.test(href)) return JSON.stringify({ ok: false, why: 'og:image is not absolute: ' + href });
+          if (!href.endsWith(want)) return JSON.stringify({ ok: false, why: 'og:image is ' + href });
+          /*
+           * The tag must be absolute — several scrapers drop a relative one —
+           * but it is fetched by *path*, against whatever origin is under test.
+           * Fetching the tag verbatim asks production for the file even when
+           * the suite is pointed at vite preview, which is how the first run of
+           * this assertion failed all five: the card was correct and unshipped.
+           */
+          const r = await fetch(want).catch(() => null);
+          if (!r || !r.ok) return JSON.stringify({ ok: false, why: want + ' -> ' + (r ? r.status : 'failed') });
+          const type = r.headers.get('content-type') || '';
+          if (!type.includes('png')) return JSON.stringify({ ok: false, why: want + ' is ' + type });
+          const bmp = await createImageBitmap(await r.blob()).catch(() => null);
+          if (!bmp) return JSON.stringify({ ok: false, why: want + ' did not decode' });
+          if (bmp.width !== 1200 || bmp.height !== 630) {
+            return JSON.stringify({ ok: false, why: want + ' is ' + bmp.width + 'x' + bmp.height });
+          }
+          const alt = document.querySelector('meta[property="og:image:alt"]');
+          if (!alt || alt.content.length < 60) return JSON.stringify({ ok: false, why: 'og:image:alt missing or thin' });
+          return JSON.stringify({ ok: true, why: want + ' 1200x630' });
+        })()`),
+      );
+      check(`${s.id}: its share card is its own, and decodes at 1200x630`, card.ok, card.why);
+
       const repoDom = JSON.parse(
         await ev(`JSON.stringify((() => {
           const a = [...document.querySelectorAll('.cs-live a')]

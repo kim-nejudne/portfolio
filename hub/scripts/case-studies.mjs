@@ -153,7 +153,21 @@ for (const spoke of SPOKES) {
    * line the homepage index shows for this same link, so the search result and
    * the page that links to it agree by construction rather than by memory.
    */
-  const html = TEMPLATE.replaceAll('{{TITLE}}', attr(`${spoke.name} — Case Study · Kim Nejudne`))
+  const html = TEMPLATE.replaceAll('{{ID}}', attr(spoke.id))
+    /*
+     * The card's alt text is built from the same `s.line` the card is *set*
+     * with, so the picture and its description cannot drift. Written as a
+     * sentence rather than a label because a screen reader reads it aloud and
+     * a scraper shows it when the image fails to load.
+     */
+    .replaceAll(
+      '{{CARD_ALT}}',
+      attr(
+        `A case-study card on cream paper: the name ${spoke.name} set in a Didone serif, ` +
+          `the line "${spoke.line}" beneath it, and a screenshot of the ${spoke.name} site framed beside it.`,
+      ),
+    )
+    .replaceAll('{{TITLE}}', attr(`${spoke.name} — Case Study · Kim Nejudne`))
     .replaceAll('{{DESCRIPTION}}', attr(spoke.line))
     .replaceAll('{{CANONICAL}}', attr(canonical))
     .replaceAll('{{HREF}}', attr(spoke.href))
