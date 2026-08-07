@@ -1,4 +1,4 @@
-import { EARLIER, ROLES } from '../roles';
+import { EARLIER, EARLIER_LINE, ROLES } from '../roles';
 
 /**
  * Where the nine years went, directly under the index.
@@ -41,9 +41,7 @@ export default function Roles() {
         ))}
         <li className="roles-row roles-row--earlier">
           <span className="roles-employer">Earlier</span>
-          <span className="roles-title mono">
-            {EARLIER.employers.join(' · ')}
-          </span>
+          <span className="roles-title mono">{EARLIER_LINE}</span>
           <span className="roles-dates mono">{EARLIER.dates}</span>
         </li>
       </ol>

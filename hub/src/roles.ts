@@ -97,3 +97,25 @@ export const EARLIER = {
   employers: ['Tawk.to', 'Acudeen', 'freelance'],
   dates: 'June 2016 – September 2021',
 } as const;
+
+/**
+ * The three names as one line, bound so a break cannot orphan a separator.
+ *
+ * The join is a **non-breaking space then the middot**, which is the opposite
+ * of the obvious `' · '`. It means the only break opportunity in the run is the
+ * ordinary space *after* each separator, so a wrap gives
+ *
+ *     Tawk.to · Acudeen ·
+ *     freelance
+ *
+ * where a plain join gave, on a 390px phone in production,
+ *
+ *     Tawk.to · Acudeen
+ *     · freelance
+ *
+ * A separator starting a line reads as a bullet and is the sort of thing that
+ * looks like a rendering bug rather than a wrap. It only shows at the widths
+ * where the line is long enough to turn, which is why it survived every desktop
+ * look and had to be caught in a phone screenshot.
+ */
+export const EARLIER_LINE = EARLIER.employers.join(' · ');

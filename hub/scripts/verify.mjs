@@ -44,7 +44,7 @@ import { checkDisclosure } from './case-study/policy.mjs';
  * the build cannot.
  */
 import * as IDENTITY from '../src/identity.ts';
-import { EARLIER, ROLES } from '../src/roles.ts';
+import { EARLIER, EARLIER_LINE, ROLES } from '../src/roles.ts';
 import { BANNED, flatten } from './identity-policy.mjs';
 
 /*
@@ -555,10 +555,19 @@ async function main() {
         };
       })())`),
     );
+    /*
+     * Both sides are whitespace-normalised before comparing, and the reason is
+     * the EARLIER row: it is joined on a *non-breaking* space so a wrap cannot
+     * orphan a separator onto the next line (see `roles.ts`). The page reads it
+     * back through a `\s+` collapse, and `\s` matches U+00A0, so a raw
+     * comparison against the module's own string fails on the one character
+     * that is deliberately not an ordinary space.
+     */
+    const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
     const wantRows = [
       ...ROLES.map((r) => ({ employer: r.employer, title: r.title, dates: r.dates })),
-      { employer: 'Earlier', title: EARLIER.employers.join(' · '), dates: EARLIER.dates },
-    ];
+      { employer: 'Earlier', title: EARLIER_LINE, dates: EARLIER.dates },
+    ].map((r) => ({ employer: norm(r.employer), title: norm(r.title), dates: norm(r.dates) }));
     const roleFails = [];
     if (!rolesDom.labelled) roleFails.push('the section is not labelled by its heading');
     if (rolesDom.anchors > 0) roleFails.push(`${rolesDom.anchors} employer rows are links, and none should be`);
@@ -2419,7 +2428,19 @@ async function main() {
         const wrappedDates = [...document.querySelectorAll('.roles-dates')]
           .filter(e => e.getBoundingClientRect().height > parseFloat(getComputedStyle(e).lineHeight) * 1.4)
           .map(e => e.textContent.trim());
-        return { rows: rows.length, scrollW: d.scrollWidth, clientW: d.clientWidth, wide, wrappedDates };
+        /*
+         * The separator binding, checked where it matters rather than in the
+         * module. roles.ts joins the EARLIER names on a non-breaking space so
+         * a wrap cannot start a line with a middot; this asks the rendered DOM
+         * whether that character actually survived to the page, which a build
+         * step or a copy-edit could quietly undo.
+         *
+         * No backticks in this comment on purpose: it lives inside a template
+         * literal, and one would end the string. That is how it broke first.
+         */
+        const earlier = document.querySelector('.roles-row--earlier .roles-title');
+        const bound = !!earlier && /\\u00A0/.test(earlier.textContent);
+        return { rows: rows.length, scrollW: d.scrollWidth, clientW: d.clientWidth, wide, wrappedDates, bound };
       })())`),
     );
     const narrowFails = [];
@@ -2429,6 +2450,9 @@ async function main() {
     }
     if (narrowRoles.wide.length) narrowFails.push(`wider than the viewport: ${narrowRoles.wide.join(', ')}`);
     if (narrowRoles.wrappedDates.length) narrowFails.push(`date range wrapped: ${narrowRoles.wrappedDates.join(' | ')}`);
+    if (!narrowRoles.bound) {
+      narrowFails.push('the EARLIER separators are not bound by a non-breaking space, so a wrap can orphan one');
+    }
     check(
       'the work history fits a 390px phone with no date range broken in two',
       narrowFails.length === 0,
