@@ -1,0 +1,24 @@
+{
+  "name": "forme",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FORME \u2014 production system for a trade printer. Next.js web, NestJS API, shared domain package.",
+  "workspaces": [
+    "packages/*",
+    "api",
+    "frontend"
+  ],
+  "packageManager": "npm@11.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:web": "npm run dev --workspace @forme/web",
+    "dev:api": "npm run dev --workspace @forme/api",
+    "test:e2e": "npm run test:e2e --workspace @forme/api"
+  }
+}

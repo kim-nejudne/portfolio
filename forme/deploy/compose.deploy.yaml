@@ -1,0 +1,126 @@
+# Droplet stack. Lives at /opt/forme/compose.yaml alongside a .env holding secrets.
+#
+#   docker compose up -d
+#
+# Images are built on a workstation and shipped with `docker save | docker load`,
+# so there is no build context here. The droplet has 1.9GB shared with n8n,
+# netint-vpuaas, poketrack and tallow, and is already using ~450MB of swap — it
+# must never run npm ci or docker build.
+#
+# Every service is capped. The caps are not tuned for comfort: they exist so a
+# leak in this stack cannot take down the four services sharing the box.
+
+name: forme
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Deliberately no `ports:`. Postgres is reachable only on the private
+    # compose network — it has no path to the internet at all.
+    volumes:
+      - forme-db:/var/lib/postgresql/data
+    command:
+      - postgres
+      # Tuned down hard for a shared box, not left at defaults. pg-boss adds a
+      # second consumer of connections, hence 20 rather than tallow's headroom.
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - effective_cache_size=96MB
+      - -c
+      - maintenance_work_mem=24MB
+      - -c
+      - work_mem=2MB
+      - -c
+      - max_connections=20
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 160m
+
+  # Applies the schema, seeds only if empty, then exits. The api waits for it.
+  migrate:
+    image: forme-api:${IMAGE_TAG:-local}
+    restart: 'no'
+    command: ['sh', '-c', 'node dist/db/migrate.js && node dist/db/seed.js']
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DEMO_PASSWORD: ${DEMO_PASSWORD}
+    mem_limit: 192m
+
+  api:
+    image: forme-api:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # The API refuses to boot without this rather than signing every token
+      # with `undefined`.
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      # Must match the browser origin exactly or every auth cookie is dropped.
+      WEB_ORIGIN: ${PUBLIC_URL}
+      ARTWORK_DIR: /data/artwork
+      ARTWORK_MAX_BYTES: ${ARTWORK_MAX_BYTES:-209715200}
+      ARTWORK_RETENTION_DAYS: ${ARTWORK_RETENTION_DAYS:-90}
+      # ghostscript is CPU-bound and this box has two shared vCPUs. One at a
+      # time, with a hard timeout, is what keeps a pathological PDF from
+      # starving the request handler and the co-tenants.
+      PREFLIGHT_CONCURRENCY: 1
+      PREFLIGHT_TIMEOUT_MS: ${PREFLIGHT_TIMEOUT_MS:-120000}
+      DEMO_PASSWORD: ${DEMO_PASSWORD}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+    volumes:
+      # Customer artwork on a real disk. There is no blob store here, and the
+      # persistent filesystem is the normal answer on a droplet.
+      - forme-artwork:/data/artwork
+    ports:
+      # Loopback only — nginx terminates TLS in front. Never expose publicly.
+      - '127.0.0.1:3006:4000'
+    # The one service that spends real CPU. Headroom above steady state so a
+    # ghostscript spike is not an OOM kill in the middle of a preflight run.
+    mem_limit: 320m
+
+  web:
+    image: forme-web:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # Server-side calls go over the compose network, not back out through
+      # nginx: shorter path, and it keeps working if DNS or TLS is mid-change.
+      API_URL: http://api:4000/api
+      # The browser-side origin, which must be the public one.
+      NEXT_PUBLIC_API_URL: ${PUBLIC_URL}/api
+      FORME_PUBLIC_HOST: ${PUBLIC_HOST}
+      FORME_PUBLIC_URL: ${PUBLIC_URL}
+    ports:
+      - '127.0.0.1:3005:3000'
+    mem_limit: 224m
+
+volumes:
+  forme-db:
+  forme-artwork:
