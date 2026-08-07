@@ -51,6 +51,28 @@ export const ROUTE_PREFIXES = { staff: '/staff' } as const;
  * the router treats `/menu/` as `/menu`; the server should not disagree with it
  * about that.
  */
+/**
+ * The subset a crawler should be told about — `scripts/seo.mjs` writes these
+ * into `public/sitemap.xml`.
+ *
+ * Two deliberate omissions, and both are the reason this is its own list rather
+ * than `Object.values(ROUTES)`:
+ *
+ * - **`/confirmation`** renders a booking looked up from a `?token=` in the
+ *   query string. Without one it has nothing to show, so the bare path is an
+ *   empty page and listing it invites a crawler to index it as one.
+ * - **`/staff`** is the back-of-house console. It is not secret — the gate is
+ *   server-side and a PIN, not obscurity — but it is not a page anybody should
+ *   arrive at from a search result.
+ */
+export const SITEMAP_ROUTES = [
+  ROUTES.home,
+  ROUTES.menu,
+  ROUTES.story,
+  ROUTES.visit,
+  ROUTES.reserve,
+] as const;
+
 export function isAppRoute(pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') || '/' : pathname;
   if (Object.values(ROUTES).some((r) => r === path)) return true;
