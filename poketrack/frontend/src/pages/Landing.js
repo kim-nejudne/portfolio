@@ -115,8 +115,18 @@ export default function Landing() {
         The way back to the portfolio. The hub links out to every spoke; until
         2026-08-06 nothing linked back, so anyone who arrived on this domain
         from a shared link had no route to the write-up or the other four.
+
+        `text-white/50`, not `/40`. At 40% over this near-black ground the
+        composite is #6a6c71 = **3.77:1**, under AA's 4.5, and axe-core over
+        production found it on 2026-08-07: three violations, which was every
+        violation this spoke had. 45% is exactly 4.50 and 50% is 5.33, so 50 is
+        the one with room in it.
+
+        Worth noting what it was failing: the two links in this footer are the
+        only route from this domain back to the rest of the portfolio, and they
+        were the hardest thing on the page to read.
       */}
-      <footer className="text-center text-white/40 text-xs font-body mt-10 pb-6">
+      <footer className="text-center text-white/50 text-xs font-body mt-10 pb-6">
         <p>A hobby project. Pokémon are Nintendo IP — sprites via PokeAPI.</p>
         <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <a
