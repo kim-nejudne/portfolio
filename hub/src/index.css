@@ -122,8 +122,56 @@ body {
 }
 
 /* Placement, and nothing else. The block above is the same in both homes. */
+/*
+ * The action row: the CV button, and a text link to the work.
+ *
+ * `wrap` and a baseline alignment rather than `center`, because the two are
+ * different heights by design and the eye lines them up on the type, not on the
+ * boxes. At 320px they stack, which is why the row gap exists at all.
+ */
+.pitch-actions {
+  margin-top: 1.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.9rem 1.4rem;
+}
+
 .pitch .cta {
-  margin-top: 1.5rem;
+  /* The row owns the spacing above now. Kept as a zero rather than deleted,
+     because `.colophon .cta` sets its own and a bare `.cta` has none, so
+     removing this rule silently hands the button whatever it inherits. */
+  margin-top: 0;
+}
+
+/*
+ * Deliberately not a second button.
+ *
+ * One primary action per screen. This is the quiet alternative for a reader
+ * who wants the products rather than the document, and it is styled as what it
+ * is: a link, in the same mono caps vocabulary as everything else in the
+ * chrome, with the underline offset far enough to clear the tracking.
+ */
+.pitch-jump {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.35em;
+  transition: color 140ms ease;
+}
+
+.pitch-jump:hover,
+.pitch-jump:focus-visible {
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pitch-jump {
+    transition: none;
+  }
 }
 
 .colophon .cta {
@@ -338,12 +386,67 @@ body {
   text-wrap: balance;
 }
 
-.pitch-meta {
-  margin-top: 0.9rem;
+/*
+ * The three mono lines under the H1: stack, evidence, availability.
+ *
+ * One type scale between them, set once here and inherited, so the block reads
+ * as one stack of facts rather than three decisions. They differ only in
+ * colour and in the hairline above the last one, which is as much distinction
+ * as three lines of 10.5px mono can carry without becoming a legend.
+ *
+ * Added 2026-08-11 with `.pitch-stack` and `.pitch-avail`; `.pitch-meta` is the
+ * original and its values are the ones the other two adopted.
+ */
+.pitch-stack,
+.pitch-meta,
+.pitch-avail {
   font-size: 0.6rem;
   line-height: 1.7;
   letter-spacing: 0.06em;
   color: var(--color-muted);
+}
+
+/*
+ * The stack line is the one a recruiter is scanning for, so it is the only one
+ * of the three set in full ink.
+ *
+ * That is the whole treatment. It does not compete with the H1, because the H1
+ * is Bodoni at up to 3.1rem and this is mono at 10.5px, and the ratio does the
+ * hierarchy without needing a rule, a box or a second colour. Ink is already on
+ * the paper-to-ink line by definition, so the colour sweep in `verify.mjs` has
+ * nothing new to judge.
+ */
+.pitch-stack {
+  margin-top: 0.9rem;
+  color: var(--color-ink);
+}
+
+.pitch-meta {
+  margin-top: 0.3rem;
+}
+
+/*
+ * The availability line, and the hairline is the argument for it.
+ *
+ * Everything above this rule is who Kim is. This line is an offer, which is a
+ * different kind of statement, and on a page whose whole vocabulary is ruled
+ * paper a hairline is how that turn gets made. Without it the line reads as a
+ * third fact about him and a reader's eye slides off it, which is the one
+ * outcome it cannot afford: `readiness-brief.md` put "nothing anywhere says Kim
+ * is available" on the list precisely because a recruiter who has to guess
+ * closes the tab.
+ *
+ * The rule is inset to the text rather than run to the measure. At 62ch it
+ * would otherwise be a 615px line under a 270px sentence, which reads as a
+ * section divider and cuts the pitch in half.
+ */
+.pitch-avail {
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--color-rule);
+  /* Wide enough to read as a rule over this line, short enough not to read as
+     a divider under the block. */
+  max-width: 22rem;
 }
 
 /*
@@ -386,7 +489,9 @@ body {
   .pitch-line {
     font-size: clamp(2.1rem, 3.4vw, 3.1rem);
   }
-  .pitch-meta {
+  .pitch-stack,
+  .pitch-meta,
+  .pitch-avail {
     font-size: 0.66rem;
   }
 }

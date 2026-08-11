@@ -4,6 +4,23 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    /*
+      Because some modules under src/ are imported by Node as well as by Vite.
+
+      `scripts/identity-check.mjs` imports `src/identity.ts` at `prebuild`, and
+      `verify.mjs`, `seo.mjs`, `axe.mjs` and `case-studies.mjs` import
+      `src/spokes.ts`, all of them relying on Node's built-in type stripping.
+      Node's ESM resolver does not guess extensions, so anything on those import
+      chains has to name them. It never came up before 2026-08-11 because
+      `identity.ts` had no imports of its own, and `spokes.ts` still has none.
+
+      Giving `identity.ts` `SPOKES` and `typeset.ts` made it matter: the import
+      has to carry `.ts` for Node, and TypeScript refuses that by default. Safe
+      to enable here because `noEmit` is set. The flag exists to stop tsc
+      writing JavaScript that imports a `.ts` path, and this project never
+      writes any.
+    */
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,

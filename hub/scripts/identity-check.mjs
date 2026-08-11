@@ -281,8 +281,33 @@ let pdfNote = null;
           `    The PDF is rendered from cv/cv.html and does not update with it.\n` +
           `    Rebuild it:  bash cv/build.sh`,
       );
+    } else if (pitchAt === -1) {
+      /*
+       * The pitch has to be *there*, not merely after the title.
+       *
+       * `pitchAt` was computed for the ordering test above and never required
+       * to be found, so a PDF that carried the right masthead and an entirely
+       * stale pitch paragraph passed in silence. That is not hypothetical: it
+       * is what happened on 2026-08-11. The H1 changed, every HTML surface was
+       * brought along and this check went green over a shipped PDF still
+       * saying the old sentence, because the two claims share their first four
+       * words and only the masthead was ever asserted.
+       *
+       * It is the same shape as the trap in this file's own header: a surface
+       * that states its copy twice hides the loss of one of them. Here the
+       * *document* states it twice, in the masthead and in the pitch, and the
+       * check was reading only the copy that had not moved.
+       */
+      problems.push(
+        `public/cv.pdf: the pitch paragraph is not the current one.\n` +
+          `    wanted to find: ${PITCH_SENTENCE}\n` +
+          `    The masthead title is correct, so this is a stale render rather\n` +
+          `    than a wrong document: the PDF is built from cv/cv.html and does\n` +
+          `    not update with it.\n` +
+          `    Rebuild it:  bash cv/build.sh`,
+      );
     } else {
-      pdfNote = 'public/cv.pdf carries the current title in its masthead';
+      pdfNote = 'public/cv.pdf carries the current title and the current pitch';
     }
   }
 }

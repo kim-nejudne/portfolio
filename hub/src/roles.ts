@@ -39,6 +39,8 @@
  * masthead of each role, because that is all the homepage shows.
  */
 
+import { bindSeparators, SEP } from './typeset.ts';
+
 export type Role = {
   /** Stable key. Not shown. */
   readonly id: string;
@@ -101,21 +103,19 @@ export const EARLIER = {
 /**
  * The three names as one line, bound so a break cannot orphan a separator.
  *
- * The join is a **non-breaking space then the middot**, which is the opposite
- * of the obvious `' · '`. It means the only break opportunity in the run is the
- * ordinary space *after* each separator, so a wrap gives
- *
- *     Tawk.to · Acudeen ·
- *     freelance
- *
- * where a plain join gave, on a 390px phone in production,
+ * A separator starting a line reads as a bullet, which is the sort of thing
+ * that looks like a rendering bug rather than a wrap. On a 390px phone in
+ * production a plain join gave
  *
  *     Tawk.to · Acudeen
  *     · freelance
  *
- * A separator starting a line reads as a bullet and is the sort of thing that
- * looks like a rendering bug rather than a wrap. It only shows at the widths
- * where the line is long enough to turn, which is why it survived every desktop
- * look and had to be caught in a phone screenshot.
+ * and it only shows at the widths where the line is long enough to turn, which
+ * is why it survived every desktop look and had to be caught in a phone
+ * screenshot.
+ *
+ * The mechanism was written out here until 2026-08-11, when the hero gained a
+ * stack line that needed the same treatment and it became the third copy. It
+ * lives in `typeset.ts` now, which carries the reasoning; this is a caller.
  */
-export const EARLIER_LINE = EARLIER.employers.join(' · ');
+export const EARLIER_LINE = bindSeparators(EARLIER.employers.join(SEP));

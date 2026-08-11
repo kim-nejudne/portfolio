@@ -484,7 +484,9 @@ async function main() {
         return {
           eyebrow: flat(el('.pitch-name')),
           pitch: flat(spaced('.pitch-line')),
+          stack: flat(el('.pitch-stack')),
           evidence: flat(el('.pitch-meta')),
+          availability: flat(el('.pitch-avail')),
           title: flat(document.title),
           ogTitle: flat(meta('meta[property="og:title"]')),
           description: flat(meta('meta[name="description"]')),
@@ -493,10 +495,20 @@ async function main() {
         };
       })())`),
     );
+    /*
+     * `stack` and `availability` joined this on 2026-08-11 with the two new
+     * lines in the fold. They are compared against the *plain* strings while
+     * the page renders the bound `_SET` forms, and that works because `flat`
+     * collapses on `\s+` and JavaScript's `\s` matches U+00A0. The same luck
+     * `PITCH_META` has always relied on, and it is checked rather than assumed:
+     * the assertion below this one asks whether the binding survived at all.
+     */
     const wantIdentity = {
       eyebrow: IDENTITY.NAME,
       pitch: IDENTITY.PITCH_SENTENCE,
+      stack: IDENTITY.STACK,
       evidence: IDENTITY.PITCH_META,
+      availability: IDENTITY.AVAILABILITY,
       title: IDENTITY.HEAD_TITLE,
       ogTitle: IDENTITY.HEAD_TITLE,
       description: IDENTITY.DESCRIPTION,
@@ -2522,6 +2534,224 @@ async function main() {
       narrowFails.length === 0,
       narrowFails.length ? narrowFails.join(' | ') : `${narrowRoles.rows} rows in ${narrowRoles.clientW}px`,
     );
+
+    /*
+     * The fold does not print on the drawing, at six sizes.
+     *
+     * New 2026-08-11, with the two mono lines and the action row the fold
+     * gained that day. `.pitch` is absolutely positioned in the top of a 100vh
+     * stage and the head fills the bottom of it, so the space above the crown
+     * is a *budget*, and nothing in this project had ever measured it. The old
+     * block spent 242 of it at 1366x620 and the new one spends 318, which is
+     * the kind of change that looks free in a 1440x900 window and is not.
+     *
+     * ## Contention, not bounding boxes
+     *
+     * The obvious version of this compares `.pitch`'s rect against the top of
+     * the drawing's ink, and it is wrong in a way that would have sent this
+     * whole change back for a redesign it does not need. `.pitch` is 615px
+     * wide at the desktop measure and its longest *line* is about 425px, so
+     * its box reaches well into the head's hair while no glyph goes anywhere
+     * near it. Measured that way the fold "fails" at 1366x620 by 4,697 pixels,
+     * and the screenshot shows a clean, well-set page.
+     *
+     * So it asks the question the reader actually has: do the pitch's own
+     * pixels land on the drawing's pixels. Two frames, the second with the
+     * pitch hidden; their difference is everything the pitch paints, the
+     * threshold of the second is everything the drawing paints, and the
+     * product of the two masks is the pixels both would claim. That is the
+     * same technique `verify.mjs` already uses to decide which of the head and
+     * a card is in front, and it is indifferent to how wide any box is.
+     *
+     * The cue is hidden throughout: it is chrome that sits over the chin on
+     * purpose, at every width, and it would report as a permanent failure.
+     *
+     * Six sizes rather than the usual one, because the failure is a function
+     * of *height* and every window anyone develops in is tall. 1366x620 is the
+     * short laptop hold this file already learned about from the card, and 320
+     * is where the measure stops being checked at all.
+     */
+    const FOLD_SIZES = [
+      [320, 640],
+      [360, 780],
+      [390, 780],
+      [1366, 620],
+      [1440, 900],
+      [2560, 1440],
+    ];
+    const foldFails = [];
+    const foldSeen = [];
+    for (const [width, height] of FOLD_SIZES) {
+      await load({ reduce: false, url: URL_ARG, width, height, settle: 1800 });
+      let ready = false;
+      for (let i = 0; i < 40 && !ready; i++) {
+        ready = await ev(`!!document.querySelector('.pitch-stack')`);
+        if (!ready) await sleep(250);
+      }
+      if (!ready) {
+        foldFails.push(`${width}x${height}: the fold never rendered`);
+        continue;
+      }
+      await hide('.cue', true);
+      await sleep(150);
+      await shot('/tmp/hub-fold-all.png');
+      await hide('.pitch', true);
+      await sleep(150);
+      await shot('/tmp/hub-fold-art.png');
+      await hide('.pitch', false);
+      await hide('.cue', false);
+
+      /* Everything the pitch paints. */
+      execFileSync('magick', [
+        '/tmp/hub-fold-all.png', '/tmp/hub-fold-art.png',
+        '-compose', 'difference', '-composite', '-colorspace', 'Gray',
+        '-threshold', '2%', '/tmp/hub-fold-type.png',
+      ]);
+      /* Everything the drawing paints. `-negate` because ink is dark. */
+      execFileSync('magick', [
+        '/tmp/hub-fold-art.png', '-colorspace', 'Gray',
+        '-threshold', '80%', '-negate', '/tmp/hub-fold-ink.png',
+      ]);
+      const countWhite = (file) => Math.round(Number(
+        execFileSync('magick', [file, '-format', '%[fx:mean*w*h]', 'info:']).toString().trim(),
+      ));
+      const contended = Math.round(Number(
+        execFileSync('magick', [
+          '/tmp/hub-fold-type.png', '/tmp/hub-fold-ink.png',
+          '-compose', 'multiply', '-composite',
+          '-format', '%[fx:mean*w*h]', 'info:',
+        ]).toString().trim(),
+      ));
+
+      /*
+       * Both masks have to contain something, or "no contention" is a claim
+       * about an empty frame.
+       *
+       * This is the failure mode that makes a check like this decoration: the
+       * head is four AVIF layers fetched over a cache-disabled connection, and
+       * a frame captured before they paint is blank paper, which contends with
+       * nothing and passes. The same is true of the type if React has not
+       * mounted. Neither can be inferred from the DOM being present, so both
+       * are counted.
+       *
+       * The numbers are enormous when they are right (hundreds of thousands of
+       * pixels), so the floor only has to exclude zero and near-zero.
+       */
+      const inkPx = countWhite('/tmp/hub-fold-ink.png');
+      const typePx = countWhite('/tmp/hub-fold-type.png');
+      if (inkPx < 2000) {
+        foldFails.push(`${width}x${height}: the drawing had not painted (${inkPx}px of ink), so nothing was measured`);
+        continue;
+      }
+      if (typePx < 500) {
+        foldFails.push(`${width}x${height}: the fold had not painted (${typePx}px of type), so nothing was measured`);
+        continue;
+      }
+
+      /* And nothing in it is wider than the window it is set in. */
+      const spill = JSON.parse(await ev(`JSON.stringify((() => {
+        const d = document.documentElement;
+        const over = [...document.querySelectorAll('.pitch, .pitch *')]
+          .filter(e => e.getBoundingClientRect().right > d.clientWidth + 1)
+          .map(e => (e.className || e.tagName) + ' -> ' + Math.round(e.getBoundingClientRect().right));
+        const bottom = Math.round(document.querySelector('.pitch').getBoundingClientRect().bottom);
+        return { over, bottom, clientW: d.clientWidth, clientH: d.clientHeight };
+      })())`));
+
+      foldSeen.push(`${width}x${height} ${contended}px on ${Math.round(inkPx / 1000)}k of art`);
+      /*
+       * Zero, with a hair of tolerance for the anti-aliased edge of a glyph
+       * that lands beside a stroke of the drawing without touching it. The
+       * measured value is 0 at all six, so any tolerance at all is generous;
+       * 24 is small enough that a single overlapping character cannot hide in
+       * it, and a character is the smallest failure worth having.
+       */
+      if (contended > 24) {
+        foldFails.push(`${width}x${height}: ${contended} pixels of the fold print on the drawing`);
+      }
+      if (spill.over.length) {
+        foldFails.push(`${width}x${height}: wider than the window: ${spill.over.join(', ')}`);
+      }
+      if (spill.bottom > spill.clientH) {
+        foldFails.push(`${width}x${height}: the fold runs ${spill.bottom - spill.clientH}px below the fold`);
+      }
+    }
+    check(
+      'the fold fits above the drawing at six sizes, none of it printing on the art',
+      foldFails.length === 0,
+      foldFails.length ? foldFails.join(' | ') : foldSeen.join(', '),
+    );
+
+    /*
+     * The hero's three mono lines are bound so a wrap cannot orphan a middot.
+     *
+     * `typeset.ts` replaces the spaces inside each segment with U+00A0, which
+     * leaves the ordinary space *after* each separator as the only break
+     * opportunity in the run. It is invisible in the source, invisible in the
+     * rendered page until something wraps, and a build step, a copy-edit or a
+     * well-meaning `.replace` could undo it without anything failing.
+     *
+     * The equivalent check for `roles.ts`'s EARLIER line already exists a few
+     * hundred lines above and has the same shape. This is three lines rather
+     * than one because the stack line is the one that actually wraps: 57
+     * characters of mono in a 280px column at 320px wide, where the plain join
+     * puts a middot at the start of line two.
+     *
+     * Asked of the rendered DOM rather than of the module, because the module
+     * is where it is already known to be right.
+     */
+    await load({ reduce: true, url: URL_ARG, width: 320, height: 640, settle: 900 });
+    for (let i = 0; i < 40 && !(await ev(`!!document.querySelector('.pitch-stack')`)); i++) {
+      await sleep(250);
+    }
+    const bound = JSON.parse(await ev(`JSON.stringify((() => {
+      const want = ['.pitch-stack', '.pitch-meta', '.pitch-avail'];
+      const loose = [];
+      for (const sel of want) {
+        const e = document.querySelector(sel);
+        if (!e) { loose.push(sel + ' is missing'); continue; }
+        /* A separator with an ordinary space in front of it can start a line. */
+        if (/ \\u00B7/.test(e.textContent)) loose.push(sel + ' has an unbound separator');
+        else if (!/\\u00A0/.test(e.textContent)) loose.push(sel + ' has no non-breaking space at all');
+      }
+      return { n: want.length, loose };
+    })())`));
+    check(
+      'every separator in the fold is bound, so a wrap cannot start a line with a middot',
+      bound.loose.length === 0,
+      bound.loose.length ? bound.loose.join(' | ') : `${bound.n} mono lines, all bound`,
+    );
+
+    /*
+     * The fold's second action goes somewhere.
+     *
+     * `See the work` is an in-page anchor, and a broken one of those is the
+     * quietest link failure there is: the browser does nothing at all, no
+     * console entry, no 404, and the page looks fine. It points at `#work`,
+     * which is `Index`'s section and also the skip link's target, so the two
+     * fail together or not at all, and the target is checked for being
+     * *visible* rather than merely present because `Index` is the one part of
+     * this page that must survive reduced motion and a fast scroll.
+     *
+     * Checked under reduced motion on purpose. That is the branch where the
+     * showcase never runs and the index carries the whole argument, so it is
+     * the branch where this link matters most.
+     */
+    const jump = JSON.parse(await ev(`JSON.stringify((() => {
+      const a = document.querySelector('.pitch-jump');
+      if (!a) return { ok: false, why: 'there is no .pitch-jump link in the fold' };
+      const href = a.getAttribute('href') || '';
+      if (!href.startsWith('#')) return { ok: false, why: 'href is not an in-page anchor: ' + href };
+      const target = document.getElementById(href.slice(1));
+      if (!target) return { ok: false, why: 'nothing on the page has id=' + href.slice(1) };
+      const r = target.getBoundingClientRect();
+      const cs = getComputedStyle(target);
+      if (!r.height || cs.visibility === 'hidden' || cs.display === 'none') {
+        return { ok: false, why: href + ' exists but is not rendered' };
+      }
+      return { ok: true, why: href + ' -> ' + target.tagName.toLowerCase() + ', ' + Math.round(r.height) + 'px tall' };
+    })())`));
+    check('the fold\u2019s "see the work" link lands on a section that is really there', jump.ok, jump.why);
 
     /*
      * No page on this site still serves the retired title.
