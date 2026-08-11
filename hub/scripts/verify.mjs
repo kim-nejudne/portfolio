@@ -1893,23 +1893,53 @@ async function main() {
      * an ordinary anchor to an ordinary list below the pinned section. An
      * earlier version hid the only copy of the work inside the pin and needed
      * a scripted scroll jump to reach it; this needs nothing.
+     *
+     * ## Why both of these read the DOM defensively
+     *
+     * They used to dereference their query immediately, and the second one
+     * called `.closest` on a null. That is not a style point. An expression
+     * that **throws** inside `Runtime.evaluate` does not fail its check, it
+     * ends the run: `main` unwinds, and every assertion after this line never
+     * executes. There are more than sixty of them.
+     *
+     * Found on 2026-08-11 while sabotaging the index's `id` to prove a
+     * different assertion. The suite aborted here and said nothing at all
+     * about the rest of the page, including the three checks the sabotage was
+     * aimed at. So the sabotage appeared to prove they did not fire, when what
+     * it had actually proved was that they never ran.
+     *
+     * A missing `#work` is precisely the regression these two exist to catch,
+     * which makes aborting the one outcome they cannot be allowed to have.
+     * Both now return a reason instead, and the reason is the thing a reader
+     * of the failure actually needs.
      */
-    check(
-      'the skip link points at something that exists and is visible',
-      await ev(`(() => {
-        const href = document.querySelector('.skip').getAttribute('href');
-        const target = document.querySelector(href);
-        if (!target) return false;
-        const cs = getComputedStyle(target);
-        return cs.display !== 'none' && cs.visibility === 'visible' &&
-               target.getBoundingClientRect().height > 0;
-      })()`),
-    );
+    const skip = JSON.parse(await ev(`JSON.stringify((() => {
+      const link = document.querySelector('.skip');
+      if (!link) return { ok: false, why: 'there is no .skip link on the page' };
+      const href = link.getAttribute('href') || '';
+      if (!href.startsWith('#')) return { ok: false, why: 'the skip link is not an in-page anchor: ' + href };
+      const target = document.querySelector(href);
+      if (!target) return { ok: false, why: 'the skip link points at ' + href + ', which is not on the page' };
+      const cs = getComputedStyle(target);
+      const h = target.getBoundingClientRect().height;
+      if (cs.display === 'none' || cs.visibility !== 'visible' || !(h > 0)) {
+        return {
+          ok: false,
+          why: href + ' exists but is not visible (' + cs.display + ', ' + cs.visibility + ', ' + Math.round(h) + 'px tall)',
+        };
+      }
+      return { ok: true, why: href + ', ' + Math.round(h) + 'px tall' };
+    })())`));
+    check('the skip link points at something that exists and is visible', skip.ok, skip.why);
 
-    check(
-      'the index sits outside the pinned section',
-      await ev(`!document.querySelector('#work').closest('.pin-spacer')`),
-    );
+    const unpinned = JSON.parse(await ev(`JSON.stringify((() => {
+      const work = document.querySelector('#work');
+      if (!work) return { ok: false, why: 'there is no #work section on the page at all' };
+      return work.closest('.pin-spacer')
+        ? { ok: false, why: '#work is inside the pin spacer, so it moves with the pinned stage' }
+        : { ok: true, why: '#work is outside the pin' };
+    })())`));
+    check('the index sits outside the pinned section', unpinned.ok, unpinned.why);
 
     /* ---- layer promotion is released -------------------------------- */
 
@@ -2915,7 +2945,35 @@ async function main() {
   if (failed.length) process.exit(1);
 }
 
+/*
+ * An abort is not a score, and it must not be read as one.
+ *
+ * `ev` throws when the page throws, and that unwinds `main` wherever it
+ * happens, so the assertions below that point never run. The exit code was
+ * always right; the *output* was not. It printed one line of TypeScript
+ * wreckage and no tally at all, so a reader could not tell whether the run
+ * had stopped at assertion 3 or assertion 120, and the inline `ok` lines
+ * scrolled above it looked like a healthy run.
+ *
+ * That mattered on 2026-08-11. A sabotage aimed at three new assertions
+ * removed `#work`, the suite threw sixty checks earlier, and the absence of
+ * those three failures read as "the sabotage did not fire" when it actually
+ * meant "they never ran". A sabotage that cannot be distinguished from a
+ * silent pass is worse than no sabotage.
+ *
+ * So: say plainly how far it got, repeat the failures that had already
+ * accumulated, and state that the rest is unknown rather than passing.
+ */
 main().catch((err) => {
-  console.error(err.message);
+  const failed = results.filter((r) => !r.ok);
+  console.error(`\nThe run did not finish: ${err.message}`);
+  console.error(
+    `${results.length} assertion${results.length === 1 ? '' : 's'} ran before it stopped` +
+      (failed.length ? `, ${failed.length} of them failing` : '') +
+      '. Everything after that point is unknown, not passing.',
+  );
+  for (const f of failed) {
+    console.error(`  FAIL  ${f.name}${f.detail ? `  — ${f.detail}` : ''}`);
+  }
   process.exit(1);
 });
