@@ -6,6 +6,31 @@ Live at [plinth.kimnejudne.dev](https://plinth.kimnejudne.dev).
 Vite · React 19 · TypeScript (strict) · Tailwind 4 · GSAP · no backend, no
 router, no photography.
 
+## The short version
+
+**What it is** A 16-week periodised strength programme as a single static page,
+and the portfolio's animation showcase. There is not one photograph on it:
+everything is type, colour, rule and drawn SVG, which is a constraint I set on
+purpose.
+
+**The hardest problem** The page argued with itself. This spoke's pitch is
+measurement, and the load curve contradicted the words printed beside it three
+separate ways: tonnage rose across the cycle while the panels two feet away read
+*"Volume drops away"*, the annotation asserted a crossover at week 11 when the
+lines met at week 12, and a statement about intensity never negotiating sat
+beside a line visibly sawtoothing. Fixing the labels was a twenty-second job; I
+rewrote the sources instead, so both axis domains and the crossover are computed
+from the data and cannot drift from the picture again.
+
+**What the scaffold missed** 4,320px of horizontal overflow at 1440 and 20px at
+390, one of six nav links reachable on a phone, a lowest text contrast of
+2.58:1, and no 404 at all: every missing path returned 200 and the homepage.
+
+**How it was proven** Driven in a real browser over CDP rather than inspected
+by eye. Overflow nought at both widths, six of six nav links, contrast 4.93:1,
+missing paths 404, and the mobile nav walked through its whole cycle including
+Escape restoring focus to the toggle.
+
 ---
 
 ## Where this page came from, plainly

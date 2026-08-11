@@ -15,6 +15,31 @@ has to sell a sachet of shampoo and write down who owes what.
   vite-plugin-pwa · NestJS 11 · Drizzle · Postgres 17 · npm workspaces
 - **Brief:** `sarisari-brief.md` — written *before* this pass, gap list and all
 
+## The short version
+
+**What it is** A ledger and stock app for a sari-sari store in Barangay Daro,
+Dumaguete. One shopkeeper, forty-odd neighbours, *tingi* selling by the sachet
+and the *lista* credit book, run from a counter at the front of a house.
+
+**The hardest problem** The claim was offline-first and it was not. There was a
+pending badge, a sync sheet and a connectivity toggle, all of it theatre over an
+array in memory: reload the page and the day's takings were gone. Operations
+moved to IndexedDB via Dexie, the writes now await the commit before the UI
+confirms a sale, and the shell precaches so the app boots with no network at
+all. Verified by killing the web server outright and reloading.
+
+**What the scaffold missed** A backend, a database, durability of any kind, a
+service worker, a lockfile, and a single test. It was still the best scaffold of
+the five, and the reason is the thesis of the pass: the prompt specified a seam
+and the seam held, which is why replacing a fake queue with a real sync engine
+was a one-directory change.
+
+**How it was proven** 99 tests across three workspaces, including a balance
+identical under all 24 orderings of a lista, API end-to-end against real
+Postgres with the replay test, and 17 frontend tests against a real IndexedDB
+rather than a mocked Dexie, because the claim is that a sale is still there
+after the app is killed.
+
 ---
 
 ## Where this started, plainly

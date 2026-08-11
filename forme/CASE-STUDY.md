@@ -10,6 +10,31 @@ accounts on the sign-in screen, one per role, all read-only.
 Next.js 16 · NestJS 11 · Postgres 17 via Drizzle · pg-boss · socket.io ·
 poppler-utils + ghostscript · self-hosted on a 1.9GB droplet
 
+## The short version
+
+**What it is** A production system for a trade printer: a customer portal, a
+prepress queue with an imposition planner, a press floor board, an admin price
+matrix, and the public pages that price the work.
+
+**The hardest problem** The centrepiece is a preflight report, twelve checks
+against a supplied PDF, and the scaffold faked all twelve. Simulating them
+convincingly would have been half a day. Instead the worker shells out to
+poppler-utils and ghostscript and nine of the twelve are genuine measurements;
+the three that need content-stream parsing report `SKIPPED` with a stated reason
+rather than a pass, because a check that cannot be made is not a check that
+passed.
+
+**What the scaffold missed** No server, no database, no authentication and no
+state machine. Eleven routes over a mock data layer, with the preflight engine
+that the whole spoke is about implemented as a list of hardcoded strings on a
+timer.
+
+**How it was proven** 172 tests: 153 unit and integration, 36 end-to-end
+against a real Postgres. The e2e suite is table-driven, every guarded route
+crossed with every role that should not reach it, and it runs against a real
+database rather than a mock because most of what is worth asserting there is
+database behaviour and a fake would only assert that the fake works.
+
 ---
 
 ## Where this started, plainly

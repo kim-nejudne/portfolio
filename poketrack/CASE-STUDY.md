@@ -10,6 +10,28 @@ credentials are on the sign-in screen.
 
 FastAPI · MongoDB · React · PokéAPI · self-hosted on a 1.9GB droplet
 
+## The short version
+
+**What it is** A project tracker that turns delivery into a creature-raising
+game. A project picks a starter, tickets carry Fibonacci points, completing them
+awards XP, and XP levels the partner up until it evolves, branching where the
+species branches and reversing if the work is un-done.
+
+**The hardest problem** The tests could not fail. `poc/test_core.py` is the
+engine's proof, forty-six tests, all green, and it contained thirty-seven
+`check()` calls and zero `assert` statements. It began life as a standalone
+script that printed its own pass/fail tally and was later collected by pytest,
+and a pytest function that never raises always passes.
+
+**What the scaffold missed** An install that worked from a clean checkout, a
+signing secret without a public default, and two and a half thousand lines of
+components no page rendered. The gap was not where I expected: the engine, the
+part I assumed would be shakiest, turned out to be genuinely correct.
+
+**How it was proven** 73 backend tests, 46 on the engine and 27 route guards
+run against the live deployment. There are still no frontend tests, and this
+document says so rather than counting the backend twice.
+
 ---
 
 ## Where this started, plainly

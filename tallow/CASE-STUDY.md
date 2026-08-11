@@ -8,6 +8,30 @@ under a loupe.
 Stack: Vite 6 · React 19 · TypeScript · Express 4 · Postgres · Tailwind 4 ·
 Docker on a DigitalOcean droplet.
 
+## The short version
+
+**What it is** A reservations and back-of-house system for a dry-aged
+steakhouse. Bookings are checked against real per-sitting cover capacity, and
+the 86 board strikes a dish from the public menu the moment the kitchen runs
+out.
+
+**The hardest problem** The generated auth compared a hardcoded PIN and
+returned the literal string `staff-session-active-token`, and no other route
+checked it, so the reservation book with every guest's name, email and phone was
+open to anyone who typed the URL. The fix was signed expiring session tokens, a
+rate-limited sign-in and two roles, so a stranger can walk the back of house
+without being able to delete the menu.
+
+**What the scaffold missed** Nought of six admin routes behind auth, one ARIA
+attribute in the whole app, `prefers-reduced-motion` honoured on a single class,
+four font families loading render-blocking from a CDN, an 879-line dashboard
+component, and a typecheck that was implicitly `any` throughout.
+
+**How it was proven** Six of six routes guarded, 85 ARIA attributes, a global
+reduced-motion policy, 156KB of self-hosted latin-subset fonts, a 289-line
+largest module, `strict` on. The contrast figures were measured against
+`getComputedStyle` in a real browser rather than read off the stylesheet.
+
 ---
 
 ## Where this started, plainly

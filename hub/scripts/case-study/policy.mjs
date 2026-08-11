@@ -73,3 +73,89 @@ export function checkDisclosure(markdown) {
   }
   return null;
 }
+
+/*
+ * The second rule: every case study opens with a way in.
+ *
+ * `readiness-brief.md` carried this as an open item. The five run 1,480 to
+ * 4,479 words and every one of them opened at full speed, so a reader with
+ * thirty seconds got a lede sentence and then a wall. They are the best
+ * writing in the portfolio, and the person most likely to bounce off them is
+ * exactly the person they were written for.
+ *
+ * ## Why this rule demands exact labels when the one above refuses to
+ *
+ * The disclosure rule is deliberately loose, and its comment explains why: a
+ * literal match would fail PLINTH, whose disclosure is the longest of the five
+ * and whose heading is its own. This rule is the opposite on purpose, and the
+ * difference is worth stating so it does not read as an inconsistency.
+ *
+ * A disclosure is a *statement*, and a statement can be made in whatever words
+ * suit the spoke. This block is a *table of contents*, and its entire value is
+ * that it is the same four beats in the same order in all five documents: a
+ * reader who has skimmed one knows where to look in the next, and the five
+ * read as one curator's work rather than as five write-ups. Here variation is
+ * the defect rather than the thing to accommodate.
+ *
+ * ## Why there is a ceiling as well as a floor
+ *
+ * A summary that grows has failed at the only job it has. The floor stops it
+ * being four labels with a clause each; the ceiling stops it quietly becoming
+ * a sixth section of the case study, which is the direction this kind of block
+ * always drifts.
+ */
+
+/** The heading that opens the block. It has to be the *first* section. */
+export const SHORT_HEADING = /^(the )?short version$/i;
+
+/** The four beats, in order. Matched as bold lead-ins, which is how they are
+ *  written: `**What it is.** ...` */
+export const SHORT_ROWS = [
+  { name: 'What it is', test: /\*\*What it is\b/i },
+  { name: 'The hardest problem', test: /\*\*The hardest problem\b/i },
+  { name: 'What the scaffold missed', test: /\*\*What the scaffold missed\b/i },
+  { name: 'How it was proven', test: /\*\*How it was proven\b/i },
+];
+
+/** Enough that each beat says something. Four labels and four clauses is not a
+ *  way in. */
+export const SHORT_MIN_CHARS = 600;
+
+/** And little enough that it is still a summary. The longest of the five today
+ *  is about 1,350. */
+export const SHORT_MAX_CHARS = 2000;
+
+/**
+ * Check a case study's *source markdown* for its opening summary. Returns null
+ * when the rule holds, or a sentence naming what is wrong.
+ */
+export function checkShortVersion(markdown) {
+  const parts = markdown.split(/^## +(.+?) *$/m);
+  const sections = [];
+  for (let i = 1; i < parts.length; i += 2) {
+    sections.push({ heading: parts[i].trim(), body: parts[i + 1] ?? '' });
+  }
+  if (!sections.length) return 'no `## ` sections at all';
+
+  const at = sections.findIndex((s) => SHORT_HEADING.test(s.heading));
+  if (at === -1) {
+    return `no section heading matches ${SHORT_HEADING} — every case study opens with one`;
+  }
+  if (at !== 0) {
+    return `"${sections[at].heading}" is section ${at + 1}; it has to be the first, or it is not a way in`;
+  }
+
+  const body = sections[at].body.trim();
+  if (body.length < SHORT_MIN_CHARS) {
+    return `the short version is only ${body.length} characters; ${SHORT_MIN_CHARS} is the floor`;
+  }
+  if (body.length > SHORT_MAX_CHARS) {
+    return `the short version is ${body.length} characters; ${SHORT_MAX_CHARS} is the ceiling, and a summary that grows is not one`;
+  }
+
+  const missing = SHORT_ROWS.filter((row) => !row.test.test(body)).map((row) => row.name);
+  if (missing.length) {
+    return `the short version is missing ${missing.length} of its four beats: ${missing.join(', ')}`;
+  }
+  return null;
+}

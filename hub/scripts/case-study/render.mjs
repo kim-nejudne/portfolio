@@ -22,6 +22,8 @@
 
 import MarkdownIt from 'markdown-it';
 
+import { SHORT_HEADING } from './policy.mjs';
+
 /**
  * `typographer: true` is a typographic decision, not a default left switched
  * on. Every one of the five sources is written with straight quotes — 129 of
@@ -115,6 +117,62 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   }
   return self.renderToken(tokens, idx, options);
 };
+
+/*
+ * The opening summary gets a container, so it can be set as a block rather
+ * than read as the first four paragraphs of the prose.
+ *
+ * Markdown has no element for this. What it has is a heading and four bold
+ * lead-ins, and a stylesheet cannot select "the section under that heading"
+ * on its own. So the wrapper is injected here, into the token stream, and the
+ * heading it looks for comes from `policy.mjs` rather than from a literal
+ * here: the same constant that decides whether the block exists decides what
+ * gets wrapped, and they cannot drift into disagreeing.
+ *
+ * Injected `html_block` tokens render their content verbatim even though the
+ * parser runs with `html: false`. That option governs raw HTML *in the
+ * source*, which is still escaped, so a case study cannot open its own div by
+ * writing one. The wrapper is the build's, not the writer's.
+ *
+ * The block ends at the `---` that follows it, not at the next heading. Every
+ * one of the five writes that rule, it is what separates the summary from the
+ * document, and closing on it keeps the horizontal rule outside the box where
+ * it belongs. Falls back to the next h2 if a spoke ever drops the rule.
+ */
+md.core.ruler.push('short-version-block', (state) => {
+  const t = state.tokens;
+  const isH2Open = (tok) => tok.type === 'heading_open' && tok.tag === 'h2';
+
+  let start = -1;
+  for (let i = 0; i < t.length; i++) {
+    if (!isH2Open(t[i])) continue;
+    const inline = t[i + 1];
+    const text = inline?.type === 'inline' ? inline.content.trim() : '';
+    if (SHORT_HEADING.test(text)) {
+      start = i;
+      break;
+    }
+  }
+  if (start === -1) return;
+
+  let end = t.length;
+  for (let i = start + 1; i < t.length; i++) {
+    if (t[i].type === 'hr' || isH2Open(t[i])) {
+      end = i;
+      break;
+    }
+  }
+
+  const tag = (content) => {
+    const token = new state.Token('html_block', '', 0);
+    token.content = content;
+    token.block = true;
+    return token;
+  };
+  /* Close first: inserting at `start` would move `end`. */
+  t.splice(end, 0, tag('</div>\n'));
+  t.splice(start, 0, tag('<div class="cs-short">\n'));
+});
 
 /** Render one case study. Returns HTML for the inside of `<article>`. */
 export function renderCaseStudy(markdown) {

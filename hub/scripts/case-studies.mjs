@@ -37,7 +37,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { renderCaseStudy } from './case-study/render.mjs';
-import { checkDisclosure } from './case-study/policy.mjs';
+import { checkDisclosure, checkShortVersion } from './case-study/policy.mjs';
 
 /*
  * The spoke list comes from the same file the homepage renders from, so the
@@ -142,6 +142,22 @@ function readSource(spoke) {
         `Every case study states plainly that the spoke began as a generated\n` +
         `scaffold — see positioning-brief.md. The argument the portfolio makes\n` +
         `depends on it. scripts/case-study/policy.mjs is the rule.`,
+    );
+  }
+
+  // And the way in, same shape and the same two-place enforcement. These pages
+  // run 1,480 to 4,479 words and used to open at full speed, so a reader with
+  // thirty seconds got a lede and then a wall.
+  const thin = checkShortVersion(markdown);
+  if (thin) {
+    throw new Error(
+      `${spoke.id}: the opening summary is missing or malformed.\n` +
+        `  ${thin}\n\n` +
+        `Every case study opens with "## The short version": what it is, the\n` +
+        `hardest problem, what the scaffold missed, how it was proven. The four\n` +
+        `beats are identical across all five on purpose, so a reader who has\n` +
+        `skimmed one knows where to look in the next.\n` +
+        `scripts/case-study/policy.mjs is the rule.`,
     );
   }
 

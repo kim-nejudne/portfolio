@@ -30,7 +30,13 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { SPOKES, repoLabel } from '../src/spokes.ts';
 import { CV } from '../src/cv.ts';
 import { CONTACT } from '../src/contact.ts';
-import { checkDisclosure } from './case-study/policy.mjs';
+import {
+  checkDisclosure,
+  SHORT_HEADING,
+  SHORT_ROWS,
+  SHORT_MIN_CHARS,
+  SHORT_MAX_CHARS,
+} from './case-study/policy.mjs';
 
 /*
  * Who the site says Kim is, and the rule about it. Same arrangement as
@@ -2263,6 +2269,68 @@ async function main() {
       const asMarkdown = sections.map((x) => `## ${x.heading}\n\n${x.body}`).join('\n\n');
       const wrong = checkDisclosure(asMarkdown);
       check(`${s.id}: the AI-scaffold origin is disclosed plainly`, wrong === null, wrong ?? '');
+
+      /*
+       * And the way in, checked where the reader meets it.
+       *
+       * `case-studies.mjs` refuses to build a case study without this block,
+       * so what is left for this to catch is everything between the markdown
+       * and the served page: the renderer failing to wrap it, the stylesheet
+       * that makes it read as apparatus not shipping, the block ending up
+       * somewhere other than the top.
+       *
+       * It does **not** reuse `checkShortVersion`. That function reads
+       * markdown, and its four beats are matched as `**bold**` lead-ins, which
+       * do not survive into `textContent` — reconstructing asterisks from the
+       * DOM to feed a function that only wants to strip them again would be a
+       * fake reuse. The constants are shared instead: the heading pattern, the
+       * four names and both bounds come from `policy.mjs` by source, so the
+       * generator and this cannot disagree about what the block is even though
+       * they read it in different forms.
+       */
+      const short = JSON.parse(
+        await ev(`JSON.stringify((() => {
+          const box = document.querySelector('.cs-short');
+          if (!box) return { bad: ['there is no .cs-short block on the page'] };
+          const bad = [];
+
+          const heading = box.querySelector('h2');
+          if (!heading) bad.push('the block has no heading');
+          else if (!new RegExp(${JSON.stringify(SHORT_HEADING.source)}, ${JSON.stringify(SHORT_HEADING.flags)}).test(heading.textContent.trim())) {
+            bad.push('the block heading is "' + heading.textContent.trim() + '"');
+          }
+
+          /* It has to be first, or it is not a way in. */
+          const heads = [...document.querySelectorAll('.cs-body h2')];
+          if (heading && heads[0] !== heading) {
+            bad.push('the block is not the first section; "' + (heads[0]?.textContent.trim() ?? '?') + '" is');
+          }
+
+          /* The four beats, in order, as the lead-in of their own paragraph. */
+          const want = ${JSON.stringify(SHORT_ROWS.map((r) => r.name))};
+          const got = [...box.querySelectorAll('p > strong:first-child')].map(e => e.textContent.trim());
+          if (got.join('|') !== want.join('|')) {
+            bad.push('the beats are [' + got.join(', ') + '] not [' + want.join(', ') + ']');
+          }
+
+          /* A label with nothing under it is not a summary either. */
+          for (const label of [...box.querySelectorAll('p > strong:first-child')]) {
+            const prose = label.parentElement.textContent.replace(label.textContent, '').trim();
+            if (prose.length < 40) bad.push('"' + label.textContent.trim() + '" has ' + prose.length + ' characters under it');
+          }
+
+          const chars = (heading ? box.textContent.replace(heading.textContent, '') : box.textContent).trim().length;
+          if (chars < ${SHORT_MIN_CHARS}) bad.push('the block is ' + chars + ' characters, under the ${SHORT_MIN_CHARS} floor');
+          if (chars > ${SHORT_MAX_CHARS}) bad.push('the block is ' + chars + ' characters, over the ${SHORT_MAX_CHARS} ceiling');
+
+          return { bad, chars };
+        })())`),
+      );
+      check(
+        `${s.id}: it opens with a way in, four beats and no wall`,
+        short.bad.length === 0,
+        short.bad.length ? short.bad.join(' | ') : `${short.chars} characters, ${SHORT_ROWS.length} beats`,
+      );
 
       /*
        * Nothing runs, and none of the 7MB of head art is fetched. These pages
