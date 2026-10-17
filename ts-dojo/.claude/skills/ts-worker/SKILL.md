@@ -112,11 +112,11 @@ Lib files live at the root of the virtual FS as `/lib.<name>.d.ts`, which is whe
 
 ### Lib loading rules (§2 Compiler assets and options)
 
-- `scripts/copy-ts-libs.ts` copies `node_modules/typescript/lib/lib.*.d.ts` into `public/ts/6.0.3/`. The worker fetches a lib on demand from `/ts/6.0.3/<name>` and stores it in `files`. The set fetched is exactly `knownLibFilesForCompilerOptions(options, ts)`; Prep confirms that for the default options it returns only ES files (its JSDoc warns it "will return a bit more than necessary (by including the dom)").
+- `scripts/copy-ts-libs.ts` copies `node_modules/typescript/lib/lib.*.d.ts` (107 files, 3,783,805 bytes) into `public/ts/6.0.3/` (gitignored; `pnpm build` regenerates it). The worker fetches a lib on demand from `/ts/6.0.3/<name>` and stores it in `files`. **Prep (17 October 2026) found `knownLibFilesForCompilerOptions` unusable as the lib set:** it is a prefix slice of a hardcoded list that returns 101 names for the defaults (DOM, webworker, scripthost and five files 6.0.3 does not ship) and only `lib.d.ts` once the options have gone through `convertCompilerOptionsFromJson`. The proposal under "Spec questions" in docs/progress.md: resolve the set by following `/// <reference lib="…" />` from `lib.<name>.d.ts` for each `lib` entry (76 files for `es2025`, including `lib.decorators.d.ts` and `lib.decorators.legacy.d.ts`, which `lib.es5.d.ts` references), as `referenceChain` in `scripts/copy-ts-libs.test.ts` does. Wait for Kim's answer before F2 builds on either.
 - `createDefaultMapFromCDN` is **not** used: it needs the network, writes `localStorage` (absent in workers) and always includes DOM.
-- `es2025` libs load at app start (warm-up). `lib.dom.d.ts` (2,351,349 bytes raw, 323 KB brotli) loads once, the first time a project has `libs: [dom]`, and stays in the map.
+- `es2025` libs load at app start (warm-up). `lib.dom.d.ts` (2,349,483 bytes raw, about 323 KB brotli) loads once, the first time a project has `libs: [dom]`, and stays in the map.
 - The service worker precaches `/ts/6.0.3/**` so all of this works offline (§9).
-- Sizes for reference (§2): `typescript` 9,144,216 bytes raw, 1,531,825 brotli; ES chain `es5`–`es2025` 569,639 bytes; decorators 14 KB; scripthost 9 KB.
+- Sizes measured in Prep (§2 corrected in docs/progress.md): ES chain from `lib.es2025.d.ts` 573,813 bytes (74 ES files 559,373 + the two decorators files 14,440); `lib.dom.d.ts` 2,349,483; scripthost 9,412; `typescript` itself 9,144,216 bytes raw and 1,531,825 brotli per §2 (not re-measured: F2 bundles it).
 
 ### Default compiler options (§2)
 

@@ -16,3 +16,6 @@ test-results
 .claude/settings.local.json
 
 .DS_Store
+
+# lib.*.d.ts copied from node_modules/typescript by scripts/copy-ts-libs.ts (spec §2); pnpm build regenerates it
+public/ts/

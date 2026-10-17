@@ -33,31 +33,35 @@ Prep runs this list against `@replit/codemirror-vim` 6.4.0 and records pass, wor
 
 Known gaps go in the `?` help overlay under "What Vim mode can't do".
 
-## Prep results: `docs/prep-vim.md`
+## Prep results (17 October 2026): read `docs/prep-vim.md` before touching key handling
 
-Prep writes this file; until it exists, this is the template. After Prep, read it before touching key handling: it is the record of what the engine does on Kim's machine.
+Prep ran the checklist in Google Chrome 155 with Playwright (`spike/vim/checklist.spec.ts`, `pnpm spike:vim:check`, 94 tests). docs/prep-vim.md has one row per item with its test, the "Ctrl keys" table Kim fills by hand, and the gaps list for the `?` overlay. The engine is the separate package `@replit/codemirror-vim-core` 0.1.0 (`vim.js`); 6.4.0's `dist/index.js` is only the CodeMirror 6 adapter.
 
-```markdown
-# Vim spike results (Prep)
+**Results in one paragraph.** Every P item passes as shipped except four that need a definition the §11 gate allows: `"*` (the engine knows `+` only), `"+p` (stale linewise flag), normal-mode `U` (the engine has none) and `:set rnu nu wrap` ("Unknown option"); visual block needs `allowMultipleSelections`. Of the W items, jumps (`Ctrl-o Ctrl-i`), macros, `:g`, `:sort`, insert `Ctrl-u Ctrl-o Ctrl-r` pass as shipped; insert `Ctrl-h` needs a mapping; folds need definitions; `it at` is a gap in a TypeScript buffer; insert `Ctrl-w` stays the browser gap. `:normal` and `gq` work. `defineAction` is confirmed.
 
-Checked on <date> with @replit/codemirror-vim 6.4.0, @codemirror/view <version>, Chrome <version> on Linux.
+**What F3 applies by default** (code in `spike/vim/workarounds.ts`, lift it unchanged):
 
-| Area | Item | Level | Result | Mapping or definition | Note |
-| --- | --- | --- | --- | --- | --- |
-| Modes | normal | P | pass | | |
-| Text objects | it at | W | workaround | defineAction … | |
-| ... | | | | | |
+| Item | Definition |
+| --- | --- |
+| Visual block | `EditorState.allowMultipleSelections.of(true)` in the editor extensions; without it a block operation touches one line |
+| Space leader | `leaderKey('<Space>')`: `Vim.map('<Space>', '<Leader>', 'normal')` and `'visual'`; the parser emits every `<leader>x` line as `<Leader>x` |
+| `"*` | `starRegister()`: `Vim.map('"*', '"+', 'normal')` and `'visual'` |
+| `"+p` | `clipboardPaste()`: redefines the `paste` action so the linewise flag comes from the clipboard text (as shipped a copied line is pasted charwise, and after `"+yy` charwise text loses its last character) |
+| `U` | `lineUndo()`: `Vim.map('U', 'u', 'normal')`, pending Kim's answer under Spec questions (plain undo, not line undo) |
+| `:set rnu nu wrap` | `setOptions(view)`: `Vim.defineOption('relativenumber', false, 'boolean', ['rnu'], cb)` and the same for `number`/`nu` and `wrap`; the callbacks reconfigure compartments (`lineNumbers({ formatNumber })`, `EditorView.lineWrapping`); the relative gutter must be re-rendered on cursor moves |
+| Insert `Ctrl-h` | `Vim.map('<C-h>', '<BS>', 'insert')` (`imap <C-h> <BS>`), or the insert-only CodeMirror keymap `insertCtrlH` |
+| `zo zc za zR zM` | `foldKeys()`: `Vim.defineAction('foldClose', cm => foldCode(cm.cm6))` (and open, toggle, openAll, closeAll) plus `Vim.mapCommand('zc', 'action', 'foldClose', {}, { context: 'normal' })`; needs `codeFolding()` or `foldGutter()` |
+| `:w` and the ex table | `Vim.defineEx(name, prefix, fn)`; as shipped `:w` does nothing visible |
 
-## Ctrl keys the page can intercept
-| Key | Tab | Installed PWA window |
-| --- | --- | --- |
-| Ctrl-n | no | ... |
+**Mapping rules the vimrc parser must follow** (each proven in the `API` describe of the spike):
 
-## Gaps for the ? overlay
-- ...
-```
+1. A right-hand side `:cmd<CR>` runs the command; `:cmd` without `<CR>` opens the command line pre-filled, as in Vim.
+2. The engine runs the first full match and waits for more keys only when nothing matches in full. A multi-key mapping fires only when its first key is not a command by itself: `gd gt gT ]d [d K <C-h> <C-j> <C-k> <C-l>` and insert `jk` fire; `<Space>d` and `,d` never do, and `unmap` cannot remove a default. Hence the virtual `<Leader>` key above.
+3. `<leader>` means nothing to the engine; the parser expands `let mapleader`.
+4. Re-mapping a key: the newest definition wins; `unmap` removes only the newest (the older one comes back); `mapclear(ctx)` empties the user layer. Re-applying the vimrc on a settings change: `mapclear` for normal, visual and insert, then the app's own mappings, then the vimrc lines.
+5. A single-key user mapping overrides the default for that key; `Vim.map` and `:nmap` are the same path.
 
-Result is one of `pass`, `workaround` (with the mapping or definition that closes it) or `gap` (with the note that goes in the overlay). The §11 Prep gate: every P item passes or has a working mapping, and the W list is written down.
+**Engine quirks worth knowing:** `a"` `a'` `` a` `` select the quotes only (Vim also takes the trailing space); `?` from inside a match skips that match; the status panel shows `--NORMAL--` and friends but a notification replaces the mode text until the next notification; `cm.cm6` is the `EditorView` (typed `any` in an action's `cm`); Chrome lets the page take Ctrl-d/u/f/b/r/o/h/p/v only if the page prevents them (Kim's table in docs/prep-vim.md says which arrive in a tab and in an installed window).
 
 ## Shipped vimrc and the parser (§4)
 
@@ -143,28 +147,25 @@ Conflict rule: no global key fires while the editor is focused, so nothing can s
 
 Theory pane keys when focused: `j k gg G Ctrl-d Ctrl-u` scroll, `Enter` on a code block runs Open in REPL, `j`/`k` and `Enter` answer a Check yourself question when one has focus. Output pane: `j`/`k` move, `Enter` jumps to the diagnostic, failed test or rule hit; the Tests tab's four rows expand with `Enter`. Roadmap: `j`/`k` reading order, `h`/`l` within a band, `Enter` opens, `c` continues. Module page: `j`/`k`/`Enter`. `predict` exercises: `j`/`k`/`Enter`.
 
-## The `@replit/codemirror-vim` API
-
-From the package README (6.4.0):
+## The `@replit/codemirror-vim` API (6.4.0, confirmed in Prep)
 
 ```js
-import { vim } from '@replit/codemirror-vim';
-// "make sure vim is included before other keymaps"
-new EditorView({ extensions: [vim(), basicSetup /* or the keymaps you use in insert mode */] });
+import { vim, Vim, getCM } from '@replit/codemirror-vim';
+// vim() must come before other keymaps; status: true renders --NORMAL-- etc. in a .cm-vim-panel
+new EditorView({ extensions: [vim({ status: true }), EditorState.allowMultipleSelections.of(true), drawSelection(), /* ... */] });
 
-import { Vim, getCM } from '@replit/codemirror-vim';
-const cm = getCM(view);              // the CodeMirror 5 adapter; "use cm to access the old cm5 api"
-Vim.exitInsertMode(cm);
-Vim.handleKey(cm, '<Esc>');
-Vim.defineEx('write', 'w', function () { /* save the file */ });   // name, prefix, callback
-Vim.map('jj', '<Esc>', 'insert');    // in insert mode
-Vim.map('Y', 'y$');                  // in normal mode
-Vim.unmap('jj', 'insert');
-Vim.defineOperator('hardWrap', function (cm, operatorArgs, ranges, oldAnchor, newHead) { /* ... */ });
+const cm = getCM(view);              // the CodeMirror 5 adapter; cm.state.vim has insertMode, visualMode, visualLine, visualBlock, mode
+Vim.defineEx('write', 'w', (cm, params) => { /* params: commandName, argString, args, line, lineEnd, input */ });
+Vim.defineAction('foldClose', (cm, actionArgs, vim) => foldCode(cm.cm6));   // cm.cm6 is the EditorView
+Vim.mapCommand('zc', 'action', 'foldClose', {}, { context: 'normal' });     // binds keys to an action
+Vim.defineOption('relativenumber', false, 'boolean', ['rnu'], (value) => { /* undefined = get */ });
+Vim.map('jk', '<Esc>', 'insert');   Vim.noremap('Y', 'y$', 'normal');   Vim.unmap('jk', 'insert');   Vim.mapclear('normal');
+Vim.handleKey(cm, 'd', 'user');     Vim.handleEx(cm, '2');
+Vim.getRegisterController().getRegister('+');   Vim.exitInsertMode(cm);   Vim.exitVisualMode(cm);
 ```
 
-The README says the CodeMirror 5 Vim API works through `Vim`; the CM5 engine also has `Vim.defineAction(name, fn)`, `Vim.mapCommand(keys, type, name, args, extra)`, `Vim.defineMotion`, `Vim.defineOption`/`setOption`/`getOption`, `Vim.noremap`, and the ex callback receives `(cm, params)` where `params` carries `args`, `argString`, `line`, `lineEnd` and `input`. Confirm each of these against `node_modules/@replit/codemirror-vim/` (its `index.d.ts` and the vim engine source) in Prep before relying on it; the spec marks `defineAction` as unconfirmed. If `vim()` takes a `status` option for a status bar, the same check tells.
+`defineOperator`, `defineMotion` and `defineRegister` are declared in `dist/index.d.ts` but were not needed. The `:` and `/` prompts are an `input` inside the panel. `navigator.clipboard` (the `+` register) needs HTTPS or localhost and the permission.
 
 ## Testing keys (Playwright)
 
-Drive everything with `page.keyboard.press` and `page.keyboard.type`; assert the focused pane before and after; wait for the compiler chip to leave "compiler loading" before anything that needs diagnostics; never rely on a fixed sleep. The `e2e-writer` agent has the flows §12 requires.
+`spike/vim/helpers.ts` has the helpers the spike used: `press(page, 'dw<Esc>')` turns Vim notation into key presses (`<C-d>` → `Control+d`, `+` → `Shift+Equal`), `snapshot(page)` reads the document, cursor, mode, status text, search matches, folds and gutter, `setDoc` resets the buffer and mode, `ex(page, 's/a/b/g')` types at the prompt. Reuse them in `e2e/`. Drive everything with `page.keyboard.press` and `page.keyboard.type`; assert the focused pane before and after; wait for the compiler chip to leave "compiler loading" before anything that needs diagnostics; never rely on a fixed sleep. The `e2e-writer` agent has the flows §12 requires.

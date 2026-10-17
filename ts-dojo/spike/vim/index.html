@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ts-dojo Vim spike</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <style>
+      body {
+        margin: 0;
+        font:
+          14px/1.5 system-ui,
+          sans-serif;
+        color: #111827;
+        background: #ffffff;
+      }
+      header,
+      main {
+        padding: 0 16px;
+      }
+      header p {
+        max-width: 70ch;
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+      #editor {
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+      }
+      .cm-editor {
+        outline: none;
+      }
+      aside section {
+        margin-bottom: 24px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 0 0 8px;
+      }
+      #keylog {
+        max-height: 220px;
+        overflow: auto;
+        padding-left: 20px;
+        margin: 8px 0 0;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      #steps ol {
+        padding-left: 20px;
+      }
+      code {
+        font-family: ui-monospace, monospace;
+        background: #f3f4f6;
+        padding: 0 3px;
+      }
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>ts-dojo · Vim spike (Prep)</h1>
+      <p>
+        CodeMirror 6 with <code>@replit/codemirror-vim</code> 6.4.0. The §4
+        checklist runs through Playwright (<code>pnpm spike:vim:check</code>);
+        the panels on the right are for the checks only a real browser window
+        can answer. Results go in <code>docs/prep-vim.md</code>.
+      </p>
+    </header>
+    <main>
+      <section><div id="editor"></div></section>
+      <aside>
+        <section>
+          <h2>Key log</h2>
+          <label
+            ><input type="checkbox" id="prevent" /> preventDefault on every Ctrl
+            key</label
+          >
+          <button id="clear" type="button">clear</button>
+          <ol id="keylog"></ol>
+        </section>
+        <section id="steps">
+          <h2>For Kim</h2>
+          <ol>
+            <li>
+              Tick the checkbox, click into the editor, then press each key
+              below. A key that reaches the page appears in the log with "page
+              prevented default"; a key the browser keeps never appears (and may
+              open a tab, window or browser page instead). Reserved per the
+              spec: Ctrl-n, Ctrl-t, Ctrl-w, Ctrl-Shift-n, Ctrl-Shift-t,
+              Ctrl-Shift-w, Ctrl-Tab, Ctrl-Shift-Tab, Ctrl-1 … Ctrl-9. Used by
+              Vim or the app: Ctrl-a, Ctrl-b, Ctrl-d, Ctrl-e, Ctrl-f, Ctrl-g,
+              Ctrl-h, Ctrl-i, Ctrl-j, Ctrl-k, Ctrl-l, Ctrl-o, Ctrl-p, Ctrl-r,
+              Ctrl-u, Ctrl-v, Ctrl-x, Ctrl-y, Ctrl-[, Ctrl-Space,
+              Ctrl-Backspace.
+            </li>
+            <li>
+              Chrome menu → Cast, save and share → Install page as app. Repeat
+              step 1 in the installed window.
+            </li>
+            <li>
+              Clipboard: in normal mode type <code>"+yy</code>, then paste in a
+              terminal; copy a line in a terminal, then type
+              <code>"+p</code> here.
+            </li>
+          </ol>
+        </section>
+      </aside>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
