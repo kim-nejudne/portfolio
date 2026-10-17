@@ -14,11 +14,27 @@ The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion fr
 
 ## Prep
 
-- [ ] The §4 Vim checklist has a recorded result for every item: pass, workaround (with the mapping), or gap.
-- [ ] `public/ts/6.0.3/` holds every `lib.*.d.ts` from `typescript@6.0.3`, and §2's sizes are confirmed or corrected.
+- [x] The §4 Vim checklist has a recorded result for every item: pass, workaround (with the mapping), or gap.
+- [x] `public/ts/6.0.3/` holds every `lib.*.d.ts` from `typescript@6.0.3`, and §2's sizes are confirmed or corrected.
 - [ ] `dojo.kimnejudne.dev` resolves to the droplet. (by hand)
 
 > **Gate (§11):** every P item passes or has a working mapping, and the W list is written down.
+
+**Notes (17 October 2026)**
+
+- Vim spike: `spike/vim/` (the page, `workarounds.ts`, and `checklist.spec.ts`: 94 Playwright tests in Google Chrome 155 through `channel: 'chrome'`, `pnpm spike:vim:check`). The record is docs/prep-vim.md, one row per §4 item with its test. Every P item passes as shipped except four that need a definition, which the gate allows: `"*` (mapped to `"+`), `"+p` (`clipboardPaste()`, see the next bullet), `U` (mapped to `u`, see Spec questions) and `:set rnu/nu/wrap` (`Vim.defineOption`); `:w` is the app's own `defineEx`, and visual block needs one editor setting (next bullet). Of the W items, jumps, macros, `:g`, `:sort` and insert-mode `Ctrl-u Ctrl-o Ctrl-r` pass as shipped; insert `Ctrl-h` needs `imap <C-h> <BS>`; folds need `Vim.defineAction` plus `Vim.mapCommand` over CodeMirror's fold commands; `it`/`at` is a gap in TypeScript buffers; insert `Ctrl-w` stays the browser gap (`Ctrl-Backspace` instead). `defineAction` is confirmed. `:normal` and `gq` work although §4 expects neither.
+- Findings that shape F3: visual block needs `EditorState.allowMultipleSelections.of(true)`; the engine runs the first full key match and waits only when nothing matches in full, so a Space leader works only through a virtual key (`leaderKey()`), the vimrc parser expands `<leader>` itself, a mapping to `:cmd` needs its `<CR>`, and re-applying the vimrc must `mapclear` first because `unmap` only removes the newest definition; `"+p` pastes with a stale linewise flag (`clipboardPaste()` fixes it). Browser-reserved keys and the clipboard round trip are Kim's (For Kim).
+- Lib files: `scripts/copy-ts-libs.ts` copies the 107 `lib.*.d.ts` files (3,783,805 bytes) into `public/ts/6.0.3/`, proven by `scripts/copy-ts-libs.test.ts`. The folder is generated, so it is gitignored; today `pnpm copy-ts-libs` (or `pnpm test --run`, whose §12 test runs the copy) creates it, and F1 wires the copy into `build` and `dev` as §2 says. `lib.d.ts` (the ES5 + DOM + scripthost default) also sits in `typescript/lib` but is not a `lib.*.d.ts` and is not copied; it is the one name `knownLibFilesForCompilerOptions` returns after option conversion, so an F2 that followed §2 literally would request `/ts/6.0.3/lib.d.ts` and get a 404. §2 sizes, measured:
+
+  | What | §2 | Measured | |
+  | --- | --- | --- | --- |
+  | ES chain `es5`–`es2025` (what `lib.es2025.d.ts` resolves) | 569,639 | 573,813 bytes, 76 files: 74 ES files (559,373) plus `lib.decorators.d.ts` and `lib.decorators.legacy.d.ts`, which `lib.es5.d.ts` references | corrected |
+  | `lib.dom.d.ts` | 2,351,349 | 2,349,483 bytes | corrected |
+  | decorators | 14 KB | 13,153 + 1,287 bytes | confirmed |
+  | scripthost | 9 KB | 9,412 bytes | confirmed |
+
+  `knownLibFilesForCompilerOptions` does not return only ES files for the default options, or anything usable: see Spec questions.
+- Setup added for Prep, which F1 extends: `package.json` (pnpm 12.11.2, exact pins for everything §2 pins), `tsconfig.json` with the §2 flags, Prettier (`singleQuote`; `*.md` and `.claude/` ignored so the spec and the hooks keep their formatting), Vitest, Playwright 1.64.1 driving the installed Chrome (its own Chromium 1248 is not in the cache). No ESLint yet, so the pre-commit hook runs typecheck, format:check and the tests.
 
 ## F1. Scaffold
 
@@ -167,6 +183,9 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **§5 Runtime tests, types for `test` and `expect`.** The prelude defines `test`, `test.skip` and `expect` at runtime, and `tests.ts` must compile with zero diagnostics outside case ranges, but §5 does not say how `tests.ts` sees their types. Proposal: F7 ships an ambient `.d.ts` (the harness types) added to every exercise project, so lesson authors use `test` and `expect` as globals with no import. The `lesson` skill and its reference exercises assume this.
 - **§2 default options leave `console` and timers undeclared.** With `lib: ["es2025"]` and `types: []`, `console.log` is TS2584 ("Cannot find name 'console'") and `setTimeout` is undeclared, because both live in `lib.dom.d.ts` and `@types/node`, not in the ES lib. Every `ts run` example and most exercises use them, and §12 F4 needs `setTimeout`. Proposal: the app adds one ambient `.d.ts` to every project (not a lesson file) declaring the sandbox's `console` shim and its timers, alongside the test harness types above. Decide at F2 (names and location) and F4 (what the shim really provides). Confirmed with `typescript@6.0.3` on 17 October 2026 while compiling the lesson skill's reference.
 - **§13 open question** ("write docs/progress.md and CLAUDE.md now, as job-search has, or at F1?"): written now, in the Claude Code setup session on 17 October 2026.
+- **§2 `knownLibFilesForCompilerOptions` (Prep, 17 October 2026).** It is not a dependency walk but a prefix slice of a hardcoded name list. With the §2 defaults written as JSON (`lib: ["es2025"]`) it returns 101 names, among them `lib.d.ts`, every DOM, webworker and scripthost file, and five files 6.0.3 does not ship; after `ts.convertCompilerOptionsFromJson` (lib entries become file names and `ScriptTarget[12]` reads back as `"LatestStandard"`) it returns only `lib.d.ts`. It can never return "only ES files", so §2's "exactly the set it returns" cannot be built. Proposal: F2 resolves the set by following the `/// <reference lib="…" />` directives from `lib.<name>.d.ts` for each `lib` entry (76 files for `es2025`, the two decorators files included, 573,813 bytes), and the §2 sentence is reworded to say so. Pinned by `scripts/copy-ts-libs.test.ts`; the ts-worker skill carries the note.
+- **§4 Undo, `U` (Prep).** The engine has no normal-mode `U`. The proposed mapping `nmap U u` makes `U` a plain undo rather than Vim's "undo all changes on the last changed line". Accept the mapping, or drop `U` from the checklist and list it in the `?` overlay?
+- **§4 P items that need a definition (Prep).** `"*`, `"+p`, `U` and `:set rnu/nu/wrap` are P ("must pass as shipped") but need the definitions recorded in docs/prep-vim.md, and visual block needs `EditorState.allowMultipleSelections.of(true)` in the editor; the §11 gate accepts a working mapping, so Prep passes either way. Re-level them to W, or leave the table and keep the record? Related: W allows a default vimrc mapping, so insert-mode `Ctrl-h` can be `imap <C-h> <BS>` in the shipped vimrc text, or applied in code so the Settings vimrc matches §4 exactly; F3 applies it in code unless Kim prefers the vimrc line.
 
 ## Measured budgets (§9)
 
@@ -188,6 +207,9 @@ Measured at F15 on Kim's laptop in Chrome. A miss needs a note.
 Checks only Kim can do. Feature sessions add their items here with exact steps; Kim ticks them here and in the feature's section above.
 
 - [ ] Prep: add the Namecheap A record `dojo` → the droplet, then confirm `dojo.kimnejudne.dev` resolves (`dig +short dojo.kimnejudne.dev`).
+- [ ] Prep (by hand): browser-reserved keys in a tab. `pnpm spike:vim`, open http://localhost:5179 in Chrome, tick "preventDefault on every Ctrl key", click into the editor and press every key in the table "Ctrl keys the page can intercept" in docs/prep-vim.md. A key that reaches the page appears in the key log as "page prevented default"; a key the browser keeps never appears. Fill the "Tab" column.
+- [ ] Prep (by hand): the same in an installed window. Chrome menu → Cast, save and share → Install page as app (or the install icon in the address bar), repeat the key presses there and fill the "Installed window" column.
+- [ ] Prep (by hand): clipboard round trip. In the spike editor in normal mode type `"+yy`, then paste in a terminal; copy a line in a terminal, then type `"+p` in the editor. Both directions should carry the text; note whether Chrome asked for clipboard permission. Record the answer in docs/prep-vim.md.
 - [ ] F15 (droplet): run `deploy/deploy.sh` with `TS_DOJO_HOST` set; confirm HTTPS answers with a valid certificate and HTTP redirects.
 - [ ] F15 (droplet): open `/l/<lesson>` directly; check `/ts/6.0.3/lib.es2025.d.ts` is served precompressed as `text/plain`, `/assets/*` is immutable, and `index.html` and `sw.js` are `no-cache` (`curl -I`).
 - [ ] F11 (by hand): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug.
