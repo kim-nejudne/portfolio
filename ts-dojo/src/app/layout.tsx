@@ -1,9 +1,10 @@
-// The app shell around every §6 page: a one-line header (the current path; the compiler
-// status chip comes with F2), the page, the global keys and the `?` help overlay. shadcn's
-// Tooltip needs one provider above everything that uses it.
+// The app shell around every §6 page: a one-line header (the current path and the compiler
+// status chip), the page, the global keys and the `?` help overlay. shadcn's Tooltip needs one
+// provider above everything that uses it.
 import { useMemo, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { CompilerStatusChip } from './compiler-status';
 import { HelpOverlay } from './help-overlay';
 import { useGlobalKeys, type GlobalKeyHandlers } from './use-global-keys';
 
@@ -23,8 +24,11 @@ export function Layout() {
             ts-dojo
           </Link>
           <span className="font-mono text-muted-foreground">{pathname}</span>
-          <span className="ml-auto text-muted-foreground">
-            <kbd className="rounded border px-1 font-mono">?</kbd> keys
+          <span className="ml-auto flex items-center gap-3 text-muted-foreground">
+            <CompilerStatusChip />
+            <span>
+              <kbd className="rounded border px-1 font-mono">?</kbd> keys
+            </span>
           </span>
         </header>
         <main className="flex flex-1 flex-col">

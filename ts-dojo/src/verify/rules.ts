@@ -1,0 +1,52 @@
+// The §5 rule ids, their messages and which ones are always on. The ts-ls worker's AST walk
+// (src/workers/ts-ls/rules.ts) produces the hits; exercises list ids in `forbid` (§3); the
+// verifier assembles the Rules group of the verdict from the hits (F7).
+
+export const RULE_IDS = [
+  'ts-directive',
+  'explicit-any',
+  'implicit-any',
+  'as-unknown-as',
+  'non-null-assertion',
+  'angle-cast',
+  'eval',
+  'no-skipped-tests',
+] as const;
+
+export type RuleId = (typeof RULE_IDS)[number];
+
+/** §5 "always; cannot be turned off": run on every lintAst call whatever `rules` says. */
+export const ALWAYS_ON_RULES = [
+  'ts-directive',
+  'eval',
+  'no-skipped-tests',
+] as const satisfies readonly RuleId[];
+
+export const RULE_MESSAGES: Record<RuleId, string> = {
+  'ts-directive':
+    '@ts-ignore, @ts-nocheck and @ts-expect-error are not allowed outside tests.ts',
+  'explicit-any': 'explicit `any` is not allowed',
+  'implicit-any': 'this value implicitly has an `any` type',
+  'as-unknown-as':
+    'casting through `unknown` (`x as unknown as T`) is not allowed',
+  'non-null-assertion': 'the non-null assertion `!` is not allowed',
+  'angle-cast': 'the angle-bracket cast `<T>x` is not allowed',
+  eval: 'eval and new Function are not allowed',
+  'no-skipped-tests': 'test.skip is not allowed in tests.ts',
+};
+
+/** §5: the diagnostic codes the `implicit-any` rule reports (only reachable with noImplicitAny off). */
+export const IMPLICIT_ANY_CODES: readonly number[] = [7006, 7031];
+
+export function isRuleId(value: unknown): value is RuleId {
+  return (
+    typeof value === 'string' && (RULE_IDS as readonly string[]).includes(value)
+  );
+}
+
+/** The basename rules key on: `ts-directive` skips it, `no-skipped-tests` only looks at it. */
+export const TEST_FILE_NAME = 'tests.ts';
+
+export function isTestFile(path: string): boolean {
+  return path === TEST_FILE_NAME || path.endsWith(`/${TEST_FILE_NAME}`);
+}

@@ -1,0 +1,200 @@
+// A progress model for a learning app: the 200-line fixture behind the §12 F2 diagnostics
+// benchmark (under 300 ms p95, warm). Valid under the §2 defaults: strict, es2025, no DOM.
+export type TierId = `tier-${0 | 1 | 2 | 3 | 4}`;
+export type ModuleId = `m${number}-${string}`;
+export type LessonId = `${ModuleId}/${number}-${string}`;
+export type ExerciseKind = 'fix' | 'implement' | 'type-challenge' | 'predict';
+export type LessonState = 'untouched' | 'started' | 'complete';
+
+export interface Exercise {
+  readonly id: `${LessonId}/${string}`;
+  readonly kind: ExerciseKind;
+  readonly title: string;
+  readonly minutes: number;
+  readonly challenge: boolean;
+  readonly hints: readonly string[];
+}
+
+export interface Lesson {
+  readonly id: LessonId;
+  readonly title: string;
+  readonly objectives: readonly string[];
+  readonly exercises: readonly Exercise[];
+}
+
+export interface Module {
+  readonly id: ModuleId;
+  readonly tier: TierId;
+  readonly title: string;
+  readonly prerequisites: readonly ModuleId[];
+  readonly lessons: readonly Lesson[];
+}
+
+export interface Attempt {
+  readonly exerciseId: Exercise['id'];
+  readonly at: number;
+  readonly passed: boolean;
+  readonly durationMs: number;
+}
+
+export interface ExerciseProgress {
+  readonly exerciseId: Exercise['id'];
+  readonly passed: boolean;
+  readonly attempts: number;
+  readonly hintsUsed: number;
+  readonly solutionViewed: boolean;
+  readonly lastAttemptAt: number | null;
+}
+
+export type ProgressByExercise = ReadonlyMap<Exercise['id'], ExerciseProgress>;
+
+export interface ModuleSummary {
+  readonly moduleId: ModuleId;
+  readonly lessons: number;
+  readonly complete: number;
+  readonly started: number;
+  readonly exercises: number;
+  readonly passed: number;
+  readonly hintsUsed: number;
+  readonly solutionsViewed: number;
+  readonly ratio: number;
+}
+
+export type Result<T, E = string> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: E };
+
+export function ok<T>(value: T): Result<T, never> {
+  return { ok: true, value };
+}
+
+export function fail<E>(error: E): Result<never, E> {
+  return { ok: false, error };
+}
+
+export function isLessonId(value: string): value is LessonId {
+  return /^m\d{2}-[a-z0-9-]+\/\d{2}-[a-z0-9-]+$/.test(value);
+}
+
+export function moduleOf(lessonId: LessonId): ModuleId {
+  const [moduleId] = lessonId.split('/');
+  return moduleId as ModuleId;
+}
+
+export function emptyProgress(exerciseId: Exercise['id']): ExerciseProgress {
+  return {
+    exerciseId,
+    passed: false,
+    attempts: 0,
+    hintsUsed: 0,
+    solutionViewed: false,
+    lastAttemptAt: null,
+  };
+}
+
+export function recordAttempt(
+  progress: ExerciseProgress,
+  attempt: Attempt,
+): ExerciseProgress {
+  if (attempt.exerciseId !== progress.exerciseId) {
+    throw new Error(`attempt for ${attempt.exerciseId} applied to ${progress.exerciseId}`);
+  }
+  return {
+    ...progress,
+    passed: progress.passed || attempt.passed,
+    attempts: progress.attempts + 1,
+    lastAttemptAt: Math.max(progress.lastAttemptAt ?? 0, attempt.at),
+  };
+}
+
+export function lessonState(lesson: Lesson, progress: ProgressByExercise): LessonState {
+  const required = lesson.exercises.filter((exercise) => !exercise.challenge);
+  const entries = required.map((exercise) => progress.get(exercise.id));
+  if (required.length > 0 && entries.every((entry) => entry?.passed === true)) {
+    return 'complete';
+  }
+  return entries.some((entry) => entry !== undefined && entry.attempts > 0)
+    ? 'started'
+    : 'untouched';
+}
+
+export function summarize(module: Module, progress: ProgressByExercise): ModuleSummary {
+  let complete = 0;
+  let started = 0;
+  let exercises = 0;
+  let passed = 0;
+  let hintsUsed = 0;
+  let solutionsViewed = 0;
+  for (const lesson of module.lessons) {
+    const state = lessonState(lesson, progress);
+    if (state === 'complete') complete += 1;
+    if (state === 'started') started += 1;
+    for (const exercise of lesson.exercises) {
+      exercises += 1;
+      const entry = progress.get(exercise.id);
+      if (entry === undefined) continue;
+      if (entry.passed) passed += 1;
+      hintsUsed += entry.hintsUsed;
+      if (entry.solutionViewed) solutionsViewed += 1;
+    }
+  }
+  const lessons = module.lessons.length;
+  return {
+    moduleId: module.id,
+    lessons,
+    complete,
+    started,
+    exercises,
+    passed,
+    hintsUsed,
+    solutionsViewed,
+    ratio: lessons === 0 ? 0 : complete / lessons,
+  };
+}
+
+export class Roadmap {
+  readonly #modules = new Map<ModuleId, Module>();
+
+  constructor(modules: Iterable<Module>) {
+    for (const module of modules) this.#modules.set(module.id, module);
+  }
+
+  get size(): number {
+    return this.#modules.size;
+  }
+
+  module(id: ModuleId): Result<Module> {
+    const found = this.#modules.get(id);
+    return found === undefined ? fail(`unknown module ${id}`) : ok(found);
+  }
+
+  unmetPrerequisites(id: ModuleId, progress: ProgressByExercise): readonly ModuleId[] {
+    const result = this.module(id);
+    if (!result.ok) return [];
+    return result.value.prerequisites.filter((prerequisite) => {
+      const found = this.#modules.get(prerequisite);
+      return found !== undefined && summarize(found, progress).ratio < 1;
+    });
+  }
+
+  byTier(): ReadonlyMap<TierId, readonly Module[]> {
+    const tiers = new Map<TierId, Module[]>();
+    for (const module of this.#modules.values()) {
+      const list = tiers.get(module.tier) ?? [];
+      list.push(module);
+      tiers.set(module.tier, list);
+    }
+    return tiers;
+  }
+
+  nextLesson(progress: ProgressByExercise): Lesson | undefined {
+    for (const module of this.#modules.values()) {
+      const lesson = module.lessons.find((candidate) => lessonState(candidate, progress) !== 'complete');
+      if (lesson !== undefined) return lesson;
+    }
+    return undefined;
+  }
+}
+
+export const revision = 0;
+export type Revision = typeof revision;
