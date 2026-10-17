@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules
+dist
+coverage
+*.tsbuildinfo
+
+# test runners
+playwright-report
+test-results
+
+# secrets: this app has none, but nothing that looks like one is ever committed
+.env*
+!.env.example
+
+# per-machine Claude Code settings; .claude/settings.json is the shared, committed one
+.claude/settings.local.json
+
+.DS_Store
