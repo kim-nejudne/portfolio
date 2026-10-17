@@ -1,0 +1,69 @@
+// The `?` keyboard help overlay (spec §6 Global keys): the global keys table and "What Vim mode
+// can't do", the gaps list from the Prep spike. F3 adds the ex command table.
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { VIM_GAPS } from '@/editor/gaps';
+import { GLOBAL_KEYS } from './keys';
+
+export function HelpOverlay({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Keyboard help</DialogTitle>
+          <DialogDescription>
+            Global keys fire when the editor does not have focus. Inside the
+            editor every key is Vim&apos;s, and the ex commands reach the app.
+          </DialogDescription>
+        </DialogHeader>
+        <section
+          aria-labelledby="help-global-keys"
+          className="flex flex-col gap-2"
+        >
+          <h3 id="help-global-keys" className="text-sm font-semibold">
+            Global keys
+          </h3>
+          <table className="w-full text-sm">
+            <tbody>
+              {GLOBAL_KEYS.map((row) => (
+                <tr key={row.keys} className="border-t">
+                  <th
+                    scope="row"
+                    className="w-56 py-1 pr-4 text-left font-mono font-normal"
+                  >
+                    {row.keys}
+                  </th>
+                  <td className="py-1 text-muted-foreground">{row.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <section
+          aria-labelledby="help-vim-gaps"
+          className="flex flex-col gap-2"
+        >
+          <h3 id="help-vim-gaps" className="text-sm font-semibold">
+            What Vim mode can&apos;t do
+          </h3>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            {VIM_GAPS.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        </section>
+      </DialogContent>
+    </Dialog>
+  );
+}
