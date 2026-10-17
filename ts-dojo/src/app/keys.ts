@@ -1,7 +1,8 @@
 // The global keyboard map (spec §6 Global keys). These fire only when the editor does not have
 // focus: inside the editor every key is Vim's and the ex commands reach the app (the §6
 // conflict rule), so the hook that applies this map skips editable targets and anything inside
-// `.cm-editor`. F1 wires `?`; F3 and F8 add the rest, including the two-key sequences.
+// `.cm-editor`. F1 wired `?`; F3 adds `Ctrl-p` and the two-key sequences (`g r`, `g n`, `g p`,
+// `] e`, `[ e`); F8 adds the pane keys, `Esc`, the scrolling keys and `Enter`.
 export interface GlobalKey {
   keys: string;
   action: string;
@@ -25,7 +26,14 @@ export const GLOBAL_KEYS: readonly GlobalKey[] = [
   { keys: 'Enter', action: 'Activate the focused item' },
 ];
 
-export type GlobalAction = 'help';
+export type GlobalAction =
+  | 'help'
+  | 'palette'
+  | 'roadmap'
+  | 'lessonNext'
+  | 'lessonPrev'
+  | 'exerciseNext'
+  | 'exercisePrev';
 
 export interface KeyLike {
   key: string;
@@ -35,16 +43,43 @@ export interface KeyLike {
   shiftKey?: boolean;
 }
 
-export function matchGlobalKey(event: KeyLike): GlobalAction | null {
-  if (
-    event.ctrlKey === true ||
-    event.altKey === true ||
-    event.metaKey === true
-  ) {
-    return null;
+/** The first key of a two-key sequence, waiting for the second. */
+export type KeyPrefix = 'g' | ']' | '[';
+
+export type GlobalKeyMatch =
+  | { kind: 'action'; action: GlobalAction }
+  | { kind: 'prefix'; prefix: KeyPrefix }
+  | { kind: 'none' };
+
+const SEQUENCES: Record<KeyPrefix, Record<string, GlobalAction>> = {
+  g: { r: 'roadmap', n: 'lessonNext', p: 'lessonPrev' },
+  ']': { e: 'exerciseNext' },
+  '[': { e: 'exercisePrev' },
+};
+
+/**
+ * Matches one key press against the §6 table. `prefix` is the first key of a sequence pressed
+ * just before, if any; a second key that completes no sequence is dropped with the prefix.
+ */
+export function matchGlobalKey(
+  event: KeyLike,
+  prefix: KeyPrefix | null = null,
+): GlobalKeyMatch {
+  if (event.altKey === true || event.metaKey === true) return { kind: 'none' };
+  if (event.ctrlKey === true) {
+    return event.key === 'p' && event.shiftKey !== true
+      ? { kind: 'action', action: 'palette' }
+      : { kind: 'none' };
   }
-  if (event.key === '?') return 'help';
-  return null;
+  if (prefix !== null) {
+    const action = SEQUENCES[prefix][event.key];
+    return action === undefined ? { kind: 'none' } : { kind: 'action', action };
+  }
+  if (event.key === '?') return { kind: 'action', action: 'help' };
+  if (event.key === 'g' || event.key === ']' || event.key === '[') {
+    return { kind: 'prefix', prefix: event.key };
+  }
+  return { kind: 'none' };
 }
 
 export interface TargetLike {

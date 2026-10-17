@@ -1,5 +1,5 @@
-// The `?` keyboard help overlay (spec §6 Global keys): the global keys table and "What Vim mode
-// can't do", the gaps list from the Prep spike. F3 adds the ex command table.
+// The `?` keyboard help overlay (spec §6 Global keys): the global keys table, the §4 ex command
+// table, and "What Vim mode can't do", the gaps list from the Prep spike.
 import {
   Dialog,
   DialogContent,
@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { EX_COMMANDS } from '@/editor/ex-commands';
 import { VIM_GAPS } from '@/editor/gaps';
 import { GLOBAL_KEYS } from './keys';
 
@@ -45,6 +46,43 @@ export function HelpOverlay({
                     {row.keys}
                   </th>
                   <td className="py-1 text-muted-foreground">{row.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <section
+          aria-labelledby="help-ex-commands"
+          className="flex flex-col gap-2"
+        >
+          <h3 id="help-ex-commands" className="text-sm font-semibold">
+            Ex commands
+          </h3>
+          <table className="w-full text-sm">
+            <tbody>
+              {EX_COMMANDS.map((row) => (
+                <tr key={row.label} className="border-t">
+                  <th
+                    scope="row"
+                    className="w-56 py-1 pr-4 text-left font-mono font-normal"
+                  >
+                    {row.label}
+                    {row.variants !== undefined && row.variants.length > 1 && (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        …{row.variants.slice(1).join(' / ')}
+                      </span>
+                    )}
+                    {row.aliases.length > 0 && (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        {row.aliases.join(' ')}
+                      </span>
+                    )}
+                  </th>
+                  <td className="py-1 text-muted-foreground">
+                    {row.description}
+                  </td>
                 </tr>
               ))}
             </tbody>
