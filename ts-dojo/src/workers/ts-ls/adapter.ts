@@ -110,7 +110,11 @@ async function handle(
         ...core.getTwoslashQueries(request.path),
       };
     case 'emit':
-      return { type: 'emitResult', requestId, ...core.emit(request.paths) };
+      return {
+        type: 'emitResult',
+        requestId,
+        ...core.emit(request.paths, request.module),
+      };
     case 'lintAst':
       return {
         type: 'astLint',

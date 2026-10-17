@@ -18,6 +18,8 @@ export interface EditorHandle {
   /** Opens the `:` prompt with `prefix` already typed (`b `). */
   prefillEx(prefix: string): void;
   openFile(path: string, offset?: number): boolean;
+  /** Opens the file with the cursor on a 1-based line and column (the output pane's `Enter`). */
+  openFileAt(path: string, line: number, column: number): boolean;
   focus(): void;
   notify(text: string): void;
 }

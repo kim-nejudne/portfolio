@@ -2,7 +2,8 @@
 // `:set rnu` persisting." Every row whose target exists on /repl is driven from the `:` prompt
 // here: the file commands, the diagnostics and type commands, `:set` with persistence across a
 // reload, `:help`/`:h`, `:roadmap`/`:rm`, the pane commands, `:w`/`:run`, and the Ctrl-p
-// palette (normal mode only). The rows other features own (`:test`, `:kill`, `:hint`, ...)
+// palette (normal mode only); `:kill` is proven with the runs in sandbox.spec.ts (F4). The
+// rows other features own (`:test`, `:hint`, ...)
 // must say which feature, in the Vim panel, instead of failing silently. Keyboard only; the
 // seam is read, never driven, except where a pane other than the editor has focus.
 import { expect, test, type Page } from '@playwright/test';
@@ -13,7 +14,8 @@ import {
   focusEditor,
   gotoRepl,
   lines,
-  messages,
+  consoleEntries,
+  runStatus,
   press,
   problems,
   readStoredSettings,
@@ -317,20 +319,19 @@ test.describe(':help, :roadmap and the pane commands', () => {
 });
 
 test.describe(':w and :run', () => {
-  test(':w transpiles the project and hands it to the host', async ({
+  test(':w transpiles the project and runs it; :run is the same', async ({
     page,
   }) => {
     await waitForCompilerReady(page);
+    await expect(consoleEntries(page)).toHaveCount(0);
     await ex(page, 'w');
-    await expect(messages(page)).toHaveCount(1);
-    await expect(messages(page).first()).toHaveText(
-      'emitted 2 modules (index.ts, shapes.ts); running index.ts is F4',
-    );
+    await expect(runStatus(page)).toHaveText(/^done in \d+ ms$/);
+    await expect(consoleEntries(page)).toHaveCount(1);
+    await expect(consoleEntries(page).first()).toContainText('12.57 cm');
     await ex(page, 'run');
-    await expect(messages(page)).toHaveCount(2);
-    await expect(messages(page).nth(1)).toHaveText(
-      'emitted 2 modules (index.ts, shapes.ts); running index.ts is F4',
-    );
+    await expect(runStatus(page)).toHaveText(/^done in \d+ ms$/);
+    await expect(consoleEntries(page)).toHaveCount(1);
+    await expect(consoleEntries(page).first()).toContainText('12.57 cm');
   });
 });
 
@@ -338,7 +339,6 @@ test.describe('the rows other features own', () => {
   const NOT_HERE: [command: string, feature: string, label: string][] = [
     ['test', 'F7', ':test'],
     ['t', 'F7', ':test'],
-    ['kill', 'F4', ':kill'],
     ['hint', 'F8', ':hint'],
     ['sol', 'F8', ':sol'],
     ['solution', 'F8', ':sol'],

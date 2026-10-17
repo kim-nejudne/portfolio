@@ -131,10 +131,23 @@ export interface TwoslashQuery {
   error?: string;
 }
 
+/** One import that survived emit (type-only ones are elided), with the specifier's span in `js`. */
+export interface EmittedImport {
+  specifier: string;
+  /** 0-based span of the specifier text, quotes excluded. */
+  start: number;
+  end: number;
+}
+
+/** `module: "commonjs"` is the sandbox's fallback for a cyclic import graph (§2 Decisions). */
+export type EmitModuleKind = 'commonjs';
+
 export interface EmittedFile {
   path: string;
   /** JavaScript with an inline source map (`//# sourceMappingURL=data:...`). */
   js: string;
+  /** The imports the sandbox loader rewrites to module URLs; empty for CommonJS output. */
+  imports: EmittedImport[];
 }
 
 /** The §5 rule hit, with the column so the Tests tab can move the cursor to it. */
@@ -176,7 +189,7 @@ export type TsLsRequest =
   | (Request<'getSignatureHelp'> & { path: string; offset: number })
   | (Request<'getDefinition'> & { path: string; offset: number })
   | (Request<'getTwoslashQueries'> & { path: string })
-  | (Request<'emit'> & { paths: string[] })
+  | (Request<'emit'> & { paths: string[]; module?: EmitModuleKind })
   | (Request<'lintAst'> & { paths: string[]; rules: RuleId[] })
   | (Request<'runTypeTests'> & { paths: string[] })
   | Request<'dispose'>;

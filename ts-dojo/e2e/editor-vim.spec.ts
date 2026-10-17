@@ -11,7 +11,8 @@ import {
   ex,
   gotoRepl,
   lines,
-  messages,
+  consoleEntries,
+  runStatus,
   press,
   setDoc,
   snapshot,
@@ -659,14 +660,12 @@ test.describe('Undo (P)', () => {
 const EX_DOC = lines('a a', 'a a', 'b');
 
 test.describe('Ex (P; :g :sort W)', () => {
-  test(':w runs the code: the host reports the emitted modules', async ({
-    page,
-  }) => {
+  test(':w runs the code: the console shows the output', async ({ page }) => {
     await waitForCompilerReady(page);
-    await expect(messages(page)).toHaveCount(0);
+    await expect(consoleEntries(page)).toHaveCount(0);
     await ex(page, 'w');
-    await expect(messages(page)).toHaveCount(1);
-    await expect(messages(page).first()).toContainText('emitted 2 modules');
+    await expect(runStatus(page)).toHaveText(/^done in \d+ ms$/);
+    await expect(consoleEntries(page).first()).toContainText('12.57 cm');
     expect((await snapshot(page)).mode).toBe('normal');
   });
 
@@ -937,16 +936,12 @@ test.describe('Not expected (gap, documented)', () => {
 });
 
 test.describe('Leader (the shipped vimrc, let mapleader = " ")', () => {
-  test('<Space>r runs :run: the host reports the emitted modules', async ({
-    page,
-  }) => {
+  test('<Space>r runs :run: the console shows the output', async ({ page }) => {
     await waitForCompilerReady(page);
-    await expect(messages(page)).toHaveCount(0);
+    await expect(consoleEntries(page)).toHaveCount(0);
     await press(page, '<Space>r');
-    await expect(messages(page)).toHaveCount(1);
-    await expect(messages(page).first()).toContainText(
-      'emitted 2 modules (index.ts, shapes.ts)',
-    );
+    await expect(runStatus(page)).toHaveText(/^done in \d+ ms$/);
+    await expect(consoleEntries(page).first()).toContainText('12.57 cm');
     expect((await snapshot(page)).mode).toBe('normal');
   });
 });

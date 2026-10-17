@@ -20,6 +20,8 @@ import {
   type DiagCategory,
   type DocTag,
   type EmittedFile,
+  type EmittedImport,
+  type EmitModuleKind,
   type FileVersions,
   type OpenProjectSpec,
   type ProjectFile,
@@ -97,7 +99,10 @@ export interface TsLsCore {
     offset: number,
   ): FileResult & { locations: DefinitionLocation[] };
   getTwoslashQueries(path: string): FileResult & { queries: TwoslashQuery[] };
-  emit(paths: readonly string[]): {
+  emit(
+    paths: readonly string[],
+    module?: EmitModuleKind,
+  ): {
     files: EmittedFile[];
     versions: FileVersions;
   };
@@ -563,11 +568,12 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
       return { path, version, queries };
     },
 
-    emit(paths) {
+    emit(paths, module) {
       const current = requireProject();
       const versions = versionsOf(current, paths);
       const compilerOptions: ts.CompilerOptions = {
         ...current.options,
+        ...(module === 'commonjs' ? { module: ts.ModuleKind.CommonJS } : {}),
         inlineSourceMap: true,
         inlineSources: true,
         sourceMap: false,
@@ -584,7 +590,12 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
           fileName: path,
           reportDiagnostics: false,
         });
-        emitted.push({ path, js: output.outputText });
+        emitted.push({
+          path,
+          js: output.outputText,
+          imports:
+            module === 'commonjs' ? [] : emittedImports(output.outputText),
+        });
       }
       return { files: emitted, versions };
     },
@@ -655,4 +666,23 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
     },
   };
   return core;
+}
+
+/**
+ * The surviving imports of emitted JavaScript, from `ts.preProcessFile`, whose `pos` is the
+ * opening quote and whose `end` leaves out the closing one; the span here is the bare
+ * specifier, checked against the text (checked with typescript@6.0.3 on 17 October 2026).
+ */
+export function emittedImports(js: string): EmittedImport[] {
+  return ts.preProcessFile(js, true, false).importedFiles.map((file) => {
+    let start = file.pos + 1;
+    if (js.slice(start, start + file.fileName.length) !== file.fileName) {
+      start = js.indexOf(file.fileName, file.pos);
+    }
+    return {
+      specifier: file.fileName,
+      start,
+      end: start + file.fileName.length,
+    };
+  });
 }
