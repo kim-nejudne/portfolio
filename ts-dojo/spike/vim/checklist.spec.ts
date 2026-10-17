@@ -1142,7 +1142,9 @@ test.describe('API (what the vimrc parser and F3 need)', () => {
     await press(page, 'X');
     expect((await snapshot(page)).doc).toBe(lines('one', 'two', 'three'));
     expect(await cursor(page)).toEqual([2, 0]);
-    await page.evaluate(() => window.__spike.Vim.unmap('X', 'normal'));
+    await page.evaluate(() => {
+      window.__spike.Vim.unmap('X', 'normal');
+    });
     await setDoc(page, lines('one', 'two', 'three'));
     await press(page, 'X');
     expect((await snapshot(page)).doc).toBe(lines('two', 'three'));
@@ -1212,7 +1214,9 @@ test.describe('API (what the vimrc parser and F3 need)', () => {
     await press(page, ',d');
     expect((await snapshot(page)).doc).toBe(lines('one', 'two'));
     await press(page, '<Esc>');
-    await page.evaluate(() => window.__spike.Vim.unmap('<Space>', 'normal'));
+    await page.evaluate(() => {
+      window.__spike.Vim.unmap('<Space>', 'normal');
+    });
     await setDoc(page, lines('one', 'two'));
     await press(page, '<Space>d');
     expect(await cursor(page)).toEqual([1, 1]);
@@ -1268,7 +1272,9 @@ test.describe('API (what the vimrc parser and F3 need)', () => {
     await setDoc(page, lines('one', 'two'));
     await press(page, 'Q');
     expect((await snapshot(page)).doc).toBe('two');
-    await page.evaluate(() => window.__spike.Vim.unmap('Q', 'normal'));
+    await page.evaluate(() => {
+      window.__spike.Vim.unmap('Q', 'normal');
+    });
     await press(page, 'Q');
     expect((await snapshot(page)).doc).toBe('two');
   });

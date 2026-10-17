@@ -4,7 +4,8 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "lib": ["es2025", "dom", "dom.iterable"],
-    "types": ["node"],
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -21,5 +22,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["scripts", "spike", "vitest.config.ts"]
+  "include": ["src"]
 }
