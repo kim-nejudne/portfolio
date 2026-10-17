@@ -39,8 +39,17 @@ export default defineConfig([
     },
   },
   {
-    // Node-side code: the scripts, the Prep spike's Playwright side, e2e and the config files.
-    files: ['scripts/**', 'spike/**', 'e2e/**', '*.config.{ts,js}'],
+    // Node-side code: the scripts, the Prep spike's Playwright side, e2e, the config files,
+    // and the unit tests, benchmarks and `node/` helpers under src (tsconfig.node.json).
+    files: [
+      'scripts/**',
+      'spike/**',
+      'e2e/**',
+      '*.config.{ts,js}',
+      'src/**/*.test.{ts,tsx}',
+      'src/**/*.bench.ts',
+      'src/**/node/**',
+    ],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   prettier,

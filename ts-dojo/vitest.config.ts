@@ -13,5 +13,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
+    // `pnpm bench` (vitest bench): the §12 F2 diagnostics benchmark on the ts-ls core.
+    benchmark: {
+      include: ['src/**/*.bench.ts'],
+    },
   },
 });
