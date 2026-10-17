@@ -2,7 +2,11 @@
 // `theme` in the §7 settings object; `system` or nothing means prefers-color-scheme. Tailwind's
 // dark variant is `.dark` on <html> (globals.css), set here before the first render because the
 // §10 CSP allows no inline script; `color-scheme` follows so native controls match.
-import { readSettings, type ThemePreference } from '@/store/settings';
+import {
+  readSettings,
+  subscribeSettings,
+  type ThemePreference,
+} from '@/store/settings';
 
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -45,18 +49,29 @@ export function applyTheme(root: ThemeRoot, theme: ResolvedTheme): void {
 }
 
 /**
- * Applies the stored preference now and keeps following the system while the preference is
- * `system` or absent. Returns the unsubscribe.
+ * Applies the stored preference now, keeps following the system while the preference is
+ * `system` or absent, and follows every settings write. Returns the unsubscribe.
  */
 export function initTheme(env: ThemeEnv = browserThemeEnv()): () => void {
-  const preference = readSettings(env.storage).theme;
   const media = env.matchMedia(DARK_QUERY);
-  applyTheme(env.root, resolveTheme(preference, media.matches));
+  let systemDark = media.matches;
+  const apply = (preference: ThemePreference | undefined): void => {
+    applyTheme(env.root, resolveTheme(preference, systemDark));
+  };
+  apply(readSettings(env.storage).theme);
   const onChange = (event: { matches: boolean }): void => {
-    applyTheme(env.root, resolveTheme(preference, event.matches));
+    systemDark = event.matches;
+    apply(readSettings(env.storage).theme);
   };
   media.addEventListener('change', onChange);
-  return () => media.removeEventListener('change', onChange);
+  // `:set bg=dark` (F3) and the Settings page (F10) write `theme`; follow every write.
+  const unsubscribe = subscribeSettings((settings) => {
+    apply(settings.theme);
+  });
+  return () => {
+    media.removeEventListener('change', onChange);
+    unsubscribe();
+  };
 }
 
 export function browserThemeEnv(): ThemeEnv {

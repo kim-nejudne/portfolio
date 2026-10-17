@@ -87,7 +87,9 @@ for (const scheme of SCHEMES) {
       await expect(
         dialog.getByRole('heading', { name: 'Global keys' }),
       ).toBeVisible();
-      const rows = dialog.locator('tbody tr');
+      const rows = dialog.locator(
+        'section[aria-labelledby="help-global-keys"] tbody tr',
+      );
       await expect(rows, 'one row per §6 global key').toHaveCount(10);
       await expect(rows.first().locator('th')).toHaveText('?');
       await expect(
