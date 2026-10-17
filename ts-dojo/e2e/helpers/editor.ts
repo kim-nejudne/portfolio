@@ -234,9 +234,19 @@ export function problems(page: Page) {
   return page.locator('[data-testid="problems"] li');
 }
 
-/** The host messages list on /repl (`:w` appends there). */
-export function messages(page: Page) {
-  return page.locator('[data-testid="messages"] li');
+/** The Console tab's entries in the output pane: one `li` per console line, error or truncation. */
+export function consoleEntries(page: Page) {
+  return page.locator('[data-testid="console"] li');
+}
+
+/** The output pane's status line: `running`, `done in N ms`, `killed after 5 s`, `still running (1 timer)`. */
+export function runStatus(page: Page) {
+  return page.getByRole('status', { name: 'run status' });
+}
+
+/** The §4 output pane (a focus target with its own keys). */
+export function outputPane(page: Page) {
+  return page.locator('[data-pane="output"]');
 }
 
 export function vimPanel(page: Page) {

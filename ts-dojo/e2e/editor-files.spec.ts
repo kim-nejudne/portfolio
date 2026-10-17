@@ -45,7 +45,10 @@ test('three tabs, index.ts selected first; the .d.ts is marked read-only', async
 });
 
 test('aria-selected follows :b', async ({ page }) => {
-  const selected = page.getByRole('tab', { selected: true });
+  // Scoped to the Files tab list: the output pane (F4) has its own tabs.
+  const selected = page
+    .getByRole('tablist', { name: 'Files' })
+    .getByRole('tab', { selected: true });
   await ex(page, 'b shapes');
   await expect.poll(() => currentPath(page)).toBe('/shapes.ts');
   await expect(selected).toHaveAttribute('data-path', '/shapes.ts');
@@ -60,7 +63,10 @@ test('aria-selected follows :b', async ({ page }) => {
 });
 
 test('gt and gT cycle the tabs and wrap', async ({ page }) => {
-  const selected = page.getByRole('tab', { selected: true });
+  // Scoped to the Files tab list: the output pane (F4) has its own tabs.
+  const selected = page
+    .getByRole('tablist', { name: 'Files' })
+    .getByRole('tab', { selected: true });
   await press(page, 'gt');
   await expect.poll(() => currentPath(page)).toBe('/shapes.ts');
   await expect(selected).toHaveAttribute('data-path', '/shapes.ts');

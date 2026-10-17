@@ -370,6 +370,63 @@ describe('emit (§12 F2 criterion 5)', () => {
     expect(files[1]?.js).toContain('export function area(shape) {');
   });
 
+  it('lists each surviving import with the span of its specifier (F4)', async () => {
+    await core.openProject({
+      files: [
+        {
+          path: '/index.ts',
+          text: lines(
+            "import type { Shape } from './shapes';",
+            "import { area } from './shapes';",
+            "export * from './shapes';",
+            'export const a = area;',
+          ),
+        },
+        {
+          path: '/shapes.ts',
+          text: lines(
+            'export type Shape = { r: number };',
+            'export const area = (s: Shape) => s.r;',
+          ),
+        },
+      ],
+    });
+    const { files } = core.emit(['/index.ts', '/shapes.ts']);
+    const [index, shapes] = files;
+    expect(index?.imports.map((i) => i.specifier)).toEqual([
+      './shapes',
+      './shapes',
+    ]);
+    for (const imp of index?.imports ?? []) {
+      expect(index?.js.slice(imp.start, imp.end)).toBe(imp.specifier);
+      expect(index?.js[imp.start - 1]).toBe("'");
+      expect(index?.js[imp.end]).toBe("'");
+    }
+    expect(shapes?.imports).toEqual([]);
+  });
+
+  it('emits CommonJS on request, with no imports to rewrite (F4)', async () => {
+    await core.openProject({
+      files: [
+        {
+          path: '/index.ts',
+          text: "import { a } from './a';\nexport const b = a;\n",
+        },
+        { path: '/a.ts', text: 'export const a = 1;\n' },
+      ],
+    });
+    const { files } = core.emit(['/index.ts'], 'commonjs');
+    expect(files[0]?.js).toContain('require("./a")');
+    expect(files[0]?.js).toContain('__esModule');
+    expect(files[0]?.js).not.toContain('import ');
+    expect(files[0]?.js).toMatch(/sourceMappingURL=data:/);
+    expect(files[0]?.imports).toEqual([]);
+    // The option is per request: the next emit is ES modules again.
+    expect(core.emit(['/index.ts']).files[0]?.js).toContain(
+      "import { a } from './a';",
+    );
+  });
+
   it('refuses a declaration file', async () => {
     await core.openProject({
       files: [{ path: '/index.ts', text: 'export const n = 1;\n' }],

@@ -3,6 +3,7 @@
 // info, definition) it handles, the rest go to the page that hosts it through `EditorHost`.
 // F3 builds the table and the dispatch; the lesson page (F8), the sandbox (F4), verification
 // (F7), the REPL buffers (F5) and the export (F9) fill the host methods they own.
+import type { EmittedFile } from '@/protocol/ts-ls';
 
 /** The three §4 panes. `:practice` is the editor pane. */
 export type Pane = 'theory' | 'editor' | 'output';
@@ -63,10 +64,7 @@ export function isEditorOwnAction(
 }
 
 /** One emitted module, what `:w` hands the host after `emit` (§2 `emit`, §4 `:w`). */
-export interface RunModule {
-  path: string;
-  js: string;
-}
+export type RunModule = EmittedFile;
 
 /**
  * The page behind the editor. `run` receives the transpiled project; everything else is a

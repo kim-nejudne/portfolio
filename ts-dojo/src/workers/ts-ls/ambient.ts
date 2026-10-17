@@ -1,8 +1,10 @@
 // The ambient declarations ts-dojo adds to every project (not a lesson file; the "Spec
 // questions" entry in docs/progress.md). The §2 defaults use `lib: ["es2025"]` with no DOM, so
 // `console` and the timers are undeclared; this file declares what the sandbox provides at run
-// time (F4 widens it to exactly the shim's surface; F7 adds the test harness types). It is left
-// out when the project's lib set already declares them (dom, webworker), where it would clash.
+// time: exactly the prelude's console shim (src/workers/sandbox/prelude.ts) and the timers it
+// wraps, plus the worker's own `queueMicrotask` (F4 checked the surface matches; F7 adds the
+// test harness types). It is left out when the project's lib set already declares them (dom,
+// webworker), where it would clash.
 
 export const AMBIENT_RUNTIME_PATH = '/dojo/runtime.d.ts';
 

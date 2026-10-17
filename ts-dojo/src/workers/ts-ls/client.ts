@@ -13,6 +13,7 @@ import {
   type DefinitionLocation,
   type Diag,
   type EmittedFile,
+  type EmitModuleKind,
   type FileVersions,
   type OpenProjectSpec,
   type QuickInfoResult,
@@ -114,7 +115,7 @@ export interface TsLsClient {
   ): Promise<SignatureHelpResult | null>;
   getDefinition(path: string, offset: number): Promise<DefinitionLocation[]>;
   getTwoslashQueries(path: string): Promise<TwoslashQuery[]>;
-  emit(paths: string[]): Promise<EmittedFile[]>;
+  emit(paths: string[], module?: EmitModuleKind): Promise<EmittedFile[]>;
   lintAst(paths: string[], rules: RuleId[]): Promise<RuleHit[]>;
   runTypeTests(
     paths: string[],
@@ -413,8 +414,13 @@ export function createTsLsClient(options: TsLsClientOptions): TsLsClient {
         .queries;
     },
 
-    async emit(paths) {
-      return (await request({ type: 'emit', paths }, 'emitResult')).files;
+    async emit(paths, module) {
+      return (
+        await request(
+          { type: 'emit', paths, ...(module !== undefined ? { module } : {}) },
+          'emitResult',
+        )
+      ).files;
     },
 
     async lintAst(paths, rules) {

@@ -1,14 +1,23 @@
 // `/repl` (spec §6, §4 "What REPL means here"): the editor with a fixed demo project for F3,
 // two editable files and one read-only lesson-style `.d.ts`, so every §12 F3 criterion can be
-// driven in Chrome. Below it the output region: the Problems list (every file's diagnostics
-// with file and line) and the host's messages. F4 turns the region into the output pane with
-// its tabs and runs the modules `:w` hands over; F5 replaces the file set with the Dexie
-// scratch buffers and adds `:e`/`:bd`.
-import { useCallback, useMemo, useRef, useState } from 'react';
+// driven in Chrome, and below it the §4 output pane: `:w` emits the project and runs it in a
+// fresh sandbox worker (F4), `:kill` ends a run, the Problems tab lists every file's
+// diagnostics. F5 replaces the file set with the Dexie scratch buffers and adds `:e`/`:bd`.
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useAppActions } from '@/app/app-actions';
+import { OutputPane, type OutputTab } from '@/app/output-pane';
+import { createAppSandboxRunner } from '@/app/sandbox';
 import { Editor, type EditorFile } from '@/editor/editor';
 import type { EditorHost, HostAction, RunModule } from '@/editor/host';
 import { getActiveEditor } from '@/editor/registry';
+import type { SourceLoc } from '@/protocol/sandbox';
 import type { Diag } from '@/protocol/ts-ls';
 
 export const DEMO_FILES: EditorFile[] = [
@@ -53,7 +62,6 @@ declare type Unit = 'cm' | 'in' | 'px';
 /** What a host answers for a command another feature's page owns. */
 export const NOT_HERE: Partial<Record<HostAction['type'], string>> = {
   test: ':test runs the verification on a lesson page (F7)',
-  kill: ':kill needs a running sandbox (F4)',
   hint: ':hint needs a lesson page (F8)',
   solution: ':sol needs a lesson page (F8)',
   reset: ':reset needs a lesson page (F8)',
@@ -72,24 +80,34 @@ export function ReplPage() {
   const actions = useAppActions();
   const outputRef = useRef<HTMLElement>(null);
   const [diagnostics, setDiagnostics] = useState<Diag[]>([]);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [tab, setTab] = useState<OutputTab>('console');
+  const [runner] = useState(createAppSandboxRunner);
+  useEffect(() => () => runner.dispose(), [runner]);
+  const runState = useSyncExternalStore(
+    runner.subscribe,
+    () => runner.state,
+    () => runner.state,
+  );
 
-  const say = useCallback((text: string): void => {
-    setMessages((prev) => [...prev.slice(-19), text]);
+  const jump = useCallback((loc: SourceLoc): void => {
+    const editor = getActiveEditor();
+    if (editor?.openFileAt(loc.file, loc.line, loc.column) !== true) {
+      editor?.notify(`no file named ${loc.file.slice(1)}`);
+    }
   }, []);
 
   const host = useMemo<EditorHost>(
     () => ({
       run(modules: RunModule[], entry: string) {
-        say(
-          `emitted ${String(modules.length)} module${modules.length === 1 ? '' : 's'} (${modules
-            .map((m) => m.path.slice(1))
-            .join(', ')}); running ${entry.slice(1)} is F4`,
-        );
+        setTab('console');
+        void runner.start(modules, entry);
       },
       action(action: HostAction) {
         const editor = getActiveEditor();
         switch (action.type) {
+          case 'kill':
+            if (!runner.kill()) editor?.notify('nothing is running');
+            return;
           case 'roadmap':
             actions.goToRoadmap();
             return;
@@ -113,7 +131,7 @@ export function ReplPage() {
         }
       },
     }),
-    [actions, say],
+    [actions, runner],
   );
 
   return (
@@ -127,49 +145,16 @@ export function ReplPage() {
         openPalette={actions.openPalette}
         className="min-h-0 flex-[3]"
       />
-      {/* The output pane is a §4 focus target with its own keys (j/k/Enter at F4; Esc here), so it takes focus and key events itself. */}
-      {/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
-      <section
+      <OutputPane
         ref={outputRef}
-        tabIndex={0}
-        data-pane="output"
-        aria-label="Output"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            getActiveEditor()?.focus();
-          }
-        }}
-        className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto border-t px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-ring focus:ring-inset"
-      >
-        <div>
-          <h2 className="text-muted-foreground">
-            Problems ({diagnostics.length})
-          </h2>
-          <ul data-testid="problems">
-            {diagnostics.map((d, index) => (
-              <li key={`${d.file}:${String(d.start)}:${String(index)}`}>
-                <span className="text-muted-foreground">
-                  {d.file.slice(1)}:{d.line}:{d.column}
-                </span>{' '}
-                {d.message}{' '}
-                <span className="text-muted-foreground">TS{d.code}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        {messages.length > 0 && (
-          <div>
-            <h2 className="text-muted-foreground">Messages</h2>
-            <ul data-testid="messages">
-              {messages.map((message, index) => (
-                <li key={String(index)}>{message}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
-      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
+        state={runState}
+        diagnostics={diagnostics}
+        tab={tab}
+        onTabChange={setTab}
+        onJump={jump}
+        onEscape={() => getActiveEditor()?.focus()}
+        className="flex-1"
+      />
     </div>
   );
 }

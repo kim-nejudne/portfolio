@@ -197,6 +197,17 @@ export function createEditorController(
     return true;
   };
 
+  const openFileAt = (path: string, line: number, column: number): boolean => {
+    if (!states.has(path)) return false;
+    openFile(path);
+    const doc = view.state.doc;
+    const target = doc.line(Math.min(Math.max(line, 1), doc.lines));
+    const anchor = Math.min(target.from + Math.max(column - 1, 0), target.to);
+    view.dispatch({ selection: { anchor }, scrollIntoView: true });
+    view.focus();
+    return true;
+  };
+
   // An ex command runs inside the engine's key handling (a `gt` mapping feeds `:bnext<CR>` key
   // by key and closes the prompt afterwards); replacing the state under it breaks that, so a
   // switch asked for by a command happens once the engine is done.
@@ -341,6 +352,7 @@ export function createEditorController(
       }
     },
     openFile,
+    openFileAt,
     focus() {
       view.focus();
     },
