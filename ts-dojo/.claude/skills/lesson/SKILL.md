@@ -166,7 +166,7 @@ Walk this list before running the lint.
 2. Pick the examples, then the exercises (first near-copy, last combination), then the hints, then write the prose around them.
 3. Write the files in the layout above. Verify each snippet, starter, solution and test by compiling it with the project's TypeScript 6.0.3 under the §2 defaults; run the runtime tests.
 4. Walk the lint list in §6.
-5. Run the lint: `pnpm content:lint` (scoped to the lesson when `scripts/content-lint.ts` accepts a path; read it to see). Before F6 exists there is no lint: compile the files with `pnpm exec tsc` instead, say the lint is pending, and stop there.
+5. Run the lint: `pnpm content:lint <lesson-id>` (ids narrow the run: a module, lesson or exercise id; no id lints the whole tree). It prints one line per exercise (`ok m03-unions/03-narrowing/01-first-union [implement] solution passes (compiles types runtime rules); starter fails runtime`) and every failure with its §3 condition number and path.
 6. Report the files written, the lint line per exercise, and anything the spec leaves open, for "Spec questions" in docs/progress.md.
 
 ## Reference files

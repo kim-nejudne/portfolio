@@ -1,0 +1,18 @@
+id: m99-fixtures/02-implement/02-literal-discriminant
+kind: fix
+title: Make the discriminant a literal
+minutes: 4
+challenge: false
+prompt: |
+  `kind` is declared as `string` in both members, so the check in `area` narrows nothing and
+  `radius` and `side` are not available. Change the two `kind` properties to literal types so
+  `area` compiles. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+timeoutMs: 5000
+hints:
+  - A discriminant must have a different literal type in each member; `string` is the same type in both.
+  - "`kind: 'circle'` in one member and `kind: 'square'` in the other is all it takes."

@@ -1,8 +1,10 @@
 // The sandbox Worker entry (§2): one `run` request per worker, the prelude installed on
 // `self`, the modules loaded from blob URLs, uncaught errors and rejections reported as
-// `runtimeError`, and `done` when the entry settles. The UI terminates the worker (§2: no
-// stop message); nothing here runs after that.
+// `runtimeError`, and `done` when the entry settles. In `mode: 'test'` the §5 harness is
+// installed first and runs the collected tests once the entry (tests.ts) has evaluated. The UI
+// terminates the worker (§2: no stop message); nothing here runs after that.
 import type { RunRequest, SandboxEvent } from '@/protocol/sandbox';
+import { installHarness } from './harness';
 import { runModules } from './loader';
 import { createModuleRegistry, installPrelude } from './prelude';
 
@@ -54,6 +56,15 @@ async function run(request: RunRequest): Promise<void> {
     event.preventDefault();
     prelude.reportError(event.reason);
   });
+  const harness =
+    request.mode === 'test'
+      ? installHarness({
+          global: self as unknown as Record<string, unknown>,
+          post: (event) => {
+            scope.postMessage(event);
+          },
+        })
+      : null;
   try {
     await runModules(request, {
       createUrl: (js) =>
@@ -62,6 +73,7 @@ async function run(request: RunRequest): Promise<void> {
         import(/* @vite-ignore */ url) as Promise<Record<string, unknown>>,
       register: registry.register,
     });
+    await harness?.run();
   } catch (error) {
     prelude.reportError(error);
   }

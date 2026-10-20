@@ -42,8 +42,13 @@ import {
 import {
   AMBIENT_RUNTIME_DTS,
   AMBIENT_RUNTIME_PATH,
+  AMBIENT_TEST_HARNESS_DTS,
+  AMBIENT_TEST_HARNESS_PATH,
+  AMBIENT_TYPE_UTILS_DTS,
+  AMBIENT_TYPE_UTILS_PATH,
   isAmbientPath,
   needsAmbientRuntime,
+  needsAmbientTests,
 } from './ambient';
 import { loadLibs, type FetchLib } from './libs';
 import { lintSourceFile } from './rules';
@@ -366,6 +371,13 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
 
       if (needsAmbientRuntime(libNames)) {
         entries.push({ path: AMBIENT_RUNTIME_PATH, text: AMBIENT_RUNTIME_DTS });
+      }
+      // §5: a project with a tests.ts sees the harness globals and `@dojo/type-utils`.
+      if (needsAmbientTests(entries.map((entry) => entry.path))) {
+        entries.push(
+          { path: AMBIENT_TEST_HARNESS_PATH, text: AMBIENT_TEST_HARNESS_DTS },
+          { path: AMBIENT_TYPE_UTILS_PATH, text: AMBIENT_TYPE_UTILS_DTS },
+        );
       }
       const previous = project;
       if (previous !== null) {

@@ -3,6 +3,7 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/jetbrains-mono';
+@import '@shikijs/twoslash/style-classic.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -163,4 +164,91 @@
   --editor-selection: oklch(0.4 0.08 250);
   --editor-match: oklch(0.4 0.08 90);
   --editor-cursor: oklch(0.85 0.03 250);
+}
+
+/* Theory code blocks (spec §3 lesson.mdx): shiki renders both themes into CSS variables at
+   build time; the active one is picked here, so no highlighting code ships to the browser.
+   The twoslash classic stylesheet above draws the `^?` results and hover popups. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+.shiki {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+/* The classic renderer's markup: a `^?` result is `.meta-line > .popover`, a hover popup is
+   `.lsp .popover`; both get the app's popover colours in either theme. */
+.twoslash .popover,
+.twoslash .meta-line .popover {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.twoslash .meta-line .popover .arrow {
+  background: var(--popover);
+  border-color: var(--border);
+}
+
+/* Theory prose (spec §1 Lesson anatomy, §6 Lesson page). */
+.theory {
+  max-width: 44rem;
+  line-height: 1.6;
+}
+.theory h2 {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.theory p,
+.theory ul,
+.theory ol {
+  margin: 0.75rem 0;
+}
+.theory ul,
+.theory ol {
+  padding-left: 1.5rem;
+}
+.theory ul {
+  list-style: disc;
+}
+.theory ol {
+  list-style: decimal;
+}
+.theory li {
+  margin: 0.25rem 0;
+}
+.theory a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.theory :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--muted);
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+}
+.theory .code-block {
+  margin: 1rem 0;
+}
+.theory .code-block ul,
+.theory .predict ol {
+  list-style: none;
+  padding-left: 0;
 }

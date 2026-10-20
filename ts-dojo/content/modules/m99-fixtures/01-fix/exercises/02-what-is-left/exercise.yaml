@@ -1,0 +1,29 @@
+id: m99-fixtures/01-fix/02-what-is-left
+kind: predict
+title: What is left in the default branch?
+minutes: 3
+challenge: false
+code: |
+  type Shape =
+    | { kind: 'circle'; radius: number }
+    | { kind: 'square'; side: number };
+
+  function perimeter(shape: Shape): number {
+    switch (shape.kind) {
+      case 'circle':
+        return 2 * Math.PI * shape.radius;
+      default:
+        return 4 * shape.side;
+    }
+  }
+question: In the `default` branch, what is the type of `shape`?
+options:
+  - 'Shape'
+  - "{ kind: 'square'; side: number }"
+  - 'never'
+  - 'unknown'
+answer: 1
+explanation: |
+  The `case 'circle'` branch returns, so only the square member can reach `default`. Narrowing
+  works by elimination: the compiler removes the members that were handled and keeps the rest.
+  It would be `never` only if every member had its own case.
