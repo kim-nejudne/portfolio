@@ -3,7 +3,7 @@
 // Compiles failing stops the other groups, `explicit-any` is on for type-challenge, and a
 // runtime failure carries expected and actual.
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   exerciseFiles,
   isEditorExercise,
@@ -192,8 +192,9 @@ describe('type-challenge', () => {
     expect(solution.passed).toBe(true);
     expect(solution.typeCases.cases.map((c) => [c.name, c.ok])).toEqual([
       ['exactly the three members', true],
-      ['case 2', true],
+      ['narrowing by type finds the keydown', true],
       ['case 3', true],
+      ['case 4', true],
     ]);
     expect(solution.runtime).toEqual({ ok: true, tests: [] });
     const starter = await verify(editor(id), 'starter');
@@ -203,10 +204,11 @@ describe('type-challenge', () => {
       false,
       false,
       false,
+      false,
     ]);
-    expect(starter.typeCases.cases[1]?.diagnostics.map((d) => d.code)).toEqual([
-      2578,
-    ]);
+    expect(
+      starter.typeCases.cases.map((c) => c.diagnostics.map((d) => d.code)),
+    ).toEqual([[2344], [2344], [2578], [2578]]);
     expect(starter.passed).toBe(false);
   });
 
@@ -292,5 +294,266 @@ describe('runtimeGroup', () => {
       name: '(load)',
       message: 'Error: boom',
     });
+  });
+});
+
+/** The exercise's solution files with `index.ts` passed through `edit`. */
+function editedSolution(
+  exercise: EditorExercise,
+  edit: (text: string) => string,
+): ReturnType<typeof exerciseFiles> {
+  return exerciseFiles(exercise, 'solution').map((file) =>
+    file.path === '/index.ts' ? { ...file, text: edit(file.text) } : file,
+  );
+}
+
+const IMPLEMENT_ID = 'm99-fixtures/02-implement/01-largest-shape';
+
+// §12 F7 criterion 3: "`forbid: [explicit-any]` fails a solution with `any` and names the
+// line; without the rule the same solution passes."
+describe('§12 F7: forbid: [explicit-any] fails a solution with any and names the line; without the rule the same solution passes', () => {
+  it('fails Rules on line 24 with the rule, and passes every group once the rule is not listed', async () => {
+    const exercise: EditorExercise = {
+      ...editor(IMPLEMENT_ID),
+      forbid: ['explicit-any'],
+    };
+    const files = editedSolution(exercise, (text) =>
+      text.replace('let best: Shape | undefined;', 'let best: any;'),
+    );
+    const withRule = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      exercise,
+      files,
+    );
+    expect(withRule.compiles.ok).toBe(true);
+    expect(withRule.runtime.ok).toBe(true);
+    expect(withRule.rules.ok).toBe(false);
+    expect(withRule.rules.hits).toEqual([
+      expect.objectContaining({
+        rule: 'explicit-any',
+        file: '/index.ts',
+        line: 24,
+        message: 'explicit `any` is not allowed',
+      }),
+    ]);
+    expect(withRule.passed).toBe(false);
+
+    const withoutRule = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      { ...exercise, forbid: [] },
+      files,
+    );
+    expect(withoutRule.rules).toEqual({ ok: true, hits: [] });
+    expect(withoutRule.passed).toBe(true);
+  });
+});
+
+// §12 F7 criterion 4: "A `@ts-ignore`, `@ts-nocheck` or `@ts-expect-error` in a non-test user
+// file always fails, and so does `eval`." Every case runs with `forbid: []`, so only the
+// always-on rules can fire.
+describe('§12 F7: a @ts-ignore, @ts-nocheck or @ts-expect-error in a non-test user file always fails, and so does eval', () => {
+  const CASES: [label: string, edit: (text: string) => string, rule: string][] =
+    [
+      [
+        '@ts-ignore',
+        (text) => text.replace('  let best', '  // @ts-ignore\n  let best'),
+        'ts-directive',
+      ],
+      ['@ts-nocheck', (text) => `// @ts-nocheck\n${text}`, 'ts-directive'],
+      [
+        '@ts-expect-error (used, so the file compiles)',
+        (text) =>
+          `${text}\n// @ts-expect-error\nexport const wrong: number = 'one';\n`,
+        'ts-directive',
+      ],
+      ['eval', (text) => `${text}\nexport const one = eval('1');\n`, 'eval'],
+      [
+        'new Function',
+        (text) => `${text}\nexport const make = new Function('return 1');\n`,
+        'eval',
+      ],
+    ];
+
+  for (const [label, edit, rule] of CASES) {
+    it(`${label} fails Rules with ${rule} although forbid is empty`, async () => {
+      const exercise = { ...editor(IMPLEMENT_ID), forbid: [] };
+      const result = await verifyExercise(
+        core,
+        runtimeTestsOn(runner),
+        exercise,
+        editedSolution(exercise, edit),
+      );
+      expect(result.compiles.ok).toBe(true);
+      expect(result.rules.ok).toBe(false);
+      expect(
+        result.rules.hits.map((hit) => [hit.rule, hit.file]),
+      ).toContainEqual([rule, '/index.ts']);
+      expect(result.passed).toBe(false);
+    });
+  }
+
+  it('the same directives in tests.ts are fine (they are how type cases are written)', async () => {
+    const exercise = { ...editor(IMPLEMENT_ID), forbid: [] };
+    const files = exerciseFiles(exercise, 'solution').map((file) =>
+      file.path === '/tests.ts'
+        ? {
+            ...file,
+            text: `${file.text}\n// @ts-expect-error a string is not a shape\nlargest(['circle']);\n`,
+          }
+        : file,
+    );
+    const result = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      exercise,
+      files,
+    );
+    expect(result.rules).toEqual({ ok: true, hits: [] });
+    expect(result.passed).toBe(true);
+  });
+});
+
+// §12 F7 criterion 5: "A `fix` exercise passes only when every file has zero diagnostics."
+describe('§12 F7: a fix exercise passes only when every file has zero diagnostics', () => {
+  const FIX_ID = 'm99-fixtures/01-fix/01-handle-the-new-shape';
+
+  it('the solution passes, and the same solution with one error in tests.ts fails Compiles with the test-file note', async () => {
+    const exercise = editor(FIX_ID);
+    expect((await verify(exercise, 'solution')).passed).toBe(true);
+    const files = exerciseFiles(exercise, 'solution').map((file) =>
+      file.path === '/tests.ts'
+        ? { ...file, text: `${file.text}\nconst count: number = 'three';\n` }
+        : file,
+    );
+    const result = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      exercise,
+      files,
+    );
+    expect(result.compiles.ok).toBe(false);
+    expect(result.compiles.diagnostics).toEqual([
+      expect.objectContaining({
+        file: '/tests.ts',
+        code: 2322,
+        message: expect.stringContaining(TEST_FILE_NOTE) as string,
+      }),
+    ]);
+    expect(result.passed).toBe(false);
+  });
+
+  it('a warning-free starter edit that leaves one error anywhere still fails', async () => {
+    const exercise = editor(FIX_ID);
+    const files = editedSolution(
+      exercise,
+      (text) => `${text}\nexport const extra: string = 1;\n`,
+    );
+    const result = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      exercise,
+      files,
+    );
+    expect(result.compiles.ok).toBe(false);
+    expect(result.compiles.diagnostics.map((d) => [d.file, d.code])).toEqual([
+      ['/index.ts', 2322],
+    ]);
+    expect(result.passed).toBe(false);
+  });
+});
+
+describe('progress', () => {
+  it('reports each group as it finishes, in §5 order, with the phase that runs next', async () => {
+    const events: { phase: string | null; groups: string[] }[] = [];
+    const result = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      editor(IMPLEMENT_ID),
+      exerciseFiles(editor(IMPLEMENT_ID), 'solution'),
+      {
+        onProgress: ({ phase, groups }) =>
+          events.push({ phase, groups: Object.keys(groups) }),
+      },
+    );
+    expect(result.passed).toBe(true);
+    expect(events).toEqual([
+      { phase: 'compiles', groups: [] },
+      { phase: 'rules', groups: ['compiles', 'typeCases'] },
+      { phase: 'runtime', groups: ['compiles', 'typeCases', 'rules'] },
+      { phase: null, groups: ['compiles', 'typeCases', 'rules', 'runtime'] },
+    ]);
+  });
+
+  it('stops after Compiles when it fails', async () => {
+    const phases: (string | null)[] = [];
+    await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      editor('m99-fixtures/01-fix/01-handle-the-new-shape'),
+      exerciseFiles(
+        editor('m99-fixtures/01-fix/01-handle-the-new-shape'),
+        'starter',
+      ),
+      { onProgress: ({ phase }) => phases.push(phase) },
+    );
+    expect(phases).toEqual(['compiles', null]);
+  });
+});
+
+describe('progress without runtime tests', () => {
+  it('a type-challenge never reports a runtime phase (it has no runtime tests)', async () => {
+    const id = 'm99-fixtures/03-type-challenge/01-describe-the-events';
+    const phases: (string | null)[] = [];
+    const result = await verifyExercise(
+      core,
+      runtimeTestsOn(runner),
+      editor(id),
+      exerciseFiles(editor(id), 'solution'),
+      { onProgress: ({ phase }) => phases.push(phase) },
+    );
+    expect(result.passed).toBe(true);
+    expect(phases).toEqual(['compiles', 'rules', null]);
+  });
+});
+
+// §12 F7 criterion 6: "Compiles failing stops the other groups, with the reason shown." The
+// reason is the Tests tab's (src/verify/tests-view.test.ts); this proves nothing else runs.
+describe('§12 F7: Compiles failing stops the other groups', () => {
+  it('never lints, emits or runs the tests once Compiles has failed', async () => {
+    const exercise = editor(IMPLEMENT_ID);
+    const spy = {
+      openProject: vi.fn(),
+      getDiagnostics: vi.fn(() => ({
+        diagnostics: [
+          {
+            file: '/index.ts',
+            start: 0,
+            length: 1,
+            line: 1,
+            column: 1,
+            code: 2322,
+            message: 'no',
+            category: 'error' as const,
+          },
+        ],
+      })),
+      runTypeTests: vi.fn(() => ({ cases: [], outsideCases: [] })),
+      lintAst: vi.fn(() => ({ hits: [] })),
+      emit: vi.fn(() => ({ files: [] })),
+    };
+    const runtime = vi.fn(() => Promise.reject(new Error('must not run')));
+    const result = await verifyExercise(
+      spy,
+      runtime,
+      exercise,
+      exerciseFiles(exercise, 'solution'),
+    );
+    expect(result.compiles.ok).toBe(false);
+    expect(result.passed).toBe(false);
+    expect(spy.lintAst).not.toHaveBeenCalled();
+    expect(spy.emit).not.toHaveBeenCalled();
+    expect(runtime).not.toHaveBeenCalled();
   });
 });

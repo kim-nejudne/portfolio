@@ -4,7 +4,8 @@
 // two injected pieces: a `VerifyCore` (the ts-ls core's own methods in Node, the client's in
 // the browser) and a `RuntimeTests` function that runs the emitted project in `mode: 'test'`
 // and reports the run state (a `SandboxRunner` over the Node worker or the browser worker,
-// through `runToCompletion`). The content lint uses it at F6; the lesson page's `:test` at F7.
+// through `runToCompletion`). The content lint uses it at F6; the lesson page's `:test` at F7,
+// which follows the groups as they finish through `onProgress` (the Tests tab, §5 Verdict).
 import type { RunMode } from '@/protocol/sandbox';
 import type {
   Diag,
@@ -61,6 +62,29 @@ export interface ExerciseResult {
   passed: boolean;
 }
 
+/** The four §5 groups, in the order the Tests tab lists them. */
+export const VERDICT_GROUPS = [
+  'compiles',
+  'typeCases',
+  'runtime',
+  'rules',
+] as const;
+export type GroupName = (typeof VERDICT_GROUPS)[number];
+
+/** The groups known so far in one verification. */
+export type PartialGroups = Partial<Pick<ExerciseResult, GroupName>>;
+
+export interface VerifyProgress {
+  /** The group being checked now; null once the verdict is complete. */
+  phase: GroupName | null;
+  groups: PartialGroups;
+}
+
+export interface VerifyOptions {
+  /** Called when a phase starts and when the verdict is complete, with the groups known so far. */
+  onProgress?: (progress: VerifyProgress) => void;
+}
+
 /** The note §5 attaches to a tests.ts diagnostic outside every case range. */
 export const TEST_FILE_NOTE = 'test file does not compile';
 
@@ -92,7 +116,13 @@ export async function verifyExercise(
   runtime: RuntimeTests,
   exercise: EditorExercise,
   files: ProjectFile[],
+  options: VerifyOptions = {},
 ): Promise<ExerciseResult> {
+  const groups: PartialGroups = {};
+  const report = (phase: GroupName | null): void => {
+    options.onProgress?.({ phase, groups: { ...groups } });
+  };
+  report('compiles');
   await core.openProject({
     compilerOptions: exercise.compilerOptions,
     files,
@@ -118,27 +148,37 @@ export async function verifyExercise(
   }
   const compiles = { ok: diagnostics.length === 0, diagnostics };
   if (!compiles.ok) {
-    return {
+    const result: ExerciseResult = {
       compiles,
       typeCases: { ...NOT_RUN, cases: [] },
       runtime: { ...NOT_RUN, tests: [] },
       rules: { ...NOT_RUN, hits: [] },
       passed: false,
     };
+    groups.compiles = compiles;
+    report(null);
+    return result;
   }
 
   const typeCases = { ok: cases.every((c) => c.ok), cases };
+  groups.compiles = compiles;
+  groups.typeCases = typeCases;
+  report('rules');
   const { hits } = await core.lintAst(paths, rulesFor(exercise));
   const rules = { ok: hits.length === 0, hits };
+  groups.rules = rules;
 
   let runtimeResult: ExerciseResult['runtime'] = { ok: true, tests: [] };
   if (testPath !== undefined && hasRuntimeTests(exercise)) {
+    report('runtime');
     const { files: emitted } = await core.emit(paths);
     const state = await runtime(emitted, testPath, exercise.timeoutMs);
     runtimeResult = runtimeGroup(state);
   }
+  groups.runtime = runtimeResult;
 
   const passed = compiles.ok && typeCases.ok && runtimeResult.ok && rules.ok;
+  report(null);
   return { compiles, typeCases, runtime: runtimeResult, rules, passed };
 }
 

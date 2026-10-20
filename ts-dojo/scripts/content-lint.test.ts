@@ -209,7 +209,7 @@ describe('§3 condition 2: a solution that does not pass its own exercise', () =
       report,
       2,
       `content/${TYPE_EXERCISE}/exercise.yaml`,
-      /type cases failed: exactly the three members, case 3/,
+      /type cases failed: exactly the three members, case 4/,
     );
   }, 60_000);
 

@@ -395,6 +395,7 @@ export function createEditorController(
     get files() {
       return files;
     },
+    text: textOf,
     addFile,
     removeFile,
     dispatch,
