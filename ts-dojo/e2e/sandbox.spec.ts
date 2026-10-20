@@ -275,6 +275,8 @@ test('two files importing each other without a cycle run in the right order; a c
       "console.log('shapes sees', String(a));",
     ),
   );
+  // `:w` runs the current buffer on /repl (F5), so back to the entry first.
+  await openBuffer(page, 'index', '/index.ts');
   await ex(page, 'w');
   await expectDone(page);
   await expect(runStatus(page)).toContainText('done in');

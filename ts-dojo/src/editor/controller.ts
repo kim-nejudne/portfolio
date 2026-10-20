@@ -19,7 +19,12 @@ import { describeOutside, pickDefinition } from './definition';
 import { moveToDiagnostic, tsDiagnostics } from './diagnostics';
 import { registerExCommands } from './ex-commands';
 import { fileExtensions, sharedExtensions } from './extensions';
-import { isEditorOwnAction, type EditorAction, type EditorHost } from './host';
+import {
+  isEditorOwnAction,
+  type EditorAction,
+  type EditorFile,
+  type EditorHost,
+} from './host';
 import { notify } from './notify';
 import {
   applyOptionsSilently,
@@ -45,24 +50,22 @@ import {
   type VimrcError,
 } from './vimrc';
 
-export interface EditorFile {
-  /** Virtual-FS path (`/index.ts`). */
-  path: string;
-  text: string;
-  /** A lesson-supplied `.d.ts`: shown as a tab, never editable (§4 Multi-file exercises). */
-  readOnly?: boolean;
-}
+export type { EditorFile } from './host';
 
 export interface ControllerOptions {
   parent: HTMLElement;
   files: EditorFile[];
-  /** The file `:w` runs. */
-  entry: string;
+  /** The file `:w` runs; absent on `/repl`, where it is the current buffer. */
+  entry?: string;
+  /** The file opened first; `files[0]` when absent (`/repl` opens the last buffer). */
+  initial?: string;
   compiler: TsLsClient;
   host: () => EditorHost;
   compilerOptions?: CompilerOptionsJson;
   libs?: string[];
   onFileChange: (path: string) => void;
+  /** The file set changed (`/repl`'s `:e` and `:bd`): the tabs re-render from it. */
+  onFilesChange?: (files: readonly EditorFile[]) => void;
   onVimrcErrors: (errors: VimrcError[]) => void;
   onChange?: (path: string, text: string) => void;
   onDiagnostics?: (diagnostics: Diag[]) => void;
@@ -92,14 +95,27 @@ export function createEditorController(
   options: ControllerOptions,
 ): EditorController {
   const { compiler } = options;
-  const paths = options.files.map((f) => f.path);
-  const readOnly = new Set(
-    options.files.filter((f) => f.readOnly === true).map((f) => f.path),
-  );
-  const editable = paths.filter((p) => !readOnly.has(p));
+  // The file set is fixed on a lesson page (§4) and live on /repl (`:e`, `:bd`), so these are
+  // recomputed by `recompute` and read through closures everywhere below.
+  let files: EditorFile[] = options.files.map((f) => ({ ...f }));
+  let paths: string[] = [];
+  const readOnly = new Set<string>();
+  let editable: string[] = [];
+  const recompute = (): void => {
+    paths = files.map((f) => f.path);
+    readOnly.clear();
+    for (const f of files) if (f.readOnly === true) readOnly.add(f.path);
+    editable = paths.filter((p) => !readOnly.has(p));
+  };
+  recompute();
   const states = new Map<string, EditorState>();
-  let current = paths[0] ?? '';
+  let current =
+    options.initial !== undefined && paths.includes(options.initial)
+      ? options.initial
+      : (paths[0] ?? '');
   let readOnlyNoticeAt = 0;
+  // The buffer before the current one (Vim's alternate buffer): where `:bd` returns to.
+  let previous: string | null = null;
 
   defineVimDefaults();
   defineEditorOptions();
@@ -152,20 +168,27 @@ export function createEditorController(
   const view = new EditorView({ state: first, parent: options.parent });
   setOptionsView(view);
 
+  const textOf = (path: string): string =>
+    (path === current ? view.state : states.get(path))?.doc.toString() ?? '';
+
   // §2: the project opened at once; the worker queues it behind `init` when not ready yet.
-  const projectSpec = {
-    files: options.files
-      .filter((f) => f.readOnly !== true)
-      .map((f) => ({ path: f.path, text: f.text })),
-    dtsFiles: options.files
-      .filter((f) => f.readOnly === true)
-      .map((f) => ({ path: f.path, text: f.text })),
-    ...(options.compilerOptions !== undefined
-      ? { compilerOptions: options.compilerOptions }
-      : {}),
-    ...(options.libs !== undefined ? { libs: options.libs } : {}),
+  // Opened again with the live texts when the file set changes: the protocol has no add or
+  // remove, and `openProject` reuses the parsed libs through the worker's registry.
+  const openProject = (): void => {
+    compiler.openProject({
+      files: files
+        .filter((f) => f.readOnly !== true)
+        .map((f) => ({ path: f.path, text: textOf(f.path) })),
+      dtsFiles: files
+        .filter((f) => f.readOnly === true)
+        .map((f) => ({ path: f.path, text: textOf(f.path) })),
+      ...(options.compilerOptions !== undefined
+        ? { compilerOptions: options.compilerOptions }
+        : {}),
+      ...(options.libs !== undefined ? { libs: options.libs } : {}),
+    });
   };
-  compiler.openProject(projectSpec);
+  openProject();
 
   const leaveModes = (): void => {
     const cm = getCM(view);
@@ -182,6 +205,7 @@ export function createEditorController(
       leaveModes();
       states.set(current, view.state);
       view.setState(target);
+      previous = current;
       current = path;
       applyOptionsSilently({}, view);
       options.onFileChange(path);
@@ -208,6 +232,42 @@ export function createEditorController(
     return true;
   };
 
+  const filesChanged = (): void => {
+    recompute();
+    openProject();
+    options.onFilesChange?.(files.map((f) => ({ ...f })));
+  };
+
+  const addFile = (file: EditorFile, index?: number): boolean => {
+    if (states.has(file.path)) return false;
+    states.set(file.path, stateFor(file));
+    const at =
+      index === undefined
+        ? files.length
+        : Math.max(0, Math.min(index, files.length));
+    files = [...files.slice(0, at), { ...file }, ...files.slice(at)];
+    filesChanged();
+    return true;
+  };
+
+  const removeFile = (path: string): boolean => {
+    if (!states.has(path) || files.length === 1) return false;
+    if (path === current) {
+      // Back to the buffer this one was opened from, as Vim does; else the next one.
+      const alternate =
+        previous !== null && previous !== path && states.has(previous)
+          ? previous
+          : cycleBuffer(path, paths, 1);
+      if (alternate === null || alternate === path) return false;
+      openFile(alternate);
+    }
+    if (previous === path) previous = null;
+    states.delete(path);
+    files = files.filter((f) => f.path !== path);
+    filesChanged();
+    return true;
+  };
+
   // An ex command runs inside the engine's key handling (a `gt` mapping feeds `:bnext<CR>` key
   // by key and closes the prompt afterwards); replacing the state under it breaks that, so a
   // switch asked for by a command happens once the engine is done.
@@ -220,8 +280,9 @@ export function createEditorController(
 
   const run = async (): Promise<void> => {
     try {
+      const entry = options.entry ?? current;
       const modules = await compiler.emit(editable);
-      options.host().run(modules, options.entry);
+      options.host().run(modules, entry);
     } catch (error) {
       handle.notify(
         `:w could not transpile: ${error instanceof Error ? error.message : String(error)}`,
@@ -331,6 +392,11 @@ export function createEditorController(
     get paths() {
       return paths;
     },
+    get files() {
+      return files;
+    },
+    addFile,
+    removeFile,
     dispatch,
     runEx(input) {
       const cm = getCM(view);
