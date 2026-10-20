@@ -17,12 +17,8 @@ const ROUTES: readonly Route[] = [
   { path: '/', h1: 'Roadmap' },
   { path: '/m/m03-unions', h1: 'Module m03-unions' },
   // The lesson page renders the registry since F6 (the fixture lesson; the placeholder stays
-  // for an unknown id). The exercise in the URL is F8's.
-  {
-    path: '/l/m99-fixtures/01-fix',
-    h1: 'Fixing an exhaustiveness error',
-    detail: '7 min · m99-fixtures',
-  },
+  // for an unknown id). Since F8 `/l/<lesson>` selects its first unfinished exercise and the
+  // URL says so (§6), so the bare lesson route is checked in e2e/lesson-nav.spec.ts.
   {
     path: '/l/m99-fixtures/01-fix/01-handle-the-new-shape',
     h1: 'Fixing an exhaustiveness error',

@@ -121,6 +121,9 @@ export function tsCompletionSource(compiler: CompletionClient) {
   };
 }
 
+/** How long a just-opened completion list ignores keys (CodeMirror's default). */
+export const COMPLETION_INTERACTION_DELAY_MS = 75;
+
 export interface CompletionKeyOptions {
   /** `Ctrl-p` from normal mode. */
   openPalette: () => void;
@@ -177,6 +180,9 @@ export function completions(
   return [
     autocompletion({
       override: [tsCompletionSource(compiler)],
+      // CodeMirror's default, named: a list just opened ignores keys this long, so an Enter
+      // typed as it appears is not taken as accepting it. The e2e helpers wait it out.
+      interactionDelay: COMPLETION_INTERACTION_DELAY_MS,
       defaultKeymap: false,
       activateOnTyping: true,
       icons: false,

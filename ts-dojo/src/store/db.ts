@@ -1,8 +1,8 @@
 // The Dexie database `ts-dojo`, version 1 (spec §7 Store): the five tables with the keys §7
 // gives them, declared together so a later feature never needs a schema version for a table
 // the spec already names. F5 reads and writes `buffers` and `meta` (the `lastBuffer` key);
-// F7–F9 fill `lessons`, `exercises` and `attempts` and may refine their row types (Dexie
-// indexes only the keys, so a type change needs no version bump). Fields are `declare`d: with
+// F8 fills `lessons`, `exercises` and `attempts` (src/store/progress.ts) and adds the attempt's
+// `kind` (Spec questions); Dexie indexes only the keys, so a type change needs no version bump. Fields are `declare`d: with
 // `useDefineForClassFields` a plain field would shadow the table Dexie sets in `super()`.
 import Dexie, { type EntityTable } from 'dexie';
 
@@ -48,9 +48,13 @@ export type AttemptGroups = Record<
   { passed: boolean; count: number }
 >;
 
+/** Which command made the attempt: `:run` checks only Compiles, `:test` every group. */
+export type AttemptKind = 'run' | 'test';
+
 export interface AttemptRow {
   id?: number;
   exerciseId: string;
+  kind?: AttemptKind;
   at: number;
   passed: boolean;
   groups: AttemptGroups;

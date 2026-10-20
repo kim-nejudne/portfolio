@@ -281,8 +281,10 @@ test.describe('§12 F6: ts run blocks have Run and Open in REPL; ts run errors b
     await expect(entries.nth(0)).toContainText('circle with radius 2');
     await expect(entries.nth(1)).toContainText('square with side 3');
     await expect(output.getByRole('status')).toHaveText(/^done in \d+ ms$/);
-    // Running stays on the lesson, with the button still focused.
-    await expect(page).toHaveURL(lessonRoute('01-fix'));
+    // Running stays on the lesson (on its first exercise, §6), with the button still focused.
+    await expect(page).toHaveURL(
+      `${lessonRoute('01-fix')}/01-handle-the-new-shape`,
+    );
     await expect(run).toBeFocused();
     // The other blocks printed nothing.
     await expect(
@@ -408,7 +410,9 @@ test.describe('§12 F5: Open in REPL from a theory block creates a buffer with t
     await expect.poll(() => currentPath(page)).toBe('/01-fix.ts');
 
     await page.goBack();
-    await expect(page).toHaveURL(lessonRoute('01-fix'));
+    await expect(page).toHaveURL(
+      `${lessonRoute('01-fix')}/01-handle-the-new-shape`,
+    );
     await expect(theory(page)).toHaveAttribute(
       'data-lesson',
       'm99-fixtures/01-fix',

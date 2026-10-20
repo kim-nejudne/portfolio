@@ -343,6 +343,36 @@ export function registerExCommands(
   }
 }
 
+/**
+ * One `:` input as the engine would read it (`n`, `focus left`, `layout wide`), for a page with
+ * no editor to type it into (the palette on a `predict` exercise, F8): the row's action, its
+ * message for a bad argument, or null when no registered command has that name. A name matches
+ * in full, or as an abbreviation at least as long as its registered prefix (`n` for `next`).
+ */
+export function parseExInput(
+  input: string,
+  commands: readonly ExCommand[] = EX_COMMANDS,
+): EditorAction | string | null {
+  const trimmed = input.trim();
+  const space = trimmed.indexOf(' ');
+  const typed = space === -1 ? trimmed : trimmed.slice(0, space);
+  const args = space === -1 ? '' : trimmed.slice(space + 1).trim();
+  if (typed === '') return null;
+  const named = (exact: boolean): ExCommand | undefined =>
+    commands.find((command) =>
+      command.names.some(({ name, prefix }) =>
+        exact
+          ? name === typed
+          : prefix !== undefined &&
+            typed.length >= prefix.length &&
+            name.startsWith(typed),
+      ),
+    );
+  const command = named(true) ?? named(false);
+  if (command?.parse === undefined) return null;
+  return command.parse(args);
+}
+
 /** `:set bg=dark` as the engine's option callback sees it; shared with options.ts. */
 export function parseBackground(value: unknown): Background | null {
   return BACKGROUNDS.find((b) => b === value) ?? null;

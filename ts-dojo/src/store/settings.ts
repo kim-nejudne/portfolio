@@ -2,12 +2,16 @@
 // relativeNumbers, fontSize, theme, defaultTimeoutMs, compilerDefaults, layout. F1 read `theme`;
 // F3 reads and writes `vimrc`, `relativeNumbers`, `theme` (`:set bg=`) and, because §4 says
 // `:set nu` and `:set wrap` persist too, `lineNumbers` and `wrap` (logged under "Spec
-// questions"). `writeSettings` merges a patch and notifies `subscribeSettings` listeners in this
+// questions"). F8 adds `layout`, the lesson page's last `:layout` choice, the default for a
+// lesson that has none of its own (§6 "the layout choice is remembered"). `writeSettings` merges a patch and notifies `subscribeSettings` listeners in this
 // tab; another tab's write arrives through the `storage` event. The Settings page (F10) widens
 // this further.
 export const SETTINGS_KEY = 'ts-dojo:settings';
 
 export const THEME_PREFERENCES = ['system', 'light', 'dark'] as const;
+
+export const LAYOUT_MODES = ['split', 'theory', 'practice'] as const;
+export type LayoutSetting = (typeof LAYOUT_MODES)[number];
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
 export interface Settings {
@@ -20,6 +24,8 @@ export interface Settings {
   lineNumbers?: boolean;
   /** `:set wrap` / `:set nowrap`. */
   wrap?: boolean;
+  /** The last `:layout` on a lesson page (§6, §7 `layout`). */
+  layout?: LayoutSetting;
 }
 
 export type SettingsStorage = Pick<Storage, 'getItem'>;
@@ -56,6 +62,13 @@ export function readSettings(
   const settings: Settings = {};
   if (isThemePreference(record['theme'])) settings.theme = record['theme'];
   if (typeof record['vimrc'] === 'string') settings.vimrc = record['vimrc'];
+  const layout = record['layout'];
+  if (
+    typeof layout === 'string' &&
+    (LAYOUT_MODES as readonly string[]).includes(layout)
+  ) {
+    settings.layout = layout as LayoutSetting;
+  }
   for (const key of ['relativeNumbers', 'lineNumbers', 'wrap'] as const) {
     const value = record[key];
     if (typeof value === 'boolean') settings[key] = value;

@@ -1,7 +1,12 @@
 // `<Predict>` (spec §3 MDX components, §1 Check yourself): an inline question with 2–5 options
-// and one correct answer. F6 renders it; answering with `j`/`k`/`Enter`, the explanation after
-// an answer and the per-lesson storage are F8's (§6 Lesson page, §7).
+// and one correct answer, answered in place with `j`/`k`/`Enter` (src/content/components/
+// question.tsx); the explanation shows after each answer and retries are allowed. The lesson
+// page stores the answers (§7 `lessons.questions`) through `LessonProgressContext`; `:done`
+// finds the unanswered ones by `data-check-id`.
+import { useState } from 'react';
 import type { CodeBlockElementProps } from './code-block';
+import { useLessonProgress } from './lesson-progress';
+import { Question } from './question';
 
 export interface PredictElementProps {
   id: string;
@@ -12,34 +17,33 @@ export interface PredictElementProps {
   code?: string;
 }
 
-const LETTERS = 'abcde';
-
-export function Predict({ id, question, options, code }: PredictElementProps) {
+export function Predict({
+  id,
+  question,
+  options,
+  answer,
+  explanation,
+  code,
+}: PredictElementProps) {
+  const progress = useLessonProgress();
+  const [local, setLocal] = useState<number | undefined>(undefined);
+  const chosen = local ?? progress?.answers[id];
   return (
-    <section
-      className="predict my-4 rounded-md border px-4 py-3"
-      data-check-id={id}
-      aria-labelledby={`predict-${id}`}
-    >
-      <p id={`predict-${id}`} className="m-0 font-medium">
-        {question}
-      </p>
-      {code !== undefined ? (
-        <pre className="my-2 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-sm">
-          {code}
-        </pre>
-      ) : null}
-      <ol className="m-0 mt-2 list-none p-0 text-sm">
-        {options.map((option, index) => (
-          <li key={index} className="flex gap-2 py-0.5" data-option={index}>
-            <span className="w-4 shrink-0 text-muted-foreground">
-              {LETTERS[index] ?? String(index + 1)}
-            </span>
-            <code className="font-mono">{option}</code>
-          </li>
-        ))}
-      </ol>
-    </section>
+    <Question
+      id={`check-${id}`}
+      question={question}
+      options={options}
+      answer={answer}
+      explanation={explanation}
+      code={code}
+      chosen={chosen}
+      onAnswer={(index) => {
+        setLocal(index);
+        progress?.answer(id, index, index === answer);
+      }}
+      className="predict"
+      dataAttributes={{ 'data-check-id': id }}
+    />
   );
 }
 

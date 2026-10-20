@@ -252,3 +252,39 @@
   list-style: none;
   padding-left: 0;
 }
+
+/* The exercise prompt (spec §1: Markdown, compiled at build time; §6 Lesson page). */
+.prompt {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.prompt p,
+.prompt ul,
+.prompt ol,
+.prompt pre {
+  margin: 0.5rem 0;
+}
+.prompt ul,
+.prompt ol {
+  padding-left: 1.25rem;
+}
+.prompt ul {
+  list-style: disc;
+}
+.prompt ol {
+  list-style: decimal;
+}
+.prompt :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--muted);
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+}
+.prompt pre {
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  background: var(--muted);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+}

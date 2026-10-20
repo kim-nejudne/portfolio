@@ -390,3 +390,17 @@ export async function openInRepl(
     return seam.openInRepl(request);
   }, request);
 }
+
+/**
+ * CodeMirror ignores the completion keys for `interactionDelay` after a list opens (75 ms,
+ * `COMPLETION_INTERACTION_DELAY_MS` in src/editor/completions.ts), so a key pressed at once on a
+ * busy machine is dropped. Waits until the list is shown and that delay has passed.
+ */
+export async function waitForCompletionKeys(page: Page): Promise<void> {
+  await expect(page.locator('.cm-tooltip-autocomplete')).toBeVisible();
+  const shownBy = await page.evaluate(() => performance.now());
+  await page.waitForFunction(
+    (since) => performance.now() - since > 100,
+    shownBy,
+  );
+}

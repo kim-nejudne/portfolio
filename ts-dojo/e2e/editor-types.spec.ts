@@ -19,6 +19,7 @@ import {
   type,
   vimPanel,
   waitForCompilerReady,
+  waitForCompletionKeys,
 } from './helpers/editor';
 
 const SQUIGGLE_BUDGET_MS = 300;
@@ -223,7 +224,7 @@ test.describe('completions', () => {
     await press(page, 'o');
     expect((await snapshot(page)).mode).toBe('insert');
     await type(page, 'Ma');
-    await expect(tooltip(page)).toBeVisible();
+    await waitForCompletionKeys(page);
     await expect(selectedLabel(page)).toHaveText(/^Ma/);
   }
 
@@ -241,7 +242,7 @@ test.describe('completions', () => {
     await press(page, 'G');
     await press(page, 'o');
     await type(page, 'Ma');
-    await expect(tooltip(page)).toBeVisible();
+    await waitForCompletionKeys(page);
     await press(page, '<Esc>');
     await expect(tooltip(page)).toBeHidden();
     expect((await snapshot(page)).mode).toBe('normal');
@@ -250,7 +251,7 @@ test.describe('completions', () => {
     expect((await snapshot(page)).mode).toBe('insert');
     await expect(tooltip(page)).toBeHidden();
     await press(page, '<C-Space>');
-    await expect(tooltip(page)).toBeVisible();
+    await waitForCompletionKeys(page);
     await expect(selectedLabel(page)).toHaveText(/^Ma/);
     await press(page, '<Esc>');
   });

@@ -7,6 +7,7 @@ import {
   EX_COMMANDS,
   paletteCommands,
   parseBackground,
+  parseExInput,
   registerExCommands,
   type DefineEx,
 } from './ex-commands.ts';
@@ -280,5 +281,37 @@ describe('paletteCommands (§6: every ex command in the Ctrl-p palette)', () => 
     expect(items.length).toBe(
       EX_COMMANDS.reduce((n, c) => n + (c.variants?.length ?? 1), 0),
     );
+  });
+});
+
+describe('parseExInput (the palette without an editor, F8)', () => {
+  it('turns every palette item with a fixed input into its action', () => {
+    for (const item of paletteCommands()) {
+      if (item.input === null) continue;
+      const parsed = parseExInput(item.input);
+      if (item.label.startsWith(':set')) {
+        expect(parsed, item.label).toBeNull();
+        continue;
+      }
+      expect(typeof parsed, item.label).toBe('object');
+    }
+    expect(parseExInput('next')).toEqual({ type: 'next' });
+    expect(parseExInput('n')).toEqual({ type: 'next' });
+    expect(parseExInput('focus left')).toEqual({
+      type: 'focusDirection',
+      direction: 'left',
+    });
+    expect(parseExInput('layout theory')).toEqual({
+      type: 'layout',
+      mode: 'theory',
+    });
+  });
+
+  it('gives the row’s message for a bad argument and null for an unknown command', () => {
+    expect(parseExInput('layout wide')).toBe(
+      ':layout takes one of: split, theory, practice',
+    );
+    expect(parseExInput('frobnicate')).toBeNull();
+    expect(parseExInput('')).toBeNull();
   });
 });

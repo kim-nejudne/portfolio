@@ -8,6 +8,10 @@
 //   duplicate id, a bad prerequisite or any other structural problem fails the build too.
 // - `@mdx-js/rollup` over lesson.mdx with the fence pipeline of src/content/node/mdx.ts, so
 //   `^?` queries, highlighting, snippet JavaScript and expected diagnostics are rendered now.
+// - A second `@mdx-js/rollup` over each exercise's prompt (§1: Markdown), which the content
+//   plugin answers for `exercise.yaml?prompt` as a virtual `…/exercise.yaml.prompt.md` module:
+//   compiled as plain Markdown (no JSX, so `<` and `{` in prose are text), one lazy chunk per
+//   exercise, nothing rendered at runtime.
 //
 // Node only (tsconfig.node.json, under node/ like the other Node-side modules): imported by
 // vite.config.ts.
@@ -31,6 +35,34 @@ import {
 
 /** The query that asks for a lesson's meta instead of its component. */
 export const META_QUERY = '?meta';
+
+/** The query that asks for an exercise's prompt as a component. */
+export const PROMPT_QUERY = '?prompt';
+const PROMPT_SUFFIX = '.prompt.md';
+
+/** The virtual id of an exercise.yaml's prompt: a `.md` file the prompt MDX instance compiles. */
+export function promptId(yamlFile: string): string {
+  return `${yamlFile}${PROMPT_SUFFIX}`;
+}
+
+export function isPromptId(id: string): boolean {
+  return id.endsWith(`exercise.yaml${PROMPT_SUFFIX}`);
+}
+
+/** The Markdown of an exercise's `prompt`; '' for a `predict` exercise or a file that does not parse. */
+export function promptSource(yamlText: string): string {
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(yamlText);
+  } catch {
+    return '';
+  }
+  const prompt =
+    typeof parsed === 'object' && parsed !== null
+      ? (parsed as { prompt?: unknown }).prompt
+      : undefined;
+  return typeof prompt === 'string' ? prompt : '';
+}
 
 const YAML_FILE = /\.ya?ml$/;
 
@@ -100,6 +132,13 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
       if (problems.length > 0) throw new ContentError(problems);
     },
     async resolveId(source, importer) {
+      if (source.endsWith(PROMPT_QUERY)) {
+        const file = source.slice(0, -PROMPT_QUERY.length);
+        if (path.basename(file) !== 'exercise.yaml') return null;
+        const resolved = await this.resolve(file, importer, { skipSelf: true });
+        if (resolved === null || !isContentFile(resolved.id)) return null;
+        return promptId(resolved.id);
+      }
       if (!source.endsWith(META_QUERY)) return null;
       const file = source.slice(0, -META_QUERY.length);
       if (path.basename(file) !== 'lesson.mdx') return null;
@@ -108,6 +147,11 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
       return `${META_PREFIX}${resolved.id}`;
     },
     async load(id) {
+      if (isPromptId(id) && isContentFile(id)) {
+        const file = id.slice(0, -PROMPT_SUFFIX.length);
+        this.addWatchFile(file);
+        return { code: promptSource(await readFile(file, 'utf8')), map: null };
+      }
       if (!id.startsWith(META_PREFIX)) return null;
       const file = id.slice(META_PREFIX.length);
       this.addWatchFile(file);
@@ -137,5 +181,8 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
     ...lessonMdxOptions(getRenderer),
   }) as Plugin;
 
-  return [content, lessons];
+  // Prompts: plain Markdown (the `.md` extension makes the compiler use `format: 'md'`).
+  const prompts = mdx({ include: /\/content\/.*\.prompt\.md$/ }) as Plugin;
+
+  return [content, lessons, prompts];
 }
