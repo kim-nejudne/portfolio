@@ -10,6 +10,12 @@ type cases = [
       | { type: 'scroll'; deltaY: number }
     >
   >, // exactly the three members
+  Expect<
+    Equal<
+      Extract<UIEvent, { type: 'keydown' }>,
+      { type: 'keydown'; key: string }
+    >
+  >, // narrowing by type finds the keydown
 ];
 
 const click: UIEvent = { type: 'click', x: 1, y: 2 }; // a click is accepted

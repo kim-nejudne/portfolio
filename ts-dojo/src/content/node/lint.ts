@@ -5,8 +5,13 @@
 // fence must render (6); then every editor exercise's solution must pass its own verdict (2)
 // and its starter must fail it, a `fix` starter with at least one diagnostic (3). Every failure
 // carries its §3 condition number and path; every exercise gets one report line.
-import type { ExerciseResult } from '@/verify/exercise';
-import { runtimeTestsOn, verifyExercise } from '@/verify/exercise';
+import {
+  runtimeTestsOn,
+  VERDICT_GROUPS as GROUPS,
+  verifyExercise,
+  type ExerciseResult,
+  type GroupName,
+} from '@/verify/exercise';
 import { createNodeSandboxRunner } from '@/workers/sandbox/node/spawn';
 import { createTsLsCore } from '@/workers/ts-ls/core';
 import { nodeFetchLib } from '@/workers/ts-ls/node/fetch-lib';
@@ -53,8 +58,7 @@ export interface LintOptions {
   onExercise?: (report: ExerciseReport) => void;
 }
 
-const GROUPS = ['compiles', 'typeCases', 'runtime', 'rules'] as const;
-export type GroupName = (typeof GROUPS)[number];
+export type { GroupName };
 
 export const GROUP_LABEL: Record<GroupName, string> = {
   compiles: 'compiles',

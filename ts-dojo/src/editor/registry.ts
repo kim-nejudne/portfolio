@@ -14,6 +14,8 @@ export interface EditorHandle {
   readonly paths: readonly string[];
   /** The live file set (`/repl`'s `:e` and `:bd` change it). */
   readonly files: readonly EditorFile[];
+  /** A file's current text, edits included ('' for an unknown path): what `:test` verifies. */
+  text(path: string): string;
   /** Adds a file (and its project entry) at `index`, or at the end; false when the path exists. */
   addFile(file: EditorFile, index?: number): boolean;
   /** Removes a file, switching away from it first; false for an unknown path or the last file. */

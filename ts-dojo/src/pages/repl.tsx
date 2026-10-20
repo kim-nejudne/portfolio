@@ -34,22 +34,8 @@ import {
   readLastBuffer,
   writeLastBuffer,
 } from '@/store/buffers';
+import { NOT_HERE } from './not-here';
 import { WELCOME_BUFFERS } from './welcome-buffers';
-
-/** What a host answers for a command another feature's page owns. */
-export const NOT_HERE: Partial<Record<HostAction['type'], string>> = {
-  test: ':test runs the verification on a lesson page (F7)',
-  hint: ':hint needs a lesson page (F8)',
-  solution: ':sol needs a lesson page (F8)',
-  reset: ':reset needs a lesson page (F8)',
-  done: ':done needs a lesson page (F8)',
-  next: ':next needs a lesson page (F8)',
-  prev: ':prev needs a lesson page (F8)',
-  lesson: ':lesson needs a lesson page (F8)',
-  layout: ':layout needs a lesson page (F8)',
-  prompt: ':prompt needs a lesson page (F8)',
-  export: ':export needs the progress store (F9)',
-};
 
 interface Project {
   files: EditorFile[];
