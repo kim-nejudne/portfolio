@@ -83,6 +83,18 @@ describe('readSettings: the F3 keys', () => {
   });
 });
 
+describe('readSettings: layout (F8)', () => {
+  it('keeps split, theory or practice and drops anything else', () => {
+    for (const layout of ['split', 'theory', 'practice']) {
+      expect(readSettings(storageWith(JSON.stringify({ layout })))).toEqual({
+        layout,
+      });
+    }
+    expect(readSettings(storageWith('{"layout":"wide"}'))).toEqual({});
+    expect(readSettings(storageWith('{"layout":1}'))).toEqual({});
+  });
+});
+
 describe('writeSettings and subscribeSettings (§7, §4 ":set ... persisted")', () => {
   const memory = () => {
     const store = new Map<string, string>();

@@ -3,8 +3,8 @@
 // snippet's pre-emitted JavaScript to a fresh sandbox worker (no compiler round trip, works
 // before the compiler is ready) and shows the output under the block; `run errors` shows the
 // diagnostics the build computed with the app's own core. Open in REPL is F5's action: a new
-// buffer named after the lesson with the snippet, then `/repl`. `Enter` on a focused block
-// (§6 theory keys) is F8's; the buttons are real buttons, so the keyboard reaches them now.
+// buffer named after the lesson with the snippet, then `/repl`. The block itself takes focus
+// and `Enter` on it runs Open in REPL (§6 theory keys, F8); the buttons are real buttons too.
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useAppActions } from '@/app/app-actions';
 import { entryText, locText } from '@/app/output-entry';
@@ -103,8 +103,25 @@ export function CodeBlock({
     );
   };
 
+  const onKeyDown = (event: React.KeyboardEvent): void => {
+    if (event.target !== event.currentTarget || event.key !== 'Enter') return;
+    if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    openInRepl();
+  };
+
   return (
-    <div className="code-block" data-kind={kind}>
+    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- a focused block opens in the REPL with Enter (§6) */
+    <div
+      className="code-block rounded-md outline-none focus:ring-2 focus:ring-ring"
+      data-kind={kind}
+      tabIndex={0}
+      role="group"
+      aria-label="Code example: Enter opens it in the REPL"
+      onKeyDown={onKeyDown}
+    >
       <div
         className="twoslash-host"
         // Build-time output of shiki and twoslash over the lesson's own source (§3).
@@ -137,5 +154,6 @@ export function CodeBlock({
       ) : null}
       {runner !== null ? <BlockOutput runner={runner} /> : null}
     </div>
+    /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   );
 }

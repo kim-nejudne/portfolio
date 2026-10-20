@@ -76,4 +76,17 @@ describe('createAutosave', () => {
     vi.advanceTimersByTime(1000);
     expect(writes, 'nothing after dispose').toEqual([['/index.ts', 'a']]);
   });
+
+  it('lists the values still waiting (for the pagehide journal), and none once written', () => {
+    const autosave = createAutosave(() => undefined);
+    autosave.touch('/index.ts', 'a');
+    autosave.touch('/tests.ts', 'b');
+    autosave.touch('/index.ts', 'ab');
+    expect(autosave.pending()).toEqual([
+      ['/index.ts', 'ab'],
+      ['/tests.ts', 'b'],
+    ]);
+    vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    expect(autosave.pending()).toEqual([]);
+  });
 });

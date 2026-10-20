@@ -3,24 +3,32 @@
 // shadcn's Tooltip needs one provider above everything that uses it.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
+import { getActiveEditor } from '@/editor/registry';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppActionsContext, type AppActions } from './app-actions';
 import { CommandPalette } from './command-palette';
 import { CompilerStatusChip } from './compiler-status';
 import { HelpOverlay } from './help-overlay';
+import type { GlobalAction } from './keys';
 import { openInRepl } from './open-in-repl';
+import { getPageActions } from './page-actions';
 import { publishAppSeam } from './seam';
 import { useGlobalKeys, type GlobalKeyHandlers } from './use-global-keys';
 
 export function Layout() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Where the focus was when the palette opened: a page-level command acts from that pane.
+  const [paletteOrigin, setPaletteOrigin] = useState<Element | null>(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const actions = useMemo<AppActions>(
     () => ({
       openHelp: () => setHelpOpen(true),
-      openPalette: () => setPaletteOpen(true),
+      openPalette: () => {
+        setPaletteOrigin(document.activeElement);
+        setPaletteOpen(true);
+      },
       goToRoadmap: () => void navigate('/'),
       openInRepl: (request) => openInRepl((to) => void navigate(to), request),
     }),
@@ -31,15 +39,31 @@ export function Layout() {
     publishAppSeam({ openInRepl: actions.openInRepl });
     return () => publishAppSeam(null);
   }, [actions]);
-  // `g n`, `g p`, `] e`, `[ e` need the lesson page (F8); unhandled keys do nothing.
-  const handlers = useMemo<GlobalKeyHandlers>(
-    () => ({
+  // The page-level keys (`g n`, `] e`, the pane keys) go to the mounted page first
+  // (src/app/page-actions.ts); `Esc` and `2` fall back to the editor when the page has none.
+  const handlers = useMemo<GlobalKeyHandlers>(() => {
+    const page = (action: GlobalAction, fallback?: () => void) => (): void => {
+      if (getPageActions()?.key?.(action) === true) return;
+      fallback?.();
+    };
+    const focusEditor = (): void => getActiveEditor()?.focus();
+    return {
       help: actions.openHelp,
       palette: actions.openPalette,
       roadmap: actions.goToRoadmap,
-    }),
-    [actions],
-  );
+      lessonNext: page('lessonNext'),
+      lessonPrev: page('lessonPrev'),
+      exerciseNext: page('exerciseNext'),
+      exercisePrev: page('exercisePrev'),
+      focusTheory: page('focusTheory'),
+      focusEditor: page('focusEditor', focusEditor),
+      focusOutput: page('focusOutput'),
+      focusLeft: page('focusLeft'),
+      focusDown: page('focusDown'),
+      focusUp: page('focusUp'),
+      focusRight: page('focusRight'),
+    };
+  }, [actions]);
   useGlobalKeys(handlers);
   return (
     <AppActionsContext value={actions}>
@@ -62,7 +86,11 @@ export function Layout() {
           </main>
         </div>
         <HelpOverlay open={helpOpen} onOpenChange={setHelpOpen} />
-        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          origin={paletteOrigin}
+        />
       </TooltipProvider>
     </AppActionsContext>
   );

@@ -1,8 +1,10 @@
 // The global keyboard map (spec §6 Global keys). These fire only when the editor does not have
 // focus: inside the editor every key is Vim's and the ex commands reach the app (the §6
 // conflict rule), so the hook that applies this map skips editable targets and anything inside
-// `.cm-editor`. F1 wired `?`; F3 adds `Ctrl-p` and the two-key sequences (`g r`, `g n`, `g p`,
-// `] e`, `[ e`); F8 adds the pane keys, `Esc`, the scrolling keys and `Enter`.
+// `.cm-editor`, and a key pressed inside a dialog stays with the dialog. F1 wired `?`; F3 adds
+// `Ctrl-p` and the two-key sequences (`g r`, `g n`, `g p`, `] e`, `[ e`); F8 adds the pane keys
+// (`Ctrl-h/j/k/l`, `1 2 3`, `Esc`). The scrolling keys belong to the focused reading pane
+// (src/app/reading-keys.ts) and `Enter` to the focused element itself.
 export interface GlobalKey {
   keys: string;
   action: string;
@@ -33,7 +35,14 @@ export type GlobalAction =
   | 'lessonNext'
   | 'lessonPrev'
   | 'exerciseNext'
-  | 'exercisePrev';
+  | 'exercisePrev'
+  | 'focusTheory'
+  | 'focusEditor'
+  | 'focusOutput'
+  | 'focusLeft'
+  | 'focusDown'
+  | 'focusUp'
+  | 'focusRight';
 
 export interface KeyLike {
   key: string;
@@ -51,6 +60,22 @@ export type GlobalKeyMatch =
   | { kind: 'prefix'; prefix: KeyPrefix }
   | { kind: 'none' };
 
+const CTRL_KEYS: Record<string, GlobalAction> = {
+  p: 'palette',
+  h: 'focusLeft',
+  j: 'focusDown',
+  k: 'focusUp',
+  l: 'focusRight',
+};
+
+const SINGLE_KEYS: Record<string, GlobalAction> = {
+  '?': 'help',
+  '1': 'focusTheory',
+  '2': 'focusEditor',
+  '3': 'focusOutput',
+  Escape: 'focusEditor',
+};
+
 const SEQUENCES: Record<KeyPrefix, Record<string, GlobalAction>> = {
   g: { r: 'roadmap', n: 'lessonNext', p: 'lessonPrev' },
   ']': { e: 'exerciseNext' },
@@ -67,15 +92,15 @@ export function matchGlobalKey(
 ): GlobalKeyMatch {
   if (event.altKey === true || event.metaKey === true) return { kind: 'none' };
   if (event.ctrlKey === true) {
-    return event.key === 'p' && event.shiftKey !== true
-      ? { kind: 'action', action: 'palette' }
-      : { kind: 'none' };
+    const action = event.shiftKey === true ? undefined : CTRL_KEYS[event.key];
+    return action === undefined ? { kind: 'none' } : { kind: 'action', action };
   }
   if (prefix !== null) {
     const action = SEQUENCES[prefix][event.key];
     return action === undefined ? { kind: 'none' } : { kind: 'action', action };
   }
-  if (event.key === '?') return { kind: 'action', action: 'help' };
+  const single = SINGLE_KEYS[event.key];
+  if (single !== undefined) return { kind: 'action', action: single };
   if (event.key === 'g' || event.key === ']' || event.key === '[') {
     return { kind: 'prefix', prefix: event.key };
   }
@@ -104,4 +129,10 @@ export function isEditableTarget(
   if (target.isContentEditable === true) return true;
   const inEditor = target.closest?.('.cm-editor');
   return inEditor !== null && inEditor !== undefined;
+}
+
+/** True inside a dialog (the help overlay, the palette): its own keys, `Esc` included, win. */
+export function isInDialog(target: TargetLike | null | undefined): boolean {
+  const dialog = target?.closest?.('[role="dialog"], [role="alertdialog"]');
+  return dialog !== null && dialog !== undefined;
 }

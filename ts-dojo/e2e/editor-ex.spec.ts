@@ -24,6 +24,7 @@ import {
   type,
   vimPanel,
   waitForCompilerReady,
+  waitForCompletionKeys,
 } from './helpers/editor';
 
 const TWO_ERRORS = lines(
@@ -330,33 +331,33 @@ test.describe(':w and :run', () => {
   });
 });
 
-test.describe('the rows other features own', () => {
-  const NOT_HERE: [command: string, feature: string, label: string][] = [
-    ['test', 'F7', ':test'],
-    ['t', 'F7', ':test'],
-    ['hint', 'F8', ':hint'],
-    ['sol', 'F8', ':sol'],
-    ['solution', 'F8', ':sol'],
-    ['reset', 'F8', ':reset'],
-    ['done', 'F8', ':done'],
-    ['next', 'F8', ':next'],
-    ['prev', 'F8', ':prev'],
-    ['lesson next', 'F8', ':lesson'],
-    ['lesson prev', 'F8', ':lesson'],
-    ['layout split', 'F8', ':layout'],
-    ['layout theory', 'F8', ':layout'],
-    ['layout practice', 'F8', ':layout'],
-    ['prompt', 'F8', ':prompt'],
-    ['export', 'F9', ':export'],
+// On /repl the lesson-page rows (F7, F8, proven in e2e/verify.spec.ts and e2e/lesson-*.spec.ts)
+// say they need a lesson page, and `:export` says it belongs to F9; nothing in the buffer moves.
+test.describe('the rows /repl does not own', () => {
+  const NOT_HERE: [command: string, expected: RegExp, label: string][] = [
+    ['test', /needs? a lesson page|on a lesson page/, ':test'],
+    ['t', /needs? a lesson page|on a lesson page/, ':test'],
+    ['hint', /needs a lesson page/, ':hint'],
+    ['sol', /needs a lesson page/, ':sol'],
+    ['solution', /needs a lesson page/, ':sol'],
+    ['reset', /needs a lesson page/, ':reset'],
+    ['done', /needs a lesson page/, ':done'],
+    ['next', /needs a lesson page/, ':next'],
+    ['prev', /needs a lesson page/, ':prev'],
+    ['lesson next', /needs a lesson page/, ':lesson'],
+    ['lesson prev', /needs a lesson page/, ':lesson'],
+    ['layout split', /needs a lesson page/, ':layout'],
+    ['layout theory', /needs a lesson page/, ':layout'],
+    ['layout practice', /needs a lesson page/, ':layout'],
+    ['prompt', /needs a lesson page/, ':prompt'],
+    ['export', /\bF9\b/, ':export'],
   ];
 
-  for (const [command, feature, label] of NOT_HERE) {
-    test(`:${command} says it belongs to ${feature}`, async ({ page }) => {
+  for (const [command, expected, label] of NOT_HERE) {
+    test(`:${command} says where it works`, async ({ page }) => {
       const before = (await snapshot(page)).doc;
       await ex(page, command);
-      await expect(vimPanel(page)).toContainText(
-        new RegExp(`\\b${feature}\\b`),
-      );
+      await expect(vimPanel(page)).toContainText(expected);
       await expect(vimPanel(page)).toContainText(label);
       expect((await snapshot(page)).doc).toBe(before);
       expect(await currentPath(page)).toBe('/index.ts');
@@ -398,7 +399,7 @@ test.describe('Ctrl-p', () => {
     await press(page, 'o');
     expect((await snapshot(page)).mode).toBe('insert');
     await type(page, 'Ma');
-    await expect(tooltip).toBeVisible();
+    await waitForCompletionKeys(page);
     await expect(selected).toHaveText('Map');
     await press(page, '<C-j>');
     await expect(selected).toHaveText('Math');
@@ -414,7 +415,7 @@ test.describe('Ctrl-p', () => {
     await press(page, 'o');
     expect((await snapshot(page)).mode).toBe('insert');
     await press(page, '<C-p>');
-    await expect(tooltip).toBeVisible();
+    await waitForCompletionKeys(page);
     await expect(palette).toBeHidden();
     expect((await snapshot(page)).mode).toBe('insert');
     await press(page, '<Esc>');

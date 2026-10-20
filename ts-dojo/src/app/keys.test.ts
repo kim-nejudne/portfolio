@@ -1,7 +1,12 @@
 // The global keyboard map (spec §6 Global keys) as pure functions: which key fires which app
 // action, and the conflict rule that nothing fires from an editable target or the editor.
 import { describe, expect, it } from 'vitest';
-import { GLOBAL_KEYS, isEditableTarget, matchGlobalKey } from './keys.ts';
+import {
+  GLOBAL_KEYS,
+  isEditableTarget,
+  isInDialog,
+  matchGlobalKey,
+} from './keys.ts';
 
 describe('matchGlobalKey (§6)', () => {
   const action = (
@@ -68,8 +73,43 @@ describe('matchGlobalKey (§6)', () => {
     expect(action('r', {}, ']')).toEqual({ kind: 'none' });
   });
 
-  it('other keys map to nothing (the pane keys are F8)', () => {
-    for (const key of ['/', 'a', 'Escape', 'Enter', 'j', '1', 'r', 'n', 'e']) {
+  it('1, 2 and 3 focus theory, editor and output; Esc focuses the editor (F8)', () => {
+    expect(action('1')).toEqual({ kind: 'action', action: 'focusTheory' });
+    expect(action('2')).toEqual({ kind: 'action', action: 'focusEditor' });
+    expect(action('3')).toEqual({ kind: 'action', action: 'focusOutput' });
+    expect(action('Escape')).toEqual({
+      kind: 'action',
+      action: 'focusEditor',
+    });
+    expect(action('1', { ctrlKey: true })).toEqual({ kind: 'none' });
+    expect(action('4')).toEqual({ kind: 'none' });
+    expect(action('1', {}, 'g')).toEqual({ kind: 'none' });
+  });
+
+  it('Ctrl-h, Ctrl-j, Ctrl-k and Ctrl-l move pane focus (F8)', () => {
+    expect(action('h', { ctrlKey: true })).toEqual({
+      kind: 'action',
+      action: 'focusLeft',
+    });
+    expect(action('j', { ctrlKey: true })).toEqual({
+      kind: 'action',
+      action: 'focusDown',
+    });
+    expect(action('k', { ctrlKey: true })).toEqual({
+      kind: 'action',
+      action: 'focusUp',
+    });
+    expect(action('l', { ctrlKey: true })).toEqual({
+      kind: 'action',
+      action: 'focusRight',
+    });
+    expect(action('h', { ctrlKey: true, shiftKey: true })).toEqual({
+      kind: 'none',
+    });
+  });
+
+  it('other keys map to nothing (the reading keys belong to the focused pane)', () => {
+    for (const key of ['/', 'a', 'Enter', 'j', 'k', 'G', 'r', 'n', 'e']) {
       expect(action(key), key).toEqual({ kind: 'none' });
     }
   });
@@ -102,6 +142,20 @@ describe('isEditableTarget (§6 conflict rule)', () => {
     expect(isEditableTarget(element('BUTTON'))).toBe(false);
     expect(isEditableTarget(null)).toBe(false);
     expect(isEditableTarget(undefined)).toBe(false);
+  });
+});
+
+describe('isInDialog', () => {
+  const element = (dialog: boolean) => ({
+    tagName: 'BUTTON',
+    closest: (selector: string) =>
+      dialog && selector.includes('[role="dialog"]') ? {} : null,
+  });
+
+  it('is true inside a dialog (the help overlay, the palette, a confirmation): its own keys win', () => {
+    expect(isInDialog(element(true))).toBe(true);
+    expect(isInDialog(element(false))).toBe(false);
+    expect(isInDialog(null)).toBe(false);
   });
 });
 

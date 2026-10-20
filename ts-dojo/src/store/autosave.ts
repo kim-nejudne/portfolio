@@ -11,6 +11,8 @@ export interface Autosave<K> {
   flush(): void;
   /** Drops a pending write (the buffer was deleted). */
   forget(key: K): void;
+  /** The values not yet written, in the order their keys were first touched. */
+  pending(): [K, string][];
   /** Flushes, then ignores every later touch. */
   dispose(): void;
 }
@@ -51,6 +53,9 @@ export function createAutosave<K>(
       if (entry === undefined) return;
       clearTimeout(entry.timer);
       pending.delete(key);
+    },
+    pending() {
+      return [...pending.entries()].map(([key, entry]) => [key, entry.value]);
     },
     dispose() {
       this.flush();

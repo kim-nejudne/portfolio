@@ -16,6 +16,7 @@ import {
 import { useLocation } from 'react-router';
 import { useAppActions } from '@/app/app-actions';
 import { OutputPane, type OutputTab } from '@/app/output-pane';
+import { setPageActions } from '@/app/page-actions';
 import { createAppSandboxRunner } from '@/app/sandbox';
 import { confirmInPanel } from '@/editor/confirm';
 import { Editor, type EditorFile } from '@/editor/editor';
@@ -114,6 +115,26 @@ export function ReplPage() {
     void writeLastBuffer(nameOfPath(project.initial));
     getActiveEditor()?.focus();
   }, [project]);
+
+  // The pane keys from outside the editor (§6): `2`/`Esc` and `Ctrl-k` the editor, `3` and
+  // `Ctrl-j` the output pane; /repl has no theory pane.
+  useEffect(
+    () =>
+      setPageActions({
+        key(action) {
+          if (action === 'focusEditor' || action === 'focusUp') {
+            getActiveEditor()?.focus();
+            return true;
+          }
+          if (action === 'focusOutput' || action === 'focusDown') {
+            outputRef.current?.focus();
+            return true;
+          }
+          return false;
+        },
+      }),
+    [],
+  );
 
   const onFileChange = useCallback((path: string): void => {
     void writeLastBuffer(nameOfPath(path));
