@@ -251,13 +251,16 @@ describe('createSandboxRunner', () => {
     expect(runner.state.entries).toEqual([]);
   });
 
-  it('records a worker error event as an error entry', async () => {
+  it('a worker error event fails the run and ends the worker', async () => {
     const { runner, workers } = setup();
     await runner.start([file('/index.ts')], '/index.ts');
     workers[0]?.fail('Uncaught SyntaxError');
-    expect(runner.state.entries).toEqual([
-      { kind: 'error', message: 'Uncaught SyntaxError', stack: '', loc: null },
-    ]);
+    expect(runner.state.status).toEqual({
+      kind: 'failed',
+      message: 'Uncaught SyntaxError',
+    });
+    expect(workers[0]?.terminated()).toBe(true);
+    expect(runner.isRunning()).toBe(false);
   });
 
   it('dispose terminates the worker and drops the listeners', async () => {

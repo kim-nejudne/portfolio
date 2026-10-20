@@ -16,15 +16,22 @@ interface Route {
 const ROUTES: readonly Route[] = [
   { path: '/', h1: 'Roadmap' },
   { path: '/m/m03-unions', h1: 'Module m03-unions' },
+  // The lesson page renders the registry since F6 (the fixture lesson; the placeholder stays
+  // for an unknown id). The exercise in the URL is F8's.
   {
-    path: '/l/m03-unions/05-discriminated-unions',
-    h1: 'Lesson m03-unions/05-discriminated-unions',
-    detail: 'exercise: first unfinished',
+    path: '/l/m99-fixtures/01-fix',
+    h1: 'Fixing an exhaustiveness error',
+    detail: '7 min · m99-fixtures',
   },
   {
-    path: '/l/m03-unions/05-discriminated-unions/01-handle-the-new-shape',
-    h1: 'Lesson m03-unions/05-discriminated-unions',
-    detail: 'exercise: 01-handle-the-new-shape',
+    path: '/l/m99-fixtures/01-fix/01-handle-the-new-shape',
+    h1: 'Fixing an exhaustiveness error',
+    detail: '7 min · m99-fixtures',
+  },
+  {
+    path: '/l/m03-unions/05-discriminated-unions',
+    h1: 'Lesson not found',
+    detail: '/l/m03-unions/05-discriminated-unions',
   },
   { path: '/repl', h1: 'REPL' },
   { path: '/settings', h1: 'Settings' },

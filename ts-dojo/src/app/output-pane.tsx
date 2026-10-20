@@ -8,7 +8,8 @@ import { cn } from 'cn';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { SourceLoc } from '@/protocol/sandbox';
 import type { Diag } from '@/protocol/ts-ls';
-import type { OutputEntry, RunState } from '@/workers/sandbox/runner';
+import type { RunState } from '@/workers/sandbox/runner';
+import { entryText, locOf, locText } from './output-entry';
 import { formatStatus } from './run-status';
 
 export type OutputTab = 'console' | 'problems' | 'tests';
@@ -27,25 +28,6 @@ export interface OutputPaneProps {
   onJump: (loc: SourceLoc) => void;
   onEscape: () => void;
   className?: string;
-}
-
-function locOf(entry: OutputEntry): SourceLoc | null {
-  return entry.kind === 'truncated' ? null : entry.loc;
-}
-
-function locText(loc: SourceLoc | null): string {
-  return loc === null ? '' : `${loc.file.slice(1)}:${String(loc.line)}`;
-}
-
-function entryText(entry: OutputEntry): string {
-  switch (entry.kind) {
-    case 'console':
-      return entry.text;
-    case 'error':
-      return entry.message;
-    case 'truncated':
-      return `output truncated after ${String(entry.entries)} entries (${String(Math.round(entry.bytes / 1000))} KB)`;
-  }
 }
 
 export function OutputPane({

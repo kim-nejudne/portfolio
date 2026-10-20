@@ -1,0 +1,16 @@
+id: m99-fixtures/03-type-challenge/02-area-by-kind
+kind: implement
+title: Describe a shape
+minutes: 3
+challenge: false
+prompt: |
+  Implement `describe(shape)`: `"circle r=1"` for a circle with radius 1 and `"square s=3"`
+  for a square with side 3. Narrow on `kind`; no casts.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+timeoutMs: 5000
+hints:
+  - Check `shape.kind` first; inside the branch the member's own property is available.

@@ -15,6 +15,7 @@ import {
   type SandboxEvent,
   type SandboxModule,
   type SourceLoc,
+  type TestStatus,
 } from '@/protocol/sandbox';
 import type { EmittedFile } from '@/protocol/ts-ls';
 import {
@@ -53,9 +54,31 @@ export type OutputEntry =
   | { kind: 'error'; message: string; stack: string; loc: SourceLoc | null }
   | { kind: 'truncated'; entries: number; bytes: number };
 
+/** One §5 runtime test result, as the harness streamed it. */
+export interface TestEntry {
+  name: string;
+  status: TestStatus;
+  message?: string;
+  expected?: string;
+  actual?: string;
+  ms: number;
+}
+
+export interface TestSummary {
+  passed: number;
+  failed: number;
+  timedOut: number;
+  skipped: number;
+  ms: number;
+}
+
 export interface RunState {
   status: RunStatus;
   entries: OutputEntry[];
+  /** The runtime tests of a `mode: 'test'` run, in the order they finished. */
+  tests: TestEntry[];
+  /** Set when the harness has run every test. */
+  testSummary: TestSummary | null;
   format: ModuleFormat | null;
   /** Counts runs, so the pane can reset its selection when a new one starts. */
   run: number;
@@ -89,9 +112,18 @@ export interface SandboxRunner {
   dispose: () => void;
 }
 
+/** The event's payload without its `type` tag. */
+function withoutType<T extends { type: string }>(event: T): Omit<T, 'type'> {
+  const { type, ...rest } = event;
+  void type;
+  return rest;
+}
+
 const IDLE: RunState = {
   status: { kind: 'idle' },
   entries: [],
+  tests: [],
+  testSummary: null,
   format: null,
   run: 0,
 };
@@ -165,9 +197,12 @@ export function createSandboxRunner(
         }
         return;
       case 'testStart':
+        return;
       case 'testResult':
+        set({ tests: [...state.tests, withoutType(event)] });
+        return;
       case 'testSummary':
-        // F7: the Tests tab.
+        set({ testSummary: withoutType(event) });
         return;
     }
   };
@@ -221,6 +256,8 @@ export function createSandboxRunner(
       set({
         status: { kind: 'preparing' },
         entries: [],
+        tests: [],
+        testSummary: null,
         format: null,
         run: state.run + 1,
       });
@@ -237,13 +274,16 @@ export function createSandboxRunner(
         if (worker !== spawned) return;
         if (isSandboxEvent(event.data)) onEvent(event.data);
       });
+      // A worker-level error (the script failed to load or crashed outside a run): nothing
+      // more can arrive, so the run fails now instead of waiting for the deadline.
       spawned.addEventListener('error', (event) => {
         if (worker !== spawned) return;
-        append({
-          kind: 'error',
-          message: event.message ?? 'the sandbox worker failed',
-          stack: '',
-          loc: null,
+        stopWorker();
+        set({
+          status: {
+            kind: 'failed',
+            message: event.message ?? 'the sandbox worker failed',
+          },
         });
       });
       startedAt = now();

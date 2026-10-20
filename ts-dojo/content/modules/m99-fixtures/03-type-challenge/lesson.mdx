@@ -1,0 +1,64 @@
+---
+id: m99-fixtures/03-type-challenge
+title: Describing alternatives as a type
+minutes: 8
+objectives:
+  - Model a set of alternatives as a union of object types with a literal discriminant
+  - Check a type with Equal and Expect cases and with @ts-expect-error lines
+prerequisites: [m99-fixtures/01-fix]
+tags: [fixture, type-challenge, union, literal types, type cases]
+---
+
+## Concept
+
+A type can be checked the way a function is tested. `Equal<A, B>` is `true` only when the two types are the same, and `Expect<T>` only accepts `true`, so a tuple of `Expect<Equal<…>>` elements compiles only when every case holds.
+
+```ts twoslash
+type Event = { type: 'click'; x: number } | { type: 'keydown'; key: string };
+
+type Click = Extract<Event, { type: 'click' }>;
+//   ^?
+```
+
+## Examples
+
+Literal discriminants make an object that mixes two members an error, which is what the type cases rely on:
+
+```ts run
+type Event = { type: 'click'; x: number } | { type: 'keydown'; key: string };
+
+const events: Event[] = [
+  { type: 'click', x: 10 },
+  { type: 'keydown', key: 'j' },
+];
+
+for (const event of events) {
+  console.log(
+    event.type === 'click' ? `click at ${event.x}` : `key ${event.key}`,
+  );
+}
+```
+
+## Pitfalls
+
+**A member with the wrong properties.** The discriminant decides which member an object literal is checked against, so `key` is an excess property on a click:
+
+```ts run errors
+type Event = { type: 'click'; x: number } | { type: 'keydown'; key: string };
+
+const mixed: Event = { type: 'click', x: 10, key: 'j' };
+```
+
+## Check yourself
+
+<Predict
+  id="equal-result"
+  question="What does `Equal<{ a: 1 }, { a: 1; b?: 2 }>` evaluate to?"
+  options={['true', 'false', 'never', 'boolean']}
+  answer={1}
+  explanation="Equal compares the types exactly, not by assignability. The second type has an extra optional property, so they are different and Equal gives false."
+/>
+
+## Further reading
+
+- [type-challenges](https://github.com/type-challenges/type-challenges)

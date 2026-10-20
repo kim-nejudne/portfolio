@@ -18,6 +18,9 @@ export default defineConfig([
     'test-results/**',
     'public/**',
     '.claude/**',
+    // Lesson and exercise files are checked by `pnpm content:lint` with the app's compiler
+    // over the §2 options, not by the app's ESLint projects.
+    'content/**',
   ]),
   {
     files: ['**/*.{js,ts,tsx}'],

@@ -1,7 +1,7 @@
 # CI for ts-dojo (spec §12 F1): typecheck, lint, format check, unit tests and build on every
 # push and pull request, with Node 24 and the pnpm version pinned in package.json's
-# packageManager. `pnpm content:lint` joins before the build at F6 (§2 Build). Playwright e2e
-# runs on Kim's machine, where Google Chrome is (playwright.config.ts).
+# packageManager, and the content lint before the build (§2 Build). Playwright e2e runs on
+# Kim's machine, where Google Chrome is (playwright.config.ts).
 name: CI
 
 on:
@@ -40,6 +40,9 @@ jobs:
 
       - name: Unit tests
         run: pnpm test --run
+
+      - name: Content lint
+        run: pnpm content:lint
 
       - name: Build
         run: pnpm build
