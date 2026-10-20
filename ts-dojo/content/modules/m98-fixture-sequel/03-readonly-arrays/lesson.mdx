@@ -1,0 +1,29 @@
+---
+id: m98-fixture-sequel/03-readonly-arrays
+title: Readonly arrays
+minutes: 5
+objectives:
+  - Predict which methods a readonly array has
+  - Pass a mutable array where a readonly one is expected
+prerequisites: [m98-fixture-sequel/02-tuples]
+tags: [fixture, readonly, array]
+---
+
+## Concept
+
+`readonly number[]` is an array type without the methods that change it, such as `push` and `splice`.
+
+```ts
+function sum(xs: readonly number[]): number {
+  return xs.reduce((a, b) => a + b, 0);
+}
+```
+
+## Examples
+
+The two exercises of this fixture lesson are `predict` questions about the example above. The
+lesson exists so the roadmap has more than one module: it is replaced at F11.
+
+## Further reading
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

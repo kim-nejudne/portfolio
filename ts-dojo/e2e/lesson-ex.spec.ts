@@ -24,6 +24,7 @@ import {
   doneButton,
   escToEditor,
   expectExercise,
+  expectExerciseAt,
   expectFocus,
   focused,
   headerField,
@@ -46,6 +47,8 @@ import {
   type FocusTarget,
 } from './helpers/lesson';
 import { exerciseRoute, readExerciseFile } from './helpers/verify';
+import { lessonId } from './helpers/content';
+import { courseLessons, exerciseFolders, routeOf } from './helpers/course';
 
 const FIX = { lesson: '01-fix', exercise: '01-handle-the-new-shape' } as const;
 const PREDICT = { lesson: '01-fix', exercise: '02-what-is-left' } as const;
@@ -234,12 +237,22 @@ test.describe(':lesson next and :lesson prev', () => {
   test('go to the next or previous lesson directly (its first unfinished exercise), stop at the ends, and reject other arguments', async ({
     page,
   }) => {
+    const lessons = courseLessons();
+    const after = lessons[lessons.indexOf(lessonId('03-type-challenge')) + 1];
+    const last = lessons.at(-1);
+    if (after === undefined || last === undefined) {
+      throw new Error('the course ends at the fixture module');
+    }
     await openExercise(page, '02-implement', '02-literal-discriminant');
     await ex(page, 'lesson next');
     await expectExercise(page, '03-type-challenge', '01-describe-the-events');
     await escToEditor(page);
+    // Into the next module: its first lesson, a predict one (no `:` line there: the palette).
     await ex(page, 'lesson next');
-    await expect(lessonNotice(page)).toHaveText('this is the last lesson');
+    await expectExerciseAt(page, after, exerciseFolders(after)[0] ?? '');
+    await runFromPalette(page, 'lesson prev', ':lesson prev');
+    await expectExercise(page, '03-type-challenge', '01-describe-the-events');
+    await escToEditor(page);
     await ex(page, 'lesson prev');
     // Not `:prev`: the lesson opens on its first unfinished exercise, not its last one.
     await expectExercise(page, '02-implement', '01-largest-shape');
@@ -256,6 +269,17 @@ test.describe(':lesson next and :lesson prev', () => {
     await expect(page).toHaveURL(
       exerciseRoute('01-fix', '01-handle-the-new-shape'),
     );
+
+    // The course's last lesson (predict only): `:lesson next` from the palette stops there.
+    const [lastFirst] = exerciseFolders(last);
+    if (lastFirst === undefined) throw new Error(`${last} has no exercise`);
+    await page.goto(routeOf(last));
+    await expectExerciseAt(page, last, lastFirst);
+    await page.keyboard.press('2');
+    await expectFocus(page, 'question');
+    await runFromPalette(page, 'lesson next', ':lesson next');
+    await expect(lessonNotice(page)).toHaveText('this is the last lesson');
+    await expect(page).toHaveURL(routeOf(`${last}/${lastFirst}`));
   });
 });
 

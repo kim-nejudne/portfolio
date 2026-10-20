@@ -3,6 +3,7 @@
 // `predict` panel. The exercise's own commands (`:w`, `:test`, `:kill`, `:hint`, `:sol`,
 // `:reset`, `:prompt`) belong to the practice side and return false here.
 import type { AppActions } from '@/app/app-actions';
+import { exportedMessage } from '@/app/export-progress';
 import type { HostAction, Pane } from '@/editor/host';
 import { NOT_ON_LESSON_PAGE } from '../not-here';
 import type { LessonController } from './controller';
@@ -40,6 +41,11 @@ export function runLessonAction(
       return true;
     case 'help':
       app.openHelp();
+      return true;
+    case 'export':
+      void app
+        .exportProgress()
+        .then((name) => lesson.notify(exportedMessage(name)));
       return true;
     default: {
       const notice = NOT_ON_LESSON_PAGE[action.type];

@@ -1,2 +1,5 @@
-# old id → new id, applied when the store opens (spec §7). Empty until a lesson is renamed.
-renames: []
+# old id → new id (spec §3, §7): lesson ids or exercise ids, applied in this order when the
+# store opens and to an imported file. The two entries are F9's fixture renames: neither old
+# id ever shipped, so they move only rows a test seeds under those ids.
+m99-fixtures/00-first-fix: m99-fixtures/01-fix
+m99-fixtures/02-implement/00-biggest-shape: m99-fixtures/02-implement/01-largest-shape

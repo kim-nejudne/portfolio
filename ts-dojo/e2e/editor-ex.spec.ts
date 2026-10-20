@@ -1,11 +1,12 @@
 // §12 F3: "Every ex command in §4 does what its row says, including `:w` running the code and
 // `:set rnu` persisting." Every row whose target exists on /repl is driven from the `:` prompt
 // here: the file commands, the diagnostics and type commands, `:set` with persistence across a
-// reload, `:help`/`:h`, `:roadmap`/`:rm`, the pane commands, `:w`/`:run`, and the Ctrl-p
-// palette (normal mode only); `:kill` is proven with the runs in sandbox.spec.ts (F4). The
-// rows other features own (`:test`, `:hint`, ...)
-// must say which feature, in the Vim panel, instead of failing silently. Keyboard only; the
-// seam is read, never driven, except where a pane other than the editor has focus.
+// reload, `:help`/`:h`, `:roadmap`/`:rm`, the pane commands, `:w`/`:run`, `:export` (F9: the
+// download and its notification; the file's §7 shape is proven in e2e/progress.spec.ts), and
+// the Ctrl-p palette (normal mode only); `:kill` is proven with the runs in sandbox.spec.ts
+// (F4). The rows the lesson page owns (`:test`, `:hint`, ...) must say so, in the Vim panel,
+// instead of failing silently. Keyboard only; the seam is read, never driven, except where a
+// pane other than the editor has focus.
 import { expect, test, type Page } from '@playwright/test';
 import {
   currentPath,
@@ -25,7 +26,14 @@ import {
   vimPanel,
   waitForCompilerReady,
   waitForCompletionKeys,
+  bufferNames,
 } from './helpers/editor';
+import { contentHash } from './helpers/course';
+import {
+  catchDownload,
+  EXPORT_KEYS,
+  expectDatedName,
+} from './helpers/progress';
 
 const TWO_ERRORS = lines(
   "const a: number = 'x';",
@@ -332,7 +340,7 @@ test.describe(':w and :run', () => {
 });
 
 // On /repl the lesson-page rows (F7, F8, proven in e2e/verify.spec.ts and e2e/lesson-*.spec.ts)
-// say they need a lesson page, and `:export` says it belongs to F9; nothing in the buffer moves.
+// say they need a lesson page; nothing in the buffer moves.
 test.describe('the rows /repl does not own', () => {
   const NOT_HERE: [command: string, expected: RegExp, label: string][] = [
     ['test', /needs? a lesson page|on a lesson page/, ':test'],
@@ -350,7 +358,6 @@ test.describe('the rows /repl does not own', () => {
     ['layout theory', /needs a lesson page/, ':layout'],
     ['layout practice', /needs a lesson page/, ':layout'],
     ['prompt', /needs a lesson page/, ':prompt'],
-    ['export', /\bF9\b/, ':export'],
   ];
 
   for (const [command, expected, label] of NOT_HERE) {
@@ -363,6 +370,29 @@ test.describe('the rows /repl does not own', () => {
       expect(await currentPath(page)).toBe('/index.ts');
     });
   }
+});
+
+// §7 Export and import: "`:export` or the button on `/progress` downloads
+// `ts-dojo-progress-<date>.json`" (F9). The date is the local one (e2e/progress.spec.ts proves
+// it in a time zone away from UTC, with the whole §7 shape on seeded rows).
+test.describe(':export', () => {
+  test(':export downloads ts-dojo-progress-<date>.json with the §7 keys and this build’s contentVersion, and says so in the editor', async ({
+    page,
+  }) => {
+    const download = await catchDownload(page, () => ex(page, 'export'));
+    expectDatedName(download);
+    await expect(vimPanel(page)).toHaveText(`exported ${download.name}`);
+    expect(Object.keys(download.json)).toEqual(EXPORT_KEYS);
+    expect(download.json.schemaVersion).toBe(1);
+    expect(download.json.contentVersion).toBe(await contentHash());
+    // /repl's scratch buffers are in it, every one.
+    expect(download.json.buffers.map((row) => row.name).sort()).toEqual(
+      (await bufferNames(page)).sort(),
+    );
+    await expect(page.locator('.cm-content')).toBeFocused();
+    expect((await snapshot(page)).mode).toBe('normal');
+    expect(await currentPath(page)).toBe('/index.ts');
+  });
 });
 
 test.describe('Ctrl-p', () => {

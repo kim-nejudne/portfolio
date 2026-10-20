@@ -78,3 +78,33 @@ export function dropUnsaved(
   delete journal[exerciseId];
   write(storage, journal);
 }
+
+/** A rename (§7 renames.yaml): every entry moves to its new exercise id, merged over one already there. */
+export function renameUnsaved(
+  rename: (exerciseId: string) => string,
+  storage: UnsavedStorage | null = unsavedStorage(),
+): void {
+  const journal = read(storage);
+  const moved: Journal = {};
+  let changed = false;
+  for (const [id, files] of Object.entries(journal)) {
+    const to = rename(id);
+    if (to !== id) changed = true;
+    moved[to] = { ...moved[to], ...files };
+  }
+  if (changed) write(storage, moved);
+}
+
+/** A reset (§7 reset scopes): the entries of these exercises go. */
+export function dropUnsavedWhere(
+  drop: (exerciseId: string) => boolean,
+  storage: UnsavedStorage | null = unsavedStorage(),
+): void {
+  const journal = read(storage);
+  const kept = Object.fromEntries(
+    Object.entries(journal).filter(([id]) => !drop(id)),
+  );
+  if (Object.keys(kept).length !== Object.keys(journal).length) {
+    write(storage, kept);
+  }
+}

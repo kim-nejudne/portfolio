@@ -176,14 +176,37 @@ describe('<Predict> props and renames.yaml', () => {
     if (!result.success) expect(formatZodError(result.error)).toMatch(/^id: /);
   });
 
-  it('accepts the shipped renames file and refuses a one-segment target', () => {
+  it('reads the shipped renames file as `old: new` pairs (§7)', () => {
     expect(
-      renamesSchema.parse(yaml(path.join(ROOT, 'content', 'renames.yaml')))
-        .renames,
-    ).toEqual([]);
+      renamesSchema.parse(yaml(path.join(ROOT, 'content', 'renames.yaml'))),
+    ).toEqual({
+      'm99-fixtures/00-first-fix': 'm99-fixtures/01-fix',
+      'm99-fixtures/02-implement/00-biggest-shape':
+        'm99-fixtures/02-implement/01-largest-shape',
+    });
+  });
+
+  it('accepts lesson and exercise ids, an empty file, and refuses a module id or a list', () => {
+    const both = {
+      'm01-a/01-b': 'm01-a/02-c',
+      'm01-a/01-b/01-x': 'm01-a/01-b/02-y',
+    };
+    expect(renamesSchema.parse(both)).toEqual(both);
+    // The output parses again unchanged: the plugin's JSON module goes through the schema twice.
+    expect(renamesSchema.parse(renamesSchema.parse(both))).toEqual(both);
+    expect(renamesSchema.parse(null)).toEqual({});
+    expect(
+      renamesSchema.safeParse({ 'm01-a/01-b': 'm01-a/01-b/01-x' }).success,
+    ).toBe(false);
+    expect(renamesSchema.safeParse({ 'm01-a/01-b': 'm01-a' }).success).toBe(
+      false,
+    );
+    expect(renamesSchema.safeParse({ 'm01-a': 'm01-a/01-b' }).success).toBe(
+      false,
+    );
     expect(
       renamesSchema.safeParse({
-        renames: [{ from: 'm01-a/01-b', to: 'm01-a' }],
+        renames: [{ from: 'm01-a/01-b', to: 'm01-a/02-c' }],
       }).success,
     ).toBe(false);
   });

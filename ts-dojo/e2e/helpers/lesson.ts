@@ -204,16 +204,28 @@ export async function expectExercise(
   lesson: FixtureLesson,
   exercise: string,
 ): Promise<void> {
-  await expect(page).toHaveURL(exerciseRoute(lesson, exercise));
+  await expectExerciseAt(page, lessonId(lesson), exercise);
+}
+
+/**
+ * `expectExercise` for any lesson of the course by its full id (`m98-fixture-sequel/02-tuples`),
+ * for the modules past the m99 fixtures.
+ */
+export async function expectExerciseAt(
+  page: Page,
+  lesson: string,
+  exercise: string,
+): Promise<void> {
+  await expect(page).toHaveURL(`/l/${lesson}/${exercise}`);
   await expect(page.locator('article.theory')).toHaveAttribute(
     'data-lesson',
-    lessonId(lesson),
+    lesson,
   );
   await expect(currentChip(page)).toHaveAttribute('data-exercise', exercise);
   await expect(currentChip(page)).toHaveCount(1);
   await expect(
     practicePane(page).locator('section[data-exercise]'),
-  ).toHaveAttribute('data-exercise', exerciseId(lesson, exercise));
+  ).toHaveAttribute('data-exercise', `${lesson}/${exercise}`);
 }
 
 /**

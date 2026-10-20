@@ -1,0 +1,15 @@
+id: m98-fixture-sequel/02-tuples/01-tuple-length
+kind: predict
+title: 'The length of a pair'
+minutes: 2
+challenge: false
+code: |
+  type Pair = [string, number];
+  type L = Pair['length'];
+question: 'What is `L`?'
+options:
+  - 'number'
+  - '2'
+  - 'string | number'
+answer: 1
+explanation: 'A tuple knows how many elements it has, so its `length` is the literal `2`.'

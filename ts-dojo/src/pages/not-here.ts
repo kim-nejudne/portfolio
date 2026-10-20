@@ -14,12 +14,10 @@ export const NOT_HERE: Partial<Record<HostAction['type'], string>> = {
   lesson: ':lesson needs a lesson page',
   layout: ':layout needs a lesson page',
   prompt: ':prompt needs a lesson page',
-  export: ':export needs the progress store (F9)',
 };
 
-/** The lesson page's own answers: the row F9 builds, and the /repl-only buffers. */
+/** The lesson page's own answers: the /repl-only buffers. */
 export const NOT_ON_LESSON_PAGE: Partial<Record<HostAction['type'], string>> = {
-  export: ':export needs the progress store (F9)',
   edit: ':e is /repl only: an exercise has a fixed set of files',
   bdelete: ':bd is /repl only: an exercise has a fixed set of files',
 };

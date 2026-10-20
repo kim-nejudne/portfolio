@@ -35,6 +35,7 @@ import {
   readLastBuffer,
   writeLastBuffer,
 } from '@/store/buffers';
+import { exportedMessage } from '@/app/export-progress';
 import { NOT_HERE } from './not-here';
 import { WELCOME_BUFFERS } from './welcome-buffers';
 
@@ -184,6 +185,11 @@ export function ReplPage() {
             return;
           case 'bdelete':
             void deleteCurrentBuffer(autosaveRef.current);
+            return;
+          case 'export':
+            void actions
+              .exportProgress()
+              .then((name) => editor?.notify(exportedMessage(name)));
             return;
           default:
             editor?.notify(

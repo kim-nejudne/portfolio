@@ -1,0 +1,15 @@
+id: m97-fixture-capstone/03-indexed-access/02-union-key
+kind: predict
+title: 'A union of keys'
+minutes: 2
+challenge: false
+code: |
+  type User = { name: string; age: number };
+  type T = User['name' | 'age'];
+question: 'What is `T`?'
+options:
+  - 'string'
+  - 'string | number'
+  - 'never'
+answer: 1
+explanation: 'Indexing with a union of keys gives the union of the property types.'

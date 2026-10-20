@@ -8,6 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppActionsContext, type AppActions } from './app-actions';
 import { CommandPalette } from './command-palette';
 import { CompilerStatusChip } from './compiler-status';
+import { exportProgress } from './export-progress';
 import { HelpOverlay } from './help-overlay';
 import type { GlobalAction } from './keys';
 import { openInRepl } from './open-in-repl';
@@ -31,6 +32,7 @@ export function Layout() {
       },
       goToRoadmap: () => void navigate('/'),
       openInRepl: (request) => openInRepl((to) => void navigate(to), request),
+      exportProgress,
     }),
     [navigate],
   );

@@ -129,9 +129,31 @@ export const predictPropsSchema = z.object({
 });
 export type PredictProps = z.infer<typeof predictPropsSchema>;
 
-export const renamesSchema = z.object({
-  renames: z.array(z.object({ from: lessonId, to: lessonId })).default([]),
-});
+/** The two kinds of id a rename may name (§7 "lesson and exercise ids are stable"). */
+export function contentIdKind(id: string): 'lesson' | 'exercise' {
+  return id.split('/').length === 2 ? 'lesson' : 'exercise';
+}
+
+/**
+ * renames.yaml (§3, §7): `old: new`, one pair per line, lesson ids or exercise ids, each pair
+ * of one kind; an empty file is no renames. The output is the mapping itself, so the plugin's
+ * JSON module parses again unchanged; the registry reads it as a list in file order.
+ */
+export const renamesSchema = z
+  .record(z.union([lessonId, exerciseId]), z.union([lessonId, exerciseId]))
+  .nullable()
+  .transform((map) => map ?? {})
+  .superRefine((map, context) => {
+    for (const [from, to] of Object.entries(map)) {
+      if (contentIdKind(from) !== contentIdKind(to)) {
+        context.addIssue({
+          code: 'custom',
+          path: [from],
+          message: `renames a ${contentIdKind(from)} to a ${contentIdKind(to)} id`,
+        });
+      }
+    }
+  });
 export type RenamesYaml = z.infer<typeof renamesSchema>;
 
 /** One line per issue: `tiers[0].modules: expected array, received string`. */
