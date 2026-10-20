@@ -1,5 +1,6 @@
 // The reading-pane keys (§6 Global keys: "`j k gg G Ctrl-d Ctrl-u` Scroll the focused reading
-// pane"): the lesson's theory pane now, the module page and the roadmap at F9. Pure: which
+// pane"): the lesson's theory pane. The roadmap and the module page use `j`/`k` to move
+// between their cards and lessons instead (src/app/use-page-keys.ts, F9). Pure: which
 // scroll a key asks for, and where it lands. `g` waits for a second `g` (`gg`); the window's
 // global map also sees `g` as the start of `g r`/`g n`/`g p`, and a pane that handles the
 // second `g` prevents the default so the global map stays out of it.

@@ -15,7 +15,8 @@ interface Route {
 
 const ROUTES: readonly Route[] = [
   { path: '/', h1: 'Roadmap' },
-  { path: '/m/m03-unions', h1: 'Module m03-unions' },
+  // The module page renders the registry since F9; an id the content does not have says so.
+  { path: '/m/m03-unions', h1: 'Module not found', detail: '/m/m03-unions' },
   // The lesson page renders the registry since F6 (the fixture lesson; the placeholder stays
   // for an unknown id). Since F8 `/l/<lesson>` selects its first unfinished exercise and the
   // URL says so (§6), so the bare lesson route is checked in e2e/lesson-nav.spec.ts.

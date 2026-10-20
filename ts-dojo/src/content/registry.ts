@@ -4,8 +4,10 @@
 // every exercise file as raw text, the lesson components lazy, one chunk per lesson, and each
 // exercise's prompt compiled from Markdown at build time, lazy too (vite-plugin.ts). The
 // same `buildRegistry` the content lint runs assembles the typed objects, so the browser sees
-// exactly what the lint proved. No content is fetched at runtime.
+// exactly what the lint proved. No content is fetched at runtime. `CONTENT_VERSION` is the §7
+// `contentVersion`, the content tree's hash computed by the plugin at build time.
 import type { MDXContent } from 'mdx/types';
+import contentVersion from 'virtual:ts-dojo/content-version';
 import {
   buildRegistry,
   ContentError,
@@ -60,6 +62,8 @@ if (built.problems.length > 0) {
 }
 
 export const registry: Registry = built.registry;
+
+export const CONTENT_VERSION: string = contentVersion;
 
 const loaders = strip(components);
 

@@ -6,6 +6,8 @@
 //   by its §3 schema, answers `lesson.mdx?meta` (a virtual module) with the lesson's
 //   frontmatter and `<Predict>` props (analyze.ts), and at `buildStart` runs the Node loader so a
 //   duplicate id, a bad prerequisite or any other structural problem fails the build too.
+//   It also serves `virtual:ts-dojo/content-version`, the §7 `contentVersion`: the SHA-256 of
+//   the content tree at build time (content-version.ts), recorded by the store and in exports.
 // - `@mdx-js/rollup` over lesson.mdx with the fence pipeline of src/content/node/mdx.ts, so
 //   `^?` queries, highlighting, snippet JavaScript and expected diagnostics are rendered now.
 // - A second `@mdx-js/rollup` over each exercise's prompt (§1: Markdown), which the content
@@ -23,6 +25,7 @@ import { parse as parseYaml } from 'yaml';
 import type { z } from 'zod';
 import { ContentError, type LessonMeta } from '../build-registry';
 import { analyzeLesson } from './analyze';
+import { hashContentTree, readContentTree } from './content-version';
 import { loadContent } from './load';
 import { createRenderer, lessonMdxOptions, type Renderer } from './mdx';
 import {
@@ -32,6 +35,14 @@ import {
   renamesSchema,
   roadmapSchema,
 } from '../schema';
+
+/** The module the app imports `CONTENT_VERSION` from (src/content/content-version.d.ts). */
+export const CONTENT_VERSION_ID = 'virtual:ts-dojo/content-version';
+const CONTENT_VERSION_RESOLVED = `\0${CONTENT_VERSION_ID}`;
+
+export function contentVersionModule(version: string): string {
+  return `export default ${JSON.stringify(version)};\n`;
+}
 
 /** The query that asks for a lesson's meta instead of its component. */
 export const META_QUERY = '?meta';
@@ -132,6 +143,7 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
       if (problems.length > 0) throw new ContentError(problems);
     },
     async resolveId(source, importer) {
+      if (source === CONTENT_VERSION_ID) return CONTENT_VERSION_RESOLVED;
       if (source.endsWith(PROMPT_QUERY)) {
         const file = source.slice(0, -PROMPT_QUERY.length);
         if (path.basename(file) !== 'exercise.yaml') return null;
@@ -147,6 +159,15 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
       return `${META_PREFIX}${resolved.id}`;
     },
     async load(id) {
+      if (id === CONTENT_VERSION_RESOLVED) {
+        const dir = path.join(root, 'content');
+        const files = await readContentTree(dir);
+        for (const file of files) this.addWatchFile(path.join(dir, file.path));
+        return {
+          code: contentVersionModule(hashContentTree(files)),
+          map: null,
+        };
+      }
       if (isPromptId(id) && isContentFile(id)) {
         const file = id.slice(0, -PROMPT_SUFFIX.length);
         this.addWatchFile(file);

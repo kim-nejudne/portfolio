@@ -1,6 +1,7 @@
 // The registry over the shipped content tree (§12 F6 criterion 5: the three fixture lessons
-// exist under content/ and load) and the structural checks that feed §3 conditions 1, 4, 5 and
-// 7 (the content lint's own tests mutate a copy of the tree; these pin the builder directly).
+// exist under content/ and load; F9 added two predict-only fixture modules for the roadmap)
+// and the structural checks that feed §3 conditions 1, 4, 5 and 7 (the content lint's own
+// tests mutate a copy of the tree; these pin the builder directly).
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -15,15 +16,28 @@ import { loadContent, loadContentInput } from './node/load';
 const CONTENT = path.resolve(import.meta.dirname, '..', '..', 'content');
 
 describe('the shipped content tree', () => {
-  it('has one tier, one module, three lessons and six exercises in order, with no problems', async () => {
+  it('has two tiers and three modules in roadmap order, every lesson and exercise in order, with no problems', async () => {
     const { registry, problems } = await loadContent(CONTENT);
     expect(problems).toEqual([]);
-    expect(registry.tiers.map((t) => t.id)).toEqual(['t9']);
-    expect(registry.modules.map((m) => m.id)).toEqual(['m99-fixtures']);
+    expect(registry.tiers.map((t) => [t.id, t.modules])).toEqual([
+      ['t9', ['m99-fixtures', 'm98-fixture-sequel']],
+      ['t10', ['m97-fixture-capstone']],
+    ]);
+    expect(registry.modules.map((m) => [m.id, m.prerequisites])).toEqual([
+      ['m99-fixtures', []],
+      ['m98-fixture-sequel', ['m99-fixtures']],
+      ['m97-fixture-capstone', ['m99-fixtures', 'm98-fixture-sequel']],
+    ]);
     expect(registry.lessons.map((l) => l.id)).toEqual([
       'm99-fixtures/01-fix',
       'm99-fixtures/02-implement',
       'm99-fixtures/03-type-challenge',
+      'm98-fixture-sequel/01-literal-widening',
+      'm98-fixture-sequel/02-tuples',
+      'm98-fixture-sequel/03-readonly-arrays',
+      'm97-fixture-capstone/01-keyof',
+      'm97-fixture-capstone/02-typeof',
+      'm97-fixture-capstone/03-indexed-access',
     ]);
     expect(registry.exercises.map((e) => e.kind)).toEqual([
       'fix',
@@ -32,11 +46,20 @@ describe('the shipped content tree', () => {
       'fix',
       'type-challenge',
       'implement',
+      // m98 and m97 (F9): predict-only, the cheapest lessons the §3 lint accepts.
+      ...Array<string>(12).fill('predict'),
     ]);
     expect(registry.module('m99-fixtures')?.lessons).toHaveLength(3);
     expect(registry.lesson('m99-fixtures/01-fix')?.exercises).toEqual([
       'm99-fixtures/01-fix/01-handle-the-new-shape',
       'm99-fixtures/01-fix/02-what-is-left',
+    ]);
+    expect(registry.renames).toEqual([
+      { from: 'm99-fixtures/00-first-fix', to: 'm99-fixtures/01-fix' },
+      {
+        from: 'm99-fixtures/02-implement/00-biggest-shape',
+        to: 'm99-fixtures/02-implement/01-largest-shape',
+      },
     ]);
   });
 
@@ -209,14 +232,32 @@ describe('structural problems carry their §3 condition', () => {
     expect(
       await mutated((input) => {
         input.yaml['content/renames.yaml'] = {
-          renames: [
-            { from: 'm99-fixtures/00-old', to: 'm99-fixtures/09-nowhere' },
-          ],
+          'm99-fixtures/00-old': 'm99-fixtures/09-nowhere',
         };
       }),
     ).toContainEqual(
       expect.objectContaining({ condition: 7, path: 'content/renames.yaml' }),
     );
+    // An exercise rename is checked against the exercises, not the lessons.
+    expect(
+      await mutated((input) => {
+        input.yaml['content/renames.yaml'] = {
+          'm99-fixtures/01-fix/00-old': 'm99-fixtures/01-fix/09-nowhere',
+        };
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        condition: 7,
+        message: 'rename target m99-fixtures/01-fix/09-nowhere does not exist',
+      }),
+    );
+    expect(
+      await mutated((input) => {
+        input.yaml['content/renames.yaml'] = {
+          'm99-fixtures/01-fix/00-old': 'm99-fixtures/01-fix/02-what-is-left',
+        };
+      }),
+    ).not.toContainEqual(expect.objectContaining({ condition: 7 }));
   });
 });
 

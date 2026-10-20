@@ -1,0 +1,15 @@
+id: m97-fixture-capstone/03-indexed-access/01-element
+kind: predict
+title: 'The element of an array property'
+minutes: 2
+challenge: false
+code: |
+  type User = { name: string; tags: string[] };
+  type T = User['tags'][number];
+question: 'What is `T`?'
+options:
+  - 'string[]'
+  - 'string'
+  - 'number'
+answer: 1
+explanation: "`User['tags']` is `string[]`, and indexing an array type with `number` gives its element type."

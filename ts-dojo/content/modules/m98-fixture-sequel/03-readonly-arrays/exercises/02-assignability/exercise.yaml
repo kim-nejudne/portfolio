@@ -1,0 +1,17 @@
+id: m98-fixture-sequel/03-readonly-arrays/02-assignability
+kind: predict
+title: 'Mutable into readonly'
+minutes: 2
+challenge: false
+code: |
+  function sum(xs: readonly number[]): number {
+    return xs.reduce((a, b) => a + b, 0);
+  }
+  const list: number[] = [1, 2];
+  sum(list);
+question: 'Does `sum(list)` compile?'
+options:
+  - 'Yes'
+  - 'No: a number[] is not a readonly number[]'
+answer: 0
+explanation: 'A mutable array has every member a readonly one has, so it is assignable to it; the other direction is the one that fails.'

@@ -92,7 +92,8 @@ describe('the shipped content tree (§12 F6 criterion 2)', () => {
   it('passes the lint: every solution passes its exercise and every starter fails it, in Node', async () => {
     const report = await lintContent(CONTENT);
     expect(report.failures).toEqual([]);
-    expect(report.lessons).toHaveLength(3);
+    // The three m99 lessons plus F9's six predict-only fixture lessons (m98, m97).
+    expect(report.lessons).toHaveLength(9);
     expect(report.exercises.map((e) => e.id)).toEqual([
       'm99-fixtures/01-fix/01-handle-the-new-shape',
       'm99-fixtures/02-implement/01-largest-shape',
@@ -462,7 +463,7 @@ describe('§3 condition 7: ids and renames', () => {
     const tree = copyTree();
     tree.write(
       'renames.yaml',
-      'renames:\n  - from: m99-fixtures/00-old\n    to: m99-fixtures/09-nowhere\n',
+      'm99-fixtures/00-old: m99-fixtures/09-nowhere\n',
     );
     expectFailure(
       await lintContent(tree.root),

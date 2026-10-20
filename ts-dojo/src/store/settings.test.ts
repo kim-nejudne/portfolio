@@ -2,6 +2,7 @@
 // only `theme`; a missing key, broken JSON, a non-object or a throwing storage all read as {}.
 import { describe, expect, it } from 'vitest';
 import {
+  parseSettings,
   isThemePreference,
   readSettings,
   SETTINGS_KEY,
@@ -143,5 +144,38 @@ describe('writeSettings and subscribeSettings (§7, §4 ":set ... persisted")', 
     };
     expect(writeSettings({ wrap: true }, throwing)).toEqual({ wrap: true });
     expect(writeSettings({ wrap: true }, null)).toEqual({ wrap: true });
+  });
+});
+
+describe("parseSettings: an imported file's settings (§7 Export and import, F9)", () => {
+  it('keeps the known keys with valid values and drops the rest', () => {
+    expect(
+      parseSettings({
+        theme: 'dark',
+        vimrc: 'imap jk <Esc>',
+        relativeNumbers: true,
+        lineNumbers: false,
+        wrap: true,
+        layout: 'theory',
+        fontSize: 'huge',
+        unknown: 1,
+      }),
+    ).toEqual({
+      theme: 'dark',
+      vimrc: 'imap jk <Esc>',
+      relativeNumbers: true,
+      lineNumbers: false,
+      wrap: true,
+      layout: 'theory',
+    });
+    expect(
+      parseSettings({ theme: 'sepia', layout: 'wide', wrap: 'no' }),
+    ).toEqual({});
+  });
+
+  it('is {} for anything that is not an object', () => {
+    for (const value of [null, undefined, 'dark', 3, ['theme']]) {
+      expect(parseSettings(value)).toEqual({});
+    }
   });
 });

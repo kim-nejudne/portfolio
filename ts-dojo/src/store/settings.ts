@@ -55,10 +55,18 @@ export function readSettings(
   } catch {
     return {};
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+  return parseSettings(parsed);
+}
+
+/**
+ * The known keys with valid values from any value, {} for a non-object: what the store reads
+ * and what an imported file's `settings` go through (§7 Export and import).
+ */
+export function parseSettings(value: unknown): Settings {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return {};
   }
-  const record = parsed as Record<string, unknown>;
+  const record = value as Record<string, unknown>;
   const settings: Settings = {};
   if (isThemePreference(record['theme'])) settings.theme = record['theme'];
   if (typeof record['vimrc'] === 'string') settings.vimrc = record['vimrc'];
@@ -70,8 +78,8 @@ export function readSettings(
     settings.layout = layout as LayoutSetting;
   }
   for (const key of ['relativeNumbers', 'lineNumbers', 'wrap'] as const) {
-    const value = record[key];
-    if (typeof value === 'boolean') settings[key] = value;
+    const entry = record[key];
+    if (typeof entry === 'boolean') settings[key] = entry;
   }
   return settings;
 }

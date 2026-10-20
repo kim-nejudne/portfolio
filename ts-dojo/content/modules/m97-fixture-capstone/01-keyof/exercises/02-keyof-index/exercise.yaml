@@ -1,0 +1,15 @@
+id: m97-fixture-capstone/01-keyof/02-keyof-index
+kind: predict
+title: 'The keys of a dictionary'
+minutes: 2
+challenge: false
+code: |
+  type Dict = { [key: string]: number };
+  type K = keyof Dict;
+question: 'What is `K`?'
+options:
+  - 'string'
+  - 'string | number'
+  - 'never'
+answer: 1
+explanation: 'A string index signature also accepts numeric keys, because JavaScript turns them into strings, so `keyof` is `string | number`.'

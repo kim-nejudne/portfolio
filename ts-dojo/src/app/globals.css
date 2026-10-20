@@ -166,6 +166,19 @@
   --editor-cursor: oklch(0.85 0.03 250);
 }
 
+/* Roadmap (spec §6): the progress ring's accent and track, and the prerequisite edges. */
+:root {
+  --progress: oklch(0.55 0.17 255);
+  --progress-track: oklch(0.9 0 0);
+  --roadmap-edge: oklch(0.72 0.03 255);
+}
+
+.dark {
+  --progress: oklch(0.72 0.14 255);
+  --progress-track: oklch(0.32 0 0);
+  --roadmap-edge: oklch(0.5 0.04 255);
+}
+
 /* Theory code blocks (spec §3 lesson.mdx): shiki renders both themes into CSS variables at
    build time; the active one is picked here, so no highlighting code ships to the browser.
    The twoslash classic stylesheet above draws the `^?` results and hover popups. */

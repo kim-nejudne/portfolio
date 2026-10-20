@@ -1,0 +1,17 @@
+id: m97-fixture-capstone/02-typeof/02-typeof-function
+kind: predict
+title: 'What a function returns'
+minutes: 2
+challenge: false
+code: |
+  function double(n: number) {
+    return n * 2;
+  }
+  type D = ReturnType<typeof double>;
+question: 'What is `D`?'
+options:
+  - 'number'
+  - '(n: number) => number'
+  - 'unknown'
+answer: 0
+explanation: '`typeof double` is the function type and `ReturnType` takes its return type, `number`.'

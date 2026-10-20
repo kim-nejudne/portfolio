@@ -9,6 +9,7 @@
 import type { z } from 'zod';
 import type { ProjectFile } from '@/protocol/ts-ls';
 import {
+  contentIdKind,
   exerciseSchema,
   formatZodError,
   lessonFrontmatterSchema,
@@ -277,7 +278,12 @@ export function buildRegistry(input: ContentInput): {
       RENAMES_PATH,
       problems,
     );
-    if (parsed.ok) renames = parsed.value.renames;
+    if (parsed.ok) {
+      renames = Object.entries(parsed.value).map(([from, to]) => ({
+        from,
+        to,
+      }));
+    }
   }
 
   // modules, in roadmap order; folders the roadmap does not list are reported.
@@ -519,8 +525,11 @@ export function buildRegistry(input: ContentInput): {
       message: `prerequisite cycle: ${lessonCycle.join(' → ')}`,
     });
   }
+  const exerciseIds = new Set(exercises.map((e) => e.id));
   for (const rename of renames) {
-    if (!lessonIds.has(rename.to)) {
+    const targets =
+      contentIdKind(rename.to) === 'lesson' ? lessonIds : exerciseIds;
+    if (!targets.has(rename.to)) {
       problems.push({
         condition: 7,
         path: RENAMES_PATH,

@@ -1,8 +1,15 @@
 // The exercise prompt as a build-time module (§1 "prompt (Markdown)", §2 "No content is fetched
 // at runtime"): `exercise.yaml?prompt` resolves to a virtual `…/exercise.yaml.prompt.md` id that
-// the MDX compiler takes as plain Markdown, whose source is the YAML's `prompt` field.
+// the MDX compiler takes as plain Markdown, whose source is the YAML's `prompt` field. And the
+// §7 `contentVersion` as a virtual module (its hash is tested in content-version.test.ts).
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  schemaFor,
+  yamlModule,
+  CONTENT_VERSION_ID,
+  contentVersionModule,
   PROMPT_QUERY,
   isPromptId,
   promptId,
@@ -31,5 +38,37 @@ describe('the prompt module', () => {
       ),
     ).toBe('');
     expect(promptSource('not: [valid')).toBe('');
+  });
+});
+
+describe('the content version module (§7 contentVersion)', () => {
+  it('is a virtual id whose module exports the hash as its default', () => {
+    expect(CONTENT_VERSION_ID).toBe('virtual:ts-dojo/content-version');
+    expect(contentVersionModule('ab12')).toBe('export default "ab12";\n');
+  });
+});
+
+describe('the YAML modules', () => {
+  // The browser registry parses each module's JSON with the same schema again
+  // (src/content/registry.ts → buildRegistry), so a schema's output must be its own valid input.
+  it('give, for every shipped YAML file, JSON its schema parses back unchanged', () => {
+    const content = path.resolve(
+      import.meta.dirname,
+      '..',
+      '..',
+      '..',
+      'content',
+    );
+    const files = readdirSync(content, { recursive: true, encoding: 'utf8' })
+      .filter((file) => file.endsWith('.yaml'))
+      .map((file) => path.join(content, file));
+    expect(files.length).toBeGreaterThan(3);
+    for (const file of files) {
+      const code = yamlModule(readFileSync(file, 'utf8'), file, file);
+      const json: unknown = JSON.parse(
+        code.replace(/^export default /, '').replace(/;\n$/, ''),
+      );
+      expect(schemaFor(file)?.parse(json), file).toEqual(json);
+    }
   });
 });

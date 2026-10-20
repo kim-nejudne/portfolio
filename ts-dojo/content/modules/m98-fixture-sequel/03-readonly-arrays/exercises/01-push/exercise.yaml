@@ -1,0 +1,15 @@
+id: m98-fixture-sequel/03-readonly-arrays/01-push
+kind: predict
+title: 'Pushing onto a readonly array'
+minutes: 2
+challenge: false
+code: |
+  const xs: readonly number[] = [1, 2];
+  xs.push(3);
+question: 'What does the compiler report on `xs.push(3)`?'
+options:
+  - 'Nothing: the call is allowed'
+  - "Property 'push' does not exist on type 'readonly number[]'"
+  - "Cannot assign to 'xs' because it is a constant"
+answer: 1
+explanation: 'A readonly array type has no `push` at all, so the error is about the missing property, not about `const`.'

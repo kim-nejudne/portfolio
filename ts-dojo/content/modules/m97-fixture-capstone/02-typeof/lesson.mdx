@@ -1,0 +1,29 @@
+---
+id: m97-fixture-capstone/02-typeof
+title: typeof in a type
+minutes: 5
+objectives:
+  - Take the type of a value with typeof
+  - Combine typeof with ReturnType
+prerequisites: [m97-fixture-capstone/01-keyof]
+tags: [fixture, typeof, ReturnType]
+---
+
+## Concept
+
+In a type position, `typeof x` is the type the compiler inferred for the value `x`.
+
+```ts
+const origin = { x: 0, y: 0 };
+type Origin = typeof origin;
+//   ^ { x: number; y: number }
+```
+
+## Examples
+
+The two exercises of this fixture lesson are `predict` questions about the example above. The
+lesson exists so the roadmap has more than one module: it is replaced at F11.
+
+## Further reading
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

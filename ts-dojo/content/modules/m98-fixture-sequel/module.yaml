@@ -1,0 +1,8 @@
+id: m98-fixture-sequel
+title: Fixture sequel
+summary: Three predict-only lessons after the pipeline fixtures, the same-band neighbour on the roadmap.
+prerequisites: [m99-fixtures]
+lessons:
+  - 01-literal-widening
+  - 02-tuples
+  - 03-readonly-arrays

@@ -6,7 +6,7 @@
 // `:` line pre-filled); `Esc` closes and the dialog restores focus to where it was. A command
 // about the page as a whole (`:next`, `:done`, `:focus down`) goes to the page first, from the
 // pane that had the focus (F8); the rest go through the editor, and on a page with neither only
-// `:help` and `:roadmap` have a target; the rest say so.
+// `:help`, `:roadmap` and `:export` have a target; the rest say so.
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
@@ -80,6 +80,7 @@ export function CommandPalette({
       }
       if (item.input === 'help') actions.openHelp();
       else if (item.input === 'roadmap') actions.goToRoadmap();
+      else if (item.input === 'export') void actions.exportProgress();
       else setNotice(`${item.label} needs an editor on the page`);
     }, 0);
   };
