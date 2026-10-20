@@ -59,11 +59,10 @@ test.describe(':b, :ls, :bnext, :bprev', () => {
       'aria-selected',
       'true',
     );
-    await ex(page, 'b units.d.ts');
-    await expect.poll(() => currentPath(page)).toBe('/units.d.ts');
-    await expect(
-      page.getByRole('tab', { name: 'units.d.ts read-only' }),
-    ).toHaveAttribute('aria-selected', 'true');
+    await ex(page, 'b /index.ts');
+    await expect.poll(() => currentPath(page)).toBe('/index.ts');
+    await ex(page, 'b sh');
+    await expect.poll(() => currentPath(page)).toBe('/shapes.ts');
     await ex(page, 'b index');
     await expect.poll(() => currentPath(page)).toBe('/index.ts');
     await expect(page.locator('.cm-content')).toBeFocused();
@@ -75,14 +74,10 @@ test.describe(':b, :ls, :bnext, :bprev', () => {
     expect(await currentPath(page)).toBe('/index.ts');
   });
 
-  test(':ls lists the three files with %a on the current one and [RO] on the .d.ts', async ({
-    page,
-  }) => {
+  test(':ls lists the buffers with %a on the current one', async ({ page }) => {
     await ex(page, 'ls');
     await expect(vimPanel(page)).toHaveText(
-      [' 1 %a "index.ts"', ' 2    "shapes.ts"', ' 3    "units.d.ts" [RO]'].join(
-        '\n',
-      ),
+      [' 1 %a "index.ts"', ' 2    "shapes.ts"'].join('\n'),
     );
     await ex(page, 'b shapes');
     await expect.poll(() => currentPath(page)).toBe('/shapes.ts');
@@ -95,13 +90,13 @@ test.describe(':b, :ls, :bnext, :bprev', () => {
     await ex(page, 'bnext');
     await expect.poll(() => currentPath(page)).toBe('/shapes.ts');
     await ex(page, 'bnext');
-    await expect.poll(() => currentPath(page)).toBe('/units.d.ts');
-    await ex(page, 'bnext');
-    await expect.poll(() => currentPath(page)).toBe('/index.ts');
+    await expect
+      .poll(() => currentPath(page), ':bnext wraps')
+      .toBe('/index.ts');
     await ex(page, 'bprev');
-    await expect.poll(() => currentPath(page)).toBe('/units.d.ts');
-    await ex(page, 'bprev');
-    await expect.poll(() => currentPath(page)).toBe('/shapes.ts');
+    await expect
+      .poll(() => currentPath(page), ':bprev wraps')
+      .toBe('/shapes.ts');
     await ex(page, 'bprev');
     await expect.poll(() => currentPath(page)).toBe('/index.ts');
   });
@@ -352,8 +347,6 @@ test.describe('the rows other features own', () => {
     ['layout theory', 'F8', ':layout'],
     ['layout practice', 'F8', ':layout'],
     ['prompt', 'F8', ':prompt'],
-    ['e x', 'F5', ':e'],
-    ['bd', 'F5', ':bd'],
     ['export', 'F9', ':export'],
   ];
 

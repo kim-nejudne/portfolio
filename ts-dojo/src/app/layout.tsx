@@ -1,13 +1,15 @@
 // The app shell around every §6 page: a one-line header (the current path and the compiler
 // status chip), the page, the global keys, the `?` help overlay and the Ctrl-p palette.
 // shadcn's Tooltip needs one provider above everything that uses it.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppActionsContext, type AppActions } from './app-actions';
 import { CommandPalette } from './command-palette';
 import { CompilerStatusChip } from './compiler-status';
 import { HelpOverlay } from './help-overlay';
+import { openInRepl } from './open-in-repl';
+import { publishAppSeam } from './seam';
 import { useGlobalKeys, type GlobalKeyHandlers } from './use-global-keys';
 
 export function Layout() {
@@ -20,9 +22,15 @@ export function Layout() {
       openHelp: () => setHelpOpen(true),
       openPalette: () => setPaletteOpen(true),
       goToRoadmap: () => void navigate('/'),
+      openInRepl: (request) => openInRepl((to) => void navigate(to), request),
     }),
     [navigate],
   );
+  // The Playwright seam for Open in REPL until F6 renders a theory block (src/app/seam.ts).
+  useEffect(() => {
+    publishAppSeam({ openInRepl: actions.openInRepl });
+    return () => publishAppSeam(null);
+  }, [actions]);
   // `g n`, `g p`, `] e`, `[ e` need the lesson page (F8); unhandled keys do nothing.
   const handlers = useMemo<GlobalKeyHandlers>(
     () => ({

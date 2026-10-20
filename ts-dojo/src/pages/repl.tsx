@@ -1,8 +1,10 @@
-// `/repl` (spec §6, §4 "What REPL means here"): the editor with a fixed demo project for F3,
-// two editable files and one read-only lesson-style `.d.ts`, so every §12 F3 criterion can be
-// driven in Chrome, and below it the §4 output pane: `:w` emits the project and runs it in a
-// fresh sandbox worker (F4), `:kill` ends a run, the Problems tab lists every file's
-// diagnostics. F5 replaces the file set with the Dexie scratch buffers and adds `:e`/`:bd`.
+// `/repl` (spec §6; §4 "What REPL means here": "named scratch buffers"): the editor over the
+// §7 `buffers` table. On mount the buffers are read (the welcome pair seeded on the first
+// visit) and the last buffer (`meta.lastBuffer`) opens first, with the editor focused in normal
+// mode. `:e <name>` creates or switches, `:ls` lists, `:bd` deletes after a `y/n` prompt in the
+// Vim panel; every edit is autosaved 500 ms after the last keystroke (§7). Below the editor the
+// §4 output pane: `:w` runs the current buffer in a fresh sandbox worker (F4), `:kill` ends a
+// run, the Problems tab lists every buffer's diagnostics.
 import {
   useCallback,
   useEffect,
@@ -11,53 +13,28 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { useLocation } from 'react-router';
 import { useAppActions } from '@/app/app-actions';
 import { OutputPane, type OutputTab } from '@/app/output-pane';
 import { createAppSandboxRunner } from '@/app/sandbox';
+import { confirmInPanel } from '@/editor/confirm';
 import { Editor, type EditorFile } from '@/editor/editor';
 import type { EditorHost, HostAction, RunModule } from '@/editor/host';
 import { getActiveEditor } from '@/editor/registry';
 import type { SourceLoc } from '@/protocol/sandbox';
 import type { Diag } from '@/protocol/ts-ls';
-
-export const DEMO_FILES: EditorFile[] = [
-  {
-    path: '/index.ts',
-    text: `import { area, type Shape } from './shapes';
-
-const circle: Shape = { kind: 'circle', radius: 2 };
-const size = area(circle);
-//    ^?
-
-const unit: Unit = 'cm';
-console.log(size.toFixed(2), unit);
-`,
-  },
-  {
-    path: '/shapes.ts',
-    text: `export type Shape =
-  | { kind: 'circle'; radius: number }
-  | { kind: 'square'; side: number };
-
-/** The area of a shape, in square units. */
-export function area(shape: Shape): number {
-  switch (shape.kind) {
-    case 'circle':
-      return Math.PI * shape.radius ** 2;
-    case 'square':
-      return shape.side ** 2;
-  }
-}
-`,
-  },
-  {
-    path: '/units.d.ts',
-    text: `// Lesson-supplied declarations: read-only.
-declare type Unit = 'cm' | 'in' | 'px';
-`,
-    readOnly: true,
-  },
-];
+import { createAutosave, type Autosave } from '@/store/autosave';
+import {
+  bufferPath,
+  deleteBuffer,
+  ensureBuffers,
+  nameOfPath,
+  normalizeBufferName,
+  putBuffer,
+  readLastBuffer,
+  writeLastBuffer,
+} from '@/store/buffers';
+import { WELCOME_BUFFERS } from './welcome-buffers';
 
 /** What a host answers for a command another feature's page owns. */
 export const NOT_HERE: Partial<Record<HostAction['type'], string>> = {
@@ -71,14 +48,39 @@ export const NOT_HERE: Partial<Record<HostAction['type'], string>> = {
   lesson: ':lesson needs a lesson page (F8)',
   layout: ':layout needs a lesson page (F8)',
   prompt: ':prompt needs a lesson page (F8)',
-  edit: ':e creates scratch buffers in /repl (F5)',
-  bdelete: ':bd deletes scratch buffers in /repl (F5)',
   export: ':export needs the progress store (F9)',
 };
 
+interface Project {
+  files: EditorFile[];
+  initial: string;
+  /** The location that loaded it: a new navigation to /repl (Open in REPL) reloads and remounts. */
+  key: string;
+}
+
+/** The stored buffers as editor files, the last buffer first to open. */
+async function loadProject(key: string): Promise<Project> {
+  const rows = await ensureBuffers(WELCOME_BUFFERS);
+  const last = await readLastBuffer();
+  const files = rows.map((row) => ({
+    path: bufferPath(row.name),
+    text: row.text,
+  }));
+  const first =
+    files[0]?.path ?? bufferPath(WELCOME_BUFFERS[0]?.name ?? 'index.ts');
+  const wanted = last === null ? first : bufferPath(last);
+  return {
+    files,
+    initial: files.some((f) => f.path === wanted) ? wanted : first,
+    key,
+  };
+}
+
 export function ReplPage() {
   const actions = useAppActions();
+  const { key: locationKey } = useLocation();
   const outputRef = useRef<HTMLElement>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [diagnostics, setDiagnostics] = useState<Diag[]>([]);
   const [tab, setTab] = useState<OutputTab>('console');
   const [runner] = useState(createAppSandboxRunner);
@@ -89,10 +91,56 @@ export function ReplPage() {
     () => runner.state,
   );
 
+  // Autosave (§7: 500 ms after the last keystroke), flushed on pagehide and unmount.
+  const autosaveRef = useRef<Autosave<string> | null>(null);
+  useEffect(() => {
+    const autosave = createAutosave<string>((path, text) => {
+      void putBuffer(nameOfPath(path), text);
+    });
+    autosaveRef.current = autosave;
+    const flush = (): void => autosave.flush();
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      autosave.dispose();
+      autosaveRef.current = null;
+    };
+  }, []);
+
+  // The buffers, read on mount and again on a new navigation here (Open in REPL from this very
+  // page pushes a new location); pending autosaves are written first so the read is current.
+  // A cancelled load leaves the state alone.
+  useEffect(() => {
+    let cancelled = false;
+    autosaveRef.current?.flush();
+    void loadProject(locationKey).then((loaded) => {
+      if (!cancelled) setProject(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locationKey]);
+
+  // The last buffer (§12 F5: "/repl opens the last buffer"): the one open at mount, then every
+  // switch. The editor is focused once it is mounted, in normal mode.
+  useEffect(() => {
+    if (project === null) return;
+    void writeLastBuffer(nameOfPath(project.initial));
+    getActiveEditor()?.focus();
+  }, [project]);
+
+  const onFileChange = useCallback((path: string): void => {
+    void writeLastBuffer(nameOfPath(path));
+  }, []);
+
+  const onChange = useCallback((path: string, text: string): void => {
+    autosaveRef.current?.touch(path, text);
+  }, []);
+
   const jump = useCallback((loc: SourceLoc): void => {
     const editor = getActiveEditor();
     if (editor?.openFileAt(loc.file, loc.line, loc.column) !== true) {
-      editor?.notify(`no file named ${loc.file.slice(1)}`);
+      editor?.notify(`no buffer named ${loc.file.slice(1)}`);
     }
   }, []);
 
@@ -124,6 +172,12 @@ export function ReplPage() {
             else if (action.direction === 'up') editor?.focus();
             else editor?.notify(`nothing to the ${action.direction} on /repl`);
             return;
+          case 'edit':
+            void editBuffer(action.name);
+            return;
+          case 'bdelete':
+            void deleteCurrentBuffer(autosaveRef.current);
+            return;
           default:
             editor?.notify(
               NOT_HERE[action.type] ?? `:${action.type} is not available here`,
@@ -137,14 +191,27 @@ export function ReplPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <h1 className="sr-only">REPL</h1>
-      <Editor
-        files={DEMO_FILES}
-        entry="/index.ts"
-        host={host}
-        onDiagnostics={setDiagnostics}
-        openPalette={actions.openPalette}
-        className="min-h-0 flex-[3]"
-      />
+      {project === null ? (
+        <div
+          role="status"
+          aria-label="buffers"
+          className="flex min-h-0 flex-[3] items-center justify-center text-sm text-muted-foreground"
+        >
+          loading buffers
+        </div>
+      ) : (
+        <Editor
+          key={project.key}
+          files={project.files}
+          initial={project.initial}
+          host={host}
+          onChange={onChange}
+          onFileChange={onFileChange}
+          onDiagnostics={setDiagnostics}
+          openPalette={actions.openPalette}
+          className="min-h-0 flex-[3]"
+        />
+      )}
       <OutputPane
         ref={outputRef}
         state={runState}
@@ -157,4 +224,52 @@ export function ReplPage() {
       />
     </div>
   );
+}
+
+/** `:e <name>` (§4): opens the buffer, or creates an empty one and opens it. */
+async function editBuffer(input: string): Promise<void> {
+  const editor = getActiveEditor();
+  if (editor === null) return;
+  const name = normalizeBufferName(input);
+  if (name === null) {
+    editor.notify(
+      `:e needs a file name such as notes or notes.ts, not "${input}"`,
+    );
+    return;
+  }
+  const path = bufferPath(name);
+  if (editor.paths.includes(path)) {
+    editor.openFile(path);
+    return;
+  }
+  await putBuffer(name, '');
+  const current = getActiveEditor();
+  if (current === null) return;
+  // Tabs stay in name order, the order a reload shows them in.
+  const index = current.files.findIndex((f) => f.path > path);
+  current.addFile({ path, text: '' }, index === -1 ? undefined : index);
+  current.openFile(path);
+  current.notify(`"${name}" [New]`);
+}
+
+/** `:bd` (§4): deletes the current buffer after a `y/n` prompt; never the last one. */
+async function deleteCurrentBuffer(
+  autosave: Autosave<string> | null,
+): Promise<void> {
+  const editor = getActiveEditor();
+  if (editor === null || editor.cm === null) return;
+  if (editor.files.length <= 1) {
+    editor.notify('cannot delete the last buffer');
+    return;
+  }
+  const path = editor.currentPath;
+  const name = nameOfPath(path);
+  const yes = await confirmInPanel(editor.cm, `Delete buffer "${name}"?`);
+  if (!yes) return;
+  autosave?.forget(path);
+  await deleteBuffer(name);
+  const current = getActiveEditor();
+  if (current === null) return;
+  current.removeFile(path);
+  current.notify(`"${name}" deleted`);
 }

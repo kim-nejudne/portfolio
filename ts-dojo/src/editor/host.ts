@@ -5,6 +5,15 @@
 // (F7), the REPL buffers (F5) and the export (F9) fill the host methods they own.
 import type { EmittedFile } from '@/protocol/ts-ls';
 
+/** A file the page gives the editor: an exercise file, a lesson `.d.ts`, or a `/repl` buffer. */
+export interface EditorFile {
+  /** Virtual-FS path (`/index.ts`). */
+  path: string;
+  text: string;
+  /** A lesson-supplied `.d.ts`: shown as a tab, never editable (§4 Multi-file exercises). */
+  readOnly?: boolean;
+}
+
 /** The three §4 panes. `:practice` is the editor pane. */
 export type Pane = 'theory' | 'editor' | 'output';
 export type FocusDirection = 'left' | 'right' | 'up' | 'down';

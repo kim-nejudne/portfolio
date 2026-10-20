@@ -1,7 +1,8 @@
 // The editor (spec §2 Editor, §4): file tabs above one CodeMirror view, the vimrc status line
 // below. The React side only renders the tabs and the vimrc errors; the view, the per-file
-// states and every key live in controller.ts. The file set is fixed for the component's life
-// (§4: "the starter's file set is fixed"); a page gives a new `key` for a new project.
+// states and every key live in controller.ts. `files` is the mount-time set (§4: an exercise's
+// "file set is fixed"; a page gives a new `key` for a new project); the tabs follow the
+// controller's live set, which `/repl` grows and shrinks with `:e` and `:bd`.
 import { useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
 import { getCompiler } from '@/app/compiler';
@@ -19,8 +20,13 @@ export type { EditorFile } from './controller';
 
 export interface EditorProps {
   files: EditorFile[];
-  entry: string;
+  /** The file `:w` runs; absent means the current file (`/repl`). */
+  entry?: string;
+  /** The file opened first; `files[0]` when absent. */
+  initial?: string;
   host: EditorHost;
+  /** The current file changed (a switch by `:b`, `gt`, `gd`, a tab or the output pane). */
+  onFileChange?: (path: string) => void;
   compilerOptions?: CompilerOptionsJson;
   libs?: string[];
   onChange?: (path: string, text: string) => void;
@@ -38,7 +44,10 @@ export function Editor(props: EditorProps) {
   useEffect(() => {
     latest.current = props;
   });
-  const [current, setCurrent] = useState(props.files[0]?.path ?? '');
+  const [current, setCurrent] = useState(
+    props.initial ?? props.files[0]?.path ?? '',
+  );
+  const [files, setFiles] = useState<readonly EditorFile[]>(props.files);
   const [vimrcErrors, setVimrcErrors] = useState<VimrcError[]>([]);
 
   useEffect(() => {
@@ -48,14 +57,19 @@ export function Editor(props: EditorProps) {
     const controller = createEditorController({
       parent,
       files: initial.files,
-      entry: initial.entry,
+      ...(initial.entry !== undefined ? { entry: initial.entry } : {}),
+      ...(initial.initial !== undefined ? { initial: initial.initial } : {}),
       compiler: getCompiler(),
       host: () => latest.current.host,
       ...(initial.compilerOptions !== undefined
         ? { compilerOptions: initial.compilerOptions }
         : {}),
       ...(initial.libs !== undefined ? { libs: initial.libs } : {}),
-      onFileChange: setCurrent,
+      onFileChange: (path) => {
+        setCurrent(path);
+        latest.current.onFileChange?.(path);
+      },
+      onFilesChange: setFiles,
       onVimrcErrors: setVimrcErrors,
       onChange: (path, text) => latest.current.onChange?.(path, text),
       onDiagnostics: (diagnostics) =>
@@ -76,7 +90,7 @@ export function Editor(props: EditorProps) {
         aria-label="Files"
         className="flex shrink-0 items-end gap-1 border-b px-2 pt-1 text-xs"
       >
-        {props.files.map((file) => {
+        {files.map((file) => {
           const selected = file.path === current;
           return (
             <button

@@ -5,13 +5,19 @@
 // cursor and the Vim mode through the live view instead of scraping the DOM.
 import type { EditorView } from '@codemirror/view';
 import type { CodeMirror, Vim as VimApi } from '@replit/codemirror-vim';
-import type { EditorAction } from './host';
+import type { EditorAction, EditorFile } from './host';
 
 export interface EditorHandle {
   readonly view: EditorView;
   readonly cm: CodeMirror | null;
   readonly currentPath: string;
   readonly paths: readonly string[];
+  /** The live file set (`/repl`'s `:e` and `:bd` change it). */
+  readonly files: readonly EditorFile[];
+  /** Adds a file (and its project entry) at `index`, or at the end; false when the path exists. */
+  addFile(file: EditorFile, index?: number): boolean;
+  /** Removes a file, switching away from it first; false for an unknown path or the last file. */
+  removeFile(path: string): boolean;
   dispatch(action: EditorAction): void;
   /** Runs an ex line as if typed at the `:` prompt (`focus left`, `set rnu`). */
   runEx(input: string): void;

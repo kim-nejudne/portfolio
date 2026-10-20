@@ -5,10 +5,12 @@
 // `expect` or a `waitForFunction`; there are no fixed sleeps.
 import { expect, type Page } from '@playwright/test';
 import type { CodeMirrorV } from '@replit/codemirror-vim';
+import type { TsDojoAppSeam } from '../../src/app/seam';
 import type { TsDojoSeam } from '../../src/editor/registry';
 
-/** The seam the page publishes (importing its type also declares `window.__tsDojo`). */
+/** The seams the app publishes (importing the types also declares `window.__tsDojo` and `window.__tsDojoApp`). */
 export type Seam = TsDojoSeam;
+export type AppSeam = TsDojoAppSeam;
 
 export const TS_VERSION = '6.0.3';
 export const SETTINGS_KEY = 'ts-dojo:settings';
@@ -272,3 +274,119 @@ export async function readStoredSettings(
 }
 
 export const lines = (...rows: string[]): string => rows.join('\n');
+
+/** The file tabs above the editor (the §4 tabs; on /repl one per scratch buffer). */
+export function fileTabs(page: Page) {
+  return page.getByRole('tablist', { name: 'Files' }).getByRole('tab');
+}
+
+/** The §7 `buffers` row of that name, read from IndexedDB directly; null when absent. */
+export async function readBuffer(
+  page: Page,
+  name: string,
+): Promise<{ name: string; text: string; updatedAt: number } | null> {
+  return page.evaluate(
+    (name) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('ts-dojo');
+        open.onerror = () =>
+          reject(open.error ?? new Error('indexedDB open failed'));
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains('buffers')) {
+            db.close();
+            resolve(null);
+            return;
+          }
+          const get = db
+            .transaction('buffers')
+            .objectStore('buffers')
+            .get(name);
+          get.onerror = () =>
+            reject(get.error ?? new Error('indexedDB get failed'));
+          get.onsuccess = () => {
+            db.close();
+            resolve(
+              (get.result as
+                | { name: string; text: string; updatedAt: number }
+                | undefined) ?? null,
+            );
+          };
+        };
+      }),
+    name,
+  );
+}
+
+/** The names in the §7 `buffers` table, in key order. */
+export async function bufferNames(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('ts-dojo');
+        open.onerror = () =>
+          reject(open.error ?? new Error('indexedDB open failed'));
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains('buffers')) {
+            db.close();
+            resolve([]);
+            return;
+          }
+          const keys = db
+            .transaction('buffers')
+            .objectStore('buffers')
+            .getAllKeys();
+          keys.onerror = () =>
+            reject(keys.error ?? new Error('indexedDB getAllKeys failed'));
+          keys.onsuccess = () => {
+            db.close();
+            resolve(keys.result.map(String));
+          };
+        };
+      }),
+  );
+}
+
+/** The `value` of a §7 `meta` row (`lastBuffer`), or null. */
+export async function readMeta(page: Page, key: string): Promise<unknown> {
+  return page.evaluate(
+    (key) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('ts-dojo');
+        open.onerror = () =>
+          reject(open.error ?? new Error('indexedDB open failed'));
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains('meta')) {
+            db.close();
+            resolve(null);
+            return;
+          }
+          const get = db.transaction('meta').objectStore('meta').get(key);
+          get.onerror = () =>
+            reject(get.error ?? new Error('indexedDB get failed'));
+          get.onsuccess = () => {
+            db.close();
+            resolve(
+              (get.result as { value?: unknown } | undefined)?.value ?? null,
+            );
+          };
+        };
+      }),
+    key,
+  );
+}
+
+/** Open in REPL through the app seam (src/app/seam.ts), as F6's theory block button will. */
+export async function openInRepl(
+  page: Page,
+  request: { snippet: string; name?: string },
+): Promise<string> {
+  await page.waitForFunction(() => window.__tsDojoApp !== undefined);
+  return page.evaluate((request) => {
+    const seam = window.__tsDojoApp;
+    if (seam === undefined) throw new Error('window.__tsDojoApp is not set');
+    return seam.openInRepl(request);
+  }, request);
+}
