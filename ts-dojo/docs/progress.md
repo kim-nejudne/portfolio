@@ -88,7 +88,7 @@ The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion fr
 - [x] Squiggles and gutter marks appear within 300 ms of typing stopping; `]d` and `[d` move between diagnostics; `K` shows quick info at the cursor; `gd` jumps to a definition in another file.
 - [x] A `//   ^?` line shows the queried type under it and updates on edit.
 - [x] Completions open on typing and `Ctrl-Space`; `Ctrl-j`/`Ctrl-k` and `Tab`/`Shift-Tab` move; `Enter` or `Ctrl-y` accept; `Esc` closes and returns to normal mode.
-- [ ] `"+y` and `"+p` use the system clipboard over HTTPS and on localhost.
+- [x] `"+y` and `"+p` use the system clipboard over HTTPS and on localhost.
 - [x] Multi-file: tabs, `:b`, `:ls`, `gt`, `gT`; a lesson `.d.ts` is read-only and marked.
 - [x] Editing works before the compiler is ready, with the status chip showing.
 
@@ -288,13 +288,21 @@ The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion fr
 ## F15. Offline, performance and deploy
 
 - [x] After one online load, with the network off: the app opens, a lesson loads, diagnostics and a run work (Playwright with `offline: true`).
-- [ ] Every budget in §9 is measured and recorded in `docs/progress.md`; any miss has a note.
-- [ ] `deploy/deploy.sh` ships `dist/` to `/var/www/ts-dojo`; HTTPS answers with a valid certificate; HTTP redirects. (droplet)
-- [ ] `/l/<lesson>` loads directly; `/ts/6.0.3/lib.es2025.d.ts` is served precompressed as `text/plain`; `/assets/*` is immutable; `index.html` and `sw.js` are `no-cache`. (droplet)
+- [x] Every budget in §9 is measured and recorded in `docs/progress.md`; any miss has a note.
+- [x] `deploy/deploy.sh` ships `dist/` to `/var/www/ts-dojo`; HTTPS answers with a valid certificate; HTTP redirects. (droplet)
+- [x] `/l/<lesson>` loads directly; `/ts/6.0.3/lib.es2025.d.ts` is served precompressed as `text/plain`; `/assets/*` is immutable; `index.html` and `sw.js` are `no-cache`. (droplet)
 - [x] The CSP in §10 is present and nothing in the app is blocked by it (no CSP errors in the Playwright console).
 - [x] `deploy/README.md` exists with the §10 table and the Deploying, Rollback, Caching, DNS/TLS and nginx sections.
 
 > **Gate (§11):** deployed at dojo.kimnejudne.dev; offline works.
+
+**Kim's checks (21 October 2026).** Kim deployed with `deploy/deploy.sh`, and every "Confirm through nginx" line passed: 200 over a verified certificate, a 301 from `http://`, `/l/<lesson>` as `text/html`, the lib file precompressed (`Content-Length` 533, the `.gz` file's size, with a strong ETag), immutable assets, `no-cache` on `/`, `/index.html` and `/sw.js`, `sw.js` identical to the build, and the CSP as in the conf. The certificate is Let's Encrypt's for `dojo.kimnejudne.dev`, valid until 19 January 2027. Kim then confirmed the rest:
+
+- the browser checks: the padlock, the lesson theory at `/l/m99-fixtures/01-fix`, and offline after one visit (the app, a lesson, a diagnostic, `:run`);
+- the F3 clipboard over HTTPS;
+- the budgets project on the laptop and against the deployed site, every budget met.
+
+Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the §11 gate is met. The first run also exposed an order problem: no vhost for dojo was installed (port 80 answered with nginx's default site) and this machine's only ssh key was refused. Both were fixed by hand, following deploy/README.md DNS/TLS.
 
 **Notes (21 October 2026)**
 
@@ -470,7 +478,7 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 
 ## Measured budgets (§9)
 
-§9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. The laptop run is the F15 "For Kim" item, and criterion 2 waits for it.
+§9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
 
 | What | Budget | Measured | Note |
 | --- | --- | --- | --- |
@@ -489,13 +497,13 @@ Measured 21 October 2026 with `pnpm test:e2e --project budgets` (e2e/budgets.spe
 
 Checks only Kim can do. Feature sessions add their items here with exact steps; Kim ticks them here and in the feature's section above.
 
-- [ ] Prep: add the Namecheap A record `dojo` → the droplet, then confirm `dojo.kimnejudne.dev` resolves (`dig +short dojo.kimnejudne.dev`).
+- [x] Prep: add the Namecheap A record `dojo` → the droplet, then confirm `dojo.kimnejudne.dev` resolves (`dig +short dojo.kimnejudne.dev`).
 - [ ] Prep (by hand): browser-reserved keys in a tab. `pnpm spike:vim`, open http://localhost:5179 in Chrome, tick "preventDefault on every Ctrl key", click into the editor and press every key in the table "Ctrl keys the page can intercept" in docs/prep-vim.md. A key that reaches the page appears in the key log as "page prevented default"; a key the browser keeps never appears. Fill the "Tab" column.
 - [ ] Prep (by hand): the same in an installed window. Chrome menu → Cast, save and share → Install page as app (or the install icon in the address bar), repeat the key presses there and fill the "Installed window" column.
 - [ ] Prep (by hand): clipboard round trip. In the spike editor in normal mode type `"+yy`, then paste in a terminal; copy a line in a terminal, then type `"+p` in the editor. Both directions should carry the text; note whether Chrome asked for clipboard permission. Record the answer in docs/prep-vim.md.
 - [x] F1: push the `F1: Scaffold` commit, then open the repository's Actions tab on GitHub and confirm the "CI" run for it is green (Typecheck, Lint, Format check, Unit tests, Build all pass on the `ubuntu-latest` runner with Node 24). Done 17 October 2026 at Kim's request: repository `kim-nejudne/ts-dojo` (private), run 39016881255 for `f0dbd4d` green in 48 s; Kim confirmed the tick.
-- [ ] F3 (droplet, after F15): clipboard over HTTPS. On https://dojo.kimnejudne.dev/repl in normal mode type `"+yy`, paste in a terminal; copy a line in a terminal, type `"+p` in the editor. Both directions carry the text (Playwright proved localhost; §12 F3 names HTTPS too).
-- [ ] F15 (droplet): the first deploy, in the order of `deploy/README.md` DNS/TLS.
+- [x] F3 (droplet, after F15): clipboard over HTTPS. On https://dojo.kimnejudne.dev/repl in normal mode type `"+yy`, paste in a terminal; copy a line in a terminal, type `"+p` in the editor. Both directions carry the text (Playwright proved localhost; §12 F3 names HTTPS too).
+- [x] F15 (droplet): the first deploy, in the order of `deploy/README.md` DNS/TLS.
   1. The Namecheap A record `dojo` (the Prep item above), confirmed with `dig +short @pdns1.registrar-servers.com dojo.kimnejudne.dev A`.
   2. Install `deploy/nginx/ts-dojo-bootstrap.conf` as `/etc/nginx/sites-available/ts-dojo`, symlink it into `sites-enabled`, then `nginx -t && systemctl reload nginx`.
   3. Probe the ACME path with a token (README step 2). It prints the token.
@@ -505,7 +513,7 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   6. From the repository root: `TS_DOJO_HOST=user@host ./deploy/deploy.sh`.
 
   Expected: every "Confirm through nginx" line passes. `https://dojo.kimnejudne.dev/` answers 200 (curl verified the certificate), and `http://` answers 301 to `https://dojo.kimnejudne.dev/`. Open the site in Chrome and check the padlock.
-- [ ] F15 (droplet): the headers and the served files. `deploy.sh` checks all of these itself. To see them by hand, run this right after `deploy.sh`, from the repository root, before any `pnpm build` or `pnpm test:e2e`: those rebuild `dist/`, and steps 1 and 3 compare with the files just shipped.
+- [x] F15 (droplet): the headers and the served files. `deploy.sh` checks all of these itself. To see them by hand, run this right after `deploy.sh`, from the repository root, before any `pnpm build` or `pnpm test:e2e`: those rebuild `dist/`, and steps 1 and 3 compare with the files just shipped.
   1. `curl -sI -H 'Accept-Encoding: gzip' https://dojo.kimnejudne.dev/ts/6.0.3/lib.es2025.d.ts`. Expected:
      - `Content-Type: text/plain`, `Content-Encoding: gzip`, `Cache-Control: public, max-age=31536000, immutable`;
      - a strong ETag (no `W/`);
@@ -518,7 +526,7 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   5. Every response carries the `Content-Security-Policy` line from `deploy/nginx/ts-dojo.conf`.
   6. In a fresh Chrome tab, open https://dojo.kimnejudne.dev/l/m99-fixtures/01-fix. Expected: the lesson's theory, not "not found".
   7. Then DevTools → Network → Offline, and reload. Expected: the app, a lesson, a diagnostic and `:run` all work.
-- [ ] F15 (criterion 2, by hand): the §9 budgets on the laptop, since §9 names it and the table's figures come from the desktop.
+- [x] F15 (criterion 2, by hand): the §9 budgets on the laptop, since §9 names it and the table's figures come from the desktop.
   1. On the laptop, from the repository root, check that nothing is listening on 4173 (`ss -ltnp | grep ':4173 '` prints nothing).
   2. Run `pnpm test:e2e --project budgets`. Expected: 3 passed, and every soft assertion under budget.
   3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
