@@ -14,13 +14,10 @@ import {
   SNIPPET_PATH,
   type Renderer,
 } from './mdx';
+import { FIXTURE_CONTENT } from './roots';
 
-const LESSON = path.resolve(
-  import.meta.dirname,
-  '..',
-  '..',
-  '..',
-  'content',
+const LESSON = path.join(
+  FIXTURE_CONTENT,
   'modules',
   'm99-fixtures',
   '01-fix',

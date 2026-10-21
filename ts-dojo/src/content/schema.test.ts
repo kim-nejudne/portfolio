@@ -14,18 +14,18 @@ import {
   renamesSchema,
   roadmapSchema,
 } from './schema';
+import { FIXTURE_CONTENT } from './node/roots';
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..');
-const MODULE = path.join(ROOT, 'content', 'modules', 'm99-fixtures');
+const MODULE = path.join(FIXTURE_CONTENT, 'modules', 'm99-fixtures');
 
 function yaml(file: string): unknown {
   return parse(readFileSync(file, 'utf8')) as unknown;
 }
 
 describe('roadmap.yaml', () => {
-  it('accepts the shipped roadmap', () => {
+  it('accepts the fixture roadmap', () => {
     const parsed = roadmapSchema.parse(
-      yaml(path.join(ROOT, 'content', 'roadmap.yaml')),
+      yaml(path.join(FIXTURE_CONTENT, 'roadmap.yaml')),
     );
     expect(parsed.tiers[0]?.modules).toContain('m99-fixtures');
   });
@@ -180,7 +180,7 @@ describe('<Predict> props and renames.yaml', () => {
 
   it('reads the shipped renames file as `old: new` pairs (§7)', () => {
     expect(
-      renamesSchema.parse(yaml(path.join(ROOT, 'content', 'renames.yaml'))),
+      renamesSchema.parse(yaml(path.join(FIXTURE_CONTENT, 'renames.yaml'))),
     ).toEqual({
       'm99-fixtures/00-first-fix': 'm99-fixtures/01-fix',
       'm99-fixtures/02-implement/00-biggest-shape':

@@ -22,9 +22,10 @@ import {
   type LintFailure,
   type LintReport,
 } from '../src/content/node/lint';
+import { COURSE_CONTENT, FIXTURE_CONTENT } from '../src/content/node/roots';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const CONTENT = path.join(ROOT, 'content');
+const CONTENT = FIXTURE_CONTENT;
 const MODULE = 'modules/m99-fixtures';
 const FIX_EXERCISE = `${MODULE}/01-fix/exercises/01-handle-the-new-shape`;
 const PREDICT_EXERCISE = `${MODULE}/01-fix/exercises/02-what-is-left/exercise.yaml`;
@@ -44,7 +45,7 @@ interface Tree {
   remove(file: string): void;
 }
 
-/** A copy of content/ in a temp dir, with helpers to mutate one file. */
+/** A copy of the fixture tree in a temp dir, with helpers to mutate one file. */
 function copyTree(): Tree {
   const root = mkdtempSync(path.join(tmpdir(), 'ts-dojo-content-'));
   temps.push(root);
@@ -88,7 +89,18 @@ function expectFailure(
 /** Only this exercise's folder is verified, so the compiler-backed fixtures stay quick. */
 const FIX_ONLY = { only: ['m99-fixtures/01-fix'] };
 
-describe('the shipped content tree (§12 F6 criterion 2)', () => {
+describe('the shipped course in content/ (§12 F11 criterion 2)', () => {
+  it('lints clean: `pnpm content:lint` passes for the whole tree', async () => {
+    const report = await lintContent(COURSE_CONTENT);
+    expect(report.failures).toEqual([]);
+    expect(report.lessons).toHaveLength(20);
+    for (const exercise of report.exercises) {
+      expect(exercise.failures, exercise.id).toEqual([]);
+    }
+  }, 180_000);
+});
+
+describe('the fixture content tree (§12 F6 criterion 2)', () => {
   it('passes the lint: every solution passes its exercise and every starter fails it, in Node', async () => {
     const report = await lintContent(CONTENT);
     expect(report.failures).toEqual([]);
@@ -492,7 +504,13 @@ describe('the CLI', () => {
     );
     const good = spawnSync(
       'pnpm',
-      ['exec', 'tsx', 'scripts/content-lint.ts', 'm99-fixtures/01-fix'],
+      [
+        'exec',
+        'tsx',
+        'scripts/content-lint.ts',
+        `--root=${CONTENT}`,
+        'm99-fixtures/01-fix',
+      ],
       { cwd: ROOT, encoding: 'utf8' },
     );
     expect(good.status, good.stderr).toBe(0);
@@ -516,5 +534,53 @@ describe('the lint stops at structural problems', () => {
     expect(conditions(report)).toEqual([4]);
     expect(report.exercises).toEqual([]);
     expect(report.lessons).toEqual([]);
+  });
+});
+
+describe('a scoped run while a module is still being written (F11)', () => {
+  // A module.yaml lists every lesson from the start (module skill), so a module in progress
+  // names lessons that don't exist yet: a structural problem of the module, not of the lessons
+  // already written. A run narrowed to a written lesson verifies it; the module's own run and
+  // the whole-tree run still refuse the tree.
+  function moduleInProgress(): Tree {
+    const tree = copyTree();
+    tree.edit(
+      `${MODULE}/module.yaml`,
+      (t) => `${t.trimEnd()}\n  - 04-not-yet\n`,
+    );
+    return tree;
+  }
+
+  it('verifies the exercises of a written lesson', async () => {
+    const report = await lintContent(moduleInProgress().root, FIX_ONLY);
+    expect(report.failures).toEqual([]);
+    expect(report.lessons).toEqual(['m99-fixtures/01-fix']);
+    expect(report.exercises.map((e) => e.id)).toEqual([
+      'm99-fixtures/01-fix/01-handle-the-new-shape',
+    ]);
+  }, 60_000);
+
+  it('still stops a run of the module, and of the whole tree, at condition 1', async () => {
+    const tree = moduleInProgress();
+    for (const options of [{ only: ['m99-fixtures'] }, {}]) {
+      const report = await lintContent(tree.root, options);
+      expectFailure(
+        report,
+        1,
+        `content/${MODULE}/module.yaml`,
+        'lesson 04-not-yet has no',
+      );
+      expect(report.exercises).toEqual([]);
+    }
+  });
+
+  it('still stops a scoped run at a structural problem inside the lesson', async () => {
+    const tree = moduleInProgress();
+    tree.edit(`${FIX_EXERCISE}/exercise.yaml`, (t) =>
+      t.replace(/hints:[\s\S]*$/, 'hints: []\n'),
+    );
+    const report = await lintContent(tree.root, FIX_ONLY);
+    expect(conditions(report)).toEqual([4]);
+    expect(report.exercises).toEqual([]);
   });
 });

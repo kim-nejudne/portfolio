@@ -1,0 +1,226 @@
+---
+id: m02-functions/02-function-types-and-callbacks
+title: Function types, callbacks and contextual typing
+minutes: 20
+objectives:
+  - Write a function type expression and name it with a type alias
+  - Type a callback parameter with a function type and call it with the arguments the type lists
+  - Tell where contextual typing gives a callback its parameter types, and where it does not reach
+  - Explain why a function with fewer parameters fits a function type that passes more
+prerequisites:
+  - m01-types/01-annotations-and-inference
+  - m02-functions/01-parameters-and-returns
+tags:
+  - functions
+  - function type
+  - callback
+  - contextual typing
+  - type alias
+  - higher-order function
+---
+
+## Concept
+
+A function type describes a function value by its parameters and what it returns. It is written like an arrow function with a type where the body would be: the parameter list, then `=>`, then the return type.
+
+```ts twoslash
+type Operation = (a: number, b: number) => number;
+
+const add: Operation = (x, y) => x + y;
+//                      ^?
+```
+
+`x` and `y` have no annotations and are still numbers. The arrow function is written where an `Operation` is expected, so its parameters take their types from `Operation`. That is contextual typing, which <Lesson id="m01-types/01-annotations-and-inference" /> previewed with `map`. The names don't have to match: the parameter names in a function type are there for the reader, and the type is made of the parameter types (and whether each is optional or a rest parameter), their order and the return type.
+
+<Callout kind="tip">
+  In the REPL, put the cursor on a callback's parameter and press <Key>K</Key>:
+  the quick info shows the type it took from context.
+</Callout>
+
+## Examples
+
+**Function type expressions.** A function type goes wherever a type goes: on a variable, a parameter or a property, or behind a `type` alias when it is used more than once. Every parameter needs a name, and the return type after `=>` is required. Function types nest: a parameter or the return type can itself be a function type, so `(factor: number) => (value: number) => number` takes a number and returns a function from number to number.
+
+```ts run
+type Format = (value: number, digits: number) => string;
+
+const fixed: Format = (n, d) => n.toFixed(d);
+const exponent: Format = (n, d) => n.toExponential(d);
+
+// Different parameter names, the same types in the same order: the same type.
+const chosen: (amount: number, places: number) => string = exponent;
+
+console.log(fixed(Math.PI, 2), chosen(1234.5, 1));
+```
+
+A function type also has a long form, a call signature written inside an object type, for functions that carry properties as well; it comes back in a later module.
+
+**Callback parameters.** A parameter with a function type takes a callback. Inside the function you call it like any other function, and the call is checked against the type: it must pass the arguments the type lists, with the types it lists. Leave out `depth` in the call to `visit` and it reports `Expected 2 arguments, but got 1.`, as any call would (<Lesson id="m02-functions/01-parameters-and-returns" />).
+
+```ts run
+type Visit = (name: string, depth: number) => void;
+
+function walk(path: string, visit: Visit) {
+  const parts = path.split('/');
+  for (let depth = 0; depth < parts.length; depth++) {
+    visit(parts[depth], depth);
+  }
+}
+
+walk('src/app/main.ts', (name, depth) => {
+  console.log(`${'  '.repeat(depth)}${name}`);
+});
+```
+
+`void` is the return type of a function that returns nothing (<Lesson id="m01-types/04-any-unknown-never-void" />). Whether a callback typed `void` may still return something is the subject of <Lesson id="m02-functions/03-void-returns" />.
+
+**Contextual typing.** A function written where a function type is expected takes its parameter types from that type. The expected type is known when the function is an argument, the value of an annotated variable or property, an element of an annotated array, or the value returned from a function with a declared return type. Array methods are the case you meet most: the callback types of `map`, `filter`, `reduce` and the rest are built from the array's element type.
+
+```ts twoslash
+const prices = [4.5, 12, 3.25];
+
+const labels = prices.map((price, index) => `${index + 1}. ${price}`);
+//                             ^?
+const total = prices.reduce((sum, price) => sum + price, 0);
+//                             ^?
+
+type Step = (value: number) => number;
+
+function scale(factor: number): Step {
+  return (value) => value * factor;
+  //          ^?
+}
+```
+
+Your own APIs get the same treatment. `onKey` takes a `KeyHandler`, so the handlers written inline in the calls need no annotations:
+
+```ts run
+type KeyEvent = { key: string; ctrl: boolean };
+type KeyHandler = (event: KeyEvent, count: number) => void;
+
+const handlers: KeyHandler[] = [];
+
+function onKey(handler: KeyHandler) {
+  handlers.push(handler);
+}
+
+function press(key: string, count = 1, ctrl = false) {
+  for (const handler of handlers) handler({ key, ctrl }, count);
+}
+
+onKey((event, count) => {
+  console.log(`${event.key} x${count}`);
+});
+onKey((event) => {
+  if (event.ctrl) console.log(`ctrl+${event.key}`);
+});
+
+press('j', 3);
+press('d', 1, true);
+```
+
+**Fewer parameters.** The second handler declares only `event`, though `press` calls every handler with two arguments. A function that declares fewer parameters fits a function type that passes more, because JavaScript ignores arguments a function doesn't declare. That is why `names.forEach((name) => …)` compiles when `forEach` passes the element, its index and the array: a callback type lists everything the caller passes, and each callback declares what it uses. The reverse fails. A function that needs an argument the type never passes is rejected:
+
+```ts run errors
+type KeyEvent = { key: string; ctrl: boolean };
+type KeyHandler = (event: KeyEvent, count: number) => void;
+
+const withMode: KeyHandler = (event: KeyEvent, count: number, mode: string) => {
+  console.log(event.key, count, mode);
+};
+```
+
+`Target signature provides too few arguments. Expected 3 or more, but got 2.` The rule is one case of structural typing, TypeScript comparing types by their shape, which <Lesson id="m04-objects/02-structural-typing" /> covers.
+
+## Pitfalls
+
+**A callback declared on its own.** Context comes from the place a function is written, not from where it is used later. Move an inline callback into its own declaration and its parameters have no type to take:
+
+```ts run errors
+const prices = [4.5, 12, 3.25];
+
+function withTax(price) {
+  return price * 1.2;
+}
+
+const toLabel = (price) => `€${price.toFixed(2)}`;
+
+console.log(prices.map(withTax).map(toLabel));
+```
+
+`Parameter 'price' implicitly has an 'any' type.`, once for each function. Annotate the parameter, as in `function withTax(price: number)`, or give the `const` a function type, as in `const toLabel: (price: number) => string = (price) => …`, and the parameter has a type again.
+
+**A function type with unnamed parameters.** Every parameter in a function type needs a name. Write only a type and TypeScript reads it as the name:
+
+```ts run errors
+type Format = (number) => string;
+
+const euros: Format = (value) => `€${value.toFixed(2)}`;
+```
+
+`Parameter has a name but no type. Did you mean 'arg0: number'?` Here `number` is a parameter name and its type is `any`, so `euros` would accept a string. Write `(value: number) => string`.
+
+**An optional parameter in a callback type.** A `?` in a callback type means the caller may leave the argument out, so every callback must cope with `undefined`, even when every call passes it:
+
+```ts run errors
+type KeyHandler = (key: string, count?: number) => void;
+
+function onKey(handler: KeyHandler) {
+  handler('j', 3);
+}
+
+onKey((key, count) => {
+  console.log(key.repeat(count));
+});
+```
+
+`Argument of type 'number | undefined' is not assignable to parameter of type 'number'.` When the caller always passes the argument, make the parameter required. A callback that doesn't need it can still leave it out: that is the fewer-parameters rule above.
+
+## Check yourself
+
+<Predict
+  id="parameter-names"
+  question="Are `(a: string) => number` and `(text: string) => number` the same type?"
+  options={[
+    'Yes: parameter names are not part of the type',
+    'No: the parameter names must match too',
+    'Only when both are given the same type alias',
+  ]}
+  answer={0}
+  explanation="The names in a function type are for the reader. The type is made of the parameter types (and whether each is optional or a rest parameter), their order and the return type. Both take one required `string` and return a `number`, so they are the same type, and a function written with any parameter name fits both."
+/>
+
+<Predict
+  id="callback-on-its-own"
+  question="`words` is a `string[]`. What does the compiler say about this code?"
+  code={
+    "const words = ['tab', 'space'];\nconst shout = (text) => text.toUpperCase();\nconsole.log(words.map(shout));"
+  }
+  options={[
+    'Nothing: text is a string, taken from map',
+    "Parameter 'text' implicitly has an 'any' type.",
+    'Nothing: text is unknown until it is used',
+  ]}
+  answer={1}
+  explanation="Contextual typing works where a function is written, not where it is used later. `shout` is declared on its own, with no type on its variable, so `text` has nothing to take a type from, and strict reports `Parameter 'text' implicitly has an 'any' type.` Write it inline in the `map` call, annotate `text`, or give `shout` a function type."
+/>
+
+<Predict
+  id="fewer-parameters-foreach"
+  question="forEach calls its callback with three arguments: the element, its index and the array. Why does `names.forEach((name) => console.log(name))` compile?"
+  options={[
+    'The index and array parameters are optional in the type of forEach',
+    'A function that declares fewer parameters fits a function type that passes more',
+    'Arrow functions are not checked against callback types',
+    'The extra arguments are typed any, so they are ignored',
+  ]}
+  answer={1}
+  explanation="The callback type lists all three arguments `forEach` passes, and the callback declares only the one it uses. JavaScript ignores the extra arguments, so TypeScript lets a function with fewer parameters stand in for one with more. The reverse, a callback that needs a fourth argument, is an error."
+/>
+
+## Further reading
+
+- [More on Functions: function type expressions](https://www.typescriptlang.org/docs/handbook/2/functions.html#function-type-expressions)
+- [More on Functions: optional parameters in callbacks](https://www.typescriptlang.org/docs/handbook/2/functions.html#optional-parameters-in-callbacks)
+- [Everyday Types: anonymous functions and contextual typing](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#anonymous-functions)
+- [Type Compatibility: comparing two functions](https://www.typescriptlang.org/docs/handbook/type-compatibility.html#comparing-two-functions)

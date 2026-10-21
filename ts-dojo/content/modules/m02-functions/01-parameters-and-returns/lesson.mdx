@@ -1,0 +1,192 @@
+---
+id: m02-functions/01-parameters-and-returns
+title: Parameter and return types; optional, default and rest parameters
+minutes: 20
+objectives:
+  - Read a signature with required, optional, default and rest parameters, and tell which calls it accepts
+  - Name the type an optional or defaulted parameter has inside the function
+  - Type rest parameters as arrays or tuples, and spread arguments into them
+  - Use a return type to make the compiler check that every path returns a value
+prerequisites:
+  - m01-types/01-annotations-and-inference
+  - m01-types/03-arrays-tuples-objects
+  - m01-types/04-any-unknown-never-void
+tags:
+  - functions
+  - parameters
+  - return type
+  - optional parameter
+  - default parameter
+  - rest parameter
+  - arity
+  - spread
+---
+
+## Concept
+
+JavaScript lets you call any function with any number of arguments: a missing one is `undefined` and an extra one is ignored. In TypeScript a function has a signature, its parameter list and its return type, and every call is checked against the parameter list: the type of each argument, and how many there are. A parameter is required unless the signature says otherwise, and there are three ways to say it: `?` makes it optional, `= value` gives it a default, and `...` collects the rest.
+
+```ts twoslash
+function tag(name: string, color?: string, size = 12, ...classes: string[]) {
+  return `${name} ${color ?? 'grey'} ${size}px ${classes.join(' ')}`;
+}
+
+tag('new');
+//^?
+tag('new', 'red', 14, 'bold', 'caps');
+```
+
+The quick info is the signature as callers see it: `name` is required, `color` and `size` may be left out, and `classes` takes any number of strings after them. `size` has no annotation and needs none, because its type comes from its default. Each of the others needs one, as <Lesson id="m01-types/01-annotations-and-inference" /> showed, and the return type, here `string`, is inferred from the `return` statements unless you write it.
+
+## Examples
+
+**Optional parameters.** A `?` after the name lets callers leave the argument out. Inside the function the parameter has its declared type or `undefined`, because a left-out argument is `undefined`:
+
+```ts twoslash
+function greet(name: string, greeting?: string) {
+  const word = greeting ?? 'Hello';
+  //                  ^?
+  return `${word}, ${name}!`;
+}
+
+greet('Ada');
+greet('Ada', 'Welcome');
+```
+
+`string | undefined` reads "a string, or `undefined`". The `|` makes a union type, the subject of <Lesson id="m03-unions/01-union-and-literal-types" />; here it records that the argument may be missing. `??` supplies a fallback, so `word` is a plain `string`. Callers may also pass `undefined` explicitly.
+
+**Default values.** A default makes the parameter optional to callers as well, and its type is inferred from the default value, widened the way a `let` is (<Lesson id="m01-types/02-primitives-literals-widening" />). Inside the function it is never `undefined`: a missing argument, or an explicit `undefined`, gets the default.
+
+```ts twoslash
+function pad(text: string, width = 8, fill = ' ') {
+  return text.padStart(width, fill);
+  //                       ^?
+}
+
+pad('42');
+//^?
+pad('42', undefined, '.');
+```
+
+Inside, `width` is a `number`; callers see `width?: number` and `fill?: string`. Arguments still go by position, so to set `fill` and keep the default `width`, pass `undefined` in its place. When the inferred type is not the one you mean, annotate as well as giving the default: `size = [0, 0]` infers `number[]`, while `size: [number, number] = [0, 0]` keeps it a pair (<Lesson id="m01-types/03-arrays-tuples-objects" />).
+
+**Rest parameters.** `...name` collects the remaining arguments into an array, so its type is an array type. A tuple type works too, and fixes how many arguments there are and the type of each:
+
+```ts run
+function sum(...values: number[]) {
+  let total = 0;
+  for (const value of values) total += value;
+  return total;
+}
+
+function between(value: number, ...range: [number, number]) {
+  const [min, max] = range;
+  return value >= min && value <= max;
+}
+
+const scores = [3, 9, 4];
+const bounds: [number, number] = [1, 5];
+
+console.log(sum(), sum(1, 2), sum(...scores));
+console.log(between(3, 1, 5), between(7, ...bounds));
+```
+
+`between` takes exactly three numbers, as if it listed `value`, `min` and `max`. Spreading `bounds` works because its type says it has two elements; Pitfalls shows an array that can't be spread.
+
+**Argument counts.** Every call is checked for how many arguments it passes. TypeScript reports a missing argument and an extra one alike, unless the signature makes the parameter optional or a rest:
+
+```ts run errors
+function area(width: number, height: number) {
+  return width * height;
+}
+
+function pad(text: string, width = 8) {
+  return text.padStart(width);
+}
+
+function join(separator: string, ...parts: string[]) {
+  return parts.join(separator);
+}
+
+area(3);
+pad();
+pad('42', 4, '.');
+join();
+```
+
+The messages say what the signature allows: `Expected 2 arguments, but got 1.` for fixed parameters, a range such as `Expected 1-2 arguments, but got 0.` when some are optional, and `Expected at least 1 arguments, but got 0.` with a rest parameter.
+
+**Return types on every path.** <Lesson id="m01-types/01-annotations-and-inference" /> showed a return type moving a mistake from the callers to the `return` line. It also makes the compiler check that every path through the body returns a value:
+
+```ts run errors
+function firstNegative(values: number[]): number {
+  for (const value of values) {
+    if (value < 0) return value;
+  }
+}
+```
+
+This is the message <Lesson id="m01-types/04-any-unknown-never-void" /> showed for a function that only throws: `Function lacks ending return statement and return type does not include 'undefined'.` Here the cause is the loop, which can finish without finding anything, and a function that falls off its end returns `undefined`. Without `: number` this compiles, with an inferred return type of `number | undefined`, and every caller has to deal with the `undefined`. Decide which one you mean: return a value at the end, or write `number | undefined` so callers know.
+
+## Pitfalls
+
+**Using an optional parameter as if it were there.** Its type includes `undefined`, so calling a method on it reports `'greeting' is possibly 'undefined'.` Give it a default instead, or fall back with `??`. Checking it with an `if` is narrowing, which <Lesson id="m03-unions/03-narrowing" /> covers.
+
+```ts run errors
+function greet(name: string, greeting?: string) {
+  return `${greeting.trim()}, ${name}!`;
+}
+```
+
+**A required parameter after an optional one.** Arguments are matched by position, so a caller can't skip an optional parameter to reach a later one: `A required parameter cannot follow an optional parameter.` Put optional parameters last. A default value is allowed before a required parameter, but then it is not optional at all: callers must pass `undefined` to get the default. And a parameter can't have both: `x?: number = 1` reports `Parameter cannot have question mark and initializer.`, since the default already makes it optional.
+
+```ts run errors
+function range(start?: number, end: number) {
+  return [start ?? 0, end];
+}
+```
+
+**Spreading an array into a fixed list.** `Math.max(...values)` works because `max` takes a rest parameter. A function with a fixed list of parameters won't take an array whose length isn't known:
+
+```ts run errors
+function distance(x: number, y: number) {
+  return Math.hypot(x, y);
+}
+
+const point = [3, 4];
+console.log(distance(...point));
+```
+
+`A spread argument must either have a tuple type or be passed to a rest parameter.` The literal `[3, 4]` is inferred as `number[]`, which could hold any number of elements. Give it a tuple type, `const point: [number, number] = [3, 4]`, and the call compiles.
+
+## Check yourself
+
+<Predict
+  id="optional-type"
+  question="Inside `function f(a: string, b?: number)`, what is the type of `b`?"
+  options={['number', 'number | undefined', 'number | null', 'any']}
+  answer={1}
+  explanation="A `?` parameter may be left out, and a left-out argument is `undefined`, so inside the function `b` is `number | undefined`. Use it as a number only after a fallback such as `b ?? 0`."
+/>
+
+<Predict
+  id="default-type"
+  question="Inside `function take(items: string[], limit = 10)`, what is the type of `limit`?"
+  options={['number | undefined', '10', 'number', 'unknown']}
+  answer={2}
+  explanation="The type comes from the default and is widened like a `let`, so it is `number`, not `10`. It never includes `undefined` inside the body: a missing or `undefined` argument is replaced by `10` first. Callers see `limit?: number`."
+/>
+
+<Predict
+  id="rest-arity"
+  question="Given `function join(separator: string, ...parts: string[])`, which call does not compile?"
+  options={["join('-')", 'join()', "join('-', 'a', 'b', 'c')"]}
+  answer={1}
+  explanation="A rest parameter takes zero or more arguments, so only `separator` is required. `join('-')` passes an empty `parts`; `join()` reports `Expected at least 1 arguments, but got 0.`"
+/>
+
+## Further reading
+
+- [More on Functions](https://www.typescriptlang.org/docs/handbook/2/functions.html)
+- [More on Functions: optional parameters](https://www.typescriptlang.org/docs/handbook/2/functions.html#optional-parameters)
+- [More on Functions: rest parameters and arguments](https://www.typescriptlang.org/docs/handbook/2/functions.html#rest-parameters-and-arguments)

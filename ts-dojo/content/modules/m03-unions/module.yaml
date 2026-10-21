@@ -1,0 +1,10 @@
+id: m03-unions
+title: Unions and narrowing
+summary: Model alternatives with unions, then let the compiler prove which one you hold.
+prerequisites: [m02-functions]
+lessons:
+  - 01-union-and-literal-types
+  - 02-null-undefined-strict
+  - 03-narrowing
+  - 04-control-flow-analysis
+  - 05-discriminated-unions

@@ -1,4 +1,5 @@
-// §12 F6, the content pipeline, on the fixture lessons under content/modules/m99-fixtures:
+// §12 F6, the content pipeline, on the fixture lessons, under fixtures/content/modules/m99-fixtures
+// since F11 (the fixture course the suite's server builds):
 //   3. "A `ts twoslash` block renders its `^?` results at build time; the browser loads no
 //      worker for theory."
 //   4. "`ts run` blocks have Run and Open in REPL; `ts run errors` blocks show their

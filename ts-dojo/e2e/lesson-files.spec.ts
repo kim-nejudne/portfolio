@@ -34,7 +34,7 @@ const DTS_PATH = '/types/geometry.d.ts';
 const DTS = readFileSync(
   fileURLToPath(
     new URL(
-      `../content/modules/m99-fixtures/${LESSON}/exercises/${EXERCISE}/types/geometry.d.ts`,
+      `../fixtures/content/modules/m99-fixtures/${LESSON}/exercises/${EXERCISE}/types/geometry.d.ts`,
       import.meta.url,
     ),
   ),

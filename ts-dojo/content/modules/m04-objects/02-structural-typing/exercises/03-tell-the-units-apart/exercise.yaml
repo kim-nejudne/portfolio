@@ -1,0 +1,21 @@
+id: m04-objects/02-structural-typing/03-tell-the-units-apart
+kind: type-challenge
+title: Tell the units apart
+minutes: 4
+challenge: false
+prompt: |
+  `Celsius` and `Fahrenheit` have the same shape, so each is accepted where the other is
+  expected. Change them so that the compiler tells them apart, with a `unit` property that is
+  `'C'` on every Celsius reading and `'F'` on every Fahrenheit one. Both keep `value`, a
+  `number`. Then define `Reading`, the type of a reading in either unit.
+
+  The type cases check the shapes, that neither reading is accepted as the other, and that a
+  `Reading` literal can't carry a property its unit's type doesn't list.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - "`unit: string` wouldn't help: both types would still accept the same values. Which kind of type has exactly one value?"
+  - A reading in either unit is one type or the other, and `unit` is what tells the two apart.

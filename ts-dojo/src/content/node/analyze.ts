@@ -1,5 +1,6 @@
 // Reads what a lesson.mdx declares without rendering it (spec §3 lesson.mdx): the frontmatter,
-// every code fence with its meta string, and the props of every inline `<Predict>`. The build
+// every code fence with its meta string, the props of every inline `<Predict>`, and the
+// headings and links (§1's theory order and `<Lesson id>` targets, which the course tests check). The build
 // (the `?meta` module in src/content/vite-plugin.ts) and the content lint both start here, so
 // the frontmatter the roadmap shows and the fences the lint checks come from one parse. Node
 // only: it runs the MDX compiler. Prop values must be literals (`options={['a', 'b']}`,
@@ -7,7 +8,7 @@
 // proven to have one correct option (§3 condition 5).
 import { compile } from '@mdx-js/mdx';
 import type { Expression, Program } from 'estree';
-import type { Root } from 'mdast';
+import type { Nodes, Root } from 'mdast';
 import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx-jsx';
 import remarkFrontmatter from 'remark-frontmatter';
 import { visit } from 'unist-util-visit';
@@ -31,10 +32,40 @@ export interface PredictSite {
   line: number;
 }
 
+export interface Heading {
+  depth: number;
+  /** The heading's plain text (inline code without its backticks). */
+  text: string;
+  line: number;
+}
+
+export interface Link {
+  url: string;
+  line: number;
+}
+
+export interface Lead {
+  /** The bold text a paragraph opens with: a Pitfalls item's name, for example. */
+  text: string;
+  line: number;
+}
+
+export interface LessonLink {
+  /** The `id` of a `<Lesson id="…" />`: a lesson id, written out as a string. */
+  id: string;
+  line: number;
+}
+
 export interface LessonAnalysis {
   frontmatter: unknown;
   fences: Fence[];
   predicts: PredictSite[];
+  headings: Heading[];
+  /** Markdown links, such as Further reading's. */
+  links: Link[];
+  lessonLinks: LessonLink[];
+  /** Paragraphs that open with bold text, such as `**A member nobody handles.** …`. */
+  leads: Lead[];
 }
 
 export class LessonAnalysisError extends Error {
@@ -141,11 +172,55 @@ function propsOf(
   return props;
 }
 
+/** The text of a node and its children, as a reader sees it. */
+function plainText(node: Nodes): string {
+  if ('value' in node && typeof node.value === 'string') return node.value;
+  if ('children' in node) {
+    return (node.children as Nodes[]).map(plainText).join('');
+  }
+  return '';
+}
+
+function lessonLinkId(
+  element: MdxJsxFlowElement | MdxJsxTextElement,
+  path: string,
+  line: number,
+): string {
+  const id = element.attributes.find(
+    (attribute) =>
+      attribute.type === 'mdxJsxAttribute' && attribute.name === 'id',
+  );
+  if (id === undefined || typeof id.value !== 'string') {
+    throw new LessonAnalysisError(
+      `${path}:${String(line)}: <Lesson> needs id="<lesson id>" written out as a string`,
+    );
+  }
+  return id.value;
+}
+
 function collector(path: string, out: LessonAnalysis) {
   return (tree: Root): void => {
     visit(tree, (node) => {
       if (node.type === 'yaml') {
         out.frontmatter = parseYaml(node.value) as unknown;
+        return;
+      }
+      if (node.type === 'heading') {
+        out.headings.push({
+          depth: node.depth,
+          text: plainText(node),
+          line: node.position?.start.line ?? 0,
+        });
+        return;
+      }
+      if (node.type === 'paragraph' && node.children[0]?.type === 'strong') {
+        out.leads.push({
+          text: plainText(node.children[0]),
+          line: node.position?.start.line ?? 0,
+        });
+      }
+      if (node.type === 'link') {
+        out.links.push({ url: node.url, line: node.position?.start.line ?? 0 });
         return;
       }
       if (node.type === 'code') {
@@ -166,8 +241,12 @@ function collector(path: string, out: LessonAnalysis) {
         node.type === 'mdxJsxTextElement'
       ) {
         const element = node;
-        if (element.name !== 'Predict') return;
         const line = element.position?.start.line ?? 0;
+        if (element.name === 'Lesson') {
+          out.lessonLinks.push({ id: lessonLinkId(element, path, line), line });
+          return;
+        }
+        if (element.name !== 'Predict') return;
         out.predicts.push({ props: propsOf(element, path, line), line });
       }
     });
@@ -186,6 +265,10 @@ export async function analyzeLesson(
     frontmatter: undefined,
     fences: [],
     predicts: [],
+    headings: [],
+    links: [],
+    lessonLinks: [],
+    leads: [],
   };
   try {
     await compile(

@@ -1,0 +1,33 @@
+id: m01-types/04-any-unknown-never-void/04-read-the-saved-settings
+kind: implement
+title: Read the saved settings
+minutes: 5
+challenge: false
+prompt: |
+  The editor saves each setting as its own JSON text, and `readSettings` turns the saved texts
+  into the `Settings` the editor runs with. Older versions saved some settings with the wrong
+  type, and a text can be damaged. Yet `index.ts` compiles: `parseValue` returns whatever
+  `JSON.parse` gives, which is `any`, so nothing in `readSettings` is checked, and the tests
+  fail.
+
+  - Make `parseValue` tell its callers that they must check what it returns. It still gives
+    `undefined` for a damaged text.
+  - Then make `readSettings` keep each saved value that has the right type, and use the value
+    from `DEFAULTS` in place of anything else: a damaged text, `null`, or a value of any other
+    type, such as a number saved as a string. Each side of the window is checked on its own.
+
+  Leave `SavedSettings`, `Settings` and `DEFAULTS` as they are. The type cases check the signatures, the
+  `Settings` type, and that `DEFAULTS` is still `as const`.
+
+  This combines the lesson with return types from lesson 1.1 (*Annotations and inference*),
+  `as const` from lesson 1.2 (*Primitives, literal types and widening*) and readonly tuples
+  from lesson 1.3 (*Arrays, tuples, objects and readonly*).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - '`parseValue` has no return type, so it returns what inference finds there. Lesson 1.1 showed where a function states what it returns to its callers.'
+  - Once `parseValue` is honest, each error in `readSettings` marks a value used before anything checked it. One `typeof` check per value chooses between it and its default.
+  - Three of the four values are numbers. A small function that takes the text and the default saves writing the same check three times.

@@ -1,0 +1,24 @@
+id: m03-unions/04-control-flow-analysis/03-items-by-shop
+kind: fix
+title: Items by shop
+minutes: 3
+challenge: false
+prompt: |
+  `itemsByShop` reads a shopping list one line at a time. A line that starts with `# ` names a
+  shop, and every other line lists items for the shop above it, separated by commas. Items
+  before the first shop are skipped. It returns one entry per item: the `item`, and a `label`
+  function that the UI calls later, when it draws the list, to get the shop in capitals and the
+  item, such as `'BAKERY: bread'`. `index.ts` has one error, inside `label`:
+
+  - `'shop' is possibly 'undefined'.`
+
+  The `else if` checks `shop` just above it. Work out why `label` doesn't see that check, and
+  fix it without `!`. The tests call every `label` after `itemsByShop` has returned.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - When the UI calls `label`, the loop has finished, and on later turns it assigned `shop` again. The compiler sees those assignments, so inside `label`, `shop` has its declared type.
+  - Right after the `else if` check, outside `label`, `shop` is a `string`. Give `label` something taken from it there, which no later turn can change.

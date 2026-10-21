@@ -13,14 +13,16 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   globalIgnores([
     'dist/**',
+    'dist-e2e/**',
     'coverage/**',
     'playwright-report/**',
     'test-results/**',
     'public/**',
     '.claude/**',
     // Lesson and exercise files are checked by `pnpm content:lint` with the app's compiler
-    // over the §2 options, not by the app's ESLint projects.
+    // over the §2 options, not by the app's ESLint projects; the fixture course likewise.
     'content/**',
+    'fixtures/content/**',
   ]),
   {
     files: ['**/*.{js,ts,tsx}'],

@@ -1,7 +1,7 @@
 // Playwright helpers for the lesson page and the F6 content pipeline (spec §3, §12 F6): the
-// fixture lessons under content/modules/m99-fixtures, their lesson.mdx read from the repository
-// at test time (frontmatter title and objectives, the body of a `ts <meta>` fence), and the
-// theory DOM the §12 criteria name (`article.theory`, `.code-block[data-kind]`). Nothing here
+// fixture lessons under fixtures/content/modules/m99-fixtures, their lesson.mdx read from the
+// repository at test time (frontmatter title and objectives, the body of a `ts <meta>` fence),
+// and the theory DOM the §12 criteria name (`article.theory`, `.code-block[data-kind]`). Nothing here
 // clicks; waits are `expect`s.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +29,7 @@ export function lessonRoute(folder: FixtureLesson): string {
 /** The lesson's `lesson.mdx` as the repository holds it. */
 export function readLessonMdx(folder: FixtureLesson): string {
   return readFileSync(
-    `${REPO_ROOT}content/modules/${FIXTURE_MODULE}/${folder}/lesson.mdx`,
+    `${REPO_ROOT}fixtures/content/modules/${FIXTURE_MODULE}/${folder}/lesson.mdx`,
     'utf8',
   );
 }
@@ -93,8 +93,13 @@ export async function gotoLesson(
   page: Page,
   folder: FixtureLesson,
 ): Promise<void> {
-  await page.goto(lessonRoute(folder));
-  await expect(theory(page)).toHaveAttribute('data-lesson', lessonId(folder));
+  await gotoLessonAt(page, lessonId(folder));
+}
+
+/** `gotoLesson` for any lesson of the served course by its full id (the F11 course spec). */
+export async function gotoLessonAt(page: Page, id: string): Promise<void> {
+  await page.goto(`/l/${id}`);
+  await expect(theory(page)).toHaveAttribute('data-lesson', id);
   await expect(
     theory(page).getByRole('heading', { level: 2 }).first(),
   ).toHaveText('Concept');
@@ -102,4 +107,68 @@ export async function gotoLesson(
     theory(page).getByRole('status'),
     'the "loading theory" line is gone',
   ).toHaveCount(0);
+}
+
+/** The rendered `^?` results of a twoslash block, in document order (the classic renderer's popovers). */
+export function twoslashResults(block: Locator): Locator {
+  return block.locator('.meta-line .popover');
+}
+
+/** One `^?` query of a twoslash fence, located in the fence's source. */
+export interface TwoslashQuery {
+  /** 0-based line of the code the query points at (the nearest line above it that is not a query). */
+  line: number;
+  /** 0-based column of the caret. */
+  col: number;
+  /** The identifier under the caret, or null when the caret is on a keyword, a literal or punctuation. */
+  word: string | null;
+}
+
+const QUERY_LINE = /^\s*\/\/\s*\^\?/;
+/** Any twoslash caret line (`^?` query, `^|` completion, `^^^` highlight): never a query's target. */
+const CARET_LINE = /^\s*\/\/\s*\^/;
+const IDENTIFIER_CHAR = /[A-Za-z0-9_$]/;
+/** Words under a caret whose quick info need not name them; only a non-empty result is required. */
+const KEYWORDS = new Set(
+  (
+    'abstract as asserts async await break case catch class const continue declare default ' +
+    'delete do else enum export extends false finally for function get if implements import in ' +
+    'infer instanceof interface is keyof let module namespace new null of private protected ' +
+    'public readonly return satisfies set static switch throw true try type typeof unique var ' +
+    'void while yield'
+  ).split(' '),
+);
+
+function wordAt(text: string, col: number): string | null {
+  if (!IDENTIFIER_CHAR.test(text[col] ?? '')) return null;
+  let start = col;
+  while (start > 0 && IDENTIFIER_CHAR.test(text[start - 1] ?? '')) start -= 1;
+  let end = col + 1;
+  while (end < text.length && IDENTIFIER_CHAR.test(text[end] ?? '')) end += 1;
+  const word = text.slice(start, end);
+  return /^\d/.test(word) || KEYWORDS.has(word) ? null : word;
+}
+
+/**
+ * The `^?` queries of a `ts twoslash` fence body, in the order twoslash renders their results:
+ * by the line they point at, then by column. Throws for a query with no code line above it.
+ */
+export function twoslashQueries(code: string): TwoslashQuery[] {
+  const lines = code.split(/\r?\n/);
+  const queries: TwoslashQuery[] = [];
+  for (const [index, text] of lines.entries()) {
+    if (!QUERY_LINE.test(text)) continue;
+    let target = index - 1;
+    while (target >= 0 && CARET_LINE.test(lines[target] ?? '')) target -= 1;
+    if (target < 0) {
+      throw new Error(`a ^? on line ${String(index + 1)} has no code above it`);
+    }
+    const col = text.indexOf('^');
+    queries.push({
+      line: target,
+      col,
+      word: wordAt(lines[target] ?? '', col),
+    });
+  }
+  return queries.sort((a, b) => a.line - b.line || a.col - b.col);
 }

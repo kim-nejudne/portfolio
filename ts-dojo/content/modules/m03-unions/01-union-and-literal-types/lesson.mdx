@@ -1,0 +1,185 @@
+---
+id: m03-unions/01-union-and-literal-types
+title: Union and literal types
+minutes: 15
+objectives:
+  - Write a union type with | and use it for parameters, variables and return types
+  - Limit a value to a fixed set with a union of literal types
+  - Use only the operations that every member of a union supports
+  - Predict what a union reduces to, such as 'a' | string becoming string
+prerequisites: [m01-types/02-primitives-literals-widening]
+tags: [union, literal type, string literal union, type alias, boolean, widening]
+---
+
+## Concept
+
+A union type lists alternatives. A value of type `string | number` is a `string` or a `number`, and the compiler accepts either wherever that type is expected. A literal type is a type with exactly one value, such as `'dark'`, `42` or `true`; you met them in <Lesson id="m01-types/02-primitives-literals-widening" />. In a union they become useful: `'light' | 'dark'` is a string type with only two values.
+
+```ts run
+type Theme = 'light' | 'dark';
+
+function themeClass(theme: Theme): string {
+  return `theme-${theme}`;
+}
+
+let userId: string | number = 'u-17';
+userId = 17;
+
+console.log(themeClass('dark'), userId);
+```
+
+`type Theme = …` gives the union a name. The name is only an alias: `Theme` and `'light' | 'dark'` are the same type. Anything outside the union is rejected where it is written:
+
+```ts run errors
+type Theme = 'light' | 'dark';
+
+function themeClass(theme: Theme): string {
+  return `theme-${theme}`;
+}
+
+themeClass('blue');
+
+let userId: string | number = 'u-17';
+userId = true;
+```
+
+The union exists only for the compiler. At run time `theme` is an ordinary string and nothing checks it; the protection is that every call was checked before the code ran.
+
+## Examples
+
+Unions also come out of inference. A `const` keeps both literals; a `let` widens each of them to `string`, exactly as it widens a single literal:
+
+```ts twoslash
+const coin = Math.random() < 0.5 ? 'heads' : 'tails';
+//       ^?
+let face = Math.random() < 0.5 ? 'heads' : 'tails';
+//     ^?
+```
+
+A function can take and return a union of literals. `nextTheme` returns one of two literals, and both are `Theme`s, so the return type checks. `badge` calls a string method: every member of `Theme` is a string, so every string method is available. What comes back is a plain `string`; the compiler doesn't work out that `'light'` becomes `'LIGHT'`.
+
+```ts run
+type Theme = 'light' | 'dark';
+
+function nextTheme(theme: Theme): Theme {
+  return theme === 'light' ? 'dark' : 'light';
+}
+
+function badge(theme: Theme): string {
+  return theme.toUpperCase();
+}
+
+let current: Theme = 'light';
+current = nextTheme(current);
+console.log(current, badge(current));
+```
+
+A literal union also catches typos: `theme === 'drak'` is an error, _This comparison appears to be unintentional because the types 'Theme' and '"drak"' have no overlap._
+
+`string | number` is harder, because its members share only a few methods. `toString` is one of them, and it returns a `string` for both, so after it every string method is available:
+
+```ts run
+type Id = string | number;
+
+function formatId(id: Id): string {
+  return `#${id.toString().padStart(4, '0')}`;
+}
+
+console.log(formatId(7));
+console.log(formatId('42'));
+```
+
+A union keeps each member once, and a literal type written next to its own primitive disappears into it. `boolean` is itself the union `true | false`, and every string literal is already part of `string`:
+
+```ts twoslash
+type Flag = true | false;
+//      ^?
+type Size = 'small' | 'large' | string;
+//      ^?
+```
+
+`Size` is a common mistake when someone means "these sizes, or any other string". The sizes vanish: the editor stops suggesting them, and any string passes.
+
+<Callout kind="tip">
+  In the REPL, put the cursor on a type name and press <Key>K</Key>: quick info
+  shows what the union became, not what you wrote.
+</Callout>
+
+## Pitfalls
+
+**Calling a method only one member has.** On a union you can use only what every member supports. `toUpperCase` exists on `string` but not on `number`, and the error names the member that lacks it:
+
+```ts run errors
+function shout(message: string | number): string {
+  return message.toUpperCase();
+}
+```
+
+To use a string method, first find out which member you hold: inside `if (typeof message === 'string') { … }` the compiler treats `message` as a `string`. That check is narrowing, the subject of <Lesson id="m03-unions/03-narrowing" />. Until then, convert to one type first: `String(message).toUpperCase()` compiles for both members.
+
+**Treating a union as one of its members.** Each member fits into the union, but the union does not fit into a member. `parsePort` may return a string, so its result can't go where only a `number` is allowed, even for an argument that is plainly a port:
+
+```ts run errors
+function parsePort(input: string): number | string {
+  const value = Number(input);
+  return Number.isInteger(value) ? value : `not a port: ${input}`;
+}
+
+const port: number = parsePort('8080');
+```
+
+The compiler goes by the declared return type, not by the argument. Either handle both members where the result is used, which is narrowing again, or give the function a single return type.
+
+**`|` binds more loosely than `[]`.** `string | number[]` is a string, or an array of numbers. For an array whose elements may be either, put the union in parentheses: `(string | number)[]`. The error shows that type, inferred from the array literal:
+
+```ts run errors
+const mixed: string | number[] = ['a', 1];
+```
+
+And `string[] | number[]` is different again: an array of only strings, or an array of only numbers.
+
+## Check yourself
+
+<Predict
+  id="common-method"
+  question="value has type string | number. Which expression compiles?"
+  options={[
+    'value.toUpperCase()',
+    'value.toFixed(2)',
+    'value.toString()',
+    'value.length',
+  ]}
+  answer={2}
+  explanation="On a union you can use only what every member has. toString exists on both string and number. toUpperCase and length belong to string only, and toFixed to number only, so each of those is an error until you narrow."
+/>
+
+<Predict
+  id="array-of-what"
+  question="Which values does the type string | number[] accept?"
+  options={[
+    "An array whose elements are strings or numbers, such as ['a', 1]",
+    'A string, or an array of numbers',
+    'An array of only strings, or an array of only numbers',
+  ]}
+  answer={1}
+  explanation="| binds more loosely than [], so the [] applies to number alone. An array of mixed elements is (string | number)[], and all strings or all numbers is string[] | number[]."
+/>
+
+<Predict
+  id="literal-union-method"
+  question="theme has type 'light' | 'dark'. What does the compiler make of theme.toUpperCase()?"
+  options={[
+    'An error: a union has no methods until you narrow it',
+    'A value of type string',
+    "A value of type 'LIGHT' | 'DARK'",
+    "A value of type 'light' | 'dark'",
+  ]}
+  answer={1}
+  explanation="Every member of the union is a string, so every string method is available without narrowing. toUpperCase is declared to return string, so the result is a plain string; the compiler doesn't work out which literal comes back."
+/>
+
+## Further reading
+
+- [Everyday types: union types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types)
+- [Everyday types: working with union types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#working-with-union-types)
+- [Everyday types: literal types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#literal-types)

@@ -1,0 +1,25 @@
+id: m03-unions/02-null-undefined-strict/03-without-the-safety-net
+kind: implement
+title: Without the safety net
+minutes: 2
+challenge: false
+prompt: |
+  This exercise compiles with `strictNullChecks: false`, like a project that never turned it on.
+  The starter has no diagnostics at all, yet three tests fail. In `index.ts`:
+
+  - `unitPrice(sku)` returns the price of one unit; a SKU the shop doesn't sell costs `0`.
+  - `quantityOf(items, sku)` returns how many of `sku` the cart holds, or `0` when it isn't in
+    the cart.
+  - `cartTotal(items)` is already right, but it relies on `unitPrice`.
+
+  Find the values that can be missing and handle them. This time the compiler won't point at
+  them: with the flag off, every type already admits `undefined`, so nothing is reported.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  strictNullChecks: false
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - Ask of every call in the starter whether it can come back empty. Two of them can; with the flag on, their return types would end in `| undefined`.
+  - Treat those two results as if the flag were on. The fallback operator gives the `0` the comments ask for, and a cart item that isn't there needs one step more before `.quantity`.

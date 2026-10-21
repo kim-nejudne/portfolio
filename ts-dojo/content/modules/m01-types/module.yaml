@@ -1,0 +1,9 @@
+id: m01-types
+title: Types and inference
+summary: Annotate where it pays, let inference do the rest, and know what any, unknown, never and void allow.
+prerequisites: [m00-orientation]
+lessons:
+  - 01-annotations-and-inference
+  - 02-primitives-literals-widening
+  - 03-arrays-tuples-objects
+  - 04-any-unknown-never-void

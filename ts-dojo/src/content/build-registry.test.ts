@@ -1,8 +1,8 @@
-// The registry over the shipped content tree (§12 F6 criterion 5: the three fixture lessons
-// exist under content/ and load; F9 added two predict-only fixture modules for the roadmap)
+// The registry over the fixture content tree (§12 F6 criterion 5: the three fixture lessons
+// exist and load, under fixtures/content/ since F11; F9 added two predict-only fixture modules
+// for the roadmap)
 // and the structural checks that feed §3 conditions 1, 4, 5 and 7 (the content lint's own
 // tests mutate a copy of the tree; these pin the builder directly).
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildRegistry,
@@ -12,8 +12,9 @@ import {
   type ContentInput,
 } from './build-registry';
 import { loadContent, loadContentInput } from './node/load';
+import { FIXTURE_CONTENT } from './node/roots';
 
-const CONTENT = path.resolve(import.meta.dirname, '..', '..', 'content');
+const CONTENT = FIXTURE_CONTENT;
 
 describe('the shipped content tree', () => {
   it('has two tiers and three modules in roadmap order, every lesson and exercise in order, with no problems', async () => {

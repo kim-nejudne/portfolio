@@ -11,7 +11,7 @@
 // reach (Tab order, Space, the arrow keys, the global keys kept out of the text fields) are
 // part of "editable". A vimrc without the shipped `set rnu` takes the relative numbers away
 // with nothing stored. A theory block's Run is proven by the `run` message it posts to the
-// sandbox, because no fixture `ts run` block can hang (content/modules/m99-fixtures).
+// sandbox, because no fixture `ts run` block can hang (fixtures/content/modules/m99-fixtures).
 // Criterion 2 sets all six on /settings, exports, changes them, imports and checks the stored
 // object, the page, the theme, the font size and /repl's diagnostics; an imported file's
 // compiler defaults pass TypeScript's check or are left out; and an import makes the settings

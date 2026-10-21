@@ -1,0 +1,31 @@
+id: m03-unions/05-discriminated-unions/03-what-is-left
+kind: predict
+title: What is left in the default branch?
+minutes: 2
+challenge: false
+code: |
+  type Shape =
+    | { kind: 'circle'; radius: number }
+    | { kind: 'square'; side: number }
+    | { kind: 'rect'; width: number; height: number };
+
+  function describe(shape: Shape): string {
+    switch (shape.kind) {
+      case 'circle':
+        return `circle, radius ${shape.radius}`;
+      default:
+        return `${shape.kind} with four corners`;
+    }
+  }
+question: In the `default` branch, what is the type of `shape`?
+options:
+  - 'Shape'
+  - "{ kind: 'square'; side: number }"
+  - "{ kind: 'square'; side: number } | { kind: 'rect'; width: number; height: number }"
+  - 'never'
+answer: 2
+explanation: |
+  Narrowing works by elimination. The `case 'circle'` branch returns, so the circle can't reach
+  `default`, and every other member can: the square and the rect. That is why `shape.kind`
+  compiles there, while `shape.side` would not, because the rect has no `side`. The type is
+  `never` only when every member has its own `case`, which is what the `never` check relies on.

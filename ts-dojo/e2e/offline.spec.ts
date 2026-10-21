@@ -42,7 +42,7 @@ import {
 import { expectRoadmap, tabTo } from './helpers/progress';
 import {
   copyDist,
-  DIST,
+  E2E_DIST,
   startDistServer,
   tempProfile,
   type DistServer,
@@ -177,12 +177,12 @@ test('§12 F15: after one online load, with the network off, the app opens, a le
 });
 
 test('the precache lists the app, both worker chunks and all 107 lib files', async () => {
-  const sw = await readFile(path.join(DIST, 'sw.js'), 'utf8');
+  const sw = await readFile(path.join(E2E_DIST, 'sw.js'), 'utf8');
   const precached = new Set(
     [...sw.matchAll(/url:"([^"]+)"/g)].map((m) => m[1] as string),
   );
-  const assets = await readdir(path.join(DIST, 'assets'));
-  const libs = await readdir(path.join(DIST, 'ts', '6.0.3'));
+  const assets = await readdir(path.join(E2E_DIST, 'assets'));
+  const libs = await readdir(path.join(E2E_DIST, 'ts', '6.0.3'));
   expect(libs).toHaveLength(LIB_COUNT);
   const expected = [
     'index.html',

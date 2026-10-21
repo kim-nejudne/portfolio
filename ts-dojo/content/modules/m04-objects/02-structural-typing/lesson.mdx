@@ -1,0 +1,288 @@
+---
+id: m04-objects/02-structural-typing
+title: Structural typing and excess property checks
+minutes: 20
+objectives:
+  - Explain why a value fits an object type by its properties, whatever either type is called
+  - Predict where an excess property check runs, and why a variable in between turns it off
+  - Catch a misspelt optional property by annotating where the object literal is written
+  - Accept extra properties on purpose without hiding real typos
+prerequisites:
+  [
+    m01-types/03-arrays-tuples-objects,
+    m02-functions/02-function-types-and-callbacks,
+    m03-unions/05-discriminated-unions,
+    m04-objects/01-type-vs-interface,
+  ]
+tags:
+  [
+    structural typing,
+    excess property check,
+    object literal,
+    weak type,
+    assignability,
+  ]
+---
+
+## Concept
+
+TypeScript compares object types by their shape, not by their names. A value fits an object type when it has every property the type lists, each with a type that fits. What the value's own type is called, and whether it was ever declared with the target type, doesn't matter. This is **structural typing**, and it matches how JavaScript already works: a function that reads `point.x` and `point.y` works with any object that has them.
+
+```ts run
+interface Point {
+  x: number;
+  y: number;
+}
+
+function distance(point: Point): number {
+  return Math.hypot(point.x, point.y);
+}
+
+const position = { x: 3, y: 4, label: 'start' };
+console.log(distance(position));
+```
+
+`position` was never declared as a `Point`, and it has a `label` that `Point` doesn't mention. It fits anyway: `distance` gets the `x` and `y` it reads, and the extra property is ignored.
+
+There is one place where TypeScript is stricter. An object literal written directly where a type is expected may only have the properties that type lists. This is the **excess property check**. Nothing typed as `Point` can read a `label`, and no other code holds that literal, so the property is lost the moment it is written. That is almost always a misspelt name or a property meant for something else, so the compiler reports it: `Object literal may only specify known properties, and 'label' does not exist in type 'Point'.`
+
+```ts run errors
+interface Point {
+  x: number;
+  y: number;
+}
+
+const start: Point = { x: 3, y: 4, label: 'start' };
+```
+
+## Examples
+
+**Same properties, different names.** Two types declared separately with the same properties are interchangeable, and neither has to mention the other:
+
+```ts run
+interface Point {
+  x: number;
+  y: number;
+}
+
+type Coordinates = { x: number; y: number };
+
+function describe(point: Point): string {
+  return `(${point.x}, ${point.y})`;
+}
+
+const home: Coordinates = { x: 2, y: 5 };
+const target: Point = home;
+console.log(describe(home), describe(target));
+```
+
+Class instances are compared the same way, by their members, except that `private` and `protected` members tie a type to its own class; <Lesson id="m04-objects/05-classes" /> covers them. Function types are compared structurally too: the rule from <Lesson id="m02-functions/02-function-types-and-callbacks" />, that a function with fewer parameters fits a function type that passes more, is this idea applied to parameters.
+
+**Where the check runs.** A literal is checked wherever it meets a type directly. The annotated variable in Concept is one place; a returned value, an argument and an element of a typed array are the others, and each of the three below reports the same error, ending `'z' does not exist in type 'Point'.`
+
+```ts run errors
+interface Point {
+  x: number;
+  y: number;
+}
+
+function distance(point: Point): number {
+  return Math.hypot(point.x, point.y);
+}
+
+function origin(): Point {
+  return { x: 0, y: 0, z: 0 };
+}
+
+distance({ x: 3, y: 4, z: 12 });
+const path: Point[] = [{ x: 1, y: 1, z: 1 }];
+```
+
+**A variable in between turns it off.** Put the same literal in a variable first and it gets a type of its own, `z` included. Passing that variable on is ordinary structural typing: it has `x` and `y`, so it fits. Nothing is lost either, because `corner.z` can still be read.
+
+```ts twoslash
+interface Point {
+  x: number;
+  y: number;
+}
+
+function distance(point: Point): number {
+  return Math.hypot(point.x, point.y);
+}
+
+const corner = { x: 3, y: 4, z: 12 };
+//         ^?
+console.log(distance(corner), corner.z);
+```
+
+So the check only applies to a fresh literal, one that hasn't been stored anywhere yet. That is the point of it: a literal that exists only to be a `Point` has no use for `z`, while a value in a variable may be used as more than one thing.
+
+**Unions of object types.** With a discriminant, the property that tells the members apart in <Lesson id="m03-unions/05-discriminated-unions" />, the literal is checked against the member its discriminant picks, and the error names that member: `'side' does not exist in type 'Circle'.`
+
+```ts run errors
+type Circle = { kind: 'circle'; radius: number };
+type Square = { kind: 'square'; side: number };
+type Shape = Circle | Square;
+
+const wheel: Shape = { kind: 'circle', radius: 1, side: 2 };
+```
+
+Without a discriminant the check is looser: a property counts as excess only when no member of the union has it. This literal fits `Point`, and `name` belongs to `Label`, so it compiles. A `z` would still be reported, as `'z' does not exist in type 'Point | Label'.`
+
+```ts run
+type Point = { x: number; y: number };
+type Label = { name: string };
+
+const thing: Point | Label = { x: 0, y: 0, name: 'origin' };
+console.log(thing);
+```
+
+**Extra properties on purpose.** When extra data is intended, say so in the types instead of working around the check:
+
+- If the property is part of the data, add it to the type, as an optional property if it isn't always there.
+- If the type should take any extra keys, give it an index signature, `[key: string]: unknown`, as `LogEntry` does below. <Lesson id="m04-objects/03-index-signatures-and-record" /> covers them; this is a preview.
+- If the object really is something bigger, such as a whole record passed where part of it is needed, it already lives in a variable, and the check doesn't apply.
+
+```ts run
+type LogEntry = {
+  message: string;
+  [key: string]: unknown;
+};
+
+function log(entry: LogEntry): void {
+  console.log(JSON.stringify(entry));
+}
+
+log({ message: 'saved', userId: 7, ms: 12 });
+```
+
+## Pitfalls
+
+**A misspelt optional property.** Options objects are mostly optional properties, and a misspelt one is the classic bug. Written as a literal in the call, it is caught, and the message suggests the fix: `Object literal may only specify known properties, but 'colour' does not exist in type 'ButtonOptions'. Did you mean to write 'color'?`
+
+```ts run errors
+type ButtonOptions = { label: string; color?: string };
+
+function button(options: ButtonOptions): string {
+  return `[${options.label}] in ${options.color ?? 'gray'}`;
+}
+
+console.log(button({ label: 'Save', colour: 'green' }));
+```
+
+Build the options in a variable first and the same typo compiles. `color` is optional, so nothing is missing, and `colour` is just an extra property nobody reads. The button comes out gray:
+
+```ts run
+type ButtonOptions = { label: string; color?: string };
+
+function button(options: ButtonOptions): string {
+  return `[${options.label}] in ${options.color ?? 'gray'}`;
+}
+
+const saveOptions = { label: 'Save', colour: 'green' };
+console.log(button(saveOptions));
+```
+
+The fix is to annotate where the literal is written, `const saveOptions: ButtonOptions = { … }`, so the check runs there. One safety net does work through a variable: when every property of a type is optional, a value that has properties but none of the type's is reported as `Type '{ colour: string; }' has no properties in common with type 'Style'.` One matching property is enough to get past it, so `{ size: 2, colour: 'yellow' }` would compile and lose its colour all the same.
+
+```ts run errors
+type Style = { color?: string; size?: number };
+
+const highlight = { colour: 'yellow' };
+const style: Style = highlight;
+```
+
+**Same shape, different meaning.** Structural typing can't tell two types apart when their properties match. A Fahrenheit reading is accepted where Celsius is expected, and 23 °F, which is below freezing, comes out as not freezing:
+
+```ts run
+type Celsius = { value: number };
+type Fahrenheit = { value: number };
+
+function isFreezing(temperature: Celsius): boolean {
+  return temperature.value <= 0;
+}
+
+const winterDay: Fahrenheit = { value: 23 };
+console.log(isFreezing(winterDay));
+```
+
+When two types must not mix, make their shapes differ. A property with a different literal type in each is enough, and it doubles as a discriminant. The mix-up is now an error: `Argument of type 'Fahrenheit' is not assignable to parameter of type 'Celsius'.`, then `Types of property 'unit' are incompatible.` Module 14 shows branded types, which keep two types apart without a property at runtime.
+
+```ts run errors
+type Celsius = { unit: 'C'; value: number };
+type Fahrenheit = { unit: 'F'; value: number };
+
+function isFreezing(temperature: Celsius): boolean {
+  return temperature.value <= 0;
+}
+
+const winterDay: Fahrenheit = { unit: 'F', value: 23 };
+console.log(isFreezing(winterDay));
+```
+
+**Extra properties are still there.** A type says what a value has at least, not everything it has. Returning a `User` as a narrower `PublicUser` compiles and changes nothing at runtime: the object still carries every property, and `JSON.stringify` sends them all.
+
+```ts run
+type User = { name: string; email: string; passwordHash: string };
+type PublicUser = { name: string };
+
+function toPublic(user: User): PublicUser {
+  return user;
+}
+
+const ada: User = {
+  name: 'Ada',
+  email: 'ada@example.com',
+  passwordHash: 'x1y2',
+};
+console.log(JSON.stringify(toPublic(ada)));
+```
+
+To drop properties, build a new object with only the ones you want: `return { name: user.name };`. A spread doesn't help: `{ ...user }` copies every property, and the excess property check only looks at the properties written out in the literal, so it reports nothing.
+
+## Check yourself
+
+<Predict
+  id="variable-in-between"
+  question="`Point` has `x` and `y`. After `const corner = { x: 1, y: 2, z: 3 }`, what does `const p: Point = corner` report?"
+  options={[
+    'An error: z does not exist in type Point',
+    'Nothing: corner has x and y, so it fits',
+    'An error: corner was never declared as a Point',
+    'Nothing, and p.z can be read as a number',
+  ]}
+  answer={1}
+  explanation="The excess property check only runs on an object literal written where the type is expected. `corner` is a variable with a type of its own, so assigning it is plain structural typing, and it has every property `Point` lists. `p` is a `Point`, though, so reading `p.z` is an error even though the object has it; `corner.z` is fine."
+/>
+
+<Predict
+  id="union-without-discriminant"
+  question="`Point` is `{ x: number; y: number }` and `Label` is `{ name: string }`. Does `const thing: Point | Label = { x: 0, y: 0, name: 'origin' }` compile?"
+  options={[
+    'Yes: the literal fits Point, and name belongs to Label',
+    'No: name does not exist in type Point',
+    'No: a value cannot have the properties of two members',
+    'Yes: the excess property check never runs on a union',
+  ]}
+  answer={0}
+  explanation="Without a discriminant, a property only counts as excess when no member of the union has it. `name` is in `Label`, so it passes, and `x` and `y` make the literal a `Point`. The check does still run: a `z`, which no member has, would be reported."
+/>
+
+<Predict
+  id="spread-or-written-out"
+  question="`User` has `name`, `email` and `passwordHash`; `PublicUser` has only `name`. Which body of `function toPublic(user: User): PublicUser` does the compiler reject?"
+  options={[
+    'return user;',
+    'return { ...user };',
+    'return { name: user.name, email: user.email };',
+    'None of them',
+  ]}
+  answer={2}
+  explanation="Only properties written out in an object literal are checked for excess, so `email: user.email` is reported: `'email' does not exist in type 'PublicUser'`. `return user` is plain structural typing, and the spread copies properties without listing them, so both compile, and both hand back the email and the password hash at runtime."
+/>
+
+## Further reading
+
+- [Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)
+- [Object Types: excess property checks](https://www.typescriptlang.org/docs/handbook/2/objects.html#excess-property-checks)
+- [TypeScript for JavaScript programmers: structural type system](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html#structural-type-system)

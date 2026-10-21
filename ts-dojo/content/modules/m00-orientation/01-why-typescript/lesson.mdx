@@ -1,0 +1,177 @@
+---
+id: m00-orientation/01-why-typescript
+title: 'Why TypeScript, and what the compiler does: erasure, no runtime types, tsc vs bundlers, where TS 7 fits'
+minutes: 10
+objectives:
+  - Describe the compiler's two jobs, checking types and emitting JavaScript
+  - Predict what an annotated program does at runtime once its types are erased
+  - Tell tsc, which checks and emits, from transpilers that only strip types
+  - Place TypeScript 7 next to the 6.0.3 compiler this app runs
+prerequisites: []
+tags:
+  - type erasure
+  - emit
+  - tsc
+  - transpiler
+  - bundler
+  - isolatedModules
+  - runtime types
+  - TypeScript 7
+---
+
+## Concept
+
+TypeScript is JavaScript with type syntax added: annotations such as `: number`, and declarations such as `interface` and `type` that describe values without being values. The compiler does two separate jobs with it. It **checks**: it works out a type for every expression, often without being told, and reports every place where a value doesn't fit as a diagnostic. And it **emits**: it deletes the type syntax and writes plain JavaScript. Only that JavaScript runs.
+
+```ts twoslash
+export function area(width: number, height: number) {
+  return width * height;
+}
+
+const size = area(3, 4);
+//       ^?
+```
+
+Nobody wrote a type for `size`; the checker inferred `number` from what `area` returns. Emit deletes the annotations and keeps everything else:
+
+```js
+export function area(width, height) {
+  return width * height;
+}
+
+const size = area(3, 4);
+```
+
+This is **erasure**. Types exist while the compiler runs and nowhere else: at runtime there is no type to look up, an annotation can't convert a value, and nothing re-checks what the checker accepted. (A few TypeScript features are more than types and do produce JavaScript; `enum` is the common one, in <Lesson id="m04-objects/04-enums-vs-as-const" />.)
+
+So why use it? What TypeScript gives you is the check, before the code runs: a misspelt property, a missing argument or a string where a number belongs shows up in the editor as you type, not in a bug report. The same types drive completions, quick info and go to definition, and they document every function in a form that can't go stale, because the compiler reads it too.
+
+Two kinds of tools turn TypeScript into JavaScript, and they split the two jobs differently:
+
+- **`tsc`**, the TypeScript compiler, loads the whole program, checks every file against the others, then emits. With `--noEmit` it only checks. It still writes the JavaScript when there are type errors, unless `noEmitOnError` is set.
+- **Transpilers and bundlers** (esbuild, SWC, Babel, Vite) only erase. They strip the types from each file on its own and never run the checker, so a type error never stops them.
+
+Many projects use both: a transpiler to build and run quickly, and `tsc --noEmit` or the editor to check. This app works the same way. The diagnostics in the editor come from the real checker, `typescript` 6.0.3 in a Web Worker; `:w` emits each file on its own with `ts.transpileModule` and runs the result, type errors or not. The default options here include `isolatedModules: true`, which makes the checker also report the few constructs that one-file-at-a-time emit can't handle, such as re-exporting a type from another file without `export type`. A later lesson on modules comes back to it.
+
+<Callout kind="ts7">
+  TypeScript 7 is a native compiler: a Go program with no JavaScript API, so it
+  can't run inside a web page. This app runs `typescript` 6.0.3, the last
+  JavaScript build, in the editor and for every check, and the lessons teach
+  what 6.0.3 does. Where 7 behaves differently, a callout like this one says so;
+  a lesson near the end of the course covers the new defaults and deprecations
+  of 6 and 7.
+</Callout>
+
+## Examples
+
+The program that runs is the emitted JavaScript, so it does exactly what the same code with the types deleted would do. An `interface` names an object shape for the checker (<Lesson id="m04-objects/01-type-vs-interface" /> compares it with `type`); none of it reaches the output, and `corner` is a plain object:
+
+```ts run
+interface Point {
+  x: number;
+  y: number;
+}
+
+export function distance(point: Point): number {
+  return Math.hypot(point.x, point.y);
+}
+
+const corner: Point = { x: 3, y: 4 };
+console.log(distance(corner));
+console.log(typeof corner, Object.keys(corner));
+```
+
+It prints `5`, then `object` and the keys `x` and `y`. `typeof` is JavaScript's operator and only knows JavaScript's kinds of value; the object carries no record of being a `Point`.
+
+An annotation is a claim the checker tests, never a conversion. When a value arrives as text, from a config file, a form field or a URL, turning it into a number is ordinary JavaScript, and it stays in the output:
+
+```ts run
+export function nextPort(port: number): number {
+  return port + 1;
+}
+
+const setting = '8080';
+console.log(nextPort(Number(setting)));
+```
+
+It prints `8081`. Take `Number(...)` away and the checker rejects the call; the second pitfall shows what would run.
+
+## Pitfalls
+
+**Using a type as a value.** An interface is erased, so at runtime there is nothing to compare against. `instanceof` needs a class or a function that exists when the code runs:
+
+```ts run errors
+interface User {
+  name: string;
+}
+
+export const kim = { name: 'Kim' };
+console.log(kim instanceof User);
+```
+
+Run it anyway and the emitted JavaScript throws a `ReferenceError`, `User is not defined`: the interface was deleted and the reference to it was not. `typeof` can't help either; for `kim` it says `'object'`. To ask about a value's shape at runtime, test the value itself, such as `'name' in kim`. That is narrowing, in <Lesson id="m03-unions/03-narrowing" />.
+
+**Expecting an annotation to convert.** `port: number` doesn't turn `'8080'` into a number; it asks the checker to refuse anything that isn't one:
+
+```ts run errors
+export function nextPort(port: number): number {
+  return port + 1;
+}
+
+const setting = '8080';
+console.log(nextPort(setting));
+```
+
+The error is the only protection. Run the block anyway: the emitted JavaScript runs, `'8080' + 1` joins two strings, and it prints `80801`. Convert explicitly, as in the second example.
+
+**Trusting a cast.** `value as SomeType` tells the checker to treat a value as that type. It refuses only a cast between types that can't overlap:
+
+```ts run errors
+const setting = '8080';
+export const port = setting as number;
+console.log(port + 1);
+```
+
+That is the kind of cast the checker refuses: no `string` is ever a `number`. From `any`, a type the checker doesn't check (<Lesson id="m01-types/04-any-unknown-never-void" />), every cast compiles, and `JSON.parse` returns `any`: `JSON.parse(text) as Settings` compiles whatever `text` holds. The cast is erased like every other piece of type syntax: nothing checks it when the program runs, and data that doesn't match goes on through code typed as if it did.
+
+## Check yourself
+
+<Predict
+  id="what-survives"
+  question="Which of these is still in the JavaScript that runs?"
+  options={[
+    'interface Point { x: number; y: number }',
+    'type Port = number',
+    'the annotation `: number` on a parameter',
+    'the call `Number(setting)`',
+  ]}
+  answer={3}
+  explanation="Interfaces, type aliases and annotations are type syntax, and emit deletes all of it. `Number(setting)` is an ordinary JavaScript call: it stays in the output and converts the string when the program runs."
+/>
+
+<Predict
+  id="typeof-a-point"
+  question="Given `const corner: Point = { x: 3, y: 4 }`, what does `typeof corner` give when the program runs?"
+  options={["'Point'", "'object'", "'interface'", 'undefined']}
+  answer={1}
+  explanation="`typeof` is JavaScript's operator and runs on the emitted program, where `Point` no longer exists. `corner` is a plain object, so `typeof` says `'object'`, as the first example printed."
+/>
+
+<Predict
+  id="transpiler-and-errors"
+  question="A file has a type error. What does a transpiler such as esbuild, or this app's `:w`, do with it?"
+  options={[
+    'Stops and reports the error',
+    'Deletes the types and emits the JavaScript anyway',
+    'Deletes the line with the error and emits the rest',
+  ]}
+  answer={1}
+  explanation="A transpiler never runs the checker, so it can't see type errors: it erases the type syntax one file at a time and emits. Checking is a separate step, in the editor or with `tsc --noEmit`. Even `tsc` emits when there are errors, unless `noEmitOnError` is set."
+/>
+
+## Further reading
+
+- [The Basics: tsc, emitting with errors, erased types](https://www.typescriptlang.org/docs/handbook/2/basic-types.html)
+- [TypeScript for JavaScript programmers](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html)
+- [TSConfig reference: isolatedModules](https://www.typescriptlang.org/tsconfig/#isolatedModules)
+- [Announcing TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)

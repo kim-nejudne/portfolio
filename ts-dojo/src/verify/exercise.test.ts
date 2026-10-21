@@ -2,7 +2,6 @@
 // sandbox modules (§12 F6 criterion 2): solutions pass, starters fail for their kind's reason,
 // Compiles failing stops the other groups, `explicit-any` is on for type-challenge, and a
 // runtime failure carries expected and actual.
-import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   exerciseFiles,
@@ -11,6 +10,7 @@ import {
   type Registry,
 } from '@/content/build-registry';
 import { loadContent } from '@/content/node/load';
+import { FIXTURE_CONTENT } from '@/content/node/roots';
 import { createNodeSandboxRunner } from '@/workers/sandbox/node/spawn';
 import type { RunState } from '@/workers/sandbox/runner';
 import { createTsLsCore, type TsLsCore } from '@/workers/ts-ls/core';
@@ -25,7 +25,7 @@ import {
   type RuntimeTests,
 } from './exercise';
 
-const CONTENT = path.resolve(import.meta.dirname, '..', '..', 'content');
+const CONTENT = FIXTURE_CONTENT;
 
 let registry: Registry;
 let core: TsLsCore;

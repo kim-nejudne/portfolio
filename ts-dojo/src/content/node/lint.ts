@@ -1,7 +1,9 @@
 // The content lint (spec §3 Content lint): runs in Node with the same ts-ls core and sandbox
 // modules the app uses, so a lesson passes here exactly when it passes in the browser. The
 // structural conditions (1, 4, 5, 7) come from the shared registry builder and stop the lint
-// when they fail; then every `ts run` fence must have zero diagnostics and every `ts twoslash`
+// when they fail (a run narrowed to ids stops only at those inside its folders, so a lesson
+// can be proven while its module, which lists every lesson from the start, is still being
+// written; the whole-tree run stops at all of them); then every `ts run` fence must have zero diagnostics and every `ts twoslash`
 // fence must render (6); then every editor exercise's solution must pass its own verdict (2)
 // and its starter must fail it, a `fix` starter with at least one diagnostic (3). Every failure
 // carries its §3 condition number and path; every exercise gets one report line.
@@ -16,6 +18,7 @@ import { createNodeSandboxRunner } from '@/workers/sandbox/node/spawn';
 import { createTsLsCore } from '@/workers/ts-ls/core';
 import { nodeFetchLib } from '@/workers/ts-ls/node/fetch-lib';
 import {
+  CONTENT_DIR,
   exerciseFiles,
   isEditorExercise,
   type EditorExercise,
@@ -107,6 +110,14 @@ function matches(id: string, only: string[] | undefined): boolean {
   return only.some((prefix) => id === prefix || id.startsWith(`${prefix}/`));
 }
 
+/** Whether a problem's path lies in the folder of one of the ids (always, without ids). */
+function inScope(problemPath: string, only: string[] | undefined): boolean {
+  if (only === undefined || only.length === 0) return true;
+  return only.some((id) =>
+    problemPath.startsWith(`${CONTENT_DIR}/modules/${id}/`),
+  );
+}
+
 function fromProblem(problem: Problem): LintFailure {
   return {
     condition: problem.condition,
@@ -167,7 +178,9 @@ export async function lintContent(
   root: string,
   options: LintOptions = {},
 ): Promise<LintReport> {
-  const { registry, problems, analyses } = await loadContent(root);
+  const loaded = await loadContent(root);
+  const { registry, analyses } = loaded;
+  const problems = loaded.problems.filter((p) => inScope(p.path, options.only));
   if (problems.length > 0) {
     return { failures: problems.map(fromProblem), exercises: [], lessons: [] };
   }

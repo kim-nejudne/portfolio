@@ -383,11 +383,68 @@ Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the �
 
 ## F11. Content wave 1 (Tier 0 and 1)
 
-- [ ] M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two exercises (one in M00), at least one `predict`, hints on every editor exercise, and at least one `ts twoslash` block.
-- [ ] `pnpm content:lint` passes for the whole tree.
+- [x] M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two exercises (one in M00), at least one `predict`, hints on every editor exercise, and at least one `ts twoslash` block.
+- [x] `pnpm content:lint` passes for the whole tree.
 - [ ] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate).
 
 > **Gate (§11):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
+
+**Notes (21 October 2026)**
+
+- Plan decision (Kim, 21 October 2026): the fixture course moves to a test-only content root rather than staying unlisted in `content/`. Under Deviations, since §12 F6 criterion 5 says the fixture lessons live under `content/`.
+- The course (`content/`): `roadmap.yaml` has `t0` Orientation `[m00-orientation]` and `t1` Foundations `[m01-types, m02-functions, m03-unions, m04-objects]`. `renames.yaml` is empty, since no shipped id has been renamed.
+  - 20 lessons with the ids fixed in the plan. Titles are the §8 text with code backticks dropped, as the lesson skill's reference does; 3.2's parenthetical is a teaching note, so it is not in the title. Minutes are as §8 gives them, 345 in all.
+  - 71 exercises: 51 editor exercises (27 fix, 19 implement, 5 type-challenge) and 20 `predict`.
+    - M00 lessons have one editor exercise and one `predict` each.
+    - Every other lesson has four exercises, except 2.3, 4.3 and 4.4, which have three.
+  - 57 `ts twoslash` blocks. 3.2 turns `strictNullChecks` off with twoslash's `// @strictNullChecks: false` (the rendered block hides the comment) and in one exercise's `compilerOptions`.
+  - Course exercises omit `timeoutMs`, so Kim's Settings default applies (F10's rule).
+- Authoring followed the module skill:
+  - one `content-author` per lesson, in §8 order within a module, the five modules in parallel;
+  - a `content-reviewer` pass per module;
+  - every FIX finding sent back to its author and re-reviewed until every lesson was OK.
+  - The reviewers wrote trick solutions and linted them in scratch copies of the tree. The fixes were mostly tests: range and generated-input tests against lookup tables, named `@ts-expect-error` cases, and tests that stop casts or deleted checks. There were also accuracy fixes (all claims are checked with tsc 6.0.3) and §8 boundary fixes:
+    - 2.2 left callable types to 8.2;
+    - 4.2's fewer-parameters section now points back to 2.2;
+    - 3.5 leaves `assertNever` to 7.3, which §8 names, and teaches the inline `never` check.
+  - Accepted leftovers: no test can stop them, and none skips the lesson's point.
+    - A plain `as T` cast with correct runtime behaviour (3.1/03, 3.3/03, 3.4/04, 4.2/01). Logged under Spec questions.
+    - A deleted `never` line behind a throwing `default` (3.5/01 and 04, 4.4/03).
+    - `Ebook` written as an alias rather than an interface (4.1/01).
+- Fixture root (`src/content/node/roots.ts`): `fixtures/content/` holds m97–m99 with their own `roadmap.yaml` and `renames.yaml`.
+  - `vite build --mode e2e` builds it into `dist-e2e/`. Any other mode builds `content/` into `dist/`, which is what `pnpm build`, `pnpm preview` and `deploy.sh` use.
+  - The content plugin takes `contentDir` and resolves the registry's `@content/…` globs. `virtual:ts-dojo/content-root` lets `src/content/glob-keys.ts` map the keys back to `content/…`.
+  - Playwright's webServer runs `pnpm build && pnpm build --mode e2e && pnpm preview --mode e2e`, one build after the other, so the two copy-ts-libs runs never race.
+  - The suite reads `fixtures/content`, and `e2e/course.spec.ts` serves `dist/` itself. The offline, CSP and update specs serve `dist-e2e/`, and the budgets use `dist/`.
+  - Unit tests read `FIXTURE_CONTENT`.
+- Scoped lint (`src/content/node/lint.ts`): with ids, a structural problem outside the scoped folders no longer stops the run, so a lesson can be proven while its module, which lists every lesson from the start, is still being written. The whole-tree run is unchanged (`scripts/content-lint.test.ts`, "a scoped run while a module is still being written").
+- Code spans: hints, and the question, options and explanation of a question, render paired backticks as code (`src/content/inline-code.ts`, `components/inline-text.tsx`). §3's own hint example writes them, and the shipped skill's reference lesson uses them in questions. Text without a pair renders as before. An option is already in code type, so it drops the backticks. e2e compares through `shown()`.
+- `analyze.ts` now also records headings, Markdown links and `<Lesson id>` links (`analyze.test.ts`). Nothing checked `<Lesson>` targets before; the curriculum test now does for the course.
+- Measured 21 October 2026:
+  - `pnpm content:lint`: 20 lessons, 51 editor exercises, in 7.5 s.
+  - `pnpm build`: about 6 s. 217 precache entries, 10,596,245 bytes for the committed tree (the budget run below measured 10,592,898, before 0.3's last snippet; F15: 153 entries, 9,164,201). `index-*.js` is 1,729,818 bytes raw (F10: 1,462,567), because the exercise files are eager in the registry.
+  - The §9 budgets are re-measured below.
+- Review: the acceptance-reviewer's first pass on 21 October 2026 gave PASS.
+  - Criteria 1 and 2 MET, criterion 3 NEEDS KIM (the v1 gate, under "For Kim").
+  - The reviewer ran every check itself: typecheck, lint, format:check, 655 unit tests, the content lint (20 lessons, 51 editor exercises, in 7.7 s), and 416 Playwright tests in Chrome in 2.2 min.
+  - It also checked the F1–F10 and F15 specs against `dist-e2e/`, and that `pnpm build`, `pnpm preview`, deploy.sh and the budgets still use `content/` → `dist/`.
+  - Its remarks are recorded here. 3.2's title drops §8's parenthetical. F15's ticked "For Kim" step 6 named a fixture URL, which is now annotated.
+  - The `/verify` pass before the commit graded criterion 1 NOT MET. §1 says Pitfalls are "the two or three mistakes people make, each with a failing snippet", and 0.3's first pitfall, a key pressed where it means something else, had no snippet. It now shows a `:w` typed in insert mode landing in the file (`Declaration or statement expected.` at the `:`, `Cannot find name 'w'.` at the `w`).
+  - The curriculum test now checks what that pass found it couldn't: two or three Pitfalls mistakes (paragraphs that open with their bold name, recorded by `analyze.ts`), each with a snippet before the next, and a `ts run` block under Examples. Put back on 0.3's old text, it fails on that pitfall.
+  - Re-verified on 21 October 2026: PASS. Criteria 1 and 2 MET, criterion 3 NEEDS KIM. The reviewer ran every check itself: 656 unit tests, the content lint, and 416 Playwright tests in 2.0 min. It found docs/progress.md consistent with the code.
+  - The same pass saw `e2e/csp.spec.ts` "every page and flow … raises no violation" fail once under the full suite's load: the sandbox's report took longer than the 10 s poll. It passed 12 of 12 alone and in the next full run. The poll now waits 30 s, inside the walk's 120 s.
+- Tests:
+  - 656 unit tests (`pnpm test --run`). New files: `src/content/node/curriculum.test.ts`, `src/content/node/analyze.test.ts`, `src/content/glob-keys.test.ts`, `src/content/inline-code.test.ts`. New cases in `scripts/content-lint.test.ts` (the shipped course; scoped runs) and `src/content/node/vite-plugin.test.ts` (the content root and the mode).
+  - 416 Playwright tests (`pnpm test:e2e`, Chrome, 2.2 min including both builds). That is 325 on the fixture course and 91 in `e2e/course.spec.ts` on the course, written by the e2e-writer: 20 lessons render, 51 editor exercises pass `:test` with their solutions, and 20 predicts pass.
+- Left for later features:
+  - F12–F14 extend the §8 table in `src/content/node/curriculum.test.ts` and the lesson count in `scripts/content-lint.test.ts` ("the shipped course"), whose assertions name exactly this wave's tiers and 20 lessons.
+  - The curriculum test could also check that objectives start with a verb (§1), which was checked by hand for this wave.
+  - 7.4 builds on 3.4, which already covers how callbacks, mutation and other functions affect narrowing.
+  - The lesson skill's reference lesson (3.5) has drifted from the shipped 3.5:
+    - it still teaches `assertNever`;
+    - it names `@ts-expect-error` cases on the directive line;
+    - its exercise minutes leave no time for theory.
+    Refresh it from `content/modules/m03-unions/05-discriminated-unions` before F12.
 
 ## F12. Content wave 2 (Tier 2)
 
@@ -417,6 +474,7 @@ Anything built differently from what the spec names (library, version, flag, key
 
 - **§2 lib set (F2, accepted by Kim with the F2 plan on 17 October 2026).** §2 says the worker fetches "exactly the set `knownLibFilesForCompilerOptions(options, ts)` returns". Prep proved that function cannot return the ES-only set (it is a prefix slice of a fixed list: 101 names with DOM, webworker and scripthost for the defaults, only `lib.d.ts` after option conversion). The worker instead resolves the set the way the compiler does, by following the `/// <reference lib="…" />` directives from each `lib` entry (`src/workers/ts-ls/libs.ts`): 76 files for `es2025`, `lib.dom.d.ts` only when a lesson adds `libs: [dom]`. Proven by `src/workers/ts-ls/libs.test.ts` and `core.test.ts`; the §12 F2 criterion ("fetches only ES lib files; with `libs: ["dom"]` it also fetches `lib.dom.d.ts`, once") is met as written.
 - **§2 project contents: an app-added declaration file (F2, accepted by Kim with the F2 plan on 17 October 2026).** §2 and §5 describe a project as the exercise's files, `tests.ts` and the lesson's `.d.ts` files. The worker adds one more root file, `/dojo/runtime.d.ts`, to every project whose lib set has neither `dom` nor `webworker`, because the §2 defaults (`lib: ["es2025"]`, no DOM) leave `console` and the timers undeclared and every `ts run` example uses them (the "Spec questions" entry below has the detail). It is not a user file: never editable, never a tab, outside the §5 Compiles rule and the rules walk. F4 sets its final contents to exactly what the sandbox shim provides.
+- **§12 F6 criterion 5, where the fixture lessons live (F11, Kim's decision with the F11 plan on 21 October 2026).** The criterion says the three fixture lessons "exist under `content/` and render". Since F11 they live under `fixtures/content/`, with the two F9 fixture modules, and are built with `vite build --mode e2e` for the Playwright suite. `content/` holds only the course, so the deployed site ships no fixture lessons. The criterion's tests (`e2e/content.spec.ts`, `src/content/build-registry.test.ts`) prove the same things against the fixture root.
 - **§10 First deploy step 4, a first rsync pass (F15, in the F15 plan Kim approved on 21 October 2026).** §10 lists one `rsync -az --delete`. `deploy/deploy.sh` first ships `assets/` and `ts/` without delete, then runs the listed `rsync -az --delete` of all of `dist/`. A new `index.html` or `sw.js` therefore never goes live before the files it names, and the listed step is unchanged. The wording proposal is under Spec questions.
 
 ## Spec questions
@@ -476,6 +534,13 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **§9 Offline, an update taken in another tab (F15).** §9 says both "every page, lesson, diagnostic and run works offline" and "it never reloads by itself mid-exercise". When Kim presses Reload in one tab, the new worker also takes over the other open tabs (`clientsClaim`) and drops the old version's precache entries. `deploy.sh`'s `--delete` has already removed the old hashed files from the server. F15 keeps such a tab as it is: no reload, the line stays, and its Reload reloads at once (proven in `e2e/offline.spec.ts`). Until then, that tab can't load a lesson chunk it hasn't loaded yet. Proposal: accept that; or reload such a tab at its next in-app navigation, which the plugin's docs suggest, since that is not mid-exercise.
 - **§9 Offline, when the service worker registers (F15).** §9 doesn't say. F15 registers once the compiler is first ready (or failed, or after 10 s), so the precache never shares the first visit's connection with the compiler's own downloads. Proposal: a sentence in §9 Warm-up.
 
+- **§5 Compiles and the directive comments (F11).** §5 Compiles says `@ts-ignore`, `@ts-nocheck` and `@ts-expect-error` in a user file other than `tests.ts` "always fail". As built at F7, the comment silences its diagnostic, so Compiles passes, and the always-on `ts-directive` rule fails the Rules group (`src/verify/exercise.ts`, `src/workers/ts-ls/rules.ts`). The exercise can't pass either way. Lesson 0.2 teaches the built behaviour. Proposal: §5 Compiles says the Rules group catches them.
+- **§2 and §4, `/repl` buffers are one project (F11).** A snippet opened in `/repl`, by Open in REPL or by Enter on any focused `ts` block, becomes a buffer of one project. Two script snippets (no import or export) that declare the same name then clash (TS2451, TS2393) and can hide each other's errors. On 21 October 2026, 182 of the course's 196 snippets were scripts, and 78 names were declared by more than one. The lessons are not bent around this; 0.2 and 0.3 happen to export their runnable snippets, which is harmless. Proposal: `/repl` projects set `moduleDetection: "force"`, so every buffer is a module and imports between buffers still work. Alternatively, Open in REPL appends `export {}`. It is a §2 options decision.
+- **§3, non-`ts` fences (F11).** Only `ts` fences go through `CodeBlock`. Lesson 0.3's `vim` fences (the shipped vimrc) and the `js` emit blocks in 0.1 and 4.4 render as bare `<pre>` with no code-block styling. Proposal: style other fences as static blocks.
+- **§7, `/repl` and an unload (F11, found by a reviewer).** The lesson page journals unsaved text to localStorage on `pagehide` (F8). `/repl` only flushes to IndexedDB, which F8 measured does not finish during an unload, so the last 500 ms of `/repl` typing can be lost to `Ctrl-w` or a close. Proposal: `/repl` uses the same journal.
+- **§5 Rules, `non-null-assertion` and definite assignment (F11).** The rule catches `x!` (`ts.isNonNullExpression`), not the definite-assignment `field!: T`, so no rule can forbid that escape; 4.5's exercises stop it with runtime tests. Proposal: say in §5 that the rule covers non-null assertions only, or add a rule for definite assignment.
+- **§5 Rules, a plain `as T` (F11, optional).** No rule forbids a plain cast, and a cast whose runtime behaviour is right can't be caught by a test. It passes in 3.1/03, 3.3/03, 3.4/04 and 4.2/01, without skipping the lesson's point. Likewise, the inline `never` line leaves no runtime trace. Worth a rule id only if Kim wants exercises to forbid casts outright.
+
 ## Measured budgets (§9)
 
 §9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
@@ -492,6 +557,19 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 | Total precache | under 15 MB raw | 9,164,201 bytes, 153 entries | Summed from Cache Storage, equal to the files `dist/sw.js` lists; grows with F11–F14 |
 
 Measured 21 October 2026 with `pnpm test:e2e --project budgets` (e2e/budgets.spec.ts) against a local build, Chrome 155 headless, AMD Ryzen 7 3700X. No budget is missed. The cold loads are against an emulated link; the deployed site can be measured the same way with `BUDGETS_URL` (For Kim).
+
+F11 re-measured the budgets against the course build on 21 October 2026: the same project, machine and link, with the 20 lessons of Tier 0 and Tier 1 in `dist/`. Every budget is still met:
+
+| What | Budget | Measured (F11) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 406 ms, max 856 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,158 ms, max 1,571 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 311 ms, max 355 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 211 ms, median 205 ms (30 samples) |
+| Quick info | under 100 ms | p95 16 ms, max 16 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.2 MB total JS heap |
+| Total precache | under 15 MB raw | 10,592,898 bytes, 217 entries |
 
 ## For Kim
 
@@ -524,7 +602,7 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   3. `curl -sI` on `/index.html` and on `/sw.js`: `Cache-Control: no-cache` on both. Then `curl -s https://dojo.kimnejudne.dev/sw.js | cmp - dist/sw.js` prints nothing.
   4. `ssh $TS_DOJO_HOST 'stat -c "%U %n" /var/www/ts-dojo/index.html'` prints `www-data …`.
   5. Every response carries the `Content-Security-Policy` line from `deploy/nginx/ts-dojo.conf`.
-  6. In a fresh Chrome tab, open https://dojo.kimnejudne.dev/l/m99-fixtures/01-fix. Expected: the lesson's theory, not "not found".
+  6. In a fresh Chrome tab, open https://dojo.kimnejudne.dev/l/m99-fixtures/01-fix. Expected: the lesson's theory, not "not found". (Since F11 the fixture lessons don't ship; use a course lesson such as `/l/m00-orientation/01-why-typescript` when repeating this.)
   7. Then DevTools → Network → Offline, and reload. Expected: the app, a lesson, a diagnostic and `:run` all work.
 - [x] F15 (criterion 2, by hand): the §9 budgets on the laptop, since §9 names it and the table's figures come from the desktop.
   1. On the laptop, from the repository root, check that nothing is listening on 4173 (`ss -ltnp | grep ':4173 '` prints nothing).
@@ -533,4 +611,15 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
 - [x ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
 - [ ] F11 (by hand): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug.
+  1. Deploy the F11 commit: from the repository root, `TS_DOJO_HOST=user@host ./deploy/deploy.sh`. It runs the content lint and the build itself, and every "Confirm through nginx" line should pass.
+  2. Open https://dojo.kimnejudne.dev in Chrome and take the new version (Reload on the update line, or a fresh tab). The roadmap shows two bands: Orientation (M00) and Foundations (M01–M04).
+  3. Any progress from the old fixture lessons now shows under "Orphaned" on `/progress`. "Reset everything" there clears it. That's optional and keeps your settings.
+  4. With the keyboard only, work through M00, then M01 to M04 in order. For each lesson:
+     - answer its Check yourself questions;
+     - run `:done`;
+     - pass every editor exercise with `:test`, using `:hint` when stuck and `:sol` only as a last resort;
+     - answer every `predict` exercise with `j`/`k` and `Enter`.
+     Expected: every lesson reaches complete and every module card fills its ring.
+  5. Note every blocking bug: what you did, what you expected, what happened. Note anything that reads wrong too.
+  6. Known and not a bug: two theory snippets opened in `/repl` can clash on a shared name (TS2451, TS2393), because every `/repl` buffer is part of one project. See Spec questions.
 - [ ] v1 gate: Tier 0 and Tier 1 completed at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way fixed.

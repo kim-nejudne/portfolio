@@ -1,0 +1,22 @@
+id: m03-unions/04-control-flow-analysis/01-return-from-the-guard
+kind: fix
+title: Return from the guard
+minutes: 2
+challenge: false
+prompt: |
+  `initials` turns a full name into its initials, such as `'AL'` for `'Ada Lovelace'`, and gives
+  `'?'` when there is no name. It already has a guard for a missing name, yet `index.ts` has one
+  error:
+
+  - `'name' is possibly 'undefined'.`
+
+  Fix it without changing the parameter type. The tests call `initials` with names and with
+  `undefined`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - The guard notices the missing name and then carries on. Follow an `undefined` name to the line with the error.
+  - When the guard leaves the function, the compiler removes `undefined` from every line below it.

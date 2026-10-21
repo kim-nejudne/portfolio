@@ -1,0 +1,28 @@
+id: m02-functions/03-void-returns/03-retry-until-it-works
+kind: implement
+title: Retry until it works
+minutes: 5
+challenge: false
+prompt: |
+  `retry` takes two callbacks and a count. The stub takes `unknown` where its parameter types
+  should be. Replace each `unknown` with a type, then write the body:
+
+  - `attempt` is called with the attempt number, 1, 2, 3 and so on, and returns whether that
+    attempt worked. `retry` stops at the first attempt that works.
+  - `onFailure` is called with the number of each attempt that didn't work. `retry` ignores what
+    it returns, so a callback such as `(n) => failures.push(n)` must fit.
+  - `times` is the most attempts to make: 3 unless given.
+  - `retry` returns `true` when an attempt worked and `false` when none did.
+
+  The type cases check each parameter type, so choosing between `boolean` and `void` matters as
+  much as the body. This combines the lesson with default parameters and return types (2.1) and
+  callback types (2.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - Both callbacks take the attempt number. They differ in what `retry` does with their results, using one and ignoring the other, and that difference belongs in their return types.
+  - '`times` may be left out by callers and needs a value inside the function when it is. 2.1 showed a way to write both at once.'
+  - Count from 1 up to `times`. Return as soon as an attempt works; reaching the end of the loop means none did.

@@ -1,0 +1,23 @@
+id: m03-unions/02-null-undefined-strict/01-find-the-book
+kind: fix
+title: Find the book
+minutes: 2
+challenge: false
+prompt: |
+  `findBook` looks a book up by id, and `titleOf` returns its title. `index.ts` has one error:
+
+  - `Type 'Book | undefined' is not assignable to type 'Book'.`
+
+  Fix it so that `findBook` returns `undefined` when no book has the id, as its comment says.
+  That reveals a second error in `titleOf`, `Object is possibly 'undefined'.`: fix it so that
+  `titleOf` returns `'unknown book'` for an id that doesn't exist. The type case checks that the
+  return type of `findBook` admits `undefined`; the runtime tests call both functions with known
+  and unknown ids.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - '`find` comes back empty when nothing matches, and the return type of `findBook` has to say so.'
+  - Once `findBook` can return `undefined`, `titleOf` must handle that case. Read the title only when there is a book, and fall back otherwise; the lesson has an operator for each step.

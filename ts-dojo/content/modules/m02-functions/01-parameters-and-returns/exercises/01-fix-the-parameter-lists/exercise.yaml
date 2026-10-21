@@ -1,0 +1,20 @@
+id: m02-functions/01-parameters-and-returns/01-fix-the-parameter-lists
+kind: fix
+title: Fix the parameter lists
+minutes: 2
+challenge: false
+prompt: |
+  Both functions came out of a refactor with a broken parameter list. `greet` reports
+  `'greeting' is possibly 'undefined'.` and `repeat` reports
+  `A required parameter cannot follow an optional parameter.`
+
+  Fix the two parameter lists so the file compiles and the calls in the doc comments return
+  what they say. The tests make those calls and stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - '`greet` has a sensible greeting for when none is given. A parameter can say that itself, and then its type no longer includes `undefined`.'
+  - Arguments are matched by position, and every call to `repeat` passes the text first.

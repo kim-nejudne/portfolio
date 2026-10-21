@@ -1,0 +1,27 @@
+id: m02-functions/03-void-returns/02-which-returns-fail
+kind: predict
+title: Which returns fail?
+minutes: 2
+challenge: false
+code: |
+  type Task = () => void;
+
+  const a: Task = () => 42;
+  const b = (): void => 42;
+  function c(): undefined {}
+  const d: () => undefined = () => console.log('d');
+question: Which of the four declarations are compile errors?
+options:
+  - '`b` only'
+  - '`a` and `b`'
+  - '`b` and `c`'
+  - '`b` and `d`'
+  - '`b`, `c` and `d`'
+answer: 3
+explanation: |
+  `a` compiles: `Task` is a function type that returns `void`, and a function that returns a
+  value fits it; the 42 is ignored. `b` writes `: void` on the arrow function itself, so its
+  body is checked like any return type: `Type 'number' is not assignable to type 'void'.`
+  `c` declares `undefined` and has no `return`, which is allowed: ending without one returns
+  `undefined`. `d` fails because the exception for ignored results belongs to `void` alone:
+  `console.log` returns `void`, and `Type 'void' is not assignable to type 'undefined'.`

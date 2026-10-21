@@ -24,6 +24,7 @@ import {
 } from '@/app/output-pane';
 import { createAppSandboxRunner } from '@/app/sandbox';
 import { exerciseFiles, type EditorExercise } from '@/content/build-registry';
+import { InlineText } from '@/content/components/inline-text';
 import { confirmInPanel } from '@/editor/confirm';
 import { Editor, type EditorFile } from '@/editor/editor';
 import type { EditorHost, HostAction, RunModule } from '@/editor/host';
@@ -401,7 +402,8 @@ export function Practice({
         >
           {exercise.hints.slice(0, hintsUsed).map((text, index) => (
             <li key={index} data-hint={index + 1}>
-              <span className="font-medium">Hint {index + 1}.</span> {text}
+              <span className="font-medium">Hint {index + 1}.</span>{' '}
+              <InlineText text={text} />
             </li>
           ))}
         </ol>

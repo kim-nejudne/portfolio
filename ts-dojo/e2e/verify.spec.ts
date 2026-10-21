@@ -1,5 +1,5 @@
 // §12 F7, exercise verification (spec §5, and the Tests tab of §4 "Running and the output
-// pane"), on the three editor fixtures under content/modules/m99-fixtures, driven from the
+// pane"), on the three editor fixtures under fixtures/content/modules/m99-fixtures, driven from the
 // keyboard in Chrome:
 //   1. "For a `type-challenge` fixture, each `cases` element is its own case with pass or fail,
 //      and an unused `@ts-expect-error` fails its case."

@@ -1,17 +1,23 @@
 // Playwright helpers for F9 (spec §3 Layout, `roadmap.yaml`, `module.yaml`, `lesson.mdx`,
-// `exercise.yaml`; §7 Content versions): the whole course as the repository holds it, read at
+// `exercise.yaml`; §7 Content versions): a whole course as the repository holds it, read at
 // test time so the roadmap, module page and /progress tests follow the content instead of
 // hard-coding it. Tiers in `roadmap.yaml` order, each module's `module.yaml`, each lesson's
 // frontmatter (title, minutes, objectives, prerequisites), each exercise's YAML, the course
 // order (tiers, then modules, then lessons, then exercise folders sorted, as the registry
 // builds it), and the §7 `contentVersion` computed in Node by the build's own function.
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+// The plain exports read the fixture course the suite's server builds (fixtures/content/);
+// `courseAt(COURSE_CONTENT)` reads the course in content/ for the course spec (F11), which
+// also reads each lesson.mdx whole and each editor exercise's solution files.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { parse } from 'yaml';
 import { contentVersion } from '../../src/content/node/content-version';
+import { COURSE_CONTENT, FIXTURE_CONTENT } from '../../src/content/node/roots';
 
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-export const CONTENT_DIR = `${REPO_ROOT}content`;
+export { COURSE_CONTENT };
+
+/** The fixture course, which the suite's server on 4173 serves. */
+export const CONTENT_DIR = FIXTURE_CONTENT;
 
 export interface TierYaml {
   id: string;
@@ -43,108 +49,185 @@ export interface CourseExerciseYaml {
   minutes: number;
   challenge?: boolean;
   hints?: string[];
+  /** `predict` only (§3): the snippet, the question, 2–5 options, the right one, why. */
+  code?: string;
+  question?: string;
   options?: string[];
   answer?: number;
+  explanation?: string;
 }
 
-function readYaml<T>(path: string): T {
-  return parse(readFileSync(`${CONTENT_DIR}/${path}`, 'utf8')) as T;
-}
+/** The readers over the course under `dir`. */
+export function courseAt(dir: string) {
+  function readYaml<T>(path: string): T {
+    return parse(readFileSync(`${dir}/${path}`, 'utf8')) as T;
+  }
 
-export function readTiers(): TierYaml[] {
-  return readYaml<{ tiers: TierYaml[] }>('roadmap.yaml').tiers;
-}
+  function readTiers(): TierYaml[] {
+    return readYaml<{ tiers: TierYaml[] }>('roadmap.yaml').tiers;
+  }
 
-export function readModule(moduleId: string): ModuleYaml {
-  return readYaml<ModuleYaml>(`modules/${moduleId}/module.yaml`);
-}
+  function readModule(moduleId: string): ModuleYaml {
+    return readYaml<ModuleYaml>(`modules/${moduleId}/module.yaml`);
+  }
 
-/** `m98-fixture-sequel` → its lesson ids, `m98-fixture-sequel/01-literal-widening`, in order. */
-export function moduleLessons(moduleId: string): string[] {
-  return readModule(moduleId).lessons.map((folder) => `${moduleId}/${folder}`);
-}
+  /** `m98-fixture-sequel` → its lesson ids, `m98-fixture-sequel/01-literal-widening`, in order. */
+  function moduleLessons(moduleId: string): string[] {
+    return readModule(moduleId).lessons.map(
+      (folder) => `${moduleId}/${folder}`,
+    );
+  }
 
-/** The frontmatter of `content/modules/<lesson id>/lesson.mdx`. */
-export function readLesson(lessonId: string): LessonFrontmatter {
-  const mdx = readFileSync(
-    `${CONTENT_DIR}/modules/${lessonId}/lesson.mdx`,
-    'utf8',
-  );
-  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(mdx);
-  if (match === null) throw new Error(`${lessonId}/lesson.mdx: no frontmatter`);
-  const front = parse(match[1] as string) as Partial<LessonFrontmatter>;
+  /** The frontmatter of `content/modules/<lesson id>/lesson.mdx`. */
+  function readLesson(lessonId: string): LessonFrontmatter {
+    const mdx = readFileSync(`${dir}/modules/${lessonId}/lesson.mdx`, 'utf8');
+    const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(mdx);
+    if (match === null)
+      throw new Error(`${lessonId}/lesson.mdx: no frontmatter`);
+    const front = parse(match[1] as string) as Partial<LessonFrontmatter>;
+    return {
+      id: front.id ?? lessonId,
+      title: front.title ?? '',
+      minutes: front.minutes ?? 0,
+      objectives: front.objectives ?? [],
+      prerequisites: front.prerequisites ?? [],
+    };
+  }
+
+  /** A lesson's exercise folders, sorted (the registry's order). */
+  function exerciseFolders(lessonId: string): string[] {
+    return readdirSync(`${dir}/modules/${lessonId}/exercises`, {
+      withFileTypes: true,
+    })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  }
+
+  /** `m/l/e` → the exercise's YAML. */
+  function readExercise(exerciseId: string): CourseExerciseYaml {
+    const [module, lesson, folder] = exerciseId.split('/');
+    return readYaml<CourseExerciseYaml>(
+      `modules/${module ?? ''}/${lesson ?? ''}/exercises/${folder ?? ''}/exercise.yaml`,
+    );
+  }
+
+  /** Whether the lesson's `lesson.mdx` and `exercises/` are on disk. */
+  function lessonExists(lessonId: string): boolean {
+    return (
+      existsSync(`${dir}/modules/${lessonId}/lesson.mdx`) &&
+      existsSync(`${dir}/modules/${lessonId}/exercises`)
+    );
+  }
+
+  /** `modules/<lesson id>/lesson.mdx` as the repository holds it. */
+  function lessonMdx(lessonId: string): string {
+    return readFileSync(`${dir}/modules/${lessonId}/lesson.mdx`, 'utf8');
+  }
+
+  /**
+   * An editor exercise's `solution/` files, nested ones included, keyed by the path the editor
+   * gives the file (`/index.ts`; §3: `starter/` and `solution/` hold the same file names).
+   */
+  function solutionFiles(exerciseId: string): Record<string, string> {
+    const root = `${dir}/modules/${lessonOf(exerciseId)}/exercises/${folderOf(exerciseId)}/solution`;
+    return Object.fromEntries(
+      readdirSync(root, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => {
+          const full = path.join(entry.parentPath, entry.name);
+          const relative = path.relative(root, full).split(path.sep).join('/');
+          return [`/${relative}`, readFileSync(full, 'utf8')] as const;
+        })
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    );
+  }
+
+  /** Every module id, in roadmap order. */
+  function courseModules(): string[] {
+    return readTiers().flatMap((tier) => tier.modules);
+  }
+
+  /** Every lesson id, in course order. */
+  function courseLessons(): string[] {
+    return courseModules().flatMap(moduleLessons);
+  }
+
+  /** Every exercise id, in course order. */
+  function courseExercises(): string[] {
+    return courseLessons().flatMap((lessonId) =>
+      exerciseFolders(lessonId).map((folder) => `${lessonId}/${folder}`),
+    );
+  }
+
+  /** The summed `minutes` of these lessons. */
+  function minutesOf(lessonIds: readonly string[]): number {
+    return lessonIds.reduce((sum, id) => sum + readLesson(id).minutes, 0);
+  }
+
+  /** `/l/<id>` for a lesson or an exercise id. */
+  function routeOf(id: string): string {
+    return `/l/${id}`;
+  }
+
+  /** The last segment of an exercise id: its folder. */
+  function folderOf(exerciseId: string): string {
+    return exerciseId.split('/')[2] ?? '';
+  }
+
+  /** The lesson id of an exercise id. */
+  function lessonOf(exerciseId: string): string {
+    return exerciseId.split('/').slice(0, 2).join('/');
+  }
+
+  /** The §7 `contentVersion` of the repository's content tree, as the build computes it. */
+  function contentHash(): Promise<string> {
+    return contentVersion(dir);
+  }
+
+  /** `content/renames.yaml` (§7 `old: new`), in file order. */
+  function readRenames(): [from: string, to: string][] {
+    return Object.entries(
+      readYaml<Record<string, string> | null>('renames.yaml') ?? {},
+    );
+  }
+
   return {
-    id: front.id ?? lessonId,
-    title: front.title ?? '',
-    minutes: front.minutes ?? 0,
-    objectives: front.objectives ?? [],
-    prerequisites: front.prerequisites ?? [],
+    readTiers,
+    readModule,
+    moduleLessons,
+    readLesson,
+    exerciseFolders,
+    readExercise,
+    lessonExists,
+    lessonMdx,
+    solutionFiles,
+    courseModules,
+    courseLessons,
+    courseExercises,
+    minutesOf,
+    routeOf,
+    folderOf,
+    lessonOf,
+    contentHash,
+    readRenames,
   };
 }
 
-/** A lesson's exercise folders, sorted (the registry's order). */
-export function exerciseFolders(lessonId: string): string[] {
-  return readdirSync(`${CONTENT_DIR}/modules/${lessonId}/exercises`, {
-    withFileTypes: true,
-  })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-}
-
-/** `m/l/e` → the exercise's YAML. */
-export function readExercise(exerciseId: string): CourseExerciseYaml {
-  const [module, lesson, folder] = exerciseId.split('/');
-  return readYaml<CourseExerciseYaml>(
-    `modules/${module ?? ''}/${lesson ?? ''}/exercises/${folder ?? ''}/exercise.yaml`,
-  );
-}
-
-/** Every module id, in roadmap order. */
-export function courseModules(): string[] {
-  return readTiers().flatMap((tier) => tier.modules);
-}
-
-/** Every lesson id, in course order. */
-export function courseLessons(): string[] {
-  return courseModules().flatMap(moduleLessons);
-}
-
-/** Every exercise id, in course order. */
-export function courseExercises(): string[] {
-  return courseLessons().flatMap((lessonId) =>
-    exerciseFolders(lessonId).map((folder) => `${lessonId}/${folder}`),
-  );
-}
-
-/** The summed `minutes` of these lessons. */
-export function minutesOf(lessonIds: readonly string[]): number {
-  return lessonIds.reduce((sum, id) => sum + readLesson(id).minutes, 0);
-}
-
-/** `/l/<id>` for a lesson or an exercise id. */
-export function routeOf(id: string): string {
-  return `/l/${id}`;
-}
-
-/** The last segment of an exercise id: its folder. */
-export function folderOf(exerciseId: string): string {
-  return exerciseId.split('/')[2] ?? '';
-}
-
-/** The lesson id of an exercise id. */
-export function lessonOf(exerciseId: string): string {
-  return exerciseId.split('/').slice(0, 2).join('/');
-}
-
-/** The §7 `contentVersion` of the repository's content tree, as the build computes it. */
-export function contentHash(): Promise<string> {
-  return contentVersion(CONTENT_DIR);
-}
-
-/** `content/renames.yaml` (§7 `old: new`), in file order. */
-export function readRenames(): [from: string, to: string][] {
-  return Object.entries(
-    readYaml<Record<string, string> | null>('renames.yaml') ?? {},
-  );
-}
+export const {
+  readTiers,
+  readModule,
+  moduleLessons,
+  readLesson,
+  exerciseFolders,
+  readExercise,
+  courseModules,
+  courseLessons,
+  courseExercises,
+  minutesOf,
+  routeOf,
+  folderOf,
+  lessonOf,
+  contentHash,
+  readRenames,
+} = courseAt(CONTENT_DIR);

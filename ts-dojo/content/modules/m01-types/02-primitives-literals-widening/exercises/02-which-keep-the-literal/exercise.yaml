@@ -1,0 +1,24 @@
+id: m01-types/02-primitives-literals-widening/02-which-keep-the-literal
+kind: predict
+title: Which ones keep the literal?
+minutes: 2
+challenge: false
+code: |
+  const a = 'dark';
+  let b = 'dark';
+  let c = a;
+  const d = { mode: 'dark' };
+  const e = { mode: 'dark' } as const;
+question: Which of a, b, c, d.mode and e.mode have the type 'dark'?
+options:
+  - 'a only'
+  - 'a and e.mode'
+  - 'a, c and e.mode'
+  - 'a, d.mode and e.mode'
+  - 'All five'
+answer: 1
+explanation: |
+  A literal type is kept only where the value can't change. a is a const, and e is covered by
+  as const, so both keep 'dark'. b is a let, so its literal widens to string. c copies a, but it
+  is a let too, and the inferred literal widens again. d is a const, but d.mode can still be
+  reassigned, so the property widens to string exactly as a let would.

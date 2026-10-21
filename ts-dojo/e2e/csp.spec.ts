@@ -31,7 +31,7 @@ import {
 } from './helpers/editor';
 import { gotoProgress } from './helpers/progress';
 import {
-  DIST,
+  E2E_DIST,
   startDistServer,
   type CspReport,
   type DistServer,
@@ -70,7 +70,7 @@ test.describe('the §10 CSP is present', () => {
   });
 
   test('the built CSS has no data: fonts, which font-src would block', () => {
-    const assets = path.join(DIST, 'assets');
+    const assets = path.join(E2E_DIST, 'assets');
     const css = readdirSync(assets).filter((name) => name.endsWith('.css'));
     expect(css.length).toBeGreaterThan(0);
     for (const name of css) {
@@ -124,10 +124,13 @@ async function expectReport(
   match: (report: CspReport) => boolean,
   what: string,
 ): Promise<void> {
+  // Chrome sends a report-uri report on its own schedule, later still from a worker under the
+  // full suite's load: one F11 run waited longer than 10 s for the sandbox's. The walk's own
+  // timeout is 120 s.
   await expect
     .poll(() => server.reports().filter(match).length, {
       message: `${what}; reports so far:\n${JSON.stringify(server.reports(), null, 2)}`,
-      timeout: 10_000,
+      timeout: 30_000,
     })
     .toBeGreaterThan(0);
 }

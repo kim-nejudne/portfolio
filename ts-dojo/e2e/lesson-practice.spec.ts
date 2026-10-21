@@ -45,7 +45,7 @@ import {
   readExerciseYaml,
   result,
   solutionPane,
-  squash,
+  shown,
 } from './helpers/lesson';
 import {
   exerciseRoute,
@@ -67,7 +67,7 @@ const PREDICT = { lesson: '01-fix', exercise: '02-what-is-left' } as const;
 function solutionFiles(lesson: FixtureLesson, exercise: string): string[] {
   const dir = fileURLToPath(
     new URL(
-      `../content/modules/${FIXTURE_MODULE}/${lesson}/exercises/${exercise}/solution/`,
+      `../fixtures/content/modules/${FIXTURE_MODULE}/${lesson}/exercises/${exercise}/solution/`,
       import.meta.url,
     ),
   );
@@ -134,7 +134,9 @@ test.describe('§12 F8: `:hint` reveals hints in order and records the count; `:
         'data-hint',
         String(i + 1),
       );
-      await expect(hintItems(page).nth(i)).toHaveText(`Hint ${i + 1}. ${text}`);
+      await expect(hintItems(page).nth(i)).toHaveText(
+        `Hint ${i + 1}. ${shown(text)}`,
+      );
     }
     expect(
       (await readExerciseRow(page, IMPLEMENT.lesson, IMPLEMENT.exercise))
@@ -147,14 +149,14 @@ test.describe('§12 F8: `:hint` reveals hints in order and records the count; `:
     await expect(hintItems(page)).toHaveCount(2);
     await expect(headerField(page, 'hints')).toHaveText('hints 2/3');
     await expect(hintItems(page).nth(1)).toHaveText(
-      `Hint 2. ${hints[1] ?? ''}`,
+      `Hint 2. ${shown(hints[1] ?? '')}`,
     );
     await focusEditor(page);
 
     await ex(page, 'hint');
     await expect(hintItems(page)).toHaveCount(3);
     await expect(hintItems(page).nth(2)).toHaveText(
-      `Hint 3. ${hints[2] ?? ''}`,
+      `Hint 3. ${shown(hints[2] ?? '')}`,
     );
     await expect(lessonNotice(page)).toHaveText('hint 3 of 3');
     // Past the last: the count stays at the total and the notice says so.
@@ -574,7 +576,7 @@ test.describe('§12 F8: A `predict` exercise answers with `j`/`k`/`Enter`, shows
     await answer(page, question, wrong);
     await expect(result(question)).toHaveAttribute('data-result', 'incorrect');
     await expect(explanation(question)).toContainText(
-      squash(y.explanation ?? ''),
+      shown(y.explanation ?? ''),
     );
     await expect(question).toHaveAttribute('data-correct', 'false');
     await expect(chip(page, PREDICT.exercise)).toHaveAttribute(
@@ -589,7 +591,7 @@ test.describe('§12 F8: A `predict` exercise answers with `j`/`k`/`Enter`, shows
     await answer(page, question, right);
     await expect(result(question)).toHaveAttribute('data-result', 'correct');
     await expect(explanation(question)).toContainText(
-      squash(y.explanation ?? ''),
+      shown(y.explanation ?? ''),
     );
     await expect(options(question).nth(wrong)).not.toHaveAttribute(
       'data-chosen',
@@ -619,7 +621,7 @@ test.describe('§12 F8: A `predict` exercise answers with `j`/`k`/`Enter`, shows
     await expect(reloaded.locator('li[data-chosen="true"]')).toHaveCount(1);
     await expect(result(reloaded)).toHaveAttribute('data-result', 'correct');
     await expect(explanation(reloaded)).toContainText(
-      squash(y.explanation ?? ''),
+      shown(y.explanation ?? ''),
     );
     await expect(chip(page, PREDICT.exercise)).toHaveAttribute(
       'data-state',
