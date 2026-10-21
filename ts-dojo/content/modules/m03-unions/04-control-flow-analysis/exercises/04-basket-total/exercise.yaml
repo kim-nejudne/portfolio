@@ -1,0 +1,28 @@
+id: m03-unions/04-control-flow-analysis/04-basket-total
+kind: implement
+title: The basket total
+minutes: 5
+challenge: false
+prompt: |
+  Implement `basketTotal(lines, prices, coupons, coupon)` in `index.ts`. It returns the total of
+  a basket in cents:
+
+  - Each line costs its sku's price from `prices` times its `quantity`. A sku with no price
+    throws an `Error` with the message `'no price for <sku>'`, such as `'no price for pear'`.
+    A price of `0` is a price: free samples cost nothing.
+  - `coupon` is optional. When it is given, `coupons` maps it to a percentage off the total, and
+    a code that isn't there throws `'unknown coupon <code>'`. An empty code `''` is given too,
+    and unknown. A coupon worth `0` is still a known coupon. Round the discounted total to whole
+    cents with `Math.round`.
+
+  This combines the lesson with `Map` lookups and `undefined` (3.2), the truthiness pitfall
+  (3.3), optional parameters (2.1) and readonly arrays (1.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - A second `get` with the same key is a new call that nothing has checked. Look each value up once.
+  - '`0` is a real price and a real discount, so a check that throws must be true for `undefined` and for nothing else.'
+  - Return early only when no coupon is given at all. Below that guard, `coupon` is a `string`.

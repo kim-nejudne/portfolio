@@ -18,6 +18,7 @@ import {
 } from './content';
 import { focusEditor, snapshot, waitForEditor } from './editor';
 import { exerciseId, exerciseRoute } from './verify';
+import { shownText } from '../../src/content/inline-code';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -44,7 +45,7 @@ export function readExerciseYaml(
   exercise: string,
 ): ExerciseYaml {
   const text = readFileSync(
-    `${REPO_ROOT}content/modules/${FIXTURE_MODULE}/${lesson}/exercises/${exercise}/exercise.yaml`,
+    `${REPO_ROOT}fixtures/content/modules/${FIXTURE_MODULE}/${lesson}/exercises/${exercise}/exercise.yaml`,
     'utf8',
   );
   return parse(text) as ExerciseYaml;
@@ -90,6 +91,14 @@ export function readCheckQuestions(lesson: FixtureLesson): CheckQuestion[] {
 /** Whitespace collapsed, as `toHaveText` compares. */
 export function squash(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * A hint, question, option or explanation as the page shows it: its code spans without their
+ * backticks (src/content/inline-code.ts), whitespace collapsed.
+ */
+export function shown(text: string): string {
+  return squash(shownText(text));
 }
 
 // ---------------------------------------------------------------------------------------------

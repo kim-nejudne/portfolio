@@ -1,0 +1,28 @@
+id: m01-types/03-arrays-tuples-objects/02-which-tuple-lines-fail
+kind: predict
+title: Which tuple lines fail?
+minutes: 2
+challenge: false
+code: |
+  const point: [number, number] = [3, 4];
+  point[0] = 5; // A
+  point.push(6); // B
+  point[2] = 7; // C
+
+  const fixed: readonly [number, number] = [3, 4];
+  fixed[0] = 5; // D
+question: Which of the lines A to D does the compiler reject?
+options:
+  - 'C only'
+  - 'B and C'
+  - 'C and D'
+  - 'B, C and D'
+  - 'All four'
+answer: 2
+explanation: |
+  A tuple type knows its positions. `point[0]` is a number, so A compiles, and
+  `[number, number]` has no index 2, so C reports
+  `Tuple type '[number, number]' of length '2' has no element at index '2'.` B compiles: a
+  tuple is still an array, and a mutable tuple keeps `push`, even though `point` then has three
+  elements while its type says two. `readonly` removes `push` and assignment to elements, so D
+  reports `Cannot assign to '0' because it is a read-only property.`

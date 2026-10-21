@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { contentVersion, hashContentTree } from './content-version';
+import { FIXTURE_CONTENT } from './roots';
 
-const CONTENT = path.resolve(import.meta.dirname, '..', '..', '..', 'content');
+const CONTENT = FIXTURE_CONTENT;
 
 function copyContent(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'ts-dojo-version-'));

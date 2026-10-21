@@ -1,0 +1,27 @@
+id: m02-functions/02-function-types-and-callbacks/03-write-the-function-types
+kind: type-challenge
+title: Write the function types
+minutes: 3
+challenge: false
+prompt: |
+  Replace each `unknown` in `index.ts` with the type described. Any parameter names will do.
+
+  - `Predicate` takes a `number` and returns a `boolean`.
+  - `Reducer` takes the running total and the next value, both `number`, and returns the new
+    total, a `number`.
+  - `Subscribe` takes a listener and returns nothing (`void`). The listener is a function too:
+    it takes a `string` message and returns nothing.
+  - `Prefixer` takes a `string` prefix and returns a function. That function takes a `string`
+    text and returns a `string`.
+
+  The type cases check each type, and that a function returning a plain string is not a
+  `Prefixer`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - A function type reads like an arrow function with a type where the body would be.
+  - A parameter's type can itself be a function type.
+  - 'So can a return type: what follows the `=>` after the parameter list is the return type, and it can be a whole function type.'

@@ -1,0 +1,28 @@
+id: m03-unions/01-union-and-literal-types/04-filter-the-logs
+kind: implement
+title: Filter the logs
+minutes: 4
+challenge: false
+prompt: |
+  A logger has four levels, least severe first: `'debug'`, `'info'`, `'warn'`, `'error'`. In
+  `index.ts`:
+
+  - Replace `string` in `Level` with a union of the four levels.
+  - Replace `unknown` in `LogEntry` with an object type: a `level` that is a `Level`, and a
+    `message` that is a `string`.
+  - Implement `atLeast(entries, min)`: the entries whose level is `min` or more severe, in their
+    original order. `min` defaults to `'info'`, and the input array is not changed.
+  - Implement `formatEntry(entry)`: the level in upper case in brackets, a space, then the
+    message, such as `'[WARN] disk almost full'`.
+
+  This combines unions with object types and readonly arrays (1.3), default parameters (2.1) and
+  callbacks (2.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - "`LEVELS` lists the levels from least to most severe, so a level's position in it can stand for its severity."
+  - Comparing two positions decides whether an entry stays; an array method that keeps the matching elements does the rest.
+  - Every member of `Level` is a string, so string methods work on `entry.level` as they are.

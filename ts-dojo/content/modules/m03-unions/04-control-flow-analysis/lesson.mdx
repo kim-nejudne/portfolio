@@ -1,0 +1,276 @@
+---
+id: m03-unions/04-control-flow-analysis
+title: 'Control-flow analysis: assignments, early returns, closures, and what breaks narrowing'
+minutes: 20
+objectives:
+  - Follow a variable's type past return, throw, continue, && and ||, and read it with ^? at any line
+  - Tell a variable's declared type from the narrowed type an assignment gives it
+  - Store a check in a const so that it still narrows
+  - Predict whether a callback sees a variable's narrowed type or its declared type
+  - Say what undoes a narrowing (an assignment) and what doesn't (a function call)
+prerequisites:
+  - m02-functions/02-function-types-and-callbacks
+  - m03-unions/02-null-undefined-strict
+  - m03-unions/03-narrowing
+tags:
+  - control flow analysis
+  - narrowing
+  - early return
+  - guard clause
+  - throw
+  - assignment
+  - declared type
+  - aliased condition
+  - closure
+  - callback
+  - switch true
+---
+
+## Concept
+
+Narrowing doesn't end with the `if` block. The compiler reads a function the way it runs, through branches, `return`, `throw`, loops and assignments, and works out the type of every variable at every point. That is control-flow analysis, and it is what made each check in <Lesson id="m03-unions/03-narrowing" /> work. Its most useful result is the early return:
+
+```ts twoslash
+function shout(message: string | undefined): string {
+  if (message === undefined) {
+    return '';
+  }
+  message;
+  //  ^?
+  return message.toUpperCase();
+}
+```
+
+The `if` has no `else`, yet below it `message` is a `string`. An `undefined` message can't get past the `if`, because that branch returns, so the compiler removes `undefined` from every line after it. A check that leaves early like this is called a guard clause. It narrows just as an `else` would, and it keeps the main path of the function flat.
+
+So a variable has two types. Its declared type is the one written or inferred where it is declared, and it never changes. Its narrowed type is what the flow allows at one line, and every check and every assignment can change it. On a use of a variable, quick info and `^?` show the narrowed type.
+
+<Callout kind="tip">
+  In the REPL, a comment line `// ^?` with the `^` under a variable shows its
+  type at that line, as in the blocks on this page. Put several in one function
+  to watch the flow.
+</Callout>
+
+## Examples
+
+**Early exits.** Any statement that leaves the block works like `return`: `throw`, and inside a loop `continue` and `break`. After a `continue`, the rest of that turn sees what the check ruled out:
+
+```ts twoslash
+function requirePort(port: number | undefined): number {
+  if (port === undefined) {
+    throw new Error('no port configured');
+  }
+  return port;
+  //     ^?
+}
+
+function total(prices: readonly (number | null)[]): number {
+  let sum = 0;
+  for (const price of prices) {
+    if (price === null) {
+      continue;
+    }
+    sum += price;
+    //     ^?
+  }
+  return sum;
+}
+```
+
+**Combined guards, `&&` and `||`.** One guard can rule out several things. To get past `first === undefined || last === undefined`, both comparisons must be false, so below the guard both variables are narrowed:
+
+```ts twoslash
+function fullName(first: string | undefined, last: string | undefined): string {
+  if (first === undefined || last === undefined) {
+    return 'anonymous';
+  }
+  first;
+  // ^?
+  last;
+  // ^?
+  return `${first.trim()} ${last.trim()}`;
+}
+```
+
+The same reasoning works inside one expression. The right side of `||` runs only when the left side is false, and the right side of `&&` only when it is true, and each is narrowed to match: in `name === undefined || name.trim() === ''`, the second `name` is a `string`.
+
+**Assignments.** An assignment narrows too. After it, the variable has the members of its declared type that the new value fits. Read this function at three points:
+
+```ts twoslash
+function parsePort(input: string | number | undefined): number {
+  let port = input;
+  port;
+  // ^?
+  if (port === undefined) {
+    port = 8080;
+  }
+  port;
+  // ^?
+  if (typeof port === 'string') {
+    port = Number.parseInt(port, 10);
+  }
+  port;
+  // ^?
+  return port;
+}
+```
+
+`port` gets its declared type from `input`: `string | number | undefined`. The first `if` replaces `undefined` with a number, so after it `port` is a `string` or a `number`. The second turns the string into a number, so at the `return` only `number` is left, and the function compiles with no cast. The declared type still decides what may be assigned: `port = true` is an error, _Type 'true' is not assignable to type 'string | number | undefined'._
+
+The initializer counts as an assignment, which can surprise with a literal union. Right after `let theme: Theme = 'light'`, `theme` is `'light'`, so `theme === 'dark'` on the next line is an error: _This comparison appears to be unintentional because the types '"light"' and '"dark"' have no overlap._ It compiles once another assignment can reach the comparison, such as `theme = saved` before it, or `theme = 'dark'` at the end of a loop around it. A `let` declared with no value is tracked as well: reading it where some path hasn't assigned it yet is an error, _Variable 'label' is used before being assigned._
+
+**Checks stored in a `const`.** A long condition can get a name. When the check is stored in a `const`, the compiler remembers what it tested, and testing the `const` narrows as if the check were written there, in both branches:
+
+```ts twoslash
+function format(value: string | number): string {
+  const isText = typeof value === 'string';
+  if (isText) {
+    value;
+    //  ^?
+    return value.toUpperCase();
+  }
+  return value.toFixed(2);
+}
+```
+
+This works when the result is in a `const` and the variable it tests is never assigned after its declaration: a `const`, or a parameter or `let` that no line assigns. Store the check in a `let`, or assign `value` anywhere in the function, and `isText` is only a `boolean`. One name can hold several checks: after `const both = a !== undefined && b !== undefined`, `if (both)` narrows `a` and `b`.
+
+**Callbacks.** A callback runs whenever its caller decides: now, later or never, and the compiler can't tell which. So inside a callback, such as the ones in <Lesson id="m02-functions/02-function-types-and-callbacks" />, it asks whether the variable could change between the check and the call:
+
+- A `const` can't change, so a callback keeps its narrowing.
+- A `let` or a parameter keeps its narrowing only when nothing assigns it after the callback is created: no later line of the function, no later turn of a loop around the callback, and no other function. Otherwise the callback sees the declared type.
+
+```ts twoslash
+function greetAll(
+  names: readonly string[],
+  greeting: string | undefined,
+): string[] {
+  let text = greeting;
+  if (text === undefined) {
+    text = 'Hello';
+  }
+  return names.map((name) => {
+    text;
+    // ^?
+    return `${text}, ${name}`;
+  });
+}
+```
+
+The last assignment to `text` comes before the callback, so the callback keeps `string`. Two cases lose the narrowing even without a later assignment. A property you checked, such as `order.coupon`, is back to its declared type inside any callback. And a nested `function` declaration is hoisted, so it could be called before the check: it sees the declared type even of a `const`. In both cases, copy the value into a `const` after the check and use that.
+
+**`switch (true)`.** A chain of unrelated checks can be written as `switch (true)`: it runs the first `case` whose condition is true. Each `case` is narrowed by its condition, and `default` gets what no case took:
+
+```ts run
+function show(value: string | number | Date): string {
+  switch (true) {
+    case typeof value === 'string':
+      return value.trim();
+    case value instanceof Date:
+      return value.toISOString().slice(0, 10);
+    default:
+      return value.toFixed(1);
+  }
+}
+
+console.log(show('  hi '), show(new Date('2026-10-21')), show(3));
+```
+
+## Pitfalls
+
+**Checking a call, then calling again.** Narrowing follows variables and properties, not calls: each call may return something new. Here the first `prices.get('apple')` is checked, and the second is a new `number | undefined`:
+
+```ts run errors
+const prices = new Map([['apple', 0.5]]);
+
+if (prices.get('apple') !== undefined) {
+  console.log(prices.get('apple').toFixed(2));
+}
+```
+
+Call once and keep the result: `const price = prices.get('apple')`, then check `price` and use it.
+
+**A variable that another function assigns.** `currency` is checked just before the callback, but `setCurrency` can assign it at any time, so the callback sees the declared type:
+
+```ts run errors
+let currency: string | undefined;
+
+function setCurrency(code: string | undefined) {
+  currency = code;
+}
+
+function formatPrices(prices: readonly number[]): string[] {
+  if (currency === undefined) {
+    return prices.map((price) => price.toFixed(2));
+  }
+  return prices.map((price) => `${price.toFixed(2)} ${currency.toUpperCase()}`);
+}
+```
+
+Copy it into a `const` first, `const code = currency`, then check `code` and use it in the callback. A `let` that a loop assigns again on a later turn has the same problem inside a callback in that loop.
+
+**A call doesn't undo a narrowing.** The opposite surprise. Between a check and the line that relies on it, the compiler assumes a call changes nothing it has narrowed. This compiles, and crashes when it runs:
+
+```ts run
+type Order = { coupon: string | undefined };
+
+function clearCoupon(order: Order) {
+  order.coupon = undefined;
+}
+
+function couponLength(order: Order): number {
+  if (order.coupon !== undefined) {
+    clearCoupon(order);
+    return order.coupon.length;
+  }
+  return 0;
+}
+
+console.log(couponLength({ coupon: 'SPRING' }));
+```
+
+If every call undid every narrowing, few checks would survive to the line that needs them, so the compiler trusts calls. When a call may change what you checked, check after the call. The same goes for a `let` that a function assigns: after the call, the compiler still has the type from before it. Lesson 7.4, Narrowing pitfalls, goes further into callbacks and mutation.
+
+## Check yourself
+
+<Predict
+  id="literal-after-assignment"
+  code={
+    "type Theme = 'light' | 'dark';\nlet theme: Theme = 'light';\nif (theme === 'dark') {\n  console.log('dark');\n}"
+  }
+  question="What does the compiler say about the `if`?"
+  options={[
+    "Nothing: 'dark' is a Theme",
+    "An error: after the assignment theme is 'light', which never equals 'dark'",
+    "An error: a let can't have a literal union type",
+  ]}
+  answer={1}
+  explanation="The initializer narrows theme to the member of Theme it fits, 'light', and nothing between the two lines can change it. The comparison can never be true, so it is an error. Another assignment that reaches the comparison, such as one at the end of a loop around it, would make 'dark' possible again."
+/>
+
+<Predict
+  id="callback-sees"
+  question="`label` is a `let` of type `string | undefined`. Right after a check narrows it to `string`, a callback passed to `map` uses `label`. When does the callback see `string`?"
+  options={[
+    'Always: the callback is created right after the check',
+    'When nothing assigns label after the callback is created: no later line, no later turn of a loop, no other function',
+    'Never: inside a callback, a let always has its declared type',
+  ]}
+  answer={1}
+  explanation="The compiler can't know when map calls the callback, so it keeps the narrowing of a let only if no assignment can come in between: none later in the function, none on a later turn of a loop around the callback, and none inside another function. A const always keeps it."
+/>
+
+<Predict
+  id="call-in-between"
+  question="Inside `if (order.coupon !== undefined)`, the first line calls `clearCoupon(order)`, which sets `order.coupon` to `undefined`. What type does the compiler give `order.coupon` on the next line?"
+  options={['string', 'string | undefined', 'undefined']}
+  answer={0}
+  explanation="The compiler doesn't look inside calls; it assumes they change nothing it has narrowed. So order.coupon keeps the type from the check, string, while at run time it is undefined. Check again after the call."
+/>
+
+## Further reading
+
+- [Narrowing: control flow analysis](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#control-flow-analysis) and [assignments](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#assignments)
+- [TypeScript 4.4: control flow analysis of aliased conditions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-4.html#control-flow-analysis-of-aliased-conditions-and-discriminants)
+- [TypeScript 5.3: `switch (true)` narrowing](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-3.html#switch-true-narrowing)
+- [TypeScript 5.4: preserved narrowing in closures following last assignments](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-4.html#preserved-narrowing-in-closures-following-last-assignments)

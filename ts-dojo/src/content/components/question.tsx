@@ -3,9 +3,13 @@
 // "`predict` exercises replace the editor with the snippet, the options (`j`/`k`, `Enter`) and,
 // after answering, the explanation"). The block itself takes focus; `j`/`k` (or the arrows) move
 // the highlighted option and `Enter` answers it. After an answer it says whether it was right
-// and shows the explanation; another answer is allowed (§1 "retries allowed").
+// and shows the explanation; another answer is allowed (§1 "retries allowed"). The question and
+// the explanation show their code spans as code; an option is set in code type already, so it
+// shows its text without the backticks (src/content/inline-code.ts).
 import { useState, type Ref } from 'react';
 import { cn } from 'cn';
+import { shownText } from '../inline-code';
+import { InlineText } from './inline-text';
 
 const LETTERS = 'abcde';
 
@@ -83,7 +87,7 @@ export function Question({
       {...dataAttributes}
     >
       <p id={questionId} className="m-0 font-medium">
-        {question}
+        <InlineText text={question} />
       </p>
       {code !== undefined ? (
         <pre className="my-2 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-sm">
@@ -105,7 +109,7 @@ export function Question({
             <span className="w-4 shrink-0 text-muted-foreground">
               {LETTERS[index] ?? String(index + 1)}
             </span>
-            <code className="font-mono">{option}</code>
+            <code className="font-mono">{shownText(option)}</code>
             {index === chosen ? (
               <span className="ml-auto text-xs text-muted-foreground">
                 your answer
@@ -125,7 +129,9 @@ export function Question({
           >
             {correct ? 'Correct.' : 'Not quite. Try again: j, k and Enter.'}
           </p>
-          <p className="m-0 mt-1 text-muted-foreground">{explanation}</p>
+          <p className="m-0 mt-1 text-muted-foreground">
+            <InlineText text={explanation} />
+          </p>
         </div>
       ) : (
         <p className="m-0 mt-2 text-xs text-muted-foreground">

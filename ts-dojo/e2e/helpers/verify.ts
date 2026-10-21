@@ -4,8 +4,9 @@
 // verdict, and locators for the output pane's Tests tab (src/app/tests-tab.tsx): the verdict
 // line, the four group rows and their child rows. A MutationObserver on the output pane records
 // every verdict the tab showed together with the runtime test rows present at that moment, so a
-// test can prove that rows streamed in while the verdict still said `running`. Nothing here
-// clicks; every wait is an `expect` or `expect.poll`.
+// test can prove that rows streamed in while the verdict still said `running`. `gotoExerciseAt`
+// and `openPath` do the same for any exercise of the served course (the F11 course spec).
+// Nothing here clicks; every wait is an `expect` or `expect.poll`.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -56,7 +57,7 @@ export function readExerciseFile(
   file: string,
 ): string {
   return readFileSync(
-    `${REPO_ROOT}content/modules/${FIXTURE_MODULE}/${lesson}/exercises/${exercise}/${file}`,
+    `${REPO_ROOT}fixtures/content/modules/${FIXTURE_MODULE}/${lesson}/exercises/${exercise}/${file}`,
     'utf8',
   );
 }
@@ -87,6 +88,31 @@ export async function gotoExercise(
   expect((await snapshot(page)).mode).toBe('normal');
   await waitForCompilerReady(page);
   await recordVerdicts(page);
+}
+
+/**
+ * `gotoExercise` for any exercise of the served course by its full id
+ * (`m01-types/02-annotations/01-first-annotation`), for the course spec (F11): the exercise
+ * mounted, the editor focused in normal mode, the compiler ready and the Tests tab recorded for
+ * `runTest`. It does not assume the entry file is `/index.ts`.
+ */
+export async function gotoExerciseAt(page: Page, id: string): Promise<void> {
+  await page.goto(`/l/${id}`);
+  await expect(exerciseSection(page)).toHaveAttribute('data-exercise', id);
+  await focusEditor(page);
+  expect((await snapshot(page)).mode).toBe('normal');
+  await waitForCompilerReady(page);
+  await recordVerdicts(page);
+}
+
+/**
+ * `:b <path>` with the full path (`/index.ts`, `/lib/shapes.ts`), which names one file even when
+ * two share a basename, and wait until the editor shows that file, focused.
+ */
+export async function openPath(page: Page, path: string): Promise<void> {
+  await ex(page, `b ${path}`);
+  await expect.poll(() => currentPath(page)).toBe(path);
+  await expect(page.locator('.cm-content')).toBeFocused();
 }
 
 /** `:b <name>` and wait until the editor shows that file, focused. */

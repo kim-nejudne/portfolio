@@ -1,0 +1,54 @@
+id: m04-objects/05-classes/02-which-ids-fit
+kind: predict
+title: Which ids fit?
+minutes: 2
+challenge: false
+code: |
+  class OrderId {
+    private readonly value: string;
+
+    constructor(value: string) {
+      this.value = value;
+    }
+
+    toString(): string {
+      return this.value;
+    }
+  }
+
+  class UserId {
+    private readonly value: string;
+
+    constructor(value: string) {
+      this.value = value;
+    }
+
+    toString(): string {
+      return this.value;
+    }
+  }
+
+  class RushOrderId extends OrderId {}
+
+  function cancel(id: OrderId): string {
+    return `cancelled ${id}`;
+  }
+
+  cancel(new OrderId('o-1')); // A
+  cancel(new UserId('u-1')); // B
+  cancel(new RushOrderId('o-2')); // C
+  cancel({ toString: () => 'o-3' }); // D
+question: Which of the calls A to D compile?
+options:
+  - 'A only'
+  - 'A and C'
+  - 'A, B and C'
+  - 'All four'
+answer: 1
+explanation: |
+  `OrderId` has a `private` member, so it only fits values that carry that same declaration:
+  instances of `OrderId` and of its subclasses, which is why `RushOrderId` is accepted. `UserId`
+  has the same members, but its `private value` is a separate declaration, and the compiler
+  reports `Types have separate declarations of a private property 'value'.` The plain object
+  can't have the private member at all, and is missing `value`. Without `private`, B would
+  compile too, and so would D once it had a `value` of its own.

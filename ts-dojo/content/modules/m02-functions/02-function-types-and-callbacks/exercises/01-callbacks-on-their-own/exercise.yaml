@@ -1,0 +1,19 @@
+id: m02-functions/02-function-types-and-callbacks/01-callbacks-on-their-own
+kind: fix
+title: Callbacks on their own
+minutes: 2
+challenge: false
+prompt: |
+  `euros` and `percent` are written to be passed to `formatAll`, but they are declared on their
+  own, and both report `Parameter 'value' implicitly has an 'any' type.`
+
+  Give them their types so the file compiles, without `as`. `formatAll` and `Format` stay as
+  they are, and so do the tests. The lesson shows two ways to do it, and each function suits one of them.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - A function gets parameter types from context only where it is written. Where are these two written, and what type is known there?
+  - '`percent` is a `const`, and a `const` can be annotated with any type, a function type from this file included.'

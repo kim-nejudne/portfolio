@@ -1,0 +1,27 @@
+id: m02-functions/01-parameters-and-returns/03-match-the-calls
+kind: fix
+title: Match the calls
+minutes: 4
+challenge: false
+prompt: |
+  `examples` shows how the rest of the app calls `formatPrice`, `total` and `discount`, and the
+  file doesn't compile. The short calls report `Expected 3 arguments, but got 1.` and its
+  relatives, and `discount` reports
+  `Function lacks ending return statement and return type does not include 'undefined'.`
+
+  Change the functions, not the calls, so that every call compiles and returns what its comment
+  says. The tests make the same kinds of call.
+
+  - `formatPrice` takes an amount, then a currency symbol that is `"$"` unless given, then a
+    number of digits that is `2` unless given.
+  - `total` takes any number of prices, including none.
+  - `discount` is 10% of the amount from 100 up, 5% from 50 up, and nothing below 50.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - Each argument-count error says how many arguments the signature expects and how many the call passed. Which parameters do the short calls leave out, and what should they be then?
+  - '`total(4, 5.5)` passes the prices one by one, not as an array. Which kind of parameter collects them?'
+  - '`discount` has a path that reaches its closing brace without a `return`. What is the discount on that path?'

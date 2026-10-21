@@ -1,0 +1,29 @@
+id: m02-functions/01-parameters-and-returns/04-path-length
+kind: implement
+title: The length of a path
+minutes: 5
+challenge: false
+prompt: |
+  `Point` is a pair of coordinates, typed as a readonly tuple. The two stubs take `unknown` as a
+  placeholder where their parameter types should be. Replace each `unknown` with a type built
+  from `Point`, then write the bodies:
+
+  - `distance(from, to)` returns the straight-line distance between two points (`Math.hypot`
+    of the two differences). `from` is required; `to` is optional and defaults to the origin,
+    `[0, 0]`.
+  - `pathLength(...points)` takes any number of points and returns the length of the path
+    through them in order: the sum of the distances between neighbours, and `0` for fewer than
+    two points.
+
+  The type cases reject a point that isn't a pair of numbers, so the parameter types matter as
+  much as the bodies. This combines the lesson with readonly tuples from 1.3, and with its
+  pitfall that an array literal is inferred as an array, never a tuple.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - Without an annotation, a default's type is inferred from its value. What type does TypeScript infer for the array literal `[0, 0]`?
+  - A rest parameter collects the arguments into an array. An array of what?
+  - '`pathLength` can reuse `distance`: walk the points from the second one on, measuring from the point before.'

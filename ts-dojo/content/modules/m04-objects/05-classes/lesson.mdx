@@ -1,0 +1,420 @@
+---
+id: m04-objects/05-classes
+title: 'Classes I: fields, constructors, public/private/protected, readonly, implements, abstract classes'
+minutes: 25
+objectives:
+  - Declare a class's fields with their types, and give each one a value the compiler can see
+  - Limit members with private, protected and readonly, and tell which limits still hold at run time
+  - Check a class against an interface with implements, and type its methods yourself
+  - Write an abstract class whose subclasses must implement its abstract members
+  - Predict when another value fits a class type, and how a private member changes that
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m03-unions/05-discriminated-unions
+  - m04-objects/01-type-vs-interface
+  - m04-objects/02-structural-typing
+tags:
+  - class
+  - field
+  - constructor
+  - strictPropertyInitialization
+  - definite assignment
+  - public
+  - private
+  - protected
+  - '#private'
+  - readonly
+  - implements
+  - abstract class
+  - nominal
+---
+
+## Concept
+
+A class in TypeScript is the JavaScript class you know, with types added. Each field is declared in the class body with its type. The constructor's and the methods' parameters are typed like any function's (<Lesson id="m02-functions/01-parameters-and-returns" />). And the class's name is also a type: the type of its instances.
+
+```ts twoslash
+class Counter {
+  label: string;
+  count = 0;
+
+  constructor(label: string) {
+    this.label = label;
+  }
+
+  increment(by = 1): number {
+    this.count += by;
+    return this.count;
+  }
+}
+
+const clicks = new Counter('clicks');
+//         ^?
+clicks.increment();
+const total = clicks.count;
+//        ^?
+```
+
+Two rules are new to a JavaScript programmer. A field must be declared in the class body for the constructor to assign it: without the `label: string` line, `this.label = label` reports `Property 'label' does not exist on type 'Counter'.` And under `strict`, every field must get a value (the check is `strictPropertyInitialization`): an initialiser, as `count = 0` has, which also gives the field its type, or an assignment in the constructor, as `label` has. A field that may have no value says so, with `note?: string`.
+
+On top of that come the modifiers `private`, `protected` and `readonly`, `implements`, and `abstract` classes. A shorthand that declares a field from a constructor parameter waits for lesson 8.3, Classes II.
+
+## Examples
+
+**Fields and the constructor.** The initialisation check follows the constructor's control flow, as narrowing does (<Lesson id="m03-unions/04-control-flow-analysis" />): a field assigned on every path through the constructor counts.
+
+```ts run
+class Task {
+  title: string;
+  done = false;
+  note?: string;
+  priority: 'low' | 'high';
+
+  constructor(title: string, urgent: boolean) {
+    this.title = title;
+    if (urgent) {
+      this.priority = 'high';
+    } else {
+      this.priority = 'low';
+    }
+  }
+}
+
+const task = new Task('Write the lesson', true);
+console.log(task.title, task.done, task.note, task.priority);
+```
+
+Drop the `else` and `priority` has no value when `urgent` is false: `Property 'priority' has no initializer and is not definitely assigned in the constructor.`
+
+**`private` and `protected`.** A `private` member can be used only inside its own class. A `protected` one can be used inside its class and its subclasses. Every other member is `public`, the default, so writing `public` changes nothing.
+
+```ts run errors
+class Account {
+  private balance = 0;
+  protected history: number[] = [];
+
+  deposit(amount: number): number {
+    this.balance += amount;
+    this.history.push(amount);
+    return this.balance;
+  }
+}
+
+class SavingsAccount extends Account {
+  lastDeposit(): number | undefined {
+    return this.history.at(-1);
+  }
+
+  peek(): number {
+    return this.balance;
+  }
+}
+
+const savings = new SavingsAccount();
+savings.deposit(50);
+console.log(savings.balance);
+console.log(savings.history);
+```
+
+The subclass may use `history` but not `balance`: `Property 'balance' is private and only accessible within class 'Account'.` Outside the classes both are off limits, and `history` reports `Property 'history' is protected and only accessible within class 'Account' and its subclasses.` These are compile-time checks, erased like every type; Pitfalls shows what is left at run time.
+
+**`readonly`.** A `readonly` field can be assigned where it is declared and in the constructor, and nowhere else, not even in the class's own methods. Like a `readonly` property (<Lesson id="m01-types/03-arrays-tuples-objects" />), it is shallow: the field can't point at another array, but the array it holds can still change. Modifiers combine, as in `private readonly`.
+
+```ts run errors
+class Ticket {
+  readonly id: string;
+  readonly seats: string[] = [];
+
+  constructor(id: string) {
+    this.id = id;
+  }
+
+  rename(id: string): void {
+    this.id = id;
+  }
+}
+
+const ticket = new Ticket('t-1');
+ticket.seats.push('12A');
+ticket.seats = [];
+```
+
+`Cannot assign to 'id' because it is a read-only property.`, and the same for `seats`. The `push` compiles.
+
+**`implements`.** `class Currency implements Formatter` asks the compiler to check that the class fits the interface. A class can implement several interfaces, separated by commas.
+
+```ts run
+interface Formatter {
+  format(value: number): string;
+}
+
+class Currency implements Formatter {
+  readonly symbol: string;
+
+  constructor(symbol: string) {
+    this.symbol = symbol;
+  }
+
+  format(value: number): string {
+    return `${this.symbol}${value.toFixed(2)}`;
+  }
+}
+
+class Percent implements Formatter {
+  format(value: number): string {
+    return `${Math.round(value * 100)}%`;
+  }
+}
+
+const formatters: Formatter[] = [new Currency('€'), new Percent()];
+for (const formatter of formatters) {
+  console.log(formatter.format(0.25));
+}
+```
+
+`implements` is a check and nothing more. Classes are compared by shape, so `Percent` would fit a `Formatter[]` without it. What it changes is where a mistake is reported: on the class, rather than wherever an instance is first used as a `Formatter`.
+
+```ts run errors
+interface Formatter {
+  format(value: number): string;
+}
+
+class Rounded implements Formatter {
+  round(value: number): string {
+    return value.toFixed(0);
+  }
+}
+```
+
+`Class 'Rounded' incorrectly implements interface 'Formatter'.`, then `Property 'format' is missing in type 'Rounded' but required in type 'Formatter'.`
+
+**Abstract classes.** An `abstract` class can't be created with `new`; it exists to be extended. An `abstract` member has a signature and no body, and every subclass that isn't abstract itself must implement it. The class's other members can call it, so the base class holds the shared code and leaves one part to each subclass:
+
+```ts run
+abstract class Shape {
+  readonly label: string;
+
+  constructor(label: string) {
+    this.label = label;
+  }
+
+  abstract area(): number;
+
+  describe(): string {
+    return `${this.label} with area ${this.area().toFixed(2)}`;
+  }
+}
+
+class Circle extends Shape {
+  readonly radius: number;
+
+  constructor(radius: number) {
+    super('circle');
+    this.radius = radius;
+  }
+
+  area(): number {
+    return Math.PI * this.radius ** 2;
+  }
+}
+
+class Square extends Shape {
+  readonly side: number;
+
+  constructor(side: number) {
+    super('square');
+    this.side = side;
+  }
+
+  area(): number {
+    return this.side ** 2;
+  }
+}
+
+const shapes: Shape[] = [new Circle(1), new Square(2)];
+for (const shape of shapes) {
+  console.log(shape.describe());
+}
+```
+
+Both rules are checked:
+
+```ts run errors
+abstract class Shape {
+  abstract area(): number;
+}
+
+const blob = new Shape();
+
+class Triangle extends Shape {}
+```
+
+`Cannot create an instance of an abstract class.` and `Non-abstract class 'Triangle' does not implement inherited abstract member area from class 'Shape'.`
+
+An interface only lists members, and is erased. An abstract class can also hold code and a constructor, and it is a real class at run time, so `instanceof Shape` works (<Lesson id="m03-unions/03-narrowing" />). Use an interface when only the members matter, and an abstract class when the subclasses share code.
+
+**Classes are compared by shape.** A class type is an object type, and <Lesson id="m04-objects/02-structural-typing" /> applies to it. Where a `Celsius` class is expected, an instance of another class with the same public members fits, and so does a plain object that has them, even though `instanceof Celsius` would be false for it. The type `Celsius` means "has the members of a `Celsius`", not "made by `new Celsius`".
+
+A `private` or `protected` member changes that, because it only matches its own declaration. Two classes that each declare a `private degrees` don't fit each other, and a plain object can't have the member at all. Only instances of the class and of its subclasses, which inherit the declaration, fit. A `#` field has the same effect. Here are the `Celsius` and `Fahrenheit` from that lesson as classes:
+
+```ts run errors
+class Celsius {
+  private readonly degrees: number;
+
+  constructor(degrees: number) {
+    this.degrees = degrees;
+  }
+
+  value(): number {
+    return this.degrees;
+  }
+}
+
+class Fahrenheit {
+  private readonly degrees: number;
+
+  constructor(degrees: number) {
+    this.degrees = degrees;
+  }
+
+  value(): number {
+    return this.degrees;
+  }
+}
+
+function isFreezing(temperature: Celsius): boolean {
+  return temperature.value() <= 0;
+}
+
+isFreezing(new Fahrenheit(23));
+isFreezing({ value: () => -5 });
+```
+
+`Argument of type 'Fahrenheit' is not assignable to parameter of type 'Celsius'.`, then `Types have separate declarations of a private property 'degrees'.` The plain object gets `Property 'degrees' is missing in type '{ value: () => number; }' but required in type 'Celsius'.` A private member is the class way to keep two types apart; module 14 shows branded types, which need no class.
+
+## Pitfalls
+
+**Silencing the initialisation check with `!`.** The check reads the constructor's own body, and nothing it calls. A field that a method assigns is reported even when the constructor calls that method:
+
+```ts run errors
+class Timer {
+  started: number;
+
+  constructor() {
+    this.reset();
+  }
+
+  reset(): void {
+    this.started = Date.now();
+  }
+}
+```
+
+Declaring the field as `started!: number`, a definite assignment assertion, turns the check off for it: you promise the field gets a value. That fits here, where `reset` assigns it. Used to silence an error that is right, it leaves a field `undefined` while its type says otherwise. This compiles, and running it throws a `TypeError`:
+
+```ts run
+class Profile {
+  name!: string;
+}
+
+const profile = new Profile();
+console.log(profile.name.toUpperCase());
+```
+
+Give the field an initialiser or assign it in the constructor; keep `!` for a value that arrives where the compiler can't follow.
+
+**Expecting `implements` to type the class.** A callback takes its parameter types from the function type it is written against (<Lesson id="m02-functions/02-function-types-and-callbacks" />); a method of a class that implements an interface doesn't. The class gets its types from its own declarations, and `implements` only checks the result, so an unannotated parameter is implicitly `any`, and `strict` rejects it:
+
+```ts run errors
+interface Formatter {
+  format(value: number): string;
+}
+
+class Plain implements Formatter {
+  format(value) {
+    return String(value);
+  }
+}
+```
+
+`Parameter 'value' implicitly has an 'any' type.` Type the class as if `implements` weren't there, because it adds nothing to the class: an optional property of the interface isn't the class's until the class declares it, and a `readonly` property in the interface doesn't make the class's field `readonly`.
+
+**Trusting `private` at run time.** `private` is erased, and the field is an ordinary property of the object: `JSON.stringify`, `Object.keys` and a spread all see it, and the compiler even allows reading it with brackets. JavaScript's own private field, written with `#`, is not a property at all, and TypeScript checks it too:
+
+```ts run
+class User {
+  readonly name: string;
+  private email: string;
+  #passwordHash: string;
+
+  constructor(name: string, email: string, passwordHash: string) {
+    this.name = name;
+    this.email = email;
+    this.#passwordHash = passwordHash;
+  }
+
+  checkPassword(hash: string): boolean {
+    return hash === this.#passwordHash;
+  }
+}
+
+const ada = new User('Ada', 'ada@example.com', 'x1y2');
+console.log(JSON.stringify(ada));
+console.log(ada['email']);
+```
+
+It prints `{"name":"Ada","email":"ada@example.com"}`, then `ada@example.com`. The `private` email went out with the JSON; the `#passwordHash` stayed inside, and outside the class `ada.#passwordHash` reports `Property '#passwordHash' is not accessible outside class 'User' because it has a private identifier.` Use `#` when a value must stay hidden at run time too.
+
+## Check yourself
+
+<Predict
+  id="implements-parameter"
+  question="`Formatter` declares `format(value: number): string`. Under strict, what does `class Plain implements Formatter { format(value) { return String(value); } }` report?"
+  options={[
+    'Nothing: value takes the type number from Formatter',
+    "Parameter 'value' implicitly has an 'any' type.",
+    "Class 'Plain' incorrectly implements interface 'Formatter'.",
+    'Nothing: value is any, and any fits number',
+  ]}
+  answer={1}
+  explanation="`implements` only checks the class against the interface after the class is typed; it gives the method no parameter types. So `value` has no type of its own, and strict reports the implicit `any`. Annotate it as `value: number`, as you would without `implements`."
+/>
+
+<Predict
+  id="private-in-json"
+  code={
+    "class Login {\n  readonly user = 'ada';\n  private token = 'secret';\n}\n\nconsole.log(JSON.stringify(new Login()));"
+  }
+  question="What does this print?"
+  options={[
+    '{"user":"ada"}',
+    '{"user":"ada","token":"secret"}',
+    '{}',
+    'Nothing: it is a compile error, because JSON.stringify reads a private field',
+  ]}
+  answer={1}
+  explanation="`private` is a compile-time check, and it is erased. At run time `token` is an ordinary property, and `JSON.stringify` writes out every enumerable property. With a `#token` field it would print only the user."
+/>
+
+<Predict
+  id="readonly-where"
+  question="Where may a class assign its own `readonly` field?"
+  options={[
+    'Anywhere inside the class, including its methods',
+    'Where the field is declared, and in the constructor',
+    'Only where the field is declared',
+    'Only in the constructor',
+  ]}
+  answer={1}
+  explanation="A `readonly` field gets its value from its initialiser or in the constructor, and both are allowed. After that it can't be reassigned, not even by the class's own methods: `Cannot assign to 'id' because it is a read-only property.`"
+/>
+
+## Further reading
+
+- [Handbook: Classes](https://www.typescriptlang.org/docs/handbook/2/classes.html)
+- [Handbook: Classes, `--strictPropertyInitialization`](https://www.typescriptlang.org/docs/handbook/2/classes.html#--strictpropertyinitialization)
+- [Handbook: Classes, `implements` clauses](https://www.typescriptlang.org/docs/handbook/2/classes.html#implements-clauses)
+- [Handbook: Classes, member visibility](https://www.typescriptlang.org/docs/handbook/2/classes.html#member-visibility)
+- [Handbook: Classes, `abstract` classes and members](https://www.typescriptlang.org/docs/handbook/2/classes.html#abstract-classes-and-members)
+- [Handbook: Classes, relationships between classes](https://www.typescriptlang.org/docs/handbook/2/classes.html#relationships-between-classes)
+- [Type Compatibility: private and protected members in classes](https://www.typescriptlang.org/docs/handbook/type-compatibility.html#private-and-protected-members-in-classes)

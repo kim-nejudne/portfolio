@@ -1,0 +1,10 @@
+id: m04-objects
+title: Object types, interfaces and classes
+summary: Describe object shapes, see how structural typing compares them, and type classes.
+prerequisites: [m03-unions]
+lessons:
+  - 01-type-vs-interface
+  - 02-structural-typing
+  - 03-index-signatures-and-record
+  - 04-enums-vs-as-const
+  - 05-classes

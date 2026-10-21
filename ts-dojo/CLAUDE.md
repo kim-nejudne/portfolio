@@ -13,6 +13,7 @@ Versions and APIs in the spec are as of 17 October 2026. Before relying on one, 
 ## Layout (spec §2)
 
 - `content/` lessons and exercises (§3); `public/ts/6.0.3/` the `lib.*.d.ts` files copied by `scripts/copy-ts-libs.ts`.
+- `fixtures/content/` the fixture course the tests run against (its own roadmap and renames); `pnpm build --mode e2e` builds it into `dist-e2e/` for Playwright, and nothing ships it.
 - `src/app/` routes, layout, keyboard map, palette, theme; `src/components/ui/` shadcn; `src/pages/` roadmap, module, lesson, repl, settings, progress.
 - `src/content/` Zod schemas, loaders, registry types, MDX components; `src/editor/` CodeMirror setup, vim config and vimrc parser, TS extensions, `^?` widgets.
 - `src/workers/ts-ls/` and `src/workers/sandbox/`: pure cores (`core.ts`, `prelude.ts`) that also run in Node, plus thin worker adapters; `src/protocol/` the message types both sides import.

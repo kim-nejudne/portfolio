@@ -1,0 +1,21 @@
+id: m01-types/02-primitives-literals-widening/01-keep-the-method
+kind: fix
+title: Keep the method
+minutes: 2
+challenge: false
+prompt: |
+  `index.ts` doesn't compile:
+  `Argument of type 'string' is not assignable to parameter of type '"GET" | "POST"'.`
+  `request` accepts only the two methods, and `options.method` has widened to `string`.
+
+  Make `options` keep the literal type of its method, without changing its values, `request` or
+  the call. The type case checks that `options.method` has the type `'GET'`; the tests stay as
+  they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The error is on the call, but the cause is the declaration. `options` is a `const`, yet each of its properties could still be reassigned, so `'GET'` widened.
+  - The lesson shows how to tell the compiler that a value, or one property of it, will never change.

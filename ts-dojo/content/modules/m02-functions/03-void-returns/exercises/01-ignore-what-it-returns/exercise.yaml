@@ -1,0 +1,21 @@
+id: m02-functions/03-void-returns/01-ignore-what-it-returns
+kind: fix
+title: Ignore what it returns
+minutes: 2
+challenge: false
+prompt: |
+  `visitAll` calls `visit` once for every name and never uses what it returns, but `Visit` says
+  that a visit returns `undefined`. Neither callback in the file fits: the one in `shout` reports
+  `Type 'number' is not assignable to type 'undefined'.` and the one in `logAll` reports
+  `Type 'void' is not assignable to type 'undefined'.`
+
+  Fix the type, not the callbacks: the tests pass `visitAll` a callback that returns a number
+  too.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - '`push` returns a `number` and `console.log` returns `void`. Neither is the value `undefined`, and the type asks for exactly that value.'
+  - Which return type in a function type says the caller ignores the result, whatever it is?

@@ -1,0 +1,211 @@
+---
+id: m04-objects/03-index-signatures-and-record
+title: Index signatures and Record
+minutes: 15
+objectives:
+  - Type an object used as a dictionary with a string or number index signature
+  - Predict what a read of a missing key gives, and make the type admit that it can be missing
+  - Mix named properties with an index signature so that each one fits the index type
+  - Choose between Record with string keys and Record with a union of literal keys
+  - Iterate a dictionary with Object.keys and Object.entries, knowing the keys come back as strings
+prerequisites:
+  [
+    m03-unions/02-null-undefined-strict,
+    m03-unions/03-narrowing,
+    m03-unions/05-discriminated-unions,
+    m04-objects/01-type-vs-interface,
+    m04-objects/02-structural-typing,
+  ]
+tags:
+  [
+    index signature,
+    Record,
+    dictionary,
+    Object.keys,
+    Object.entries,
+    Map,
+    missing key,
+  ]
+---
+
+## Concept
+
+Some objects are dictionaries: word counts, a price list, users by id. Their keys are data, unknown when the type is written; only the type of every value is known. An **index signature** describes such an object: `{ [word: string]: number }` means any `string` key, each with a `number` value. `word` only labels the key.
+
+```ts run
+type WordCounts = { [word: string]: number };
+
+function countWords(text: string): WordCounts {
+  const counts: WordCounts = {};
+  for (const word of text.split(' ')) {
+    counts[word] = (counts[word] ?? 0) + 1;
+  }
+  return counts;
+}
+
+console.log(countWords('the cat saw the dog'));
+```
+
+Without the annotation, `counts` would be `{}`, a type with no properties, and each `counts[word]` an error: `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{}'.`
+
+The same type can be written `Record<string, number>`: like `Map<string, number>`, the built-in `Record` takes the key type, then the value type. Later modules show how it is built.
+
+## Examples
+
+**Reads and writes.** Any `string` key can be written or read, with a dot or with brackets. A value of another type is rejected, and every read gives the value type:
+
+```ts twoslash
+const stock: Record<string, number> = { apples: 3, pears: 0 };
+
+stock.plums = 12;
+stock['kiwis'] = 7;
+
+const lemons = stock.lemons;
+//         ^?
+```
+
+`stock` has no lemons, yet `lemons` is a `number`. Pitfalls comes back to that.
+
+**Number keys.** The key type can be `number` instead, for an object keyed by a year, say. A key that isn't a number, such as `worldCup['final']`, is then an error. Arrays have a `number` index signature too, which is why `names[10]` is a `string` whatever the length.
+
+```ts run
+type Champions = { [year: number]: string };
+
+const worldCup: Champions = { 2018: 'France', 2022: 'Argentina' };
+console.log(worldCup[2022]);
+```
+
+At run time JavaScript still stores every property key as a string: the keys of `worldCup` are `'2018'` and `'2022'`.
+
+**Named properties beside the signature.** An object type can list some properties by name and take any other key through an index signature. Every named property must fit the index type, because a read with any `string` key may land on it: `mode` fits, `port` doesn't.
+
+```ts run errors
+type Env = {
+  mode: string;
+  port: number;
+  [name: string]: string;
+};
+```
+
+The error is `Property 'port' of type 'number' is not assignable to 'string' index type 'string'.` An optional property counts as its type plus `undefined`, so `label?: string` needs `undefined` in the index type as well. 4.2's `LogEntry` used `unknown`, which every property fits. When the free-form keys are a separate concern, give them a property of their own, `vars: { [name: string]: string }`, and the named ones are free.
+
+**`Record` with a union of keys.** Give `Record` a union of literal types as its keys and it becomes an object type with exactly those properties, every one required. Leaving one out is an error, `Property 'large' is missing in type '{ small: number; medium: number; }' but required in type 'Record<Size, number>'.`, and so is a key outside the union.
+
+```ts run errors
+type Size = 'small' | 'medium' | 'large';
+
+const prices: Record<Size, number> = { small: 3, medium: 4 };
+```
+
+So a read with any `Size` is safe, and when `Size` gains a member, every table without it stops compiling, as the `never` check in <Lesson id="m03-unions/05-discriminated-unions" /> does for a `switch`. Use `string` keys when the keys are data, and a union when they are a fixed set.
+
+**Iterating.** `Object.keys` gives the keys, and `Object.entries` gives `[key, value]` pairs:
+
+```ts twoslash
+type Size = 'small' | 'medium' | 'large';
+const prices: Record<Size, number> = { small: 3, medium: 4, large: 5 };
+
+const sizes = Object.keys(prices);
+//        ^?
+const rows = Object.entries(prices);
+//       ^?
+```
+
+The keys are `string`, not `Size`, on purpose: a value can carry more properties than its type lists (structural typing, 4.2), so the compiler can't promise only `Size`s. For a number index signature, `string` is simply the truth: `'2018'`, not `2018`.
+
+**A dictionary or a `Map`.** When entries come and go at run time, a `Map<string, number>` often fits better: its `get` returns `number | undefined`, and keys can be of any type.
+
+## Pitfalls
+
+**A key that isn't there.** Under the default options, a read through an index signature has the value type whether or not the key exists. This compiles, and a missing item turns into `NaN`:
+
+```ts run
+const stock: Record<string, number> = { apples: 3, pears: 0 };
+
+function restock(item: string): number {
+  return stock[item] + 10;
+}
+
+console.log(restock('apples'), restock('plums'));
+```
+
+When a key can be missing, say so in the value type. With `Record<string, number | undefined>` every read is `number | undefined`, and the same function is an error, `Object is possibly 'undefined'.`, until it handles the missing case with a check or a fallback such as `(stock[item] ?? 0) + 10`:
+
+```ts run errors
+const stock: Record<string, number | undefined> = { apples: 3, pears: 0 };
+
+function restock(item: string): number {
+  return stock[item] + 10;
+}
+```
+
+The option `noUncheckedIndexedAccess` adds `undefined` to every index read, arrays included; it is off here, and module 16 covers it with `noPropertyAccessFromIndexSignature`.
+
+**A union of literals in an index signature.** `{ [size: Size]: number }` looks like one property per size, but an index signature's key type can't be a literal type: `An index signature parameter type cannot be a literal type or generic type. Consider using a mapped object type instead.` `Record<Size, number>` is what was meant.
+
+```ts run errors
+type Size = 'small' | 'medium' | 'large';
+
+type Prices = { [size: Size]: number };
+```
+
+**Indexing with a key from `Object.keys`.** A `string` can't index a `Record<Size, number>`, which has only three properties: `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Record<Size, number>'.`
+
+```ts run errors
+type Size = 'small' | 'medium' | 'large';
+const prices: Record<Size, number> = { small: 3, medium: 4, large: 5 };
+
+for (const size of Object.keys(prices)) {
+  console.log(size, prices[size]);
+}
+```
+
+Take the values from `Object.entries` instead, or, when you need keys typed `Size`, loop over a list declared as `Size[]`.
+
+## Check yourself
+
+<Predict
+  id="missing-key"
+  question="`stock` is a `Record<string, number>` holding `{ apples: 3 }`. What is the type of `stock.plums`?"
+  options={[
+    'number',
+    'number | undefined',
+    'undefined',
+    'A compile error: plums does not exist on stock',
+  ]}
+  answer={0}
+  explanation="A read through an index signature has the value type whether or not the key is there, so `stock.plums` is a `number`, and at run time it is `undefined`. Declared as `Record<string, number | undefined>`, every read would be `number | undefined`, and the compiler would ask for a check."
+/>
+
+<Predict
+  id="every-size"
+  question="With `type Size = 'small' | 'large'`, what does `const prices: Record<Size, number> = { small: 3 }` report?"
+  options={[
+    'Nothing: the keys of a Record are optional',
+    "An error: property 'large' is missing",
+    'An error: an index signature cannot use a literal type',
+    'Nothing, and prices.large reads as a number',
+  ]}
+  answer={1}
+  explanation="With a union of literal keys, `Record` is an object type with one required property per key, so leaving out `large` is an error. The literal-type error belongs to `{ [size: Size]: number }`, the index signature that `Record<Size, number>` replaces."
+/>
+
+<Predict
+  id="named-property"
+  question="Which of these object types compiles?"
+  options={[
+    '{ id: number; [key: string]: string }',
+    '{ id: string; [key: string]: string }',
+    '{ id?: string; [key: string]: string }',
+    "{ [key: 'id' | 'name']: string }",
+  ]}
+  answer={1}
+  explanation="Every named property must fit the index type. A `number` doesn't fit `string`, and an optional `id` counts as `string | undefined`, which doesn't either. The last one puts a union of literals in an index signature, which isn't allowed; `Record<'id' | 'name', string>` is the type that means it."
+/>
+
+## Further reading
+
+- [Object Types: index signatures](https://www.typescriptlang.org/docs/handbook/2/objects.html#index-signatures)
+- [Utility Types: Record](https://www.typescriptlang.org/docs/handbook/utility-types.html#recordkeys-type)
+- [MDN: Object.entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries)
+- [MDN: Map, and how it compares with a plain object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)

@@ -1,0 +1,212 @@
+---
+id: m00-orientation/03-vim-in-the-dojo
+title: 'Vim in this app: the shipped vimrc, ex commands, K, ]d, gd, ^?'
+minutes: 15
+objectives:
+  - Move between the theory, editor and output panes, and reach every app action from the keyboard
+  - Read the shipped vimrc, change it on /settings, and know which Vim features are gaps here
+  - Visit errors with ]d and [d and read their messages in the Problems tab
+  - Read a type or a signature with K and follow a name to its definition with gd, across files
+  - Ask for a type inline with a ^? comment
+prerequisites:
+  - m00-orientation/01-why-typescript
+  - m00-orientation/02-the-dojo
+tags:
+  - vim
+  - vimrc
+  - keys
+  - mappings
+  - leader
+  - ex commands
+  - quick info
+  - go to definition
+  - diagnostics
+  - twoslash
+  - pane focus
+  - help overlay
+  - command palette
+---
+
+## Concept
+
+The editor is CodeMirror with Vim keys, from `@replit/codemirror-vim`. It opens in normal mode, and the status line at its foot names the mode and shows the app's messages. While the editor has focus every key goes to Vim, except <Key>Ctrl-p</Key> outside insert mode, which opens the command palette, and the keys of an open completion list. The app reaches you through ex commands on the `:` line, such as the `:w` and `:test` of <Lesson id="m00-orientation/02-the-dojo" />, and through a vimrc that maps keys to them. Four shipped mappings bring what the compiler knows into the buffer:
+
+```vim
+nmap ]d :dnext<CR>
+nmap [d :dprev<CR>
+nmap K :info<CR>
+nmap gd :def<CR>
+```
+
+<Key>]d</Key> and <Key>[d</Key> move the cursor to the next and the previous
+error, <Key>K</Key> shows the type of the name under the cursor, and
+<Key>gd</Key> jumps to where that name is defined, in another file if need be. A
+fifth tool needs no key: a comment line `// ^?` under a name shows that name's
+type in the buffer, the same query the `ts twoslash` blocks in these lessons
+answer when the site is built.
+
+Vim itself works as you know it: every mode, visual block included; motions, operators and text objects with counts; registers, with `"+` and `"*` both the system clipboard; marks and jumps, search, `.`, macros, `:s`, `:g` and `:sort`; folds with `zo zc za zR zM`. The main gaps (the help overlay lists them all): `it` and `at` select nothing (a TypeScript buffer has no tags), `U` is a plain undo, a mapping can't start with a key that is a command by itself, such as Space, `,` or `s`, and there is no `zf`, `zd`, `zj`, `zk`, `g;`, `g,`, `gx` or `gf`.
+
+Chrome on Linux keeps <Key>Ctrl-n</Key>, <Key>Ctrl-t</Key>, <Key>Ctrl-w</Key>, their <Key>Shift</Key> versions, <Key>Ctrl-Tab</Key> and <Key>Ctrl-1</Key> to <Key>Ctrl-9</Key> for itself, so nothing in the app needs them: completion opens as you type or on <Key>Ctrl-Space</Key>, <Key>Ctrl-j</Key> and <Key>Ctrl-k</Key> move through it, and <Key>Enter</Key> accepts.
+
+## Examples
+
+**The shipped vimrc.** All of it:
+
+```vim
+let mapleader = " "
+imap jk <Esc>
+nmap <leader>r :run<CR>
+nmap <leader>t :test<CR>
+nmap <leader>h :hint<CR>
+nmap ]d :dnext<CR>
+nmap [d :dprev<CR>
+nmap K :info<CR>
+nmap gd :def<CR>
+nmap gt :bnext<CR>
+nmap gT :bprev<CR>
+nmap <C-h> :focus left<CR>
+nmap <C-j> :focus down<CR>
+nmap <C-k> :focus up<CR>
+nmap <C-l> :focus right<CR>
+set rnu
+```
+
+The leader is Space: <Key>Space r</Key> runs (`:run` is `:w`), <Key>Space t</Key> tests and <Key>Space h</Key> shows a hint. `jk` in insert mode is <Key>Esc</Key>, <Key>gt</Key> and <Key>gT</Key> switch file tabs, and `set rnu` numbers lines relative to the cursor. <Key>Ctrl-h</Key> <Key>Ctrl-j</Key> <Key>Ctrl-k</Key> <Key>Ctrl-l</Key> move between panes, as in vim-tmux-navigator, from normal and visual mode; in insert mode <Key>Ctrl-h</Key> stays backspace and <Key>Ctrl-j</Key> <Key>Ctrl-k</Key> move through completions.
+
+To change it, type the address `/settings`; no link leads there. Its vimrc box takes the `map` and `noremap` families, `unmap`, `set <option>`, `let mapleader = "<key>"` and `"` comments, lists a line it can't read with its number and skips it. Saving applies the text at once; a second button restores this one. `"*`, `U`, the folds, insert-mode <Key>Ctrl-h</Key> and the visual-mode pane keys are applied by the app outside the text, so editing it doesn't lose them. A mapping typed on the `:` line isn't saved: the next editor the app creates, for the next exercise, another page or a reload, starts again from the vimrc. `:set rnu`, `nornu`, `nu`, `wrap`, `nowrap`, `bg=dark` and `bg=light` are remembered, and win over the vimrc's own `set` lines.
+
+**More ex commands.** Beyond the loop of the last lesson: `:kill` ends a run that is still going. `:prev` (`:N`), `:lesson next`, `:lesson prev` and `:roadmap` (`:rm`) move through the course. `:theory`, `:practice`, `:output` and `:focus left`, `right`, `up` or `down`, which the pane keys call, move the focus; `:layout` and `:prompt` change what the page shows. `:b <file>`, `:bnext` and `:bprev` switch file tabs and `:ls` lists them; `:b` takes any unique start of a name, so in the exercise `:b me` opens `menu.ts`. `:help` (`:h`) opens the help overlay, which lists every command, and <Key>Ctrl-p</Key> finds any of them by name.
+
+**Reading types with K and gd.** Run this, then open it in the REPL (<Key>Tab</Key> to the block, then <Key>Enter</Key>) and try the keys:
+
+```ts run
+/** Formats a price in cents as euros: 450 becomes "€4.50". */
+export function formatCents(cents: number) {
+  return `€${(cents / 100).toFixed(2)}`;
+}
+
+const order = [300, 450];
+const total = order.reduce((sum, cents) => sum + cents, 0);
+console.log(formatCents(total));
+```
+
+It prints `€7.50`. On `formatCents` in the last line, <Key>K</Key> shows `function formatCents(cents: number): string` and the doc comment, until the cursor moves. On `total` it shows `const total: number`, a type nobody wrote. <Key>gd</Key> on `formatCents` moves the cursor to line 2; on `toFixed`, which TypeScript's own library declares, the status line says `defined in lib.es5.d.ts`. In an exercise with several files, <Key>gd</Key> on an imported name opens its file's tab at the definition, and `:b` with the file's name takes you back (<Key>gT</Key> goes to the previous tab in order, which is where you came from when that is the tab before); <Key>K</Key> on an imported name starts with `(alias)`.
+
+<Callout kind="tip">
+  Every REPL buffer is a file of one project. Buffers with no `import` or
+  `export` are scripts, and two scripts that declare the same name clash, with
+  errors such as `Cannot redeclare block-scoped variable` in both. This lesson's
+  runnable snippets export `formatCents`, which makes each one a module with
+  names of its own.
+</Callout>
+
+**Errors with ]d and [d.** Squiggles and gutter marks appear 200 ms after you stop typing. <Key>]d</Key> puts the cursor on the start of the next one in this file and <Key>[d</Key> on the previous one, wrapping at the ends; with none, the status line says `no diagnostics`. Nothing is selected, so you stay in normal mode. To read the messages without the mouse, open the output pane's Problems tab: it lists every file's diagnostics as `file:line:column message TScode`, and <Key>Enter</Key> on one opens its file at that line. The second pitfall has a file to practise on.
+
+**Types inline with ^?.** A comment line whose `^` sits under a name on the line above makes the editor show that name's quick info in a block under the comment, refreshed as you type. Any column inside the name works, and so does the character right after it. The `ts twoslash` blocks are the same query, answered at build time:
+
+```ts twoslash
+const order = [300, 450];
+//        ^?
+const total = order.reduce((sum, cents) => sum + cents, 0);
+//        ^?
+```
+
+Anywhere else, such as under an `=` with spaces around it, the block says `Nothing to show here: point the ^ at a name on the line above`, and past the end of the line above, `Nothing above the ^ to query`. To the compiler the line is an ordinary comment, so it can stay in an exercise.
+
+**Panes, and the keys outside the editor.** Three panes take the focus: the theory, the editor and the output pane under it. From the editor, <Key>Ctrl-h</Key> goes to the theory and <Key>Ctrl-j</Key> to the output; <Key>Ctrl-l</Key> and <Key>Ctrl-k</Key> come back. Outside the editor the app's own keys work:
+
+- <Key>1</Key> <Key>2</Key> <Key>3</Key> focus the theory, the editor and the
+  output, and <Key>Esc</Key> the editor.
+- <Key>?</Key> opens the help overlay: these keys, every ex command and the Vim
+  gaps.
+- <Key>Ctrl-p</Key> opens the palette, as it does from normal or visual mode in
+  the editor.
+- <Key>g r</Key> goes to the roadmap, <Key>g n</Key> <Key>g p</Key> to the next
+  and previous lesson, <Key>] e</Key> <Key>[ e</Key> to the next and previous
+  exercise.
+- In the theory, <Key>j</Key> <Key>k</Key> <Key>gg</Key> <Key>G</Key> <Key>Ctrl-d</Key> <Key>Ctrl-u</Key> scroll, and <Key>Enter</Key> on a code block reached with <Key>Tab</Key> opens it in the REPL.
+- In the output pane, <Key>j</Key> <Key>k</Key> move, <Key>h</Key> <Key>l</Key> switch between Console, Problems and Tests, and <Key>Enter</Key> opens an entry's line.
+
+## Pitfalls
+
+**Pressing a key where it means something else.** While the editor has focus the app's keys are Vim's: <Key>?</Key> searches backwards and <Key>1</Key> to <Key>3</Key> are counts. Use `:help`, `:theory` or `:output` there, or leave with a pane key first. Chrome's keys are Chrome's everywhere: in insert mode <Key>Ctrl-w</Key> closes the tab instead of deleting a word. An exercise's files are saved as you type, so they survive it, but the key that deletes a word here is <Key>Ctrl-Backspace</Key>.
+
+The other way round, in insert mode every key is text. A `:w` typed before <Key>Esc</Key> lands in the file, and the compiler reports it where it landed:
+
+```ts run errors
+export function formatCents(cents: number) {
+  return `€${(cents / 100).toFixed(2)}`;:w
+}
+```
+
+`Declaration or statement expected.` points at the `:`, and `Cannot find name 'w'.` at the `w`. Leave insert mode first; to clean up, <Key>2x</Key> on the `:` deletes both stray keys.
+
+**Fixing the line with the squiggle.** An error is reported where a value is used, which isn't always where the mistake is:
+
+```ts run errors
+export function formatCents(cents: number) {
+  return `€${(cents / 100).toFixed(2)}`;
+}
+
+const order = [300, 450];
+const total = order.reduce((sum, cents) => sum + cents, '');
+console.log(formatCents(total));
+console.log(total / 100);
+```
+
+In the REPL, <Key>gg</Key> <Key>]d</Key> lands on line 7, `Argument of type 'string' is not assignable to parameter of type 'number'.`, the next <Key>]d</Key> on line 8, and a third wraps back to line 7. Run prints `€3004.50` and `3004.5`, and `Number(total)` on both lines would hide the errors without changing that. <Key>K</Key> on `total` says `const total: string`: the sum starts from `''`, so it joins the numbers as strings. The mistake is on line 6, where nothing is underlined; start the sum at `0` and both errors go.
+
+**A mapping that never fires.** The vimrc accepts both of these lines, and neither works:
+
+```vim
+nmap ,r :run<CR>
+nmap <leader>r :run
+```
+
+`,` is a command by itself (it repeats `f` or `t` the other way), and the engine runs a full command at once instead of waiting for another key, so `,r` never fires; start mappings with `<leader>`. The second fires but only types `:run` on the command line and waits for <Key>Enter</Key>: a mapping to an ex command needs its `<CR>`.
+
+## Check yourself
+
+<Predict
+  id="dnext-wraps"
+  question="index.ts has errors on lines 6, 13 and 21, and menu.ts has one on line 4. In index.ts, the cursor is on the error on line 21. Where does `]d` take it?"
+  options={[
+    'To the error on line 4 of menu.ts',
+    'To the error on line 6 of index.ts',
+    'Nowhere: the status line says no diagnostics',
+  ]}
+  answer={1}
+  explanation="`]d` moves between the diagnostics of the file you are in, and after the last one it wraps around to the first. The error in menu.ts is listed in the Problems tab, where `Enter` opens menu.ts at that line."
+/>
+
+<Predict
+  id="question-mark-in-the-editor"
+  question="The editor has focus, in normal mode. What does `?` do?"
+  options={[
+    'Opens the keyboard help overlay',
+    'Starts a backward search, as in Vim',
+    'Nothing: Chrome keeps the key',
+  ]}
+  answer={1}
+  explanation="While the editor has focus the app's global keys don't fire, so `?` is Vim's backward search. `:help`, or `:h`, opens the overlay from the editor; `?` opens it from the theory or the output pane."
+/>
+
+<Predict
+  id="a-mapping-that-fires"
+  question="You want a key in the editor that runs `:export`. Which vimrc line does it?"
+  options={[
+    'nmap ,e :export<CR>',
+    'nmap <leader>e :export<CR>',
+    'nmap <leader>e :export',
+  ]}
+  answer={1}
+  explanation="`,` is a command by itself, so a mapping that starts with it never fires; the leader, Space, is free. Without `<CR>` the mapping only types `:export` on the command line and waits for Enter."
+/>
+
+## Further reading
+
+- [@replit/codemirror-vim, the Vim engine behind the editor](https://github.com/replit/codemirror-vim)
+- [Vim help: key mapping, map.txt](https://vimhelp.org/map.txt.html)
+- [vim-tmux-navigator, the model for Ctrl-h/j/k/l](https://github.com/christoomey/vim-tmux-navigator)
+- [twoslash, the ^? query notation](https://github.com/twoslashes/twoslash)

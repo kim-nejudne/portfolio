@@ -40,6 +40,7 @@ import {
   readLessonRow,
   runFromPalette,
   separator,
+  shown,
   solutionPane,
   squash,
   theoryPane,
@@ -86,14 +87,14 @@ test.describe(':hint', () => {
     await ex(page, 'hint');
     await expect(hintItems(page)).toHaveCount(1);
     await expect(hintItems(page).first()).toHaveText(
-      `Hint 1. ${hints[0] ?? ''}`,
+      `Hint 1. ${shown(hints[0] ?? '')}`,
     );
     await expect(lessonNotice(page)).toHaveText('hint 1 of 2');
     await expect(vimPanel(page)).toContainText('hint 1 of 2');
     await ex(page, 'hint');
     await expect(hintItems(page)).toHaveCount(2);
     await expect(hintItems(page).nth(1)).toHaveText(
-      `Hint 2. ${hints[1] ?? ''}`,
+      `Hint 2. ${shown(hints[1] ?? '')}`,
     );
     await expect(headerField(page, 'hints')).toHaveText('hints 2/2');
     await ex(page, 'hint');

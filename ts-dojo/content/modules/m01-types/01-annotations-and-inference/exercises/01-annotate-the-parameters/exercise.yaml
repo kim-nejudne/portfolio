@@ -1,0 +1,21 @@
+id: m01-types/01-annotations-and-inference/01-annotate-the-parameters
+kind: fix
+title: Annotate the parameters
+minutes: 2
+challenge: false
+prompt: |
+  `area` and `perimeter` don't compile: every parameter reports
+  `Parameter 'width' implicitly has an 'any' type.` (or `'height'`). Give each parameter a type
+  so the file compiles. Both functions are exported and return a value, so write their return
+  types too.
+
+  The tests call both functions with numbers, and their type cases check that each one takes two
+  numbers and returns a number. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - Each error names one parameter. A parameter gets its type only from an annotation, never from the calls.
+  - A parameter's annotation goes right after its name, the same way a variable's does. The tests show what the callers pass.

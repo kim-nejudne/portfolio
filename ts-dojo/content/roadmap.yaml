@@ -1,11 +1,9 @@
-# The roadmap (spec §3): tiers in order, each listing its modules. Fixture tiers only until
-# F11 replaces them with the §8 tiers t0–t4. F9 added two predict-only fixture modules so the
-# roadmap has a same-band neighbour (m98, whose edge from m99 is implied and not drawn), a
-# second band and two drawn prerequisite edges (m99 → m97, m98 → m97).
+# The roadmap (spec §3): tiers in order, each listing its modules (§8). F11 ships Tier 0 and
+# Tier 1; F12–F14 add Tiers 2–4.
 tiers:
-  - id: t9
-    title: Fixtures
-    modules: [m99-fixtures, m98-fixture-sequel]
-  - id: t10
-    title: Fixtures, second band
-    modules: [m97-fixture-capstone]
+  - id: t0
+    title: Orientation
+    modules: [m00-orientation]
+  - id: t1
+    title: Foundations
+    modules: [m01-types, m02-functions, m03-unions, m04-objects]

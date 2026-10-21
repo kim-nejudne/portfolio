@@ -1,0 +1,32 @@
+id: m04-objects/04-enums-vs-as-const/02-level-from-the-config
+kind: predict
+title: A level from the config
+minutes: 2
+challenge: false
+code: |
+  enum Level {
+    Debug,
+    Info = 10,
+    Warn,
+    Error,
+  }
+
+  function label(level: Level): string {
+    return Level[level];
+  }
+
+  const fromConfig: number = 11;
+  console.log(label(fromConfig), label(Level.Error));
+question: Does this compile, and if it does, what does it print?
+options:
+  - 'A compile error: a number is not assignable to Level'
+  - 'It compiles and prints Warn Error'
+  - 'It compiles and prints undefined Error'
+  - 'It compiles and prints Info 12'
+answer: 1
+explanation: |
+  Members count on from the last initialiser, so `Warn` is 11 and `Error` is 12, and the
+  reverse mapping turns each number back into its name: `Level[11]` is `'Warn'`. A numeric
+  enum accepts any value typed `number`, so `label(fromConfig)` compiles. Had the config held
+  7, it would still compile and print `undefined`; only a literal such as `label(7)` is
+  rejected.

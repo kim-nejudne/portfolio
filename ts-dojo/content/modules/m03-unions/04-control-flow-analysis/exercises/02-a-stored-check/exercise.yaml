@@ -1,0 +1,31 @@
+id: m03-unions/04-control-flow-analysis/02-a-stored-check
+kind: predict
+title: A stored check
+minutes: 2
+challenge: false
+code: |
+  function describe(input: string | number | undefined): string {
+    let value = input;
+    if (value === undefined) {
+      value = 0;
+    }
+    const isText = typeof value === 'string';
+    if (isText) {
+      return value.toUpperCase(); // A
+    }
+    return value.toFixed(2); // B
+  }
+question: Which of the lines marked `A` and `B` compile?
+options:
+  - 'Both: `isText` narrows `value` to `string` inside the `if` and to `number` after it'
+  - 'Only `A`'
+  - 'Only `B`'
+  - 'Neither: `isText` narrows nothing here, so `value` is `string | number` on both lines'
+answer: 3
+explanation: |
+  After the first `if`, `value` is `string | number`: the assignment replaced `undefined` with a
+  number. A check stored in a `const` narrows only a variable that is never assigned, and
+  `value` is assigned inside that `if`. So `isText` is just a `boolean`, `value` stays
+  `string | number` on both lines, and neither `toUpperCase` nor `toFixed` exists on both
+  members. Write the `typeof` check in the `if` itself, or declare `const value = input ?? 0`,
+  and both lines compile.

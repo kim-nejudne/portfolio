@@ -1,0 +1,26 @@
+id: m03-unions/02-null-undefined-strict/04-look-up-an-order
+kind: implement
+title: Look up an order
+minutes: 4
+challenge: false
+prompt: |
+  An order has a customer whose email is optional, and a `coupon` that is `null` when the order
+  was placed without one. Implement three functions in `index.ts`:
+
+  - `findOrder(orders, id)` returns the order with that id, or `undefined` when there is none.
+  - `contactFor(orders, id)` returns who to contact about order `id`: the customer's email,
+    else the customer's name, else `'nobody'` when there is no such order.
+  - `couponCode(order, fallback)` returns the order's coupon in upper case, or `fallback` when
+    there is no order or it has no coupon. `fallback` defaults to `'NONE'`.
+
+  This combines the lesson with optional properties and readonly arrays (1.3) and default
+  parameters (2.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - '`findOrder` needs a single array method, and its return type already says what happens when nothing matches.'
+  - In `contactFor` the order may be missing and so may the email. Chain the fallbacks from the value you want most down to `'nobody'`.
+  - '`coupon` can be `null` and the order can be `undefined`. Optional chaining stops on both, so `toUpperCase` only ever runs on a real string.'

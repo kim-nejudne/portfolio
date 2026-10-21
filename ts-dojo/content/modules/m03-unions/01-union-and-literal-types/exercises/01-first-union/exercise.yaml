@@ -1,0 +1,21 @@
+id: m03-unions/01-union-and-literal-types/01-first-union
+kind: implement
+title: Your first union
+minutes: 2
+challenge: false
+prompt: |
+  A light switch has two positions. In `index.ts`:
+
+  - Replace `string` in `Switch` with a union of the two string literal types `'on'` and `'off'`.
+  - Implement `flip(state)`: it returns the other position.
+
+  The type cases check that `Switch` is exactly those two values and that any other string is
+  rejected; the runtime tests call `flip`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - A union lists its alternatives with a vertical bar, and each alternative here is a literal type, written like the string value itself.
+  - '`flip` needs one comparison: when the state is one position, return the other.'

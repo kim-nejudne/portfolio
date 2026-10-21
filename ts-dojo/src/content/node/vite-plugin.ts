@@ -8,6 +8,9 @@
 //   duplicate id, a bad prerequisite or any other structural problem fails the build too.
 //   It also serves `virtual:ts-dojo/content-version`, the §7 `contentVersion`: the SHA-256 of
 //   the content tree at build time (content-version.ts), recorded by the store and in exports.
+//   The tree is `contentDir` (roots.ts): content/, or fixtures/content/ for the e2e build. The
+//   registry's globs name it as `@content/…`, which this plugin resolves, and
+//   `virtual:ts-dojo/content-root` tells the registry which tree its keys come from.
 // - `@mdx-js/rollup` over lesson.mdx with the fence pipeline of src/content/node/mdx.ts, so
 //   `^?` queries, highlighting, snippet JavaScript and expected diagnostics are rendered now.
 // - A second `@mdx-js/rollup` over each exercise's prompt (§1: Markdown), which the content
@@ -28,6 +31,7 @@ import { analyzeLesson } from './analyze';
 import { hashContentTree, readContentTree } from './content-version';
 import { loadContent } from './load';
 import { createRenderer, lessonMdxOptions, type Renderer } from './mdx';
+import { COURSE_DIR } from './roots';
 import {
   exerciseSchema,
   formatZodError,
@@ -42,6 +46,26 @@ const CONTENT_VERSION_RESOLVED = `\0${CONTENT_VERSION_ID}`;
 
 export function contentVersionModule(version: string): string {
   return `export default ${JSON.stringify(version)};\n`;
+}
+
+/** The module the registry imports its tree's root from (src/content/content-version.d.ts). */
+export const CONTENT_ROOT_ID = 'virtual:ts-dojo/content-root';
+const CONTENT_ROOT_RESOLVED = `\0${CONTENT_ROOT_ID}`;
+
+export function contentRootModule(contentDir: string): string {
+  return `export default ${JSON.stringify(contentDir)};\n`;
+}
+
+/** The prefix the registry's globs use for the content tree. */
+export const CONTENT_ALIAS = '@content/';
+
+/** `@content/modules/**` → the same glob under the tree's absolute directory; null otherwise. */
+export function resolveContentAlias(
+  source: string,
+  contentAbs: string,
+): string | null {
+  if (!source.startsWith(CONTENT_ALIAS)) return null;
+  return `${contentAbs.split(path.sep).join('/')}/${source.slice(CONTENT_ALIAS.length)}`;
 }
 
 /** The query that asks for a lesson's meta instead of its component. */
@@ -113,12 +137,16 @@ export function yamlModule(
 }
 
 export interface ContentPluginOptions {
-  /** The repository root; `content/` is read under it. Defaults to the Vite root. */
+  /** The repository root; the content tree is read under it. Defaults to the Vite root. */
   root?: string;
+  /** The content tree, relative to the root: `content` (the default) or `fixtures/content`. */
+  contentDir?: string;
 }
 
 export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
   let root = options.root ?? process.cwd();
+  const contentDir = options.contentDir ?? COURSE_DIR;
+  const contentAbs = (): string => path.join(root, contentDir);
   let renderer: Promise<Renderer> | null = null;
   const getRenderer = (): Promise<Renderer> => {
     renderer ??= createRenderer();
@@ -127,7 +155,7 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
   const relative = (file: string): string =>
     path.relative(root, file).split(path.sep).join('/');
   const isContentFile = (file: string): boolean =>
-    !path.relative(path.join(root, 'content'), file).startsWith('..');
+    !path.relative(contentAbs(), file).startsWith('..');
 
   // `lesson.mdx?meta` is answered from a virtual id: the MDX plugin compiles every id whose
   // file ends in .mdx, query or not, so the meta module must not look like one.
@@ -139,11 +167,14 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
       root = options.root ?? config.root;
     },
     async buildStart() {
-      const { problems } = await loadContent(path.join(root, 'content'));
+      const { problems } = await loadContent(contentAbs());
       if (problems.length > 0) throw new ContentError(problems);
     },
     async resolveId(source, importer) {
       if (source === CONTENT_VERSION_ID) return CONTENT_VERSION_RESOLVED;
+      if (source === CONTENT_ROOT_ID) return CONTENT_ROOT_RESOLVED;
+      const aliased = resolveContentAlias(source, contentAbs());
+      if (aliased !== null) return aliased;
       if (source.endsWith(PROMPT_QUERY)) {
         const file = source.slice(0, -PROMPT_QUERY.length);
         if (path.basename(file) !== 'exercise.yaml') return null;
@@ -159,8 +190,11 @@ export function tsDojoContent(options: ContentPluginOptions = {}): Plugin[] {
       return `${META_PREFIX}${resolved.id}`;
     },
     async load(id) {
+      if (id === CONTENT_ROOT_RESOLVED) {
+        return { code: contentRootModule(contentDir), map: null };
+      }
       if (id === CONTENT_VERSION_RESOLVED) {
-        const dir = path.join(root, 'content');
+        const dir = contentAbs();
         const files = await readContentTree(dir);
         for (const file of files) this.addWatchFile(path.join(dir, file.path));
         return {

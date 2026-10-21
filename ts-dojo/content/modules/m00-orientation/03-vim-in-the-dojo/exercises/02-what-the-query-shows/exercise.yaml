@@ -1,0 +1,22 @@
+id: m00-orientation/03-vim-in-the-dojo/02-what-the-query-shows
+kind: predict
+title: What does the ^? line show?
+minutes: 2
+challenge: false
+code: |
+  const prices = [300, 450, 275];
+  const total = prices.reduce((sum, price) => sum + price, 0);
+  //              ^?
+question: You type these three lines into the editor. What appears in the block under the `^?` line?
+options:
+  - 'const total: number'
+  - 'const prices: number[]'
+  - '1025'
+  - 'Nothing to show here: point the ^ at a name on the line above'
+answer: 1
+explanation: |
+  A `^?` query asks about whatever is directly above the `^`, on the line before. Here the `^`
+  is under the `i` of `prices`, not under `total`, so the editor shows the quick info for
+  `prices`: `const prices: number[]`, the same text `K` shows with the cursor there. It is the
+  compiler's answer, a type; nothing runs, so it never shows a value such as 1025. Move the `^`
+  left, under `total`, and the block says `const total: number`.

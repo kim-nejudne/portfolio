@@ -1,6 +1,7 @@
 # generated or third-party
 node_modules
 dist
+dist-e2e
 public/ts
 pnpm-lock.yaml
 playwright-report

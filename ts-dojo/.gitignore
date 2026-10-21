@@ -1,6 +1,8 @@
 # dependencies and build output
 node_modules
 dist
+# the fixture course's build for Playwright (vite build --mode e2e)
+dist-e2e
 coverage
 *.tsbuildinfo
 

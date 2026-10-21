@@ -34,7 +34,7 @@ import {
   readLessonRow,
   result,
   runFromPalette,
-  squash,
+  shown,
 } from './helpers/lesson';
 import {
   gotoExercise,
@@ -80,9 +80,7 @@ test.describe('§12 F8: `:done` with Check yourself questions unanswered jumps t
     const wrong = question.answer === 0 ? 1 : 0;
     await answer(page, block, wrong);
     await expect(result(block)).toHaveAttribute('data-result', 'incorrect');
-    await expect(explanation(block)).toContainText(
-      squash(question.explanation),
-    );
+    await expect(explanation(block)).toContainText(shown(question.explanation));
     await expect
       .poll(async () => (await readLessonRow(page, LESSON))?.questions)
       .toMatchObject({
