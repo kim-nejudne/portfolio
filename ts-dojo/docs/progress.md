@@ -531,6 +531,6 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   2. Run `pnpm test:e2e --project budgets`. Expected: 3 passed, and every soft assertion under budget.
   3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
   4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
-- [ ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push.
+- [x ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
 - [ ] F11 (by hand): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug.
 - [ ] v1 gate: Tier 0 and Tier 1 completed at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way fixed.
