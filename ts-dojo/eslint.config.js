@@ -42,10 +42,11 @@ export default defineConfig([
     },
   },
   {
-    // Node-side code: the scripts, the Prep spike's Playwright side, e2e, the config files,
+    // Node-side code: the scripts, the deploy kit, the Prep spike's Playwright side, e2e, the config files,
     // and the unit tests, benchmarks and `node/` helpers under src (tsconfig.node.json).
     files: [
       'scripts/**',
+      'deploy/**',
       'spike/**',
       'e2e/**',
       '*.config.{ts,js}',

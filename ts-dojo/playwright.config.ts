@@ -4,6 +4,12 @@
 // needs. Build-then-preview is Kim's online-voting convention and what F15 needs for the
 // service worker and the CSP; a preview already listening on 4173 is reused outside CI.
 // The Prep spike keeps its own config under spike/vim/.
+//
+// F15: service workers are blocked unless a spec allows them. The suite's assertions about the
+// app's own requests (the lib fetches, the held worker chunk) are about the page, and the
+// precache would otherwise download the whole app into every context. The offline, update and
+// CSP specs allow them. The §9 budgets are their own project, run on demand and alone
+// (`pnpm test:e2e --project budgets`), never under the main suite's CPU load.
 import { defineConfig } from '@playwright/test';
 
 const PORT = 4173;
@@ -22,10 +28,22 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1280, height: 800 },
     permissions: ['clipboard-read', 'clipboard-write'],
+    serviceWorkers: 'block',
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chrome', use: { browserName: 'chromium', channel: 'chrome' } },
+    {
+      name: 'chrome',
+      use: { browserName: 'chromium', channel: 'chrome' },
+      testIgnore: /budgets\.spec\.ts$/,
+    },
+    {
+      name: 'budgets',
+      use: { browserName: 'chromium', channel: 'chrome' },
+      testMatch: /budgets\.spec\.ts$/,
+      fullyParallel: false,
+      default: false,
+    },
   ],
   webServer: {
     command: `pnpm build && pnpm preview --port ${PORT} --strictPort`,
