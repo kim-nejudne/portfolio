@@ -4,15 +4,17 @@
 // Problems list, and refreshes the `^?` widgets in the same cycle. A reply the client drops as
 // stale (the file changed again) keeps the previous squiggles until the next cycle; `]d`/`[d`
 // move a plain cursor between them (`@codemirror/lint`'s own commands select the range, which
-// Vim turns into visual mode).
+// Vim turns into visual mode). `refreshDiagnostics` asks for a new cycle without an edit (F10:
+// the project re-opened with new compiler options); `forceLinting` would not do, since it only
+// hurries a cycle that is already scheduled.
 import {
   forEachDiagnostic,
   linter,
   lintGutter,
   type Diagnostic as CmDiagnostic,
 } from '@codemirror/lint';
-import type { Extension } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
+import { StateEffect, type Extension } from '@codemirror/state';
+import type { EditorView, ViewUpdate } from '@codemirror/view';
 import type { Diag, DiagCategory, TwoslashQuery } from '@/protocol/ts-ls';
 import type { TsLsClient } from '@/workers/ts-ls/client';
 import { filePath } from './file-path';
@@ -60,6 +62,15 @@ export interface DiagnosticsSourceOptions {
   onDiagnostics?: (diagnostics: Diag[]) => void;
 }
 
+/** Dispatched to run a diagnostics cycle when nothing in the document changed. */
+export const refreshDiagnostics = StateEffect.define<null>();
+
+export function needsDiagnosticsRefresh(update: ViewUpdate): boolean {
+  return update.transactions.some((transaction) =>
+    transaction.effects.some((effect) => effect.is(refreshDiagnostics)),
+  );
+}
+
 /** The lint source plus the gutter; one per editor, shared by every file state. */
 export function tsDiagnostics(options: DiagnosticsSourceOptions): Extension {
   const last = new Map<string, CmDiagnostic[]>();
@@ -79,7 +90,13 @@ export function tsDiagnostics(options: DiagnosticsSourceOptions): Extension {
       return last.get(path) ?? [];
     }
   };
-  return [linter(source, { delay: DIAGNOSTICS_DELAY_MS }), lintGutter()];
+  return [
+    linter(source, {
+      delay: DIAGNOSTICS_DELAY_MS,
+      needsRefresh: needsDiagnosticsRefresh,
+    }),
+    lintGutter(),
+  ];
 }
 
 function refreshTwoslash(

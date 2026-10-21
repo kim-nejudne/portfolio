@@ -69,7 +69,8 @@ export const dojoHighlight = HighlightStyle.define([
 export const dojoTheme = EditorView.theme({
   '&': {
     height: '100%',
-    fontSize: '14px',
+    // §7 `fontSize` (F10): src/app/font-size.ts sets the property on <html>.
+    fontSize: 'var(--code-font-size, 14px)',
     backgroundColor: 'var(--background)',
     color: 'var(--foreground)',
   },

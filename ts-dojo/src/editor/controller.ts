@@ -16,7 +16,11 @@ import type { TsLsClient } from '@/workers/ts-ls/client';
 import { cycleBuffer, listBuffers, resolveBuffer } from './buffers';
 import { completions } from './completions';
 import { describeOutside, pickDefinition } from './definition';
-import { moveToDiagnostic, tsDiagnostics } from './diagnostics';
+import {
+  moveToDiagnostic,
+  refreshDiagnostics,
+  tsDiagnostics,
+} from './diagnostics';
 import { registerExCommands } from './ex-commands';
 import { fileExtensions, sharedExtensions } from './extensions';
 import {
@@ -28,8 +32,11 @@ import {
 import { notify } from './notify';
 import {
   applyOptionsSilently,
+  DEFAULT_EDITOR_OPTIONS,
   defineEditorOptions,
+  editorOptions,
   optionsFromSettings,
+  type EditorOptions,
   setOptionsView,
   withoutPersisting,
 } from './options';
@@ -73,6 +80,11 @@ export interface ControllerOptions {
 }
 
 export interface EditorController extends EditorHandle {
+  /**
+   * Re-opens the project with new options (F10: `/repl` follows the Settings compiler
+   * defaults) and re-checks at once, `^?` widgets included.
+   */
+  setCompilerOptions(compilerOptions: CompilerOptionsJson | undefined): void;
   destroy(): void;
 }
 
@@ -174,6 +186,7 @@ export function createEditorController(
   // §2: the project opened at once; the worker queues it behind `init` when not ready yet.
   // Opened again with the live texts when the file set changes: the protocol has no add or
   // remove, and `openProject` reuses the parsed libs through the worker's registry.
+  let compilerOptions = options.compilerOptions;
   const openProject = (): void => {
     compiler.openProject({
       files: files
@@ -182,9 +195,7 @@ export function createEditorController(
       dtsFiles: files
         .filter((f) => f.readOnly === true)
         .map((f) => ({ path: f.path, text: textOf(f.path) })),
-      ...(options.compilerOptions !== undefined
-        ? { compilerOptions: options.compilerOptions }
-        : {}),
+      ...(compilerOptions !== undefined ? { compilerOptions } : {}),
       ...(options.libs !== undefined ? { libs: options.libs } : {}),
     });
   };
@@ -356,12 +367,19 @@ export function createEditorController(
 
   // The vimrc (§4): applied now and again whenever the setting changes.
   let appliedVimrc: string | null = null;
+  // What the vimrc alone leaves (the defaults plus its `set` lines), under the stored choices:
+  // a stored choice that disappears (an import, F10) falls back to it.
+  let vimrcOptions: EditorOptions = { ...DEFAULT_EDITOR_OPTIONS };
   const applyVimrcText = (text: string): void => {
     appliedVimrc = text;
     let errors: VimrcError[] = [];
+    // From the defaults, as a reload would: an option a removed `set` line turned on goes back
+    // off (F10, a vimrc changed on the Settings page while this editor is open).
+    Object.assign(editorOptions, DEFAULT_EDITOR_OPTIONS);
     withoutPersisting(() => {
       errors = applyVimrc(parseVimrc(text), Vim, vimDefaultMappings);
     });
+    vimrcOptions = { ...editorOptions };
     // Kim's stored `:set` choices come after the vimrc's own `set` lines (§4: persisted).
     applyOptionsSilently(
       optionsFromSettings(readSettings(browserStorage())),
@@ -374,9 +392,17 @@ export function createEditorController(
   };
   const vimrcOf = (settings: { vimrc?: string }): string =>
     settings.vimrc ?? SHIPPED_VIMRC;
+  // Every settings write (the Settings page, another tab, an interactive `:set`): a changed
+  // vimrc is re-applied, which re-applies the stored options after it; otherwise the stored
+  // options alone (F10 "apply without a reload").
   const unsubscribe = subscribeSettings((settings) => {
     const text = vimrcOf(settings);
-    if (text !== appliedVimrc) applyVimrcText(text);
+    if (text !== appliedVimrc) {
+      applyVimrcText(text);
+    } else {
+      Object.assign(editorOptions, vimrcOptions);
+      applyOptionsSilently(optionsFromSettings(settings), view);
+    }
   });
 
   const handle: EditorController = {
@@ -425,6 +451,12 @@ export function createEditorController(
     },
     notify(text) {
       notify(view, text);
+    },
+    setCompilerOptions(next) {
+      compilerOptions = next;
+      openProject();
+      // A new diagnostics cycle (and its `^?` refresh) though no file changed.
+      view.dispatch({ effects: refreshDiagnostics.of(null) });
     },
     destroy() {
       unsubscribe();

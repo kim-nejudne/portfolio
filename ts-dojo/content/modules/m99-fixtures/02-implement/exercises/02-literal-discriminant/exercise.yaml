@@ -12,7 +12,6 @@ tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
 forbid: [explicit-any, non-null-assertion, as-unknown-as]
-timeoutMs: 5000
 hints:
   - A discriminant must have a different literal type in each member; `string` is the same type in both.
   - "`kind: 'circle'` in one member and `kind: 'square'` in the other is all it takes."

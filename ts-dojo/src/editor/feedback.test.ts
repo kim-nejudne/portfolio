@@ -2,6 +2,8 @@
 // severities, the current file only), completion entries mapped and the trigger rule
 // (typing, `.`, Ctrl-Space), quick info text, definition targets across files, and the
 // signature line with its active parameter. The in-browser behaviour is Playwright's.
+import { EditorState } from '@codemirror/state';
+import type { ViewUpdate } from '@codemirror/view';
 import { describe, expect, it } from 'vitest';
 import type { Diag } from '@/protocol/ts-ls';
 import { completionType, shouldComplete, toCompletion } from './completions.ts';
@@ -9,7 +11,9 @@ import { describeOutside, pickDefinition } from './definition.ts';
 import {
   DIAGNOSTICS_DELAY_MS,
   diagnosticsForFile,
+  needsDiagnosticsRefresh,
   nextDiagnosticStart,
+  refreshDiagnostics,
   toCmDiagnostic,
 } from './diagnostics.ts';
 import { infoText } from './quick-info.ts';
@@ -200,5 +204,25 @@ describe('signature help (§4: on ( and ,)', () => {
         argumentCount: 0,
       }),
     ).toBeNull();
+  });
+});
+
+describe('a diagnostics refresh without an edit (F10: /repl re-opened with new compiler options)', () => {
+  const updateOf = (...transactions: ReturnType<EditorState['update']>[]) =>
+    ({ transactions }) as unknown as ViewUpdate;
+
+  it('asks the linter to run again for the refresh effect and for nothing else without a change', () => {
+    const state = EditorState.create({ doc: 'const n = 1;\n' });
+    expect(
+      needsDiagnosticsRefresh(
+        updateOf(state.update({ effects: refreshDiagnostics.of(null) })),
+      ),
+    ).toBe(true);
+    expect(
+      needsDiagnosticsRefresh(
+        updateOf(state.update({ selection: { anchor: 3 } })),
+      ),
+    ).toBe(false);
+    expect(needsDiagnosticsRefresh(updateOf())).toBe(false);
   });
 });

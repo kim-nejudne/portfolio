@@ -8,6 +8,7 @@
 import ts from 'typescript';
 import {
   createSystem,
+  createVirtualCompilerHost,
   createVirtualLanguageServiceHost,
 } from '@typescript/vfs';
 import {
@@ -119,6 +120,14 @@ export interface TsLsCore {
     cases: TypeCase[];
     outsideCases: Diag[];
     versions: FileVersions;
+  };
+  /**
+   * F10 Settings: what TypeScript says about `compilerOptions` merged over the §2 defaults
+   * (conversion errors, then the options and global diagnostics of an empty program). The open
+   * project is not touched.
+   */
+  checkCompilerOptions(compilerOptions: CompilerOptionsJson): {
+    errors: string[];
   };
   dispose(): void;
   /** The current program (tests, the content lint); undefined before init. */
@@ -662,6 +671,26 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
       return { cases, outsideCases, versions };
     },
 
+    checkCompilerOptions(compilerOptions) {
+      const message = (diagnostic: ts.Diagnostic): string =>
+        ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
+      const { options: converted, errors } = ts.convertCompilerOptionsFromJson(
+        toJsonOptions({ compilerOptions, files: [] }),
+        '/',
+      );
+      if (errors.length > 0) return { errors: errors.map(message) };
+      const program = ts.createProgram({
+        rootNames: [],
+        options: converted,
+        host: createVirtualCompilerHost(sys, converted, ts).compilerHost,
+      });
+      return {
+        errors: [
+          ...program.getOptionsDiagnostics(),
+          ...program.getGlobalDiagnostics(),
+        ].map(message),
+      };
+    },
     dispose() {
       project?.service.dispose();
       project = null;

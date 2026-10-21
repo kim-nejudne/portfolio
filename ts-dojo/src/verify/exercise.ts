@@ -6,7 +6,7 @@
 // and reports the run state (a `SandboxRunner` over the Node worker or the browser worker,
 // through `runToCompletion`). The content lint uses it at F6; the lesson page's `:test` at F7,
 // which follows the groups as they finish through `onProgress` (the Tests tab, §5 Verdict).
-import type { RunMode } from '@/protocol/sandbox';
+import { DEFAULT_TIMEOUT_MS, type RunMode } from '@/protocol/sandbox';
 import type {
   Diag,
   EmitModuleKind,
@@ -83,6 +83,11 @@ export interface VerifyProgress {
 export interface VerifyOptions {
   /** Called when a phase starts and when the verdict is complete, with the groups known so far. */
   onProgress?: (progress: VerifyProgress) => void;
+  /**
+   * The runtime deadline for an exercise whose exercise.yaml names no `timeoutMs` (F10: the
+   * Settings default timeout); 5 s when absent too, which is what the content lint uses.
+   */
+  defaultTimeoutMs?: number;
 }
 
 /** The note §5 attaches to a tests.ts diagnostic outside every case range. */
@@ -172,7 +177,11 @@ export async function verifyExercise(
   if (testPath !== undefined && hasRuntimeTests(exercise)) {
     report('runtime');
     const { files: emitted } = await core.emit(paths);
-    const state = await runtime(emitted, testPath, exercise.timeoutMs);
+    const state = await runtime(
+      emitted,
+      testPath,
+      exercise.timeoutMs ?? options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS,
+    );
     runtimeResult = runtimeGroup(state);
   }
   groups.runtime = runtimeResult;

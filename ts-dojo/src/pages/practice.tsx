@@ -32,6 +32,7 @@ import type { SourceLoc } from '@/protocol/sandbox';
 import type { Diag, ProjectFile } from '@/protocol/ts-ls';
 import { createAutosave, type Autosave } from '@/store/autosave';
 import type { ExerciseRow } from '@/store/db';
+import { browserStorage, readSettings, timeoutFor } from '@/store/settings';
 import { dropUnsaved, journalUnsaved, peekUnsaved } from '@/store/unsaved';
 import {
   attemptGroups,
@@ -119,6 +120,8 @@ export function Practice({
     createVerifier({
       core: verifyCoreOverClient(getCompiler()),
       runtime: runtimeTestsOn(testRunner),
+      // F10: an exercise without its own timeoutMs runs under the Settings default.
+      defaultTimeoutMs: () => timeoutFor(null, readSettings(browserStorage())),
     }),
   );
   useEffect(
@@ -256,7 +259,9 @@ export function Practice({
       } catch (error) {
         console.error('[store]', error);
       }
-      await runner.start(modules, entry);
+      await runner.start(modules, entry, {
+        timeoutMs: timeoutFor(exercise, readSettings(browserStorage())),
+      });
     };
 
     const test = async (editor: EditorHandle): Promise<void> => {

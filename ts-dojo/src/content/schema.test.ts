@@ -114,6 +114,7 @@ describe('exercise.yaml', () => {
         'as-unknown-as',
       ]);
       expect(fix.entry).toBe('index.ts');
+      expect(fix.timeoutMs).toBe(5000);
     }
     const p = exerciseSchema.parse(predict);
     expect(p.kind).toBe('predict');
@@ -151,7 +152,8 @@ describe('exercise.yaml', () => {
     expect(parsed.compilerOptions).toEqual({});
     expect(parsed.libs).toEqual([]);
     expect(parsed.forbid).toEqual([]);
-    expect(parsed.timeoutMs).toBe(5000);
+    // F10: an omitted timeoutMs stays omitted, so the run follows the Settings default.
+    expect(parsed.timeoutMs).toBeUndefined();
   });
 });
 

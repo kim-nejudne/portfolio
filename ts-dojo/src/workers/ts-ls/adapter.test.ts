@@ -209,6 +209,28 @@ describe('client ↔ adapter over a channel, real core', () => {
     client.dispose();
   });
 
+  it("checkCompilerOptions answers compilerOptionsChecked with TypeScript's messages (F10)", async () => {
+    const { client, sent, received } = connect();
+    await client.whenReady();
+    await expect(
+      client.checkCompilerOptions({ noUncheckedIndexedAccess: true }),
+    ).resolves.toEqual([]);
+    await expect(client.checkCompilerOptions({ foo: true })).resolves.toEqual([
+      "Unknown compiler option 'foo'.",
+    ]);
+    expect(sent.at(-1)).toEqual({
+      type: 'checkCompilerOptions',
+      compilerOptions: { foo: true },
+      requestId: 3,
+    });
+    expect(received.at(-1)).toEqual({
+      type: 'compilerOptionsChecked',
+      requestId: 3,
+      errors: ["Unknown compiler option 'foo'."],
+    });
+    client.dispose();
+  });
+
   it('dispose sends dispose, terminates the worker and rejects what is pending and what comes after', async () => {
     const { client, sent, isTerminated } = connect();
     const inFlight = client.getDiagnostics(['/nope.ts']);

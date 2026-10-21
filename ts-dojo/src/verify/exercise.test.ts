@@ -22,6 +22,7 @@ import {
   runtimeTestsOn,
   verifyExercise,
   TEST_FILE_NOTE,
+  type RuntimeTests,
 } from './exercise';
 
 const CONTENT = path.resolve(import.meta.dirname, '..', '..', 'content');
@@ -555,5 +556,34 @@ describe('§12 F7: Compiles failing stops the other groups', () => {
     expect(spy.lintAst).not.toHaveBeenCalled();
     expect(spy.emit).not.toHaveBeenCalled();
     expect(runtime).not.toHaveBeenCalled();
+  });
+});
+
+describe('the runtime deadline (§4; F10 default timeout)', () => {
+  it('an exercise without timeoutMs runs under defaultTimeoutMs (else 5 s); one with its own keeps it', async () => {
+    const seen: number[] = [];
+    const recording: RuntimeTests = (modules, entry, timeoutMs) => {
+      seen.push(timeoutMs);
+      return runtimeTestsOn(runner)(modules, entry, timeoutMs);
+    };
+    const silent = editor('m99-fixtures/02-implement/02-literal-discriminant');
+    expect(silent.timeoutMs).toBeUndefined();
+    const files = exerciseFiles(silent, 'solution');
+    expect(
+      (
+        await verifyExercise(core, recording, silent, files, {
+          defaultTimeoutMs: 1500,
+        })
+      ).passed,
+    ).toBe(true);
+    await verifyExercise(core, recording, silent, files);
+    const own = {
+      ...editor('m99-fixtures/02-implement/01-largest-shape'),
+      timeoutMs: 8000,
+    };
+    await verifyExercise(core, recording, own, exerciseFiles(own, 'solution'), {
+      defaultTimeoutMs: 1500,
+    });
+    expect(seen).toEqual([1500, 5000, 8000]);
   });
 });

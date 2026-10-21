@@ -1,6 +1,7 @@
 // The import preview (§7: "shows what it would change (lessons, exercises, attempts, buffers,
 // settings) and applies on confirmation"): one line per category from `planImport`, a note
-// when the file comes from other content, and Apply / Cancel. Cancel has the focus.
+// when the file comes from other content or its compiler defaults were refused (F10), and
+// Apply / Cancel. Cancel has the focus.
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,12 +18,15 @@ import { previewLines } from './preview';
 export function ImportDialog({
   name,
   plan,
+  refused = [],
   onCancel,
   onApply,
 }: {
   /** The file's name. */
   name: string;
   plan: ImportPlan | null;
+  /** TypeScript's reasons for leaving the file's compiler defaults out (F10). */
+  refused?: string[];
   onCancel: () => void;
   onApply: (plan: ImportPlan) => void;
 }) {
@@ -44,7 +48,7 @@ export function ImportDialog({
           <DialogTitle>Import {name}?</DialogTitle>
           <DialogDescription>
             Rows merge by id and the newer one wins; attempts are added; a
-            passed exercise stays passed.
+            passed exercise stays passed. The settings become the file&apos;s.
           </DialogDescription>
         </DialogHeader>
         {plan !== null && (
@@ -63,6 +67,12 @@ export function ImportDialog({
                 </div>
               ))}
             </dl>
+            {refused.length > 0 && (
+              <p className="text-xs" data-field="settings-refused">
+                The file&apos;s compiler defaults are left out: TypeScript says{' '}
+                {refused.join(' ')}
+              </p>
+            )}
             {!plan.contentVersion.matches && (
               <p className="text-xs" data-field="content-version">
                 Exported from other content (

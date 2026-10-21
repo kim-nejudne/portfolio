@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
 import { getCompiler } from '@/app/compiler';
 import type { CompilerOptionsJson, Diag } from '@/protocol/ts-ls';
+import { sameSetting } from '@/store/settings';
 import { basename } from './buffers';
 import {
   createEditorController,
@@ -49,6 +50,14 @@ export function Editor(props: EditorProps) {
   );
   const [files, setFiles] = useState<readonly EditorFile[]>(props.files);
   const [vimrcErrors, setVimrcErrors] = useState<VimrcError[]>([]);
+  // The options the controller's project has; a different value re-opens it (F10: `/repl`
+  // follows the Settings compiler defaults without a remount).
+  const appliedOptions = useRef(props.compilerOptions);
+  useEffect(() => {
+    if (sameSetting(appliedOptions.current, props.compilerOptions)) return;
+    appliedOptions.current = props.compilerOptions;
+    controllerRef.current?.setCompilerOptions(props.compilerOptions);
+  }, [props.compilerOptions]);
 
   useEffect(() => {
     const parent = parentRef.current;

@@ -137,3 +137,23 @@ describe('createVerifier', () => {
     expect(verifier.state.status).toBe('running');
   });
 });
+
+describe('the default timeout (F10)', () => {
+  it('asks for the default at each :test and hands it to verifyExercise', async () => {
+    const seen: (number | undefined)[] = [];
+    let current = 1500;
+    const verifier = createVerifier({
+      core: {} as never,
+      runtime: () => Promise.reject(new Error('unused')),
+      verify: (_core, _runtime, _exercise, _files, options) => {
+        seen.push(options?.defaultTimeoutMs);
+        return Promise.resolve(RESULT);
+      },
+      defaultTimeoutMs: () => current,
+    });
+    await verifier.verify(EXERCISE, []);
+    current = 9000;
+    await verifier.verify(EXERCISE, []);
+    expect(seen).toEqual([1500, 9000]);
+  });
+});

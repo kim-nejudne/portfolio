@@ -770,3 +770,48 @@ describe('openProject validation', () => {
     expect(core.getDiagnostics(['/keep.ts']).diagnostics).toEqual([]);
   });
 });
+
+describe('checkCompilerOptions (F10 Settings, compiler defaults)', () => {
+  it('accepts the §2 defaults and options merged over them', () => {
+    expect(core.checkCompilerOptions({})).toEqual({ errors: [] });
+    expect(
+      core.checkCompilerOptions({
+        noUncheckedIndexedAccess: true,
+        exactOptionalPropertyTypes: true,
+        target: 'es2022',
+        lib: ['es2025', 'dom'],
+      }),
+    ).toEqual({ errors: [] });
+  });
+
+  it('reports what TypeScript 6.0.3 refuses: unknown option, wrong type, unknown lib, a conflict, a deprecation', () => {
+    const errorsOf = (options: Record<string, unknown>) =>
+      core.checkCompilerOptions(options as never).errors;
+    expect(errorsOf({ foo: true })).toEqual(["Unknown compiler option 'foo'."]);
+    expect(errorsOf({ strict: 'yes' })).toEqual([
+      "Compiler option 'strict' requires a value of type boolean.",
+    ]);
+    const lib = errorsOf({ lib: ['es2025', 'nope'] });
+    expect(lib).toHaveLength(1);
+    expect(lib[0]).toMatch(/^Argument for '--lib' option must be: /);
+    expect(
+      errorsOf({ exactOptionalPropertyTypes: true, strict: false }),
+    ).toEqual([
+      "Option 'exactOptionalPropertyTypes' cannot be specified without specifying option 'strictNullChecks'.",
+    ]);
+    const deprecated = errorsOf({ target: 'es5' });
+    expect(deprecated).toHaveLength(1);
+    expect(deprecated[0]).toMatch(/^Option 'target=ES5' is deprecated/);
+  });
+
+  it('leaves the open project alone', async () => {
+    const text = 'const n: number = "x";\n';
+    await core.openProject({ files: [{ path: '/index.ts', text }] });
+    const before = core.projectPaths();
+    core.checkCompilerOptions({ strict: false, lib: ['es2025', 'dom'] });
+    expect(core.projectPaths()).toEqual(before);
+    expect(
+      core.getDiagnostics(['/index.ts']).diagnostics.map((d) => d.code),
+    ).toEqual([2322]);
+  });
+});

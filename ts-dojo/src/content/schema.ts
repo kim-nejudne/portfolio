@@ -5,7 +5,6 @@
 // conditions. The loader (src/content/build-registry.ts) applies these at build time, in Node
 // and in the browser over the same data.
 import { z } from 'zod';
-import { DEFAULT_TIMEOUT_MS } from '@/protocol/sandbox';
 import { RULE_IDS } from '@/verify/rules';
 
 /** `m03-unions`, `m03-unions/03-narrowing`, `m03-unions/03-narrowing/01-first-union`. */
@@ -95,7 +94,9 @@ export const editorExerciseSchema = z.object({
   compilerOptions: compilerOptionsJson.default({}),
   libs: z.array(z.string().min(1)).default([]),
   forbid: z.array(z.enum(RULE_IDS)).default([]),
-  timeoutMs: z.number().int().positive().default(DEFAULT_TIMEOUT_MS),
+  // Optional (F10): when omitted, the run's deadline is the Settings default timeout (§7
+  // `defaultTimeoutMs`), else 5 s; `timeoutFor` in src/store/settings.ts.
+  timeoutMs: z.number().int().positive().optional(),
   hints: z.array(z.string().min(1)).default([]),
 });
 export type EditorExerciseYaml = z.infer<typeof editorExerciseSchema>;

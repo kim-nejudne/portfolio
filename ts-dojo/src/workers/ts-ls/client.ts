@@ -8,6 +8,7 @@
 // from the injected `spawn`, so client.test.ts drives it with a fake worker.
 import {
   isTsLsReply,
+  type CompilerOptionsJson,
   type CompletionDetailsResult,
   type CompletionsResult,
   type DefinitionLocation,
@@ -120,6 +121,8 @@ export interface TsLsClient {
   runTypeTests(
     paths: string[],
   ): Promise<{ cases: TypeCase[]; outsideCases: Diag[] }>;
+  /** F10: TypeScript's errors for options merged over the §2 defaults; [] when accepted. */
+  checkCompilerOptions(compilerOptions: CompilerOptionsJson): Promise<string[]>;
   dispose(): void;
 }
 
@@ -433,6 +436,15 @@ export function createTsLsClient(options: TsLsClientOptions): TsLsClient {
         'typeTestResults',
       );
       return { cases: reply.cases, outsideCases: reply.outsideCases };
+    },
+
+    async checkCompilerOptions(compilerOptions) {
+      return (
+        await request(
+          { type: 'checkCompilerOptions', compilerOptions },
+          'compilerOptionsChecked',
+        )
+      ).errors;
     },
 
     dispose() {

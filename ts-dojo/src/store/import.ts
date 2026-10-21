@@ -11,7 +11,9 @@
 // - Attempts append under new keys; one the store already has (same exercise, time and kind)
 //   is skipped, so importing a file twice adds nothing; then each exercise keeps its newest
 //   ATTEMPTS_KEPT by time (§7 "pruned on write").
-// - Settings go through `parseSettings` and are written only when a value differs.
+// - Settings go through `parseSettings` and, when any value differs, replace the stored ones:
+//   a key the file lacks goes back to its default, so the settings end up the file's (F10,
+//   Kim's decision: "restored by import").
 import { z } from 'zod';
 import type { Rename } from '@/content/build-registry';
 import { formatZodError } from '@/content/schema';
@@ -30,7 +32,8 @@ import { ATTEMPTS_KEPT } from './progress';
 import {
   LAYOUT_MODES,
   parseSettings,
-  writeSettings as writeStoredSettings,
+  replaceSettings,
+  sameSetting,
   type Settings,
 } from './settings';
 
@@ -316,8 +319,12 @@ async function compute(
   }
 
   const settings = parseSettings(file.settings);
-  const changed = (Object.keys(settings) as (keyof Settings)[]).filter(
-    (key) => settings[key] !== options.settings[key],
+  const keys = new Set([
+    ...Object.keys(settings),
+    ...Object.keys(options.settings),
+  ]) as Set<keyof Settings>;
+  const changed = [...keys].filter(
+    (key) => !sameSetting(settings[key], options.settings[key]),
   );
 
   return {
@@ -358,7 +365,7 @@ export async function planImport(
 }
 
 export interface ApplyOptions extends ImportOptions {
-  /** Where the settings go; the app's own store by default. */
+  /** Where the settings go (replacing them); the app's own store by default. */
   writeSettings?: (settings: Settings) => void;
   now?: number;
 }
@@ -401,7 +408,7 @@ export async function applyImport(
     },
   );
   if (computed.plan.settings.changed.length > 0) {
-    (options.writeSettings ?? ((s) => void writeStoredSettings(s)))(
+    (options.writeSettings ?? ((s) => void replaceSettings(s)))(
       computed.settings,
     );
   }

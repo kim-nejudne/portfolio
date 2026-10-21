@@ -192,6 +192,8 @@ export type TsLsRequest =
   | (Request<'emit'> & { paths: string[]; module?: EmitModuleKind })
   | (Request<'lintAst'> & { paths: string[]; rules: RuleId[] })
   | (Request<'runTypeTests'> & { paths: string[] })
+  /** F10 (Spec questions): the Settings page's compiler defaults, merged over the §2 defaults. */
+  | (Request<'checkCompilerOptions'> & { compilerOptions: CompilerOptionsJson })
   | Request<'dispose'>;
 
 export type TsLsRequestType = TsLsRequest['type'];
@@ -238,6 +240,8 @@ export type TsLsReply =
       outsideCases: Diag[];
       versions: FileVersions;
     }
+  /** TypeScript's messages about the options; [] when it accepts them. */
+  | { type: 'compilerOptionsChecked'; requestId: number; errors: string[] }
   | {
       type: 'error';
       /** null when the failing message had no usable requestId. */

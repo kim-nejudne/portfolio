@@ -25,6 +25,8 @@ import { getActiveEditor } from '@/editor/registry';
 import type { SourceLoc } from '@/protocol/sandbox';
 import type { Diag } from '@/protocol/ts-ls';
 import { createAutosave, type Autosave } from '@/store/autosave';
+import { browserStorage, readSettings, timeoutFor } from '@/store/settings';
+import { useSettings } from '@/store/use-settings';
 import {
   bufferPath,
   deleteBuffer,
@@ -72,6 +74,9 @@ export function ReplPage() {
   const [diagnostics, setDiagnostics] = useState<Diag[]>([]);
   const [tab, setTab] = useState<OutputTab>('console');
   const [runner] = useState(createAppSandboxRunner);
+  // F10: scratch buffers take the Settings compiler defaults over §2; a change re-opens the
+  // project in place.
+  const { compilerDefaults } = useSettings();
   useEffect(() => () => runner.dispose(), [runner]);
   const runState = useSyncExternalStore(
     runner.subscribe,
@@ -156,7 +161,10 @@ export function ReplPage() {
     () => ({
       run(modules: RunModule[], entry: string) {
         setTab('console');
-        void runner.start(modules, entry);
+        // F10: the Settings default timeout, read at each run.
+        void runner.start(modules, entry, {
+          timeoutMs: timeoutFor(null, readSettings(browserStorage())),
+        });
       },
       action(action: HostAction) {
         const editor = getActiveEditor();
@@ -217,6 +225,9 @@ export function ReplPage() {
           key={project.key}
           files={project.files}
           initial={project.initial}
+          {...(compilerDefaults !== undefined
+            ? { compilerOptions: compilerDefaults }
+            : {})}
           host={host}
           onChange={onChange}
           onFileChange={onFileChange}
