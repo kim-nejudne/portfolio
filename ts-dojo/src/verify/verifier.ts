@@ -43,6 +43,8 @@ export interface VerifierOptions {
   runtime: RuntimeTests;
   /** `verifyExercise` unless a test scripts it. */
   verify?: VerifyFn;
+  /** Read at each run: the deadline for an exercise without its own `timeoutMs` (F10). */
+  defaultTimeoutMs?: () => number;
 }
 
 /** Function properties, not methods: React's `useSyncExternalStore` takes `subscribe` unbound. */
@@ -102,6 +104,9 @@ export function createVerifier(options: VerifierOptions): Verifier {
               if (!current() || phase === null) return;
               set({ ...state, phase, groups });
             },
+            ...(options.defaultTimeoutMs !== undefined
+              ? { defaultTimeoutMs: options.defaultTimeoutMs() }
+              : {}),
           },
         );
         if (current()) {

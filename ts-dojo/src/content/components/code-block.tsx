@@ -12,6 +12,7 @@ import { formatStatus } from '@/app/run-status';
 import { createAppSandboxRunner } from '@/app/sandbox';
 import { Button } from '@/components/ui/button';
 import type { Diag } from '@/protocol/ts-ls';
+import { browserStorage, readSettings, timeoutFor } from '@/store/settings';
 import type { SandboxRunner } from '@/workers/sandbox/runner';
 import { SNIPPET_PATH, type FenceKind } from '../fences';
 import { useLessonContext } from './lesson-context';
@@ -93,7 +94,10 @@ export function CodeBlock({
     if (js === undefined) return;
     const active = runner ?? createAppSandboxRunner();
     if (active !== runner) setRunner(active);
-    void active.start([{ path: SNIPPET_PATH, js, imports: [] }], SNIPPET_PATH);
+    void active.start([{ path: SNIPPET_PATH, js, imports: [] }], SNIPPET_PATH, {
+      // F10: the Settings default timeout, read at each run.
+      timeoutMs: timeoutFor(null, readSettings(browserStorage())),
+    });
   };
   const openInRepl = (): void => {
     void actions.openInRepl(

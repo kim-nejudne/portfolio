@@ -17,12 +17,15 @@ export interface EditorOptions {
   wrap: boolean;
 }
 
-/** The option values in force; every file state of the mounted editor is kept in sync with them. */
-export const editorOptions: EditorOptions = {
+/** The engine's defaults, before any vimrc `set` line or stored choice. */
+export const DEFAULT_EDITOR_OPTIONS: Readonly<EditorOptions> = {
   relativeNumbers: false,
   lineNumbers: true,
   wrap: false,
 };
+
+/** The option values in force; every file state of the mounted editor is kept in sync with them. */
+export const editorOptions: EditorOptions = { ...DEFAULT_EDITOR_OPTIONS };
 
 /** Shared by every file state of the one editor on a page; `applyOptions` reconfigures them. */
 export const optionCompartments = {

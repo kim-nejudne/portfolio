@@ -295,3 +295,74 @@ describe('applyImport', () => {
     expect(written).toEqual([]);
   });
 });
+
+describe('import: the F10 settings (§12 F10 "restored by import")', () => {
+  const F10_SETTINGS: Settings = {
+    theme: 'dark',
+    relativeNumbers: false,
+    vimrc: 'imap kj <Esc>',
+    fontSize: 18,
+    defaultTimeoutMs: 1500,
+    compilerDefaults: { noUncheckedIndexedAccess: true, lib: ['es2025'] },
+  };
+
+  it('plans every changed key and writes all six settings', async () => {
+    const db = fresh();
+    const written: Settings[] = [];
+    const plan = await applyImport(db, file({ settings: F10_SETTINGS }), {
+      ...OPTIONS,
+      settings: { theme: 'light', fontSize: 14 },
+      writeSettings: (settings) => void written.push(settings),
+    });
+    expect(plan.settings.changed).toEqual([
+      'theme',
+      'vimrc',
+      'relativeNumbers',
+      'fontSize',
+      'defaultTimeoutMs',
+      'compilerDefaults',
+    ]);
+    expect(written).toEqual([F10_SETTINGS]);
+  });
+
+  it("makes the settings the file's: a key the file lacks goes back to its default (Kim, F10)", async () => {
+    const db = fresh();
+    const written: Settings[] = [];
+    const plan = await applyImport(db, file({ settings: { theme: 'dark' } }), {
+      ...OPTIONS,
+      settings: {
+        theme: 'dark',
+        vimrc: 'imap kj <Esc>',
+        compilerDefaults: { strict: false },
+        layout: 'theory',
+      },
+      writeSettings: (settings) => void written.push(settings),
+    });
+    expect(plan.settings.changed).toEqual([
+      'vimrc',
+      'compilerDefaults',
+      'layout',
+    ]);
+    expect(written).toEqual([{ theme: 'dark' }]);
+  });
+
+  it('compares compilerDefaults by content, not identity, keys in any order', async () => {
+    const db = fresh();
+    const same = await planImport(db, file({ settings: F10_SETTINGS }), {
+      ...OPTIONS,
+      settings: {
+        ...F10_SETTINGS,
+        compilerDefaults: { lib: ['es2025'], noUncheckedIndexedAccess: true },
+      },
+    });
+    expect(same.settings.changed).toEqual([]);
+    const different = await planImport(db, file({ settings: F10_SETTINGS }), {
+      ...OPTIONS,
+      settings: {
+        ...F10_SETTINGS,
+        compilerDefaults: { noUncheckedIndexedAccess: false, lib: ['es2025'] },
+      },
+    });
+    expect(different.settings.changed).toEqual(['compilerDefaults']);
+  });
+});

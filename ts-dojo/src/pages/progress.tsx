@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { exportedMessage } from '@/app/export-progress';
 import { useAppActions } from '@/app/app-actions';
+import { getCompiler } from '@/app/compiler';
 import { setPageActions } from '@/app/page-actions';
 import { Button } from '@/components/ui/button';
 import { CONTENT_VERSION, registry } from '@/content/registry';
@@ -29,6 +30,7 @@ import { browserStorage, readSettings } from '@/store/settings';
 import { summarize, type Counts } from '@/store/summary';
 import { useLiveQuery } from '@/store/use-live-query';
 import { STATE_LABEL } from './module';
+import { checkImportedCompilerDefaults } from './progress/check-settings';
 import { ImportDialog } from './progress/import-dialog';
 import { ResetDialog, type ResetRequest } from './progress/reset-dialog';
 
@@ -58,6 +60,8 @@ export function ProgressPage() {
   const [importing, setImporting] = useState<{
     name: string;
     plan: ImportPlan;
+    /** Why the file's compiler defaults were left out (F10), or []. */
+    refused: string[];
   } | null>(null);
   const [reset, setReset] = useState<ResetRequest | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -90,8 +94,14 @@ export function ProgressPage() {
       setNotice(`cannot import ${file.name}: ${parsed.error}`);
       return;
     }
-    const plan = await planImport(getDb(), parsed.file, importOptions());
-    setImporting({ name: file.name, plan });
+    // F10: the file's compiler defaults pass TypeScript's check, as a Save on /settings does.
+    const checked = await checkImportedCompilerDefaults(
+      parsed.file,
+      importOptions().settings,
+      (options) => getCompiler().checkCompilerOptions(options),
+    );
+    const plan = await planImport(getDb(), checked.file, importOptions());
+    setImporting({ name: file.name, plan, refused: checked.refused });
   };
 
   const apply = async (name: string, plan: ImportPlan): Promise<void> => {
@@ -279,6 +289,7 @@ export function ProgressPage() {
       <ImportDialog
         name={importing?.name ?? ''}
         plan={importing?.plan ?? null}
+        refused={importing?.refused ?? []}
         onCancel={() => {
           setImporting(null);
           setNotice('import cancelled');

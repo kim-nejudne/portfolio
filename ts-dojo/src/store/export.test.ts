@@ -10,6 +10,7 @@ import {
   exportFileName,
   exportJson,
 } from './export';
+import { readSettings, SETTINGS_KEY } from './settings';
 
 let count = 0;
 const opened: TsDojoDb[] = [];
@@ -89,6 +90,26 @@ describe('buildExport', () => {
     ]);
     expect(file.settings).toEqual({ theme: 'dark', relativeNumbers: true });
     expect(JSON.parse(exportJson(file))).toEqual(file);
+  });
+
+  it('carries the F10 settings as stored (§12 F10 "settings are included in export")', async () => {
+    const settings = {
+      theme: 'dark',
+      relativeNumbers: false,
+      vimrc: 'imap kj <Esc>',
+      fontSize: 18,
+      defaultTimeoutMs: 1500,
+      compilerDefaults: { noUncheckedIndexedAccess: true },
+    } as const;
+    const stored = readSettings({
+      getItem: (key) =>
+        key === SETTINGS_KEY ? JSON.stringify(settings) : null,
+    });
+    const file = await buildExport(fresh(), stored, 'hash');
+    expect(file.settings).toEqual(settings);
+    expect((JSON.parse(exportJson(file)) as typeof file).settings).toEqual(
+      settings,
+    );
   });
 
   it('keeps the newest 5 attempts per exercise, oldest first, without the local key', async () => {

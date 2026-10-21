@@ -127,6 +127,12 @@ async function handle(
         requestId,
         ...core.runTypeTests(request.paths),
       };
+    case 'checkCompilerOptions':
+      return {
+        type: 'compilerOptionsChecked',
+        requestId,
+        ...core.checkCompilerOptions(request.compilerOptions),
+      };
     case 'dispose':
       core.dispose();
       return null;

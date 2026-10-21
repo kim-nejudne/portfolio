@@ -43,6 +43,7 @@ docs/spec.md §2 (Components, Workers and protocol, Compiler assets and options)
 | `emit` | `paths` | `ts.transpileModule` per file with the project options plus `inlineSourceMap` and `inlineSources`; a `.d.ts` path is an `error` |
 | `lintAst` | `paths`, `rules` | the requested rules plus the always-on ones (`ts-directive`, `eval`, `no-skipped-tests`); `ts.forEachChild` walk per file (`rules.ts`), a comment walk for `ts-directive`, a second check with `noImplicitAny` on for `implicit-any`; an unknown rule id is an `error` |
 | `runTypeTests` | `paths` | AST walk of each path for top-level `cases*` tuple aliases and top-level `@ts-expect-error` statements (`type-tests.ts`); its syntactic plus semantic diagnostics grouped by range (`src/verify/cases.ts`) |
+| `checkCompilerOptions` | `compilerOptions` | F10 (Spec questions): the Settings page's compiler defaults merged over the defaults as `openProject` merges them; `ts.convertCompilerOptionsFromJson` errors, else `getOptionsDiagnostics()` and `getGlobalDiagnostics()` of an empty `ts.createProgram` over `createVirtualCompilerHost`; the open project is not touched; no lib is fetched |
 | `dispose` | — | `service.dispose()`, files and stamps cleared. No reply |
 
 ## ts-ls → UI
@@ -60,6 +61,7 @@ docs/spec.md §2 (Components, Workers and protocol, Compiler assets and options)
 | `emitResult` | `{ requestId, files: { path, js }[], versions }`; `js` ends with the inline source map |
 | `astLint` | `{ requestId, hits: { rule, file, line, column, message }[], versions }` (the §5 hit shape plus the column) |
 | `typeTestResults` | `{ requestId, cases: { name, ok, diagnostics: Diag[] }[], outsideCases: Diag[], versions }` (the §5 case shape; `outsideCases` fails Compiles with "test file does not compile") |
+| `compilerOptionsChecked` | `{ requestId, errors: string[] }`: TypeScript's messages, [] when it accepts the options (F10) |
 | `error` | `{ requestId: number \| null, message, stack? }`; `requestId` is null for a malformed message |
 
 `Diag = { file, start, length, line, column, code, message, category: 'error' \| 'warning' \| 'suggestion' \| 'message' }`, derived from `ts.Diagnostic` with the position resolved once in the worker so the UI never needs the `SourceFile`. The source of truth for all of this is `src/protocol/ts-ls.ts`; the client's typed methods (`getDiagnostics(paths)`, `getQuickInfo(path, offset)`, ...) return the payload without the envelope and reject with `StaleReplyError`, `TsLsRequestError` or `WorkerRestartedError`.

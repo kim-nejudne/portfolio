@@ -90,7 +90,7 @@ tests: tests.ts                 # optional for fix
 compilerOptions: {}             # merged over the §2 defaults (below)
 libs: [es2025]                  # add dom when the exercise needs it
 forbid: [explicit-any]          # rule ids from §5 (below)
-timeoutMs: 5000                 # the run deadline
+timeoutMs: 5000                 # optional run deadline; omit it to follow Kim's Settings default (5 s unless changed)
 hints:                          # 1–3 for every editor exercise (lint)
   - A union lists the alternatives with a vertical bar.
   - The parameter type is `"on" | "off"`.
