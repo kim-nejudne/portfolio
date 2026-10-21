@@ -10,10 +10,12 @@ import { CommandPalette } from './command-palette';
 import { CompilerStatusChip } from './compiler-status';
 import { exportProgress } from './export-progress';
 import { HelpOverlay } from './help-overlay';
+import { markOnce, SHELL_INTERACTIVE_MARK } from './marks';
 import type { GlobalAction } from './keys';
 import { openInRepl } from './open-in-repl';
 import { getPageActions } from './page-actions';
 import { publishAppSeam } from './seam';
+import { UpdatePrompt } from './update-prompt';
 import { useGlobalKeys, type GlobalKeyHandlers } from './use-global-keys';
 
 export function Layout() {
@@ -67,6 +69,10 @@ export function Layout() {
     };
   }, [actions]);
   useGlobalKeys(handlers);
+  // §9 Budgets: the shell is interactive once the global keys listen (the effect above runs first).
+  useEffect(() => {
+    markOnce(SHELL_INTERACTIVE_MARK);
+  }, []);
   return (
     <AppActionsContext value={actions}>
       <TooltipProvider>
@@ -77,6 +83,7 @@ export function Layout() {
             </Link>
             <span className="font-mono text-muted-foreground">{pathname}</span>
             <span className="ml-auto flex items-center gap-3 text-muted-foreground">
+              <UpdatePrompt />
               <CompilerStatusChip />
               <span>
                 <kbd className="rounded border px-1 font-mono">?</kbd> keys

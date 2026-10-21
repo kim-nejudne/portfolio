@@ -5,6 +5,7 @@
   },
   "include": [
     "scripts",
+    "deploy",
     "spike",
     "e2e",
     "src/**/*.test.ts",

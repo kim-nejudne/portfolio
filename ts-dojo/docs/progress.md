@@ -287,14 +287,91 @@ The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion fr
 
 ## F15. Offline, performance and deploy
 
-- [ ] After one online load, with the network off: the app opens, a lesson loads, diagnostics and a run work (Playwright with `offline: true`).
+- [x] After one online load, with the network off: the app opens, a lesson loads, diagnostics and a run work (Playwright with `offline: true`).
 - [ ] Every budget in §9 is measured and recorded in `docs/progress.md`; any miss has a note.
 - [ ] `deploy/deploy.sh` ships `dist/` to `/var/www/ts-dojo`; HTTPS answers with a valid certificate; HTTP redirects. (droplet)
 - [ ] `/l/<lesson>` loads directly; `/ts/6.0.3/lib.es2025.d.ts` is served precompressed as `text/plain`; `/assets/*` is immutable; `index.html` and `sw.js` are `no-cache`. (droplet)
-- [ ] The CSP in §10 is present and nothing in the app is blocked by it (no CSP errors in the Playwright console).
-- [ ] `deploy/README.md` exists with the §10 table and the Deploying, Rollback, Caching, DNS/TLS and nginx sections.
+- [x] The CSP in §10 is present and nothing in the app is blocked by it (no CSP errors in the Playwright console).
+- [x] `deploy/README.md` exists with the §10 table and the Deploying, Rollback, Caching, DNS/TLS and nginx sections.
 
 > **Gate (§11):** deployed at dojo.kimnejudne.dev; offline works.
+
+**Notes (21 October 2026)**
+
+- Current feature. The SessionStart hook named F3, whose open box (`"+y`/`"+p` over HTTPS) is the "For Kim" check that needs this feature's deploy; F15 is next in §11 order after F10.
+- Service worker (§9 Offline), `vite-plugin-pwa` 2.0.0 in `vite.config.ts`, plus `workbox-window` 7.4.1, the plugin's peer that its register code imports:
+  - `generateSW` precaches the app, both worker chunks and all 107 files of `public/ts/6.0.3/` (153 entries).
+  - `maximumFileSizeToCacheInBytes` is 8 MiB, because workbox skips larger files with only a warning (the ts-ls chunk is 3.6 MB, `lib.dom.d.ts` 2.4 MB). `e2e/offline.spec.ts` asserts the list against `dist/`.
+  - The navigation fallback is `index.html`, never for `/assets/` or `/ts/`.
+- Updates (§9: "Reload for the new version", never by itself).
+  - Prompt mode: `src/app/update.ts` is the pure flow with its unit test, `service-worker.ts` registers through `virtual:pwa-register`, and `update-prompt.tsx` puts the line and its Reload button in the header.
+  - Found in the plugin's `register.js`: once a new worker waits, the plugin reloads the page when that worker takes control, which also happens when *another* tab pressed Reload. `onNeedReload` stops that. Only a Reload pressed in this tab reloads it, and after an update from elsewhere Reload reloads at once.
+  - Registration waits for the compiler's first `ready` (or its failure, or 10 s), so the 9 MB precache never competes with the §9 cold start. A page whose compiler failed still picks up a fixed deploy.
+- CSP (§10). `deploy/nginx/ts-dojo.conf` is the one source: `vite.config.ts` reads it (`deploy/nginx-conf.ts`) into `preview.headers`, so all 324 Playwright tests run under the shipped policy. `pnpm dev` stays without it, because Vite's HMR needs an inline script. Two fixes were needed, both found by the review agent and proven by `e2e/csp.spec.ts`:
+  - zod 4 probes `new Function('')` when `src/store/import.ts` builds its schemas, which was a violation on every page. `src/app/zod-config.ts` (`z.config({ jitless: true })`) is now `main.tsx`'s first import. Sabotage check: without it, the walk fails on 92 `eval` events from `index-*.js`.
+  - Vite inlined JetBrains Mono's cyrillic-ext woff2 (under 4 KB) as a `data:` font, which `font-src 'self'` blocks. `build.assetsInlineLimit` now never inlines `.woff2`.
+- The CSP walk (`e2e/csp.spec.ts`). It runs on a private `vite preview` that also sends the policy as Report-Only with a `report-uri`, because Playwright's console drops the browser's own messages from workers, and a report does arrive from inside a worker. It covers:
+  - roadmap and module page;
+  - lesson theory (twoslash) and theory Run;
+  - an exercise's `:run` and `:test`;
+  - `/repl` `:w`, and the DOM lib through the compiler defaults;
+  - `/settings`, and `/progress` export and import;
+  - the palette, `?`, and the service-worker install.
+
+  Two canaries prove the listeners hear: a cross-origin fetch from the page, and the sandbox's `new Function`, which the CSP also blocks for user code. A last canary flushes the reports before the empty-list assertions.
+- Offline (`e2e/offline.spec.ts`).
+  1. A real Chrome profile on disk loads one lesson online.
+  2. The server is **stopped**, then Chrome is relaunched with `offline: true`. Playwright's offline mode does not reach dedicated workers, and the private server sends everything `no-cache`, so only the precache can answer.
+  3. The app opens. The document, the ts-ls chunk and `lib.es2025.d.ts` come back `fromServiceWorker()`.
+  4. A lesson never opened online loads by URL, and its theory Run works.
+  5. An exercise shows the squiggle for a typed error, then `:run` and `:test` work.
+  6. `/repl` with `dom` in the compiler defaults reads `lib.dom.d.ts` from the precache and lists its diagnostic.
+
+  Sabotage check: with `ts/6.0.3/**` left out of the precache, the offline launch stays at "compiler loading". The update test changes a served copy's `sw.js`: the line appears, a window marker survives, and keyboard Reload takes the new worker.
+- Playwright. `use.serviceWorkers: 'block'` is the default, and the three F15 specs allow them. The suite's own network assertions are about the page's requests, and the precache would otherwise download 9 MB in each context. The §9 measurements are the `budgets` project (`default: false`, serial), run alone with `pnpm test:e2e --project budgets`.
+- Budgets (§9, table below). Method:
+  - User Timing marks (`src/app/marks.ts`): `ts-dojo:shell-interactive` when the layout's global keys listen, and `ts-dojo:compiler-ready` at the first `ready`, both from navigation start.
+  - Interactions are timed inside the page, from `performance.now()` in a key listener to `performance.now()` in a MutationObserver. The diagnostics clock starts at the last keyup, the `<Esc>` that ends the typed line. Where §9 says p95 (diagnostics) the p95 is asserted; quick info, the run and the loads assert the worst sample or run.
+  - Cold loads go through `e2e/helpers/link-server.ts`. It sends nginx's headers and gzip -9 files precompressed once, as `gzip_static` will, over one shared emulated link of **50 Mbit/s with 30 ms per response**. §9 says "broadband" without a number (Spec questions).
+  - Worker heap: CDP `HeapProfiler.collectGarbage`, then `Runtime.getHeapUsage` on the ts-ls worker. `performance.memory` is not exposed in workers, so the page session auto-attaches without flattening. A Node cross-check of the same core gave about 23 MB of heap growth.
+  - `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` measures the deployed site the same way.
+  - Machine: AMD Ryzen 7 3700X (16 threads), Linux, Google Chrome 155.0.8059.39, headless.
+- Deploy kit (§10), from Kim's plinth and hub files:
+  - `deploy/deploy.sh` follows §10 First deploy step 4. It adds a two-pass rsync: `assets/` and `ts/` go first, without delete, so a new `index.html` or `sw.js` never lands before the files it names. Its curl checks are §12 F15's two droplet criteria, run on the real host, and it prints the rollback command.
+  - `deploy/nginx/ts-dojo.conf` is §10's nginx differences plus the hub's certonly TLS and port-80 blocks.
+  - `deploy/nginx/ts-dojo-bootstrap.conf` is the HTTP-only vhost for §10 step 2.
+  - `deploy/README.md` has the §10 table, Deploying, Rollback, Caching, DNS/TLS (the first deploy in order, with the ACME probe) and nginx.
+  - `deploy/deploy.test.ts` (Vitest):
+    - resolves URIs to the location nginx picks and checks the cache rules, the types and the CSP in every location;
+    - runs shellcheck and `bash -n` on the script and checks its step order;
+    - finds §10's table rows, read from `docs/spec.md`, verbatim in the README.
+
+  Claude never ran `deploy.sh`, ssh or certbot.
+- Tests:
+  - 490 unit tests (`pnpm test --run`). New: `deploy/deploy.test.ts`, `src/app/update.test.ts`, `src/app/marks.test.ts`.
+  - 325 Playwright tests in the main suite (new: `e2e/csp.spec.ts`, 3 tests; `e2e/offline.spec.ts`, 4), plus the 3 budget tests.
+  - `pnpm content:lint` ok.
+- Measured (`vite build`, 21 October 2026): precache 153 entries, 9,164,201 bytes. `index-*.js` 1,464,550 bytes raw, 474 KB gzip. The ts-ls chunk is unchanged.
+- Found on the way, not F15's and not changed: `pnpm install --frozen-lockfile` exits 1 on HEAD too ("Ignored build scripts: esbuild@0.28.2", pnpm 12). CI runs exactly that, and its last run (17 October, green) predates the lockfile changes of F5 and F6. The next push will likely fail at install until esbuild's build script is allowed or ignored in pnpm's config. Kim's call (For Kim).
+- Review:
+  - Acceptance review, 21 October 2026: PASS, with every check run by the reviewer itself (typecheck, lint, format:check, 489 unit tests, content lint, 324 Playwright tests, the budgets project).
+    - Criteria 1, 5 and 6 MET.
+    - A second pass after the fixes below: PASS again, with every check rerun (490 unit tests, 325 Playwright tests, the budgets project). Its one remark, the console record cleared at the canaries, is fixed: the record stays whole.
+    - 3 and 4 NEEDS KIM (droplet).
+    - 2 NEEDS KIM: §9 names Kim's laptop, and these numbers come from a desktop (MSI MS-7C56, Ryzen 7 3700X).
+  - The spec-checker found no blockers (3 warnings, 7 notes). Applied after both reports:
+    - `deploy.sh`'s precompressed check could not fail: the lib file is over `gzip_min_length`, and gzip on the fly also says gzip. It now compares `Content-Length` with the `.gz` file and refuses a weak ETag.
+    - Its CSP check compares the whole string with the conf's on `/`, an asset and a lib file, and it checks that the served `sw.js` is byte for byte the one built.
+    - The quick-info and run budgets assert the worst sample, since §9 gives no percentile there.
+    - A two-tab e2e test proves `onNeedReload` with the real plugin: Reload in tab A, while tab B is mid-exercise, leaves B unreloaded with its edit and its line. B's own Reload then reloads at once. Sabotage check: without `onNeedReload`, B is reloaded and the test fails.
+    - The CSP walk keeps its console record whole. It asserts that the console heard the page canary, whose lines name the canary host and are the only ones left out. Chrome's message about the sandbox's eval stays in the worker; the report covers it.
+    - plinth's day cache for brand assets is restored for `/favicon.svg`.
+    - The bootstrap conf's host variable is `$TS_DOJO_HOST`.
+    - The certbot command is §10's, with no extra flag.
+    - For Kim gained the copy-back step and the reviewer's exact checks.
+    - Two Spec questions were added: worker memory, and cross-tab updates.
+    - The two-pass rsync went under Deviations, as approved with the plan.
+- Left for later features: re-measure the precache and the budgets after each content wave (F11–F14 add lesson chunks). The F3 HTTPS clipboard check waits for the deploy.
 
 ## F11. Content wave 1 (Tier 0 and 1)
 
@@ -332,6 +409,7 @@ Anything built differently from what the spec names (library, version, flag, key
 
 - **§2 lib set (F2, accepted by Kim with the F2 plan on 17 October 2026).** §2 says the worker fetches "exactly the set `knownLibFilesForCompilerOptions(options, ts)` returns". Prep proved that function cannot return the ES-only set (it is a prefix slice of a fixed list: 101 names with DOM, webworker and scripthost for the defaults, only `lib.d.ts` after option conversion). The worker instead resolves the set the way the compiler does, by following the `/// <reference lib="…" />` directives from each `lib` entry (`src/workers/ts-ls/libs.ts`): 76 files for `es2025`, `lib.dom.d.ts` only when a lesson adds `libs: [dom]`. Proven by `src/workers/ts-ls/libs.test.ts` and `core.test.ts`; the §12 F2 criterion ("fetches only ES lib files; with `libs: ["dom"]` it also fetches `lib.dom.d.ts`, once") is met as written.
 - **§2 project contents: an app-added declaration file (F2, accepted by Kim with the F2 plan on 17 October 2026).** §2 and §5 describe a project as the exercise's files, `tests.ts` and the lesson's `.d.ts` files. The worker adds one more root file, `/dojo/runtime.d.ts`, to every project whose lib set has neither `dom` nor `webworker`, because the §2 defaults (`lib: ["es2025"]`, no DOM) leave `console` and the timers undeclared and every `ts run` example uses them (the "Spec questions" entry below has the detail). It is not a user file: never editable, never a tab, outside the §5 Compiles rule and the rules walk. F4 sets its final contents to exactly what the sandbox shim provides.
+- **§10 First deploy step 4, a first rsync pass (F15, in the F15 plan Kim approved on 21 October 2026).** §10 lists one `rsync -az --delete`. `deploy/deploy.sh` first ships `assets/` and `ts/` without delete, then runs the listed `rsync -az --delete` of all of `dist/`. A new `index.html` or `sw.js` therefore never goes live before the files it names, and the listed step is unchanged. The wording proposal is under Spec questions.
 
 ## Spec questions
 
@@ -383,20 +461,29 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **§7 import, settings restored as a whole (F10, Kim's decision on 21 October 2026, after the acceptance review).** F9's import wrote only the keys the file carried. A default is stored as a missing key, so a file exported with the shipped vimrc never put the shipped vimrc back. The import now makes the settings exactly the file's (`replaceSettings`): a key the file lacks returns to its default. The preview names every key that changes, resets included, and the dialog says "The settings become the file's". An imported `compilerDefaults` also passes TypeScript's check, as a Save on `/settings` does. Options TypeScript refuses are left out of the import, and the preview says why (`src/pages/progress/check-settings.ts`). Proposal: a sentence in §7 Export and import.
 - **§6, reaching `/settings`, `/progress` and `/repl` (F10).** §6 names no global key, palette entry or header link for these three pages, so today they are reached by typing the URL (`/repl` also through Open in REPL). Proposal: palette entries ("Settings", "Progress", "REPL") or three header links; not built in F10, since §6 lists neither.
 
+- **§9 "broadband" (F15).** The cold-load budget says "on broadband" without a figure. F15 measured over an emulated 50 Mbit/s link with 30 ms per response (`e2e/helpers/link-server.ts`), with the deployed site measurable the same way (`BUDGETS_URL`). Proposal: name the profile in §9, or name the deployed site as the place the cold numbers are taken.
+- **§2 and §10 sizes (F15).** §2 says about 12 MB in Cache Storage after precache, and §10 says the worker chunk is about 9 MB raw. Measured on 21 October 2026, the precache is 9.16 MB and the ts-ls chunk 3.56 MB raw (minified; the 9 MB is the unminified `typescript.js`). Proposal: update the two estimates.
+- **§10 `deploy.sh` steps (F15).** §10 step 4 lists one `rsync -az --delete`. F15 ships `assets/` and `ts/` first, without delete, then the whole of `dist/` with `--delete`, so a new `index.html` or `sw.js` never lands before the files it names (`deploy/README.md`, Caching). Proposal: add the first pass to the step list.
+- **§9 worker memory (F15).** "ts-ls worker memory, steady: under 250 MB" doesn't say which memory. F15 measured the worker's V8 JS heap (`Runtime.getHeapUsage` after a garbage collection), which is 20 MB. That excludes the renderer process the worker shares with the page. Proposal: name the JS heap in §9, or the measure to use.
+- **§9 Offline, an update taken in another tab (F15).** §9 says both "every page, lesson, diagnostic and run works offline" and "it never reloads by itself mid-exercise". When Kim presses Reload in one tab, the new worker also takes over the other open tabs (`clientsClaim`) and drops the old version's precache entries. `deploy.sh`'s `--delete` has already removed the old hashed files from the server. F15 keeps such a tab as it is: no reload, the line stays, and its Reload reloads at once (proven in `e2e/offline.spec.ts`). Until then, that tab can't load a lesson chunk it hasn't loaded yet. Proposal: accept that; or reload such a tab at its next in-app navigation, which the plugin's docs suggest, since that is not mid-exercise.
+- **§9 Offline, when the service worker registers (F15).** §9 doesn't say. F15 registers once the compiler is first ready (or failed, or after 10 s), so the precache never shares the first visit's connection with the compiler's own downloads. Proposal: a sentence in §9 Warm-up.
+
 ## Measured budgets (§9)
 
-Measured at F15 on Kim's laptop in Chrome. A miss needs a note.
+§9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. The laptop run is the F15 "For Kim" item, and criterion 2 waits for it.
 
 | What | Budget | Measured | Note |
 | --- | --- | --- | --- |
-| Cold load, app shell interactive | under 2 s on broadband | | |
-| Cold load, compiler `ready` | under 5 s; the editor is usable before that, with the "compiler loading" chip | | |
-| Warm load (service worker), compiler `ready` | under 1.5 s | | |
-| Diagnostics for a 200-line file, `es2025` lib, warm | under 300 ms p95 after typing stops | | |
-| Quick info | under 100 ms | | |
-| Run of a trivial file, worker spawn included | under 150 ms | | |
-| ts-ls worker memory, steady | under 250 MB | | |
-| Total precache | under 15 MB raw | | |
+| Cold load, app shell interactive | under 2 s on broadband | median 382 ms, max 882 ms (5 cold runs) | Emulated link, 50 Mbit/s and 30 ms per response (§9 names no figure); the first run of a fresh browser is the max |
+| Cold load, compiler `ready` | under 5 s; the editor is usable before that, with the "compiler loading" chip | median 1,147 ms, max 1,590 ms (5 cold runs) | Same link; the chunk and the 76 libs arrive gzip -9 as nginx will send them |
+| Warm load (service worker), compiler `ready` | under 1.5 s | median 304 ms, max 343 ms (5 reloads) | Document and ts-ls chunk asserted `fromServiceWorker()` |
+| Diagnostics for a 200-line file, `es2025` lib, warm | under 300 ms p95 after typing stops | p95 210 ms, median 207 ms (30 samples) | The 200 ms lint delay included: the worker's share is about 10 ms |
+| Quick info | under 100 ms | p95 6.5 ms, max 17 ms (20 samples) | `K` keydown to the tooltip in the DOM |
+| Run of a trivial file, worker spawn included | under 150 ms | p95 19.7 ms, max 20 ms (20 samples) | `:w` Enter to "done in", the emit and a fresh sandbox worker included |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.5 MB total JS heap | After 30 diagnostic cycles, quick info and runs, garbage collected first; CDP `Runtime.getHeapUsage` on the worker; es2025 libs only |
+| Total precache | under 15 MB raw | 9,164,201 bytes, 153 entries | Summed from Cache Storage, equal to the files `dist/sw.js` lists; grows with F11–F14 |
+
+Measured 21 October 2026 with `pnpm test:e2e --project budgets` (e2e/budgets.spec.ts) against a local build, Chrome 155 headless, AMD Ryzen 7 3700X. No budget is missed. The cold loads are against an emulated link; the deployed site can be measured the same way with `BUDGETS_URL` (For Kim).
 
 ## For Kim
 
@@ -408,7 +495,34 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
 - [ ] Prep (by hand): clipboard round trip. In the spike editor in normal mode type `"+yy`, then paste in a terminal; copy a line in a terminal, then type `"+p` in the editor. Both directions should carry the text; note whether Chrome asked for clipboard permission. Record the answer in docs/prep-vim.md.
 - [x] F1: push the `F1: Scaffold` commit, then open the repository's Actions tab on GitHub and confirm the "CI" run for it is green (Typecheck, Lint, Format check, Unit tests, Build all pass on the `ubuntu-latest` runner with Node 24). Done 17 October 2026 at Kim's request: repository `kim-nejudne/ts-dojo` (private), run 39016881255 for `f0dbd4d` green in 48 s; Kim confirmed the tick.
 - [ ] F3 (droplet, after F15): clipboard over HTTPS. On https://dojo.kimnejudne.dev/repl in normal mode type `"+yy`, paste in a terminal; copy a line in a terminal, type `"+p` in the editor. Both directions carry the text (Playwright proved localhost; §12 F3 names HTTPS too).
-- [ ] F15 (droplet): run `deploy/deploy.sh` with `TS_DOJO_HOST` set; confirm HTTPS answers with a valid certificate and HTTP redirects.
-- [ ] F15 (droplet): open `/l/<lesson>` directly; check `/ts/6.0.3/lib.es2025.d.ts` is served precompressed as `text/plain`, `/assets/*` is immutable, and `index.html` and `sw.js` are `no-cache` (`curl -I`).
+- [ ] F15 (droplet): the first deploy, in the order of `deploy/README.md` DNS/TLS.
+  1. The Namecheap A record `dojo` (the Prep item above), confirmed with `dig +short @pdns1.registrar-servers.com dojo.kimnejudne.dev A`.
+  2. Install `deploy/nginx/ts-dojo-bootstrap.conf` as `/etc/nginx/sites-available/ts-dojo`, symlink it into `sites-enabled`, then `nginx -t && systemctl reload nginx`.
+  3. Probe the ACME path with a token (README step 2). It prints the token.
+  4. `certbot certonly --webroot -w /var/www/certbot -d dojo.kimnejudne.dev`.
+  5. Install `deploy/nginx/ts-dojo.conf` over the bootstrap, then `nginx -t && systemctl reload nginx`.
+     Then copy the installed file back: `scp $TS_DOJO_HOST:/etc/nginx/sites-available/ts-dojo deploy/nginx/ts-dojo.conf`. `git diff` should show nothing.
+  6. From the repository root: `TS_DOJO_HOST=user@host ./deploy/deploy.sh`.
+
+  Expected: every "Confirm through nginx" line passes. `https://dojo.kimnejudne.dev/` answers 200 (curl verified the certificate), and `http://` answers 301 to `https://dojo.kimnejudne.dev/`. Open the site in Chrome and check the padlock.
+- [ ] F15 (droplet): the headers and the served files. `deploy.sh` checks all of these itself. To see them by hand, run this right after `deploy.sh`, from the repository root, before any `pnpm build` or `pnpm test:e2e`: those rebuild `dist/`, and steps 1 and 3 compare with the files just shipped.
+  1. `curl -sI -H 'Accept-Encoding: gzip' https://dojo.kimnejudne.dev/ts/6.0.3/lib.es2025.d.ts`. Expected:
+     - `Content-Type: text/plain`, `Content-Encoding: gzip`, `Cache-Control: public, max-age=31536000, immutable`;
+     - a strong ETag (no `W/`);
+     - `Content-Length` equal to `stat -c %s dist/ts/6.0.3/lib.es2025.d.ts.gz`.
+
+     Gzip on the fly would have no Content-Length and a weak ETag.
+  2. `curl -sI https://dojo.kimnejudne.dev/assets/$(ls dist/assets | head -1)`: `immutable`.
+  3. `curl -sI` on `/index.html` and on `/sw.js`: `Cache-Control: no-cache` on both. Then `curl -s https://dojo.kimnejudne.dev/sw.js | cmp - dist/sw.js` prints nothing.
+  4. `ssh $TS_DOJO_HOST 'stat -c "%U %n" /var/www/ts-dojo/index.html'` prints `www-data …`.
+  5. Every response carries the `Content-Security-Policy` line from `deploy/nginx/ts-dojo.conf`.
+  6. In a fresh Chrome tab, open https://dojo.kimnejudne.dev/l/m99-fixtures/01-fix. Expected: the lesson's theory, not "not found".
+  7. Then DevTools → Network → Offline, and reload. Expected: the app, a lesson, a diagnostic and `:run` all work.
+- [ ] F15 (criterion 2, by hand): the §9 budgets on the laptop, since §9 names it and the table's figures come from the desktop.
+  1. On the laptop, from the repository root, check that nothing is listening on 4173 (`ss -ltnp | grep ':4173 '` prints nothing).
+  2. Run `pnpm test:e2e --project budgets`. Expected: 3 passed, and every soft assertion under budget.
+  3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
+  4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
+- [ ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push.
 - [ ] F11 (by hand): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug.
 - [ ] v1 gate: Tier 0 and Tier 1 completed at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way fixed.
