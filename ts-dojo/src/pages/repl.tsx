@@ -38,6 +38,7 @@ import {
   writeLastBuffer,
 } from '@/store/buffers';
 import { exportedMessage } from '@/app/export-progress';
+import { replCompilerOptions } from './repl-options';
 import { NOT_HERE } from './not-here';
 import { WELCOME_BUFFERS } from './welcome-buffers';
 
@@ -77,6 +78,10 @@ export function ReplPage() {
   // F10: scratch buffers take the Settings compiler defaults over §2; a change re-opens the
   // project in place.
   const { compilerDefaults } = useSettings();
+  const compilerOptions = useMemo(
+    () => replCompilerOptions(compilerDefaults),
+    [compilerDefaults],
+  );
   useEffect(() => () => runner.dispose(), [runner]);
   const runState = useSyncExternalStore(
     runner.subscribe,
@@ -225,9 +230,7 @@ export function ReplPage() {
           key={project.key}
           files={project.files}
           initial={project.initial}
-          {...(compilerDefaults !== undefined
-            ? { compilerOptions: compilerDefaults }
-            : {})}
+          compilerOptions={compilerOptions}
           host={host}
           onChange={onChange}
           onFileChange={onFileChange}

@@ -12,6 +12,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   bufferNames,
+  consoleEntries,
   currentPath,
   ex,
   fileTabs,
@@ -20,11 +21,15 @@ import {
   lines,
   openInRepl,
   press,
+  problems,
   readBuffer,
   readMeta,
+  runStatus,
+  setDoc,
   snapshot,
   type,
   vimPanel,
+  waitForCompilerReady,
   waitForEditor,
 } from './helpers/editor';
 
@@ -521,5 +526,47 @@ test.describe('§12 F5: Open in REPL creates a buffer with the snippet and focus
       .poll(() => bufferNames(page))
       .toEqual(['03-narrowing-2.ts', '03-narrowing.ts']);
     expect((await readBuffer(page, '03-narrowing-2.ts'))?.text).toBe(SECOND);
+  });
+});
+
+// Kim's decision on 22 October 2026 (Spec questions, "/repl buffers are one project"): every
+// buffer is its own module, so two snippets opened from theory that declare the same name don't
+// clash, while imports between buffers keep working (the welcome pair) and a script still runs.
+test.describe('/repl buffers are separate modules', () => {
+  const FIRST = lines('const total = 1;', 'console.log(total);', '');
+  const SECOND = lines('const total = 2;', 'console.log(total * 10);', '');
+
+  test('two script snippets declaring the same const report nothing, and each still runs', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Roadmap');
+    expect(await openInRepl(page, { snippet: FIRST, name: 'first' })).toBe(
+      'first.ts',
+    );
+    await waitForEditor(page);
+    expect(await openInRepl(page, { snippet: SECOND, name: 'second' })).toBe(
+      'second.ts',
+    );
+    await waitForEditor(page);
+    await waitForCompilerReady(page);
+    await expect(selectedTab(page)).toHaveAttribute('data-path', '/second.ts');
+    // The welcome pair compiles too: index.ts still imports from shapes.ts.
+    await expect(problems(page)).toHaveCount(0);
+    await focusEditor(page);
+    await ex(page, 'w');
+    await expect(runStatus(page)).toContainText('done in');
+    await expect(consoleEntries(page)).toHaveText([/^20/]);
+  });
+
+  test('a real error in one buffer is still reported', async ({ page }) => {
+    await gotoRepl(page);
+    await waitForCompilerReady(page);
+    await setDoc(page, lines("const total: number = 'one';", ''));
+    await expect(
+      problems(page).filter({
+        hasText: "Type 'string' is not assignable to type 'number'.",
+      }),
+    ).toHaveCount(1);
   });
 });
