@@ -1,0 +1,26 @@
+id: m17-boundaries/04-react/01-type-the-notice
+kind: type-challenge
+title: Type the notice
+minutes: 3
+challenge: false
+prompt: |
+  `Notice` in `index.tsx` accepts too much: a number `title`, any `tone` at all, and no
+  children. Tighten `NoticeProps` so that `Notice` takes exactly:
+
+  - `title`, a `string`;
+  - `tone`, optional, one of `'info'`, `'warn'` or `'error'` (the component defaults it to
+    `'info'`);
+  - `children`, required, anything React can render.
+
+  React's types are pre-bundled, but React itself doesn't run in the dojo, so the tests check
+  types only. They read the props with `ComponentProps<typeof Notice>` and call `Notice`
+  directly, which is how a `.ts` file uses a component without JSX.
+entry: index.tsx
+tests: tests.ts
+compilerOptions:
+  jsx: react-jsx
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, type-assertion]
+hints:
+  - Each prop that takes a fixed set of strings wants a union of string literal types.
+  - "Compare the prompt's list with the starter's: which prop is required there?"

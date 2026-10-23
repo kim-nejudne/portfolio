@@ -30,6 +30,20 @@ import ts from 'typescript';
 import { visit } from 'unist-util-visit';
 import { DEFAULT_COMPILER_OPTIONS, type Diag } from '@/protocol/ts-ls';
 import { AMBIENT_RUNTIME_DTS } from '@/workers/ts-ls/ambient';
+import {
+  collectPackageTypes,
+  nodeLoadPackageTypes,
+} from '@/workers/ts-ls/node/package-types';
+
+/** Packages theory may import in a `ts twoslash` block only (build time, never shipped). */
+const TWOSLASH_EXTRA_PACKAGES = ['valibot'];
+
+/** Libs a `ts twoslash` block may add with `// @lib:`, beyond the §2 default. */
+const TWOSLASH_EXTRA_LIBS = [
+  'lib.dom.d.ts',
+  'lib.dom.iterable.d.ts',
+  'lib.dom.asynciterable.d.ts',
+];
 import { createTsLsCore, type TsLsCore } from '@/workers/ts-ls/core';
 import { loadLibs } from '@/workers/ts-ls/libs';
 import { nodeFetchLib } from '@/workers/ts-ls/node/fetch-lib';
@@ -152,11 +166,21 @@ function convertedDefaults(): ts.CompilerOptions {
   return options;
 }
 
-/** The twoslasher over the app's lib files and ambient runtime declarations. */
+/**
+ * The twoslasher over the app's lib files, ambient runtime declarations and the pre-bundled
+ * packages (§12 F14), plus valibot's types, which only theory compares with Zod (17.2) and
+ * which never ship to the browser.
+ */
 async function createDojoTwoslasher(): Promise<TwoslashInstance> {
   const compilerOptions = convertedDefaults();
   const fsMap = new Map<string, string>();
   await loadLibs(compilerOptions.lib ?? [], fsMap, nodeFetchLib);
+  // A block may add the DOM lib with `// @lib: es2025,dom` (17.3's fetch and Response), as an
+  // exercise adds `libs: [dom]`; the default stays es2025 only.
+  await loadLibs(TWOSLASH_EXTRA_LIBS, fsMap, nodeFetchLib);
+  for (const file of collectPackageTypes(TWOSLASH_EXTRA_PACKAGES)) {
+    fsMap.set(file.path, file.text);
+  }
   return createTwoslasher({
     tsModule: ts,
     compilerOptions,
@@ -174,7 +198,10 @@ export async function createRenderer(): Promise<Renderer> {
       }),
       createDojoTwoslasher(),
     ]);
-  const core: TsLsCore = createTsLsCore({ fetchLib: nodeFetchLib });
+  const core: TsLsCore = createTsLsCore({
+    fetchLib: nodeFetchLib,
+    loadPackageTypes: nodeLoadPackageTypes,
+  });
   let coreReady: Promise<unknown> | null = null;
   // One project at a time: the build compiles lessons concurrently through this one renderer,
   // and the core holds a single open project, so each snippet's open, check and emit run as
@@ -246,13 +273,19 @@ export async function createRenderer(): Promise<Renderer> {
       }
       const { html, styles } = highlight(code, false);
       if (kind === 'static') return { kind, code, html, styles };
-      const { js, diagnostics } = await withSnippet(code, () => ({
-        js: core.emit([SNIPPET_PATH]).files[0]?.js ?? '',
-        diagnostics: core.getDiagnostics([SNIPPET_PATH]).diagnostics,
-      }));
-      return kind === 'run'
-        ? { kind, code, html, js, styles }
-        : { kind, code, html, js, diagnostics, styles };
+      const { js, imports, diagnostics } = await withSnippet(code, () => {
+        const file = core.emit([SNIPPET_PATH]).files[0];
+        return {
+          js: file?.js ?? '',
+          imports: file?.imports ?? [],
+          diagnostics: core.getDiagnostics([SNIPPET_PATH]).diagnostics,
+        };
+      });
+      const block =
+        kind === 'run'
+          ? { kind, code, html, js, styles }
+          : { kind, code, html, js, diagnostics, styles };
+      return imports.length > 0 ? { ...block, imports } : block;
     },
     check(code) {
       return withSnippet(
@@ -283,6 +316,9 @@ export function codeBlockElement(props: CodeBlockProps): MdxJsxFlowElement {
     attributes.push(
       attribute('diagnostics', JSON.stringify(props.diagnostics)),
     );
+  }
+  if (props.imports !== undefined) {
+    attributes.push(attribute('imports', JSON.stringify(props.imports)));
   }
   return {
     type: 'mdxJsxFlowElement',

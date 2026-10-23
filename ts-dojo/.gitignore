@@ -21,3 +21,6 @@ test-results
 
 # lib.*.d.ts copied from node_modules/typescript by scripts/copy-ts-libs.ts (spec §2); pnpm build regenerates it
 public/ts/
+
+# the pre-bundled packages (zod's runtime, zod's and React's types) written by scripts/copy-packages.ts (§12 F14); pnpm build regenerates them
+public/packages/

@@ -3,6 +3,7 @@
 // `runtimeError`, and `done` when the entry settles. In `mode: 'test'` the §5 harness is
 // installed first and runs the collected tests once the entry (tests.ts) has evaluated. The UI
 // terminates the worker (§2: no stop message); nothing here runs after that.
+import { PACKAGES } from '@/protocol/packages';
 import type { RunRequest, SandboxEvent } from '@/protocol/sandbox';
 import { installHarness } from './harness';
 import { runModules } from './loader';
@@ -39,6 +40,13 @@ function isRunRequest(data: unknown): data is RunRequest {
   );
 }
 
+/** A pre-bundled package's ES module (/packages/zod-<version>.js, §12 F14), as an absolute URL for blob modules. */
+function packageUrl(name: string): string {
+  const url = PACKAGES.find((p) => p.name === name)?.runtimeUrl ?? null;
+  if (url === null) throw new Error(`${name} has no bundled runtime`);
+  return new URL(url, self.location.origin).href;
+}
+
 async function run(request: RunRequest): Promise<void> {
   const registry = createModuleRegistry();
   const prelude = installPrelude({
@@ -72,6 +80,7 @@ async function run(request: RunRequest): Promise<void> {
       importModule: (url) =>
         import(/* @vite-ignore */ url) as Promise<Record<string, unknown>>,
       register: registry.register,
+      packageUrl,
     });
     await harness?.run();
   } catch (error) {

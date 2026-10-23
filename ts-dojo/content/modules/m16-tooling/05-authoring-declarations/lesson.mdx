@@ -1,0 +1,379 @@
+---
+id: m16-tooling/05-authoring-declarations
+title: Authoring .d.ts for a JavaScript library
+minutes: 25
+objectives:
+  - Choose between a .d.ts file beside the JavaScript and a declare module block for a package you don't control
+  - Describe a CommonJS module.exports with export =, and import it with a default import
+  - Write overloads, generic signatures and a function with properties in a declaration file
+  - Say where the compiler finds a package's types, from the types condition in exports and typesVersions to an @types package
+  - Test declarations with type cases and @ts-expect-error, with skipLibCheck off
+prerequisites:
+  - m08-functions-classes/01-overloads
+  - m08-functions-classes/02-this-and-callable-types
+  - m09-modules-async/02-declaration-files
+  - m13-type-challenges/01-easy-set
+  - m14-type-system-edges/04-declaration-merging
+  - m16-tooling/02-module-resolution
+  - m16-tooling/03-project-references
+tags:
+  - .d.ts
+  - declaration file
+  - declare module
+  - export =
+  - import require
+  - CommonJS
+  - esModuleInterop
+  - allowSyntheticDefaultImports
+  - overloads
+  - call signature
+  - namespace
+  - '@types'
+  - DefinitelyTyped
+  - typesVersions
+  - exports types condition
+  - skipLibCheck
+  - TS1202
+  - TS2309
+  - TS2497
+ts7: Setting esModuleInterop or allowSyntheticDefaultImports to false is deprecated in 6.0 (TS5107) and stops working in TypeScript 7.0, as does moduleResolution node10, the one mode that reads typesVersions in a package with exports.
+---
+
+## Concept
+
+<Lesson id="m09-modules-async/02-declaration-files" /> typed a package from the
+outside with a `declare module` block, a few signatures at a time. This lesson
+writes the declarations a JavaScript library needs in full, as its author or a
+DefinitelyTyped contributor would. They go in one of two places:
+
+- **Beside the JavaScript.** `format.d.ts` next to `format.js`. An import of `./format` finds the `.d.ts` first: the compiler reads the types from it, and the bundler or Node loads the `.js`. A package ships its own types this way, and so does a JavaScript file in your own project. The file is a module, and it exports what the JavaScript exports.
+- **In a `declare module 'name'` block**, in a script `.d.ts` file of your project, for a package you can't change. Once the declarations are good, they belong in the package itself or on DefinitelyTyped.
+
+```ts twoslash
+// @filename: format.js
+export const currency = 'EUR';
+
+export function formatPrice(cents, options = {}) {
+  const amount = (cents / 100).toFixed(2);
+  return options.symbol === false ? amount : `${amount} ${currency}`;
+}
+
+// @filename: format.d.ts
+export interface FormatOptions {
+  /** Append the currency; true by default. */
+  symbol?: boolean;
+}
+export const currency: string;
+export function formatPrice(cents: number, options?: FormatOptions): string;
+
+// @filename: main.ts
+import { formatPrice } from './format';
+
+const label = formatPrice(1250, { symbol: false });
+//                    ^?
+```
+
+In a `.d.ts` file every declaration is ambient already, so `export function` and `export declare function` mean the same, and neither has a body. `tsc` with `declaration` on writes the second spelling. The compiler never compares the two files: whatever `format.d.ts` says is what every caller gets, right or wrong. That is why declarations need tests of their own, at the end of Examples.
+
+## Examples
+
+**CommonJS and `export =`.** Many packages are CommonJS, and many of those replace the whole exports object with one value:
+
+```js
+// node_modules/tiny-slug/index.js
+module.exports = function slugify(text, separator = '-') {
+  return text.trim().toLowerCase().split(/\s+/).join(separator);
+};
+```
+
+An ES `export` always has a name, so it can't say this. `export =` can: the module _is_ this value.
+
+```ts twoslash
+// @filename: tiny-slug.d.ts
+declare module 'tiny-slug' {
+  function slugify(text: string, separator?: string): string;
+  export = slugify;
+}
+
+// @filename: main.ts
+import slugify from 'tiny-slug';
+
+const slug = slugify('Hello World');
+//    ^?
+```
+
+A caller has three ways to import it, and under the dojo's settings (`module: esnext`, `moduleResolution: bundler`) one of them is right:
+
+- `import slugify from 'tiny-slug'` compiles. The module has no `default` export, but `esModuleInterop`, and its type-only half `allowSyntheticDefaultImports`, treat `module.exports` as the default, which is what bundlers and Node give an ES module that imports CommonJS. In 6.0 both are on unless you set them to `false`, and that setting is deprecated: _Option 'esModuleInterop=false' is deprecated and will stop functioning in TypeScript 7.0._ (TS5107).
+- `import slugify = require('tiny-slug')` is TypeScript's own form, for code compiled to CommonJS. Under `module: esnext` it is TS1202: _Import assignment cannot be used when targeting ECMAScript modules._ The `erasableSyntaxOnly` of <Lesson id="m16-tooling/03-project-references" /> rejects it, and `export =` in a `.ts` file, too.
+- `import * as slugify from 'tiny-slug'` gives a namespace object, and when the module is a function alone that is TS2497: _This module can only be referenced with ECMAScript imports/exports by turning on the 'allowSyntheticDefaultImports' flag and referencing its default export._ The flag is already on; the message means "use the default import".
+
+<Callout kind="ts7">
+  TypeScript 6.0.3 reports `esModuleInterop: false` and
+  `allowSyntheticDefaultImports: false` as deprecated, with the message that
+  they will stop functioning in TypeScript 7.0. The default import of an `export
+  =` module above relies on `allowSyntheticDefaultImports`, which is on by
+  default in 6.0.
+</Callout>
+
+**Overloads and generics.** Overloads in a declaration file are the signatures of <Lesson id="m08-functions-classes/01-overloads" /> without the implementation signature, since nothing has a body. The rule from that lesson still decides the order: the compiler takes the first signature that fits the call, so the specific ones come first. A generic signature is written exactly as in a `.ts` file:
+
+```ts twoslash
+// @filename: tiny-csv.d.ts
+declare module 'tiny-csv' {
+  export type Row = Record<string, string>;
+
+  export function parse(text: string, options: { header: true }): Row[];
+  export function parse(text: string, options?: { header?: false }): string[][];
+
+  export function column<T, K extends keyof T>(
+    rows: readonly T[],
+    key: K,
+  ): T[K][];
+}
+
+// @filename: main.ts
+import { column, parse } from 'tiny-csv';
+
+const people = parse('name,city\nAda,London', { header: true });
+//    ^?
+const grid = parse('1,2\n3,4');
+//    ^?
+const firsts = column(grid, 0);
+//    ^?
+```
+
+**A function with properties.** JavaScript libraries often hang settings and helpers on the function they export: `money(1250)` formats, `money.parse` parses, `money.defaultCurrency` is a setting. The JavaScript builds one object that is callable and has properties. In TypeScript, an interface with a call signature (<Lesson id="m08-functions-classes/02-this-and-callable-types" />) describes that object, and `Object.assign` builds one:
+
+```ts run
+interface Money {
+  (cents: number): string;
+  defaultCurrency: string;
+  parse(text: string): number | null;
+}
+
+const money: Money = Object.assign(
+  (cents: number) => `${(cents / 100).toFixed(2)} ${money.defaultCurrency}`,
+  {
+    defaultCurrency: 'EUR',
+    parse(text: string): number | null {
+      const amount = Number.parseFloat(text);
+      return Number.isNaN(amount) ? null : Math.round(amount * 100);
+    },
+  },
+);
+
+money.defaultCurrency = 'USD';
+console.log(money(1250), money.parse('12.50 USD'), money.parse('free'));
+```
+
+In a declaration file, `declare const money: Money;` and `export = money;` would be enough for the values. A library also has types to export, such as the options its function takes, and next to `export =` nothing else can be exported (Pitfalls). So DefinitelyTyped's usual spelling is a function merged with a namespace (<Lesson id="m14-type-system-edges/04-declaration-merging" />): the namespace adds the properties and holds the types, and callers reach both through the one name.
+
+```ts twoslash
+// @filename: tiny-money.d.ts
+declare module 'tiny-money' {
+  function money(cents: number, options?: money.Options): string;
+
+  namespace money {
+    interface Options {
+      currency?: string;
+    }
+    let defaultCurrency: string;
+    function parse(text: string): number | null;
+  }
+
+  export = money;
+}
+
+// @filename: main.ts
+import money from 'tiny-money';
+
+money.defaultCurrency = 'USD';
+const options: money.Options = { currency: 'EUR' };
+const cents = money.parse(money(1250, options));
+//    ^?
+```
+
+`let` makes `defaultCurrency` writable, and `const` would make it read-only. With the namespace, the members can also be imported by name: `import { parse } from 'tiny-money'` compiles.
+
+**Where the compiler looks for a package's types.** For `import … from 'tiny-csv'` the compiler wants the package's own declarations first. A package with an `exports` field lists them under the `types` condition:
+
+```json
+{
+  "name": "tiny-csv",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
+```
+
+Conditions are tried in the order they are written, so `types` goes first, before `default`, which matches anything. When a condition points at a `.js` file, the compiler looks for the `.d.ts` beside it. Without `exports`, the `types` field (or its older name `typings`) names the file; failing that, the compiler tries the `.d.ts` beside the `main` file, then `index.d.ts`. Only when the package has no declarations at all does the compiler look for `@types/tiny-csv`, the DefinitelyTyped package. A scoped name is folded into one: the types of `@babel/core` are `@types/babel__core`. So with both installed, the package's own types win over its `@types` package.
+
+A package can ship different declarations to different TypeScript versions. The old field for that is `typesVersions`, which maps a version range to other paths:
+
+```json
+{
+  "types": "./index.d.ts",
+  "typesVersions": {
+    "<5.0": { "*": ["ts4/*"] }
+  }
+}
+```
+
+`moduleResolution: bundler` and `nodenext` read `typesVersions` only in a package without `exports`. With `exports`, the same job is a versioned condition placed before `types`: `"types@<5.0": "./ts4/index.d.ts"`. Only the deprecated `node10` reads `typesVersions` in a package that has `exports`.
+
+**Testing declarations.** A test of a declaration file is code that uses it the way callers will, and nothing in it runs: compiling it is the test. Type cases check what the declarations give, and `@ts-expect-error` checks what they must refuse. If a refused line starts to compile, the directive itself is the error, _Unused '@ts-expect-error' directive._ That is what every `tests.ts` in the dojo does, with the `Equal` and `Expect` of <Lesson id="m13-type-challenges/01-easy-set" />, and every package on DefinitelyTyped has a test file of the same kind:
+
+```ts twoslash
+// @filename: tiny-csv.d.ts
+declare module 'tiny-csv' {
+  export type Row = Record<string, string>;
+  export function parse(text: string, options: { header: true }): Row[];
+  export function parse(text: string, options?: { header?: false }): string[][];
+  export function column<T, K extends keyof T>(
+    rows: readonly T[],
+    key: K,
+  ): T[K][];
+}
+
+// @filename: tiny-csv.test.ts
+import { column, parse } from 'tiny-csv';
+
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+const people = parse('name\nAda', { header: true });
+const grid = parse('1,2');
+const ids = column([{ id: 1 }, { id: 2 }], 'id');
+
+type cases = [
+  Expect<Equal<typeof people, Record<string, string>[]>>,
+  Expect<Equal<typeof grid, string[][]>>,
+  Expect<Equal<typeof ids, number[]>>,
+];
+
+// @ts-expect-error
+parse('a,b', { header: 'yes' });
+
+// @ts-expect-error
+column([{ id: 1 }], 'name');
+```
+
+Run the check with `skipLibCheck: false`, or the compiler skips the very file you are testing (Pitfalls). Every editor exercise in this lesson sets it.
+
+## Pitfalls
+
+**Putting the general overload first.** The first signature that fits wins, and a general one fits every call:
+
+```ts run errors
+declare function parse(
+  text: string,
+  options?: { header?: boolean },
+): string[][] | Record<string, string>[];
+declare function parse(
+  text: string,
+  options: { header: true },
+): Record<string, string>[];
+
+const people = parse('name\nAda', { header: true });
+console.log(people[0].name);
+```
+
+`Property 'name' does not exist on type 'Record<string, string> | string[]'.` The second signature is never reached. Put the specific signatures first, and the general one last, where it still serves a caller who holds a `boolean`, which neither `true` nor `false` accepts.
+
+**Trusting `skipLibCheck` with your own `.d.ts`.** `skipLibCheck: true`, the dojo's default and `tsc --init`'s, skips every declaration file, yours too. A typo there is never reported:
+
+```ts twoslash
+// @skipLibCheck: false
+// @errors: 2552
+// @filename: tiny-csv.d.ts
+declare module 'tiny-csv' {
+  export type Row = Record<string, string>;
+  export function parse(text: string, options: { header: true }): Rows[];
+}
+
+// @filename: main.ts
+import { parse } from 'tiny-csv';
+
+const people = parse('name\nAda', { header: true });
+```
+
+With `skipLibCheck: false`, as here, the compiler reports _Cannot find name 'Rows'. Did you mean 'Row'?_. With it on, nothing is reported, the unknown `Rows` is treated as `any`, and `people[0].anything.at.all` compiles. Check your own declarations with the flag off.
+
+**Exporting a type next to `export =`.** The module is the one value, so it can't have other exports beside it:
+
+```ts twoslash
+// @skipLibCheck: false
+// @errors: 2309
+// @filename: tiny-money.d.ts
+declare module 'tiny-money' {
+  export interface Options {
+    currency?: string;
+  }
+  function money(cents: number, options?: Options): string;
+  export = money;
+}
+```
+
+_An export assignment cannot be used in a module with other exported elements._ Move the type into a namespace merged with the function, as `money.Options` above, and callers write `money.Options`.
+
+## Check yourself
+
+<Predict
+  id="no-general-signature"
+  code={
+    "declare function parse(text: string, options: { header: true }): Record<string, string>[];\ndeclare function parse(text: string, options?: { header?: false }): string[][];\n\ndeclare const useHeader: boolean;\nconst rows = parse('a,b\\n1,2', { header: useHeader });"
+  }
+  question="What does the compiler say about the last line?"
+  options={[
+    'Nothing: `rows` is `string[][] | Record<string, string>[]`',
+    'Nothing: `rows` is `Record<string, string>[]`, from the first signature',
+    'No overload matches this call',
+  ]}
+  answer={2}
+  explanation="A `boolean` is neither `true` nor `false`, so neither signature fits, and the compiler never combines two signatures into a union. The fix is a third, general signature at the end, `(text: string, options?: { header?: boolean }): string[][] | Record<string, string>[]`."
+/>
+
+<Predict
+  id="own-types-first"
+  question="`tiny-csv`'s package.json has `exports` with a `types` condition pointing at `./dist/index.d.ts`, and `@types/tiny-csv` is installed too. Which declarations does `import { parse } from 'tiny-csv'` use?"
+  options={[
+    '`@types/tiny-csv`, because DefinitelyTyped packages take precedence',
+    "The package's own `./dist/index.d.ts`",
+    'Both, merged into one module',
+  ]}
+  answer={1}
+  explanation="The compiler looks for the package's own declarations first, through `exports` and its `types` condition, and turns to `@types/tiny-csv` only when the package has none. An `@types` package that is still installed after the library started shipping its own types is ignored."
+/>
+
+<Predict
+  id="silent-typo"
+  code={
+    "// tiny-csv.d.ts\ndeclare module 'tiny-csv' {\n  export type Row = Record<string, string>;\n  export function parse(text: string, options: { header: true }): Rows[];\n}\n\n// main.ts, compiled with skipLibCheck: true\nimport { parse } from 'tiny-csv';\n\nconst people = parse('name\\nAda', { header: true });\nconsole.log(people[0].nmae.toUpperCase());"
+  }
+  question="What does the compiler report?"
+  options={[
+    "Cannot find name 'Rows'. in tiny-csv.d.ts",
+    "Property 'nmae' does not exist on type 'Row'. in main.ts",
+    'Nothing at all',
+  ]}
+  answer={2}
+  explanation="`skipLibCheck: true` skips every `.d.ts` file, so the typo `Rows` is never reported, and the unknown type is treated as `any`. `people[0]` is then `any`, and the misspelled `nmae` compiles too. Only `skipLibCheck: false` shows the first error, in the file where the mistake is."
+/>
+
+## Further reading
+
+- [Handbook: Declaration files, introduction](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html), with library structures, templates and the do's and don'ts
+- [Handbook: Modules .d.ts template](https://www.typescriptlang.org/docs/handbook/declaration-files/templates/module-d-ts.html), with `export =` and the function-with-namespace pattern
+- [Handbook: Publishing](https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html), on `types`, `typesVersions` and `@types`
+- [Modules reference: packages and `exports`](https://www.typescriptlang.org/docs/handbook/modules/reference.html)
+- [TSConfig reference: `esModuleInterop`](https://www.typescriptlang.org/tsconfig/#esModuleInterop) and [`skipLibCheck`](https://www.typescriptlang.org/tsconfig/#skipLibCheck)
+- [TypeScript 6.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)
+- [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped)

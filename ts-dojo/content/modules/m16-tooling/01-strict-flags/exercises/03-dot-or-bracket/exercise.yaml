@@ -1,0 +1,32 @@
+id: m16-tooling/01-strict-flags/03-dot-or-bracket
+kind: predict
+title: Dot or bracket
+minutes: 2
+challenge: false
+code: |
+  // compiled with noPropertyAccessFromIndexSignature: true
+  type Headers = {
+    contentType: string;
+    [name: string]: string | undefined;
+  };
+
+  function show(headers: Headers): void {
+    console.log(headers.contentType); // A
+    console.log(headers['contentType']); // B
+    console.log(headers.accept); // C
+    console.log(headers['accept']); // D
+  }
+question: Which of the lines A to D report an error?
+options:
+  - Only C
+  - C and D
+  - B and C
+  - None of them, because `Headers` declares `contentType`
+answer: 0
+explanation: |
+  The flag only restricts the dot. A property the type declares, `contentType`, can be read
+  either way, so A and B compile. `accept` is not declared: it comes from the index signature,
+  and reading it with a dot reports
+  `Property 'accept' comes from an index signature, so it must be accessed with ['accept'].`
+  The bracket in D is the form the flag asks for. It compiles, and its type is
+  `string | undefined`.

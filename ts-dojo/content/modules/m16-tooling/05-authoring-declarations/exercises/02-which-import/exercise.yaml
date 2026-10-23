@@ -1,0 +1,30 @@
+id: m16-tooling/05-authoring-declarations/02-which-import
+kind: predict
+title: Which import compiles?
+minutes: 2
+challenge: false
+code: |
+  // node_modules/@types/tiny-slug/index.d.ts
+  declare function slugify(text: string): string;
+  export = slugify;
+
+  // main.ts, with the dojo's settings: module esnext, moduleResolution bundler
+  import slugify from 'tiny-slug';         // A
+  import * as slugs from 'tiny-slug';      // B
+  import slugify2 = require('tiny-slug');  // C
+question: Which of the lines A, B and C are errors?
+options:
+  - Only C
+  - B and C
+  - A and C
+  - None of them
+answer: 1
+explanation: |
+  B and C. `export =` makes the module the function itself. A default import (A) gets it,
+  because `esModuleInterop` and `allowSyntheticDefaultImports` are on in TypeScript 6.0 and
+  treat `module.exports` as the default. A namespace import (B) is an object that can't be
+  called, so for a module that is a function alone it is TS2497, `This module can only be
+  referenced with ECMAScript imports/exports by turning on the 'allowSyntheticDefaultImports'
+  flag and referencing its default export.` The `import = require` form (C) is for code
+  compiled to CommonJS, and under `module: esnext` it is TS1202, `Import assignment cannot be
+  used when targeting ECMAScript modules.`

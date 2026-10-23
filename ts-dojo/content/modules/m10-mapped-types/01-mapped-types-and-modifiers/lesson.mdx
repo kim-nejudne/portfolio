@@ -119,7 +119,7 @@ type Strict = Required<Settings>;
 //     ^?
 ```
 
-`Required` is `-?` and nothing else, as its declaration in 6.4 showed. The default options can't tell `theme?: string` from `theme?: string | undefined`: both accept a property set to `undefined`, so `-?` removes both kinds of `undefined`. That is also why `finish({ port: undefined })` above compiles, and returns a config whose `port` is `undefined`. The option `exactOptionalPropertyTypes`, which module 16 covers, separates the two: `?` then means only "may be missing", an `undefined` value must be written into the type to be allowed, and `-?` removes only the "missing":
+`Required` is `-?` and nothing else, as its declaration in 6.4 showed. The default options can't tell `theme?: string` from `theme?: string | undefined`: both accept a property set to `undefined`, so `-?` removes both kinds of `undefined`. That is also why `finish({ port: undefined })` above compiles, and returns a config whose `port` is `undefined`. The option `exactOptionalPropertyTypes`, which <Lesson id="m16-tooling/01-strict-flags" /> covers, separates the two: `?` then means only "may be missing", an `undefined` value must be written into the type to be allowed, and `-?` removes only the "missing":
 
 ```ts twoslash
 // @exactOptionalPropertyTypes: true

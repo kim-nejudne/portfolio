@@ -1,0 +1,27 @@
+id: m16-tooling/03-project-references/03-erasable-or-not
+kind: predict
+title: Erasable or not
+minutes: 2
+challenge: false
+code: |
+  // compiled with erasableSyntaxOnly: true
+  declare const input: unknown;
+
+  declare enum Color { Red, Green }                 // A
+  namespace Shapes { export type Id = string; }     // B
+  abstract class Shape { abstract area(): number }  // C
+  const size = <number>input;                       // D
+question: Which of the lines A to D does `erasableSyntaxOnly` report?
+options:
+  - A and B
+  - Only C
+  - Only D
+  - A, B and D
+answer: 2
+explanation: |
+  Only D. The angle-bracket assertion `<number>input` is rejected with
+  `This syntax is not allowed when 'erasableSyntaxOnly' is enabled.`, while `input as number`
+  is fine. A `declare enum` emits nothing, a namespace that holds only types is erased, and
+  `abstract` is a modifier that disappears with the types. Besides that assertion, the flag
+  rejects syntax that emits code: an `enum` without `declare`, a namespace with values, parameter properties,
+  `import =` and `export =`.

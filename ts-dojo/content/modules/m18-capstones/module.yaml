@@ -1,0 +1,10 @@
+id: m18-capstones
+title: Capstones
+summary: A router, a query builder and a state store with exact types, a type-level JSON parser, and how to keep heavy types fast.
+prerequisites: [m15-api-design, m16-tooling, m17-boundaries]
+lessons:
+  - 01-type-safe-router
+  - 02-query-builder
+  - 03-typed-store
+  - 04-json-parser
+  - 05-type-performance

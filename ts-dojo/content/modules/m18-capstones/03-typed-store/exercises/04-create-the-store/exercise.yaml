@@ -1,0 +1,38 @@
+id: m18-capstones/03-typed-store/04-create-the-store
+kind: implement
+title: Create the store
+minutes: 10
+challenge: false
+prompt: |
+  Write `createStore(reducer, initial)` in `index.ts`. It returns a `Store` with four methods:
+
+  - `getState()` returns the current state, `initial` until the first dispatch.
+  - `dispatch(action)` runs the reducer on the current state and the action. When the reducer
+    returns a different state object, that becomes the state, and every listener is called with
+    the new state and the action, in the order they subscribed. When it returns the same
+    object, nothing changed, and no listener is called.
+  - `subscribe(listener)` adds a listener and returns a function that removes it. Calling that
+    function again does nothing.
+  - `select(selector)` returns the selector's result on the current state.
+
+  The starter's `Store<S>` is loose: `dispatch` takes any action, a listener's action is any
+  `Action`, and `select` returns `unknown`. Make `Store` generic over the actions too, so that
+  `dispatch` takes exactly the reducer's actions, a listener gets them, and `select` returns
+  whatever its selector does, inferred at the call. `createStore` infers both type arguments
+  from its arguments, so its callers never write them.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - '`Store` needs a second type parameter for the actions, used by `dispatch` and by the listener. Which type parameter does `select` need of its own?'
+  - Keep the state in a variable and the listeners in a set inside `createStore`; the returned methods close over both.
+  - '`Object.is` tells whether the reducer returned the very same object.'

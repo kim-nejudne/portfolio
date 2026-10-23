@@ -27,3 +27,6 @@ tiers:
         m13-type-challenges,
         m14-type-system-edges,
       ]
+  - id: t4
+    title: Expert
+    modules: [m15-api-design, m16-tooling, m17-boundaries, m18-capstones]

@@ -1,0 +1,26 @@
+id: m17-boundaries/03-fetch-json-env/02-round-trip
+kind: predict
+title: The round trip
+minutes: 2
+challenge: false
+code: |
+  type Post = { title: string; publishedAt: Date };
+
+  const post: Post = { title: 'Hello', publishedAt: new Date('2026-03-01') };
+  const copy: Post = JSON.parse(JSON.stringify(post));
+
+  console.log(typeof copy.publishedAt);
+  console.log(copy.publishedAt.getFullYear());
+question: What happens?
+options:
+  - 'It prints `object`, then `2026`'
+  - 'It prints `string`, then throws a `TypeError` because `getFullYear` is not a function'
+  - 'It does not compile: `JSON.parse` returns `unknown`, which is not assignable to `Post`'
+  - 'It does not compile: a `Date` cannot be passed to `JSON.stringify`'
+answer: 1
+explanation: |
+  JSON has no dates. `JSON.stringify` writes the `Date` as its ISO string, and `JSON.parse`
+  gives that string back. It compiles because `JSON.parse` returns `any`, which the annotation
+  accepts without a check, and `JSON.stringify` takes `any` too. So `copy` is typed `Post` and
+  holds a string, and the first call that needs a `Date` throws. Parse what comes back, for
+  example with `z.iso.datetime().transform((text) => new Date(text))`.

@@ -1,0 +1,9 @@
+id: m17-boundaries
+title: Types at the boundary
+summary: Turning untrusted input into typed values with parsers, Zod and Valibot, typing fetch and JSON, and TypeScript with React.
+prerequisites: [m09-modules-async, m11-conditional-types]
+lessons:
+  - 01-parse-dont-validate
+  - 02-zod-and-valibot
+  - 03-fetch-json-env
+  - 04-react

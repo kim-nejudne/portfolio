@@ -1,0 +1,26 @@
+id: m16-tooling/04-typescript-6-and-7/01-two-errors
+kind: predict
+title: Two errors or none
+minutes: 2
+challenge: false
+code: |
+  // tsconfig.json: { "compilerOptions": {} }
+  // @types/node is installed in node_modules
+  // index.ts, compiled with TypeScript 6.0.3
+  export function double(n) {
+    return n * 2;
+  }
+
+  console.log(process.argv.length);
+question: What does `tsc` report for `index.ts`?
+options:
+  - Nothing
+  - Only `Cannot find name 'process'.` (TS2591)
+  - Only `Parameter 'n' implicitly has an 'any' type.` (TS7006)
+  - Both
+answer: 3
+explanation: |
+  Both. With `strict` left out, 6.0 turns on all eight strict checks, `noImplicitAny` among
+  them, so the parameter `n` needs a type. And with `types` left out, 6.0 loads no `@types`
+  package by itself, so `@types/node` is installed but never read and `process` doesn't exist.
+  `"types": ["node"]` fixes the second error; `n: number` fixes the first.

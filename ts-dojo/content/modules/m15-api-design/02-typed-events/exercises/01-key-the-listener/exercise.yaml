@@ -1,0 +1,30 @@
+id: m15-api-design/02-typed-events/01-key-the-listener
+kind: fix
+title: Key the listener
+minutes: 3
+challenge: false
+prompt: |
+  `Emitter<E>` takes its event map as a type parameter, but `on` and `emit` type the payload
+  as `E[keyof E]`, the union of every event's payload. The listeners at the bottom of
+  `index.ts` can't read their own payload:
+
+  - `Property 'user' does not exist on type '{ user: string; } | { sku: string; quantity: number; } | { total: number; }'.`
+
+  Give `on` and `emit` one type parameter each, `K`, for the event name, so that a listener
+  gets the payload of its event and `emit` accepts only that payload. Don't change the
+  listeners.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - The event name is known at each call. A type parameter can capture it, constrained to the names the map has.
+  - With the name captured, an indexed access type gives the payload of that one event.

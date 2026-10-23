@@ -39,9 +39,13 @@ describe('package.json scripts (§2 Build, §12 F1)', () => {
     }
   });
 
-  it('build and dev copy the lib files first, then run vite (§2 Build)', () => {
-    expect(pkg.scripts['build']).toBe('pnpm copy-ts-libs && vite build');
-    expect(pkg.scripts['dev']).toBe('pnpm copy-ts-libs && vite');
+  it('build and dev copy the lib files and (F14) the pre-bundled packages first, then run vite (§2 Build)', () => {
+    expect(pkg.scripts['build']).toBe(
+      'pnpm copy-ts-libs && pnpm copy-packages && vite build',
+    );
+    expect(pkg.scripts['dev']).toBe(
+      'pnpm copy-ts-libs && pnpm copy-packages && vite',
+    );
     expect(pkg.scripts['preview']).toBe('vite preview');
   });
 

@@ -174,10 +174,13 @@ describe('deploy/deploy.sh', () => {
       'pnpm content:lint',
       'pnpm build',
       '${DIST}/index.html',
+      // F14: the pre-bundled packages the new sw.js and workers name
+      '${DIST}/packages/types.json',
       'gzip -9 -k -f',
       'tar -czf ${BACKUP}',
-      // assets and libs first, so the new index.html and sw.js never land before their files
-      'rsync -az "${DIST}/assets" "${DIST}/ts"',
+      // assets, libs and (F14) packages first, so the new index.html and sw.js never land
+      // before their files
+      'rsync -az "${DIST}/assets" "${DIST}/ts" "${DIST}/packages"',
       'rsync -az --delete "${DIST}/" "${HOST}:${REMOTE}/"',
       'chown -R www-data:www-data ${REMOTE}',
       'nginx -t',

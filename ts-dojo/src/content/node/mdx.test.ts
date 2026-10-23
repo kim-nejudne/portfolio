@@ -200,6 +200,131 @@ describe('the renderer', () => {
   });
 });
 
+describe('the pre-bundled packages in theory (§12 F14)', () => {
+  it('a twoslash block imports zod and valibot and shows the inferred type', async () => {
+    const code = [
+      "import { z } from 'zod';",
+      "import * as v from 'valibot';",
+      'const Z = z.object({ id: z.number() });',
+      'const V = v.object({ id: v.number() });',
+      'type FromZod = z.infer<typeof Z>;',
+      '//   ^?',
+      'type FromValibot = v.InferOutput<typeof V>;',
+      '//   ^?',
+      '',
+    ].join('\n');
+    const block = await renderer.render('twoslash', code, {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.html).toContain('type FromZod = {');
+    expect(block.html).toContain('type FromValibot = {');
+  });
+
+  it('a twoslash .tsx block under react-jsx resolves React and reports a wrong prop', async () => {
+    const code = [
+      '// @jsx: react-jsx',
+      '// @errors: 2322',
+      '// @filename: badge.tsx',
+      "import type { ReactNode } from 'react';",
+      'function Badge(props: { label: string; children?: ReactNode }) {',
+      '  return <span>{props.label}{props.children}</span>;',
+      '}',
+      'const ok = <Badge label="new" />;',
+      '//    ^?',
+      'const wrong = <Badge label={1} />;',
+      '',
+    ].join('\n');
+    const block = await renderer.render('twoslash', code, {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.html).toContain('JSX.Element');
+    expect(block.html).toContain('2322');
+  });
+
+  it('a twoslash block can add the DOM lib with // @lib (F14, 17.3)', async () => {
+    const code = [
+      '// @lib: es2025,dom',
+      "const res = await fetch('/api');",
+      '//    ^?',
+      'export {};',
+      '',
+    ].join('\n');
+    const block = await renderer.render('twoslash', code, {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.html).toContain('const res: Response');
+  });
+
+  it("a block's package.json never leaks into a later block (F14, 16.2)", async () => {
+    const esm = [
+      '// @module: nodenext',
+      '// @moduleResolution: nodenext',
+      '// @resolveJsonModule: true',
+      '// @errors: 2835',
+      '// @filename: package.json',
+      '{ "type": "module" }',
+      '// @filename: lib.ts',
+      'export const n = 1;',
+      '// @filename: index.ts',
+      "import { n } from './lib';",
+      'console.log(n);',
+      '',
+    ].join('\n');
+    await renderer.render('twoslash', esm, { path: 'x.mdx', line: 1 });
+    // The same files without a package.json are CommonJS: the import needs no extension.
+    const cjs = [
+      '// @module: nodenext',
+      '// @moduleResolution: nodenext',
+      '// @filename: lib.ts',
+      'export const n = 1;',
+      '// @filename: index.ts',
+      "import { n } from './lib';",
+      'console.log(n);',
+      '',
+    ].join('\n');
+    const block = await renderer.render('twoslash', cjs, {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.html).not.toContain('2835');
+  });
+
+  it('a run block importing zod has no diagnostics and keeps the import for the sandbox', async () => {
+    const code =
+      "import { z } from 'zod';\nconsole.log(z.string().parse('ok'));\n";
+    expect(await renderer.check(code)).toEqual([]);
+    const block = await renderer.render('run', code, {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.js).toContain("from 'zod'");
+    // The block's imports travel with its JavaScript, so Run can hand the sandbox their spans
+    // and `zod` is rewritten to the pre-bundled module (the F14 e2e found it was not).
+    const js = block.js ?? '';
+    const start = js.indexOf("'zod'") + 1;
+    expect(block.imports).toEqual([
+      { specifier: 'zod', start, end: start + 3 },
+    ]);
+    const element = codeBlockElement(block);
+    expect(
+      element.attributes.find(
+        (a) => a.type === 'mdxJsxAttribute' && a.name === 'imports',
+      )?.value,
+    ).toBe(JSON.stringify(block.imports));
+  });
+
+  it('a run block with no import carries no imports prop', async () => {
+    const block = await renderer.render('run', 'console.log(1);\n', {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.imports).toBeUndefined();
+  });
+});
+
 describe('concurrent renders', () => {
   it('give every block its own JavaScript and diagnostics (the build compiles lessons in parallel)', async () => {
     const snippets = [

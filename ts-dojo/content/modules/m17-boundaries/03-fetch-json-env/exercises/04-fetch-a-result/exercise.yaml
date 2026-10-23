@@ -1,0 +1,41 @@
+id: m17-boundaries/03-fetch-json-env/04-fetch-a-result
+kind: implement
+title: Fetch into a Result
+minutes: 6
+challenge: false
+prompt: |
+  Write `fetchJson`, which never throws. It resolves to `{ ok: true, value }` with the body
+  parsed by `schema`, or to `{ ok: false, error }`, where `error` says which step failed:
+
+  - `network`: `fetcher` rejected. `message` is the error's message, or the rejection reason
+    as a string when it isn't an `Error`.
+  - `status`: the response isn't ok. Its `status` is the HTTP status, and the body is not read.
+  - `syntax`: the body isn't JSON. `message` is the error's message.
+  - `shape`: the JSON doesn't fit `schema`. `issues` has each issue's `path`, joined with dots
+    (`items.1.qty`; empty for the root), and its `message`.
+
+  Then write `describe`, which turns a `FetchError` into one line for a log:
+  `network: Failed to fetch`, `HTTP 404`, `not JSON: Unexpected end of JSON input`, and for
+  `shape` each issue as `path: message` (only the message when the path is empty), joined with
+  `; `. It must handle every kind, so a kind added later doesn't compile until `describe`
+  handles it.
+
+  This combines the lesson with `Result` (9.4), discriminated unions and `never` (3.5) and
+  Zod (17.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025, dom]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Each step can fail in its own way, so give each its own check, or its own `try`, and return as soon as one fails.
+  - A caught value is `unknown`. Check that it is an `Error` before you read its `message`.
+  - In `describe`, a `switch` on `kind` with a `never` check after the last case keeps it exhaustive.

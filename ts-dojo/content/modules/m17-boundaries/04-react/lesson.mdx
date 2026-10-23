@@ -1,0 +1,431 @@
+---
+id: m17-boundaries/04-react
+title: 'TypeScript with React: props, generic components, discriminated props, hooks'
+minutes: 30
+objectives:
+  - Type a component's props, children included, and read them back with ComponentProps
+  - Write a generic component whose callbacks get the type of the items passed in
+  - Model props that only make sense together as a discriminated union, and narrow on it in the component
+  - Give useState, useReducer and useRef the types inference can't see, and return a custom hook's pair as const
+prerequisites:
+  - m03-unions/05-discriminated-unions
+  - m05-generics/02-constraints-and-defaults
+  - m01-types/02-primitives-literals-widening
+  - m06-type-operators/03-utility-types-2
+tags:
+  - React
+  - JSX
+  - tsx
+  - props
+  - children
+  - ReactNode
+  - ComponentProps
+  - generic components
+  - discriminated props
+  - hooks
+  - useState
+  - useReducer
+  - useRef
+---
+
+## Concept
+
+A React function component is a function that takes one object, its props, and returns what to render. TypeScript adds two things. You type the props parameter like any other parameter. And in a `.tsx` file compiled with `jsx: react-jsx`, every JSX element is checked against the props of the component it names:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: badge.tsx
+// @errors: 2322 2741
+type BadgeProps = { label: string; tone?: 'info' | 'warn' };
+
+function Badge({ label, tone = 'info' }: BadgeProps) {
+  return <span className={`badge badge-${tone}`}>{label}</span>;
+}
+
+const ok = <Badge label="New" tone="warn" />;
+//    ^?
+const noLabel = <Badge tone="info" />;
+const loud = <Badge label="Sale" tone="loud" />;
+```
+
+The attributes of `<Badge label="New" tone="warn" />` are the properties of one props object. Under `react-jsx` the element compiles to a call, `_jsx(Badge, { label: "New", tone: "warn" })`, with `_jsx` imported from `react/jsx-runtime`. So the compiler checks it the way it checks a call: a missing required prop, a wrong type and an unknown attribute are all errors. Every element has the type `React.JSX.Element`, and a component's return type is inferred, so you rarely write one.
+
+React's types (`@types/react` 19.3.0) are pre-bundled in the dojo, so `import type { ReactNode } from 'react'` type-checks everywhere. React itself doesn't run here: pressing Run on code that imports `react` stops with "React has types only in the dojo; its runtime isn't bundled". That is why the examples with JSX below are pre-rendered and the exercises are checked by their types alone. A `.ts` file can't contain JSX, so the exercises' tests call components directly, `Badge({ label: 'New' })`, with the same props object the element would build.
+
+## Examples
+
+**Children and `ReactNode`.** `children` is a prop like any other: what you write between the tags arrives as `props.children`. Its type is usually `ReactNode`, React's name for anything it can render: an element, a string, a number, a bigint, a boolean, `null`, `undefined`, an iterable of those, and a few rarer kinds. `PropsWithChildren<P>` adds an optional `children?: ReactNode` to `P`. Write `children: ReactNode` yourself when it is required. `ComponentProps` reads a component's props back out of its type:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: card.tsx
+import type { ComponentProps, PropsWithChildren, ReactNode } from 'react';
+
+function Card({ title, children }: PropsWithChildren<{ title: string }>) {
+  return (
+    <section>
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Notice({ children }: { children: ReactNode }) {
+  return <p className="notice">{children}</p>;
+}
+
+type CardProps = ComponentProps<typeof Card>;
+//   ^?
+
+const page = (
+  <Card title="Today">
+    <Notice>Saved {3} drafts</Notice>
+  </Card>
+);
+```
+
+`ComponentProps` also takes an element name. `ComponentPropsWithoutRef<'button'>` is every prop a `<button>` accepts, `onClick`, `disabled` and `type` among them, so a component can extend a native element and pass the rest through:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: icon-button.tsx
+import type { ComponentPropsWithoutRef } from 'react';
+
+type IconButtonProps = ComponentPropsWithoutRef<'button'> & { icon: string };
+
+function IconButton({ icon, children, ...rest }: IconButtonProps) {
+  return (
+    <button {...rest}>
+      <i className={`icon-${icon}`} /> {children}
+    </button>
+  );
+}
+
+const save = (
+  <IconButton icon="disk" type="submit" onClick={(event) => event.clientX}>
+    Save
+  </IconButton>
+);
+```
+
+<Callout kind="tip">
+  There is no DOM lib in the dojo (`lib` is `es2025`). React's types declare
+  `HTMLButtonElement`, `HTMLInputElement` and the other element types as empty
+  interfaces, so React's own types compile without it. React's event types carry
+  their own members, so `event.clientX` above works. A member that comes from
+  the DOM doesn't: `event.currentTarget.value` reports `Property 'value' does
+  not exist on type 'EventTarget & HTMLInputElement'. Try changing the 'lib'
+  compiler option to include 'dom'.` A real React project has `dom` in `lib`,
+  and there those members exist.
+</Callout>
+
+**Generic components.** A component is a function, so it can have a type parameter, and the compiler infers it from the props, in JSX and in a direct call alike:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: list.tsx
+import type { ReactNode } from 'react';
+
+type ListProps<T> = {
+  items: readonly T[];
+  getKey: (item: T) => string;
+  render: (item: T) => ReactNode;
+};
+
+function List<T>({ items, getKey, render }: ListProps<T>) {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={getKey(item)}>{render(item)}</li>
+      ))}
+    </ul>
+  );
+}
+
+type User = { id: string; name: string };
+const users: User[] = [{ id: 'u1', name: 'Ada' }];
+
+const people = (
+  <List items={users} getKey={(user) => user.id} render={(user) => user.name} />
+  //                                                      ^?
+);
+const numbers = List({ items: [1, 2], getKey: String, render: (n) => n * 2 });
+//                                                             ^?
+const empty = <List<User> items={[]} getKey={(user) => user.id} render={(user) => user.name} />;
+```
+
+`T` comes from `items`, and `getKey` and `render` are checked against it, as with the generic functions of <Lesson id="m05-generics/01-generic-functions" />. When there is nothing to infer from, such as an empty array, pass the type argument in the element itself: `<List<User> … />`. In a `.tsx` file an arrow function can't open with `<T>`, which reads as a JSX tag: write `<T,>`, or use a function declaration as here.
+
+`ComponentProps<typeof List>` gives the props with `T` as `unknown`, because `typeof List` is the generic function with nothing filled in. An instantiation expression, `typeof List<User>`, fixes the type argument without calling anything:
+
+```ts twoslash
+import type { ComponentProps, ReactNode } from 'react';
+
+// The List above, with its body left out.
+declare function List<T>(props: {
+  items: readonly T[];
+  getKey: (item: T) => string;
+  render: (item: T) => ReactNode;
+}): ReactNode;
+
+type Unfilled = ComponentProps<typeof List>;
+//   ^?
+type ForNumbers = ComponentProps<typeof List<number>>;
+//   ^?
+```
+
+**Discriminated props.** When some props only make sense together, a link that needs an `href` and a button that needs an `onPress`, write the props as the discriminated union of <Lesson id="m03-unions/05-discriminated-unions" />. There is nothing React-specific about it, so here it is as a plain function:
+
+```ts run
+type ActionProps =
+  | { variant: 'link'; href: string; label: string }
+  | { variant: 'button'; onPress: () => void; label: string };
+
+function describeAction(props: ActionProps): string {
+  if (props.variant === 'link') {
+    return `${props.label} goes to ${props.href}`;
+  }
+  props.onPress();
+  return `${props.label} was pressed`;
+}
+
+console.log(describeAction({ variant: 'link', href: '/docs', label: 'Docs' }));
+console.log(
+  describeAction({
+    variant: 'button',
+    onPress: () => console.log('saving'),
+    label: 'Save',
+  }),
+);
+```
+
+As a component, the body is the same, with JSX in the returns. In JSX the attributes form one object literal, so a link with an `onPress` is reported as an extra property, and a button without its `onPress` as a missing one:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: action.tsx
+// @errors: 2322
+import type { ReactNode } from 'react';
+
+type ActionProps =
+  | { variant: 'link'; href: string; children: ReactNode }
+  | { variant: 'button'; onPress: () => void; children: ReactNode };
+
+function Action(props: ActionProps) {
+  if (props.variant === 'link') {
+    return <a href={props.href}>{props.children}</a>;
+  }
+  return <button onClick={props.onPress}>{props.children}</button>;
+}
+
+const docs = <Action variant="link" href="/docs">Docs</Action>;
+const odd = <Action variant="link" href="/docs" onPress={() => {}}>Docs</Action>;
+const broken = <Action variant="button">Save</Action>;
+```
+
+**Hooks.** Hooks are generic functions, and most of the time inference fills in their type parameters. `useState` takes the state's type from the initial value, and its setter, `Dispatch<SetStateAction<S>>`, takes a new value or an updater function. When the initial value is narrower than the state will be, as `null` is, write the type argument. `useRef` needs an argument in React 19's types; `useRef<T>(null)` gives a `RefObject<T | null>`, which is what a `ref` attribute takes:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: picker.tsx
+import { useRef, useState } from 'react';
+
+type User = { id: string; name: string };
+
+function Picker({ users }: { users: User[] }) {
+  const [clicks, setClicks] = useState(0);
+  //     ^?
+  const [picked, setPicked] = useState<User | null>(null);
+  //     ^?
+  const note = useRef<HTMLInputElement>(null);
+  //    ^?
+  const pick = (user: User) => {
+    setPicked(user);
+    setClicks((n) => n + 1);
+  };
+  return (
+    <>
+      <input ref={note} placeholder="Note" />
+      {users.map((user) => (
+        <p key={user.id} onClick={() => pick(user)}>
+          {user.name}
+        </p>
+      ))}
+      {picked && (
+        <p>
+          Picked {picked.name} after {clicks} clicks
+        </p>
+      )}
+    </>
+  );
+}
+```
+
+Calling `note.current?.focus()` would need the DOM lib, as the tip above says.
+
+`useReducer` reads both of its types from the reducer: the state from the first parameter and the action from the second. Type the action as a discriminated union and `dispatch` accepts exactly its members. A reducer is a plain function, so it runs here without React:
+
+```ts run
+type Action = { type: 'add'; by: number } | { type: 'reset' };
+
+function counter(count: number, action: Action): number {
+  switch (action.type) {
+    case 'add':
+      return count + action.by;
+    case 'reset':
+      return 0;
+  }
+}
+
+const actions: Action[] = [
+  { type: 'add', by: 2 },
+  { type: 'add', by: 3 },
+  { type: 'reset' },
+  { type: 'add', by: 1 },
+];
+console.log(actions.reduce(counter, 0));
+```
+
+```ts twoslash
+// @errors: 2345
+import { useReducer } from 'react';
+
+type Action = { type: 'add'; by: number } | { type: 'reset' };
+
+function counter(count: number, action: Action): number {
+  return action.type === 'add' ? count + action.by : 0;
+}
+
+function useCounter() {
+  const [count, dispatch] = useReducer(counter, 0);
+  //            ^?
+  dispatch({ type: 'add', by: 2 });
+  dispatch({ type: 'add' });
+  return count;
+}
+```
+
+`ActionDispatch<[action: Action]>` is the same function type as `Dispatch<Action>`: `(action: Action) => void`.
+
+**Custom hooks that return a pair.** A custom hook is a function that calls hooks. When it returns a pair the way `useState` does, mark the array `as const` (<Lesson id="m01-types/02-primitives-literals-widening" />), or it is inferred as an array of the union of both elements:
+
+```ts twoslash
+import { useState } from 'react';
+
+function useToggle(initial = false) {
+  const [on, setOn] = useState(initial);
+  const toggle = () => setOn((value) => !value);
+  return [on, toggle] as const;
+}
+
+const [open, toggleOpen] = useToggle();
+//           ^?
+```
+
+## Pitfalls
+
+**Destructuring discriminated props in the parameter list.** Destructuring reads every property before anything has narrowed the union, and a property that only one member has doesn't exist on the union:
+
+```ts run errors
+type ActionProps =
+  | { variant: 'link'; href: string; label: string }
+  | { variant: 'button'; onPress: () => void; label: string };
+
+function describeAction({ variant, href, label }: ActionProps): string {
+  return variant === 'link' ? `${label} goes to ${href}` : label;
+}
+```
+
+`Property 'href' does not exist on type 'ActionProps'.` Take `props` whole and narrow on `props.variant` first. Destructuring the discriminant and the shared props is fine, `const { variant, label } = props`, and checking `variant` still narrows `props`.
+
+**Props that exclude each other, with no discriminant.** A union of object types without a discriminant accepts an object literal with properties from both members, because an extra property is only reported when no member has it:
+
+```ts twoslash
+// @jsx: react-jsx
+// @filename: icon.tsx
+// @errors: 2322
+type LooseProps = { icon: string } | { label: string };
+type StrictProps =
+  | { icon: string; label?: never }
+  | { label: string; icon?: never };
+
+function Loose(props: LooseProps) {
+  return <span>{'icon' in props ? props.icon : props.label}</span>;
+}
+function Strict(props: StrictProps) {
+  return <span>{props.icon ?? props.label}</span>;
+}
+
+const both = <Loose icon="star" label="Star" />;
+const rejected = <Strict icon="star" label="Star" />;
+```
+
+`Loose` takes both props without a word. Give the members a discriminant, or mark the other member's props `?: never`, so that each member forbids them.
+
+**Starting state narrower than the state.** `useState` infers the state's type from the initial value. `[]` gives `never[]`, and `null` gives `null`, and nothing can be stored in either later:
+
+```ts twoslash
+// @errors: 2322 2345
+import { useState } from 'react';
+
+type User = { id: string; name: string };
+
+function useUsers(ada: User) {
+  const [users, setUsers] = useState([]);
+  //     ^?
+  const [selected, setSelected] = useState(null);
+  setUsers([ada]);
+  setSelected(ada);
+}
+```
+
+Write what the state will hold: `useState<User[]>([])` and `useState<User | null>(null)`. When the initial value already has the full type, as `useState(0)` or `useState('')` do, leave the argument out.
+
+## Check yourself
+
+<Predict
+  id="empty-state"
+  code={
+    "import { useState } from 'react';\n\nfunction useTags() {\n  const [tags, setTags] = useState([]);\n  return tags;\n}"
+  }
+  question="What is the type of `tags`?"
+  options={['string[]', 'unknown[]', 'never[]', 'any[]']}
+  answer={2}
+  explanation="`useState` takes the state's type from the initial value, and an empty array literal is `never[]` under `strict`. So `setTags(['ts'])` fails: a `string` isn't assignable to `never`. Write `useState<string[]>([])`."
+/>
+
+<Predict
+  id="generic-render"
+  code={
+    'function List<T>(props: {\n  items: readonly T[];\n  getKey: (item: T) => string;\n  render: (item: T) => ReactNode;\n}) {\n  /* … */\n}\n\nconst prices = <List items={[4, 8]} getKey={String} render={(price) => price.toFixed(2)} />;'
+  }
+  question="What is the type of `price` in `render`?"
+  options={['unknown', 'number', 'number[]', 'readonly number[]']}
+  answer={1}
+  explanation="The compiler infers `T` from the props in JSX exactly as in a call: `items` is a `number[]`, so `T` is `number`, and `render` gets one item, a `number`. That is why `price.toFixed(2)` compiles."
+/>
+
+<Predict
+  id="hook-pair"
+  code={
+    'function useToggle(initial = false) {\n  const [on, setOn] = useState(initial);\n  const toggle = () => setOn((value) => !value);\n  return [on, toggle];\n}\n\nconst [open, toggleOpen] = useToggle();'
+  }
+  question="What is the type of `toggleOpen`?"
+  options={[
+    '() => void',
+    'boolean | (() => void)',
+    'boolean',
+    'readonly [boolean, () => void]',
+  ]}
+  answer={1}
+  explanation="Without `as const`, an array literal is inferred as an array of the union of its elements, `(boolean | (() => void))[]`. Each destructured element gets that union, so `toggleOpen()` fails: not every member is callable. `return [on, toggle] as const` keeps the pair, `readonly [boolean, () => void]`."
+/>
+
+## Further reading
+
+- [React: Using TypeScript](https://react.dev/learn/typescript), on typing props, hooks and events
+- [Handbook: JSX](https://www.typescriptlang.org/docs/handbook/jsx.html), how the compiler checks elements and attributes
+- [TSConfig reference: jsx](https://www.typescriptlang.org/tsconfig/#jsx), on `react-jsx` and the other emit modes
+- [TypeScript 4.7: Instantiation expressions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-7.html#instantiation-expressions), behind `typeof List<User>`
+- [Handbook: Discriminated unions](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
+- [React TypeScript Cheatsheet](https://react-typescript-cheatsheet.netlify.app/), patterns for props, generic components and hooks

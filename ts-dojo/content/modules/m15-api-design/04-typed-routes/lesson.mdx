@@ -1,0 +1,332 @@
+---
+id: m15-api-design/04-typed-routes
+title: Typed routes and path parameters
+minutes: 25
+objectives:
+  - Parse the parameter names out of a route pattern such as /users/:id/posts/:postId into an object type
+  - Type a link builder whose arguments after the pattern are exactly its parameters, and nothing when it has none
+  - Read optional parameters and a wildcard from a pattern, and flatten the result into one object type
+  - Keep a route table's patterns as literal types with satisfies or a const type parameter, and explain what a pattern widened to string checks
+prerequisites:
+  - m12-template-tuples/01-template-literal-types
+  - m11-conditional-types/03-distributive-conditionals
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m12-template-tuples/02-variadic-tuples
+  - m07-guards/03-exhaustiveness-and-satisfies
+  - m14-type-system-edges/02-const-type-params-noinfer
+tags:
+  - routes
+  - router
+  - path parameters
+  - route pattern
+  - href
+  - link builder
+  - optional parameter
+  - wildcard
+  - route table
+  - API design
+---
+
+## Concept
+
+A router names its pages with patterns. `/users/:id/posts/:postId` matches `/users/7/posts/42`, and each segment that starts with a colon is a parameter. Code that links to a page fills the parameters in. Typed as `href(pattern: string, params: Record<string, string>)`, a link that forgets one compiles, and the URL comes out with a hole in it.
+
+At the call, the pattern is a string literal, so its type can be read with the tools of <Lesson id="m12-template-tuples/01-template-literal-types" />: split it on `/`, keep the segments that start with `:`, and give each name a `string`:
+
+```ts twoslash
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+
+type Parts = Segments<'/users/:id/posts/:postId'>;
+//    ^?
+type UserPost = Params<'/users/:id/posts/:postId'>;
+//      ^?
+```
+
+`Segments` stops `Head` at the first `/` and recurses on the rest, which gives a union of every segment, the empty one before the leading `/` included. `ParamName` is a distributive conditional type (<Lesson id="m11-conditional-types/03-distributive-conditionals" />): it runs once per segment, turns `':id'` into `'id'`, and turns every other segment into `never`, which leaves the union. The mapped type (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />) then makes one `string` property per name. A pattern without parameters, `Params<'/about'>`, is `{}`.
+
+## Examples
+
+**A link builder.** `href` takes the pattern as a type parameter, so `P` is the literal that was written, and its second parameter is `Params<P>`. The body splits the pattern on `/` as the type does, so the two agree on what a parameter is:
+
+```ts run
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+
+function href<P extends string>(pattern: P, params: Params<P>): string {
+  const values: Partial<Record<string, string>> = params;
+  return pattern
+    .split('/')
+    .map((segment) => {
+      if (!segment.startsWith(':')) return segment;
+      const value = values[segment.slice(1)];
+      if (value === undefined) throw new Error(`missing ${segment}`);
+      return encodeURIComponent(value);
+    })
+    .join('/');
+}
+
+console.log(href('/users/:id/posts/:postId', { id: '7', postId: 'hi there' }));
+console.log(href('/about', {}));
+```
+
+`href('/users/:id/posts/:postId', { id: '7' })` reports `Property 'postId' is missing in type '{ id: string; }' but required in type 'Params<"/users/:id/posts/:postId">'.`, and a misspelt `{ id: '7', postID: '42' }` is an excess property. The first line of the body is there because `Params<P>` can't be read with a `string` key (the second pitfall). Every property of the mapped type is a `string`, so it can be assigned to a record of strings, and reading that record gives `string | undefined`.
+
+**No parameters, no argument.** `href('/about', {})` is noise, and `{}` is a poor type for the argument besides: an object literal isn't checked for excess properties against `{}`, so `href('/about', { id: '1' })` compiles too. Make the parameter list depend on the pattern, with a rest parameter typed as a tuple (<Lesson id="m12-template-tuples/02-variadic-tuples" />): empty when the pattern has no parameter names, one object otherwise.
+
+```ts run
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+
+type HrefArgs<P extends string> = keyof Params<P> extends never
+  ? []
+  : [params: Params<P>];
+
+function href<P extends string>(pattern: P, ...args: HrefArgs<P>): string {
+  const [params] = args;
+  const values: Partial<Record<string, string>> = params ?? {};
+  return pattern
+    .split('/')
+    .map((segment) => {
+      if (!segment.startsWith(':')) return segment;
+      const value = values[segment.slice(1)];
+      if (value === undefined) throw new Error(`missing ${segment}`);
+      return encodeURIComponent(value);
+    })
+    .join('/');
+}
+
+console.log(href('/about'));
+console.log(href('/users/:id', { id: '7' }));
+```
+
+`href('/about', {})` now reports `Expected 1 arguments, but got 2.`, and `href('/users/:id')` reports `Expected 2 arguments, but got 1.` The label `params` is the name an editor shows for the argument. React Router 7's `href` declares its arguments the same way, as `...args` with an empty tuple for a page without parameters.
+
+**Optional parameters and a wildcard.** Routers mark a parameter that may be left out with a trailing `?`, as in `/docs/:lang?`, and a segment `*` that stands for the rest of the path, slashes included, which React Router reads under the key `'*'`. Each kind of name gets its own mapped type, one with `?` on its properties, and `Simplify` from <Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> turns the intersection into one object type. This type accepts `*` in any segment, while routers allow it only as the last one:
+
+```ts twoslash
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+
+type RequiredName<S> = S extends `:${string}?`
+  ? never
+  : S extends `:${infer Name}`
+    ? Name
+    : S extends '*'
+      ? '*'
+      : never;
+type OptionalName<S> = S extends `:${infer Name}?` ? Name : never;
+
+type Simplify<T> = { [K in keyof T]: T[K] };
+
+type Params<P extends string> = Simplify<
+  { [K in RequiredName<Segments<P>>]: string } & {
+    [K in OptionalName<Segments<P>>]?: string;
+  }
+>;
+
+type Docs = Params<'/docs/:lang?/*'>;
+//    ^?
+type Post = Params<'/users/:id/posts/:postId?'>;
+//    ^?
+```
+
+`RequiredName` tests for the `?` first, because `` `:${infer Name}` `` matches `':lang?'` too, with `Name` as `'lang?'`. An optional property also accepts `undefined`, which is why the hover shows `string | undefined`.
+
+**A route table.** An app lists its routes once, in an object, and links to them by name. `as const satisfies` from <Lesson id="m07-guards/03-exhaustiveness-and-satisfies" /> checks every pattern and keeps each one's literal type, so `(typeof routes)[N]` is the pattern of the route named `N`:
+
+```ts run
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+type HrefArgs<P extends string> = keyof Params<P> extends never
+  ? []
+  : [params: Params<P>];
+
+function href<P extends string>(pattern: P, ...args: HrefArgs<P>): string {
+  const [params] = args;
+  const values: Partial<Record<string, string>> = params ?? {};
+  return pattern
+    .split('/')
+    .map((segment) => {
+      if (!segment.startsWith(':')) return segment;
+      const value = values[segment.slice(1)];
+      if (value === undefined) throw new Error(`missing ${segment}`);
+      return encodeURIComponent(value);
+    })
+    .join('/');
+}
+
+const routes = {
+  home: '/',
+  user: '/users/:id',
+  userPost: '/users/:id/posts/:postId',
+} as const satisfies Record<string, `/${string}`>;
+
+type RouteName = keyof typeof routes;
+
+function link<N extends RouteName>(
+  name: N,
+  ...args: HrefArgs<(typeof routes)[N]>
+): string {
+  return href(routes[name], ...args);
+}
+
+console.log(link('home'));
+console.log(link('userPost', { id: '7', postId: '42' }));
+```
+
+`` `/${string}` `` rejects a pattern without its leading slash: `home: 'home'` reports ``Type '"home"' is not assignable to type '`/${string}`'.`` That type does a second job. A string literal whose contextual type is a template literal type keeps its literal type, so without `as const` the `satisfies` alone gives `user` the type `'/users/:id'`, and `as const` adds only `readonly`. With `Record<string, string>` the literals widen to `string` (the first pitfall).
+
+A library that takes the table from its callers can't make them write `as const`. A type parameter constrained to the same record checks the patterns as `satisfies` would, and, for the same reason, keeps their literals already. A `const` type parameter (<Lesson id="m14-type-system-edges/02-const-type-params-noinfer" />) keeps them under any constraint, `Record<string, string>` included, and adds the `readonly` of `as const`:
+
+```ts twoslash
+// @errors: 2322
+type RouteTable = Record<string, `/${string}`>;
+
+declare function defineRoutes<const R extends RouteTable>(routes: R): R;
+
+const app = defineRoutes({ home: '/', user: '/users/:id' });
+//    ^?
+defineRoutes({ home: 'home' });
+```
+
+Matching a URL against the table, and the router around it, are left to the capstone <Lesson id="m18-capstones/01-type-safe-router" />.
+
+## Pitfalls
+
+**A pattern typed as `string`.** `string` matches no template pattern, so `Segments<string>` is `string`, `ParamName<string>` is `never`, and `Params<string>` is `{}`. With the `href` from the second example, a widened pattern needs no argument:
+
+```ts run
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+type HrefArgs<P extends string> = keyof Params<P> extends never
+  ? []
+  : [params: Params<P>];
+
+function href<P extends string>(pattern: P, ...args: HrefArgs<P>): string {
+  const [params] = args;
+  const values: Partial<Record<string, string>> = params ?? {};
+  return pattern
+    .split('/')
+    .map((segment) => {
+      if (!segment.startsWith(':')) return segment;
+      const value = values[segment.slice(1)];
+      if (value === undefined) throw new Error(`missing ${segment}`);
+      return encodeURIComponent(value);
+    })
+    .join('/');
+}
+
+const routes = {
+  user: '/users/:id',
+} satisfies Record<string, string>;
+
+console.log(href(routes.user));
+```
+
+It compiles and throws `missing :id`. `satisfies Record<string, string>` widened `user` to `string`. So does a `string` parameter, and so does `+`: `base + '/:id'` is a `string` even when `base` is a literal. A template literal whose parts are literal types keeps the literal in a `const`: with `const base = '/users'`, `` const pattern = `${base}/:id` `` has the type `'/users/:id'`. Keep patterns literal, and when some are known only at run time, ask `string extends P` first, as in <Lesson id="m12-template-tuples/01-template-literal-types" />, and take a `Record<string, string>` for those.
+
+**Reading the parameters with a `string` key.** Inside `href`, `P` is still a type parameter, and so is the set of names. A key computed at run time is a `string`, which the mapped type has no property for:
+
+```ts run errors
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+
+function href<P extends string>(pattern: P, params: Params<P>): string {
+  return pattern
+    .split('/')
+    .map((segment) =>
+      segment.startsWith(':') ? params[segment.slice(1)] : segment,
+    )
+    .join('/');
+}
+```
+
+`Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Params<P>'.` Assign the parameters to a `Partial<Record<string, string>>` first, as the examples do. That is no cast: a mapped type whose properties are all strings is assignable to a record of strings, and `Partial` makes each read `string | undefined`, so a missing name has to be handled.
+
+**Reading names one way in the type and another at run time.** A regular expression such as `/:(\w+)/g` is a common way to fill in the parameters, and it ends a name at the first character that isn't a letter, a digit or `_`. `Params` ends it at the next `/`. A pattern where the two differ gets a type that no correct argument fits:
+
+```ts run errors
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+
+function href<P extends string>(pattern: P, params: Params<P>): string {
+  const values: Partial<Record<string, string>> = params;
+  return pattern.replace(/:(\w+)/g, (_, name: string) => values[name] ?? '');
+}
+
+console.log(href('/files/:name.:ext', { name: 'report', ext: 'pdf' }));
+```
+
+`Object literal may only specify known properties, and 'name' does not exist in type 'Params<"/files/:name.:ext">'.` The type has one parameter, `'name.:ext'`; the regular expression would fill in two. Decide one rule for names and write it twice: split on `/` in both, as the examples do, or split segments on `.` as well, in the type with one more template pattern and at run time with one more `split`.
+
+## Check yourself
+
+<Predict
+  id="same-name-twice"
+  code={"type P = Params<'/users/:id/friends/:id'>;"}
+  question="With `Params` from the concept, what is `P`?"
+  options={[
+    '`{ id: string }`',
+    '`{ id: [string, string] }`',
+    'An error: duplicate identifier `id`',
+  ]}
+  answer={0}
+  explanation="The names are a union, and `'id' | 'id'` is just `'id'`, so the mapped type has one property. `href` would put the same value in both places. A router that wants two different ids needs two different names; the type won't say so."
+/>
+
+<Predict
+  id="about-with-an-object"
+  code={"href('/about', {});"}
+  question="With `href` from the second example, whose rest parameter is `HrefArgs<P>`, what does the compiler report?"
+  options={[
+    'Nothing: `{}` is exactly `Params<"/about">`',
+    '`Expected 1 arguments, but got 2.`',
+    '`Object literal may only specify known properties`',
+  ]}
+  answer={1}
+  explanation="`Params<'/about'>` has no keys, so `HrefArgs<'/about'>` is the empty tuple, and `href` takes the pattern alone. The count in the message includes the pattern."
+/>
+
+<Predict
+  id="pattern-keeps-its-literal"
+  code={
+    "const routes = {\n  user: '/users/:id',\n} satisfies Record<string, `/${string}`>;\n\ntype UserParams = Params<typeof routes.user>;"
+  }
+  question="There is no `as const`. What is `UserParams`?"
+  options={['`{ id: string }`', '`{}`', '`Record<string, string>`']}
+  answer={0}
+  explanation="The contextual type of `user` is a template literal type, and a string literal whose contextual type is a template literal type keeps its literal type, so `typeof routes.user` is `'/users/:id'`. With `satisfies Record<string, string>` it would widen to `string`, and `Params<string>` is `{}`."
+/>
+
+## Further reading
+
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html), on inferring within conditional types and distributive conditional types
+- [Handbook: Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)
+- [Handbook: More on functions, rest parameters and arguments](https://www.typescriptlang.org/docs/handbook/2/functions.html#rest-parameters-and-arguments)
+- [TypeScript 4.9: the satisfies operator](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#the-satisfies-operator) and [TypeScript 5.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html), the section on `const` type parameters

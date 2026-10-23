@@ -1,0 +1,26 @@
+id: m17-boundaries/04-react/04-link-or-button
+kind: type-challenge
+title: A link or a button
+minutes: 4
+challenge: false
+prompt: |
+  `Action` in `index.tsx` renders a link or a button, and its props are one loose object, so a
+  link without an `href`, or a button with one, both compile. Turn `ActionProps` into a
+  discriminated union on `variant`:
+
+  - `'link'`: a required `href` (a `string`) and nothing else but `children`;
+  - `'button'`: a required `onPress` (`() => void`), an optional `disabled` (`boolean`), and
+    `children`.
+
+  Both take `children`, anything React can render. Once the props are a union, the
+  destructuring in `Action`'s parameter list stops compiling: fix the body too, without a cast.
+entry: index.tsx
+tests: tests.ts
+compilerOptions:
+  jsx: react-jsx
+libs: [es2025]
+forbid:
+  [explicit-any, as-unknown-as, angle-cast, non-null-assertion, type-assertion]
+hints:
+  - Write one object type per variant, each with its own literal `variant`, and join them with `|`.
+  - A property that only one member has can't be destructured before you know which member you have. Narrow on `variant` first.

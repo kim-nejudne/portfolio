@@ -1,0 +1,384 @@
+---
+id: m18-capstones/01-type-safe-router
+title: A type-safe router
+minutes: 45
+objectives:
+  - Match a pathname against a route pattern at run time and return its parameters typed from the pattern, through a type guard rather than a cast
+  - Define routes whose handlers get their params from the path and their search from a Zod schema, with each handler hidden behind a resolve method
+  - Compose nested routes from prefixes with template literal types
+  - Build a router whose outcome is a page, a bad query or not found, answer every outcome with an exhaustive switch, and type href and navigate over the whole table
+prerequisites:
+  - m15-api-design/04-typed-routes
+  - m17-boundaries/02-zod-and-valibot
+  - m07-guards/01-type-guards
+  - m03-unions/05-discriminated-unions
+  - m12-template-tuples/01-template-literal-types
+tags:
+  - router
+  - routing
+  - route matching
+  - path parameters
+  - search params
+  - query string
+  - Zod
+  - nested routes
+  - not found
+  - href
+  - navigate
+  - capstone
+---
+
+## Concept
+
+In <Lesson id="m15-api-design/04-typed-routes" /> a route pattern typed the links to a page. A router also reads patterns the other way. Given a URL, it finds the route whose pattern matches and calls that route's handler with the parameters it found. In a typed router, the handler's parameters come from the same pattern, and its query string comes through a Zod schema (<Lesson id="m17-boundaries/02-zod-and-valibot" />):
+
+```ts twoslash
+import { z } from 'zod';
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+// ---cut---
+type Query = Partial<Record<string, string>>;
+type SearchSchema = z.ZodType<unknown, Query>;
+type RouteResult<R> =
+  { ok: true; value: R } | { ok: false; issues: z.core.$ZodIssue[] };
+
+interface Route<P extends string, R> {
+  readonly path: P;
+  resolve(pathname: string, query: Query): RouteResult<R> | null;
+}
+
+declare function route<P extends string, S extends SearchSchema, R>(def: {
+  path: P;
+  search: S;
+  handle(ctx: { params: Params<P>; search: z.output<S> }): R;
+}): Route<NoInfer<P>, R>;
+
+const user = route({
+  path: '/users/:id',
+  search: z.object({ tab: z.enum(['posts', 'likes']).default('posts') }),
+  handle: ({ params, search }) => `user ${params.id}, tab ${search.tab}`,
+  //                 ^?
+});
+```
+
+`route` is generic in the pattern `P`, the schema `S` and what the handler returns, `R`. `handle`'s parameter has no annotation, so the compiler infers `P` and `S` from `path` and `search` first, then types the parameter from them: `params` is `Params<'/users/:id'>`, 15.4's type, and `search` is the schema's output. `SearchSchema` says the schema must take strings in, which is all a query string holds. The `NoInfer` in the return type is there for the first pitfall.
+
+The design has four pieces, and the exercises build them in this order:
+
+1. `matchPath(pattern, pathname)` gives the pathname's parameters as a `Params<P>`, or `null` when the pathname doesn't match.
+2. `route(def)` matches the path, parses the query with the route's schema and calls the handler. What it returns, a `Route<P, R>`, has the pattern and a `resolve` method, and hides the handler.
+3. `group(base)` defines routes under a common prefix, and their handlers see the prefix's parameters too.
+4. `createRouter(routes)` tries the routes in order and says what it made of a URL: a page, a bad query, or nothing found. Its `href` and `navigate` take a route's name and exactly that route's parameters.
+
+## Examples
+
+**Matching a path.** Split the pattern and the pathname on `/` and compare them segment by segment. A `:name` segment matches any segment that isn't empty, and its value is decoded; every other segment must be equal:
+
+```ts run
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+
+type Values = Partial<Record<string, string>>;
+
+// True when every `:name` segment of the pattern has a value.
+function hasParams<P extends string>(
+  pattern: P,
+  values: Values,
+): values is Params<P> {
+  return pattern
+    .split('/')
+    .every(
+      (segment) =>
+        !segment.startsWith(':') || values[segment.slice(1)] !== undefined,
+    );
+}
+
+function matchPath<P extends string>(
+  pattern: P,
+  pathname: string,
+): Params<P> | null {
+  const want = pattern.split('/');
+  const got = pathname.split('/');
+  if (want.length !== got.length) return null;
+  const values: Values = {};
+  for (const [i, segment] of want.entries()) {
+    const part = got[i];
+    if (segment.startsWith(':') && part !== '') {
+      values[segment.slice(1)] = decodeURIComponent(part);
+    } else if (segment !== part) {
+      return null;
+    }
+  }
+  return hasParams(pattern, values) ? values : null;
+}
+
+const match = matchPath(
+  '/users/:id/posts/:postId',
+  '/users/7/posts/hi%20there',
+);
+console.log(match?.postId);
+console.log(matchPath('/users/:id', '/users/7/posts'));
+console.log(matchPath('/users/:id', '/users/'));
+```
+
+The loop fills in a record of strings, and no loop can show the compiler that the record is a `Params<P>`: inside the function, `P` is a type parameter, and so is the set of names. The bridge is a type guard (<Lesson id="m07-guards/01-type-guards" />), the one place where a check at run time meets the type. `hasParams` returns `values is Params<P>`, and its body checks exactly what that type says, that every `:name` of the pattern has a value. `hasParams(pattern, values) ? values : null` narrows `values` to `Params<P>` without a cast. The compiler trusts a guard as it trusts a cast, so test the guard on its own, as exercise 1 does.
+
+**A wildcard at the end only.** 15.4's `Params` read a `*` segment anywhere as a wildcard. React Router reads only a trailing `*` that way, and so does this router, in its type and in its matcher:
+
+```ts twoslash
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+// ---cut---
+type Wildcard<P extends string> = P extends `${string}/*` ? '*' : never;
+
+type Params<P extends string> = {
+  [K in ParamName<Segments<P>> | Wildcard<P>]: string;
+};
+
+type Files = Params<'/users/:id/files/*'>;
+//   ^?
+type Raw = Params<'/files/*/raw'>;
+//   ^?
+```
+
+The wildcard's value is the rest of the pathname, slashes included. Exercise 1 adds it to `matchPath`.
+
+**Routes that close over their pattern.** Inside `route`, `P` and `S` are still known. `matchPath(def.path, pathname)` returns a `Params<P> | null`, and `def.search.safeParse(query)` gives the schema's output on success, so the body can call `def.handle` with both and no cast. What leaves the function is the `Route<P, R>` from the concept. Its `resolve` gives `null` when the path doesn't match, `{ ok: false, issues }` when the query doesn't parse, and the handler's result otherwise.
+
+The point of that shape is the router. It holds routes with many patterns, so it sees each one as a `Route<string, R>`. Had the route kept `handle(params: Params<P>)` as a property, the router would see `handle(params: Params<string>)`, and `Params<string>` is `{}`: nothing would tie the parameters the router found to the handler it called. `resolve` needs no `P` from its caller, so the router can call it with what it has.
+
+**Groups: prefixes as template literal types.** Routes under `/users/:id` share a prefix, and their handlers need its `id`. A group's `route` takes the rest of the path and types the handler from the two joined, with a template literal type (<Lesson id="m12-template-tuples/01-template-literal-types" />):
+
+```ts twoslash
+import { z } from 'zod';
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+type Query = Partial<Record<string, string>>;
+type SearchSchema = z.ZodType<unknown, Query>;
+type RouteResult<R> =
+  { ok: true; value: R } | { ok: false; issues: z.core.$ZodIssue[] };
+interface Route<P extends string, R> {
+  readonly path: P;
+  resolve(pathname: string, query: Query): RouteResult<R> | null;
+}
+// ---cut---
+interface Group<B extends string> {
+  route<P extends string, S extends SearchSchema, R>(def: {
+    path: P;
+    search: S;
+    handle(ctx: { params: Params<`${B}${P}`>; search: z.output<S> }): R;
+  }): Route<`${B}${P}`, R>;
+}
+
+declare function group<B extends string>(base: B): Group<B>;
+
+const users = group('/users/:id');
+const post = users.route({
+  path: '/posts/:postId',
+  search: z.object({}),
+  handle: ({ params }) => `post ${params.postId} by user ${params.id}`,
+  //         ^?
+});
+```
+
+The body of the group's `route` passes `` `${base}${def.path}` `` to `route`. Passed straight to a generic function, a template literal expression keeps a template literal type, so `route` infers `` `${B}${P}` `` for it and the types agree without a cast. A group can hold groups the same way: the base of `users.group('/posts/:postId')` is the two prefixes joined (exercise 3).
+
+**The router.** `createRouter` is generic in the whole table, so the route names are the keys of `T`. Its outcome is a discriminated union (<Lesson id="m03-unions/05-discriminated-unions" />), and its `href` takes 15.4's `HrefArgs` of the named route's path:
+
+```ts twoslash
+// @errors: 2554
+import { z } from 'zod';
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+type HrefArgs<P extends string> = keyof Params<P> extends never
+  ? []
+  : [params: Params<P>];
+type Query = Partial<Record<string, string>>;
+type RouteResult<R> =
+  { ok: true; value: R } | { ok: false; issues: z.core.$ZodIssue[] };
+interface Route<P extends string, R> {
+  readonly path: P;
+  resolve(pathname: string, query: Query): RouteResult<R> | null;
+}
+declare const home: Route<'/', string>;
+declare const user: Route<'/users/:id', string>;
+// ---cut---
+type Outcome<N extends string> =
+  | { kind: 'page'; name: N; body: string }
+  | { kind: 'bad-query'; name: N; issues: z.core.$ZodIssue[] }
+  | { kind: 'not-found'; pathname: string };
+
+declare function createRouter<T extends Record<string, Route<string, string>>>(
+  routes: T,
+): {
+  resolve(url: string): Outcome<Extract<keyof T, string>>;
+  href<N extends keyof T>(name: N, ...args: HrefArgs<T[N]['path']>): string;
+};
+
+const router = createRouter({ home, user });
+const outcome = router.resolve('/users/7?tab=likes');
+//    ^?
+
+function status(outcome: Outcome<string>): number {
+  switch (outcome.kind) {
+    case 'page':
+      return 200;
+    case 'bad-query':
+      return 400;
+    case 'not-found':
+      return 404;
+    default: {
+      const unhandled: never = outcome;
+      return unhandled;
+    }
+  }
+}
+
+router.href('user', { id: '7' });
+router.href('user');
+```
+
+- The first route whose path matches decides. When its query parses, the outcome is a `page`; when it doesn't, a `bad-query` for that route, which a server answers with a 400. The router doesn't go on to the next route, because a bad query is an answer, not a miss.
+- When no path matches, the outcome is `not-found`, the 404. It is one more member of the union, so code that answers outcomes can't forget it: the `never` check stops compiling if a kind is added and no `case` handles it.
+- This router serves pages, so every route must return a `string`, and a route that returns anything else doesn't fit `T`'s constraint.
+
+## Pitfalls
+
+**A route that loses its pattern inside the table.** Written as `Route<P, R>`, `route`'s return type takes part in inference. Defined on its own, a route is fine. Defined inside the table, its result is expected to be a `Route<string, string>`, and the compiler infers type arguments from the type a call's result is expected to have as well as from its arguments. Here that makes `P` a `string`:
+
+```ts twoslash
+// @errors: 2339
+import { z } from 'zod';
+type Segments<P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head | Segments<Rest>
+  : P;
+type ParamName<S> = S extends `:${infer Name}` ? Name : never;
+type Params<P extends string> = { [K in ParamName<Segments<P>>]: string };
+type Query = Partial<Record<string, string>>;
+type SearchSchema = z.ZodType<unknown, Query>;
+type RouteResult<R> =
+  { ok: true; value: R } | { ok: false; issues: z.core.$ZodIssue[] };
+interface Route<P extends string, R> {
+  readonly path: P;
+  resolve(pathname: string, query: Query): RouteResult<R> | null;
+}
+// ---cut---
+declare function route<P extends string, S extends SearchSchema, R>(def: {
+  path: P;
+  search: S;
+  handle(ctx: { params: Params<P>; search: z.output<S> }): R;
+}): Route<P, R>;
+
+declare function createRouter<T extends Record<string, Route<string, string>>>(
+  routes: T,
+): T;
+
+createRouter({
+  user: route({
+    path: '/users/:id',
+    search: z.object({}),
+    handle: ({ params }) => `user ${params.id}`,
+  }),
+});
+```
+
+`Params<string>` has no `id`. `NoInfer<P>` in the return type, from <Lesson id="m14-type-system-edges/02-const-type-params-noinfer" />, takes the result out of inference, so `P` comes from `path` alone, inside the table or out of it.
+
+**A query schema that expects numbers.** Every value in a query string is a string. Without a constraint, a schema with `z.number()` compiles and then rejects every request. Constraining the schema's input to strings, as `SearchSchema` does, turns that into a type error:
+
+```ts run errors
+import { z } from 'zod';
+
+type Query = Partial<Record<string, string>>;
+
+function parseQuery<S extends z.ZodType<unknown, Query>>(
+  schema: S,
+  query: Query,
+) {
+  return schema.safeParse(query);
+}
+
+const Paging = z.object({ page: z.number().int().min(1) });
+console.log(parseQuery(Paging, { page: '2' }).success);
+```
+
+`Types of property '_input' are incompatible.` and, further down, `Type 'number' is not assignable to type 'string'.` Parse the string instead, as in 17.2: `z.string().transform(Number).pipe(z.number().int().min(1))`. `z.coerce.number()` is rejected too, because its input type is `unknown`; `z.coerce.number<string>()` declares a string input and fits.
+
+**A parameter route before a fixed one.** `:id` matches `new` as well as `7`. In a router where the first match decides, `/users/:id` listed above `/users/new` means the sign-up page is never reached, and no type says so:
+
+```ts run
+const routes = [
+  { path: '/users/:id', page: 'profile' },
+  { path: '/users/new', page: 'sign-up form' },
+];
+
+function matches(pattern: string, pathname: string): boolean {
+  const want = pattern.split('/');
+  const got = pathname.split('/');
+  return (
+    want.length === got.length &&
+    want.every((segment, i) => segment.startsWith(':') || segment === got[i])
+  );
+}
+
+console.log(routes.find((route) => matches(route.path, '/users/new'))?.page);
+```
+
+It prints `profile`. List fixed routes before the parameter routes they overlap with. React Router ranks routes by how specific they are instead, so there the order doesn't matter; a first-match router is simpler and keeps the order in your hands.
+
+## Check yourself
+
+<Predict
+  id="wildcard-in-the-middle"
+  code={"type Raw = Params<'/files/*/raw'>;"}
+  question="With the `Params` that has `Wildcard`, what is `Raw`?"
+  options={['`{ "*": string }`', '`{}`', '`{ raw: string }`']}
+  answer={1}
+  explanation="Only a `*` that ends the pattern is a wildcard: `'/files/*/raw'` doesn't end in `/*`, so `Wildcard` gives `never`, and `*` doesn't start with `:`. So the pattern has no parameters, and the matcher compares that `*` as plain text."
+/>
+
+<Predict
+  id="trailing-slash"
+  code={"matchPath('/users/:id', '/users/7/');"}
+  question="With the `matchPath` from the first example, what does this return?"
+  options={["`{ id: '7' }`", "`{ id: '7/' }`", '`null`']}
+  answer={2}
+  explanation="Split on `/`, the pathname has four segments, the last one empty, and the pattern has three. Without a wildcard the counts must agree, so it doesn't match, and a router would answer not found. A router that wants `/users/7/` to work has to strip the trailing slash before it matches."
+/>
+
+<Predict
+  id="group-params"
+  code={
+    "const post = group('/users/:id').route({\n  path: '/posts/:postId',\n  search: z.object({}),\n  handle: ({ params }) => params,\n});"
+  }
+  question="What type does the handler's `params` have?"
+  options={[
+    '`{ postId: string }`',
+    '`{ id: string; postId: string }`',
+    '`Record<string, string>`',
+  ]}
+  answer={1}
+  explanation="The group's `route` types the handler with `Params` of the base and the path joined, `'/users/:id/posts/:postId'`, so the handler gets the group's `id` as well as its own `postId`."
+/>
+
+## Further reading
+
+- [Handbook: Narrowing, using type predicates](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)
+- [Handbook: Narrowing, exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking)
+- [Zod: basic usage and safeParse](https://zod.dev/basics)

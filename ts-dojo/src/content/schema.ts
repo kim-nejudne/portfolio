@@ -88,9 +88,10 @@ export const editorExerciseSchema = z.object({
   kind: z.enum(EDITOR_KINDS),
   ...exerciseBase,
   prompt: z.string().min(1),
+  // `.tsx` since F14: 17.4's components (React's types, `jsx: react-jsx`).
   entry: z
     .string()
-    .regex(/^[A-Za-z0-9._-]+\.ts$/)
+    .regex(/^[A-Za-z0-9._-]+\.tsx?$/)
     .default('index.ts'),
   tests: z
     .string()

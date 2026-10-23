@@ -1,0 +1,29 @@
+id: m18-capstones/04-json-parser/02-numbers
+kind: type-challenge
+title: Numbers
+minutes: 8
+challenge: false
+prompt: |
+  Write `ParseNumber<S>` in `index.ts`. It reads a number from the start of `S` and returns
+  `[value, rest]`, with the value as a number literal type:
+
+  - A number is the longest run of the characters a JSON number can hold: the digits, `-`,
+    `+`, `.`, `e` and `E`. `ParseNumber<'-7, 1]'>` is `[-7, ', 1]']`, and the run in `'12abc'`
+    stops at the `a`.
+  - The run becomes a number literal type when it spells one. When it reads as a number but
+    prints back differently, as `'1.50'` and `'1e3'` do, the value is `number`, as in the
+    theory's `ParseInteger`.
+  - A run that isn't a number, such as `'-'`, `'1-2'` or the empty run in front of `'abc'`,
+    gives a `ParseError`.
+  - Whitespace is not skipped here: the value parser of exercise 4 does that before it calls
+    `ParseNumber`, so `' 1'` is an error.
+
+  Some cases build their input from a pattern or a repeated piece.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Take it in two steps, each its own type. The first is the theory's `ReadDigits` with more characters allowed. The second converts the run.
+  - The run and the rest come back as a pair. A tuple pattern can take that pair apart, and its first element can be a template literal pattern with a constrained `infer` in it.

@@ -1,0 +1,32 @@
+id: m17-boundaries/03-fetch-json-env/01-pass-a-parser
+kind: fix
+title: Pass a parser to getJson
+minutes: 3
+challenge: false
+prompt: |
+  `getJson` fetches a URL and should hand the body to the `parse` function it is given.
+  `getUser` uses it to load a user. Two things don't compile:
+
+  - `Type 'unknown' is not assignable to type 'T'.` in `getJson`
+  - `Expected 3 arguments, but got 2.` in `getUser`
+
+  Fix both without a cast. `getUser(fetcher, 7)` fetches `/users/7` and resolves to the user
+  the `User` schema parses, without any property the schema doesn't name. It rejects when the
+  body isn't a user, and when the response isn't ok, with the error `getJson` already throws.
+  The tests pass in a `fetcher` that builds a `Response` instead of going to the network.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025, dom]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - '`data` is `unknown` on purpose. Which parameter of `getJson` turns an `unknown` into a `T`?'
+  - '`getUser` has a schema at hand, and a schema has a method that takes `unknown` and returns the parsed type.'

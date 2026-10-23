@@ -1,0 +1,33 @@
+id: m17-boundaries/02-zod-and-valibot/01-read-the-type
+kind: fix
+title: Read the type out of the schema
+minutes: 3
+challenge: false
+prompt: |
+  `index.ts` has a Zod schema for a user and a `greet` function that parses its input with
+  it. Two things don't compile:
+
+  - `'UserSchema' refers to a value, but is being used as a type here. Did you mean 'typeof UserSchema'?`
+  - `'user' is possibly 'undefined'.`
+
+  Fix both without a cast or a `!`. `User` stays derived from `UserSchema`. For a user,
+  `greet` returns `Hello, Ada`, or `Hello, Ada <ada@example.com>` when there is an email. For
+  anything else it returns `Not a user: ` followed by the message of the first issue, such as
+  `Not a user: Invalid email address`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - '`z.infer` takes a type. Which operator turns a value into its type?'
+  - '`safeParse` returns one of two shapes. Check which one you have before you read `data`.'
+  - The failure shape has an `error` whose `issues` each carry a `message`.

@@ -1,0 +1,9 @@
+id: m15-api-design
+title: Type-safe API design
+summary: Builders, typed events, inference-driven pipelines and typed routes, so callers get exact types without writing any.
+prerequisites: [m13-type-challenges, m14-type-system-edges]
+lessons:
+  - 01-builders
+  - 02-typed-events
+  - 03-pipe-compose
+  - 04-typed-routes

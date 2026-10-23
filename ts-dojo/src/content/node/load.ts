@@ -82,7 +82,7 @@ export async function loadContentInput(root: string): Promise<{
           if (!(error instanceof LessonAnalysisError)) throw error;
           problems.push({ condition: 1, path: key, message: error.message });
         }
-      } else if (name.endsWith('.ts')) {
+      } else if (name.endsWith('.ts') || name.endsWith('.tsx')) {
         input.files[key] = await readFile(file, 'utf8');
       }
     }),

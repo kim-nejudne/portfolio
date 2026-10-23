@@ -38,7 +38,8 @@ export default defineConfig(({ mode }) => ({
     ...tsDojoContent({ contentDir: contentDirFor(mode) }),
     react(),
     tailwindcss(),
-    // §9 Offline: generateSW precaches the app, both worker chunks and public/ts/6.0.3/**. Prompt
+    // §9 Offline: generateSW precaches the app, both worker chunks, public/ts/6.0.3/** (but the
+    // webworker libs) and public/packages/** (F14). Prompt
     // mode: a new version waits for Reload (src/app/update.ts registers it, so nothing is
     // injected into index.html).
     VitePWA({
@@ -67,10 +68,18 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         // The manifest is added by the plugin itself; the icon is the favicon, matched here.
-        globPatterns: ['**/*.{js,css,html,svg,woff2}', 'ts/6.0.3/**'],
+        // packages/ holds the pre-bundled Zod and the package declaration files (§12 F14).
+        globPatterns: [
+          '**/*.{js,css,html,svg,woff2}',
+          'ts/6.0.3/**',
+          'packages/**',
+        ],
+        // No lesson uses the webworker libs (0.79 MB); they still ship and are fetched online
+        // if the Settings name them (F14, Kim's decision on the §9 precache, under Deviations).
+        globIgnores: ['ts/6.0.3/lib.webworker*.d.ts'],
         maximumFileSizeToCacheInBytes: PRECACHE_FILE_LIMIT,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/assets\//, /^\/ts\//],
+        navigateFallbackDenylist: [/^\/assets\//, /^\/ts\//, /^\/packages\//],
         clientsClaim: true,
         cleanupOutdatedCaches: true,
       },

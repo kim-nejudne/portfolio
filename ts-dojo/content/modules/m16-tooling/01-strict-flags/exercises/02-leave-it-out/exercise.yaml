@@ -1,0 +1,31 @@
+id: m16-tooling/01-strict-flags/02-leave-it-out
+kind: fix
+title: Leave it out
+minutes: 3
+challenge: false
+prompt: |
+  This exercise compiles with `exactOptionalPropertyTypes: true`, so `timeoutMs?: number` means
+  the property may be missing, not that it may hold `undefined`. `withTimeout` has one error:
+
+  - `Type '{ timeoutMs: number | undefined; retries?: number; }' is not assignable to type 'RequestOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.`
+
+  Fix `withTimeout` so that it does what its comment says: with a number, the copy has that
+  timeout; with `undefined`, the copy has no `timeoutMs` key at all, even when `options` had
+  one. Keep `RequestOptions` as it is: the type case checks it, and the `@ts-expect-error` line
+  checks that it still rejects `{ timeoutMs: undefined }`. `oneMoreRetry` already compiles.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  exactOptionalPropertyTypes: true
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    non-null-assertion,
+    type-assertion,
+    as-unknown-as,
+    any-expression,
+  ]
+hints:
+  - The error's suggestion, adding `undefined` to the property's type, would compile, but it changes what `RequestOptions` means. Make the object match the type instead.
+  - Build two different results, one for each case of `timeoutMs`. Both start from `options` without its old timeout, and rest destructuring can leave a property out.

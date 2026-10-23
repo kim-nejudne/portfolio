@@ -1,0 +1,48 @@
+id: m16-tooling/05-authoring-declarations/04-callable-export
+kind: type-challenge
+title: A callable export
+minutes: 5
+challenge: false
+prompt: |
+  `tiny-debounce` is a CommonJS package in plain JavaScript:
+
+  ```js
+  // node_modules/tiny-debounce/index.js
+  function debounce(fn, wait = debounce.defaultWait) {
+    let timer;
+    function debounced(...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), wait);
+    }
+    debounced.cancel = () => clearTimeout(timer);
+    return debounced;
+  }
+
+  debounce.defaultWait = 100;
+  module.exports = debounce;
+  ```
+
+  The draft in `tiny-debounce.d.ts` was written in a hurry. With `skipLibCheck: false`, as
+  this exercise sets it, the compiler reports `An export assignment cannot be used in a module
+  with other exported elements.`, and the types are too loose anyway. Rewrite it so that:
+
+  - the module is the function `debounce`, imported with `import debounce from 'tiny-debounce'`;
+  - `debounce(fn, wait?)` returns a function that takes exactly the arguments `fn` takes
+    (a tuple, rest parameters included) and returns nothing, and that has a `cancel()` method
+    that returns nothing. `wait` is a number;
+  - `debounce.defaultWait` is a number that callers may change;
+  - the type of a debounced function is `debounce.Debounced<Args>`, where `Args` is the tuple of
+    its arguments.
+
+  This combines the lesson with call signatures (8.2), merging a namespace into a function
+  (14.4), and tuple type parameters (12.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  skipLibCheck: false
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Next to `export =` the module can export nothing else. Lesson 14.4 showed where a function keeps types and properties of its own.
+  - Capture the arguments of `fn` as one tuple type parameter, and use it again for the function that `debounce` returns.
+  - A debounced function can be called and has a method. One interface can say both.

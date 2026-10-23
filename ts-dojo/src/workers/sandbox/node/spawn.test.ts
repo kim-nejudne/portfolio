@@ -150,6 +150,25 @@ const id = setInterval((label: string) => { console.log(label); clearInterval(id
     }
   });
 
+  it('runs a project that imports zod (§12 F14), with the same zod as the browser bundle', async () => {
+    const runner = createNodeSandboxRunner(() => Promise.resolve([]));
+    const modules = emit({
+      '/index.ts': `import { z } from 'zod';
+const User = z.object({ name: z.string() });
+console.log(User.parse({ name: 'Kim' }).name, User.safeParse({}).success);`,
+    });
+    try {
+      await runner.start(modules, '/index.ts', { timeoutMs: 10_000 });
+      const state = await settled(runner);
+      expect(state.status).toMatchObject({ kind: 'done' });
+      expect(
+        state.entries.map((e) => (e.kind === 'console' ? e.text : e.kind)),
+      ).toEqual(['Kim false']);
+    } finally {
+      runner.dispose();
+    }
+  });
+
   it('is terminated at the deadline when a test spins forever', async () => {
     const runner = createNodeSandboxRunner(() => Promise.resolve([]));
     const modules = emit({

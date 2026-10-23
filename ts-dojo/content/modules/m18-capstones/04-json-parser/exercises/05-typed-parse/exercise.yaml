@@ -1,0 +1,33 @@
+id: m18-capstones/04-json-parser/05-typed-parse
+kind: implement
+title: A typed parse
+minutes: 8
+challenge: false
+prompt: |
+  `json.ts` holds the finished `ParseJson` from exercise 4. Use it to type `parse(text)` in
+  `index.ts`, a wrapper around `JSON.parse`:
+
+  - For a literal argument, `parse` returns the type the text spells:
+    `parse('[1, [2, 3], null]')` has the type `[1, [2, 3], null]`.
+  - A literal that isn't JSON doesn't compile, apart from the few numbers the parser is
+    lenient about, such as `01`: `parse('[1, 2,]')` is an error at the call. The cases don't check the wording, but the parser knows what went wrong: rejected with
+    the `ParseError` itself, the call's error shows its message.
+  - A plain `string`, whose text isn't known until run time, is accepted, and the result is
+    `unknown`. At run time, bad text throws, as `JSON.parse` does.
+
+  The result of `JSON.parse` goes into `unknown` first, as in lesson 17.1, and the function
+  returns it with one `as`, as `join` did in 12.4. `any-expression` and the other rules in
+  `forbid` hold you to that.
+
+  This combines the parser with the literal types a type parameter constrained to `string`
+  infers (5.1, 5.2), the `string extends S` check of 12.1, and the single `as` on a return of
+  12.3 and 12.4.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [explicit-any, as-unknown-as, angle-cast, non-null-assertion, any-expression]
+hints:
+  - A type parameter constrained to `string` infers a literal type from a literal argument. Decide the return type from it, and ask about plain `string` before anything else.
+  - The parameter has to reject some literals and still let the compiler infer the type parameter from it. What can the parameter's type be built from, so that it still mentions `S` but adds the error?

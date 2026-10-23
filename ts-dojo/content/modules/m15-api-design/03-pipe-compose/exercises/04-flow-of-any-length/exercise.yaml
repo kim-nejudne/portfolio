@@ -1,0 +1,43 @@
+id: m15-api-design/03-pipe-compose/04-flow-of-any-length
+kind: implement
+title: A flow of any length
+minutes: 8
+challenge: false
+prompt: |
+  `flow(first, ...rest)` composes functions in pipe order without a value: it returns a
+  function that takes `first`'s parameters, all of them, and runs the result through `rest`
+  from left to right.
+
+  ```ts
+  const add = (a: number, b: number) => a + b;
+  const total = flow(add, (n: number) => n.toFixed(2), (text: string) => text.length);
+  // (a: number, b: number) => number
+  total(2, 3); // 4
+  ```
+
+  - Any number of functions, with no list of overloads: a flow of a dozen compiles.
+  - Each function after the first takes one argument, and it must take what the function
+    before it returns; a function that doesn't is an error at the call. `flow()` is an error.
+  - The returned function has `first`'s parameter list, optional parameters included, and
+    returns what the last function returns.
+
+  Like the lesson's variadic `pipeAll`, inline callbacks need annotated parameters. This
+  combines the lesson with variadic tuples and rest parameters (12.2), `infer` (11.2), an
+  overload over a looser implementation signature (8.1) and recursion depth (12.4). No cast is
+  needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Give `first` its own type parameter, so that `Parameters` and `ReturnType` can read it, and infer the rest as one tuple.
+  - The lesson's `Lined` checks a tuple of functions against a starting type. What is the starting type here?
+  - The public signature can be generic while the implementation signature below it takes and returns `unknown`.

@@ -89,11 +89,11 @@ function expectFailure(
 /** Only this exercise's folder is verified, so the compiler-backed fixtures stay quick. */
 const FIX_ONLY = { only: ['m99-fixtures/01-fix'] };
 
-describe('the shipped course in content/ (§12 F11 criterion 2, F12, F13)', () => {
+describe('the shipped course in content/ (§12 F11 criterion 2, F12, F13, F14)', () => {
   it('lints clean: `pnpm content:lint` passes for the whole tree', async () => {
     const report = await lintContent(COURSE_CONTENT);
     expect(report.failures).toEqual([]);
-    expect(report.lessons).toHaveLength(62);
+    expect(report.lessons).toHaveLength(80);
     for (const exercise of report.exercises) {
       expect(exercise.failures, exercise.id).toEqual([]);
     }

@@ -159,6 +159,26 @@ describe('exercise.yaml', () => {
     expect(exerciseSchema.safeParse(noAnswer).success).toBe(false);
   });
 
+  it('accepts a .tsx entry (§12 F14, 17.4) and refuses other extensions; tests stay tests.ts', () => {
+    const base = {
+      id: 'm01-a/01-b/01-c',
+      kind: 'type-challenge',
+      title: 't',
+      minutes: 3,
+      prompt: 'p',
+      tests: 'tests.ts',
+      hints: ['h'],
+    };
+    const tsx = exerciseSchema.parse({ ...base, entry: 'index.tsx' });
+    expect(tsx.kind !== 'predict' && tsx.entry).toBe('index.tsx');
+    expect(
+      exerciseSchema.safeParse({ ...base, entry: 'index.jsx' }).success,
+    ).toBe(false);
+    expect(
+      exerciseSchema.safeParse({ ...base, tests: 'tests.tsx' }).success,
+    ).toBe(false);
+  });
+
   it('fills the defaults of an editor exercise', () => {
     const parsed = exerciseSchema.parse({
       id: 'm01-a/01-b/01-c',

@@ -1,0 +1,38 @@
+id: m17-boundaries/01-parse-dont-validate/04-parse-the-order
+kind: implement
+title: Parse the order
+minutes: 7
+challenge: false
+prompt: |
+  An order arrives as JSON: an `id` and a list of `lines`, each with a `sku` and a `quantity`.
+  `index.ts` has the small parsers from the lesson: `ok`, `fail`, `at`, `string` and `field`.
+  Implement the rest by composing them, with no casts:
+
+  - `quantity`: a `Quantity`, a whole number from 1 to 99. Anything else fails with
+    `'expected a whole number from 1 to 99'`.
+  - `arrayOf(item)`: a parser for arrays whose elements `item` parses. Anything but an array
+    fails with `'expected an array'`. The first element that fails stops the parse, and its
+    index goes in front of the path, so element `2` failing at `sku` gives the path `[2, 'sku']`.
+  - `line` and `order`: a `Line` and an `Order`, with exactly the properties their types name.
+    A failed field's path starts with its key, so the second line's bad quantity is at
+    `['lines', 1, 'quantity']`.
+
+  This combines the lesson with generic functions (5.1), `Result` returns (9.4) and brands
+  (14.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - '`quantity` needs a brand without a cast: the same kind of helper that made a `Port` in the lesson.'
+  - '`arrayOf` returns a function. Inside it, walk the elements, give each to `item`, and let `at` add the index to a failure.'
+  - In `line` and `order`, return a failed field as soon as you see it; the failed member of a `Result` fits any `Result`.
