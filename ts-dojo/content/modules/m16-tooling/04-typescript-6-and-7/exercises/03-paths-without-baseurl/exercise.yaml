@@ -1,0 +1,23 @@
+id: m16-tooling/04-typescript-6-and-7/03-paths-without-baseurl
+kind: predict
+title: Paths without baseUrl
+minutes: 2
+challenge: false
+code: |
+  // src/main.ts, in a project with src/lib/format.ts
+  import { formatPrice } from '@/lib/format';
+question: >-
+  Lesson 16.2 set up this alias. Which `compilerOptions` resolve it under TypeScript 6.0.3 with
+  no error at all?
+options:
+  - '`{ "baseUrl": ".", "paths": { "@/*": ["src/*"] } }`'
+  - '`{ "paths": { "@/*": ["./src/*"] } }`'
+  - '`{ "paths": { "@/*": ["src/*"] } }`'
+  - '`{ "baseUrl": ".", "paths": { "@/*": ["src/*"] }, "ignoreDeprecations": "7.0" }`'
+answer: 1
+explanation: |
+  Without `baseUrl`, the targets in `paths` are relative to the `tsconfig.json`, and must start
+  with `./`. `baseUrl` reports TS5101 in 6.0. Dropping it but keeping `src/*` reports
+  `Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?`
+  (TS5090). And `"7.0"` is not a value `ignoreDeprecations` accepts (TS5103), so the
+  `baseUrl` error stays as well.

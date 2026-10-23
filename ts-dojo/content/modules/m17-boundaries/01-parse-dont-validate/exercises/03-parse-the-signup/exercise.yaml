@@ -1,0 +1,41 @@
+id: m17-boundaries/01-parse-dont-validate/03-parse-the-signup
+kind: implement
+title: Parse the sign-up form
+minutes: 4
+challenge: false
+prompt: |
+  A sign-up form arrives as JSON. Implement two parsers in `index.ts`, each from `unknown` to a
+  `Result`, with no casts:
+
+  - `parseEmail(input)`: a string that, trimmed and lower-cased, matches `EMAIL_PATTERN`. The
+    value is that trimmed, lower-cased `Email`. Anything else fails with
+    `{ path: [], message: 'expected an email address' }`.
+  - `parseSignup(input)`: a `Signup`. Check the fields in this order, and return the first
+    failure:
+    - `input` is not an object, or is an array: `{ path: [], message: 'expected an object' }`.
+    - `email` is missing or not an email address: path `['email']`, with the message from
+      `parseEmail`.
+    - `age` is missing or not a whole number from 13 to 120: path `['age']`, message
+      `'expected a whole number from 13 to 120'`.
+    - `newsletter` is present and not a boolean: path `['newsletter']`, message
+      `'expected true or false'`. When it is missing, it is `false`.
+
+  On success the value has exactly the three properties of `Signup`, whatever else the form
+  sent.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - An `Email` can come from a function whose return type says what a `true` answer means, as `isPort` did in the lesson.
+  - "`'age' in input` makes `input.age` readable. A field that may be missing can be read as `undefined` when the `in` check fails."
+  - Build the value as a new object literal from the parts you checked, not from `input`.

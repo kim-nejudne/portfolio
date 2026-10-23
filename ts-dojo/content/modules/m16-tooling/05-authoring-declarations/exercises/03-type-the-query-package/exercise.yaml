@@ -1,0 +1,44 @@
+id: m16-tooling/05-authoring-declarations/03-type-the-query-package
+kind: type-challenge
+title: Type the query package
+minutes: 4
+challenge: false
+prompt: |
+  `tiny-query` is an ES module package in plain JavaScript, with no types of its own:
+
+  ```js
+  // node_modules/tiny-query/index.js
+  export function parse(query, options = {}) {
+    const params = {};
+    for (const [key, value] of new URLSearchParams(query)) {
+      if (options.arrays) (params[key] ??= []).push(value);
+      else params[key] = value;
+    }
+    return params;
+  }
+
+  export function pick(params, ...keys) {
+    return Object.fromEntries(keys.map((key) => [key, params[key]]));
+  }
+  ```
+
+  A first draft of its declarations is in `tiny-query.d.ts`. It compiles, but every call of
+  `parse` gets a union, and `pick` gives back a plain `object`. Make the declarations say what
+  the code does:
+
+  - `parse(query)` and `parse(query, { arrays: false })` give a `Record<string, string>`.
+  - `parse(query, { arrays: true })` gives a `Record<string, string[]>`.
+  - A caller whose `arrays` is a `boolean`, known only at run time, can still call `parse`
+    with any `ParseOptions`, and gets either record.
+  - `pick(params, ...keys)` accepts only keys of `params`, and gives an object type with those
+    keys and their types, for any object.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  skipLibCheck: false
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - 'The compiler takes the first signature that fits the call. Which one fits `{ arrays: true }` first in the draft?'
+  - The general signature is still needed for the `boolean` caller. Its place is what changes.
+  - '`pick` needs two type parameters, one for the object and one for its keys, and a utility type from module 6 builds the result.'

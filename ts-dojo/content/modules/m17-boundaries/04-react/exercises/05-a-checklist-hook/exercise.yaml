@@ -1,0 +1,31 @@
+id: m17-boundaries/04-react/05-a-checklist-hook
+kind: type-challenge
+title: A checklist hook
+minutes: 6
+challenge: false
+prompt: |
+  `index.tsx` has a checklist: a reducer, a `useChecklist` hook built on `useReducer`, and a
+  `Checklist` component that uses the hook. It doesn't compile. `Checklist` reports
+  `Property 'map' does not exist on type`, `This expression is not callable.` and
+  `Parameter 'item' implicitly has an 'any' type.` for the two things the hook returns.
+  And `ChecklistAction` is so loose that the reducer accepts an `add` with no text, or a `type`
+  it has never heard of.
+
+  - Make `ChecklistAction` a discriminated union on `type`: `'add'` with a `text` (`string`),
+    `'toggle'` with an `id` (`number`), `'filter'` with a `filter` (a `Filter`), and
+    `'clear-done'` with nothing else. Adjust the reducer to match: the fallbacks for
+    missing payloads are no longer needed.
+  - Make `useChecklist` return a pair: the visible items, then `dispatch`. The tests expect
+    `readonly [Item[], Dispatch<ChecklistAction>]`, without a cast.
+
+  This combines the lesson with discriminated unions (3.5) and `as const` and tuples (1.2, 1.3).
+entry: index.tsx
+tests: tests.ts
+compilerOptions:
+  jsx: react-jsx
+libs: [es2025]
+forbid:
+  [explicit-any, as-unknown-as, angle-cast, non-null-assertion, type-assertion]
+hints:
+  - "`useReducer` takes its action type from the reducer's second parameter, so typing the action is enough for `dispatch`."
+  - An array literal of two different things is widened to an array of their union. What keeps it a fixed pair?

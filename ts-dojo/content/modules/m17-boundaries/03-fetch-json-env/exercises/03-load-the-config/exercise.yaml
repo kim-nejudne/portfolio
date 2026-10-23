@@ -1,0 +1,37 @@
+id: m17-boundaries/03-fetch-json-env/03-load-the-config
+kind: implement
+title: Load the config from the environment
+minutes: 4
+challenge: false
+prompt: |
+  Write `loadConfig`, which reads the app's settings from an environment such as Node's
+  `process.env` and returns a `ConfigResult`. Use Zod or write the parser by hand.
+
+  - `API_URL`: required, and it must start with `https://`. It becomes `apiUrl`.
+  - `PORT`: a whole number from 1 to 65535, `3000` when it is unset. It becomes `port`.
+  - `LOG_LEVEL`: `debug`, `info`, `warn` or `error`, `info` when it is unset. It becomes
+    `logLevel`.
+  - `DEBUG`: `true` or `false`, `false` when it is unset. It becomes the boolean `debug`.
+
+  A variable set to the empty string (`PORT=` in a `.env` file) counts as unset. Other
+  variables are ignored. When anything is wrong, `errors` has one message per bad variable,
+  each starting with the variable's name and a colon, such as
+  `PORT: expected a whole number from 1 to 65535`, and every bad variable is reported, not
+  just the first.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Every value in an environment is a string or missing, so each setting goes from a string to its own type, with a default for the missing case.
+  - An empty string is not `undefined`, so a default won't apply to it. Deal with empty values before the settings are read.
+  - With Zod, an issue's `path` starts with the variable's name; by hand, collect the messages in an array instead of returning at the first one.

@@ -176,21 +176,30 @@ test('§12 F15: after one online load, with the network off, the app opens, a le
   }
 });
 
-test('the precache lists the app, both worker chunks and all 107 lib files', async () => {
+test('the precache lists the app, both worker chunks, every lib file but the webworker ones, and (F14) the pre-bundled packages', async () => {
   const sw = await readFile(path.join(E2E_DIST, 'sw.js'), 'utf8');
   const precached = new Set(
     [...sw.matchAll(/url:"([^"]+)"/g)].map((m) => m[1] as string),
   );
   const assets = await readdir(path.join(E2E_DIST, 'assets'));
   const libs = await readdir(path.join(E2E_DIST, 'ts', '6.0.3'));
+  const packages = await readdir(path.join(E2E_DIST, 'packages'));
   expect(libs).toHaveLength(LIB_COUNT);
+  // F14 (Kim's decision on the §9 precache, under Deviations): no lesson uses the webworker
+  // libs, so they ship but are not precached.
+  const webworker = libs.filter((name) => name.startsWith('lib.webworker'));
+  expect(webworker).toHaveLength(4);
   const expected = [
     'index.html',
     'favicon.svg',
     'manifest.webmanifest',
     ...assets.map((name) => `assets/${name}`),
-    ...libs.map((name) => `ts/6.0.3/${name}`),
+    ...libs
+      .filter((name) => !webworker.includes(name))
+      .map((name) => `ts/6.0.3/${name}`),
+    ...packages.map((name) => `packages/${name}`),
   ];
+  expect(packages.sort()).toEqual(['types.json', 'zod-4.6.7.js']);
   expect([...precached].sort()).toEqual(expected.sort());
   expect(
     [...precached].filter((url) => WORKER_CHUNK.test(`/${url}`)),

@@ -1,0 +1,36 @@
+id: m17-boundaries/02-zod-and-valibot/03-parse-the-search
+kind: implement
+title: Parse the search query
+minutes: 4
+challenge: false
+prompt: |
+  A search page gets its query string as an object of strings, and any key may be missing.
+  Replace `SearchQuery` in `index.ts` with a Zod schema that parses it into something the page
+  can use:
+
+  - `q`: trimmed, and at least one character long after trimming.
+  - `page`: a string holding a whole number from 1 up, which comes out as a `number`. When it
+    is missing, the page is `1`. `'2.5'`, `'0'` and `'two'` fail at `page`.
+  - `tags`: a comma-separated string, which comes out as an array of the trimmed tags, empty
+    ones dropped: `' ts, zod,,'` gives `['ts', 'zod']`. When it is missing, the array is empty.
+  - `sort`: `'newest'` or `'oldest'`, and `'newest'` when it is missing.
+
+  Keys the schema doesn't name are dropped. The tests check `z.input` and `z.output` of your
+  schema as well as what it parses.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - A transform changes the output type; what comes out of it can be checked again by another schema.
+  - '`Number(text)` can give `NaN` or a fraction. Which schema after it rejects both, and anything under 1?'
+  - A default is written in the output type, and it makes the key optional on the input side.

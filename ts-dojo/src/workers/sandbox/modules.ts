@@ -2,6 +2,11 @@
 // blob-URL import rewriting; §13: the resolver mirrors `moduleResolution: bundler`, cycles
 // fall back to CommonJS). Pure: the runner resolves and orders on the main thread, the worker
 // rewrites the specifiers with the same functions.
+import {
+  packageOf,
+  PACKAGES_ROOT,
+  typesOnlyMessage,
+} from '@/protocol/packages';
 import type { ResolvedImport, SandboxModule } from '@/protocol/sandbox';
 
 /** An import as ts reports it in the emitted text, before resolution. */
@@ -58,9 +63,29 @@ export function resolveSpecifier(
 export interface ResolveFailure {
   path: string;
   specifier: string;
+  /** The pre-bundled package the specifier names when that package ships its types only. */
+  typesOnly?: string;
 }
 
-/** Every import resolved to a project path, or the first failure. */
+/**
+ * A pre-bundled package with a runtime (src/protocol/packages.ts, §12 F14) imported by its
+ * exact name: `zod` → `/node_modules/zod`, a path no project file can have. Null otherwise.
+ */
+export function resolvePackage(specifier: string): string | null {
+  const spec = packageOf(specifier);
+  return spec !== null && spec.runtimeUrl !== null && specifier === spec.name
+    ? `${PACKAGES_ROOT}${spec.name}`
+    : null;
+}
+
+/** `/node_modules/zod` → `zod`; null for a project path. */
+export function packageImportName(path: string): string | null {
+  return path.startsWith(PACKAGES_ROOT)
+    ? path.slice(PACKAGES_ROOT.length)
+    : null;
+}
+
+/** Every import resolved to a project path or a pre-bundled package, or the first failure. */
 export function resolveModules(
   modules: readonly EmittedModule[],
 ): { modules: SandboxModule[] } | { failure: ResolveFailure } {
@@ -69,9 +94,19 @@ export function resolveModules(
   for (const module of modules) {
     const imports: ResolvedImport[] = [];
     for (const imp of module.imports) {
-      const target = resolveSpecifier(module.path, imp.specifier, paths);
+      const target =
+        resolveSpecifier(module.path, imp.specifier, paths) ??
+        resolvePackage(imp.specifier);
       if (target === null) {
-        return { failure: { path: module.path, specifier: imp.specifier } };
+        const spec = packageOf(imp.specifier);
+        const failure: ResolveFailure = {
+          path: module.path,
+          specifier: imp.specifier,
+        };
+        if (spec !== null && spec.runtimeUrl === null) {
+          failure.typesOnly = spec.name;
+        }
+        return { failure };
       }
       imports.push({ ...imp, path: target });
     }
@@ -81,7 +116,10 @@ export function resolveModules(
 }
 
 export function describeResolveFailure(failure: ResolveFailure): string {
-  return `${failure.path.slice(1)} imports '${failure.specifier}', which is not a file of this project`;
+  const where = `${failure.path.slice(1)} imports '${failure.specifier}'`;
+  return failure.typesOnly !== undefined
+    ? `${where}: ${typesOnlyMessage(failure.typesOnly)}`
+    : `${where}, which is not a file of this project`;
 }
 
 /**

@@ -43,7 +43,10 @@ const BUDGET = {
   quickInfoMs: 100,
   runMs: 150,
   workerHeapBytes: 250_000_000,
-  precacheBytes: 15_000_000,
+  // §9 says 15 MB. F14 (Kim's decision with the F14 plan, 23 October 2026; under Deviations in
+  // docs/progress.md): Tier 4 and the pre-bundled packages measured 17,439,897 bytes, a noted
+  // miss, and the threshold is that figure plus a margin for small content edits.
+  precacheBytes: 18_000_000,
 };
 const COLD_RUNS = 5;
 const WARM_RUNS = 5;

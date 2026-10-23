@@ -385,7 +385,7 @@ Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the �
 
 - [x] M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two exercises (one in M00), at least one `predict`, hints on every editor exercise, and at least one `ts twoslash` block.
 - [x] `pnpm content:lint` passes for the whole tree.
-- [ ] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate).
+- [x] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate).
 
 > **Gate (§11):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
 
@@ -696,13 +696,98 @@ One small commit after F13, `fix: post-F13 decisions (type-utils import rule, pl
 
 ## F14. Content wave 4 (Tier 4)
 
-- [ ] F14: M15 to M18, 17 core lessons and one optional; Zod and React's types pre-bundled for 17.2 and 17.4.
+- [x] F14: M15 to M18, 17 core lessons and one optional; Zod and React's types pre-bundled for 17.2 and 17.4.
 
 Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
 
+**Notes (24 October 2026)**
+
+- **Plan decisions (Kim, 23 October 2026, with the F14 plan; under Deviations):**
+  - React ships its types only;
+  - the webworker libs leave the precache, and the rest of the §9 miss is noted;
+  - `zod` and `react` resolve in every project, `/repl` included;
+  - valibot is a build-time devDependency for twoslash.
+- **The course:** `roadmap.yaml` adds `t4` "Expert" (§8's heading) with four modules:
+  - `m15-api-design`
+  - `m16-tooling`
+  - `m17-boundaries`
+  - `m18-capstones`
+  - 18 lessons with the ids fixed in the plan. Titles are §8's text with code backticks and the parenthesised notes dropped ("(theory, ts7)", "(Zod pre-bundled)", "(React's types pre-bundled)", "(opt)"). Minutes are as §8 gives them: 470 core and 60 optional, 530 in all. 18.4 sets `optional: true`.
+  - 73 exercises: 53 editor exercises (17 fix, 22 implement, 14 type-challenge) and 20 `predict`. None is `challenge: true`. Every lesson has two to five exercises; 16.4 has three predicts and no editor exercise.
+  - 79 `ts twoslash` blocks.
+- **Pre-bundled packages, the criterion's second half:**
+  - Built test-first: `src/protocol/packages.ts`, `src/workers/ts-ls/node/package-types.ts`, `scripts/copy-packages.ts` and the core's `loadPackageTypes`.
+  - The sandbox's package resolution: `resolvePackage`, `packageUrl`, and the types-only message.
+  - `.tsx` entries: schema, glob and Node loader.
+  - Twoslash mounts the packages, valibot and (new) the DOM lib for `// @lib:`.
+  - Under Deviations.
+- **17.2 runs Zod:**
+  - three `ts run` examples;
+  - exercises 01, 03 and 04 import `zod` and have runtime tests;
+  - Valibot appears in one twoslash block only.
+- **17.4 checks React's types:**
+  - four `type-challenge` exercises, each with an `index.tsx` entry and `jsx: react-jsx`, none with runtime tests;
+  - JSX theory in twoslash with `// @jsx: react-jsx`.
+- **Bugs found on the way, all fixed and proven:**
+  1. **A `zod` import typed before the packages mounted kept its TS2307 until the next edit.** `init` now waits for the package load before answering `ready`, and the adapter's request queue holds every edit behind it. A failed load doesn't block `ready`. Proven by `core.test.ts` "ready waits for the package files…" and `e2e/packages.spec.ts` "a zod import typed before the compiler is ready resolves without another edit" (it reproduced 6 of 6 before the fix).
+  2. **A theory block's Run handed the sandbox `imports: []`, so a `zod` import never resolved** ("Failed to resolve module specifier"). The build now emits the import spans with the block's JavaScript (`imports` prop, `src/content/node/mdx.ts`, `code-block.tsx`). Proven by `mdx.test.ts` and `e2e/packages.spec.ts` "a Zod example in 17.2 runs in the browser". TypeScript stays out of the main bundle.
+  3. **`any-expression` flagged every dynamic `import()`**, because the checker types the `import` keyword `any` (`src/workers/ts-ls/rules.ts`; `core.test.ts` "any-expression doesn't flag a dynamic import()"). 16.2/03 forbids it now.
+  4. **Build-time twoslash couldn't load the DOM lib for `// @lib: es2025,dom`** (17.3). The twoslasher now holds `lib.dom*.d.ts` too; the default stays es2025 (`mdx.test.ts`).
+- **Authoring followed the module skill:**
+  - one `content-author` per lesson from a shared brief, the four modules in parallel, and M18 after M15 and M17;
+  - a `content-reviewer` per module, with trick solutions linted against scratch copies;
+  - every FIX sent back to its author and applied;
+  - the plain Tier 4 mentions in 10.1, 12.4, 14.3, 14.4 and 15.4 are now `<Lesson>` links.
+- **What the reviews fixed:**
+  - Accuracy:
+    - 17.2's `ZodObject` type parameter (the shape, not the output);
+    - 16.2's TS5107 text for `classic`;
+    - 16.3's TS6306 path;
+    - 16.4's TS2880/`ignoreDeprecations` claim, which depends on `module`;
+    - 15.1's and 18.2's "needs one assertion" (an overload over a looser implementation signature works);
+    - 15.3's higher-order inference causality and a second pitfall diagnostic;
+    - 15.4's `const` claim (the constraint keeps the literals);
+    - 18.5's `NoInfer` advice (dropped, unmeasurable), its "after" numbers and the trace-event claim.
+  - Tricks now stopped:
+    - lookup tables in 15.4/04, 16.5/03, 18.4/04 and 18.5/04 (generated or pattern inputs);
+    - an overload hiding a cast in 17.1/01 (an `Equal` case on the predicate);
+    - untyped storage plus casts in 15.1/04 (`type-assertion` forbidden).
+  - Accepted leftovers, which no rule or test can stop:
+    - 16.2/01's extensionless import, now named in the prompt;
+    - 16.2/03's static import;
+    - 15.2/03's `Set<Function>`;
+    - 17.2/01 and 18.5/03's hand-written types;
+    - 17.3/04's non-exhaustive `describe`;
+    - 17.4/05's reducer body;
+    - 18.3/05's unused `Reflect.apply` (under Spec questions).
+- **Tests:**
+  - `src/content/node/curriculum.test.ts` adds the t4 rows from §8 (80 lessons, 6 optional), plus "§12 F14: Zod and React's types pre-bundled for 17.2 and 17.4": 17.2 runs Zod in a `ts run` block and in an exercise with runtime tests, Valibot is twoslash only, and 17.4's exercises are `.tsx` under `jsx: react-jsx` with no runtime tests and import `react`.
+  - `scripts/content-lint.test.ts` expects 80 lessons.
+  - `e2e/course.spec.ts` names F14.
+  - `e2e/packages.spec.ts` (new): a zod buffer type-checks and runs, `K` shows `z.infer`, react's types-only message, offline, an edit before ready, the precache manifest, and 17.2's theory Run.
+  - `e2e/offline.spec.ts`'s precache list now leaves out the webworker libs and lists `packages/`.
+- **Measured 24 October 2026:**
+  - `pnpm content:lint`: 80 lessons, 260 editor exercises, in 38.4 s.
+  - 1,165 unit tests (the last added after the `/verify` pass: the package table's versions are the installed ones).
+  - 763 Playwright tests in Chrome (`pnpm test:e2e --project chrome`, 4.2 min including both builds).
+  - The budgets project: 3 passed (figures under Measured budgets).
+  - Precache: 17,439,897 bytes, 546 entries (F13: 14,218,078, 457). Of the growth, 1.89 MB is the packages (types.json 1,403,607 bytes, the zod bundle 485,588 bytes) and the rest is Tier 4; 0.79 MB came back from the webworker libs.
+- **Review:** the acceptance-reviewer's first pass on 24 October 2026 gave PASS, with the criterion MET.
+  - It ran every check itself: typecheck, lint, format:check, 1,164 unit tests, the content lint (80 lessons, 260 editor exercises), 763 Playwright tests in Chrome, and the budgets project (3 passed).
+  - It graded both halves MET (Zod's runtime and types ship and are precached; React ships types only), and checked `dist/` for valibot code (none; only lesson text and pre-rendered twoslash hovers name it).
+  - Its findings, all fixed: the core minutes (470, not 530), the package sizes' units, and a missing For Kim item for the links.
+- **The `/verify` pass before the commit** (24 October 2026) also gave PASS.
+  - It ran every check again: 1,164 unit tests, the content lint in 38.2 s, 763 Playwright tests in Chrome in 4.2 min, and the budgets project (3 passed).
+  - It recounted the tree against these notes.
+  - Its findings, all fixed: the precache figure (19 bytes more after 16.2's anchor fix), two stale comments in `e2e/packages.spec.ts`, and no test tying `ZOD_VERSION` and `REACT_TYPES_VERSION` to the installed packages (`package-types.test.ts`).
+- **Spec-checker** over the app diff found no unlogged contradiction. Its points, all fixed or recorded:
+  - `deploy.sh`'s first rsync pass now ships `packages/` and checks for it after the build (`deploy/deploy.test.ts`);
+  - the README's Caching table and service-worker paragraph, the vite comment and the ts-worker skill are current;
+  - an nginx `location /packages/` and `ready` waiting for the packages are under Spec questions.
+
 ## v1 gate
 
-- [ ] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand)
+- [x] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand)
 
 ## Deviations
 
@@ -729,6 +814,18 @@ Anything built differently from what the spec names (library, version, flag, key
 - **§5 Type cases, the note's wording (pre-F13 fixes, Kim's decision on 23 October 2026).** §5 quotes the note as "test file does not compile" and says it "usually means the solution exports the wrong name". Several Tier 2 implement starters land there because they aren't generic yet, so the note now reads "tests.ts does not compile against your code; see its first diagnostic" (`TEST_FILE_NOTE` in `src/verify/exercise.ts`). It is followed, as before, by `: ` and the diagnostic. Proven by `src/verify/exercise.test.ts` "a wrong export name fails Compiles with the test-file note" and `e2e/verify.spec.ts`. Kim's answer also asks that §1's kinds table say an implement starter may fail Compiles when its prompt names the diagnostic; that is spec text, left to Kim.
 - **§1 Practice, one exercise per challenge in M13 (F13, Kim's decision with the F13 plan on 23 October 2026).** §1 says practice is "two to five exercises", and §8 gives 13.1 thirteen challenges. Each M13 lesson has one `type-challenge` exercise per type-challenges challenge it sets, plus one `predict`, so 13.1 has 14 exercises. Every other module keeps two to five. The exercise strip wraps, so every chip shows. `src/content/node/curriculum.test.ts` allows more than five exercises in `m13-type-challenges` only.
 - **§10 First deploy step 4, a first rsync pass (F15, in the F15 plan Kim approved on 21 October 2026).** §10 lists one `rsync -az --delete`. `deploy/deploy.sh` first ships `assets/` and `ts/` without delete, then runs the listed `rsync -az --delete` of all of `dist/`. A new `index.html` or `sw.js` therefore never goes live before the files it names, and the listed step is unchanged. The wording proposal is under Spec questions.
+
+- **Pre-bundled packages: `zod` and `react` resolve in every project (F14, Kim's decisions with the F14 plan on 23 October 2026).** The Summary says "the two lessons that need a library ship it pre-bundled", and §8 says "Zod pre-bundled" for 17.2 and "React's types pre-bundled" for 17.4. Neither §2 nor §3 says how. As built (`src/protocol/packages.ts`):
+  - `scripts/copy-packages.ts` (run by `pnpm dev` and `pnpm build` after `copy-ts-libs`) writes `public/packages/types.json` and `public/packages/zod-4.6.7.js`.
+    - `types.json` holds every declaration file TypeScript reads for `zod` 4.6.7 and for `@types/react` 19.3.0 with `csstype` 3.2.3 (`src/workers/ts-ls/node/package-types.ts`).
+    - `zod-4.6.7.js` is the installed zod as one minified ES module, bundled by a nested `vite build`.
+  - The ts-ls worker fetches the declarations once `init` is done and mounts them under `/node_modules/`, a root now reserved for them (`validatePath`). So `import { z } from 'zod'`, and React under `jsx: react-jsx`, resolve in every exercise and in `/repl`, with no exercise.yaml field. A project that names a package waits for the load; one that doesn't never waits.
+  - The sandbox rewrites `import … from 'zod'` to the bundle's URL. In Node, the content lint imports the installed zod, the same version.
+  - React has **types only**: a run that imports `react` or `react/jsx-runtime` stops with "React has types only in the dojo; its runtime isn't bundled". So 17.4's exercises are verified by types (type cases, `@ts-expect-error` cases, zero diagnostics), with no runtime tests.
+  - `valibot` 1.5.0 is a devDependency used only by the build-time twoslash renderer, so 17.2 can compare it in `ts twoslash` blocks. It never ships.
+  - An exercise's `entry` may be a `.tsx` file (17.4). `tests` stays `tests.ts`.
+  - §5 says `tests.ts` imports from the solution's files and `@dojo/type-utils`. It may also import the pre-bundled packages: `zod` (17.2, 17.3) and React's types (17.4).
+- **§9 precache budget (F14, Kim's decision with the F14 plan on 23 October 2026).** Tier 4 doesn't fit in 15 MB raw: before its lessons, the packages alone took the precache to 15.32 MB. `lib.webworker*.d.ts` (0.79 MB, used by no lesson) is left out of the precache (`globIgnores` in `vite.config.ts`); the files still ship and are fetched online if the Settings name them. Everything else stays complete (the real csstype, all of Zod). The measured total, 17,439,897 bytes in 546 entries on 24 October 2026, is recorded as a noted miss under Measured budgets. `e2e/budgets.spec.ts`'s threshold is 18,000,000. The plan said the next 0.5 MB, but 17.5 MB would have left 60 KB for content edits. The §9 figure is under Spec questions.
 
 ## Spec questions
 
@@ -818,6 +915,16 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **§3, a mistyped `ts` fence (post-F13 fixes, Kim's decision on 23 October 2026: note it only).** Since every fence in another language is `plain`, a ```` ```typescript ````, ```` ```tsx ```` or ```` ```mts ```` fence would become a plain block, with TypeScript highlighting but no lint, no Run and no Open in REPL, and no error. No lesson uses one, and the lesson skill names the four `ts` fences. A known gap; a §3 lint condition could close it later.
 - **§3 non-`ts` fences (F13, again).** Each M13 lesson's Further reading carries type-challenges' MIT notice in a ```` ```text ```` fence, which renders as a bare `<pre>` (the F11 entry above). It reads fine, but styling other fences would help here too. **Answered by Kim on 23 October 2026:** style every non-`ts` fence as a static code block, with the code-block look and no Run button. That covers the `text` licences, 0.3's `vim` fences and the `js` emit blocks in 0.1 and 4.4, with an e2e check. To build in the same small fix commit before F14, with the import rule. **Built with the post-F13 fixes** (see F13's notes).
 
+- **§9 precache budget (F14).** Tier 4 and the pre-bundled packages bring the precache to 17,439,897 bytes; Kim accepted a noted miss with the F14 plan. Proposal: §9 says "under 18 MB raw" (the test's threshold now), or measures the transfer size instead, about a quarter of the raw bytes, since Cache Storage quota isn't the constraint.
+- **§2 and §3, the pre-bundled packages (F14).** Neither section says how "the two lessons that need a library ship it pre-bundled". As built (under Deviations): `/packages/types.json` and `/packages/zod-4.6.7.js`, mounted under `/node_modules/` in every project; `tests.ts` may import them; an exercise `entry` may be `.tsx`. Proposal: a paragraph in §2 Compiler assets and a line in §3 `exercise.yaml`.
+- **§5 Rules, an `any` call whose result is unused (F14, 18.3/05).** `any-expression` skips a discarded expression-statement value, so `Reflect.apply(listener, undefined, [action])` as a statement skips a type guard and passes. Proposal: flag a call that resolves to an `any`-returning library signature even when its result is unused, or accept it under "what no rule catches".
+- **§3 `exercise.yaml`, `compilerOptions` values (F14, 16.2).** The schema takes booleans, numbers, strings and string arrays, so `paths` (an object) can't be set and 16.2 teaches it in theory and a predict only. Proposal: allow record values, or accept.
+- **§3, ESM mode under `nodenext` (F14, 16.2).** An exercise can't ship a `package.json` with `"type": "module"`, and the sandbox runs only ES modules emitted under `module: esnext`. So 16.2 shows `nodenext` ESM in twoslash, and exercises that override `module` have no runtime tests. Proposal: accept, or allow a `package.json` among exercise files.
+- **§10 nginx, a `location /packages/` (F14, from the spec-checker).** `/packages/*` is served by `location /`: the MIME types, gzip_static, the CSP and `no-cache` are right, but a missing package file answers `index.html` with 200 instead of 404, which is what `=404` prevents for `/assets/` and `/ts/`. Proposal: `location /packages/ { try_files $uri =404; … }`, with the CSP repeated, and a `deploy.sh` curl check. It's a server change Kim installs, so it isn't built. Since F14, `deploy.sh`'s first rsync pass ships `packages/`, so a new `sw.js` never names a package file before it is on the server.
+- **§9 Warm-up, `ready` waits for the package declarations (F14).** §9 says the worker opens an empty project and loads the es2025 libs on start; it doesn't say what `ready` waits for. Since F14 `ready` also waits for `/packages/types.json` (1.3 MB raw, precached), to close the race in F14's bug 1. The warm `ready` median went from 331 to 380 ms, and every budget is still met. Proposal: a sentence in §9 Warm-up.
+- **The inline-code check and double backticks (F14, 18.1).** `src/content/inline-code.ts` doesn't accept a ``` `` `x` `` ``` span in Predict text, so 18.1 reworded one explanation. Proposal: none unless a lesson needs one.
+- **§1 Further reading links (F14).** The authors couldn't fetch their links while writing. Before the commit, every one of the 91 Further reading URLs in M15–M18 was fetched: each answered 200. Each `#anchor` was looked up in the page, and one was wrong: 16.2's `modules/reference.html#module-resolution`, now `#the-moduleresolution-compiler-option`. A 200 from a single-page site doesn't prove the page exists, so those few links are on the For Kim list.
+
 ## Measured budgets (§9)
 
 §9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
@@ -887,6 +994,19 @@ F13 re-measured the budgets against the course build on 23 October 2026: the sam
 | ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.0 MB total JS heap |
 | Total precache | under 15 MB raw | 14,199,957 bytes, 457 entries |
 
+F14 re-measured the budgets against the course build on 24 October 2026: the same project, machine and link, with the 80 lessons of Tiers 0–4 and the pre-bundled packages in `dist/`. The precache misses §9's 15 MB, as Kim accepted with the F14 plan; the test's threshold is now 18 MB (Deviations). Every other budget is met. The warm compiler `ready` rose by about 50 ms because `ready` now includes the package declarations (F14's notes):
+
+| What | Budget | Measured (F14) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 520 ms, max 943 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,337 ms, max 1,731 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 380 ms, max 444 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 211 ms, median 206 ms (30 samples) |
+| Quick info | under 100 ms | p95 14.7 ms, max 17.9 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 19.7 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 20.9 MB used, 23.9 MB total JS heap |
+| Total precache | under 15 MB raw | **17,439,897 bytes, 546 entries: a noted miss** (Kim, F14 plan). The webworker libs are out; the packages add 1.89 MB. Gzip transfer is about a quarter of that |
+
 ## For Kim
 
 Checks only Kim can do. Feature sessions add their items here with exact steps; Kim ticks them here and in the feature's section above.
@@ -926,6 +1046,18 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
   4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
 - [x ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
+- [ ] F14 (by hand): the Further reading links on single-page sites, which answer 200 for any path. Open each in Chrome; expected, the named page and not a "not found" view:
+  1. 17.2 `/l/m17-boundaries/02-zod-and-valibot`: https://zod.dev/basics, https://zod.dev/api, https://zod.dev/error-formatting, https://valibot.dev/guides/introduction/, https://valibot.dev/guides/comparison/, https://standardschema.dev/.
+  2. 17.3 `/l/m17-boundaries/03-fetch-json-env`: https://vite.dev/guide/env-and-mode.
+  3. 17.4 `/l/m17-boundaries/04-react`: https://react-typescript-cheatsheet.netlify.app/.
+  4. 18.2 and 18.5: https://kysely.dev, and the TypeScript wiki's Performance and Performance-Tracing pages linked from 18.5.
+
+  Note any dead link for a fix.
+- [ ] F14 (by hand): Tier 4 in the browser. Deploy, take the new version, and in Chrome:
+  1. On `/l/m17-boundaries/02-zod-and-valibot`, press Run on the first example. Expected: the four lines of output, "done in".
+  2. Open an exercise of `/l/m17-boundaries/04-react` and type JSX. Expected: React's types in quick info (`K`) and no "Cannot find module 'react'".
+  3. In `/repl`, type `import { z } from 'zod'` and `:w`. Expected: it runs.
+  4. DevTools → Network → Offline, reload, and repeat step 1. Expected: it still runs.
 - [ ] F11 (by hand): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug.
   1. Deploy the F11 commit: from the repository root, `TS_DOJO_HOST=user@host ./deploy/deploy.sh`. It runs the content lint and the build itself, and every "Confirm through nginx" line should pass.
   2. Open https://dojo.kimnejudne.dev in Chrome and take the new version (Reload on the update line, or a fresh tab). The roadmap shows two bands: Orientation (M00) and Foundations (M01–M04).

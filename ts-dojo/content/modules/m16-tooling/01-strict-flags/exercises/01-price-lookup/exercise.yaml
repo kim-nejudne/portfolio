@@ -1,0 +1,32 @@
+id: m16-tooling/01-strict-flags/01-price-lookup
+kind: fix
+title: Price lookup
+minutes: 3
+challenge: false
+prompt: |
+  This exercise compiles with `noUncheckedIndexedAccess: true`, so every read through an index
+  signature or an array index may be `undefined`. `index.ts` has two errors:
+
+  - `Type 'number | undefined' is not assignable to type 'number'.` in `priceOf`
+  - `Type 'string | undefined' is not assignable to type 'string'.` in `firstItem`
+
+  Fix both as the comments describe. `priceOf` throws an `Error` with the message
+  `unknown item: kiwi` for an item `PRICES` doesn't have (so `total` can no longer return
+  `NaN`), and `firstItem` returns `undefined` for an empty basket. The type cases check the two
+  return types; the runtime tests call all three functions.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  noUncheckedIndexedAccess: true
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    non-null-assertion,
+    type-assertion,
+    as-unknown-as,
+    any-expression,
+  ]
+hints:
+  - Each error is a read that may find nothing. Decide, for each function, whether the missing case is an error or an answer.
+  - In `priceOf`, keep the read in a variable and check it before you return it. In `firstItem`, the comment says the caller gets the missing case, so the return type has to say so.

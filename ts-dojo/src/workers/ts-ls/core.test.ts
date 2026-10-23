@@ -18,6 +18,10 @@ import {
   type TsLsCore,
 } from './core';
 import { countingFetchLib, nodeFetchLib, readFixture } from './node/fetch-lib';
+import {
+  collectPackageTypes,
+  nodeLoadPackageTypes,
+} from './node/package-types';
 
 const FIXTURE = readFixture('two-hundred-lines.ts.txt');
 
@@ -685,6 +689,20 @@ describe('lintAst, the pre-F13 rules', () => {
     const { hits } = core.lintAst(['/index.ts'], ['any-expression']);
     expect(hits[0]?.message).toBe(RULE_MESSAGES['any-expression']);
   });
+
+  it("any-expression doesn't flag a dynamic import(): the checker types its import keyword any (F14, 16.2)", async () => {
+    const index = lines(
+      "export const load = () => import('./other');",
+      'export const later = async () => (await import("./other")).n + 1;',
+    );
+    await core.openProject({
+      files: [
+        { path: '/index.ts', text: index },
+        { path: '/other.ts', text: 'export const n = 1;\n' },
+      ],
+    });
+    expect(hitsOf(['/index.ts'], 'any-expression')).toEqual([]);
+  });
 });
 
 // After F13 (Kim, 23 October 2026): `@dojo/type-utils` is for tests.ts. A solution that imports
@@ -1024,5 +1042,154 @@ describe('checkCompilerOptions (F10 Settings, compiler defaults)', () => {
     expect(
       core.getDiagnostics(['/index.ts']).diagnostics.map((d) => d.code),
     ).toEqual([2322]);
+  });
+});
+
+describe('pre-bundled packages (§12 F14: Zod and React types for 17.2 and 17.4)', () => {
+  let withPackages: TsLsCore;
+
+  beforeAll(async () => {
+    withPackages = createTsLsCore({
+      fetchLib: nodeFetchLib,
+      loadPackageTypes: nodeLoadPackageTypes,
+    });
+    await withPackages.init();
+  });
+
+  afterAll(() => {
+    withPackages.dispose();
+  });
+
+  it('resolves zod in any project: z.infer gives the parsed type, with no diagnostics', async () => {
+    const text = lines(
+      "import { z } from 'zod';",
+      'const User = z.object({ name: z.string(), age: z.number().optional() });',
+      'export type User = z.infer<typeof User>;',
+      "export const u: User = User.parse({ name: 'Kim' });",
+    );
+    await withPackages.openProject({ files: [{ path: '/index.ts', text }] });
+    expect(withPackages.getDiagnostics(['/index.ts']).diagnostics).toEqual([]);
+    const info = withPackages.getQuickInfo(
+      '/index.ts',
+      at(text, 'User = z.infer') + 1,
+    ).info;
+    expect(info?.text).toContain('name: string');
+    expect(info?.text).toContain('age?: number | undefined');
+    expect(withPackages.projectPaths()).toEqual([
+      '/index.ts',
+      AMBIENT_RUNTIME_PATH,
+    ]);
+  });
+
+  it("resolves React's types for a .tsx file under jsx: react-jsx, and checks props", async () => {
+    const text = lines(
+      "import { useState, type ReactNode } from 'react';",
+      'export function Badge(props: { label: string; children?: ReactNode }) {',
+      '  const [count] = useState(0);',
+      '  return <span title={props.label}>{props.children}{count}</span>;',
+      '}',
+      'export const ok = <Badge label="new" />;',
+      'export const wrong = <Badge label={1} />;',
+    );
+    await withPackages.openProject({
+      compilerOptions: { jsx: 'react-jsx' },
+      files: [{ path: '/index.tsx', text }],
+    });
+    const codes = withPackages
+      .getDiagnostics(['/index.tsx'])
+      .diagnostics.map((d) => d.code);
+    expect(codes).toEqual([2322]);
+  });
+
+  it('a definition inside a package is outside the project', async () => {
+    const text = lines(
+      "import { z } from 'zod';",
+      'export const s = z.string();',
+    );
+    await withPackages.openProject({ files: [{ path: '/index.ts', text }] });
+    const { locations } = withPackages.getDefinition(
+      '/index.ts',
+      at(text, 'string()'),
+    );
+    expect(locations.length).toBeGreaterThan(0);
+    expect(
+      locations.every((l) => l.path.startsWith('/node_modules/zod/')),
+    ).toBe(true);
+  });
+
+  it('ready waits for the package files; a project opened before they land re-resolves once they do', async () => {
+    let release: (() => void) | undefined;
+    const late = createTsLsCore({
+      fetchLib: nodeFetchLib,
+      loadPackageTypes: () =>
+        new Promise((resolve) => {
+          release = () => {
+            resolve(collectPackageTypes());
+          };
+        }),
+    });
+    let ready = false;
+    const init = late.init().then(() => {
+      ready = true;
+    });
+    await late.openProject({
+      files: [{ path: '/index.ts', text: 'export const n = 1;\n' }],
+    });
+    expect(ready).toBe(false);
+    late.updateFile(
+      '/index.ts',
+      "import { z } from 'zod';\nexport const s = z.string();\n",
+      1,
+    );
+    expect(
+      late.getDiagnostics(['/index.ts']).diagnostics.map((d) => d.code),
+    ).toEqual([2307]);
+    release?.();
+    await init;
+    expect(ready).toBe(true);
+    expect(late.getDiagnostics(['/index.ts']).diagnostics).toEqual([]);
+    late.dispose();
+  });
+
+  it('a failed package load does not block ready', async () => {
+    const failing = createTsLsCore({
+      fetchLib: nodeFetchLib,
+      loadPackageTypes: () => Promise.reject(new Error('offline')),
+    });
+    expect(await failing.init()).toEqual({ tsVersion: '6.0.3' });
+    failing.dispose();
+  });
+
+  it('a project that names a package waits for the load', async () => {
+    const waiting = createTsLsCore({
+      fetchLib: nodeFetchLib,
+      loadPackageTypes: nodeLoadPackageTypes,
+    });
+    await waiting.init();
+    await waiting.openProject({
+      files: [
+        {
+          path: '/index.ts',
+          text: "import type { ZodType } from 'zod';\nexport type T = ZodType;\n",
+        },
+      ],
+    });
+    expect(waiting.getDiagnostics(['/index.ts']).diagnostics).toEqual([]);
+    waiting.dispose();
+  });
+
+  it('a core with no package loader leaves zod unresolved (TS2307)', async () => {
+    await core.openProject({
+      files: [{ path: '/index.ts', text: "import { z } from 'zod';\nz;\n" }],
+    });
+    expect(
+      core.getDiagnostics(['/index.ts']).diagnostics.map((d) => d.code),
+    ).toEqual([2307]);
+  });
+
+  it('reserves /node_modules/ for the packages', () => {
+    expect(() => validatePath('/node_modules/zod/index.ts', 'files')).toThrow(
+      /reserved for the pre-bundled packages/,
+    );
   });
 });

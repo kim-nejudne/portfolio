@@ -54,6 +54,8 @@ async function run(request: RunRequest): Promise<void> {
         `data:text/javascript;base64,${Buffer.from(js).toString('base64')}`,
       importModule: (url) => import(url) as Promise<Record<string, unknown>>,
       register: registry.register,
+      // The installed zod, the version scripts/copy-packages.ts bundles for the browser.
+      packageUrl: (name) => import.meta.resolve(name),
     });
     await harness?.run();
   } catch (error) {

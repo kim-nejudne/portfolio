@@ -5,8 +5,11 @@
 // §12 F12, content wave 2 (Tier 2): "M05 to M09, 19 core lessons and the two optional ones, to
 //   the same rules as F11, lint passing."
 // §12 F13, content wave 3 (Tier 3): "M10 to M14, 18 core lessons and three optional, with the
-//   type-challenges sets crediting their source." The tests below are generated from the tree,
-//   so they cover every wave the course holds.
+//   type-challenges sets crediting their source."
+// §12 F14, content wave 4 (Tier 4): "M15 to M18, 17 core lessons and one optional; Zod and
+//   React's types pre-bundled for 17.2 and 17.4." 17.2's solutions run Zod in Chrome's sandbox
+//   and 17.4's `.tsx` solutions pass on React's types alone. The tests below are generated
+//   from the tree, so they cover every wave the course holds.
 // src/content/node/curriculum.test.ts proves the counts and the §1 structure in the source, and
 // `pnpm content:lint` (criterion 2) proves every exercise solvable in Node. This spec proves the
 // same course as Kim meets it in the browser, generated from the content tree at collection time

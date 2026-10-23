@@ -97,11 +97,14 @@ function isImportOrExport(node: ts.Node): boolean {
 /**
  * An expression whose value the code uses, as `any-expression` reads it (the walk never asks
  * inside a type): not a name that declares something or names a property (`#private`
- * included), not a module specifier, not the target of a plain `=` (a write), and not the
- * discarded value of an expression statement (an unused `yield`).
+ * included), not a module specifier, not the `import` keyword of a dynamic `import()`, not the
+ * target of a plain `=` (a write), and not the discarded value of an expression statement (an
+ * unused `yield`).
  */
 function isUsedValue(node: ts.Node, parent: ts.Node | undefined): boolean {
   if (parent === undefined || !ts.isExpression(node)) return false;
+  // `import(…)`'s callee: the checker types the keyword `any`, but the call is typed (F14).
+  if (node.kind === ts.SyntaxKind.ImportKeyword) return false;
   if (ts.isPrivateIdentifier(node)) return false;
   if ('name' in parent && (parent as { name?: ts.Node }).name === node) {
     return false;

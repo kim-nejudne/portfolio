@@ -1,0 +1,27 @@
+id: m18-capstones/04-json-parser/01-literals-and-strings
+kind: type-challenge
+title: Literals and strings
+minutes: 6
+challenge: false
+prompt: |
+  Write `ParseScalar<S>` in `index.ts`. It reads one literal or one string from the start of
+  `S` and returns `[value, rest]`, as the theory's parsers do:
+
+  - Whitespace comes off first: a space, `\n`, `\r` or `\t`, any number of them.
+  - `true`, `false` and `null` give the literal types `true`, `false` and `null`.
+  - A string in double quotes gives its text: `ParseScalar<' "id": 7'>` is `['id', ': 7']`.
+    Escapes are out of scope, so a string with a backslash in it is an error.
+  - What follows the value is not checked: `ParseScalar<'nullable'>` is `[null, 'able']`.
+  - Anything else, a cut-off literal, a string with no closing quote, or nothing at all, gives a
+    `ParseError`. The message is yours to choose; the cases only check that it is an error.
+
+  Numbers come in the next exercise. Some cases build their input from a pattern or a repeated
+  piece, so a list of the expected inputs won't pass.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The theory's `SkipSpace`, `ParseLiteral` and `ParseString` do most of the work. What is left is choosing between the last two, and the first character decides.
+  - To reject a backslash, ask whether the text of the string matches a pattern with a backslash somewhere in it. In a string literal type, a backslash is written `'\\'`.

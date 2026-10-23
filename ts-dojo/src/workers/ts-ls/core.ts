@@ -52,6 +52,11 @@ import {
   needsAmbientTests,
 } from './ambient';
 import { loadLibs, type FetchLib } from './libs';
+import {
+  packageOf,
+  PACKAGES_ROOT,
+  type PackageFile,
+} from '@/protocol/packages';
 import { lintSourceFile } from './rules';
 import { findTwoslashQueries } from './twoslash';
 import { findCases } from './type-tests';
@@ -67,6 +72,13 @@ export const TWOSLASH_NO_SYMBOL =
 
 export interface TsLsCoreOptions {
   fetchLib: FetchLib;
+  /**
+   * The pre-bundled packages' declaration files (src/protocol/packages.ts, §12 F14): fetched
+   * from /packages/types.json in the worker, read from node_modules in Node. Loaded by `init`
+   * after the default project and mounted under /node_modules/ for every project. Absent: no
+   * package resolves.
+   */
+  loadPackageTypes?: () => Promise<PackageFile[]>;
 }
 
 export interface FileResult {
@@ -129,6 +141,8 @@ export interface TsLsCore {
   checkCompilerOptions(compilerOptions: CompilerOptionsJson): {
     errors: string[];
   };
+  /** Settles once the package files are mounted (or their load failed); for tests and the lint. */
+  packagesLoaded(): Promise<void>;
   dispose(): void;
   /** The current program (tests, the content lint); undefined before init. */
   getProgram(): ts.Program | undefined;
@@ -168,6 +182,11 @@ export function validatePath(path: unknown, what: string): string {
   if (isAmbientPath(path)) {
     throw new TsLsError(`${what}: ${path} is reserved for ts-dojo`);
   }
+  if (path.startsWith(PACKAGES_ROOT)) {
+    throw new TsLsError(
+      `${what}: ${path} is reserved for the pre-bundled packages`,
+    );
+  }
   if (segments.length === 1 && /^lib\..+\.d\.ts$/.test(path.slice(1))) {
     throw new TsLsError(`${what}: ${path} is reserved for the compiler libs`);
   }
@@ -187,6 +206,24 @@ function toJsonOptions(spec: OpenProjectSpec): CompilerOptionsJson {
       : [];
   const lib = [...new Set([...baseLib, ...(spec.libs ?? [])])];
   return { ...merged, lib };
+}
+
+/** Whether a project file imports a pre-bundled package, or needs React's JSX runtime types. */
+function namesPackage(
+  entries: readonly ProjectFile[],
+  options: ts.CompilerOptions,
+): boolean {
+  if (
+    options.jsx === ts.JsxEmit.ReactJSX ||
+    options.jsx === ts.JsxEmit.ReactJSXDev
+  ) {
+    if (entries.some((entry) => entry.path.endsWith('.tsx'))) return true;
+  }
+  return entries.some((entry) =>
+    ts
+      .preProcessFile(entry.text, true, true)
+      .importedFiles.some((imported) => packageOf(imported.fileName) !== null),
+  );
 }
 
 function isStringArray(value: unknown): value is readonly string[] {
@@ -213,6 +250,28 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
   const registry = ts.createDocumentRegistry(true, '/');
   const inFlight = new Map<string, Promise<void>>();
   let project: Project | null = null;
+  // The package files load once, after `init`; a failed load is retried by the next project
+  // that names a package.
+  let packages: Promise<void> | null = null;
+  const startPackages = (): Promise<void> => {
+    const load = options.loadPackageTypes;
+    if (load === undefined) return Promise.resolve();
+    packages ??= load().then(
+      (list) => {
+        // Stamp "0" like the libs: parsed once for the app's lifetime. The open project's
+        // files get new versions, because the language service keeps a file's module
+        // resolutions (a failed `zod` included) for as long as the file is unchanged.
+        for (const file of list) files.set(file.path, file.text);
+        for (const path of project?.paths ?? []) {
+          stamps.set(path, String(++stamp));
+        }
+      },
+      () => {
+        packages = null;
+      },
+    );
+    return packages;
+  };
 
   // Script versions for the language service: one core-wide counter, so a project file never
   // repeats a version string across edits or projects (the shared registry would otherwise
@@ -345,7 +404,16 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
   const core: TsLsCore = {
     async init() {
       await core.openProject({ files: [] });
+      // `ready` waits for the package files (one precached fetch after the libs), so an edit
+      // can never name `zod` before it resolves: an import typed in that window would keep
+      // its TS2307 until the next edit, since nothing tells the editor to lint again. A failed
+      // load doesn't block `ready`; the next project that names a package retries it.
+      await startPackages();
       return { tsVersion: ts.version };
+    },
+
+    async packagesLoaded() {
+      await startPackages();
     },
 
     async openProject(spec) {
@@ -377,6 +445,7 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
       }
       const libNames = compilerOptions.lib ?? [];
       await loadLibs(libNames, files, options.fetchLib, inFlight);
+      if (namesPackage(entries, compilerOptions)) await startPackages();
 
       if (needsAmbientRuntime(libNames)) {
         entries.push({ path: AMBIENT_RUNTIME_PATH, text: AMBIENT_RUNTIME_DTS });

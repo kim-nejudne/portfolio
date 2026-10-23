@@ -1,0 +1,246 @@
+---
+id: m16-tooling/04-typescript-6-and-7
+title: 'TypeScript 6 and 7: the new defaults, the deprecations, the native compiler'
+minutes: 15
+objectives:
+  - List what TypeScript 6.0 gives an option that a tsconfig.json leaves out
+  - Recognise a deprecated option by TS5101 or TS5107, and replace it
+  - Use ignoreDeprecations as a window for the upgrade, not as the fix
+  - Explain why TypeScript 7 is a separate, native compiler, and why this app runs 6.0.3
+prerequisites:
+  - m00-orientation/01-why-typescript
+  - m09-modules-async/02-declaration-files
+  - m16-tooling/01-strict-flags
+  - m16-tooling/02-module-resolution
+tags:
+  - TypeScript 6
+  - TypeScript 7
+  - native compiler
+  - tsconfig defaults
+  - deprecations
+  - ignoreDeprecations
+  - types
+  - rootDir
+  - noUncheckedSideEffectImports
+  - esModuleInterop
+  - target es5
+  - outFile
+  - downlevelIteration
+  - TS5101
+  - TS5107
+  - TS5108
+  - TS1540
+  - TS2591
+  - TS2882
+ts7: TypeScript 7.0 is a native compiler, a Go program with no JavaScript API. Every option that 6.0 deprecates (TS5101, TS5107) stops working in 7.0.
+---
+
+## Concept
+
+TypeScript 6.0 is the last release of the compiler written in JavaScript, the `typescript` package that this app runs in a Web Worker (<Lesson id="m00-orientation/01-why-typescript" />). TypeScript 7.0 is a new, native compiler. 6.0 gets projects ready for it in two ways:
+
+- **New defaults.** An option that a `tsconfig.json` leaves out gets a modern value: `strict` is on, the target is `es2025`, imports resolve as a bundler resolves them, and no `@types` package loads unless the tsconfig lists it.
+- **Deprecations.** Options that stop working in 7.0 are errors in 6.0, reported on the `tsconfig.json` itself.
+
+A tsconfig written for an older compiler shows the second kind at once:
+
+```json
+{
+  "compilerOptions": {
+    "target": "es5",
+    "moduleResolution": "node10",
+    "baseUrl": "."
+  }
+}
+```
+
+```text
+tsconfig.json(3,15): error TS5107: Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '"ignoreDeprecations": "6.0"' to silence this error.
+tsconfig.json(4,25): error TS5107: Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '"ignoreDeprecations": "6.0"' to silence this error.
+  Visit https://aka.ms/ts6 for migration information.
+tsconfig.json(5,5): error TS5101: Option 'baseUrl' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '"ignoreDeprecations": "6.0"' to silence this error.
+  Visit https://aka.ms/ts6 for migration information.
+```
+
+TS5107 names an option with a value (`target=ES5`); TS5101 names an option that is deprecated whatever its value. Both say how to silence them: add `"ignoreDeprecations": "6.0"` to `compilerOptions`, and the three options work as they did, with no error. Only that value helps. `"5.0"` is accepted but doesn't silence 6.0's deprecations, and `"7.0"` reports _Invalid value for '--ignoreDeprecations'._ (TS5103). So the upgrade can go in two steps: move to 6.0 with the errors silenced, then remove the options one at a time.
+
+<Callout kind="ts7">
+  TypeScript 7.0 is the native compiler: a Go program with no JavaScript API. A
+  tool that loads `typescript` as a library, as this app does to check your code
+  in the browser, can't swap 7.0 in, so the dojo runs 6.0.3 and teaches what it
+  does. Every deprecation message names 7.0 as the version where the option
+  stops functioning, so a project that still needs `ignoreDeprecations` isn't
+  ready for 7.0.
+</Callout>
+
+## Examples
+
+**What a tsconfig gets when it leaves an option out.** In 6.0.3:
+
+| Option                                            | When left out                                                                                             |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `strict`                                          | `true`: the eight checks of <Lesson id="m16-tooling/01-strict-flags" />                                   |
+| `target`                                          | `es2025`                                                                                                  |
+| `module`                                          | `es2022`, chosen from the target                                                                          |
+| `moduleResolution`                                | `bundler`, unless `module` picks one of Node's modes (<Lesson id="m16-tooling/02-module-resolution" />)   |
+| `types`                                           | `[]`: no `@types` package loads unless it is listed; `["*"]` loads every package in `node_modules/@types` |
+| `esModuleInterop`, `allowSyntheticDefaultImports` | `true`, and setting either to `false` is deprecated                                                       |
+| `noUncheckedSideEffectImports`                    | `true`: an `import './file'` with nothing imported must still resolve                                     |
+| `rootDir`                                         | the folder that holds the `tsconfig.json`                                                                 |
+| `lib`                                             | the full lib of the target, DOM included                                                                  |
+
+Compare the dojo's own options: `strict: true`, `target: "es2025"`, `moduleResolution: "bundler"` and `types: []` are what 6.0 picks anyway. The dojo spells them out so that nothing depends on a compiler's defaults, and sets `lib: ["es2025"]` to keep the DOM out.
+
+Strict by default is the change most code notices. Under the dojo's options, as under an empty 6.0 tsconfig, `stock.get` may return `undefined` and a caught value is `unknown`, so the code has to check both:
+
+```ts run
+const stock = new Map([['apple', 3]]);
+
+function take(name: string): number {
+  const count = stock.get(name);
+  if (count === undefined) {
+    throw new Error(`no ${name} in stock`);
+  }
+  stock.set(name, count - 1);
+  return count - 1;
+}
+
+try {
+  console.log(take('apple'));
+  console.log(take('kiwi'));
+} catch (err) {
+  console.log(err instanceof Error ? err.message : err);
+}
+```
+
+It prints `2`, then `no kiwi in stock`. With `strict: false` the same code compiles, but the types no longer ask for either check:
+
+```ts twoslash
+// @strict: false
+const stock = new Map([['apple', 3]]);
+
+const count = stock.get('kiwi');
+//    ^?
+
+try {
+  console.log(count + 1);
+} catch (err) {
+  //     ^?
+  console.log(err.message);
+}
+```
+
+**`rootDir` is the tsconfig's folder.** With every source file under `src/` and an `outDir`, 6.0.3 doesn't work out the common folder from the files. It takes the tsconfig's folder, and says so:
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+```
+
+```text
+tsconfig.json(3,5): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.
+  Visit https://aka.ms/ts6 for migration information.
+```
+
+It still writes the output, to `dist/src/index.js`. Add `"rootDir": "./src"` and the error goes away and the file lands in `dist/index.js`. In the same spirit, `tsc index.ts` in a folder that has a `tsconfig.json` reports TS5112, _tsconfig.json is present but will not be loaded if files are specified on commandline. Use '--ignoreConfig' to skip this error._
+
+**The deprecated options, and what replaces them.** Each of these reports TS5101 or TS5107 in 6.0.3:
+
+| Deprecated                                                         | Instead                                                                                                          |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `target: "es5"`                                                    | `es2015` or later                                                                                                |
+| `downlevelIteration`, any value                                    | remove it: it only changed the output for targets older than `es2015`                                            |
+| `module: "amd"`, `"umd"`, `"system"` or `"none"`; `outFile`        | ES modules, joined into one file by a bundler when you need one                                                  |
+| `moduleResolution: "node10"` (or `"node"`), `"classic"`; `baseUrl` | `bundler` or `nodenext`, and `paths` relative to the tsconfig (<Lesson id="m16-tooling/02-module-resolution" />) |
+| `esModuleInterop: false`, `allowSyntheticDefaultImports: false`    | leave them out                                                                                                   |
+| `alwaysStrict: false`                                              | leave it out (<Lesson id="m16-tooling/01-strict-flags" />)                                                       |
+
+One piece of syntax is in the same window: an import assertion, `import data from './data.json' assert { type: 'json' }`, reports TS2880, _Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'._ Under `module: esnext` (the dojo's setting) or `preserve`, `ignoreDeprecations: "6.0"` silences it too; under `nodenext` or `node20` it stays an error, and under the default `module`, `es2022`, the same line reports TS2821 instead, whose message lists the `module` values that support assertions. Write `with`. Options that 5.0 deprecated are already gone: `target: "es3"` reports TS5108, _Option 'target=ES3' has been removed. Please remove it from your configuration._, and no `ignoreDeprecations` value brings it back.
+
+## Pitfalls
+
+**Expecting `@types` packages to load by themselves.** With `types` left out, 6.0 loads none of them, even with `@types/node` installed. The dojo's `types: []` is the same setting, so this is what such a project sees:
+
+```ts run errors
+const args = process.argv.slice(2);
+console.log(args);
+```
+
+_Cannot find name 'process'. Do you need to install type definitions for node?_ (TS2591). The message goes on to suggest adding `node` to the `types` field, and that is the fix: list each package whose globals the project uses, such as `"types": ["node"]`. A package you import by name, such as `zod`, never needs to be listed.
+
+**Importing a stylesheet that nothing declares.** A side-effect import still has to resolve under the 6.0 default `noUncheckedSideEffectImports: true`, and the compiler can't read a `.css` file, even one that exists:
+
+```ts run errors
+import './styles.css';
+
+console.log('styles loaded');
+```
+
+_Cannot find module or type declarations for side-effect import of './styles.css'._ (TS2882). The bundler handles the file at build time, so tell the compiler about it: Vite's types declare `*.css`, so `"types": ["vite/client"]` fixes a Vite project. Elsewhere, a `.d.ts` file with `declare module '*.css';` does the same (<Lesson id="m09-modules-async/02-declaration-files" />). `noUncheckedSideEffectImports: false` silences it too, and also hides the typo in `import './polyfils';`.
+
+**Treating `ignoreDeprecations` as the fix.** It silences the option errors until 7.0, and the `assert` imports only under `module: esnext` or `preserve`, and nothing more. It doesn't cover every construct 6.0.3 rejects. A namespace declared with the old `module` keyword is an error with or without it:
+
+```ts run errors
+module Units {
+  export const cm = 10;
+}
+
+export const width = Units.cm * 3;
+console.log(width);
+```
+
+_A 'namespace' declaration should not be declared using the 'module' keyword. Please use the 'namespace' keyword instead._ (TS1540). Write `namespace Units` (<Lesson id="m14-type-system-edges/04-declaration-merging" />). For the options, treat `ignoreDeprecations` as a note of what is left to do, and remove it with the last deprecated option.
+
+## Check yourself
+
+<Predict
+  id="empty-tsconfig"
+  question="A project has `@types/node` installed and a `tsconfig.json` whose `compilerOptions` is empty. Which is true under TypeScript 6.0.3?"
+  options={[
+    'The strict checks are on',
+    '`process` is declared, because `@types/node` is installed',
+    'The target is `es5`',
+    '`moduleResolution` is `classic`',
+  ]}
+  answer={0}
+  explanation="With `strict` left out, 6.0 turns on all eight strict checks. `types` defaults to `[]`, so `@types/node` loads only when listed; the target is `es2025`, and resolution is `bundler`. `es5` and `classic` are deprecated in 6.0."
+/>
+
+<Predict
+  id="what-ignore-silences"
+  question={
+    'Which of these does `"ignoreDeprecations": "6.0"` silence in TypeScript 6.0.3?'
+  }
+  options={[
+    '`"target": "es5"` (TS5107)',
+    '`"target": "es3"` (TS5108)',
+    '`module Units { }` (TS1540)',
+    "`import './styles.css';` with nothing that declares `*.css` (TS2882)",
+  ]}
+  answer={0}
+  explanation="`ignoreDeprecations` silences the options deprecated in 6.0, and `target: es5` is one of them. `es3` was deprecated in 5.0 and is now removed, which nothing silences. The `module` keyword for a namespace is an error either way, and TS2882 is not a deprecation: it comes from the 6.0 default `noUncheckedSideEffectImports`."
+/>
+
+<Predict
+  id="why-not-seven"
+  question="Why does the dojo check your code with TypeScript 6.0.3 rather than 7.0?"
+  options={[
+    "7.0 is a native Go program with no JavaScript API, so a web page can't load it as a library",
+    '7.0 checks types by different rules, so the lessons would be wrong',
+    '7.0 has no strict mode',
+  ]}
+  answer={0}
+  explanation="The app runs the `typescript` package in a Web Worker and calls its API for diagnostics, quick info and emit. 6.0 is the last release of that JavaScript compiler; 7.0 is native, with no JavaScript API. Where 7 behaves differently, a `ts7` callout says so."
+/>
+
+## Further reading
+
+- [TypeScript 6.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)
+- [Announcing TypeScript 6.0](https://devblogs.microsoft.com/typescript/announcing-typescript-6-0/)
+- [Announcing TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+- [Migration notes linked from the 6.0 deprecation messages](https://aka.ms/ts6)
+- [TSConfig reference: `types`](https://www.typescriptlang.org/tsconfig/#types), [`rootDir`](https://www.typescriptlang.org/tsconfig/#rootDir) and [`noUncheckedSideEffectImports`](https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports)

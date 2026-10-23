@@ -1,0 +1,51 @@
+id: m15-api-design/04-typed-routes/04-a-route-table
+kind: implement
+title: A route table
+minutes: 7
+challenge: false
+prompt: |
+  `index.ts` has `Params<P>` from the lesson, with one addition from the first pitfall: a pattern
+  known only as a `string` takes any `Record<string, string>`. Write the rest:
+
+  ```ts
+  const app = defineRoutes({
+    home: '/',
+    user: '/users/:id',
+    userPost: '/users/:id/posts/:postId',
+  });
+
+  app.routes; // type { readonly home: '/'; readonly user: '/users/:id'; ... }
+  app.link('home'); // '/'
+  app.link('userPost', { id: '7', postId: 'hi there' }); // '/users/7/posts/hi%20there'
+  ```
+
+  - `HrefArgs<P>`: nothing after a pattern without parameters, its parameters otherwise.
+  - `href(pattern, ...args)`: replaces each segment that starts with `:` by its value, passed
+    through `encodeURIComponent`, and leaves every other segment as it is. A value that is
+    missing (possible only for a `string` pattern) throws `new Error('missing :id')`, with the
+    segment in the message.
+  - `defineRoutes(routes)`: keeps every pattern as its literal type and every property
+    `readonly`, as `as const` would, without `as const` at the call. It rejects a pattern that
+    doesn't start with `/`, and returns `{ routes, link }`, where `link(name, ...args)` builds
+    the link for the route with that name. `link` keeps its one type parameter, `N`, for the
+    name: the tests write `typeof app.link<'home'>`.
+
+  This combines the lesson with `const` type parameters (14.2), a constraint that checks like
+  `satisfies` (7.3), rest parameters typed with tuples (12.2) and `string extends P` (12.1).
+  No cast is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - '`HrefArgs` is in the lesson. `Params<string>` has `string` keys, so it already gives a widened pattern its record.'
+  - Split the pattern into segments in `href`, as the type does. Read the values through a record of strings, so a missing one is `undefined` rather than a type error.
+  - "A constraint saying what each pattern starts with checks the patterns and keeps their literals. The `readonly` of `as const` takes a modifier on the type parameter. `link` can hand the route's pattern to `href`."

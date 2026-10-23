@@ -75,6 +75,7 @@ version" as it does for any update.
 | --- | --- | --- |
 | `/assets/*` | `public, max-age=31536000, immutable` | content-hashed by Vite: the app, both worker chunks, lesson chunks, fonts |
 | `/ts/6.0.3/*` | `public, max-age=31536000, immutable` | TypeScript's lib files; the directory is versioned |
+| `/packages/*` | `no-cache` (served by `location /`) | F14: the pre-bundled Zod (`zod-<version>.js`) and the package declarations (`types.json`); the service worker serves them from its precache |
 | `/`, `/index.html`, `/sw.js`, `/workbox-*.js`, SPA routes | `no-cache` | rewritten every deploy |
 | `/manifest.webmanifest` | `no-cache` | names the app and its icon; small |
 | `/favicon.svg` | `public, max-age=86400` | not hashed, named by URL; a day, as plinth's brand assets |
@@ -84,15 +85,16 @@ longer exist. `sw.js` is `no-cache` because the browser decides whether there is
 by fetching it: a cached `sw.js` would hold every visitor on the old precache.
 
 **The service worker.** `vite-plugin-pwa` (spec §9 Offline) precaches the app, both worker
-chunks and all of `/ts/6.0.3/` on the first visit, about 9 MB raw today, so every page, lesson,
-diagnostic and run works offline afterwards. It registers once the compiler is ready, so the
+chunks, `/ts/6.0.3/` except the webworker libs no lesson uses, and `/packages/` on the first
+visit, about 17.4 MB raw since F14, so every page, lesson, diagnostic and run works offline
+afterwards. It registers once the compiler is ready, so the
 precache never competes with the first load. On a later visit it fetches the new files in the
 background and the header shows "Reload for the new version"; it never reloads by itself.
 
 **The two-pass rsync.** A single `rsync --delete` writes files in no particular order, so for a
 few seconds the new `index.html` or `sw.js` could be live while the chunks it names are still in
-flight. The first pass puts every new hashed file and lib file in place, without deleting
-anything; the second pass writes the entry files and removes what the new build no longer has.
+flight. The first pass puts every new hashed file, lib file and package file in place, without
+deleting anything; the second pass writes the entry files and removes what the new build no longer has.
 
 **The SPA fallback.** `location /` is `try_files $uri /index.html`, because the app has a
 client-side router: `/l/<lesson>`, `/m/<module>`, `/repl`, `/settings` and `/progress` all

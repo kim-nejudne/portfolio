@@ -13,7 +13,7 @@ import { entryText, locText } from '@/app/output-entry';
 import { formatStatus } from '@/app/run-status';
 import { createAppSandboxRunner } from '@/app/sandbox';
 import { Button } from '@/components/ui/button';
-import type { Diag } from '@/protocol/ts-ls';
+import type { Diag, EmittedImport } from '@/protocol/ts-ls';
 import { browserStorage, readSettings, timeoutFor } from '@/store/settings';
 import type { SandboxRunner } from '@/workers/sandbox/runner';
 import { SNIPPET_PATH, type FenceKind } from '../fences';
@@ -27,6 +27,17 @@ export interface CodeBlockElementProps {
   js?: string;
   /** JSON `Diag[]`, for `run-errors`. */
   diagnostics?: string;
+  /** JSON `EmittedImport[]`: the import specifiers in `js` (F14, a `zod` import). */
+  imports?: string;
+}
+
+function parseImports(json: string | undefined): EmittedImport[] {
+  if (json === undefined) return [];
+  try {
+    return JSON.parse(json) as EmittedImport[];
+  } catch {
+    return [];
+  }
 }
 
 function parseDiagnostics(json: string | undefined): Diag[] {
@@ -84,6 +95,7 @@ export function CodeBlock({
   html,
   js,
   diagnostics,
+  imports,
 }: CodeBlockElementProps) {
   const actions = useAppActions();
   const lesson = useLessonContext();
@@ -96,10 +108,15 @@ export function CodeBlock({
     if (js === undefined) return;
     const active = runner ?? createAppSandboxRunner();
     if (active !== runner) setRunner(active);
-    void active.start([{ path: SNIPPET_PATH, js, imports: [] }], SNIPPET_PATH, {
-      // F10: the Settings default timeout, read at each run.
-      timeoutMs: timeoutFor(null, readSettings(browserStorage())),
-    });
+    const spans = parseImports(imports);
+    void active.start(
+      [{ path: SNIPPET_PATH, js, imports: spans }],
+      SNIPPET_PATH,
+      {
+        // F10: the Settings default timeout, read at each run.
+        timeoutMs: timeoutFor(null, readSettings(browserStorage())),
+      },
+    );
   };
   const openInRepl = (): void => {
     void actions.openInRepl(

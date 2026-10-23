@@ -1,0 +1,61 @@
+id: m18-capstones/01-type-safe-router/04-the-router
+kind: implement
+title: The router
+minutes: 12
+challenge: false
+prompt: |
+  `index.ts` has the pieces so far: exercise 1's `matchPath`, exercise 3's `route` and `group`,
+  15.4's `HrefArgs` and an `href` that also fills in a trailing `*`, `splitUrl`, and the
+  lesson's `Outcome`. Write the router over them, and the function that answers with it:
+
+  ```ts
+  const router = createRouter({
+    home: route({ path: '/', search: z.object({}), handle: () => 'home' }),
+    user: route({
+      path: '/users/:id',
+      search: z.object({ tab: z.enum(['posts', 'likes']).default('posts') }),
+      handle: ({ params, search }) => `user ${params.id} (${search.tab})`,
+    }),
+  });
+
+  router.resolve('/users/7?tab=likes'); // { kind: 'page', name: 'user', body: 'user 7 (likes)' }
+  router.href('user', { id: '7' }); // '/users/7'
+  router.navigate('home'); // { kind: 'page', name: 'home', body: 'home' }
+  respond(router.resolve('/nope')); // { status: 404, body: 'no page at /nope' }
+  ```
+
+  - `createRouter(routes)` takes an object of routes, each of which returns a page body, a
+    `string`; a route that returns anything else is a type error.
+  - `resolve(url)` splits the URL with `splitUrl` and tries the routes in the object's order.
+    The first route whose path matches decides: `{ kind: 'page', name, body }` when its query
+    parses, `{ kind: 'bad-query', name, issues }` when it doesn't, and no later route is tried.
+    When no path matches, it is `{ kind: 'not-found', pathname }`. The result is an
+    `Outcome<N>`, with `N` the union of the route names.
+  - `href(name, ...args)` builds the link to the route with that name, and takes exactly that
+    route's parameters. `navigate(name, ...args)` takes the same arguments and resolves the
+    link.
+  - `respond(outcome)` gives `{ status: 200, body }` for a page;
+    `{ status: 400, body: 'bad query for user: tab' }` for a bad query, with each issue's path
+    joined by `.` and the paths listed with `, `; and `{ status: 404, body: 'no page at /nope' }`
+    when nothing matched. End the `switch` with a `never` check, so a new kind of outcome can't
+    go unanswered.
+
+  This combines the lesson with typed links (15.4), Zod's issues (17.2), the `never` check
+  (3.5, 7.3) and `keyof` constraints with indexed access types (5.4). No cast is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    any-expression,
+  ]
+hints:
+  - Make `createRouter` generic in the whole table, constrained to an object of routes that return strings. The names are its keys; a `for...in` loop gives them as strings.
+  - '`href` and `navigate` are generic in the route name, and the pattern is an indexed access type on the table. If `.path` read through a generic name comes out as plain `string`, what could the place you put it expect instead?'
+  - In `respond`, the `never` check goes in the `default` branch of the `switch`, after one `case` for each kind.

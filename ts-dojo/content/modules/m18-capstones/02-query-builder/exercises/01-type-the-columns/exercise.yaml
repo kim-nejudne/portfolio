@@ -1,0 +1,25 @@
+id: m18-capstones/02-query-builder/01-type-the-columns
+kind: fix
+title: Type the columns
+minutes: 4
+challenge: false
+prompt: |
+  This is the lesson's query builder over a shop's schema, with `select` and `where` typed too
+  loosely. `index.ts` reports:
+
+  - `Type 'C' does not satisfy the constraint 'keyof Row'.` on `select`, and two more errors in
+    its body
+  - `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'unknown'.`
+    in `where`
+
+  Type both methods so that `index.ts` compiles. The tests check more than that: a column that
+  is not in the table is an error in `select` and in `where`, and so is a value of the wrong type
+  for its column, such as `where('price', '<', '10')`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, any-expression]
+hints:
+  - A column has to be one of the row's keys, and `Row` is the only place those keys come from.
+  - "`where`'s value depends on which column was passed. What lets one parameter's type depend on another argument?"

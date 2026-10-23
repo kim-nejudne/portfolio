@@ -4,10 +4,17 @@
 // imported; top-level `await` just works. A cyclic graph cannot be built that way (each URL
 // needs the other's text), so the runner re-emits it as CommonJS and this loader wraps each
 // module in a factory, imports every wrapper, and runs the entry with a cached `require`, the
-// way Node resolves cycles (partial exports). Pure apart from the injected `createUrl` and
-// `importModule`.
+// way Node resolves cycles (partial exports). A pre-bundled package (zod, §12 F14) is imported
+// from `packageUrl(name)`: /packages/zod-<version>.js in the browser, the installed package in
+// Node. Pure apart from the injected `createUrl`, `importModule` and `packageUrl`.
+import { PACKAGES } from '@/protocol/packages';
 import type { RunRequest } from '@/protocol/sandbox';
-import { orderModules, resolveSpecifier } from './modules';
+import {
+  orderModules,
+  packageImportName,
+  resolvePackage,
+  resolveSpecifier,
+} from './modules';
 import { rewriteImports } from './modules';
 import type { LoadedModule } from './prelude';
 
@@ -16,7 +23,14 @@ export interface LoaderIo {
   importModule: (url: string) => Promise<Record<string, unknown>>;
   /** Told about each module once its URL exists, so stack frames can be mapped. */
   register: (module: LoadedModule) => void;
+  /** The absolute URL of a pre-bundled package's ES module (`zod`). */
+  packageUrl: (name: string) => string;
 }
+
+/** The pre-bundled packages a run can import (zod). */
+const RUNTIME_PACKAGES = PACKAGES.filter((p) => p.runtimeUrl !== null).map(
+  (p) => p.name,
+);
 
 /** The line the CommonJS wrapper adds above the module text. */
 export const CJS_WRAPPER_HEAD =
@@ -45,6 +59,8 @@ export async function runModules(
     const urls = new Map<string, string>();
     for (const module of ordered.order) {
       const js = rewriteImports(module, (path) => {
+        const name = packageImportName(path);
+        if (name !== null) return io.packageUrl(name);
         const url = urls.get(path);
         if (url === undefined)
           throw new Error(`${path} was not loaded before ${module.path}`);
@@ -73,6 +89,16 @@ export async function runModules(
       factories.set(module.path, loaded.default as CjsFactory);
     }),
   );
+  // Packages are ES modules: imported up front, so `require` can hand back the namespace.
+  // CommonJS output reports no imports (its `require` calls resolve at run time), so the
+  // texts are searched for a require of each package that has a runtime.
+  const packages = new Map<string, Record<string, unknown>>();
+  for (const name of RUNTIME_PACKAGES) {
+    const call = new RegExp(`\\brequire\\((["'])${name}\\1\\)`);
+    if (modules.some((m) => call.test(m.js))) {
+      packages.set(name, await io.importModule(io.packageUrl(name)));
+    }
+  }
   const cache = new Map<string, { exports: Record<string, unknown> }>();
   const load = (path: string): Record<string, unknown> => {
     const cached = cache.get(path);
@@ -82,6 +108,12 @@ export async function runModules(
     const module = { exports: {} as Record<string, unknown> };
     cache.set(path, module);
     const require = (specifier: string): unknown => {
+      const packagePath = resolvePackage(specifier);
+      const pkg =
+        packagePath === null
+          ? undefined
+          : packages.get(packageImportName(packagePath) ?? '');
+      if (pkg !== undefined) return pkg;
       const target = resolveSpecifier(path, specifier, paths);
       if (target === null) {
         throw new Error(

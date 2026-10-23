@@ -6,6 +6,7 @@ import type { SandboxModule } from '@/protocol/sandbox';
 import {
   describeCycle,
   describeResolveFailure,
+  packageImportName,
   orderModules,
   resolveModules,
   resolveSpecifier,
@@ -77,6 +78,38 @@ describe('resolveModules', () => {
         "index.ts imports 'lodash', which is not a file of this project",
       );
     }
+  });
+});
+
+describe('resolveModules, the pre-bundled packages (§12 F14)', () => {
+  it('resolves zod to its package path', () => {
+    const result = resolveModules([mod('/index.ts', ['zod'])]);
+    expect('modules' in result && result.modules[0]?.imports[0]?.path).toBe(
+      '/node_modules/zod',
+    );
+    expect(packageImportName('/node_modules/zod')).toBe('zod');
+    expect(packageImportName('/index.ts')).toBeNull();
+  });
+
+  it('refuses react and its subpaths: React ships its types only', () => {
+    for (const specifier of ['react', 'react/jsx-runtime']) {
+      const result = resolveModules([mod('/index.tsx', [specifier])]);
+      expect(result).toEqual({
+        failure: { path: '/index.tsx', specifier, typesOnly: 'react' },
+      });
+      if ('failure' in result) {
+        expect(describeResolveFailure(result.failure)).toBe(
+          `index.tsx imports '${specifier}': React has types only in the dojo; its runtime isn't bundled`,
+        );
+      }
+    }
+  });
+
+  it('a subpath of zod is not bundled: the usual message', () => {
+    const result = resolveModules([mod('/index.ts', ['zod/mini'])]);
+    expect(result).toEqual({
+      failure: { path: '/index.ts', specifier: 'zod/mini' },
+    });
   });
 });
 

@@ -1,0 +1,271 @@
+---
+id: m16-tooling/02-module-resolution
+title: 'Module resolution: bundler, node16/nodenext, paths, .js extensions in imports'
+minutes: 20
+objectives:
+  - Choose moduleResolution bundler or nodenext by what will load the code
+  - Write the .js extension on relative imports where Node's ES module rules need it
+  - Tell whether nodenext treats a .ts file as an ES module or as CommonJS
+  - Set up a paths alias, and explain why the bundler or Node must know the alias too
+prerequisites:
+  - m09-modules-async/01-esm
+  - m09-modules-async/03-async
+  - m16-tooling/01-strict-flags
+tags:
+  - module resolution
+  - moduleResolution
+  - bundler
+  - node16
+  - nodenext
+  - paths
+  - baseUrl
+  - .js extension
+  - allowImportingTsExtensions
+  - package.json type module
+  - package.json exports
+  - TS2307
+  - TS2834
+  - TS2835
+  - TS5097
+ts7: moduleResolution node10 (also spelled node) and classic, and baseUrl, are deprecated in 6.0 and stop working in TypeScript 7.0.
+---
+
+## Concept
+
+An import names a module with a string, the specifier. To type the import, the compiler has to find the file behind that string, and it has to find the same file that will be loaded when the code runs, because it never rewrites the string: the specifier you write is the specifier in the JavaScript. `moduleResolution` says whose rules the compiler imitates. TypeScript 6.0 has two that fit today's tools:
+
+- `bundler`: the rules of Vite, esbuild, webpack and Bun. A relative import may leave out the extension, and a folder resolves to its `index` file. The dojo compiles every exercise this way.
+- `nodenext`, and `node16`: the rules of Node itself, for code that Node runs without a bundler and for libraries published to npm. `module: nodenext` selects it, and the two settings must then agree.
+
+```jsonc
+// code a bundler builds (the dojo's own settings)
+{ "compilerOptions": { "module": "esnext", "moduleResolution": "bundler" } }
+
+// code Node runs as it is
+{ "compilerOptions": { "module": "nodenext" } }
+```
+
+Both modes map a `.js` specifier to the `.ts` file beside it. `format.ts` compiles to `format.js`, so `./lib/format.js` is the name the file will have when the import runs, and the compiler reads `format.ts` for the types:
+
+```ts twoslash
+// @filename: lib/format.ts
+export function formatPrice(cents: number): string {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+// @filename: index.ts
+import { formatPrice } from './lib/format.js';
+
+console.log(formatPrice(1250));
+//          ^?
+```
+
+`node16` resolves as `nodenext` does. The difference is in what `module` allows: `module: node16` stays at Node 16, so it rejects the import attributes, `with { type: 'json' }`, that `module: nodenext` accepts. Two older modes are still in 6.0.3: `node10` (also spelled `node`), which ignores the `exports` field of a package's package.json, and `classic`. Both are deprecated, and setting either reports TS5107, _Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0._, with `=classic` for the other.
+
+<Callout kind="ts7">
+  `moduleResolution: node10` and `classic`, and the `baseUrl` option, still work
+  in 6.0.3 with `"ignoreDeprecations": "6.0"`, and stop working in TypeScript
+  7.0. A project that still uses `node10` moves to `bundler` or `nodenext`.
+</Callout>
+
+## Examples
+
+**`bundler`.** Three spellings reach the same file: no extension, the `.js` extension, and the folder, which resolves to its `index.ts`:
+
+```ts twoslash
+// @filename: lib/format.ts
+export function formatPrice(cents: number): string {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+// @filename: lib/index.ts
+export { formatPrice } from './format';
+
+// @filename: index.ts
+import { formatPrice } from './lib/format';
+import { formatPrice as withExtension } from './lib/format.js';
+import { formatPrice as fromFolder } from './lib';
+
+console.log(formatPrice === withExtension, withExtension === fromFolder);
+```
+
+**`nodenext` in an ES module.** Node's ES module loader never guesses: the specifier is a URL, and the file must exist under exactly that name. So the compiler asks for the extension, and for `index.js` on a folder:
+
+```ts twoslash
+// @module: nodenext
+// @moduleResolution: nodenext
+// @resolveJsonModule: true
+// @errors: 2835 2834
+// @filename: package.json
+{ "type": "module" }
+
+// @filename: lib/format.ts
+export function formatPrice(cents: number): string {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+// @filename: lib/index.ts
+export { formatPrice } from './format.js';
+
+// @filename: index.ts
+import { formatPrice } from './lib/format';
+import { formatPrice as fromFolder } from './lib';
+import { formatPrice as withExtension } from './lib/format.js';
+import { formatPrice as fromIndex } from './lib/index.js';
+```
+
+The two errors are _Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './lib/format.js'?_ (TS2835), and, for the folder, the same sentence ending _Consider adding an extension to the import path._ (TS2834).
+
+Which files are ES modules? Under `nodenext`, the same rule Node uses: a `.mts` file always is and a `.cts` file never is, and a `.ts` file is one when the nearest `package.json` has `"type": "module"`. Without that field it is CommonJS. The format decides the emit (an `import` stays an `import`, or becomes a `require`) and the resolution rules with it.
+
+**`nodenext` in a CommonJS file.** `require` does try extensions and `index` files, so a static import without an extension compiles. A dynamic `import()` goes through the ES module loader even in a CommonJS file, so it follows the strict rules:
+
+```ts twoslash
+// @module: nodenext
+// @moduleResolution: nodenext
+// @errors: 2835
+// @filename: lib/format.ts
+export function formatPrice(cents: number): string {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+// @filename: index.ts
+import { formatPrice } from './lib/format';
+
+export async function formatLater(cents: number): Promise<string> {
+  const lib = await import('./lib/format');
+  return lib.formatPrice(cents);
+}
+```
+
+With no `package.json` saying `"type": "module"`, `index.ts` is CommonJS, the first line compiles and the `import()` reports TS2835. `import('./lib/format.js')` fixes it.
+
+**`paths`.** An alias for a folder, so that deep files don't need `../../../`. The targets are relative to the `tsconfig.json`:
+
+```jsonc
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "paths": { "@/*": ["./src/*"] },
+  },
+}
+```
+
+```ts twoslash
+// @paths: {"@/*": ["./src/*"]}
+// @filename: src/lib/format.ts
+export function formatPrice(cents: number): string {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+// @filename: src/main.ts
+import { formatPrice } from '@/lib/format';
+//       ^?
+```
+
+`paths` only changes where the compiler looks. The emitted JavaScript still says `'@/lib/format'`, so whatever loads it needs the same alias: `resolve.alias` in Vite, or, for Node, an `imports` field in `package.json` whose keys start with `#`, which `bundler` and `nodenext` read as well. `paths` needs no `baseUrl`, and in 6.0 setting `baseUrl` reports TS5101, _Option 'baseUrl' is deprecated and will stop functioning in TypeScript 7.0._
+
+**A package.** A bare specifier is looked up in `node_modules`. The package's `package.json` lists in `exports` what it lets you import; for `zod`, the entry `"."` points the `types` condition at `index.d.cts` and the `import` condition at the JavaScript. The compiler reads the types, Run loads the code:
+
+```ts run
+import { z } from 'zod';
+
+const Port = z.number().int().min(1).max(65535);
+
+console.log(Port.parse(8080));
+console.log(Port.safeParse(70000).success);
+```
+
+## Pitfalls
+
+**Importing a file the package doesn't export.** Under `node10` a deep path into a package compiled, because that mode reads the folder and ignores `exports`. `bundler` and `nodenext` read `exports`, and a file it doesn't list can't be imported, even though it is on disk:
+
+```ts run errors
+import { ZodString } from 'zod/v4/classic/schemas.js';
+
+console.log(ZodString.name);
+```
+
+_Cannot find module 'zod/v4/classic/schemas.js' or its corresponding type declarations._ (TS2307). Import from a specifier the package lists, here `import { ZodString } from 'zod'`. This is the usual error after moving a project off `node10`.
+
+**Writing `.ts` to quiet TS2835.** The source file is `format.ts`, so `./lib/format.ts` looks right, but after `tsc` there is no `format.ts` next to the JavaScript, only `format.js`. The compiler refuses it in both modes:
+
+```ts twoslash
+// @errors: 5097
+// @filename: lib/format.ts
+export function formatPrice(cents: number): string {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+// @filename: index.ts
+import { formatPrice } from './lib/format.ts';
+
+console.log(formatPrice(1250));
+```
+
+_An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled._ (TS5097). Write `./lib/format.js`, or under `bundler` leave the extension out. `allowImportingTsExtensions` is for code something else runs from the `.ts` files, a bundler or Node's type stripping (<Lesson id="m16-tooling/03-project-references" />), and it can only be set with `noEmit`, `emitDeclarationOnly` or `rewriteRelativeImportExtensions`.
+
+**Expecting `paths` to change the output.** With the `@/*` alias above, `tsc` compiles `src/main.ts` without an error and emits the specifier unchanged:
+
+```js
+import { formatPrice } from '@/lib/format';
+```
+
+Node, which has never heard of the alias, stops before running a line:
+
+```text
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@/lib' imported from /app/dist/main.js
+```
+
+A bundler can't resolve it either until its own alias setting matches `paths`. Keep the two in one place, or use the `#` imports of `package.json`, which Node and the compiler both read.
+
+## Check yourself
+
+<Predict
+  id="which-specifier"
+  code={
+    '// package.json: { "type": "module" }\n// tsconfig.json: { "compilerOptions": { "module": "nodenext" } }\n// src/util.ts exists; this is src/index.ts\nimport { slugify } from ???;'
+  }
+  question="Which specifier compiles in place of `???`?"
+  options={["`'./util'`", "`'./util.js'`", "`'./util.ts'`", "`'./util.mjs'`"]}
+  answer={1}
+  explanation="`index.ts` is an ES module, because the package.json says `type: module`, so the specifier must name the file Node will load: `util.js`, which `util.ts` compiles to. The compiler maps it back to `util.ts`. `'./util'` reports TS2835, `'./util.ts'` reports TS5097 without `allowImportingTsExtensions`, and `'./util.mjs'` would be the output of a `util.mts`, which doesn't exist (TS2307)."
+/>
+
+<Predict
+  id="commonjs-file"
+  code={
+    '// package.json: { "name": "report" }\n// tsconfig.json: { "compilerOptions": { "module": "nodenext" } }\n// index.ts\nimport { slugify } from \'./util\';'
+  }
+  question="Does the import compile?"
+  options={[
+    'Yes: with no `type: module`, `index.ts` is CommonJS, and `require` tries the extensions',
+    'No: `nodenext` always needs the `.js` extension',
+    'No: `nodenext` needs `.mts` files',
+  ]}
+  answer={0}
+  explanation="Under `nodenext` a `.ts` file is an ES module only when the nearest package.json says `type: module`. Here it doesn't, so `index.ts` is CommonJS, the import becomes a `require`, and `require` finds `util.js` without the extension. A dynamic `import('./util')` in the same file would still need `.js`."
+/>
+
+<Predict
+  id="paths-output"
+  question="A project maps `@/*` to `./src/*` in `paths`. What does `tsc` emit for `import { db } from '@/db';`?"
+  options={[
+    "`import { db } from './src/db';`",
+    "`import { db } from './db.js';`",
+    "`import { db } from '@/db';`",
+    'Nothing: `tsc` reports an error until the bundler is configured',
+  ]}
+  answer={2}
+  explanation="`paths` only tells the compiler where to look for the types. The specifier is emitted as written, so the bundler, or Node through the `imports` field of package.json, has to know the alias as well."
+/>
+
+## Further reading
+
+- [Handbook: Modules reference, module resolution](https://www.typescriptlang.org/docs/handbook/modules/reference.html#the-moduleresolution-compiler-option)
+- [Handbook: Choosing compiler options](https://www.typescriptlang.org/docs/handbook/modules/guides/choosing-compiler-options.html)
+- [TSConfig reference: `moduleResolution`](https://www.typescriptlang.org/tsconfig/#moduleResolution)
+- [TSConfig reference: `paths`](https://www.typescriptlang.org/tsconfig/#paths)
+- [Node.js: modules, mandatory file extensions](https://nodejs.org/api/esm.html#mandatory-file-extensions) and [subpath imports](https://nodejs.org/api/packages.html#subpath-imports)
+- [TypeScript 6.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)

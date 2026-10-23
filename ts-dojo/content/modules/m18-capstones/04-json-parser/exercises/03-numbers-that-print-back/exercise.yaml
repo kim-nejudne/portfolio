@@ -1,0 +1,21 @@
+id: m18-capstones/04-json-parser/03-numbers-that-print-back
+kind: predict
+title: Numbers that print back
+minutes: 2
+challenge: false
+code: |
+  // ParseJson is the finished parser of exercise 4. Its numbers go
+  // through `${infer N extends number}`, as in exercise 2.
+  type Prices = ParseJson<'[1.0, 2e1, 0.5, 25]'>;
+question: What is `Prices`?
+options:
+  - '[1, 20, 0.5, 25]'
+  - '[number, number, 0.5, 25]'
+  - '[number, number, number, number]'
+  - 'number[]'
+answer: 1
+explanation: |
+  `infer N extends number` gives the literal only when the literal, printed back, is the same
+  text. `0.5` and `25` print as themselves. `1.0` prints as `1` and `2e1` as `20`, so for those two
+  `N` is `number`. The tuple keeps its four positions, since the array parser adds one element
+  per value; only those two values widen, and the array doesn't become `number[]`.

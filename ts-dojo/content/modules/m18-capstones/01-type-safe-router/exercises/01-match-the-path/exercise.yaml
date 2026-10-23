@@ -1,0 +1,44 @@
+id: m18-capstones/01-type-safe-router/01-match-the-path
+kind: implement
+title: Match the path
+minutes: 8
+challenge: false
+prompt: |
+  The lesson's `matchPath` reads `:name` segments. Add the wildcard. `Params` in `index.ts`
+  already has it, stricter than the one in 15.4: only a `*` that is the last segment of the
+  pattern is a wildcard, as in React Router, and a `*` anywhere else is plain text.
+
+  ```ts
+  matchPath('/users/:id/files/*', '/users/7/files/a/b'); // { id: '7', '*': 'a/b' }
+  matchPath('/files/*/raw', '/files/a/raw'); // null: this * is text
+  ```
+
+  - `hasParams(pattern, values)` is a type guard. It is true when every `:name` of the pattern
+    has a value in `values` and, when the pattern ends in `/*`, so does `'*'`.
+  - `matchPath(pattern, pathname)` splits both on `/` and compares them segment by segment:
+    - a `:name` segment matches any segment that isn't empty, and its value goes through
+      `decodeURIComponent`;
+    - a last segment `*` matches the rest of the pathname, slashes included, even when it is
+      empty, and its value is that rest as it is, not decoded: `/files/*` gives
+      `{ '*': 'a%20b/c' }` for `/files/a%20b/c`, and `{ '*': '' }` for `/files` and `/files/`;
+    - every other segment, a `*` that isn't last included, must equal the pathname's segment;
+    - without a wildcard, both must have the same number of segments.
+
+  `matchPath` returns the values through `hasParams`, with no cast.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    any-expression,
+  ]
+hints:
+  - Start from the lesson's `matchPath`. The wildcard ends the comparison early, so the check on the segment counts can't come first any more.
+  - The wildcard's value is every pathname segment from its index on, joined again with a slash.
+  - In `hasParams`, only the last segment can be the wildcard, and its value is under the key `'*'`.

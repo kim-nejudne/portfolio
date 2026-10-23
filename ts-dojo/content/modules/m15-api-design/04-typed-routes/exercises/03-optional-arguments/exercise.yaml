@@ -1,0 +1,30 @@
+id: m15-api-design/04-typed-routes/03-optional-arguments
+kind: type-challenge
+title: Optional arguments
+minutes: 5
+challenge: false
+prompt: |
+  `index.ts` has the `Params` from the lesson's third example, which reads optional parameters
+  (`:lang?`) and a wildcard (`*`). Write `HrefArgs<P>`, the arguments a link builder takes after
+  the pattern:
+
+  ```ts
+  declare function href<P extends string>(pattern: P, ...args: HrefArgs<P>): string;
+
+  href('/about'); // no parameters: nothing after the pattern
+  href('/users/:id', { id: '7' }); // a required parameter: the object is required
+  href('/docs/:lang?'); // only optional parameters: the object may be left out,
+  href('/docs/:lang?', { lang: 'en' }); // or passed
+  ```
+
+  A pattern with no parameters takes nothing after it, `href('/about', {})` included. A wildcard
+  counts as a required parameter. The tests declare `href` as above and call it.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The lesson's second example has two of the three cases. A conditional type can ask a second question in its false branch.
+  - When there are names, ask whether an empty object already fits the parameters. If it does, every one of them is optional.
+  - A tuple element can be optional, and a rest parameter typed with that tuple then makes the argument optional.

@@ -109,6 +109,13 @@ Default compiler options for every exercise and REPL buffer (§2), overridden on
 
 `lib` is always explicit because TypeScript's default for `es2025` pulls in DOM. A lesson that teaches a flag overrides it here (`strictNullChecks: false` in 3.2, `noUncheckedIndexedAccess: true` in 16.1). `console` and timers are not in the ES lib: the app provides their declarations to every project (an F2/F4 decision logged under "Spec questions"), so examples and exercises use `console.log` and `setTimeout` freely but nothing from DOM unless `libs: [dom]`.
 
+### Pre-bundled packages and `.tsx` (F14)
+
+- **`zod` 4.6.7 resolves everywhere**: exercises, `ts run` blocks (Run executes the real Zod in the sandbox), twoslash and `/repl`. Only the root specifier `zod` runs.
+- **React's types (`@types/react` 19.3.0) resolve everywhere, but React has no runtime.** A run that imports `react` or `react/jsx-runtime` stops with "React has types only in the dojo; its runtime isn't bundled". So a React exercise is a `type-challenge`, or a `fix` with no tests file. User files may be `.tsx` (`entry: index.tsx`); set `compilerOptions: { jsx: react-jsx }`. `tests.ts` stays `.ts` and so holds no JSX: use `ComponentProps<typeof X>`, `Equal`, and calls such as `Badge({ label: 1 })` under `@ts-expect-error`. JSX theory goes in `ts twoslash` with `// @jsx: react-jsx` and `// @filename: x.tsx`; `ts run` is `/snippet.ts`.
+- **valibot 1.5.0 is build-time only**: `import * as v from 'valibot'` works in `ts twoslash` blocks and nowhere else.
+- **Overriding `module`/`moduleResolution`** (16.2): the sandbox runs only the ES modules emitted under the default `module: esnext`, so such an exercise has no runtime tests. ESM mode under `nodenext` needs a `package.json` with `"type": "module"`, which an exercise can't ship; show it in twoslash.
+
 ## 5. The four kinds and how they pass (§1, §5)
 
 | Kind | The task | Pass rule |

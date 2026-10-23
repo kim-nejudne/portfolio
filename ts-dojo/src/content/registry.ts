@@ -27,7 +27,7 @@ const yaml = import.meta.glob<unknown>('@content/**/*.yaml', {
   import: 'default',
 });
 const files = import.meta.glob<string>(
-  '@content/modules/**/exercises/**/*.ts',
+  '@content/modules/**/exercises/**/*.{ts,tsx}',
   { eager: true, query: '?raw', import: 'default' },
 );
 const metas = import.meta.glob<LessonMeta>('@content/modules/*/*/lesson.mdx', {

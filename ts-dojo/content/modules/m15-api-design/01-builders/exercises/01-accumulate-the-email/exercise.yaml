@@ -1,0 +1,31 @@
+id: m15-api-design/01-builders/01-accumulate-the-email
+kind: fix
+title: Accumulate the email
+minutes: 3
+challenge: false
+prompt: |
+  `EmailBuilder` keeps what has been set in its type parameter `T`, and `build` takes a `this`
+  parameter so that it can only be called once `to` and `subject` are set. But the steps return
+  `EmailBuilder<T>`, so nothing is ever recorded, and the complete chain at the bottom of
+  `index.ts` reports:
+
+  - `The 'this' context of type 'EmailBuilder<{}>' is not assignable to method's 'this' of type 'EmailBuilder<Email>'.`
+
+  Make each step record what it set, so the chain compiles. Keep the `this` parameter on
+  `build`: the tests check that a chain missing `to` or `subject` is still an error, and that a
+  partial builder can be finished in several ways.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Every step returns a builder of the same `T` it was called on. The new builder holds one more property than that.
+  - Each step's return type can say so with an intersection, the way `url` does in the lesson.

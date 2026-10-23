@@ -3,6 +3,9 @@
 // for the roadmap)
 // and the structural checks that feed §3 conditions 1, 4, 5 and 7 (the content lint's own
 // tests mutate a copy of the tree; these pin the builder directly).
+import { cpSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildRegistry,
@@ -263,6 +266,53 @@ describe('structural problems carry their §3 condition', () => {
         };
       }),
     ).not.toContainEqual(expect.objectContaining({ condition: 7 }));
+  });
+});
+
+describe('.tsx exercise files (§12 F14, 17.4)', () => {
+  it('carries .tsx starter and solution files, with a .tsx entry', async () => {
+    const { input } = await loadContentInput(CONTENT);
+    const dir = EXERCISE_1.replace(/\/exercise\.yaml$/, '');
+    for (const which of ['starter', 'solution']) {
+      const text = input.files[`${dir}/${which}/index.ts`] as string;
+      delete input.files[`${dir}/${which}/index.ts`];
+      input.files[`${dir}/${which}/index.tsx`] = text;
+    }
+    yamlOf(input, EXERCISE_1)['entry'] = 'index.tsx';
+    const { registry, problems } = buildRegistry(input);
+    expect(problems).toEqual([]);
+    const fix = registry.exercise(
+      'm99-fixtures/01-fix/01-handle-the-new-shape',
+    );
+    if (fix === undefined || !isEditorExercise(fix))
+      throw new Error('fixture missing');
+    expect(fix.entry).toBe('index.tsx');
+    expect(fix.starter.map((f) => f.path)).toEqual(['/index.tsx']);
+    expect(exerciseFiles(fix, 'solution').map((f) => f.path)).toEqual([
+      '/index.tsx',
+      '/tests.ts',
+    ]);
+  });
+
+  it('the Node loader reads .tsx files as exercise files', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'dojo-tsx-'));
+    try {
+      cpSync(CONTENT, root, { recursive: true });
+      const dir = path.join(
+        root,
+        'modules/m99-fixtures/01-fix/exercises/01-handle-the-new-shape',
+      );
+      renameSync(
+        path.join(dir, 'starter/index.ts'),
+        path.join(dir, 'starter/index.tsx'),
+      );
+      const { input } = await loadContentInput(root);
+      expect(Object.keys(input.files)).toContain(
+        'content/modules/m99-fixtures/01-fix/exercises/01-handle-the-new-shape/starter/index.tsx',
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

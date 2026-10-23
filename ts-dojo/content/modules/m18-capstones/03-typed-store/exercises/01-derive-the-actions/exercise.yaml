@@ -1,0 +1,31 @@
+id: m18-capstones/03-typed-store/01-derive-the-actions
+kind: type-challenge
+title: Derive the actions
+minutes: 4
+challenge: false
+prompt: |
+  Write two types in `index.ts`.
+
+  - `ActionOf<M, K>` turns an action map into a union of actions, one per key of `M`:
+    `{ type: K; payload: M[K] }`, or just `{ type: K }` when the map's value is `void` or
+    `undefined`. The optional `K` picks some of the actions; by default it is every key.
+  - `SetterMap<S>` is an action map with one setter per string key of the state `S`, named
+    `set` and the key with its first letter uppercased, whose payload is that property's type.
+
+  ```ts
+  type Settings = { theme: 'light' | 'dark'; fontSize: number };
+  type A = ActionOf<SetterMap<Settings>>;
+  // { type: 'setTheme'; payload: 'light' | 'dark' } | { type: 'setFontSize'; payload: number }
+  ```
+
+  The type cases try both types on several maps, and the `@ts-expect-error` lines check that a
+  payload must match its type and that an action without data takes no `payload`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Map every key to its action, then index the mapped type with `K` to turn the object into a union.
+  - Which actions carry a payload is a conditional type on the map's value, inside the mapped type.
+  - The setters need the key remapping of 10.2 and the `Capitalize` of 12.1. Only string keys have a first letter.

@@ -51,6 +51,7 @@ function nodeIo() {
     register: (module) => {
       registry.register(module);
     },
+    packageUrl: (name) => import.meta.resolve(name),
   };
   return { io, registry };
 }
@@ -203,5 +204,47 @@ describe('runModules', () => {
     ).rejects.toThrow(
       "index.ts requires './missing', which is not a file of this project",
     );
+  });
+});
+
+describe('runModules, the pre-bundled packages (§12 F14)', () => {
+  const ZOD_PROJECT = {
+    '/index.ts':
+      "import { z } from 'zod';\nimport { label } from './label';\nconsole.log(label, z.number().parse(41) + 1);\n",
+    '/label.ts': "export const label = 'zod says';\n",
+  };
+
+  it('imports zod through the package URL in ESM', async () => {
+    const { logs, restore } = captureLogs();
+    try {
+      await runModules(
+        {
+          entry: '/index.ts',
+          format: 'esm',
+          modules: project(ZOD_PROJECT, 'esm'),
+        },
+        nodeIo().io,
+      );
+    } finally {
+      restore();
+    }
+    expect(logs).toEqual(['zod says 42']);
+  });
+
+  it("require('zod') returns the package in the CommonJS format", async () => {
+    const { logs, restore } = captureLogs();
+    try {
+      await runModules(
+        {
+          entry: '/index.ts',
+          format: 'cjs',
+          modules: project(ZOD_PROJECT, 'cjs'),
+        },
+        nodeIo().io,
+      );
+    } finally {
+      restore();
+    }
+    expect(logs).toEqual(['zod says 42']);
   });
 });

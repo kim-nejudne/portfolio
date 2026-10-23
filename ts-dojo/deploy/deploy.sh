@@ -41,6 +41,7 @@ pnpm build
 [ -f "${DIST}/index.html" ] || { echo "no build output at ${DIST}" >&2; exit 1; }
 [ -f "${DIST}/sw.js" ] || { echo "no service worker at ${DIST}/sw.js" >&2; exit 1; }
 [ -f "${DIST}/ts/6.0.3/lib.es2025.d.ts" ] || { echo "no lib files under ${DIST}/ts/6.0.3" >&2; exit 1; }
+[ -f "${DIST}/packages/types.json" ] || { echo "no pre-bundled packages under ${DIST}/packages" >&2; exit 1; }
 
 # gzip_static serves these instead of compressing per request. -9 is worth it here because it
 # happens once at deploy rather than once per visitor. The worker chunk (about 3.6 MB raw) and
@@ -64,10 +65,10 @@ ssh "$HOST" "
 "
 
 echo "==> Ship to ${HOST}:${REMOTE}"
-# Two passes. The hashed assets and the lib files go first, without --delete: the old
-# index.html still finds its old chunks, and the new ones are in place before the second pass
-# writes the index.html and sw.js that name them.
-rsync -az "${DIST}/assets" "${DIST}/ts" "${HOST}:${REMOTE}/"
+# Two passes. The hashed assets, the lib files and the pre-bundled packages (F14) go first,
+# without --delete: the old index.html still finds its old chunks, and the new files are in
+# place before the second pass writes the index.html and sw.js that name them.
+rsync -az "${DIST}/assets" "${DIST}/ts" "${DIST}/packages" "${HOST}:${REMOTE}/"
 # --delete so removed asset hashes don't accumulate. Safe because this directory holds nothing
 # but build output, and the previous contents are in ${BACKUP}. A visitor still on the old
 # version is served from their service worker's precache, not from here.

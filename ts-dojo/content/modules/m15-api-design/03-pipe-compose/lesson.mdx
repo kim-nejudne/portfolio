@@ -1,0 +1,358 @@
+---
+id: m15-api-design/03-pipe-compose
+title: pipe, compose and inference-driven signatures
+minutes: 30
+objectives:
+  - Type pipe and compose with one overload per length, so that adjacent functions share a type parameter
+  - Explain why pipe gives every inline callback a parameter type and compose does not, from the order in which the compiler infers
+  - Write data-last steps that take their types from the pipe they are passed to, with NoInfer and const where they help
+  - Check a pipeline of any length with a variadic signature, and tell what it costs inline callbacks
+  - Predict when a generic function passed as an argument stays generic, and when its type parameters become unknown
+prerequisites:
+  - m08-functions-classes/01-overloads
+  - m12-template-tuples/02-variadic-tuples
+  - m14-type-system-edges/02-const-type-params-noinfer
+  - m11-conditional-types/02-infer
+  - m12-template-tuples/04-recursion-limits
+  - m02-functions/02-function-types-and-callbacks
+tags:
+  - pipe
+  - compose
+  - flow
+  - function composition
+  - point-free
+  - data-last
+  - contextual typing
+  - inference order
+  - higher-order function type inference
+  - NoInfer
+  - const type parameters
+  - API design
+---
+
+## Concept
+
+`pipe(value, f, g, h)` passes a value through functions from left to right, `h(g(f(value)))`, and `compose(h, g, f)` builds the same function the other way round, without the value. In JavaScript both are a `reduce`. The types are the work: each function's parameter must take the previous function's result, and the caller should write no annotations at all.
+
+One way to type it is one overload per length (<Lesson id="m08-functions-classes/01-overloads" />). Each overload gives every link of the chain its own type parameter, and two adjacent functions share one: `B` is what `ab` returns and what `bc` takes, so a function that doesn't take the previous result has nowhere to fit.
+
+```ts twoslash
+function pipe<A>(value: A): A;
+function pipe<A, B>(value: A, ab: (a: A) => B): B;
+function pipe<A, B, C>(value: A, ab: (a: A) => B, bc: (b: B) => C): C;
+function pipe<A, B, C, D>(
+  value: A,
+  ab: (a: A) => B,
+  bc: (b: B) => C,
+  cd: (c: C) => D,
+): D;
+function pipe(
+  value: unknown,
+  ...fns: Array<(arg: unknown) => unknown>
+): unknown {
+  return fns.reduce((acc, fn) => fn(acc), value);
+}
+
+const initials = pipe(
+  '  Ada Lovelace ',
+  (text) => text.trim().split(' '),
+  (words) => words.map((word) => word[0]),
+  //^?
+  (letters) => letters.join(''),
+);
+console.log(initials);
+//          ^?
+```
+
+No callback has an annotation, and each still knows its parameter's type. Callers never see the implementation's header, so it can take `unknown`. The overloads stop somewhere, here at three functions, and a fourth is `Expected 1-4 arguments, but got 5.`
+
+## Examples
+
+**Left to right.** At the call, `A` is inferred from the value. The first callback needs a type for `text`, so the compiler fixes `A` there, at `string`, and types the arrow with it. The arrow's return type is the candidate for `B`, which the next callback needs, and so on down the chain: each callback is typed by the results before it. A named function fits into the chain just as well, and checks its link the same way:
+
+```ts run
+function pipe<A, B, C, D>(
+  value: A,
+  ab: (a: A) => B,
+  bc: (b: B) => C,
+  cd: (c: C) => D,
+): D;
+function pipe(
+  value: unknown,
+  ...fns: Array<(arg: unknown) => unknown>
+): unknown {
+  return fns.reduce((acc, fn) => fn(acc), value);
+}
+
+const withTax = (cents: number) => Math.round(cents * 1.2);
+
+const label = pipe(
+  1950,
+  withTax,
+  (cents) => (cents / 100).toFixed(2),
+  (amount) => `${amount} EUR`,
+);
+console.log(label);
+```
+
+**compose runs against that order.** The same chain written right to left makes the callbacks wait for each other in the wrong direction:
+
+```ts twoslash
+// @errors: 18046
+declare function compose<A, B, C, D>(
+  cd: (c: C) => D,
+  bc: (b: B) => C,
+  ab: (a: A) => B,
+): (a: A) => D;
+
+const shout = compose(
+  (text) => text.toUpperCase(),
+  (n) => n.toFixed(2),
+  (n: number) => n * 2,
+);
+```
+
+The compiler infers from the arguments in two rounds. The first takes the arguments that need no context, such as a function whose parameters are all annotated: `(n: number) => n * 2` gives `A` and `B`. The second types the callbacks that do need one, one at a time, in the order they are written. The first of those, `(text) => …`, needs `C`, and only the callback after it could give one. No candidate exists yet, so `C` is fixed as `unknown`. In `pipe` the order the compiler works in is the order the data flows, and the value at the front gives the first type parameter; `compose` has no value, so the function that runs first must be annotated whatever the order. `flow`, compose's arguments in pipe's order, needs the same one annotation on the first function and infers every callback after it.
+
+**Steps that take their types from the pipe.** A data-last step is a function that returns the function the pipe calls: `map(fn)` returns `(items) => items.map(fn)`. Written as an argument, a generic call is inferred from its own arguments and also from the type its result must have. `pluck`'s result must be a `(a: User[]) => B`, so its `T` is `User`. `map`'s must take the `string[]` that `pluck` returns, so its `T` is `string` before `name` needs a type:
+
+```ts twoslash
+// @errors: 18046
+declare function pipe<A, B>(value: A, ab: (a: A) => B): B;
+declare function pipe<A, B, C>(value: A, ab: (a: A) => B, bc: (b: B) => C): C;
+
+declare function map<T, U>(fn: (item: T) => U): (items: readonly T[]) => U[];
+declare function pluck<T, K extends keyof T>(
+  key: K,
+): (items: readonly T[]) => T[K][];
+
+interface User {
+  name: string;
+  age: number;
+}
+declare const users: User[];
+
+const lengths = pipe(
+  //    ^?
+  users,
+  pluck('name'),
+  map((name) => name.length),
+);
+
+const alone = map((name) => name.length);
+```
+
+`pluck('name')` is checked against `keyof User`, so `pluck('nmae')` is an error at the key. Outside a pipe the same step has no context: `alone` reports `'name' is of type 'unknown'.`
+
+**NoInfer and const, where they help.** A step can have an argument that should not decide its type parameter. `defaultTo(fallback)` replaces `undefined`, and its fallback must fit the pipe's value, not define it (<Lesson id="m14-type-system-edges/02-const-type-params-noinfer" />):
+
+```ts twoslash
+// @errors: 2345
+declare function pipe<A, B>(value: A, ab: (a: A) => B): B;
+
+declare function defaultTo<T>(fallback: T): (value: T | undefined) => T;
+declare function defaultToCtx<T>(
+  fallback: NoInfer<T>,
+): (value: T | undefined) => T;
+
+type Theme = 'light' | 'dark';
+declare const saved: Theme | undefined;
+
+const before = pipe(saved, defaultTo('light'));
+const theme = pipe(saved, defaultToCtx('light'));
+//    ^?
+const wrong = pipe(saved, defaultToCtx('blue'));
+```
+
+Without `NoInfer`, `T` is the literal `'light'`, and the pipe rejects its own value. With it, `T` comes only from where the step goes, `Theme`, and a bad fallback is reported on the fallback.
+
+The value at the front of a pipe is widened when its type parameter is fixed, so `pipe('admin', (role) => …)` gives `role` the type `string`. A `const` type parameter keeps the literal, which a lookup needs:
+
+```ts twoslash
+// @errors: 7053
+declare function pipe<A, B>(value: A, ab: (a: A) => B): B;
+declare function pipeConst<const A, B>(value: A, ab: (a: A) => B): B;
+
+const grants = { admin: ['read', 'write'], guest: ['read'] };
+
+const loose = pipe('admin', (role) => grants[role]);
+const exact = pipeConst('admin', (role) => grants[role]);
+//    ^?
+```
+
+It changes every pipe, though: `pipeConst([3, 1, 2], (xs) => xs.sort())` is `Property 'sort' does not exist on type 'readonly [3, 1, 2]'.` Keep `const` for signatures whose values are meant to be literals.
+
+**Any number of functions.** Overloads end somewhere. A variadic signature (<Lesson id="m12-template-tuples/02-variadic-tuples" />) infers the whole list of functions as one tuple, `Fns`, and a recursive type with `infer` (<Lesson id="m11-conditional-types/02-infer" />) builds the tuple the list should be: each function retyped to take the previous result. The rest parameter's type is both, so the arguments must also match the check:
+
+```ts twoslash
+// @errors: 2345
+type Unary = (arg: never) => unknown;
+
+type Lined<In, Fns extends Unary[]> = Fns extends [
+  infer F extends Unary,
+  ...infer Rest extends Unary[],
+]
+  ? [(arg: In) => ReturnType<F>, ...Lined<ReturnType<F>, Rest>]
+  : [];
+
+type Last<Fns extends Unary[], Else> = Fns extends [
+  ...Unary[],
+  infer L extends Unary,
+]
+  ? ReturnType<L>
+  : Else;
+
+declare function pipeAll<In, Fns extends Unary[]>(
+  value: In,
+  ...fns: Fns & Lined<In, Fns>
+): Last<Fns, In>;
+
+const double = (n: number) => n * 2;
+const fixed = (n: number) => n.toFixed(2);
+const length = (text: string) => text.length;
+
+const total = pipeAll(4, double, double, fixed, length);
+//    ^?
+const broken = pipeAll(4, double, length);
+```
+
+`(arg: never) => unknown` is the type every one-parameter function is assignable to. The error names the position that doesn't line up: `Type at position 1 in source is not compatible with type at position 1 in target.` `Lined` is not tail recursive, one level per function, which keeps any real pipeline far inside the limits of <Lesson id="m12-template-tuples/04-recursion-limits" />. The price is in the pitfalls: `Fns` is inferred from the arguments as they are, so an inline callback gets no parameter type.
+
+**Generic functions as arguments.** Pass a generic function where a function type is expected, and its type parameters are usually instantiated from the context: in `pipe(3, list)`, `list`'s `T` is `number`. With no value to instantiate from, TypeScript 3.4 added _higher order function type inference_: when the called function returns a function, the type parameters of the arguments can move to the result. It works under conditions, and the order of the arguments is one of them:
+
+```ts twoslash
+// @errors: 2345
+declare function flow<A extends unknown[], B, C>(
+  ab: (...args: A) => B,
+  bc: (b: B) => C,
+): (...args: A) => C;
+declare function compose<A, B, C>(
+  bc: (b: B) => C,
+  ab: (a: A) => B,
+): (a: A) => C;
+declare function both<A, B, C>(
+  ab: (a: A) => B,
+  bc: (b: B) => C,
+): { run: (a: A) => C };
+
+const list = <T>(item: T): T[] => [item];
+const box = <T>(value: T) => ({ value });
+
+const boxedList = flow(list, box);
+//    ^?
+const listedBox = compose(box, list);
+const pair = both(list, box);
+//    ^?
+```
+
+`flow` returns a function, and `list`'s `T` becomes a type parameter of the result. `compose(box, list)` is the same composition and an error. The arguments are processed left to right, and a generic argument keeps its type parameters only if the type parameters it would infer have no candidates yet. `box` comes first and gives `B` one. `list`, passed as an `(a: A) => B`, would give `B` another, so it isn't kept generic: it is instantiated from that context instead. In `flow(list, box)` the same happens to `box`, and it fits, because its context gives `T` a type. Here the context is `(a: A) => B`, nothing has given `A` a candidate, so `list`'s `T` is `unknown`, and the error says so: `parameter of type '(a: unknown) => T'`. `both` returns an object, not a function, so nothing can move: every `T` becomes `unknown`, with no error. The variadic `pipeAll` keeps nothing either, even with a value to start from: `pipeAll(3, list, box)` is `{ value: unknown }`.
+
+## Pitfalls
+
+**A link that points back.** Overloads are typed out by hand, and a parameter that names the wrong type parameter still compiles. `bc: (b: A) => C` here gives the third function the pipe's value instead of the second function's result, and the error shows up in a caller's callback:
+
+```ts run errors
+function pipe<A, B, C>(value: A, ab: (a: A) => B, bc: (b: A) => C): C;
+function pipe(
+  value: unknown,
+  ...fns: Array<(arg: unknown) => unknown>
+): unknown {
+  return fns.reduce((acc, fn) => fn(acc), value);
+}
+
+const words = pipe(
+  'a b c',
+  (text) => text.split(' '),
+  (parts) => parts.join('-'),
+);
+console.log(words);
+```
+
+`Property 'join' does not exist on type 'string'.` Read every overload as a chain: each parameter takes the type parameter that the one before it returns.
+
+**Passing an overloaded function.** An overloaded function written as a pipe step is inferred from its last signature, as with `infer` in <Lesson id="m11-conditional-types/02-infer" />. The error then lands on the value:
+
+```ts run errors
+function pipe<A, B>(value: A, ab: (a: A) => B): B;
+function pipe(
+  value: unknown,
+  ...fns: Array<(arg: unknown) => unknown>
+): unknown {
+  return fns.reduce((acc, fn) => fn(acc), value);
+}
+
+function toText(n: number): string;
+function toText(n: bigint): string;
+function toText(n: number | bigint): string {
+  return `#${n}`;
+}
+
+console.log(pipe(5, toText));
+```
+
+`Argument of type 'number' is not assignable to parameter of type 'bigint'.` Wrap it, `pipe(5, (n) => toText(n))`: the call inside the arrow chooses its overload as any call does.
+
+**An inline callback in a variadic pipe.** The variadic signature takes the functions as they are, so a callback has no context for its parameter:
+
+```ts run errors
+type Unary = (arg: never) => unknown;
+
+type Lined<In, Fns extends Unary[]> = Fns extends [
+  infer F extends Unary,
+  ...infer Rest extends Unary[],
+]
+  ? [(arg: In) => ReturnType<F>, ...Lined<ReturnType<F>, Rest>]
+  : [];
+
+function pipeAll<In, Fns extends Unary[]>(
+  value: In,
+  ...fns: Fns & Lined<In, Fns>
+): unknown {
+  return fns.length;
+}
+
+const double = (n: number) => n * 2;
+console.log(pipeAll(4, double, (n) => n + 1));
+```
+
+`Parameter 'n' implicitly has an 'any' type.` With an `any` parameter the tuple check collapses as well, and the call also reports `Argument of type '[(n: number) => number, (n: any) => any]' is not assignable to parameter of type 'Unary[] & []'.` Annotate the parameter, `(n: number) => n + 1`, or give `pipeAll` overloads for the short pipelines and keep the variadic signature as the last one.
+
+## Check yourself
+
+<Predict
+  id="annotated-goes-first"
+  code={
+    'const size = compose(\n  (text) => text.length,\n  (n: number) => n.toFixed(1),\n);'
+  }
+  question="`compose` has the overload `<A, B, C>(bc: (b: B) => C, ab: (a: A) => B): (a: A) => C`. What happens?"
+  options={[
+    '`size` is `(a: number) => number`',
+    "An error: `'text' is of type 'unknown'.`",
+    '`size` is `(a: unknown) => number`',
+  ]}
+  answer={0}
+  explanation="Arguments that need no context are inferred from first. `(n: number) => n.toFixed(1)` has its parameter annotated, so it gives `A` as `number` and `B` as `string` before `(text) => …` is typed, and `text` gets `string`. The problem in the examples needed a callback whose context only a later callback could give."
+/>
+
+<Predict
+  id="step-without-a-pipe"
+  code={
+    'declare function map<T, U>(fn: (item: T) => U): (items: readonly T[]) => U[];\n\nconst lengths = map((word) => word.length);'
+  }
+  question="What does the compiler report?"
+  options={[
+    'Nothing: `lengths` is `(items: readonly string[]) => number[]`',
+    "An error: `'word' is of type 'unknown'.`",
+    'Nothing: `lengths` is `(items: readonly any[]) => any[]`',
+  ]}
+  answer={1}
+  explanation="Inside a pipe, `T` is inferred from the type the step's result must have. Here the result goes into a variable with no annotation, so nothing gives `T` a candidate, it is fixed as `unknown`, and `word.length` is an error."
+/>
+
+## Further reading
+
+- [More on Functions: function overloads](https://www.typescriptlang.org/docs/handbook/2/functions.html#function-overloads) and [generic functions](https://www.typescriptlang.org/docs/handbook/2/functions.html#generic-functions)
+- [Type Inference: contextual typing](https://www.typescriptlang.org/docs/handbook/type-inference.html#contextual-typing)
+- [TypeScript 3.4 release notes: higher order type inference from generic functions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#higher-order-type-inference-from-generic-functions)
+- [TypeScript 4.0 release notes: variadic tuple types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#variadic-tuple-types)
+- [TypeScript 5.4 release notes: the NoInfer utility type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-4.html#the-noinfer-utility-type)

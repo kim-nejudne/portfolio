@@ -15,6 +15,7 @@ import {
   type GroupName,
 } from '@/verify/exercise';
 import { createNodeSandboxRunner } from '@/workers/sandbox/node/spawn';
+import { nodeLoadPackageTypes } from '@/workers/ts-ls/node/package-types';
 import { createTsLsCore } from '@/workers/ts-ls/core';
 import { nodeFetchLib } from '@/workers/ts-ls/node/fetch-lib';
 import {
@@ -190,7 +191,10 @@ export async function lintContent(
     renderer ??= createRenderer();
     return renderer;
   };
-  const core = createTsLsCore({ fetchLib: nodeFetchLib });
+  const core = createTsLsCore({
+    fetchLib: nodeFetchLib,
+    loadPackageTypes: nodeLoadPackageTypes,
+  });
   const runner = createNodeSandboxRunner((paths) =>
     Promise.resolve(core.emit(paths, 'commonjs').files),
   );

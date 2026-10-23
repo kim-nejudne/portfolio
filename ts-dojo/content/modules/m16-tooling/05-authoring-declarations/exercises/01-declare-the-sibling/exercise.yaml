@@ -1,0 +1,47 @@
+id: m16-tooling/05-authoring-declarations/01-declare-the-sibling
+kind: type-challenge
+title: Declare the sibling
+minutes: 4
+challenge: false
+prompt: |
+  A teammate wrote `units.js` in plain JavaScript, and the TypeScript code of the app imports it
+  as `./units`. Write `units.d.ts`, the file beside it, so that those imports are typed:
+
+  ```js
+  // units.js
+  export const UNITS = ['B', 'kB', 'MB', 'GB'];
+
+  export function formatBytes(bytes, options = {}) {
+    const { digits = 1, unit } = options;
+    let index = unit === undefined ? 0 : UNITS.indexOf(unit);
+    if (unit === undefined) {
+      while (index < UNITS.length - 1 && bytes >= 1000 ** (index + 1)) index++;
+    }
+    return `${(bytes / 1000 ** index).toFixed(digits)} ${UNITS[index]}`;
+  }
+
+  export function parseBytes(text) {
+    const match = /^([\d.]+)\s*(B|kB|MB|GB)$/.exec(text.trim());
+    return match === null ? null : Number(match[1]) * 1000 ** UNITS.indexOf(match[2]);
+  }
+  ```
+
+  - `Unit` is a type the JavaScript doesn't have: the four unit names, `'B' | 'kB' | 'MB' | 'GB'`.
+  - `UNITS` is a read-only list of `Unit`s: callers must not change it.
+  - `FormatOptions` is the options object, with an optional `digits` (a number) and an optional
+    `unit` (a `Unit`).
+  - `formatBytes` and `parseBytes` take and return what the code above does.
+
+  The dojo runs only TypeScript, so `units.js` isn't in this project. This exercise sets
+  `skipLibCheck: false`, so the compiler checks `units.d.ts` itself. The tests import the five
+  names with `import type` and check their types, and their `@ts-expect-error` lines check
+  that wrong calls are refused.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  skipLibCheck: false
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - In a `.d.ts` file nothing has a value. A function is a signature without a body, and a constant has a type and no initializer.
+  - Read `units.js` for what each parameter must be and for everything each function can return.

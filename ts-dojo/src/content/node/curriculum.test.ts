@@ -2,7 +2,9 @@
 // structure, at least two exercises (one in M00), at least one `predict`, hints on every editor
 // exercise, and at least one `ts twoslash` block." §12 F12: "M05 to M09, 19 core lessons and the
 // two optional ones, to the same rules as F11". §12 F13: "M10 to M14, 18 core lessons and three
-// optional, with the type-challenges sets crediting their source", so 62 lessons in all. Read from the course in content/ with the
+// optional, with the type-challenges sets crediting their source". §12 F14: "M15 to M18, 17
+// core lessons and one optional; Zod and React's types pre-bundled for 17.2 and 17.4", so 80
+// lessons in all. Read from the course in content/ with the
 // loader the content lint and the build use. The §8 rows below are copied from docs/spec.md
 // (titles with their code backticks dropped; minutes as §8 gives them). What no test can judge
 // (accuracy, progression, hints that nudge) is the content-reviewer agent's.
@@ -15,6 +17,7 @@ import {
   type Lesson,
   type Registry,
 } from '../build-registry';
+import { hasRuntimeTests } from '@/verify/exercise';
 import { shownText } from '../inline-code';
 import type { LessonAnalysis } from './analyze';
 import { loadContent, type LoadedContent } from './load';
@@ -403,6 +406,99 @@ const TIERS: { id: string; title: string; modules: ModuleRow[] }[] = [
       },
     ],
   },
+  {
+    id: 't4',
+    title: 'Expert',
+    modules: [
+      {
+        id: 'm15-api-design',
+        title: 'Type-safe API design',
+        prerequisites: ['m13-type-challenges', 'm14-type-system-edges'],
+        lessons: [
+          ['01-builders', 'Builders and fluent chains', 25],
+          ['02-typed-events', 'Typed event emitters and pub/sub', 25],
+          [
+            '03-pipe-compose',
+            'pipe, compose and inference-driven signatures',
+            30,
+          ],
+          ['04-typed-routes', 'Typed routes and path parameters', 25],
+        ],
+      },
+      {
+        id: 'm16-tooling',
+        title: 'Tooling and configuration',
+        prerequisites: ['m09-modules-async'],
+        lessons: [
+          [
+            '01-strict-flags',
+            'tsconfig: the strict family, noUncheckedIndexedAccess, exactOptionalPropertyTypes, noPropertyAccessFromIndexSignature, and what each catches',
+            25,
+          ],
+          [
+            '02-module-resolution',
+            'Module resolution: bundler, node16/nodenext, paths, .js extensions in imports',
+            20,
+          ],
+          [
+            '03-project-references',
+            "Project references, isolatedDeclarations, erasableSyntaxOnly and Node's type stripping",
+            20,
+          ],
+          [
+            '04-typescript-6-and-7',
+            'TypeScript 6 and 7: the new defaults, the deprecations, the native compiler',
+            15,
+          ],
+          [
+            '05-authoring-declarations',
+            'Authoring .d.ts for a JavaScript library',
+            25,
+          ],
+        ],
+      },
+      {
+        id: 'm17-boundaries',
+        title: 'Types at the boundary',
+        prerequisites: ['m09-modules-async', 'm11-conditional-types'],
+        lessons: [
+          ['01-parse-dont-validate', "Parse, don't validate", 20],
+          [
+            '02-zod-and-valibot',
+            'Zod and Valibot: schema inference, transforms, branded output',
+            25,
+          ],
+          [
+            '03-fetch-json-env',
+            'Typing fetch, JSON and environment variables',
+            20,
+          ],
+          [
+            '04-react',
+            'TypeScript with React: props, generic components, discriminated props, hooks',
+            30,
+          ],
+        ],
+      },
+      {
+        id: 'm18-capstones',
+        title: 'Capstones',
+        prerequisites: ['m15-api-design', 'm16-tooling', 'm17-boundaries'],
+        lessons: [
+          ['01-type-safe-router', 'A type-safe router', 45],
+          ['02-query-builder', 'A query builder', 45],
+          ['03-typed-store', 'A typed state store with typed actions', 45],
+          // (opt) in §8: `optional: true`.
+          ['04-json-parser', 'A type-level JSON parser', 60],
+          [
+            '05-type-performance',
+            'Type performance clinic: deep instantiation, --generateTrace, measuring',
+            30,
+          ],
+        ],
+      },
+    ],
+  },
 ];
 
 /** The type-challenges track (§8 M13): one exercise per challenge (Deviations, F13). */
@@ -577,12 +673,12 @@ function inSection<T extends { line: number }>(
   return items.filter((item) => sectionAt(analysis, item.line) === section);
 }
 
-describe('§12 F11, F12 and F13: the course in content/ is Tiers 0 to 3 as §8 lists them', () => {
+describe('§12 F11 to F14: the course in content/ is Tiers 0 to 4 as §8 lists them', () => {
   it('loads with no structural problem', () => {
     expect(content.problems).toEqual([]);
   });
 
-  it("the roadmap has §8's tiers t0 to t3, in order", () => {
+  it("the roadmap has §8's tiers t0 to t4, in order", () => {
     expect(registry.tiers).toEqual(
       TIERS.map((tier) => ({
         id: tier.id,
@@ -592,8 +688,8 @@ describe('§12 F11, F12 and F13: the course in content/ is Tiers 0 to 3 as §8 l
     );
   });
 
-  it("62 lessons in all: F11's 20, F12's 19 core and two optional, F13's 18 core and three optional", () => {
-    expect(LESSONS).toHaveLength(62);
+  it("80 lessons in all: F11's 20, F12's 19 core and two optional, F13's 18 core and three optional, F14's 17 core and one optional", () => {
+    expect(LESSONS).toHaveLength(80);
     expect(registry.lessons.map((l) => l.id)).toEqual(LESSONS.map((l) => l.id));
   });
 
@@ -609,7 +705,7 @@ describe('§12 F11, F12 and F13: the course in content/ is Tiers 0 to 3 as §8 l
     },
   );
 
-  it('the lessons §8 marks (opt), 5.5, 8.4, 13.4, 13.5 and 14.5, are exactly the optional ones', () => {
+  it('the lessons §8 marks (opt), 5.5, 8.4, 13.4, 13.5, 14.5 and 18.4, are exactly the optional ones', () => {
     expect(registry.lessons.filter((l) => l.optional).map((l) => l.id)).toEqual(
       [
         'm05-generics/05-when-generics-hurt',
@@ -617,6 +713,7 @@ describe('§12 F11, F12 and F13: the course in content/ is Tiers 0 to 3 as §8 l
         'm13-type-challenges/04-hard-set',
         'm13-type-challenges/05-extreme-set',
         'm14-type-system-edges/05-decorators',
+        'm18-capstones/04-json-parser',
       ],
     );
   });
@@ -629,7 +726,7 @@ describe('§12 F11, F12 and F13: the course in content/ is Tiers 0 to 3 as §8 l
   });
 });
 
-describe.each(LESSONS)('§12 F11, F12 and F13: $id', (row) => {
+describe.each(LESSONS)('§12 F11 to F14: $id', (row) => {
   it('has the §1 structure: the five theory sections in order, 2–5 objectives, runnable examples, two or three pitfalls each with a snippet, 1–3 questions, further reading', () => {
     const lesson = lessonOf(row.id);
     const analysis = analysisOf(lesson);
@@ -814,4 +911,65 @@ describe('§12 F13: the type-challenges sets credit their source', () => {
       );
     },
   );
+});
+
+describe("§12 F14: Zod and React's types pre-bundled for 17.2 and 17.4", () => {
+  const ZOD_LESSON = 'm17-boundaries/02-zod-and-valibot';
+  const REACT_LESSON = 'm17-boundaries/04-react';
+  const imports = (text: string, specifier: string): boolean =>
+    new RegExp(`from\\s+['"]${specifier}['"]`).test(text);
+
+  it('17.2 runs Zod: a ts run example imports zod, and an exercise with runtime tests parses with it', () => {
+    const lesson = lessonOf(ZOD_LESSON);
+    const fences = analysisOf(lesson).fences;
+    expect(fences.some((f) => f.kind === 'run' && imports(f.code, 'zod'))).toBe(
+      true,
+    );
+    const zodExercises = exercisesOf(lesson)
+      .filter(isEditorExercise)
+      .filter((e) => e.solution.some((f) => imports(f.text, 'zod')));
+    expect(
+      zodExercises.some((e) => hasRuntimeTests(e)),
+      'an exercise whose solution imports zod has runtime tests',
+    ).toBe(true);
+  });
+
+  it('17.2 compares Valibot in a twoslash block only (build time; Zod is the one pre-bundled)', () => {
+    const lesson = lessonOf(ZOD_LESSON);
+    const fences = analysisOf(lesson).fences;
+    expect(
+      fences.some((f) => f.kind === 'twoslash' && imports(f.code, 'valibot')),
+    ).toBe(true);
+    expect(
+      fences.some((f) => f.kind !== 'twoslash' && imports(f.code, 'valibot')),
+    ).toBe(false);
+    for (const exercise of exercisesOf(lesson).filter(isEditorExercise)) {
+      expect(
+        [...exercise.starter, ...exercise.solution].some((f) =>
+          imports(f.text, 'valibot'),
+        ),
+        exercise.id,
+      ).toBe(false);
+    }
+  });
+
+  it("17.4 checks React's types: .tsx exercises under jsx: react-jsx that import react, verified by types alone", () => {
+    const lesson = lessonOf(REACT_LESSON);
+    const editor = exercisesOf(lesson).filter(isEditorExercise);
+    expect(editor.length).toBeGreaterThan(0);
+    for (const exercise of editor) {
+      expect(exercise.entry, exercise.id).toMatch(/\.tsx$/);
+      expect(exercise.compilerOptions['jsx'], exercise.id).toBe('react-jsx');
+      // React has types only in the dojo: no exercise needs a run (Deviations, F14).
+      expect(hasRuntimeTests(exercise), exercise.id).toBe(false);
+    }
+    expect(
+      editor.some((e) => e.solution.some((f) => imports(f.text, 'react'))),
+    ).toBe(true);
+    expect(
+      analysisOf(lesson).fences.some(
+        (f) => f.kind === 'twoslash' && f.code.includes('@jsx: react-jsx'),
+      ),
+    ).toBe(true);
+  });
 });

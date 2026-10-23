@@ -1,0 +1,35 @@
+id: m18-capstones/02-query-builder/03-rename-with-as
+kind: implement
+title: Rename with as
+minutes: 10
+challenge: false
+prompt: |
+  Teach `select` the SQL alias. A spec is a column, or a column followed by ` as ` and a new
+  name, and the output row uses the new name:
+
+  ```ts
+  const listed = shop.from('products').select('sku', 'name as title').run();
+  // { sku: string; title: string }[]
+  ```
+
+  - `select` accepts only specs whose column is in the row: `'nmae as title'` and `'title'` are
+    errors.
+  - Each output key is the spec's alias, or the column's own name, and its type is the column's
+    type. An alias may come from a pattern: with `n: number`, ``select(`price as price_${n}`)``
+    gives the key `` `price_${number}` ``.
+  - At run time, `select` splits each spec at its first ` as ` and passes the pairs to the
+    starter's `project`. `project` returns a `Record<string, unknown>`, so the projection takes
+    one assertion to your output type, or an overload over a looser implementation signature as
+    in 15.1.
+
+  This builds on the lesson's `Spec` and `AliasOf`, with an `as` clause from 10.2 and `infer`
+  from 11.2.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, any-expression]
+hints:
+  - Give `select` a type parameter constrained by the lesson's `Spec<Row>`, so that the compiler infers each spec as a literal.
+  - The output is a mapped type over the specs themselves, with an `as` clause that turns each spec into its key.
+  - For the value type, `infer` can carry its own constraint, so the column it takes out of the spec can index `Row` directly.

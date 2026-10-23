@@ -1,0 +1,48 @@
+id: m15-api-design/02-typed-events/03-tuples-once-and-removal
+kind: implement
+title: Tuples, once and removal
+minutes: 6
+challenge: false
+prompt: |
+  Write `Emitter<E>` for an event map whose values are argument tuples:
+
+  ```ts
+  interface PlayerEvents {
+    play: [track: string, at: number];
+    pause: [at: number];
+    stop: [];
+  }
+
+  const player = new Emitter<PlayerEvents>();
+  const off = player.on('play', (track, at) => console.log(track, at));
+  player.emit('play', 'Intro', 0); // 1
+  off();
+  ```
+
+  - `on(type, listener)` adds a listener and returns a function that removes it. Calling that
+    function again does nothing.
+  - `once(type, listener)` adds a listener that runs on the next `emit` of its event only, and
+    returns a function that removes it before then.
+  - `emit(type, ...args)` calls the event's listeners in the order they were added and returns
+    how many it called.
+  - The map may be an interface. A map with a value that isn't a tuple, `{ play: string }`, is
+    an error.
+
+  Each method takes the event name as its one type parameter, `K`. Write the storage so that no
+  cast is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - "`...args: E[K]` needs every value of `E` to be an array type. The lesson's last pitfall shows a constraint that an interface satisfies."
+  - Keep the listeners in an object whose type maps each key of `E` to a set of listeners for that event. Indexed with `K`, it needs no cast.
+  - '`once` can add a wrapper with `on` and keep the function `on` returns. The wrapper calls it before the listener.'

@@ -3,7 +3,7 @@
 // meta-string parser, the props a rendered `<CodeBlock>` receives and the virtual path a theory
 // snippet is checked and emitted under. No Node imports here; src/content/node/mdx.ts renders,
 // src/content/components/code-block.tsx displays.
-import type { Diag } from '@/protocol/ts-ls';
+import type { Diag, EmittedImport } from '@/protocol/ts-ls';
 
 export type FenceKind =
   'static' | 'run' | 'run-errors' | 'twoslash' | 'plain' | 'other';
@@ -18,13 +18,18 @@ export const CODE_STYLES_COMPONENT = 'CodeStyles';
 /** The virtual path a theory snippet is checked and emitted under. */
 export const SNIPPET_PATH = '/snippet.ts';
 
-/** The props `<CodeBlock>` receives; `js` and `diagnostics` travel as JSON strings in the MDX. */
+/**
+ * The props `<CodeBlock>` receives; `diagnostics` and `imports` travel as JSON strings in the
+ * MDX. `imports` are the spans of the emitted JavaScript's import specifiers (F14: a `zod`
+ * import must reach the sandbox's resolver), present only when the snippet imports something.
+ */
 export interface CodeBlockProps {
   kind: Exclude<FenceKind, 'other'>;
   code: string;
   html: string;
   js?: string;
   diagnostics?: Diag[];
+  imports?: EmittedImport[];
 }
 
 /**

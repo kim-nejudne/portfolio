@@ -1,0 +1,40 @@
+id: m17-boundaries/04-react/03-which-dispatch-fails
+kind: predict
+title: Which dispatch fails?
+minutes: 2
+challenge: false
+code: |
+  import { useReducer } from 'react';
+
+  type Action = { type: 'add'; by: number } | { type: 'reset' };
+
+  function reducer(count: number, action: Action): number {
+    switch (action.type) {
+      case 'add':
+        return count + action.by;
+      case 'reset':
+        return 0;
+    }
+  }
+
+  function useCounter() {
+    const [count, dispatch] = useReducer(reducer, 0);
+    dispatch({ type: 'add' }); // 1
+    dispatch({ type: 'add', by: 2 }); // 2
+    dispatch({ type: 'reset', by: 1 }); // 3
+    dispatch({ type: 'reset' }); // 4
+    return count;
+  }
+question: Which of the four `dispatch` calls report an error?
+options:
+  - 'Only `// 1`'
+  - '`// 1` and `// 3`'
+  - '`// 1`, `// 3` and `// 4`'
+  - 'None: `dispatch` accepts any object with a `type`'
+answer: 1
+explanation: |
+  `useReducer` infers the action type from the reducer's second parameter, so `dispatch` takes
+  exactly an `Action`. Call `// 1` is an `add` without its `by`: `Property 'by' is missing`.
+  Call `// 3` is a `reset` with a `by` it doesn't have. The object literal names its `type`, so
+  the compiler checks it against that member alone and reports the extra property. Calls `// 2`
+  and `// 4` match a member exactly.

@@ -1,0 +1,309 @@
+---
+id: m18-capstones/05-type-performance
+title: 'Type performance clinic: deep instantiation, --generateTrace, measuring'
+minutes: 30
+objectives:
+  - Tell which of the compiler's budgets a TS2589 or TS2590 ran out of, from the code and from the numbers
+  - Measure a slow type with tsc --extendedDiagnostics, and compare Types, Instantiations and Check time before and after a change
+  - Record a trace with --generateTrace and find the declaration that takes the time
+  - Fix a heavy type by checking one value instead of listing every value, by keeping big unions out of recursion and out of object types, and by capping recursion into a type that refers to itself
+  - Prefer interfaces to intersections for object types that extend others, and know where named types and explicit type arguments save the checker work
+prerequisites:
+  - m11-conditional-types/03-distributive-conditionals
+  - m11-conditional-types/04-recursive-conditionals
+  - m12-template-tuples/01-template-literal-types
+  - m12-template-tuples/04-recursion-limits
+tags:
+  - performance
+  - type performance
+  - TS2589
+  - TS2590
+  - excessively deep
+  - too complex to represent
+  - instantiations
+  - extendedDiagnostics
+  - generateTrace
+  - analyze-trace
+  - trace
+  - cross product
+  - interfaces vs intersections
+---
+
+## Concept
+
+Types are programs that the compiler runs. Every alias it instantiates, every union it builds and every assignment it checks is work, and an editor repeats much of it as you type. Most of it costs nothing you could measure. A type that recurses, crosses unions or carries a big union through a recursion can cost seconds, so the compiler has budgets: it stops with an error rather than hang. <Lesson id="m12-template-tuples/04-recursion-limits" /> ran into one of them. Here is a second, and the smallest way to meet it:
+
+```ts run errors
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type Year = `${Digit}${Digit}${Digit}${Digit}`;
+type Month = `0${Exclude<Digit, '0'>}` | '10' | '11' | '12';
+type Day = `0${Exclude<Digit, '0'>}` | `${'1' | '2'}${Digit}` | '30' | '31';
+
+type IsoDate = `${Year}-${Month}-${Day}`;
+```
+
+_Expression produces a union type that is too complex to represent._ is TS2590. Each part is fine on its own: `Year` is 10,000 strings, and `Month` and `Day` are 12 and 31. Crossed in one template literal type they would be 3,720,000 strings, and the compiler refuses before it builds them. These are the budgets in TypeScript 6.0.3:
+
+| Error  | Budget                                                              | What usually runs out                                                                                                                              |
+| ------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TS2589 | 100 instantiations nested inside each other                         | a recursion that wraps its own call, about fifty levels (<Lesson id="m12-template-tuples/04-recursion-limits" />); a recursion with no end         |
+| TS2589 | 1,000 steps of one tail-recursive conditional type                  | a tail recursion over a long input (<Lesson id="m12-template-tuples/04-recursion-limits" />)                                                       |
+| TS2589 | 5,000,000 instantiations while checking one statement or expression | a recursion that runs once for every member of a big union                                                                                         |
+| TS2590 | 100,000 combinations in a cross product                             | a template literal type with unions in its placeholders (<Lesson id="m12-template-tuples/01-template-literal-types" />); an intersection of unions |
+| TS2590 | about a million comparisons while reducing a union of object types  | an array literal or a `? :` over a union of thousands of object types                                                                              |
+
+Both errors are reported where the compiler was working when it gave up, which is usually where the type is used, and both leave a type behind that can't be trusted. So the clinic has two steps, as a real one does: measure, to find out which type costs what, and then change the type so it does less work for the same answer.
+
+## Examples
+
+**Measure first.** `SnakeCase` turns `totalAmount` into `total_amount` one character at a time, with an accumulator, so each walk is a tail recursion. Here it runs over 10,000 column names:
+
+```ts
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type Code = `${Digit}${Digit}${Digit}${Digit}`;
+
+type SnakeCase<
+  S extends string,
+  Acc extends string = '',
+> = S extends `${infer C}${infer R}`
+  ? SnakeCase<R, `${Acc}${C extends Lowercase<C> ? C : `_${Lowercase<C>}`}`>
+  : Acc;
+
+export type Column = SnakeCase<`orderLineItem${Code}TotalAmountIncludingTax`>;
+```
+
+`--extendedDiagnostics` makes `tsc` print what it did. Run it next to the project's `tsconfig.json`, here one with the dojo's compiler options and this file, `index.ts`:
+
+```text
+tsc --noEmit --extendedDiagnostics
+```
+
+```text
+index.ts(11,22): error TS2589: Type instantiation is excessively deep and possibly infinite.
+Files:                          77
+Lines of Library:            12901
+Lines of Definitions:            0
+Lines of TypeScript:            12
+Lines of JavaScript:             0
+Lines of JSON:                   0
+Lines of Other:                  0
+Identifiers:                 10334
+Symbols:                      6905
+Types:                      370719
+Instantiations:            5000026
+Memory used:               402646K
+Assignability cache size:    10038
+Identity cache size:             0
+Subtype cache size:              0
+Strict subtype cache size:       0
+I/O Read time:               0.00s
+Parse time:                  0.06s
+Program time:                0.07s
+Bind time:                   0.02s
+Check time:                  2.81s
+printTime time:              0.00s
+Emit time:                   0.00s
+Total time:                  2.90s
+```
+
+The first block is the size of the program: 77 files, nearly all of them the `lib.es2025` files, and twelve lines of your own. **Types** counts the types the checker created, 370,719 of them for those twelve lines. **Instantiations** counts how often a generic type was instantiated with arguments; it is the total for the program, and here one declaration used it all, which is the 5,000,000 budget in the table. The cache sizes count the pairs of types the checker related and kept, one per relation. Then come the times, phase by phase: **Check time** is the type checker's, almost three seconds. Run the same compiler on the same code twice and every count comes out the same, while the times move with the machine, so compare versions by their counts.
+
+The cause is in the code. Every one of the 10,000 members of `Code` gives a string of 40 characters, and `SnakeCase` walks each of them: 400,000 steps. Each walk is only 40 steps long, far inside the 1,000 a tail recursion may take; the count runs out first.
+
+**Do the work before the cross product.** `SnakeCase` handles one character at a time, and digits pass through unchanged, so the snake case of a concatenation is the concatenation of the snake-cased parts. Convert the two fixed parts once each, and cross them with `Code` afterwards:
+
+```ts twoslash
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type Code = `${Digit}${Digit}${Digit}${Digit}`;
+
+type SnakeCase<
+  S extends string,
+  Acc extends string = '',
+> = S extends `${infer C}${infer R}`
+  ? SnakeCase<R, `${Acc}${C extends Lowercase<C> ? C : `_${Lowercase<C>}`}`>
+  : Acc;
+
+type Column =
+  `${SnakeCase<'orderLineItem'>}${Code}${SnakeCase<'TotalAmountIncludingTax'>}`;
+
+type Line42 = Extract<Column, `${string}0042${string}`>;
+//   ^?
+```
+
+The same 10,000 strings. Measured for `Column` alone, without the `Line42` query, the numbers that changed:
+
+```text
+Types:                       21333
+Instantiations:                656
+Check time:                  0.06s
+```
+
+The rule behind it: a union multiplies whatever is done to each of its members. Recursion, distribution and template literals all run once per member, so do the expensive part on the small inputs and cross the results last.
+
+**Record a trace.** The counts say how much; a trace says where. `--generateTrace` takes a folder:
+
+```text
+tsc --noEmit --generateTrace trace
+```
+
+For one project it writes two files, `trace/trace.json` and `trace/types.json`. (`tsc -b` writes a pair per project, with a process id and a number in their names, and a `legend.json` that lists them.) `trace.json` is a list of events in the trace event format that Chrome's tracing tools read, so a viewer such as Perfetto (ui.perfetto.dev) draws it as a timeline. Each event has a `name`, a category in `cat` (`program`, `parse`, `bind`, `check`, `checkTypes`, `emit`), a phase in `ph` and a timestamp `ts`; a complete event, `"ph":"X"`, also has a duration `dur`. Both are in microseconds. Check events carry the `path` of the file and `pos` and `end`, character offsets of the code being checked. Here are three events from the trace of the cart in the second pitfall below, `cart.ts`, without their `pid`, `tid` and `path`:
+
+```text
+{"ph":"I","cat":"checkTypes","ts":205364.245,"name":"removeSubtypes_DepthLimit","s":"g","args":{"typeIds":[2340,2341,2342,…]}},
+{"ph":"X","cat":"check","ts":183239.152,"name":"checkExpression","dur":22691.523,"args":{"kind":210,"pos":288,"end":317}},
+{"ph":"X","cat":"check","ts":182981.912,"name":"checkVariableDeclaration","dur":26316.685,"args":{"kind":261,"pos":281,"end":317}},
+```
+
+An event is written when it ends, so the innermost comes first. Read them from the longest down: the declaration took 26 ms, nearly all of it in the expression from offset 288 to 317, and inside that the union reduction ran out of budget. Three of the budgets leave an event of their own when they run out: `instantiateType_DepthLimit`, with `instantiationDepth` and `instantiationCount` in its arguments, for the nesting and the count, `checkCrossProductUnion_DepthLimit` and `removeSubtypes_DepthLimit`. The 1,000 steps of a tail recursion leave none; there, the TS2589 itself is the sign. `types.json` has one entry per type, by the ids the events use, with its `flags`, a `display` text, its alias name in `symbolName` and its `firstDeclaration`. The trace keeps every event of 10 ms or more and only a sample of the shorter ones, so it shows where the time goes, not every step.
+
+A big trace is hard to read by hand. The TypeScript team publishes `@typescript/analyze-trace`, a separate npm package (not part of `typescript`), whose `analyze-trace` command takes such a folder and analyzes it for you.
+
+**Check one value instead of listing every value.** The `IsoDate` union from the Concept has no fix that keeps it a union. Turn it around: take the string a caller passes, split it with `infer`, and check each part against its small union:
+
+```ts run
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type Year = `${Digit}${Digit}${Digit}${Digit}`;
+type Month = `0${Exclude<Digit, '0'>}` | '10' | '11' | '12';
+type Day = `0${Exclude<Digit, '0'>}` | `${'1' | '2'}${Digit}` | '30' | '31';
+
+type IsoDate<S extends string> = S extends `${infer Y}-${infer M}-${infer D}`
+  ? [Y, M, D] extends [Year, Month, Day]
+    ? S
+    : never
+  : never;
+
+function isoDate<S extends string>(value: IsoDate<S>): S {
+  return value;
+}
+
+const release = isoDate('2026-10-24');
+console.log(release);
+```
+
+The compiler infers `S` from the argument, `'2026-10-24'`, and then checks it against `IsoDate<S>`, which is `S` itself for a valid date and `never` for anything else. Three small unions and one check per call, where the union of all dates would have been millions of strings:
+
+```ts twoslash
+// @errors: 2345
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type Year = `${Digit}${Digit}${Digit}${Digit}`;
+type Month = `0${Exclude<Digit, '0'>}` | '10' | '11' | '12';
+type Day = `0${Exclude<Digit, '0'>}` | `${'1' | '2'}${Digit}` | '30' | '31';
+type IsoDate<S extends string> = S extends `${infer Y}-${infer M}-${infer D}`
+  ? [Y, M, D] extends [Year, Month, Day]
+    ? S
+    : never
+  : never;
+declare function isoDate<S extends string>(value: IsoDate<S>): S;
+// ---cut---
+isoDate('2026-13-01');
+
+type Both = IsoDate<'2026-10-24' | '2026-1-1'>;
+//   ^?
+```
+
+`S` is a naked type parameter, so a union is checked member by member and keeps its valid members (<Lesson id="m11-conditional-types/03-distributive-conditionals" />). A plain `string` gives `never`: the check works on literals, and a string that arrives at run time needs a parser.
+
+**Interfaces, names and annotations.** The TypeScript wiki's page on performance gives three more pieces of advice that fit here. Prefer an interface that `extends` another to an intersection: an interface is one flat object type, the compiler caches how it relates to other types, and it reports a conflicting property where it is declared. An intersection only merges its members' properties, checking a value against one checks each member first, and a conflict turns into `never` (the third pitfall). Give a complex type a name instead of writing it inline, say in a method's return type, so that the compiler has more it can cache and its messages show the name. And write types down where the compiler would otherwise have to work them out: an annotation, especially on a return type, saves it inferring one, and an explicit type argument, `load<Config>(text)`, skips inference for that call. Measure before and after, as above.
+
+## Pitfalls
+
+**Recursing into a type that refers to itself.** The `Paths` of <Lesson id="m11-conditional-types/04-recursive-conditionals" /> walks into every property until it reaches a leaf. A category's `parent` is a category, so down that property there is no leaf:
+
+```ts run errors
+type Leaf = readonly unknown[] | ((...args: never[]) => unknown);
+type Paths<T> = T extends Leaf
+  ? never
+  : T extends object
+    ? KeyPaths<T, keyof T>
+    : never;
+type KeyPaths<T, K extends keyof T> = K extends string
+  ? K | `${K}.${Paths<T[K]>}`
+  : never;
+
+interface Category {
+  name: string;
+  parent: Category | null;
+}
+
+type CategoryPath = Paths<Category>;
+```
+
+TS2589, and `--extendedDiagnostics` reports only 826 instantiations for the file: this is the budget of 100 nested instantiations, not the count. The recursion has no end, so no rewrite into tail calls helps. Give it one: carry a counter, a tuple as in <Lesson id="m12-template-tuples/04-recursion-limits" />, and stop after a fixed number of keys.
+
+**One object type for every member of a big union.** Distributing over 2,000 SKUs makes 2,000 object types, each tying its own `sku` to itself. Nothing goes wrong until an expression has to reduce them to one union, and then:
+
+```ts run errors
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type Sku = `${'A' | 'B'}${Digit}${Digit}${Digit}`;
+
+type ToProduct<K> = K extends string ? { sku: K; price: number } : never;
+type Product = ToProduct<Sku>;
+
+declare function find(sku: string): Product;
+
+const cart = [find('A001'), find('B002')];
+```
+
+TS2590 on the array literal: its element type is the union of the elements' types with the ones that are subtypes of others removed, and that compares the 2,000 object types in pairs. Annotating `const cart: Product[]` doesn't help, since the literal is still reduced. One object type whose `sku` is the union, `interface Product { sku: Sku; price: number }`, describes the same values with one type instead of 2,000.
+
+**An intersection where an interface belongs.** An intersection doesn't check that its members agree. Where they disagree on a property, the property's type is the intersection of the two, here `number & string`, which is `never`, and the mistake shows up only when someone tries to create a value:
+
+```ts run errors
+interface User {
+  id: number;
+  name: string;
+}
+
+type Admin = User & { id: string; permissions: string[] };
+
+const admin: Admin = { id: 'a1', name: 'Kim', permissions: ['billing'] };
+```
+
+_Type 'string' is not assignable to type 'never'._, on the object, far from the cause. Written as `interface Admin extends User`, the declaration itself reports _Interface 'Admin' incorrectly extends interface 'User'._, and the interface is the cheaper type to check as well.
+
+## Check yourself
+
+<Predict
+  id="which-budget"
+  question="The `SnakeCase` of 10,000 column names reports TS2589, yet each name takes only 40 tail-recursive steps. Which budget ran out?"
+  options={[
+    'The 100 nested instantiations',
+    'The 1,000 steps of a tail recursion',
+    'The 5,000,000 instantiations while checking one statement',
+    'The 100,000 combinations of a cross product',
+  ]}
+  answer={2}
+  explanation="Each walk is a tail recursion of 40 steps, so neither the nesting nor the 1,000 steps come close. But the walk runs once for each of the 10,000 members, and those 400,000 steps add up to more than 5,000,000 instantiations in one declaration. `--extendedDiagnostics` shows it: `Instantiations: 5000026`."
+/>
+
+<Predict
+  id="compare-by-counts"
+  question="You rewrote a slow type and both versions compile. Which line of `--extendedDiagnostics` compares the work the two versions make the checker do, without noise from the machine?"
+  options={['Check time', 'Instantiations', 'Memory used', 'Total time']}
+  answer={1}
+  explanation="The counts, `Types` and `Instantiations`, come out the same on every run of the same compiler over the same code. The times and the memory move with the machine and with whatever else it is doing, so they confirm a big change but can't rank two close ones."
+/>
+
+<Predict
+  id="date-from-a-form"
+  code={
+    "const typed: string = readField('date');\nconst checked = isoDate(typed);"
+  }
+  question="`isoDate` is the function from the examples, `isoDate<S extends string>(value: IsoDate<S>): S`. What happens with a value whose type is `string`?"
+  options={[
+    'It compiles, and checked is a string',
+    'An error: string is not assignable to never',
+    'TS2590: every date would have to be listed',
+  ]}
+  answer={1}
+  explanation="`S` is inferred as `string`. `string` doesn't match the pattern with three literal parts, so `IsoDate<string>` is `never`, and the argument is rejected. The type-level check only works on literal types; a string read at run time needs a parser."
+/>
+
+## Further reading
+
+- [TypeScript wiki: Performance](https://github.com/microsoft/TypeScript/wiki/Performance), the advice on interfaces, unions, names and annotations, and on investigating a slow build
+- [TypeScript wiki: Performance Tracing](https://github.com/microsoft/TypeScript/wiki/Performance-Tracing)
+- [@typescript/analyze-trace](https://github.com/microsoft/typescript-analyze-trace)
+- [TSConfig reference: extendedDiagnostics](https://www.typescriptlang.org/tsconfig/#extendedDiagnostics) and [generateTrace](https://www.typescriptlang.org/tsconfig/#generateTrace)
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Handbook: Distributive conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#distributive-conditional-types)
