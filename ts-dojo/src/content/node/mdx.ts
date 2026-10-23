@@ -1,12 +1,14 @@
 // The lesson.mdx code-fence pipeline (spec §3 lesson.mdx, §2 Build "twoslash pre-render
-// through the shiki transformer"): every `ts` fence becomes a `<CodeBlock>` element at build
+// through the shiki transformer"): every fence becomes a `<CodeBlock>` element at build
 // time, with shiki's highlighting as HTML (light and dark themes side by side, so no theme
 // code runs in the browser), and per kind: `ts twoslash` renders its `^?` queries through
 // `twoslash` 0.3.9 and `@shikijs/twoslash` with the §2 default compiler options and the same
 // lib files and ambient runtime declarations the app's worker uses, so the types shown are
 // the types the editor would show; `ts run` and `ts run errors` carry the snippet's emitted
 // JavaScript so Run needs no compiler round trip, and `run errors` carries the diagnostics the
-// app's own ts-ls core reports, rendered under the block. Shiki's inline colour styles become
+// app's own ts-ls core reports, rendered under the block. A fence in another language is
+// `plain` (after F13, Kim's decision on 23 October 2026): highlighted in that language when
+// shiki bundles it, else as text, and nothing more. Shiki's inline colour styles become
 // classes named from the colour pair, and each lesson gets one `<CodeStyles>` element with
 // their declarations (pre-F13 fixes, Kim's decision on 23 October 2026: about 40% of a lesson
 // chunk was those styles, against the §9 precache budget). Nothing here reaches the browser:
@@ -17,7 +19,9 @@ import type { Code, Root } from 'mdast';
 import type { MdxJsxAttribute, MdxJsxFlowElement } from 'mdast-util-mdx-jsx';
 import remarkFrontmatter from 'remark-frontmatter';
 import {
+  bundledLanguages,
   createHighlighter,
+  type BundledLanguage,
   type Highlighter,
   type ShikiTransformer,
 } from 'shiki';
@@ -118,11 +122,15 @@ export class FenceRenderError extends Error {
 }
 
 export interface Renderer {
-  /** Renders one fence; throws `FenceRenderError` for a twoslash block that does not render. */
+  /**
+   * Renders one fence; throws `FenceRenderError` for a twoslash block that does not render.
+   * `lang` is a `plain` fence's language.
+   */
   render(
     kind: CodeBlockProps['kind'],
     code: string,
     at: { path: string; line: number },
+    lang?: string,
   ): Promise<RenderedFence>;
   /** The diagnostics of a snippet under the §2 defaults (the lint's §3 condition 6). */
   check(code: string): Promise<Diag[]>;
@@ -185,10 +193,11 @@ export async function createRenderer(): Promise<Renderer> {
   const highlight = (
     code: string,
     twoslash: boolean,
+    lang: string = 'ts',
   ): { html: string; styles: Record<string, string> } => {
     const styles = new Map<string, string>();
     const html = highlighter.codeToHtml(code, {
-      lang: 'ts',
+      lang,
       themes: SHIKI_THEMES,
       defaultColor: false,
       transformers: [
@@ -208,8 +217,20 @@ export async function createRenderer(): Promise<Renderer> {
     return { html, styles: Object.fromEntries(styles) };
   };
 
+  /** A plain fence's grammar: its own when shiki bundles one (loaded once), else plain text. */
+  const plainLang = async (lang: string | undefined): Promise<string> => {
+    if (lang === undefined || !Object.hasOwn(bundledLanguages, lang)) {
+      return 'text';
+    }
+    await highlighter.loadLanguage(lang as BundledLanguage);
+    return lang;
+  };
+
   return {
-    async render(kind, code, at) {
+    async render(kind, code, at, lang) {
+      if (kind === 'plain') {
+        return { kind, code, ...highlight(code, false, await plainLang(lang)) };
+      }
       if (kind === 'twoslash') {
         try {
           return { kind, code, ...highlight(code, true) };
@@ -284,9 +305,9 @@ export function codeStylesElement(
 }
 
 /**
- * The remark plugin: every `ts` fence of a known kind is replaced by its `<CodeBlock>`, and a
- * lesson with any gets one `<CodeStyles>` at the end; other fences are left to MDX's default
- * `<pre><code>`.
+ * The remark plugin: every fence of a known kind (any `ts` fence with a §3 meta string, and every
+ * fence in another language) is replaced by its `<CodeBlock>`, and a lesson with any gets one
+ * `<CodeStyles>` at the end; a `ts` fence with another meta string is left to MDX's `<pre>`.
  */
 export function remarkDojoCode(getRenderer: () => Promise<Renderer>) {
   return () =>
@@ -308,10 +329,12 @@ export function remarkDojoCode(getRenderer: () => Promise<Renderer>) {
       for (const { node, index, parent } of fences) {
         const kind = fenceKind(node.lang ?? null, node.meta ?? null);
         if (kind === 'other') continue;
-        const props = await renderer.render(kind, node.value, {
-          path,
-          line: node.position?.start.line ?? 0,
-        });
+        const props = await renderer.render(
+          kind,
+          node.value,
+          { path, line: node.position?.start.line ?? 0 },
+          node.lang ?? undefined,
+        );
         for (const [name, style] of Object.entries(props.styles)) {
           styles.set(name, style);
         }

@@ -1,12 +1,14 @@
 // What the browser and the Node fence pipeline share about code fences (spec §3 lesson.mdx):
-// the four fence kinds, the meta-string parser, the props a rendered `<CodeBlock>` receives
-// and the virtual path a theory snippet is checked and emitted under. No Node imports here;
-// src/content/node/mdx.ts renders, src/content/components/code-block.tsx displays.
+// the four `ts` fence kinds and `plain` (every fence in another language, after F13), the
+// meta-string parser, the props a rendered `<CodeBlock>` receives and the virtual path a theory
+// snippet is checked and emitted under. No Node imports here; src/content/node/mdx.ts renders,
+// src/content/components/code-block.tsx displays.
 import type { Diag } from '@/protocol/ts-ls';
 
-export type FenceKind = 'static' | 'run' | 'run-errors' | 'twoslash' | 'other';
+export type FenceKind =
+  'static' | 'run' | 'run-errors' | 'twoslash' | 'plain' | 'other';
 
-/** The component every `ts` fence renders as (src/content/components/code-block.tsx). */
+/** The component every fence renders as (src/content/components/code-block.tsx). */
 export const CODE_BLOCK_COMPONENT = 'CodeBlock';
 /**
  * The element that carries a lesson's colour classes (`.sk-…{--shiki-light:…;--shiki-dark:…}`),
@@ -25,9 +27,12 @@ export interface CodeBlockProps {
   diagnostics?: Diag[];
 }
 
-/** The fence kinds of §3 lesson.mdx; `ts` with anything else is `other`. */
+/**
+ * The fence kinds of §3 lesson.mdx; `ts` with any other meta string is `other`. A fence in another
+ * language, or none, is `plain` (Kim's decision after F13): the code-block look and nothing to run.
+ */
 export function fenceKind(lang: string | null, meta: string | null): FenceKind {
-  if (lang !== 'ts') return 'other';
+  if (lang !== 'ts') return 'plain';
   const words = (meta ?? '').trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return 'static';
   if (words.length === 1 && words[0] === 'run') return 'run';

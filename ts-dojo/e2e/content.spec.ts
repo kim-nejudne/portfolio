@@ -301,6 +301,34 @@ test.describe('pre-F13: theory tokens are coloured by class, in both themes', ()
   }
 });
 
+// After F13 (Kim, 23 October 2026): a fence in another language (the M13 licences, 0.3's vimrc,
+// the `js` emit blocks) is a code block too, with the theory code look but nothing to run.
+test.describe('after F13: other fences render as plain code blocks', () => {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`01-fix in ${scheme} mode: the text fence has the code-block look, its text verbatim, and no focus or buttons`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await gotoLesson(page, '01-fix');
+      const plain = codeBlocks(page, 'plain');
+      await expect(plain).toHaveCount(1);
+      const pre = plain.locator('pre.shiki');
+      await expect(pre).toBeVisible();
+      await expect(pre).toHaveText(
+        'Shape = Circle | Square: <handle each> & "never" is left',
+      );
+      await expect(theory(page).locator('pre:not(.shiki)')).toHaveCount(0);
+      await expect(plain).not.toHaveAttribute('tabindex');
+      await expect(plain.getByRole('button')).toHaveCount(0);
+      const background = (locator: typeof pre) =>
+        locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(await background(pre)).toBe(
+        await background(codeBlocks(page, 'run').locator('pre.shiki').first()),
+      );
+    });
+  }
+});
+
 test.describe('§12 F6: ts run blocks have Run and Open in REPL; ts run errors blocks show their diagnostics', () => {
   test('01-fix: the run block has both buttons, Run prints the two lines under it and reports done in N ms', async ({
     page,

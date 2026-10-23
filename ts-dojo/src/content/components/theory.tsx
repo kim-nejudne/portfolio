@@ -14,7 +14,7 @@ import { LessonLink } from './lesson-link';
 import { Predict } from './predict';
 
 /**
- * The §3 MDX components plus the build-time `<CodeBlock>` every `ts` fence became and the
+ * The §3 MDX components plus the build-time `<CodeBlock>` every fence became and the
  * lesson's `<CodeStyles>`.
  */
 export const MDX_COMPONENTS: MDXComponents = {

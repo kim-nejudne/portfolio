@@ -11,7 +11,7 @@ import {
 } from './rules';
 
 describe('§5 rule ids', () => {
-  it("lists the spec's eight rules in its order, then the two opt-in rules of the pre-F13 fixes", () => {
+  it("lists the spec's eight rules in its order, then the two opt-in rules of the pre-F13 fixes and F13's type-utils-import", () => {
     expect(RULE_IDS).toEqual([
       'ts-directive',
       'explicit-any',
@@ -23,6 +23,7 @@ describe('§5 rule ids', () => {
       'no-skipped-tests',
       'type-assertion',
       'any-expression',
+      'type-utils-import',
     ]);
   });
 
@@ -38,12 +39,21 @@ describe('§5 rule ids', () => {
     );
   });
 
-  it('ts-directive, eval and no-skipped-tests are always on', () => {
+  it('ts-directive, eval, no-skipped-tests and type-utils-import are always on', () => {
     expect([...ALWAYS_ON_RULES]).toEqual([
       'ts-directive',
       'eval',
       'no-skipped-tests',
+      'type-utils-import',
     ]);
+  });
+
+  // After F13 (Kim, 23 October 2026): the test helpers are for tests.ts, so a solution can't
+  // borrow `IsAny` or `UnionToIntersection` instead of writing it.
+  it('type-utils-import says the helpers are for tests.ts', () => {
+    expect(RULE_MESSAGES['type-utils-import']).toBe(
+      '@dojo/type-utils is for tests.ts; write the helper in your own file',
+    );
   });
 
   it('has a message for every rule and recognises ids', () => {

@@ -2,10 +2,13 @@
 // file plus a comment walk for `ts-directive`. Every hit carries the rule, the file, the line
 // and the column. The ids, messages and the always-on set are src/verify/rules.ts. The pre-F13
 // fixes widened `as-unknown-as` to every double assertion and added `type-assertion` and
-// `any-expression`; the last reads types, so the walk gets the program's checker.
+// `any-expression`; the last reads types, so the walk gets the program's checker. After F13,
+// `type-utils-import` flags every module specifier, and every `declare module` block, that names
+// `@dojo/type-utils` outside tests.ts.
 import ts from 'typescript';
 import type { Diag, RuleHit } from '@/protocol/ts-ls';
 import { RULE_MESSAGES, type RuleId } from '@/verify/rules';
+import { TYPE_UTILS_MODULE } from '@/verify/type-utils';
 
 export interface LintContext {
   /** tests.ts: `ts-directive` is skipped and `no-skipped-tests` applies. */
@@ -229,6 +232,33 @@ function isTestSkip(node: ts.Node): boolean {
   return false;
 }
 
+/**
+ * `type-utils-import`: a string literal naming `@dojo/type-utils` where a module goes: an import
+ * or export declaration, `import x = require(…)`, an `import(…)` type or a dynamic `import(…)`.
+ * A `declare module '@dojo/type-utils'` block counts too: in a script file it merges into the
+ * ambient module and can hand its helpers to the global scope. A plain string imports nothing.
+ */
+function isTypeUtilsSpecifier(
+  node: ts.Node,
+  parent: ts.Node | undefined,
+): boolean {
+  if (!ts.isStringLiteral(node) || node.text !== TYPE_UTILS_MODULE)
+    return false;
+  if (parent === undefined) return false;
+  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) {
+    return parent.moduleSpecifier === node;
+  }
+  if (ts.isExternalModuleReference(parent)) return true;
+  if (ts.isModuleDeclaration(parent)) return parent.name === node;
+  if (ts.isLiteralTypeNode(parent)) {
+    return parent.parent !== undefined && ts.isImportTypeNode(parent.parent);
+  }
+  return (
+    ts.isCallExpression(parent) &&
+    parent.expression.kind === ts.SyntaxKind.ImportKeyword
+  );
+}
+
 export function lintSourceFile(
   sourceFile: ts.SourceFile,
   rules: ReadonlySet<RuleId>,
@@ -306,6 +336,13 @@ export function lintSourceFile(
       isTestSkip(node)
     ) {
       hitAt('no-skipped-tests', node.getStart(sourceFile));
+    }
+    if (
+      rules.has('type-utils-import') &&
+      !context.isTestFile &&
+      isTypeUtilsSpecifier(node, parent)
+    ) {
+      hitAt('type-utils-import', node.getStart(sourceFile));
     }
     const childInType = inType || ts.isTypeNode(node);
     ts.forEachChild(node, (child) => visit(child, node, childInType));

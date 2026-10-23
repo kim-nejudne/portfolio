@@ -64,6 +64,7 @@ Code fences carry a meta string (§3):
 | ```` ```ts run ```` | Run and Open in REPL; output under the block | zero diagnostics |
 | ```` ```ts run errors ```` | same, diagnostics expected and rendered inline | — |
 | ```` ```ts twoslash ```` | `^?` queries and error markers pre-rendered at build time by twoslash; never runs in the browser | must render |
+| any other language (```` ```text ````, ```` ```vim ````, ```` ```js ````) | the code-block look, highlighted in that language when shiki has it, else plain text; no Run, no focus (after F13) | — |
 
 A `^?` query is a comment line `//  ^?` whose `^` sits under the identifier on the line above (any column inside the identifier works). Indent the comment like the code and put the `^` on the identifier's last characters.
 
@@ -136,8 +137,9 @@ Verification runs four groups (§5); a group the exercise doesn't define counts 
 | `no-skipped-tests` | `test.skip` in `tests.ts` | always on |
 | `type-assertion` | a plain `x as T` or `<T>x` outside `tests.ts`; `as const` and `<const>x` are fine | off |
 | `any-expression` | outside `tests.ts`, a used expression of type `any` where the `any` first appears: `JSON.parse(text)` used directly, `Object(x)`, `Reflect.get`, a `.catch((err) => err.message)` reason, an `Array.isArray(u)` element, a read of a variable holding an `any`. Fine when it flows straight into `unknown` (`const data: unknown = JSON.parse(text)`, `console.log(...)`, `JSON.parse(text) as unknown`) | off |
+| `type-utils-import` | `@dojo/type-utils` named as a module outside `tests.ts` (an import or export, `import x = require(…)`, an `import(…)` type, a dynamic `import()`, a `declare module` block), so a solution can't borrow `IsAny` or `UnionToIntersection` | always on |
 
-`type-assertion` and `any-expression` are the pre-F13 rules (under Deviations in docs/progress.md). Forbid them where the lesson is narrowing an `unknown` honestly or checking a shape with `satisfies`, so a cast or a library `any` can't skip it; `type-assertion` alone is forbidden in 3.1/03, 3.3/03, 3.4/04, 4.2/01, 7.3/02, 7.4/02 and 7.4/04; both rules in 1.4/01, 1.4/04, 5.5/01, 5.5/04, 7.1/02, 7.1/04, 7.2/01, 7.2/02, 7.2/04, 9.4/01, 9.4/03 and 9.4/04. Every shipped solution passes them.
+`type-assertion` and `any-expression` are the pre-F13 rules (under Deviations in docs/progress.md). `type-utils-import` came after F13 (also under Deviations); it is always on, so never list it in `forbid`. Forbid the two pre-F13 rules where the lesson is narrowing an `unknown` honestly or checking a shape with `satisfies`, so a cast or a library `any` can't skip it; `type-assertion` alone is forbidden in 3.1/03, 3.3/03, 3.4/04, 4.2/01, 7.3/02, 7.4/02 and 7.4/04; both rules in 1.4/01, 1.4/04, 5.5/01, 5.5/04, 7.1/02, 7.1/04, 7.2/01, 7.2/02, 7.2/04, 9.4/01, 9.4/03 and 9.4/04. Every shipped solution passes them.
 
 Choose `forbid` so the exercise can't be passed by a trick the lesson doesn't teach, and write tests that fail on the shortcut too: a `never` check defeated with `as never` still fails the runtime test for the case it skipped. A rule id not in this table doesn't exist; a new rule is a spec question.
 
@@ -180,7 +182,7 @@ Walk this list before running the lint.
 - **A library `any`** (F13). One generic signature plus `JSON.parse`, `Object.create`, `Reflect.apply` or a property descriptor's `value` skips an overload or a typed body; every Tier 3 `implement` and `fix` exercise forbids `any-expression`.
 - **Lookup tables** (F13). A type exercise whose cases are all short literals can be passed by a table of those inputs; add a pattern input (`` `onItem${number}` ``) or a generated one.
 - **Recursion depth** (F13, measured in 12.4). Non-tail recursion gets through 48 or 49 new levels, depending on what the file already computed; tail recursion 999. Keep cases well clear of either edge.
-- **What no rule catches:** a type written out by hand where the prompt asks to derive it, a construct the prompt asks for (a parameter property, a call signature), aliasing the built-in a type-challenge rebuilds (`MyPick = Pick`), and importing a helper such as `IsAny` from `@dojo/type-utils` into a solution. A plain cast and a library `any` are caught only where the exercise forbids `type-assertion` and `any-expression`. Make the tests stop whatever skips the lesson's point, and accept the rest.
+- **What no rule catches:** a type written out by hand where the prompt asks to derive it, a construct the prompt asks for (a parameter property, a call signature), and aliasing the built-in a type-challenge rebuilds (`MyPick = Pick`; a known limit, since several solutions use built-ins legitimately). Importing a helper from `@dojo/type-utils` is caught by the always-on `type-utils-import`. A plain cast and a library `any` are caught only where the exercise forbids `type-assertion` and `any-expression`. Make the tests stop whatever skips the lesson's point, and accept the rest.
 
 ## 8. Procedure
 
