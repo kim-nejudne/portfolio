@@ -1,0 +1,22 @@
+id: m13-type-challenges/04-hard-set/03-required-keys
+kind: type-challenge
+title: Required Keys
+minutes: 6
+challenge: false
+prompt: |
+  Write `RequiredKeys<T>` in `index.ts`: the union of the keys of `T`'s required properties.
+  `RequiredKeys<{ foo: number; bar?: string }>` is `'foo'`.
+
+  As in Get Required, a required property counts even when its type is `undefined` or `null`,
+  and the empty object type has no required keys, so `RequiredKeys<{}>` is `never`. A case
+  added in the dojo checks properties of type `unknown`.
+
+  From type-challenges [#00089 Required Keys](https://github.com/type-challenges/type-challenges/blob/main/questions/00089-hard-required-keys/README.md) by yituan (@yi-tuan) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The keys of a type you have just built in this lesson are this answer. Or map each key to itself or `never` and index the result with `keyof T`, as lesson 6.4's KeysOfType did.
+  - If `undefined` turns up in the union, it came from an optional property, which a homomorphic mapped type keeps optional (10.1). A modifier removes it.

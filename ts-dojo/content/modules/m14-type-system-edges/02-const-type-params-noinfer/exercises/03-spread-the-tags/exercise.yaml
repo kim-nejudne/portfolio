@@ -1,0 +1,26 @@
+id: m14-type-system-edges/02-const-type-params-noinfer/03-spread-the-tags
+kind: predict
+title: Spread the tags
+minutes: 2
+challenge: false
+code: |
+  function tags<const T extends readonly string[]>(...tags: T): T {
+    return tags;
+  }
+
+  const picked = ['new', 'sale'];
+
+  const a = tags('new', 'sale');
+  const b = tags(...picked);
+question: What are the types of `a` and `b`?
+options:
+  - 'Both are readonly ["new", "sale"]'
+  - 'a is readonly ["new", "sale"], b is string[]'
+  - 'a is readonly ["new", "sale"], b is readonly string[]'
+  - 'Both are string[]'
+answer: 1
+explanation: |
+  For `a`, the arguments are written in the call, so `const` infers them as one readonly tuple
+  of literals. For `b`, the argument is `picked`, which was inferred as `string[]` when it was
+  declared; `const` changes how an expression in the call is inferred, not a variable's type, so
+  `T` is `string[]`. Declaring `picked` with `as const` would give `b` the same type as `a`.

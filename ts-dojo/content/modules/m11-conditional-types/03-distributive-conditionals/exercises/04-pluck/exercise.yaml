@@ -1,0 +1,41 @@
+id: m11-conditional-types/03-distributive-conditionals/04-pluck
+kind: implement
+title: Pluck a column from mixed rows
+minutes: 6
+challenge: false
+prompt: |
+  A table shows rows of several kinds, a union of object types. `pluck(rows, key)` in
+  `index.ts` reads one column: the value of `key` in every row, in order, and `undefined`
+  where a row has no such property. Write its types and its body:
+
+  - `AllKeys<T>` is every key of any member of `T`: for the `Row` union in the tests, that is
+    `'kind' | 'id' | 'name' | 'members'`, where `keyof Row` is only `'kind' | 'id'`.
+  - `Column<T, K>` is the type of the column: for each member, its type for `K`, or
+    `undefined` when the member has no `K`. `Column<Row, 'id'>` is `number`, and
+    `Column<Row, 'members'>` is `number | undefined`.
+  - `pluck` accepts any key of any row, and returns `Column<T, K>[]`. A key no row has, and
+    rows that are not objects, are errors.
+
+  The starter's `AllKeys` uses `keyof`, which rejects `'members'`, so `tests.ts` doesn't compile
+  against it yet, and its body throws. Inside
+  a generic body, `Column<T, K>` is a deferred conditional type, and casts are forbidden, so
+  give `pluck` the shape that lesson 11.1 used for `parse`. This combines the lesson with
+  conditional types and overloads (11.1, 8.1), `keyof` constraints (5.4) and indexed access
+  (6.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    non-null-assertion,
+    angle-cast,
+    any-expression,
+  ]
+hints:
+  - Both types ask one question per member of `T`. Inside each answer, `keyof T` is the keys of that member only.
+  - '`Column` is close to `PropOf` from the first exercise; only a member without the key answers differently.'
+  - Keep the generic signature as an overload for callers, and write an implementation below it with plain types, rows that can be indexed by any key.

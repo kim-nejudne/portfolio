@@ -1,0 +1,23 @@
+id: m13-type-challenges/02-medium-set-1/11-literal-or-widened
+kind: predict
+title: Which literal survives
+minutes: 2
+challenge: false
+code: |
+  declare function option<K extends string, V>(key: K, value: V): Record<K, V>;
+
+  const result = option('name', 'type-challenges');
+question: What is the type of `result`?
+options:
+  - "Record<'name', 'type-challenges'>"
+  - "Record<'name', string>"
+  - 'Record<string, string>'
+  - "Record<string, 'type-challenges'>"
+answer: 1
+explanation: |
+  `K extends string` has a primitive constraint, and a type parameter with one keeps the
+  literal it is inferred from, so `K` is `'name'`. `V` has no constraint, and it sits inside
+  the return type rather than being all of it, so its literal widens to `string`. (A
+  `declare function same<V>(value: V): V` would give `'type-challenges'`.) That is why
+  Chainable Options expects `name: string` and `foo: number`: the keys stay literal and the
+  values widen.

@@ -1,0 +1,32 @@
+id: m14-type-system-edges/01-assignability-variance/04-measure-the-variance
+kind: type-challenge
+title: Measure the variance
+minutes: 5
+challenge: false
+prompt: |
+  Write `Variance<OfSub, OfSuper>`, a type that measures variance with the compiler's own
+  assignability check. `OfSub` is a type built from a subtype and `OfSuper` the same type built
+  from its supertype, such as `Admin[]` and `User[]`. The result is one of four string literals:
+
+  - `'covariant'` when `OfSub` is assignable to `OfSuper` and not the other way
+  - `'contravariant'` when `OfSuper` is assignable to `OfSub` and not the other way
+  - `'bivariant'` when each is assignable to the other
+  - `'invariant'` when neither is
+
+  ```ts
+  type A = Variance<() => Admin, () => User>; // 'covariant'
+  type B = Variance<(admin: Admin) => void, (user: User) => void>; // 'contravariant'
+  ```
+
+  The cases in `tests.ts` cover the lesson's examples, and also plain types, unions, `never`,
+  `unknown` and `any`: a union must be compared as a whole. This combines the lesson with
+  conditional types as an assignability question (11.1, Conditional types and assignability)
+  and stopping distribution (11.3, Distributive conditional types).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - A conditional type asks one assignability question. The answer needs two, one in each direction, nested.
+  - With a union, never or any as an input, a check on a naked type parameter splits into several answers. Compare each side as a whole, the way 11.3 stops distribution.

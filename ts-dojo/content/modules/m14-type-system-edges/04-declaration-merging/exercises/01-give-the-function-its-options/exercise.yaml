@@ -1,0 +1,23 @@
+id: m14-type-system-edges/04-declaration-merging/01-give-the-function-its-options
+kind: fix
+title: Give the function its options
+minutes: 3
+challenge: false
+prompt: |
+  `formatPrice` keeps its options type and its defaults in a namespace of the same name, so
+  callers write `formatPrice.Options` and `formatPrice.defaults`. The two declarations don't
+  merge yet, and `index.ts` reports:
+
+  - `A namespace declaration cannot be located prior to a class or function with which it is merged.`
+  - `Namespace '"/index".formatPrice' has no exported member 'Options'.`
+
+  Make the function and the namespace merge. Keep both names and both members as they are:
+  the tests read `formatPrice.Options` and `formatPrice.defaults`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, type-assertion, as-unknown-as, any-expression]
+hints:
+  - A namespace adds members to a function only when it comes after the function in the file.
+  - Outside its block, a namespace shows only the members that it exports.

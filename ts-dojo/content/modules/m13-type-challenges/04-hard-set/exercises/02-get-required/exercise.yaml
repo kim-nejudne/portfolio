@@ -1,0 +1,23 @@
+id: m13-type-challenges/04-hard-set/02-get-required
+kind: type-challenge
+title: Get Required
+minutes: 6
+challenge: false
+prompt: |
+  Write `GetRequired<T>` in `index.ts`: the object type `T` with only its required properties.
+  `GetRequired<{ foo: number; bar?: string }>` is `{ foo: number }`.
+
+  A required property stays even when its type includes `undefined`:
+  `GetRequired<{ foo: undefined; bar?: undefined }>` is `{ foo: undefined }`. Cases added in
+  the dojo check that a kept property keeps its `readonly`, that a required property of type
+  `unknown` stays, and the empty object type.
+
+  From type-challenges [#00057 Get Required](https://github.com/type-challenges/type-challenges/blob/main/questions/00057-hard-get-required/README.md) by Zheeeng (@zheeeng) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Keep or drop each key with an `as` clause in a mapped type over `keyof T`, which also keeps the modifiers (10.1, 10.2).
+  - Looking for `undefined` in a property's type can't tell optional from required (the lesson's first pitfall). Ask instead whether an object with no properties at all would fit that one property.

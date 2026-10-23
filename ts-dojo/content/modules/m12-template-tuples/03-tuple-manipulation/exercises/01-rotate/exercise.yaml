@@ -1,0 +1,24 @@
+id: m12-template-tuples/03-tuple-manipulation/01-rotate
+kind: type-challenge
+title: Rotate a tuple
+minutes: 3
+challenge: false
+prompt: |
+  Write two types in `index.ts`, with the patterns of `Head`, `Tail` and `Last` from the theory:
+
+  - `RotateLeft<T>` moves the first element to the end: `RotateLeft<[1, 2, 3]>` is `[2, 3, 1]`.
+  - `RotateRight<T>` moves the last element to the front: `RotateRight<[1, 2, 3]>` is
+    `[3, 1, 2]`.
+
+  Both accept readonly tuples and give a mutable one: `RotateLeft<readonly ['a', 'b']>` is
+  `['b', 'a']`. A tuple with one element stays as it is. When there is nothing to take off,
+  for an empty tuple or an array such as `string[]`, the result is `T` itself. A union of
+  tuples is rotated member by member.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each type is one conditional type. Which pattern from the theory takes the first element and leaves the rest, and which one takes the last element?
+  - The true branch builds a new tuple from the parts with a spread, as in lesson 12.2. The false branch is `T`.

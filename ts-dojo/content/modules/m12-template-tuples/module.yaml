@@ -1,0 +1,9 @@
+id: m12-template-tuples
+title: Template-literal and tuple types
+summary: Build and parse string types, spread and slice tuples, and keep type-level recursion inside the compiler's limits.
+prerequisites: [m11-conditional-types]
+lessons:
+  - 01-template-literal-types
+  - 02-variadic-tuples
+  - 03-tuple-manipulation
+  - 04-recursion-limits

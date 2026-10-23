@@ -1,0 +1,8 @@
+id: m10-mapped-types
+title: Mapped types
+summary: Build one object type from another key by key, change its modifiers, rename its keys, and map over unions, tuples and arrays.
+prerequisites: [m09-modules-async]
+lessons:
+  - 01-mapped-types-and-modifiers
+  - 02-key-remapping
+  - 03-mapping-unions-tuples-arrays

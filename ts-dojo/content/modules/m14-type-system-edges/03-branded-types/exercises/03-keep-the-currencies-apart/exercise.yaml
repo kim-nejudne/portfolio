@@ -1,0 +1,33 @@
+id: m14-type-system-edges/03-branded-types/03-keep-the-currencies-apart
+kind: implement
+title: Keep the currencies apart
+minutes: 4
+challenge: false
+prompt: |
+  `Money<C>` is an amount in the minor unit of currency `C` (cents, or öre for SEK), and at run
+  time it is a plain number. `C` is meant to keep currencies apart, but nothing in the type uses
+  it yet, so a dollar amount passes for euros. Make `C` count, and write the three functions:
+
+  ```ts
+  const coffee = money('SEK', 4900); // Money<'SEK'>
+  format('SEK', add(coffee, money('SEK', 5))); // '49.05 SEK'
+  ```
+
+  - `money(code, minor)` returns `minor` as an amount in `code`, and throws a `RangeError` when
+    `minor` is not a whole number.
+  - `add(a, b)` adds two amounts in the same currency. `add(usd, eur)` and `add(usd, 100)` must
+    be errors.
+  - `format(code, amount)` writes the amount in major units with two decimals, then the code.
+    A code that isn't the amount's currency, `format('EUR', usd)`, must be an error.
+  - A `Money<'USD'>` stays usable as a `number`, and a plain `number` is no `Money`.
+
+  As in the lesson, making the brand takes an `as`: keep it in `money` and `add`. This combines
+  the lesson with `NoInfer` (14.2, const type parameters and NoInfer).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, any-expression]
+hints:
+  - Today `Money<C>` doesn't use `C`, so every currency is the same type. A brand member can carry it, keyed by the `unique symbol` the starter declares.
+  - With the brand in place, `add(usd, eur)` still compiles. Both arguments offer a candidate for `C`, and 14.2 has a way to turn one site off.

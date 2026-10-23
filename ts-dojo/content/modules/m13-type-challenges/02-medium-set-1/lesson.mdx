@@ -1,0 +1,218 @@
+---
+id: m13-type-challenges/02-medium-set-1
+title: Medium set I
+minutes: 60
+objectives:
+  - Filter and rename keys in a homomorphic mapped type so that each property keeps its modifiers
+  - Recurse through objects, arrays and tuples, with a base case for functions
+  - Keep state in a type parameter so that a chain of generic calls builds a type
+  - Take tuples in and give tuples out, from a tuple pattern or a mapped type
+  - Solve the ten challenges of Medium set I
+prerequisites:
+  - m13-type-challenges/01-easy-set
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m10-mapped-types/02-key-remapping
+  - m10-mapped-types/03-mapping-unions-tuples-arrays
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/03-distributive-conditionals
+  - m11-conditional-types/04-recursive-conditionals
+  - m12-template-tuples/02-variadic-tuples
+tags:
+  - type-challenges
+  - medium
+  - ReturnType
+  - Omit
+  - Readonly
+  - DeepReadonly
+  - Chainable
+  - Last
+  - Pop
+  - Promise.all
+  - Alike
+  - key remapping
+  - infer
+---
+
+## Concept
+
+Medium set I needs no syntax that Tier 3 hasn't taught. What makes its ten challenges medium is that each takes two or three tools at once, and the cases test the edges: modifiers that must survive, unions, empty tuples, functions inside objects. The format is the one from <Lesson id="m13-type-challenges/01-easy-set" />. These are the techniques the set leans on, with the challenges that use them:
+
+- **Filtering keys.** A mapped type over `keyof T` keeps each property's `readonly` and `?` (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), and an `as` clause renames its keys, dropping any key it turns into `never` (<Lesson id="m10-mapped-types/02-key-remapping" />). Omit, Readonly 2.
+- **Two halves, one object.** When some properties change and the others don't, build each part with its own mapped type and intersect them. `Equal` tells an intersection from a single object type (13.1's last pitfall), so the cases that expect one compare with `Alike`, which flattens both sides first. Readonly 2, Chainable Options.
+- **Recursion.** A mapped type may use its own alias in a property's type (<Lesson id="m11-conditional-types/04-recursive-conditionals" />). Deep Readonly.
+- **State in a type parameter.** A generic method may return its own type with a new type argument, so each call in a chain sees the type the call before it made. Chainable Options.
+- **Tuples in, tuples out.** A tuple pattern may start with a rest element, so `infer` can name what comes after it (<Lesson id="m12-template-tuples/02-variadic-tuples" />), and a homomorphic mapped type over a tuple gives a tuple (<Lesson id="m10-mapped-types/03-mapping-unions-tuples-arrays" />). Last of Array, Pop, Promise.all; Tuple to Union needs only the indexed access of <Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />.
+- **One union member at a time.** A conditional type on a naked type parameter is applied to each member of a union (<Lesson id="m11-conditional-types/01-conditional-types" /> and <Lesson id="m11-conditional-types/03-distributive-conditionals" />). Type Lookup, Deep Readonly's union case.
+
+State in a type parameter is the one idea no earlier challenge needed. Here a counter keeps its count as the length of a tuple:
+
+```ts twoslash
+type Counter<N extends unknown[] = []> = {
+  inc(): Counter<[...N, unknown]>;
+  count(): N['length'];
+};
+
+declare const counter: Counter;
+const three = counter.inc().inc().inc().count();
+//    ^?
+```
+
+`Counter` with no argument is `Counter<[]>`. Each `inc()` returns a `Counter` whose tuple is one element longer, and `count()` reads that tuple's length. Nothing has to run: `declare const` gives a name a type without a value, and Chainable Options' cases are written the same way.
+
+## Examples
+
+**Renaming one key.** The `as` clause decides what each key is called in the result. Because the mapped type still runs over `keyof T`, every property keeps its modifiers, the renamed one included:
+
+```ts twoslash
+type RenameKey<T, From extends keyof T, To extends string> = {
+  [K in keyof T as K extends From ? To : K]: T[K];
+};
+
+interface User {
+  readonly id: number;
+  name?: string;
+  email: string;
+}
+
+type Renamed = RenameKey<User, 'email', 'contact'>;
+//   ^?
+```
+
+Omit and Readonly 2 use the same clause to keep some keys out of an object instead of renaming them.
+
+**Tuples in, tuples out.** `Boxed` wraps each element of a tuple. A rest parameter typed with a tuple type parameter infers a tuple from the arguments, and the mapped type keeps it a tuple, position by position:
+
+```ts run
+type Boxed<T> = { [K in keyof T]: { value: T[K] } };
+
+function boxAll<T extends readonly unknown[]>(...values: T): Boxed<T> {
+  // map can't follow the positions of a tuple type, so the result is asserted.
+  return values.map((value) => ({ value })) as Boxed<T>;
+}
+
+const boxes = boxAll(1, 'one', true);
+console.log(boxes, boxes[1].value.toUpperCase());
+```
+
+`boxes` is `[{ value: number }, { value: string }, { value: boolean }]`, so `boxes[1].value` is a `string`. Over an array type, `Boxed<string[]>`, the same mapped type gives `{ value: string }[]`, and over a `readonly` tuple it gives a `readonly` tuple.
+
+## Pitfalls
+
+**Mapping over a function.** A function type has no properties for `keyof` to list, and a mapped type keeps no call signature, so mapping over a function gives `{}`:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type Frozen<T> = { readonly [K in keyof T]: T[K] };
+
+type cases = [Expect<Equal<Frozen<() => 22>, () => 22>>];
+```
+
+_Type 'false' does not satisfy the constraint 'true'._ A type that recurses into every property, as Deep Readonly does, meets functions among the properties, and has to return them as they are before it maps.
+
+**`keyof` of a union keeps only the shared keys.** A value of type `Cat | Dog` is sure to have only the properties both members have, so those are the keys of the union:
+
+```ts run errors
+type Cat = { type: 'cat'; meows: boolean };
+type Dog = { type: 'dog'; barks: boolean };
+
+type AnimalKey = keyof (Cat | Dog);
+const key: AnimalKey = 'barks';
+```
+
+_Type '"barks"' is not assignable to type '"type"'._ For `{ a: string } | { b: number }` no key is shared and `keyof` is `never`. A check such as `keyof T extends never ? T : …`, written to stop at functions, whose `keyof` is `never`, is then true for that union too, and returns it untouched. A conditional on the naked `T`, or a homomorphic mapped type, takes the union one member at a time; `keyof T` does not.
+
+**An array literal infers an array.** A type parameter constrained to arrays infers an array type from an array literal, not a tuple:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+function inputs<T extends readonly unknown[]>(values: T): T {
+  return values;
+}
+
+const mixed = inputs([1, 'one']);
+type cases = [Expect<Equal<typeof mixed, [number, string]>>];
+```
+
+`T` is `(string | number)[]`, and the case fails. Typing the parameter as a variadic tuple, `readonly [...T]` (<Lesson id="m12-template-tuples/02-variadic-tuples" />), asks for a tuple instead, and the `readonly` still accepts `as const` arrays:
+
+```ts twoslash
+declare function inputs<T extends readonly unknown[]>(
+  values: readonly [...T],
+): T;
+
+const mixed = inputs([1, 'one']);
+//    ^?
+```
+
+## Check yourself
+
+<Predict
+  id="counter-count"
+  question="With the Counter from the Concept, what is the type of `counter.inc().inc().count()`?"
+  options={['number', '2', '[unknown, unknown]', 'unknown']}
+  answer={1}
+  explanation="`counter` is `Counter<[]>`. Each `inc()` returns a `Counter` with a tuple one element longer, so after two calls the tuple is `[unknown, unknown]`, and `count()` reads its `length`, the literal type `2`."
+/>
+
+<Predict
+  id="keyof-union"
+  question="What is `keyof ({ a: string } | { b: number })`?"
+  options={["'a' | 'b'", 'never', 'string']}
+  answer={1}
+  explanation="The keys of a union are the keys every member has, since those are the only properties a value of the union is sure to have. The two members share none, so the union of their keys is empty: `never`."
+/>
+
+<Predict
+  id="boxed-readonly-tuple"
+  question="With `type Boxed<T> = { [K in keyof T]: { value: T[K] } }`, what is `Boxed<readonly [1, 'a']>`?"
+  options={[
+    "`readonly [{ value: 1 }, { value: 'a' }]`",
+    "`[{ value: 1 }, { value: 'a' }]`",
+    "an object type with the keys `'0'`, `'1'` and `length`",
+  ]}
+  answer={0}
+  explanation="`Boxed` is homomorphic, a mapped type over `keyof T`, and over a tuple such a mapped type gives a tuple of the same length with each element mapped. It keeps the tuple's `readonly` too, as it keeps the modifiers of an object's properties."
+/>
+
+## Further reading
+
+- [Mapped types: key remapping via as](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#key-remapping-via-as)
+- [Conditional types: inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types) and [distributive conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#distributive-conditional-types)
+- [Object types: tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#tuple-types)
+- [type-challenges](https://github.com/type-challenges/type-challenges): the whole collection, by difficulty
+
+The challenges in this lesson are from type-challenges, by Anthony Fu and its contributors, used under the MIT License:
+
+```text
+MIT License
+
+Copyright (c) 2020 Anthony Fu <https://github.com/antfu>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

@@ -1,0 +1,26 @@
+id: m13-type-challenges/01-easy-set/10-includes
+kind: type-challenge
+title: Includes
+minutes: 4
+challenge: false
+prompt: |
+  Write `Includes<T, U>` in `index.ts`, the type of `Array.prototype.includes`: `true` when
+  one of the elements of the tuple `T` is exactly `U`, `false` otherwise.
+  `Includes<['Kars', 'Esidisi', 'Wamuu', 'Santana'], 'Kars'>` is `true`, and with `'Dio'` it
+  is `false`.
+
+  Exactly means what `Equal` means, not assignability: `false` is not included in
+  `[boolean, 2]`, `{ a: 'A' }` is not included in `[{}]`, and `1` is not included in
+  `[1 | 2]`. Expect most of the work to be in those cases. A case added in the dojo passes a readonly
+  tuple.
+
+  From type-challenges [#00898 Includes](https://github.com/type-challenges/type-challenges/blob/main/questions/00898-easy-includes/README.md) by @kynefuk (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Testing `U` against `T[number]` with `extends` is the pitfall from the lesson. Each element has to be compared on its own.
+  - Take the tuple apart one element at a time, as in 12.3, Tuple manipulation, and recurse on the rest.
+  - For the comparison, write your own copy of the `Equal` trick from the lesson in `index.ts`.

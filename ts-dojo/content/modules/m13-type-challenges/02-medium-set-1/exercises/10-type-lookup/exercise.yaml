@@ -1,0 +1,22 @@
+id: m13-type-challenges/02-medium-set-1/10-type-lookup
+kind: type-challenge
+title: Type Lookup
+minutes: 3
+challenge: false
+prompt: |
+  Write `LookUp<U, T>` in `index.ts`: the member of the union `U` whose `type` property is
+  `T`. With `type Animal = Cat | Dog`, where `Cat` has `type: 'cat'` and `Dog` has
+  `type: 'dog'`, `LookUp<Animal, 'dog'>` is `Dog`.
+
+  Cases added in the dojo: a `type` no member has gives `never`, and a union of two `type`s
+  gives both members.
+
+  From type-challenges [#00062 Type Lookup](https://github.com/type-challenges/type-challenges/blob/main/questions/00062-medium-type-lookup/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - This is 13.1's Exclude turned around, keeping members instead of dropping them. A conditional on a naked type parameter tests each member of the union on its own.
+  - Test each member against an object type with the `type` you want, not the other way round.

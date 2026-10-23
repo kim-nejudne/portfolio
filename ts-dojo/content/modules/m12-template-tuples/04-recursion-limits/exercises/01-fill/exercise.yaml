@@ -1,0 +1,22 @@
+id: m12-template-tuples/04-recursion-limits/01-fill
+kind: type-challenge
+title: Fill a tuple
+minutes: 3
+challenge: false
+prompt: |
+  Write `Fill<N, T>` in `index.ts`: a tuple of `N` elements, each of them `T`.
+
+  - `Fill<3, 'x'>` is `['x', 'x', 'x']`, and `Fill<0, boolean>` is `[]`.
+  - It must work for large counts: `Fill<800, 0>['length']` is `800`.
+  - When `N` is plain `number`, the length isn't known: `Fill<number, string>` is `string[]`.
+
+  The theory's `BuildTuple` and `Range` are the starting point.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The tuple you are building is also the counter. Which of its properties tells you when to stop?
+  - A recursion that wraps its own call stops at about fifty elements. Pass the tuple so far as an extra type parameter with a default.
+  - Check for `number` before counting, as `Range` does.

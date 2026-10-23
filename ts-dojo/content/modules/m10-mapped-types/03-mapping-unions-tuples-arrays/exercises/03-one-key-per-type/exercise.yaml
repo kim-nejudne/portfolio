@@ -1,0 +1,24 @@
+id: m10-mapped-types/03-mapping-unions-tuples-arrays/03-one-key-per-type
+kind: predict
+title: Two messages, one key
+minutes: 1
+challenge: false
+code: |
+  type Message =
+    | { type: 'ping' }
+    | { type: 'text'; body: string }
+    | { type: 'text'; body: string; urgent: true };
+
+  type ByType = { [M in Message as M['type']]: M };
+question: What is `ByType`?
+options:
+  - "{ ping: { type: 'ping' }; text: { type: 'text'; body: string; urgent: true } }"
+  - "{ ping: { type: 'ping' }; text: { type: 'text'; body: string } | { type: 'text'; body: string; urgent: true } }"
+  - '{ ping: Message; text: Message }'
+  - "An error: two members map to the key 'text'"
+answer: 1
+explanation: |
+  `M` loops over the three members of `Message`, and the `as` clause gives each one the key
+  `M['type']`. Two members both get `'text'`, so, as with two keys renamed alike in 10.2, they
+  become one property whose type is the union of both values. Nothing is reported, and the
+  value is never the whole `Message`: each member contributes only to its own key.

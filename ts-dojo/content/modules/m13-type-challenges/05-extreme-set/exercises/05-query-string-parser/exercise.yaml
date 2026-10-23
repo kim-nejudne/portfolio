@@ -1,0 +1,34 @@
+id: m13-type-challenges/05-extreme-set/05-query-string-parser
+kind: type-challenge
+title: Query String Parser
+minutes: 10
+challenge: false
+prompt: |
+  Write `ParseQueryString<S>` in `index.ts`: the object type that a URL query string, without
+  its `?`, describes. Pieces are separated by `&`, and each is a key with a value after `=` or
+  a key alone, which has the value `true`.
+
+  ```ts
+  type A = ParseQueryString<'k1=v1&k2'>; // { k1: 'v1'; k2: true }
+  type B = ParseQueryString<'k1=v1&k1=v2'>; // { k1: ['v1', 'v2'] }
+  type C = ParseQueryString<'k1=v1&k1=v1'>; // { k1: 'v1' }
+  ```
+
+  A key that appears more than once gets a tuple of its different values, in the order they
+  first appear; a value seen again is not added twice, and a key with only one value keeps it
+  bare. The empty string gives `{}`. Cases added in the dojo check a value with an `=` in it,
+  the string `'true'` beside the value `true`, and a mix of all the rules.
+
+  The template is `type ParseQueryString = any`, with no type parameter. The starter adds
+  `S extends string`, so the cases can pass it a string.
+
+  From type-challenges [#00151 Query String Parser](https://github.com/type-challenges/type-challenges/blob/main/questions/00151-extreme-query-string-parser/README.md) by Pig Fang (@g-plane) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - 'Take it in steps, each its own type. Split the string at every `&` into a tuple of pieces, read each piece as a key and a value, then fold the pairs into an object one at a time.'
+  - Each fold step rebuilds the whole object with a mapped type, as the lesson's FromPairs does, so the result is one object type and not an intersection (13.1).
+  - What a key holds after a step depends on what it held before. Decide it in a type of its own, with a case for a bare value and one for a tuple.

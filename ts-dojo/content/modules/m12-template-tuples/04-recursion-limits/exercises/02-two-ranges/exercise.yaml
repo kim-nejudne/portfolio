@@ -1,0 +1,27 @@
+id: m12-template-tuples/04-recursion-limits/02-two-ranges
+kind: predict
+title: Two ways to build a range
+minutes: 2
+challenge: false
+code: |
+  type RangeA<N extends number, Acc extends number[] = []> =
+    Acc['length'] extends N ? Acc : RangeA<N, [...Acc, Acc['length']]>;
+
+  type RangeB<N extends number, I extends unknown[] = []> =
+    I['length'] extends N ? [] : [I['length'], ...RangeB<N, [...I, unknown]>];
+
+  type A = RangeA<100>;
+  type B = RangeB<100>;
+question: Which of the last two lines reports TS2589?
+options:
+  - Only `type A`
+  - Only `type B`
+  - Both
+  - Neither
+answer: 1
+explanation: |
+  Both give `[0, 1, …, N - 1]` when they finish. `RangeA` is a tail call: the recursive call is the
+  whole false branch, and the range so far travels in `Acc`, so 100 steps are well inside the
+  budget of 999. `RangeB` puts its recursive call inside a tuple, `[I['length'], ...RangeB<…>]`,
+  so each level waits for the one below it. That nesting stops a little under fifty levels deep,
+  and `type B` reports `Type instantiation is excessively deep and possibly infinite.`

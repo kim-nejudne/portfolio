@@ -1,0 +1,24 @@
+id: m12-template-tuples/01-template-literal-types/03-which-part
+kind: predict
+title: Which part does each infer get?
+minutes: 2
+challenge: false
+code: |
+  type Parse<S> = S extends `${infer A}${infer B}-${infer C}`
+    ? [A, B, C]
+    : never;
+
+  type P = Parse<'ab-cd-ef'>;
+question: What is `P`?
+options:
+  - "['a', 'b', 'cd-ef']"
+  - "['ab', 'cd', 'ef']"
+  - "['a', 'b-cd', 'ef']"
+  - "['', 'ab', 'cd-ef']"
+answer: 0
+explanation: |
+  The rules from the theory, from left to right. `A` is followed by another `infer`, so it takes
+  exactly one character: `'a'`. `B` is followed by the text `-`, so it stops at the first `-`:
+  `'b'`. `C` is the last `infer` and takes everything left over, the second `-` included:
+  `'cd-ef'`. No `infer` looks ahead for a later `-`, so the string is never cut into three equal
+  parts.

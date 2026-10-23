@@ -1,10 +1,13 @@
 // §12 F11 criterion 1: "M00 to M04 exist as §8 lists them: 20 lessons, each with the §1
 // structure, at least two exercises (one in M00), at least one `predict`, hints on every editor
 // exercise, and at least one `ts twoslash` block." §12 F12: "M05 to M09, 19 core lessons and the
-// two optional ones, to the same rules as F11", so 41 lessons in all. Read from the course in content/ with the
+// two optional ones, to the same rules as F11". §12 F13: "M10 to M14, 18 core lessons and three
+// optional, with the type-challenges sets crediting their source", so 62 lessons in all. Read from the course in content/ with the
 // loader the content lint and the build use. The §8 rows below are copied from docs/spec.md
 // (titles with their code backticks dropped; minutes as §8 gives them). What no test can judge
 // (accuracy, progression, hints that nudge) is the content-reviewer agent's.
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   isEditorExercise,
@@ -16,7 +19,7 @@ import { shownText } from '../inline-code';
 import type { LessonAnalysis } from './analyze';
 import { loadContent, type LoadedContent } from './load';
 import { createRenderer, type Renderer } from './mdx';
-import { COURSE_CONTENT } from './roots';
+import { COURSE_CONTENT, REPO_ROOT } from './roots';
 
 type Row = [folder: string, title: string, minutes: number];
 
@@ -287,7 +290,221 @@ const TIERS: { id: string; title: string; modules: ModuleRow[] }[] = [
       },
     ],
   },
+  {
+    id: 't3',
+    title: 'Advanced type system',
+    modules: [
+      {
+        id: 'm10-mapped-types',
+        title: 'Mapped types',
+        prerequisites: ['m09-modules-async'],
+        lessons: [
+          [
+            '01-mapped-types-and-modifiers',
+            'Mapped types, homomorphism, and the +/- modifiers for readonly and ?',
+            25,
+          ],
+          [
+            '02-key-remapping',
+            'Key remapping with as and template literals',
+            20,
+          ],
+          [
+            '03-mapping-unions-tuples-arrays',
+            'Mapping over unions, tuples and arrays',
+            20,
+          ],
+        ],
+      },
+      {
+        id: 'm11-conditional-types',
+        title: 'Conditional types',
+        prerequisites: ['m10-mapped-types'],
+        lessons: [
+          ['01-conditional-types', 'Conditional types and assignability', 20],
+          ['02-infer', 'infer', 20],
+          [
+            '03-distributive-conditionals',
+            'Distributive conditional types, and how to stop distribution',
+            20,
+          ],
+          [
+            '04-recursive-conditionals',
+            'Recursive conditional types and the patterns: Flatten, DeepPartial, DeepReadonly, UnionToIntersection',
+            30,
+          ],
+        ],
+      },
+      {
+        id: 'm12-template-tuples',
+        title: 'Template-literal and tuple types',
+        prerequisites: ['m11-conditional-types'],
+        lessons: [
+          [
+            '01-template-literal-types',
+            'Template literal types, the intrinsics, and parsing strings with infer',
+            30,
+          ],
+          ['02-variadic-tuples', 'Variadic tuple types', 20],
+          [
+            '03-tuple-manipulation',
+            'Tuple manipulation: Head, Tail, Last, Length, Reverse, Includes',
+            25,
+          ],
+          [
+            '04-recursion-limits',
+            'Recursion limits, tail recursion and accumulators',
+            20,
+          ],
+        ],
+      },
+      {
+        id: 'm13-type-challenges',
+        title: 'Type-level programming track',
+        prerequisites: ['m12-template-tuples'],
+        lessons: [
+          // §8's "(13 challenges)" is a note, not title text.
+          ['01-easy-set', 'type-challenges, easy set', 45],
+          ['02-medium-set-1', 'Medium set I', 60],
+          ['03-medium-set-2', 'Medium set II', 60],
+          // (opt) in §8: `optional: true`.
+          ['04-hard-set', 'Hard set, selected', 60],
+          ['05-extreme-set', 'Extreme set, selected', 60],
+        ],
+      },
+      {
+        id: 'm14-type-system-edges',
+        title: 'The edges of the type system',
+        prerequisites: ['m11-conditional-types'],
+        lessons: [
+          [
+            '01-assignability-variance',
+            'Assignability, variance, and in/out annotations',
+            25,
+          ],
+          [
+            '02-const-type-params-noinfer',
+            'const type parameters and NoInfer',
+            20,
+          ],
+          [
+            '03-branded-types',
+            'Branded, nominal and phantom types; unique symbol',
+            20,
+          ],
+          [
+            '04-declaration-merging',
+            'Declaration merging, namespaces, module and global augmentation',
+            20,
+          ],
+          // (opt) in §8: `optional: true`.
+          ['05-decorators', 'Decorators: the TS 5 standard decorators', 20],
+        ],
+      },
+    ],
+  },
 ];
+
+/** The type-challenges track (§8 M13): one exercise per challenge (Deviations, F13). */
+const TRACK = 'm13-type-challenges';
+
+/** type-challenges' LICENSE (MIT), fetched from the repository on 23 October 2026. */
+const TYPE_CHALLENGES_COPYRIGHT =
+  'Copyright (c) 2020 Anthony Fu <https://github.com/antfu>';
+const TYPE_CHALLENGES_REPO =
+  'https://github.com/type-challenges/type-challenges';
+/** The whole notice, line by line, as each M13 lesson's Further reading carries it in a `text` fence. */
+const MIT_NOTICE = [
+  'MIT License',
+  '',
+  TYPE_CHALLENGES_COPYRIGHT,
+  '',
+  'Permission is hereby granted, free of charge, to any person obtaining a copy',
+  'of this software and associated documentation files (the "Software"), to deal',
+  'in the Software without restriction, including without limitation the rights',
+  'to use, copy, modify, merge, publish, distribute, sublicense, and/or sell',
+  'copies of the Software, and to permit persons to whom the Software is',
+  'furnished to do so, subject to the following conditions:',
+  '',
+  'The above copyright notice and this permission notice shall be included in all',
+  'copies or substantial portions of the Software.',
+  '',
+  'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR',
+  'IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,',
+  'FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE',
+  'AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER',
+  'LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,',
+  'OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE',
+  'SOFTWARE.',
+].join('\n');
+
+/**
+ * The challenges each M13 lesson sets, as type-challenges' question folders, in exercise order
+ * (the F13 plan Kim approved on 23 October 2026: all of easy, ten medium twice, seven hard, five
+ * extreme).
+ */
+const CHALLENGES: Record<string, string[]> = {
+  [`${TRACK}/01-easy-set`]: [
+    '00004-easy-pick',
+    '00007-easy-readonly',
+    '00011-easy-tuple-to-object',
+    '00014-easy-first',
+    '00018-easy-tuple-length',
+    '00043-easy-exclude',
+    '00189-easy-awaited',
+    '00268-easy-if',
+    '00533-easy-concat',
+    '00898-easy-includes',
+    '03057-easy-push',
+    '03060-easy-unshift',
+    '03312-easy-parameters',
+  ],
+  [`${TRACK}/02-medium-set-1`]: [
+    '00002-medium-return-type',
+    '00003-medium-omit',
+    '00008-medium-readonly-2',
+    '00009-medium-deep-readonly',
+    '00010-medium-tuple-to-union',
+    '00012-medium-chainable-options',
+    '00015-medium-last',
+    '00016-medium-pop',
+    '00020-medium-promise-all',
+    '00062-medium-type-lookup',
+  ],
+  [`${TRACK}/03-medium-set-2`]: [
+    '00106-medium-trimleft',
+    '00108-medium-trim',
+    '00110-medium-capitalize',
+    '00116-medium-replace',
+    '00119-medium-replaceall',
+    '00298-medium-length-of-string',
+    '00459-medium-flatten',
+    '01042-medium-isnever',
+    '00296-medium-permutation',
+    '01097-medium-isunion',
+  ],
+  [`${TRACK}/04-hard-set`]: [
+    '00017-hard-currying-1',
+    '00057-hard-get-required',
+    '00089-hard-required-keys',
+    '00114-hard-camelcase',
+    '00223-hard-isany',
+    '00270-hard-typed-get',
+    '00300-hard-string-to-number',
+  ],
+  [`${TRACK}/05-extreme-set`]: [
+    '00005-extreme-readonly-keys',
+    '00216-extreme-slice',
+    '00274-extreme-integers-comparator',
+    '00476-extreme-sum',
+    '00151-extreme-query-string-parser',
+  ],
+};
+
+/** A challenge's page, as a prompt links it. */
+function challengeUrl(folder: string): string {
+  return `${TYPE_CHALLENGES_REPO}/blob/main/questions/${folder}/README.md`;
+}
 
 /** §1 Lesson anatomy: the theory sections, in this order. */
 const SECTIONS = [
@@ -360,12 +577,12 @@ function inSection<T extends { line: number }>(
   return items.filter((item) => sectionAt(analysis, item.line) === section);
 }
 
-describe('§12 F11 and F12: the course in content/ is Tiers 0 to 2 as §8 lists them', () => {
+describe('§12 F11, F12 and F13: the course in content/ is Tiers 0 to 3 as §8 lists them', () => {
   it('loads with no structural problem', () => {
     expect(content.problems).toEqual([]);
   });
 
-  it("the roadmap has §8's tiers t0, t1 and t2, in order", () => {
+  it("the roadmap has §8's tiers t0 to t3, in order", () => {
     expect(registry.tiers).toEqual(
       TIERS.map((tier) => ({
         id: tier.id,
@@ -375,8 +592,8 @@ describe('§12 F11 and F12: the course in content/ is Tiers 0 to 2 as §8 lists 
     );
   });
 
-  it("41 lessons in all: F11's 20, F12's 19 core and two optional", () => {
-    expect(LESSONS).toHaveLength(41);
+  it("62 lessons in all: F11's 20, F12's 19 core and two optional, F13's 18 core and three optional", () => {
+    expect(LESSONS).toHaveLength(62);
     expect(registry.lessons.map((l) => l.id)).toEqual(LESSONS.map((l) => l.id));
   });
 
@@ -392,9 +609,15 @@ describe('§12 F11 and F12: the course in content/ is Tiers 0 to 2 as §8 lists 
     },
   );
 
-  it('the lessons §8 marks (opt), 5.5 and 8.4, are exactly the optional ones (pre-F13)', () => {
+  it('the lessons §8 marks (opt), 5.5, 8.4, 13.4, 13.5 and 14.5, are exactly the optional ones', () => {
     expect(registry.lessons.filter((l) => l.optional).map((l) => l.id)).toEqual(
-      ['m05-generics/05-when-generics-hurt', 'm08-functions-classes/04-mixins'],
+      [
+        'm05-generics/05-when-generics-hurt',
+        'm08-functions-classes/04-mixins',
+        'm13-type-challenges/04-hard-set',
+        'm13-type-challenges/05-extreme-set',
+        'm14-type-system-edges/05-decorators',
+      ],
     );
   });
 
@@ -406,7 +629,7 @@ describe('§12 F11 and F12: the course in content/ is Tiers 0 to 2 as §8 lists 
   });
 });
 
-describe.each(LESSONS)('§12 F11 and F12: $id', (row) => {
+describe.each(LESSONS)('§12 F11, F12 and F13: $id', (row) => {
   it('has the §1 structure: the five theory sections in order, 2–5 objectives, runnable examples, two or three pitfalls each with a snippet, 1–3 questions, further reading', () => {
     const lesson = lessonOf(row.id);
     const analysis = analysisOf(lesson);
@@ -415,6 +638,10 @@ describe.each(LESSONS)('§12 F11 and F12: $id', (row) => {
     ).toEqual(SECTIONS);
     expect(lesson.objectives.length).toBeGreaterThanOrEqual(2);
     expect(lesson.objectives.length).toBeLessThanOrEqual(5);
+    expect(
+      inSection(analysis, analysis.fences, 'Concept').length,
+      'Concept has the smallest example (§1)',
+    ).toBeGreaterThan(0);
     expect(
       inSection(analysis, analysis.fences, 'Examples').filter(
         (f) => f.kind === 'run',
@@ -458,11 +685,19 @@ describe.each(LESSONS)('§12 F11 and F12: $id', (row) => {
     ).toBeGreaterThan(0);
   });
 
-  it('has at least two exercises (one in M00) and at most five, at least one predict, and 1–3 hints on every editor exercise', () => {
+  it('has at least two exercises (one in M00) and at most five (M13: one per challenge), at least one predict, and 1–3 hints on every editor exercise', () => {
     const exercises = exercisesOf(lessonOf(row.id));
     const least = row.module === 'm00-orientation' ? 1 : 2;
     expect(exercises.length).toBeGreaterThanOrEqual(least);
-    expect(exercises.length).toBeLessThanOrEqual(5);
+    if (row.module === TRACK) {
+      // Deviations (F13): one type-challenge per challenge the set selects, plus predicts.
+      const set = CHALLENGES[row.id] ?? [];
+      expect(exercises.filter((e) => e.kind === 'type-challenge')).toHaveLength(
+        set.length,
+      );
+    } else {
+      expect(exercises.length).toBeLessThanOrEqual(5);
+    }
     expect(
       exercises.filter((e) => e.kind === 'predict').length,
     ).toBeGreaterThan(0);
@@ -518,4 +753,65 @@ describe.each(LESSONS)('§12 F11 and F12: $id', (row) => {
       ).toBeDefined();
     }
   });
+});
+
+describe('§12 F13: the type-challenges sets credit their source', () => {
+  const track = LESSONS.filter((row) => row.module === TRACK);
+
+  it.each(track)(
+    '$id sets its challenges in order, each prompt naming and linking its challenge (MIT)',
+    (row) => {
+      const challenges = exercisesOf(lessonOf(row.id))
+        .filter(isEditorExercise)
+        .filter((e) => e.kind === 'type-challenge');
+      const set = CHALLENGES[row.id] ?? [];
+      expect(challenges.map((e) => e.id)).toHaveLength(set.length);
+      challenges.forEach((exercise, index) => {
+        const folder = set[index] ?? '';
+        const number = folder.slice(0, 5);
+        expect(exercise.prompt, exercise.id).toContain(challengeUrl(folder));
+        expect(exercise.prompt, exercise.id).toContain(
+          `From type-challenges [#${number} `,
+        );
+        expect(exercise.prompt, exercise.id).toContain('(MIT)');
+      });
+    },
+  );
+
+  it.each(track)(
+    "$id: every tests.ts opens with its challenge's link and type-challenges' copyright line",
+    (row) => {
+      const challenges = exercisesOf(lessonOf(row.id))
+        .filter(isEditorExercise)
+        .filter((e) => e.kind === 'type-challenge');
+      const set = CHALLENGES[row.id] ?? [];
+      challenges.forEach((exercise, index) => {
+        const header = (exercise.testsText ?? '').split('\n').slice(0, 2);
+        expect(header[0], exercise.id).toBe(
+          `// Cases adapted from type-challenges #${(set[index] ?? '').slice(0, 5)}, ${challengeUrl(set[index] ?? '')}`,
+        );
+        expect(header[1], exercise.id).toBe(
+          `// MIT License, ${TYPE_CHALLENGES_COPYRIGHT}`,
+        );
+      });
+    },
+  );
+
+  it.each(track)(
+    "$id: Further reading links the repository and carries type-challenges' MIT notice",
+    (row) => {
+      const lesson = lessonOf(row.id);
+      const analysis = analysisOf(lesson);
+      expect(
+        inSection(analysis, analysis.links, 'Further reading').map(
+          (l) => l.url,
+        ),
+      ).toContain(TYPE_CHALLENGES_REPO);
+      const source = readFileSync(path.join(REPO_ROOT, lesson.path), 'utf8');
+      const reading = source.slice(source.indexOf('\n## Further reading'));
+      expect(reading, `${row.id}: the MIT notice, verbatim`).toContain(
+        '```text\n' + MIT_NOTICE + '\n```',
+      );
+    },
+  );
 });

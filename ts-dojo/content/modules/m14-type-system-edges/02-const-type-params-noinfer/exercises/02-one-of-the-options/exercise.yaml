@@ -1,0 +1,33 @@
+id: m14-type-system-edges/02-const-type-params-noinfer/02-one-of-the-options
+kind: implement
+title: One of the options
+minutes: 3
+challenge: false
+prompt: |
+  Write `oneOf(options, fallback, input)`. It returns `input` when it is one of `options`, and
+  `fallback` otherwise:
+
+  ```ts
+  const size = oneOf(['s', 'm', 'l'], 'm', query); // 's' | 'm' | 'l'
+  oneOf(['s', 'm', 'l'], 'm', 'l'); // 'l'
+  oneOf(['s', 'm', 'l'], 'm', 'xl'); // 'm'
+  ```
+
+  The options decide the type. A fallback that isn't one of them must be an error, as in
+  `oneOf(['s', 'm', 'l'], 'xl', query)`, and the starter's signature lets it widen `T` instead.
+  Fix the signature and write the body, without a cast.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Today `fallback` is an inference site, so `'xl'` becomes a candidate for `T` like the options.
+  - "`includes` won't take a `string` for a `T`. A method that compares each option with the input and returns the matching option keeps the type `T`."

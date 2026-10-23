@@ -1,0 +1,23 @@
+id: m10-mapped-types/02-key-remapping/03-which-keys
+kind: predict
+title: Which flags are left?
+minutes: 1
+challenge: false
+code: |
+  type Flags<T> = {
+    [K in keyof T as `is${Capitalize<K & string>}`]: boolean;
+  };
+
+  type F = Flags<{ readonly open: boolean; 1: string; visible?: boolean }>;
+question: What is `F`?
+options:
+  - '{ isOpen: boolean; is1: boolean; isVisible: boolean }'
+  - '{ isOpen: boolean; isVisible: boolean }'
+  - '{ readonly isOpen: boolean; is1: boolean; isVisible?: boolean | undefined }'
+  - '{ readonly isOpen: boolean; isVisible?: boolean | undefined }'
+answer: 3
+explanation: |
+  `1` is a number key, so `1 & string` is `never`, and a key renamed to `never` is dropped:
+  there is no `is1`. The mapped type loops over `keyof T`, so it is homomorphic even with an
+  `as` clause, and each renamed key keeps the modifiers of its source: `isOpen` is read-only
+  and `isVisible` optional, which the editor shows with `| undefined`.

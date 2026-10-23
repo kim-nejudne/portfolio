@@ -1,0 +1,23 @@
+id: m13-type-challenges/05-extreme-set/06-first-equals-sign
+kind: predict
+title: Where the key ends
+minutes: 2
+challenge: false
+code: |
+  type ParsePiece<P extends string> = P extends `${infer K}=${infer V}`
+    ? [K, V]
+    : [P, true];
+
+  type R = ParsePiece<'q=a=b'>;
+question: What is `R`?
+options:
+  - "['q', 'a=b']"
+  - "['q=a', 'b']"
+  - "['q', 'a']"
+  - "['q=a=b', true]"
+answer: 0
+explanation: |
+  An `infer` followed by a literal in a template literal pattern takes the shortest text that
+  lets the pattern match (12.1), so `K` stops at the first `=`. The last `infer` has nothing
+  after it and takes the rest of the string, `=` included. That is what a query string wants:
+  `?q=a=b` means the key `q` with the value `a=b`.

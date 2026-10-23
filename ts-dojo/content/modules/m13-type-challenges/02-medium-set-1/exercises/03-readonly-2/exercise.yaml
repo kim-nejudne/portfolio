@@ -1,0 +1,25 @@
+id: m13-type-challenges/02-medium-set-1/03-readonly-2
+kind: type-challenge
+title: Readonly 2
+minutes: 5
+challenge: false
+prompt: |
+  Write `MyReadonly2<T, K>` in `index.ts`: `T` with the properties whose keys are in `K` made
+  `readonly`, and every other property as it was. With no `K`, every property becomes
+  `readonly`, as with `Readonly<T>`. For a `Todo` with `title`, `description` and
+  `completed`, `MyReadonly2<Todo, 'title' | 'description'>` is
+  `{ readonly title: string; readonly description: string; completed: boolean }`.
+
+  A property that was already `readonly` stays so, an optional one stays optional, and a key
+  that `T` doesn't have is an error. These cases compare with `Alike` instead of `Equal`:
+  `Alike` flattens an intersection into one object type before it compares.
+
+  From type-challenges [#00008 Readonly 2](https://github.com/type-challenges/type-challenges/blob/main/questions/00008-medium-readonly-2/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The first case passes only one type argument, so `K` needs a default (lesson 5.2).
+  - No single mapped type adds `readonly` to some keys and leaves the rest alone. Build two objects, one for the keys in `K` and one for the others, and intersect them.

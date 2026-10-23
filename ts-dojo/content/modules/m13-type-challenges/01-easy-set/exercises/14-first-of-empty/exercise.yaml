@@ -1,0 +1,22 @@
+id: m13-type-challenges/01-easy-set/14-first-of-empty
+kind: predict
+title: The first element of nothing
+minutes: 2
+challenge: false
+code: |
+  type First<T extends unknown[]> = T[0];
+
+  type Empty = First<[]>;
+question: What is `Empty`?
+options:
+  - 'never'
+  - 'undefined'
+  - 'unknown'
+  - 'An error: the empty tuple has no element at index 0'
+answer: 1
+explanation: |
+  Indexing a tuple type past its end inside a generic gives `undefined`, the value reading
+  `[][0]` produces at run time, and no error. Written out directly, `[][0]` is an error, but
+  here the index happens when `First` is instantiated. That is why `First` of Array needs more
+  than `T[0]`: its case expects `never` for `[]`, while `First<[undefined]>` must still be
+  `undefined`, and only a check of the tuple's shape tells the two apart.

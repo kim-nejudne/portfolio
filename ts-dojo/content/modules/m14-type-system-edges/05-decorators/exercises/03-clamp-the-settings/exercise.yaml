@@ -1,0 +1,27 @@
+id: m14-type-system-edges/05-decorators/03-clamp-the-settings
+kind: implement
+title: Clamp the settings
+minutes: 3
+challenge: false
+prompt: |
+  `clamp(min, max)` is a decorator factory for `accessor` fields that hold a number. It
+  compiles, but the decorator it returns does nothing yet. Implement it:
+
+  - The initial value and every later assignment are kept between `min` and `max`:
+    `speaker.volume = 140` stores `100`. Reading the accessor returns the stored value.
+  - A `NaN`, as the initial value or in an assignment, throws a `RangeError` whose message is
+    the accessor's name and `is not a number`: `volume is not a number`.
+  - `clamp(5, 1)` throws a `RangeError` when it is called, before any class uses it.
+  - The decorator fits only accessors whose value is a `number`: on a `string` accessor it is
+    a compile error.
+
+  Use no `any` and no cast. `:w` runs `index.ts`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, type-assertion, as-unknown-as, any-expression]
+hints:
+  - The lib has a target, a context and a result type for accessor decorators; each takes the type of this and the value's type.
+  - The result object can replace the initial value and the setter separately, and leave the getter alone.
+  - Inside the replacement setter, store the value through the target with the right this.

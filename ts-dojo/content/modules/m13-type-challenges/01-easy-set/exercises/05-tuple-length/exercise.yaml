@@ -1,0 +1,22 @@
+id: m13-type-challenges/01-easy-set/05-tuple-length
+kind: type-challenge
+title: Length of Tuple
+minutes: 2
+challenge: false
+prompt: |
+  Write `Length<T>` in `index.ts`: the length of the tuple type `T`, as a number literal type.
+  For `const tesla = ['tesla', 'model 3', 'model X', 'model Y'] as const`,
+  `Length<typeof tesla>` is `4`.
+
+  A number or a string passed as `T` must be an error. Cases added in the dojo check the empty
+  tuple, whose length is `0`, and an array type, whose length is `number`.
+
+  From type-challenges [#00018 Length of Tuple](https://github.com/type-challenges/type-challenges/blob/main/questions/00018-easy-tuple-length/README.md) by sinoon (@sinoon) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Every tuple type has a property that holds its size. What is its type for a tuple of four elements?
+  - The starter has no constraint. The cases pass `as const` arrays, so the constraint has to accept a readonly tuple.

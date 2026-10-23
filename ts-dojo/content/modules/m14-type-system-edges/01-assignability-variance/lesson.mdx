@@ -1,0 +1,380 @@
+---
+id: m14-type-system-edges/01-assignability-variance
+title: Assignability, variance, and in/out annotations
+minutes: 25
+objectives:
+  - Tell subtyping from assignability, and read an assignability error as a question about direction
+  - Predict whether a generic type is covariant, contravariant, invariant or bivariant in its type parameter from where the parameter appears
+  - Explain why method parameters are checked both ways under strictFunctionTypes, and when to use property syntax instead
+  - Declare in, out and in out on a type parameter, and read the error when an annotation doesn't match the type
+prerequisites:
+  - m02-functions/02-function-types-and-callbacks
+  - m04-objects/02-structural-typing
+  - m05-generics/03-generic-types-and-classes
+  - m08-functions-classes/02-this-and-callable-types
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/03-distributive-conditionals
+tags:
+  - assignability
+  - subtyping
+  - variance
+  - covariance
+  - contravariance
+  - invariance
+  - bivariance
+  - strictFunctionTypes
+  - method syntax
+  - variance annotations
+  - in
+  - out
+---
+
+## Concept
+
+Every check you have met so far, an argument against a parameter, a value against an annotation, a returned value against a return type, asks one question: is the source type **assignable** to the target type? For object types, <Lesson id="m04-objects/02-structural-typing" /> answered it by shape. An `Admin` has every property a `User` has, so an `Admin` can go wherever a `User` is expected. That is **subtyping**: `Admin` is a subtype of `User`, `User` a supertype of `Admin`.
+
+Assignability is the relation the compiler actually checks, and it is subtyping plus a few allowances. The one you meet is `any`: a value of type `any` can be assigned to every type except `never`, although `any` is no subtype of `string` or of anything else. In what follows, "an `Admin` is a `User`" means that it is assignable.
+
+The interesting question is what happens to types built from `Admin` and `User`. That is **variance**: how a generic type passes the direction on.
+
+```ts run
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+type Getter<T> = () => T;
+type Setter<T> = (value: T) => void;
+
+const grace: Admin = { id: 'a1', name: 'Grace', permissions: ['deploy'] };
+const user: User = grace;
+
+const getAdmin: Getter<Admin> = () => grace;
+const getUser: Getter<User> = getAdmin;
+
+const saveUser: Setter<User> = (user) => console.log(`saved ${user.name}`);
+const saveAdmin: Setter<Admin> = saveUser;
+
+saveAdmin(grace);
+console.log(user.name, getUser().name);
+```
+
+A function that returns admins returns users, so `Getter<Admin>` is a `Getter<User>`: the direction is kept. A function that saves any user can save an admin, so `Setter<User>` is a `Setter<Admin>`: the direction is reversed. These are the four kinds of variance a type parameter can have:
+
+- **covariant**: `F<Admin>` is an `F<User>`. `T` only comes out: return types, properties, `readonly` arrays, `Promise<T>`.
+- **contravariant**: `F<User>` is an `F<Admin>`. `T` only goes in: parameters of function types.
+- **invariant**: neither. `T` goes in and comes out.
+- **bivariant**: both. Parameters of methods, which the examples below explain.
+
+## Examples
+
+**The wrong direction.** Each of the assignments above fails the other way round. A `Getter<User>` may return a plain user, and a `Setter<Admin>` reads `permissions` from whatever it is given:
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+type Getter<T> = () => T;
+type Setter<T> = (value: T) => void;
+
+const getUser: Getter<User> = () => ({ id: 'u1', name: 'Ada' });
+const getAdmin: Getter<Admin> = getUser;
+
+const saveAdmin: Setter<Admin> = (admin) => console.log(admin.permissions);
+const saveUser: Setter<User> = saveAdmin;
+```
+
+They report `Type 'Getter<User>' is not assignable to type 'Getter<Admin>'.` and `Type 'Setter<Admin>' is not assignable to type 'Setter<User>'.`, each followed by the same reason: `Property 'permissions' is missing in type 'User' but required in type 'Admin'.` For the getter, a `User` came out where an `Admin` was promised. For the setter, a `User` could go in where only an `Admin` is handled. The error names the pair of types, so read it as "which way does `T` travel here?"
+
+In <Lesson id="m02-functions/02-function-types-and-callbacks" />, a callback with fewer parameters fit a function type that passes more. Contravariance is the same idea for the parameter types: a callback whose parameters accept more fits too.
+
+**In and out at once.** When `T` is both a parameter and the result, both directions have to hold, and neither does. The type is invariant:
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+type Update<T> = (value: T) => T;
+
+const rename: Update<User> = (user) => ({ ...user, name: user.name.trim() });
+const promote: Update<Admin> = (admin) => ({
+  ...admin,
+  permissions: [...admin.permissions, 'billing'],
+});
+
+const forAdmins: Update<Admin> = rename;
+const forUsers: Update<User> = promote;
+```
+
+`rename` would turn an admin into a plain user, and `promote` would read the permissions of a plain user. Both lines are errors.
+
+**Methods are bivariant.** Under `strict`, the flag `strictFunctionTypes` checks the parameters of function types contravariantly, as above. Methods are the exception: a parameter declared with method syntax, `onLogin(user: User): void`, is accepted in either direction. The two handler types below differ only in that syntax:
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+type PropertyHandlers = { onLogin: (user: User) => void };
+type MethodHandlers = { onLogin(user: User): void };
+
+const adminsOnly = {
+  onLogin: (admin: Admin) => console.log(admin.permissions.join(', ')),
+};
+
+const asMethods: MethodHandlers = adminsOnly;
+const asProperties: PropertyHandlers = adminsOnly;
+```
+
+Only the last line is an error: `Type '(admin: Admin) => void' is not assignable to type '(user: User) => void'.` `asMethods` compiles, and calling `asMethods.onLogin` with a plain user would throw. What decides is how the target declares its member: the same function passes as a method and fails as a property. The call signatures of <Lesson id="m08-functions-classes/02-this-and-callable-types" />, `{ (user: User): void }`, are checked strictly too; only the parameters of methods, in a class or an object type, and of class constructors are bivariant.
+
+The exception is deliberate. `Array<T>` declares `push(...items: T[])` and its other methods with method syntax, and checked strictly they would make arrays invariant, so an `Admin[]` could not even be passed to a function that reads a `User[]`. Bivariant methods keep `Admin[]` a `User[]`, at the cost of the hole in Pitfalls. Turn `strictFunctionTypes` off and every parameter is bivariant, properties included:
+
+```ts twoslash
+// @strictFunctionTypes: false
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+type PropertyHandlers = { onLogin: (user: User) => void };
+
+const adminsOnly = {
+  onLogin: (admin: Admin) => console.log(admin.permissions.join(', ')),
+};
+const asProperties: PropertyHandlers = adminsOnly;
+//    ^?
+```
+
+Leave the flag on, and declare a callback member as a property with a function type whenever its parameter must be checked.
+
+**Variance annotations.** The compiler works out the variance of each type parameter from how it is used, and compares two instantiations of the same generic type, such as `Getter<Admin>` and `Getter<User>`, by that variance, as a shortcut past their members. Since TypeScript 4.7 you can declare it instead, on the type parameter of an interface, a class, or a type alias of an object, function, constructor or mapped type: `out T` for covariant, `in T` for contravariant, `in out T` for invariant. Annotated types are used like any other:
+
+```ts run
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+interface Producer<out T> {
+  make: () => T;
+}
+
+interface Consumer<in T> {
+  take: (value: T) => void;
+}
+
+interface Merge<in out T> {
+  merge: (a: T, b: T) => T;
+}
+
+const grace: Admin = { id: 'a1', name: 'Grace', permissions: ['deploy'] };
+
+const admins: Producer<Admin> = { make: () => grace };
+const users: Producer<User> = admins;
+
+const greeter: Consumer<User> = {
+  take: (user) => console.log(`hi ${user.name}`),
+};
+const adminGreeter: Consumer<Admin> = greeter;
+
+const mergeUsers: Merge<User> = { merge: (a, b) => ({ ...a, ...b }) };
+
+adminGreeter.take(admins.make());
+console.log(mergeUsers.merge(users.make(), { id: 'u1', name: 'Ada' }));
+```
+
+The compiler checks each annotation against the type's structure, and the three above match. One that doesn't is an error at the declaration:
+
+```ts run errors
+interface Broken<out T> {
+  take: (value: T) => void;
+}
+```
+
+`Broken` claims `out` for a parameter: `Type 'Broken<sub-T>' is not assignable to type 'Broken<super-T>' as implied by variance annotation.` `sub-T` and `super-T` are stand-ins the compiler invents, a subtype and its supertype, so read them as `Admin` and `User`: `out` promises that `Broken<Admin>` is a `Broken<User>`, and the rest of the message says why it isn't.
+
+An annotation also does what the structure can't. `in` on a type parameter that a method takes replaces the method's two-way check with a one-way one, and `in out` makes a type invariant that its properties alone would leave covariant:
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+interface Queue<in T> {
+  enqueue(item: T): void;
+}
+
+interface Box<in out T> {
+  value: T;
+}
+
+const grace: Admin = { id: 'a1', name: 'Grace', permissions: ['deploy'] };
+
+const adminQueue: Queue<Admin> = {
+  enqueue: (admin) => console.log(admin.permissions.join(', ')),
+};
+const userQueue: Queue<User> = adminQueue;
+
+const adminBox: Box<Admin> = { value: grace };
+const userBox: Box<User> = adminBox;
+```
+
+Without the annotations both assignments compile. With them, both report `Type 'Queue<Admin>' is not assignable to type 'Queue<User>'.` and `Type 'Box<Admin>' is not assignable to type 'Box<User>'.` An annotation is also documentation the compiler keeps honest: someone who later adds `reset: (value: T) => void` to a `Producer<out T>` gets the error at the declaration, not at a distant call.
+
+The lesson's last exercise measures variance with conditional types, the assignability question of <Lesson id="m11-conditional-types/01-conditional-types" />, compared whole as <Lesson id="m11-conditional-types/03-distributive-conditionals" /> showed.
+
+## Pitfalls
+
+**Mutable arrays are covariant.** Because array methods are bivariant, an `Admin[]` is accepted as a `User[]`, and the function that receives it may add a plain user. Nothing reports it, and the admins array now holds a user without permissions:
+
+```ts run
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+function addGuest(users: User[]): void {
+  users.push({ id: 'g1', name: 'Guest' });
+}
+
+const admins: Admin[] = [{ id: 'a1', name: 'Grace', permissions: ['deploy'] }];
+addGuest(admins);
+
+for (const admin of admins) {
+  console.log(admin.name, admin.permissions);
+}
+```
+
+The second line printed is the guest, with `undefined` for its permissions. A function that only reads should take a `readonly User[]` (<Lesson id="m01-types/03-arrays-tuples-objects" />): an `Admin[]` is still accepted, and a write is an error, `Property 'push' does not exist on type 'readonly User[]'.` A function that adds a user should return a new array instead.
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+function addGuest(users: readonly User[]): void {
+  users.push({ id: 'g1', name: 'Guest' });
+}
+```
+
+**An annotation on a method parameter.** An annotation is checked against the structure, and the structure of a method parameter is bivariant, so a wrong annotation there passes. `out` on a property with a function type is caught; the same `out` on a method is accepted, and `MethodInbox<Admin>` then counts as a `MethodInbox<User>`:
+
+```ts run errors
+interface Inbox<out T> {
+  deliver: (item: T) => void;
+}
+
+interface MethodInbox<out T> {
+  deliver(item: T): void;
+}
+```
+
+Only `Inbox` reports `Type 'Inbox<sub-T>' is not assignable to type 'Inbox<super-T>' as implied by variance annotation.` Work out the direction from where `T` goes, not from what the compiler accepts.
+
+**Expecting an annotation to cover other types.** An annotation is used only when two instantiations of the same generic type are compared. A value of another type, even one with the same shape, is compared property by property, and `in out` has no say:
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Admin extends User {
+  permissions: string[];
+}
+
+interface Box<in out T> {
+  value: T;
+}
+
+const grace: Admin = { id: 'a1', name: 'Grace', permissions: ['deploy'] };
+
+const adminBox: Box<Admin> = { value: grace };
+const strict: Box<User> = adminBox;
+
+const plain: { value: Admin } = { value: grace };
+const loose: Box<User> = plain;
+```
+
+Only `strict` is an error, `Type 'Box<Admin>' is not assignable to type 'Box<User>'.`: two instantiations of `Box`, compared by the annotation. `loose` compiles, although `plain` holds the same admin. `{ value: Admin }` assigned to `Box<User>` is plain structural typing, and `value` is checked covariantly.
+
+## Check yourself
+
+<Predict
+  id="callback-direction"
+  question="`Admin` extends `User`. Is a `(user: User) => void` assignable to `(admin: Admin) => void`?"
+  options={[
+    'Yes: a function that takes any user can take an admin',
+    'No: a User is not an Admin',
+    'Only with strictFunctionTypes turned off',
+  ]}
+  answer={0}
+  explanation="Parameters are contravariant: the direction is reversed. Whoever holds the `(admin: Admin) => void` will only pass admins, and the function accepts every user, so admins are fine. The other way, a function that needs an admin given to code that passes plain users, is the error."
+/>
+
+<Predict
+  id="method-sink"
+  question="`interface Sink<T> { accept(value: T): void }`, under the default strict options. Does assigning a `Sink<Admin>` to a `Sink<User>` compile?"
+  options={[
+    'No: strictFunctionTypes checks the parameter contravariantly',
+    'Yes: accept is a method, and method parameters are checked both ways',
+    'Yes: T is only used in a parameter, so Sink is covariant',
+  ]}
+  answer={1}
+  explanation="`strictFunctionTypes` leaves out method declarations and method signatures, so `accept` is compared bivariantly and the unsafe direction compiles. Declare `accept: (value: T) => void` as a property, or write `Sink<in T>`, and it becomes an error."
+/>
+
+<Predict
+  id="annotate-update"
+  question="Which variance annotation on `T` does the compiler accept for `type Update<T> = (value: T) => T`?"
+  options={['out T', 'in T', 'in out T', 'Any of the three']}
+  answer={2}
+  explanation="`T` is a parameter, which is checked contravariantly, and the result, which is checked covariantly, so `Update` is invariant. `out T` fails on the parameter and `in T` on the result, each with the as implied by variance annotation error. `in out T` matches."
+/>
+
+## Further reading
+
+- [Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html), including function parameter bivariance and subtype vs assignment
+- [Generics: variance annotations](https://www.typescriptlang.org/docs/handbook/2/generics.html#variance-annotations)
+- [TSConfig: `strictFunctionTypes`](https://www.typescriptlang.org/tsconfig/#strictFunctionTypes)
+- [TypeScript 2.6: strict function types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-6.html) and [TypeScript 4.7: optional variance annotations](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-7.html)

@@ -1,0 +1,22 @@
+id: m13-type-challenges/03-medium-set-2/11-boolean-distributes
+kind: predict
+title: A box for a boolean
+minutes: 2
+challenge: false
+code: |
+  type Box<T> = T extends unknown ? [T] : never;
+
+  type B = Box<boolean>;
+question: What is `B`?
+options:
+  - '[boolean]'
+  - '[true] | [false]'
+  - '[true, false]'
+  - 'never'
+answer: 1
+explanation: |
+  `boolean` is the union `true | false`, and a conditional on a naked type parameter runs once
+  for each member of a union, so `Box` makes one tuple for `true` and one for `false`. That is
+  why Permutation expects `[false, true] | [true, false]` for `boolean`, and why IsUnion's case
+  added in the dojo expects `IsUnion<boolean>` to be `true`. Written as
+  `[T] extends [unknown] ? [T] : never`, the check doesn't distribute and `B` is `[boolean]`.

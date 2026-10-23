@@ -1,0 +1,25 @@
+id: m13-type-challenges/04-hard-set/04-camel-case
+kind: type-challenge
+title: CamelCase
+minutes: 7
+challenge: false
+prompt: |
+  Write `CamelCase<S>` in `index.ts`: the `snake_case` string type `S` in `camelCase`.
+  `CamelCase<'hello_world_with_types'>` is `'helloWorldWithTypes'`, and so is
+  `CamelCase<'HELLO_WORLD_WITH_TYPES'>`: every letter is lower-cased first.
+
+  An underscore goes only when a letter follows it, and that letter is upper-cased. Any other
+  underscore stays: `'foo__bar'` gives `'foo_Bar'`, `'foo_$bar'` gives `'foo_$bar'`, and
+  `'foo_bar_'` gives `'fooBar_'`. A string with no letters, such as `'-'`, `''` or `'😎'`,
+  comes back unchanged.
+
+  From type-challenges [#00114 CamelCase](https://github.com/type-challenges/type-challenges/blob/main/questions/00114-hard-camelcase/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lower-case the whole string once, then walk it. A pattern can find the first underscore and name the one character after it and the rest (12.1).
+  - Whether that character is a letter is the test the lesson's IsLetter makes.
+  - When it isn't a letter, keep the underscore and carry on from that character, not after it, so that a second underscore gets its own chance.

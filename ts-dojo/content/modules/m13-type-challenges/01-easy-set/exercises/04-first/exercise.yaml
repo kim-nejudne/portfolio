@@ -1,0 +1,22 @@
+id: m13-type-challenges/01-easy-set/04-first
+kind: type-challenge
+title: First of Array
+minutes: 3
+challenge: false
+prompt: |
+  Write `First<T>` in `index.ts`: the type of the first element of the array type `T`.
+  `First<['a', 'b', 'c']>` is `'a'` and `First<[3, 2, 1]>` is `3`.
+
+  An empty tuple has no first element, so `First<[]>` is `never`. A tuple whose first element
+  is `undefined` gives `undefined`, so `never` has to come from the tuple being empty, not from
+  what the first element is. Anything that isn't an array is an error.
+
+  From type-challenges [#00014 First of Array](https://github.com/type-challenges/type-challenges/blob/main/questions/00014-easy-first/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Indexing with 0 gives the first element, but run the cases and see what it gives for the empty tuple.
+  - A conditional type can ask whether `T` has the shape of a tuple with at least one element, and capture that element with `infer` while it asks.

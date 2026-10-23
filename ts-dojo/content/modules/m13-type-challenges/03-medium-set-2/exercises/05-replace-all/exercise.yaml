@@ -1,0 +1,23 @@
+id: m13-type-challenges/03-medium-set-2/05-replace-all
+kind: type-challenge
+title: ReplaceAll
+minutes: 4
+challenge: false
+prompt: |
+  Write `ReplaceAll<S, From, To>` in `index.ts`: the string type `S` with every occurrence of
+  `From` replaced by `To`, as `String.prototype.replaceAll` does. `ReplaceAll<'t y p e s', ' ', ''>`
+  is `'types'`. An empty `From`, or one that isn't there, leaves `S` unchanged, as in Replace.
+
+  What `To` puts in is never searched again: `ReplaceAll<'foboorfoboar', 'bo', 'b'>` is
+  `'foborfobar'`, even though the first `b` that comes in is followed by an `o`, which would
+  make a new `bo` if it were searched again.
+
+  From type-challenges [#00119 ReplaceAll](https://github.com/type-challenges/type-challenges/blob/main/questions/00119-medium-replaceall/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Start from your Replace, and keep going after the first replacement.
+  - Recurse on the part after the match, not on the whole new string, or the text `To` brought in is matched again.

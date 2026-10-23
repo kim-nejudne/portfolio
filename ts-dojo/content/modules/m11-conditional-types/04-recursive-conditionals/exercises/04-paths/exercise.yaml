@@ -1,0 +1,38 @@
+id: m11-conditional-types/04-recursive-conditionals/04-paths
+kind: type-challenge
+title: Every path into an object
+minutes: 4
+challenge: false
+prompt: |
+  A form library names a field by its path, such as `'user.address.city'`. Write `Paths<T>` in
+  `index.ts`: the union of every dotted path to a property of `T`, at any depth.
+
+  ```ts
+  interface Profile {
+    user: { name: string; address?: { city: string; zip: string } };
+    tags: string[];
+    save: () => void;
+  }
+  // Paths<Profile> is
+  //   'user' | 'user.name' | 'user.address' | 'user.address.city' | 'user.address.zip'
+  //   | 'tags' | 'save'
+  ```
+
+  - Only string keys count; number and symbol keys are left out.
+  - Arrays and functions are leaves: their own path is listed, nothing below it.
+  - An optional property, or one that may be `null`, is walked into like any other.
+  - A union of objects gives the paths of every member, and anything that is not an object
+    (a primitive, an array, a function, `never`) has no paths, `never`.
+
+  `` `a.${never}` `` is `never`, as any template literal type with `never` in it is. The type
+  cases try nested and optional objects, `null`, `readonly`, an array, a function, a union, a
+  number key and types with no paths, and reject a misspelt and an unfinished path.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Ask once per key. `keyof T` is a union, and a naked type parameter that holds it splits it, as in 11.3.
+  - A key's paths are the key itself, and the key joined by a dot to each path of its value. 10.2 built key names with template literal types.
+  - Test for arrays and functions before objects, as `DeepReadonly` tests functions first.
