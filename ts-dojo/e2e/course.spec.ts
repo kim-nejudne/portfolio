@@ -3,8 +3,10 @@
 //      exercises (one in M00), at least one `predict`, hints on every editor exercise, and at
 //      least one `ts twoslash` block."
 // §12 F12, content wave 2 (Tier 2): "M05 to M09, 19 core lessons and the two optional ones, to
-//   the same rules as F11, lint passing." The tests below are generated from the tree, so they
-//   cover every wave the course holds.
+//   the same rules as F11, lint passing."
+// §12 F13, content wave 3 (Tier 3): "M10 to M14, 18 core lessons and three optional, with the
+//   type-challenges sets crediting their source." The tests below are generated from the tree,
+//   so they cover every wave the course holds.
 // src/content/node/curriculum.test.ts proves the counts and the §1 structure in the source, and
 // `pnpm content:lint` (criterion 2) proves every exercise solvable in Node. This spec proves the
 // same course as Kim meets it in the browser, generated from the content tree at collection time

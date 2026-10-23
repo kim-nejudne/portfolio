@@ -1,0 +1,34 @@
+id: m10-mapped-types/01-mapped-types-and-modifiers/02-form-fields
+kind: fix
+title: A field for every property
+minutes: 4
+challenge: false
+prompt: |
+  `Form<T>` in `index.ts` should hold one `Field` for each property of `T`, with that
+  property's type and its modifiers: a read-only property gives a read-only field, and an
+  optional property an optional one. It is written with `Record`, and the file doesn't compile:
+
+  - `Property 'bio' is missing in type '{ id: Field<number>; name: Field<string>; }' but required in type 'Form<Profile>'.`
+  - `'form.name.value' is possibly 'undefined'.`
+  - `Property 'trim' does not exist on type 'string | number'.`
+
+  Fix `Form`, not the code that uses it: `newProfile` must still leave the optional `bio` out,
+  and `displayName` must still read `form.name.value`. The type cases check `Form` on two
+  types, the `@ts-expect-error` lines check that a missing field, a field of the wrong type and
+  a write to a read-only field are rejected, and the tests run `displayName` and `dirtyKeys`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Record maps over keys that come from no type in particular, so it has no modifiers to copy, and its one value type is shared by every key.
+  - A mapped type over keyof T copies the modifiers, and its value can be different for each key.

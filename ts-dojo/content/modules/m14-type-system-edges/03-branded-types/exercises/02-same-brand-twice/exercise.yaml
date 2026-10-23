@@ -1,0 +1,34 @@
+id: m14-type-system-edges/03-branded-types/02-same-brand-twice
+kind: predict
+title: The same brand twice
+minutes: 2
+challenge: false
+code: |
+  // Two modules each declared their own id types, and ended up in one file.
+  type UserId = string & { readonly __brand: 'UserId' };
+  type MemberId = string & { readonly __brand: 'UserId' };
+
+  declare const userKey: unique symbol;
+  declare const memberKey: unique symbol;
+  type UserKey = string & { readonly [userKey]: true };
+  type MemberKey = string & { readonly [memberKey]: true };
+
+  declare const id: UserId;
+  declare const key: UserKey;
+
+  const a: MemberId = id; // A
+  const b: MemberKey = key; // B
+question: Which of the two assignments compile?
+options:
+  - 'Only A'
+  - 'Only B'
+  - 'Both'
+  - 'Neither: each type alias is a brand of its own'
+answer: 0
+explanation: |
+  Brands are compared by shape like everything else. `UserId` and `MemberId` both have a
+  `__brand` of type `'UserId'`, so they are the same type and A compiles: the string is the
+  brand's identity, and two declarations that pick the same string collide. B is an error,
+  `Type 'UserKey' is not assignable to type 'MemberKey'.`: each `unique symbol` declaration has
+  a type of its own, so `[userKey]` and `[memberKey]` are different properties, and a `UserKey`
+  lacks the one a `MemberKey` needs.

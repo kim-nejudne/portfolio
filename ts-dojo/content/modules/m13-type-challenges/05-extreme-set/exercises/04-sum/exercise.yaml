@@ -1,0 +1,29 @@
+id: m13-type-challenges/05-extreme-set/04-sum
+kind: type-challenge
+title: Sum
+minutes: 9
+challenge: false
+prompt: |
+  Write `Sum<A, B>` in `index.ts`: the sum of two non-negative integers, as a string literal
+  type. Each number may be given as a string, a number or a bigint.
+
+  ```ts
+  type A = Sum<2, 3>; // '5'
+  type B = Sum<'328', 7>; // '335'
+  type C = Sum<1_000_000_000_000n, '123'>; // '1000000000123'
+  ```
+
+  The template is `type Sum<A extends string | number | bigint, B extends string | number | bigint> = string`,
+  and the starter keeps it. Cases added in the dojo check a carry into a new digit, two
+  bigints, and two numbers of 60 digits, more than a recursion that isn't in tail position can
+  walk (12.4).
+
+  From type-challenges [#00476 Sum](https://github.com/type-challenges/type-challenges/blob/main/questions/00476-extreme-sum/README.md) by @uid11 (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Add as on paper, from the last digit to the first, with a carry. A template literal pattern reads from the front, so turn the digit strings around first.
+  - The only counting needed is for one step, two digits and a carry, which a tuple's length can do (12.4). Write each result digit in front of an accumulator, so every recursive call stays in tail position.

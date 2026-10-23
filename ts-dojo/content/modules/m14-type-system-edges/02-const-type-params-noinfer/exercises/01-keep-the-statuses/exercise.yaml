@@ -1,0 +1,23 @@
+id: m14-type-system-edges/02-const-type-params-noinfer/01-keep-the-statuses
+kind: fix
+title: Keep the statuses
+minutes: 3
+challenge: false
+prompt: |
+  `defineStatuses` declares the statuses a ticket can be in, and `Status` is meant to be their
+  union. It is a `string` instead, so the `switch` in `label` can never cover every case:
+
+  - `Function lacks ending return statement and return type does not include 'undefined'.`
+
+  Fix it in `defineStatuses`, so that every caller gets literal types from a plain array:
+  `statuses` should be `readonly ['draft', 'review', 'published']`, and `Status` the union of the
+  three. Don't touch the call, `Status` or `label`; the tests also call `defineStatuses` with an
+  array of their own.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, type-assertion, as-unknown-as, any-expression]
+hints:
+  - The call infers `T` as `string[]`. The change belongs on the type parameter, not on the argument.
+  - One keyword in front of `T` makes every call infer as if the argument were written with `as const`.

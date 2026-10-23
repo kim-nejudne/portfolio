@@ -1,0 +1,35 @@
+id: m10-mapped-types/02-key-remapping/02-data-only
+kind: fix
+title: Data without the functions
+minutes: 4
+challenge: false
+prompt: |
+  `DataOnly<T>` in `index.ts` should keep the properties of `T` that hold data and leave out
+  every property that holds a function: methods, and callbacks such as the optional
+  `onDone` of a `Task`. The properties it keeps keep their modifiers. `toSaved` uses it to
+  describe what gets saved of a `Task`, and the file doesn't compile:
+
+  - `Type '{ id: number; title: string; done: boolean; }' is missing the following properties from type 'DataOnly<Task>': complete, rename`
+
+  Fix `DataOnly`, not the code that uses it. The type cases check `DataOnly` on `Task`, on a
+  class instance type, on small types and on a union, the `@ts-expect-error` lines check that
+  `complete` and `onDone` are gone, and the tests run `toSaved`. Lesson 6.4's exercise 04
+  filtered by value type in two steps; this one needs a single mapped type. It also uses
+  10.1's optional properties and a utility from 6.3.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - The message lists the methods as missing, so the keys are still there. What does a property of type never ask of a value?
+  - The value side decides a property's type; only the key side decides whether it exists.
+  - Once the methods are gone, onDone may still be there. Lesson 10.1 said what an optional property's type always includes, and that part isn't a function.

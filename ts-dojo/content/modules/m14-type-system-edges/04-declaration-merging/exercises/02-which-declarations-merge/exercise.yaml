@@ -1,0 +1,42 @@
+id: m14-type-system-edges/04-declaration-merging/02-which-declarations-merge
+kind: predict
+title: Which declarations merge?
+minutes: 2
+challenge: false
+code: |
+  export {}; // the file is a module
+
+  // A
+  type Point = { x: number };
+  type Point = { y: number };
+
+  // B
+  interface Size { width: number }
+  interface Size { width: string; height: number }
+
+  // C
+  namespace Units { export const px = 1; }
+  namespace Units { export const rem = 16 * px; }
+
+  // D
+  function area(width: number, height: number) { return width * height; }
+  namespace area { export const unit = 'm²'; }
+
+  // E
+  class Shape { constructor(readonly sides: number) {} }
+  interface Shape { name: string }
+question: Which of the pairs A to E are compile errors?
+options:
+  - 'Only A'
+  - 'A and B'
+  - 'A, B and C'
+  - 'A, B and E'
+answer: 1
+explanation: |
+  A type alias never merges, so A reports `Duplicate identifier 'Point'.` on both
+  declarations. Interfaces merge, but a property that both declare must have the same type in
+  both, so B reports `Subsequent property declarations must have the same type.  Property
+  'width' must be of type 'number', but here has type 'string'.` The rest merge. In C, an
+  exported member of one block is in scope in every block of the namespace, so `px` needs no
+  `Units.` prefix. In D, the namespace comes after the function, and `area.unit` joins it. In
+  E, the interface adds `name` to the instance type of `Shape`.

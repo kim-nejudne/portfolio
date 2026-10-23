@@ -1,0 +1,22 @@
+id: m12-template-tuples/04-recursion-limits/03-repeat
+kind: type-challenge
+title: Repeat a string
+minutes: 3
+challenge: false
+prompt: |
+  Write `Repeat<S, N>` in `index.ts`: the string `S` written `N` times in a row.
+
+  - `Repeat<'ab', 3>` is `'ababab'`, `Repeat<'na', 1>` is `'na'`, and `Repeat<'x', 0>` and
+    `Repeat<'', 4>` are both `''`.
+  - It must work past the nesting limit: `Repeat<'ab', 60>` is a string of 120 characters.
+  - When `N` is plain `number`, the result is `string`.
+
+  Count with a tuple, as in `BuildTuple`, and build the string in a second accumulator.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A string type has no length you can compare with `N`, so the count needs a tuple of its own.
+  - Two extra type parameters with defaults, one for the count and one for the string so far, keep the recursive call the whole branch.

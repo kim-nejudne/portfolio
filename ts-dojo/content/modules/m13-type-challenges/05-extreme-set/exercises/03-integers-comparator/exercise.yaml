@@ -1,0 +1,31 @@
+id: m13-type-challenges/05-extreme-set/03-integers-comparator
+kind: type-challenge
+title: Integers Comparator
+minutes: 10
+challenge: false
+prompt: |
+  Write `Comparator<A, B>` in `index.ts`. It compares two number literal types and gives a
+  member of the enum `Comparison`, which the template provides: `Comparison.Greater` when `A`
+  is greater than `B`, `Comparison.Equal` when they are equal, `Comparison.Lower` when `A` is
+  lower.
+
+  ```ts
+  type A = Comparator<5, 8>; // Comparison.Lower
+  type B = Comparator<-25, -30>; // Comparison.Greater
+  ```
+
+  Either number may be positive, negative or zero. The original marks its last ten cases as
+  extras, and here they are cases like the others: integers up to 9007199254740992, which no
+  tuple can count to, and numbers with a decimal point such as `3.1415`. Cases added in the
+  dojo compare numbers whose first digits disagree with their size, such as `10` and `9`.
+  The enum is exported so that `tests.ts` can name its members.
+
+  From type-challenges [#00274 Integers Comparator](https://github.com/type-challenges/type-challenges/blob/main/questions/00274-extreme-integers-comparator/README.md) by Pig Fang (@g-plane) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - "Work on the digits, `${A}` and `${B}`, never on a count (the lesson's second pitfall). Settle the signs first; two negative numbers compare the other way round."
+  - Between two numbers without signs, the whole part with more digits wins. Only when the lengths are equal do the digits decide, left to right, with the lesson's DigitLess, and only then the digits after the point.

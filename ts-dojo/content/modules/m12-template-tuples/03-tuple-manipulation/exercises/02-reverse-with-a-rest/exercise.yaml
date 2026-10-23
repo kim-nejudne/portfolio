@@ -1,0 +1,27 @@
+id: m12-template-tuples/03-tuple-manipulation/02-reverse-with-a-rest
+kind: predict
+title: Reverse a tuple with a rest element
+minutes: 2
+challenge: false
+code: |
+  type Reverse<T extends readonly unknown[]> = T extends readonly [
+    infer H,
+    ...infer R,
+  ]
+    ? [...Reverse<R>, H]
+    : [];
+
+  type X = Reverse<[1, ...string[]]>;
+question: What is `X`?
+options:
+  - '[...string[], 1]'
+  - '[1]'
+  - '[]'
+  - '(string | 1)[]'
+answer: 1
+explanation: |
+  `[1, ...string[]]` has a first element, so the pattern matches: `H` is `1` and `R` is the rest,
+  `string[]`. That rest is an array, which matches no tuple pattern, so `Reverse<string[]>` takes
+  the false branch and is `[]`. Spreading `[]` adds nothing, and the result is `[1]`: the strings
+  are lost without an error. Testing `number extends T['length']` first, as the pitfall says,
+  would keep the array.

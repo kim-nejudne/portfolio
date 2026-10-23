@@ -1,0 +1,193 @@
+---
+id: m10-mapped-types/02-key-remapping
+title: Key remapping with as and template literals
+minutes: 20
+objectives:
+  - Rename the keys of a mapped type with an as clause and a template literal type
+  - Explain why a renamed key is written K & string, and which keys that drops
+  - Remove properties by mapping their keys to never, by name or by value type
+  - Predict the modifiers a remapped property keeps, and what happens when two keys get the same name
+prerequisites:
+  - m06-type-operators/04-rebuilding-the-utilities
+  - m10-mapped-types/01-mapped-types-and-modifiers
+tags:
+  - mapped type
+  - key remapping
+  - as clause
+  - template literal type
+  - Capitalize
+  - K & string
+  - filter keys
+  - never
+  - getters
+  - TS2344
+---
+
+## Concept
+
+A mapped type names each new property after the key it loops over. An `as` clause, written after the key list, gives the property a different name. `K` still holds the original key, so `T[K]` still reads the right value:
+
+```ts twoslash
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<K & string>}`]: () => T[K];
+};
+
+type User = { name: string; age: number };
+type UserGetters = Getters<User>;
+//       ^?
+```
+
+The new name here is a **template literal type**: a template literal in a type position, whose placeholder holds a type instead of an expression. `` `get${'name'}` `` is the string type `'getname'`. `Capitalize` is one of four types the compiler builds in to change the case of a string type, and it uppercases the first character, so `` `get${Capitalize<'name'>}` `` is `'getName'`. <Lesson id="m12-template-tuples/01-template-literal-types" /> covers template literal types in depth; this lesson needs only a prefix, a suffix and `Capitalize`. The `& string` is explained in the first example.
+
+The `as` clause can be any type that gives a key. When it gives `never`, the property is left out, and that is how a mapped type filters.
+
+## Examples
+
+**Why `K & string`.** `keyof T` may hold number and symbol keys as well as strings, and `Capitalize` only takes a string. Intersecting the key with `string` keeps a string key as it is and turns a number or symbol key into `never`, and a property renamed to `never` is dropped. The renamed keys also keep their modifiers: an `as` clause over `keyof T` is still homomorphic (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), so `readonly` and `?` follow each key to its new name:
+
+```ts twoslash
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<K & string>}`]: () => T[K];
+};
+declare const tag: unique symbol;
+
+type Account = {
+  readonly id: number;
+  email?: string;
+  0: 'first';
+  [tag]: boolean;
+};
+type AccountGetters = Getters<Account>;
+//        ^?
+```
+
+`0` and `tag` have no getter, and `getEmail` is optional, like `email`, with `undefined` in its return type.
+
+**Getters at run time.** The type checks code that builds the object by hand. Leave a getter out, misspell one, or return the wrong type, and the return statement stops compiling:
+
+```ts run
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<K & string>}`]: () => T[K];
+};
+type Counter = { count: number; label: string };
+
+function gettersFor(state: Counter): Getters<Counter> {
+  return {
+    getCount: () => state.count,
+    getLabel: () => state.label,
+  };
+}
+
+const state: Counter = { count: 0, label: 'clicks' };
+const get = gettersFor(state);
+state.count += 2;
+
+console.log(get.getLabel(), get.getCount());
+```
+
+Rename `count` to `total` in `Counter`, and `getCount` is rejected as a property the type doesn't have: the getter is called `getTotal` now.
+
+**Filtering with `never`.** A conditional type in the `as` clause keeps a key or maps it to `never`. The test can look at the key: `` `_${string}` `` is a template literal pattern, any string that starts with an underscore. Or it can look at the value, `T[K]`:
+
+```ts twoslash
+type Public<T> = {
+  [K in keyof T as K extends `_${string}` ? never : K]: T[K];
+};
+type DataOnly<T> = {
+  [K in keyof T as T[K] extends Function ? never : K]: T[K];
+};
+
+type Player = {
+  readonly id: number;
+  name: string;
+  _lastSeen: Date;
+  score?: number;
+  rename(name: string): void;
+};
+
+type Shown = Public<Player>;
+//    ^?
+type Saved = DataOnly<Player>;
+//    ^?
+```
+
+In <Lesson id="m06-type-operators/04-rebuilding-the-utilities" />, exercise 04, `KeysOfType` and `PickByValue` filtered by value in two steps: a mapped type of keys and `never`, read back with `[keyof T]` (which needed `-?` to keep `undefined` out of the union), then `Pick`. The `as` clause does it in one mapped type, and the modifiers come along because the keys never leave it.
+
+The `as` clause also lets a mapped type loop over a union that isn't made of keys, such as a union of object types. That is in <Lesson id="m10-mapped-types/03-mapping-unions-tuples-arrays" />.
+
+## Pitfalls
+
+**`Capitalize<K>` without `& string`.** In a generic mapped type, `K` is `keyof T`, which may be a number or a symbol:
+
+```ts run errors
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<K>}`]: () => T[K];
+};
+```
+
+`Type 'K' does not satisfy the constraint 'string'.` The placeholder alone fails too: `` `get${K}` `` gives `Type 'K' is not assignable to type 'string | number | bigint | boolean | null | undefined'.`, because a symbol can't be printed. Write `K & string`.
+
+**`never` in the value instead of the key.** A conditional on the value side changes the property's type, not whether it exists. A property of type `never` is still required, and no value fits it:
+
+```ts run errors
+type DataOnly<T> = {
+  [K in keyof T]: T[K] extends Function ? never : T[K];
+};
+type Task = { title: string; complete(): void };
+
+const saved: DataOnly<Task> = { title: 'Write 10.2' };
+```
+
+`Property 'complete' is missing in type '{ title: string; }' but required in type 'DataOnly<Task>'.` Move the conditional into the `as` clause, where `never` removes the key.
+
+**Two keys renamed to the same name.** Nothing stops two source keys from getting the same new name. They become one property, whose type is the union of both values:
+
+```ts run errors
+type LowerKeys<T> = { [K in keyof T as Lowercase<K & string>]: T[K] };
+type Row = { id: number; ID: string };
+
+const row: LowerKeys<Row> = { id: 1 };
+const id: number = row.id;
+```
+
+`Type 'string | number' is not assignable to type 'number'.` No error points at the clash itself; check the result when a rename can merge keys, here `{ id: string | number }`. For the merged property, `K` is the union of the keys that collided, `'id' | 'ID'`, and the value is computed once with it: in `Getters`, two colliding keys holding `1` and `2` give one getter of type `() => 1 | 2`.
+
+## Check yourself
+
+<Predict
+  id="never-in-the-value"
+  code={
+    'type Strip<T> = { [K in keyof T]: T[K] extends string ? never : T[K] };\ntype S = Strip<{ a: string; b: number }>;'
+  }
+  question="What is `S`?"
+  options={[
+    '{ b: number }',
+    '{ a: never; b: number }',
+    '{ a: string; b: number }',
+    'never',
+  ]}
+  answer={1}
+  explanation="There is no `as` clause, so every key of the source is kept. The conditional is on the value side: `a` is a string, so its type becomes `never`, and the property stays. Only a key mapped to `never` in an `as` clause disappears."
+/>
+
+<Predict
+  id="keys-that-collide"
+  code={
+    'type Up<T> = { [K in keyof T as Uppercase<K & string>]: T[K] };\ntype U = Up<{ x: 1; X: 2; y: 3 }>;'
+  }
+  question="What is `U`?"
+  options={[
+    '{ X: 1 | 2; Y: 3 }',
+    '{ X: 2; Y: 3 }',
+    '{ x: 1; X: 2; Y: 3 }',
+    'An error: two properties named X',
+  ]}
+  answer={0}
+  explanation="`x` and `X` are both renamed to `'X'`, so they become one property, and its type is the union of the two values. The compiler reports nothing; the clash only shows in the result."
+/>
+
+## Further reading
+
+- [Handbook: Mapped types, key remapping via `as`](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#key-remapping-via-as)
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html), including `Capitalize` and the other intrinsic string types
+- [TypeScript 4.1 release notes: key remapping in mapped types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html#key-remapping-in-mapped-types)

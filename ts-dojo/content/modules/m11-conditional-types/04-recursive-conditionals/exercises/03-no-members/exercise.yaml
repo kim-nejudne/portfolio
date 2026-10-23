@@ -1,0 +1,28 @@
+id: m11-conditional-types/04-recursive-conditionals/03-no-members
+kind: predict
+title: An intersection of nothing
+minutes: 1
+challenge: false
+code: |
+  type UnionToIntersection<U> = (
+    U extends unknown ? (x: U) => void : never
+  ) extends (x: infer I) => void
+    ? I
+    : never;
+
+  type N = UnionToIntersection<never>;
+question: What is `N`?
+options:
+  - never
+  - unknown
+  - '{}'
+  - 'An error: never is not a union'
+answer: 1
+explanation: |
+  The inner condition tests a naked `U`, and `never` is the empty union, so it gives `never`
+  (lesson 11.3). The outer condition's checked type is that result, not a type parameter, so
+  it doesn't distribute: it asks once whether `never` is assignable to `(x: infer I) => void`.
+  `never` is assignable to every type, so the true branch is taken. But no function was there
+  to match, so `I` has no candidate, and an `infer` the match leaves empty is `unknown`
+  (lesson 11.2). That fits: `X & unknown` is `X`, so `unknown` is the intersection of no types,
+  as `never` is the union of none.

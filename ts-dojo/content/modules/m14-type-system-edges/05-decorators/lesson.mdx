@@ -1,0 +1,480 @@
+---
+id: m14-type-system-edges/05-decorators
+title: 'Decorators: the TS 5 standard decorators'
+minutes: 20
+optional: true
+objectives:
+  - Write class, method, getter, setter, field and accessor decorators, and say what each receives and may return
+  - Read a decorator's context object, its kind, name, static, private and access, and pick the matching Class…DecoratorContext type
+  - Type a method decorator generically over the method's this, arguments and return type
+  - Write a decorator factory, and run code at construction or class definition with addInitializer
+  - Tell the standard decorators from the legacy experimentalDecorators kind
+prerequisites:
+  - m04-objects/05-classes
+  - m05-generics/01-generic-functions
+  - m08-functions-classes/02-this-and-callable-types
+  - m08-functions-classes/03-classes-2
+tags:
+  - decorators
+  - decorator
+  - '@'
+  - TC39
+  - ClassMethodDecoratorContext
+  - ClassDecoratorContext
+  - ClassFieldDecoratorContext
+  - ClassAccessorDecoratorContext
+  - accessor
+  - auto-accessor
+  - addInitializer
+  - decorator factory
+  - experimentalDecorators
+  - metadata
+---
+
+## Concept
+
+A decorator is a function that you apply to a class, or to one of its members, by writing `@` and an expression in front of it. When the class is defined, the function is called with two arguments: the thing it decorates and a **context** object that describes it. Whatever it returns replaces the thing; returning nothing keeps it.
+
+```ts run
+function shout(
+  method: (name: string) => string,
+  context: ClassMethodDecoratorContext,
+) {
+  return function (this: unknown, name: string) {
+    return method.call(this, name).toUpperCase();
+  };
+}
+
+class Greeter {
+  @shout
+  greet(name: string) {
+    return `hello, ${name}`;
+  }
+}
+
+console.log(new Greeter().greet('ada'));
+```
+
+`shout` is called once, with the original `greet` and its context, and the function it returns becomes `Greeter.prototype.greet`. TypeScript checks the decorator like a call: its parameters must accept the member and the context, and what it returns must be assignable to the member's type, or be `void`.
+
+TypeScript 5.0 implements the ECMAScript decorators proposal from TC39, and that is the kind this lesson teaches. It needs no flag, and it works under the dojo's settings. TypeScript compiles it to plain JavaScript: the output defines two helpers, `__esDecorate` and `__runInitializers`, at the top of the file, and gives the class a static block that calls them. The context types come with the lib, in `lib.decorators.d.ts`, which every ES lib includes.
+
+What a decorator receives depends on what it is written on:
+
+| Written on           | First argument                 | Context type                                                 | May return                                     |
+| -------------------- | ------------------------------ | ------------------------------------------------------------ | ---------------------------------------------- |
+| a class              | the class                      | `ClassDecoratorContext<Class>`                               | a class to use instead                         |
+| a method             | the method                     | `ClassMethodDecoratorContext<This, Value>`                   | a function to use instead                      |
+| a getter or a setter | the `get` or `set` function    | `ClassGetterDecoratorContext`, `ClassSetterDecoratorContext` | a function to use instead                      |
+| a field              | `undefined`                    | `ClassFieldDecoratorContext<This, Value>`                    | a function from the initial value to the value |
+| an `accessor` field  | an object with `get` and `set` | `ClassAccessorDecoratorContext<This, Value>`                 | an object with `get`, `set` and `init`         |
+
+`This` is the type of the instance (or of the class, for a static member) and `Value` is the member's type. Every type parameter has a default, so `ClassMethodDecoratorContext` alone fits any method, as in `shout`.
+
+**The legacy kind.** Before 5.0, TypeScript had decorators behind the `experimentalDecorators` flag, which modelled a much older draft of the proposal. It is still there, and code written for it is common, but it is a different feature: a method or accessor decorator gets the prototype (the class, for a static member), the member's name and its property descriptor (a property decorator only the first two), parameters can be decorated, and `emitDecoratorMetadata` can emit type information. A decorator written for one kind doesn't work as the other. The dojo leaves the flag off; with it on, this compiles:
+
+```ts twoslash
+// @experimentalDecorators: true
+function enumerable(value: boolean) {
+  return function (
+    target: object,
+    key: string,
+    descriptor: PropertyDescriptor,
+  ) {
+    descriptor.enumerable = value;
+  };
+}
+
+function required(target: object, key: string | undefined, index: number) {}
+
+export class User {
+  constructor(@required name: string) {}
+
+  @enumerable(false)
+  greet() {}
+}
+```
+
+Under the standard decorators, `@required` on a parameter is `Decorators are not valid here.`
+
+## Examples
+
+**A method decorator for any method.** `shout` fits only methods that take and return a string. To fit every method, make the decorator generic over the method's `this`, its parameter list and its return type (<Lesson id="m05-generics/01-generic-functions" />), and pass the same types to the context:
+
+```ts run
+function logged<This, Args extends unknown[], Return>(
+  method: (this: This, ...args: Args) => Return,
+  context: ClassMethodDecoratorContext<
+    This,
+    (this: This, ...args: Args) => Return
+  >,
+) {
+  const name = String(context.name);
+  return function (this: This, ...args: Args): Return {
+    console.log(`> ${name}(${args.join(', ')})`);
+    const result = method.call(this, ...args);
+    console.log(`< ${name} = ${String(result)}`);
+    return result;
+  };
+}
+
+class Cart {
+  private items: number[] = [];
+
+  @logged
+  add(price: number, quantity: number): number {
+    this.items.push(price * quantity);
+    return this.items.length;
+  }
+
+  @logged
+  total(): number {
+    return this.items.reduce((sum, item) => sum + item, 0);
+  }
+}
+
+const cart = new Cart();
+cart.add(3, 2);
+cart.add(5, 1);
+cart.total();
+```
+
+At `@logged` above `add`, the compiler infers `This` as `Cart`, `Args` as `[price: number, quantity: number]` and `Return` as `number`, so the replacement must have the type of `add`. The replacement declares `this: This` (<Lesson id="m08-functions-classes/02-this-and-callable-types" />): without it, `this` in a function expression is `'this' implicitly has type 'any' because it does not have a type annotation.` `context.name` is `string | symbol`, since a member may have a symbol for a name, so `String` turns it into text.
+
+**What the context says.** Every context has `kind` and `name`. A member's context also has `static`, `private`, `access` and `addInitializer`; a class's has only `addInitializer`, and its `name` is `undefined` for an anonymous class. `kind` tells the contexts apart, so a decorator that takes the union `DecoratorContext` narrows on it like a discriminated union:
+
+```ts twoslash
+function inspect(value: unknown, context: DecoratorContext) {
+  if (context.kind === 'accessor') {
+    context;
+    //    ^?
+  }
+}
+```
+
+This one prints what it gets, on every kind of member:
+
+```ts run
+function describe(value: unknown, context: DecoratorContext) {
+  const modifiers =
+    context.kind === 'class'
+      ? ''
+      : `${context.static ? 'static ' : ''}${context.private ? 'private ' : ''}`;
+  console.log(
+    `${context.kind} ${modifiers}${String(context.name)}: ${typeof value}`,
+  );
+}
+
+@describe
+class Thermostat {
+  @describe static units = 'C';
+  @describe celsius = 20;
+  @describe accessor target = 21;
+  @describe get fahrenheit() {
+    return this.celsius * 1.8 + 32;
+  }
+  @describe set fahrenheit(degrees: number) {
+    this.celsius = (degrees - 32) / 1.8;
+  }
+  @describe #log() {}
+  @describe static create() {
+    return new Thermostat();
+  }
+}
+
+console.log('class defined');
+new Thermostat();
+console.log('instance created');
+```
+
+Every line comes before `class defined`: decorators run once, while the class is defined, and `new` doesn't run them again. The member decorators run first and the class decorator last; TypeScript applies those of methods, getters, setters and accessors before those of fields, static ones first in each group. `#log` has the name `'#log'` and `private: true`. `access` reads a member from an instance (`context.access.get(obj)`), and it can do so for a `#` member too, which no code outside the class can otherwise reach.
+
+**Decorator factories.** A decorator that needs settings is returned by a function, a factory. `@deprecated('…')` calls the factory where it is written, and its result is the decorator:
+
+```ts run
+function deprecated(advice: string) {
+  return function <This, Args extends unknown[], Return>(
+    method: (this: This, ...args: Args) => Return,
+    context: ClassMethodDecoratorContext<
+      This,
+      (this: This, ...args: Args) => Return
+    >,
+  ) {
+    let warned = false;
+    return function (this: This, ...args: Args): Return {
+      if (!warned) {
+        console.log(`${String(context.name)} is deprecated: ${advice}`);
+        warned = true;
+      }
+      return method.apply(this, args);
+    };
+  };
+}
+
+class Invoice {
+  constructor(private lines: number[]) {}
+
+  @deprecated('use total() instead')
+  sum(): number {
+    return this.total();
+  }
+
+  total(): number {
+    return this.lines.reduce((a, b) => a + b, 0);
+  }
+}
+
+const invoice = new Invoice([5, 7]);
+console.log(invoice.sum(), new Invoice([1]).sum());
+```
+
+The warning prints once in all, not once per invoice: the decorator ran once, for the class, so `warned` belongs to the method that every instance shares. State per instance goes in a `WeakMap` keyed by `this`, or in a field.
+
+**Fields and `accessor`.** A field has no value when the class is defined, so a field decorator gets `undefined`. It may return a function that each new instance calls with the field's initial value, and the field starts with what that function returns:
+
+```ts run
+function trimmed<This>(
+  _: undefined,
+  context: ClassFieldDecoratorContext<This, string>,
+) {
+  return function (this: This, initial: string): string {
+    return initial.trim();
+  };
+}
+
+class Room {
+  @trimmed name = '  kitchen  ';
+}
+
+console.log(JSON.stringify(new Room().name));
+```
+
+That is all a field decorator can do: it runs on the initial value, and a later assignment writes the field directly, past it. To see every write, declare the field with the `accessor` keyword, which is part of the same proposal. `accessor volume = 50` stores the value in a private field and adds a getter and a setter for it on the prototype. Its decorator gets that `get` and `set` as a `ClassAccessorDecoratorTarget<This, Value>`, and may return a `ClassAccessorDecoratorResult<This, Value>` with a new `get`, a new `set`, and an `init` for the initial value:
+
+```ts run
+function logChanges<This, Value>(
+  target: ClassAccessorDecoratorTarget<This, Value>,
+  context: ClassAccessorDecoratorContext<This, Value>,
+): ClassAccessorDecoratorResult<This, Value> {
+  const name = String(context.name);
+  return {
+    init(value) {
+      console.log(`${name} starts at ${String(value)}`);
+      return value;
+    },
+    set(value) {
+      console.log(
+        `${name}: ${String(target.get.call(this))} -> ${String(value)}`,
+      );
+      target.set.call(this, value);
+    },
+  };
+}
+
+class Player {
+  @logChanges accessor volume = 50;
+  @logChanges accessor track = 'intro';
+}
+
+const player = new Player();
+player.volume = 80;
+player.track = 'chorus';
+console.log(player.volume, Object.keys(player));
+```
+
+The result leaves out `get`, so reads go to the original getter. `Object.keys(player)` is empty because the storage is private and the getter and setter live on the prototype, as with the accessors of <Lesson id="m08-functions-classes/03-classes-2" />. `logChanges` is generic over `Value`, so it fits both the number and the string.
+
+**Running code at construction: `addInitializer`.** Every context has `addInitializer(fn)`. For a method, getter or setter, `fn` runs at the start of every construction, with `this` the new instance, before the fields are initialized; for a field or an `accessor`, it runs right after that field is initialized. This is how a decorator binds a method to its instance, so that it keeps `this` when it is passed around:
+
+```ts run
+function bound<This, Args extends unknown[], Return>(
+  method: (this: This, ...args: Args) => Return,
+  context: ClassMethodDecoratorContext<
+    This,
+    (this: This, ...args: Args) => Return
+  >,
+) {
+  if (context.private) {
+    throw new Error(
+      `bound can't decorate the private method ${String(context.name)}`,
+    );
+  }
+  context.addInitializer(function (this: This) {
+    Object.defineProperty(this, context.name, { value: method.bind(this) });
+  });
+}
+
+class Counter {
+  count = 0;
+
+  @bound
+  increment(): number {
+    return ++this.count;
+  }
+}
+
+const counter = new Counter();
+const { increment } = counter;
+increment();
+console.log(increment(), counter.count);
+```
+
+`bound` returns nothing, so the method stays as it is, and the initializer gives each instance its own bound copy. For a static member and for a class, the initializer runs once. A class decorator's runs when the class is complete, its static fields included, with `this` the class, which suits registering it:
+
+```ts run
+interface Plugin {
+  run(): string;
+}
+
+const plugins = new Map<string, new () => Plugin>();
+
+function plugin<Class extends new () => Plugin>(
+  value: Class,
+  context: ClassDecoratorContext<Class>,
+) {
+  context.addInitializer(function () {
+    plugins.set(context.name ?? 'anonymous', this);
+  });
+}
+
+@plugin
+class Shout implements Plugin {
+  run() {
+    return 'HELLO';
+  }
+}
+
+for (const [name, Make] of plugins) {
+  console.log(name, new Make().run());
+}
+```
+
+The constraint on `Class` does the checking: `@plugin` on a class without `run()`, or with a constructor that takes arguments, is a compile error.
+
+**Metadata.** The contexts also have `metadata`, an object that decorators of one class share and that ends up on the class under `Symbol.metadata` (TypeScript 5.2). In the dojo it is not usable. `Symbol.metadata` is declared only in the `esnext.decorators` lib, not in the dojo's `es2025`, so the type says the object may be missing:
+
+```ts twoslash
+function note(value: unknown, context: ClassMethodDecoratorContext) {
+  const shared = context.metadata;
+  //    ^?
+}
+```
+
+And TypeScript's output creates the object only when the runtime defines `Symbol.metadata`; where it doesn't, `context.metadata` is `undefined`. This lesson leaves it there.
+
+## Pitfalls
+
+**A decorator on the wrong kind of member.** `logged` is a method decorator. On a field, it is called with `undefined`:
+
+```ts run errors
+function logged<This, Args extends unknown[], Return>(
+  method: (this: This, ...args: Args) => Return,
+  context: ClassMethodDecoratorContext<
+    This,
+    (this: This, ...args: Args) => Return
+  >,
+) {
+  return function (this: This, ...args: Args): Return {
+    console.log(String(context.name));
+    return method.call(this, ...args);
+  };
+}
+
+class Cart {
+  @logged
+  count = 0;
+}
+```
+
+_Unable to resolve signature of property decorator when called as an expression._, with _Argument of type 'undefined' is not assignable to parameter of type '(this: Cart, ...args: unknown[]) => unknown'._ under it. The first line names the kind of member the decorator was put on, and the second says which argument didn't fit. The second error on the line, about the decorator's return type, comes from the same mistake. A decorator meant for several kinds takes a union of contexts and narrows on `kind`.
+
+**Forgetting to call a factory.** `@deprecated` without parentheses passes the method to the factory, which expects a string:
+
+```ts run errors
+function deprecated(advice: string) {
+  return function <This, Args extends unknown[], Return>(
+    method: (this: This, ...args: Args) => Return,
+    context: ClassMethodDecoratorContext<
+      This,
+      (this: This, ...args: Args) => Return
+    >,
+  ) {
+    return method;
+  };
+}
+
+class Invoice {
+  @deprecated
+  sum(): number {
+    return 1;
+  }
+}
+```
+
+_Unable to resolve signature of method decorator when called as an expression._, with _Argument of type '() => number' is not assignable to parameter of type 'string'._ Write `@deprecated('…')`. The second error on the line, about the decorator's return type, comes from the same mistake.
+
+**Expecting a decorator to change the type.** A class decorator may return a subclass with more members, and they exist at run time, but the type of the class stays the one written in the source:
+
+```ts run errors
+function timestamped<Class extends new (...args: any[]) => object>(
+  value: Class,
+  context: ClassDecoratorContext<Class>,
+) {
+  return class extends value {
+    createdAt = new Date(0);
+  };
+}
+
+@timestamped
+class Note {
+  constructor(public text: string) {}
+}
+
+console.log(new Note('hi').createdAt);
+```
+
+_Property 'createdAt' does not exist on type 'Note'._ A decorator can change what a member does, and the compiler checks that the replacement has the member's type, but it can't add members to the type. To add members that the type knows about, write the class as a mixin (<Lesson id="m08-functions-classes/04-mixins" />), `class Note extends Timestamped(Base)`, or declare them on the class.
+
+## Check yourself
+
+<Predict
+  id="field-decorator-later-write"
+  code={
+    "function trimmed<This>(_: undefined, context: ClassFieldDecoratorContext<This, string>) {\n  return (initial: string) => initial.trim();\n}\n\nclass Room {\n  @trimmed name = '  kitchen  ';\n}\n\nconst room = new Room();\nroom.name = '  hall  ';\nconsole.log(JSON.stringify(room.name));"
+  }
+  question="What does this print?"
+  options={[
+    '"hall"',
+    '"  hall  "',
+    '"kitchen"',
+    'It is a compile error: a field decorator must return void',
+  ]}
+  answer={1}
+  explanation={
+    'A field decorator\'s returned function runs once per instance, on the initial value, so `room.name` starts as `"kitchen"`. The assignment after construction writes the field directly, and nothing trims it, so it prints `"  hall  "`. To see every write, the field would be an `accessor` with an accessor decorator.'
+  }
+/>
+
+<Predict
+  id="static-accessor-context"
+  code={
+    'function inspect(value: unknown, context: DecoratorContext) {\n  // ...\n}\n\nclass Store {\n  @inspect static accessor size = 1;\n}'
+  }
+  question="When `inspect` runs for `size`, what are `context.kind`, `context.static` and `value`?"
+  options={[
+    "'field', true and undefined",
+    "'accessor', true and an object with get and set",
+    "'accessor', false and the number 1",
+    "'getter', true and the get function",
+  ]}
+  answer={1}
+  explanation="An `accessor` field gets the context of kind `'accessor'`, and `static` is true because the member is static. Its first argument is the getter and setter pair that `accessor` creates, as an object with `get` and `set`. A decorator never sees a field's initial value directly: for a plain field it gets `undefined`, and the initial value reaches the function it returns, or `init` for an accessor."
+/>
+
+## Further reading
+
+- [TypeScript 5.0 release notes: Decorators](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#decorators), with [Writing well-typed decorators](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#writing-well-typed-decorators) and the [differences from the experimental decorators](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#differences-with-experimental-legacy-decorators)
+- [TypeScript 5.2 release notes: Decorator metadata](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#decorator-metadata)
+- [The TC39 decorators proposal](https://github.com/tc39/proposal-decorators), the semantics TypeScript follows
+- [Handbook: Decorators](https://www.typescriptlang.org/docs/handbook/decorators.html), which describes the legacy `experimentalDecorators` kind
+- [TSConfig reference: experimentalDecorators](https://www.typescriptlang.org/tsconfig/#experimentalDecorators)

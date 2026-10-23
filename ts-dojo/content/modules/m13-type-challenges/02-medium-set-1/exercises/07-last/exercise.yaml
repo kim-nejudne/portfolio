@@ -1,0 +1,21 @@
+id: m13-type-challenges/02-medium-set-1/07-last
+kind: type-challenge
+title: Last of Array
+minutes: 3
+challenge: false
+prompt: |
+  Write `Last<T>` in `index.ts`: the type of the last element of the tuple `T`. `Last<[3, 2, 1]>`
+  is `1`, and `Last<[]>` is `never`. A case added in the dojo checks that a last element of
+  `undefined` is `undefined`, not `never`.
+
+  The template's constraint is `T extends any[]`; the starter's is `T extends unknown[]`.
+
+  From type-challenges [#00015 Last of Array](https://github.com/type-challenges/type-challenges/blob/main/questions/00015-medium-last/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - 13.1's First read index 0, but no index names the last position of a tuple whose length you don't know.
+  - A rest element can come first in a tuple pattern (12.2, Variadic tuple types), and `infer` can name what follows it.

@@ -1,0 +1,21 @@
+id: m13-type-challenges/02-medium-set-1/05-tuple-to-union
+kind: type-challenge
+title: Tuple to Union
+minutes: 3
+challenge: false
+prompt: |
+  Write `TupleToUnion<T>` in `index.ts`: the union of the element types of the tuple `T`.
+  `TupleToUnion<[123, '456', true]>` is `123 | '456' | true`.
+
+  The template leaves `T` unconstrained, and so does the starter. Cases added in the dojo pass
+  an empty tuple, which gives `never`, and a `readonly` tuple.
+
+  From type-challenges [#00010 Tuple to Union](https://github.com/type-challenges/type-challenges/blob/main/questions/00010-medium-tuple-to-union/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Indexing a tuple type with `number` gives every element type at once (lesson 6.1).
+  - "`T` is unconstrained, so you can't index it directly. A conditional type can check that it is an array first: which array type takes readonly tuples too?"

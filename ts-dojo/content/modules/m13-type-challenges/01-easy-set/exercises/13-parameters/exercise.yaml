@@ -1,0 +1,26 @@
+id: m13-type-challenges/01-easy-set/13-parameters
+kind: type-challenge
+title: Parameters
+minutes: 2
+challenge: false
+prompt: |
+  Write `MyParameters<T>` in `index.ts` without using the built-in `Parameters`: the parameter
+  types of the function type `T`, as a tuple. For
+  `function foo(arg1: string, arg2: number): void`, `MyParameters<typeof foo>` is
+  `[string, number]`, and a function with no parameters gives `[]`.
+
+  The original constraint is `(...args: any[]) => any`. With `any` forbidden, the starter says
+  `(...args: never[]) => unknown`. Parameters are compared the other way round from return
+  types, and `never` is assignable to every parameter type, so every function type is
+  assignable to it. `unknown[]` would not work: `unknown` is not assignable to `foo`'s
+  `string`.
+
+  From type-challenges [#03312 Parameters](https://github.com/type-challenges/type-challenges/blob/main/questions/03312-easy-parameters/README.md) by midorizemi (@midorizemi) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lesson 6.4 read the lib's ReturnType. This is the same `infer`, in another position.
+  - A rest parameter's type is a tuple, and `infer` can capture the whole of it.

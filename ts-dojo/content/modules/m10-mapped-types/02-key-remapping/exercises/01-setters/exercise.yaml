@@ -1,0 +1,27 @@
+id: m10-mapped-types/02-key-remapping/01-setters
+kind: type-challenge
+title: Setters
+minutes: 3
+challenge: false
+prompt: |
+  The lesson's `Getters<T>` makes a `get` method for every property. Write `Setters<T>` in
+  `index.ts`: for every string key of `T`, a method named `set` followed by the key with its
+  first letter uppercased, which takes a value of that property's type and returns `void`.
+
+  ```ts
+  type S = Setters<{ name: string; age?: number }>;
+  // { setName: (value: string) => void; setAge: (value: number | undefined) => void }
+  ```
+
+  Unlike the getters, every setter is required and writable, whatever modifiers its property
+  has; the setter of an optional property takes `undefined` too, to clear it. Number and symbol
+  keys get no setter. The type cases try `Setters` on several types, and the `@ts-expect-error`
+  lines check that a setter with the wrong name or the wrong parameter type is rejected.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Start from the lesson's Getters and change the name and the value of each property.
+  - The modifiers come from the source because the mapped type is homomorphic. Lesson 10.1 showed how to remove each one.

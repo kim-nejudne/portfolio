@@ -1,0 +1,248 @@
+---
+id: m11-conditional-types/03-distributive-conditionals
+title: Distributive conditional types, and how to stop distribution
+minutes: 20
+objectives:
+  - Predict when a conditional type distributes over a union, and when it treats the union as one type
+  - Use distribution on purpose to answer once per member, and keep the whole union in a second parameter
+  - Stop distribution by wrapping both sides of extends in a one-element tuple
+  - Predict what never and boolean give as inputs, and test for never with [T] extends [never]
+  - Follow distribution through aliases, mapped types and inferred type variables
+prerequisites:
+  - m06-type-operators/04-rebuilding-the-utilities
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+tags:
+  - distributive conditional type
+  - distribution
+  - naked type parameter
+  - union
+  - '[T] extends [U]'
+  - never
+  - boolean
+  - keyof
+  - Exclude
+---
+
+## Concept
+
+<Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> found that
+`Exclude` works one union member at a time, and that brackets turned that off.
+This lesson gives the rule. A conditional type whose checked type, the type left
+of `extends`, is a type parameter on its own is **distributive**: when a union
+is passed for that parameter, the condition is asked once for each member, and
+the answers are joined into a union again. Wrap the parameter in anything, and
+the union is tested as one type:
+
+```ts twoslash
+type ToArray<T> = T extends unknown ? T[] : never;
+type ToArrayWhole<T> = [T] extends [unknown] ? T[] : never;
+
+type Each = ToArray<string | number>;
+//   ^?
+type Whole = ToArrayWhole<string | number>;
+//   ^?
+```
+
+`ToArray<string | number>` is `ToArray<string> | ToArray<number>`. In each answer, `T` stands for one member, so each member gets its own array type. `[T]` is a tuple type, not a type parameter, so `ToArrayWhole` asks its question once, about `string | number` as a whole.
+
+## Examples
+
+**Only a naked type parameter distributes.** A type parameter "on its own" is called naked. Anything built around it, an array, a property, a `keyof`, is a different type, and is tested as one:
+
+```ts twoslash
+type Naked<T> = T extends string ? 'yes' : 'no';
+type InArray<T> = T[] extends string[] ? 'yes' : 'no';
+type ByKind<T extends { kind: string }> = T['kind'] extends 'circle'
+  ? 'yes'
+  : 'no';
+
+type A = Naked<'a' | 1>;
+//   ^?
+type B = InArray<'a' | 1>;
+//   ^?
+type C = ByKind<{ kind: 'circle' } | { kind: 'square' }>;
+//   ^?
+type Mixed = string | number;
+type D = Mixed extends string ? 'yes' : 'no';
+//   ^?
+type E = string extends string | number ? 'yes' : 'no';
+//   ^?
+```
+
+`A` has one answer per member. `B` and `C` test the union whole: `('a' | 1)[]` is not a `string[]`, and `'circle' | 'square'` is not `'circle'`. `D` shows that distribution happens when a type parameter is replaced by a union; `Mixed` is a union, but not a type parameter, so it is tested as one type. And a union on the right of `extends`, as in `E`, never splits anything: `string` is assignable to `string | number`, so the answer is `'yes'`. The parameter may have a constraint and still be naked; `infer` variables count as type parameters too, as below.
+
+**Distribution on purpose.** `keyof` of a union gives only the keys every member has. Asking `keyof` once per member gives every key of any member:
+
+```ts twoslash
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+type AllKeys<T> = T extends unknown ? keyof T : never;
+
+type Shared = keyof Shape;
+//   ^?
+type Every = AllKeys<Shape>;
+//   ^?
+```
+
+`T extends unknown` is always true; its only job is to split the union, as `EachOmit` did in 6.4. Inside the branch, `T` is the member. When the branch also needs the whole union, keep it in a second parameter whose default is `T`: a default is filled in before the split, so `All` stays whole. Here each state may move to any other state, but not to itself:
+
+```ts run
+type State = 'idle' | 'loading' | 'done';
+type Move<T, All = T> = T extends unknown
+  ? { from: T; to: Exclude<All, T> }
+  : never;
+
+const moves: Move<State>[] = [
+  { from: 'idle', to: 'loading' },
+  { from: 'loading', to: 'done' },
+  { from: 'done', to: 'idle' },
+];
+
+for (const move of moves) {
+  console.log(`${move.from} -> ${move.to}`);
+}
+```
+
+`Move<State>` is three object types, one per state, and `{ from: 'idle', to: 'idle' }` is rejected; the error ends with `Type '"idle"' is not assignable to type '"loading" | "done"'.` <Lesson id="m13-type-challenges/03-medium-set-2" /> comes back to this trick.
+
+**Stopping distribution: wrap both sides.** A one-element tuple is assignable to another exactly when its element is, so `[T] extends [U]` asks the same question as `T extends U`, about the whole of `T`:
+
+```ts twoslash
+type AllText<T> = [T] extends [string] ? 'all text' : 'mixed';
+
+type A = AllText<'a' | 'b'>;
+//   ^?
+type B = AllText<'a' | 1>;
+//   ^?
+```
+
+Wrap both sides. `[T] extends string` would compare a tuple with a string and always be false.
+
+**`never` is the empty union.** A distributive conditional asks its question once per member, and `never` has none, so the result is `never` whatever the branches say. That is why `IsString<never>` was `never` in <Lesson id="m11-conditional-types/01-conditional-types" />. Wrapped, `never` is tested as a type, and `[never]` is assignable to every one-element tuple. That gives the test for "nothing is left":
+
+```ts twoslash
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+type Status<T> = [T] extends [never] ? 'all handled' : 'some left';
+type AllText<T> = [T] extends [string] ? 'all text' : 'mixed';
+
+type Done = Status<Exclude<Shape['kind'], 'circle' | 'square'>>;
+//   ^?
+type NotYet = Status<Exclude<Shape['kind'], 'circle'>>;
+//   ^?
+type Empty = AllText<never>;
+//   ^?
+```
+
+`AllText<never>` is `'all text'`, because `never` fits `string` too; only `[T] extends [never]` singles it out. `any` is not a union: a naked `any` takes both branches, as <Lesson id="m11-conditional-types/01-conditional-types" /> showed, but `[any] extends [string]` takes the true branch only. <Lesson id="m13-type-challenges/03-medium-set-2" /> sets "is it `never`?" as a challenge of its own.
+
+**`boolean` is a union.** `boolean` is `true | false`, so it splits like any other union:
+
+```ts twoslash
+type ToArray<T> = T extends unknown ? T[] : never;
+
+type Flags = ToArray<boolean>;
+//   ^?
+```
+
+**Distribution travels with the alias.** Distribution belongs to the conditional type that tests the naked parameter, wherever that type is used. An alias called from a mapped type distributes over each property's union; the same condition written inline tests `T[K]`, which is not naked. And wrapping the parameter in an outer alias doesn't stop an inner one:
+
+```ts twoslash
+type ToArray<T> = T extends unknown ? T[] : never;
+
+type ViaAlias<T> = { [K in keyof T]: ToArray<T[K]> };
+type Inline<T> = { [K in keyof T]: T[K] extends unknown ? T[K][] : never };
+type Outer<T> = [T] extends [unknown] ? ToArray<T> : never;
+
+type P = ViaAlias<{ tags: string | number }>;
+//   ^?
+type Q = Inline<{ tags: string | number }>;
+//   ^?
+type R = Outer<string | number>;
+//   ^?
+```
+
+To keep a union whole, every conditional type on the way has to wrap it. An `infer` variable is a type parameter as well, so a second condition on it distributes. That is the warning in <Lesson id="m11-conditional-types/02-infer" /> about `ShoutFirst`: `infer H extends string` tests a first element of type `'a' | 1` as a whole and gives `never`, where a second condition on `H` answers once per member and gives `'A'`. It is also why that lesson's exercise "One entry, one property" writes `infer K extends PropertyKey`: a second condition `K extends PropertyKey ? Record<K, V> : never` would turn `['a' | 'b', boolean]` into `Record<'a', boolean> | Record<'b', boolean>` instead of one object with both keys. Homomorphic mapped types from <Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> also distribute over a union passed for `T`; <Lesson id="m10-mapped-types/03-mapping-unions-tuples-arrays" /> shows that.
+
+## Pitfalls
+
+**Forgetting that `boolean` is a union.** A type that should hold "a boolean" gets two members, one for `true` and one for `false`, and a value that is either fails:
+
+```ts run errors
+type ToArray<T> = T extends unknown ? T[] : never;
+
+const flags: ToArray<boolean> = [true, false];
+```
+
+`Type 'boolean[]' is not assignable to type 'false[] | true[]'.` Wrap the condition, `[T] extends [unknown]`, when the input should be taken as one type.
+
+**Testing a property instead of the type parameter.** `ByKind` above tests `T['kind']`, which is not naked, so a union of shapes is tested as one type and fails the condition:
+
+```ts run errors
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+type Circles<T extends { kind: string }> = T['kind'] extends 'circle'
+  ? T
+  : never;
+
+const circle: Circles<Shape> = { kind: 'circle', radius: 1 };
+```
+
+`Type '{ kind: string; radius: number; }' is not assignable to type 'never'.` To pick members out of a union, test the naked `T` against a shape, `T extends { kind: 'circle' } ? T : never`, which is what `Extract<Shape, { kind: 'circle' }>` does.
+
+**A check for `never` that never fires.** `T extends never` on a naked `T` can't see `never`: there is no member to ask about, so the result is `never`, not the true branch:
+
+```ts run errors
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+type Status<T> = T extends never ? 'all handled' : 'some left';
+
+type Left = Exclude<Shape['kind'], 'circle' | 'square'>;
+const status: Status<Left> = 'all handled';
+```
+
+`Type '"all handled"' is not assignable to type 'never'.` Write `[T] extends [never]`, as in Examples.
+
+## Check yourself
+
+<Predict
+  id="wrapped-union"
+  code={
+    "type AllText<T> = [T] extends [string] ? 'all text' : 'mixed';\ntype M = AllText<'a' | 1>;"
+  }
+  question="What is `M`?"
+  options={["'all text'", "'mixed'", "'all text' | 'mixed'", 'never']}
+  answer={1}
+  explanation="`[T]` is a tuple, not a naked type parameter, so the condition is asked once, about `'a' | 1` as a whole. `1` is not a string, so the union is not assignable to `string` and the false branch is taken. Without the brackets, each member would get its own answer and the result would be `'all text' | 'mixed'`."
+/>
+
+<Predict
+  id="boolean-splits"
+  code={
+    'type ToArray<T> = T extends unknown ? T[] : never;\ntype F = ToArray<boolean>;'
+  }
+  question="What is `F`?"
+  options={['boolean[]', 'false[] | true[]', 'boolean', 'never']}
+  answer={1}
+  explanation="`boolean` is the union `true | false`, and `T` is a naked type parameter, so the condition is asked once for `true` and once for `false`. Each answer is an array of one literal, and the result is their union. Wrapping both sides, `[T] extends [unknown]`, would give `boolean[]`."
+/>
+
+<Predict
+  id="union-on-the-right"
+  code={
+    "type HasString<T> = string extends T ? 'yes' : 'no';\ntype H = HasString<string | number>;"
+  }
+  question="What is `H`?"
+  options={["'yes'", "'no'", "'yes' | 'no'", 'never']}
+  answer={0}
+  explanation="Only the checked type, the one left of `extends`, distributes, and here that is `string`, not a type parameter. `T` sits on the right, so the question is asked once: is `string` assignable to `string | number`? It is."
+/>
+
+## Further reading
+
+- [Handbook: Distributive conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#distributive-conditional-types), including the brackets that stop it
+- [TypeScript 2.8 release notes: distributive conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html#distributive-conditional-types), where the rule and `Exclude` come from
+- [Handbook: Keyof type operator](https://www.typescriptlang.org/docs/handbook/2/keyof-types.html), for `keyof` itself

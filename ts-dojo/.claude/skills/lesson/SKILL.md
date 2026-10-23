@@ -165,7 +165,7 @@ Walk this list before running the lint.
 - **Minutes** cover theory plus the non-challenge exercises; the §8 row gives the target.
 - **Plain prose.** Short sentences, the smallest example that shows the point, no filler.
 
-### Traps found while writing F11 and F12
+### Traps found while writing F11 to F13
 
 - **MDX.** A `{` in prose outside a code span is parsed as an expression and fails the lint; put error messages that contain object types in backticks. A `\"` inside a double-quoted `<Predict>` attribute breaks the parse; use a `{'…'}` expression.
 - **Links exist at lint time.** A `<Lesson>` link or a `prerequisites` entry must name a lesson that already exists. Name a lesson not yet written in plain text and link it once it lands.
@@ -175,7 +175,12 @@ Walk this list before running the lint.
 - **`.d.ts` files.** With `skipLibCheck: true`, an editable `.d.ts` gets no diagnostics. Keep declarations the learner edits in `.ts` files, and use `types/*.d.ts` only for read-only ones.
 - **Async tests.** Since the pre-F13 fixes, `await expect(p).rejects.toThrow('timeout')` checks the rejection reason's message (a string must be in it, a RegExp must match it), as Jest does. 9.3 and 9.4 were written before that and use `rejects.toBeInstanceOf(Error)`, which still works.
 - **Timers.** `setTimeout` and `setInterval` take DOM's handler, `Function`, so `new Promise<void>((resolve) => setTimeout(resolve, ms))` compiles. A callback that takes arguments needs its parameters annotated (TS7006 otherwise, as with DOM).
-- **What no rule catches:** a type written out by hand where the prompt asks to derive it, and a construct the prompt asks for (a parameter property, a call signature). A plain cast and a library `any` are caught only where the exercise forbids `type-assertion` and `any-expression`. Make the tests stop whatever skips the lesson's point, and accept the rest.
+- **YAML with type syntax** (F13). Single-quote a frontmatter or `exercise.yaml` string that holds `? :`, `: `, `{`, `[`, `|`, `&` or `#`; Prettier rewrote an unquoted `? X : Y` objective into a mapping.
+- **Cases the finder skips** (F13). Only tuple aliases whose name starts with `cases` are read, so a `type errors = [...]` from elsewhere becomes `casesErrors`. A `@ts-expect-error` inside a method chain, a class body or a never-called arrow's body isn't a case; put the directive on its own top-level statement (`const x = () => …` under it is fine). `explicit-any` applies to `tests.ts` too; where a case really needs an `any`, take it from `ReturnType<typeof JSON.parse>` and say so in a comment.
+- **A library `any`** (F13). One generic signature plus `JSON.parse`, `Object.create`, `Reflect.apply` or a property descriptor's `value` skips an overload or a typed body; every Tier 3 `implement` and `fix` exercise forbids `any-expression`.
+- **Lookup tables** (F13). A type exercise whose cases are all short literals can be passed by a table of those inputs; add a pattern input (`` `onItem${number}` ``) or a generated one.
+- **Recursion depth** (F13, measured in 12.4). Non-tail recursion gets through 48 or 49 new levels, depending on what the file already computed; tail recursion 999. Keep cases well clear of either edge.
+- **What no rule catches:** a type written out by hand where the prompt asks to derive it, a construct the prompt asks for (a parameter property, a call signature), aliasing the built-in a type-challenge rebuilds (`MyPick = Pick`), and importing a helper such as `IsAny` from `@dojo/type-utils` into a solution. A plain cast and a library `any` are caught only where the exercise forbids `type-assertion` and `any-expression`. Make the tests stop whatever skips the lesson's point, and accept the rest.
 
 ## 8. Procedure
 

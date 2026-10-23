@@ -1,0 +1,23 @@
+id: m13-type-challenges/01-easy-set/07-awaited
+kind: type-challenge
+title: Awaited
+minutes: 3
+challenge: false
+prompt: |
+  Write `MyAwaited<T>` in `index.ts` without using the built-in `Awaited`: the type a promise
+  resolves to, with nested promises unwrapped all the way. `MyAwaited<Promise<string>>` is
+  `string`, and `MyAwaited<Promise<Promise<string | number>>>` is `string | number`.
+
+  The last case isn't a `Promise` at all, only an object with a `then` method, a thenable. `await`
+  unwraps those too, and so must `MyAwaited`: for
+  `{ then: (onfulfilled: (arg: number) => unknown) => unknown }` it gives `number`.
+
+  From type-challenges [#00189 Awaited](https://github.com/type-challenges/type-challenges/blob/main/questions/00189-easy-awaited/README.md) by Maciej Sikora (@maciejsikora) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lesson 6.3 used the built-in Awaited. Rebuilding it is a conditional type with `infer`, and it may refer to itself to unwrap the next level.
+  - Matching `Promise` misses the thenable. Match the shape of `then` instead, and infer the type of the value its callback receives.

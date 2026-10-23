@@ -1,0 +1,261 @@
+---
+id: m12-template-tuples/03-tuple-manipulation
+title: 'Tuple manipulation: Head, Tail, Last, Length, Reverse, Includes'
+minutes: 25
+objectives:
+  - Take a tuple type apart with infer in an element and in a rest element, from the front and from the back
+  - Read a tuple's length as a literal type, and tell a tuple from an array by it
+  - Write recursive tuple types such as Reverse and Includes, and compare elements with exact equality
+  - Give a function that works on tuples an exact return type, with one assertion where the compiler can't follow
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m06-type-operators/01-keyof-typeof-indexed-access
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/04-recursive-conditionals
+  - m12-template-tuples/02-variadic-tuples
+tags:
+  - tuple
+  - infer
+  - rest element
+  - Head
+  - Tail
+  - Last
+  - Length
+  - Reverse
+  - Includes
+  - exact equality
+  - recursive type
+---
+
+## Concept
+
+<Lesson id="m12-template-tuples/02-variadic-tuples" /> built tuple types with
+spreads. In the pattern of a conditional type, the same tuple syntax takes them
+apart again: `infer H` in an element position takes that element, and `...infer
+R` in the rest position takes everything after it, as a tuple:
+
+```ts twoslash
+type Head<T extends readonly unknown[]> = T extends readonly [
+  infer H,
+  ...unknown[],
+]
+  ? H
+  : never;
+type Tail<T extends readonly unknown[]> = T extends readonly [
+  unknown,
+  ...infer R,
+]
+  ? R
+  : [];
+
+type H = Head<[1, 'a', true]>;
+//   ^?
+type T = Tail<[1, 'a', true]>;
+//   ^?
+type Named = Tail<[x: number, y: number]>;
+//     ^?
+type None = Head<[]>;
+//    ^?
+```
+
+This is the `infer` of <Lesson id="m11-conditional-types/02-infer" /> with a tuple as the pattern. Three things decide what comes out:
+
+- **The pattern needs one element.** `[infer H, ...unknown[]]` matches a tuple with at least one element. An empty tuple doesn't match, and neither does an array such as `string[]`, whose first element may not exist: both take the false branch.
+- **`...infer R` is a tuple, labels included.** `Named` keeps the label `y`.
+- **`readonly` in the pattern accepts both kinds.** A mutable tuple is assignable to a readonly one, so `readonly [infer H, ...unknown[]]` matches `[1, 2]` and `readonly [1, 2]` alike. The rest comes out mutable: `Tail<readonly [1, 2]>` is `[2]`.
+
+A tuple's length needs no pattern. `length` is a property, and indexed access from <Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" /> reads it. For a tuple it is a literal type:
+
+```ts twoslash
+type Length<T extends readonly unknown[]> = T['length'];
+
+type Three = Length<[1, 'a', true]>;
+//    ^?
+type Maybe = Length<[string, number?]>;
+//    ^?
+type Many = Length<string[]>;
+//    ^?
+type AtLeastOne = Length<[string, ...string[]]>;
+//      ^?
+```
+
+An optional element gives a union of the lengths the tuple can have. An array, or a tuple with a rest element, has the length `number`, so `number extends T['length']` is the test for "this is not a fixed-length tuple".
+
+## Examples
+
+**The other end.** Since TypeScript 4.2 a rest element can stand first, as <Lesson id="m12-template-tuples/02-variadic-tuples" /> showed. As a pattern, `[...unknown[], infer L]` matches the last element:
+
+```ts twoslash
+type Last<T extends readonly unknown[]> = T extends readonly [
+  ...unknown[],
+  infer L,
+]
+  ? L
+  : never;
+
+type L = Last<[1, 'a', true]>;
+//   ^?
+type One = Last<readonly ['only']>;
+//    ^?
+type Empty = Last<[]>;
+//     ^?
+```
+
+`T[0]` reads the first element without a pattern, but it doesn't know what to do when there is none: it gives `undefined` for `[]` and `string` for `string[]`. A pattern says "no first element" with its false branch, which is yours to choose.
+
+**Reverse: recursion over the rest.** `R` is a tuple again, so a conditional type can call itself on it, the recursion of <Lesson id="m11-conditional-types/04-recursive-conditionals" />. Each step takes one element off the front and puts it at the back of the reversed rest. The empty tuple ends it:
+
+```ts twoslash
+type Reverse<T extends readonly unknown[]> = T extends readonly [
+  infer H,
+  ...infer R,
+]
+  ? [...Reverse<R>, H]
+  : [];
+
+type R = Reverse<[1, 'a', true]>;
+//   ^?
+type Each = Reverse<[1] | [2, 3]>;
+//    ^?
+```
+
+`T` is a naked type parameter, so a union is reversed member by member. The compiler stops a recursion that runs too deep; <Lesson id="m12-template-tuples/04-recursion-limits" /> covers where and how to stay under the limit.
+
+**Includes: exact equality.** "Does the tuple contain `U`?" is a question about each element, so `Includes` walks the tuple like `Reverse`. Comparing an element with `U` by `extends` asks whether it is assignable, which is too loose: `'a'` is assignable to `string`, yet `[string]` doesn't contain the type `'a'`. `IsEqual` asks whether two types are the same:
+
+```ts twoslash
+type IsEqual<X, Y> =
+  (<V>() => V extends X ? 1 : 2) extends <V>() => V extends Y ? 1 : 2
+    ? true
+    : false;
+
+type Includes<T extends readonly unknown[], U> = T extends readonly [
+  infer H,
+  ...infer R,
+]
+  ? IsEqual<H, U> extends true
+    ? true
+    : Includes<R, U>
+  : false;
+
+type Yes = Includes<['a', 'b'], 'b'>;
+//    ^?
+type NotALiteral = Includes<[string], 'a'>;
+//        ^?
+type NotABoolean = Includes<[boolean], true>;
+//        ^?
+```
+
+`IsEqual` compares two generic function types whose return types are conditional types on their own `V`. `V` is unknown, so neither conditional can be answered, and the compiler relates two such conditional types only when the types after `extends` are identical, here `X` and `Y`. Identical is stricter than assignable both ways: `{ a: 1 }` and `{ readonly a: 1 }` are assignable to each other and still not equal. <Lesson id="m13-type-challenges/01-easy-set" /> uses the same trick in `Equal`, the type every case there is checked with.
+
+**At run time.** A function can promise a tuple-shaped result, and its callers get exact types. This `Last` gives `T[number] | undefined` for an array, since its last element may not exist:
+
+```ts run
+type Last<T extends readonly unknown[]> = T extends readonly [
+  ...unknown[],
+  infer L,
+]
+  ? L
+  : T[number] | undefined;
+
+function last<T extends unknown[]>(items: readonly [...T]): Last<T> {
+  return items[items.length - 1] as Last<T>;
+}
+
+const ids: number[] = [3, 4];
+const origin = [0, 1] as const;
+
+console.log(last([1, 'a', true]));
+console.log(last(ids));
+console.log(last([]));
+console.log(last(origin));
+```
+
+The four results have the types `boolean`, `number | undefined`, `undefined` and `1`. The `[...T]` parameter from <Lesson id="m12-template-tuples/02-variadic-tuples" /> makes `T` a tuple wherever the argument has a fixed length. The body needs the `as`: `items[items.length - 1]` has the type `T[number]`, and without it the compiler reports `Type 'T[number]' is not assignable to type 'Last<T>'.` It can't follow `Last` through code, the same limit <Lesson id="m12-template-tuples/01-template-literal-types" /> met with `Capitalize`. Keep the assertion on the one return, and check the function with tests.
+
+## Pitfalls
+
+**A mutable constraint shuts out `as const` tuples.** A tuple made with `as const` is readonly, and a readonly tuple isn't assignable to `unknown[]`:
+
+```ts run errors
+type Head<T extends unknown[]> = T extends [infer H, ...unknown[]] ? H : never;
+
+const point = [1, 2] as const;
+type X = Head<typeof point>;
+```
+
+`Type 'readonly [1, 2]' does not satisfy the constraint 'unknown[]'.` Write `readonly` in the constraint and in the pattern. With `readonly` in the constraint only, there is no error at all: `[infer H, ...unknown[]]` doesn't match the readonly tuple, and `Head` quietly gives `never`.
+
+**`Includes` with `extends`.** `U extends T[number]` is shorter than a recursion, and it answers a different question: is `U` assignable to one of the elements?
+
+```ts run errors
+type Includes<T extends readonly unknown[], U> = U extends T[number]
+  ? true
+  : false;
+
+const found: Includes<[boolean], true> = false;
+```
+
+`Type 'false' is not assignable to type 'true'.` `true` is assignable to `boolean`, so the loose version says `[boolean]` contains `true`. It also distributes over a union `U`, so `Includes<[1, 2], 1 | 2>` is `true` though neither element is `1 | 2`. Compare elements with `IsEqual`.
+
+**A tuple pattern on an array.** An array matches none of the patterns, so a recursion over it ends at once, in the false branch. `Reverse` from the examples turns `number[]` into the empty tuple, with no error until a value has to fit:
+
+```ts run errors
+type Reverse<T extends readonly unknown[]> = T extends readonly [
+  infer H,
+  ...infer R,
+]
+  ? [...Reverse<R>, H]
+  : [];
+
+const reversed: Reverse<number[]> = [2, 1];
+```
+
+`Type '[number, number]' is not assignable to type '[]'.`, then `Source has 2 element(s) but target allows only 0.` When arrays may come in, test the length first: `number extends T['length'] ? T[number][] : …` keeps an array an array.
+
+## Check yourself
+
+<Predict
+  id="length-with-optional"
+  code={"type L = [id: string, retries?: number]['length'];"}
+  question="What is `L`?"
+  options={['2', '1 | 2', 'number', '1']}
+  answer={1}
+  explanation="An optional element may be there or not, so the tuple has one element or two, and its length is the union `1 | 2`. Only an array or a rest element makes the length `number`."
+/>
+
+<Predict
+  id="includes-union-element"
+  code={
+    'type IsEqual<X, Y> =\n  (<V>() => V extends X ? 1 : 2) extends <V>() => V extends Y ? 1 : 2\n    ? true\n    : false;\n\ntype Includes<T extends readonly unknown[], U> = T extends readonly [infer H, ...infer R]\n  ? IsEqual<H, U> extends true\n    ? true\n    : Includes<R, U>\n  : false;\n\ntype I = Includes<[1 | 2], 1>;'
+  }
+  question="What is `I`?"
+  options={['true', 'false', 'boolean']}
+  answer={1}
+  explanation="The tuple's one element is `1 | 2`, and `IsEqual<1 | 2, 1>` is `false`: `1` is assignable to `1 | 2` but is not the same type. The rest is empty, so the recursion ends with `false`. The loose `1 extends T[number]` would have said `true`."
+/>
+
+<Predict
+  id="head-of-an-array"
+  code={
+    'type Head<T extends readonly unknown[]> = T extends readonly [infer H, ...unknown[]]\n  ? H\n  : never;\n\ntype A = Head<string[]>;\ntype B = string[][0];'
+  }
+  question="What are `A` and `B`?"
+  options={[
+    'A is string, B is string',
+    'A is never, B is string',
+    'A is never, B is undefined',
+    'A is string | undefined, B is string',
+  ]}
+  answer={1}
+  explanation="The pattern asks for at least one element, and a `string[]` may be empty, so it isn't assignable to the pattern and `Head` takes the false branch, `never`. Indexed access doesn't ask: the element type of a `string[]` at any index is `string`."
+/>
+
+## Further reading
+
+- [Handbook: Conditional types, inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types)
+- [Handbook: Object types, tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#tuple-types), including optional and rest elements and `length`
+- [Handbook: Indexed access types](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)
+- [TypeScript 4.1 release notes: recursive conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html#recursive-conditional-types)
+- [TypeScript 4.2 release notes: leading and middle rest elements in tuple types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-2.html#leadingmiddle-rest-elements-in-tuple-types)

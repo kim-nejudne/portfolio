@@ -1,0 +1,31 @@
+id: m12-template-tuples/04-recursion-limits/04-typed-join
+kind: implement
+title: A typed join
+minutes: 5
+challenge: false
+prompt: |
+  `join(parts, separator)` does what `parts.join(separator)` does. Give it an exact type, in
+  `index.ts`:
+
+  - `Join<T, D>` is the type-level version for a tuple of `Part`s (strings, numbers and
+    booleans): `Join<['a', 1, true], '-'>` is `'a-1-true'`. An empty tuple gives `''` and one
+    element gives that element as a string: `Join<[7], '-'>` is `'7'`. An empty first element
+    still gets its separator, as at run time: `Join<['', 'a'], '-'>` is `'-a'`.
+  - It works for long tuples too: a tuple of 100 elements is joined without TS2589.
+  - When `T` is an array such as `number[]`, the result is `string`. A union element gives a
+    union: `Join<['a' | 'b', 'c'], '-'>` is `'a-c' | 'b-c'`. Readonly tuples are accepted.
+  - `join(parts, separator)` returns a `Join` of its arguments, so `join(['a', 'b'], '/')` has
+    the type `'a/b'`.
+
+  This combines the accumulator from this lesson with template literal types (lesson 12.1), a
+  `[...T]` parameter (lesson 12.2) and the tuple patterns and single `as` on the return of
+  lesson 12.3.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, any-expression]
+hints:
+  - Check for an array first, with `number extends T['length']`. For a tuple, carry the string so far in an accumulator and keep the recursive call the whole branch.
+  - Asking whether the accumulator is still `''` goes wrong when the first element is `''`. Which element is the only one with no separator in front of it?
+  - For `join` to see a tuple, its parameter must ask for one, as `concat` did in lesson 12.2. The body needs one `as` on what it returns.

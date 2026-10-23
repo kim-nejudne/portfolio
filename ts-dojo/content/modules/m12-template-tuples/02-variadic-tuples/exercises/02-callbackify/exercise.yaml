@@ -1,0 +1,26 @@
+id: m12-template-tuples/02-variadic-tuples/02-callbackify
+kind: type-challenge
+title: Callbackify a function type
+minutes: 3
+challenge: false
+prompt: |
+  Node's `util.callbackify` turns an async function into one that takes a callback as its last
+  argument and returns nothing. Write its type, `Callbackify<F>`, in `index.ts`:
+
+  - For a function type that returns a `Promise<R>`, the result takes the same parameters,
+    then a `callback` of type `Callback<R>`, and returns `void`:
+    `Callbackify<(id: number) => Promise<string>>` is
+    `(id: number, callback: Callback<string>) => void`.
+  - Anything else, a function that doesn't return a promise included, gives `never`.
+
+  A union of function types gives a union of results. The type cases try functions with no
+  parameters, with an optional parameter and with a rest parameter; the theory's last pitfall
+  says what happens to the optional one. This combines the lesson with `infer` from lesson 11.2.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A conditional type can match a function type and infer both its parameter list and the type inside the promise it returns.
+  - The new parameter list is a tuple type that spreads the inferred one and adds one labelled element after it.

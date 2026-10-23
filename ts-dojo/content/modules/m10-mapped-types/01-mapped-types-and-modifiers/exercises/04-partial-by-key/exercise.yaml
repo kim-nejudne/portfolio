@@ -1,0 +1,29 @@
+id: m10-mapped-types/01-mapped-types-and-modifiers/04-partial-by-key
+kind: type-challenge
+title: Optional and required by key
+minutes: 6
+challenge: false
+prompt: |
+  `Partial` and `Required` change every property. Write two types in `index.ts` that change
+  only the keys you name, and leave every other property exactly as it was:
+
+  - `PartialBy<T, K extends keyof T>`: the properties named by `K` become optional.
+  - `RequiredBy<T, K extends keyof T>`: the properties named by `K` become required, without
+    the `undefined` their `?` brought.
+
+  `readonly` stays wherever `T` had it, and the result is one object type, not an
+  intersection: the type cases compare it with the object type written out. They try both
+  types on two object types, with one key, several keys, every key and no key (`never`), and
+  the `@ts-expect-error` lines check that a key `T` doesn't have is rejected and that the
+  other properties still are what they were.
+
+  This combines the lesson with `Pick`, `Omit`, `Partial` and `Required` (6.2), intersections
+  (4.1) and the `keyof` constraint (5.4).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Split T in two with the utilities of lesson 6.2, the keys named by K and the rest, change the modifier on one part, and join them again.
+  - Joining gives an intersection, which a type case doesn't count as equal to the object type written out. One homomorphic mapped type from the Examples turns it into a single object type and keeps every modifier.

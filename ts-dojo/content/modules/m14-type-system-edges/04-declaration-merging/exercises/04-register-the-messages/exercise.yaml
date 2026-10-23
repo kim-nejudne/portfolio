@@ -1,0 +1,37 @@
+id: m14-type-system-edges/04-declaration-merging/04-register-the-messages
+kind: implement
+title: Register the messages
+minutes: 4
+challenge: false
+prompt: |
+  `i18n.ts` translates by key, and until an app registers its messages, `t` accepts any
+  string and a `Catalog` may have any keys. Its `Register` interface is empty for you to fill
+  in. In `app.ts`:
+
+  1. Register the type of `en` with `i18n.ts`, so that `Register['messages']` is
+     `typeof en`, `t` accepts only `en`'s three keys, and a `Catalog` needs all three.
+  2. `sv` has a mistake that `satisfies Catalog` can't see until step 1 is done. Fix it once
+     it shows up; its three texts are right.
+  3. Implement `cartLabel(count)`: the `'cart.empty'` text for 0, `'cart.one'` for 1, and
+     `'cart.many'` with the count for more, in whichever catalog is in use. Get every text
+     through `t`.
+
+  Leave `i18n.ts` as it is, and use no cast. This combines the lesson with `typeof` and
+  `keyof` (6.1), `satisfies` (7.3) and the conditional type with `infer` that `i18n.ts` reads
+  `Register` with (11.2).
+entry: app.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Register is an interface exported by a module, so a second declaration of it inside a declare module block for './i18n' merges with it.
+  - The property must be called messages, as i18n.ts's conditional type expects, and typeof turns en into a type.
+  - Once MessageKey has the three keys, satisfies Catalog checks sv's keys against them.

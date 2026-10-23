@@ -559,9 +559,111 @@ One session and one commit, `fix: pre-F13 decisions (optional lessons, rules, ha
 
 ## F13. Content wave 3 (Tier 3)
 
-- [ ] F13: M10 to M14, 18 core lessons and three optional, with the type-challenges sets crediting their source.
+- [x] F13: M10 to M14, 18 core lessons and three optional, with the type-challenges sets crediting their source.
 
 Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
+
+**Notes (23 October 2026)**
+
+- Plan decisions (Kim, 23 October 2026, with the F13 plan):
+  - M13 has one exercise per challenge (under Deviations).
+  - The credit lives in the content, with no app change.
+  - If the precache passed 15 MB, the session would stop and ask. It didn't pass it (below).
+- The course: `roadmap.yaml` adds `t3` "Advanced type system" (§8's heading, as t0–t2 took theirs) with five modules:
+  - `m10-mapped-types`
+  - `m11-conditional-types`
+  - `m12-template-tuples`
+  - `m13-type-challenges`
+  - `m14-type-system-edges`
+  - 21 lessons with the ids fixed in the plan. Titles are §8's text with code backticks dropped. "(13 challenges)" and "(opt)" are notes, so they are not in the titles. Minutes are as §8 gives them: 500 core and 140 optional.
+  - 13.4, 13.5 and 14.5 set `optional: true`.
+  - 115 exercises: 94 editor exercises (13 fix, 18 implement, 63 type-challenge) and 21 `predict`. None is `challenge: true`.
+    - Outside M13, every lesson has four exercises, except 11.4, which has five.
+    - M13 has 14, 11, 11, 8 and 6 exercises.
+  - 81 `ts twoslash` blocks.
+- **The type-challenges sets** (§12: "crediting their source").
+  - 45 challenges from type-challenges (MIT, "Copyright (c) 2020 Anthony Fu"): all 13 easy, ten medium in each of 13.2 and 13.3, seven hard and five extreme. The selection is in the plan and in `CHALLENGES` in `curriculum.test.ts`, in exercise order.
+  - Each challenge's `README.md`, `template.ts`, `test-cases.ts` and `info.yml` were fetched from the repository on 23 October 2026. All 45 pass under 6.0.3, so none was swapped.
+  - Each `tests.ts` is the challenge's `test-cases.ts`, adapted. It imports `@dojo/type-utils`, names every case and uses a bare `@ts-expect-error`. Every original case is kept, and each addition is marked "Added in the dojo".
+    - Adaptations are commented where they occur: `unknown` for an `any`, `type errors` renamed to `casesErrors`, a method chain split so its `@ts-expect-error` is a statement, and `ReturnType<typeof JSON.parse>` where a case really needs an `any` (`explicit-any` covers `tests.ts` too).
+  - Prompts are in the dojo's own words.
+  - The credit, checked by `curriculum.test.ts` "§12 F13: the type-challenges sets credit their source":
+    - each prompt ends `From type-challenges [#00004 Pick](…/questions/00004-easy-pick/README.md) by Anthony Fu (@antfu) (MIT).`, or `by @handle` where `info.yml` has no name;
+    - each `tests.ts` opens with the challenge's link and the copyright line;
+    - each M13 lesson's Further reading links the repository and carries the full MIT notice in a `text` fence.
+  - The M13 reviewer checked every credit line against `info.yml` by script, diffed each `tests.ts` against upstream, and confirmed each notice is the license verbatim.
+- Authoring followed the module skill:
+  - one `content-author` per lesson, in §8 order within a module, the five modules in parallel, from a shared brief. The brief set ids, lesson boundaries across Tier 3, what 6.4 already taught, the M13 shape and credit format, and Tier 4's topics, which no Tier 3 exercise may take;
+  - a `content-reviewer` per module, with trick solutions linted against scratch copies (`--root=`);
+  - every FIX sent back to its author (or applied directly, for one line) and re-reviewed until every lesson was OK;
+  - plain-text mentions of Tier 3 lessons were turned into `<Lesson>` links and prerequisites once the wave was complete. Plain mentions left are in hints, prompts and `<Predict>` attributes, next to a link to the same lesson, or of Tier 4 lessons.
+- What the reviews fixed:
+  - Accuracy:
+    - 10.1 said a key alias always loses the modifiers (a generic `keyof T` alias keeps them);
+    - 11.4 said self-references are deferred "only" in three places (type arguments of generic interfaces are too);
+    - 12.4 said `Flip` "never" gets through 50 levels (only levels not yet computed count);
+    - 13.2 said a `keyof T extends never` check stops at primitives (it stops at functions);
+    - 14.2 said `keyof T` offers no inference candidate (it offers a weak one), and that any literal is joined to the other candidates (only literals of the same primitive);
+    - 14.5 said every `addInitializer` callback runs before the fields (only a method's, getter's or setter's does);
+    - plus a misdescribed release-notes section (10.3) and a broken 4.2 anchor (12.2, 12.3).
+  - Boundaries: two exercises took Tier 4 topics and were replaced: 12.1's typed routes (15.4, 18.1) and 12.2's typed emitter (15.2). 11.1/04 was reworded off environment variables (17.3). 10.3/01 repeated 6.4/01.
+  - Tricks now stopped:
+    - a library `any` (`JSON.parse`, `Object.create`, `Reflect.apply`, a property descriptor's `value`) letting one generic signature skip the overload in 11.1–11.4's last exercises. **Every Tier 3 `implement` and `fix` exercise forbids `any-expression`**, and every solution passes it;
+    - lookup tables of the case inputs (12.1/01);
+    - an overload in place of a generic rest parameter (12.2/01) or of `NoInfer` (14.2/02, 14.2/04);
+    - 6.4/04's two-step filter (10.2/02);
+    - a mutable tuple pattern (13.1 Includes);
+    - property syntax in place of `in` on a method (14.1/02);
+    - `private` plus `instanceof` in place of a `#` check (14.3/04).
+  - Theory that handed over an answer: 13.2's Promise.all sentence, 13.3's `Count` (now a substring count). Answer-like hints in 12.1, 12.3, 12.4 and 13.1.
+  - Pitfalls with no visible failure (14.1, 14.3) now show one.
+  - Accepted leftovers, which no rule or test can stop:
+    - aliasing the built-in a challenge rebuilds (`MyPick = Pick`);
+    - importing a helper such as `IsAny` or `UnionToIntersection` from `@dojo/type-utils` into a solution;
+    - deleting 14.1/02's wrong `Source`/`Target` annotations instead of correcting them (no type can tell);
+    - editing a file a prompt says to leave alone (14.4);
+    - `Parameters`/`ReturnType` in place of `infer` (11.2/04);
+    - a lookup table for 13.3's Length of String.
+
+    Logged under Spec questions.
+- Measured by the authors under 6.0.3, and written into 12.4: non-tail recursion gets through 48 new levels in a fresh file, or 49 once the type has been used; tail recursion gets through 999 steps.
+- The lesson skill's "Traps found while writing F11 to F13" gains these:
+  - quoting YAML that holds type syntax;
+  - which `@ts-expect-error` placements are cases;
+  - `explicit-any` in `tests.ts`;
+  - the library-`any` trick;
+  - lookup tables;
+  - recursion depth.
+
+  Its "what no rule catches" adds the built-in alias and the `@dojo/type-utils` import.
+- Tests:
+  - `src/content/node/curriculum.test.ts` adds the t3 rows from §8 and checks 62 lessons. It also checks:
+    - the five optional lessons;
+    - one type-challenge exercise per selected challenge in M13 (more than five exercises allowed there only);
+    - that Concept has a code fence (F12's "best before F13" item), across all 62 lessons;
+    - the credit block above.
+  - `scripts/content-lint.test.ts` "the shipped course" expects 62 lessons.
+  - `e2e/course.spec.ts` is generated from the tree and already mapped M10–M14 to F13.
+- Measured 23 October 2026:
+  - `pnpm content:lint`: 62 lessons, 207 editor exercises, in 23.8 s.
+  - 997 unit tests (`pnpm test --run`).
+  - 663 Playwright tests in Chrome (`pnpm test:e2e --project chrome`, 3.4 min including both builds). 136 lessons and exercises of the course are named "§12 F13": 21 lessons render, 94 editor exercises pass `:test` with their solutions, and 21 predicts pass.
+  - Precache: 14,199,957 bytes, 457 entries (pre-F13: 12,275,097, 321), 94.7% of the 15 MB budget. `index-*.js` is 2,702,980 bytes raw (F12: 2,197,116). F14 will not fit as things stand. Its plan needs a step, the cheapest being to leave `lib.webworker.d.ts` (787 KB, used by no lesson) out of the precache.
+  - The §9 budgets are re-measured below. Every one is met.
+- Review: the acceptance-reviewer's first pass on 23 October 2026 gave PASS, with the criterion MET.
+  - It ran every check itself: typecheck, lint, format:check, 997 unit tests, the content lint (62 lessons, 207 editor exercises, in 23.6 s), and 663 Playwright tests in Chrome in 3.3 min.
+  - It checked the t3 rows in `curriculum.test.ts` against §8.
+  - It compared all 45 credit lines with each challenge's `info.yml`, diffed the five notices against the license, and counted every `tests.ts`'s cases against upstream: none is dropped.
+  - It also read every Tier 3 objective (each starts with a verb), and checked the counts in these notes against the tree.
+  - Its findings, all fixed:
+    - `index-*.js` was measured from an earlier build (now 2,702,980);
+    - `e2e/course.spec.ts`'s header didn't name F13;
+    - the credit test checked five lines of the notice. It now compares the whole notice, and changing one word in a lesson's notice fails it.
+  - The `/verify` pass before the commit (23 October 2026) also gave PASS. It ran the checks again: 997 unit tests, the content lint in 24.0 s, and 663 Playwright tests in 3.4 min. It read 10.2, 11.3, 12.4, 13.1 and 14.3 in full against §1, plus 14.5's Pitfalls, and found every figure in these notes consistent with the tree.
+- Left for later features:
+  - F14 extends the §8 table in `curriculum.test.ts`, the lesson count in `content-lint.test.ts`, and `criterion()` in `e2e/course.spec.ts` (already maps M15–M18 to F14).
+  - F14's plan needs a precache step (above).
+  - Tier 4 lessons named in plain text in Tier 3 (module 16 in 10.1, 16.3 in 14.4, 17.1 in 14.3, 18.5 in 12.4) can become `<Lesson>` links once F14 writes them.
 
 ## F14. Content wave 4 (Tier 4)
 
@@ -594,6 +696,7 @@ Anything built differently from what the spec names (library, version, flag, key
 
   Every solution in the course passes all three rules, and `pnpm content:lint` passes.
 - **§5 Type cases, the note's wording (pre-F13 fixes, Kim's decision on 23 October 2026).** §5 quotes the note as "test file does not compile" and says it "usually means the solution exports the wrong name". Several Tier 2 implement starters land there because they aren't generic yet, so the note now reads "tests.ts does not compile against your code; see its first diagnostic" (`TEST_FILE_NOTE` in `src/verify/exercise.ts`). It is followed, as before, by `: ` and the diagnostic. Proven by `src/verify/exercise.test.ts` "a wrong export name fails Compiles with the test-file note" and `e2e/verify.spec.ts`. Kim's answer also asks that §1's kinds table say an implement starter may fail Compiles when its prompt names the diagnostic; that is spec text, left to Kim.
+- **§1 Practice, one exercise per challenge in M13 (F13, Kim's decision with the F13 plan on 23 October 2026).** §1 says practice is "two to five exercises", and §8 gives 13.1 thirteen challenges. Each M13 lesson has one `type-challenge` exercise per type-challenges challenge it sets, plus one `predict`, so 13.1 has 14 exercises. Every other module keeps two to five. The exercise strip wraps, so every chip shows. `src/content/node/curriculum.test.ts` allows more than five exercises in `m13-type-challenges` only.
 - **§10 First deploy step 4, a first rsync pass (F15, in the F15 plan Kim approved on 21 October 2026).** §10 lists one `rsync -az --delete`. `deploy/deploy.sh` first ships `assets/` and `ts/` without delete, then runs the listed `rsync -az --delete` of all of `dist/`. A new `index.html` or `sw.js` therefore never goes live before the files it names, and the listed step is unchanged. The wording proposal is under Spec questions.
 
 ## Spec questions
@@ -670,6 +773,14 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **§5 Compiles, "test file does not compile" (F12).** §5 says this note "usually means the solution exports the wrong name". Several Tier 2 implement starters (5.1/04, 5.2/04, 5.3/04, 5.4/04, 5.5/04, 8.2/03, 8.3/03, 8.3/04, 8.4/03) fail there because the starter isn't generic yet or lacks a member, and each prompt names that diagnostic. Proposal: word the note neutrally ("tests.ts does not compile against your code; see its first diagnostic"), and state in §1's kinds table that an implement starter may fail Compiles when the prompt names the diagnostic. Today that rule is in the lesson skill only. **Answered by Kim on 23 October 2026:** word the verdict note neutrally, "tests.ts does not compile against your code; see its first diagnostic" (`src/verify/`, its tests and any e2e that matches the text). §1's kinds table should say that an implement starter may fail Compiles when its prompt names the diagnostic. A small fix commit before F13.
 - **§1 Further reading, "Handbook links" (F12).** Every Tier 2 lesson has at least two handbook links, and most also link other sources: release notes in all but 5.3, 5.5, 6.4, 8.1 and 8.2; the tsconfig reference in some; and four sources outside the TypeScript docs: typescript-eslint (5.5), MDN (9.3, 9.4), the DefinitelyTyped repository (9.2) and GitHub issue #9998, "Trade-offs in Control Flow Analysis" (7.4). Proposal: §1 allows links beyond the handbook, to official TypeScript sources and to well-known references such as MDN. **Answered by Kim on 23 October 2026:** handbook first, more allowed. At least one handbook link, plus any official TypeScript source (release notes, tsconfig reference, the TypeScript repository) and well-known references (MDN, typescript-eslint, DefinitelyTyped). No content change.
 
+- **§1 Practice, "two to five exercises" (F13).** Kim decided with the F13 plan that each M13 lesson has one exercise per challenge plus a `predict` (13.1 has 14), under Deviations. Proposal: §1 names the exception for the type-challenges track, or §8's 13.1 row says how its 13 challenges are split.
+- **§5 Type cases, "every statement" (F13).** §5 says a case is "every statement whose leading comment is `@ts-expect-error`". As built at F7 (`src/workers/ts-ls/type-tests.ts`), it is every *top-level* statement of `tests.ts`. A directive inside an arrow body, a class body or a method chain is not a case, and its TS2578 then fails Compiles with the tests.ts note. F13's authors put each one on its own top-level statement, and the lesson skill says so. Proposal: §5 says "top-level statement".
+- **§5 Rules, what no rule catches in type-challenges (F13).** A type-challenge that rebuilds a built-in can be passed by aliasing it (`type MyPick<T, K extends keyof T> = Pick<T, K>`). A solution file can also import a helper from `@dojo/type-utils`, such as `IsAny` (13.4) or `UnionToIntersection` (11.4/05). Equal can't tell either from the real work, as with a type written out by hand (F12). Proposals, all optional:
+  - resolve `@dojo/type-utils` only from `tests.ts`, an app change in the ts-ls worker;
+  - a rule id that forbids naming given lib utilities in a user file (`forbid: [builtin:Pick]`, say);
+  - or record both as known limits, as F12's "derived or hand-written" was.
+- **§3 non-`ts` fences (F13, again).** Each M13 lesson's Further reading carries type-challenges' MIT notice in a ```` ```text ```` fence, which renders as a bare `<pre>` (the F11 entry above). It reads fine, but styling other fences would help here too.
+
 ## Measured budgets (§9)
 
 §9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
@@ -725,6 +836,19 @@ Re-measured after the pre-F13 fixes on 23 October 2026: the same project, machin
 | Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
 | ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 19.7 MB total JS heap |
 | Total precache | under 15 MB raw | 12,275,097 bytes, 321 entries |
+
+F13 re-measured the budgets against the course build on 23 October 2026: the same project, machine and link, with the 62 lessons of Tiers 0–3 in `dist/`. Every budget is met; the precache is at 94.7% of its budget (see F13's notes):
+
+| What | Budget | Measured (F13) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 478 ms, max 982 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,227 ms, max 1,684 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 331 ms, max 395 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 210 ms, median 205 ms (30 samples) |
+| Quick info | under 100 ms | p95 13.2 ms, max 15.8 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 19.2 ms, max 19.5 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.0 MB total JS heap |
+| Total precache | under 15 MB raw | 14,199,957 bytes, 457 entries |
 
 ## For Kim
 

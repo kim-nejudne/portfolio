@@ -1,0 +1,26 @@
+id: m11-conditional-types/02-infer/03-last-signature
+kind: predict
+title: Which signature?
+minutes: 1
+challenge: false
+code: |
+  function toDate(ms: number): Date;
+  function toDate(text: string, utc: boolean): Date;
+  function toDate(value: number | string, utc = false): Date {
+    return new Date(typeof value === 'string' && utc ? `${value}Z` : value);
+  }
+
+  type Args = Parameters<typeof toDate>;
+question: What is `Args`?
+options:
+  - '[ms: number]'
+  - '[text: string, utc: boolean]'
+  - '[ms: number] | [text: string, utc: boolean]'
+  - '[value: string | number, utc?: boolean]'
+answer: 1
+explanation: |
+  `Parameters` matches the type of `toDate` against a function pattern with `infer`, and an
+  `infer` matched against an overloaded function sees only the last signature, the one that
+  takes a string and a boolean. The implementation signature is not part of the type of
+  `toDate`, so it is never seen, and the overloads are not joined into a union either: the
+  compiler has no arguments to choose an overload by.

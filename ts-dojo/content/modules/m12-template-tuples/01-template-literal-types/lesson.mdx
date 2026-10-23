@@ -1,0 +1,205 @@
+---
+id: m12-template-tuples/01-template-literal-types
+title: Template literal types, the intrinsics, and parsing strings with infer
+minutes: 30
+objectives:
+  - Write template literal types from literals, unions and the string and number pattern types
+  - Change the case of string types with Uppercase, Lowercase, Capitalize and Uncapitalize
+  - Take a string type apart with infer, by prefix, by suffix and by a delimiter
+  - Predict which part of a string each infer matches, and recurse over the rest
+prerequisites:
+  - m01-types/02-primitives-literals-widening
+  - m03-unions/01-union-and-literal-types
+  - m06-type-operators/04-rebuilding-the-utilities
+  - m10-mapped-types/02-key-remapping
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/04-recursive-conditionals
+tags:
+  - template literal type
+  - Uppercase
+  - Lowercase
+  - Capitalize
+  - Uncapitalize
+  - intrinsic
+  - infer
+  - string parsing
+  - pattern type
+---
+
+## Concept
+
+A template literal type is a JavaScript template literal written in a type position. Each `${…}` placeholder holds a type instead of an expression, and the result is a string type:
+
+```ts twoslash
+type Size = 'sm' | 'lg';
+type Color = 'red' | 'blue';
+
+type Variant = `${Size}-${Color}`;
+//     ^?
+type UserId = `user-${number}`;
+//     ^?
+```
+
+What the placeholder holds decides what comes out:
+
+- **A literal type** is pasted in as text: `` `v${2}` `` is `'v2'`. String, number, bigint and boolean literals work, and so do `null` and `undefined`.
+- **A union** gives one string for each member, and several unions give every combination. `Variant` has 2 × 2 = 4 members.
+- **`string`, `number` or `bigint`** leaves a hole. `` `user-${number}` `` is not a union at all but a pattern: any string that is `'user-'` followed by something that reads as a number. `'user-42'` is one, `'user-x'` is not.
+
+You used template literals to rename keys in <Lesson id="m10-mapped-types/02-key-remapping" />. This lesson covers them in full: changing the case of strings, and taking strings apart again with `infer`, the tool from <Lesson id="m11-conditional-types/02-infer" />.
+
+## Examples
+
+**Pattern types.** A pattern describes strings that are too many to list. A function that only takes hex colours and CSS pixel lengths can say so, and its callers find out when they write the literal:
+
+```ts run
+type HexColor = `#${string}`;
+type Pixels = `${number}px`;
+
+function border(width: Pixels, color: HexColor): string {
+  return `${width} solid ${color}`;
+}
+
+console.log(border('2px', '#ff8800'));
+console.log(border('0.5px', '#000'));
+```
+
+`border('2em', '#ff8800')` and `border('2px', 'orange')` don't compile. `${number}` is generous: `'1e3px'` and `'0x1Fpx'` match too, because `1e3` and `0x1F` read as numbers, and so do `' 2px'` and `'2 px'`, whitespace around the number included.
+
+**Cross products.** A union in every placeholder multiplies. Three verbs and four nouns are twelve strings, which is handy for event names or CSS classes. The compiler stops at 100,000: five placeholders of the ten digits each, 10 × 10 × 10 × 10 × 10 strings, fail with _Expression produces a union type that is too complex to represent._
+
+**The intrinsics.** Four utilities change the case of a string type: `Uppercase`, `Lowercase`, `Capitalize`, which uppercases the first character, and `Uncapitalize`, which lowercases it. `lib.es5.d.ts` declares each of them as `intrinsic`: the compiler computes them itself. Given a union, they change each member:
+
+```ts twoslash
+type Action = 'click' | 'keyDown';
+
+type Shouted = Uppercase<Action>;
+//     ^?
+type HandlerName = `on${Capitalize<Action>}`;
+//       ^?
+type Plain = Uncapitalize<'URLPath'>;
+//    ^?
+```
+
+`Capitalize` and `Uncapitalize` touch the first character only, so `'URLPath'` becomes `'uRLPath'`, not `'urlPath'`.
+
+**Parsing with `infer`.** A template literal type can be the pattern of a conditional type, with `infer` in its placeholders. <Lesson id="m11-conditional-types/02-infer" /> matched function and array types this way; here the compiler matches a string, and fills each `infer` with the part of the string that lines up with it. A prefix, a suffix or a delimiter is all it takes:
+
+```ts twoslash
+type PropName<G> = G extends `get${infer Name}` ? Uncapitalize<Name> : never;
+type Base<F> = F extends `${infer Name}.ts` ? Name : never;
+type Pair<S> = S extends `${infer Key}=${infer Value}` ? [Key, Value] : never;
+type First<S> = S extends `${infer Head}${infer Rest}` ? Head : never;
+
+type P = PropName<'getUserName' | 'getId' | 'setName'>;
+//   ^?
+type B = Base<'index.test.ts'>;
+//   ^?
+type KV = Pair<'mode=dark=true'>;
+//   ^?
+type F = First<'hello'>;
+//   ^?
+```
+
+The match follows four rules, and every result above comes from one of them:
+
+1. Text at the start and at the end of the pattern must match the start and the end of the string, or the false branch is taken. `'setName'` doesn't start with `get`, so it gives `never`, and the union drops it.
+2. An `infer` followed by text stops at the first place that text appears. `Key` is `'mode'`, and the second `=` lands in `Value`.
+3. An `infer` followed by another `infer` takes exactly one character. That is how `First` gets `'h'`.
+4. The last `infer` takes whatever is left, which may be the empty string. `Base` has text after its last `infer`, so by rule 1 `Name` is everything before the final `.ts`.
+
+**Recursion over the rest.** `Rest` is a string type again, so a conditional type can call itself on it, the way <Lesson id="m11-conditional-types/04-recursive-conditionals" /> recursed over objects and tuples. This one walks a camelCase name one character at a time and turns it into kebab-case:
+
+```ts twoslash
+type Kebab<S extends string> = S extends `${infer Head}${infer Rest}`
+  ? Head extends Lowercase<Head>
+    ? `${Head}${Kebab<Rest>}`
+    : `-${Lowercase<Head>}${Kebab<Rest>}`
+  : S;
+
+type K = Kebab<'backgroundColor' | 'zIndex'>;
+//   ^?
+```
+
+`Head extends Lowercase<Head>` asks whether lowercasing changes the character. It doesn't for `'b'` or for a digit, and it does for `'C'`, which becomes `'-c'`. When the string is empty, the pattern doesn't match, and the recursion ends with `S`, the empty string.
+
+**Plain `string`.** `string` itself matches no pattern, because nothing is known about its characters. `Kebab<string>` falls through to `S` and is `string`, which happens to be right. A parser that builds a tuple would fall through to `[string]` instead, a claim of exactly one piece. Ask `string extends S` before matching: it is true when `S` is `string`, and false for a literal or a pattern type:
+
+```ts twoslash
+type Known<S extends string> = string extends S ? 'unknown' : 'known';
+
+type A = Known<string>;
+//   ^?
+type B = Known<'hello'>;
+//   ^?
+type C = Known<`id-${number}`>;
+//   ^?
+```
+
+## Pitfalls
+
+**`keyof T` in a placeholder.** A placeholder takes the types a template literal can print. `keyof T` may contain `symbol`, which it can't:
+
+```ts run errors
+type Fields<T> = `field:${keyof T}`;
+```
+
+`Type 'keyof T' is not assignable to type 'string | number | bigint | boolean | null | undefined'.`, and the last line of the error names `symbol`. Write `` `field:${keyof T & string}` ``: the intersection keeps only the string keys. The same goes for a key `K` in a mapped type, which is why <Lesson id="m10-mapped-types/02-key-remapping" /> wrote `Capitalize<K & string>`.
+
+**Expecting the last match.** An `infer` followed by text stops at the first occurrence (rule 2), and a `${string}` placeholder does the same. A file extension taken after the first dot is everything after it:
+
+```ts run errors
+type Extension<F> = F extends `${string}.${infer Ext}` ? Ext : never;
+
+const gz: Extension<'archive.tar.gz'> = 'gz';
+```
+
+`Type '"gz"' is not assignable to type '"tar.gz"'.` To get the last part, recurse on `Ext` while it still contains a dot.
+
+**Expecting types to check string code.** The intrinsics compute types, not values. A function that capitalizes its argument doesn't get the type `Capitalize<S>` from its body, because string methods return `string`:
+
+```ts run errors
+function capitalize<S extends string>(s: S): Capitalize<S> {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+```
+
+`Type 'string' is not assignable to type 'Capitalize<S>'.` The compiler can't prove that the code does what the type says. Either return `string`, or write `as Capitalize<S>` on the result in this one function, once you have checked by hand that the two agree.
+
+## Check yourself
+
+<Predict
+  id="cross-product-size"
+  code={"type Accessor = `${'get' | 'set'}${'Name' | 'Age' | 'Email'}`;"}
+  question="How many members does `Accessor` have?"
+  options={['2', '5', '6', '9']}
+  answer={2}
+  explanation="A union in each placeholder gives every combination: two verbs times three nouns is six strings, from `'getName'` to `'setEmail'`. The counts multiply; they don't add up."
+/>
+
+<Predict
+  id="uncapitalize-first-only"
+  code={"type T = Uncapitalize<'HTMLElement'>;"}
+  question="What is `T`?"
+  options={["'htmlElement'", "'hTMLElement'", "'htmlelement'", 'string']}
+  answer={1}
+  explanation="`Uncapitalize` lowercases the first character and leaves the rest as it is, so only the `H` changes. `Lowercase` would give `'htmlelement'`; no intrinsic knows where a word ends."
+/>
+
+<Predict
+  id="first-delimiter"
+  code={
+    "type Host<U> = U extends `${infer Scheme}://${infer Rest}` ? Rest : never;\ntype H = Host<'https://a.dev/x://y'>;"
+  }
+  question="What is `H`?"
+  options={["'a.dev/x://y'", "'y'", "'a.dev/x'", 'never']}
+  answer={0}
+  explanation="`Scheme` is followed by the text `://`, so it stops at the first place `://` appears and is `'https'`. `Rest` is the last `infer` and takes everything left over, the second `://` included."
+/>
+
+## Further reading
+
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html), including the intrinsic string manipulation types
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html), on inferring within conditional types
+- [TypeScript 4.1 release notes: template literal types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html#template-literal-types)

@@ -17,3 +17,13 @@ tiers:
         m08-functions-classes,
         m09-modules-async,
       ]
+  - id: t3
+    title: Advanced type system
+    modules:
+      [
+        m10-mapped-types,
+        m11-conditional-types,
+        m12-template-tuples,
+        m13-type-challenges,
+        m14-type-system-edges,
+      ]

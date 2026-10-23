@@ -1,0 +1,24 @@
+id: m11-conditional-types/01-conditional-types/02-readonly-list
+kind: predict
+title: Is a constant list a list?
+minutes: 1
+challenge: false
+code: |
+  type IsList<T> = T extends unknown[] ? 'list' : 'other';
+
+  const days = ['mon', 'tue'] as const;
+  type R = IsList<typeof days>;
+question: What is `R`?
+options:
+  - "'list'"
+  - "'other'"
+  - "'list' | 'other'"
+  - 'never'
+answer: 1
+explanation: |
+  `as const` makes `days` a `readonly ['mon', 'tue']`. The condition asks whether that is
+  assignable to `unknown[]`, a mutable array, and a `readonly` array or tuple is not: a mutable
+  array has `push` and the rest, which a `readonly` one doesn't offer. So the false branch is
+  taken. The tuple's single type is not a union, so there is one answer, not two. Testing
+  against `readonly unknown[]` accepts both kinds, because a mutable array is assignable to a
+  `readonly` one.

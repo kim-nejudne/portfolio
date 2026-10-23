@@ -1,0 +1,28 @@
+id: m13-type-challenges/03-medium-set-2/09-permutation
+kind: type-challenge
+title: Permutation
+minutes: 7
+challenge: false
+prompt: |
+  Write `Permutation<T>` in `index.ts`: for a union `T`, the union of every tuple that holds
+  each member of `T` once, in every order.
+
+  ```ts
+  type Perm = Permutation<'A' | 'B' | 'C'>;
+  // ['A', 'B', 'C'] | ['A', 'C', 'B'] | ['B', 'A', 'C'] | ['B', 'C', 'A'] | ['C', 'A', 'B'] | ['C', 'B', 'A']
+  ```
+
+  The order in which the union is written doesn't matter. `Permutation<boolean>` is
+  `[false, true] | [true, false]`, and `Permutation<never>` is `[]`. You may add type
+  parameters, if each has a default.
+
+  From type-challenges [#00296 Permutation](https://github.com/type-challenges/type-challenges/blob/main/questions/00296-medium-permutation/README.md) by Naoto Ikuno (@pandanoir) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Distribute over `T` (11.3), so that each member takes its turn as the first element, and recurse for the rest of the tuple.
+  - The rest is a permutation of the other members, and inside the branch `T` is one member only. The lesson's Rival kept the whole union for that.
+  - '`Permutation<never>` must be `[]`, but a distributive conditional turns `never` into `never` (the first pitfall). Check for it before you distribute.'

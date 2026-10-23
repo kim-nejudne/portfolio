@@ -1,0 +1,33 @@
+id: m14-type-system-edges/04-declaration-merging/03-teach-money-to-format
+kind: implement
+title: Teach Money to format
+minutes: 4
+challenge: false
+prompt: |
+  `money.ts` exports a `Money` class that you may not change. In `format.ts`, give every
+  `Money` two methods, for both the compiler and the run time:
+
+  - `format()` returns the amount with two decimals and the currency: `'4.50 EUR'` for
+    `new Money(450, 'EUR')`.
+  - `plus(other)` returns a new `Money` with the sum of the cents, in the same currency. When
+    the currencies differ, it throws an `Error` whose message starts with
+    `currency mismatch`.
+
+  Until `Money` has both methods, `demo.ts` and the tests don't compile against your code.
+  Leave `money.ts` and `demo.ts` as they are, and use no cast. `:w` runs `demo.ts`.
+entry: demo.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - format.ts is a module, so a declare module block naming './money' adds to that module rather than describing a new one.
+  - Inside it, an interface with the class's name merges with the class's instance type.
+  - The block only describes the methods. Assign the functions to Money.prototype, as function expressions so that `this` is the instance.

@@ -1,0 +1,22 @@
+id: m10-mapped-types/01-mapped-types-and-modifiers/03-getters
+kind: predict
+title: Required getters
+minutes: 1
+challenge: false
+code: |
+  type Getters<T> = { +readonly [K in keyof T]-?: () => T[K] };
+
+  type Settings = { readonly theme?: string; fontSize: number };
+  type G = Getters<Settings>;
+question: What is `G`?
+options:
+  - '{ theme: () => string; fontSize: () => number }'
+  - '{ readonly theme: () => string; readonly fontSize: () => number }'
+  - '{ readonly theme: () => string | undefined; readonly fontSize: () => number }'
+  - '{ readonly theme?: () => string | undefined; fontSize: () => number }'
+answer: 2
+explanation: |
+  `+readonly` puts `readonly` on every property, the one `fontSize` didn't have included, and
+  `theme` keeps the one it had. `-?` makes `theme` required, and removes `undefined` only from
+  the property's type as a whole. That type is a function, and inside it `T[K]` of the optional
+  `theme` is still `string | undefined`, so the getter can return `undefined`.

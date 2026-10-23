@@ -1,0 +1,28 @@
+id: m11-conditional-types/02-infer/01-contents
+kind: type-challenge
+title: What's inside
+minutes: 3
+challenge: false
+prompt: |
+  Write `Contents<T>` in `index.ts`: the type of what a container holds, one layer deep.
+
+  - An array or a tuple, `readonly` or not, gives its element type: `Contents<string[]>` is
+    `string`, `Contents<[1, 'a']>` is `1 | 'a'`.
+  - A `Promise<V>` gives `V`, one promise only: `Contents<Promise<Promise<number>>>` is
+    `Promise<number>`.
+  - A `Set<V>` or `ReadonlySet<V>` gives `V`, and a `Map<K, V>` or `ReadonlyMap<K, V>` gives
+    the value type `V`.
+  - Any other type is not a container and stays as it is: `Contents<string>` is `string`.
+
+  The type cases try every container, mutable and `readonly`, an empty tuple, nested
+  containers, a union of containers (each member gets its own answer, as in lesson 6.4) and
+  `never`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Chain one condition per kind of container, each with an `infer` where the contents sit, and `T` itself in the last branch.
+  - A mutable array is assignable to a `readonly` one, and a `Set` to a `ReadonlySet`. Match against the `readonly` kind and both pass.
+  - For a map, only the value type is wanted. Its key type can be written as a type that every key fits.

@@ -1,0 +1,10 @@
+id: m13-type-challenges
+title: Type-level programming track
+summary: Put Tier 3 to work on type-challenges, from the easy set to selected hard and extreme ones.
+prerequisites: [m12-template-tuples]
+lessons:
+  - 01-easy-set
+  - 02-medium-set-1
+  - 03-medium-set-2
+  - 04-hard-set
+  - 05-extreme-set

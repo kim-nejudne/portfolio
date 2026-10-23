@@ -1,0 +1,21 @@
+id: m13-type-challenges/02-medium-set-1/08-pop
+kind: type-challenge
+title: Pop
+minutes: 3
+challenge: false
+prompt: |
+  Write `Pop<T>` in `index.ts`: the tuple `T` without its last element, the type of what is
+  left after `Array.prototype.pop`. `Pop<[3, 2, 1]>` is `[3, 2]`, and `Pop<[]>` is `[]`. A
+  case added in the dojo pops a one-element tuple.
+
+  The template's constraint is `T extends any[]`; the starter's is `T extends unknown[]`.
+
+  From type-challenges [#00016 Pop](https://github.com/type-challenges/type-challenges/blob/main/questions/00016-medium-pop/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The pattern from Last of Array, with `infer` moved to the other part of the tuple.
+  - The empty tuple doesn't match a pattern that needs an element. Decide what that branch returns.

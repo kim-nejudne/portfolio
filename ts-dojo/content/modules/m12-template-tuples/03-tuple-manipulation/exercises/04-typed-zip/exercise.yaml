@@ -1,0 +1,31 @@
+id: m12-template-tuples/03-tuple-manipulation/04-typed-zip
+kind: implement
+title: A typed zip
+minutes: 6
+challenge: false
+prompt: |
+  `zip(a, b)` pairs the elements of two arrays by position and stops at the end of the shorter
+  one: `zip([1, 2, 3], ['a', 'b'])` is `[[1, 'a'], [2, 'b']]`. Give it an exact type, in
+  `index.ts`:
+
+  - `Zip<A, B>` is the type-level version for two tuples: `Zip<[1, 2], ['a', 'b']>` is
+    `[[1, 'a'], [2, 'b']]`, `Zip<[1, 2, 3], ['a']>` is `[[1, 'a']]`, and with an empty tuple on
+    either side the result is `[]`. Readonly tuples are accepted; the result is mutable.
+  - When either side is an array, such as `number[]`, its length isn't known, and neither is the
+    result's: `Zip<number[], ['a', 'b']>` is `[number, 'a' | 'b'][]`.
+  - `zip(a, b)` returns a `Zip` of its arguments. A tuple argument stays a tuple:
+    `zip([1, 'a'], [true, null])` has the type `[[number, boolean], [string, null]]`, and a
+    `number[]` argument gives an array of pairs.
+
+  This combines the lesson's patterns and `T['length']` with the `[...T]` parameters of lesson
+  12.2 and the single assertion on the return from the theory's `last`. The type cases call
+  `zip` with tuples, arrays, `as const` tuples and an empty tuple, and the tests check the pairs.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, any-expression]
+hints:
+  - Check for an array first, with the length test from the theory's last pitfall.
+  - For `zip` to see tuples, its parameters must ask for them, as `concat` did in lesson 12.2.
+  - The body builds a plain array of pairs. Like the theory's `last`, it needs one `as` on what it returns.

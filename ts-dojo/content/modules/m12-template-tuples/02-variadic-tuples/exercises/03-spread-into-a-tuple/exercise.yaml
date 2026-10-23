@@ -1,0 +1,25 @@
+id: m12-template-tuples/02-variadic-tuples/03-spread-into-a-tuple
+kind: predict
+title: An array spread into a tuple
+minutes: 2
+challenge: false
+code: |
+  function tupleOf<T extends unknown[]>(items: [...T]): T {
+    return items;
+  }
+
+  const ids = [1, 2];
+  const row = tupleOf([...ids, 'end']);
+question: What is the type of `row`?
+options:
+  - '[number, number, string]'
+  - '(string | number)[]'
+  - '[...number[], string]'
+  - '[...number[], "end"]'
+answer: 2
+explanation: |
+  `ids` is inferred from an array literal, so it is a `number[]` whose length the compiler
+  doesn't know. The `[...T]` parameter asks for a tuple, and spreading an array into a tuple
+  gives a rest element in that place: any number of numbers, then a string. The string is
+  `string` and not `'end'`, because a tuple inferred this way widens its elements, as
+  `tupleOf([1, 'a'])` gives `[number, string]`.

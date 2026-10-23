@@ -1,0 +1,37 @@
+id: m14-type-system-edges/01-assignability-variance/03-which-assignment-fails
+kind: predict
+title: Which assignment fails?
+minutes: 2
+challenge: false
+code: |
+  interface User {
+    id: string;
+    name: string;
+  }
+  interface Admin extends User {
+    permissions: string[];
+  }
+
+  interface Listeners<T> {
+    onAdd(item: T): void;
+    onRemove: (item: T) => void;
+  }
+
+  declare const forAdmins: Listeners<Admin>;
+  declare const forUsers: Listeners<User>;
+
+  const a: Listeners<User> = forAdmins; // A
+  const b: Listeners<Admin> = forUsers; // B
+question: Under the default strict options, which of the two assignments does the compiler reject?
+options:
+  - 'Only A'
+  - 'Only B'
+  - 'Both A and B'
+  - 'Neither: T only appears in parameters, which are compared both ways'
+answer: 0
+explanation: |
+  `onAdd` is a method, so its parameter is compared both ways, and it allows A and B alike.
+  `onRemove` is a property with a function type, and `strictFunctionTypes` checks its parameter
+  contravariantly: a `Listeners<User>` must accept any user, and `forAdmins.onRemove` only
+  accepts admins, so A is an error. B is fine, since a function that takes any user takes an
+  admin. One strictly checked member is enough to make the whole type contravariant in `T`.

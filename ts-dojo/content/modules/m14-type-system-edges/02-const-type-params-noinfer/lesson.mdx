@@ -1,0 +1,266 @@
+---
+id: m14-type-system-edges/02-const-type-params-noinfer
+title: const type parameters and NoInfer
+minutes: 20
+objectives:
+  - Declare a const type parameter, and predict the literal types and readonly tuples a call infers for it
+  - Explain why a const type parameter keeps nothing from an argument that is a variable
+  - Block inference from a parameter with NoInfer, and tell a candidate that widens a type argument from one that replaces it
+  - Tell which parameters offer candidates at all, and what a type parameter falls back to when NoInfer covers every one
+prerequisites:
+  - m01-types/02-primitives-literals-widening
+  - m05-generics/01-generic-functions
+  - m05-generics/02-constraints-and-defaults
+  - m07-guards/03-exhaustiveness-and-satisfies
+tags:
+  - const type parameters
+  - const modifier
+  - NoInfer
+  - inference
+  - inference sites
+  - candidates
+  - as const
+  - literal types
+  - readonly tuples
+---
+
+## Concept
+
+At a generic call, the compiler infers each type argument from the arguments: every parameter whose type mentions `T` is an **inference site**, the argument there offers a **candidate**, and the candidates are combined into one type (<Lesson id="m05-generics/01-generic-functions" />). Two modifiers change that from the declaration, so every caller gets the change without writing anything.
+
+`const` before a type parameter infers it as if the argument had been written with `as const` (<Lesson id="m01-types/02-primitives-literals-widening" />): literal types are kept, arrays become `readonly` tuples, object properties become `readonly`.
+
+```ts twoslash
+function keep<T>(value: T): T {
+  return value;
+}
+
+function keepExact<const T>(value: T): T {
+  return value;
+}
+
+const loose = keep({ mode: 'dark', sizes: [12, 14] });
+//    ^?
+const exact = keepExact({ mode: 'dark', sizes: [12, 14] });
+//    ^?
+```
+
+`NoInfer<T>` around a parameter's type turns that site off: its argument offers no candidate, so `T` is inferred from the other sites, and the argument is then checked against the result.
+
+```ts run errors
+function paint<C extends string>(colors: C[], fallback: C): C {
+  return colors[0] ?? fallback;
+}
+
+function paintStrict<C extends string>(colors: C[], fallback: NoInfer<C>): C {
+  return colors[0] ?? fallback;
+}
+
+paint(['red', 'green'], 'blue');
+paintStrict(['red', 'green'], 'blue');
+```
+
+`paint` compiles: `'blue'` is a candidate like the colors, and `C` is `'red' | 'green' | 'blue'`. `paintStrict` takes `C` from the list alone and reports `Argument of type '"blue"' is not assignable to parameter of type '"red" | "green"'.` Outside a generic call, `NoInfer<T>` is just `T`: `NoInfer<string>` is `string`.
+
+Both landed late, `const` type parameters in TypeScript 5.0 and `NoInfer` in 5.4, and M05 previewed them. This lesson is about what each one does to inference, and where it does nothing.
+
+## Examples
+
+**What `const` infers.** Everything an `as const` would make exact: nested arrays and objects too, rest parameters as one tuple. A constraint is still checked, and its kind of array decides whether the tuple is `readonly`:
+
+```ts twoslash
+function tags<const T extends readonly string[]>(...tags: T): T {
+  return tags;
+}
+
+function tuple<const T extends readonly unknown[]>(items: T): T {
+  return items;
+}
+
+function mutable<const T extends string[]>(items: T): T {
+  return items;
+}
+
+const sale = tags('new', 'sale');
+//    ^?
+const point = tuple([3, 4, { label: 'origin' }]);
+//    ^?
+const sizes = mutable(['s', 'm']);
+//    ^?
+```
+
+With a `string[]` constraint the tuple of literals is inferred without `readonly`. The TypeScript 5.0 release notes warn that `T` stays `string[]` there; 6.0.3 infers `["s", "m"]`, as the query shows. Write `readonly` constraints anyway: they also accept arrays that are already `readonly`, which `string[]` rejects.
+
+**A union from the call.** The usual reason for `const` is a list whose elements become a union, with `[number]` (<Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />). With `const` on the declaration, the caller writes a plain array:
+
+```ts run
+function defineSteps<const T extends readonly string[]>(steps: T): T {
+  return steps;
+}
+
+const steps = defineSteps(['draft', 'review', 'published']);
+type Step = (typeof steps)[number];
+
+function next(step: Step): Step | undefined {
+  return steps[steps.indexOf(step) + 1];
+}
+
+console.log(next('draft'), next('published'));
+```
+
+Without `const`, `steps` would be a `string[]` and `Step` a `string`. The same list could be written `['draft', 'review', 'published'] as const satisfies readonly string[]` (<Lesson id="m07-guards/03-exhaustiveness-and-satisfies" />). That suits one value you write once; a `const` type parameter suits a function that many callers call. `const` is allowed on the type parameters of functions, methods and classes, where a call or a `new` infers them.
+
+**A candidate that widens the type argument.** When `T` has several sites, a string literal that doesn't fit the other string candidates is joined to them. A typo in a test helper then compiles:
+
+```ts twoslash
+type Status = 'open' | 'closed';
+
+function expectSame<T>(actual: T, expected: T): T {
+  if (actual !== expected) throw new Error('not the same');
+  return actual;
+}
+
+declare const status: Status;
+const checked = expectSame(status, 'opne');
+//    ^?
+```
+
+The expected value should be checked against the actual one, not take part in choosing `T`. That is `NoInfer`:
+
+```ts run errors
+type Status = 'open' | 'closed';
+
+function expectSame<T>(actual: T, expected: NoInfer<T>): T {
+  if (actual !== expected) throw new Error('not the same');
+  return actual;
+}
+
+function check(status: Status) {
+  expectSame(status, 'opne');
+}
+```
+
+`Argument of type '"opne"' is not assignable to parameter of type 'Status'.` Once inference has fixed `T` as `Status`, the argument is checked against it, the assignability check of <Lesson id="m14-type-system-edges/01-assignability-variance" />.
+
+**A candidate that replaces the type argument.** Candidates are ranked, and only the best-ranked are used. One from a parameter typed `L` beats one read from the keys of a mapped type such as `Record<L, string>`. Here the fallback wins, and a correct call fails:
+
+```ts run errors
+function createGreeter<L extends string>(
+  greetings: Record<L, string>,
+  fallback: L,
+) {
+  return (locale?: L) => greetings[locale ?? fallback];
+}
+
+const greet = createGreeter({ en: 'Hello', fr: 'Bonjour' }, 'en');
+```
+
+`L` is `'en'` alone, so the object is checked against `Record<"en", string>`: `Object literal may only specify known properties, and 'fr' does not exist in type 'Record<"en", string>'.` With `NoInfer`, the keys are the only site:
+
+```ts run
+function createGreeter<L extends string>(
+  greetings: Record<L, string>,
+  fallback: NoInfer<L>,
+) {
+  return (locale?: L) => greetings[locale ?? fallback];
+}
+
+const greet = createGreeter({ en: 'Hello', fr: 'Bonjour', sv: 'Hej' }, 'en');
+console.log(greet('sv'), greet());
+```
+
+Before 5.4, the fix was the second type parameter of <Lesson id="m05-generics/02-constraints-and-defaults" />, `F extends L`. `NoInfer` says the same with one.
+
+**Sites that offer nothing anyway.** Only a parameter that contains the type parameter in a form inference can read offers a candidate. An indexed access such as `T[number]` offers none, so there `NoInfer` changes nothing:
+
+```ts run errors
+function defineTabs<const T extends readonly string[]>(
+  tabs: T,
+  initial: T[number],
+): T {
+  return tabs;
+}
+
+defineTabs(['home', 'search'], 'profile');
+```
+
+`T` comes from the tabs alone: `Argument of type '"profile"' is not assignable to parameter of type '"home" | "search"'.` Reach for `NoInfer` where the parameter's type is the type parameter itself, or contains it as a plain element or property type.
+
+## Pitfalls
+
+**Passing a variable to a `const` type parameter.** `const` changes how the argument's expression is inferred. A variable was inferred when it was declared, and by the call it is a `string[]`:
+
+```ts run errors
+function defineSteps<const T extends readonly string[]>(steps: T): T {
+  return steps;
+}
+
+const names = ['draft', 'review'];
+const steps = defineSteps(names);
+const first: 'draft' | 'review' = steps[0];
+```
+
+`Type 'string' is not assignable to type '"draft" | "review"'.` Write the array in the call, or declare it with `as const`.
+
+**`const` on a type alias or an interface.** A type has no call to infer its arguments from, so the modifier is rejected:
+
+```ts run errors
+type Pair<const T> = [T, T];
+```
+
+`'const' modifier can only appear on a type parameter of a function, method or class`. Put it on the function that produces the value, or write `as const` at the value.
+
+**`NoInfer` on every site.** With no candidate left, the type parameter falls back to its default, then its constraint, then `unknown`, and the argument is checked against that:
+
+```ts run errors
+function parse<T>(text: string, fallback: NoInfer<T>): T {
+  return text === '' ? fallback : JSON.parse(text);
+}
+
+const port = parse('8080', 0);
+port.toFixed(0);
+```
+
+`'port' is of type 'unknown'.` A parameter that is the only site needs to stay one: drop `NoInfer` here, or have the caller write `parse<number>`.
+
+## Check yourself
+
+<Predict
+  id="const-object"
+  question="`function define<const T>(config: T): T`. What is the type of `define({ env: 'prod', ports: [80, 443] })`?"
+  options={[
+    '{ env: string; ports: number[] }',
+    '{ env: "prod"; ports: number[] }',
+    '{ readonly env: "prod"; readonly ports: readonly [80, 443] }',
+    '{ readonly env: string; readonly ports: readonly number[] }',
+  ]}
+  answer={2}
+  explanation="A `const` type parameter infers the argument as if it were written with `as const`, all the way down: the string keeps its literal type, the array becomes a readonly tuple of literals, and every property is readonly. Without `const`, the first option would be right."
+/>
+
+<Predict
+  id="noinfer-constraint"
+  question="`function pick<T extends string>(choice: NoInfer<T>): T`. What is the type of `pick('a')`?"
+  options={['"a"', 'string', 'unknown', 'It is an error']}
+  answer={1}
+  explanation="`NoInfer` turns off the only site, so there is no candidate for `T`, and it falls back to its constraint, `string`. `'a'` is a `string`, so the call compiles, and the literal is lost. Without a constraint, `T` would be `unknown`."
+/>
+
+<Predict
+  id="winning-site"
+  question="`function register<K extends string>(handlers: Record<K, () => void>, first: K)`. Does `register({ save: f, load: f }, 'save')` compile?"
+  options={[
+    'Yes: K is inferred as "save" | "load"',
+    'No: K is inferred as "save", and load is an excess property',
+    'No: K is inferred as string, which Record cannot use as a key',
+  ]}
+  answer={1}
+  explanation="The candidate from `first`, a parameter typed `K` itself, ranks above the candidates from the keys of `Record<K, …>`, so `K` is `'save'` alone and the object has a property too many. Writing `first: NoInfer<K>` makes the keys the only site, and then `K` is `'save' | 'load'`."
+/>
+
+## Further reading
+
+- [Handbook: Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html), the `NoInfer<Type>` section
+- [Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)
+- [TypeScript 5.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html), the section on `const` type parameters
+- [TypeScript 5.4 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-4.html), the section on the `NoInfer` utility type

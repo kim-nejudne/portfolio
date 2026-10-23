@@ -1,0 +1,21 @@
+id: m13-type-challenges/02-medium-set-1/01-return-type
+kind: type-challenge
+title: Get Return Type
+minutes: 3
+challenge: false
+prompt: |
+  Write `MyReturnType<T>` in `index.ts` without using the built-in `ReturnType`: the type a
+  function type returns. `MyReturnType<() => string>` is `string`, and for
+  `const fn = (v: boolean) => (v ? 1 : 2)` it is `1 | 2`.
+
+  The template puts no constraint on `T`, and neither does the starter.
+
+  From type-challenges [#00002 Get Return Type](https://github.com/type-challenges/type-challenges/blob/main/questions/00002-medium-return-type/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - 13.1's Parameters inferred from a function type's parameters. The return type is the other place to put `infer`.
+  - With no constraint on `T`, the parameters you match against must accept every function. Lesson 13.1's Parameters prompt says which parameter type does.

@@ -1,0 +1,22 @@
+id: m13-type-challenges/01-easy-set/02-readonly
+kind: type-challenge
+title: Readonly
+minutes: 2
+challenge: false
+prompt: |
+  Write `MyReadonly<T>` in `index.ts` without using the built-in `Readonly`. Every property of
+  `T` becomes `readonly`, so assigning to one is an error. The type is shallow: an object
+  nested in a property stays writable inside, as with the built-in.
+
+  Cases added in the dojo try a second type, with an optional property, and check that an
+  assignment is rejected.
+
+  From type-challenges [#00007 Readonly](https://github.com/type-challenges/type-challenges/blob/main/questions/00007-easy-readonly/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lesson 6.4 added modifiers in a mapped type. Which keys does this one loop over?
+  - A mapped type over `keyof T` copies the optional marks by itself, so you only add one modifier.

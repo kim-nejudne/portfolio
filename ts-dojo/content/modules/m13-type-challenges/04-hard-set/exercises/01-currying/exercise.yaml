@@ -1,0 +1,32 @@
+id: m13-type-challenges/04-hard-set/01-currying
+kind: type-challenge
+title: Currying 1
+minutes: 7
+challenge: false
+prompt: |
+  Type the declared function `Currying` in `index.ts`. It takes a function of any number of
+  parameters and returns its curried form, which takes one argument at a time:
+
+  ```ts
+  const add = (a: number, b: number) => a + b;
+  const curriedAdd = Currying(add); // (a: number) => (b: number) => number
+  const five = curriedAdd(2)(3);
+  ```
+
+  The cases pass arrow functions that return `true`, and the curried form must end in `true`,
+  not `boolean`. A function with no parameters stays a function: `Currying(() => true)` is
+  `() => true`. A case added in the dojo returns an object.
+
+  The template is `declare function Currying(fn: any): any`. The starter writes `unknown` for
+  both, so the calls in `tests.ts` compile from the start.
+
+  From type-challenges [#00017 Currying 1](https://github.com/type-challenges/type-challenges/blob/main/questions/00017-hard-currying-1/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Build the curried type from the parameter tuple, one element per step, with a tuple pattern and recursion (12.2, and 11.4, Recursive conditional types).
+  - If the literal `true` comes out as `boolean`, read the lesson's third pitfall about how the parameter of `Currying` is typed.
+  - An empty parameter list is its own case. Check for it before the recursion starts.

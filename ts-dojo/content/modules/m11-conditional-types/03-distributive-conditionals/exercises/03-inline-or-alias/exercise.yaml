@@ -1,0 +1,26 @@
+id: m11-conditional-types/03-distributive-conditionals/03-inline-or-alias
+kind: predict
+title: Inline or through an alias
+minutes: 1
+challenge: false
+code: |
+  type Wrap<T> = T extends unknown ? { value: T } : never;
+
+  type Form<T> = {
+    [K in keyof T]: Wrap<T[K]>;
+  };
+
+  type F = Form<{ size: 's' | 'm' }>;
+question: What is `F`?
+options:
+  - "{ size: { value: 's' | 'm' } }"
+  - "{ size: { value: 's' } | { value: 'm' } }"
+  - "{ size: { value: 's' } } | { size: { value: 'm' } }"
+  - '{ size: never }'
+answer: 1
+explanation: |
+  `Wrap` tests its own naked parameter, so it distributes wherever it is used. The mapped type
+  passes it `T[K]`, here `'s' | 'm'`, and `Wrap` answers once per member, so the property is a
+  union of two objects. The distribution stays inside the property: `Form` itself is one object
+  type. Written inline as `T[K] extends unknown ? { value: T[K] } : never`, the checked type
+  would be `T[K]`, which is not naked, and the property would be `{ value: 's' | 'm' }`.

@@ -1,0 +1,39 @@
+id: m14-type-system-edges/05-decorators/04-retry-the-flaky-calls
+kind: implement
+title: Retry the flaky calls
+minutes: 4
+challenge: false
+prompt: |
+  `retry(times)` is a decorator factory for async methods. It compiles, but the decorator it
+  returns does nothing yet. Implement it:
+
+  - A decorated call is tried up to `times` times in all, one attempt after the other, each
+    with the same arguments and the same `this`. It resolves with the first attempt that
+    succeeds.
+  - When every attempt rejects, the call rejects with an `Error` whose message is the
+    method's name and the count, `count failed after 3 attempts`, and whose `cause` is the
+    last attempt's reason.
+  - `retry(times)` throws a `RangeError` when it is called with anything but a whole number
+    from 1.
+  - The decorator fits only methods that return a `Promise`: on a method that returns a
+    `number` it is a compile error.
+
+  Use no `any` and no cast. This combines the lesson with generic functions and their
+  constraints (5.1, 5.2), `this` parameters (8.2), async functions (9.3) and `unknown` in
+  `catch` with `cause` (9.4). `:w` runs `index.ts`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Type the inner decorator as you would a logging one, generic over this, the arguments and the result, with the method's type written as returning a Promise of the result.
+  - The replacement can be an async function with a loop; await each attempt inside try, so a rejection lands in catch.
+  - The context gives the method's name for the message, and the Error constructor takes the cause in its second argument.

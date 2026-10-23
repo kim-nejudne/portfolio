@@ -1,0 +1,22 @@
+id: m13-type-challenges/04-hard-set/08-keys-of-optional
+kind: predict
+title: Where the undefined comes from
+minutes: 2
+challenge: false
+code: |
+  type Keys<T> = { [K in keyof T]: K }[keyof T];
+
+  type R = Keys<{ a: number; b?: string }>;
+question: What is `R`?
+options:
+  - "'a' | 'b'"
+  - "'a' | 'b' | undefined"
+  - "'a'"
+  - 'string'
+answer: 1
+explanation: |
+  The mapped type is homomorphic, so it keeps `b` optional (10.1), and an optional property's
+  type includes `undefined`: the object is `{ a: 'a'; b?: 'b' | undefined }`. Indexing it with
+  `keyof T` reads both property types, `undefined` with them. That is why Required Keys maps
+  with `-?`: it removes the `?` and the `undefined` it brings, so the never of an optional key
+  stays never.

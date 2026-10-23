@@ -1,0 +1,9 @@
+id: m11-conditional-types
+title: Conditional types
+summary: Choose a type by assignability, pull types out with infer, control distribution over unions, and recurse.
+prerequisites: [m10-mapped-types]
+lessons:
+  - 01-conditional-types
+  - 02-infer
+  - 03-distributive-conditionals
+  - 04-recursive-conditionals

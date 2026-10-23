@@ -1,0 +1,27 @@
+id: m12-template-tuples/03-tuple-manipulation/03-last-index-of
+kind: type-challenge
+title: The last index of a type
+minutes: 4
+challenge: false
+prompt: |
+  Write `LastIndexOf<T, U>` in `index.ts`: the type-level `lastIndexOf`. It gives the index of
+  the last element of the tuple `T` that is exactly `U`, as a number literal type, or `-1` when
+  there is none.
+
+  - `LastIndexOf<[1, 2, 3, 2], 2>` is `3`, and `LastIndexOf<[1, 2, 3], 4>` is `-1`.
+  - "Exactly" is the equality of the theory's `Includes`, not assignability:
+    `LastIndexOf<[string], 'a'>` and `LastIndexOf<[boolean], true>` are `-1`, and
+    `LastIndexOf<['a', string], string>` is `1`.
+  - `T` may be readonly. It is a tuple, never an array.
+
+  Walk the tuple from the back. The index of an element is the number of elements before it,
+  and the theory showed how to read that number off a tuple.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The pattern of `Last` can infer the elements before the last one as well as the last one.
+  - When the last element matches, which tuple's length is its index?
+  - Write the theory's `IsEqual` into your file; `@dojo/type-utils` is for the tests.

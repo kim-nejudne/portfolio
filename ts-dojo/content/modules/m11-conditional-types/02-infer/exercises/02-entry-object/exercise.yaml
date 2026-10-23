@@ -1,0 +1,25 @@
+id: m11-conditional-types/02-infer/02-entry-object
+kind: fix
+title: One entry, one property
+minutes: 3
+challenge: false
+prompt: |
+  `EntryObject<E>` in `index.ts` turns a `[key, value]` pair, the shape `Object.entries`
+  returns, into an object type with that one property: `EntryObject<['id', number]>` is
+  `{ id: number }`. Anything that is not a pair whose key can be a property key, a string, a
+  number or a symbol, gives `never`. It doesn't compile:
+
+  - `Type 'K' does not satisfy the constraint 'string | number | symbol'.`
+
+  `Record` takes only property keys, and nothing says that the inferred `K` is one. Fix it with
+  the tool from this lesson, so that a pair with any other key, such as `[true, 1]`, takes the
+  false branch. The type cases try string, number and symbol keys, a union of keys, `readonly`
+  pairs, tuples of the wrong length, a union of pairs and `never`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, any-expression]
+hints:
+  - The error is in the true branch, where `K` is only known as what the match found.
+  - An `infer` can carry a constraint of its own, and a match that breaks it takes the false branch. The lib has a name for every type that can be a property key.

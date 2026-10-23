@@ -1,0 +1,23 @@
+id: m13-type-challenges/01-easy-set/03-tuple-to-object
+kind: type-challenge
+title: Tuple to Object
+minutes: 3
+challenge: false
+prompt: |
+  Write `TupleToObject<T>` in `index.ts`. It turns a tuple of keys into an object type whose
+  properties have each element as both key and value:
+
+  `TupleToObject<readonly ['tesla', 'model 3']>` is `{ tesla: 'tesla'; 'model 3': 'model 3' }`.
+
+  The cases pass `as const` arrays of strings, numbers and unique symbols. A tuple whose
+  elements can't be property keys, such as `[[1, 2], {}]`, must be an error.
+
+  From type-challenges [#00011 Tuple to Object](https://github.com/type-challenges/type-challenges/blob/main/questions/00011-easy-tuple-to-object/README.md) by sinoon (@sinoon) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Indexing a tuple type with `number` gives the union of its element types.
+  - A mapped type can loop over that union. The starter's constraint accepts any element; what may a key be?
