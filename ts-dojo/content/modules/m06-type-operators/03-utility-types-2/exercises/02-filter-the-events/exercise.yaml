@@ -1,0 +1,26 @@
+id: m06-type-operators/03-utility-types-2/02-filter-the-events
+kind: type-challenge
+title: Filter the events
+minutes: 4
+challenge: false
+prompt: |
+  Write three generic helper types in `index.ts` that work on any union of objects with a string
+  `type` property, such as UI events or store actions:
+
+  - `EventOf<E, T>`: the members of `E` whose `type` is `T`.
+  - `OtherEvents<E, T>`: the members of `E` whose `type` is not `T`.
+  - `Payload<E, T>`: the properties of the member whose `type` is `T`, without `type` itself.
+
+  `T` may name one type or a union of them, but only types that `E` has. The type cases try the
+  helpers on two unions, and the `@ts-expect-error` lines check that an unknown `type`, a union
+  without `type`, and a value of a member that was filtered out are rejected. This builds on
+  constraints (5.2), indexed access types (6.1) and `Omit` (6.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each member of E is an object type, so filter by an object type that has just the type property.
+  - The types E has are E's type property read with an indexed access type. Constrain T with them.
+  - Payload is EventOf with one property taken away, by a utility from the previous lesson.

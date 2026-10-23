@@ -1,0 +1,27 @@
+id: m05-generics/03-generic-types-and-classes/02-loading-states
+kind: type-challenge
+title: Loading states
+minutes: 3
+challenge: false
+prompt: |
+  Define `AsyncState` in `index.ts`: the state of a value that is being loaded, as a generic
+  discriminated union (3.5) with two type parameters, `T` for the data and `E` for the error.
+  Each member has a `status` property that tells them apart:
+
+  - `idle`, with nothing else
+  - `loading`, with nothing else
+  - `success`, with `data` of type `T`
+  - `error`, with `error` of type `E`
+
+  `E` is `Error` unless a second type argument says otherwise (5.2), and `T` has no default.
+  The type cases check the union for two sets of type arguments, and the `@ts-expect-error`
+  lines check that a state with the wrong properties for its `status`, a `status` outside the
+  four, or `AsyncState` without a type argument is rejected.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each member is an object type of its own, with a string literal type for status. The type parameters can appear in any member.
+  - Write the union for one fixed case first, data of type number and an Error, then put the type parameters where those two types appear.

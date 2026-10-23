@@ -1,0 +1,23 @@
+id: m05-generics/04-keyof-constraints/01-read-a-property
+kind: fix
+title: Read a property by name
+minutes: 3
+challenge: false
+prompt: |
+  `prop` reads a property of any object by its name. It doesn't compile:
+
+  - `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'unknown'.`
+
+  Make it compile so that only the object's own property names are accepted, and the result
+  has the type of the property that was asked for: the `title` of a `Book` is a `string`, its
+  `pages` a `number`. The type cases check both, and an object of another type too; the
+  `@ts-expect-error` lines check that a name the object doesn't have is rejected, and the tests
+  check what `prop` returns.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A string can name anything, and most strings are no property of the object. The key's type should be one of the object's property names.
+  - Typing the key with all the names is not enough for the result. The key needs a type parameter of its own, so that the result can depend on it.

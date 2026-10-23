@@ -1,0 +1,410 @@
+---
+id: m08-functions-classes/03-classes-2
+title: 'Classes II: generic classes, override, accessors, static blocks, parameter properties'
+minutes: 20
+objectives:
+  - Extend a generic base class with a concrete type argument, or pass a constrained type parameter up to it
+  - Mark the members that replace a base class's with override, and read the errors noImplicitOverride adds
+  - Type get and set accessors, including a setter that accepts more than its getter returns
+  - Keep shared state in static members and set it up in a static block
+  - Declare fields from constructor parameters, and predict when those fields are assigned
+prerequisites:
+  - m04-objects/05-classes
+  - m05-generics/02-constraints-and-defaults
+  - m05-generics/03-generic-types-and-classes
+  - m08-functions-classes/02-this-and-callable-types
+tags:
+  - class
+  - generic class
+  - extends
+  - override
+  - noImplicitOverride
+  - get
+  - set
+  - accessor
+  - getter
+  - setter
+  - static
+  - static block
+  - parameter property
+  - useDefineForClassFields
+---
+
+## Concept
+
+<Lesson id="m04-objects/05-classes" /> covered what one class declares: its
+fields, their modifiers, `implements` and abstract members. This lesson covers
+what TypeScript adds when classes work together and when a class hides how it
+stores things: a base class with a type parameter that each subclass fills in,
+`override` to mark the members that replace the base class's, typed `get` and
+`set` accessors, static members, and a shorthand that declares a field straight
+from a constructor parameter.
+
+```ts twoslash
+interface Tag {
+  id: string;
+  label: string;
+}
+
+class Repository<T extends { id: string }> {
+  #items = new Map<string, T>();
+
+  constructor(readonly name: string) {}
+
+  save(item: T): void {
+    this.#items.set(item.id, item);
+  }
+
+  get size(): number {
+    return this.#items.size;
+  }
+}
+
+class TagRepository extends Repository<Tag> {
+  override save(tag: Tag): void {
+    super.save({ id: tag.id, label: tag.label.toLowerCase() });
+  }
+}
+
+const tags = new TagRepository('tags');
+tags.save({ id: 't1', label: 'TypeScript' });
+const count = tags.size;
+//    ^?
+```
+
+`Repository` works for any item with an `id`, and `TagRepository` fixes its type parameter to `Tag`. `override` says that `TagRepository`'s `save` replaces the inherited one. `size` is read like a field and computed by a getter. And `readonly name` in the constructor's parameter list declares a field and assigns it, with no line in the class body.
+
+## Examples
+
+**Extending a generic base class.** The last exercise of <Lesson id="m05-generics/03-generic-types-and-classes" /> built a `Repository<T extends { id: string }>`, whose constraint (<Lesson id="m05-generics/02-constraints-and-defaults" />) lets its methods read `item.id`. A subclass of a generic class can fill in the type parameter. `UserRepository` below is not generic: `extends Repository<User>` makes every inherited member work with `User`, and the subclass adds what only users need. The base class's storage is `protected`, so the subclass can read it:
+
+```ts run
+interface Entity {
+  readonly id: string;
+}
+
+class Repository<T extends Entity> {
+  protected items = new Map<string, T>();
+
+  save(item: T): void {
+    this.items.set(item.id, item);
+  }
+
+  find(id: string): T | undefined {
+    return this.items.get(id);
+  }
+}
+
+interface User extends Entity {
+  email: string;
+}
+
+class UserRepository extends Repository<User> {
+  findByEmail(email: string): User | undefined {
+    for (const user of this.items.values()) {
+      if (user.email === email) return user;
+    }
+    return undefined;
+  }
+}
+
+const users = new UserRepository();
+users.save({ id: 'u1', email: 'ada@example.com' });
+console.log(users.findByEmail('ada@example.com')?.id);
+console.log(users.find('u2'));
+```
+
+`users.save({ id: 'u2' })` would report that `email` is missing, because `save` takes a `User` here. A subclass that stays generic passes its own type parameter up instead, and repeats the constraint: `class AuditedRepository<T extends Entity> extends Repository<T>`. Leave out `extends Entity` and the `extends` clause reports _Type 'T' does not satisfy the constraint 'Entity'._, since a bare `T` could be anything.
+
+**`override`.** A subclass method with the same name as a base class method replaces it, and `super.format(...)` still calls the base class's version. Writing `override` in front says the replacement is intended:
+
+```ts run
+class Logger {
+  format(message: string): string {
+    return message;
+  }
+
+  log(message: string): void {
+    console.log(this.format(message));
+  }
+}
+
+class TimestampLogger extends Logger {
+  override format(message: string): string {
+    return `[12:00] ${super.format(message)}`;
+  }
+}
+
+new TimestampLogger().log('started');
+```
+
+The keyword is a check. When the base class has no member of that name, because it was renamed or the subclass misspelled it, the subclass's method would quietly become a new method that nothing calls. With `override` it is an error:
+
+```ts run errors
+class Logger {
+  render(message: string): string {
+    return message;
+  }
+}
+
+class TimestampLogger extends Logger {
+  override format(message: string): string {
+    return `[12:00] ${message}`;
+  }
+}
+```
+
+_This member cannot have an 'override' modifier because it is not declared in the base class 'Logger'._ (TS4113). In a class with no `extends` at all, the message is _This member cannot have an 'override' modifier because its containing class 'TimestampLogger' does not extend another class._ The check only helps where the keyword is written, so the compiler option `noImplicitOverride` makes it required: every member that replaces a base class member must say `override`. It is not part of `strict` and is off in the dojo's defaults; here it is turned on:
+
+```ts twoslash
+// @noImplicitOverride: true
+// @errors: 4114
+class Logger {
+  format(message: string): string {
+    return message;
+  }
+}
+
+class TimestampLogger extends Logger {
+  format(message: string): string {
+    return `[12:00] ${message}`;
+  }
+}
+```
+
+_This member must have an 'override' modifier because it overrides a member in the base class 'Logger'._ (TS4114). The flag covers methods, properties, accessors and static members alike. Implementing an abstract member doesn't need the keyword, since nothing is replaced, though `override` is allowed there too. And with or without the keyword, the replacement has to fit the base class's type: a `format` that returned a `number` would report _Property 'format' in type 'TimestampLogger' is not assignable to the same property in base type 'Logger'._
+
+**Accessors.** A `get` accessor is read like a property, and a `set` accessor runs when the property is assigned. Each is typed like a method: the getter has a return type, the setter one parameter. The setter may accept more than the getter returns, so a value can be written in several forms and always read back in one:
+
+```ts twoslash
+class Temperature {
+  #celsius = 0;
+
+  get celsius(): number {
+    return this.#celsius;
+  }
+
+  set celsius(value: number | string) {
+    this.#celsius = typeof value === 'string' ? Number(value) : value;
+  }
+
+  get fahrenheit(): number {
+    return (this.#celsius * 9) / 5 + 32;
+  }
+}
+
+const room = new Temperature();
+room.celsius = '21.5';
+const reading = room.celsius;
+//    ^?
+```
+
+Reading `celsius` gives the getter's type, `number`, whatever was assigned. Older versions of TypeScript required the getter's type to be assignable to the setter's; since TypeScript 5.1 the two types may be unrelated, as long as both are written out. A getter without a return type takes the setter's parameter type, so annotate both. A getter with no setter makes the property read-only:
+
+```ts run errors
+class Temperature {
+  #celsius = 0;
+
+  get celsius(): number {
+    return this.#celsius;
+  }
+
+  set celsius(value: number | string) {
+    this.#celsius = typeof value === 'string' ? Number(value) : value;
+  }
+
+  get fahrenheit(): number {
+    return (this.#celsius * 9) / 5 + 32;
+  }
+}
+
+const room = new Temperature();
+room.fahrenheit = 70;
+const label: string = room.celsius;
+```
+
+_Cannot assign to 'fahrenheit' because it is a read-only property._, and for the last line _Type 'number' is not assignable to type 'string'._
+
+An interface or object type can describe a property the same way, with an accessor pair, so a function that takes any `Thermostat` may assign a string and read a number. `get id(): string` alone in an interface means the same as `readonly id: string`. The interface only says how the property is read and written, not how it is stored, so a class may implement the pair with accessors or with a plain field of the getter's type:
+
+```ts run
+interface Thermostat {
+  get target(): number;
+  set target(value: number | string);
+}
+
+class Dial implements Thermostat {
+  #target = 20;
+
+  get target(): number {
+    return this.#target;
+  }
+
+  set target(value: number | string) {
+    this.#target = Math.round(Number(value));
+  }
+}
+
+function warmUp(thermostat: Thermostat): number {
+  thermostat.target = '22.6';
+  return thermostat.target;
+}
+
+console.log(warmUp(new Dial()));
+```
+
+**Static members and static blocks.** A `static` member belongs to the class itself rather than to its instances, and takes the same modifiers: `private`, `protected`, `readonly`, or a `#` name. A `static` block is code in the class body that runs once, when the class definition itself is evaluated: before any instance exists, and never again for each `new`. It can read and write the class's private statics, so it is the place for setup that takes statements rather than one initialiser:
+
+```ts run
+class Units {
+  static readonly base = 'm';
+  static #factors = new Map<string, number>();
+
+  static {
+    const table: [string, number][] = [
+      ['mm', 0.001],
+      ['cm', 0.01],
+      ['m', 1],
+      ['km', 1000],
+    ];
+    for (const [unit, factor] of table) {
+      Units.#factors.set(unit, factor);
+    }
+  }
+
+  static toMetres(amount: number, unit: string): number {
+    const factor = Units.#factors.get(unit);
+    if (factor === undefined) throw new Error(`unknown unit ${unit}`);
+    return amount * factor;
+  }
+}
+
+console.log(Units.toMetres(3, 'km'), Units.base);
+```
+
+The class's name as a type means its instances, which have no static members: `new Units().toMetres` reports _Property 'toMetres' does not exist on type 'Units'. Did you mean to access the static member 'Units.toMetres' instead?_ The statics are on `typeof Units`, the type of the class itself (<Lesson id="m08-functions-classes/02-this-and-callable-types" />).
+
+**Parameter properties.** A constructor parameter with `public`, `private`, `protected` or `readonly` in front, alone or combined, declares a field of that name and assigns the argument to it. The constructor below has an empty body, and the class still has three fields:
+
+```ts run
+class Point {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+    private label = 'point',
+  ) {}
+
+  describe(): string {
+    return `${this.label} at (${this.x}, ${this.y})`;
+  }
+}
+
+const origin = new Point(0, 0, 'origin');
+console.log(origin.describe(), origin.x);
+console.log(JSON.stringify(new Point(3, 4)));
+```
+
+The compiled class declares `x`, `y` and `label` as fields and starts the constructor with `this.x = x;` and the like, before the rest of the body. Unlike the rest of TypeScript, that is code the compiler writes rather than types it erases, which is why the `erasableSyntaxOnly` flag of Tier 4 rejects parameter properties.
+
+## Pitfalls
+
+**A field initialiser that reads a parameter property.** With `useDefineForClassFields`, which the dojo turns on and which is the default for targets from ES2022, field initialisers run before the constructor body, and parameter properties are assigned at the start of that body. So an initialiser can't use one, wherever the field sits in the class:
+
+```ts run errors
+class Badge {
+  constructor(private name: string) {}
+
+  label = this.name.toUpperCase();
+}
+```
+
+_Property 'name' is used before its initialization._ At run time `this.name` would still be `undefined` there. Assign `label` in the constructor body, or make it a getter so that it is computed when it is read.
+
+**Assigning a `static readonly` member in a static block.** A constructor may assign the instance's `readonly` fields, so it is natural to expect a static block to do the same for `static readonly` ones. It can't:
+
+```ts run errors
+class Units {
+  static readonly names: readonly string[];
+
+  static {
+    const table = ['mm', 'cm', 'm', 'km'];
+    Units.names = table.filter((unit) => unit.length === 2);
+  }
+}
+```
+
+_Cannot assign to 'names' because it is a read-only property._ Give a `static readonly` member its value in its own initialiser. When the value takes statements to build, let the block fill a `static #names` field and expose it with a static getter, `static get names(): readonly string[]`, which nothing outside the class can assign.
+
+**A field where the base class has an accessor.** Under `useDefineForClassFields`, a field is defined on each instance, and it hides an accessor of the same name on the base class, so the base class's getter and setter would never run. TypeScript reports it, with or without the flag:
+
+```ts run errors
+class Counter {
+  #count = 0;
+
+  get count(): number {
+    return this.#count;
+  }
+}
+
+class StartAtTen extends Counter {
+  count = 10;
+}
+```
+
+_'count' is defined as an accessor in class 'Counter', but is overridden here in 'StartAtTen' as an instance property._ Override it with an accessor, `override get count(): number`, or give the base class a way to set the value.
+
+## Check yourself
+
+<Predict
+  id="initialiser-order"
+  code={
+    'class Badge {\n  constructor(private name: string) {}\n\n  upper = this.name.toUpperCase();\n}'
+  }
+  question="With useDefineForClassFields on, what happens?"
+  options={[
+    'It compiles, and upper is the name in capitals',
+    "Property 'name' is used before its initialization.",
+    'It compiles, and creating a Badge throws a TypeError',
+  ]}
+  answer={1}
+  explanation="Field initialisers run before the constructor body, and a parameter property is assigned at the start of that body, so `this.name` has no value yet where `upper` is initialised. The position of the field in the class doesn't matter. The compiler sees this and reports it; assign `upper` in the constructor or make it a getter."
+/>
+
+<Predict
+  id="which-needs-override"
+  question="With noImplicitOverride on, which member of a subclass must be marked override?"
+  options={[
+    'A method that implements an abstract method of the base class',
+    'A method that replaces a method with a body in the base class',
+    'A new method that the base class does not have',
+    'Every member of a class that extends another class',
+  ]}
+  answer={1}
+  explanation="The flag asks for `override` on every member that replaces a base class member, and reports TS4114 where it is missing. Implementing an abstract member replaces nothing, so the keyword is allowed there but not required. On a new member it is an error, TS4113, because there is nothing to override."
+/>
+
+<Predict
+  id="static-block-order"
+  code={
+    "console.log('before');\n\nclass Config {\n  static {\n    console.log('static block');\n  }\n\n  constructor() {\n    console.log('constructor');\n  }\n}\n\nconsole.log('after');\nnew Config();\nnew Config();"
+  }
+  question="In what order are the lines printed?"
+  options={[
+    'before, after, static block, constructor, constructor',
+    'before, static block, after, constructor, constructor',
+    'before, after, static block, constructor, static block, constructor',
+  ]}
+  answer={1}
+  explanation="A static block runs once, when the class definition is evaluated. Here that is between the two top-level logs, before any instance exists. Each `new` then runs only the constructor."
+/>
+
+## Further reading
+
+- [Handbook: Classes, generic classes](https://www.typescriptlang.org/docs/handbook/2/classes.html#generic-classes)
+- [Handbook: Classes, overriding methods](https://www.typescriptlang.org/docs/handbook/2/classes.html#overriding-methods)
+- [Handbook: Classes, getters and setters](https://www.typescriptlang.org/docs/handbook/2/classes.html#getters--setters)
+- [Handbook: Classes, static members and static blocks](https://www.typescriptlang.org/docs/handbook/2/classes.html#static-members)
+- [Handbook: Classes, parameter properties](https://www.typescriptlang.org/docs/handbook/2/classes.html#parameter-properties)
+- [TSConfig reference: noImplicitOverride](https://www.typescriptlang.org/tsconfig/#noImplicitOverride)
+- [TSConfig reference: useDefineForClassFields](https://www.typescriptlang.org/tsconfig/#useDefineForClassFields)
+- [TypeScript 5.1: unrelated types for getters and setters](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-1.html#unrelated-types-for-getters-and-setters)

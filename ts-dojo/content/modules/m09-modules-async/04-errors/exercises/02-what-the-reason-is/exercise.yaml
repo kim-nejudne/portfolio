@@ -1,0 +1,25 @@
+id: m09-modules-async/04-errors/02-what-the-reason-is
+kind: predict
+title: What the reason is
+minutes: 1
+challenge: false
+code: |
+  declare function loadName(): Promise<string>;
+
+  loadName().catch((reason) => console.log(reason.mesage)); // A
+  loadName().catch((reason: unknown) => console.log(reason.message)); // B
+  loadName().catch((reason: Error) => console.log(reason.message)); // C
+question: Which of the lines A, B and C is a compile error?
+options:
+  - None of them
+  - Only A
+  - Only B
+  - A and B
+answer: 2
+explanation: |
+  The lib types the reason in a `.catch` callback as `any`. A compiles, typo and all, because
+  nothing is checked on an `any`. C compiles too, because an `any` can be passed to a parameter
+  of any type, but it checks nothing: if the promise rejects with a string, `reason.message` is
+  `undefined`. B is the only line where the compiler checks, and it reports
+  `'reason' is of type 'unknown'.` That is the line to keep, with an `instanceof Error` check
+  before reading `message`.

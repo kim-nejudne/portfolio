@@ -1,0 +1,48 @@
+id: m08-functions-classes/04-mixins/02-composed-constructor
+kind: predict
+title: Two mixins on one class
+minutes: 2
+challenge: false
+code: |
+  type Constructor<T = {}> = new (...args: any[]) => T;
+
+  function Timestamped<TBase extends Constructor>(Base: TBase) {
+    return class extends Base {
+      createdAt = Date.now();
+      static source = 'clock';
+    };
+  }
+
+  function Activatable<TBase extends Constructor>(Base: TBase) {
+    return class extends Base {
+      active = false;
+      activate() {
+        this.active = true;
+      }
+    };
+  }
+
+  class Point {
+    static origin = new Point(0, 0);
+    constructor(readonly x: number, readonly y: number) {}
+  }
+
+  const Tracked = Activatable(Timestamped(Point));
+  const p = new Tracked(1, 2); // A
+  p.activate(); // B
+  const q = new Tracked(); // C
+  console.log(Tracked.origin.x, Tracked.source); // D
+question: Which line does not compile?
+options:
+  - 'A'
+  - 'B'
+  - 'C'
+  - 'D'
+  - 'None: they all compile'
+answer: 2
+explanation: |
+  Each mixin's constraint says `...args: any[]`, but the class a mixin returns takes the
+  parameters of the class passed in, through every layer. `Tracked` takes `Point`'s two numbers,
+  so A compiles and C reports `Expected 2 arguments, but got 0.` B compiles because the instance
+  has the members of every layer. D compiles because the result keeps the static members of
+  every layer as well: `origin` from `Point` and `source` from `Timestamped`.

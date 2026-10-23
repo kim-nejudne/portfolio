@@ -1,24 +1,24 @@
 id: m03-unions/05-discriminated-unions/02-describe-the-events
 kind: type-challenge
 title: Describe the events
-minutes: 5
+minutes: 3
 challenge: false
 prompt: |
-  Define `UIEvent` as a discriminated union of three events. Each has a `type` property that
-  tells them apart:
+  Define `UIEvent` in `index.ts` as a discriminated union of three events. Each has a `type`
+  property that tells them apart:
 
-  - `click` with `x` and `y`, both `number`
-  - `keydown` with `key`, a `string`
-  - `scroll` with `deltaY`, a `number`
+  - `click`, with `x` and `y`, both `number`
+  - `keydown`, with `key`, a `string`
+  - `scroll`, with `deltaY`, a `number`
 
-  The type cases check that the union is exactly these three members and that an object with
-  the wrong properties for its `type` is rejected.
+  The type cases check that the union is exactly these three members, and the
+  `@ts-expect-error` lines check that an event with the wrong properties for its `type`, or a
+  `type` that isn't one of the three, is rejected.
 entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any]
-timeoutMs: 5000
+forbid: [explicit-any, as-unknown-as, angle-cast]
 hints:
-  - Each member is an object type whose `type` property has a string literal type, not `string`.
+  - Each member is an object type of its own, and its `type` property has a string literal type, not `string`.
   - Join the three object types with `|`, using exactly the property names the prompt lists.

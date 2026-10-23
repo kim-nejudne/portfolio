@@ -1,0 +1,39 @@
+id: m08-functions-classes/03-classes-2/02-read-and-write
+kind: predict
+title: Read one type, write another
+minutes: 2
+challenge: false
+code: |
+  class Volume {
+    #level = 5;
+
+    get level(): number {
+      return this.#level;
+    }
+
+    set level(value: number | 'max') {
+      this.#level = value === 'max' ? 10 : value;
+    }
+
+    get muted(): boolean {
+      return this.#level === 0;
+    }
+  }
+
+  const volume = new Volume();
+  volume.level = 'max'; // A
+  const level: number = volume.level; // B
+  volume.level = '10'; // C
+  volume.muted = true; // D
+question: Which of the lines A to D compile?
+options:
+  - 'A only'
+  - 'A and B'
+  - 'A, B and C'
+  - 'A, B and D'
+answer: 1
+explanation: |
+  Writing `level` goes through the setter, which accepts `number | 'max'`, so A compiles and C
+  doesn't: `Type '"10"' is not assignable to type 'number | "max"'.` Reading `level` gives the
+  getter's type, `number`, whatever was written, so B compiles. `muted` has a getter and no
+  setter, which makes it read-only: `Cannot assign to 'muted' because it is a read-only property.`

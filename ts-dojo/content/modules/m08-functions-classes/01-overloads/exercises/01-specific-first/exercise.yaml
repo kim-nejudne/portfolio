@@ -1,0 +1,23 @@
+id: m08-functions-classes/01-overloads/01-specific-first
+kind: fix
+title: Specific overloads first
+minutes: 2
+challenge: false
+prompt: |
+  `trim` takes one string or a list of strings and trims whatever it gets. It has three
+  overloads: one for a string, one for a list, and one that takes either, for callers that hold
+  a union. Two lines at the bottom of `index.ts` don't compile:
+
+  - `Property 'toUpperCase' does not exist on type 'string | string[]'.`
+  - `Property 'join' does not exist on type 'string | string[]'.`
+
+  Make `index.ts` compile without changing those two lines or the implementation. Keep all three
+  overloads: the tests also call `trim` with values that are a string or a list.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Hover over each call with K. Which overload did the compiler pick, and why that one?
+  - The compiler takes the first overload whose parameters accept the arguments, reading from the top.

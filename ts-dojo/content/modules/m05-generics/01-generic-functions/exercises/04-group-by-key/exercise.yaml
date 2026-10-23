@@ -1,0 +1,26 @@
+id: m05-generics/01-generic-functions/04-group-by-key
+kind: implement
+title: Group by a key
+minutes: 5
+challenge: false
+prompt: |
+  Implement `groupBy` in `index.ts`. It takes a `readonly` list and a callback that gives each
+  item a `string` key, and returns a new object with one property per key. Each property holds
+  the items with that key, in the order of the list.
+
+  The starter is typed with `unknown`, so the callbacks in `tests.ts` can't read a property of
+  their item, and `tests.ts` reports `'player' is of type 'unknown'.` until `groupBy` is
+  generic. When it is, the callback's parameter has the item type without an annotation, and
+  grouping a list of `Player`s gives a `Record<string, Player[]>`. A callback that returns
+  anything but a `string` is an error.
+
+  This combines the lesson with callbacks and contextual typing (2.2) and `Record` (4.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - Only the item type changes from call to call; the keys are always strings. One type parameter, used in three places, links the list, the callback and the groups.
+  - The callback's parameter gets its type from the function type it is written against, so that function type must mention the type parameter.
+  - Start from an empty Record and add each item to the list under its key, creating the list the first time a key appears.

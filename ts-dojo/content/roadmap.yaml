@@ -7,3 +7,13 @@ tiers:
   - id: t1
     title: Foundations
     modules: [m01-types, m02-functions, m03-unions, m04-objects]
+  - id: t2
+    title: Intermediate
+    modules:
+      [
+        m05-generics,
+        m06-type-operators,
+        m07-guards,
+        m08-functions-classes,
+        m09-modules-async,
+      ]

@@ -1,0 +1,24 @@
+id: m07-guards/03-exhaustiveness-and-satisfies/02-check-the-palette
+kind: fix
+title: Check the palette, keep its types
+minutes: 3
+challenge: false
+prompt: |
+  `palette` is checked against `Palette`, which is what it should be. But since then every
+  colour is a `string | Rgb`, and the two functions that read it don't compile:
+
+  - `Property 'toUpperCase' does not exist on type 'string | Rgb'.`
+  - `Property 'join' does not exist on type 'string | Rgb'.`
+
+  Keep the check against `Palette`, and let `palette` keep the types of the colours written in
+  it, so that both functions compile as written. Don't change `Palette`, `Rgb` or the two
+  functions. The theme editor assigns new colours to the properties while the app runs, and
+  the tests do the same, so the object must stay writable.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The annotation does two jobs at once. It checks the object, and it also replaces the type the compiler would have inferred for it.
+  - Without any annotation, the text colour would be inferred as a number array, which is not a Palette colour. Look for the operator that checks against a type without becoming the type.

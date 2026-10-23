@@ -1,0 +1,25 @@
+id: m06-type-operators/03-utility-types-2/01-session-types
+kind: fix
+title: Types from a function and a class
+minutes: 2
+challenge: false
+prompt: |
+  `index.ts` reads two types from code instead of writing them out: `Token` from what
+  `createToken` returns, and `SessionArgs` from the parameters of the `Session` constructor.
+  Neither compiles:
+
+  - `'createToken' refers to a value, but is being used as a type here. Did you mean 'typeof createToken'?`
+  - `Type 'Session' does not satisfy the constraint 'abstract new (...args: any) => any'.`
+
+  The errors in `openAll` follow from the second one. Fix both types so that the file compiles,
+  still reading them from `createToken` and `Session` rather than writing them by hand. The type
+  cases check both types, the `@ts-expect-error` lines check that wrong argument lists and an
+  unknown scope are rejected, and the tests run `openAll`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Both utilities take a type. Ask what createToken and Session each are on their own, a value, a type or both.
+  - As a type, the name Session means one session object, which can't be called with new. The utility wants the type of the class itself.

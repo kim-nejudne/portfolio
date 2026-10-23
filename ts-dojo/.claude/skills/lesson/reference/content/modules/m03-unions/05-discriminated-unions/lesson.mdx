@@ -3,17 +3,28 @@ id: m03-unions/05-discriminated-unions
 title: Discriminated unions and exhaustiveness with never
 minutes: 20
 objectives:
-  - Model alternatives as object types that share one literal-typed property
-  - Narrow a discriminated union with switch or if on that property
-  - Prove a switch handles every member by assigning what is left to never
+  - Model alternatives as object types that share one literal-typed property, the discriminant
+  - Narrow a discriminated union with switch or if on its discriminant
+  - Prove that a switch handles every member by assigning what is left to never
   - Add a member to a union and let the compiler list every place that must change
-prerequisites: [m03-unions/03-narrowing, m03-unions/04-control-flow-analysis]
-tags: [discriminated union, tagged union, exhaustiveness, never, switch, assertNever]
+prerequisites:
+  - m01-types/02-primitives-literals-widening
+  - m01-types/04-any-unknown-never-void
+  - m03-unions/03-narrowing
+  - m03-unions/04-control-flow-analysis
+tags:
+  - discriminated union
+  - tagged union
+  - discriminant
+  - exhaustiveness
+  - never
+  - switch
+  - default
 ---
 
 ## Concept
 
-A discriminated union is a union of object types that all carry the same property, each with a different literal type. That property is the discriminant. Checking it narrows the union to one member, so that member's other properties become available. It is how TypeScript models "one of these shapes", and it builds on <Lesson id="m03-unions/03-narrowing" />: the check is an ordinary equality test, and control flow does the rest.
+In <Lesson id="m03-unions/03-narrowing" /> you told the object types in a union apart with `in`, by a property that only one of them has. A discriminated union builds that difference in on purpose. Every member has the same property, the discriminant, and each member gives it a different literal type. Comparing the discriminant with one of those literals narrows the whole object to the member that has it:
 
 ```ts twoslash
 type Circle = { kind: 'circle'; radius: number };
@@ -32,20 +43,17 @@ function area(shape: Shape): number {
 }
 ```
 
-Inside the `if`, `shape` is a `Circle`; after it, the only member left is `Square`. Nothing was cast and nothing was checked at runtime beyond one string comparison.
+Inside the `if`, `shape` is a `Circle`, so `radius` is there. Below it only `Square` is left, because the `if` returns: the early exit from <Lesson id="m03-unions/04-control-flow-analysis" />. The check is the equality narrowing you already know, applied to a property. And `kind` is an ordinary property that exists at run time, unlike the type names, so the check runs exactly as written.
 
-<Callout kind="tip">
-  In the REPL, put the cursor on `shape` inside a branch and press <Key>K</Key>: the quick info shows the narrowed member.
-</Callout>
+`'radius' in shape` would narrow here too. A discriminant keeps working when members share property names or make one optional, and it names every alternative in one property that a `switch` can test.
 
 ## Examples
 
-A `switch` on the discriminant gives one branch per member. When every member has a case, TypeScript knows the end of the function is unreachable, so no fallback `return` is needed:
+**`switch` on the discriminant.** Each `case` narrows `shape` to the member with that literal. When every member has a `case` that returns, the compiler knows the end of the function can't be reached, so no `return` is needed after the `switch`:
 
 ```ts run
-type Circle = { kind: 'circle'; radius: number };
-type Square = { kind: 'square'; side: number };
-type Shape = Circle | Square;
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
 
 function describe(shape: Shape): string {
   switch (shape.kind) {
@@ -60,40 +68,54 @@ console.log(describe({ kind: 'circle', radius: 2 }));
 console.log(describe({ kind: 'square', side: 3 }));
 ```
 
-To make the compiler guarantee that every member is handled, give the `default` branch a value of type `never`. Once every case has returned, `shape` has no members left, so its type is `never` and the assignment compiles. The moment someone adds a member to the union, the assignment fails, and the error points at the switch that needs a new case:
+Take one `case` away and `describe` stops compiling: _Function lacks ending return statement and return type does not include 'undefined'._, the error you met in <Lesson id="m01-types/04-any-unknown-never-void" />. That is a check that every member is handled, but a weak one. It doesn't say which member is missing, and a function that returns nothing, such as one that only logs, gets no error at all.
+
+**Other discriminants.** The discriminant can have any name, `kind` and `type` are common, and any literal type, `true` and `false` included. A result that is either a value or an error is the classic boolean case. `!result.ok` is a truthiness check, and because its branch ends in `continue`, the rest of the loop body sees the other member:
 
 ```ts run
-function assertNever(value: never): never {
-  throw new Error(`unexpected value: ${JSON.stringify(value)}`);
-}
+type ParseResult = { ok: true; value: number } | { ok: false; error: string };
 
-type Command =
-  | { type: 'move'; dx: number; dy: number }
-  | { type: 'say'; text: string }
-  | { type: 'quit' };
-
-function run(command: Command): string {
-  switch (command.type) {
-    case 'move':
-      return `moved by ${command.dx}, ${command.dy}`;
-    case 'say':
-      return `said "${command.text}"`;
-    case 'quit':
-      return 'bye';
-    default:
-      return assertNever(command);
+function parseAge(input: string): ParseResult {
+  const value = Number(input);
+  if (!Number.isInteger(value) || value < 0) {
+    return { ok: false, error: `not an age: ${input}` };
   }
+  return { ok: true, value };
 }
 
-console.log(run({ type: 'move', dx: 1, dy: 2 }));
-console.log(run({ type: 'quit' }));
+for (const input of ['41', 'forty']) {
+  const result = parseAge(input);
+  if (!result.ok) {
+    console.log(result.error);
+    continue;
+  }
+  console.log(`next year: ${result.value + 1}`);
+}
 ```
 
-`assertNever` is a plain function whose parameter type is `never`. Calling it with anything but `never` is a type error, which is exactly the check we want; at runtime it only ever runs if a value the types didn't know about arrives, so it throws.
+**Exhaustiveness with `never`.** `never` is the type with no values, and <Lesson id="m01-types/04-any-unknown-never-void" /> showed that nothing can be assigned to it. Narrowing can arrive there. Once every member has had its `case`, no member is left for `default`, so `shape` has type `never` there, and assigning it to a `never` variable compiles:
 
-## Pitfalls
+```ts twoslash
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
 
-**A member nobody handles.** Add `triangle` to the union and forget the switch: the `never` assignment reports the member that is left over. Read the error as a to-do list.
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case 'circle':
+      return Math.PI * shape.radius ** 2;
+    case 'square':
+      return shape.side ** 2;
+    default: {
+      shape;
+      // ^?
+      const unreachable: never = shape;
+      throw new Error(`unhandled shape: ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
+```
+
+Today nothing reaches that `default`, and the check costs nothing. It pays off later. Add a member to `Shape`, and every `switch` with this check stops compiling, each naming the member it doesn't handle:
 
 ```ts run errors
 type Shape =
@@ -113,9 +135,34 @@ function area(shape: Shape): number {
     }
   }
 }
+
+function label(shape: Shape): string {
+  switch (shape.kind) {
+    case 'circle':
+      return `circle, radius ${shape.radius}`;
+    case 'square':
+      return `square, side ${shape.side}`;
+    default: {
+      const unreachable: never = shape;
+      throw new Error(`unhandled shape: ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
 ```
 
-**A discriminant that isn't a literal.** If `kind` is declared as `string`, both members have the same `kind` type, the check can't tell them apart, and nothing narrows:
+`Type '{ kind: "triangle"; base: number; height: number; }' is not assignable to type 'never'.`, once in each function. Read the errors as a to-do list: give each `switch` a `case 'triangle'`, and both compile again.
+
+The `throw` is for values the types don't describe. The result of `JSON.parse` is an `any`, so it can be passed as a `Shape` whatever its `kind` says. Such a value reaches `default` at run time, and an error there beats a wrong answer. Lesson 7.3 turns this check into a function you can reuse, `assertNever`.
+
+<Callout kind="tip">
+  In the REPL, after you add a member to a union, <Key>]d</Key> jumps from one
+  unhandled `switch` to the next, and the Problems tab in the output pane lists
+  them all.
+</Callout>
+
+## Pitfalls
+
+**A discriminant typed `string`.** If `kind` is a `string` in every member, `'circle'` could be the kind of either, so the check rules nothing out and nothing narrows:
 
 ```ts run errors
 type Circle = { kind: string; radius: number };
@@ -130,45 +177,88 @@ function area(shape: Shape): number {
 }
 ```
 
-**Comparing against a widened variable.** `let wanted = 'circle'` has type `string`, not `'circle'` (see <Lesson id="m01-types/02-primitives-literals-widening" />). Comparing the discriminant with a `string` narrows nothing. Use a literal, or `const`.
+_Property 'radius' does not exist on type 'Shape'._ Each member needs its own literal type for the discriminant.
+
+**An object built before the call.** An object literal written where a `Shape` is expected is checked against the union, and its `kind` keeps the literal type. Built on its own first, it is inferred by itself, and its properties widen, as <Lesson id="m01-types/02-primitives-literals-widening" /> showed:
 
 ```ts run errors
-type Shape = { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
 
-let wanted = 'circle';
-
-function radiusOf(shape: Shape): number | undefined {
-  if (shape.kind === wanted) {
-    return shape.radius;
-  }
-  return undefined;
+function area(shape: Shape): number {
+  return shape.kind === 'circle'
+    ? Math.PI * shape.radius ** 2
+    : shape.side ** 2;
 }
+
+const unit = { kind: 'circle', radius: 1 };
+console.log(area(unit));
 ```
+
+`unit` was inferred as `{ kind: string; radius: number; }`, and the error ends with _Type 'string' is not assignable to type '"circle"'._ Annotate the variable, `const unit: Shape = …`, and the literal is checked against the union where it is written. Passing the object literal straight to `area` works too.
+
+**A `default` that takes real members.** A `default` that returns a value switches the `never` check off: it takes whatever no `case` took, members added later included. `corners` was written when the only other shape was a square:
+
+```ts run
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'triangle'; base: number; height: number };
+
+function corners(shape: Shape): number {
+  switch (shape.kind) {
+    case 'circle':
+      return 0;
+    default:
+      return 4;
+  }
+}
+
+console.log(corners({ kind: 'triangle', base: 3, height: 2 }));
+```
+
+It compiles, and prints `4` for a triangle. Give every member its own `case`, and keep `default` for the `never` check.
 
 ## Check yourself
 
 <Predict
-  id="default-branch-type"
-  question="In a switch over Shape with a case for every member that returns, what is the type of shape in the default branch?"
-  options={['Shape', 'never', 'unknown', 'undefined']}
+  id="boolean-discriminant"
+  code={
+    "type ParseResult =\n  | { ok: true; value: number }\n  | { ok: false; error: string };\n\nfunction show(result: ParseResult): string {\n  if (result.ok) {\n    return result.value.toFixed(2);\n  } else {\n    return 'failed'; // here\n  }\n}"
+  }
+  question="Besides `ok`, which property of `result` can the `else` branch read?"
+  options={[
+    'value',
+    'error',
+    'Both value and error',
+    'Neither: a truthiness check does not narrow an object',
+  ]}
   answer={1}
-  explanation="Every case has returned, so no member of Shape can reach default. Narrowing by elimination leaves nothing, and the type of nothing is never. That is why assigning shape to a never variable compiles there, and fails as soon as a member is unhandled."
+  explanation="`ok` is a discriminant whose literal types are `true` and `false`. A truthiness check on it narrows like a comparison: the `if` keeps the member whose `ok` is `true`, and the `else` gets the one whose `ok` is `false`, which has `error` and no `value`. Reading `result.value` there is an error."
 />
 
 <Predict
-  id="string-discriminant"
-  question="Why doesn't `if (shape.kind === 'circle')` narrow shape when kind is declared as string in both members?"
+  id="default-branch-type"
+  question="A switch over `Shape` has a case for every member, and every case returns. What is the type of `shape` in the `default` branch?"
+  options={['Shape', 'never', 'unknown', 'undefined']}
+  answer={1}
+  explanation="Every case has returned, so no member of `Shape` can reach `default`. Narrowing removes the members that were handled, nothing is left, and the type with no values is `never`. That is why assigning `shape` to a `never` variable compiles there, and fails as soon as a member has no case."
+/>
+
+<Predict
+  id="catch-all-default"
+  question="`corners` switches over `Shape` with a `case 'circle'` that returns `0` and a `default` that returns `4`. Then a triangle member is added to `Shape`. What does the compiler report?"
   options={[
-    'TypeScript only narrows on typeof checks',
-    'Both members have kind: string, so the check cannot tell them apart',
-    'Narrowing needs switch, not if',
-    'Comparing strings with === never narrows',
+    'An error on the switch: the triangle has no case',
+    'Nothing: the default branch takes the triangle',
+    'An error in default: shape is never there',
   ]}
   answer={1}
-  explanation="Narrowing on a discriminant works by matching the compared literal against each member's literal type. When every member says string, the comparison is true for all of them and none can be eliminated."
+  explanation="After `case 'circle'`, every other member reaches `default`, the new triangle included, and returning `4` is valid for all of them. Only a `never` check in `default` reports a member that nobody handles."
 />
 
 ## Further reading
 
 - [Narrowing: discriminated unions](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
-- [Narrowing: the `never` type and exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#the-never-type)
+- [Narrowing: the `never` type](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#the-never-type) and [exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking)
+- [Everyday types: literal inference](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#literal-inference)

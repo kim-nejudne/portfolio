@@ -1,30 +1,31 @@
 id: m03-unions/05-discriminated-unions/03-what-is-left
 kind: predict
 title: What is left in the default branch?
-minutes: 3
+minutes: 2
 challenge: false
 code: |
   type Shape =
     | { kind: 'circle'; radius: number }
-    | { kind: 'square'; side: number };
+    | { kind: 'square'; side: number }
+    | { kind: 'rect'; width: number; height: number };
 
-  function perimeter(shape: Shape): number {
+  function describe(shape: Shape): string {
     switch (shape.kind) {
       case 'circle':
-        return 2 * Math.PI * shape.radius;
+        return `circle, radius ${shape.radius}`;
       default:
-        return 4 * shape.side;
+        return `${shape.kind} with four corners`;
     }
   }
 question: In the `default` branch, what is the type of `shape`?
 options:
-  - "Shape"
+  - 'Shape'
   - "{ kind: 'square'; side: number }"
-  - "never"
-  - "unknown"
-answer: 1
+  - "{ kind: 'square'; side: number } | { kind: 'rect'; width: number; height: number }"
+  - 'never'
+answer: 2
 explanation: |
-  The `case 'circle'` branch returns, so only the square member can reach `default`. Narrowing
-  works by elimination: the compiler removes the members that were handled and keeps the rest.
-  It would be `never` only if every member had its own case, which is what the `never` check in
-  the lesson relies on.
+  Narrowing works by elimination. The `case 'circle'` branch returns, so the circle can't reach
+  `default`, and every other member can: the square and the rect. That is why `shape.kind`
+  compiles there, while `shape.side` would not, because the rect has no `side`. The type is
+  `never` only when every member has its own `case`, which is what the `never` check relies on.

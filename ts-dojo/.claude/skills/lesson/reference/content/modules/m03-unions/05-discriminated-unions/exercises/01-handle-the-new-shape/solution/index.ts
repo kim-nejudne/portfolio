@@ -17,3 +17,18 @@ export function area(shape: Shape): number {
     }
   }
 }
+
+export function label(shape: Shape): string {
+  switch (shape.kind) {
+    case 'circle':
+      return `circle, radius ${shape.radius}`;
+    case 'square':
+      return `square, side ${shape.side}`;
+    case 'triangle':
+      return `triangle, base ${shape.base}, height ${shape.height}`;
+    default: {
+      const unreachable: never = shape;
+      throw new Error(`unhandled shape: ${JSON.stringify(unreachable)}`);
+    }
+  }
+}

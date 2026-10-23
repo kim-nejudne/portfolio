@@ -118,8 +118,8 @@ Default compiler options for every exercise and REPL buffer (§2), overridden on
 
 Verification runs four groups (§5); a group the exercise doesn't define counts as passed, and **Compiles** runs first and stops everything if it fails.
 
-- **Compiles.** Every user file has zero diagnostics except inside type-case ranges. `@ts-ignore`, `@ts-nocheck` and `@ts-expect-error` in any user file other than `tests.ts` always fail.
-- **Type cases.** `tests.ts` imports from the solution's files and from `@dojo/type-utils` (type-challenges' utils, MIT): `Expect`, `Equal`, `NotEqual`, `IsAny`, `IsTrue`, `IsFalse`, `Alike`, `ExpectExtends`, `ExpectValidArgs`. A case is each element of a tuple type alias whose name starts with `cases`, named by a trailing `// name` comment (else `case N`), and each statement whose leading comment is `@ts-expect-error`. A case fails when any diagnostic falls in its range; an unused `@ts-expect-error` produces TS2578 inside the range, so a line that should error and no longer does fails by itself. Diagnostics in `tests.ts` outside any case fail Compiles with "test file does not compile" (usually a wrong export name).
+- **Compiles.** Every user file has zero diagnostics except inside type-case ranges. `@ts-ignore`, `@ts-nocheck` and `@ts-expect-error` in any user file other than `tests.ts` always fail the exercise (as built, the always-on `ts-directive` rule fails the Rules group; see Spec questions, F11).
+- **Type cases.** `tests.ts` imports from the solution's files and from `@dojo/type-utils` (type-challenges' utils, MIT): `Expect`, `Equal`, `NotEqual`, `IsAny`, `IsTrue`, `IsFalse`, `Alike`, `ExpectExtends`, `ExpectValidArgs`. A case is each element of a tuple type alias whose name starts with `cases`, named by a trailing `// name` comment (else `case N`), and each statement whose leading comment is `@ts-expect-error`. Write that directive bare (`// @ts-expect-error` alone on its line) and name the case with a trailing `// name` comment on the statement below it, as the reference's `02-describe-the-events/tests.ts` does. A case fails when any diagnostic falls in its range; an unused `@ts-expect-error` produces TS2578 inside the range, so a line that should error and no longer does fails by itself. Diagnostics in `tests.ts` outside any case fail Compiles with "test file does not compile" (usually a wrong export name).
 - **Runtime tests.** The sandbox prelude defines `test(name, fn)`, `test.skip`, and `expect(value)` with `toBe`, `toEqual` (structural: arrays, plain objects, Map, Set, Date), `toBeCloseTo`, `toThrow(message?)`, `toBeInstanceOf`, `toContain`, `toHaveLength`, `toBeUndefined`, `toBeNull`, `resolves`, `rejects` and `.not`. They are globals in `tests.ts`, no import. Tests run one at a time, each with a 1 s timeout; the solution module's top-level code runs once when the test file imports it.
 - **Rules** (`forbid`), checked by an AST walk of every user file:
 
@@ -160,6 +160,17 @@ Walk this list before running the lint.
 - **Minutes** cover theory plus the non-challenge exercises; the §8 row gives the target.
 - **Plain prose.** Short sentences, the smallest example that shows the point, no filler.
 
+### Traps found while writing F11 and F12
+
+- **MDX.** A `{` in prose outside a code span is parsed as an expression and fails the lint; put error messages that contain object types in backticks. A `\"` inside a double-quoted `<Predict>` attribute breaks the parse; use a `{'…'}` expression.
+- **Links exist at lint time.** A `<Lesson>` link or a `prerequisites` entry must name a lesson that already exists. Name a lesson not yet written in plain text and link it once it lands.
+- **`ts run` fences** are one file under the §2 defaults. To show a flag or several files, use a `ts twoslash` block with `// @filename:` and `// @<flag>: …`.
+- **`@ts-expect-error` cases.** Prettier can split a long statement under a bare directive, which moves the error off the covered line, so keep those statements short and format before the final lint. A call statement under the directive still runs when `tests.ts` loads; declare it inside an arrow function that is never called.
+- **Name the failure.** A call written outside any case fails as "test file does not compile". When callers holding a union must still work, write it as an `ExpectValidArgs` case.
+- **`.d.ts` files.** With `skipLibCheck: true`, an editable `.d.ts` gets no diagnostics. Keep declarations the learner edits in `.ts` files, and use `types/*.d.ts` only for read-only ones.
+- **Async tests.** `expect(p).rejects.toThrow(msg)` doesn't match an `Error` reason's message (Spec questions, F12). Use `rejects.toBeInstanceOf(Error)`, or catch and inspect.
+- **What no rule catches:** a plain `as T`, an `any` that comes from a library call (`JSON.parse`, `Object()`), and a type written out by hand where the prompt asks to derive it. Make the tests stop whatever skips the lesson's point, and accept the rest.
+
 ## 8. Procedure
 
 1. Read the §8 row and its neighbours (the lessons before and after), the module's `module.yaml` and any sibling lessons, so the lesson covers exactly its topic.
@@ -175,4 +186,4 @@ Walk this list before running the lint.
 - [reference/content/modules/m03-unions/05-discriminated-unions/lesson.mdx](reference/content/modules/m03-unions/05-discriminated-unions/lesson.mdx)
 - `exercises/01-handle-the-new-shape/` (fix), `02-describe-the-events/` (type-challenge), `03-what-is-left/` (predict), `04-largest-shape/` (implement), each with `exercise.yaml`, and `starter/`, `solution/`, `tests.ts` where the kind has them.
 
-The reference was compiled with `typescript@6.0.3` under the §2 defaults on 17 October 2026: every solution has zero diagnostics and passes its tests, every starter fails as its kind requires, and every `ts run` block is clean while every `ts run errors` block errors.
+The reference is a copy of the shipped `content/modules/m03-unions/05-discriminated-unions`, taken on 22 October 2026 after F11's reviews. It teaches the inline `never` check and leaves `assertNever` to 7.3, as §8 names it there; its exercise minutes leave time for the theory inside the §8 row. It passes `pnpm content:lint`: every solution has zero diagnostics and passes its tests, every starter fails as its kind requires, and every `ts run` block is clean while every `ts run errors` block errors.

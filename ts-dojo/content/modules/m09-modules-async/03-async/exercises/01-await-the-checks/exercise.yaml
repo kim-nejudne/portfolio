@@ -1,0 +1,22 @@
+id: m09-modules-async/03-async/01-await-the-checks
+kind: fix
+title: Await the checks
+minutes: 3
+challenge: false
+prompt: |
+  `index.ts` looks users up asynchronously, and it doesn't compile:
+
+  - `The return type of an async function or method must be the global Promise<T> type. Did you mean to write 'Promise<User | undefined>'?`
+  - `This condition will always return true since this 'Promise<boolean>' is always defined.`
+
+  Fix both without changing what the functions do. `greet` returns `'Access denied'` for a
+  banned user, `'Hello, '` and the name for anyone else it finds, and `'Who are you?'` for an
+  id it doesn't find. The tests call `greet` with every user and with unknown ids.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - An async function always returns a promise, whatever its return statements give. Its annotation says what the promise resolves to.
+  - The condition tests the promise object, not the boolean it will resolve to. Wait for the boolean first.

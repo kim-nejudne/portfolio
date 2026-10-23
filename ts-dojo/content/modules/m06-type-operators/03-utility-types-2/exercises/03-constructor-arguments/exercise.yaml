@@ -1,0 +1,28 @@
+id: m06-type-operators/03-utility-types-2/03-constructor-arguments
+kind: predict
+title: Constructor arguments
+minutes: 1
+challenge: false
+code: |
+  class Timer {
+    label: string;
+    ms: number;
+    constructor(label: string, ms = 1000) {
+      this.label = label;
+      this.ms = ms;
+    }
+  }
+
+  type Args = ConstructorParameters<typeof Timer>;
+question: What is `Args`?
+options:
+  - '[label: string, ms: number]'
+  - '[label: string, ms?: number | undefined]'
+  - '{ label: string; ms: number }'
+  - 'Timer'
+answer: 1
+explanation: |
+  `ConstructorParameters` gives the constructor's parameter list as a labelled tuple. `ms` has
+  a default, so a call may leave it out, and the tuple makes it an optional element, which the
+  editor shows as `ms?: number | undefined`. The object type with both properties is the shape
+  of a `Timer` instance, which is `InstanceType<typeof Timer>`, or just `Timer`.

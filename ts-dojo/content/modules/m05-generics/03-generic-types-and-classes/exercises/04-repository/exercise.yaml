@@ -1,0 +1,36 @@
+id: m05-generics/03-generic-types-and-classes/04-repository
+kind: implement
+title: A typed repository
+minutes: 5
+challenge: false
+prompt: |
+  Implement `Repository` in `index.ts`: a class that holds items with a string `id`, in the
+  order their ids were first added. One repository holds one type of item, given by a type
+  argument (`new Repository<User>()`) and checked by the compiler.
+
+  - `add(item)` adds the item, or replaces the item with the same id, which keeps its place in
+    the order.
+  - `get(id)` returns a `Result` (declared in the starter, as in the lesson): `{ ok: true, value }`
+    with the item, or `{ ok: false, error }` with the message `No item with id <id>.`, such as
+    `No item with id u7.`
+  - `map(fn)` calls `fn` on every item, in order, and returns an array of what it returned.
+  - `size()` returns the number of items.
+  - `Repository.from(items)` returns a new repository holding the items, added in order. Its item
+    type is inferred from the items, or passed as `Repository.from<Product>(...)`.
+
+  The starter class takes no type argument, so `tests.ts` reports
+  `Expected 0 type arguments, but got 1.` until `Repository` is generic. Items without a string
+  `id` must be rejected. The type cases and the `@ts-expect-error` lines check the types; the
+  tests check the repository.
+
+  This combines the lesson with private fields (4.5), discriminated unions (3.5) and constraints
+  (5.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - The class needs one type parameter for its items, constrained so that its methods can read item.id. map needs a type parameter of its own for what the callback returns.
+  - A static method can't use the class's type parameter, so from declares its own, with the same constraint.
+  - A Map from id to item keeps the order in which ids were first set, and setting an id it already has keeps that id's place.

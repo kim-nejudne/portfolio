@@ -5,18 +5,24 @@ type cases = [
   Expect<
     Equal<
       UIEvent,
-      { type: 'click'; x: number; y: number } | { type: 'keydown'; key: string } | { type: 'scroll'; deltaY: number }
+      | { type: 'click'; x: number; y: number }
+      | { type: 'keydown'; key: string }
+      | { type: 'scroll'; deltaY: number }
     >
-  >, // exactly the three members
+  >, // exactly the three events
 ];
 
-const click: UIEvent = { type: 'click', x: 1, y: 2 }; // a click is accepted
-const scroll: UIEvent = { type: 'scroll', deltaY: 3 }; // a scroll is accepted
+const click: UIEvent = { type: 'click', x: 1, y: 2 };
+const keydown: UIEvent = { type: 'keydown', key: 'Enter' };
+const scroll: UIEvent = { type: 'scroll', deltaY: 3 };
 
-// @ts-expect-error a click has no key
-const clickWithKey: UIEvent = { type: 'click', x: 1, y: 2, key: 'a' };
+// @ts-expect-error
+const clickWithKey: UIEvent = { type: 'click', x: 1, y: 2, key: 'a' }; // a click has no key
 
-// @ts-expect-error hover is not one of the three types
-const hover: UIEvent = { type: 'hover', x: 1, y: 2 };
+// @ts-expect-error
+const keydownWithoutKey: UIEvent = { type: 'keydown' }; // a keydown needs its key
 
-export { click, scroll, clickWithKey, hover };
+// @ts-expect-error
+const hover: UIEvent = { type: 'hover', x: 1, y: 2 }; // hover is not one of the three
+
+export { click, keydown, scroll, clickWithKey, keydownWithoutKey, hover };

@@ -1,0 +1,33 @@
+id: m05-generics/02-constraints-and-defaults/04-queue-with-a-default
+kind: implement
+title: A queue with a default
+minutes: 4
+challenge: false
+prompt: |
+  Implement `createQueue` in `index.ts`. It takes any number of initial items and returns a
+  first-in, first-out queue: `push` adds an item at the back, `shift` removes and returns the
+  item at the front (or `undefined` when the queue is empty), and `size` gives the number of
+  items. Every queue keeps its own items.
+
+  The starter types the items as `unknown`, and takes no type argument, so `tests.ts` reports
+  `Expected 0 type arguments, but got 1.` until `createQueue` is generic. Make the item type a
+  type parameter:
+
+  - `createQueue(3, 9, 4)` is a queue of numbers, inferred from the items;
+  - `createQueue<boolean>()` is a queue of booleans;
+  - `createQueue()`, with nothing to infer from, is a queue of strings.
+
+  The type cases and the `@ts-expect-error` lines check the three, and that `push` accepts only
+  the queue's type; the tests check the queue.
+
+  This combines the lesson with rest parameters (2.1), contextual typing of the methods you return (2.2) and
+  inference from arguments (5.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - One type parameter links the initial items, what push accepts and what shift returns.
+  - When a call gives the compiler nothing to infer from, the type parameter becomes unknown, unless you give it a default.
+  - Keep a copy of the initial items in an array of the item type, and let the three methods close over it.

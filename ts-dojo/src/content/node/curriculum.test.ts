@@ -1,6 +1,7 @@
 // §12 F11 criterion 1: "M00 to M04 exist as §8 lists them: 20 lessons, each with the §1
 // structure, at least two exercises (one in M00), at least one `predict`, hints on every editor
-// exercise, and at least one `ts twoslash` block." Read from the course in content/ with the
+// exercise, and at least one `ts twoslash` block." §12 F12: "M05 to M09, 19 core lessons and the
+// two optional ones, to the same rules as F11", so 41 lessons in all. Read from the course in content/ with the
 // loader the content lint and the build use. The §8 rows below are copied from docs/spec.md
 // (titles with their code backticks dropped; minutes as §8 gives them). What no test can judge
 // (accuracy, progression, hints that nudge) is the content-reviewer agent's.
@@ -158,6 +159,134 @@ const TIERS: { id: string; title: string; modules: ModuleRow[] }[] = [
       },
     ],
   },
+  {
+    id: 't2',
+    title: 'Intermediate',
+    modules: [
+      {
+        id: 'm05-generics',
+        title: 'Generics',
+        prerequisites: ['m04-objects'],
+        lessons: [
+          ['01-generic-functions', 'Generic functions and inference', 20],
+          ['02-constraints-and-defaults', 'Constraints and defaults', 20],
+          [
+            '03-generic-types-and-classes',
+            'Generic interfaces, type aliases and classes',
+            20,
+          ],
+          [
+            '04-keyof-constraints',
+            'keyof constraints and typed property access',
+            20,
+          ],
+          // (opt) in §8; written as an ordinary lesson (Kim, 22 October 2026).
+          [
+            '05-when-generics-hurt',
+            'When generics hurt: over-generic code and the return-type-only smell',
+            15,
+          ],
+        ],
+      },
+      {
+        id: 'm06-type-operators',
+        title: 'Type operators and utility types',
+        prerequisites: ['m05-generics'],
+        lessons: [
+          [
+            '01-keyof-typeof-indexed-access',
+            'keyof, typeof and indexed access types',
+            20,
+          ],
+          [
+            '02-utility-types-1',
+            'Utility types I: Partial, Required, Readonly, Pick, Omit, Record',
+            20,
+          ],
+          [
+            '03-utility-types-2',
+            'Utility types II: Exclude, Extract, NonNullable, ReturnType, Parameters, Awaited, InstanceType, ConstructorParameters',
+            20,
+          ],
+          [
+            '04-rebuilding-the-utilities',
+            'Rebuilding the utilities: a first look at mapped and conditional types',
+            20,
+          ],
+        ],
+      },
+      {
+        id: 'm07-guards',
+        title: 'Guards, assertions and exhaustiveness',
+        prerequisites: ['m06-type-operators'],
+        lessons: [
+          [
+            '01-type-guards',
+            'User-defined type guards (is) and inferred type predicates',
+            20,
+          ],
+          ['02-assertion-functions', 'Assertion functions (asserts)', 15],
+          [
+            '03-exhaustiveness-and-satisfies',
+            'Exhaustive switch, assertNever, satisfies and as const for config',
+            25,
+          ],
+          [
+            '04-narrowing-pitfalls',
+            'Narrowing pitfalls: callbacks, mutation, array methods and filter',
+            15,
+          ],
+        ],
+      },
+      {
+        id: 'm08-functions-classes',
+        title: 'Functions and classes II',
+        prerequisites: ['m07-guards'],
+        lessons: [
+          [
+            '01-overloads',
+            'Overloads, and when a union or a generic is better',
+            20,
+          ],
+          [
+            '02-this-and-callable-types',
+            'this parameters, this types, callable and constructable types',
+            25,
+          ],
+          [
+            '03-classes-2',
+            'Classes II: generic classes, override, accessors, static blocks, parameter properties',
+            20,
+          ],
+          // (opt) in §8; written as an ordinary lesson (Kim, 22 October 2026).
+          ['04-mixins', 'Mixins', 15],
+        ],
+      },
+      {
+        id: 'm09-modules-async',
+        title: 'Modules, declarations and async',
+        prerequisites: ['m08-functions-classes'],
+        lessons: [
+          [
+            '01-esm',
+            'ESM in TypeScript: import type, export type, verbatimModuleSyntax, isolatedModules',
+            20,
+          ],
+          [
+            '02-declaration-files',
+            'Declaration files and declare: ambient types and globals',
+            20,
+          ],
+          [
+            '03-async',
+            'Typing async code: Promise, Awaited, async iterators',
+            20,
+          ],
+          ['04-errors', 'Errors: unknown in catch, Result-style returns', 15],
+        ],
+      },
+    ],
+  },
 ];
 
 /** §1 Lesson anatomy: the theory sections, in this order. */
@@ -231,12 +360,12 @@ function inSection<T extends { line: number }>(
   return items.filter((item) => sectionAt(analysis, item.line) === section);
 }
 
-describe('§12 F11: the course in content/ is Tier 0 and Tier 1 as §8 lists them', () => {
+describe('§12 F11 and F12: the course in content/ is Tiers 0 to 2 as §8 lists them', () => {
   it('loads with no structural problem', () => {
     expect(content.problems).toEqual([]);
   });
 
-  it("the roadmap has §8's tiers t0 and t1, in order", () => {
+  it("the roadmap has §8's tiers t0, t1 and t2, in order", () => {
     expect(registry.tiers).toEqual(
       TIERS.map((tier) => ({
         id: tier.id,
@@ -246,8 +375,8 @@ describe('§12 F11: the course in content/ is Tier 0 and Tier 1 as §8 lists the
     );
   });
 
-  it('20 lessons in all', () => {
-    expect(LESSONS).toHaveLength(20);
+  it("41 lessons in all: F11's 20, F12's 19 core and two optional", () => {
+    expect(LESSONS).toHaveLength(41);
     expect(registry.lessons.map((l) => l.id)).toEqual(LESSONS.map((l) => l.id));
   });
 
@@ -271,7 +400,7 @@ describe('§12 F11: the course in content/ is Tier 0 and Tier 1 as §8 lists the
   });
 });
 
-describe.each(LESSONS)('§12 F11: $id', (row) => {
+describe.each(LESSONS)('§12 F11 and F12: $id', (row) => {
   it('has the §1 structure: the five theory sections in order, 2–5 objectives, runnable examples, two or three pitfalls each with a snippet, 1–3 questions, further reading', () => {
     const lesson = lessonOf(row.id);
     const analysis = analysisOf(lesson);

@@ -19,7 +19,7 @@ export function area(shape: Shape): number {
   }
 }
 
-/** The shape with the largest area, or undefined for an empty list. */
+/** The shape with the largest area, the first of equals, or undefined for an empty list. */
 export function largest(shapes: readonly Shape[]): Shape | undefined {
   let best: Shape | undefined;
   for (const shape of shapes) {

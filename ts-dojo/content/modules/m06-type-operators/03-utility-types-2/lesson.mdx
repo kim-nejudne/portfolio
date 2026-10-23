@@ -1,0 +1,381 @@
+---
+id: m06-type-operators/03-utility-types-2
+title: 'Utility types II: Exclude, Extract, NonNullable, ReturnType, Parameters, Awaited, InstanceType, ConstructorParameters'
+minutes: 20
+objectives:
+  - Filter a union with Exclude and Extract, including the members of a discriminated union
+  - Remove null and undefined from a type with NonNullable
+  - Read a function's return and parameter types with ReturnType and Parameters, through typeof
+  - Unwrap the result of an async function with Awaited
+  - Read a class's instance and constructor parameter types with InstanceType and ConstructorParameters
+prerequisites:
+  - m02-functions/01-parameters-and-returns
+  - m03-unions/05-discriminated-unions
+  - m04-objects/05-classes
+  - m06-type-operators/01-keyof-typeof-indexed-access
+  - m06-type-operators/02-utility-types-1
+tags:
+  - utility types
+  - Exclude
+  - Extract
+  - NonNullable
+  - ReturnType
+  - Parameters
+  - Awaited
+  - InstanceType
+  - ConstructorParameters
+  - conditional type
+---
+
+## Concept
+
+The utilities of <Lesson id="m06-type-operators/02-utility-types-1" /> rework the properties of an object type. The eight in this lesson do two other jobs. Three of them filter a union, keeping some members and dropping the rest. Five of them read a type out of another one: what a function returns, what it takes, what a promise resolves to, what a class builds and what its constructor takes.
+
+```ts twoslash
+type Status = 'draft' | 'published' | 'archived' | 'deleted';
+
+type Live = Exclude<Status, 'archived' | 'deleted'>;
+//    ^?
+
+function createUser(name: string, admin = false) {
+  return { name, admin, createdAt: Date.now() };
+}
+
+type User = ReturnType<typeof createUser>;
+//    ^?
+```
+
+`User` is written nowhere. The compiler inferred it from the function's `return`, and `ReturnType` hands it back as a type you can name. The lesson covers:
+
+- `Exclude<T, U>`: the members of the union `T` that are not assignable to `U`;
+- `Extract<T, U>`: the members of `T` that are assignable to `U`;
+- `NonNullable<T>`: `T` without `null` and `undefined`;
+- `ReturnType<F>` and `Parameters<F>`: the return type of the function type `F`, and its parameters as a tuple;
+- `Awaited<T>`: the type that `await` gives for a value of type `T`, every promise unwrapped;
+- `InstanceType<C>` and `ConstructorParameters<C>`: for the type of a class itself, `typeof` the class, the type of what it builds and its constructor's parameters as a tuple.
+
+All but `NonNullable` are **conditional types**: types that test one type against another and pick a result by the answer. <Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> writes a few of them by hand. Here they are tools, and like every type they are erased.
+
+## Examples
+
+**`Exclude` and `Extract` on literal types.** Both go through the union one member at a time. `Exclude` drops each member that fits the second type, and `Extract` keeps only those:
+
+```ts twoslash
+type Key = 'Enter' | 'Escape' | 'Tab' | 'ArrowUp' | 'ArrowDown';
+
+type Arrow = Extract<Key, 'ArrowUp' | 'ArrowDown'>;
+//     ^?
+type NotArrow = Exclude<Key, Arrow>;
+//       ^?
+type Confirm = Extract<Key, 'Enter' | 'Space'>;
+//       ^?
+```
+
+`'Space'` is not a `Key`, so it is simply not in the result. Neither utility checks that its second type has anything to do with the first; Pitfalls comes back to that.
+
+**On a discriminated union.** "Fits" means assignable, the same test as for any assignment. A member of `Shape` is assignable to `{ kind: 'circle' }` when its `kind` is `'circle'`; its other properties don't matter, as in <Lesson id="m04-objects/02-structural-typing" />. So `Extract` with the discriminant picks one member of a discriminated union (<Lesson id="m03-unions/05-discriminated-unions" />), and `Exclude` leaves the others:
+
+```ts twoslash
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'rect'; width: number; height: number };
+
+type Circle = Extract<Shape, { kind: 'circle' }>;
+//     ^?
+type Angular = Exclude<Shape, { kind: 'circle' }>;
+//      ^?
+```
+
+The members get names without being written twice, and a function can ask for exactly the one it handles:
+
+```ts run
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'rect'; width: number; height: number };
+
+type Circle = Extract<Shape, { kind: 'circle' }>;
+
+function grow(circle: Circle, by: number): Circle {
+  return { ...circle, radius: circle.radius + by };
+}
+
+const shapes: Shape[] = [
+  { kind: 'circle', radius: 1 },
+  { kind: 'square', side: 2 },
+];
+for (const shape of shapes) {
+  if (shape.kind === 'circle') {
+    console.log(grow(shape, 2));
+  }
+}
+```
+
+`grow({ kind: 'square', side: 2 }, 1)` is rejected. Any property works as the filter, not only the discriminant: `Extract<Shape, { side: number }>` is the square, the one member with a `side`.
+
+**`NonNullable`.** On a union, `NonNullable<T>` gives what `Exclude<T, null | undefined>` would. It is declared differently, as `T & {}`: the type `{}` takes every value except `null` and `undefined`, and intersecting with it keeps the rest. It pairs with an indexed access type (<Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />) when a property may be empty but a function only takes the filled-in value:
+
+```ts twoslash
+type User = { id: number; nickname: string | null; bio?: string };
+
+type Nickname = NonNullable<User['nickname']>;
+//      ^?
+type Bio = NonNullable<User['bio']>;
+//   ^?
+```
+
+`User['bio']` is `string | undefined`, because of the `?`, and `NonNullable` takes the `undefined` off as well. The value still has to be checked before it is passed in; the type only says that the function won't take the empty case:
+
+```ts run
+type User = { id: number; name: string; nickname: string | null };
+
+function shout(nickname: NonNullable<User['nickname']>): string {
+  return nickname.toUpperCase();
+}
+
+const users: User[] = [
+  { id: 1, name: 'Ada', nickname: 'countess' },
+  { id: 2, name: 'Grace', nickname: null },
+];
+for (const user of users) {
+  console.log(user.nickname === null ? user.name : shout(user.nickname));
+}
+```
+
+**`ReturnType` and `Parameters`.** Both take a function type, and `typeof fn` gives one. `Parameters` gives the parameter list as a labelled tuple (<Lesson id="m01-types/03-arrays-tuples-objects" />); an optional or default parameter becomes an optional element, so the tuple takes exactly the argument lists the function does:
+
+```ts twoslash
+function createUser(name: string, age?: number, admin = false) {
+  return { id: Math.floor(Math.random() * 1000), name, age, admin };
+}
+
+type User = ReturnType<typeof createUser>;
+//    ^?
+type Args = Parameters<typeof createUser>;
+//    ^?
+type Name = Parameters<typeof createUser>[0];
+//    ^?
+```
+
+They earn their keep around functions whose types are not exported, from a library or from another part of the app, and in wrappers that must take the same arguments as the function they wrap. A tuple type in a rest parameter spreads back into the call, as in <Lesson id="m02-functions/01-parameters-and-returns" />:
+
+```ts run
+function createUser(name: string, age?: number, admin = false) {
+  return { id: Math.floor(Math.random() * 1000), name, age, admin };
+}
+
+type User = ReturnType<typeof createUser>;
+const created: User[] = [];
+
+function createAndLog(...args: Parameters<typeof createUser>): User {
+  const user = createUser(...args);
+  created.push(user);
+  return user;
+}
+
+createAndLog('Ada', 36);
+createAndLog('Grace', undefined, true);
+console.log(created.map((user) => `${user.name}, admin: ${user.admin}`));
+```
+
+Add a parameter to `createUser`, and `createAndLog` takes it too, with no other edit.
+
+**`Awaited` with an async function.** An `async` function always returns a promise, so its `ReturnType` is a `Promise<...>`. `Awaited` unwraps it, through as many promises as are nested, and leaves a type that is not a promise as it is, as `await` does at run time:
+
+```ts twoslash
+async function loadUser(id: number) {
+  return { id, name: 'Ada', roles: ['admin'] };
+}
+
+type Pending = ReturnType<typeof loadUser>;
+//      ^?
+type User = Awaited<ReturnType<typeof loadUser>>;
+//    ^?
+type Nested = Awaited<Promise<Promise<number>>>;
+//     ^?
+type NotAPromise = Awaited<string>;
+//        ^?
+```
+
+`Awaited<ReturnType<typeof fn>>` is the usual pair: the type of what `await fn()` gives. <Lesson id="m09-modules-async/03-async" /> types async code in depth; here, only the type matters:
+
+```ts run
+async function loadUser(id: number) {
+  return { id, name: 'Ada', roles: ['admin'] };
+}
+
+type User = Awaited<ReturnType<typeof loadUser>>;
+
+function greet(user: User): string {
+  return `Hello, ${user.name} (${user.roles.join(', ')})`;
+}
+
+console.log(greet({ id: 2, name: 'Grace', roles: [] }));
+loadUser(1).then((user) => console.log(greet(user)));
+```
+
+**`InstanceType` and `ConstructorParameters`.** A class's name is the type of its instances (<Lesson id="m04-objects/05-classes" />). The class itself, the value you call with `new`, has another type: `typeof Timer`. These two utilities take that constructor type:
+
+```ts twoslash
+class Timer {
+  label: string;
+  ms: number;
+  constructor(label: string, ms = 1000) {
+    this.label = label;
+    this.ms = ms;
+  }
+}
+
+type TimerArgs = ConstructorParameters<typeof Timer>;
+//       ^?
+type TimerObject = InstanceType<typeof Timer>;
+//        ^?
+```
+
+`InstanceType<typeof Timer>` is just `Timer`, so for a class declared by name you write `Timer`. `InstanceType` is for when what you have is the class as a value, such as classes kept in an object. The constructor arguments are the useful half on their own, wherever a list of them is stored or passed on:
+
+```ts run
+class Timer {
+  label: string;
+  ms: number;
+  constructor(label: string, ms = 1000) {
+    this.label = label;
+    this.ms = ms;
+  }
+}
+
+function timers(list: ConstructorParameters<typeof Timer>[]): Timer[] {
+  return list.map((args) => new Timer(...args));
+}
+
+console.log(timers([['tick'], ['slow', 5000]]));
+```
+
+With a table of classes, `InstanceType` gives the union of what they build, and `ConstructorParameters` reads one entry's arguments:
+
+```ts twoslash
+class JsonParser {
+  parse(text: string): unknown {
+    return JSON.parse(text);
+  }
+}
+
+class CsvParser {
+  separator: string;
+  constructor(separator: string) {
+    this.separator = separator;
+  }
+  parse(text: string): string[][] {
+    return text.split('\n').map((line) => line.split(this.separator));
+  }
+}
+
+const PARSERS = { json: JsonParser, csv: CsvParser };
+
+type Parser = InstanceType<(typeof PARSERS)[keyof typeof PARSERS]>;
+//     ^?
+type CsvArgs = ConstructorParameters<typeof PARSERS.csv>;
+//      ^?
+```
+
+## Pitfalls
+
+**Forgetting `typeof`.** `ReturnType` and its relatives take types, and a function's name is a value. A class's name is a type as well, the instance type, so forgetting `typeof` there gives a different error:
+
+```ts run errors
+function createUser(name: string, admin = false) {
+  return { name, admin };
+}
+type User = ReturnType<createUser>;
+
+class Timer {
+  label = 'tick';
+}
+type TimerArgs = ConstructorParameters<Timer>;
+```
+
+The first reads `'createUser' refers to a value, but is being used as a type here. Did you mean 'typeof createUser'?` The second reads `Type 'Timer' does not satisfy the constraint 'abstract new (...args: any) => any'.`: a `Timer` object can't be called with `new`. Write `ReturnType<typeof createUser>` and `ConstructorParameters<typeof Timer>`.
+
+**The second type of `Exclude` and `Extract` isn't checked.** Both compare whole members of the union with the second type, and accept any second type at all. A literal where a member's shape was meant removes nothing, and a misspelt one extracts nothing:
+
+```ts run errors
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+type NotCircle = Exclude<Shape, 'circle'>;
+const ring: NotCircle = { kind: 'circle', radius: 2 };
+
+type Circle = Extract<Shape, { kind: 'circel' }>;
+const dot: Circle = { kind: 'circle', radius: 1 };
+```
+
+The `Exclude` compiles: no member of `Shape` is the string `'circle'`, so nothing goes, and `NotCircle` is all of `Shape`. The typo in the `Extract` shows up only where the type is used, as `Type '{ kind: string; radius: number; }' is not assignable to type 'never'.`: no member matched, so `Circle` is `never`, the empty union. Filter a discriminated union by an object type, `{ kind: 'circle' }`, and suspect a misspelling when a filtered type turns out to be `never`.
+
+**`ReturnType` of an async function is a promise.** Without `Awaited`, the type describes the promise, not the value it resolves to, and the properties aren't there:
+
+```ts run errors
+async function loadUser(id: number) {
+  return { id, name: 'Ada' };
+}
+
+type User = ReturnType<typeof loadUser>;
+
+function greet(user: User): string {
+  return `Hello, ${user.name}`;
+}
+```
+
+`Property 'name' does not exist on type 'Promise<{ id: number; name: string; }>'.` Write `Awaited<ReturnType<typeof loadUser>>`.
+
+## Check yourself
+
+<Predict
+  id="exclude-keys"
+  code={
+    "type Key = 'Enter' | 'Escape' | 'Tab' | 'Space';\ntype T = Exclude<Key, 'Tab' | 'Backspace'>;"
+  }
+  question="What is `T`?"
+  options={[
+    "'Enter' | 'Escape' | 'Space'",
+    "'Enter' | 'Escape' | 'Space' | 'Backspace'",
+    "'Tab'",
+    "An error: 'Backspace' is not a Key",
+  ]}
+  answer={0}
+  explanation="`Exclude` drops every member of `Key` that is assignable to `'Tab' | 'Backspace'`, which is only `'Tab'`. `'Backspace'` is not in `Key`, so it has nothing to remove, and it is not an error: the second type isn't checked against the first."
+/>
+
+<Predict
+  id="extract-two-kinds"
+  code={
+    "type Shape =\n  | { kind: 'circle'; radius: number }\n  | { kind: 'square'; side: number }\n  | { kind: 'rect'; width: number; height: number };\ntype T = Extract<Shape, { kind: 'square' | 'rect' }>;"
+  }
+  question="What is `T`?"
+  options={[
+    'never',
+    "{ kind: 'square'; side: number } | { kind: 'rect'; width: number; height: number }",
+    "{ kind: 'square' | 'rect' }",
+    "{ kind: 'circle'; radius: number }",
+  ]}
+  answer={1}
+  explanation="`Extract` keeps each member that is assignable to `{ kind: 'square' | 'rect' }`. The square's `kind` is `'square'` and the rect's is `'rect'`, both of which fit, and their other properties don't matter. The circle's `kind` doesn't fit, so it goes."
+/>
+
+<Predict
+  id="async-return-type"
+  code={
+    'async function count(): Promise<number> {\n  return 3;\n}\ntype T = ReturnType<typeof count>;'
+  }
+  question="What is `T`?"
+  options={['number', 'Promise<number>', 'Promise<Promise<number>>', 'void']}
+  answer={1}
+  explanation="An async function returns a promise, and `ReturnType` reads the declared return type as it is: `Promise<number>`. The `number` it resolves to is `Awaited<ReturnType<typeof count>>`."
+/>
+
+## Further reading
+
+- [Handbook: Utility types](https://www.typescriptlang.org/docs/handbook/utility-types.html)
+- [Handbook: The typeof type operator](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html)
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)
+- [TypeScript 4.5 release notes: the Awaited type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html#the-awaited-type-and-promise-improvements)

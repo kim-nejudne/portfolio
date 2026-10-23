@@ -1,0 +1,30 @@
+id: m08-functions-classes/02-this-and-callable-types/04-class-registry
+kind: implement
+title: A registry keyed by class
+minutes: 6
+challenge: false
+prompt: |
+  A `Registry` maps classes to factories, so code can ask for "a `Shape`" without knowing how
+  one is made. Type and implement its two methods:
+
+  - `register(type, make)` stores `make` as the factory for the class `type`, and returns the
+    registry, so calls chain. `type` may be any class: abstract or not, with any constructor
+    parameters. `make` takes no arguments and must return an instance of that class. Registering
+    a class again replaces its factory.
+  - `create(type)` calls the factory registered for exactly that class, every time it is called,
+    and returns the result, typed as an instance of the class. When nothing is registered for
+    the class, it throws an `Error`. A factory registered for a subclass doesn't count.
+
+  Chaining keeps the type: on a subclass of `Registry`, `register` returns the subclass.
+
+  This combines the lesson with generic functions (5.1), abstract classes and `#` fields (4.5),
+  and narrowing with `instanceof` (3.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - A class is a value with a construct signature. Which kind of construct signature accepts an abstract class, and which parameter list accepts every constructor?
+  - Both methods need the instance type of the class as a type parameter. register's return type has to follow the subclass it is called on.
+  - A Map can be keyed by the class itself. instanceof with the class narrows the factory's result, so no cast is needed.

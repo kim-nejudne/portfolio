@@ -1,0 +1,305 @@
+---
+id: m09-modules-async/02-declaration-files
+title: 'Declaration files and declare: ambient types and globals'
+minutes: 20
+objectives:
+  - Describe values that exist at run time but not in your sources with declare const, declare function and declare class
+  - Tell a script declaration file from a module one, and add a global from a module with declare global
+  - Type an untyped package with declare module, and add to a module's interface with module augmentation
+  - Explain what the types option includes, and why the dojo sets it to an empty list
+prerequisites:
+  - m00-orientation/03-vim-in-the-dojo
+  - m04-objects/01-type-vs-interface
+  - m04-objects/05-classes
+  - m06-type-operators/01-keyof-typeof-indexed-access
+  - m09-modules-async/01-esm
+tags:
+  - declare
+  - declaration file
+  - .d.ts
+  - ambient
+  - declare global
+  - globalThis
+  - declare module
+  - module augmentation
+  - untyped package
+  - '@types'
+  - types
+  - skipLibCheck
+---
+
+## Concept
+
+Not every value a program uses comes from a TypeScript file. A `<script>` tag defines a global, a bundler writes a constant into the build, a package is plain JavaScript. The compiler can't see their source, so it reports _Cannot find name_. A **declaration** gives the type of something that exists at run time without providing it: `declare` in front of a `const`, `let`, `var`, `function` or `class`, with no initializer and no bodies.
+
+```ts twoslash
+declare const BUILD: { version: string; debug: boolean };
+declare function track(event: string, data: { version: string }): void;
+declare class Chart {
+  constructor(canvasId: string);
+  draw(points: number[]): void;
+}
+
+track('opened', { version: BUILD.version });
+const sales = new Chart('sales');
+sales.draw([3, 5, 8]);
+//       ^?
+```
+
+Every use is checked against the declarations, and the declarations themselves are erased: the JavaScript for this block is its last three statements. Nothing checks that the values really exist. If nothing defines `BUILD` before this code runs, the first call throws a `ReferenceError`.
+
+**Declaration files.** A file whose name ends in `.d.ts` holds declarations only, and nothing is emitted for it. A typed package ships one beside each JavaScript file, `tsc` writes them when `declaration` is on, and TypeScript's own `lib.*.d.ts` files are declaration files too: <Key>gd</Key> on `toFixed` in <Lesson id="m00-orientation/03-vim-in-the-dojo" /> led to `lib.es5.d.ts`. In a `.d.ts` file, a top-level `const`, `function` or `class` must start with `declare` or `export`, and `interface` and `type` need neither.
+
+The dojo adds such a file to every project, `/dojo/runtime.d.ts`. The `es2025` lib describes the language, not the place it runs, so it has no `console` and no timers. The sandbox provides them, and the file declares them:
+
+```ts
+// From /dojo/runtime.d.ts
+interface DojoConsole {
+  log(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+  debug(...args: unknown[]): void;
+}
+declare const console: DojoConsole;
+declare function setTimeout(
+  callback: (...args: unknown[]) => void,
+  ms?: number,
+  ...args: unknown[]
+): number;
+```
+
+**Script or module.** The rule from that lesson holds for declaration files too. A file with no `import` or `export` is a script, and its declarations are global: every file sees them without an import. That is how `console` reaches your code. A file with an `import` or `export` is a module, and its declarations are its own. A module that needs to add a global says so with `declare global { … }`, shown under Examples.
+
+**Where a program's declarations come from.** Four places:
+
+- the `lib` option: the `lib.*.d.ts` files for the language, and for the browser with `dom`;
+- the files of the project, `.d.ts` files included;
+- imports: `import { chunk } from 'lodash'` finds the package's own `.d.ts` files, or the `@types/lodash` package from DefinitelyTyped when the package has none;
+- the `types` option: the `@types` packages whose globals join the program without an import, such as `process` from `@types/node` or `test` from `@types/jest`.
+
+Before TypeScript 6.0, leaving `types` out meant every package under `node_modules/@types`. Since 6.0 the default is `[]` ([release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)), so a project lists the packages whose globals it wants: `"types": ["node"]`. `tsc --init` also writes `"types": []` explicitly. One file can pull a package in with `/// <reference types="node" />`. The list doesn't touch imports: an imported package's types are found either way.
+
+The dojo's defaults set `types: []` too. There is no `node_modules` in the browser, and every global the sandbox provides is declared by the app's own files under `/dojo/`: `runtime.d.ts` in every project, plus `test` and `expect` in a project with a `tests.ts`.
+
+<Callout kind="tip">
+  The defaults also set `skipLibCheck: true`, as `tsc --init` does. The checker
+  then skips every `.d.ts` file, yours included, so a mistake inside one shows
+  only where code uses it. This lesson's exercises put their declarations in
+  `.ts` files, where every error is reported. A `.ts` file with no `import` or
+  `export` is a script, and its declarations are global, exactly as in a script
+  `.d.ts` file.
+</Callout>
+
+## Examples
+
+**Keeping the promise.** A declaration promises that the value exists. Here the snippet keeps the promise itself, the way a page's `<script>` tags would:
+
+```ts run
+declare const BUILD: { version: string; debug: boolean };
+declare function track(event: string, data: { version: string }): void;
+
+Object.assign(globalThis, {
+  BUILD: { version: '2.4.1', debug: true },
+  track: (event: string, data: object) => console.log('track', event, data),
+});
+
+function openScreen(screen: string): void {
+  if (BUILD.debug) console.log(`v${BUILD.version} (debug)`);
+  track(`open:${screen}`, { version: BUILD.version });
+}
+
+openScreen('settings');
+```
+
+`Object.assign` puts the values on `globalThis`, the global object, where a plain name such as `BUILD` finds them. This snippet is a script, so its two declarations are global. In a module they would belong to the file, and the run would still find the values on the global object, since nothing in the module defines those names.
+
+**A global from a module.** `config.ts` has an `export`, so it is a module, and it adds `APP_CONFIG` to the global scope with `declare global`. Every file of the program sees it, whether it imports `config.ts` or not:
+
+```ts twoslash
+// @filename: config.ts
+export interface Config {
+  apiUrl: string;
+  retries: number;
+}
+
+declare global {
+  var APP_CONFIG: Config;
+}
+
+// @filename: main.ts
+import type { Config } from './config';
+
+const defaults: Config = { apiUrl: 'https://api.example.com', retries: 3 };
+globalThis.APP_CONFIG = defaults;
+console.log(APP_CONFIG.retries);
+//                           ^?
+```
+
+Use `var` there. As in JavaScript, a top-level `var` becomes a property of `globalThis`, and `let` and `const` don't. In a script, `declare global` is an error: _Augmentations for the global scope can only be directly nested in external modules or ambient module declarations._ A script declares its globals at the top level.
+
+**Adding to a global interface.** Interfaces with the same name merge, as <Lesson id="m04-objects/01-type-vs-interface" /> showed, and that includes the lib's global interfaces. `lib.es5.d.ts` declares an empty `interface ImportMeta`, the type of `import.meta`. A script `.d.ts` file adds the variables a bundler puts on `import.meta.env`:
+
+```ts twoslash
+// @filename: env.d.ts
+interface ImportMeta {
+  readonly env: {
+    readonly API_URL: string;
+    readonly MODE: 'development' | 'production';
+  };
+}
+
+// @filename: api.ts
+export const base = import.meta.env.API_URL;
+export const mode = import.meta.env.MODE;
+//              ^?
+```
+
+Vite's client types declare `import.meta.env` this way, and a Vite project adds its own variables to their `ImportMetaEnv` interface in the same way. From a module, the interface goes inside `declare global`.
+
+**Typing an untyped package.** Importing a JavaScript package that has no types, and no `@types` package, is an error: _Could not find a declaration file for module 'tiny-slug'. '…/node_modules/tiny-slug/index.js' implicitly has an 'any' type._ A `declare module` block with the package's name, in a script file, describes it. Inside the braces every statement is ambient already, so nothing needs `declare`, and `export` says what the package exports:
+
+```ts twoslash
+// @filename: tiny-slug.d.ts
+declare module 'tiny-slug' {
+  export interface SlugOptions {
+    separator?: string;
+  }
+  export function slugify(text: string, options?: SlugOptions): string;
+}
+
+// @filename: index.ts
+import { slugify } from 'tiny-slug';
+
+const slug = slugify('Hello World', { separator: '_' });
+//       ^?
+```
+
+When there's no time to describe a package, `declare module 'tiny-slug';` alone, with no braces, makes everything imported from it `any`: it compiles, and nothing is checked. The dojo has no packages at all. A twoslash block like the one above never runs, but `:w` on that `index.ts` would stop at the import: _index.ts imports 'tiny-slug', which is not a file of this project_. In the exercises, code imports only types from a declared module, with the `import type` of <Lesson id="m09-modules-async/01-esm" />, and the values come from globals.
+
+**Augmenting a module.** In a module file, the same syntax means something else. `declare module './bus'` doesn't describe `./bus`, it adds to it: its interfaces merge with the module's own. A library that exports an interface for you to extend, a map of events or of routes, reads it in generic functions with the `keyof` and indexed access of <Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />, and an augmentation adds your entries:
+
+```ts twoslash
+// @filename: bus.ts
+export interface Events {
+  login: { user: string };
+}
+
+export function emit<K extends keyof Events>(
+  type: K,
+  payload: Events[K],
+): void {
+  console.log(type, payload);
+}
+
+// @filename: cart.ts
+import { emit } from './bus';
+
+declare module './bus' {
+  interface Events {
+    purchase: { sku: string; cents: number };
+  }
+}
+
+emit('purchase', { sku: 'TEA-1', cents: 450 });
+// ^?
+emit('login', { user: 'Ada' });
+```
+
+The quoted name is resolved like an import's: a relative path for a file of the project, the package's name for a package. The augmentation is part of the program, so every file sees `purchase`, `bus.ts` included. Module 14 comes back to merging and augmentation in depth.
+
+## Pitfalls
+
+**`const` or `let` in `declare global`.** The name is declared, and code can use it by name, but only a `var` is a property of `globalThis`:
+
+```ts run errors
+export interface Config {
+  apiUrl: string;
+}
+
+declare global {
+  const APP_CONFIG: Config;
+}
+
+globalThis.APP_CONFIG = { apiUrl: 'https://api.example.com' };
+```
+
+_Property 'APP_CONFIG' does not exist on type 'typeof globalThis'._ Declare a global with `var` when code reads or writes it through `globalThis`.
+
+**`declare module` in a module file.** One `import` or `export` anywhere turns the file into a module, and the block into an augmentation of a module that doesn't exist:
+
+```ts run errors
+declare module 'tiny-slug' {
+  export function slugify(text: string): string;
+}
+
+export type Slug = string;
+```
+
+_Invalid module name in augmentation, module 'tiny-slug' cannot be found._ Put the `declare module` in a file with no `import` or `export`, such as a `.d.ts` file of its own.
+
+**Node's globals under `types: []`.** Node's `process` comes from `@types/node`, which the `types` list doesn't include:
+
+```ts run errors
+const home = process.env.HOME;
+console.log(home);
+```
+
+_Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig._ The sandbox runs in a browser worker, where there is no `process` either, so here the error is right. In a Node project, install `@types/node` and list it in `types`. Since TypeScript 6.0, installing it is not enough.
+
+## Check yourself
+
+<Predict
+  id="declared-not-defined"
+  code={'declare const API_KEY: string;\n\nconsole.log(API_KEY.length);'}
+  question="Nothing in the project or on the page defines `API_KEY`. What happens?"
+  options={[
+    'A compile error: API_KEY has no value',
+    'It compiles, and prints 0',
+    'It compiles, and the run throws a ReferenceError',
+    'It compiles, and prints undefined',
+  ]}
+  answer={2}
+  explanation="A declaration is a promise the compiler takes on trust. It checks `API_KEY.length` against the declared `string` and erases the declaration, so the JavaScript is `console.log(API_KEY.length);` alone. At run time no such name exists, and the lookup throws a `ReferenceError`."
+/>
+
+<Predict
+  id="module-declaration-file"
+  code={
+    "// config.ts\nexport interface Config {\n  apiUrl: string;\n}\n\n// globals.d.ts\nimport type { Config } from './config';\n\ndeclare const APP: Config;\n\n// main.ts\nconsole.log(APP.apiUrl);"
+  }
+  question="What does the compiler say about `main.ts`?"
+  options={[
+    'Nothing: globals.d.ts declares APP for every file',
+    "Cannot find name 'APP'.",
+    'Nothing, but only because main.ts has no import of its own',
+  ]}
+  answer={1}
+  explanation="The `import` makes `globals.d.ts` a module, and a module's declarations are its own, so `main.ts` can't see `APP`. To make `APP` a global from that file, put it inside `declare global { var APP: Config; }`, or drop the import and write the type inline so the file stays a script."
+/>
+
+<Predict
+  id="augmentation-everywhere"
+  code={
+    "// bus.ts\nexport interface Events {\n  login: { user: string };\n}\nexport function emit<K extends keyof Events>(type: K, payload: Events[K]): void {}\n\nemit('purchase', { sku: 'TEA-1', cents: 450 });\n\n// cart.ts\nimport { emit } from './bus';\ndeclare module './bus' {\n  interface Events {\n    purchase: { sku: string; cents: number };\n  }\n}"
+  }
+  question="Does the call to `emit` in `bus.ts` compile?"
+  options={[
+    'Yes: the augmentation in cart.ts is part of the program, so every file sees purchase',
+    'No: bus.ts does not import cart.ts, so it sees only login',
+    'No: a module cannot use an event added by an augmentation',
+  ]}
+  answer={0}
+  explanation={
+    "An augmentation merges into the module's interface for the whole program, whichever file it is in and whoever imports what. `bus.ts` sees `purchase` as soon as `cart.ts` is part of the project. Without `cart.ts`, the call would be an error: `Argument of type '\"purchase\"' is not assignable to parameter of type '\"login\"'.`"
+  }
+/>
+
+## Further reading
+
+- [Handbook: Introduction to declaration files](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html)
+- [Handbook: Declaration merging, with module and global augmentation](https://www.typescriptlang.org/docs/handbook/declaration-merging.html)
+- [TSConfig reference: types](https://www.typescriptlang.org/tsconfig/#types)
+- [TSConfig reference: skipLibCheck](https://www.typescriptlang.org/tsconfig/#skipLibCheck)
+- [TypeScript 6.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)
+- [DefinitelyTyped, the home of the @types packages](https://github.com/DefinitelyTyped/DefinitelyTyped)

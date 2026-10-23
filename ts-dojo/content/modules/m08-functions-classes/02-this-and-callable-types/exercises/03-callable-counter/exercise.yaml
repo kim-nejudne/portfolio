@@ -1,0 +1,26 @@
+id: m08-functions-classes/02-this-and-callable-types/03-callable-counter
+kind: implement
+title: A counter you can call
+minutes: 4
+challenge: false
+prompt: |
+  A `Counter` is a function with properties:
+
+  - calling it with no arguments adds 1 to its count and returns the new count;
+  - `count` is the current count, a plain `number` property (not `readonly`);
+  - `reset()` puts the count back where it started and returns nothing.
+
+  Rewrite the `Counter` type in `index.ts` as one object type that says all three, then implement
+  `createCounter(start)`, which returns a new counter whose count starts at `start`. Each counter
+  keeps its own count. `createCounter(5)()` returns `6`, and `count` is then `6` too.
+
+  The tests read `count` and call `reset()`, so until `Counter` has them the test file doesn't
+  compile: that is the first thing to fix.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - A function type expression can't list properties. The object type form can, with a call signature beside them.
+  - TypeScript accepts property assignments on a function declared in the same scope, and adds them to its type.

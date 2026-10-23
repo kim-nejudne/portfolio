@@ -1,0 +1,281 @@
+---
+id: m09-modules-async/01-esm
+title: 'ESM in TypeScript: import type, export type, verbatimModuleSyntax, isolatedModules'
+minutes: 20
+objectives:
+  - Import and export types with import type, export type and the inline type modifier
+  - Predict which imports survive in the emitted JavaScript, with and without verbatimModuleSyntax
+  - Fix the errors verbatimModuleSyntax reports by marking type-only imports and exports
+  - Explain why isolatedModules exists and why re-exporting a type needs export type
+prerequisites:
+  - m00-orientation/01-why-typescript
+  - m04-objects/04-enums-vs-as-const
+  - m04-objects/05-classes
+  - m03-unions/05-discriminated-unions
+  - m04-objects/03-index-signatures-and-record
+  - m06-type-operators/01-keyof-typeof-indexed-access
+tags:
+  - modules
+  - ESM
+  - import type
+  - export type
+  - type-only import
+  - verbatimModuleSyntax
+  - isolatedModules
+  - re-export
+  - barrel
+  - elision
+---
+
+## Concept
+
+A TypeScript file with an `import` or an `export` is an ES module, exactly as in JavaScript. What TypeScript adds is that types travel through the same statements: a `type`, an `interface` or a class exported from one file can be imported in another.
+
+```ts twoslash
+// @filename: shapes.ts
+export type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+export function area(shape: Shape): number {
+  return shape.kind === 'circle'
+    ? Math.PI * shape.radius ** 2
+    : shape.side ** 2;
+}
+
+// @filename: index.ts
+import { type Shape, area } from './shapes';
+
+const unit: Shape = { kind: 'square', side: 1 };
+console.log(area(unit));
+```
+
+Types are erased, as <Lesson id="m00-orientation/01-why-typescript" /> showed, so at run time `shapes.ts` has no export called `Shape` to import. The `type` keyword says so where you write it, in three forms:
+
+- `import type { Shape } from './shapes'`: every name in the statement is a type, and the whole statement is erased.
+- `import { type Shape, area } from './shapes'`: the inline modifier marks one name. `area` stays a real import.
+- `export type { Shape }`, or `export type { Shape } from './shapes'` to re-export, and the inline `export { type Shape, area }`: the same on the export side.
+
+A name imported or exported with `type` can only be used where a type goes. It is a type even when the declaration behind it is a class.
+
+**Without `type`, the compiler decides.** It looks at how each imported name is used in the file and drops the names used only as types, which is called import elision. If no name is left, the whole statement goes, and with it the loading of the module it named.
+
+**`verbatimModuleSyntax` makes the rule visible.** With the flag on, an import or export without `type` stays in the JavaScript as written, and one with `type` is erased. Nothing depends on how a name is used. What the import in `index.ts` becomes in each spelling, when `Shape` is used only as a type:
+
+| You write                                     | Default emit                      | With `verbatimModuleSyntax`       |
+| --------------------------------------------- | --------------------------------- | --------------------------------- |
+| `import { Shape, area } from './shapes'`      | `import { area } from './shapes'` | an error                          |
+| `import { type Shape, area } from './shapes'` | `import { area } from './shapes'` | `import { area } from './shapes'` |
+| `import { type Shape } from './shapes'`       | removed                           | `import {} from './shapes'`       |
+| `import type { Shape } from './shapes'`       | removed                           | removed                           |
+
+The first row is an error because the emitted line would ask `shapes.ts` for an export it doesn't have: _'Shape' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled._ The third row keeps an empty import, so `shapes.ts` still loads and its top-level code still runs. A new `tsconfig.json` from `tsc --init` turns the flag on.
+
+**`isolatedModules` exists for single-file compilers.** esbuild, SWC and Babel, and this app's `:w`, which runs `ts.transpileModule`, compile one file at a time and never see the others. For an import that is enough: the file shows whether a name is used as a value. A re-export is different. In `export { Shape, area } from './shapes'`, only `shapes.ts` knows that `Shape` is a type, so the transpiler keeps both names, and the run stops with a `SyntaxError`: the requested module _does not provide an export named 'Shape'_. `isolatedModules` makes the checker report the constructs that file-at-a-time emit gets wrong. The dojo's defaults turn it on, so `index.ts` gets _Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'._ (TS1205) and you write `export { type Shape, area } from './shapes'` instead.
+
+## Examples
+
+**Marking the types under `verbatimModuleSyntax`.** Under the defaults, `import { Shape, area } from './shapes'` compiles, and elision drops `Shape`. With the flag on, the same line is an error:
+
+```ts twoslash
+// @verbatimModuleSyntax: true
+// @errors: 1484
+// @filename: shapes.ts
+export type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+export function area(shape: Shape): number {
+  return shape.kind === 'circle'
+    ? Math.PI * shape.radius ** 2
+    : shape.side ** 2;
+}
+
+// @filename: index.ts
+import { Shape, area } from './shapes';
+
+const unit: Shape = { kind: 'square', side: 1 };
+console.log(area(unit));
+```
+
+Either fix works: the inline `import { type Shape, area } from './shapes'`, or two statements, `import type { Shape } from './shapes'` and `import { area } from './shapes'`. The flag is off in the dojo's defaults; the exercises of this lesson that teach it turn it on.
+
+**Exporting a class as a type only.** `export type` also works on a name declared in the same file. Here other modules may annotate with `Account` but not construct one, so every account starts with a deposit:
+
+```ts run
+class Account {
+  #cents = 0;
+  constructor(readonly owner: string) {}
+  deposit(cents: number): void {
+    this.#cents += cents;
+  }
+  get balance(): number {
+    return this.#cents;
+  }
+}
+
+export function openAccount(owner: string, cents: number): Account {
+  const account = new Account(owner);
+  account.deposit(cents);
+  return account;
+}
+
+export type { Account };
+
+const ada = openAccount('Ada', 500);
+console.log(ada.owner, ada.balance);
+```
+
+Inside the file `Account` is still a class. In another module the type is there and the value isn't:
+
+```ts twoslash
+// @errors: 1362
+// @filename: accounts.ts
+class Account {
+  constructor(readonly owner: string) {}
+}
+export function openAccount(owner: string): Account {
+  return new Account(owner);
+}
+export type { Account };
+
+// @filename: index.ts
+import { Account, openAccount } from './accounts';
+
+const ada: Account = openAccount('Ada');
+const forged = new Account('Mallory');
+```
+
+Under `verbatimModuleSyntax` the first line of `index.ts` is an error too, with its own wording: _'Account' resolves to a type-only declaration and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled._
+
+**A barrel file.** A module that only re-exports gives callers one place to import from. Types and values can share a statement as long as each type carries `type`:
+
+```ts twoslash
+// @filename: money.ts
+export type Currency = 'EUR' | 'USD';
+export interface Money {
+  cents: number;
+  currency: Currency;
+}
+export function money(cents: number, currency: Currency): Money {
+  return { cents, currency };
+}
+
+// @filename: index.ts
+export type { Currency } from './money';
+export { type Money, money } from './money';
+
+// @filename: main.ts
+import { money, type Currency } from './index';
+
+const euro: Currency = 'EUR';
+const price = money(450, euro);
+//    ^?
+```
+
+`index.ts` emits as `export { money } from './money';`, the one name that exists at run time.
+
+## Pitfalls
+
+**`type` on a statement that also imports a value.** `import type` makes every name in it a type, functions included, and calling one is an error:
+
+```ts twoslash
+// @errors: 1361
+// @filename: shapes.ts
+export type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+export function area(shape: Shape): number {
+  return shape.kind === 'circle'
+    ? Math.PI * shape.radius ** 2
+    : shape.side ** 2;
+}
+
+// @filename: index.ts
+import type { Shape, area } from './shapes';
+
+const unit: Shape = { kind: 'square', side: 1 };
+console.log(area(unit));
+```
+
+Move the keyword to the name that needs it: `import { type Shape, area } from './shapes'`.
+
+**Re-exporting a type with a plain `export`.** Under the defaults an import may leave its types unmarked, but a re-export may not, because a single-file compiler can't tell which re-exported names are types:
+
+```ts twoslash
+// @errors: 1205
+// @filename: shapes.ts
+export type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+export function area(shape: Shape): number {
+  return shape.kind === 'circle'
+    ? Math.PI * shape.radius ** 2
+    : shape.side ** 2;
+}
+
+// @filename: index.ts
+export { Shape, area } from './shapes';
+```
+
+`:w` runs the files anyway, and the run stops at the `SyntaxError` described above. Mark the type: `export { type Shape, area } from './shapes'`.
+
+**A `const enum` from a declaration file.** Another construct `isolatedModules` rejects is the one <Lesson id="m04-objects/04-enums-vs-as-const" /> showed. A `declare`d `const enum`, the kind a library's `.d.ts` file may contain, has no JavaScript behind it, and only a compiler that reads the declaration could inline its values:
+
+```ts run errors
+declare const enum Direction {
+  Up = 'UP',
+  Down = 'DOWN',
+}
+
+console.log(Direction.Up);
+```
+
+_Cannot access ambient const enums when 'isolatedModules' is enabled._ In your own code, the `as const` object or the string union from that lesson has no such problem.
+
+## Check yourself
+
+<Predict
+  id="inline-type-only"
+  question="With `verbatimModuleSyntax` on, what does `import { type Shape } from './shapes';` become in the emitted JavaScript?"
+  options={[
+    'Nothing: the statement is removed',
+    "import {} from './shapes';",
+    "import { Shape } from './shapes';",
+    'It is an error: Shape is a type',
+  ]}
+  answer={1}
+  explanation="Under `verbatimModuleSyntax`, a name marked `type` is erased and the rest of the statement stays as written. Here nothing is left between the braces, so `import {} from './shapes';` remains, and `shapes.ts` still loads. Only `import type { Shape } from './shapes';` removes the whole statement."
+/>
+
+<Predict
+  id="why-reexport-errors"
+  question="Under `isolatedModules`, with `verbatimModuleSyntax` off, `import { Shape, area } from './shapes'` compiles but `export { Shape, area } from './shapes'` does not. Why?"
+  options={[
+    'Re-exports are not allowed under isolatedModules',
+    'A compiler that sees one file can tell from its uses which imported names are types, but not which re-exported names are',
+    'Types can never be exported from a module',
+    'The import is checked against shapes.ts and the re-export is not',
+  ]}
+  answer={1}
+  explanation="A single-file compiler drops an imported name used only in type positions, because the file itself shows how it is used. A re-export uses no name in the file; only `shapes.ts` knows that `Shape` is a type. Kept in the output, it asks `shapes.ts` for an export that doesn't exist, so `isolatedModules` reports it and asks for `export type`."
+/>
+
+<Predict
+  id="type-only-class"
+  code={
+    "// accounts.ts\nexport class Account {\n  constructor(readonly owner: string) {}\n}\n\n// index.ts\nimport type { Account } from './accounts';\n\nconst ada = new Account('Ada');"
+  }
+  question="What happens to the last line of `index.ts`?"
+  options={[
+    'It compiles: Account is a class, so it is a value',
+    'It is an error: Account was imported with import type, so it can only be used as a type',
+    'It compiles, then throws at run time because the import was erased',
+  ]}
+  answer={1}
+  explanation="`import type` makes `Account` a type in `index.ts`, whatever it is in `accounts.ts`. Using it as a value is an error: `'Account' cannot be used as a value because it was imported using 'import type'.` Import it without `type` to construct accounts."
+/>
+
+## Further reading
+
+- [Handbook: Modules, TypeScript-specific ES module syntax](https://www.typescriptlang.org/docs/handbook/2/modules.html)
+- [TSConfig reference: verbatimModuleSyntax](https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax)
+- [TSConfig reference: isolatedModules](https://www.typescriptlang.org/tsconfig/#isolatedModules)
+- [TypeScript 3.8 release notes: type-only imports and exports](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-8.html)
+- [TypeScript 5.0 release notes: verbatimModuleSyntax](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html)
