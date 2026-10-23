@@ -5,6 +5,8 @@
 // diagnostics the build computed with the app's own core. Open in REPL is F5's action: a new
 // buffer named after the lesson with the snippet, then `/repl`. The block itself takes focus
 // and `Enter` on it runs Open in REPL (§6 theory keys, F8); the buttons are real buttons too.
+// A `plain` block (a fence in another language, after F13) is the highlighted text only: not
+// TypeScript, so nothing to run or open, and no focus of its own.
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useAppActions } from '@/app/app-actions';
 import { entryText, locText } from '@/app/output-entry';
@@ -106,6 +108,17 @@ export function CodeBlock({
         : { snippet: code, name: lesson.folder },
     );
   };
+
+  if (kind === 'plain') {
+    return (
+      <div
+        className="code-block"
+        data-kind={kind}
+        // Build-time output of shiki over the lesson's own source (§3).
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  }
 
   const onKeyDown = (event: React.KeyboardEvent): void => {
     if (event.target !== event.currentTarget || event.key !== 'Enter') return;

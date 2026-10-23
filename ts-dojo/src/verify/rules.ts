@@ -1,7 +1,8 @@
 // The §5 rule ids, their messages and which ones are always on, plus the two opt-in rules of
 // the pre-F13 fixes, `type-assertion` and `any-expression` (Kim's decision on 23 October 2026;
 // under Deviations in docs/progress.md), which also widened `as-unknown-as` to every double
-// assertion. The ts-ls worker's AST walk
+// assertion. After F13 (Kim, 23 October 2026) `type-utils-import` keeps `@dojo/type-utils` in
+// tests.ts, always on. The ts-ls worker's AST walk
 // (src/workers/ts-ls/rules.ts) produces the hits; exercises list ids in `forbid` (§3); the
 // verifier assembles the Rules group of the verdict from the hits (F7).
 
@@ -16,6 +17,7 @@ export const RULE_IDS = [
   'no-skipped-tests',
   'type-assertion',
   'any-expression',
+  'type-utils-import',
 ] as const;
 
 export type RuleId = (typeof RULE_IDS)[number];
@@ -25,6 +27,7 @@ export const ALWAYS_ON_RULES = [
   'ts-directive',
   'eval',
   'no-skipped-tests',
+  'type-utils-import',
 ] as const satisfies readonly RuleId[];
 
 export const RULE_MESSAGES: Record<RuleId, string> = {
@@ -42,6 +45,8 @@ export const RULE_MESSAGES: Record<RuleId, string> = {
     'a type assertion (`x as T`, `<T>x`) is not allowed; `as const` is fine',
   'any-expression':
     'this expression has type `any`; give it a type (an `any` passed to `unknown` is fine)',
+  'type-utils-import':
+    '@dojo/type-utils is for tests.ts; write the helper in your own file',
 };
 
 /** §5: the diagnostic codes the `implicit-any` rule reports (only reachable with noImplicitAny off). */

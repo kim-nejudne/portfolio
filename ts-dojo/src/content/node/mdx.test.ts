@@ -164,6 +164,40 @@ describe('the renderer', () => {
       styles: expect.any(Object) as Record<string, string>,
     });
   });
+
+  // After F13 (Kim, 23 October 2026): every other fence (`text`, `vim`, `js`) gets the code-block
+  // look too, highlighted in its own language when shiki has one, else as plain text.
+  it('a plain block is highlighted in its own language, with colour classes', async () => {
+    const block = await renderer.render(
+      'plain',
+      'const a = 1;',
+      { path: 'x.mdx', line: 1 },
+      'js',
+    );
+    expect(block).toEqual({
+      kind: 'plain',
+      code: 'const a = 1;',
+      html: expect.stringContaining('class="shiki') as string,
+      styles: expect.any(Object) as Record<string, string>,
+    });
+    expect(block.html).toMatch(/class="sk-[0-9a-z]+"[^>]*>const</);
+    expect(block.html).not.toContain('--shiki');
+  });
+
+  it('a plain block in a language shiki lacks, or none, is plain text, escaped', async () => {
+    for (const lang of ['text', 'no-such-language', undefined]) {
+      const block = await renderer.render(
+        'plain',
+        '<b>MIT</b> & "Software"',
+        { path: 'x.mdx', line: 1 },
+        lang,
+      );
+      expect(block.kind, String(lang)).toBe('plain');
+      expect(block.html, String(lang)).toContain('class="shiki');
+      expect(block.html, String(lang)).toContain('&#x3C;b>MIT&#x3C;/b>');
+      expect(block.html, String(lang)).not.toContain('<b>');
+    }
+  });
 });
 
 describe('concurrent renders', () => {
@@ -220,7 +254,7 @@ describe('codeBlockElement', () => {
 });
 
 describe('a compiled lesson', () => {
-  it('has every ts fence as a CodeBlock, the twoslash results inline, and imports only the JSX runtime', async () => {
+  it('has every fence as a CodeBlock, the twoslash results inline, and imports only the JSX runtime', async () => {
     const source = readFileSync(LESSON, 'utf8');
     const out = String(
       await compile(
@@ -238,6 +272,8 @@ describe('a compiled lesson', () => {
     expect(out).toContain('kind: "run"');
     expect(out).toContain('kind: "run-errors"');
     expect(out).toContain('kind: "twoslash"');
+    // After F13: the fixture's `text` fence is a CodeBlock too, not MDX's bare <pre>.
+    expect(out).toContain('kind: "plain"');
     expect(out).toContain('2322');
     // One stylesheet for the lesson's colour classes, and no inline colour styles.
     expect(out.match(/CodeStyles/g)?.length).toBeGreaterThanOrEqual(1);

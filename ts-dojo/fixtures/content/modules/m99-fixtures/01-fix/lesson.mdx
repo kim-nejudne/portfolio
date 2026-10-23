@@ -97,3 +97,9 @@ function area(shape: Shape): number {
 ## Further reading
 
 - [Narrowing: the `never` type and exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#the-never-type)
+
+The rule in one line, as a plain block:
+
+```text
+Shape = Circle | Square: <handle each> & "never" is left
+```

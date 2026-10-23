@@ -687,6 +687,85 @@ describe('lintAst, the pre-F13 rules', () => {
   });
 });
 
+// After F13 (Kim, 23 October 2026): `@dojo/type-utils` is for tests.ts. A solution that imports
+// `IsAny` or `UnionToIntersection` from it skips the challenge, so the rule is always on.
+describe('lintAst, type-utils-import', () => {
+  /** [file, line, column] (1-based) of the specifier on the first line containing `on`. */
+  const specifierAt = (
+    file: string,
+    text: string,
+    on: string,
+  ): [string, number, number] => {
+    const rows = text.split('\n');
+    const index = rows.findIndex((row) => row.includes(on));
+    if (index === -1) throw new Error(`no line with ${on}`);
+    return [file, index + 1, (rows[index] ?? '').indexOf("'@dojo") + 1];
+  };
+
+  it('flags every way a user file can name @dojo/type-utils, a declare module block included, with no rule asked for, and never in tests.ts', async () => {
+    const index = lines(
+      "import type { IsAny } from '@dojo/type-utils';",
+      "import * as utils from '@dojo/type-utils';",
+      "export type { Equal } from '@dojo/type-utils';",
+      "import legacy = require('@dojo/type-utils');",
+      "export type Merge<U> = import('@dojo/type-utils').UnionToIntersection<U>;",
+      "export const later = () => import('@dojo/type-utils');",
+      'export type Check = IsAny<1>;',
+      'export const u = [utils, legacy];',
+    );
+    const other = lines(
+      "export const name = '@dojo/type-utils';",
+      "export * from './index';",
+    );
+    // A script file can merge into the ambient module and hand its helpers to the global
+    // scope (`global { type MyIsAny<T> = IsAny<T> }`), so the block's name counts too.
+    const globals = lines(
+      "declare module '@dojo/type-utils' {",
+      '  global {',
+      '    type MyIsAny<T> = IsAny<T>;',
+      '  }',
+      '}',
+    );
+    const tests = lines(
+      "import type { Equal, Expect } from '@dojo/type-utils';",
+      "import type { Check } from './index';",
+      'type cases = [Expect<Equal<Check, false>>];',
+      'export type { cases };',
+    );
+    await core.openProject({
+      files: [
+        { path: '/index.ts', text: index },
+        { path: '/other.ts', text: other },
+        { path: '/globals.ts', text: globals },
+        { path: '/tests.ts', text: tests },
+      ],
+    });
+    const { hits } = core.lintAst(
+      ['/index.ts', '/other.ts', '/globals.ts', '/tests.ts'],
+      [],
+    );
+    expect(
+      hits
+        .filter((hit) => hit.rule === 'type-utils-import')
+        .map((hit) => [hit.file, hit.line, hit.column]),
+    ).toEqual(
+      [
+        'import type { IsAny }',
+        'import * as utils',
+        'export type { Equal }',
+        'import legacy',
+        'export type Merge',
+        'export const later',
+      ]
+        .map((on) => specifierAt('/index.ts', index, on))
+        .concat([specifierAt('/globals.ts', globals, 'declare module')]),
+    );
+    expect(hits.find((hit) => hit.rule === 'type-utils-import')?.message).toBe(
+      RULE_MESSAGES['type-utils-import'],
+    );
+  });
+});
+
 describe('runTypeTests (§12 F2 criterion 8)', () => {
   it('groups diagnostics into cases as §5 describes, including the TS2578 case, and reports stray diagnostics as outsideCases', async () => {
     const tests = lines(
