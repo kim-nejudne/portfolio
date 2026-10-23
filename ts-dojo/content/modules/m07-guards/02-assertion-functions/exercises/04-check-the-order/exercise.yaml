@@ -24,7 +24,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - The checks are the ones a guard would make, written so that a failed check throws instead of returning false.
   - Inside the class, an assertion method can call another one on `this`, so `assertOrder` need not repeat the item checks.

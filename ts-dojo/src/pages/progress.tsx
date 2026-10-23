@@ -29,7 +29,7 @@ import { resetEverything, resetLesson, resetModule } from '@/store/reset';
 import { browserStorage, readSettings } from '@/store/settings';
 import { summarize, type Counts } from '@/store/summary';
 import { useLiveQuery } from '@/store/use-live-query';
-import { STATE_LABEL } from './module';
+import { OptionalTag, STATE_LABEL } from './module';
 import { checkImportedCompilerDefaults } from './progress/check-settings';
 import { ImportDialog } from './progress/import-dialog';
 import { ResetDialog, type ResetRequest } from './progress/reset-dialog';
@@ -230,6 +230,7 @@ export function ProgressPage() {
                 >
                   <th scope="row" className="py-1 pl-4 text-left font-normal">
                     {lesson.title}
+                    {lesson.optional && <OptionalTag />}
                   </th>
                   <td data-field="state">{STATE_LABEL[lesson.state]}</td>
                   <CountCells counts={lesson} />

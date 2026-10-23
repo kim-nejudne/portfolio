@@ -131,6 +131,25 @@ throw new Error('late');`,
     }
   });
 
+  it('runs the DOM-shaped timers /dojo/runtime.d.ts declares: a resolve as the handler, and extra arguments (pre-F13)', async () => {
+    const runner = createNodeSandboxRunner(() => Promise.resolve([]));
+    const modules = emit({
+      '/index.ts': `await new Promise<void>((resolve) => setTimeout(resolve, 5));
+setTimeout((a: number, b: string) => console.log(a, b), 1, 2, 'x');
+const id = setInterval((label: string) => { console.log(label); clearInterval(id); }, 1, 'tick');`,
+    });
+    try {
+      await runner.start(modules, '/index.ts', { timeoutMs: 10_000 });
+      const state = await settled(runner);
+      expect(state.status).toMatchObject({ kind: 'done' });
+      expect(
+        state.entries.map((e) => (e.kind === 'console' ? e.text : e.kind)),
+      ).toEqual(['2 x', 'tick']);
+    } finally {
+      runner.dispose();
+    }
+  });
+
   it('is terminated at the deadline when a test spins forever', async () => {
     const runner = createNodeSandboxRunner(() => Promise.resolve([]));
     const modules = emit({

@@ -9,6 +9,7 @@ import {
   lessonShape,
   lessonStateOf,
   moduleState,
+  partitionLessons,
   remainingMessage,
   unansweredQuestions,
   type LessonShape,
@@ -83,6 +84,38 @@ describe('lessonStateOf and moduleState', () => {
     expect(moduleState(['in-progress', 'not-started'])).toBe('in-progress');
     expect(moduleState(['not-started', 'not-started'])).toBe('not-started');
     expect(moduleState([])).toBe('not-started');
+  });
+
+  it('optional lessons (pre-F13) never block their module, but starting one starts it', () => {
+    expect(moduleState(['complete', 'complete'], ['not-started'])).toBe(
+      'complete',
+    );
+    expect(moduleState(['complete', 'complete'], ['in-progress'])).toBe(
+      'complete',
+    );
+    expect(moduleState(['not-started', 'not-started'], ['complete'])).toBe(
+      'in-progress',
+    );
+    expect(moduleState(['not-started'], ['not-started'])).toBe('not-started');
+    expect(moduleState(['complete', 'in-progress'], ['complete'])).toBe(
+      'in-progress',
+    );
+  });
+
+  it('a module with only optional lessons completes when they all do', () => {
+    expect(moduleState([], ['complete', 'complete'])).toBe('complete');
+    expect(moduleState([], ['complete', 'not-started'])).toBe('in-progress');
+  });
+});
+
+describe('partitionLessons', () => {
+  it('splits ids into core and optional, keeping the order', () => {
+    const optional = new Set(['m/02', 'm/04']);
+    expect(
+      partitionLessons(['m/01', 'm/02', 'm/03', 'm/04'], (id) =>
+        optional.has(id),
+      ),
+    ).toEqual({ core: ['m/01', 'm/03'], optional: ['m/02', 'm/04'] });
   });
 });
 

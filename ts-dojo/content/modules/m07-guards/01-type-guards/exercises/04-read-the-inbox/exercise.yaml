@@ -22,7 +22,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - Check what every kind shares first, an object with a string `from` and some `type`, and return early when that fails.
   - A `switch` on the `type` property can then check the properties of each kind, with a `default` for every other value.

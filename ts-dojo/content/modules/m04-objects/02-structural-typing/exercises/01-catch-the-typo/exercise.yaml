@@ -14,7 +14,7 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as]
+forbid: [explicit-any, as-unknown-as, type-assertion]
 hints:
   - The message on `save` already suggests the name `ButtonOptions` uses.
   - Annotate `deleteOptions` before you look for the second typo, then read the new error.

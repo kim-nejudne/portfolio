@@ -2,8 +2,12 @@
 // entries in docs/progress.md). The §2 defaults use `lib: ["es2025"]` with no DOM, so `console`
 // and the timers are undeclared; /dojo/runtime.d.ts declares what the sandbox provides at run
 // time: exactly the prelude's console shim (src/workers/sandbox/prelude.ts) and the timers it
-// wraps, plus the worker's own `queueMicrotask`. It is left out when the project's lib set
-// already declares them (dom, webworker), where it would clash. A project with a tests.ts also
+// wraps, plus the worker's own `queueMicrotask`. The timers take DOM's handler, `Function`
+// (pre-F13 fixes, Kim's decisions on 23 October 2026), so `setTimeout(resolve, ms)` compiles
+// and an unannotated callback parameter is TS7006, as with the DOM lib; DOM's string handler
+// (`TimerHandler = string | Function`) is left out, since the shim calls the handler. The
+// file is left out when the project's lib set already declares these (dom, webworker), where
+// it would clash. A project with a tests.ts also
 // gets /dojo/test-harness.d.ts (the §5 `test`, `test.skip` and `expect` the sandbox harness
 // defines as globals, src/workers/sandbox/harness.ts) and /dojo/type-utils.d.ts (the
 // `@dojo/type-utils` module, src/verify/type-utils.ts). Paths under /dojo/ are reserved: never
@@ -22,9 +26,9 @@ interface DojoConsole {
   debug(...args: unknown[]): void;
 }
 declare const console: DojoConsole;
-declare function setTimeout(callback: (...args: unknown[]) => void, ms?: number, ...args: unknown[]): number;
+declare function setTimeout(handler: Function, timeout?: number, ...args: any[]): number;
 declare function clearTimeout(id: number | undefined): void;
-declare function setInterval(callback: (...args: unknown[]) => void, ms?: number, ...args: unknown[]): number;
+declare function setInterval(handler: Function, timeout?: number, ...args: any[]): number;
 declare function clearInterval(id: number | undefined): void;
 declare function queueMicrotask(callback: () => void): void;
 `;
@@ -44,7 +48,7 @@ interface DojoMatchers<R> {
   /** Structural: arrays, plain objects, Map, Set, Date. */
   toEqual(expected: unknown): R;
   toBeCloseTo(expected: number, digits?: number): R;
-  /** The received function throws; with a message, the error message contains or matches it. */
+  /** The received function throws (under .rejects, the reason is what was thrown); with a message, the error message contains or matches it. */
   toThrow(message?: string | RegExp): R;
   toBeInstanceOf(constructor: abstract new (...args: never[]) => unknown): R;
   /** An array element (Object.is) or a substring. */

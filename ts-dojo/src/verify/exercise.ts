@@ -90,8 +90,13 @@ export interface VerifyOptions {
   defaultTimeoutMs?: number;
 }
 
-/** The note §5 attaches to a tests.ts diagnostic outside every case range. */
-export const TEST_FILE_NOTE = 'test file does not compile';
+/**
+ * The note §5 attaches to a tests.ts diagnostic outside every case range, worded neutrally
+ * (pre-F13 fixes, Kim's decision on 23 October 2026; §5 says "test file does not compile"):
+ * a wrong export name and an implement starter that isn't generic yet both land here.
+ */
+export const TEST_FILE_NOTE =
+  'tests.ts does not compile against your code; see its first diagnostic';
 
 /** §5 Rules: `explicit-any` is on by default for `type-challenge`; the always-on rules are the core's. */
 export function rulesFor(

@@ -3,6 +3,7 @@
 // diagnostics; a project without one does not see them.
 import { describe, expect, it } from 'vitest';
 import {
+  AMBIENT_RUNTIME_DTS,
   AMBIENT_RUNTIME_PATH,
   AMBIENT_TEST_HARNESS_PATH,
   AMBIENT_TYPE_UTILS_PATH,
@@ -86,6 +87,53 @@ test.skip('later', () => undefined);`,
     expect(core.projectPaths()).toEqual(['/index.ts', AMBIENT_RUNTIME_PATH]);
     const { diagnostics } = core.getDiagnostics(['/index.ts']);
     expect(diagnostics.map((d) => d.code)).toEqual([2593]);
+    core.dispose();
+  });
+});
+
+// Pre-F13 fixes (Kim, 23 October 2026): the timers take DOM's handler, `Function` (DOM's
+// `TimerHandler` without the string the shim can't run), so a promise's `resolve` passes
+// straight to setTimeout, and an unannotated callback parameter is TS7006 as with the DOM lib.
+const TIMERS = `export const sleep = (ms: number): Promise<void> =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const tick = (label: string): void => console.log(label);
+const id = setInterval(tick, 5, 'a');
+clearInterval(id);
+export const later = setTimeout((a: number, b: string) => [a, b], 1, 2, 'x');`;
+
+describe('/dojo/runtime.d.ts timers', () => {
+  it("declare setTimeout and setInterval with DOM's handler, Function", () => {
+    expect(AMBIENT_RUNTIME_DTS).toContain(
+      'declare function setTimeout(handler: Function, timeout?: number, ...args: any[]): number;',
+    );
+    expect(AMBIENT_RUNTIME_DTS).toContain(
+      'declare function setInterval(handler: Function, timeout?: number, ...args: any[]): number;',
+    );
+  });
+
+  it('give an unannotated callback parameter no silent any: TS7006, as with the DOM lib', async () => {
+    const core = createTsLsCore({ fetchLib: nodeFetchLib });
+    await core.init();
+    await core.openProject({
+      files: [{ path: '/index.ts', text: 'setTimeout((x) => x.foo(), 1);\n' }],
+    });
+    expect(
+      core.getDiagnostics(['/index.ts']).diagnostics.map((d) => d.code),
+    ).toEqual([7006]);
+    core.dispose();
+  });
+
+  it('accept a promise resolve and extra arguments with zero diagnostics, and the any in the app file is no rule hit', async () => {
+    const core = createTsLsCore({ fetchLib: nodeFetchLib });
+    await core.init();
+    await core.openProject({ files: [{ path: '/index.ts', text: TIMERS }] });
+    const { diagnostics } = core.getDiagnostics(['/index.ts']);
+    expect(diagnostics.map((d) => `${String(d.line)}: ${d.message}`)).toEqual(
+      [],
+    );
+    expect(
+      core.lintAst(['/index.ts'], ['explicit-any', 'any-expression']).hits,
+    ).toEqual([]);
     core.dispose();
   });
 });

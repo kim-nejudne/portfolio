@@ -15,7 +15,8 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, angle-cast]
+forbid:
+  [explicit-any, as-unknown-as, angle-cast, type-assertion, any-expression]
 hints:
   - The error says the code uses `price` before anything has shown what it holds. Giving the parameter another type would only move the problem to the callers.
   - A `typeof` check is ordinary JavaScript, and inside its `if` the compiler knows the type.

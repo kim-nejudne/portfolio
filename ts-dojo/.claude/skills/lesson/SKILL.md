@@ -10,7 +10,7 @@ Lesson: `$0`, a lesson id `<module-id>/<NN-slug>` such as `m03-unions/03-narrowi
 
 ## 1. The §8 entry
 
-docs/spec.md §8 is the curriculum. Find the lesson's row: the module (`M03 Unions and narrowing (M02)` gives the title and the prerequisite modules), the lesson number and title (`3.3 Narrowing: typeof, truthiness, equality, in, instanceof`), the minutes, and `(opt)` for optional lessons. The folder is `NN-<slug>` with `NN` the lesson number, two digits; the slug is short and stable. Ids already fixed by the spec: modules `m01-types`, `m02-functions`, `m03-unions`, `m04-objects`; lessons `m03-unions/01-union-and-literal-types`, `02-null-undefined-strict`, `03-narrowing`. Everything else is chosen the first time a module is written and never renamed afterwards (§7: a rename goes through `content/renames.yaml`). Lessons that teach TypeScript 7 behaviour (16.4, parts of 16.1–16.3) say so with a `ts7` callout; the compiler in the app is 6.0.3.
+docs/spec.md §8 is the curriculum. Find the lesson's row: the module (`M03 Unions and narrowing (M02)` gives the title and the prerequisite modules), the lesson number and title (`3.3 Narrowing: typeof, truthiness, equality, in, instanceof`), the minutes, and `(opt)` for optional lessons, which set `optional: true` in the frontmatter. The folder is `NN-<slug>` with `NN` the lesson number, two digits; the slug is short and stable. Ids already fixed by the spec: modules `m01-types`, `m02-functions`, `m03-unions`, `m04-objects`; lessons `m03-unions/01-union-and-literal-types`, `02-null-undefined-strict`, `03-narrowing`. Everything else is chosen the first time a module is written and never renamed afterwards (§7: a rename goes through `content/renames.yaml`). Lessons that teach TypeScript 7 behaviour (16.4, parts of 16.1–16.3) say so with a `ts7` callout; the compiler in the app is 6.0.3.
 
 ## 2. Files (spec §3)
 
@@ -48,6 +48,7 @@ Frontmatter (§1), then the body in this order (§1): **Concept**, **Examples**,
 | `prerequisites` | lesson ids; "recommended first", never a lock |
 | `tags` | free text for the command palette |
 | `ts7` | optional note when behaviour differs in TypeScript 7 |
+| `optional` | `true` for a lesson §8 marks `(opt)`: tagged "optional" on the module page and `/progress`, counted on the roadmap card as "1 optional lesson", and left out of module completion and of the lesson counts (the lesson itself still completes as usual). Default `false`. A pre-F13 field, under Deviations in docs/progress.md |
 
 - **Concept**: what it is and why it exists, in plain words, with the smallest example.
 - **Examples**: runnable snippets (`ts run`, or `ts twoslash` when the point is an inferred type). Each gets Run and Open in REPL from the renderer.
@@ -119,7 +120,7 @@ Default compiler options for every exercise and REPL buffer (§2), overridden on
 Verification runs four groups (§5); a group the exercise doesn't define counts as passed, and **Compiles** runs first and stops everything if it fails.
 
 - **Compiles.** Every user file has zero diagnostics except inside type-case ranges. `@ts-ignore`, `@ts-nocheck` and `@ts-expect-error` in any user file other than `tests.ts` always fail the exercise (as built, the always-on `ts-directive` rule fails the Rules group; see Spec questions, F11).
-- **Type cases.** `tests.ts` imports from the solution's files and from `@dojo/type-utils` (type-challenges' utils, MIT): `Expect`, `Equal`, `NotEqual`, `IsAny`, `IsTrue`, `IsFalse`, `Alike`, `ExpectExtends`, `ExpectValidArgs`. A case is each element of a tuple type alias whose name starts with `cases`, named by a trailing `// name` comment (else `case N`), and each statement whose leading comment is `@ts-expect-error`. Write that directive bare (`// @ts-expect-error` alone on its line) and name the case with a trailing `// name` comment on the statement below it, as the reference's `02-describe-the-events/tests.ts` does. A case fails when any diagnostic falls in its range; an unused `@ts-expect-error` produces TS2578 inside the range, so a line that should error and no longer does fails by itself. Diagnostics in `tests.ts` outside any case fail Compiles with "test file does not compile" (usually a wrong export name).
+- **Type cases.** `tests.ts` imports from the solution's files and from `@dojo/type-utils` (type-challenges' utils, MIT): `Expect`, `Equal`, `NotEqual`, `IsAny`, `IsTrue`, `IsFalse`, `Alike`, `ExpectExtends`, `ExpectValidArgs`. A case is each element of a tuple type alias whose name starts with `cases`, named by a trailing `// name` comment (else `case N`), and each statement whose leading comment is `@ts-expect-error`. Write that directive bare (`// @ts-expect-error` alone on its line) and name the case with a trailing `// name` comment on the statement below it, as the reference's `02-describe-the-events/tests.ts` does. A case fails when any diagnostic falls in its range; an unused `@ts-expect-error` produces TS2578 inside the range, so a line that should error and no longer does fails by itself. Diagnostics in `tests.ts` outside any case fail Compiles with "tests.ts does not compile against your code; see its first diagnostic" (a wrong export name, or an implement starter that isn't generic yet when the prompt names that diagnostic).
 - **Runtime tests.** The sandbox prelude defines `test(name, fn)`, `test.skip`, and `expect(value)` with `toBe`, `toEqual` (structural: arrays, plain objects, Map, Set, Date), `toBeCloseTo`, `toThrow(message?)`, `toBeInstanceOf`, `toContain`, `toHaveLength`, `toBeUndefined`, `toBeNull`, `resolves`, `rejects` and `.not`. They are globals in `tests.ts`, no import. Tests run one at a time, each with a 1 s timeout; the solution module's top-level code runs once when the test file imports it.
 - **Rules** (`forbid`), checked by an AST walk of every user file:
 
@@ -128,11 +129,15 @@ Verification runs four groups (§5); a group the exercise doesn't define counts 
 | `ts-directive` | `@ts-ignore`, `@ts-nocheck`, `@ts-expect-error` outside `tests.ts` | always on, can't be turned off |
 | `explicit-any` | `any` anywhere | on for `type-challenge`, off otherwise |
 | `implicit-any` | diagnostics 7006 and 7031 (only when a lesson turns `noImplicitAny` off) | off |
-| `as-unknown-as` | `x as unknown as T` | off |
+| `as-unknown-as` | any double assertion: `x as unknown as T`, `x as object as T`, `x as {} as T`, `<T><unknown>x` (an inner `as const` is fine) | off |
 | `non-null-assertion` | `x!` | off |
 | `angle-cast` | `<T>x` | off |
 | `eval` | `eval` or `new Function` | always on |
 | `no-skipped-tests` | `test.skip` in `tests.ts` | always on |
+| `type-assertion` | a plain `x as T` or `<T>x` outside `tests.ts`; `as const` and `<const>x` are fine | off |
+| `any-expression` | outside `tests.ts`, a used expression of type `any` where the `any` first appears: `JSON.parse(text)` used directly, `Object(x)`, `Reflect.get`, a `.catch((err) => err.message)` reason, an `Array.isArray(u)` element, a read of a variable holding an `any`. Fine when it flows straight into `unknown` (`const data: unknown = JSON.parse(text)`, `console.log(...)`, `JSON.parse(text) as unknown`) | off |
+
+`type-assertion` and `any-expression` are the pre-F13 rules (under Deviations in docs/progress.md). Forbid them where the lesson is narrowing an `unknown` honestly or checking a shape with `satisfies`, so a cast or a library `any` can't skip it; `type-assertion` alone is forbidden in 3.1/03, 3.3/03, 3.4/04, 4.2/01, 7.3/02, 7.4/02 and 7.4/04; both rules in 1.4/01, 1.4/04, 5.5/01, 5.5/04, 7.1/02, 7.1/04, 7.2/01, 7.2/02, 7.2/04, 9.4/01, 9.4/03 and 9.4/04. Every shipped solution passes them.
 
 Choose `forbid` so the exercise can't be passed by a trick the lesson doesn't teach, and write tests that fail on the shortcut too: a `never` check defeated with `as never` still fails the runtime test for the case it skipped. A rule id not in this table doesn't exist; a new rule is a spec question.
 
@@ -166,10 +171,11 @@ Walk this list before running the lint.
 - **Links exist at lint time.** A `<Lesson>` link or a `prerequisites` entry must name a lesson that already exists. Name a lesson not yet written in plain text and link it once it lands.
 - **`ts run` fences** are one file under the §2 defaults. To show a flag or several files, use a `ts twoslash` block with `// @filename:` and `// @<flag>: …`.
 - **`@ts-expect-error` cases.** Prettier can split a long statement under a bare directive, which moves the error off the covered line, so keep those statements short and format before the final lint. A call statement under the directive still runs when `tests.ts` loads; declare it inside an arrow function that is never called.
-- **Name the failure.** A call written outside any case fails as "test file does not compile". When callers holding a union must still work, write it as an `ExpectValidArgs` case.
+- **Name the failure.** A call written outside any case fails Compiles with the tests.ts note ("tests.ts does not compile against your code"). When callers holding a union must still work, write it as an `ExpectValidArgs` case.
 - **`.d.ts` files.** With `skipLibCheck: true`, an editable `.d.ts` gets no diagnostics. Keep declarations the learner edits in `.ts` files, and use `types/*.d.ts` only for read-only ones.
-- **Async tests.** `expect(p).rejects.toThrow(msg)` doesn't match an `Error` reason's message (Spec questions, F12). Use `rejects.toBeInstanceOf(Error)`, or catch and inspect.
-- **What no rule catches:** a plain `as T`, an `any` that comes from a library call (`JSON.parse`, `Object()`), and a type written out by hand where the prompt asks to derive it. Make the tests stop whatever skips the lesson's point, and accept the rest.
+- **Async tests.** Since the pre-F13 fixes, `await expect(p).rejects.toThrow('timeout')` checks the rejection reason's message (a string must be in it, a RegExp must match it), as Jest does. 9.3 and 9.4 were written before that and use `rejects.toBeInstanceOf(Error)`, which still works.
+- **Timers.** `setTimeout` and `setInterval` take DOM's handler, `Function`, so `new Promise<void>((resolve) => setTimeout(resolve, ms))` compiles. A callback that takes arguments needs its parameters annotated (TS7006 otherwise, as with DOM).
+- **What no rule catches:** a type written out by hand where the prompt asks to derive it, and a construct the prompt asks for (a parameter property, a call signature). A plain cast and a library `any` are caught only where the exercise forbids `type-assertion` and `any-expression`. Make the tests stop whatever skips the lesson's point, and accept the rest.
 
 ## 8. Procedure
 

@@ -258,6 +258,49 @@ test.describe('§12 F6: a ts twoslash block renders its ^? results at build time
   });
 });
 
+// Pre-F13 fixes (Kim, 23 October 2026, the §9 precache): shiki's inline colour styles became
+// classes, with one stylesheet per lesson. The tokens still take the light theme's colours in
+// light mode and the dark theme's in dark mode.
+test.describe('pre-F13: theory tokens are coloured by class, in both themes', () => {
+  const hexToRgb = (hex: string): string => {
+    const n = Number.parseInt(hex.slice(1), 16);
+    return `rgb(${String((n >> 16) & 255)}, ${String((n >> 8) & 255)}, ${String(n & 255)})`;
+  };
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`01-fix in ${scheme} mode: no inline colour style, one lesson stylesheet, and a keyword in its ${scheme} colour`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await gotoLesson(page, '01-fix');
+      const article = theory(page);
+      await expect(article.locator('pre.shiki').first()).toBeVisible();
+      await expect(article.locator('[style*="--shiki"]')).toHaveCount(0);
+      const sheet = article.locator('style[data-code-styles]');
+      await expect(sheet).toHaveCount(1);
+      const css = (await sheet.textContent()) ?? '';
+
+      const keyword = codeBlocks(page, 'run')
+        .locator('pre.shiki span[class^="sk-"]')
+        // Shiki merges a line's indentation into its first token.
+        .filter({ hasText: /^\s*const$/ })
+        .first();
+      await expect(keyword).toBeVisible();
+      const name = (await keyword.getAttribute('class')) ?? '';
+      const rule = new RegExp(
+        `\\.${name}\\{--shiki-light:(#[0-9a-fA-F]{6});--shiki-dark:(#[0-9a-fA-F]{6})`,
+      ).exec(css);
+      expect(rule, `the stylesheet has a rule for .${name}`).not.toBeNull();
+      const [, light, dark] = rule ?? [];
+      expect(light).not.toBe(dark);
+      await expect(keyword).toHaveCSS(
+        'color',
+        hexToRgb((scheme === 'light' ? light : dark) ?? ''),
+      );
+    });
+  }
+});
+
 test.describe('§12 F6: ts run blocks have Run and Open in REPL; ts run errors blocks show their diagnostics', () => {
   test('01-fix: the run block has both buttons, Run prints the two lines under it and reports done in N ms', async ({
     page,

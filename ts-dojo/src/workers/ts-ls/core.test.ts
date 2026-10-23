@@ -7,7 +7,7 @@
 // Plus the requests F3 needs (completions, signature help, definition) and the path checks.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { OpenProjectSpec } from '@/protocol/ts-ls';
-import type { RuleId } from '@/verify/rules';
+import { RULE_MESSAGES, type RuleId } from '@/verify/rules';
 import { AMBIENT_RUNTIME_PATH } from './ambient';
 import {
   createTsLsCore,
@@ -552,6 +552,138 @@ describe('lintAst (§12 F2 criterion 7)', () => {
     expect(() => core.lintAst(['/index.ts'], ['no-console' as RuleId])).toThrow(
       /unknown rule no-console/,
     );
+  });
+});
+
+// Pre-F13 fixes (Kim, 23 October 2026): `as-unknown-as` widened to every double assertion,
+// and two opt-in rules, `type-assertion` and `any-expression`.
+describe('lintAst, the pre-F13 rules', () => {
+  /** [line, column] (1-based) of the first `needle` on a line containing `on`. */
+  const at = (
+    text: string,
+    on: string,
+    needle: string = on,
+  ): [number, number] => {
+    const rows = text.split('\n');
+    const index = rows.findIndex((row) => row.includes(on));
+    if (index === -1) throw new Error(`no line with ${on}`);
+    return [index + 1, (rows[index] ?? '').indexOf(needle) + 1];
+  };
+  const hitsOf = (paths: string[], rule: RuleId): [string, number, number][] =>
+    core
+      .lintAst(paths, [rule])
+      .hits.filter((hit) => hit.rule === rule)
+      .map((hit) => [hit.file, hit.line, hit.column]);
+
+  it('as-unknown-as catches every double assertion, through parentheses and angle brackets, but not an inner as const', async () => {
+    const index = lines(
+      'declare const u: unknown;',
+      'export const a = u as unknown as string;',
+      'export const b = u as object as { n: number };',
+      'export const c = u as {} as string;',
+      'export const d = <string>(<unknown>u);',
+      'export const e = (u as any) as string;',
+      'export const f = <string>(u as unknown);',
+      'export const g = [1, 2] as const as readonly number[];',
+      'export const h = u as string;',
+    );
+    await core.openProject({ files: [{ path: '/index.ts', text: index }] });
+    expect(hitsOf(['/index.ts'], 'as-unknown-as')).toEqual(
+      ['const a', 'const b', 'const c', 'const d', 'const e', 'const f']
+        .map((name) => ['/index.ts', ...at(index, name, 'u')] as const)
+        .map(([file, line]) => [file, line, 18]),
+    );
+    const message = core
+      .lintAst(['/index.ts'], ['as-unknown-as'])
+      .hits.find((hit) => hit.rule === 'as-unknown-as')?.message;
+    expect(message).toBe(RULE_MESSAGES['as-unknown-as']);
+  });
+
+  it('type-assertion flags as T and <T>x in user files, allows as const and <const>, and leaves tests.ts alone', async () => {
+    const index = lines(
+      'declare const u: unknown;',
+      'export const a = u as string;',
+      "export const b = ['x'] as const;",
+      "export const c = <const>['y'];",
+      'export const d = <string>u;',
+      'export const e = { n: 1 } satisfies { n: number };',
+    );
+    const tests = lines(
+      'declare const v: unknown;',
+      'export const t = v as number;',
+    );
+    await core.openProject({
+      files: [
+        { path: '/index.ts', text: index },
+        { path: '/tests.ts', text: tests },
+      ],
+    });
+    expect(hitsOf(['/index.ts', '/tests.ts'], 'type-assertion')).toEqual([
+      ['/index.ts', ...at(index, 'const a', 'u')],
+      ['/index.ts', ...at(index, 'const d', '<string>')],
+    ]);
+  });
+
+  it('any-expression flags where an any first appears, unless it flows into unknown, and never in tests.ts', async () => {
+    const other = lines('export const o = 1;');
+    const index = lines(
+      "import { o } from './other';",
+      "type Theme = 'light' | 'dark';",
+      "type Shape = { kind: 'circle'; r: number } | { kind: 'square' };",
+      'export const theme: Theme = o > 0 ? `light` : `dark`;',
+      "export const shape: Shape = { kind: 'square' };",
+      'declare const text: string;',
+      'declare const u: unknown;',
+      'export const direct = JSON.parse(text).name;',
+      'export const safe: unknown = JSON.parse(text);',
+      'console.log(JSON.parse(text), o);',
+      'export const cast = JSON.parse(text) as unknown;',
+      'export const boxed = Object(text);',
+      'export const loose = text as any;',
+      "export const p = Promise.reject(new Error('x')).catch((err) => err.message);",
+      'export const first = Array.isArray(u) ? u[0] : undefined;',
+      'export class Wallet {',
+      '  #cents = 0;',
+      '  add(n: number): number {',
+      '    this.#cents += n;',
+      '    return this.#cents;',
+      '  }',
+      '}',
+      'export async function* pages() {',
+      '  yield 1;',
+      '}',
+      'let raw;',
+      'raw = JSON.parse(text);',
+      'export const rawName: unknown = raw.name;',
+    );
+    const tests = lines(
+      "import { direct } from './index';",
+      "export const t = [direct, JSON.parse('1')];",
+    );
+    await core.openProject({
+      files: [
+        { path: '/index.ts', text: index },
+        { path: '/other.ts', text: other },
+        { path: '/tests.ts', text: tests },
+      ],
+    });
+    expect(
+      core.getDiagnostics(['/index.ts', '/other.ts', '/tests.ts']).diagnostics,
+    ).toEqual([]);
+    expect(
+      hitsOf(['/index.ts', '/other.ts', '/tests.ts'], 'any-expression'),
+    ).toEqual([
+      ['/index.ts', ...at(index, 'const direct', 'JSON')],
+      ['/index.ts', ...at(index, 'const boxed', 'Object')],
+      ['/index.ts', ...at(index, 'const loose', 'text')],
+      ['/index.ts', ...at(index, 'const p', 'err.')],
+      ['/index.ts', ...at(index, 'const first', 'u[0]')],
+      // Written to, `raw` is no use of an any; read, it is.
+      ['/index.ts', ...at(index, 'raw = JSON', 'JSON')],
+      ['/index.ts', ...at(index, 'const rawName', 'raw.')],
+    ]);
+    const { hits } = core.lintAst(['/index.ts'], ['any-expression']);
+    expect(hits[0]?.message).toBe(RULE_MESSAGES['any-expression']);
   });
 });
 

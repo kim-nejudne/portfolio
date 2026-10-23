@@ -644,6 +644,7 @@ export function createTsLsCore(options: TsLsCoreOptions): TsLsCore {
           ...lintSourceFile(sourceFile, active, {
             isTestFile: isTestFile(path),
             implicitAny: implicitAny.get(path) ?? [],
+            checker: program.getTypeChecker(),
           }),
         );
       }

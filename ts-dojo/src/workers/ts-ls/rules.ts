@@ -1,6 +1,8 @@
 // The §5 AST rules, run by the ts-ls core's `lintAst`: one `ts.forEachChild` walk per user
 // file plus a comment walk for `ts-directive`. Every hit carries the rule, the file, the line
-// and the column. The ids, messages and the always-on set are src/verify/rules.ts.
+// and the column. The ids, messages and the always-on set are src/verify/rules.ts. The pre-F13
+// fixes widened `as-unknown-as` to every double assertion and added `type-assertion` and
+// `any-expression`; the last reads types, so the walk gets the program's checker.
 import ts from 'typescript';
 import type { Diag, RuleHit } from '@/protocol/ts-ls';
 import { RULE_MESSAGES, type RuleId } from '@/verify/rules';
@@ -10,6 +12,8 @@ export interface LintContext {
   isTestFile: boolean;
   /** The file's diagnostics with the §5 `implicit-any` codes (7006, 7031). */
   implicitAny: readonly Diag[];
+  /** The project's checker, for `any-expression`. */
+  checker: ts.TypeChecker;
 }
 
 // The compiler's own forms (parser.ts commentDirectiveRegExSingleLine / MultiLine), with
@@ -58,10 +62,84 @@ function unparenthesize(expression: ts.Expression): ts.Expression {
   return current;
 }
 
-function isAsUnknown(expression: ts.Expression): boolean {
-  const inner = unparenthesize(expression);
+function isAssertion(
+  node: ts.Node,
+): node is ts.AsExpression | ts.TypeAssertion {
+  return ts.isAsExpression(node) || ts.isTypeAssertionExpression(node);
+}
+
+/** `as const` and `<const>x`: checked by the compiler like any literal, so no escape. */
+function isConstAssertion(node: ts.Node): boolean {
+  return isAssertion(node) && ts.isConstTypeReference(node.type);
+}
+
+/**
+ * `as-unknown-as`: an `as` or `<T>` whose unparenthesised operand is another one (`x as unknown
+ * as T`, `x as object as T`, `<T><unknown>x`), unless the inner one is `as const`.
+ */
+function isDoubleAssertion(node: ts.Node): boolean {
+  if (!isAssertion(node)) return false;
+  const inner = unparenthesize(node.expression);
+  return isAssertion(inner) && !isConstAssertion(inner);
+}
+
+function isImportOrExport(node: ts.Node): boolean {
   return (
-    ts.isAsExpression(inner) && inner.type.kind === ts.SyntaxKind.UnknownKeyword
+    ts.isImportDeclaration(node) ||
+    ts.isExportDeclaration(node) ||
+    ts.isExternalModuleReference(node)
+  );
+}
+
+/**
+ * An expression whose value the code uses, as `any-expression` reads it (the walk never asks
+ * inside a type): not a name that declares something or names a property (`#private`
+ * included), not a module specifier, not the target of a plain `=` (a write), and not the
+ * discarded value of an expression statement (an unused `yield`).
+ */
+function isUsedValue(node: ts.Node, parent: ts.Node | undefined): boolean {
+  if (parent === undefined || !ts.isExpression(node)) return false;
+  if (ts.isPrivateIdentifier(node)) return false;
+  if ('name' in parent && (parent as { name?: ts.Node }).name === node) {
+    return false;
+  }
+  if (ts.isStringLiteral(node) && isImportOrExport(parent)) return false;
+  if (ts.isExpressionStatement(parent)) return false;
+  if (
+    ts.isBinaryExpression(parent) &&
+    parent.left === node &&
+    parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  ) {
+    return false;
+  }
+  return !ts.isIdentifier(node) || isReference(node, parent);
+}
+
+function hasTypeAny(checker: ts.TypeChecker, node: ts.Node): boolean {
+  return (checker.getTypeAtLocation(node).flags & ts.TypeFlags.Any) !== 0;
+}
+
+/**
+ * `any-expression`: a used value of type `any`, reported where the `any` first appears (none of
+ * its operands is `any`), unless it flows straight into `unknown` (a declaration, a parameter
+ * or an assertion of type `unknown` is its contextual type).
+ */
+function isAnyOrigin(
+  checker: ts.TypeChecker,
+  node: ts.Node,
+  parent: ts.Node | undefined,
+): boolean {
+  if (!isUsedValue(node, parent) || !hasTypeAny(checker, node)) return false;
+  let operandIsAny = false;
+  ts.forEachChild(node, (child) => {
+    if (isUsedValue(child, node) && hasTypeAny(checker, child)) {
+      operandIsAny = true;
+    }
+  });
+  if (operandIsAny) return false;
+  const contextual = checker.getContextualType(node as ts.Expression);
+  return (
+    contextual === undefined || (contextual.flags & ts.TypeFlags.Unknown) === 0
   );
 }
 
@@ -184,16 +262,33 @@ export function lintSourceFile(
     }
   }
 
-  const visit = (node: ts.Node, parent: ts.Node | undefined): void => {
+  // `inType`: inside a type annotation, alias or literal type, where expressions are types.
+  const visit = (
+    node: ts.Node,
+    parent: ts.Node | undefined,
+    inType: boolean,
+  ): void => {
     if (rules.has('explicit-any') && node.kind === ts.SyntaxKind.AnyKeyword) {
       hitAt('explicit-any', node.getStart(sourceFile));
     }
-    if (
-      rules.has('as-unknown-as') &&
-      ts.isAsExpression(node) &&
-      isAsUnknown(node.expression)
-    ) {
+    if (rules.has('as-unknown-as') && isDoubleAssertion(node)) {
       hitAt('as-unknown-as', node.getStart(sourceFile));
+    }
+    if (
+      rules.has('type-assertion') &&
+      !context.isTestFile &&
+      isAssertion(node) &&
+      !isConstAssertion(node)
+    ) {
+      hitAt('type-assertion', node.getStart(sourceFile));
+    }
+    if (
+      rules.has('any-expression') &&
+      !context.isTestFile &&
+      !inType &&
+      isAnyOrigin(context.checker, node, parent)
+    ) {
+      hitAt('any-expression', node.getStart(sourceFile));
     }
     if (rules.has('non-null-assertion') && ts.isNonNullExpression(node)) {
       hitAt('non-null-assertion', node.getEnd() - 1);
@@ -212,9 +307,10 @@ export function lintSourceFile(
     ) {
       hitAt('no-skipped-tests', node.getStart(sourceFile));
     }
-    ts.forEachChild(node, (child) => visit(child, node));
+    const childInType = inType || ts.isTypeNode(node);
+    ts.forEachChild(node, (child) => visit(child, node, childInType));
   };
-  visit(sourceFile, undefined);
+  visit(sourceFile, undefined, false);
 
   return hits.sort((a, b) => a.line - b.line || a.column - b.column);
 }

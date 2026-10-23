@@ -15,6 +15,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ex } from './helpers/editor';
 import {
+  coreLessons,
   courseExercises,
   folderOf,
   lessonOf,
@@ -210,7 +211,7 @@ async function expectCard(
   state: State,
   complete: readonly string[] = [],
 ): Promise<void> {
-  const lessons = moduleLessons(moduleId);
+  const lessons = coreLessons(moduleId);
   const done = lessons.filter((id) => complete.includes(id));
   const fraction = done.length / lessons.length;
   const c = card(page, moduleId);
@@ -230,7 +231,7 @@ async function expectCard(
   );
   await expect(field(c, 'state')).toHaveText(STATE_TEXT[state]);
   const pending = readModule(moduleId).prerequisites.filter(
-    (p) => !moduleLessons(p).every((id) => complete.includes(id)),
+    (p) => !coreLessons(p).every((id) => complete.includes(id)),
   );
   if (pending.length === 0) {
     await expect(field(c, 'recommended')).toHaveCount(0);

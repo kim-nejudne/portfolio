@@ -29,7 +29,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    angle-cast,
+    non-null-assertion,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - parseJson's T appears once. The decoder parameter gives it its second appearance, and the decoder is what checks the parsed value.
   - toScore narrows its unknown with typeof first. Number.isInteger and two comparisons do the rest.

@@ -11,7 +11,7 @@ import {
 } from './rules';
 
 describe('§5 rule ids', () => {
-  it('lists the eight rules in the spec order', () => {
+  it("lists the spec's eight rules in its order, then the two opt-in rules of the pre-F13 fixes", () => {
     expect(RULE_IDS).toEqual([
       'ts-directive',
       'explicit-any',
@@ -21,7 +21,21 @@ describe('§5 rule ids', () => {
       'angle-cast',
       'eval',
       'no-skipped-tests',
+      'type-assertion',
+      'any-expression',
     ]);
+  });
+
+  it('names every double assertion, and the two new rules say what they forbid (pre-F13)', () => {
+    expect(RULE_MESSAGES['as-unknown-as']).toBe(
+      'a double assertion (`x as unknown as T`, `x as object as T`) is not allowed',
+    );
+    expect(RULE_MESSAGES['type-assertion']).toBe(
+      'a type assertion (`x as T`, `<T>x`) is not allowed; `as const` is fine',
+    );
+    expect(RULE_MESSAGES['any-expression']).toBe(
+      'this expression has type `any`; give it a type (an `any` passed to `unknown` is fine)',
+    );
   });
 
   it('ts-directive, eval and no-skipped-tests are always on', () => {

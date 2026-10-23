@@ -18,6 +18,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { ex } from './helpers/editor';
 import {
   contentHash,
+  courseCoreLessons,
   courseExercises,
   courseLessons,
   exerciseFolders,
@@ -80,7 +81,7 @@ const totals = (counts: {
   hints: number;
   solutions: number;
 }): string =>
-  `${String(counts.lessons)} of ${String(courseLessons().length)} lessons complete · ${String(counts.passed)} of ${String(courseExercises().length)} exercises passed · ${String(counts.hints)} ${counts.hints === 1 ? 'hint used' : 'hints used'} · ${String(counts.solutions)} ${counts.solutions === 1 ? 'solution viewed' : 'solutions viewed'}`;
+  `${String(counts.lessons)} of ${String(courseCoreLessons().length)} lessons complete · ${String(counts.passed)} of ${String(courseExercises().length)} exercises passed · ${String(counts.hints)} ${counts.hints === 1 ? 'hint used' : 'hints used'} · ${String(counts.solutions)} ${counts.solutions === 1 ? 'solution viewed' : 'solutions viewed'}`;
 
 function sortById<T extends { id: string }>(rows: readonly T[]): T[] {
   return [...rows].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

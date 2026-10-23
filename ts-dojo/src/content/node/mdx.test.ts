@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   codeBlockElement,
   createRenderer,
+  styleClass,
   FenceRenderError,
   lessonMdxOptions,
   SNIPPET_PATH,
@@ -53,8 +54,48 @@ describe('the renderer', () => {
     expect(block.html).toContain("'circle'");
     expect(block.html).toContain('twoslash');
     expect(block.html).not.toContain('^?');
-    expect(block.html).toContain('--shiki-dark');
     expect(block.js).toBeUndefined();
+  });
+
+  // Pre-F13 fixes (Kim, 23 October 2026, the §9 precache): shiki's inline
+  // `style="--shiki-light:…;--shiki-dark:…"` became a class per colour pair, with the pairs
+  // returned beside the block for the lesson's one stylesheet.
+  it('writes each colour pair as a class, not an inline style, and returns the classes with their pairs', async () => {
+    const block = await renderer.render('twoslash', TWOSLASH, {
+      path: 'x.mdx',
+      line: 1,
+    });
+    expect(block.html).not.toMatch(/style="[^"]*--shiki/);
+    const used = new Set(
+      [...block.html.matchAll(/\bsk-[0-9a-z]+\b/g)].map((m) => m[0]),
+    );
+    expect(used.size).toBeGreaterThan(2);
+    expect(new Set(Object.keys(block.styles))).toEqual(used);
+    for (const style of Object.values(block.styles)) {
+      expect(style).toMatch(
+        /^--shiki-light:#[0-9a-f]+;--shiki-dark:#[0-9a-f]+/i,
+      );
+    }
+    // The block's own colours (its background too) are a class on the <pre>.
+    expect(block.html).toMatch(/^<pre class="shiki [^"]*\bsk-[0-9a-z]+/);
+  });
+
+  it('names a colour pair the same in every block and every build', async () => {
+    const one = await renderer.render('static', 'const a = 1;', {
+      path: 'a.mdx',
+      line: 1,
+    });
+    const two = await renderer.render('run', 'const b = 2;\nconsole.log(b);', {
+      path: 'b.mdx',
+      line: 1,
+    });
+    const keyword = (html: string) =>
+      /<span class="(sk-[0-9a-z]+)">const<\/span>/.exec(html)?.[1];
+    expect(keyword(one.html)).toBeDefined();
+    expect(keyword(one.html)).toBe(keyword(two.html));
+    expect(styleClass('--shiki-light:#D73A49;--shiki-dark:#F97583')).toBe(
+      keyword(one.html),
+    );
   });
 
   it('refuses a twoslash block with a type error, naming the file and line', async () => {
@@ -120,6 +161,7 @@ describe('the renderer', () => {
       kind: 'static',
       code: 'let x = 1;',
       html: expect.stringContaining('shiki') as string,
+      styles: expect.any(Object) as Record<string, string>,
     });
   });
 });
@@ -197,6 +239,10 @@ describe('a compiled lesson', () => {
     expect(out).toContain('kind: "run-errors"');
     expect(out).toContain('kind: "twoslash"');
     expect(out).toContain('2322');
+    // One stylesheet for the lesson's colour classes, and no inline colour styles.
+    expect(out.match(/CodeStyles/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(out).toMatch(/css: "[^"]*\.sk-[0-9a-z]+\{--shiki-light:/);
+    expect(out).not.toMatch(/style=\\"--shiki/);
     const imports = [...out.matchAll(/^import .* from "([^"]+)";?$/gm)].map(
       (m) => m[1],
     );

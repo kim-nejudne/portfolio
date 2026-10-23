@@ -50,6 +50,38 @@ const EXERCISES: ExerciseRow[] = [
   exercise('m1/a/09-removed', { state: 'passed' }),
 ];
 
+describe('summarize with an optional lesson (pre-F13)', () => {
+  const registry: SummaryRegistry = {
+    ...REGISTRY,
+    module: (id) =>
+      id === 'm1'
+        ? { title: 'One', lessons: ['m1/a', 'm1/b'] }
+        : REGISTRY.module(id),
+    lesson: (id) =>
+      id === 'm1/b'
+        ? { title: 'B', exercises: ['m1/b/01'], optional: true }
+        : REGISTRY.lesson(id),
+  };
+
+  it('counts core lessons for the module and marks the optional lesson', () => {
+    const summary = summarize(registry, LESSONS, EXERCISES);
+    const [one] = summary.modules;
+    expect(one).toMatchObject({
+      state: 'complete',
+      lessonsComplete: 1,
+      lessonsTotal: 1,
+    });
+    expect(one?.lessons.map((l) => [l.id, l.optional])).toEqual([
+      ['m1/a', false],
+      ['m1/b', true],
+    ]);
+    expect(summary.totals).toMatchObject({
+      lessonsComplete: 1,
+      lessonsTotal: 2,
+    });
+  });
+});
+
 describe('summarize', () => {
   it('counts per lesson and per module: lessons complete, exercises passed, hints used, solutions viewed', () => {
     const summary = summarize(REGISTRY, LESSONS, EXERCISES);
@@ -70,6 +102,7 @@ describe('summarize', () => {
         id: 'm1/a',
         title: 'A',
         state: 'complete',
+        optional: false,
         exercisesPassed: 2,
         exercisesTotal: 2,
         hintsUsed: 2,
@@ -79,6 +112,7 @@ describe('summarize', () => {
         id: 'm1/b',
         title: 'B',
         state: 'in-progress',
+        optional: false,
         exercisesPassed: 0,
         exercisesTotal: 1,
         hintsUsed: 1,

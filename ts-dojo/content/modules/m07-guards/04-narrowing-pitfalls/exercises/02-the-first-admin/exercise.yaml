@@ -15,7 +15,8 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [explicit-any, as-unknown-as, non-null-assertion, angle-cast, type-assertion]
 hints:
   - The compiler doesn't follow assignments made inside a callback.
   - An array method can do the search and return what it found, so no variable needs assigning from inside a callback.

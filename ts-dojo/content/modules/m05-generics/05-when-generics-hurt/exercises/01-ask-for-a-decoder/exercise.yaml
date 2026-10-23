@@ -22,7 +22,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    angle-cast,
+    non-null-assertion,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - The error is right. The map holds values of unknown type, and nothing in the signature lets the function find out what a T is.
   - A type parameter should appear at least twice. Give T a second place, in a parameter whose job is to check the stored value.

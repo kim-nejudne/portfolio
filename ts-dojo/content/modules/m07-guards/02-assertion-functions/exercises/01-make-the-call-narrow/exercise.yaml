@@ -17,7 +17,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - The check inside `assertIsPrice` is right. What is missing is a return type that tells callers what returning at all means.
   - An assertion return type names a parameter and the type it has once the function returns.

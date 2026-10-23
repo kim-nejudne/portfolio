@@ -26,7 +26,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - The read and the parse fail in different ways. A try around each one tells you which failed.
   - A caught value that isn't the failure you expected isn't yours to handle. Let it go on its way.

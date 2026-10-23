@@ -82,6 +82,22 @@ describe('lesson frontmatter', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('optional (pre-F13) defaults to false, takes true, and refuses anything else', () => {
+    const base = {
+      id: 'm99-fixtures/01-fix',
+      title: 't',
+      minutes: 5,
+      objectives: ['a', 'b'],
+    };
+    expect(lessonFrontmatterSchema.parse(base).optional).toBe(false);
+    expect(
+      lessonFrontmatterSchema.parse({ ...base, optional: true }).optional,
+    ).toBe(true);
+    expect(
+      lessonFrontmatterSchema.safeParse({ ...base, optional: 'yes' }).success,
+    ).toBe(false);
+  });
 });
 
 describe('exercise.yaml', () => {
@@ -129,6 +145,13 @@ describe('exercise.yaml', () => {
       exerciseSchema.safeParse({ ...(editor as object), forbid: ['no-any'] })
         .success,
     ).toBe(false);
+    // The two opt-in rules of the pre-F13 fixes are rule ids like the rest.
+    expect(
+      exerciseSchema.safeParse({
+        ...(editor as object),
+        forbid: ['type-assertion', 'any-expression'],
+      }).success,
+    ).toBe(true);
     const noAnswer: Record<string, unknown> = {
       ...(predict as Record<string, unknown>),
     };

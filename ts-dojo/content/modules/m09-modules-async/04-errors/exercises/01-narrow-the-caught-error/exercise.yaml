@@ -22,7 +22,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - A catch clause accepts only two annotations, and neither tells you what was thrown. Leave the annotation out and find out instead.
   - instanceof narrows to a class. An HttpError is also an Error, so the order of the checks matters.

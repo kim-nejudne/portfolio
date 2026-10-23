@@ -20,7 +20,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - Rule out everything that isn't an object first, and remember that `typeof null` is `'object'`.
   - Before reading a property of an object you know nothing about, check that it is there with `in`. Then `typeof` or a comparison can test its value.

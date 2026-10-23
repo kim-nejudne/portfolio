@@ -1,9 +1,10 @@
 // The `/progress` overview (§6, §12 F9 "per-module counts, hints used and solutions viewed"):
 // per lesson and per module, lessons complete, exercises passed, hints used and solutions
-// viewed, and the course totals; plus §7's orphaned rows, the lessons and exercises the content
+// viewed, and the course totals, with a module's lesson counts over its core lessons (pre-F13
+// fixes: optional lessons are tagged and never count toward a module's completion); plus §7's orphaned rows, the lessons and exercises the content
 // no longer has (after the renames), which the counts ignore and the page lists. Pure.
 import type { NavRegistry } from '@/pages/lesson/navigation';
-import { lessonStateOf, moduleState } from './completion';
+import { lessonStateOf, moduleState, partitionLessons } from './completion';
 import type { ExerciseRow, LessonRow, LessonState } from './db';
 
 export interface SummaryRegistry {
@@ -11,7 +12,9 @@ export interface SummaryRegistry {
   module(id: string): { title: string; lessons: readonly string[] } | undefined;
   lesson(
     id: string,
-  ): { title: string; exercises: readonly string[] } | undefined;
+  ):
+    | { title: string; exercises: readonly string[]; optional?: boolean }
+    | undefined;
   exercise(id: string): object | undefined;
 }
 
@@ -26,6 +29,7 @@ export interface LessonSummary extends Counts {
   id: string;
   title: string;
   state: LessonState;
+  optional: boolean;
 }
 
 export interface ModuleSummary extends Counts {
@@ -79,6 +83,7 @@ export function summarize(
           id: lessonId,
           title: lesson.title,
           state: lessonStateOf(lessonsById.get(lessonId)),
+          optional: lesson.optional === true,
           exercisesPassed: rows.filter((row) => row?.state === 'passed').length,
           exercisesTotal: lesson.exercises.length,
           hintsUsed: rows.reduce((sum, row) => sum + (row?.hintsUsed ?? 0), 0),
@@ -87,12 +92,17 @@ export function summarize(
         },
       ];
     });
+    const parts = partitionLessons(lessons, (lesson) => lesson.optional);
+    const counted = parts.core.length > 0 ? parts.core : parts.optional;
     const summary: ModuleSummary = {
       id: moduleId,
       title: module.title,
-      state: moduleState(lessons.map((lesson) => lesson.state)),
-      lessonsComplete: lessons.filter((l) => l.state === 'complete').length,
-      lessonsTotal: lessons.length,
+      state: moduleState(
+        parts.core.map((lesson) => lesson.state),
+        parts.optional.map((lesson) => lesson.state),
+      ),
+      lessonsComplete: counted.filter((l) => l.state === 'complete').length,
+      lessonsTotal: counted.length,
       lessons,
       ...zero(),
     };
