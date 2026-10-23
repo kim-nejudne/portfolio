@@ -1,0 +1,34 @@
+id: m07-guards/03-exhaustiveness-and-satisfies/04-plans-and-seats
+kind: implement
+title: Plans and seats
+minutes: 6
+challenge: false
+prompt: |
+  A small SaaS bills by the seat. `plans` in `index.ts` is the one list of its plans, and
+  `PlanName` is taken from it, but the annotation on `plans` turns every name into a `string`.
+
+  - Change how `plans` is checked, so that it is still checked against `Plan`, `PlanName` is
+    `'free' | 'team' | 'business'`, every value keeps its literal type, and the list is
+    read-only. Leave the entries and `Plan` as they are.
+  - Write `assertNever` as in the lesson. Its message starts with `unexpected value: ` followed
+    by the value as JSON.
+  - `monthlyCost(subscription)` returns the price of a seat on the subscription's plan times its
+    seats.
+  - `apply(subscription, change)` returns a new subscription after the change. `switch-plan`
+    moves to another plan with the same seats, `add-seats` and `remove-seats` change the seats
+    by `count`. Throw a `RangeError` when the result has fewer than 1 seat or more than the
+    plan's `maxSeats`; `'unlimited'` has no upper limit. Handle every kind of change in a
+    `switch` that ends in `assertNever`, so that a change read from JSON with an unknown
+    `type` throws its error.
+
+  This combines the lesson with discriminated unions (3.5), `typeof` narrowing (3.3) and
+  `keyof typeof` (6.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The annotation on plans is the reason PlanName is string. Check the object without replacing its type, and keep its literals too.
+  - Reading the limit of a plan gives a union of a few numbers and one string. A typeof check tells you whether there is an upper limit to compare with.
+  - All three kinds of change end in the same seat check, so one small function can serve every case.

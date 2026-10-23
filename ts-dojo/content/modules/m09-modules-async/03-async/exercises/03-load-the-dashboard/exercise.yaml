@@ -1,0 +1,28 @@
+id: m09-modules-async/03-async/03-load-the-dashboard
+kind: implement
+title: Load the dashboard
+minutes: 5
+challenge: false
+prompt: |
+  A dashboard shows a user, their posts and their unread count, which come from three calls
+  to an `Api`. Implement two functions in `index.ts`:
+
+  - `withTimeout(promise, ms)` settles as `promise` does, with the same value or the same
+    rejection, unless `ms` milliseconds pass first. Then it rejects with an `Error` whose
+    message is `'timeout'`.
+  - `loadDashboard(api, userId, ms)` starts the three calls at once, without waiting for one
+    before starting the next, and resolves to a `Dashboard` once all three are done. If they
+    are not all done within `ms`, it rejects with the `'timeout'` error. If a call rejects, it
+    rejects with that call's error.
+
+  Keep the signatures. The tests use a fake `Api` that counts the calls in flight, and calls
+  that never finish.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The timeout is a second promise that only ever rejects, so its type argument is never. Whichever settles first wins.
+  - Start all three calls before any await, and wait for them together; a tuple of promises keeps each call's own type.
+  - The waiting for all three is itself a promise, and that promise is the one to race against the clock.

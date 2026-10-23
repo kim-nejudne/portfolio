@@ -1,0 +1,26 @@
+id: m05-generics/02-constraints-and-defaults/02-default-or-inferred
+kind: predict
+title: Default or inferred?
+minutes: 2
+challenge: false
+code: |
+  function emptyBox<T = string>(value?: T): { value: T | undefined } {
+    return { value };
+  }
+
+  const a = emptyBox(42);
+  const b = emptyBox();
+  const c = emptyBox<boolean>();
+question: What are the types of a.value, b.value and c.value, in that order?
+options:
+  - 'string | undefined, string | undefined, boolean | undefined'
+  - 'number | undefined, string | undefined, boolean | undefined'
+  - 'number | undefined, unknown, boolean | undefined'
+  - 'number | undefined, undefined, string | undefined'
+answer: 1
+explanation: |
+  A default is used only when nothing else sets `T`. For `a`, the argument `42` gives the
+  candidate `number`, and inference wins over the default. For `b`, there is no argument to
+  infer from, so `T` takes its default, `string`; without `= string` it would be `unknown`. For
+  `c`, the explicit type argument sets `T` to `boolean`, and neither inference nor the default
+  plays a part.

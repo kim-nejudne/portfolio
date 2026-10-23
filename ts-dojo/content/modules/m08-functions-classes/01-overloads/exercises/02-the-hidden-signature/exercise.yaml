@@ -1,0 +1,26 @@
+id: m08-functions-classes/01-overloads/02-the-hidden-signature
+kind: predict
+title: The hidden signature
+minutes: 2
+challenge: false
+code: |
+  function format(value: number): string;
+  function format(value: Date): string;
+  function format(value: number | Date | string): string {
+    return typeof value === 'number' ? value.toFixed(2) : String(value);
+  }
+
+  format('2026-10-22');
+question: What does the compiler report for the last line?
+options:
+  - 'Nothing: the implementation accepts a string'
+  - 'No overload matches this call.'
+  - 'This overload signature is not compatible with its implementation signature.'
+  - 'Nothing, but the call returns string | undefined'
+answer: 1
+explanation: |
+  Callers see only the overloads. The implementation signature is not one of them, so its
+  `string` doesn't help: neither overload takes a string, and the call fails with
+  `No overload matches this call.` Both overloads are compatible with the implementation,
+  because it accepts a number and a `Date` and returns a `string`, so there is no error on the
+  declarations. To accept a string, add an overload for it.

@@ -1,0 +1,30 @@
+id: m06-type-operators/04-rebuilding-the-utilities/02-a-rule-per-field
+kind: fix
+title: A rule for every field
+minutes: 4
+challenge: false
+prompt: |
+  `Rules<T>` in `index.ts` should have one rule for each field of `T`: a function that takes
+  that field's value and returns a message, or `null` when the value passes. It doesn't
+  compile:
+
+  - `Type 'T' is not assignable to type 'string | number | symbol'.`
+  - `Type 'K' cannot be used to index type 'T'.`
+
+  The errors below them follow from these two. Fix `Rules` so that the file compiles. Every
+  field needs a rule, optional fields included, so a rules object that leaves out `inviteCode`
+  must be an error. Then give `signUpRules` the rule it is missing: an invite code is optional,
+  and when present it must have exactly 6 characters, or the message is
+  `'Invite codes have 6 characters.'`
+
+  The type cases check `Rules` on two types, the `@ts-expect-error` lines check that a missing,
+  extra or wrongly typed rule is rejected, and the tests run `validate` with `signUpRules`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The mapped type loops over T itself, but T is an object type. Loop over its property names instead.
+  - Once it compiles, a rules object without inviteCode is still accepted, because the mapped type copied the field's ?. One modifier with a minus sign takes it away.
+  - The new rule gets the invite code or undefined. A missing code passes.

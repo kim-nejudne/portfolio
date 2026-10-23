@@ -1,0 +1,32 @@
+id: m09-modules-async/01-esm/04-event-report
+kind: implement
+title: The event report
+minutes: 5
+challenge: false
+prompt: |
+  This exercise turns on `verbatimModuleSyntax`, and the starter doesn't compile yet:
+  `report.ts` imports two types without marking them, and the barrel `index.ts` re-exports
+  them the same way. Fix both, then implement the two stubs in `report.ts`:
+
+  - `describeEvent(event)` returns `'Ada logged in'`, `'Ada logged out'` or
+    `'Ada spent €12.50'` (the cents as euros, two decimals). Handle every type and prove it
+    with a `never` check in the `default` branch. An event the types don't describe, such as
+    one read from JSON with an unknown `type`, reaches that `default`: throw an `Error` there
+    whose message starts with `unhandled event`.
+  - `countByType(events)` returns how many events of each type the list holds, with `0` for a
+    type that doesn't occur.
+
+  `summary` is already written. `index.ts` must export the two types and the three functions,
+  and nothing else: `eventTypes` stays private to the package. Leave `events.ts` as it is.
+  `:w` runs `main.ts`. This combines the lesson with discriminated unions and the `never`
+  check (3.5), `Record` (4.3) and indexed access types (6.1).
+entry: main.ts
+tests: tests.ts
+compilerOptions:
+  verbatimModuleSyntax: true
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Start with the imports. In `report.ts`, one of the three names is a value and stays a plain import; in `index.ts`, the re-export from `events.ts` has only types.
+  - '`describeEvent` is a switch on the discriminant, one case per member, with the leftover assigned to a never variable in default.'
+  - For `countByType`, start from a record with every type at zero, then add one for each event.

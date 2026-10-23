@@ -1,0 +1,33 @@
+id: m09-modules-async/04-errors/04-load-the-settings
+kind: implement
+title: Load the settings
+minutes: 4
+challenge: false
+prompt: |
+  An editor keeps its `Settings` in a JSON file. Implement `loadSettings(read, path)` in
+  `index.ts`. It reads the file with `read`, parses it, checks it, and resolves to a
+  `Result<Settings, SettingsError>`. Three failures are expected, and become a
+  `SettingsError`:
+
+  - `read` rejects with a `NotFoundError`: `{ kind: 'missing', path }`, with the `path` asked for.
+  - The text isn't valid JSON: `{ kind: 'syntax', message }`, with the message of the error
+    `JSON.parse` threw.
+  - The JSON isn't an object whose `theme` is `'light'` or `'dark'`: `{ kind: 'invalid', field:
+    'theme' }`. If the theme is right but `fontSize` isn't a number: `{ kind: 'invalid', field:
+    'fontSize' }`.
+
+  On success, the value holds `theme` and `fontSize` and nothing else, whatever else the file
+  has. Any other failure of `read` is not expected: `loadSettings` rejects with that same
+  reason, as `read` did.
+
+  Keep the parsed value as `unknown` and check it step by step. This combines the lesson with
+  discriminated unions (3.5), checks on `unknown` (7.1) and async functions (9.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The read and the parse fail in different ways. A try around each one tells you which failed.
+  - A caught value that isn't the failure you expected isn't yours to handle. Let it go on its way.
+  - The parsed JSON is unknown. Check that it is an object, then check each field, before you build the Settings.

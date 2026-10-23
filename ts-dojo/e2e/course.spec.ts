@@ -2,6 +2,9 @@
 //   1. "M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two
 //      exercises (one in M00), at least one `predict`, hints on every editor exercise, and at
 //      least one `ts twoslash` block."
+// §12 F12, content wave 2 (Tier 2): "M05 to M09, 19 core lessons and the two optional ones, to
+//   the same rules as F11, lint passing." The tests below are generated from the tree, so they
+//   cover every wave the course holds.
 // src/content/node/curriculum.test.ts proves the counts and the §1 structure in the source, and
 // `pnpm content:lint` (criterion 2) proves every exercise solvable in Node. This spec proves the
 // same course as Kim meets it in the browser, generated from the content tree at collection time
@@ -104,10 +107,19 @@ function alone(word: string): RegExp {
   );
 }
 
+/** The §12 criterion a lesson's tests prove: each content wave owns its tiers' modules (§8, §11). */
+function criterion(id: string): string {
+  const module = Number(id.slice(1, 3));
+  if (module <= 4) return '§12 F11 criterion 1';
+  if (module <= 9) return '§12 F12';
+  if (module <= 14) return '§12 F13';
+  return '§12 F14';
+}
+
 for (const lessonId of LESSONS) {
   test.describe(lessonId, () => {
     if (!COURSE.lessonExists(lessonId)) {
-      test(`§12 F11 criterion 1: ${lessonId} exists`, () => {
+      test(`${criterion(lessonId)}: ${lessonId} exists`, () => {
         throw new Error(
           `${CONTENT}/modules/${lessonId} has no lesson.mdx or no exercises/`,
         );
@@ -117,7 +129,7 @@ for (const lessonId of LESSONS) {
     const front = COURSE.readLesson(lessonId);
     const folders = COURSE.exerciseFolders(lessonId);
 
-    test(`§12 F11 criterion 1: ${lessonId} renders with the §1 sections, its twoslash results and its exercise strip`, async ({
+    test(`${criterion(lessonId)}: ${lessonId} renders with the §1 sections, its twoslash results and its exercise strip`, async ({
       page,
     }) => {
       const analysis = await analyzeLesson(
@@ -220,7 +232,7 @@ for (const lessonId of LESSONS) {
       const exercise = COURSE.readExercise(id);
 
       if (exercise.kind === 'predict') {
-        test(`§12 F11 criterion 1: ${id} passes when its answer is chosen with j/k/Enter`, async ({
+        test(`${criterion(id)}: ${id} passes when its answer is chosen with j/k/Enter`, async ({
           page,
         }) => {
           const opts = exercise.options ?? [];
@@ -278,7 +290,7 @@ for (const lessonId of LESSONS) {
         continue;
       }
 
-      test(`§12 F11 criterion 1: ${id} passes :test with its solution in Chrome`, async ({
+      test(`${criterion(id)}: ${id} passes :test with its solution in Chrome`, async ({
         page,
       }) => {
         // A cold compiler, then two :test runs, under the whole suite's load.

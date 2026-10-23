@@ -1,0 +1,31 @@
+id: m09-modules-async/02-declaration-files/04-track-the-checkout
+kind: implement
+title: Track the checkout
+minutes: 5
+challenge: false
+prompt: |
+  The page loads `analytics-lite` with a `<script>` tag. The script defines a global `tracker`
+  at run time, and `types/analytics-lite.d.ts` (read-only) describes the package with
+  `declare module 'analytics-lite'`. Its `EventMap` lists the events the tracker accepts, by
+  name, and so far it has only `pageview`. In `checkout.ts`:
+
+  1. Declare the global `tracker` so that `globalThis.tracker` has the type `Tracker`.
+  2. Add a `purchase` event to `EventMap`, with the data `{ sku: string; total: number }`.
+     Leave `pageview` as it is and add nothing else.
+  3. Implement `checkout(lines)`: send one `purchase` per cart line, in order, whose `total`
+     is the line's `cents` times its `qty`, then send a `pageview` with the path
+     `'/receipt'`, and return the sum of the totals.
+
+  There is no `analytics-lite` module to load at run time, so import only types from it.
+  `:w` runs `page.ts`, which defines a `tracker` that logs what it is sent. This combines the
+  lesson with interface merging (4.1), `import type` (9.1), and the `keyof` and indexed
+  access types that `send` uses (6.1).
+entry: page.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - A module file adds a global inside declare global. Only a var there becomes a property of globalThis.
+  - EventMap is an interface, so a second declaration of it merges with the first. Write that declaration inside a declare module block for the same name.
+  - Once both are in place, send accepts 'purchase' and checks its data against the event you added.

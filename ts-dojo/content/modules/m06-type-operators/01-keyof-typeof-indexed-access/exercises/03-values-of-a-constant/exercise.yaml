@@ -1,0 +1,22 @@
+id: m06-type-operators/01-keyof-typeof-indexed-access/03-values-of-a-constant
+kind: predict
+title: The values of a constant
+minutes: 1
+challenge: false
+code: |
+  const ORIGIN = { x: 0, y: 0, label: 'origin' } as const;
+
+  type Value = (typeof ORIGIN)[keyof typeof ORIGIN];
+question: What is `Value`?
+options:
+  - 'number | string'
+  - "0 | 'origin'"
+  - "'x' | 'y' | 'label'"
+  - "{ readonly x: 0; readonly y: 0; readonly label: 'origin' }"
+answer: 1
+explanation: |
+  Read it from the inside out. `typeof ORIGIN` is the object's type, and `as const` keeps the
+  literal types, so it is `{ readonly x: 0; readonly y: 0; readonly label: 'origin' }`.
+  `keyof` of that is `'x' | 'y' | 'label'`, and indexing the type with all three keys gives the
+  union of their value types: `0 | 0 | 'origin'`, and a union lists `0` once. Without `as const`
+  the values would widen, and the answer would be `number | string`.

@@ -1,0 +1,34 @@
+id: m08-functions-classes/04-mixins/03-versioned-documents
+kind: implement
+title: Versioned documents
+minutes: 5
+challenge: false
+prompt: |
+  `index.ts` has a finished mixin, `Tagged`, and a class, `Doc`. Implement the mixin
+  `Versioned`, then build `TrackedDoc` from both mixins.
+
+  `Versioned` takes only classes whose instances have a string `id`: `Versioned(class { id = 1 })`
+  must not compile. It adds:
+
+  - `version`, a `number` that starts at 1 for every new instance. It can be read but not
+    assigned from outside the class.
+  - `bump()`, which adds 1 to the version and returns the object it was called on. On a class
+    with more mixins, the chain keeps the full type: `doc.bump().tag('draft')` compiles.
+  - `label`, read-only, which reads `id@vN` with the current version: `'readme@v1'` for a new
+    document with id `readme`, `'readme@v3'` after two bumps.
+
+  `TrackedDoc` is `Doc` with both mixins. It takes `Doc`'s arguments, and its instances have
+  `title`, `tags`, `tag` and everything `Versioned` adds.
+
+  The tests call `bump()` on a `TrackedDoc`, so the test file doesn't compile until `TrackedDoc`
+  has both mixins. This combines the lesson with the `this` type (8.2), accessors (8.3) and `#`
+  fields (4.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Versioned reads this.id, so its type parameter has to promise an id. Constructor takes the instance type as its argument.
+  - The version needs a home that only the class can write, read through a getter with no setter. Which return type keeps a chain's full type?
+  - Each mixin takes a class and returns one, so one mixin's result can be the other's argument.

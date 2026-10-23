@@ -1,0 +1,24 @@
+id: m07-guards/03-exhaustiveness-and-satisfies/03-what-satisfies-keeps
+kind: predict
+title: What satisfies keeps
+minutes: 2
+challenge: false
+code: |
+  type Settings = { mode: 'fast' | 'safe'; retries: number };
+
+  const settings = { mode: 'fast', retries: 3 } satisfies Settings;
+question: What type does the compiler give `settings`?
+options:
+  - 'Settings'
+  - '{ mode: "fast"; retries: number; }'
+  - '{ mode: string; retries: number; }'
+  - '{ readonly mode: "fast"; readonly retries: 3; }'
+answer: 1
+explanation: |
+  `satisfies` checks the object against `Settings`, but `settings` gets the type inferred from
+  the object, not `Settings`. The type it checks against is still the context for that
+  inference: `mode` sits where `Settings` asks for the literal types `'fast' | 'safe'`, so the
+  literal `'fast'` keeps its literal type. `retries` sits where `Settings` asks for a `number`,
+  so `3` widens as it would in any object. Nothing is `readonly`, which only `as const` adds.
+  One consequence: `settings.mode = 'safe'` is an error, `Type '"safe"' is not assignable to
+  type '"fast"'.`

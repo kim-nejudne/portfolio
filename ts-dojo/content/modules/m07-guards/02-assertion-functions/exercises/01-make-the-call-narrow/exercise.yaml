@@ -1,0 +1,23 @@
+id: m07-guards/02-assertion-functions/01-make-the-call-narrow
+kind: fix
+title: Make the call narrow
+minutes: 2
+challenge: false
+prompt: |
+  `assertIsPrice` throws for anything that isn't a price, so after the call in `addTax`,
+  `price` can only be a number. The compiler doesn't know that, because `assertIsPrice`
+  returns `void`:
+
+  - `'price' is of type 'unknown'.`
+
+  Make `assertIsPrice` an assertion function, so that `addTax` compiles as written. Keep
+  `price: unknown` in `addTax` and keep calling `assertIsPrice` there: the tests check the
+  types of both functions as well as what they do.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The check inside `assertIsPrice` is right. What is missing is a return type that tells callers what returning at all means.
+  - An assertion return type names a parameter and the type it has once the function returns.

@@ -1,0 +1,10 @@
+id: m05-generics
+title: Generics
+summary: Write one function or type for many types, constrain what it accepts, and know when a generic is the wrong tool.
+prerequisites: [m04-objects]
+lessons:
+  - 01-generic-functions
+  - 02-constraints-and-defaults
+  - 03-generic-types-and-classes
+  - 04-keyof-constraints
+  - 05-when-generics-hurt

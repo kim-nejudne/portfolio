@@ -1,0 +1,28 @@
+id: m05-generics/05-when-generics-hurt/01-ask-for-a-decoder
+kind: fix
+title: Ask for a decoder
+minutes: 2
+challenge: false
+prompt: |
+  `getSetting` reads a value from a map of settings whose values are `unknown`, and promises
+  the caller whatever type it asks for. It doesn't compile:
+
+  - `Type 'unknown' is not assignable to type 'T'.`
+
+  Don't silence the error with a cast. Make `getSetting` take a second parameter, `decode`, a
+  function that turns the stored `unknown` into a `T` or throws, and return what `decode`
+  returns. `T` should then be inferred from the decoder, so `getSetting('port', toNumber)` is a
+  `number` with no type argument.
+
+  The type cases check the signature, the `@ts-expect-error` line checks that a call without a
+  decoder is rejected, and the tests check that the decoder runs on the stored value and that
+  its result is what comes back. `tests.ts` reports `Expected 1 arguments, but got 2.` until
+  `getSetting` takes the decoder.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - The error is right. The map holds values of unknown type, and nothing in the signature lets the function find out what a T is.
+  - A type parameter should appear at least twice. Give T a second place, in a parameter whose job is to check the stored value.

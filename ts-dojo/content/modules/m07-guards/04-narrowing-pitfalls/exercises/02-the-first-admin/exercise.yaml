@@ -1,0 +1,21 @@
+id: m07-guards/04-narrowing-pitfalls/02-the-first-admin
+kind: fix
+title: The first admin
+minutes: 2
+challenge: false
+prompt: |
+  `firstAdmin` looks for the first active admin in a team. It works when it runs, but the last
+  line doesn't compile:
+
+  - `Property 'name' does not exist on type 'never'.`
+
+  Make it compile without a cast, so that it still returns the first active admin's name, or
+  `'nobody'`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The compiler doesn't follow assignments made inside a callback.
+  - An array method can do the search and return what it found, so no variable needs assigning from inside a callback.

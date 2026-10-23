@@ -1,0 +1,30 @@
+id: m09-modules-async/03-async/04-page-through-results
+kind: implement
+title: Page through the results
+minutes: 5
+challenge: false
+prompt: |
+  An API returns its results one `Page<T>` at a time. A page holds some `items` and the
+  cursor of the `next` page, which is `undefined` on the last page. Implement two generic
+  functions in `index.ts`:
+
+  - `paginate(fetchPage)` is an async generator. It fetches the page at cursor `0`, yields
+    its items one by one, then fetches the `next` page, and so on until a page has no
+    `next`. A page may be empty. It fetches a page only when the code reading from it asks
+    for an item the pages so far don't have.
+  - `take(source, count)` reads the first `count` items of any async iterable and resolves
+    to them in an array, or to all of them when there are fewer. It reads no more items than
+    it returns.
+
+  The tests count the pages fetched, so a version that fetches everything first and then
+  slices fails. This combines the lesson with generic functions (5.1), generic interfaces
+  (5.3) and narrowing away `undefined` (3.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Keep the cursor in a variable typed number | undefined, and loop while it is a number. Inside an async generator you can await a page and yield its items in the same loop.
+  - A for await loop reads any async iterable, and leaving it early with break or return tells the source to stop.
+  - To read no more than count items, decide whether you have enough right after each push, not before reading the next item.

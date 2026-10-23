@@ -1,0 +1,30 @@
+id: m05-generics/03-generic-types-and-classes/03-what-new-infers
+kind: predict
+title: What does new infer?
+minutes: 2
+challenge: false
+code: |
+  class Box<T> {
+    value: T;
+
+    constructor(value: T) {
+      this.value = value;
+    }
+  }
+
+  const a = new Box('draft');
+  const b = new Box<'draft' | 'final'>('draft');
+  const c = new Box(['draft', 3]);
+question: What are the types of a, b and c, in that order?
+options:
+  - "Box<'draft'>, Box<'draft'>, Box<[string, number]>"
+  - "Box<string>, Box<'draft' | 'final'>, Box<(string | number)[]>"
+  - 'Box<string>, Box<string>, Box<(string | number)[]>'
+  - "Box<'draft'>, Box<'draft' | 'final'>, Box<unknown>"
+answer: 1
+explanation: |
+  `new` infers a class's type argument from the constructor's arguments, as a call does. For
+  `a`, `T` sits inside `Box<T>` rather than being returned as it is, so the literal `'draft'`
+  widens to `string`, as `{ value: T }` did in 5.2. For `b`, the explicit type argument decides
+  `T`, and nothing is inferred or widened. For `c`, an array literal of a string and a number
+  is a `(string | number)[]`, not a tuple, so that is `T`.

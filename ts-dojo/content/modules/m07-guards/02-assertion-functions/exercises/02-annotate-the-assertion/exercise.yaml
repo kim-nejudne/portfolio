@@ -1,0 +1,23 @@
+id: m07-guards/02-assertion-functions/02-annotate-the-assertion
+kind: fix
+title: Annotate the assertion
+minutes: 3
+challenge: false
+prompt: |
+  `assertConfig` is an assertion function written as an arrow function, but its call in
+  `readConfig` narrows nothing, and the file reports two errors:
+
+  - `Assertions require every name in the call target to be declared with an explicit type annotation.`
+  - `Type 'unknown' is not assignable to type 'Config'.`
+
+  Make the call to `assertConfig` narrow, so that `readConfig` compiles. Keep `assertConfig`
+  an assertion function and keep calling it in `readConfig`: the tests check its type and
+  that bad data still throws.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The error is about the name `assertConfig`, not about its body. Read the note that comes with it, and look at how the name is declared.
+  - The compiler wants the type of the name written down, not inferred from the arrow function. A function declaration has its type written down too.

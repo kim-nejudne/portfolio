@@ -1,0 +1,292 @@
+---
+id: m07-guards/02-assertion-functions
+title: Assertion functions (asserts)
+minutes: 15
+objectives:
+  - Write an assertion function with asserts value is Type, and use the narrowing after the call
+  - Narrow with a plain asserts condition, the shape of an assert helper
+  - Give every name in an assertion call an explicit type, including arrow functions and instances with assertion methods
+  - Choose between a type guard and an assertion function for a check
+prerequisites:
+  - m01-types/04-any-unknown-never-void
+  - m03-unions/05-discriminated-unions
+  - m04-objects/05-classes
+  - m07-guards/01-type-guards
+tags:
+  - assertion function
+  - asserts
+  - assert
+  - narrowing
+  - TS2775
+  - explicit type annotation
+  - assertion method
+  - throw
+---
+
+## Concept
+
+A type guard from <Lesson id="m07-guards/01-type-guards" /> returns `true` or `false`, and the caller picks a branch. Often there is only one sensible branch: when the input is wrong, the function should stop with an error. An assertion function does that. It returns nothing when the check holds and throws when it doesn't, and its return type, `asserts value is number`, tells the compiler that every line after a call that returned can treat the argument as that type:
+
+```ts twoslash
+function assertIsNumber(value: unknown): asserts value is number {
+  if (typeof value !== 'number') {
+    throw new TypeError(`expected a number, got ${typeof value}`);
+  }
+}
+
+function double(input: unknown): number {
+  assertIsNumber(input);
+  input;
+  // ^?
+  return input * 2;
+}
+```
+
+There is no `if` at the call site. The narrowing lasts from the call to the end of the block, as it would after `if (typeof input !== 'number') throw ...` written in place. At run time the function returns `undefined`, and the `asserts` clause is erased. Its rules match a predicate's: the name after `asserts` must be a parameter, or the compiler reports _Cannot find parameter 'x'._, and the function may not return a value, because its return type counts as `void`: `return true` is _Type 'boolean' is not assignable to type 'void'._
+
+## Examples
+
+**Assertions on `unknown`.** Data from outside the program is where assertions earn their keep. The checks are the ones a guard would make, and a failed check throws with a message that says what was wrong:
+
+```ts run
+type Point = { x: number; y: number };
+
+function assertIsPoint(value: unknown): asserts value is Point {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('x' in value) ||
+    !('y' in value) ||
+    typeof value.x !== 'number' ||
+    typeof value.y !== 'number'
+  ) {
+    throw new TypeError(`not a point: ${JSON.stringify(value)}`);
+  }
+}
+
+function distance(json: string): number {
+  const data: unknown = JSON.parse(json);
+  assertIsPoint(data);
+  return Math.hypot(data.x, data.y);
+}
+
+for (const text of ['{"x":3,"y":4}', '{"x":3}']) {
+  try {
+    console.log(distance(text));
+  } catch (error) {
+    console.log(String(error));
+  }
+}
+```
+
+**A plain `asserts condition`.** Leave out `is Type`, and the function asserts that its argument is truthy. That is the shape of the `assert` helper many codebases have, and the call narrows by whatever expression you pass, as an `if` with that condition would:
+
+```ts twoslash
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+function label(serial: string | number, note: string | undefined): string {
+  assert(typeof serial === 'number', 'the serial must be a number');
+  serial;
+  // ^?
+  assert(note, 'a note is required');
+  note;
+  // ^?
+  return `#${serial.toFixed(0)} ${note.trim()}`;
+}
+```
+
+A truthiness check also rules out `''`, `0` and `NaN`, as it does in an `if` (<Lesson id="m03-unions/03-narrowing" />).
+
+**Every name needs a written type.** An assertion call narrows only when the compiler can see that the function is an assertion from types written in the code. Every name in the call target must be declared with an explicit type: a function declaration, a variable or parameter with a type annotation, or a method reached through `this` or through such a name. An arrow function assigned to a `const` doesn't count by itself, because the variable's type is inferred from the arrow. Annotate the variable with the function type, and the arrow's parameters take their types from it:
+
+```ts run
+type Port = number;
+
+const assertIsPort: (value: unknown) => asserts value is Port = (value) => {
+  if (!Number.isInteger(value) || Number(value) < 1 || Number(value) > 65535) {
+    throw new RangeError(`not a port: ${String(value)}`);
+  }
+};
+
+function connect(host: string, port: unknown): string {
+  assertIsPort(port);
+  return `${host}:${port.toFixed(0)}`;
+}
+
+console.log(connect('localhost', 8080));
+```
+
+**Assertion methods.** A method can be an assertion too, which suits checks that depend on the object's state. Inside the class, `this.assertInStock(...)` narrows. Outside it, the object has to be reached through a name with a written type, such as the parameter `shelf: Shelf` here:
+
+```ts run
+class Shelf {
+  constructor(private readonly counts: Map<string, number>) {}
+
+  assertInStock(sku: string | undefined): asserts sku is string {
+    if (sku === undefined || (this.counts.get(sku) ?? 0) === 0) {
+      throw new Error(`out of stock: ${sku}`);
+    }
+  }
+
+  take(sku: string | undefined): string {
+    this.assertInStock(sku);
+    this.counts.set(sku, (this.counts.get(sku) ?? 0) - 1);
+    return sku.toUpperCase();
+  }
+}
+
+function pick(shelf: Shelf, sku: string | undefined): string {
+  shelf.assertInStock(sku);
+  return `picked ${sku.toUpperCase()}`;
+}
+
+const shelf: Shelf = new Shelf(new Map([['tea', 1]]));
+console.log(pick(shelf, 'tea'));
+console.log(shelf.take('tea'));
+try {
+  shelf.take('tea');
+} catch (error) {
+  console.log(String(error));
+}
+```
+
+A method can also assert something about the object itself, with `asserts this is Type`. <Lesson id="m08-functions-classes/02-this-and-callable-types" /> covers `this` types.
+
+**Guard or assertion?** Both put a check in a function, and both are taken on trust. Pick by what the caller should do with bad input. When the caller has something useful to do in both cases, such as skipping a bad entry or choosing between kinds, write a guard that returns a `boolean`. When bad input means the program can't go on, write an assertion and let it throw. One can wrap the other:
+
+```ts run
+type Point = { x: number; y: number };
+
+function isPoint(value: unknown): value is Point {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'x' in value &&
+    'y' in value &&
+    typeof value.x === 'number' &&
+    typeof value.y === 'number'
+  );
+}
+
+function assertIsPoint(value: unknown): asserts value is Point {
+  if (!isPoint(value)) {
+    throw new TypeError('not a point');
+  }
+}
+
+const entries: unknown[] = [{ x: 1, y: 2 }, 'noise', { x: 5, y: 0 }];
+console.log(entries.filter(isPoint).length);
+
+const origin: unknown = JSON.parse('{"x":0,"y":0}');
+assertIsPoint(origin);
+console.log(origin.x + origin.y);
+```
+
+The next lesson, <Lesson id="m07-guards/03-exhaustiveness-and-satisfies" />, uses an assertion-style helper to prove that a `switch` handled every case.
+
+## Pitfalls
+
+**An arrow function without an annotation.** Writing the assertion as an arrow function and annotating only its return type compiles, but every call to it fails:
+
+```ts run errors
+const assertIsString = (value: unknown): asserts value is string => {
+  if (typeof value !== 'string') {
+    throw new TypeError('not a string');
+  }
+};
+
+function shout(input: unknown): string {
+  assertIsString(input);
+  return input.toUpperCase();
+}
+```
+
+_Assertions require every name in the call target to be declared with an explicit type annotation._ The error comes with a note that points at the declaration: _'assertIsString' needs an explicit type annotation._ The call narrows nothing, so `input` stays `unknown` too. Annotate the variable with the whole function type, or write a function declaration.
+
+**An instance without an annotation.** The same rule covers the object in front of an assertion method. `new Validator()` gives `validator` an inferred type, so the call fails the same way, and the note says _'validator' needs an explicit type annotation._:
+
+```ts run errors
+class Validator {
+  assertPresent(
+    value: string | undefined,
+    field: string,
+  ): asserts value is string {
+    if (value === undefined || value === '') {
+      throw new Error(`${field} is required`);
+    }
+  }
+}
+
+const validator = new Validator();
+
+function greet(name: string | undefined): string {
+  validator.assertPresent(name, 'name');
+  return `Hello, ${name.toUpperCase()}`;
+}
+```
+
+Write `const validator: Validator = new Validator();`. A parameter typed `Validator` works as it is.
+
+**An assertion that returns.** The compiler doesn't check that the body throws. This one logs and carries on, the call still narrows, and the line after it crashes:
+
+```ts run
+function assertIsNumber(value: unknown): asserts value is number {
+  if (typeof value !== 'number') {
+    console.log(`expected a number, got ${typeof value}`);
+  }
+}
+
+function format(value: unknown): string {
+  assertIsNumber(value);
+  return value.toFixed(1);
+}
+
+console.log(format(9));
+console.log(format('9'));
+```
+
+The second call logs the warning, returns, and fails at `value.toFixed`, far from the check that saw the problem. Every path through an assertion function where the check fails must end in `throw`.
+
+## Check yourself
+
+<Predict
+  id="arrow-annotation"
+  question="`const assertIsString = (value: unknown): asserts value is string => { ... }` has a correct body. What does the compiler report at the call `assertIsString(input)`?"
+  options={[
+    'Nothing: the return type is written down, so the call narrows input',
+    'Assertions require every name in the call target to be declared with an explicit type annotation.',
+    'An error in the arrow function: asserts is only allowed on function declarations',
+  ]}
+  answer={1}
+  explanation="The arrow function itself compiles. The call fails because the type of the name `assertIsString` is inferred, not written down. Annotate the variable with `(value: unknown) => asserts value is string`, or write a function declaration."
+/>
+
+<Predict
+  id="plain-asserts"
+  question="`assert` has the return type `asserts condition`, and `note` is a `string | undefined`. What is the type of `note` on the line after `assert(note, 'required')`?"
+  options={['string | undefined', 'string', 'true', 'never']}
+  answer={1}
+  explanation="A plain `asserts condition` says the argument was truthy if the call returned, and the compiler narrows as an `if (note)` would. `undefined` is falsy, so `string` is left. The empty string is falsy too, so at run time `assert` throws for it."
+/>
+
+<Predict
+  id="guard-or-assertion"
+  question="A function reads entries from a file and must skip the ones with the wrong shape and keep the rest. Which kind of check suits it?"
+  options={[
+    'A type guard, which returns false for a bad entry so the caller can skip it',
+    'An assertion function, which throws for a bad entry',
+    'Either: they narrow the same way, so the choice makes no difference to the caller',
+  ]}
+  answer={0}
+  explanation="An assertion stops at the first bad entry, unless every call is wrapped in try and catch. A guard returns a boolean, so the caller can keep going, and it can be passed to `filter`. Assertions suit input that must be right for the program to go on."
+/>
+
+## Further reading
+
+- [TypeScript 3.7: assertion functions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#assertion-functions)
+- [Narrowing: using type predicates](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)
+- [More on functions: function type expressions](https://www.typescriptlang.org/docs/handbook/2/functions.html#function-type-expressions)

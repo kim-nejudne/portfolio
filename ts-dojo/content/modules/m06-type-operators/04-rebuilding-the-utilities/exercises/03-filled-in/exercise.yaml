@@ -1,0 +1,22 @@
+id: m06-type-operators/04-rebuilding-the-utilities/03-filled-in
+kind: predict
+title: Filled in
+minutes: 1
+challenge: false
+code: |
+  type Filled<T> = { [K in keyof T]-?: T[K] | null };
+
+  type Draft = { readonly id: number; title?: string };
+  type F = Filled<Draft>;
+question: What is `F`?
+options:
+  - '{ id: number | null; title: string | null }'
+  - '{ readonly id: number | null; title: string | null }'
+  - '{ readonly id: number | null; title?: string | null }'
+  - '{ readonly id: number | null; title: string | null | undefined }'
+answer: 1
+explanation: |
+  A mapped type over `keyof T` copies each property's modifiers unless it changes them. `Filled`
+  says nothing about `readonly`, so `id` stays read-only. It removes the `?` with `-?`, and that
+  also takes away the `undefined` the `?` brought with it, so `title` is a required
+  `string | null`. Only the `null` comes from the value side, `T[K] | null`.

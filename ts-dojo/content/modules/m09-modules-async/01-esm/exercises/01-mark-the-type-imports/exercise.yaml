@@ -1,0 +1,24 @@
+id: m09-modules-async/01-esm/01-mark-the-type-imports
+kind: fix
+title: Mark the type imports
+minutes: 2
+challenge: false
+prompt: |
+  This exercise turns on `verbatimModuleSyntax`. `index.ts` imports two types and two functions
+  from `shapes.ts` in one statement, and two of the names are reported:
+
+  - `'Shape' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.`
+  - `'Size' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.`
+
+  Mark the types so the emitted import asks `shapes.ts` only for what it exports at run time.
+  Keep the annotations in `index.ts`, and leave `shapes.ts` as it is. `:w` runs `index.ts` and
+  prints two lines; the tests call `describe` with every kind of shape.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  verbatimModuleSyntax: true
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each error names a type. At run time, which of the four names does `shapes.ts` really export?
+  - The `type` keyword can go in front of a single name inside the braces, or in front of the braces for a statement of its own.

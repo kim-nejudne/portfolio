@@ -1,0 +1,31 @@
+id: m08-functions-classes/01-overloads/04-pick-by-index
+kind: implement
+title: Pick by index
+minutes: 5
+challenge: false
+prompt: |
+  `pick(list, which)` reads elements of a `readonly` list by position. `which` is one index or
+  a list of indexes, and a negative index counts from the end, as `Array.prototype.at` does:
+
+  - with one index it returns that element, or `undefined` when there is none:
+    `pick(['a', 'b', 'c'], -1)` is `'c'`;
+  - with a list of indexes it returns an array with one entry per index, in the same order:
+    `pick(['a', 'b', 'c'], [2, 0, 5])` is `['c', 'a', undefined]`.
+
+  The starter has the implementation signature, so every call returns the same wide type. Add
+  overloads above it so that the result type follows `which`, for a list of any element type:
+  one index gives the element type or `undefined`, a list of indexes gives an array of those.
+  Callers that hold a `number | readonly number[]` must still be able to call it. Then write the
+  body.
+
+  This combines the lesson with generic functions (5.1), narrowing with `typeof` (3.3),
+  `undefined` in a return type (3.2) and readonly arrays (1.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Overloads can have type parameters of their own. Each one here needs the list's element type.
+  - Write the most specific overloads first, and finish with one that takes either kind of which.
+  - In the body, typeof tells one index from a list of them.

@@ -1,0 +1,30 @@
+id: m05-generics/01-generic-functions/02-which-calls-compile
+kind: predict
+title: Which calls compile?
+minutes: 2
+challenge: false
+code: |
+  function choose<T>(a: T, b: T): T {
+    return Math.random() < 0.5 ? a : b;
+  }
+
+  const limit: number = 10;
+  const name: string = 'Ada';
+
+  choose(limit, 3); // A
+  choose('yes', 'no'); // B
+  choose(limit, name); // C
+  choose<number | string>(limit, name); // D
+question: Which of the calls A to D compile?
+options:
+  - 'A and B only'
+  - 'A, B and D'
+  - 'B and D only'
+  - 'All four'
+answer: 1
+explanation: |
+  Each argument offers a candidate for `T`. In A, `number` is a supertype of the literal `3`, so
+  `T` is `number`. In B, two string literals give the union `'yes' | 'no'`. In C, neither
+  `number` nor `string` fits the other, so the compiler keeps the first candidate and reports
+  `Argument of type 'string' is not assignable to parameter of type 'number'.` D passes the type
+  argument itself, nothing is inferred, and both arguments fit `number | string`.

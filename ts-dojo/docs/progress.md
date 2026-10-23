@@ -448,9 +448,75 @@ Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the �
 
 ## F12. Content wave 2 (Tier 2)
 
-- [ ] F12: M05 to M09, 19 core lessons and the two optional ones, to the same rules as F11, lint passing.
+- [x] F12: M05 to M09, 19 core lessons and the two optional ones, to the same rules as F11, lint passing.
 
 Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
+
+**Notes (22–23 October 2026)**
+
+- Before F12, the uncommitted `/repl` module change from 22 October went in as its own commit, `fix: /repl buffers are separate modules` (Kim's choice with the plan).
+- Plan decision (Kim, 22 October 2026): the two `(opt)` lessons, 5.5 and 8.4, are ordinary lessons, as the module skill says. There is no app change; the proposal for an `optional` flag is under Spec questions.
+- The course: `roadmap.yaml` adds `t2` Intermediate `[m05-generics, m06-type-operators, m07-guards, m08-functions-classes, m09-modules-async]`.
+  - 21 lessons with the ids fixed in the plan. Titles are the §8 text with code backticks dropped; "(opt)" is a mark, not part of a title. Minutes are as §8 gives them: 375 core and 30 optional.
+  - 83 exercises: 62 editor exercises (27 fix, 28 implement, 7 type-challenge) and 21 `predict`.
+    - Every lesson has four exercises, except 8.4 (three). None is `challenge: true`.
+  - 88 `ts twoslash` blocks.
+  - Exercises that teach a flag set it in their own `compilerOptions`: `verbatimModuleSyntax` in 9.1, `noImplicitOverride` in 8.3. 9.2/04 has a read-only `types/analytics-lite.d.ts`. 9.1, 9.2 and 9.4 have multi-file exercises.
+- Authoring followed the module skill:
+  - one `content-author` per lesson, in §8 order within a module, the five modules in parallel, from a shared brief (ids, lesson boundaries across the tier, F11's trick-proofing lessons);
+  - a `content-reviewer` pass per module, with trick solutions linted against scratch copies;
+  - every FIX sent back to its author (or, for a one-line change, applied directly) and re-reviewed until every lesson was OK.
+- What the reviews fixed:
+  - Accuracy:
+    - 6.2 quoted a TS2353 message with the wrong type name;
+    - 7.3 claimed the inline `never` check didn't name the missed member;
+    - 7.4 said "inside the `if`" for code after an early return;
+    - 8.3 said 5.3 never constrained a generic class.
+  - Overlap from writing in parallel: 8.3 repeated 5.3's static-member pitfall, Predict and repository exercise. It now builds on 5.3's `Repository` and checks static blocks instead.
+  - Tricks now stopped by a test or a type case:
+    - 5.2/04, overloads in place of a default;
+    - 5.5/04, a `parseJson` that ignores its decoder;
+    - 7.3/04, `assertNever` left unimplemented, and `as const` without `satisfies`;
+    - 7.4/04, `?? 0` in place of element-access narrowing;
+    - 8.1/03, an overload list in place of a generic;
+    - 8.2/04, `Function & { prototype: T }` in place of a construct signature;
+    - 9.2/01, `globalThis as object as {…}` in place of `declare` (the declarations now live in a script `globals.ts` with type cases on them).
+  - Accepted leftovers, which no rule or test can stop and none of which skips the lesson's point:
+    - a plain `as T` with correct runtime behaviour;
+    - a derived type written out by hand (6.1, 6.2, 6.3);
+    - plain fields in place of parameter properties (8.3/03);
+    - an `any` from `JSON.parse` (9.4/04).
+
+    Logged under Spec questions.
+- Links: authors could link only lessons that already existed, so later lessons were named in plain text, then turned into `<Lesson>` links (and prerequisites) once the wave was complete. The only plain mentions left are inside `<Predict>` attributes or next to a link to the same lesson.
+- The lesson skill:
+  - its reference lesson is refreshed from the shipped 3.5, as F11's notes asked;
+  - it says how `@ts-expect-error` cases are named;
+  - it records the directive behaviour as built;
+  - it gains "Traps found while writing F11 and F12": braces in MDX, links at lint time, one-file `ts run` fences, Prettier and `@ts-expect-error`, `ExpectValidArgs` for union callers, editable `.d.ts`, `rejects.toThrow`, and what no rule catches.
+- Tests:
+  - `src/content/node/curriculum.test.ts` adds the five t2 modules with their §8 rows and checks 41 lessons; its per-lesson §1 checks now cover Tier 2. `scripts/content-lint.test.ts` "the shipped course" expects 41 lessons.
+  - `e2e/course.spec.ts` is generated from the tree, so it covers Tier 2 without new logic. Its test names now carry the wave's criterion (`criterion()`: M00–M04 F11, M05–M09 F12), so 104 tests are named "§12 F12".
+- Measured 22–23 October 2026:
+  - `pnpm content:lint`: 41 lessons, 113 editor exercises, in 16.5 s.
+  - 810 unit tests (`pnpm test --run`).
+  - 522 Playwright tests in Chrome (`pnpm test:e2e --project chrome`, 2.8 min including both builds), 195 of them on the course (F11: 91).
+  - Precache: 13,097,374 bytes, 321 entries (F11: 10,592,898, 217). `index-*.js` is 2,197,116 bytes raw (F11: 1,729,818), because exercise files are eager in the registry. The 41 lesson chunks total 3,105,475 bytes. Shiki's inline `style="…"` attributes are about 40% of a Tier 2 chunk (57 KB of 131 KB in the largest).
+  - The §9 budgets are re-measured below; every one is met.
+- Review: the acceptance-reviewer's first pass on 23 October 2026 gave PASS, with the criterion MET.
+  - It ran every check itself: typecheck, lint, format:check, 810 unit tests, the content lint (41 lessons, 113 editor exercises, in 16.6 s), and 522 Playwright tests in Chrome in 2.7 min.
+  - It checked the t2 rows in `curriculum.test.ts` against §8, and the counts in these notes against the tree.
+  - It also checked by hand that every Tier 2 objective starts with a verb, which no test checks.
+  - Its one finding, the "§1 Further reading" Spec question misdescribing which lessons link what, is corrected.
+  - The `/verify` pass before the commit (23 October 2026) also gave PASS. It ran the checks again (810 unit tests, the content lint in 16.3 s, 522 Playwright tests in 2.6 min) and read lessons across all five modules against §1 by hand. It found every count in these notes consistent with the tree.
+- Left for later features:
+  - **The precache budget.** F12 added 2.5 MB. At that rate, F13's 21 lessons pass the 15 MB budget (§9) and F14 ends near 18 MB. Options for F13's plan:
+    - render twoslash and shiki with CSS variables or classes instead of inline styles (dual-theme output);
+    - load exercise files per lesson instead of eagerly;
+    - leave `lib.dom.d.ts` and `lib.webworker.d.ts` (3.1 MB) out of the precache, if no offline lesson needs them.
+  - The curriculum test could check three things F12's `/verify` pass checked by hand: that Concept has a code example, that objectives start with a verb, and that a plain `ts run` pitfall snippet really fails at run time. Best added before F13.
+  - F13 and F14 extend the §8 table in `curriculum.test.ts`, the lesson count in `content-lint.test.ts`, and `criterion()` in `e2e/course.spec.ts` (already maps M10–M14 to F13 and M15–M18 to F14).
+  - For F13's authors, from the M06 review: 10.1 builds on 6.4's mapped-type modifiers, 11.3 on 6.4's `EachOmit` and `[T] extends [unknown]`, and 10.2's key remapping points back to 6.4/04's `KeysOfType`/`PickByValue` rather than reusing it.
 
 ## F13. Content wave 3 (Tier 3)
 
@@ -542,6 +608,16 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **§5 Rules, `non-null-assertion` and definite assignment (F11).** The rule catches `x!` (`ts.isNonNullExpression`), not the definite-assignment `field!: T`, so no rule can forbid that escape; 4.5's exercises stop it with runtime tests. Proposal: say in §5 that the rule covers non-null assertions only, or add a rule for definite assignment.
 - **§5 Rules, a plain `as T` (F11, optional).** No rule forbids a plain cast, and a cast whose runtime behaviour is right can't be caught by a test. It passes in 3.1/03, 3.3/03, 3.4/04 and 4.2/01, without skipping the lesson's point. Likewise, the inline `never` line leaves no runtime trace. Worth a rule id only if Kim wants exercises to forbid casts outright.
 
+- **§1 and §8, optional lessons (F12, Kim's decision with the F12 plan on 22 October 2026).** §8 marks 5.5 and 8.4 `(opt)`, but no field in §1, §3 or the schema marks a lesson as optional. Both are written as ordinary lessons: listed in `module.yaml`, the full §1 structure, and module completion waits on them. Proposal: an `optional: true` lesson frontmatter field that keeps a lesson out of module completion and shows "optional" on the roadmap and module page. It is app work, so a later feature.
+- **§3, `ts run` fences are one file under the §2 defaults (F12).** A lesson that teaches a flag or several files (9.1 `verbatimModuleSyntax`, 8.3 `noImplicitOverride`, 9.2 declarations) can show it only in `ts twoslash` blocks, with `// @filename:` and `// @<flag>:`. 9.1's one `ts run errors` pitfall reuses 4.4's ambient `const enum` (TS2748) for that reason. Proposal: a fence meta for compiler options and extra files, or accept twoslash for these.
+- **§1 Pitfalls, "each with a failing snippet" (F12).** Some pitfalls are a `ts run` block that compiles and goes wrong at run time: the point is that the compiler stays silent (7.1, 7.2, 8.4's `instanceof`, 9.4's `.catch` annotation; F11 has eleven). Others fail in a twoslash block because they need several files (9.1). The curriculum test asks for one `ts run errors` block in Pitfalls and a snippet per pitfall. Proposal: say in §1 that a failing snippet may be a compile error or a run-time failure.
+- **§5 Runtime tests, `rejects.toThrow` (F12).** Under `.rejects`, `toThrow(message?)` still requires the received value to be a function (`src/workers/sandbox/harness.ts`), so `await expect(p).rejects.toThrow('timeout')` fails when `p` rejects with `Error('timeout')`. Jest accepts that form. 9.3 and 9.4 test with `rejects.toBeInstanceOf(Error)` and a helper. Proposal: under `.rejects`, `toThrow` checks the reason's message.
+- **§2 `/dojo/runtime.d.ts`, the timer callback type (F12).** `setTimeout`'s callback is declared `(...args: unknown[]) => void`, so `new Promise<void>((resolve) => setTimeout(resolve, ms))` is TS2345 here, though it compiles with the DOM lib. 9.3 writes `setTimeout(() => resolve(), ms)`. Proposal: declare the callback as DOM does, or keep it and accept the extra arrow.
+- **§5 Rules, casts and `any` that no rule sees (F12, from the reviews).** The F11 plain-`as T` entry above applies again: 7.3/02 can pass with `as Rgb` instead of `satisfies`, the exact mistake the lesson warns about, and 7.4/02 with `(admin as Member)`. Two related gaps: `x as object as T` and `x as {} as T` do what `as-unknown-as` forbids but pass it (9.2/01 needed a test to stop it), and an `any` that comes from a call (`JSON.parse`, `Object()`, `Reflect.get`) passes `explicit-any`. Proposal: a `type-assertion` rule for a plain `as T` that allows `as const`; widen `as-unknown-as` to any `as` whose operand is an `as` expression; and an `any`-typed-expression rule for user files. All optional.
+- **§5 Type cases, derived or hand-written (F12).** `Equal` can't tell a type derived from a value or a utility (`keyof typeof LEVELS`, `Partial<SignUp>`) from the same type written out by hand, so "derive it" in 6.1, 6.2 and 6.3 rests on the prompt. No rule can require a construct either: 8.3/03's parameter properties and 8.2/03's call signature (now a type case) are prompts. Proposal: record it as a known limit, like the plain cast.
+- **§5 Compiles, "test file does not compile" (F12).** §5 says this note "usually means the solution exports the wrong name". Several Tier 2 implement starters (5.1/04, 5.2/04, 5.3/04, 5.4/04, 5.5/04, 8.2/03, 8.3/03, 8.3/04, 8.4/03) fail there because the starter isn't generic yet or lacks a member, and each prompt names that diagnostic. Proposal: word the note neutrally ("tests.ts does not compile against your code; see its first diagnostic"), and state in §1's kinds table that an implement starter may fail Compiles when the prompt names the diagnostic. Today that rule is in the lesson skill only.
+- **§1 Further reading, "Handbook links" (F12).** Every Tier 2 lesson has at least two handbook links, and most also link other sources: release notes in all but 5.3, 5.5, 6.4, 8.1 and 8.2; the tsconfig reference in some; and four sources outside the TypeScript docs: typescript-eslint (5.5), MDN (9.3, 9.4), the DefinitelyTyped repository (9.2) and GitHub issue #9998, "Trade-offs in Control Flow Analysis" (7.4). Proposal: §1 allows links beyond the handbook, to official TypeScript sources and to well-known references such as MDN.
+
 ## Measured budgets (§9)
 
 §9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
@@ -571,6 +647,19 @@ F11 re-measured the budgets against the course build on 21 October 2026: the sam
 | Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
 | ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.2 MB total JS heap |
 | Total precache | under 15 MB raw | 10,592,898 bytes, 217 entries |
+
+F12 re-measured the budgets against the course build on 23 October 2026: the same project, machine and link, with the 41 lessons of Tiers 0–2 in `dist/`. Every budget is still met, but the precache is at 87% of its budget (see F12's notes):
+
+| What | Budget | Measured (F12) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 432 ms, max 612 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,187 ms, max 1,534 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 315 ms, max 371 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 212 ms, median 206 ms (30 samples) |
+| Quick info | under 100 ms | p95 6.8 ms, max 16 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.0 MB total JS heap |
+| Total precache | under 15 MB raw | 13,097,374 bytes, 321 entries |
 
 ## For Kim
 

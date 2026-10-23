@@ -1,0 +1,9 @@
+id: m06-type-operators
+title: Type operators and utility types
+summary: Derive types from values and from other types with keyof, typeof, indexed access and the built-in utilities.
+prerequisites: [m05-generics]
+lessons:
+  - 01-keyof-typeof-indexed-access
+  - 02-utility-types-1
+  - 03-utility-types-2
+  - 04-rebuilding-the-utilities

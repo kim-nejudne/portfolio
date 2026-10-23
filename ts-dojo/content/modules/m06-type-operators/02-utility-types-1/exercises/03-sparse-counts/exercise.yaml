@@ -1,0 +1,23 @@
+id: m06-type-operators/02-utility-types-1/03-sparse-counts
+kind: predict
+title: Sparse counts
+minutes: 1
+challenge: false
+code: |
+  type Status = 'draft' | 'published' | 'archived';
+
+  const counts: Partial<Record<Status, number>> = { draft: 2 };
+  const published = counts.published;
+question: What is the type of `published`?
+options:
+  - 'number'
+  - 'number | undefined'
+  - 'undefined'
+  - "An error: property 'published' is missing in counts"
+answer: 1
+explanation: |
+  Read it from the inside out. `Record<Status, number>` has three required `number` properties,
+  and `Partial` makes all three optional. So `{ draft: 2 }` is accepted, and reading any of the
+  properties gives `number | undefined`, because the compiler goes by the type, not by the value
+  it can see. Without `Partial`, `counts` would be an error instead: a `Record` with a union of
+  literal keys needs every key.

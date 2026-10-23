@@ -1,0 +1,26 @@
+id: m09-modules-async/02-declaration-files/01-declare-the-build-globals
+kind: fix
+title: Declare the build globals
+minutes: 2
+challenge: false
+prompt: |
+  The page defines two globals before `index.ts` runs: `BUILD`, an object the bundler writes
+  with a `version` (a `string`) and a `debug` flag (a `boolean`), and `track(event, data)`, a
+  function from a `<script>` tag that takes the event's name and an object with the
+  `version`, and returns nothing. TypeScript can't see either of them:
+
+  - `Cannot find name 'BUILD'.`
+  - `Cannot find name 'track'.`
+
+  Describe both in `globals.ts` without giving them a value: the page provides the values,
+  and the tests define different ones. `globals.ts` has no `import` or `export`, so what it
+  declares is global, and the tests check its types. Leave `index.ts` and `page.ts` as they
+  are. `:w` runs `page.ts`, which sets the globals and then calls into `index.ts`.
+entry: page.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - A value that exists at run time but not in your sources gets a declaration, with no initializer and no body.
+  - One declaration for a constant, one for a function, both in globals.ts. Read the uses in index.ts to pick the types.

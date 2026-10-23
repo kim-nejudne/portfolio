@@ -1,0 +1,9 @@
+id: m09-modules-async
+title: Modules, declarations and async
+summary: Import and export types cleanly, describe code you didn't write, and type promises and errors.
+prerequisites: [m08-functions-classes]
+lessons:
+  - 01-esm
+  - 02-declaration-files
+  - 03-async
+  - 04-errors

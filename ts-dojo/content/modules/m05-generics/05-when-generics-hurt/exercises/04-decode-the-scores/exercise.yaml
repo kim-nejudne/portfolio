@@ -1,0 +1,36 @@
+id: m05-generics/05-when-generics-hurt/04-decode-the-scores
+kind: implement
+title: Decode the scores
+minutes: 4
+challenge: false
+prompt: |
+  `loadScores` reads a list of scores from JSON through `parseJson<T>(text): T`, a
+  return-type-only generic, so a file holding `[90, "85"]` or `{}` comes back typed `number[]`.
+  Make the types true, in `index.ts`:
+
+  - `parseJson(text, decode)` takes a `Decoder<T>` as its second parameter, parses the text and
+    returns what the decoder returns for the parsed value.
+  - `toScore` is a decoder for a score, an integer from 0 to 100. It returns the value, or
+    throws an `Error` whose message starts with `expected a score`.
+  - `arrayOf(item)` returns a decoder for arrays whose items all pass `item`. It returns a new
+    array of what `item` returns for each element, and throws an `Error` whose message starts
+    with `expected an array` for a value that is not an array. An item that fails throws the
+    item decoder's error.
+  - `loadScores(text)` uses the three, so that a malformed file throws instead of returning.
+
+  `Array.isArray(value)` narrows an `unknown` to an array. The type cases check the signatures,
+  the `@ts-expect-error` line checks that `parseJson` needs a decoder, and the tests check the
+  decoders with many values. `tests.ts` reports `Expected 1 arguments, but got 2.` until
+  `parseJson` takes the decoder.
+
+  This combines the lesson with `unknown` (1.4), narrowing with `typeof` (3.3) and generic type
+  aliases (5.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - parseJson's T appears once. The decoder parameter gives it its second appearance, and the decoder is what checks the parsed value.
+  - toScore narrows its unknown with typeof first. Number.isInteger and two comparisons do the rest.
+  - arrayOf checks the array itself, then hands every element to item and keeps what it returns.
