@@ -57,6 +57,7 @@ describe('moduleCard', () => {
       progress: 1 / 3,
       state: 'in-progress',
       recommendedFirst: [],
+      optionalLessons: 0,
     });
     expect(moduleCard(REGISTRY, 'b', lessonState, states)).toMatchObject({
       lessonsComplete: 1,
@@ -68,6 +69,64 @@ describe('moduleCard', () => {
       progress: 0,
       state: 'not-started',
       minutesLeft: 7,
+    });
+  });
+});
+
+describe('optional lessons (pre-F13)', () => {
+  // Module e: two core lessons, both complete, and one optional lesson not started.
+  const registry: RoadmapRegistry = {
+    tiers: [{ id: 't1', title: 'One', modules: ['e', 'f'] }],
+    module: (id) =>
+      ({
+        e: {
+          title: 'E',
+          lessons: ['e/1', 'e/2', 'e/3'],
+          prerequisites: [],
+        },
+        f: { title: 'F', lessons: ['f/1'], prerequisites: ['e'] },
+      })[id],
+    lesson: (id) =>
+      ({
+        'e/1': { minutes: 10 },
+        'e/2': { minutes: 15 },
+        'e/3': { minutes: 20, optional: true },
+        'f/1': { minutes: 5 },
+      })[id],
+  };
+  const done: Record<string, LessonState> = {
+    'e/1': 'complete',
+    'e/2': 'complete',
+  };
+  const stateOf = (id: string): LessonState => done[id] ?? 'not-started';
+
+  it('the card counts core lessons only and names the optional ones', () => {
+    const states = moduleStates(registry, stateOf);
+    expect(states.get('e')).toBe('complete');
+    expect(moduleCard(registry, 'e', stateOf, states)).toMatchObject({
+      lessonsComplete: 2,
+      lessonsTotal: 2,
+      minutesLeft: 0,
+      progress: 1,
+      state: 'complete',
+      optionalLessons: 1,
+    });
+  });
+
+  it('an unfinished optional lesson does not hold back the modules that follow', () => {
+    const states = moduleStates(registry, stateOf);
+    expect(recommendedFirst(registry, 'f', states)).toEqual([]);
+  });
+
+  it('an optional lesson alone puts its module in progress, not complete', () => {
+    const only = (id: string): LessonState =>
+      id === 'e/3' ? 'complete' : 'not-started';
+    const states = moduleStates(registry, only);
+    expect(moduleCard(registry, 'e', only, states)).toMatchObject({
+      lessonsComplete: 0,
+      lessonsTotal: 2,
+      minutesLeft: 25,
+      state: 'in-progress',
     });
   });
 });

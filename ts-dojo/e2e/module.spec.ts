@@ -30,6 +30,7 @@ import {
   moduleLessonItems,
   openApp,
   prerequisites,
+  ring,
   seedAndReload,
 } from './helpers/progress';
 
@@ -265,5 +266,73 @@ test.describe('§12 F9: A module with unmet prerequisites shows "Recommended fir
     );
     await expect(page.locator('main p').first()).toHaveText('/m/m00-nowhere');
     await expect(page.locator('main p.font-mono')).toHaveText('/m/m00-nowhere');
+  });
+});
+
+// Pre-F13 fixes (Kim, 23 October 2026): `optional: true` in a lesson's frontmatter tags the
+// lesson "optional" and keeps it out of its module's completion. The fixture capstone's last
+// lesson is the fixture course's one optional lesson.
+test.describe('pre-F13: an optional lesson is tagged and never blocks its module', () => {
+  const lessons = moduleLessons(M97);
+  const optional = lessons.filter((id) => readLesson(id).optional);
+  const core = lessons.filter((id) => !readLesson(id).optional);
+
+  test('the fixture capstone has one optional lesson', () => {
+    expect(optional).toEqual(['m97-fixture-capstone/03-indexed-access']);
+    expect(core).toHaveLength(2);
+  });
+
+  test('with every core lesson complete and the optional one untouched, the card and the page say complete; only the optional lesson carries the tag', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await seedAndReload(page, {
+      lessons: core.map((id) => completeLesson(id, T0)),
+    });
+    await expectRoadmap(page);
+    const c = card(page, M97);
+    await expect(c).toHaveAttribute('data-state', 'complete');
+    await expect(ring(c)).toHaveAttribute('data-state', 'complete');
+    expect(Number(await ring(c).getAttribute('data-progress'))).toBe(1);
+    await expect(field(c, 'progress')).toHaveText('2 of 2 lessons complete');
+    await expect(field(c, 'minutes')).toHaveText('0 min left');
+    await expect(field(c, 'optional')).toHaveText('1 optional lesson');
+    // The other cards have no optional lesson, so no such line.
+    await expect(field(card(page, M99), 'optional')).toHaveCount(0);
+
+    await gotoModule(page, M97);
+    await expect(page.locator(`section[data-module="${M97}"]`)).toHaveAttribute(
+      'data-state',
+      'complete',
+    );
+    for (const id of lessons) {
+      const tag = field(moduleLessonItem(page, id), 'optional');
+      if (optional.includes(id)) await expect(tag).toHaveText('optional');
+      else await expect(tag).toHaveCount(0);
+    }
+    await expect(
+      field(moduleLessonItem(page, optional[0] ?? ''), 'state'),
+    ).toHaveText('not started');
+  });
+
+  test('the optional lesson complete on its own puts the module in progress, not complete', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await seedAndReload(page, {
+      lessons: optional.map((id) => completeLesson(id, T0)),
+    });
+    await expectRoadmap(page);
+    const c = card(page, M97);
+    await expect(c).toHaveAttribute('data-state', 'in-progress');
+    await expect(field(c, 'progress')).toHaveText('0 of 2 lessons complete');
+    await expect(field(c, 'minutes')).toHaveText(
+      `${String(core.reduce((sum, id) => sum + readLesson(id).minutes, 0))} min left`,
+    );
+    await gotoModule(page, M97);
+    await expect(page.locator(`section[data-module="${M97}"]`)).toHaveAttribute(
+      'data-state',
+      'in-progress',
+    );
   });
 });

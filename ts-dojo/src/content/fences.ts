@@ -8,6 +8,11 @@ export type FenceKind = 'static' | 'run' | 'run-errors' | 'twoslash' | 'other';
 
 /** The component every `ts` fence renders as (src/content/components/code-block.tsx). */
 export const CODE_BLOCK_COMPONENT = 'CodeBlock';
+/**
+ * The element that carries a lesson's colour classes (`.sk-…{--shiki-light:…;--shiki-dark:…}`),
+ * once per lesson: shiki's inline styles became classes for the §9 precache (pre-F13 fixes).
+ */
+export const CODE_STYLES_COMPONENT = 'CodeStyles';
 /** The virtual path a theory snippet is checked and emitted under. */
 export const SNIPPET_PATH = '/snippet.ts';
 

@@ -586,7 +586,7 @@ test.describe('§12 F7: a fix exercise passes only when every file has zero diag
       `tests.ts:${String(lineOf(tests, 'const count'))}:${String(columnOf(tests, 'const count', 'count') + 1)}`,
     );
     await expect(field(diagnostic, 'message')).toHaveText(
-      /^test file does not compile: /,
+      /^tests\.ts does not compile against your code; see its first diagnostic: /,
     );
   });
 });

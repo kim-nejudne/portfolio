@@ -17,7 +17,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - The error is about the name `assertConfig`, not about its body. Read the note that comes with it, and look at how the name is declared.
   - The compiler wants the type of the name written down, not inferred from the arrow function. A function declaration has its type written down too.

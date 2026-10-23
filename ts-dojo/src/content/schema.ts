@@ -59,6 +59,11 @@ export const lessonFrontmatterSchema = z.object({
   prerequisites: z.array(lessonId).default([]),
   tags: z.array(z.string().min(1)).default([]),
   ts7: z.string().min(1).optional(),
+  /**
+   * §8 `(opt)` (Kim, 23 October 2026; under Deviations in docs/progress.md): the lesson is
+   * tagged "optional" and module completion ignores it.
+   */
+  optional: z.boolean().default(false),
 });
 export type LessonFrontmatter = z.infer<typeof lessonFrontmatterSchema>;
 

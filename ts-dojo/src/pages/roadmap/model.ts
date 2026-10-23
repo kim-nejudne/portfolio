@@ -1,10 +1,11 @@
 // The roadmap as data (§6 Roadmap): one card per module with lessons complete out of total,
 // minutes remaining (the `minutes` of the lessons not complete), the ring's fraction (lessons
-// complete over total) and the §1 state; the prerequisites not yet complete for "Recommended
+// complete over total) and the §1 state, all over the module's core lessons, plus how many
+// optional lessons it has (pre-F13 fixes: optional lessons never count toward completion); the prerequisites not yet complete for "Recommended
 // first"; and the keyboard moves, `j`/`k` through the reading order (bands top to bottom, each
 // left to right) and `h`/`l` within a band, both stopping at the ends. The module page reuses
 // `moveCard` with its lessons as one band. Pure over a small registry interface.
-import { moduleState } from '@/store/completion';
+import { moduleState, partitionLessons } from '@/store/completion';
 import type { LessonState } from '@/store/db';
 
 export interface RoadmapRegistry {
@@ -16,7 +17,7 @@ export interface RoadmapRegistry {
         prerequisites: readonly string[];
       }
     | undefined;
-  lesson(id: string): { minutes: number } | undefined;
+  lesson(id: string): { minutes: number; optional?: boolean } | undefined;
 }
 
 export interface ModuleCard {
@@ -30,6 +31,27 @@ export interface ModuleCard {
   progress: number;
   state: LessonState;
   recommendedFirst: { id: string; title: string }[];
+  /** The module's optional lessons, which the counts above leave out. */
+  optionalLessons: number;
+}
+
+/** A module's lesson ids split into core and optional. */
+export function moduleLessons(
+  registry: Pick<RoadmapRegistry, 'lesson'>,
+  lessons: readonly string[],
+): { core: string[]; optional: string[] } {
+  return partitionLessons(
+    lessons,
+    (id) => registry.lesson(id)?.optional === true,
+  );
+}
+
+/** The lessons a module's counts and completion rest on: its core ones, or all when it has none. */
+function countedLessons(parts: {
+  core: string[];
+  optional: string[];
+}): string[] {
+  return parts.core.length > 0 ? parts.core : parts.optional;
 }
 
 /** Every module's §1 state from its lessons' states. */
@@ -41,7 +63,11 @@ export function moduleStates(
   for (const id of registry.tiers.flatMap((tier) => tier.modules)) {
     const module = registry.module(id);
     if (module !== undefined) {
-      states.set(id, moduleState(module.lessons.map(lessonState)));
+      const { core, optional } = moduleLessons(registry, module.lessons);
+      states.set(
+        id,
+        moduleState(core.map(lessonState), optional.map(lessonState)),
+      );
     }
   }
   return states;
@@ -69,10 +95,10 @@ export function moduleCard(
   const module = registry.module(moduleId);
   if (module === undefined) return null;
   const tier = registry.tiers.find((t) => t.modules.includes(moduleId));
-  const complete = module.lessons.filter(
-    (id) => lessonState(id) === 'complete',
-  );
-  const minutesLeft = module.lessons
+  const parts = moduleLessons(registry, module.lessons);
+  const counted = countedLessons(parts);
+  const complete = counted.filter((id) => lessonState(id) === 'complete');
+  const minutesLeft = counted
     .filter((id) => lessonState(id) !== 'complete')
     .reduce((sum, id) => sum + (registry.lesson(id)?.minutes ?? 0), 0);
   return {
@@ -80,12 +106,12 @@ export function moduleCard(
     title: module.title,
     tier: tier?.id ?? '',
     lessonsComplete: complete.length,
-    lessonsTotal: module.lessons.length,
+    lessonsTotal: counted.length,
     minutesLeft,
-    progress:
-      module.lessons.length === 0 ? 0 : complete.length / module.lessons.length,
+    progress: counted.length === 0 ? 0 : complete.length / counted.length,
     state: states.get(moduleId) ?? 'not-started',
     recommendedFirst: recommendedFirst(registry, moduleId, states),
+    optionalLessons: counted === parts.core ? parts.optional.length : 0,
   };
 }
 

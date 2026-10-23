@@ -21,7 +21,7 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, type-assertion]
 hints:
   - A second `get` with the same key is a new call that nothing has checked. Look each value up once.
   - '`0` is a real price and a real discount, so a check that throws must be true for `undefined` and for nothing else.'

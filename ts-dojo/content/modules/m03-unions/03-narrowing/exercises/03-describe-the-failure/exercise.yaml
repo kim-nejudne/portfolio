@@ -17,7 +17,7 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, type-assertion]
 hints:
   - Each kind of failure has its own check in the lesson. One is for a primitive, one for a class instance, and one for a plain object type.
   - A `TimeoutError` is an `Error` as well, so of the two class checks, the one that comes first takes it.

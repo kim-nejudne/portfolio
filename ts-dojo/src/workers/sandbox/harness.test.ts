@@ -146,6 +146,54 @@ describe('the matchers', () => {
       'toBe',
     )(2);
   });
+
+  it('`.rejects.toThrow(message?)` checks the rejection reason itself, as Jest does (pre-F13)', async () => {
+    const { expect } = setup();
+    const rejects = (v: unknown) =>
+      expect(v)['rejects'] as Record<string, unknown>;
+    const rejectsNot = (v: unknown) =>
+      rejects(v)['not'] as Record<string, unknown>;
+    const timeout = () => Promise.reject(new Error('request timeout'));
+    await m(rejects(timeout()), 'toThrow')('timeout');
+    await m(rejects(timeout()), 'toThrow')(/^request/);
+    await m(rejects(timeout()), 'toThrow')();
+    await m(rejects(Promise.reject(new Error(''))), 'toThrow')();
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- a reason that is no Error is what this line checks
+    await m(rejects(Promise.reject('plain reason')), 'toThrow')('plain');
+    // A reason whose message says " to " still negates the right words.
+    await vexpect(
+      m(
+        rejectsNot(Promise.reject(new Error('failed to connect'))),
+        'toThrow',
+      )('connect') as Promise<void>,
+    ).rejects.toThrow(
+      "expected the rejection reason's message not to match 'connect', got 'failed to connect'",
+    );
+    await vexpect(
+      m(rejectsNot(timeout()), 'toThrow')() as Promise<void>,
+    ).rejects.toThrow('expected the promise not to reject');
+    await vexpect(
+      m(rejects(timeout()), 'toThrow')('refused') as Promise<void>,
+    ).rejects.toThrow(
+      "expected the rejection reason's message to match 'refused', got 'request timeout'",
+    );
+    await m(rejectsNot(timeout()), 'toThrow')('refused');
+    await vexpect(
+      m(rejectsNot(timeout()), 'toThrow')('timeout') as Promise<void>,
+    ).rejects.toThrow(
+      "expected the rejection reason's message not to match 'timeout', got 'request timeout'",
+    );
+    await vexpect(
+      m(rejects(Promise.resolve(1)), 'toThrow')('timeout') as Promise<void>,
+    ).rejects.toThrow('expected the promise to reject');
+    // `.resolves` and the sync form keep calling the received function.
+    await vexpect(
+      m(
+        expect(Promise.resolve('x'))['resolves'] as Record<string, unknown>,
+        'toThrow',
+      )() as Promise<void>,
+    ).rejects.toThrow('expected a function to call');
+  });
 });
 
 describe('deepEqual', () => {

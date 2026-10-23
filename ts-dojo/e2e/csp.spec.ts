@@ -254,7 +254,8 @@ test.describe('nothing in the app is blocked by the §10 CSP', () => {
     );
     await page.evaluate((key) => localStorage.removeItem(key), SETTINGS_KEY);
 
-    // Module page, lesson theory (twoslash output, fonts, shiki's inline styles) and theory Run.
+    // Module page, lesson theory (twoslash output, fonts, the lesson's colour stylesheet) and
+    // theory Run.
     await page.goto('/m/m99-fixtures');
     await expect(page.getByRole('main')).toContainText(
       'Fixing an exhaustiveness error',

@@ -22,7 +22,8 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [explicit-any, as-unknown-as, non-null-assertion, angle-cast, type-assertion]
 hints:
   - A check on the discriminant, written as an arrow function, is a predicate that `filter` can use.
   - The stock count is a lookup whose key is a property of the line. Give the key or the count a name of its own before you compare.

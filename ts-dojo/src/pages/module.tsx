@@ -4,7 +4,8 @@
 // roadmap card, and opens all the same. `j`/`k` move the focus between the lessons; the focused
 // lesson expands to show its objectives and, from §1's lesson `prerequisites`, its own
 // "Recommended first" note; `Enter` opens it (the link's own activation). Nothing is focused on
-// load. An unknown id says so.
+// load. An unknown id says so. An optional lesson (`optional: true`, pre-F13 fixes) carries an
+// "optional" tag, and the module's state ignores it.
 import { Link, useParams } from 'react-router';
 import { lessonHref } from '@/app/lesson-path';
 import { usePageKeys } from '@/app/use-page-keys';
@@ -12,13 +13,30 @@ import { registry } from '@/content/registry';
 import { lessonStateOf, moduleState } from '@/store/completion';
 import { getDb, type LessonRow, type LessonState } from '@/store/db';
 import { useLiveQuery } from '@/store/use-live-query';
-import { moduleStates, moveCard, recommendedFirst } from './roadmap/model';
+import {
+  moduleLessons,
+  moduleStates,
+  moveCard,
+  recommendedFirst,
+} from './roadmap/model';
 
 export const STATE_LABEL: Record<LessonState, string> = {
   'not-started': 'not started',
   'in-progress': 'in progress',
   complete: 'complete',
 };
+
+/** The tag an optional lesson carries on the module page and on /progress. */
+export function OptionalTag() {
+  return (
+    <span
+      className="ml-2 rounded border px-1 text-xs text-muted-foreground"
+      data-field="optional"
+    >
+      optional
+    </span>
+  );
+}
 
 export function ModulePage() {
   const { module: id } = useParams();
@@ -63,13 +81,14 @@ export function ModulePage() {
   const lessonState = (lessonId: string) => lessonStateOf(byId.get(lessonId));
   const states = moduleStates(registry, lessonState);
   const lessonStates = module.lessons.map(lessonState);
+  const { core, optional } = moduleLessons(registry, module.lessons);
   const pending = recommendedFirst(registry, module.id, states);
 
   return (
     <section
       className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-8"
       data-module={module.id}
-      data-state={moduleState(lessonStates)}
+      data-state={moduleState(core.map(lessonState), optional.map(lessonState))}
     >
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -145,6 +164,7 @@ export function ModulePage() {
                 <span className="text-xs text-muted-foreground">
                   {lesson?.minutes ?? 0} min
                 </span>
+                {lesson?.optional === true && <OptionalTag />}
                 <span className="ml-auto text-xs" data-field="state">
                   {STATE_LABEL[state]}
                 </span>

@@ -50,6 +50,10 @@ describe('the shipped content tree', () => {
       // m98 and m97 (F9): predict-only, the cheapest lessons the §3 lint accepts.
       ...Array<string>(12).fill('predict'),
     ]);
+    // Pre-F13: the capstone's last lesson is the fixture course's one optional lesson.
+    expect(registry.lessons.filter((l) => l.optional).map((l) => l.id)).toEqual(
+      ['m97-fixture-capstone/03-indexed-access'],
+    );
     expect(registry.module('m99-fixtures')?.lessons).toHaveLength(3);
     expect(registry.lesson('m99-fixtures/01-fix')?.exercises).toEqual([
       'm99-fixtures/01-fix/01-handle-the-new-shape',

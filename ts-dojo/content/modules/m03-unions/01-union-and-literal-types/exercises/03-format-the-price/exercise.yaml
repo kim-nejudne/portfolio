@@ -17,7 +17,7 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as]
+forbid: [explicit-any, as-unknown-as, type-assertion]
 hints:
   - '`toFixed` is a `number` method, and a union offers only what every member has. Make the amount a `number` before you format it.'
   - A built-in that turns a string or a number into a number accepts both members, so it can be called on the union as it is.

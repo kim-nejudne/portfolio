@@ -20,7 +20,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - The original value goes in the `cause` option, the Error constructor's second argument.
   - attempt and settle both have a caught value of type unknown to turn into an Error, and toError does exactly that.

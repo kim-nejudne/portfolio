@@ -18,7 +18,8 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+forbid:
+  [explicit-any, as-unknown-as, non-null-assertion, angle-cast, type-assertion]
 hints:
   - The annotation does two jobs at once. It checks the object, and it also replaces the type the compiler would have inferred for it.
   - Without any annotation, the text colour would be inferred as a number array, which is not a Palette colour. Look for the operator that checks against a type without becoming the type.

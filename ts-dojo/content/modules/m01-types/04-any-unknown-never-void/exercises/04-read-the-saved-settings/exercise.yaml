@@ -26,7 +26,15 @@ entry: index.ts
 tests: tests.ts
 compilerOptions: {}
 libs: [es2025]
-forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    angle-cast,
+    non-null-assertion,
+    type-assertion,
+    any-expression,
+  ]
 hints:
   - '`parseValue` has no return type, so it returns what inference finds there. Lesson 1.1 showed where a function states what it returns to its callers.'
   - Once `parseValue` is honest, each error in `readSettings` marks a value used before anything checked it. One `typeof` check per value chooses between it and its default.

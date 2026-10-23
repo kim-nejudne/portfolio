@@ -182,6 +182,14 @@ describe('implement', () => {
       file: '/tests.ts',
       message: expect.stringContaining(TEST_FILE_NOTE) as string,
     });
+    // Pre-F13 fixes (Kim, 23 October 2026): the note is neutral, since an implement starter
+    // that isn't generic yet fails here as surely as a wrong export name does.
+    expect(TEST_FILE_NOTE).toBe(
+      'tests.ts does not compile against your code; see its first diagnostic',
+    );
+    expect(result.compiles.diagnostics[0]?.message).toMatch(
+      /^tests\.ts does not compile against your code; see its first diagnostic: \S/,
+    );
   });
 });
 

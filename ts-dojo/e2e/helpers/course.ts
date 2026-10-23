@@ -2,7 +2,7 @@
 // `exercise.yaml`; §7 Content versions): a whole course as the repository holds it, read at
 // test time so the roadmap, module page and /progress tests follow the content instead of
 // hard-coding it. Tiers in `roadmap.yaml` order, each module's `module.yaml`, each lesson's
-// frontmatter (title, minutes, objectives, prerequisites), each exercise's YAML, the course
+// frontmatter (title, minutes, objectives, prerequisites, optional), each exercise's YAML, the course
 // order (tiers, then modules, then lessons, then exercise folders sorted, as the registry
 // builds it), and the §7 `contentVersion` computed in Node by the build's own function.
 // The plain exports read the fixture course the suite's server builds (fixtures/content/);
@@ -40,6 +40,8 @@ export interface LessonFrontmatter {
   minutes: number;
   objectives: string[];
   prerequisites: string[];
+  /** Pre-F13 fixes: tagged "optional" and left out of module completion. */
+  optional: boolean;
 }
 
 export interface CourseExerciseYaml {
@@ -91,7 +93,18 @@ export function courseAt(dir: string) {
       minutes: front.minutes ?? 0,
       objectives: front.objectives ?? [],
       prerequisites: front.prerequisites ?? [],
+      optional: front.optional === true,
     };
+  }
+
+  /**
+   * The lessons a module's counts and completion rest on: those not `optional`, or all of them
+   * when the module has no other kind (src/store/completion.ts).
+   */
+  function coreLessons(moduleId: string): string[] {
+    const lessons = moduleLessons(moduleId);
+    const core = lessons.filter((id) => !readLesson(id).optional);
+    return core.length > 0 ? core : lessons;
   }
 
   /** A lesson's exercise folders, sorted (the registry's order). */
@@ -153,6 +166,11 @@ export function courseAt(dir: string) {
     return courseModules().flatMap(moduleLessons);
   }
 
+  /** Every module's core lessons, in course order: what the /progress totals count. */
+  function courseCoreLessons(): string[] {
+    return courseModules().flatMap(coreLessons);
+  }
+
   /** Every exercise id, in course order. */
   function courseExercises(): string[] {
     return courseLessons().flatMap((lessonId) =>
@@ -196,6 +214,7 @@ export function courseAt(dir: string) {
     readTiers,
     readModule,
     moduleLessons,
+    coreLessons,
     readLesson,
     exerciseFolders,
     readExercise,
@@ -204,6 +223,7 @@ export function courseAt(dir: string) {
     solutionFiles,
     courseModules,
     courseLessons,
+    courseCoreLessons,
     courseExercises,
     minutesOf,
     routeOf,
@@ -218,11 +238,13 @@ export const {
   readTiers,
   readModule,
   moduleLessons,
+  coreLessons,
   readLesson,
   exerciseFolders,
   readExercise,
   courseModules,
   courseLessons,
+  courseCoreLessons,
   courseExercises,
   minutesOf,
   routeOf,

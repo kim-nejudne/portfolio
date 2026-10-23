@@ -180,7 +180,7 @@ const TIERS: { id: string; title: string; modules: ModuleRow[] }[] = [
             'keyof constraints and typed property access',
             20,
           ],
-          // (opt) in §8; written as an ordinary lesson (Kim, 22 October 2026).
+          // (opt) in §8: `optional: true` (Kim, 23 October 2026).
           [
             '05-when-generics-hurt',
             'When generics hurt: over-generic code and the return-type-only smell',
@@ -258,7 +258,7 @@ const TIERS: { id: string; title: string; modules: ModuleRow[] }[] = [
             'Classes II: generic classes, override, accessors, static blocks, parameter properties',
             20,
           ],
-          // (opt) in §8; written as an ordinary lesson (Kim, 22 October 2026).
+          // (opt) in §8: `optional: true` (Kim, 23 October 2026).
           ['04-mixins', 'Mixins', 15],
         ],
       },
@@ -391,6 +391,12 @@ describe('§12 F11 and F12: the course in content/ is Tiers 0 to 2 as §8 lists 
       });
     },
   );
+
+  it('the lessons §8 marks (opt), 5.5 and 8.4, are exactly the optional ones (pre-F13)', () => {
+    expect(registry.lessons.filter((l) => l.optional).map((l) => l.id)).toEqual(
+      ['m05-generics/05-when-generics-hurt', 'm08-functions-classes/04-mixins'],
+    );
+  });
 
   it.each(LESSONS)('$id matches its §8 row: title and minutes', (row) => {
     expect(lessonOf(row.id)).toMatchObject({

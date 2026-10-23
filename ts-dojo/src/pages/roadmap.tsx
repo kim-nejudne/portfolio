@@ -264,6 +264,13 @@ function Card({
         <span className="text-xs text-muted-foreground" data-field="minutes">
           {card.minutesLeft} min left
         </span>
+        {card.optionalLessons > 0 && (
+          <span className="text-xs text-muted-foreground" data-field="optional">
+            {card.optionalLessons === 1
+              ? '1 optional lesson'
+              : `${String(card.optionalLessons)} optional lessons`}
+          </span>
+        )}
         <span className="text-xs" data-field="state">
           {STATE_LABEL[card.state]}
         </span>

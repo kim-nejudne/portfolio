@@ -30,6 +30,8 @@ import {
 } from './helpers/editor';
 import {
   contentHash,
+  coreLessons,
+  courseCoreLessons,
   courseExercises,
   courseLessons,
   exerciseFolders,
@@ -196,13 +198,14 @@ test.describe('§12 F9: `/progress` shows per-module counts, hints used and solu
         readModule(id).title,
       );
       await expect(field(moduleRow(page, id), 'lessons')).toHaveText(
-        `0 of ${String(moduleLessons(id).length)}`,
+        `0 of ${String(coreLessons(id).length)}`,
       );
     }
     for (const id of courseLessons()) {
-      await expect(lessonRowOf(page, id).locator('th')).toHaveText(
-        readLesson(id).title,
-      );
+      const { title, optional } = readLesson(id);
+      const th = lessonRowOf(page, id).locator('th');
+      await expect(th).toHaveText(optional ? `${title}optional` : title);
+      await expect(field(th, 'optional')).toHaveCount(optional ? 1 : 0);
     }
 
     const m99 = exercisesInModule(M99);
@@ -256,7 +259,7 @@ test.describe('§12 F9: `/progress` shows per-module counts, hints used and solu
     });
 
     await expect(page.locator('[data-field="totals"]')).toHaveText(
-      `0 of ${String(courseLessons().length)} lessons complete · 3 of ${String(courseExercises().length)} exercises passed · 3 hints used · 2 solutions viewed`,
+      `0 of ${String(courseCoreLessons().length)} lessons complete · 3 of ${String(courseExercises().length)} exercises passed · 3 hints used · 2 solutions viewed`,
     );
   });
 
@@ -839,7 +842,7 @@ test.describe('§12 F9: `/progress` shows per-module counts, hints used and solu
     expect(metaValue(after, 'lastLessonId')).toBeUndefined();
     expect(await readStoredSettings(page)).toEqual(RESET_SETTINGS);
     await expect(page.locator('[data-field="totals"]')).toHaveText(
-      `0 of ${String(courseLessons().length)} lessons complete · 0 of ${String(courseExercises().length)} exercises passed · 0 hints used · 0 solutions viewed`,
+      `0 of ${String(courseCoreLessons().length)} lessons complete · 0 of ${String(courseExercises().length)} exercises passed · 0 hints used · 0 solutions viewed`,
     );
   });
 });

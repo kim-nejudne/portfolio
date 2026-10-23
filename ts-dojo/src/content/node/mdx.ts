@@ -6,14 +6,21 @@
 // lib files and ambient runtime declarations the app's worker uses, so the types shown are
 // the types the editor would show; `ts run` and `ts run errors` carry the snippet's emitted
 // JavaScript so Run needs no compiler round trip, and `run errors` carries the diagnostics the
-// app's own ts-ls core reports, rendered under the block. Nothing here reaches the browser:
+// app's own ts-ls core reports, rendered under the block. Shiki's inline colour styles become
+// classes named from the colour pair, and each lesson gets one `<CodeStyles>` element with
+// their declarations (pre-F13 fixes, Kim's decision on 23 October 2026: about 40% of a lesson
+// chunk was those styles, against the §9 precache budget). Nothing here reaches the browser:
 // the Vite plugin (src/content/vite-plugin.ts) and the content lint share this file.
 import { transformerTwoslash } from '@shikijs/twoslash';
 import { rendererClassic } from '@shikijs/twoslash/core';
 import type { Code, Root } from 'mdast';
 import type { MdxJsxAttribute, MdxJsxFlowElement } from 'mdast-util-mdx-jsx';
 import remarkFrontmatter from 'remark-frontmatter';
-import { createHighlighter, type Highlighter } from 'shiki';
+import {
+  createHighlighter,
+  type Highlighter,
+  type ShikiTransformer,
+} from 'shiki';
 import { createTwoslasher, type TwoslashInstance } from 'twoslash';
 import ts from 'typescript';
 import { visit } from 'unist-util-visit';
@@ -24,6 +31,7 @@ import { loadLibs } from '@/workers/ts-ls/libs';
 import { nodeFetchLib } from '@/workers/ts-ls/node/fetch-lib';
 import {
   CODE_BLOCK_COMPONENT,
+  CODE_STYLES_COMPONENT,
   fenceKind,
   SNIPPET_PATH,
   type CodeBlockProps,
@@ -35,7 +43,68 @@ export const SHIKI_THEMES = {
 } as const;
 
 export type { CodeBlockProps };
-export { CODE_BLOCK_COMPONENT, SNIPPET_PATH };
+export { CODE_BLOCK_COMPONENT, CODE_STYLES_COMPONENT, SNIPPET_PATH };
+
+/** A rendered fence: the `<CodeBlock>` props, and its colour classes with their declarations. */
+export interface RenderedFence extends CodeBlockProps {
+  styles: Record<string, string>;
+}
+
+/** A style shiki writes with `defaultColor: false`: its theme variables and nothing else. */
+const SHIKI_VARIABLES = /^(?:--shiki-[a-z-]+:[^;]+;?)+$/;
+
+/** `sk-` and a base-36 FNV-1a hash of the declarations: one pair, one class, in every build. */
+export function styleClass(style: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < style.length; i++) {
+    hash ^= style.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `sk-${(hash >>> 0).toString(36)}`;
+}
+
+type HastRoot = Parameters<NonNullable<ShikiTransformer['root']>>[0];
+type HastNode = HastRoot | HastRoot['children'][number];
+
+/**
+ * The last transformer: every element whose style is only shiki's variables gets a class
+ * instead, recorded in `styles`. The app's CSS reads the same variables either way.
+ */
+function transformerStyleClasses(
+  styles: Map<string, string>,
+): ShikiTransformer {
+  const walk = (node: HastNode): void => {
+    if (node.type === 'element') {
+      const { style } = node.properties;
+      if (typeof style === 'string' && SHIKI_VARIABLES.test(style)) {
+        const name = styleClass(style);
+        styles.set(name, style);
+        delete node.properties['style'];
+        const existing = node.properties['class'];
+        node.properties['class'] = Array.isArray(existing)
+          ? [...existing.map(String), name]
+          : typeof existing === 'string'
+            ? `${existing} ${name}`
+            : name;
+      }
+    }
+    if ('children' in node) for (const child of node.children) walk(child);
+  };
+  return {
+    name: 'dojo:style-classes',
+    root(root) {
+      walk(root);
+    },
+  };
+}
+
+/** The `.sk-…{…}` rules for a lesson's colour classes, in class order. */
+export function codeStylesCss(styles: ReadonlyMap<string, string>): string {
+  return [...styles]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, style]) => `.${name}{${style}}`)
+    .join('');
+}
 
 export class FenceRenderError extends Error {
   override readonly name = 'FenceRenderError';
@@ -54,7 +123,7 @@ export interface Renderer {
     kind: CodeBlockProps['kind'],
     code: string,
     at: { path: string; line: number },
-  ): Promise<CodeBlockProps>;
+  ): Promise<RenderedFence>;
   /** The diagnostics of a snippet under the §2 defaults (the lint's §3 condition 6). */
   check(code: string): Promise<Diag[]>;
   dispose(): void;
@@ -113,28 +182,37 @@ export async function createRenderer(): Promise<Renderer> {
     queue = step.catch(() => undefined);
     return step;
   };
-  const highlight = (code: string, twoslash: boolean): string =>
-    highlighter.codeToHtml(code, {
+  const highlight = (
+    code: string,
+    twoslash: boolean,
+  ): { html: string; styles: Record<string, string> } => {
+    const styles = new Map<string, string>();
+    const html = highlighter.codeToHtml(code, {
       lang: 'ts',
       themes: SHIKI_THEMES,
       defaultColor: false,
-      transformers: twoslash
-        ? [
-            transformerTwoslash({
-              twoslasher,
-              explicitTrigger: false,
-              renderer: rendererClassic(),
-              throws: true,
-            }),
-          ]
-        : [],
+      transformers: [
+        ...(twoslash
+          ? [
+              transformerTwoslash({
+                twoslasher,
+                explicitTrigger: false,
+                renderer: rendererClassic(),
+                throws: true,
+              }),
+            ]
+          : []),
+        transformerStyleClasses(styles),
+      ],
     });
+    return { html, styles: Object.fromEntries(styles) };
+  };
 
   return {
     async render(kind, code, at) {
       if (kind === 'twoslash') {
         try {
-          return { kind, code, html: highlight(code, true) };
+          return { kind, code, ...highlight(code, true) };
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
@@ -145,15 +223,15 @@ export async function createRenderer(): Promise<Renderer> {
           );
         }
       }
-      const html = highlight(code, false);
-      if (kind === 'static') return { kind, code, html };
+      const { html, styles } = highlight(code, false);
+      if (kind === 'static') return { kind, code, html, styles };
       const { js, diagnostics } = await withSnippet(code, () => ({
         js: core.emit([SNIPPET_PATH]).files[0]?.js ?? '',
         diagnostics: core.getDiagnostics([SNIPPET_PATH]).diagnostics,
       }));
       return kind === 'run'
-        ? { kind, code, html, js }
-        : { kind, code, html, js, diagnostics };
+        ? { kind, code, html, js, styles }
+        : { kind, code, html, js, diagnostics, styles };
     },
     check(code) {
       return withSnippet(
@@ -193,9 +271,22 @@ export function codeBlockElement(props: CodeBlockProps): MdxJsxFlowElement {
   };
 }
 
+/** The lesson's one `<CodeStyles css="…" />`, with the rules for every colour class it uses. */
+export function codeStylesElement(
+  styles: ReadonlyMap<string, string>,
+): MdxJsxFlowElement {
+  return {
+    type: 'mdxJsxFlowElement',
+    name: CODE_STYLES_COMPONENT,
+    attributes: [attribute('css', codeStylesCss(styles))],
+    children: [],
+  };
+}
+
 /**
- * The remark plugin: every `ts` fence of a known kind is replaced by its `<CodeBlock>`; other
- * fences are left to MDX's default `<pre><code>`.
+ * The remark plugin: every `ts` fence of a known kind is replaced by its `<CodeBlock>`, and a
+ * lesson with any gets one `<CodeStyles>` at the end; other fences are left to MDX's default
+ * `<pre><code>`.
  */
 export function remarkDojoCode(getRenderer: () => Promise<Renderer>) {
   return () =>
@@ -213,6 +304,7 @@ export function remarkDojoCode(getRenderer: () => Promise<Renderer>) {
       });
       if (fences.length === 0) return;
       const renderer = await getRenderer();
+      const styles = new Map<string, string>();
       for (const { node, index, parent } of fences) {
         const kind = fenceKind(node.lang ?? null, node.meta ?? null);
         if (kind === 'other') continue;
@@ -220,8 +312,12 @@ export function remarkDojoCode(getRenderer: () => Promise<Renderer>) {
           path,
           line: node.position?.start.line ?? 0,
         });
+        for (const [name, style] of Object.entries(props.styles)) {
+          styles.set(name, style);
+        }
         parent.children[index] = codeBlockElement(props);
       }
+      tree.children.push(codeStylesElement(styles));
     };
 }
 

@@ -247,16 +247,48 @@ function assert(check: Check, received: unknown, negated: boolean): void {
   }
 }
 
+/**
+ * `.rejects.toThrow(message?)` (pre-F13 fixes, Kim's decision on 23 October 2026): the reason is
+ * what was thrown, so it is checked directly, as Jest does. With no argument the rejection
+ * itself passes; a string must be in the reason's message, a RegExp must match it.
+ */
+const toThrowOnRejection =
+  (wanted: unknown): Check =>
+  (reason) => {
+    if (wanted === undefined) {
+      return { pass: true, message: 'expected the promise to reject' };
+    }
+    const text = messageOf(reason);
+    const pass =
+      wanted instanceof RegExp
+        ? wanted.test(text)
+        : text.includes(
+            typeof wanted === 'string' ? wanted : serialize(wanted),
+          );
+    return {
+      pass,
+      // The reason's text comes last: `assert` negates the first " to ".
+      message: `expected the rejection reason's message to match ${serialize(wanted)}, got ${serialize(text)}`,
+      expected: wanted,
+      actual: text,
+    };
+  };
+
+type Mode = 'sync' | 'resolves' | 'rejects';
+
 function matchers(
   receive: () => unknown,
   negated: boolean,
-  async: boolean,
+  mode: Mode,
 ): Record<string, (...args: unknown[]) => unknown> {
   const out: Record<string, (...args: unknown[]) => unknown> = {};
   for (const [name, make] of Object.entries(CHECKS)) {
     out[name] = (...args: unknown[]) => {
-      const check = make(...args);
-      if (!async) {
+      const check =
+        mode === 'rejects' && name === 'toThrow'
+          ? toThrowOnRejection(args[0])
+          : make(...args);
+      if (mode === 'sync') {
         assert(check, receive(), negated);
         return undefined;
       }
@@ -270,8 +302,8 @@ function matchers(
 
 /** `expect(value)`: the matchers, `.not`, `.resolves` and `.rejects` (§5). */
 export function expect(received: unknown): Record<string, unknown> {
-  const sync = matchers(() => received, false, false);
-  const not = matchers(() => received, true, false);
+  const sync = matchers(() => received, false, 'sync');
+  const not = matchers(() => received, true, 'sync');
   const resolved = (): Promise<unknown> => {
     if (!isPromiseLike(received)) {
       return Promise.reject(
@@ -305,12 +337,12 @@ export function expect(received: unknown): Record<string, unknown> {
     ...sync,
     not,
     resolves: {
-      ...matchers(resolved, false, true),
-      not: matchers(resolved, true, true),
+      ...matchers(resolved, false, 'resolves'),
+      not: matchers(resolved, true, 'resolves'),
     },
     rejects: {
-      ...matchers(rejection, false, true),
-      not: matchers(rejection, true, true),
+      ...matchers(rejection, false, 'rejects'),
+      not: matchers(rejection, true, 'rejects'),
     },
   };
 }

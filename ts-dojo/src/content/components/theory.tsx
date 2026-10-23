@@ -7,15 +7,20 @@ import type { Lesson } from '../build-registry';
 import { loadLessonContent } from '../registry';
 import { Callout } from './callout';
 import { CodeBlock } from './code-block';
+import { CodeStyles } from './code-styles';
 import { Key } from './key';
 import { LessonContext } from './lesson-context';
 import { LessonLink } from './lesson-link';
 import { Predict } from './predict';
 
-/** The §3 MDX components plus the build-time `<CodeBlock>` every `ts` fence became. */
+/**
+ * The §3 MDX components plus the build-time `<CodeBlock>` every `ts` fence became and the
+ * lesson's `<CodeStyles>`.
+ */
 export const MDX_COMPONENTS: MDXComponents = {
   Callout,
   CodeBlock,
+  CodeStyles,
   Key,
   Lesson: LessonLink,
   Predict,

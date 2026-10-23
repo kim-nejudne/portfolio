@@ -1,6 +1,7 @@
 // §1 Completion as pure rules over the §7 rows: which Check yourself questions still need a
 // correct answer, whether a lesson is complete (theory read and every non-challenge exercise
-// passed), and the not started / in progress / complete state of a lesson and of a module.
+// passed), and the not started / in progress / complete state of a lesson and of a module. A
+// module's completion ignores its optional lessons (`optional: true`, pre-F13 fixes).
 import type { Lesson, Registry } from '@/content/build-registry';
 import type { ExerciseRow, LessonRow, LessonState } from './db';
 
@@ -80,11 +81,30 @@ export function lessonStateOf(row: LessonRow | undefined): LessonState {
   return row?.state ?? 'not-started';
 }
 
-export function moduleState(lessons: readonly LessonState[]): LessonState {
-  if (lessons.length > 0 && lessons.every((state) => state === 'complete')) {
+/** A module's lessons split by the frontmatter's `optional`, each part in module order. */
+export function partitionLessons<T>(
+  lessons: readonly T[],
+  isOptional: (lesson: T) => boolean,
+): { core: T[]; optional: T[] } {
+  return {
+    core: lessons.filter((lesson) => !isOptional(lesson)),
+    optional: lessons.filter((lesson) => isOptional(lesson)),
+  };
+}
+
+/**
+ * Complete when every core lesson is (every lesson, for a module with no core ones); not
+ * started when no lesson at all is; in progress otherwise.
+ */
+export function moduleState(
+  core: readonly LessonState[],
+  optional: readonly LessonState[] = [],
+): LessonState {
+  const required = core.length > 0 ? core : optional;
+  if (required.length > 0 && required.every((state) => state === 'complete')) {
     return 'complete';
   }
-  return lessons.some((state) => state !== 'not-started')
+  return [...core, ...optional].some((state) => state !== 'not-started')
     ? 'in-progress'
     : 'not-started';
 }
