@@ -338,9 +338,9 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 ## Skills
 
 **Languages** TypeScript · JavaScript · Python · SQL
-**Frontend** React · Vue · Next.js · styled-components · Tailwind · SCSS · GSAP
+**Frontend** React · Next.js · styled-components · Tailwind · SCSS · GSAP
 **Backend & data** NestJS · Express · FastAPI · Postgres · MongoDB · Drizzle · Elasticsearch
-**Craft** Accessibility (keyboard, semantics, reduced motion) · performance budgets · motion design · typography
+**Craft** Accessibility (keyboard, semantics, reduced motion) · performance budgets · motion design · typography · tests proven by sabotage
 **Automation & AI** n8n · Python scrapers · LLM integrations
 **Infrastructure** Docker · nginx · Linux · CI/CD · Git
 
@@ -351,6 +351,18 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 > engineer twice over: the title claims the seniority and the stack, and this
 > row is the only hard evidence for "with a designer's eye" outside the
 > portfolio itself.
+>
+> **`Vue` was cut on 2026-08-12**, and it is the one entry here that failed
+> the test the rest of the row passes. No role on this document and no project
+> in the portfolio supports it, which makes it the cheapest claim on the page to
+> falsify: a screener who asks one follow-up question finds nothing behind it,
+> and a skills row that is wrong once is a skills row that gets read as
+> aspirational throughout. `identity.ts:116` had already recorded the same
+> judgement and kept it off the homepage stack line, so the fold and the CV were
+> disagreeing about a claim; they agree now.
+>
+> The cost was nothing. `Frontend` still runs six deep and the row still wraps
+> the same way, checked in the render rather than assumed.
 >
 > Python and SQL were inferred from POKÉTRACK's FastAPI backend and the
 > Postgres work rather than from the old résumé, and Kim confirmed both as

@@ -26,12 +26,27 @@ export default function Colophon() {
           products rather than to someone deciding whether to look at them. The
           60fps claim came down with it, for the same reason and to the same
           place: it is a craft fact, and this is where the craft facts live.
+
+          The last sentence arrived on 2026-08-12. `readiness-brief.md` called
+          sabotage-testing "the best answer you own" and noted it was stated
+          nowhere outside commit messages, while being the direct answer to the
+          question every senior interview asks in some form: how do you know
+          your tests are worth anything.
+
+          **It deliberately carries no number.** The obvious sentence names the
+          assertion count, and this repository has already watched that number
+          drift by eleven in the layer that describes it. A count is also the
+          weakest available form of this argument, which is the same criticism
+          the brief makes of FORME's "172 tests". The practice is the claim, and
+          the practice cannot go stale.
         */}
         <p className="colophon-lede">
           Five standalone products, each with its own art direction. The range is the point; the
           craft bar is the same on every one. The designer’s eye behind them is an editorial one,
           out of magazine and desktop-publishing work that predates the nine years of JavaScript,
-          and the motion holds 60fps everywhere it appears.
+          and the motion holds 60fps everywhere it appears. All of that is checked rather than
+          claimed: the site is verified in a real browser against production, and the checks
+          themselves are tested by deliberately breaking them to confirm they can fail.
         </p>
         {/*
           Between the lede and the facts, which is the one place it belongs.

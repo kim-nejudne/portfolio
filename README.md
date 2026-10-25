@@ -1,8 +1,16 @@
 # kimnejudne.dev
 
+[![CI](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml)
+
 Six independent web applications and the homepage that links them, by
 [Kim Nejudne](https://kimnejudne.dev). Every one of them is live, self-hosted,
 and has a written case study.
+
+That badge builds all six from their own lockfiles, then runs the hub's
+browser assertions against the built site over the DevTools protocol and an
+axe-core sweep of every hub page. The assertions are tested too: they are
+deliberately broken to confirm they fail, because a check that has never
+failed is a check nobody has verified.
 
 | | | Stack | Live |
 |---|---|---|---|
