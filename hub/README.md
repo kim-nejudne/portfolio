@@ -394,12 +394,12 @@ equality on that file in both directions, so an extra entry fails as "unknown".
 ```sh
 npm run build
 npm run preview           # :4501
-npm run verify            # 112 assertions in a real browser, over all six pages
+npm run verify            # 85 assertions in a real browser, over all four pages
 npm run beats             # photograph every beat, desktop and phone
 ```
 
-`verify.mjs` drives headless Chrome over the DevTools Protocol — 112 assertions
-across six pages, thirty-six of which have been sabotaged to confirm they fail
+`verify.mjs` drives headless Chrome over the DevTools Protocol — 85 assertions
+across four pages, thirty-six of which have been sabotaged to confirm they fail
 on the thing they exist to catch. One of those was on the list and did not
 deserve to be: deleting `pointer-events: none` from `.head` left the click check
 passing, because the card it probes had drifted out from under the head's
