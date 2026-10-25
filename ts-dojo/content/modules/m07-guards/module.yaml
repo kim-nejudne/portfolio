@@ -1,0 +1,9 @@
+id: m07-guards
+title: Guards, assertions and exhaustiveness
+summary: Teach the compiler your own checks, prove every case is handled, and know where narrowing quietly stops.
+prerequisites: [m06-type-operators]
+lessons:
+  - 01-type-guards
+  - 02-assertion-functions
+  - 03-exhaustiveness-and-satisfies
+  - 04-narrowing-pitfalls

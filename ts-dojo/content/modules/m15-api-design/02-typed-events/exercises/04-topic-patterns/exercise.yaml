@@ -1,0 +1,45 @@
+id: m15-api-design/02-typed-events/04-topic-patterns
+kind: implement
+title: Topic patterns
+minutes: 7
+challenge: false
+prompt: |
+  `Broker<T>` publishes messages on topics such as `'user/created'`, and `subscribe` takes a
+  pattern: a topic, or a namespace followed by `/*` for every topic in it. The listener gets a
+  `Message`, a discriminated union of the topics the pattern matches:
+
+  ```ts
+  broker.subscribe('user/*', (message) => {
+    // message: Message<Topics, 'user/created' | 'user/deleted'>
+    if (message.topic === 'user/created') console.log(message.payload.name);
+  });
+  ```
+
+  The class is written. Finish the two types and the type guard it relies on:
+
+  - `Pattern<T>`: every topic of `T`, and `` `${namespace}/*` `` for each namespace its topics
+    use. The namespace is the part before the first `/`. A topic without a `/` has none, and
+    `'billing/*'` is an error when no topic starts with `billing/`.
+  - `Matching<T, P>`: the topics the pattern `P` receives: `P` itself for a topic, and every
+    topic that starts with the namespace and a `/` for a `/*` pattern.
+  - `matches(pattern, message)`: whether the message's topic is the pattern, or lies in the
+    pattern's namespace. `'user/*'` does not match `'users/exported'`.
+
+  This combines the lesson with template literal types and `infer` (12.1), distributive
+  conditional types (11.3) and type guards (7.1). No cast is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - '`infer` in a template literal type can capture what comes before the first `/` of a key. A conditional type over `keyof T` asks that of every topic at once.'
+  - '`Matching` asks whether `P` ends in `/*`. `Message` only takes keys of `T`, so both branches should leave only keys of `T`, which `Extract` can do.'
+  - '`message.topic` is a `keyof T`, which may not be a string. Turn it into one before comparing.'

@@ -1,0 +1,24 @@
+id: m13-type-challenges/02-medium-set-1/04-deep-readonly
+kind: type-challenge
+title: Deep Readonly
+minutes: 6
+challenge: false
+prompt: |
+  Write `DeepReadonly<T>` in `index.ts`: `T` with every property `readonly`, at every depth.
+  Nested objects become readonly objects, and arrays and tuples become `readonly` arrays and
+  tuples whose elements are readonly in turn. Functions are left as they are: `a: () => 22`
+  becomes `readonly a: () => 22`.
+
+  `T` may be a union, `{ a: string } | { b: number }`, and then each member is made readonly
+  on its own. A case added in the dojo checks arrays of objects.
+
+  From type-challenges [#00009 Deep Readonly](https://github.com/type-challenges/type-challenges/blob/main/questions/00009-medium-deep-readonly/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - "13.1's Readonly, applied again to each property's type. The alias may refer to itself, as in 11.4, Recursive conditional types."
+  - A mapped type over a function type keeps none of the function (the lesson's first pitfall). Check for functions before you map.
+  - Arrays, tuples and unions need no case of their own. A homomorphic mapped type turns arrays and tuples into readonly ones and maps each member of a union on its own (10.3), which checking `keyof T` first would lose (the lesson's second pitfall).

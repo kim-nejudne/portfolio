@@ -1,0 +1,59 @@
+id: m18-capstones/01-type-safe-router/03-routes-and-groups
+kind: implement
+title: Routes and groups
+minutes: 10
+challenge: false
+prompt: |
+  `index.ts` has exercise 1's `matchPath`, the `Route` interface from the lesson, and untyped
+  versions of `route` and `group`. Write both, typed:
+
+  ```ts
+  const user = route({
+    path: '/users/:id',
+    search: z.object({ tab: z.enum(['posts', 'likes']).default('posts') }),
+    handle: ({ params, search }) => `user ${params.id}, ${search.tab}`,
+  });
+  user.resolve('/users/7', { tab: 'likes' }); // { ok: true, value: 'user 7, likes' }
+
+  const comment = group('/users/:id')
+    .group('/posts/:postId')
+    .route({
+      path: '/comments/:commentId',
+      search: z.object({}),
+      handle: ({ params }) => params, // { id: string; postId: string; commentId: string }
+    });
+  comment.path; // type '/users/:id/posts/:postId/comments/:commentId'
+  ```
+
+  - `route(def)` is generic in the path `P`, the schema `S` and what the handler returns `R`, and
+    gives a `Route<P, R>`. Its handler gets `{ params, search }`: `params` typed `Params<P>`,
+    `search` the schema's output. `S` must be a `SearchSchema`, a schema that takes strings in,
+    so `z.object({ page: z.number() })` is a type error. A route made where a
+    `Route<string, unknown>` is expected, as in a router's table, keeps its pattern too (the
+    lesson's first pitfall).
+  - Its `resolve(pathname, query)` gives `null` when the path doesn't match,
+    `{ ok: false, issues }` with the schema's issues when the query doesn't parse, and
+    `{ ok: true, value }` with what the handler returned otherwise. The handler runs only then.
+  - `group(base)` gives an object with two methods: `route(def)`, which works like `route` with
+    the base put before `def.path`, so the handler's `params` include the base's; and
+    `group(inner)`, a group whose base is the two joined.
+
+  The tests call each handler and check the types of what comes back. Until `route` is
+  generic, its handler's context is untyped, and the type cases fail. No cast is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    any-expression,
+  ]
+hints:
+  - Inside `route`, the path and the schema still have their own types. Which call gives a `Params<P>`, and which one gives the schema's output?
+  - A group's route types its handler from a template literal type that joins the base and its own path. Passed straight to a generic function, a template literal expression keeps such a type, with no annotation and no cast.
+  - If a route made inside a table comes out with a `string` pattern, its return type is still an inference site for `P`. Module 14 has the tool that turns that off.

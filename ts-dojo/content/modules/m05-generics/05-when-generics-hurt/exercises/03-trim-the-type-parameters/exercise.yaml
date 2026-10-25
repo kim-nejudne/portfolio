@@ -1,0 +1,28 @@
+id: m05-generics/05-when-generics-hurt/03-trim-the-type-parameters
+kind: fix
+title: Trim the type parameters
+minutes: 3
+challenge: false
+prompt: |
+  The four helpers in `index.ts` declare more type parameters than they need, and the use of
+  `mapAll` at the bottom of the file doesn't compile:
+
+  - `Argument of type 'unknown' is not assignable to parameter of type 'number'.`
+
+  Remove every type parameter that appears only once in its function's signature, and write
+  its constraint, or `unknown` when it has none, where it was used. Keep each function's
+  parameters, their order and its return type otherwise as they are, and don't change the
+  bodies' behaviour.
+
+  The type cases check each signature, so a type parameter that stays fails them. The
+  `@ts-expect-error` lines check that the helpers still reject what they should, and the
+  tests check what they return. This brings back `mapAll` from 5.1 and `sortBy` from 5.4.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - For each type parameter, count where it appears in the parameters and the return type, constraints included. One that only names the type of a single parameter appears once.
+  - Write that type parameter's constraint, or unknown when it has none, as the parameter's type, and delete the type parameter.
+  - In mapAll, once the callback's type is written out, the result type has an argument to be inferred from.

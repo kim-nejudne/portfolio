@@ -1,0 +1,34 @@
+id: m18-capstones/01-type-safe-router/02-first-match-decides
+kind: predict
+title: The first match decides
+minutes: 2
+challenge: false
+code: |
+  // route and createRouter as in the lesson.
+  const router = createRouter({
+    user: route({
+      path: '/users/:id',
+      search: z.object({ tab: z.enum(['posts', 'likes']).default('posts') }),
+      handle: ({ params, search }) => `user ${params.id}, ${search.tab}`,
+    }),
+    anyUserPage: route({
+      path: '/users/*',
+      search: z.object({}),
+      handle: ({ params }) => `somewhere under ${params['*']}`,
+    }),
+  });
+
+  router.resolve('/users/7?tab=all');
+question: What does the last line return?
+options:
+  - "`{ kind: 'page', name: 'user', body: 'user 7, posts' }`: the default stands in for the bad value"
+  - "`{ kind: 'bad-query', name: 'user', issues: [...] }`"
+  - "`{ kind: 'page', name: 'anyUserPage', body: 'somewhere under 7' }`"
+  - "`{ kind: 'not-found', pathname: '/users/7' }`"
+answer: 1
+explanation: |
+  The path matches `/users/:id`, the first route, and that route decides. Its schema rejects
+  `'all'`, which is neither `'posts'` nor `'likes'`; `.default('posts')` fills in a key that is
+  missing, never one that is wrong. So the outcome is a bad query for `user`, which a server
+  answers with a 400. The router doesn't go on to `anyUserPage`, whose path would match too: a
+  bad query is an answer, not a miss.

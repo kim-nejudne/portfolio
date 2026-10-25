@@ -1,0 +1,26 @@
+id: m06-type-operators/02-utility-types-1/02-entity-inputs
+kind: type-challenge
+title: Create, update and summarise
+minutes: 4
+challenge: false
+prompt: |
+  Every record the server stores has an `id` and a `createdAt`, which the server sets. Write three
+  generic helper types in `index.ts` that derive the types a client works with from a record type:
+
+  - `CreateInput<T>`: `T` without `id` and `createdAt`.
+  - `UpdateInput<T>`: the same fields, every one of them optional.
+  - `Summary<T, K>`: a read-only object type with `T`'s `id` and the fields named in `K`.
+
+  `CreateInput` and `UpdateInput` accept only types that are an `Entity`, and `K` may name only
+  fields of `T`. The type cases try the helpers on a user and a post type, and the
+  `@ts-expect-error` lines check that a type without the entity fields and a misspelt field name
+  are rejected. This builds on generic type aliases (5.3) and constraints (5.2, 5.4).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each helper is one utility type, or two nested ones. Read the description of each and ask which properties stay, which go and which modifiers change.
+  - '`Omit` would accept a type without `id` just as happily, so the check that the type is an entity has to come from a constraint on `T`.'
+  - In `Summary`, the keys to keep are a union of `id` and `K`, and `K` needs a constraint of its own so that a misspelt name fails.

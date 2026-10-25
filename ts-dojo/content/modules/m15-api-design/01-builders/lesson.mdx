@@ -1,0 +1,371 @@
+---
+id: m15-api-design/01-builders
+title: Builders and fluent chains
+minutes: 25
+objectives:
+  - Record what a builder has been given in its type parameter, one intersection per step
+  - Require steps before build with a this parameter that names the complete type
+  - Take used steps off a builder's type with Omit, so that a second call or an early build is an error
+  - Explain why a union of step names checks nothing, and why steps return new builders
+prerequisites:
+  - m05-generics/03-generic-types-and-classes
+  - m06-type-operators/02-utility-types-1
+  - m08-functions-classes/01-overloads
+  - m08-functions-classes/02-this-and-callable-types
+  - m11-conditional-types/01-conditional-types
+  - m14-type-system-edges/01-assignability-variance
+  - m14-type-system-edges/03-branded-types
+tags:
+  - builder
+  - fluent API
+  - method chaining
+  - type parameter accumulation
+  - this parameter
+  - Omit
+  - immutable builder
+  - API design
+---
+
+## Concept
+
+A fluent chain returns an object from every call, so that the next call can follow. <Lesson id="m08-functions-classes/02-this-and-callable-types" /> kept the chain's class with the `this` type. What `this` can't keep is which steps have run: after `.url('/users')` the builder has the same type as before, so a `build()` that needs a URL compiles on a builder that has none, and fails only when it runs.
+
+A builder that lets the compiler check its steps keeps what has been set in a type parameter. Each step returns a new builder whose type parameter has one more property:
+
+```ts twoslash
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+class RequestBuilder<T extends object> {
+  readonly #spec: T;
+
+  constructor(spec: T) {
+    this.#spec = spec;
+  }
+
+  url(url: string): RequestBuilder<T & { url: string }> {
+    return new RequestBuilder({ ...this.#spec, url });
+  }
+
+  method(method: Method): RequestBuilder<T & { method: Method }> {
+    return new RequestBuilder({ ...this.#spec, method });
+  }
+}
+
+const start = new RequestBuilder({});
+//    ^?
+const draft = start.url('/users').method('GET');
+//    ^?
+```
+
+`T` starts as `{}`, the type of the empty object, and each step adds its property with `&`. The `{}` drops out of the intersection, which is why `draft` shows only the two steps. The body needs no cast: spreading a `T` and adding `url` gives exactly `T & { url: string }`. The type parameter describes the value the builder holds, so the type and the run time can't drift apart.
+
+## Examples
+
+**Required steps.** With the steps recorded, `build` can demand them. A `this` parameter (<Lesson id="m08-functions-classes/02-this-and-callable-types" />) names the type the builder must have when `build` is called. `body` is optional in `RequestSpec`, so a builder without it still fits. Because no step changes the builder it was called on, a partial builder can be finished in several ways:
+
+```ts run
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type RequestSpec = { url: string; method: Method; body?: string };
+
+class RequestBuilder<T extends object> {
+  readonly #spec: T;
+
+  constructor(spec: T) {
+    this.#spec = spec;
+  }
+
+  url(url: string): RequestBuilder<T & { url: string }> {
+    return new RequestBuilder({ ...this.#spec, url });
+  }
+
+  method(method: Method): RequestBuilder<T & { method: Method }> {
+    return new RequestBuilder({ ...this.#spec, method });
+  }
+
+  body(body: string): RequestBuilder<T & { body: string }> {
+    return new RequestBuilder({ ...this.#spec, body });
+  }
+
+  build(this: RequestBuilder<RequestSpec>): RequestSpec {
+    return { ...this.#spec };
+  }
+}
+
+const request = () => new RequestBuilder({});
+
+const users = request().url('/users');
+console.log(users.method('GET').build());
+console.log(users.method('POST').body('{"name":"Ada"}').build());
+console.log(request().method('DELETE').url('/users/1').build());
+```
+
+A chain that skips a step is an error at `build`, and the second line of the message names what is missing:
+
+```ts run errors
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type RequestSpec = { url: string; method: Method };
+
+class RequestBuilder<T extends object> {
+  readonly #spec: T;
+
+  constructor(spec: T) {
+    this.#spec = spec;
+  }
+
+  url(url: string): RequestBuilder<T & { url: string }> {
+    return new RequestBuilder({ ...this.#spec, url });
+  }
+
+  method(method: Method): RequestBuilder<T & { method: Method }> {
+    return new RequestBuilder({ ...this.#spec, method });
+  }
+
+  build(this: RequestBuilder<RequestSpec>): RequestSpec {
+    return { ...this.#spec };
+  }
+}
+
+const request = () => new RequestBuilder({});
+
+request().url('/users').build();
+request().build();
+```
+
+`The 'this' context of type 'RequestBuilder<{ url: string; }>' is not assignable to method's 'this' of type 'RequestBuilder<RequestSpec>'.`, then `Property 'method' is missing in type '{ url: string; }' but required in type 'RequestSpec'.` The check works because `T` is the type of a field, so it is covariant (<Lesson id="m14-type-system-edges/01-assignability-variance" />): a builder whose `T` has every property `RequestSpec` requires is a `RequestBuilder<RequestSpec>`, and one that lacks a property is not.
+
+**Taking used steps away.** The builder above still lets `url` be called twice, the second call quietly winning. A step can return a type without the methods that may no longer be called. `Omit` (<Lesson id="m06-type-operators/02-utility-types-1" />) removes them: each step's name is the property it sets, so the steps taken are `keyof T`, and `build` is removed too until `T` is a complete `RequestSpec`, with a conditional type (<Lesson id="m11-conditional-types/01-conditional-types" />):
+
+```ts twoslash
+// @errors: 2339
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type RequestSpec = { url: string; method: Method };
+
+type Next<T extends object> = Omit<
+  RequestBuilder<T>,
+  keyof T | (T extends RequestSpec ? never : 'build')
+>;
+
+class RequestBuilder<T extends object> {
+  readonly #spec: T;
+
+  constructor(spec: T) {
+    this.#spec = spec;
+  }
+
+  url(url: string): Next<T & { url: string }> {
+    return new RequestBuilder({ ...this.#spec, url });
+  }
+
+  method(method: Method): Next<T & { method: Method }> {
+    return new RequestBuilder({ ...this.#spec, method });
+  }
+
+  build(): T {
+    return { ...this.#spec };
+  }
+}
+
+const request = (): Next<{}> => new RequestBuilder({});
+
+const users = request().url('/users');
+const spec = users.method('GET').build();
+//    ^?
+users.url('/admins');
+users.build();
+```
+
+`build` no longer needs a `this` parameter, since only a complete builder has it, and it returns `T`, exactly the steps that were taken. It couldn't keep the parameter anyway: `Omit` builds a new object type from the public keys, so a `Next<…>` has no `#spec` and is not a `RequestBuilder` at all. Removing a method is the check here. A `RequestBuilder` is still assignable to its `Omit`, so the steps return their new builders without a cast.
+
+**Keys chosen by the caller.** A builder for arbitrary options records a key and a value type per call, with a type parameter for each. Here the body runs into a limit: an object literal with a computed key of a generic type, `{ [key]: value }`, is typed with a string index signature, `{ [x: string]: V; }`, and returned directly it reports `Type 'OptionsBuilder<T & { [x: string]: V; }>' is not assignable to type 'OptionsBuilder<T & Record<K, V>>'.` There are two ways through. One assertion, as below, which is true because the key is a `K`. Or an overload (<Lesson id="m08-functions-classes/01-overloads" />): the generic signature is the one callers see, and the body sits under a looser implementation signature, `set(key: string, value: unknown): OptionsBuilder<object>`, where the spread compiles as it is. The last exercise asks for the overload:
+
+```ts twoslash
+class OptionsBuilder<T extends object> {
+  readonly #values: T;
+
+  constructor(values: T) {
+    this.#values = values;
+  }
+
+  set<K extends string, V>(key: K, value: V): OptionsBuilder<T & Record<K, V>> {
+    const entry = { [key]: value } as Record<K, V>;
+    return new OptionsBuilder({ ...this.#values, ...entry });
+  }
+
+  build(): T {
+    return { ...this.#values };
+  }
+}
+
+const options = new OptionsBuilder({}).set('retries', 3).set('verbose', true);
+//    ^?
+console.log(options.build().retries + 1);
+```
+
+The type grows one `Record` per call. That is correct, but hard to read after ten calls; the identity mapped type from <Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> flattens it into one object type.
+
+## Pitfalls
+
+**Counting steps in a union of names.** Recording the steps as a union of their names, `'url' | 'method'`, looks lighter than an object type, and checks nothing. Below, `Done` appears in no member, so it is not compared at all (<Lesson id="m14-type-system-edges/03-branded-types" />). Even a member such as `done: Done[]` wouldn't help: `'url'` is one of `'url' | 'method'`, so a builder with fewer steps is assignable to one with more, the wrong way round for `build`. The call compiles, and throws when it runs:
+
+```ts run
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type RequestSpec = { url: string; method: Method };
+
+class RequestBuilder<Done extends string = never> {
+  readonly #spec: Partial<RequestSpec>;
+
+  constructor(spec: Partial<RequestSpec>) {
+    this.#spec = spec;
+  }
+
+  url(url: string): RequestBuilder<Done | 'url'> {
+    return new RequestBuilder({ ...this.#spec, url });
+  }
+
+  method(method: Method): RequestBuilder<Done | 'method'> {
+    return new RequestBuilder({ ...this.#spec, method });
+  }
+
+  build(this: RequestBuilder<'url' | 'method'>): RequestSpec {
+    const { url, method } = this.#spec;
+    if (url === undefined || method === undefined) {
+      throw new Error('a step is missing');
+    }
+    return { url, method };
+  }
+}
+
+console.log(new RequestBuilder({}).url('/users').build());
+```
+
+Record each step as a property of an object type, as in the examples: a type with more properties is assignable to one with fewer, which is the direction `build` needs. (Declaring the parameter contravariant, `in Done`, would also turn the check round.)
+
+**Reassigning the steps to a `let`.** A variable keeps the type it was declared with. A builder declared empty and then given its steps by assignment stays a `RequestBuilder<{}>`, because each new builder is assignable to it, and its type forgets what was set:
+
+```ts run errors
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type RequestSpec = { url: string; method: Method; body?: string };
+
+class RequestBuilder<T extends object> {
+  readonly #spec: T;
+
+  constructor(spec: T) {
+    this.#spec = spec;
+  }
+
+  url(url: string): RequestBuilder<T & { url: string }> {
+    return new RequestBuilder({ ...this.#spec, url });
+  }
+
+  method(method: Method): RequestBuilder<T & { method: Method }> {
+    return new RequestBuilder({ ...this.#spec, method });
+  }
+
+  body(body: string): RequestBuilder<T & { body: string }> {
+    return new RequestBuilder({ ...this.#spec, body });
+  }
+
+  build(this: RequestBuilder<RequestSpec>): RequestSpec {
+    return { ...this.#spec };
+  }
+}
+
+function save(name: string | undefined): RequestSpec {
+  let draft = new RequestBuilder({});
+  draft = draft.url('/users').method('POST');
+  if (name !== undefined) {
+    draft = draft.body(JSON.stringify({ name }));
+  }
+  return draft.build();
+}
+```
+
+`The 'this' context of type 'RequestBuilder<{}>' is not assignable to method's 'this' of type 'RequestBuilder<RequestSpec>'.` Put the required steps in the declaration, `let draft = new RequestBuilder({}).url('/users').method('POST');`, and the variable's type has them. An optional step assigned in the `if` is then fine.
+
+**Changing `this` behind a new type.** A step that adds its property to the object it already holds, and returns `this` with an assertion to the next type, compiles, and every type in the chain looks right. But every builder in the chain is then the same object, so finishing a partial builder twice makes the second call change the first:
+
+```ts run
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type RequestSpec = { url: string; method: Method };
+
+class RequestBuilder<T extends object> {
+  readonly #spec: T;
+
+  constructor(spec: T) {
+    this.#spec = spec;
+  }
+
+  url(url: string) {
+    Object.assign(this.#spec, { url });
+    return this as RequestBuilder<T & { url: string }>;
+  }
+
+  method(method: Method) {
+    Object.assign(this.#spec, { method });
+    return this as RequestBuilder<T & { method: Method }>;
+  }
+
+  build(this: RequestBuilder<RequestSpec>): RequestSpec {
+    return { ...this.#spec };
+  }
+}
+
+const users = new RequestBuilder({}).url('/users');
+const list = users.method('GET');
+const create = users.method('POST');
+console.log(list.build().method);
+```
+
+It prints `POST`: `list` and `create` are both `users`. The type said `list` had method `GET` set, and nothing checked it. Return a new builder from each step, so each type describes its own value.
+
+## Check yourself
+
+<Predict
+  id="optional-step-order"
+  code={
+    "type RequestSpec = { url: string; method: Method; body?: string };\n\n// url, method and body return RequestBuilder<T & { … }> as in the examples,\n// and build(this: RequestBuilder<RequestSpec>): RequestSpec\nconst spec = request().body('{}').method('POST').url('/users').build();"
+  }
+  question="Does the last line compile?"
+  options={[
+    'Yes',
+    'No: `body` is optional, so a builder with `body` set is not a `RequestBuilder<RequestSpec>`',
+    'No: `url` has to be the first step',
+  ]}
+  answer={0}
+  explanation="Each step adds its property to `T` whatever the order, so `T` ends as `{ body: string } & { method: Method } & { url: string }`. That has every property `RequestSpec` requires, and a `body` that fits the optional one, so the builder is a `RequestBuilder<RequestSpec>` and `build` accepts it."
+/>
+
+<Predict
+  id="methods-after-url"
+  question="With the `Omit` version, `Next<T>` removes `keyof T`, and `build` while `T` is not a `RequestSpec`. Which methods does the type of `request().url('/users')` have?"
+  options={[
+    '`url`, `method` and `build`',
+    '`method` and `build`',
+    '`method` only',
+    '`build` only',
+  ]}
+  answer={2}
+  explanation="`T` is `{ url: string }`, so `url` is removed as a step already taken. `T` is not yet a `RequestSpec`, since `method` is missing, so `build` is removed too. Only `method` is left, and after it `build` appears."
+/>
+
+<Predict
+  id="let-keeps-its-type"
+  code={
+    "let draft = request().url('/users');\ndraft = draft.method('GET');\nconst spec = draft.build();"
+  }
+  question="`request()` and `build` are the ones from the first example. What does the compiler report?"
+  options={[
+    'Nothing',
+    'An error on the second line: the new builder is not assignable to `draft`',
+    'An error on the third line: the `this` context is missing `method`',
+  ]}
+  answer={2}
+  explanation="`draft` was declared as `RequestBuilder<{ url: string }>`. The builder from `method` is assignable to that type, so the assignment compiles, but the variable keeps its declared type, which has no `method`. `build` then reports that `method` is missing. Declaring `draft` with both steps in its initializer fixes it."
+/>
+
+## Further reading
+
+- [Classes: `this` parameters](https://www.typescriptlang.org/docs/handbook/2/classes.html#this-parameters) and [`this` types](https://www.typescriptlang.org/docs/handbook/2/classes.html#this-types)
+- [Generics: generic classes](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-classes)
+- [Utility types: `Omit<Type, Keys>`](https://www.typescriptlang.org/docs/handbook/utility-types.html#omittype-keys)
+- [Generics: variance annotations](https://www.typescriptlang.org/docs/handbook/2/generics.html#variance-annotations)

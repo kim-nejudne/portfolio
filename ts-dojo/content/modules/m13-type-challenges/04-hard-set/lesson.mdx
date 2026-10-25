@@ -1,0 +1,221 @@
+---
+id: m13-type-challenges/04-hard-set
+title: Hard set, selected
+minutes: 60
+optional: true
+objectives:
+  - Build a nested function type from a parameter tuple, and keep the literal a function returns
+  - Tell optional properties from required ones whose type includes undefined
+  - Walk a string or a dotted path one step at a time, testing each step
+  - Detect any, and read a number literal out of a string with infer N extends number
+  - Solve the seven selected challenges of the hard set
+prerequisites:
+  - m13-type-challenges/03-medium-set-2
+  - m12-template-tuples/02-variadic-tuples
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/04-recursive-conditionals
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m12-template-tuples/01-template-literal-types
+tags:
+  - type-challenges
+  - hard
+  - Currying
+  - Get Required
+  - Required Keys
+  - CamelCase
+  - IsAny
+  - Typed Get
+  - String to Number
+  - infer extends
+  - optional properties
+  - any
+---
+
+## Concept
+
+The hard set, as selected here, is seven challenges. None needs syntax that Tier 3 hasn't taught, bar one constraint in a string pattern, below. What makes them hard is an edge each one hides: a literal that widens, a property whose type says nothing about whether it is optional, a type that passes every test meant for another. The format is the one from <Lesson id="m13-type-challenges/01-easy-set" />, and these are the techniques, with the challenges that use them:
+
+- **Recursion over a parameter list.** `Parameters` gives a function's parameters as a tuple, and a tuple pattern takes them off one at a time (<Lesson id="m12-template-tuples/03-tuple-manipulation" />), so a type can build one arrow per parameter. <Lesson id="m12-template-tuples/02-variadic-tuples" />'s `partial` split a parameter list in two; Currying splits it into single arguments. How the function is passed decides whether its result keeps its literal type (the third pitfall).
+- **Optional or required.** A mapped type over `keyof T` keeps each property's `?` (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), and an `as` clause drops keys (<Lesson id="m10-mapped-types/02-key-remapping" />). The question to ask each key is the hard part, since a property's type can't answer it (the first pitfall). Get Required, Required Keys.
+- **One step at a time, with a test.** An `infer` followed by a literal stops at its first occurrence (<Lesson id="m12-template-tuples/01-template-literal-types" />), so a pattern can find the first `_` or `.` and name what comes after. Each step then decides something about what it found: whether a character is a letter (CamelCase), whether a part of a path is a key (Typed Get).
+- **What `any` does.** `any` in a conditional type takes both branches (<Lesson id="m11-conditional-types/01-conditional-types" />), and it swallows whatever it is combined with. IsAny turns that into a test.
+- **A constraint in a string pattern.** <Lesson id="m11-conditional-types/02-infer" /> constrained an `infer` with `extends`. In a template literal pattern, `infer N extends number` matches when the text is a number, and `N` is then the number literal, not the string. String to Number.
+
+That last constraint is the one new piece. `Port` reads the number after the colon:
+
+```ts twoslash
+type Port<S extends string> = S extends `${string}:${infer P extends number}`
+  ? P
+  : never;
+
+type Web = Port<'localhost:8080'>;
+//   ^?
+type Padded = Port<'localhost:08080'>;
+//   ^?
+type Named = Port<'localhost:http'>;
+//   ^?
+```
+
+`'8080'` becomes `8080`. Text that isn't a number doesn't match, so `'http'` takes the false branch. In between, `'08080'` is a number, but printed back it would be `'8080'`, a different string: when the literal doesn't spell the text exactly, `P` is the constraint itself, `number`.
+
+## Examples
+
+**Several numbers in one string.** Each `infer` in a pattern can carry its own constraint. `Version` reads a three-part version string into a tuple of number literals, and a value has to match it digit for digit:
+
+```ts run
+type Version<S extends string> =
+  S extends `${infer Major extends number}.${infer Minor extends number}.${infer Patch extends number}`
+    ? [Major, Minor, Patch]
+    : never;
+
+const current: Version<'6.0.3'> = [6, 0, 3];
+console.log(`TypeScript ${current.join('.')}`);
+```
+
+`[6, 0, 4]` doesn't compile: the third element must be `3`. A string that isn't three numbers with dots between them, such as `'v6.0.3'`, gives `never`, and no value fits that.
+
+**Is it a letter?** `Uppercase` and `Lowercase` map characters as JavaScript's `toUpperCase` and `toLowerCase` do, and a character that has no case comes out of both unchanged:
+
+```ts twoslash
+type IsLetter<C extends string> =
+  Uppercase<C> extends Lowercase<C> ? false : true;
+
+type A = IsLetter<'a'>;
+//   ^?
+type Accent = IsLetter<'é'>;
+//   ^?
+type Dollar = IsLetter<'$'>;
+//   ^?
+```
+
+CamelCase uses the same test on the character after an underscore.
+
+**What `any` does to a type.** In a conditional type, `any` is treated as fitting and as not fitting at once, so the result is both branches. In an intersection, it swallows the other side, where `unknown` disappears and an unrelated type leaves `never`:
+
+```ts twoslash
+type Check<T> = T extends string ? 'yes' : 'no';
+
+type Both = Check<any>;
+//   ^?
+type Swallowed = 1 & any;
+//   ^?
+type Kept = 1 & unknown;
+//   ^?
+type Nothing = 1 & string;
+//   ^?
+```
+
+## Pitfalls
+
+**`undefined` in a property's type doesn't make it optional.** Under the default options, reading `b?: string` gives `string | undefined`, so looking for `undefined` finds every optional property. It also finds a required property whose type includes `undefined`:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type OptionalKeys<T> = {
+  [K in keyof T]-?: undefined extends T[K] ? K : never;
+}[keyof T];
+
+type cases = [Expect<Equal<OptionalKeys<{ a: undefined; b?: string }>, 'b'>>];
+```
+
+_Type 'false' does not satisfy the constraint 'true'._ The result is `'a' | 'b'`. `a` must be present, even though its value can only be `undefined`; `b` may be missing. What tells them apart is whether an object without the property still fits, and that is the question Get Required and Required Keys need, for `{ foo: undefined }` and for a property of type `unknown`.
+
+**`unknown` passes the tests `any` passes.** Every type is assignable to both, so a check that asks what fits in `T` can't tell them apart:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type NaiveIsAny<T> = unknown extends T ? true : false;
+
+type cases = [Expect<Equal<NaiveIsAny<unknown>, false>>];
+```
+
+`NaiveIsAny<unknown>` is `true`. IsAny needs a test that only `any` changes, and the Examples show one place where `any` and `unknown` behave differently.
+
+**A function-typed parameter widens the literal its argument returns.** When a parameter is written as a function type with a type parameter for the result, the arrow function passed in is checked against that signature, and its `true` is widened to `boolean`:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+function call<R>(fn: () => R): R {
+  return fn();
+}
+
+const result = call(() => true);
+
+type cases = [Expect<Equal<typeof result, true>>];
+```
+
+`result` is `boolean`. Typed with a bare type parameter for the whole function, `function same<F>(fn: F): F`, the call `same(() => true)` is `() => true`, and a conditional type with `infer` can read the `true` back out of `F`. Currying's cases expect `true` at the end of the chain.
+
+## Check yourself
+
+<Predict
+  id="port-decimal"
+  question="With the Port from the Concept, what is `Port<'db:5432.0'>`?"
+  options={['5432', 'number', 'never', "'5432.0'"]}
+  answer={1}
+  explanation="`'5432.0'` is a number, so the pattern matches. Printed back, the number is `'5432'`, not the text that was read, so `P` is the constraint, `number`, as it is for `'08080'`."
+/>
+
+<Predict
+  id="is-letter-digit"
+  question="With the IsLetter from the Examples, what is `IsLetter<'7'>`?"
+  options={['true', 'false', 'boolean', 'never']}
+  answer={1}
+  explanation="A digit has no case: `Uppercase<'7'>` and `Lowercase<'7'>` are both `'7'`, so the check is true and `IsLetter` gives `false`. CamelCase keeps the underscore before a digit for the same reason it keeps the one before `$`."
+/>
+
+<Predict
+  id="optional-keys"
+  question="With the OptionalKeys from the first pitfall, what is `OptionalKeys<{ a?: number; b: string | undefined; c: string }>`?"
+  options={["'a'", "'a' | 'b'", "'b'", "'a' | 'b' | 'c'"]}
+  answer={1}
+  explanation="`OptionalKeys` asks whether `undefined` fits each property's type. It fits `a`'s, which is `number | undefined` because `a` is optional, and `b`'s, which names it. Only `c` excludes it. `b` is required all the same, which is the pitfall."
+/>
+
+## Further reading
+
+- [Conditional types: inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types)
+- [Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Mapped types: key remapping via as](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#key-remapping-via-as) and [mapping modifiers](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#mapping-modifiers)
+- [type-challenges](https://github.com/type-challenges/type-challenges): the whole collection, by difficulty
+
+The challenges in this lesson are from type-challenges, by Anthony Fu and its contributors, used under the MIT License:
+
+```text
+MIT License
+
+Copyright (c) 2020 Anthony Fu <https://github.com/antfu>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

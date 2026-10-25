@@ -1,0 +1,23 @@
+id: m08-functions-classes/04-mixins/01-any-arguments
+kind: fix
+title: Any arguments
+minutes: 3
+challenge: false
+prompt: |
+  `Activatable` is a mixin: it adds `active`, `activate()` and `deactivate()` to any class.
+  `index.ts` reports two errors:
+
+  - on `class`, `A mixin class must have a constructor with a single rest parameter of type 'any[]'.`
+  - on `User` in `Activatable(User)`, `Argument of type 'typeof User' is not assignable to parameter of type 'Constructor'.`
+
+  Make `index.ts` compile. `Activatable` has to stay a mixin that works on any class: the tests
+  apply it to a class of their own, and check that each result takes its base class's
+  constructor arguments and keeps its base class's members.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Both errors come from one line. The first message says what that line has to say.
+  - Elsewhere unknown[] is the careful choice for "any arguments". A mixin's constructor type is the exception.

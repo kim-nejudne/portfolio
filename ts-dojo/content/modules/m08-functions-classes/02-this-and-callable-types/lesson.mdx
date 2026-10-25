@@ -1,0 +1,355 @@
+---
+id: m08-functions-classes/02-this-and-callable-types
+title: this parameters, this types, callable and constructable types
+minutes: 25
+objectives:
+  - Declare the type of this with a this parameter, and read the error a call with the wrong this reports
+  - Return the polymorphic this type so that chained calls keep a subclass's type
+  - Guard the object a method is called on with a this is Type return type
+  - Describe a function with properties with a call signature in an object type
+  - Accept a class as an argument with a construct signature, abstract new for abstract classes
+prerequisites:
+  - m02-functions/02-function-types-and-callbacks
+  - m04-objects/05-classes
+  - m05-generics/01-generic-functions
+  - m07-guards/01-type-guards
+  - m08-functions-classes/01-overloads
+tags:
+  - this
+  - this parameter
+  - noImplicitThis
+  - polymorphic this
+  - fluent API
+  - this is
+  - call signature
+  - construct signature
+  - new
+  - abstract new
+  - typeof class
+---
+
+## Concept
+
+What `this` is inside a function depends on how the function is called, so TypeScript can't read it from the function itself. A function that uses `this` declares its type with a `this` parameter, written first in the parameter list:
+
+```ts twoslash
+interface Button {
+  label: string;
+  clicks: number;
+}
+
+function handleClick(this: Button, step: number): string {
+  this.clicks += step;
+  return `${this.label}: ${this.clicks}`;
+}
+
+const save = { label: 'Save', clicks: 0, onClick: handleClick };
+save.onClick(2);
+//         ^?
+```
+
+The `this` parameter is part of the function's type, but it is not a real parameter. Callers don't pass it as an argument: `save.onClick(2)` puts `save` in `this`. It is erased with every other type, so `handleClick` takes one argument and its `length` is 1. What it adds is a check at every call: the object the call puts in `this` has to be a `Button`. A plain call `handleClick(1)` puts nothing there, and reports _The 'this' context of type 'void' is not assignable to method's 'this' of type 'Button'._
+
+The rest of the lesson is about types that describe the shape around a function: the `this` type, which lets a method return "the object I was called on, whatever subclass it is", and call and construct signatures, the long form of function types that <Lesson id="m02-functions/02-function-types-and-callbacks" /> promised. A call signature describes a function that also has properties. A construct signature describes something called with `new`, which is how a function takes a class as an argument.
+
+## Examples
+
+**Calls with a `this`.** A call through an object, or with `call`, passes the `this` the function declared. A function type can declare a `this` too, and a `function` expression written against that type takes `this` from it, the way its other parameters take their types from context:
+
+```ts run
+interface Button {
+  label: string;
+  clicks: number;
+}
+
+function handleClick(this: Button, step: number): string {
+  this.clicks += step;
+  return `${this.label}: ${this.clicks}`;
+}
+
+const save = { label: 'Save', clicks: 0, onClick: handleClick };
+console.log(save.onClick(1));
+console.log(handleClick.call(save, 2));
+console.log(handleClick.length);
+
+type ClickHandler = (this: Button, step: number) => string;
+
+const loud: ClickHandler = function (step) {
+  this.clicks += step * 10;
+  return `${this.label.toUpperCase()}: ${this.clicks}`;
+};
+console.log(loud.call(save, 1));
+```
+
+Under `strict`, a function that uses `this` without declaring it reports _'this' implicitly has type 'any' because it does not have a type annotation._ That check is `noImplicitThis`, one of the flags `strict` turns on. Methods don't need the declaration: in a class method, `this` is the class's instance, and in a method of an object literal it is the literal's type. Arrow functions can't have one at all (_An arrow function cannot have a 'this' parameter._), because their `this` is the one around them.
+
+**The `this` type.** Inside a class, `this` is also a type: the type of whatever instance the method runs on, which may be a subclass. A method that returns `this` keeps that type through a chain. That is what a fluent API needs when a subclass adds methods to the chain:
+
+```ts twoslash
+class Builder {
+  parts: string[] = [];
+
+  add(part: string): this {
+    this.parts.push(part);
+    return this;
+  }
+}
+
+class HtmlBuilder extends Builder {
+  tag(name: string) {
+    return this.add(`<${name}>`);
+  }
+}
+
+const page = new HtmlBuilder().add('<!doctype html>').tag('p');
+//       ^?
+```
+
+`add` is declared in `Builder`, and called on an `HtmlBuilder` it returns an `HtmlBuilder`, so `.tag` can follow it. `tag` has no annotation and returns what `add` returns, so it is `this` too. A method without an annotation whose body returns `this` is inferred the same way. The type promises the very object the method was called on: `add(part: string): this { return new Builder(); }` reports _Type 'Builder' is not assignable to type 'this'._, because on an `HtmlBuilder` that would be the wrong class.
+
+**`this is` guards.** <Lesson id="m07-guards/01-type-guards" /> wrote predicates about a parameter. A method can write one about the object it is called on, with `this is Type` as its return type, and a `true` result narrows the object:
+
+```ts twoslash
+abstract class Entry {
+  name: string;
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  isFolder(): this is Folder {
+    return this instanceof Folder;
+  }
+}
+
+class FileEntry extends Entry {
+  size = 0;
+}
+
+class Folder extends Entry {
+  children: Entry[] = [];
+}
+
+function countFiles(entry: Entry): number {
+  if (entry.isFolder()) {
+    return entry.children.reduce((sum, child) => sum + countFiles(child), 0);
+    //         ^?
+  }
+  return 1;
+}
+```
+
+As with any written predicate, the compiler takes it on trust: the body has to make it true.
+
+**Call signatures.** A function type expression has no room for properties. The object type form does: a call signature is a parameter list and a return type separated by a colon, written as a member beside the properties. `{ (text: string): string }` is the same type as `(text: string) => string`. TypeScript also lets you add properties to a function declared in the same scope by assigning them, and it adds them to the function's type, so a function can be built to fit:
+
+```ts run
+type Counter = {
+  (): number;
+  count: number;
+  reset(): void;
+};
+
+function next() {
+  next.count += 1;
+  return next.count;
+}
+next.count = 0;
+next.reset = () => {
+  next.count = 0;
+};
+
+const counter: Counter = next;
+counter();
+counter();
+console.log(counter.count);
+counter.reset();
+console.log(counter(), counter.count);
+```
+
+Without the properties a function doesn't fit: `const bare: Counter = () => 1;` reports _Type '() => number' is missing the following properties from type 'Counter': count, reset_. Several call signatures in one object type are overloads, read top to bottom as in <Lesson id="m08-functions-classes/01-overloads" />.
+
+**Construct signatures.** A construct signature is a call signature with `new` in front: `{ new (id: number): Ticket }`, or in the short form `new (id: number) => Ticket`. A class fits it when its constructor accepts those arguments and its instances fit the return type. With a type parameter for the instance type, a function can take any such class:
+
+```ts twoslash
+class Ticket {
+  id: number;
+
+  constructor(id: number) {
+    this.id = id;
+  }
+}
+
+function createAll<T>(Type: new (id: number) => T, count: number): T[] {
+  return Array.from({ length: count }, (_, index) => new Type(index + 1));
+}
+
+const tickets = createAll(Ticket, 3);
+//          ^?
+const now = Date();
+//      ^?
+```
+
+A class whose constructor takes a `string` is rejected, with _Types of construct signatures are incompatible._ in the message. One type can have both kinds of signature: `Date` is called with `new` to make a `Date`, and called without it to return a `string`, and its type in the standard library, `DateConstructor`, lists both.
+
+**Abstract construct signatures.** An abstract class has no usable `new`, so it doesn't fit `new () => T`. Writing `abstract new` accepts abstract and ordinary classes alike, and in exchange the function may not call `new` on it. It can still use the class with `instanceof`, which narrows to `T`. The parameter list `(...args: never[])` accepts every constructor, since `never` is assignable to every parameter type:
+
+```ts run
+abstract class Shape {
+  abstract area(): number;
+}
+
+class Square extends Shape {
+  side: number;
+
+  constructor(side: number) {
+    super();
+    this.side = side;
+  }
+
+  area(): number {
+    return this.side ** 2;
+  }
+}
+
+function only<T>(
+  items: readonly unknown[],
+  Type: abstract new (...args: never[]) => T,
+): T[] {
+  const found: T[] = [];
+  for (const item of items) {
+    if (item instanceof Type) found.push(item);
+  }
+  return found;
+}
+
+const things = [new Square(2), 'square', new Square(3), 4];
+console.log(only(things, Shape).map((shape) => shape.area()));
+console.log(only(things, Square).length);
+```
+
+Both directions are checked:
+
+```ts run errors
+abstract class Shape {
+  abstract area(): number;
+}
+
+function make<T>(Type: abstract new () => T): T {
+  return new Type();
+}
+
+function build<T>(Type: new () => T): T {
+  return new Type();
+}
+
+build(Shape);
+```
+
+_Cannot create an instance of an abstract class._ inside `make`, and for `build(Shape)` _Cannot assign an abstract constructor type to a non-abstract constructor type._
+
+## Pitfalls
+
+**Passing a method as a callback.** A `this` parameter is checked where the function is called. It isn't checked where the function is handed to someone else to call, because a callback type that declares no `this` accepts any. So the plain call below is an error, while the `setTimeout` line compiles, and when the timer fires `tick` runs without the timer as its `this` (in the REPL, that throws a `TypeError`):
+
+```ts run errors
+class Timer {
+  ticks = 0;
+
+  tick(this: Timer): void {
+    this.ticks += 1;
+  }
+}
+
+const timer = new Timer();
+const tick = timer.tick;
+tick();
+setTimeout(timer.tick, 10);
+```
+
+_The 'this' context of type 'void' is not assignable to method's 'this' of type 'Timer'._ on `tick()`, and nothing on `setTimeout`. Hand over an arrow function that makes the call, `setTimeout(() => timer.tick(), 10)`, so the method is called through its object.
+
+**Returning the class instead of `this`.** Annotating a chainable method with the class's own name works until a subclass chains it. The method then returns the base class, and the subclass's methods are gone from the rest of the chain:
+
+```ts run errors
+class Builder {
+  parts: string[] = [];
+
+  add(part: string): Builder {
+    this.parts.push(part);
+    return this;
+  }
+}
+
+class HtmlBuilder extends Builder {
+  tag(name: string): this {
+    this.add(`<${name}>`);
+    return this;
+  }
+}
+
+new HtmlBuilder().add('<!doctype html>').tag('p');
+```
+
+_Property 'tag' does not exist on type 'Builder'._ Write `this` as the return type, or leave the annotation out and let the compiler infer it.
+
+**The class name as the type of a class.** A class's name used as a type means its instances (<Lesson id="m04-objects/05-classes" />). A parameter that takes the class itself needs the type of the value, `typeof Dog`, or a construct signature:
+
+```ts run errors
+class Dog {
+  name = 'Rex';
+}
+
+function adopt(Type: Dog): Dog {
+  return new Type();
+}
+```
+
+_This expression is not constructable._, then _Type 'Dog' has no construct signatures._ Write `Type: typeof Dog`, the type of the class itself, or `Type: new () => Dog`, which every class that makes a `Dog` from no arguments fits.
+
+## Check yourself
+
+<Predict
+  id="this-is-erased"
+  code={
+    'interface Tally {\n  votes: number;\n}\n\nfunction vote(this: Tally, by: number) {\n  this.votes += by;\n}\n\nconsole.log(vote.length);'
+  }
+  question="What does this print?"
+  options={['0', '1', '2']}
+  answer={1}
+  explanation="A `this` parameter is a type, erased from the emitted JavaScript with every other type. The function that runs has one parameter, `by`, so its `length` is 1. Callers never pass `this` as an argument; it comes from the object the function is called on, or from `call`."
+/>
+
+<Predict
+  id="annotated-with-the-class"
+  code={
+    "class Builder {\n  parts: string[] = [];\n  add(part: string): Builder {\n    this.parts.push(part);\n    return this;\n  }\n}\n\nclass HtmlBuilder extends Builder {\n  tag(name: string) {\n    return this.add(`<${name}>`);\n  }\n}\n\nconst page = new HtmlBuilder().tag('p');"
+  }
+  question="What is the type of `page`?"
+  options={['HtmlBuilder', 'Builder', 'this']}
+  answer={1}
+  explanation="`tag` returns what `add` returns, and `add` is annotated as returning `Builder`, so the subclass is lost after the first call: `page.tag('a')` would not compile. With `this` as the return type of `add`, `page` would be an `HtmlBuilder`."
+/>
+
+<Predict
+  id="type-of-the-class"
+  question="`Dog` is a class whose constructor takes no arguments. Which parameter type lets a function call `new Type()` and get a `Dog`?"
+  options={[
+    'Type: Dog',
+    'Type: typeof Dog',
+    'Type: Dog[]',
+    'Type: abstract new () => Dog',
+  ]}
+  answer={1}
+  explanation="`Dog` as a type means a Dog instance, which has no construct signature. `typeof Dog` is the type of the class itself, so `new Type()` compiles and gives a `Dog`. `abstract new () => Dog` accepts the class too, but it forbids calling `new` on it."
+/>
+
+## Further reading
+
+- [More on Functions: declaring `this` in a function](https://www.typescriptlang.org/docs/handbook/2/functions.html#declaring-this-in-a-function)
+- [More on Functions: call signatures](https://www.typescriptlang.org/docs/handbook/2/functions.html#call-signatures)
+- [More on Functions: construct signatures](https://www.typescriptlang.org/docs/handbook/2/functions.html#construct-signatures)
+- [Classes: `this` types](https://www.typescriptlang.org/docs/handbook/2/classes.html#this-types)
+- [Classes: `this`-based type guards](https://www.typescriptlang.org/docs/handbook/2/classes.html#this-based-type-guards)
+- [Classes: `this` parameters](https://www.typescriptlang.org/docs/handbook/2/classes.html#this-parameters)
+- [Classes: abstract construct signatures](https://www.typescriptlang.org/docs/handbook/2/classes.html#abstract-construct-signatures)

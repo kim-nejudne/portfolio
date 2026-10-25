@@ -1,0 +1,39 @@
+id: m16-tooling/01-strict-flags/04-read-the-settings
+kind: implement
+title: Read the settings
+minutes: 7
+challenge: false
+prompt: |
+  This exercise turns on all three flags of the lesson: `noUncheckedIndexedAccess`,
+  `exactOptionalPropertyTypes` and `noPropertyAccessFromIndexSignature`. Implement two
+  functions in `index.ts`:
+
+  - `parsePairs(lines)` turns `key=value` lines into a `Record<string, string>`. The key is
+    the text before the first `=` and the value everything after it, so `title=a=b` gives the
+    value `a=b`. A line without `=` is skipped, and a later line with the same key wins.
+  - `readSettings(raw)` reads a `Settings` from such a record. `theme` is set only when the
+    value is `light` or `dark`, and `pageSize` only when it is a whole number from 1 to 100;
+    any other value, or none, leaves the property out entirely, not set to `undefined`. `beta`
+    is `true` only for the value `true`.
+
+  Keep both types as they are. This combines the lesson with literal unions (3.1), narrowing
+  by equality (3.3) and index signatures and `Record` (4.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  noUncheckedIndexedAccess: true
+  exactOptionalPropertyTypes: true
+  noPropertyAccessFromIndexSignature: true
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    non-null-assertion,
+    type-assertion,
+    as-unknown-as,
+    any-expression,
+  ]
+hints:
+  - Every read from `raw` goes through its index signature, so it is written with brackets and may be `undefined`. Narrow it before you use it.
+  - Start `Settings` with only the property it always has, then add each optional one inside the check that proves its value is good.
+  - In `parsePairs`, splitting a line at `=` gives an array, and under these flags even its first element may be `undefined` as far as the compiler knows.

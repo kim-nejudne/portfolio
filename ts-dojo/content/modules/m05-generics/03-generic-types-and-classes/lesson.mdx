@@ -1,0 +1,331 @@
+---
+id: m05-generics/03-generic-types-and-classes
+title: Generic interfaces, type aliases and classes
+minutes: 20
+objectives:
+  - Declare type parameters on an interface or a type alias, and pass type arguments wherever the type is used
+  - Build a generic union such as Result<T, E> and narrow it by its discriminant
+  - Write a generic class whose type argument is inferred from its constructor or passed with new
+  - Add a generic method to a generic class, and explain why a static member can't use the class's type parameter
+  - Read Array<T>, Map<K, V>, Set<T> and Promise<T> as ordinary generic interfaces
+prerequisites:
+  - m05-generics/02-constraints-and-defaults
+  - m04-objects/01-type-vs-interface
+  - m04-objects/05-classes
+  - m03-unions/05-discriminated-unions
+tags:
+  - generics
+  - generic interface
+  - generic type alias
+  - generic class
+  - generic union
+  - Result
+  - type argument
+  - static member
+  - generic method
+  - Map
+  - Set
+  - Promise
+---
+
+## Concept
+
+The functions of <Lesson id="m05-generics/01-generic-functions" /> took type parameters. Types take them too. An interface or a type alias declares its type parameters in angle brackets after its name, and every use passes the type arguments, as `Array<string>` and `Record<string, number>` already do:
+
+```ts twoslash
+interface Box<T> {
+  value: T;
+  updatedAt: number;
+}
+
+const count: Box<number> = { value: 3, updatedAt: 0 };
+const title: Box<string> = { value: 'Draft', updatedAt: 0 };
+
+const shown = title.value;
+//    ^?
+```
+
+`Box` on its own is not a type but a template for one. `Box<string>` is what you get by putting `string` wherever `T` appears: `{ value: string; updatedAt: number }`. The type is written once and used for every type argument. Classes work the same way: `class Stack<T>` describes a stack of numbers, of strings, of anything.
+
+A call to a generic function infers its type arguments. A type annotation doesn't: it states a type, and the value is then checked against it. So a generic type must be given its type arguments:
+
+```ts run errors
+interface Box<T> {
+  value: T;
+  updatedAt: number;
+}
+
+const count: Box = { value: 3, updatedAt: 0 };
+```
+
+`Generic type 'Box<T>' requires 1 type argument(s).` The `3` on the right doesn't fill in `T`. Write `Box<number>`.
+
+## Examples
+
+**Generic interfaces.** An API wraps every payload in the same envelope. One generic interface describes all of them, and a generic function (5.1) can build any of them:
+
+```ts run
+interface ApiResponse<T> {
+  status: number;
+  data: T;
+  receivedAt: number;
+}
+
+type User = { id: string; name: string };
+
+function respond<T>(data: T): ApiResponse<T> {
+  return { status: 200, data, receivedAt: Date.now() };
+}
+
+const user: ApiResponse<User> = respond({ id: 'u1', name: 'Ada' });
+const tags = respond(['new', 'sale']);
+
+console.log(user.data.name, tags.data.length);
+```
+
+`tags` is an `ApiResponse<string[]>`. The function's type argument, inferred from the call, becomes the interface's type argument.
+
+**Generic type aliases.** A type alias takes type parameters the same way, and it can name any type, not only an object type: a tuple, a function type, a union.
+
+```ts twoslash
+type Pair<T> = [T, T];
+type Listener<T> = (value: T) => void;
+type Maybe<T> = T | undefined;
+
+const range: Pair<number> = [1, 10];
+const middle: Maybe<string> = undefined;
+const onSave: Listener<string> = (text) => console.log(text.length);
+//                                ^?
+```
+
+`text` needs no annotation: `Listener<string>` is `(value: string) => void`, and the arrow function takes its parameter type from it, the contextual typing of <Lesson id="m02-functions/02-function-types-and-callbacks" />.
+
+**Generic unions.** A type parameter can appear in any member of a union. `Result` is the `ParseResult` of <Lesson id="m03-unions/05-discriminated-unions" /> made generic: a value of type `T` on success, an error of type `E` on failure. `E` has a default (5.2), so `Result<number>` is enough when the error is a message:
+
+```ts twoslash
+type Result<T, E = string> = { ok: true; value: T } | { ok: false; error: E };
+
+function parseAge(input: string): Result<number> {
+  const age = Number(input);
+  if (!Number.isInteger(age) || age < 0) {
+    return { ok: false, error: `not an age: ${input}` };
+  }
+  return { ok: true, value: age };
+}
+
+const result = parseAge('42');
+if (result.ok) {
+  console.log(result.value + 1);
+  //                 ^?
+} else {
+  console.log(result.error);
+}
+```
+
+Narrowing works as it did in 3.5: `ok` is the discriminant whatever `T` and `E` are. A type argument with a default may be left out, but one without a default may not: `Result` alone reports `Generic type 'Result' requires between 1 and 2 type arguments.`
+
+**Generic classes.** A class declares its type parameters after its name, and its fields, constructor and methods use them. The class's name with a type argument, such as `Stack<number>`, is the type of its instances. `new` either passes the type argument or lets the compiler infer it from the constructor's arguments, as a call does:
+
+```ts twoslash
+class Stack<T> {
+  private items: T[];
+
+  constructor(...items: T[]) {
+    this.items = items;
+  }
+
+  push(item: T): void {
+    this.items.push(item);
+  }
+
+  pop(): T | undefined {
+    return this.items.pop();
+  }
+}
+
+const pages = new Stack('home', 'about');
+//    ^?
+const undo = new Stack<number>();
+undo.push(3);
+const latest = undo.pop();
+//    ^?
+```
+
+`pages` is a `Stack<string>`, not a stack of the two literal types: `T` sits inside `Stack<T>` and isn't returned as it is, so the literals widen, as they did for `{ value: T }` in 5.2. And `undo.push('3')` would report `Argument of type 'string' is not assignable to parameter of type 'number'.`
+
+**A generic method in a generic class.** A method can declare type parameters of its own, next to the class's. Here `map` turns a `Stack<T>` into a stack of something else: `T` comes from the instance, `U` from each call.
+
+```ts run
+class Stack<T> {
+  private items: T[];
+
+  constructor(...items: T[]) {
+    this.items = items;
+  }
+
+  map<U>(fn: (item: T) => U): Stack<U> {
+    return new Stack(...this.items.map(fn));
+  }
+
+  toArray(): T[] {
+    return [...this.items];
+  }
+}
+
+const drinks = new Stack('tea', 'coffee');
+const lengths = drinks.map((drink) => drink.length);
+
+console.log(lengths.toArray());
+```
+
+`lengths` is a `Stack<number>`, and `drink` is a `string` without an annotation.
+
+**Built-in generics.** `Array<T>`, `Map<K, V>`, `Set<T>` and `Promise<T>` are no special syntax. They are generic interfaces, declared in the lib files that ship with the compiler, just as you would write `Box<T>`. Here are five members of `Map`, from `lib.es2015.collection.d.ts`:
+
+```ts
+interface Map<K, V> {
+  get(key: K): V | undefined;
+  has(key: K): boolean;
+  set(key: K, value: V): this;
+  delete(key: K): boolean;
+  readonly size: number;
+}
+```
+
+Read a `Map<string, number>` by putting `string` for `K` and `number` for `V`: `get` takes a `string` and returns `number | undefined`. (`set` returns the map itself; the `this` type comes in <Lesson id="m08-functions-classes/02-this-and-callable-types" />.) `T[]` is the short spelling of `Array<T>`, and the built-in constructors are generic too, so `new` infers the type arguments from what it is given. An `async` function returns a `Promise<T>`, which module 9 takes further:
+
+```ts twoslash
+const ages = new Map([
+  ['Ada', 36],
+  ['Grace', 45],
+]);
+const ids = new Set([3, 9, 4]);
+//    ^?
+
+async function loadName(): Promise<string> {
+  return 'Ada';
+}
+
+const age = ages.get('Ada');
+//    ^?
+const pending = loadName();
+//    ^?
+```
+
+## Pitfalls
+
+**Creating an empty container without a type argument.** With no constructor argument to infer from, a class's type parameter becomes `unknown`, and the mistake shows up only where a value comes out. `Map` is worse: its constructor without arguments is declared to return a `Map<any, any>`, so nothing is checked at all.
+
+```ts run errors
+class Stack<T> {
+  private items: T[];
+
+  constructor(...items: T[]) {
+    this.items = items;
+  }
+
+  push(item: T): void {
+    this.items.push(item);
+  }
+
+  pop(): T | undefined {
+    return this.items.pop();
+  }
+}
+
+const history = new Stack();
+history.push('home');
+const page: string | undefined = history.pop();
+
+const visits = new Map();
+visits.set('home', 'many');
+const count: number = visits.get('home');
+```
+
+`Type 'unknown' is not assignable to type 'string | undefined'.` for the stack, and no error for the map, though `count` holds a string. Pass the type arguments when a container starts empty: `new Stack<string>()`, `new Map<string, number>()`. An annotation such as `const visits: Map<string, number> = new Map();` works too.
+
+**Declaring the class's type parameter again on a method.** A method of `Stack<T>` already sees `T`. Writing `push<T>` declares a second type parameter that happens to share the name and hides the class's:
+
+```ts run errors
+class Stack<T> {
+  private items: T[] = [];
+
+  push<T>(item: T): void {
+    this.items.push(item);
+  }
+}
+```
+
+`Argument of type 'T' is not assignable to parameter of type 'T'.`, then `'T' could be instantiated with an arbitrary type which could be unrelated to 'T'.` The two `T`s are different types. A method declares only the type parameters the class doesn't have, as `map<U>` did.
+
+**Using the class's type parameter in a static member.** A static member belongs to the class itself, and one class serves every `T`: a static field would be shared by `Stack<string>` and `Stack<number>`, so no single `T` can apply to it.
+
+```ts run errors
+class Stack<T> {
+  private items: T[];
+
+  constructor(...items: T[]) {
+    this.items = items;
+  }
+
+  static shared: T[] = [];
+
+  static of<U>(...items: U[]): Stack<U> {
+    return new Stack(...items);
+  }
+}
+
+const scores = Stack.of(3, 9, 4);
+```
+
+`Static members cannot reference class type parameters.` A static method that needs a type declares its own type parameter, as `of<U>` does, and `scores` is a `Stack<number>`.
+
+## Check yourself
+
+<Predict
+  id="annotation-needs-arguments"
+  question="Given `interface Box<T> { value: T }`, what does `const box: Box = { value: 1 };` do?"
+  options={[
+    'Compiles, and T is inferred as number from the value',
+    "Reports Generic type 'Box<T>' requires 1 type argument(s).",
+    'Compiles, and T is unknown',
+    'Compiles, and T is any',
+  ]}
+  answer={1}
+  explanation="An annotation states a type; the value is checked against it, and nothing is inferred from the value. Since `T` has no default, `Box` needs its type argument: `Box<number>`. With a default, as in `interface Box<T = number>`, `Box` alone would compile."
+/>
+
+<Predict
+  id="empty-stack"
+  code={
+    'class Stack<T> {\n  private items: T[];\n\n  constructor(...items: T[]) {\n    this.items = items;\n  }\n}\n\nconst empty = new Stack();'
+  }
+  question="What is the type of `empty`?"
+  options={[
+    'Stack<any>',
+    'Stack<unknown>',
+    'Stack<never>',
+    "It reports Generic type 'Stack<T>' requires 1 type argument(s).",
+  ]}
+  answer={1}
+  explanation="`new` infers the type argument from the constructor's arguments, and here there are none, so `T` becomes `unknown`. Only a type annotation requires type arguments; a `new` or a call never does. Write `new Stack<string>()` to say what the stack will hold."
+/>
+
+<Predict
+  id="static-type-parameter"
+  question="Why can't a static member of `class Stack<T>` use `T`?"
+  options={[
+    'Static members can only have primitive types',
+    'There is one static member for the class, shared by every Stack<T>, so no single T applies to it',
+    'Static members are checked before the class body declares T',
+    'A static member must declare T again with the same name',
+  ]}
+  answer={1}
+  explanation="`Stack<string>` and `Stack<number>` are one class at run time, with one set of static members. `T` is chosen per instance, so a static member has no `T` to use: `Static members cannot reference class type parameters.` A static method that needs a type declares its own type parameter."
+/>
+
+## Further reading
+
+- [Handbook: Generics, generic types](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-types) and [generic classes](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-classes)
+- [Handbook: Object types, generic object types](https://www.typescriptlang.org/docs/handbook/2/objects.html#generic-object-types)
+- [Handbook: Classes, type parameters in static members](https://www.typescriptlang.org/docs/handbook/2/classes.html#type-parameters-in-static-members)

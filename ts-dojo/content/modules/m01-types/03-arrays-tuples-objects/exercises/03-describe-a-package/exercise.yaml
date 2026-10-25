@@ -1,0 +1,29 @@
+id: m01-types/03-arrays-tuples-objects/03-describe-a-package
+kind: type-challenge
+title: Describe a package
+minutes: 3
+challenge: false
+prompt: |
+  A package registry needs two types. `index.ts` holds a first draft in which the version is any
+  list of numbers and every property of a package is required and can be changed. Rewrite both
+  types to match this description:
+
+  - `Version`: a major number, a minor number, then an optional patch number, and nothing more.
+  - `Package`, with four properties:
+    - `name`, a `string` that can't be reassigned;
+    - `version`, a `Version`;
+    - `description`, a `string` a package may leave out;
+    - `keywords`, a list of strings that code can read but not change in place: no `push`, no
+      assigning to an element. The property itself can still be given a new list.
+
+  Label the version's positions if you like: labels don't change the type, so the cases accept
+  either. The type cases check both types exactly, and the `@ts-expect-error` lines check what
+  each type rejects.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A list with a fixed number of positions, each with its own meaning, is a tuple. A position that may be missing is marked the same way as an optional property.
+  - Three properties of `Package` change, each in a different way. Notice where each modifier goes. One sits before the property name, one after it, and one before the type.

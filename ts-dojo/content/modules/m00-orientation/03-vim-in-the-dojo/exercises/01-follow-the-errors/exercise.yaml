@@ -1,0 +1,32 @@
+id: m00-orientation/03-vim-in-the-dojo/01-follow-the-errors
+kind: fix
+title: Follow the errors with ]d, K and gd
+minutes: 5
+challenge: false
+prompt: |
+  `index.ts` prints a café receipt from the menu in `menu.ts`. It has three type errors;
+  `menu.ts` has none, and the tests use it as it is, so leave it alone. Find and fix the errors
+  with the keys from the lesson instead of scrolling:
+
+  1. `gg`, then `]d`: the cursor lands on the first error. Its message is in the output pane's
+     Problems tab (`Ctrl-j` focuses the pane, `h` and `l` switch its tabs, `Esc` comes back):
+     `Argument of type 'MenuItem' is not assignable to parameter of type 'number'.`
+     `K` on `formatCents` shows what it takes instead.
+  2. A `MenuItem` carries its price in cents, but under what name? `gd` on any `MenuItem`
+     opens `menu.ts` at its definition, and `gT` brings you back to where you were.
+  3. `]d` again for each of the other two errors:
+     `Property 'price' does not exist on type 'MenuItem'.` and
+     `Argument of type 'MenuItem' is not assignable to parameter of type 'string'.`
+     Step 2 answers the first; `K` on `priceTag`, then on `item`, explains the second.
+
+  `:test` passes once all three are fixed and the receipt is right. `:w` runs `index.ts` at any
+  time; it prints the receipt once the errors are gone.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each message names two types, what you passed and what was wanted. `K` on the function you are calling shows the second.
+  - The names of a type's fields are where the type is defined, and `gd` goes there from any use of it.
+  - '`priceTag` takes one thing and is given another. What does a menu item have that `priceTag` could take?'

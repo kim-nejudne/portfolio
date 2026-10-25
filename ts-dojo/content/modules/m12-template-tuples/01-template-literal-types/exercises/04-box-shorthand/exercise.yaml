@@ -1,0 +1,44 @@
+id: m12-template-tuples/01-template-literal-types/04-box-shorthand
+kind: implement
+title: The box shorthand
+minutes: 6
+challenge: false
+prompt: |
+  CSS writes padding as one to four lengths separated by single spaces, and expands them to the
+  four sides in the order top, right, bottom, left:
+
+  - one length is all four sides: `'1px'` is 1px, 1px, 1px, 1px;
+  - two are top and bottom, then right and left: `'1px 2px'` is 1px, 2px, 1px, 2px;
+  - three are top, right and left, bottom: `'1px 2px 3px'` is 1px, 2px, 3px, 2px;
+  - four are each side in order: `'1px 2px 3px 4px'` is 1px, 2px, 3px, 4px.
+
+  `index.ts` gives you `Length`, a number followed by `px`. Write:
+
+  - `Shorthand`: exactly the strings of one to four `Length`s separated by single spaces.
+    `'10px 20px'` is one; `'10em'`, `'10px 20'`, `''` and five lengths are not.
+  - `Sides<S>`: the four sides of the shorthand `S` as a tuple of string literal types, by these
+    rules: `Sides<'1px 2px 3px'>` is `['1px', '2px', '3px', '2px']`. Its constraint stays
+    `Shorthand`, and a union of shorthands gives a union of tuples.
+  - `padding(value)`: the four sides as numbers of pixels, by the same rules:
+    `padding('1px 2px')` is `{ top: 1, right: 2, bottom: 1, left: 2 }`.
+
+  The type cases try `Sides` on every number of lengths, with decimals and negative numbers, and
+  the `@ts-expect-error` lines check that malformed shorthands are rejected. This combines the
+  lesson's pattern types and parsing with a chain of conditional types (11.1) and tuple types
+  (1.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Shorthand is a union of four template literal types, one for each number of lengths. A placeholder can hold a pattern type such as Length.
+  - In Sides, an infer followed by a space stops at the first space, so a pattern with fewer spaces would also match a longer shorthand. Test the longest pattern first.
+  - For padding, split the value on spaces; destructuring defaults can fill in the sides that weren't written.

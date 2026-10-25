@@ -1,0 +1,38 @@
+id: m15-api-design/01-builders/03-each-step-once
+kind: implement
+title: Each step once
+minutes: 6
+challenge: false
+prompt: |
+  `alert()` starts a builder for an `Alert`:
+
+  ```ts
+  const saved = alert().title('Saved').level('info').build();
+  // { title: string } & { level: Level }
+  ```
+
+  Write `AlertBuilder` so that the types only offer what is still allowed:
+
+  - `title`, `level` and `dismissAfter` can each be called once, in any order. After a step, its
+    method is gone: `alert().title('A').title('B')` is an error.
+  - `build` is there only once `title` and `level` are set, and returns an object with exactly
+    the steps that were taken.
+  - A builder is never changed by a step, so a partial builder can be finished in several ways.
+
+  Change the return types of the steps and of `alert`, and write the bodies, without a cast.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Start with the bodies. Each step returns a new builder, holding a copy of what was set plus one more property, and `build` returns a copy too.
+  - The step's method name is the property it sets, so the steps taken are `keyof T`. A utility type from 6.2 can remove those keys from the builder's type.
+  - '`build` is one more key to remove while `T` is not yet an `Alert`. A conditional type can pick that key or `never`.'

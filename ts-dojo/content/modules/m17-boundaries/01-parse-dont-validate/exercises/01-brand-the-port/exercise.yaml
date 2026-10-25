@@ -1,0 +1,30 @@
+id: m17-boundaries/01-parse-dont-validate/01-brand-the-port
+kind: fix
+title: Brand the port
+minutes: 2
+challenge: false
+prompt: |
+  `parsePort` in `index.ts` checks its input with `isPort` and then returns it as a `Port`,
+  and that line doesn't compile:
+
+  - `Type 'number' is not assignable to type 'Port'.`
+
+  `isPort` is a validator: it returns a `boolean`, so the check is forgotten as soon as it
+  passes. Make the check keep what it found, so that `parsePort` compiles without a cast and
+  `Port` stays a brand that a plain `number` can't fill. The tests parse good and bad ports.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - A `boolean` return type says nothing about the argument. Some return types do.
+  - The return type of `isPort` can name the parameter and the type it has when the answer is `true`.

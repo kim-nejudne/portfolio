@@ -1,0 +1,21 @@
+id: m07-guards/04-narrowing-pitfalls/01-keep-the-zeros
+kind: fix
+title: Keep the zeros
+minutes: 2
+challenge: false
+prompt: |
+  A quiz app averages the players' scores, where `undefined` marks a player who didn't play.
+  `recorded` doesn't compile:
+
+  - `Type '(number | undefined)[]' is not assignable to type 'number[]'.`
+
+  Change the callback passed to `filter` so that `recorded` compiles as written, with its
+  return type, and keeps every score a player made. A player who scored 0 did play.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - '`Boolean` returns a `boolean`, not a type predicate, so `filter` can only return the type it started with.'
+  - The compiler infers a predicate for a callback whose `false` means exactly the value to drop. Which value is that here, and which scores does `Boolean` drop besides it?

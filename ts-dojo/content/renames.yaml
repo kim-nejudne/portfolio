@@ -1,0 +1,2 @@
+# old id → new id (spec §3, §7): lesson ids or exercise ids, applied in this order when the
+# store opens and to an imported file. Empty: no shipped id has been renamed.

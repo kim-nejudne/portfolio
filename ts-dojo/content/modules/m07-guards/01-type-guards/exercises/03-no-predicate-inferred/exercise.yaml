@@ -1,0 +1,30 @@
+id: m07-guards/01-type-guards/03-no-predicate-inferred
+kind: predict
+title: A check with no inferred predicate
+minutes: 2
+challenge: false
+code: |
+  function hasText(note: string | null) {
+    return note !== null && note.trim() !== '';
+  }
+
+  function show(note: string | null): string {
+    if (hasText(note)) {
+      return note;
+    }
+    return '(empty)';
+  }
+question: What does the compiler say about `return note`?
+options:
+  - 'Nothing: hasText narrows note to string'
+  - 'An error: note is still string | null, because hasText returns boolean'
+  - 'An error: hasText needs a return type annotation before it can be called in an if'
+answer: 1
+explanation: |
+  `hasText` has no return type annotation, so the compiler tries to infer a predicate,
+  `note is string`. It can't: `hasText` also returns `false` for `'   '`, which is a string, so
+  `false` doesn't mean `null`. The inferred return type is `boolean`, the call narrows nothing,
+  and `return note` reports `Type 'string | null' is not assignable to type 'string'.`
+  Writing `note is string` by hand would compile, and lie in the other branch, where a blank
+  string would be typed `null`. Check `note !== null` in `show` itself, or make the guard test
+  only what its predicate says.

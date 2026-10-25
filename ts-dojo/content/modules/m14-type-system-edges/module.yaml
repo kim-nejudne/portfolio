@@ -1,0 +1,10 @@
+id: m14-type-system-edges
+title: The edges of the type system
+summary: How assignability and variance really work, inference controls, nominal types, merging and augmentation, and decorators.
+prerequisites: [m11-conditional-types]
+lessons:
+  - 01-assignability-variance
+  - 02-const-type-params-noinfer
+  - 03-branded-types
+  - 04-declaration-merging
+  - 05-decorators

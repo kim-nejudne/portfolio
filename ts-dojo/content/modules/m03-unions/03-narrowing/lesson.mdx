@@ -1,0 +1,280 @@
+---
+id: m03-unions/03-narrowing
+title: 'Narrowing: typeof, truthiness, equality, in, instanceof'
+minutes: 20
+objectives:
+  - Narrow a union with typeof, and know why typeof x === 'object' keeps null
+  - Narrow with a truthiness check, knowing that it also rules out 0, '' and false
+  - Narrow both sides of an equality check, and remove null and undefined together with != null
+  - Tell object types apart with in, and class instances with instanceof
+prerequisites:
+  - m01-types/04-any-unknown-never-void
+  - m03-unions/01-union-and-literal-types
+  - m03-unions/02-null-undefined-strict
+tags:
+  - narrowing
+  - typeof
+  - truthiness
+  - falsy
+  - equality
+  - in
+  - instanceof
+  - catch
+  - unknown
+---
+
+## Concept
+
+A union says a value is one of several types. Narrowing is how you find out which one. You write an ordinary JavaScript check, and the compiler follows it: inside the branch where the check holds, the variable has a smaller type, and the `else` branch gets the members the check ruled out.
+
+```ts twoslash
+function format(value: string | number): string {
+  if (typeof value === 'string') {
+    value;
+    //  ^?
+    return value.toUpperCase();
+  } else {
+    value;
+    //  ^?
+    return value.toFixed(2);
+  }
+}
+```
+
+`value.toUpperCase()` on a `string | number` was the error in <Lesson id="m03-unions/01-union-and-literal-types" />. Inside the `if` it compiles, because there `value` is a `string`. There is no new syntax and no cast: the check is plain JavaScript and runs as written. The `!== undefined` check in <Lesson id="m03-unions/02-null-undefined-strict" /> was narrowing too.
+
+This lesson takes the five checks you will write most, one at a time: `typeof`, truthiness, equality, `in` and `instanceof`. How a narrowed type carries past an early `return`, and what undoes it, is <Lesson id="m03-unions/04-control-flow-analysis" />.
+
+<Callout kind="tip">
+  In the REPL, press <Key>K</Key> on a variable inside a branch: quick info
+  shows its narrowed type.
+</Callout>
+
+## Examples
+
+**`typeof`.** At run time `typeof x` gives one of eight strings, and the compiler knows all eight, so a typo such as `'strng'` is an error: _This comparison appears to be unintentional because the types '"string" | "number" | "bigint" | "boolean" | "symbol" | "undefined" | "object" | "function"' and '"strng"' have no overlap._ Comparing with one of the eight keeps the members that give that string. Each `else` holds what the checks above it left over:
+
+```ts twoslash
+function label(value: string | number | (() => string)): string {
+  if (typeof value === 'function') {
+    value;
+    //  ^?
+    return value();
+  } else if (typeof value === 'number') {
+    return value.toFixed(2);
+  } else {
+    value;
+    //  ^?
+    return value;
+  }
+}
+```
+
+A `switch (typeof value)` narrows each `case` the same way. `typeof` also narrows `unknown`, the type from <Lesson id="m01-types/04-any-unknown-never-void" />: inside `if (typeof input === 'string')`, an `unknown` input is a `string`.
+
+**Truthiness.** A value used as a condition, as in `if (name)`, narrows too. In the true branch the compiler removes `null` and `undefined`. The false branch keeps every member that has a falsy value, and `string` has one, `''`:
+
+```ts twoslash
+function greet(name: string | undefined): string {
+  if (name) {
+    name;
+    // ^?
+    return `Hello, ${name}`;
+  } else {
+    name;
+    // ^?
+    return 'Hello, stranger';
+  }
+}
+```
+
+`!name` swaps the two branches. A `boolean` splits cleanly: for `boolean | undefined`, the true branch is `true` and the false branch `false | undefined`. Use truthiness when an empty string really means "nothing here". When `0` or `''` is a value you care about, compare with `undefined` instead; the second pitfall below shows why.
+
+**Equality.** `===`, `!==`, `==` and `!=` narrow too. Compared with a literal, a variable becomes that literal in the true branch and loses it in the false one. Compared with another variable, both sides narrow to the members their types share, because equal values have the same type:
+
+```ts twoslash
+type Size = 'small' | 'medium' | 'large' | number;
+
+function sizes(size: Size) {
+  if (size === 'small' || size === 'large') {
+    size;
+    // ^?
+  } else {
+    size;
+    // ^?
+  }
+}
+
+function same(left: string | number, right: string | boolean) {
+  if (left === right) {
+    left;
+    // ^?
+    right;
+    //  ^?
+  }
+}
+```
+
+`== null` is true for `null` and `undefined` and for nothing else, so `!= null` removes both at once, where `!== null` would remove only `null`:
+
+```ts twoslash
+function withTax(price: number | null | undefined): number {
+  if (price != null) {
+    price;
+    //  ^?
+    return price * 1.25;
+  } else {
+    return 0;
+  }
+}
+```
+
+**`in`.** `'permissions' in user` is JavaScript's check for a property. On a union of object types, the true branch keeps the members that declare the property, and the false branch keeps the rest:
+
+```ts twoslash
+type Admin = { name: string; permissions: string[] };
+type Guest = { name: string; expires: Date };
+
+function access(user: Admin | Guest): string {
+  if ('permissions' in user) {
+    user;
+    // ^?
+    return user.permissions.join(', ');
+  } else {
+    user;
+    // ^?
+    return `guest until ${user.expires.toDateString()}`;
+  }
+}
+```
+
+A member that declares the property as optional, such as `permissions?: string[]`, goes into both branches, because it may or may not have it. And `in` needs an object on its right: on a union that still holds a primitive it is an error, _Type 'string | Admin' is not assignable to type 'object'._ Rule the primitive out with `typeof` first.
+
+**`instanceof`.** The right side of `instanceof` must be a value that exists at run time, usually a class, and the true branch narrows to that class's instances:
+
+```ts twoslash
+function toDate(value: Date | string): Date {
+  if (value instanceof Date) {
+    value;
+    //  ^?
+    return value;
+  } else {
+    value;
+    //  ^?
+    return new Date(value);
+  }
+}
+```
+
+Its most common job is in `catch`. Under `strict` the caught value is `unknown`, because anything can be thrown, and `instanceof` is how you reach the error's properties. Test the most specific class first: if the `Error` check came first here, it would also take the `NotFoundError`, and in that branch the type is `Error`, so `path` would be out of reach. Classes get their own lesson, <Lesson id="m04-objects/05-classes" />; here a class is only something to test against.
+
+```ts run
+class NotFoundError extends Error {
+  path: string;
+
+  constructor(path: string) {
+    super(`no page at ${path}`);
+    this.path = path;
+  }
+}
+
+function load(path: string): string {
+  if (path === '/') {
+    return 'home page';
+  }
+  throw new NotFoundError(path);
+}
+
+for (const path of ['/', '/missing']) {
+  try {
+    console.log(load(path));
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      console.log(`404: ${error.path}`);
+    } else if (error instanceof Error) {
+      console.log(`failed: ${error.message}`);
+    } else {
+      throw error;
+    }
+  }
+}
+```
+
+## Pitfalls
+
+**`typeof null` is `'object'`.** It is a quirk JavaScript never fixed, and the compiler models it: `typeof items === 'object'` keeps `null` in the union.
+
+```ts run errors
+function count(items: string[] | null): number {
+  if (typeof items === 'object') {
+    return items.length;
+  }
+  return 0;
+}
+```
+
+To keep only the array, compare with `null` instead: `items !== null`.
+
+**Truthiness drops `0` and `''`.** This compiles, and the types in both branches are right, but `0` is falsy, so a free item takes the wrong branch:
+
+```ts run
+function priceLabel(price: number | undefined): string {
+  if (price) {
+    return `${price.toFixed(2)} EUR`;
+  } else {
+    return 'price on request';
+  }
+}
+
+console.log(priceLabel(12.5));
+console.log(priceLabel(0));
+```
+
+Write the check you mean, `price !== undefined`. It is the trap `||` set in <Lesson id="m03-unions/02-null-undefined-strict" />, and again the compiler can't see it.
+
+**`instanceof` with a type.** Types are erased, so at run time there is nothing for `instanceof` to look at. Its right side needs a value, usually a class:
+
+```ts run errors
+type Point = { x: number; y: number };
+
+function isPoint(value: Point | string): boolean {
+  return value instanceof Point;
+}
+```
+
+For an object type, check something that exists at run time: `typeof value === 'object'` here, or `in` when several object types are in the union.
+
+## Check yourself
+
+<Predict
+  id="typeof-object"
+  question="`value` has type `Date | string | null`. What is its type inside `if (typeof value === 'object')`?"
+  options={['Date', 'Date | null', 'object', 'Date | string | null']}
+  answer={1}
+  explanation="`typeof null` is `'object'`, so the check keeps `null` next to `Date` and rules out only `string`. Add `value !== null` to get `Date` alone."
+/>
+
+<Predict
+  id="falsy-string"
+  question="`name` has type `string | null`. What is its type inside `if (!name)`?"
+  options={['null', "'' | null", 'string | null', 'never']}
+  answer={2}
+  explanation="The empty string is falsy, so a string can reach this branch. Narrowing removes whole members of a union; it does not cut `string` down to `''`, so `string` stays, next to `null`."
+/>
+
+<Predict
+  id="which-check"
+  question="`Admin` and `Guest` are object types declared with `type`, and `user` is `Admin | Guest`. Only `Admin` has `permissions`. Which check tells them apart?"
+  options={[
+    'user instanceof Admin',
+    "'permissions' in user",
+    "typeof user === 'Admin'",
+  ]}
+  answer={1}
+  explanation="`instanceof` needs a value that exists at run time, usually a class, and a type is erased. `typeof` only ever gives its eight strings, so comparing it with `'Admin'` is an error. `in` checks for a property, and only `Admin` declares `permissions`."
+/>
+
+## Further reading
+
+- [Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html), with sections on [`typeof`](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#typeof-type-guards), [truthiness](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#truthiness-narrowing), [equality](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#equality-narrowing), [`in`](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#the-in-operator-narrowing) and [`instanceof`](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#instanceof-narrowing)
+- [TSConfig reference: `useUnknownInCatchVariables`](https://www.typescriptlang.org/tsconfig/#useUnknownInCatchVariables)

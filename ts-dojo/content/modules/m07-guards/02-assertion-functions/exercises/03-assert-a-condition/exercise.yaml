@@ -1,0 +1,33 @@
+id: m07-guards/02-assertion-functions/03-assert-a-condition
+kind: predict
+title: Assert a condition
+minutes: 2
+challenge: false
+code: |
+  type User =
+    | { role: 'admin'; name: string; permissions: string[] }
+    | { role: 'guest'; name: string };
+
+  function assert(condition: unknown, message: string): asserts condition {
+    if (!condition) {
+      throw new Error(message);
+    }
+  }
+
+  function grant(user: User, permission: string): void {
+    assert(user.role === 'admin', `${user.name} is not an admin`);
+    user.permissions.push(permission);
+  }
+question: What does the compiler say about `user.permissions.push(permission)`?
+options:
+  - 'Nothing: after the call, user is the admin member of the union'
+  - "An error: Property 'permissions' does not exist on type 'User'."
+  - 'An error: assert must say which parameter it narrows, as in asserts user is ...'
+answer: 0
+explanation: |
+  `asserts condition` promises that the argument for `condition` was truthy if the call
+  returns. The compiler narrows the code after the call as if that argument were the condition
+  of an `if` whose other branch throws. Here the argument is `user.role === 'admin'`, a check on
+  the discriminant (3.5), so `user` narrows to the admin member and `user.permissions` is a
+  `string[]`. A plain `asserts condition` narrows whatever the expression narrows: `typeof`,
+  `in`, equality or truthiness.

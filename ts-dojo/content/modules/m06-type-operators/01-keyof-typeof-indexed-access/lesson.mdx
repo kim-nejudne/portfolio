@@ -1,0 +1,249 @@
+---
+id: m06-type-operators/01-keyof-typeof-indexed-access
+title: keyof, typeof and indexed access types
+minutes: 20
+objectives:
+  - Turn an object type's property names into a union with keyof, including types with index signatures and arrays
+  - Take the type of a value with typeof in a type position, and tell it apart from the runtime typeof
+  - Read the type of a property with an indexed access type, with one key, a union of keys or number
+  - Derive key and value unions from an as const object or array instead of writing them twice
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m04-objects/03-index-signatures-and-record
+  - m04-objects/04-enums-vs-as-const
+  - m05-generics/04-keyof-constraints
+tags:
+  - keyof
+  - typeof
+  - type query
+  - indexed access type
+  - lookup type
+  - T[number]
+  - as const
+  - union of values
+---
+
+## Concept
+
+A type is often a copy of something already written: the keys of an object type, the shape of a config object, the type of one property. Copies drift. TypeScript has operators that compute such types from their source instead, so the type follows when the source changes. This lesson covers three of them:
+
+- `keyof T`, the union of the property names of the type `T`;
+- `typeof x`, written where a type goes, the type the compiler gave the value `x`;
+- `T['k']`, an **indexed access type**: the type of the property `k` of `T`.
+
+```ts twoslash
+type User = { id: number; name: string; email: string };
+
+type UserName = User['name'];
+//       ^?
+
+const defaults = { theme: 'dark', fontSize: 14, vim: true };
+
+type Settings = typeof defaults;
+//       ^?
+type SettingKey = keyof Settings;
+//         ^?
+```
+
+All three are types, so all three are erased: nothing of them reaches the JavaScript. <Lesson id="m05-generics/04-keyof-constraints" /> used `keyof` inside a generic, as a constraint, to type functions that take a property name, and that is still the way to write one. Here the operators stand on their own, on concrete types and values, and the end of Examples takes apart the recipe that <Lesson id="m04-objects/04-enums-vs-as-const" /> used for the values of an `as const` object.
+
+## Examples
+
+**`keyof` on an object type.** The result is a union of string literal types, one per property. For a named type like `User`, the editor shows it as written, `keyof User`. Narrowing shows what is inside: once `'id'` is ruled out, the other two names are left.
+
+```ts twoslash
+type User = { id: number; name: string; email: string };
+
+type UserKey = keyof User;
+//      ^?
+
+function describe(key: UserKey): string {
+  if (key === 'id') {
+    return 'a number';
+  }
+  key;
+  // ^?
+  return 'a string';
+}
+```
+
+A string that is not a property name doesn't fit: `describe('age')` reports `Argument of type '"age"' is not assignable to parameter of type 'keyof User'.` Add a property to `User`, and `UserKey` gains it without an edit.
+
+**`keyof` on index signatures and arrays.** For a dictionary from <Lesson id="m04-objects/03-index-signatures-and-record" />, the keys are the index signature's key type, with one twist. JavaScript turns a number key into a string, so `flags[1]` reads `flags['1']`, and a `string` index signature accepts numbers too. `keyof` says so:
+
+```ts twoslash
+type Flags = { [name: string]: boolean };
+type FlagKey = keyof Flags;
+//      ^?
+
+type Champions = { [year: number]: string };
+type Year = keyof Champions;
+//    ^?
+```
+
+An array type has a `number` index signature and properties of its own, so its `keyof` is `number` plus `'length'` plus the name of every array method:
+
+```ts run
+type ListKey = keyof string[];
+
+const index: ListKey = 0;
+const size: ListKey = 'length';
+const method: ListKey = 'map';
+console.log(index, size, method);
+```
+
+That is rarely the type you want. For the type of the elements, index the array type with `number`, as the next examples do.
+
+**`typeof` in a type position.** Written where a value goes, `typeof` is the JavaScript operator from <Lesson id="m03-unions/03-narrowing" />: it runs, and gives a string such as `'object'`. Written where a type goes, it is a **type query**: it takes the name of a value and gives that value's type, the one you see when you hover it. Both appear here:
+
+```ts run
+const defaults = { theme: 'dark', fontSize: 14, vim: true };
+type Settings = typeof defaults;
+
+function describe(settings: Settings): string {
+  return `${settings.theme} theme, ${settings.fontSize}px, vim ${settings.vim ? 'on' : 'off'}`;
+}
+
+console.log(typeof defaults);
+console.log(describe({ theme: 'light', fontSize: 16, vim: false }));
+```
+
+`Settings` is `{ theme: string; fontSize: number; vim: boolean; }`, written once, in the object. A type query takes a name or a dotted path to a property: `typeof defaults.fontSize` is `number`, and `typeof describe` is the function type `(settings: Settings) => string`. It takes no other expression; `typeof describe(defaults)` doesn't even parse.
+
+**Indexed access types.** `T['k']` reads a property's type the way `obj['k']` reads its value. The key is a type: a string literal type, a union of them, or a `keyof`. A union gives the union of the property types, so `Order[keyof Order]` is the type of every value. Accesses chain, and `number` reads the element type of an array or a tuple:
+
+```ts twoslash
+type Order = {
+  id: number;
+  status: 'pending' | 'paid' | 'shipped';
+  items: { sku: string; qty: number }[];
+};
+
+type Status = Order['status'];
+//     ^?
+type IdOrStatus = Order['id' | 'status'];
+//         ^?
+type Item = Order['items'][number];
+//    ^?
+type Qty = Order['items'][number]['qty'];
+//   ^?
+
+type Pair = [string, number];
+type First = Pair[0];
+//     ^?
+type Either = Pair[number];
+//      ^?
+```
+
+The brackets are required: `Order.status` reports `Cannot access 'Order.status' because 'Order' is a type, but not a namespace. Did you mean to retrieve the type of the property 'status' in 'Order' with 'Order["status"]'?` A key the type doesn't have is an error, `Property 'total' does not exist on type 'Order'.`, and so is `number` on a type without a number index signature: `Type 'Order' has no matching index signature for type 'number'.`
+
+**Types from an `as const` value.** Now the recipe from 4.4 reads piece by piece. `as const` keeps the literal types and makes the properties `readonly`. `typeof` turns the object into a type, `keyof` takes its keys, and indexing with all the keys gives all the values:
+
+```ts twoslash
+const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const;
+
+type Levels = typeof LEVELS;
+//      ^?
+type Level = keyof typeof LEVELS;
+//     ^?
+type Severity = (typeof LEVELS)[keyof typeof LEVELS];
+//        ^?
+```
+
+The parentheses only help the reader: `typeof LEVELS[keyof typeof LEVELS]` means the same, because a type query takes just the name, and the brackets index its result. For an `as const` array, `(typeof SIZES)[number]` gives the union of the elements, as 4.4 showed. The object stays the one place where the levels are listed, and its types follow it:
+
+```ts run
+const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const;
+type Level = keyof typeof LEVELS;
+
+function atLeast(level: Level, threshold: Level): boolean {
+  return LEVELS[level] >= LEVELS[threshold];
+}
+
+console.log(atLeast('warn', 'info'), atLeast('debug', 'error'));
+```
+
+Add `trace: 0` to `LEVELS`, and `atLeast('trace', 'debug')` compiles, with no other edit.
+
+## Pitfalls
+
+**A value where a type goes.** Values and types live apart: a name declared with `const` is a value, and a value's name is not a type. Writing one where a type goes is an error that names the fix:
+
+```ts run errors
+const defaults = { theme: 'dark', fontSize: 14 };
+type Settings = defaults;
+
+const LEVELS = { debug: 10, info: 20, warn: 30 } as const;
+type Level = keyof LEVELS;
+```
+
+`'defaults' refers to a value, but is being used as a type here. Did you mean 'typeof defaults'?`, and the same for `LEVELS`. Write `typeof defaults` and `keyof typeof LEVELS`. The same goes for a key held in a constant: with `const key = 'name'`, the type is `User[typeof key]`, not `User[key]`.
+
+**No `as const`.** Without it, the compiler widens the values of a `const` array or object to `string` and `number` (<Lesson id="m01-types/02-primitives-literals-widening" />), and the derived type is just as wide. This compiles:
+
+```ts run
+const ROLES = ['admin', 'editor', 'viewer'];
+type Role = (typeof ROLES)[number];
+
+const role: Role = 'superuser';
+console.log(role);
+```
+
+`Role` is `string`, so `'superuser'` fits. Add `as const` after the array, and `Role` becomes `'admin' | 'editor' | 'viewer'`, and the assignment an error.
+
+**`keyof` a dictionary is not `string`.** A `string` index signature takes number keys as well, so its `keyof` is `string | number`, and string methods aren't there:
+
+```ts run errors
+type Flags = { [name: string]: boolean };
+
+function label(key: keyof Flags): string {
+  return key.toUpperCase();
+}
+```
+
+`Property 'toUpperCase' does not exist on type 'string | number'.` For a dictionary, every string is a key, so a parameter typed `string` says what was meant.
+
+## Check yourself
+
+<Predict
+  id="keyof-dictionary"
+  question="What is `keyof { [name: string]: boolean }`?"
+  options={['string', 'string | number', 'boolean', 'never']}
+  answer={1}
+  explanation="JavaScript turns number keys into strings, so a `string` index signature accepts numbers too, and `keyof` includes `number`. That is why a parameter typed with this `keyof` has no string methods."
+/>
+
+<Predict
+  id="widened-array"
+  code={
+    "const SIZES = ['small', 'medium', 'large'];\ntype Size = (typeof SIZES)[number];"
+  }
+  question="What is `Size`?"
+  options={["'small' | 'medium' | 'large'", 'string', 'string[]', 'number']}
+  answer={1}
+  explanation="Without `as const`, the array is inferred as `string[]`, so its element type is `string`. The literal union needs `as const` after the array, which keeps each element's literal type."
+/>
+
+<Predict
+  id="union-of-keys"
+  code={
+    "type Order = {\n  id: number;\n  status: 'pending' | 'paid';\n  items: string[];\n};\ntype T = Order['id' | 'status'];"
+  }
+  question="What is `T`?"
+  options={[
+    "'id' | 'status'",
+    "number | 'pending' | 'paid'",
+    "{ id: number; status: 'pending' | 'paid' }",
+    'An error: an indexed access type takes one key',
+  ]}
+  answer={1}
+  explanation="Indexing with a union of keys gives the union of those properties' types: `number` from `id` and the two literals from `status`. Picking an object type with just those properties is a job for `Pick`, in lesson 6.2."
+/>
+
+## Further reading
+
+- [Handbook: Creating types from types](https://www.typescriptlang.org/docs/handbook/2/types-from-types.html)
+- [Handbook: The keyof type operator](https://www.typescriptlang.org/docs/handbook/2/keyof-types.html)
+- [Handbook: The typeof type operator](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html)
+- [Handbook: Indexed access types](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)
+- [TypeScript 3.4 release notes: const assertions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions)

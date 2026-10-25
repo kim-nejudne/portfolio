@@ -1,0 +1,44 @@
+id: m11-conditional-types/02-infer/04-remote-client
+kind: implement
+title: A client for a remote API
+minutes: 6
+challenge: false
+prompt: |
+  A remote API is called over the network, so every call takes time. `remote(api)` in
+  `index.ts` wraps a local object in the client that a remote one would have: every property
+  becomes a function that returns a promise. Write `Client<T>` and `remote`:
+
+  - A method keeps its parameters and returns a promise of its result:
+    `add(a: number, b: number): number` becomes `add(a: number, b: number): Promise<number>`.
+    A method that already returns a promise is not wrapped twice: an `async` method that
+    returns `Promise<User>` still gives `Promise<User>`.
+  - A property that is not a function becomes a function with no parameters that returns a
+    promise of its value: `version: string` becomes `version(): Promise<string>`.
+  - `readonly` stays as it is, and an overloaded method gives its last signature, as
+    `Parameters` would.
+  - At run time, the client has the same keys as `api`. Each call reads the property from
+    `api` at the time of the call, calls it with `api` as `this` when it is a function, and
+    returns a promise of the result. A method that throws gives a rejected promise.
+
+  The starter's `Client` takes any arguments and promises `unknown`. Write it with one
+  `infer` pattern for the parameters and the result. Returning a value as `Client<T>` fails,
+  as the second pitfall of lesson 11.1 shows, and casts are forbidden here, so give `remote`
+  the shape that lesson used. This combines the lesson with mapped types (6.4, and lesson 10.1,
+  Mapped types), `Awaited` (6.3), overloads (8.1) and async functions (9.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    any-expression,
+    non-null-assertion,
+    angle-cast,
+  ]
+hints:
+  - The value side of the mapped type asks one question per property, with an `infer` for the parameter list and one for the result. A parameter list matched by a rest parameter is a tuple you can spread again.
+  - '`Awaited` from lesson 6.3 unwraps a result that is already a promise and leaves any other type as it is.'
+  - Keep the generic signature for callers as an overload, and add an implementation with plain types below it. In the body, `typeof` narrows each value to a function or not.

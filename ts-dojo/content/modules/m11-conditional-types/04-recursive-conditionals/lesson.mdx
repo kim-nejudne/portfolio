@@ -1,0 +1,249 @@
+---
+id: m11-conditional-types/04-recursive-conditionals
+title: 'Recursive conditional types and the patterns: Flatten, DeepPartial, DeepReadonly, UnionToIntersection'
+minutes: 30
+objectives:
+  - Write a conditional type that refers to itself, with a branch that ends the recursion
+  - Recurse over a tuple element by element, as Flatten does
+  - Recurse through a mapped type to change every level of an object, as DeepPartial and DeepReadonly do, and stop at functions
+  - Turn a union into an intersection with UnionToIntersection, and explain each step
+  - Predict where a self-reference is allowed, and when an intersection collapses to never
+prerequisites:
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m10-mapped-types/03-mapping-unions-tuples-arrays
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/03-distributive-conditionals
+tags:
+  - recursive type
+  - recursive conditional type
+  - Flatten
+  - DeepPartial
+  - DeepReadonly
+  - UnionToIntersection
+  - contravariance
+  - mapped type
+  - intersection
+  - TS2456
+---
+
+## Concept
+
+A conditional type may refer to itself in a branch. The branch is only worked
+out when the condition picks it, so each step can take one layer off the type
+and ask the same question about what is left. The branch that doesn't refer to
+the alias ends the recursion:
+
+```ts twoslash
+type Innermost<T> = T extends readonly (infer E)[] ? Innermost<E> : T;
+
+type A = Innermost<number[][][]>;
+//   ^?
+type B = Innermost<string>;
+//   ^?
+```
+
+`Innermost<number[][][]>` matches the array pattern of <Lesson id="m11-conditional-types/02-infer" /> with `E` as `number[][]`, and asks again. Two steps later `E` is `number`, which is no array, and the false branch returns it. A type that is no array at all, like `string`, takes the false branch at once. TypeScript 4.1 added recursion in conditional types; the patterns below are the ones it is used for most.
+
+## Examples
+
+**Recursion over a tuple: `Flatten`.** `[infer Head, ...infer Rest]` matches a tuple with at least one element and names its first element and the tuple of the rest. Each step handles `Head`, and recurses on `Rest`; the empty tuple matches nothing and ends it. `[...A, ...B]` spreads two tuple types into one, as spread does for array values (<Lesson id="m12-template-tuples/02-variadic-tuples" /> covers it):
+
+```ts twoslash
+type Flatten<T extends readonly unknown[]> = T extends readonly [
+  infer Head,
+  ...infer Rest,
+]
+  ? Head extends readonly unknown[]
+    ? [...Flatten<Head>, ...Flatten<Rest>]
+    : [Head, ...Flatten<Rest>]
+  : [];
+
+type F = Flatten<[1, [2, [3, [4]]], 5]>;
+//   ^?
+type E = Flatten<[]>;
+//   ^?
+```
+
+A `Head` that is a tuple itself is flattened by the same alias before it is spread, so the nesting may go to any depth. <Lesson id="m12-template-tuples/03-tuple-manipulation" /> uses this shape for `Reverse` and `Includes`.
+
+**Recursion through a mapped type: `DeepPartial`.** `Partial` from <Lesson id="m06-type-operators/02-utility-types-1" /> makes the top level optional. Calling the alias again for each property's type makes every level optional:
+
+```ts twoslash
+type DeepPartial<T> = T extends object
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : T;
+
+interface Config {
+  server: { host: string; port: number };
+  log: { level: 'info' | 'debug'; color: boolean };
+}
+
+type Patch = DeepPartial<Config>;
+//   ^?
+```
+
+`T extends object` stops at primitives, which have no levels left. `T` is naked, so a union is handled one member at a time (<Lesson id="m11-conditional-types/03-distributive-conditionals" />): `DeepPartial<Config | null>` keeps its `null`. A patch now names only what it changes:
+
+```ts run
+type DeepPartial<T> = T extends object
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : T;
+
+interface Config {
+  server: { host: string; port: number };
+  log: { level: 'info' | 'debug'; color: boolean };
+}
+
+const defaults: Config = {
+  server: { host: 'localhost', port: 8080 },
+  log: { level: 'info', color: true },
+};
+
+function configure(patch: DeepPartial<Config>): Config {
+  return {
+    server: { ...defaults.server, ...patch.server },
+    log: { ...defaults.log, ...patch.log },
+  };
+}
+
+console.log(configure({ server: { port: 3000 } }));
+console.log(configure({ log: { level: 'debug' } }));
+```
+
+**The same shape with `readonly`: `DeepReadonly`.** <Lesson id="m06-type-operators/02-utility-types-1" /> found that `Readonly` protects one level only. The deep version recurses the same way, with one more branch first: a function is an object too, and a mapped type over a function type keeps none of its call signatures, so functions are returned as they are:
+
+```ts twoslash
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends object
+    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+    : T;
+
+interface Store {
+  user: { name: string; roles: string[] };
+  save: (force: boolean) => void;
+}
+
+type Frozen = DeepReadonly<Store>;
+//   ^?
+```
+
+`roles` became `readonly string[]`: a homomorphic mapped type over an array gives an array again (<Lesson id="m10-mapped-types/03-mapping-unions-tuples-arrays" />), and here a read-only one. `(...args: never[]) => unknown` matches every function, as in <Lesson id="m11-conditional-types/02-infer" />. <Lesson id="m13-type-challenges/02-medium-set-1" /> sets Deep Readonly as a challenge, with more kinds of input.
+
+**`UnionToIntersection`.** Not every pattern recurses. This one puts together two rules from earlier lessons to turn `A | B` into `A & B`:
+
+```ts twoslash
+type UnionToIntersection<U> = (
+  U extends unknown ? (x: U) => void : never
+) extends (x: infer I) => void
+  ? I
+  : never;
+type Simplify<T> = { [K in keyof T]: T[K] };
+
+type Both = UnionToIntersection<{ id: number } | { name: string }>;
+//   ^?
+type Flat = Simplify<Both>;
+//   ^?
+```
+
+Step one is the inner condition. `U` is naked, so it distributes, and each member becomes a function that takes it: `((x: { id: number }) => void) | ((x: { name: string }) => void)`. Step two is the outer condition, whose checked type is that union, not a type parameter, so it is asked once. Matching a union of functions against one `(x: infer I) => void` gives `I` one candidate per member, all in parameter positions, and <Lesson id="m11-conditional-types/02-infer" /> showed that candidates there are intersected. `Simplify` from <Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> shows the result as one object type. The pattern is useful wherever a union of parts has to become one type that has them all, such as the options of several plugins.
+
+Each recursive step is a new instantiation, and the compiler stops a recursion that goes too deep. <Lesson id="m12-template-tuples/04-recursion-limits" /> covers the limit and the error it gives.
+
+## Pitfalls
+
+**Recursing outside a conditional or an object type.** A union of the alias with itself has to be worked out at once, so it never ends:
+
+```ts run errors
+type AllKeys<T> = keyof T | AllKeys<T[keyof T]>;
+```
+
+`Type alias 'AllKeys' circularly references itself.`, and a second error on the reference to it, `Type 'AllKeys' is not generic.` Both go away with the fix below. The compiler accepts a self-reference only where it is deferred: in a branch of a conditional type, in a property of an object or mapped type, as an array or tuple element (`type Tree<T> = T | Tree<T>[]` is fine), or as a type argument of a generic interface or class, such as `Promise<…>` or `Map<string, …>`. A type argument of another type alias is not deferred: `type Frozen = Readonly<Frozen>` is circular too. Put the recursion in a branch, `T extends object ? keyof T | AllKeys<T[keyof T]> : never`, which also gives it a way out.
+
+**Mapping over a function.** Without the function branch, a method becomes an object with no properties, and calling it fails:
+
+```ts run errors
+type DeepReadonly<T> = T extends object
+  ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+  : T;
+
+interface Store {
+  user: { name: string };
+  save: (force: boolean) => void;
+}
+
+const store: DeepReadonly<Store> = {
+  user: { name: 'Ada' },
+  save: (force: boolean) => console.log(force),
+};
+store.save(true);
+```
+
+`This expression is not callable.` and `Type '{}' has no call signatures.` A function type has no keys for the mapped type to copy, so `{}` is what is left. Test for functions before `T extends object`, as in Examples. The same goes for `DeepPartial`.
+
+**Merging members that disagree.** `UnionToIntersection` intersects whatever it is given. When two members give the same property two literal types, no value is both, and the whole intersection is `never`:
+
+```ts run errors
+type UnionToIntersection<U> = (
+  U extends unknown ? (x: U) => void : never
+) extends (x: infer I) => void
+  ? I
+  : never;
+
+type Options = UnionToIntersection<
+  { mode: 'fast'; retries: number } | { mode: 'safe' }
+>;
+const options: Options = { mode: 'fast', retries: 3 };
+```
+
+`Type 'string' is not assignable to type 'never'.` and the same for `number`: `Options` is `never`. A union of primitives goes the same way: `UnionToIntersection<'a' | 'b'>` and `UnionToIntersection<boolean>` are `never`. Merge only parts whose shared properties agree.
+
+## Check yourself
+
+<Predict
+  id="recursion-and-distribution"
+  code={
+    'type Innermost<T> = T extends readonly (infer E)[] ? Innermost<E> : T;\ntype X = Innermost<string[][] | number>;'
+  }
+  question="What is `X`?"
+  options={['string | number', 'string[] | number', 'string', 'never']}
+  answer={0}
+  explanation="`T` is naked, so the union is split first. `string[][]` is unwrapped twice, to `string`, and `number` is no array, so it is returned at once. The answers are joined again: `string | number`."
+/>
+
+<Predict
+  id="union-to-intersection"
+  code={
+    'type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never;\ntype M = UnionToIntersection<{ a: 1 } | { b: 2 }>;'
+  }
+  question="What is `M`?"
+  options={[
+    '{ a: 1 } | { b: 2 }',
+    '{ a: 1 } & { b: 2 }',
+    'never',
+    '(x: { a: 1 }) => void',
+  ]}
+  answer={1}
+  explanation="The inner condition distributes and gives one function per member. The outer one is asked once, and `I` gets a candidate from each function's parameter. Candidates in parameter positions are intersected, so `M` is `{ a: 1 } & { b: 2 }`. The two members share no property, so nothing collapses to `never`."
+/>
+
+<Predict
+  id="where-a-self-reference-stands"
+  question="Which of these declarations is an error?"
+  options={[
+    'type Tree = string | Tree[];',
+    'type Chain = Promise<Chain>;',
+    'type Frozen = Readonly<Frozen>;',
+    'type ListNode = { next: ListNode | null };',
+  ]}
+  answer={2}
+  explanation="An array element, a type argument of a generic interface such as `Promise`, and a property of an object type are all deferred, so those three compile. `Readonly` is a type alias, and a type argument of an alias is not deferred: the compiler would have to work out `Frozen` to work out `Frozen`, and reports `Type alias 'Frozen' circularly references itself.`"
+/>
+
+## Further reading
+
+- [TypeScript 4.1 release notes: recursive conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html#recursive-conditional-types), with an `ElementType` like `Innermost` and a deep flatten
+- [TypeScript 3.7 release notes: more recursive type aliases](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#more-recursive-type-aliases), where a self-reference may stand and where it may not
+- [Handbook: Inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types)
+- [Handbook: Mapping modifiers](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#mapping-modifiers), for the `readonly` and `?` the deep types add at every level

@@ -1,0 +1,24 @@
+id: m08-functions-classes/03-classes-2/01-mark-the-overrides
+kind: fix
+title: Mark the overrides
+minutes: 3
+challenge: false
+prompt: |
+  This exercise turns on `noImplicitOverride`. `Logger.log` formats each line with `format`,
+  and both subclasses mean to replace it, but `index.ts` reports:
+
+  - on `LevelLogger`'s method, `This member must have an 'override' modifier because it overrides a member in the base class 'Logger'.`
+  - on `ShortLogger`'s method, `This member cannot have an 'override' modifier because it is not declared in the base class 'Logger'.`
+
+  Make `index.ts` compile so that each subclass really does replace `format`: a `LevelLogger`
+  puts its level in front of every line, and a `ShortLogger` keeps the first 10 characters.
+  The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  noImplicitOverride: true
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The two errors are opposites. One method replaces a base class method and doesn't say so; the other says so and replaces nothing.
+  - Which method does log call, and is that the name ShortLogger's method has?

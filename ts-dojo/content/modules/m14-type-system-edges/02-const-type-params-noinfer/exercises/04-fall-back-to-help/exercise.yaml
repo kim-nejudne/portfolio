@@ -1,0 +1,39 @@
+id: m14-type-system-edges/02-const-type-params-noinfer/04-fall-back-to-help
+kind: fix
+title: Fall back to help
+minutes: 4
+challenge: false
+prompt: |
+  `createCli` takes a record of commands and the name of the one to run when a name isn't a
+  command. `index.ts` reports three errors:
+
+  - `Object literal may only specify known properties, and 'version' does not exist in type 'Record<"help", Command>'.`
+  - `Type '(name: string) => boolean' is not assignable to type '(name: string) => name is C'.`
+  - `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Record<C, Command>'.`
+
+  Make it compile and work:
+
+  - The command names come from the record's keys alone, and the fallback must be one of them:
+    `createCli({ help: () => 'usage' }, 'hepl')` is an error.
+  - `has(name)` is true only for a command of the record's own, never for something every object
+    has, such as `toString`.
+  - `run(name)` runs the named command, or the fallback for any other name.
+
+  Keep `Cli` and the call as they are, and use no cast. This combines the lesson with `Record`
+  (6.2, Utility types I) and type predicates (7.1, Type guards).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - The first error is inference, not the object. Two parameters offer candidates for `C`, and the wrong one wins.
+  - '`has` must say what it proves about `name`, in its return type. `in` also finds what an object inherits; there is a check for own properties only.'
+  - Once `has` is a type predicate, `run` can narrow `name` with it before indexing the record.

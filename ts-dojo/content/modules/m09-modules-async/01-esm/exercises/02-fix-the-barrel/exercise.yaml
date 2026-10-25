@@ -1,0 +1,24 @@
+id: m09-modules-async/01-esm/02-fix-the-barrel
+kind: fix
+title: Fix the barrel
+minutes: 3
+challenge: false
+prompt: |
+  `index.ts` is a barrel: it re-exports the public parts of `money.ts` and `format.ts`, and
+  callers import only from it. Under `isolatedModules`, which the dojo's defaults turn on, it
+  doesn't compile. Three names get the same error:
+
+  - `Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.`
+
+  Fix `index.ts` so the barrel still exports the same names, types and values, and nothing
+  else: `checkCents` stays private to the package. Leave the other files as they are. `:w` runs
+  `demo.ts` even with the errors: run it before and after the fix to see the difference. The
+  tests import everything from `index.ts`, and check the names the module has at run time.
+entry: demo.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A transpiler that sees only `index.ts` keeps every name in a re-export. Which of the five names does no file export at run time?
+  - Mark those names with `type`, inline in the braces or in a separate re-export of their own.

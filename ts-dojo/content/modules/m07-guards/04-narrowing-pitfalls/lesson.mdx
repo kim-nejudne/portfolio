@@ -1,0 +1,228 @@
+---
+id: m07-guards/04-narrowing-pitfalls
+title: 'Narrowing pitfalls: callbacks, mutation, array methods and filter'
+minutes: 15
+objectives:
+  - Handle the undefined that find returns, and narrow the results of find, filter and every with a check on the element
+  - Predict when filter narrows its result and when it doesn't, including filter(Boolean)
+  - Tell when an element access such as rows[i] or stock[key] narrows, and copy the element into a const when it doesn't
+  - Spot an assignment the compiler can't see, inside a callback or through a second name for the same object
+prerequisites:
+  - m03-unions/02-null-undefined-strict
+  - m03-unions/04-control-flow-analysis
+  - m07-guards/01-type-guards
+tags:
+  - narrowing
+  - find
+  - filter
+  - filter(Boolean)
+  - every
+  - some
+  - inferred type predicate
+  - element access
+  - index signature
+  - forEach
+  - callback
+  - alias
+  - mutation
+---
+
+## Concept
+
+A narrowing needs two things: a reference the compiler can follow from the check to the use, and code in between that it can see. <Lesson id="m03-unions/04-control-flow-analysis" /> showed how callbacks, assignments and calls affect the second. This lesson collects the places in everyday code where one of the two is missing: array methods, whose results are whatever their signatures say; element accesses, whose key the compiler can't always pin down; and objects that two names reach.
+
+Start with the commonest. A search can come up empty, so `find` returns the element type or `undefined`, even when you are sure the element is there:
+
+```ts twoslash
+type User = { name: string; admin: boolean };
+
+function adminName(users: readonly User[]): string {
+  const admin = users.find((user) => user.admin);
+  admin;
+  // ^?
+  if (admin === undefined) {
+    return 'nobody';
+  }
+  return admin.name;
+}
+```
+
+Check the result as you would any `| undefined` from <Lesson id="m03-unions/02-null-undefined-strict" />. `findLast` works the same way.
+
+## Examples
+
+**`find` and `filter` with a check on the element.** `find`, `findLast` and `filter` each have an overload that takes a type guard and returns the guard's type. Since TypeScript 5.5, an arrow function that tests its parameter is a guard without a written predicate, as <Lesson id="m07-guards/01-type-guards" /> showed. A check on a discriminant qualifies, so the result is narrowed to that member:
+
+```ts twoslash
+type Circle = { kind: 'circle'; radius: number };
+type Square = { kind: 'square'; side: number };
+type Shape = Circle | Square;
+
+const shapes: Shape[] = [
+  { kind: 'square', side: 2 },
+  { kind: 'circle', radius: 1 },
+];
+
+const firstCircle = shapes.find((shape) => shape.kind === 'circle');
+//         ^?
+const squares = shapes.filter((shape) => shape.kind === 'square');
+//       ^?
+```
+
+**What `filter` can and can't narrow.** The rule from 7.1 decides: a predicate is inferred only when `false` means the parameter is not the narrower type. An extra condition that can be false for a defined name, such as one on the index, breaks that. So does a check on a property, which narrows the property and not the element:
+
+```ts twoslash
+const names = ['Ada', undefined, 'Grace'];
+const defined = names.filter((name) => name !== undefined);
+//       ^?
+const afterFirst = names.filter((name, i) => name !== undefined && i > 0);
+//         ^?
+
+type Contact = { name: string; email?: string };
+const contacts: Contact[] = [{ name: 'Ada', email: 'ada@example.com' }];
+const reachable = contacts.filter((contact) => contact.email !== undefined);
+//        ^?
+const emails = contacts
+  .map((contact) => contact.email)
+  .filter((email) => email !== undefined);
+emails;
+// ^?
+```
+
+`reachable` is still `Contact[]`, so `reachable[0].email` is a `string | undefined`. When you need the property, map to it first and filter the values, as `emails` does. When you need the whole element, write the predicate yourself.
+
+**`every` narrows the array, `some` doesn't.** `every` has a guard overload too, and its return type is a predicate on the array it was called on, `this is S[]`. When every element passes the check, the array is narrowed:
+
+```ts twoslash
+function sum(values: (string | number)[]): number {
+  if (values.every((value) => typeof value === 'number')) {
+    values;
+    // ^?
+    return values.reduce((total, value) => total + value, 0);
+  }
+  return Number.NaN;
+}
+```
+
+`some` returns a plain `boolean`: one number in the list says nothing about the others. On a `readonly` array, `every` narrows to a `readonly` array.
+
+**Element access.** Narrowing follows `rows[0]` or `stock[sku]` like a property, as long as the compiler can tell that the check and the use read the same element. The key must be a literal, or a variable or parameter that is never assigned, and the object must not be assigned either (TypeScript 4.7 added literal keys, 5.5 the others). After the `if`, `stock[sku]` is a `number`, so the comparison compiles:
+
+```ts run
+const stock: Record<string, number | undefined> = { tea: 3, cocoa: 0 };
+
+function canSell(sku: string, quantity: number): boolean {
+  if (stock[sku] === undefined) {
+    return false;
+  }
+  return stock[sku] >= quantity;
+}
+
+console.log(canSell('tea', 2), canSell('cocoa', 1), canSell('mint', 1));
+```
+
+Two common keys don't qualify. In a classic `for` loop, `i++` assigns the index, so after `if (rows[i] !== undefined)` the use `rows[i].trim()` is an error: _Object is possibly 'undefined'._ A key that is itself a property, as in `stock[line.sku]`, fails the same way. Copy the element into a `const` and check that. A `for...of` loop gives you the element directly:
+
+```ts run
+const rows = ['  tea ', undefined, ' cocoa'];
+
+for (let i = 0; i < rows.length; i++) {
+  const row = rows[i];
+  if (row !== undefined) {
+    console.log(`${i}: ${row.trim()}`);
+  }
+}
+```
+
+## Pitfalls
+
+**`filter(Boolean)`.** Passing `Boolean` as the callback is a popular way to drop empty values. Its type is a function that returns `boolean`, not a guard, so the result keeps every member it started with:
+
+```ts run errors
+const names = ['Ada', undefined, 'Grace'];
+console.log(names.filter(Boolean).map((name) => name.toUpperCase()));
+```
+
+_'name' is possibly 'undefined'._ It also drops `0`, `''` and `NaN`, which are often real values. Write the check you mean, `(name) => name !== undefined`: the compiler infers the predicate, and only `undefined` goes.
+
+**An assignment inside a callback.** 3.4 noted that the compiler doesn't see a `let` assigned by another function. A callback is such a function. Here, after the initializer, `admin` is narrowed to `undefined`, and the assignment inside `forEach` doesn't change that. The check then rules out the only member left:
+
+```ts run errors
+type User = { name: string; admin: boolean };
+
+function adminName(users: readonly User[]): string {
+  let admin: User | undefined = undefined;
+  users.forEach((user) => {
+    if (admin === undefined && user.admin) {
+      admin = user;
+    }
+  });
+  if (admin === undefined) {
+    return 'nobody';
+  }
+  return admin.name;
+}
+```
+
+_Property 'name' does not exist on type 'never'._ Had the function no return type and ended with `return admin`, it would compile, and its inferred return type would be `undefined`. Let `find` do the search and return the result, or use a `for...of` loop, whose body the compiler follows. Dropping the initializer, `let admin: User | undefined;`, also compiles, but `find` says what you mean.
+
+**Mutation through a second name.** A narrowing belongs to one reference. An assignment through another reference doesn't undo it, even when both reach the same object, because the compiler doesn't track which names share an object. Here `current` and `task` are the same task on the first turn of the loop. This compiles, and crashes:
+
+```ts run
+type Task = { title: string; owner: string | undefined };
+
+const tasks: Task[] = [
+  { title: 'Ship the release', owner: 'ada' },
+  { title: 'Write the notes', owner: 'grace' },
+];
+const current = tasks[0];
+
+if (current.owner !== undefined) {
+  for (const task of tasks) {
+    task.owner = undefined;
+  }
+  console.log(current.owner.toUpperCase());
+}
+```
+
+The same goes for `rows[j] = undefined` after a check on `rows[i]`, when `i` and `j` happen to be equal. When code between the check and the use can change the object, copy the value into a `const` before it runs, `const owner = current.owner`, or check again after it.
+
+## Check yourself
+
+<Predict
+  id="some-or-every"
+  question="`values` is a `(string | number)[]`. What is its type inside `if (values.some((value) => typeof value === 'number'))`?"
+  options={['number[]', '(string | number)[]', 'string[]']}
+  answer={1}
+  explanation="`some` returns a plain boolean, so the call narrows nothing: one number says nothing about the rest. `every` with the same check would narrow `values` to `number[]`, because its return type is a predicate on the array."
+/>
+
+<Predict
+  id="loop-index"
+  code={
+    'function trimmed(rows: (string | undefined)[]): string[] {\n  const result: string[] = [];\n  for (let i = 0; i < rows.length; i++) {\n    if (rows[i] !== undefined) {\n      result.push(rows[i].trim());\n    }\n  }\n  return result;\n}'
+  }
+  question="What does the compiler say about `rows[i].trim()`?"
+  options={[
+    'Nothing: the check narrows rows[i] to string',
+    "An error: Object is possibly 'undefined', because i is assigned by i++",
+    'An error: an array can only be indexed with a const',
+  ]}
+  answer={1}
+  explanation="An element access narrows only when neither the object nor the key is assigned. `i++` assigns `i`, so the compiler can't be sure the use reads the element it checked. Copy it first, `const row = rows[i]`, or loop with for...of."
+/>
+
+<Predict
+  id="assigned-in-foreach"
+  question="`let found: User | undefined = undefined;` is followed by `users.forEach((user) => { found = user; });`. What type does the compiler give `found` on the next line?"
+  options={['User | undefined', 'User', 'undefined']}
+  answer={2}
+  explanation="The initializer narrows `found` to `undefined`, and the compiler doesn't see the assignment inside the callback, so the narrowing stays. A check such as `if (found)` then leaves `never`. Use `find` instead, or a for...of loop."
+/>
+
+## Further reading
+
+- [TypeScript 5.5: inferred type predicates](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html#inferred-type-predicates) and [control flow narrowing for constant indexed accesses](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html#control-flow-narrowing-for-constant-indexed-accesses)
+- [TypeScript 4.7: control-flow analysis for bracketed element access](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-7.html#control-flow-analysis-for-bracketed-element-access)
+- [Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+- [Trade-offs in control flow analysis](https://github.com/microsoft/TypeScript/issues/9998), the TypeScript team's notes on why calls and callbacks are handled this way

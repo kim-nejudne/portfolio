@@ -1,0 +1,22 @@
+id: m01-types/04-any-unknown-never-void/01-format-an-unknown-price
+kind: fix
+title: Format an unknown price
+minutes: 2
+challenge: false
+prompt: |
+  `index.ts` doesn't compile: `'price' is of type 'unknown'.` Prices reach `formatPrice` from a
+  form, so they can be anything, and the parameter says so.
+
+  Keep `price: unknown` and make the function compile. A number comes back with two decimals
+  and the currency, such as `4.50 EUR`; any other value, a numeric string included, gives
+  `price on request`. The type case checks that the parameter is still `unknown`; the tests
+  stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [explicit-any, as-unknown-as, angle-cast, type-assertion, any-expression]
+hints:
+  - The error says the code uses `price` before anything has shown what it holds. Giving the parameter another type would only move the problem to the callers.
+  - A `typeof` check is ordinary JavaScript, and inside its `if` the compiler knows the type.

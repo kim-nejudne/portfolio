@@ -1,0 +1,30 @@
+id: m01-types/03-arrays-tuples-objects/04-split-the-board
+kind: fix
+title: Split the board
+minutes: 4
+challenge: false
+prompt: |
+  `boardText` shows a task board in two columns, and its one line reports two errors:
+
+  - on `BOARD`: `Argument of type 'readonly [...]' is not assignable to parameter of type
+    'Task[]'.`, then `The type ... is 'readonly' and cannot be assigned to the mutable type
+    'Task[]'.` (the compiler prints the whole type of `BOARD` where this shows `...`);
+  - on the call to `splitTasks`: `Argument of type 'string[][]' is not assignable to parameter
+    of type '[open: string[], done: string[]]'.`
+
+  Fix the types, not the code: leave `BOARD`, `formatColumns`, `boardText` and the body of
+  `splitTasks` as they are. Some tasks on the board haven't been marked yet and have no `done`
+  at all. The type cases check `Task`, the signatures of `splitTasks` and `formatColumns`, and
+  that `BOARD` is still `as const`; the tests stay as they are.
+
+  This combines the lesson with `as const` from lesson 1.2 (*Primitives, literal types and
+  widening*) and with return types from lesson 1.1 (*Annotations and inference*).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - '`as const` made `BOARD` a readonly tuple. `splitTasks` only reads the list it is given: its parameter can say so.'
+  - Once the list is accepted, the compiler compares each task on the board with `Task`. Which property does one of them leave out?
+  - '`splitTasks` ends in an array literal, which inference never turns into a pair. Lesson 1.1 showed where a function states what it returns.'

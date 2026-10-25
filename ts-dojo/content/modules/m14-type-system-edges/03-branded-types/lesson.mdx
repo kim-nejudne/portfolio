@@ -1,0 +1,327 @@
+---
+id: m14-type-system-edges/03-branded-types
+title: Branded, nominal and phantom types; unique symbol
+minutes: 20
+objectives:
+  - Brand a primitive type with an intersection, so that values of the same shape stop mixing
+  - Make branded values in one place, with a cast or with a type guard or an assertion function
+  - Declare a brand key with unique symbol, and explain why such a brand can't collide with another
+  - Keep a phantom type parameter checked by using it in a brand, and stop a generic call from joining two brands
+  - Make a class nominal with a # field, and check at run time that its constructor made a value
+prerequisites:
+  - m04-objects/02-structural-typing
+  - m04-objects/05-classes
+  - m07-guards/01-type-guards
+  - m07-guards/02-assertion-functions
+  - m14-type-system-edges/01-assignability-variance
+  - m14-type-system-edges/02-const-type-params-noinfer
+tags:
+  - branded types
+  - brand
+  - nominal typing
+  - opaque types
+  - phantom types
+  - unique symbol
+  - symbol
+  - private fields
+  - '#private'
+  - '#field in'
+---
+
+## Concept
+
+Two types with the same shape are the same type (<Lesson id="m04-objects/02-structural-typing" />). For ids that is a problem. A user id and an order id are both strings, and `type UserId = string` only gives `string` a second name, so an order id passes where a user id is expected and nothing reports it.
+
+A **branded type** adds a property that no plain value has, so the shapes differ:
+
+```ts run errors
+type UserId = string & { readonly __brand: 'UserId' };
+type OrderId = string & { readonly __brand: 'OrderId' };
+
+function shipOrder(user: UserId, order: OrderId): string {
+  return `${order} ships to ${user}`;
+}
+
+const ada = 'u-1' as UserId;
+const order = 'o-1' as OrderId;
+
+shipOrder(ada, order);
+shipOrder(order, ada);
+shipOrder('u-2', 'o-2');
+```
+
+The first call compiles. The second reports `Argument of type 'OrderId' is not assignable to parameter of type 'UserId'.`, and the reason, `Types of property '__brand' are incompatible.` The third reports `Argument of type 'string' is not assignable to parameter of type 'UserId'.`: a plain string has no `__brand` at all.
+
+The property is never there. `__brand` exists only in the type: at run time `ada` is the string `'u-1'`, and the `as UserId` that made it is erased like every type. A brand costs nothing at run time, and a value gets one only where code says so, with an `as` here or with a check in the examples below. Such a type is **nominal**: what makes a string a `UserId` is the label it was given, not its shape. Classes with a `private` or `#` member (<Lesson id="m04-objects/05-classes" />) and string enums (<Lesson id="m04-objects/04-enums-vs-as-const" />) are the nominal types you have met. This lesson adds brands, the `unique symbol` that keeps brands from colliding, and phantom type parameters.
+
+## Examples
+
+**A brand from a check.** An `as` can brand any string, so keep it in one function that checks first, or need none at all. A type guard (<Lesson id="m07-guards/01-type-guards" />) or an assertion function (<Lesson id="m07-guards/02-assertion-functions" />) narrows a `string` to a brand of it with no cast, because `Email` is a subtype of `string`:
+
+```ts run
+type Email = string & { readonly __brand: 'Email' };
+
+function isEmail(text: string): text is Email {
+  return /^[^\s@]+@[^\s@]+$/.test(text);
+}
+
+function assertEmail(text: string): asserts text is Email {
+  if (!isEmail(text)) throw new TypeError(`not an email: ${text}`);
+}
+
+function invite(to: Email): string {
+  return `invite sent to ${to}`;
+}
+
+for (const input of ['ada@example.com', 'not an email']) {
+  if (isEmail(input)) console.log(invite(input));
+  else console.log(`skipped ${input}`);
+}
+
+const owner: string = 'grace@example.com';
+assertEmail(owner);
+console.log(invite(owner));
+```
+
+Every `Email` in the program has passed `isEmail`, so `invite` needs no check of its own. <Lesson id="m17-boundaries/01-parse-dont-validate" /> builds a whole approach on that.
+
+**A brand is still its base type.** A `Cents` is accepted wherever a `number` is, and it has every method of one. What you compute from it is a plain `number` again:
+
+```ts twoslash
+type Cents = number & { readonly __brand: 'Cents' };
+declare const price: Cents;
+
+const asNumber: number = price;
+const doubled = price * 2;
+//    ^?
+const label = price.toFixed(2);
+//    ^?
+const brand = price.__brand;
+//    ^?
+```
+
+The last line is the weak spot of a brand with a string name. The compiler believes in the property, so `price.__brand` compiles, has the type `"Cents"`, and is `undefined` when it runs.
+
+**`unique symbol` brands.** A brand named by a string has a second weak spot: the string is its identity. If an auth module and a billing module each declare `__brand: 'UserId'`, the two types are the same, and their values mix.
+
+A symbol has an identity that no other value shares, and the type system can give it a type of its own. `const key = Symbol('key')` gives `key` the type `typeof key`, a **unique symbol** type: a subtype of `symbol` that only this declaration has. `declare const brand: unique symbol;` declares such a type without creating a value. As the key of the brand, it can't collide with any other:
+
+```ts run errors
+declare const userIdBrand: unique symbol;
+declare const accountIdBrand: unique symbol;
+
+type UserId = string & { readonly [userIdBrand]: true };
+type AccountId = string & { readonly [accountIdBrand]: true };
+
+function closeAccount(account: AccountId): void {
+  console.log(`closing ${account}`);
+}
+
+function offboard(user: UserId): void {
+  closeAccount(user);
+}
+```
+
+`Argument of type 'UserId' is not assignable to parameter of type 'AccountId'.`, then `Property '[accountIdBrand]' is missing in type 'String & { readonly [userIdBrand]: true; }' but required in type '{ readonly [accountIdBrand]: true; }'.` The `declare` matters. It says the value exists somewhere else, and here it exists nowhere, so the symbol is only ever used in types. Leave it unexported: other modules can use `UserId`, and none of them can name the brand to read it or to write one by hand.
+
+**Phantom type parameters.** A phantom type parameter is one that no value carries at run time: it exists only to keep types apart. It has to appear in a member, because a type is compared by its members, and a parameter that no member uses is not checked at all:
+
+```ts run
+type Currency = 'USD' | 'EUR' | 'SEK';
+
+interface Price<C extends Currency> {
+  readonly minor: number;
+}
+
+const coffee: Price<'SEK'> = { minor: 4900 };
+const inDollars: Price<'USD'> = coffee;
+console.log(inDollars.minor);
+```
+
+It compiles: `Price<'SEK'>` and `Price<'USD'>` have the same members, so they are the same type. In the terms of <Lesson id="m14-type-system-edges/01-assignability-variance" />, `C` has no variance to measure. A brand is a member that costs nothing at run time, so put the parameter there:
+
+```ts run errors
+declare const currency: unique symbol;
+
+type Currency = 'USD' | 'EUR' | 'SEK';
+type Money<C extends Currency> = number & { readonly [currency]: C };
+
+function money<C extends Currency>(code: C, minor: number): Money<C> {
+  if (!Number.isInteger(minor)) {
+    throw new RangeError(
+      `${minor} ${code} is not a whole number of minor units`,
+    );
+  }
+  return minor as Money<C>;
+}
+
+const coffee = money('SEK', 4900);
+const tip: Money<'SEK'> = coffee;
+const fee: Money<'USD'> = coffee;
+console.log((tip / 100).toFixed(2));
+```
+
+`Type 'Money<"SEK">' is not assignable to type 'Money<"USD">'.`, then `Type '"SEK"' is not assignable to type '"USD"'.` At run time an amount is a number, and nothing records its currency; `C` lives in the type alone. On a class, a declared field does the same: `declare private readonly currency: C` is a member the compiled class never creates.
+
+**Nominal classes, checked at run time.** A `#` member matches only its own declaration (<Lesson id="m04-objects/05-classes" />), so a class with one fits nothing but its own instances and those of its subclasses: `const c: Celsius = { degrees: 5 }` reports `Property '#celsius' is missing in type '{ degrees: number; }' but required in type 'Celsius'.` Unlike a brand, the field is real, and `#celsius in value` asks whether the class's constructor made `value`. Since TypeScript 4.5 the check also narrows:
+
+```ts run
+class Celsius {
+  #celsius = true;
+
+  constructor(readonly degrees: number) {}
+
+  static is(value: unknown): value is Celsius {
+    return typeof value === 'object' && value !== null && #celsius in value;
+  }
+}
+
+const reading = new Celsius(-5);
+const copy: unknown = JSON.parse(JSON.stringify(reading));
+const fake: unknown = Object.create(Celsius.prototype);
+
+console.log(Celsius.is(reading), Celsius.is(copy), Celsius.is({ ...reading }));
+console.log(Celsius.is(fake), fake instanceof Celsius);
+```
+
+It prints `true false false`, then `false true`. A JSON copy and a spread copy have `degrees` and no `#celsius`, since a `#` field is no property. `instanceof` only reads the prototype chain, which `Object.create` can fake. A `private` member would make the class nominal for the compiler as well, but at run time it is an ordinary property that a copy keeps.
+
+## Pitfalls
+
+**Expecting arithmetic to keep the brand.** An operator or a method on a branded value returns its base type, as the query above showed, so a result is no `Cents` until something brands it again:
+
+```ts run errors
+type Cents = number & { readonly __brand: 'Cents' };
+
+function cents(value: number): Cents {
+  if (!Number.isInteger(value))
+    throw new RangeError(`${value} is not whole cents`);
+  return value as Cents;
+}
+
+function addCents(a: Cents, b: Cents): Cents {
+  return a + b;
+}
+```
+
+`Type 'number' is not assignable to type 'Cents'.` Write `return cents(a + b)`, so the result goes through the one place that makes a `Cents`.
+
+**Letting a generic call join two brands.** When both parameters of a generic function offer a candidate for `C`, two currencies are joined into a union, and the mix-up compiles:
+
+```ts run
+declare const currency: unique symbol;
+
+type Currency = 'USD' | 'EUR' | 'SEK';
+type Money<C extends Currency> = number & { readonly [currency]: C };
+
+function money<C extends Currency>(code: C, minor: number): Money<C> {
+  return minor as Money<C>;
+}
+
+function add<C extends Currency>(a: Money<C>, b: Money<C>): Money<C> {
+  return (a + b) as Money<C>;
+}
+
+const total = add(money('USD', 250), money('EUR', 199));
+console.log(`${(total / 100).toFixed(2)} USD`);
+```
+
+It prints `4.49 USD`, dollars and euros added as if they were one currency, and `total` is a `Money<"USD" | "EUR">`. It is the `expectSame` of <Lesson id="m14-type-system-edges/02-const-type-params-noinfer" /> again. Write `b: NoInfer<Money<C>>`, and `C` comes from `a` alone, so the second argument is checked against it:
+
+```ts run errors
+declare const currency: unique symbol;
+
+type Currency = 'USD' | 'EUR' | 'SEK';
+type Money<C extends Currency> = number & { readonly [currency]: C };
+
+function money<C extends Currency>(code: C, minor: number): Money<C> {
+  return minor as Money<C>;
+}
+
+function add<C extends Currency>(a: Money<C>, b: NoInfer<Money<C>>): Money<C> {
+  return (a + b) as Money<C>;
+}
+
+const total = add(money('USD', 250), money('EUR', 199));
+```
+
+`Argument of type 'Money<"EUR">' is not assignable to parameter of type 'Money<"USD">'.`
+
+**Typing the brand key as `symbol`.** A key of type `symbol` could be any symbol, so the compiler reads the member as an index signature, and every brand written that way is the same type:
+
+```ts run
+declare const userIdBrand: symbol;
+declare const orderIdBrand: symbol;
+
+type UserId = string & { readonly [userIdBrand]: true };
+type OrderId = string & { readonly [orderIdBrand]: true };
+
+function cancel(order: OrderId): string {
+  return `cancelled ${order}`;
+}
+
+const ada = 'u-1' as UserId;
+console.log(cancel(ada));
+```
+
+It prints `cancelled u-1`: a user id cancelled an order. Hovering `UserId` still shows the member as written; an error that involves the type prints what the compiler sees, `{ readonly [x: symbol]: true; }`. Write `unique symbol`, and the same call is caught:
+
+```ts run errors
+declare const userIdBrand: unique symbol;
+declare const orderIdBrand: unique symbol;
+
+type UserId = string & { readonly [userIdBrand]: true };
+type OrderId = string & { readonly [orderIdBrand]: true };
+
+function cancel(order: OrderId): string {
+  return `cancelled ${order}`;
+}
+
+const ada = 'u-1' as UserId;
+console.log(cancel(ada));
+```
+
+`Argument of type 'UserId' is not assignable to parameter of type 'OrderId'.` Declare the key with `const` too: `let brand: unique symbol` reports `A variable whose type is a 'unique symbol' type must be 'const'.`
+
+## Check yourself
+
+<Predict
+  id="brand-arithmetic"
+  question="`type Cents = number & { readonly __brand: 'Cents' }` and `declare const price: Cents`. What is the type of `price * 2`?"
+  options={[
+    'Cents',
+    'number',
+    'never',
+    'It is an error: a Cents has no * operator',
+  ]}
+  answer={1}
+  explanation="A brand is still its base type, so `*` works on a `Cents`, and like every arithmetic operator it gives a plain `number`. The brand is a label on the type, not something the operator could carry over. Assigning the result to a `Cents` is an error until it goes through the function that brands it."
+/>
+
+<Predict
+  id="unused-phantom"
+  question="`interface Box<T> { label: string }` and `declare const a: Box<'a'>`. Does `const b: Box<'b'> = a` compile?"
+  options={[
+    'Yes: no member uses T, so the two types have the same members',
+    'No: the type arguments are different',
+    'Only with strictFunctionTypes turned off',
+  ]}
+  answer={0}
+  explanation="A type is compared by its members, and the only member, `label`, is a `string` in both. A type parameter that no member uses is not checked, so `Box<'a'>` and `Box<'b'>` are the same type. A phantom parameter has to appear in a member, such as a brand, before it keeps anything apart."
+/>
+
+<Predict
+  id="private-field-copy"
+  question="`Celsius` has a `#celsius` field, and `Celsius.is(value)` returns `typeof value === 'object' && value !== null && #celsius in value`. What does `Celsius.is({ ...new Celsius(5) })` return?"
+  options={['true', 'false', 'It throws a TypeError', 'It is a compile error']}
+  answer={1}
+  explanation="A spread copies the own enumerable properties, here `degrees`, and a `#` field is no property, so the copy doesn't have it. `#celsius in value` is true only for objects that the class's constructor made, so the copy is rejected. With a `private celsius` property instead, the copy would keep it."
+/>
+
+## Further reading
+
+- [Handbook: Type Compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html), on structural typing and how private members change it
+- [Handbook: Symbols](https://www.typescriptlang.org/docs/handbook/symbols.html), the `unique symbol` section
+- [Handbook: Classes](https://www.typescriptlang.org/docs/handbook/2/classes.html), on `private` and `#` fields
+- [TypeScript 2.7 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-7.html), the section on `unique symbol` and constant-named properties
+- [TypeScript 4.5 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html), the section on private field presence checks

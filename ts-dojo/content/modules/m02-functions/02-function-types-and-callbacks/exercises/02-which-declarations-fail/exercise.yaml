@@ -1,0 +1,28 @@
+id: m02-functions/02-function-types-and-callbacks/02-which-declarations-fail
+kind: predict
+title: Which declarations fail?
+minutes: 2
+challenge: false
+code: |
+  type Step = (total: number, value: number) => number;
+
+  const add: Step = (sum, n) => sum + n;
+  const double: Step = (sum) => sum * 2;
+  const scaled: Step = (sum, n, factor: number) => (sum + n) * factor;
+  const subtract = (sum, n) => sum - n;
+question: Which of the four declarations are compile errors?
+options:
+  - '`scaled` only'
+  - '`subtract` only'
+  - '`double` and `scaled`'
+  - '`scaled` and `subtract`'
+  - '`double`, `scaled` and `subtract`'
+answer: 3
+explanation: |
+  `add` takes both parameter types from `Step`. `double` declares fewer parameters than a
+  `Step` is called with, which is fine: it ignores the second argument. `scaled` needs a third
+  argument that a `Step` is never given:
+  `Target signature provides too few arguments. Expected 3 or more, but got 2.`
+  Because it doesn't fit, its `sum` and `n` get no types from `Step` either. `subtract` has no
+  type to take its parameters from: it is not an argument and its variable has no annotation,
+  so `sum` and `n` implicitly have an `any` type, which strict reports.

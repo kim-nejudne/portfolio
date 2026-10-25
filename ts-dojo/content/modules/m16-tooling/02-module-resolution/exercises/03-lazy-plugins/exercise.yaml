@@ -1,0 +1,31 @@
+id: m16-tooling/02-module-resolution/03-lazy-plugins
+kind: fix
+title: Lazy plugins
+minutes: 5
+challenge: false
+prompt: |
+  This exercise compiles with `module: nodenext`, for code that Node runs without a bundler.
+  There is no `package.json` with `"type": "module"`, so every file in it is CommonJS.
+
+  `index.ts` loads each plugin with a dynamic `import()` the first time it is asked for, and
+  both loaders report an error:
+
+  - `Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './plugins/markdown.js'?`
+  - `Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.`
+
+  Fix the two specifiers. Keep both plugins lazy, with an `import()` call each, and leave the
+  `satisfies` check, `PluginName` and the plugin files as they are. Once both imports resolve,
+  `loaded` has the type of the plugin module, and `render` compiles without an `any`.
+
+  There are no runtime tests: the sandbox runs only ES modules built with the dojo's default
+  `module`, so the exercise passes when every file compiles. It combines the lesson with
+  `import type` (9.1), `satisfies` (7.3), `keyof typeof` (6.1) and async functions (9.3).
+entry: index.ts
+compilerOptions:
+  module: nodenext
+  moduleResolution: nodenext
+libs: [es2025]
+forbid: [explicit-any, type-assertion, as-unknown-as, any-expression]
+hints:
+  - The static `import type` at the top compiles without an extension and the two `import()` calls don't. A dynamic import goes through a different loader from `require`, even in a CommonJS file.
+  - The second error is about a folder. Node's ES module loader doesn't look inside a folder for you.

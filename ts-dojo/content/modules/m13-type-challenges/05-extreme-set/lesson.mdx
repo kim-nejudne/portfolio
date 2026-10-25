@@ -1,0 +1,250 @@
+---
+id: m13-type-challenges/05-extreme-set
+title: Extreme set, selected
+minutes: 60
+optional: true
+objectives:
+  - Tell a readonly property from a mutable one, where assignability can't
+  - Turn negative and missing indexes into positions, and walk a tuple between two of them
+  - Compare and add numbers of any size digit by digit, as strings, with every recursion in tail position
+  - Parse a string into an object type one piece at a time, with an object as the accumulator
+  - Solve the five selected challenges of the extreme set
+prerequisites:
+  - m13-type-challenges/04-hard-set
+  - m12-template-tuples/04-recursion-limits
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m13-type-challenges/01-easy-set
+  - m12-template-tuples/01-template-literal-types
+  - m12-template-tuples/02-variadic-tuples
+  - m11-conditional-types/04-recursive-conditionals
+tags:
+  - type-challenges
+  - extreme
+  - Get Readonly Keys
+  - Slice
+  - Integers Comparator
+  - Sum
+  - Query String Parser
+  - type-level arithmetic
+  - digits
+  - accumulator
+  - readonly
+---
+
+## Concept
+
+The extreme set, as selected here, is five challenges, and the last of the track. They need no syntax that Tier 3 hasn't taught. What makes them extreme is size: each is several small types that work together, and some have to work on numbers far past anything a tuple can count. The format is the one from <Lesson id="m13-type-challenges/01-easy-set" />, and these are the techniques, with the challenges that use them:
+
+- **What `Equal` sees that `extends` doesn't.** <Lesson id="m13-type-challenges/01-easy-set" /> said that `Equal` tells `{ readonly a: 1 }` from `{ a: 1 }`. Assignability can't: `readonly` on a property doesn't affect what may be assigned to what, in either direction (the first pitfall). `Pick<T, K>` keeps a property's modifiers (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), so the question for each key is whether making its property `readonly` changes it. Get Readonly Keys.
+- **Positions from either end.** Defaults on type parameters (<Lesson id="m05-generics/02-constraints-and-defaults" />) make `Start` and `End` optional, and a default can name an earlier parameter: `End extends number = Arr['length']`. A negative index is a minus sign in front of digits, and a variadic pattern (<Lesson id="m12-template-tuples/02-variadic-tuples" />) takes that many elements off the end. A counter (<Lesson id="m12-template-tuples/04-recursion-limits" />) then walks between the two positions. Slice.
+- **Numbers as digits.** A tuple counts to just under a thousand before the budget for tail calls runs out (the second pitfall), and Integers Comparator takes numbers of sixteen digits, Sum here numbers of sixty. A template literal writes a number or bigint literal type out as its digits, and a string of digits can be walked one digit per step, so these two work on digits and count no further than 19. Compare by length first, then digit by digit (the third pitfall); add from the last digit, with a carry.
+- **An object as the accumulator.** A parser reads one piece at a time and adds it to the object built so far. A mapped type rebuilds that object at every step, so the result is one object type and not the intersection that the last pitfall of <Lesson id="m13-type-challenges/01-easy-set" /> warned about. Query String Parser.
+
+The digits are where Sum and Integers Comparator start. A template literal type holding one number or bigint literal is that literal's text:
+
+```ts twoslash
+type Digits<N extends number | bigint> = `${N}`;
+
+type Safe = Digits<9007199254740991>;
+//   ^?
+type Negative = Digits<-2.5>;
+//   ^?
+type Big = Digits<123_456_789_012_345_678_901n>;
+//   ^?
+```
+
+The separators are gone, the sign is a `-` in front, and a bigint loses its `n`. That text is what JavaScript's `String` gives for the same value, so a very large or very small number is written with an exponent: `Digits<1e21>` is `'1e+21'`. No case in this set comes near one.
+
+## Examples
+
+**A sign is a prefix.** Matching the text of a number against `` `-${…}` `` asks whether it is negative, and `infer D extends number` (<Lesson id="m13-type-challenges/04-hard-set" />) reads back what follows as a number:
+
+```ts run
+type Abs<N extends number> = `${N}` extends `-${infer D extends number}`
+  ? D
+  : N;
+
+const drop: Abs<-40> = 40;
+const rise: Abs<12.5> = 12.5;
+console.log(`moved ${drop + rise} metres`);
+```
+
+`Abs<-40>` is `40`, so `const drop: Abs<-40> = -40` doesn't compile. A number that isn't negative comes back as it was.
+
+**The order of two digits.** There is no `<` on types, but a template literal pattern can ask whether one digit comes before another in `'0123456789'`. `LargestDigit` walks a string of digits with the largest so far in an accumulator:
+
+```ts twoslash
+type DigitLess<
+  A extends string,
+  B extends string,
+> = '0123456789' extends `${string}${A}${string}${B}${string}` ? true : false;
+
+type LargestDigit<
+  S extends string,
+  Max extends string = '0',
+> = S extends `${infer D}${infer Rest}`
+  ? LargestDigit<Rest, DigitLess<Max, D> extends true ? D : Max>
+  : Max;
+
+type Year = LargestDigit<'2024'>;
+//   ^?
+type Safe = LargestDigit<`${9007199254740991}`>;
+//   ^?
+```
+
+The decision sits in an argument, so the recursive call is in tail position and a string of hundreds of digits is fine.
+
+**Building an object one pair at a time.** `FromPairs` turns a tuple of key and value pairs into an object type. `Put` maps over the keys so far and the new one, so each step gives one object type, and a key that comes again takes its new value:
+
+```ts twoslash
+type Put<Obj, K extends PropertyKey, V> = {
+  [P in keyof Obj | K]: P extends K ? V : P extends keyof Obj ? Obj[P] : never;
+};
+
+type FromPairs<T, Obj = {}> = T extends [
+  [infer K extends PropertyKey, infer V],
+  ...infer Rest,
+]
+  ? FromPairs<Rest, Put<Obj, K, V>>
+  : Obj;
+
+type Config = FromPairs<[['host', 'localhost'], ['port', 8080]]>;
+//   ^?
+```
+
+`Equal<Config, { host: 'localhost'; port: 8080 }>` is true. Built with `Obj & { [P in K]: V }` instead, the same properties would be an intersection, and the case would fail. Query String Parser folds its pairs the same way, with its own rule for a key it has seen.
+
+## Pitfalls
+
+**Asking `extends` about `readonly`.** Assignability ignores `readonly` on properties both ways, so checking that a property and its `readonly` version extend each other says yes for every key:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type IsReadonly<T, K extends keyof T> = [Pick<T, K>] extends [
+  Readonly<Pick<T, K>>,
+]
+  ? [Readonly<Pick<T, K>>] extends [Pick<T, K>]
+    ? true
+    : false
+  : false;
+
+type cases = [Expect<Equal<IsReadonly<{ a: 1 }, 'a'>, false>>];
+```
+
+_Type 'false' does not satisfy the constraint 'true'._ `IsReadonly<{ a: 1 }, 'a'>` is `true`. Get Readonly Keys needs a check that compares the two types themselves.
+
+**Counting to the number.** <Lesson id="m12-template-tuples/04-recursion-limits" /> counted with a tuple's length, and adding two numbers that way is two spreads. It works for small numbers and fails past the budget for tail calls, about a thousand steps:
+
+```ts run errors
+type BuildTuple<
+  N extends number,
+  Acc extends unknown[] = [],
+> = Acc['length'] extends N ? Acc : BuildTuple<N, [...Acc, unknown]>;
+
+type Add<A extends number, B extends number> = [
+  ...BuildTuple<A>,
+  ...BuildTuple<B>,
+]['length'];
+
+type Small = Add<2, 3>;
+type Large = Add<9999, 1>;
+```
+
+`Small` is `5`, and `Large` reports TS2589, _Type instantiation is excessively deep and possibly infinite._ Sum's cases include `Sum<9999, 1>` and seven-digit numbers. Work on the digits, and count only what one column needs.
+
+**Comparing digits before lengths.** Digit by digit from the left orders words, not numbers. `TextLess` uses `DigitLess` from the Examples on each pair of digits:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type DigitLess<
+  A extends string,
+  B extends string,
+> = '0123456789' extends `${string}${A}${string}${B}${string}` ? true : false;
+
+type TextLess<
+  A extends string,
+  B extends string,
+> = A extends `${infer HA}${infer RA}`
+  ? B extends `${infer HB}${infer RB}`
+    ? HA extends HB
+      ? TextLess<RA, RB>
+      : DigitLess<HA, HB>
+    : false
+  : B extends ''
+    ? false
+    : true;
+
+type cases = [Expect<Equal<TextLess<'10', '9'>, false>>];
+```
+
+`TextLess<'10', '9'>` is `true`, because `1` comes before `9`. Between two whole numbers without signs, the one with more digits is the greater, and only numbers of the same length compare digit by digit. After a decimal point the text order is right again: `0.5` is greater than `0.45`. Two negative numbers compare the other way round.
+
+## Check yourself
+
+<Predict
+  id="digit-less-same"
+  question="With the DigitLess from the Examples, what is `DigitLess<'5', '5'>`?"
+  options={['true', 'false', 'boolean', 'never']}
+  answer={1}
+  explanation="The pattern needs a `5`, then later another `5`, in `'0123456789'`, which has only one. Nothing matches, so the result is `false`: a digit is not less than itself. Comparator checks for equal digits before it asks which is less."
+/>
+
+<Predict
+  id="largest-digit-empty"
+  question="With the LargestDigit from the Examples, what is `LargestDigit<''>`?"
+  options={["'0'", "''", 'never', 'string']}
+  answer={0}
+  explanation="The empty string doesn't match the pattern, so the recursion stops at once and gives the accumulator, which still holds its default, `'0'`."
+/>
+
+<Predict
+  id="from-pairs-repeat"
+  question="With the FromPairs from the Examples, what is `FromPairs<[['a', 1], ['a', 2]]>`?"
+  options={['{ a: 2 }', '{ a: 1 }', '{ a: 1 | 2 }', '{ a: [1, 2] }']}
+  answer={0}
+  explanation="At the second step `a` is both a key of the object so far and the new key, and `Put` checks `P extends K` first, so the new value wins. Query String Parser has a different rule for a repeated key, and writing it is part of the challenge."
+/>
+
+## Further reading
+
+- [Conditional types: inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types)
+- [Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Mapped types: mapping modifiers](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#mapping-modifiers)
+- [TypeScript 4.5 release notes: tail-recursion elimination on conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html#tail-recursion-elimination-on-conditional-types)
+- [type-challenges](https://github.com/type-challenges/type-challenges): the whole collection, by difficulty
+
+The challenges in this lesson are from type-challenges, by Anthony Fu and its contributors, used under the MIT License:
+
+```text
+MIT License
+
+Copyright (c) 2020 Anthony Fu <https://github.com/antfu>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

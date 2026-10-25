@@ -1,0 +1,363 @@
+---
+id: m09-modules-async/03-async
+title: 'Typing async code: Promise, Awaited, async iterators'
+minutes: 20
+objectives:
+  - Annotate async functions with Promise<T> and read the type that await gives
+  - Use Awaited for thenables, unions of promises and generic values
+  - Predict the result types of Promise.all, Promise.allSettled and Promise.race
+  - Recognise a forgotten await from the errors it causes, and know which ones the compiler misses
+  - Type async generators with AsyncGenerator and AsyncIterable, and read them with for await
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m03-unions/05-discriminated-unions
+  - m05-generics/01-generic-functions
+  - m05-generics/03-generic-types-and-classes
+  - m06-type-operators/03-utility-types-2
+  - m09-modules-async/02-declaration-files
+tags:
+  - async
+  - await
+  - Promise
+  - Awaited
+  - thenable
+  - Promise.all
+  - Promise.allSettled
+  - Promise.race
+  - PromiseSettledResult
+  - async generator
+  - AsyncGenerator
+  - AsyncIterable
+  - for await
+  - top-level await
+---
+
+## Concept
+
+An `async` function always returns a promise, and TypeScript writes that return type `Promise<T>`, where `T` is the type of what its `return` statements give. `await` on a `Promise<T>` gives back a `T`:
+
+```ts twoslash
+interface User {
+  id: number;
+  name: string;
+}
+
+export async function loadUser(id: number): Promise<User> {
+  return { id, name: 'Ada' };
+}
+
+export async function greet(id: number) {
+  //                   ^?
+  const user = await loadUser(id);
+  //    ^?
+  return `Hello, ${user.name}`;
+}
+```
+
+The annotation on `loadUser` names the promise, and each `return` is checked against what's inside it, `User`. A `return` may also give a `Promise<User>`: in an `async` function, it's unwrapped the way `await` would unwrap it. `greet` has no annotation, and the compiler infers `Promise<string>` from its `return`. `await` on a value that isn't a promise gives the value back with its type unchanged.
+
+`await` outside a function works only in a module. In a file with no `import` or `export`, the compiler asks for one: `'await' expressions are only allowed at the top level of a file when that file is a module, but this file has no imports or exports. Consider adding an empty 'export {}' to make this file a module.` That's why the snippets below export something.
+
+**What `Promise<T>` doesn't say.** The type argument describes the value the promise fulfils with, and nothing else. `Promise<User>` doesn't say whether it can reject or with what, and where the lib hands you a rejection reason, in `.catch` or in `Promise.allSettled`, its type is `any`. <Lesson id="m09-modules-async/04-errors" /> deals with errors.
+
+**`Awaited<T>`** is the type `await` gives for a value of type `T`. <Lesson id="m06-type-operators/03-utility-types-2" /> used it to unwrap `ReturnType` of an async function, through nested promises. It covers three more cases:
+
+- **Thenables.** `await` unwraps any object with a callable `then` method, not only a `Promise`, and `Awaited` does the same.
+- **Unions.** `Awaited` unwraps each member on its own, so `Awaited<Promise<string> | number>` is `string | number`.
+- **Generic values.** Inside a generic function, `await` on a `Promise<T>` gives `Awaited<T>`, not `T`, because `T` could be a promise type itself. `Awaited<T>` is assignable to `T`, so the result can go wherever a `T` is expected.
+
+The lib's own signatures use it. This is the overload of `Promise.all` that takes a tuple, from `lib.es2015.promise.d.ts` (reformatted):
+
+```ts
+all<T extends readonly unknown[] | []>(values: T): Promise<{ -readonly [P in keyof T]: Awaited<T[P]> }>;
+```
+
+Read the return type as "a tuple with `Awaited` of each element". The syntax is a mapped type, which module 10 teaches. Here only the result matters.
+
+## Examples
+
+**`Awaited` for thenables, unions and generic values.** `ready` is a plain object with a `then` method, `timed` is generic, and neither annotation is written by hand:
+
+```ts twoslash
+const ready = {
+  then(resolve: (value: number) => void) {
+    resolve(42);
+  },
+};
+
+type Ready = Awaited<typeof ready>;
+//   ^?
+type Mixed = Awaited<Promise<string> | number>;
+//   ^?
+
+export async function timed<T>(work: Promise<T>) {
+  //                   ^?
+  const started = Date.now();
+  const value = await work;
+  //    ^?
+  return { value, ms: Date.now() - started };
+}
+```
+
+At run time `await` calls `ready.then` with a callback and waits for it, as the types say:
+
+```ts run
+const ready = {
+  then(resolve: (value: number) => void) {
+    resolve(42);
+  },
+};
+
+export const answer = await ready;
+console.log(answer + 1);
+```
+
+**`Promise.all` over a tuple.** Each position keeps its own type, and a value that isn't a promise passes through. `after` is a small helper that resolves with a value after a delay:
+
+```ts twoslash
+interface User {
+  id: number;
+  name: string;
+}
+interface Post {
+  title: string;
+}
+declare function loadUser(id: number): Promise<User>;
+declare function loadPosts(userId: number): Promise<Post[]>;
+
+export const parts = await Promise.all([loadUser(1), loadPosts(1), 3]);
+//           ^?
+const requests = [loadUser(1), loadUser(2)];
+export const users = await Promise.all(requests);
+//           ^?
+```
+
+An array literal written in the call is read as a tuple. `requests` is a `Promise<User>[]`, an array of any length, so the result is a `User[]`. Destructuring the tuple gives each name its type:
+
+```ts run
+interface User {
+  id: number;
+  name: string;
+}
+interface Post {
+  title: string;
+}
+
+function after<T>(ms: number, value: T): Promise<T> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(value), ms);
+  });
+}
+
+export function loadUser(id: number): Promise<User> {
+  return after(20, { id, name: 'Ada' });
+}
+
+export function loadPosts(userId: number): Promise<Post[]> {
+  return after(20, [{ title: `Notes of user ${userId}` }]);
+}
+
+const [user, posts, unread] = await Promise.all([loadUser(1), loadPosts(1), 3]);
+console.log(user.name, posts[0]?.title, unread);
+```
+
+**`Promise.allSettled` and `Promise.race`.** `allSettled` waits for every promise and never rejects. Each element of its result is a `PromiseSettledResult<T>`, a discriminated union on `status`: `PromiseFulfilledResult<T>` has the `value`, and `PromiseRejectedResult` has the `reason`. Narrow on `status` as <Lesson id="m03-unions/05-discriminated-unions" /> showed. `race` settles as the first promise to settle, so its result is the union of the awaited element types:
+
+```ts twoslash
+interface User {
+  id: number;
+  name: string;
+}
+interface Post {
+  title: string;
+}
+declare function loadUser(id: number): Promise<User>;
+declare function loadPosts(userId: number): Promise<Post[]>;
+
+export const results = await Promise.allSettled([loadUser(1), loadPosts(1)]);
+//           ^?
+const [userResult] = results;
+if (userResult.status === 'fulfilled') {
+  console.log(userResult.value.name);
+  //                     ^?
+} else {
+  console.log(userResult.reason);
+  //                     ^?
+}
+
+const first = await Promise.race([loadUser(1), loadPosts(1)]);
+//    ^?
+```
+
+**A timeout with `Promise<never>`.** A promise that can only reject never gives a value, so its type is `Promise<never>`. `never` drops out of a union, which makes it the right partner for `race`: the result is the other promise's type alone.
+
+```ts run
+interface User {
+  id: number;
+  name: string;
+}
+
+function timeout(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+}
+
+export function loadUser(id: number): Promise<User> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve({ id, name: 'Ada' }), 10);
+  });
+}
+
+const user = await Promise.race([loadUser(1), timeout(100)]);
+console.log(user.name);
+```
+
+The return types tell `new Promise` its type argument. On its own, `new Promise((resolve) => resolve(1))` is a `Promise<unknown>`, because the compiler doesn't infer it from the calls to `resolve`. Write it when nothing else does: `new Promise<number>(…)`.
+
+**Async generators and `for await`.** An `async function*` returns an `AsyncGenerator<T, TReturn, TNext>`: `T` is what it yields, `TReturn` what it returns at the end, and `TNext` what `next(value)` passes in, which is `unknown` when the generator never reads it:
+
+```ts twoslash
+export async function* countdown(from: number) {
+  //                   ^?
+  for (let n = from; n > 0; n--) {
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
+    yield n;
+  }
+  return 'liftoff';
+}
+```
+
+A function that only reads values takes the narrowest type that allows it, `AsyncIterable<T>`: async generators fit it, and so does any object with a `[Symbol.asyncIterator]` method. `for await` reads it, one awaited value at a time:
+
+```ts run
+async function* countdown(from: number): AsyncGenerator<number> {
+  for (let n = from; n > 0; n--) {
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
+    yield n;
+  }
+}
+
+export async function sum(source: AsyncIterable<number>): Promise<number> {
+  let total = 0;
+  for await (const n of source) {
+    total += n;
+  }
+  return total;
+}
+
+for await (const n of countdown(3)) {
+  console.log(n);
+}
+console.log(await sum(countdown(4)));
+```
+
+`for await` also reads an ordinary iterable, awaiting each element, so `for await (const n of [Promise.resolve(1), 2])` gives `n` the type `number`. An array is not an `AsyncIterable`, though: `sum([1, 2, 3])` is an error, because an array has no `[Symbol.asyncIterator]` method.
+
+## Pitfalls
+
+**A forgotten `await`.** The promise is used where its value was meant. In a condition, a promise is an object, always truthy, and the compiler says so. Reading a property gives the promise's properties, not the value's:
+
+```ts run errors
+interface User {
+  id: number;
+  name: string;
+}
+
+async function loadUser(id: number): Promise<User> {
+  return { id, name: 'Ada' };
+}
+
+async function isAdmin(id: number): Promise<boolean> {
+  return id === 1;
+}
+
+export async function banner(id: number): Promise<string> {
+  if (isAdmin(id)) {
+    return 'Admin';
+  }
+  const user = loadUser(id);
+  return `Hello, ${user.name}`;
+}
+```
+
+`This condition will always return true since this 'Promise<boolean>' is always defined.` and `Property 'name' does not exist on type 'Promise<User>'.` Both errors add _Did you forget to use 'await'?_ The condition check has limits: `if (!isAdmin(id))` and `while (isAdmin(id))` compile without a word, and so does a call whose promise nobody uses, such as `saveUser(user);` on a line of its own. The compiler doesn't report floating promises. Linters do, such as typescript-eslint's `no-floating-promises` rule.
+
+**A return type that isn't a promise.** The annotation of an `async` function describes what the caller gets, and the caller always gets a promise:
+
+```ts run errors
+export async function countUsers(): number {
+  return 3;
+}
+```
+
+`The return type of an async function or method must be the global Promise<T> type. Did you mean to write 'Promise<number>'?` Write `Promise<number>`, or leave the annotation out and let the compiler infer it.
+
+**`for...of` on an async generator.** An async generator has `[Symbol.asyncIterator]`, not `[Symbol.iterator]`, so a plain `for...of` can't read it:
+
+```ts run errors
+async function* countdown(from: number) {
+  for (let n = from; n > 0; n--) yield n;
+}
+
+export async function show(): Promise<void> {
+  for (const n of countdown(3)) {
+    console.log(n);
+  }
+}
+```
+
+`Type 'AsyncGenerator<number, void, unknown>' must have a '[Symbol.iterator]()' method that returns an iterator.` Write `for await`. It works only inside an `async` function or at the top level of a module. Anywhere else the compiler says _'for await' loops are only allowed within async functions and at the top levels of modules._
+
+## Check yourself
+
+<Predict
+  id="race-type"
+  code={
+    'declare function loadName(): Promise<string>;\ndeclare function loadAge(): Promise<number>;\n\nexport const winner = await Promise.race([loadName(), loadAge()]);'
+  }
+  question="What is the type of `winner`?"
+  options={[
+    'string',
+    'string | number',
+    '[string, number]',
+    'Promise<string | number>',
+  ]}
+  answer={1}
+  explanation="`Promise.race` settles as the first promise to settle, and the compiler can't know which one that is, so the result is the union of the awaited element types. `await` unwraps the promise around it. `[string, number]` is what `Promise.all` would give."
+/>
+
+<Predict
+  id="missed-await"
+  code={
+    'declare function isAdmin(id: number): Promise<boolean>;\n\nexport async function check(id: number) {\n  if (isAdmin(id)) {}         // A\n  if (!isAdmin(id)) {}        // B\n  const ok: boolean = isAdmin(id); // C\n}'
+  }
+  question="Each line forgets an `await`. Which one compiles without an error?"
+  options={['A', 'B', 'C', 'None of them: all three are errors']}
+  answer={1}
+  explanation="A is the condition check: `This condition will always return true since this 'Promise<boolean>' is always defined.` C assigns a `Promise<boolean>` to a `boolean`. B negates the promise. That is a `boolean` to the compiler, which doesn't look through `!`, so it compiles. At run time it is always `false`, and the branch never runs."
+/>
+
+<Predict
+  id="async-generator-type"
+  code={
+    "export async function* lines(text: string) {\n  for (const line of text.split('\\n')) {\n    yield line;\n  }\n}"
+  }
+  question="What is the type of `lines('a')`?"
+  options={[
+    'Promise<string[]>',
+    'AsyncGenerator<string, void, unknown>',
+    'Generator<Promise<string>, void, unknown>',
+    'AsyncIterable<string>',
+  ]}
+  answer={1}
+  explanation="An `async function*` returns an `AsyncGenerator`: it yields `string`, returns nothing at the end, so `void`, and never reads what `next` passes in, so `unknown`. An `AsyncGenerator` is an `AsyncIterable`, so it can be passed where one is expected, but the inferred type is the generator's own."
+/>
+
+## Further reading
+
+- [Handbook: Utility types, Awaited](https://www.typescriptlang.org/docs/handbook/utility-types.html#awaitedtype)
+- [Handbook: Iterators and generators](https://www.typescriptlang.org/docs/handbook/iterators-and-generators.html)
+- [TypeScript 4.5 release notes: the Awaited type and Promise improvements](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html)
+- [TypeScript 2.3 release notes: async iteration](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-3.html)
+- [MDN: Promise.allSettled](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled)

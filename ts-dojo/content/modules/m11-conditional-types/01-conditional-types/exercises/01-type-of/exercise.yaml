@@ -1,0 +1,26 @@
+id: m11-conditional-types/01-conditional-types/01-type-of
+kind: type-challenge
+title: typeof, at the type level
+minutes: 3
+challenge: false
+prompt: |
+  Write `TypeOf<T>` in `index.ts`: the string that JavaScript's `typeof` operator gives for a
+  value of type `T`. It is one of `'string'`, `'number'`, `'bigint'`, `'boolean'`, `'symbol'`,
+  `'undefined'`, `'function'` or `'object'`:
+
+  - `TypeOf<'hi'>` is `'string'`, `TypeOf<true>` is `'boolean'` and `TypeOf<undefined>` is
+    `'undefined'`.
+  - Functions and classes give `'function'`: a class is a function at run time.
+  - Everything else gives `'object'`, `null` included, as `typeof null` does.
+
+  The type cases try primitives, literals, functions, a class, arrays, objects and `null`, a
+  union (each member gets its own answer, as in lesson 6.4) and `never`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Chain the conditions, one per name, as `Input` does in the theory. The first condition that holds wins.
+  - Ask about functions before you ask about objects, because a function type is assignable to `object`. One type from the lib is something every function and every class is assignable to.
+  - '`null` fails every test you would write for an object, so it belongs in the last branch.'

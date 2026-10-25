@@ -1,0 +1,196 @@
+---
+id: m13-type-challenges/03-medium-set-2
+title: Medium set II
+minutes: 60
+objectives:
+  - Take string types apart from the start, from the end and at a substring, and recurse on what is left
+  - Count with a tuple that grows by one element per step
+  - Recurse through nested tuples and spread the results back together
+  - Test for never and for unions by controlling when a conditional type distributes
+  - Solve the ten challenges of Medium set II
+prerequisites:
+  - m13-type-challenges/02-medium-set-1
+  - m12-template-tuples/01-template-literal-types
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/03-distributive-conditionals
+  - m12-template-tuples/03-tuple-manipulation
+  - m12-template-tuples/04-recursion-limits
+tags:
+  - type-challenges
+  - medium
+  - Trim
+  - Capitalize
+  - Replace
+  - ReplaceAll
+  - Length of String
+  - Flatten
+  - IsNever
+  - Permutation
+  - IsUnion
+  - template literal types
+  - distribution
+---
+
+## Concept
+
+Medium set II is strings, recursion and unions. Six of its ten challenges take a string type apart, and the last three ask questions about a union as a whole, which a conditional type that handles one member at a time can't answer without help. The format is the one from <Lesson id="m13-type-challenges/01-easy-set" />, and the techniques are these, with the challenges that use them:
+
+- **Matching the start or the end.** A pattern such as `` `${X}${infer Rest}` `` matches a string that starts with `X`, and when `X` is a union it matches a string that starts with any of its members (<Lesson id="m12-template-tuples/01-template-literal-types" />). The mirror image, `` `${infer Rest}${X}` ``, matches the end. Trim Left, Trim, Capitalize.
+- **Finding a substring.** An `infer` that follows a type parameter in a pattern stops at the first place that string appears, and a `${string}` placeholder does the same (the second matching rule in <Lesson id="m12-template-tuples/01-template-literal-types" />). Replace, ReplaceAll.
+- **Recursion on the rest.** What an `infer` names is a string or a tuple again, so the type can call itself on it, until the pattern stops matching (12.1's Kebab, and <Lesson id="m11-conditional-types/04-recursive-conditionals" />). Trim Left, Trim, ReplaceAll, Length of String; over tuples (<Lesson id="m12-template-tuples/03-tuple-manipulation" />), Flatten.
+- **Counting with a tuple.** `S['length']` is `number` for every string type, while a tuple's `length` is a number literal. A tuple that grows by one element per step counts the steps (<Lesson id="m12-template-tuples/04-recursion-limits" />). Length of String.
+- **Distribution, and stopping it.** A conditional type on a naked type parameter runs once for each member of a union (<Lesson id="m11-conditional-types/01-conditional-types" />, and <Lesson id="m11-conditional-types/03-distributive-conditionals" />). IsNever, Permutation and IsUnion each need to control when that happens.
+- **A copy of the union.** Inside a distributing branch, the type parameter is one member. A second type parameter that defaults to the first keeps the whole union. Permutation, IsUnion.
+
+Counting is the step the string challenges add to 12.1. Here a type counts how many times a substring appears in a string, keeping one tuple element per match:
+
+```ts twoslash
+type Count<
+  S extends string,
+  C extends string,
+  Found extends unknown[] = [],
+> = S extends `${string}${C}${infer Rest}`
+  ? Count<Rest, C, [...Found, C]>
+  : Found['length'];
+
+type Ls = Count<'hello world', 'l'>;
+//   ^?
+type An = Count<'banana', 'an'>;
+//   ^?
+```
+
+Each step finds the next `C`: the `${string}` before it stops at its first occurrence (12.1's second rule), and `Rest` is everything after it, where the search goes on. When no `C` is left, the pattern doesn't match and `Found['length']` is the answer. `Found` has a default, so callers pass two arguments, and the recursive call is the whole branch, which 12.4 calls tail position.
+
+## Examples
+
+**A copy of the union.** `Rival` pairs each team with the teams it can play. The conditional distributes over `T`, so in each branch `T` is one team, but `All` was set to the whole of `T` before distribution, when the default was filled in:
+
+```ts run
+type Rival<T, All = T> = T extends unknown
+  ? { team: T; against: Exclude<All, T> }
+  : never;
+
+type Team = 'red' | 'blue' | 'green';
+
+const fixtures: Rival<Team>[] = [
+  { team: 'red', against: 'blue' },
+  { team: 'green', against: 'red' },
+];
+console.log(fixtures.map((f) => `${f.team} v ${f.against}`).join(', '));
+```
+
+`{ team: 'red', against: 'red' }` doesn't compile: in the `'red'` member, `against` is `'blue' | 'green'`. Written with `Exclude<T, T>` instead, `against` would be `never` in every member, since inside the branch `T` is one team and nothing is left when it is taken away from itself. Permutation and IsUnion need the same copy.
+
+**Recursing through tuples.** `Compact` drops `null` and `undefined` from a tuple. It takes the first element off with a tuple pattern, decides what to do with it, and spreads the result of the recursion behind it:
+
+```ts twoslash
+type Compact<T extends unknown[]> = T extends [infer Head, ...infer Rest]
+  ? Head extends null | undefined
+    ? Compact<Rest>
+    : [Head, ...Compact<Rest>]
+  : [];
+
+type C = Compact<[1, null, 'a', undefined]>;
+//   ^?
+```
+
+Flatten has the same shape, with a different question about `Head`.
+
+## Pitfalls
+
+**`never` is the empty union.** A conditional on a naked type parameter runs once per member of a union, and `never` has no members, so the conditional never runs and the result is `never`, neither branch:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type IsString<T> = T extends string ? true : false;
+
+type cases = [Expect<Equal<IsString<never>, false>>];
+```
+
+_Type 'false' does not satisfy the constraint 'true'._ `IsString<never>` is `never`. IsNever, Permutation and IsUnion all have a case for `never`, and each needs a check that doesn't distribute; <Lesson id="m11-conditional-types/03-distributive-conditionals" /> shows how to write one.
+
+**An empty pattern matches almost anything.** When the substring to find is `''`, the pattern `` `${infer Before}${From}${infer After}` `` becomes two `infer`s side by side, and `Before` takes exactly one character:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type NaiveReplace<
+  S extends string,
+  From extends string,
+  To extends string,
+> = S extends `${infer Before}${From}${infer After}`
+  ? `${Before}${To}${After}`
+  : S;
+
+type cases = [Expect<Equal<NaiveReplace<'foobarbar', '', 'foo'>, 'foobarbar'>>];
+```
+
+`NaiveReplace<'foobarbar', '', 'foo'>` is `'ffoooobarbar'`: `'f'`, then `'foo'`, then the rest. Replace and ReplaceAll expect the string back unchanged, so an empty `From` needs its own check before the match.
+
+## Check yourself
+
+<Predict
+  id="count-banana"
+  question="With the Count from the Concept, what is `Count<'banana', 'a'>`?"
+  options={['3', '6', 'number', "['a', 'a', 'a']"]}
+  answer={0}
+  explanation="Each step finds the next `'a'` and goes on with what follows it: `'nana'`, then `'na'`, then `''`, where no `'a'` is left. Three matches put three elements in `Found`, and the result is its `length`, the literal type `3`."
+/>
+
+<Predict
+  id="is-string-never"
+  question="With `type IsString<T> = T extends string ? true : false`, what is `IsString<never>`?"
+  options={['true', 'false', 'never', 'boolean']}
+  answer={2}
+  explanation="`T` is a naked type parameter, so the conditional runs once for each member of the union it is given. `never` is the empty union: the conditional runs for no member at all, and the result is the empty union again, `never`."
+/>
+
+<Predict
+  id="empty-from"
+  question="With the NaiveReplace from the second pitfall, what is `NaiveReplace<'ab', '', '-'>`?"
+  options={["'ab'", "'-ab'", "'a-b'", "'ab-'"]}
+  answer={2}
+  explanation="With `From` empty, the pattern is two `infer`s side by side. `Before` takes exactly one character, `'a'`, and `After` takes the rest, `'b'`, so the result is `'a'`, then `'-'`, then `'b'`."
+/>
+
+## Further reading
+
+- [Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Conditional types: inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types) and [distributive conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#distributive-conditional-types)
+- [Object types: tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#tuple-types)
+- [type-challenges](https://github.com/type-challenges/type-challenges): the whole collection, by difficulty
+
+The challenges in this lesson are from type-challenges, by Anthony Fu and its contributors, used under the MIT License:
+
+```text
+MIT License
+
+Copyright (c) 2020 Anthony Fu <https://github.com/antfu>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

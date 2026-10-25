@@ -1,0 +1,27 @@
+id: m11-conditional-types/04-recursive-conditionals/01-deep-required
+kind: type-challenge
+title: Required at every level
+minutes: 3
+challenge: false
+prompt: |
+  `Required` removes `?` from the top level only. Write `DeepRequired<T>` in `index.ts`: every
+  property at every level is required, the way `DeepPartial` in the theory makes every level
+  optional.
+
+  - `DeepRequired<{ user?: { name?: string } }>` is `{ user: { name: string } }`.
+  - Arrays and tuples stay arrays and tuples, with their elements made deep-required:
+    `[number, string?]` becomes `[number, string]`.
+  - Functions are kept as they are, optional parameters included.
+  - `readonly` stays, primitives pass through, a union is handled one member at a time, and a
+    property that was never optional keeps an `undefined` it has in its type.
+
+  The type cases try nested objects, optional objects, arrays of objects, a tuple, a function,
+  `readonly`, a union, primitives and `never`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Start from `DeepPartial` in the theory and swap the modifier; lesson 10.1 has the sign that removes `?`.
+  - A function is an object too. Look at how `DeepReadonly` keeps functions callable.

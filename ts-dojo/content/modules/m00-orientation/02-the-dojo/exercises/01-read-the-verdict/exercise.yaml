@@ -1,0 +1,28 @@
+id: m00-orientation/02-the-dojo/01-read-the-verdict
+kind: fix
+title: Read the verdict
+minutes: 3
+challenge: false
+prompt: |
+  `shout('hey')` should return `'HEY!'`. The file has two mistakes: the compiler finds one, and
+  only the tests find the other. Fix them the way the lesson's example does, one `:test` at a
+  time:
+
+  1. Run `:test`. The Tests tab opens on the verdict: Compiles fails with
+     `Property 'toUppercase' does not exist on type 'string'. Did you mean 'toUpperCase'?`,
+     and Type cases, Runtime tests and Rules say not run. Fix that error.
+  2. Run `:test` again. Compiles passes and Runtime tests fails: each failed test shows the
+     expected value and the actual one. Change `shout` until they match.
+  3. Run `:test` until the verdict says Passed, then `:next`.
+
+  Stuck at any step? `:hint` shows the next hint above the editor. The tests stay as they are.
+  `:w` runs the file at any time; before the first fix it throws a `TypeError`, because a
+  string has no `toUppercase` method.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - Put the method the file calls next to the one the compiler suggests, letter by letter.
+  - Once it compiles, compare a failed test's expected value with its actual value. What does expected have that actual lacks?

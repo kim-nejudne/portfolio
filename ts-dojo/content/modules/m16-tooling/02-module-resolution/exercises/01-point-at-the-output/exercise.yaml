@@ -1,0 +1,24 @@
+id: m16-tooling/02-module-resolution/01-point-at-the-output
+kind: fix
+title: Point at the output
+minutes: 2
+challenge: false
+prompt: |
+  `index.ts` imports its two helpers from `lib/` with the `.ts` extension, and both imports
+  report the same error:
+
+  - `An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.`
+
+  Fix the two specifiers so that they would also work if Node ran the compiled files as ES
+  modules: name the file the import will find at run time. Under `bundler`, the dojo's default,
+  a specifier without an extension would compile here too, and nothing checks which of the two
+  you write; the point is the one that also works under Node's rules, which exercise 3 of this
+  lesson enforces. Leave `lib/` and `priceLine` as they are. The tests call `priceLine`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, any-expression]
+hints:
+  - After compiling, which files are in `lib/`? The specifier names one of those.
+  - Under `bundler`, a specifier with no extension and one ending in `.js` both find `discount.ts`. Only one of the two also works for Node's ES module loader, which never guesses.

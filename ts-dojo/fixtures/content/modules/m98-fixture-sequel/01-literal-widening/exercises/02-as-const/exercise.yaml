@@ -1,0 +1,14 @@
+id: m98-fixture-sequel/01-literal-widening/02-as-const
+kind: predict
+title: 'An array as const'
+minutes: 2
+challenge: false
+code: |
+  const modes = ['on', 'off'] as const;
+question: 'What is the type of `modes`?'
+options:
+  - 'string[]'
+  - "readonly ['on', 'off']"
+  - "('on' | 'off')[]"
+answer: 1
+explanation: '`as const` keeps every literal and makes the array a readonly tuple of exactly those elements.'

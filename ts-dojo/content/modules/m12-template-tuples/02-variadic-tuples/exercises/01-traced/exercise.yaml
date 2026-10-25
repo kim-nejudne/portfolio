@@ -1,0 +1,25 @@
+id: m12-template-tuples/02-variadic-tuples/01-traced
+kind: implement
+title: Trace the calls
+minutes: 3
+challenge: false
+prompt: |
+  The theory's `timed` wraps any function and keeps its parameter list. Write a wrapper of the
+  same kind in `index.ts`: `traced(fn, onCall)` returns a function that
+
+  - has exactly `fn`'s parameters, labels and optional parameters included, and `fn`'s return
+    type, so `traced(pad, …)` is `(text: string, width: number, fill?: string) => string`;
+  - calls `onCall` with its arguments as one tuple, `['7', 3]` for `tracedPad('7', 3)`, and then
+    returns what `fn` returns for them.
+
+  `onCall`'s parameter is typed by `fn`'s parameter list too, so a logger for other arguments
+  is rejected. The type cases wrap functions with a default parameter, with a rest parameter and
+  with no parameters, and the tests check the values and the order of the calls.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, type-assertion, any-expression]
+hints:
+  - One type parameter stands for the parameter list and another for the return type, both inferred from `fn`.
+  - A rest parameter typed by the first type parameter gives the returned function `fn`'s exact list, and inside it the arguments are already a tuple of that type.

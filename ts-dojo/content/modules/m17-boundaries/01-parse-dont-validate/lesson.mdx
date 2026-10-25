@@ -1,0 +1,361 @@
+---
+id: m17-boundaries/01-parse-dont-validate
+title: "Parse, don't validate"
+minutes: 20
+objectives:
+  - Explain why a validator that returns a boolean loses what it checked, and a parser that returns a typed value keeps it
+  - Write a parser that returns a branded value or a Result, so later code needs no second check
+  - Parse unknown by hand into an exact type, building the result from the parts you checked
+  - Compose small generic parsers for fields and values into a parser for a whole shape
+prerequisites:
+  - m05-generics/01-generic-functions
+  - m07-guards/01-type-guards
+  - m07-guards/02-assertion-functions
+  - m09-modules-async/04-errors
+  - m14-type-system-edges/03-branded-types
+tags:
+  - parse, don't validate
+  - parser
+  - validation
+  - unknown
+  - boundary
+  - brand
+  - Result
+  - exact type
+  - parser combinators
+  - JSON
+---
+
+## Concept
+
+A **validator** checks a value and answers yes or no. The answer is a `boolean`, and the value's type doesn't change, so once the `if` is behind you nothing records that the check happened. A function further on that needs a valid port still gets a `number`, and has to trust its caller or check again.
+
+A **parser** makes the same check and returns the value in a type that says it passed. Here the type is a brand from <Lesson id="m14-type-system-edges/03-branded-types" />, made by a type guard so that no cast is needed:
+
+```ts twoslash
+type Port = number & { readonly __brand: 'Port' };
+
+function isValidPort(n: number): boolean {
+  return Number.isInteger(n) && n >= 1 && n <= 65535;
+}
+
+function isPort(n: number): n is Port {
+  return Number.isInteger(n) && n >= 1 && n <= 65535;
+}
+
+function parsePort(text: string): Port {
+  const port = Number(text);
+  if (!isPort(port)) throw new RangeError(`not a port: ${text}`);
+  return port;
+}
+
+function listen(port: Port): string {
+  return `listening on ${port}`;
+}
+
+const validated = Number('8080');
+if (!isValidPort(validated)) throw new RangeError('not a port');
+validated;
+// ^?
+
+const parsed = parsePort('8080');
+//    ^?
+listen(parsed);
+```
+
+`validated` passed the same check and is still a `number`, so `listen(validated)` would not compile. `parsed` is a `Port` wherever it goes: stored in a field, passed through three functions, returned from a fourth. Nothing downstream checks it again, because short of a cast nothing downstream can get a `Port` any other way. The idea and its name come from Alexis King's essay (see Further reading): check input once, where it enters the program, and turn it into types that make the bad cases impossible to express.
+
+A type guard with a brand, like `isPort`, is already a small parser. It stops short in three ways, and a full parser goes further:
+
+- A guard can only narrow. It returns `true` about the value it was given, so it can't trim a string, turn an ISO date into a `Date`, or drop the properties you didn't ask for. A parser returns a new value.
+- On failure a guard says `false`, and an assertion function (<Lesson id="m07-guards/02-assertion-functions" />) throws whatever its body throws. A parser can return what was wrong, and where, as data the caller has to handle.
+- A written predicate is taken on trust (<Lesson id="m07-guards/01-type-guards" />). A parser that builds its result from checked parts is checked by the compiler: a part you forgot to check doesn't have the type the result needs.
+
+So keep guards small, one per brand, and let parsers do the rest.
+
+## Examples
+
+**A parser that returns a `Result`.** Bad input at the boundary is an expected outcome, so the `Result` from <Lesson id="m09-modules-async/04-errors" /> fits better than a `throw`. On success the value is a `Port`; on failure the error says why:
+
+```ts run
+type Port = number & { readonly __brand: 'Port' };
+type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+
+function isPort(n: number): n is Port {
+  return Number.isInteger(n) && n >= 1 && n <= 65535;
+}
+
+function parsePort(text: string): Result<Port> {
+  const port = Number(text);
+  if (!isPort(port)) {
+    return { ok: false, error: `not a port: ${text}` };
+  }
+  return { ok: true, value: port };
+}
+
+function listen(port: Port): string {
+  return `listening on ${port}`;
+}
+
+for (const text of ['8080', '80.5', 'http']) {
+  const result = parsePort(text);
+  console.log(result.ok ? listen(result.value) : result.error);
+}
+```
+
+`listen` takes a `Port`, so the compiler won't let anyone call it with a number that skipped `parsePort`. The guard is the one place that decides what a `Port` is.
+
+**Parsing `unknown` into an exact type.** Data from outside starts as `unknown`: the result of `JSON.parse` goes straight into an `unknown` variable, or into a parameter typed `unknown`. Check each property, then build a new object from the checked parts. The compiler checks that object against `User`, so the result holds exactly the fields `User` names, in the form `User` wants, whatever else the input had:
+
+```ts run
+type Email = string & { readonly __brand: 'Email' };
+type User = { name: string; email: Email; joined: Date };
+type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+
+function isEmail(text: string): text is Email {
+  return /^[^\s@]+@[^\s@]+$/.test(text);
+}
+
+function parseUser(input: unknown): Result<User> {
+  if (typeof input !== 'object' || input === null) {
+    return { ok: false, error: 'expected an object' };
+  }
+  if (!('name' in input) || typeof input.name !== 'string') {
+    return { ok: false, error: 'name: expected a string' };
+  }
+  if (!('email' in input) || typeof input.email !== 'string') {
+    return { ok: false, error: 'email: expected a string' };
+  }
+  const email = input.email.trim().toLowerCase();
+  if (!isEmail(email)) {
+    return { ok: false, error: 'email: expected an email address' };
+  }
+  if (!('joined' in input) || typeof input.joined !== 'string') {
+    return { ok: false, error: 'joined: expected a date string' };
+  }
+  const joined = new Date(input.joined);
+  if (Number.isNaN(joined.getTime())) {
+    return { ok: false, error: 'joined: expected a date string' };
+  }
+  return { ok: true, value: { name: input.name, email, joined } };
+}
+
+const data: unknown = JSON.parse(
+  '{"name":"Ada","email":" ADA@Example.com ","joined":"2026-03-01","admin":true}',
+);
+const user = parseUser(data);
+if (user.ok) {
+  console.log(user.value.email, user.value.joined.getFullYear());
+  console.log(Object.keys(user.value));
+}
+console.log(parseUser({ name: 'Grace', email: 'grace' }));
+```
+
+The address comes out trimmed and lower-cased, `joined` is a real `Date`, and `admin` is gone. No guard could do any of the three.
+
+**Small parsers that compose.** Written out by hand, every parser repeats the same steps. Name the shape of a parser, `Parser<T>`, and the steps become small generic functions (<Lesson id="m05-generics/01-generic-functions" />) that combine. Here an error carries a path to the value that failed, and `at` puts one step in front of it:
+
+```ts run
+type Issue = { path: (string | number)[]; message: string };
+type Result<T> = { ok: true; value: T } | { ok: false; error: Issue };
+type Parser<T> = (input: unknown) => Result<T>;
+
+function ok<T>(value: T): Result<T> {
+  return { ok: true, value };
+}
+
+function fail(message: string): Result<never> {
+  return { ok: false, error: { path: [], message } };
+}
+
+function at<T>(step: string | number, result: Result<T>): Result<T> {
+  if (result.ok) return result;
+  const { path, message } = result.error;
+  return { ok: false, error: { path: [step, ...path], message } };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const string: Parser<string> = (input) =>
+  typeof input === 'string' ? ok(input) : fail('expected a string');
+
+const number: Parser<number> = (input) =>
+  typeof input === 'number' && Number.isFinite(input)
+    ? ok(input)
+    : fail('expected a number');
+
+function field<T>(input: unknown, key: string, parser: Parser<T>): Result<T> {
+  if (!isRecord(input)) return fail('expected an object');
+  return at(key, parser(input[key]));
+}
+
+function withDefault<T>(parser: Parser<T>, fallback: T): Parser<T> {
+  return (input) => (input === undefined ? ok(fallback) : parser(input));
+}
+
+type Server = { host: string; port: number };
+
+function server(input: unknown): Result<Server> {
+  const host = field(input, 'host', string);
+  if (!host.ok) return host;
+  const port = field(input, 'port', withDefault(number, 80));
+  if (!port.ok) return port;
+  return ok({ host: host.value, port: port.value });
+}
+
+type Config = { name: string; server: Server };
+
+function config(input: unknown): Result<Config> {
+  const name = field(input, 'name', string);
+  if (!name.ok) return name;
+  const parsedServer = field(input, 'server', server);
+  if (!parsedServer.ok) return parsedServer;
+  return ok({ name: name.value, server: parsedServer.value });
+}
+
+for (const input of [
+  { name: 'api', server: { host: 'example.com' } },
+  { name: 'api', server: { host: 'example.com', port: '443' } },
+  { name: 'api', server: null },
+]) {
+  const result = config(input);
+  console.log(
+    result.ok
+      ? result.value
+      : `${result.error.path.join('.')}: ${result.error.message}`,
+  );
+}
+```
+
+The first input parses with the default port, the second fails at `server.port` and the third at `server`. `server` and `config` are themselves `Parser`s, so `field(input, 'server', server)` nests one inside the other, and a failed result passes straight up: a `{ ok: false; error: Issue }` fits every `Result<T>`, as `Result<never>` does for `fail`. `isRecord` is the one guard, and it promises nothing about the values: they stay `unknown`. Every type in the result comes from a check the compiler followed.
+
+This is what schema libraries do for you. One step further, a generic `object(shape)` would parse every field of a shape in one call, but its result is built in a loop or with `Object.fromEntries`, and the compiler can't follow that into a mapped type, so writing it takes a cast. <Lesson id="m17-boundaries/02-zod-and-valibot" /> builds the same parsers from a library, `z.object` included, and reads the result type back out of the schema.
+
+## Pitfalls
+
+**Returning the input you checked.** Narrowing `input.name` narrows that property access, not `input`. After the checks, `input` is still `object & Record<"name", unknown>`, so returning it as a `User` doesn't compile:
+
+```ts run errors
+type User = { name: string };
+
+function parseUser(input: unknown): User {
+  if (
+    typeof input !== 'object' ||
+    input === null ||
+    !('name' in input) ||
+    typeof input.name !== 'string'
+  ) {
+    throw new TypeError('expected a user');
+  }
+  return input;
+}
+```
+
+`Type 'object & Record<"name", unknown>' is not assignable to type 'User'.` A guard makes the error go away, and lets everything else through:
+
+```ts run
+type User = { name: string };
+
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'name' in value &&
+    typeof value.name === 'string'
+  );
+}
+
+function parseUser(input: unknown): User {
+  if (!isUser(input)) throw new TypeError('expected a user');
+  return input;
+}
+
+const user = parseUser(JSON.parse('{"name":"ada","password":"hunter2"}'));
+console.log(JSON.stringify(user));
+```
+
+It prints the password. The type says `User`, the value is the whole input, and the next `JSON.stringify` or database insert sends it on. Return `{ name: input.name }`, a new object with only what the type names.
+
+**Taking `any` instead of `unknown`.** With an `any` parameter every property read compiles, checked or not, misspelt or not:
+
+```ts run
+type User = { name: string; email: string };
+
+function parseUser(input: any): User {
+  if (typeof input.name !== 'string') {
+    throw new TypeError('name: expected a string');
+  }
+  return { name: input.name, email: input.emial };
+}
+
+console.log(parseUser({ name: 'ada', email: 'ada@example.com' }));
+```
+
+The email comes back `undefined`, typed `string`, and `parseUser(null)` would crash on its first line. Make the parameter `unknown`, and every read has to follow a check:
+
+```ts run errors
+type User = { name: string; email: string };
+
+function parseUser(input: unknown): User {
+  if (
+    typeof input !== 'object' ||
+    input === null ||
+    !('name' in input) ||
+    typeof input.name !== 'string'
+  ) {
+    throw new TypeError('name: expected a string');
+  }
+  return { name: input.name, email: input.emial };
+}
+```
+
+`Property 'emial' does not exist on type 'object & Record<"name", unknown>'.` The same error would come for `input.email`, spelt right but never checked. The `any` from `JSON.parse` causes the same problem one step earlier: pass it straight to a parameter typed `unknown`, or store it in an `unknown` variable, and never read it directly.
+
+## Check yourself
+
+<Predict
+  id="validated-type"
+  code={
+    "function isValidPort(n: number): boolean {\n  return Number.isInteger(n) && n >= 1 && n <= 65535;\n}\n\nconst port = Number('8080');\nif (!isValidPort(port)) throw new RangeError('not a port');\nport; // here"
+  }
+  question="With `type Port = number & { readonly __brand: 'Port' }` declared, what is the type of `port` at the last line?"
+  options={['Port', 'number', 'never', 'unknown']}
+  answer={1}
+  explanation="`isValidPort` returns a `boolean`, which says nothing about its argument, so the check narrows nothing and `port` stays a `number`. A function that takes a `Port` won't accept it. A guard with `n is Port`, or a parser that returns a `Port`, would keep what the check found."
+/>
+
+<Predict
+  id="guard-cannot-convert"
+  question="An API sends `createdAt` as an ISO date string, and `Event` has `createdAt: Date`. Why can't a guard `isEvent(value: unknown): value is Event` give you an `Event` from that data?"
+  options={[
+    'A guard returns a boolean about the value it was given, and that value has a string where a Date should be',
+    'Guards cannot narrow to object types that contain classes',
+    'It can, if the guard checks the string with Date.parse first',
+  ]}
+  answer={0}
+  explanation="A guard only narrows: after it returns `true`, the caller uses the same value with a narrower type. Here the value holds a string, so a guard that claimed `Event` would lie, and `createdAt.getTime()` would crash. A parser can build a new object with `new Date(text)` in it."
+/>
+
+<Predict
+  id="failed-result-passes-up"
+  code={
+    'type Result<T> = { ok: true; value: T } | { ok: false; error: string };\n\ndeclare function parseName(input: unknown): Result<string>;\n\nfunction parseTeam(input: unknown): Result<{ name: string }> {\n  const name = parseName(input);\n  if (!name.ok) return name;\n  return { ok: true, value: { name: name.value } };\n}'
+  }
+  question="Does `return name` compile, though `name` came from a `Result<string>` and the function returns a `Result<{ name: string }>`?"
+  options={[
+    'Yes: after the check, name is the failed member, which has no value and fits any Result',
+    'No: a Result<string> is not a Result<{ name: string }>',
+    'Only with a cast to Result<never>',
+  ]}
+  answer={0}
+  explanation="`!name.ok` narrows `name` to `{ ok: false; error: string }`. That member doesn't mention `T`, so it is the same type in every `Result<T>`, and a failure parsed at one level passes straight up to the next. Composed parsers rely on it."
+/>
+
+## Further reading
+
+- [Alexis King: Parse, don't validate](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/), the essay that named the idea
+- [Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html), on `typeof`, `in` and type predicates
+- [TypeScript 3.0 release notes: the unknown type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type), the top type a parser starts from
+- [Handbook: Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html), for the generic parsers

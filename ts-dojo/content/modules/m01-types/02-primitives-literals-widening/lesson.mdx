@@ -1,0 +1,203 @@
+---
+id: m01-types/02-primitives-literals-widening
+title: 'Primitives, literal types and widening: let vs const, as const preview'
+minutes: 15
+objectives:
+  - Name the primitive types and write them in lowercase, never as String or Number
+  - Read a literal type such as 'dark' or 8080 as a type with exactly one value
+  - Predict when inference keeps a literal type and when it widens it to a primitive
+  - Explain why the properties and elements of a const object or array still widen
+  - Keep literal types in an object or array with as const, on all of it or on one property
+prerequisites:
+  - m01-types/01-annotations-and-inference
+tags:
+  - primitive types
+  - string
+  - number
+  - boolean
+  - bigint
+  - symbol
+  - literal type
+  - widening
+  - let vs const
+  - as const
+  - const assertion
+  - wrapper objects
+---
+
+## Concept
+
+JavaScript has seven primitive types, and TypeScript names each of them in lowercase: `string`, `number`, `boolean`, `bigint`, `symbol`, `undefined` and `null`. The names are the ones `typeof` returns, plus `null`. `number` covers integers and fractions alike, as it does in JavaScript; there is no `int` or `float`.
+
+Every literal value also has a type of its own, a **literal type**, whose only value is that literal: `'dark'`, `8080`, `true`. A literal type fits wherever its primitive does: `'dark'` is a `string`, but not every `string` is `'dark'`. Which of the two a variable gets depends on how it is declared:
+
+```ts twoslash
+const port = 8080;
+//       ^?
+let retries = 3;
+//        ^?
+```
+
+`port` is a `const`, so it can never hold anything but 8080, and its type is the literal `8080`. `retries` is a `let`, which exists to change. If its type were `3`, then `retries = 4` would be an error, so the compiler **widens** the literal to its primitive, `number`. That is the rule this lesson is about: for a variable, a property or an array element, the compiler keeps an inferred literal type where the value can't change and widens it where it can.
+
+## Examples
+
+**The primitives.** A `let` gets its initialiser's primitive type:
+
+```ts twoslash
+let title = 'Dune';
+//      ^?
+let pages = 412;
+//      ^?
+let inStock = true;
+//        ^?
+let copiesSold = 20_000_000n;
+//           ^?
+let isbnKey = Symbol('isbn');
+//        ^?
+```
+
+`undefined` and `null` are types too, each holding the one value of the same name. Under `strict`, which the dojo uses, no other primitive type includes them: a `string` variable can't hold `null`. <Lesson id="m03-unions/02-null-undefined-strict" /> covers values that may be missing.
+
+The names are lowercase. `String`, `Number` and `Boolean` with a capital letter exist too, but they are the types of wrapper objects such as `new String('Dune')`, which is not what you mean (see Pitfalls).
+
+**A literal type as an annotation.** A literal type can be written like any other type. The variable then accepts that one value and nothing else:
+
+```ts run errors
+let mode: 'dark' = 'dark';
+mode = 'light';
+```
+
+`Type '"light"' is not assignable to type '"dark"'.` Errors and quick info print string literal types in double quotes; the quote style doesn't matter, `'dark'` and `"dark"` are the same type. A type with one value is rarely useful on its own. Literal types pay off joined into a union: `'light' | 'dark'` is a type with exactly two values, the subject of <Lesson id="m03-unions/01-union-and-literal-types" />.
+
+**`const` keeps the literal, `let` widens it.** This holds for every kind of literal, and for a `let` that starts as a copy of a `const`:
+
+```ts twoslash
+const host = 'localhost';
+//       ^?
+let fallbackHost = 'localhost';
+//             ^?
+const debug = false;
+//        ^?
+let current = host;
+//        ^?
+```
+
+`current` starts out holding `host`, but it is a `let`, so the literal type inferred for `host` widens again. The same goes for `let wanted = 'circle'`: its type is `string`, not `'circle'`. Widening applies only to literal types the compiler inferred on its own. A literal type you asked for, with an annotation or with `as const` (below), is kept: `let mode: 'dark'` above stays `'dark'`.
+
+**`const` fixes the variable, not the object.** A `const` object's properties and a `const` array's elements can still be changed, so each of them widens like a `let`:
+
+```ts twoslash
+const theme = { mode: 'dark', fontSize: 14 };
+//        ^?
+theme.mode = 'light';
+
+const sizes = [12, 14, 16];
+//        ^?
+sizes.push(18);
+```
+
+`theme.mode = 'light'` compiles because `mode` is a `string`. Had it kept the type `'dark'`, every object literal would be stuck with its first values.
+
+**`as const`, a preview.** Written after an object, array or literal, `as const` says the value will never change. Then nothing widens: every literal keeps its literal type, every property becomes `readonly`, and an array becomes a `readonly` tuple, an array type with a fixed length and one type per position. It reaches into nested objects and arrays as well. Put it on a single property to fix only that one:
+
+```ts twoslash
+const theme = { mode: 'dark', fontSize: 14 } as const;
+//        ^?
+const sizes = [12, 14, 16] as const;
+//        ^?
+const retry = { method: 'GET' as const, attempts: 0 };
+//        ^?
+```
+
+`retry.method` keeps `'GET'`, while `attempts` is still a `number` that can count up. <Lesson id="m01-types/03-arrays-tuples-objects" /> covers tuples and `readonly`, and <Lesson id="m04-objects/04-enums-vs-as-const" /> builds unions out of `as const` arrays.
+
+Like every type, `as const` is erased before the code runs (<Lesson id="m00-orientation/01-why-typescript" />). It only makes the compiler reject code that changes the value; at runtime nothing is frozen, and this prints `false`:
+
+```ts run
+const theme = { mode: 'dark', fontSize: 14 } as const;
+console.log(Object.isFrozen(theme));
+```
+
+## Pitfalls
+
+**`String` instead of `string`.** `String`, `Number` and `Boolean` are the types of wrapper objects. A primitive is accepted where its wrapper type is expected, so the first line compiles. But the variable now has the wrapper type, and a wrapper is not accepted where the primitive is:
+
+```ts run errors
+let title: String = 'Dune';
+const heading: string = title;
+```
+
+`Type 'String' is not assignable to type 'string'.`, and the compiler adds `'string' is a primitive, but 'String' is a wrapper object. Prefer using 'string' when possible.` Write primitive types in lowercase.
+
+**A `const` object whose property must keep its literal.** `request` accepts two methods only. `options` is a `const`, yet `options.method` has widened to `string`:
+
+```ts run errors
+function request(url: string, method: 'GET' | 'POST') {
+  return `${method} ${url}`;
+}
+
+const options = { url: '/books', method: 'GET' };
+request(options.url, options.method);
+```
+
+`Argument of type 'string' is not assignable to parameter of type '"GET" | "POST"'.` The type `'GET' | 'POST'` means `'GET'` or `'POST'`. Put `as const` after the object, or after `'GET'` alone, and `options.method` keeps the type `'GET'`, which fits.
+
+**`as const` on a value that changes.** `as const` makes everything it covers read-only, so code that changes the value stops compiling:
+
+```ts run errors
+const sizes = [12, 14, 16] as const;
+sizes.push(18);
+
+const theme = { mode: 'dark', fontSize: 14 } as const;
+theme.fontSize = 16;
+```
+
+`Property 'push' does not exist on type 'readonly [12, 14, 16]'.` and `Cannot assign to 'fontSize' because it is a read-only property.` When part of a value changes, put `as const` only on the parts that don't, as in `{ mode: 'dark' as const, fontSize: 14 }`.
+
+## Check yourself
+
+<Predict
+  id="const-object-property"
+  code="const theme = { mode: 'dark', fontSize: 14 };"
+  question="What type does the compiler give theme.mode?"
+  options={["'dark'", 'string', "readonly 'dark'", 'any']}
+  answer={1}
+  explanation="theme is a const, but theme.mode = 'light' still compiles, so the property can change and its literal widens to string, as a let would. Only as const, after the object or after 'dark', keeps the literal type."
+/>
+
+<Predict
+  id="as-const-array"
+  code="const sizes = [12, 14, 16] as const;"
+  question="What is the type of sizes?"
+  options={[
+    'number[]',
+    'readonly number[]',
+    'readonly [12, 14, 16]',
+    '[12, 14, 16]',
+  ]}
+  answer={2}
+  explanation="as const keeps every literal and makes the value read-only, so the array becomes a readonly tuple: three elements, each with its literal type. Without as const, the elements widen and the type is number[]."
+/>
+
+<Predict
+  id="wrapper-type"
+  code={"let title: String = 'Dune';\nconst heading: string = title;"}
+  question="Which line does the compiler reject?"
+  options={[
+    'Neither',
+    "The first: 'Dune' is not a String",
+    'The second: a String is not a string',
+    'Both',
+  ]}
+  answer={2}
+  explanation="A primitive string is accepted where the wrapper type String is expected, so the first line compiles. From then on title has the wrapper type, and String is not assignable to string. Written in lowercase, string makes both lines compile."
+/>
+
+## Further reading
+
+- [Everyday Types: the primitives string, number and boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
+- [Everyday Types: literal types and literal inference](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#literal-types)
+- [Everyday Types: less common primitives, bigint and symbol](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#less-common-primitives)
+- [Do's and Don'ts: Number, String, Boolean, Symbol and Object](https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html#number-string-boolean-symbol-and-object)
+- [TypeScript 3.4 release notes: const assertions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions)

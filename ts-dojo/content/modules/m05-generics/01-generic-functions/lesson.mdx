@@ -1,0 +1,236 @@
+---
+id: m05-generics/01-generic-functions
+title: Generic functions and inference
+minutes: 20
+objectives:
+  - Declare a type parameter on a function or an arrow function and use it in the signature
+  - Predict the type argument the compiler infers from the arguments of a call
+  - Pass explicit type arguments when inference picks the wrong type or has nothing to go on
+  - Tell when inference from several arguments gives a union, a common type or an error
+prerequisites:
+  - m01-types/01-annotations-and-inference
+  - m01-types/02-primitives-literals-widening
+  - m01-types/04-any-unknown-never-void
+  - m02-functions/02-function-types-and-callbacks
+tags:
+  - generics
+  - generic function
+  - type parameter
+  - type argument
+  - inference
+  - explicit type arguments
+  - generic arrow function
+  - const type parameter
+---
+
+## Concept
+
+A function that returns the first item of a list works for any list. Its type is harder to write. `items: number[]` accepts only numbers. `items: unknown[]` accepts every list, but the result is `unknown`, so the caller must narrow it again, although the compiler saw a list of strings go in (<Lesson id="m01-types/04-any-unknown-never-void" />):
+
+```ts run errors
+function firstItem(items: unknown[]): unknown {
+  return items[0];
+}
+
+const word = firstItem(['a', 'b']);
+console.log(word.toUpperCase());
+```
+
+`'word' is of type 'unknown'.` What's missing is a link between what goes in and what comes out. A type parameter is that link. It is declared in angle brackets before the parameter list, and it stands for a type that each call fills in:
+
+```ts twoslash
+function first<T>(items: T[]): T | undefined {
+  return items[0];
+}
+
+const score = first([3, 9, 4]);
+//    ^?
+const name = first(['Ada', 'Grace']);
+//    ^?
+```
+
+`T` is a type parameter, and inside the signature and the body it is a type like any other. At a call, the compiler infers the type argument from the arguments: `[3, 9, 4]` is a `number[]`, matched against `T[]` it gives `T = number`, and the result is `number | undefined`. One function, and every call keeps its own types. A function with type parameters is called generic. Like every type, `<T>` is erased: the JavaScript is `function first(items) { return items[0]; }`.
+
+`T` is only a convention. Any name works, and a longer one such as `Item` reads better once a function has several.
+
+## Examples
+
+**Inference picks the narrowest type.** When `T` is returned as it is, the inferred type argument keeps a literal type. A `let` then widens it, exactly as it would widen the literal itself (<Lesson id="m01-types/02-primitives-literals-widening" />):
+
+```ts twoslash
+function identity<T>(value: T): T {
+  return value;
+}
+
+const level = identity('debug');
+//    ^?
+let mode = identity('debug');
+//  ^?
+```
+
+**Several type parameters.** A function can declare as many type parameters as it needs, separated by commas. Here `T` comes from the list, and the callback's parameter then takes its type from `T`, the contextual typing of <Lesson id="m02-functions/02-function-types-and-callbacks" />. `U` comes from what the callback returns:
+
+```ts run
+function mapAll<T, U>(items: readonly T[], fn: (item: T) => U): U[] {
+  const results: U[] = [];
+  for (const item of items) {
+    results.push(fn(item));
+  }
+  return results;
+}
+
+const lengths = mapAll(['tea', 'coffee'], (drink) => drink.length);
+const labels = mapAll([1, 2], (n) => `#${n}`);
+
+console.log(lengths, labels);
+```
+
+`drink` is a `string` without an annotation, `lengths` is a `number[]` and `labels` a `string[]`.
+
+**Explicit type arguments.** Angle brackets after the function's name pass the type arguments yourself, and then nothing is inferred. That is the way out when inference has too little to go on. Here the list starts out with `null`, and the strings come later:
+
+```ts run
+function repeat<T>(value: T, times: number): T[] {
+  return Array.from({ length: times }, () => value);
+}
+
+const seats = repeat<string | null>(null, 3);
+seats[1] = 'Ada';
+
+console.log(seats);
+```
+
+Without `<string | null>`, `T` would be `null`, and `seats[1] = 'Ada'` would fail with `Type '"Ada"' is not assignable to type 'null'.` Type arguments are all or nothing: when you pass any, you pass one for every type parameter.
+
+```ts run errors
+function mapAll<T, U>(items: readonly T[], fn: (item: T) => U): U[] {
+  return items.map(fn);
+}
+
+const lengths = mapAll<string>(['tea'], (drink) => drink.length);
+```
+
+`Expected 2 type arguments, but got 1.` Write `mapAll<string, number>`, or none.
+
+**Inference from several arguments.** When `T` appears in more than one parameter, every argument offers a candidate for it, and the compiler has to settle on one type. Literals of the same primitive type give a union of the literals, when `T` is returned as it is, as `choose` does. If one candidate is a supertype of the others, that candidate wins, so a `number` variable and the literal `4` give `number`:
+
+```ts twoslash
+function choose<T>(a: T, b: T): T {
+  return Math.random() < 0.5 ? a : b;
+}
+
+const size = choose('small', 'large');
+//    ^?
+const limit: number = 10;
+const amount = choose(limit, 4);
+//    ^?
+```
+
+Candidates that don't fit each other, such as a `number` and a `string`, give no union: Pitfalls shows the error.
+
+**Generic arrow functions.** An arrow function declares its type parameters in front of its parameter list. A function type can be generic too, which is how such a function is described:
+
+```ts run
+const last = <T>(items: readonly T[]): T | undefined => items.at(-1);
+
+const pickLast: <T>(items: readonly T[]) => T | undefined = last;
+
+console.log(last(['a', 'b', 'c']), pickLast([1, 2, 3]));
+```
+
+In a `.tsx` file, `<T>` before an arrow function would start a JSX element, so React code writes `<T,>` there, with a trailing comma. Exercises here are `.ts` files, where `<T>` works.
+
+**`const` type parameters.** `as const` at a call keeps the literal types of an array or object argument. Writing `const` before a type parameter does the same for every call, so the caller doesn't have to:
+
+```ts twoslash
+function routes<const T>(paths: T): T {
+  return paths;
+}
+
+const app = routes(['/', '/about']);
+//    ^?
+```
+
+Without `const`, `app` would be a `string[]`.
+
+## Pitfalls
+
+**Using a member that `T` might not have.** Inside the function, `T` can be any type, `number` and `undefined` included, so the compiler allows only what every type allows:
+
+```ts run errors
+function longest<T>(a: T, b: T): T {
+  return a.length >= b.length ? a : b;
+}
+```
+
+`Property 'length' does not exist on type 'T'.`, twice. <Lesson id="m05-generics/02-constraints-and-defaults" /> shows how to require that `T` has a `length`. Until then, ask for the shape you need in the parameter: `items: T[]` has a `length`, whatever `T` is.
+
+**Returning a value of your own choosing as `T`.** The caller chooses `T`, not the function. A function that promises a `T` can only return a `T` it was given:
+
+```ts run errors
+function orDefault<T>(value: T | undefined): T {
+  return value === undefined ? 0 : value;
+}
+```
+
+`Type 'number' is not assignable to type 'T'.`, then `'T' could be instantiated with an arbitrary type which could be unrelated to 'number'.` If the call is `orDefault<string>(undefined)`, `0` is no string. Take the default as a parameter, `fallback: T`, and the caller supplies one of the right type.
+
+**Arguments that disagree.** For a `number` and a `string`, no candidate fits the other. The compiler keeps the first candidate and reports the argument that doesn't fit it:
+
+```ts run errors
+function choose<T>(a: T, b: T): T {
+  return Math.random() < 0.5 ? a : b;
+}
+
+const count: number = 3;
+const label: string = 'three';
+const either = choose(count, label);
+```
+
+`Argument of type 'string' is not assignable to parameter of type 'number'.` The error is on `label`, though neither argument is wrong. If both kinds are meant, say so with a type argument: `choose<number | string>(count, label)` compiles and returns a `string | number`.
+
+## Check yourself
+
+<Predict
+  id="let-widens-inferred"
+  code={
+    "function identity<T>(value: T): T {\n  return value;\n}\n\nlet theme = identity('dark');"
+  }
+  question="What is the type of `theme`?"
+  options={["'dark'", 'string', 'T', 'unknown']}
+  answer={1}
+  explanation="The call infers `T` as the literal type `'dark'`, so `identity('dark')` has that type. But `theme` is a `let`, and a `let` widens a literal type to its primitive, just as `let theme = 'dark'` would. With `const theme`, the type would stay `'dark'`."
+/>
+
+<Predict
+  id="partial-type-arguments"
+  question="`mapAll` is declared as `function mapAll<T, U>(items: readonly T[], fn: (item: T) => U): U[]`. What does `mapAll<string>(['a'], (s) => s.length)` do?"
+  options={[
+    'Compiles: T is string, and U is inferred as number',
+    'Reports Expected 2 type arguments, but got 1.',
+    'Compiles: U defaults to unknown',
+    "Reports Type 'number' is not assignable to type 'string'.",
+  ]}
+  answer={1}
+  explanation="Explicit type arguments are all or nothing. Passing one where the function declares two is an error, and the compiler doesn't infer the missing one. Pass both, as in `mapAll<string, number>`, or none."
+/>
+
+<Predict
+  id="caller-chooses-t"
+  question="Why does `function zero<T>(value: T): T { return 0; }` fail to compile?"
+  options={[
+    'A generic function must use T in its body',
+    'The caller chooses T, and 0 is not a value of every type the caller might choose',
+    'T must be written as T | number to return a number',
+    'Type parameters cannot be used in a return type',
+  ]}
+  answer={1}
+  explanation="`T` is filled in at each call, by inference or by an explicit type argument. A call such as `zero<string>('a')` must return a `string`, and `0` isn't one. The compiler says so: `'T' could be instantiated with an arbitrary type which could be unrelated to 'number'.`"
+/>
+
+## Further reading
+
+- [Handbook: Generics, hello world of generics](https://www.typescriptlang.org/docs/handbook/2/generics.html#hello-world-of-generics)
+- [Handbook: More on functions, generic functions](https://www.typescriptlang.org/docs/handbook/2/functions.html#generic-functions) and [inference](https://www.typescriptlang.org/docs/handbook/2/functions.html#inference)
+- [Handbook: More on functions, specifying type arguments](https://www.typescriptlang.org/docs/handbook/2/functions.html#specifying-type-arguments)
+- [TypeScript 5.0 release notes: const type parameters](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#const-type-parameters)

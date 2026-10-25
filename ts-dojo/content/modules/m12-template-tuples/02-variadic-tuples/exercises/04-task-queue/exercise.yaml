@@ -1,0 +1,38 @@
+id: m12-template-tuples/02-variadic-tuples/04-task-queue
+kind: implement
+title: A typed task queue
+minutes: 6
+challenge: false
+prompt: |
+  `TaskQueue` in `index.ts` runs async tasks one at a time. Implement it so that the arguments
+  for a task are checked against the task itself:
+
+  - `enqueue(task, ...args)` adds a call of `task` with `args` to the queue and returns a
+    promise of the task's result. `args` must be exactly what `task` takes:
+    `queue.enqueue(fetchUser, 1)` compiles, and `queue.enqueue(fetchUser)` and
+    `queue.enqueue(fetchUser, '1')` don't. For `fetchUser(id: number): Promise<User>` the result
+    is a `Promise<User>`.
+  - Tasks run in the order they were enqueued, and a task starts only once the one before it has
+    settled. When a task rejects, its own promise rejects with that reason and the next task
+    still runs.
+  - `size` is the number of tasks enqueued that haven't settled yet, the running one included.
+
+  The starter's `enqueue` takes any task with any arguments and promises `unknown`. Each queue
+  runs its own tasks. This combines the lesson's generic rest parameters with generic functions
+  (5.1), promises and `async` (9.3) and classes (4.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - '`enqueue` needs two type parameters, inferred from `task`: its parameter list and the type its promise resolves to. The rest parameter after `task` uses the first.'
+  - To run one task at a time, keep the promise of the last task enqueued and chain the next one onto it. A rejection must not break the chain.
+  - Count a task in `size` when it is enqueued, and count it out when it settles, whichever way.

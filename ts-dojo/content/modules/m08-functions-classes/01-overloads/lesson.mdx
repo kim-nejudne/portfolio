@@ -1,0 +1,255 @@
+---
+id: m08-functions-classes/01-overloads
+title: Overloads, and when a union or a generic is better
+minutes: 20
+objectives:
+  - Write overload signatures above one implementation that is compatible with each of them
+  - Order overloads from the most specific to the most general, and add a last one for union arguments
+  - Read "No overload matches this call" and tell which overload rejected which argument
+  - Replace overloads with a union parameter or a type parameter when one signature says the same
+prerequisites:
+  - m02-functions/01-parameters-and-returns
+  - m03-unions/03-narrowing
+  - m05-generics/01-generic-functions
+tags:
+  - overloads
+  - overload signature
+  - implementation signature
+  - No overload matches this call
+  - union parameter
+  - generic function
+  - method overloads
+---
+
+## Concept
+
+Sometimes a function's return type depends on what it is given. `parse` turns a string into a number and a list of strings into a list of numbers. With one signature, `(input: string | string[]): number | number[]`, every caller gets the union back and has to narrow it, even one that just passed a string. Overloads list the calls separately. Each overload signature is a function header without a body, and one implementation follows them:
+
+```ts twoslash
+function parse(input: string): number;
+function parse(input: string[]): number[];
+function parse(input: string | string[]): number | number[] {
+  return typeof input === 'string' ? Number(input) : input.map(Number);
+}
+
+const one = parse('42');
+//    ^?
+const many = parse(['1', '2']);
+//    ^?
+```
+
+A call is checked against the overloads only. The implementation's header, the third one here, is invisible to callers: `parse(42)` fails although nothing about it is wrong for the implementation, as long as no overload takes a number. The implementation has to be compatible with every overload: it must accept every argument list an overload allows, and its return type must be assignable to the overload's or the overload's to it. Break that and the overload reports _This overload signature is not compatible with its implementation signature._
+
+The overloads are types, erased with every other type. At run time there is one function, so the body narrows its parameters the way <Lesson id="m03-unions/03-narrowing" /> showed. The body is checked against the implementation's header and not against the overloads: return a list for a string and the compiler won't notice, so the overloads are a promise the body has to keep.
+
+## Examples
+
+**Overloads by argument count.** Overloads can also take different numbers of parameters, where the positions mean different things. One value pads every side, two pad top and bottom then left and right, four pad each side, and three mean nothing. Optional parameters can't leave out the three, overloads can. A rest parameter in the implementation accepts all three argument lists:
+
+```ts run
+function padding(all: number): string;
+function padding(vertical: number, horizontal: number): string;
+function padding(
+  top: number,
+  right: number,
+  bottom: number,
+  left: number,
+): string;
+function padding(...sides: number[]): string {
+  return sides.map((side) => `${side}px`).join(' ');
+}
+
+console.log(padding(4));
+console.log(padding(4, 8));
+console.log(padding(1, 2, 3, 4));
+```
+
+`padding(1, 2, 3)` reports _No overload expects 3 arguments, but overloads do exist that expect either 2 or 4 arguments._
+
+**Overloads are tried in order.** For each call, the compiler reads the overloads from the top and takes the first whose parameters accept the arguments. So the specific overloads go first. A caller that holds a `string | string[]` matches neither of them, and a last overload that takes the union gives that caller a union back:
+
+```ts twoslash
+function parse(input: string): number;
+function parse(input: string[]): number[];
+function parse(input: string | string[]): number | number[];
+function parse(input: string | string[]): number | number[] {
+  return typeof input === 'string' ? Number(input) : input.map(Number);
+}
+
+function read(raw: string | string[]) {
+  const parsed = parse(raw);
+  //    ^?
+  return parsed;
+}
+
+const exact = parse('7');
+//    ^?
+```
+
+The last overload and the implementation have the same header, and both are needed: the implementation's header is never one of the overloads.
+
+<Callout kind="tip">
+  One exception to the order: an overload with a parameter whose type is written
+  as one literal, such as `key: 'count'`, is tried before the others wherever it
+  is written. A union of literals or an alias of a literal doesn't count.
+  Writing it first anyway keeps the list readable from the top.
+</Callout>
+
+**Methods.** A method in a class is overloaded the same way: the method signatures, then the one with the body. In an interface or an object type, each signature is a separate line, and the object that implements it needs only one function whose parameters accept them all:
+
+```ts run
+type Level = 'info' | 'warn';
+
+class Logger {
+  log(message: string): void;
+  log(level: Level, message: string): void;
+  log(first: string, second?: string): void {
+    const [level, message] =
+      second === undefined ? ['info', first] : [first, second];
+    console.log(`[${level}] ${message}`);
+  }
+}
+
+const logger = new Logger();
+logger.log('started');
+logger.log('warn', 'disk almost full');
+
+interface Formatter {
+  format(value: number): string;
+  format(value: Date): string;
+}
+
+const formatter: Formatter = {
+  format(value: number | Date) {
+    return typeof value === 'number' ? value.toFixed(2) : value.toISOString();
+  },
+};
+console.log(formatter.format(Math.PI), formatter.format(new Date(0)));
+```
+
+The method's `first` parameter is a `string` in the implementation and a `Level` in the second overload, so `logger.log('debug', 'x')` fails: only one overload takes two arguments, and the error names that overload's parameter, _Argument of type '"debug"' is not assignable to parameter of type 'Level'._
+
+**When a union is better.** Overloads that differ only in a parameter's type, and return the same type, say nothing that one union parameter doesn't. The union version also accepts a caller that holds the union, which the overloads would reject:
+
+```ts run
+// Instead of
+//   function size(text: string): number;
+//   function size(items: readonly unknown[]): number;
+function size(value: string | readonly unknown[]): number {
+  return value.length;
+}
+
+const values: (string | readonly unknown[])[] = ['abc', [1, 2]];
+for (const value of values) {
+  console.log(size(value));
+}
+```
+
+**When a generic is better.** When the return type follows the argument's type, a type parameter from <Lesson id="m05-generics/01-generic-functions" /> says so once for every type. Overloads would need one signature per element type, and stop at the last one written:
+
+```ts twoslash
+// Instead of
+//   function first(items: readonly string[]): string | undefined;
+//   function first(items: readonly number[]): number | undefined;
+function first<T>(items: readonly T[]): T | undefined {
+  return items[0];
+}
+
+const flag = first([true, false]);
+//    ^?
+const when = first([new Date(0)]);
+//    ^?
+```
+
+So start with one signature. Reach for overloads when the positions of the arguments mean different things, as in `padding` and `log`, or when the return type depends on the argument in a way that neither a union nor a type parameter can say, as in `parse`. Conditional types, in a later module, are the other way to say the last one.
+
+## Pitfalls
+
+**Calling with a union.** A union argument has to fit one overload as a whole. The compiler doesn't split it and try each member against a different overload:
+
+```ts run errors
+function format(value: number): string;
+function format(value: Date): string;
+function format(value: number | Date): string {
+  return typeof value === 'number' ? value.toFixed(2) : value.toISOString();
+}
+
+function show(value: number | Date) {
+  console.log(format(value));
+}
+```
+
+_No overload matches this call._ The message goes on with one paragraph per overload, here _Overload 1 of 2, '(value: number): string', gave the following error._ and the reason. Both overloads return a `string`, so a single `value: number | Date` parameter is the fix. When the return types differ, add a last overload that takes the union, as `parse` did, or narrow the argument before the call.
+
+**The catch-all first.** The general overload accepts everything the specific ones do, and the compiler takes the first match, so the specific overloads below it are never used. Nothing reports them as unreachable. The errors appear at the calls instead:
+
+```ts run errors
+function parse(input: string | string[]): number | number[];
+function parse(input: string): number;
+function parse(input: string[]): number[];
+function parse(input: string | string[]): number | number[] {
+  return typeof input === 'string' ? Number(input) : input.map(Number);
+}
+
+console.log(parse('42').toFixed(1));
+```
+
+_Property 'toFixed' does not exist on type 'number | number[]'._ The call matched the first overload. Move it to the end.
+
+**An implementation that doesn't fit.** Adding an overload means widening the implementation too. Here a `Date` overload was added, and the implementation still takes only a number:
+
+```ts run errors
+function label(value: number): string;
+function label(value: Date): string;
+function label(value: number): string {
+  return value.toFixed(2);
+}
+```
+
+_This overload signature is not compatible with its implementation signature._ The error sits on the overload the implementation can't serve, the `Date` one. Widen the implementation's parameter to `number | Date`, and narrow in the body.
+
+## Check yourself
+
+<Predict
+  id="first-match-wins"
+  code={
+    'function size(value: string | number): string;\nfunction size(value: number): number;\nfunction size(value: string | number): string | number {\n  return value;\n}\n\nconst result = size(3);'
+  }
+  question="What is the type of `result`?"
+  options={['number', 'string', 'string | number']}
+  answer={1}
+  explanation="The compiler takes the first overload whose parameters accept the argument. `3` fits `string | number`, so the first overload wins and `result` is a `string`, although the body returns the number. The `number` overload is never used. Put it first."
+/>
+
+<Predict
+  id="union-argument"
+  code={
+    "function area(side: number): number;\nfunction area(sides: number[]): number;\nfunction area(input: number | number[]): number {\n  return typeof input === 'number' ? input ** 2 : input.reduce((a, b) => a * b, 1);\n}\n\nfunction total(input: number | number[]) {\n  return area(input);\n}"
+  }
+  question="What does the compiler report for `area(input)` in `total`?"
+  options={[
+    'Nothing: the implementation takes number | number[]',
+    'No overload matches this call.',
+    'This overload signature is not compatible with its implementation signature.',
+  ]}
+  answer={1}
+  explanation="Callers see only the overloads, and a union argument must fit one of them as a whole. `number | number[]` fits neither `number` nor `number[]`. The implementation's header would take it, but it is invisible to callers. Both overloads return `number`, so one union parameter is the better declaration."
+/>
+
+<Predict
+  id="which-declaration"
+  question="A function returns the first element of a list, and the list can hold any element type. Which declaration says that best?"
+  options={[
+    'One overload per element type: string[], number[], boolean[] and so on',
+    'One parameter of type unknown[] that returns unknown',
+    'One type parameter T, a readonly T[] parameter and a T | undefined return type',
+  ]}
+  answer={2}
+  explanation="The return type follows the element type, whatever it is. A type parameter says that once for every type. Overloads stop at the last element type written, and `unknown` loses the element type, so the caller has to narrow the result again."
+/>
+
+## Further reading
+
+- [More on Functions: function overloads](https://www.typescriptlang.org/docs/handbook/2/functions.html#function-overloads)
+- [More on Functions: writing good overloads](https://www.typescriptlang.org/docs/handbook/2/functions.html#writing-good-overloads)
+- [Do's and Don'ts: function overloads](https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html#function-overloads)

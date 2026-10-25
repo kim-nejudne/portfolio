@@ -1,0 +1,8 @@
+id: m02-functions
+title: Functions
+summary: Annotate parameters and returns, type callbacks, and learn why a void callback may still return a value.
+prerequisites: [m01-types]
+lessons:
+  - 01-parameters-and-returns
+  - 02-function-types-and-callbacks
+  - 03-void-returns

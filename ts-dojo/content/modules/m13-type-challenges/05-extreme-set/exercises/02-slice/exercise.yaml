@@ -1,0 +1,32 @@
+id: m13-type-challenges/05-extreme-set/02-slice
+kind: type-challenge
+title: Slice
+minutes: 9
+challenge: false
+prompt: |
+  Write `Slice<Arr, Start, End>` in `index.ts`, the type of `Array.prototype.slice` on a tuple:
+  the elements from index `Start` up to, not including, index `End`.
+
+  ```ts
+  type Arr = [1, 2, 3, 4, 5];
+  type A = Slice<Arr, 2, 4>; // [3, 4]
+  type B = Slice<Arr, 2>; // [3, 4, 5]
+  type C = Slice<Arr, -3, -1>; // [3, 4]
+  ```
+
+  As with `slice`, `Start` and `End` may be left out (from the start, to the end), a negative
+  index counts from the end, and a range that holds nothing, such as `Slice<Arr, 10>` or
+  `Slice<Arr, 1, 0>`, gives `[]`. The template is `type Slice<Arr, Start, End> = any`, with no
+  constraints or defaults; the starter keeps it, so the cases that leave arguments out report
+  an error until you add them. Cases added in the dojo check an end past the length, a
+  negative index past the start, and other tuples than `Arr`.
+
+  From type-challenges [#00216 Slice](https://github.com/type-challenges/type-challenges/blob/main/questions/00216-extreme-slice/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Turn both indexes into plain positions first. A negative index is a minus sign before digits (the lesson's Abs), and the length minus that many is what is left once that many elements come off the end (12.2).
+  - Then walk the tuple with a counter (12.4) and keep each element whose position is at least the start and below the end.

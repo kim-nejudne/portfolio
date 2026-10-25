@@ -1,0 +1,189 @@
+---
+id: m00-orientation/02-the-dojo
+title: 'The dojo: roadmap, lessons, exercises, how passing works, hints and solutions'
+minutes: 10
+objectives:
+  - Find a lesson on the roadmap and move through its exercises
+  - Run code with :w and check an exercise with :test
+  - Read the four groups of a verdict, starting with the first one that failed
+  - Use :hint, :sol and :reset, knowing what each one records
+  - Say what passes an exercise and what completes a lesson
+prerequisites:
+  - m00-orientation/01-why-typescript
+tags:
+  - roadmap
+  - exercises
+  - verdict
+  - Tests tab
+  - hints
+  - solution
+  - reset
+  - completion
+  - progress
+---
+
+## Concept
+
+The course is a path of tiers, modules, lessons and exercises. The roadmap at `/` draws it: a band per tier, Orientation at the top, and a card per module with its lessons complete, its minutes left and a progress ring. Arrows lead from a module to the modules that build on it. They are advice, not locks: a module whose prerequisites aren't complete says "Recommended first" and opens anyway. The bar above the map opens the exercise you had open last, or says Start on a first visit.
+
+A lesson is one page. The theory on the left always has the same five sections, Concept to Further reading; runnable code has Run, which prints the output under the block, and Open in REPL, which copies it into a scratch buffer at `/repl`. The practice on the right has a chip per exercise, the prompt, an editor and an output pane, and opens on the first exercise you haven't passed.
+
+An exercise passes when the compiler and its tests say so, never by eye. There are four kinds:
+
+- **fix**: the starter has type errors. Make it compile, and pass its tests if it has any.
+- **implement**: write what the prompt asks for. Tests check it.
+- **type-challenge**: write a type. Type cases check it.
+- **predict**: no editor. Pick a snippet's output or type. A wrong answer can be retried, and a right one passes it.
+
+Two commands do the work, typed on the editor's `:` line as in Vim; the next lesson, <Lesson id="m00-orientation/03-vim-in-the-dojo" />, covers the editor.
+
+- `:w`, or `:run`, runs the entry file and shows its console output. It runs code with type errors too, as <Lesson id="m00-orientation/01-why-typescript" /> showed, so it never passes anything.
+- `:test` checks the exercise and shows the verdict in the output pane's Tests tab.
+
+The verdict has four groups:
+
+1. **Compiles.** Every file you edit has zero diagnostics.
+2. **Type cases.** Lines in `tests.ts` that compile only when your types are right.
+3. **Runtime tests.** The tests in `tests.ts`, run against your code.
+4. **Rules.** Shortcuts the exercise forbids, such as writing `any`, and comments that silence the compiler.
+
+Compiles comes first. When it fails, the others say "not run: fix the compile errors first", since testing code that doesn't compile tells you nothing. A group the exercise doesn't have says "none in this exercise" and counts as passed. When all four pass, the verdict says "Passed. :next opens the next exercise." and the exercise's chip gets a check. It stays passed, whatever you type afterwards.
+
+Both checks exist because they answer different questions. The compiler knows every value's type:
+
+```ts twoslash
+function greet(name: string) {
+  return `Hello, ${name}`;
+}
+
+const greeting = greet('Kim');
+//           ^?
+```
+
+`greeting` is a `string`, so Compiles is satisfied. If the prompt asked for `'Hello, Kim!'`, only a runtime test sees the missing `!`.
+
+## Examples
+
+**One exercise, start to finish.** An exercise asks for `greet('Kim')` to return `'Hello, Kim!'`. Its `tests.ts` checks that and a second name, so returning one fixed string can't pass. The file isn't locked, but the exercise is to pass it as written:
+
+```ts
+import { greet } from './index';
+
+test('greets Kim', () => {
+  expect(greet('Kim')).toBe('Hello, Kim!');
+});
+
+test('greets Ada', () => {
+  expect(greet('Ada')).toBe('Hello, Ada!');
+});
+```
+
+The starter, `index.ts`, has a typo:
+
+```ts run errors
+export function greet(name: string) {
+  return `Hello, ${nam}`;
+}
+
+console.log(greet('Kim'));
+```
+
+`:test` stops at Compiles, "1 error", listed as `index.ts:2:20 Cannot find name 'nam'. Did you mean 'name'? TS2552`. The other groups say not run, and the verdict says "Failed: Compiles failed, so the other groups did not run." Fix the typo and `greet` is the function in the Concept. `:test` again: now only Runtime tests fails, "0 of 2 tests pass", and each failed test shows its message, the expected value and the actual one:
+
+- `greets Kim` fail: `expected 'Hello, Kim' to be 'Hello, Kim!'`, expected `'Hello, Kim!'`, actual `'Hello, Kim'`
+
+They differ by the `!`:
+
+```ts run
+export function greet(name: string) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet('Kim'));
+```
+
+Run prints `Hello, Kim!`, and `:test` says Passed. `:next` opens the next exercise, or after the last one the next lesson.
+
+**When you're stuck.** The exercise header counts what you use.
+
+- `:hint` shows the next hint above the editor, and the header says `hints 1/2`. Each hint points at the next idea, not at the code.
+- `:sol` opens the solution read-only beside your files; `:sol` again closes it. The header says "solution viewed" from then on, and the exercise still passes only when your own files pass `:test`.
+- `:reset` asks for confirmation, then restores the starter files. Your attempts, one per `:w` and `:test`, are kept.
+
+**When a lesson is complete.** A lesson is complete when its theory is read and every exercise is passed, except optional ones marked challenge. The theory is read once every Check yourself question has a correct answer, retries allowed, and you then press "Mark theory read (:done)" at the end of the theory or run `:done` in the editor. With a question still open, `:done` jumps to it. Scrolling doesn't count.
+
+Progress, your files included, is saved in this browser as you go; there is no account. `/progress`, reached by typing the address, shows it, and exports it to a JSON file or imports one.
+
+## Pitfalls
+
+**Taking `:w` for a pass.** A run shows what the emitted JavaScript does, errors or not:
+
+```ts run errors
+export function greet(name: string) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet('Kim', 'Ada'));
+```
+
+JavaScript ignores the extra argument and the run prints `Hello, Kim!`, but the checker reports `Expected 1 arguments, but got 2.`, so Compiles fails. Judge by the diagnostics or `:test`, never by the output.
+
+**Silencing an error.** `// @ts-ignore` tells the compiler to report nothing on the next line, and changes nothing else:
+
+```ts run
+export function greet(name: string) {
+  // @ts-ignore
+  return `Hello, ${nam}!`;
+}
+
+console.log(greet('Kim'));
+```
+
+The block shows no diagnostics, yet running it throws a `ReferenceError`, `nam is not defined`: the emitted JavaScript still reads `nam`. In an exercise Compiles passes, but the Rules group always rejects `@ts-ignore`, `@ts-nocheck` and `@ts-expect-error` outside `tests.ts`. Fix the error instead.
+
+## Check yourself
+
+<Predict
+  id="compiles-first"
+  question="`:test` reports that Compiles failed. What do Type cases, Runtime tests and Rules show?"
+  options={[
+    'Their own results, checked anyway',
+    'not run: fix the compile errors first',
+    'none in this exercise, so they count as passed',
+  ]}
+  answer={1}
+  explanation="Compiles is checked first, and when it fails the other groups don't run: a test of code that doesn't compile tells you nothing. They say not run until every error is fixed."
+/>
+
+<Predict
+  id="after-the-solution"
+  question="You opened the solution with `:sol`, read it and closed it. What passes the exercise now?"
+  options={[
+    'Nothing more: viewing the solution passed it',
+    ':test passing on the files in your editor',
+    'Nothing: once the solution is viewed, the exercise can never pass',
+    ':done',
+  ]}
+  answer={1}
+  explanation="`:sol` marks the exercise solution viewed, and the header keeps saying so, but the exercise passes only when your own files pass all four groups of `:test`. `:done` marks the theory read; it never passes an exercise."
+/>
+
+<Predict
+  id="lesson-complete"
+  question="Which of these makes a lesson complete?"
+  options={[
+    'Scrolling to the end of the theory, then passing every exercise',
+    'Passing every exercise, challenges included; the questions are optional',
+    'Every Check yourself question answered correctly, then :done, and every exercise passed except challenges',
+    'Every Check yourself question answered, right or wrong, then :done',
+  ]}
+  answer={2}
+  explanation="The theory counts as read only when every Check yourself question has a correct answer and you then press the button at the end of the theory or run `:done`; scrolling counts for nothing. The lesson is complete when the theory is read and every exercise not marked challenge is passed."
+/>
+
+## Further reading
+
+- [The Basics: the checker, emit, and emitting with errors](https://www.typescriptlang.org/docs/handbook/2/basic-types.html)
+- [TypeScript 2.6 release notes: suppressing errors with // @ts-ignore](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-6.html)
+- [TypeScript 3.9 release notes: // @ts-expect-error comments](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-9.html)
+- [type-challenges, the source of the helpers type cases use](https://github.com/type-challenges/type-challenges)

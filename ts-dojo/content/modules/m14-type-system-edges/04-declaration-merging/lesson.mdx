@@ -1,0 +1,308 @@
+---
+id: m14-type-system-edges/04-declaration-merging
+title: Declaration merging, namespaces, module and global augmentation
+minutes: 20
+objectives:
+  - Predict what two declarations of one interface merge into, its properties and its method overloads
+  - Group values and types in a namespace, and merge a namespace into a function, class or enum to give it members
+  - Add methods to a class of another module with module augmentation, and implement them on its prototype
+  - Extend a global interface such as Array<T> from a module with declare global
+  - Let an app register its own types with a library through an empty interface that the app augments
+prerequisites:
+  - m04-objects/01-type-vs-interface
+  - m04-objects/04-enums-vs-as-const
+  - m08-functions-classes/01-overloads
+  - m09-modules-async/01-esm
+  - m09-modules-async/02-declaration-files
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+tags:
+  - declaration merging
+  - interface merging
+  - namespace
+  - namespaces
+  - module augmentation
+  - declare module
+  - global augmentation
+  - declare global
+  - prototype
+  - Register
+  - isolatedModules
+---
+
+## Concept
+
+Two declarations with the same name in the same scope are not always a duplicate. For some kinds, TypeScript **merges** them into one. <Lesson id="m04-objects/01-type-vs-interface" /> showed the simplest case: two interfaces named `Settings` become one interface with the properties of both. <Lesson id="m09-modules-async/02-declaration-files" /> used the same mechanism to add `env` to the lib's `ImportMeta`, and an event to another module's interface. This lesson is about the rules, and about the three places they are used: namespaces, module augmentation and global augmentation.
+
+A declaration creates a value (`const`, `function`), a type (`interface`, `type`), a namespace (`namespace`), or more than one of these (`class` and `enum` are a value and a type). Merging joins declarations whose meanings fit together:
+
+| Declaration | Merges with                                                                            |
+| ----------- | -------------------------------------------------------------------------------------- |
+| `interface` | another `interface`, and a `class` of the same name, whose instance type gains members |
+| `namespace` | another `namespace`, an `enum`, and a `function` or `class` declared before it         |
+| `enum`      | another `enum`, and a `namespace`                                                      |
+| `class`     | an `interface` and a `namespace`, never another `class`                                |
+| `function`  | a `namespace`                                                                          |
+| `type`      | nothing: a second one is `Duplicate identifier 'Point'.`                               |
+
+**Merging interfaces.** A property that both declarations name must have the same type in both (see Pitfalls). A method that both declare becomes an overloaded method, and the later declaration's signatures come first:
+
+```ts twoslash
+interface Store {
+  get(key: string): string;
+}
+
+interface Store {
+  get(key: string): string | undefined;
+}
+
+declare const store: Store;
+const theme = store.get('theme');
+//    ^?
+```
+
+Both signatures accept the call, and the compiler picks the first that fits (<Lesson id="m08-functions-classes/01-overloads" />), which is the one from the second declaration. That is how a later declaration, such as an augmentation, puts a more specific signature in front of a library's own. Within one declaration the signatures keep their order, with one exception: a signature whose parameter type is a single string literal, such as `get(key: 'size'): number`, moves to the top of the merged list.
+
+## Examples
+
+**Namespaces.** A `namespace` is a named block whose exported members are reached through its name. It is older than ES modules and is not one: it compiles to an object, built by a function that runs once per block.
+
+```ts run
+export namespace Units {
+  const base = 16;
+  export const px = 1;
+  export function rem(n: number): number {
+    return n * base;
+  }
+}
+
+export namespace Units {
+  export const em = rem(1);
+}
+
+console.log(Units.px, Units.rem(2), Units.em, Object.keys(Units));
+```
+
+The two blocks merge into one namespace. An exported member is in scope in every block, which is why the second block calls `rem` with no `Units.` in front. `base` is not exported, so it stays inside its own block: the second block can't read it either. The JavaScript is `var Units;` and one `(function (Units) { … })(Units || (Units = {}));` per block, each adding to the same object.
+
+To organize your own code, modules do the job, and the handbook recommends them over namespaces in modern code. A namespace earns its place in merging, below, and in declaration files: the dojo's `/dojo/test-harness.d.ts` declares `test` as a function and `test.skip` in a `declare namespace test` merged into it. A namespace that holds only types is erased. One with values emits code, so the `erasableSyntaxOnly` flag of <Lesson id="m16-tooling/03-project-references" /> rejects it, as it rejects enums. The old spelling `module Units { … }` is an error since TypeScript 6.0 ([release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)): `A 'namespace' declaration should not be declared using the 'module' keyword. Please use the 'namespace' keyword instead.` A `declare module` with a quoted name is not affected.
+
+**A function with a namespace.** A namespace after a function adds members to the function. The function keeps its call signature, and gains a type and a value under its own name:
+
+```ts run
+export function formatDuration(
+  ms: number,
+  options: formatDuration.Options = formatDuration.defaults,
+): string {
+  const value = options.unit === 's' ? ms / 1000 : ms;
+  return `${value.toFixed(options.digits)} ${options.unit}`;
+}
+
+export namespace formatDuration {
+  export interface Options {
+    unit: 's' | 'ms';
+    digits: number;
+  }
+  export const defaults: Options = { unit: 's', digits: 1 };
+}
+
+const precise: formatDuration.Options = { unit: 'ms', digits: 0 };
+console.log(formatDuration(1530), formatDuration(1530, precise));
+```
+
+The order matters: a namespace written before its function is `A namespace declaration cannot be located prior to a class or function with which it is merged.` And both are exported or neither is: `Individual declarations in merged declaration 'formatDuration' must be all exported or all local.` For a value alone, an assignment such as `formatDuration.label = 'duration'` after the function also adds a typed property, but a type such as `Options` needs the namespace. A class merges the same way: `namespace Album { export type Format = 'lp' | 'cd'; }` after `class Album` lets callers write `Album.Format`.
+
+**An enum with a namespace.** An enum's members are values, and a namespace merged into it adds functions next to them:
+
+```ts run
+export enum Level {
+  Debug,
+  Info,
+  Warn,
+}
+
+export namespace Level {
+  export function parse(text: string): Level | undefined {
+    switch (text) {
+      case 'debug':
+        return Level.Debug;
+      case 'info':
+        return Level.Info;
+      case 'warn':
+        return Level.Warn;
+    }
+    return undefined;
+  }
+}
+
+console.log(Level.parse('warn') === Level.Warn, Level.parse('loud'));
+```
+
+**Adding methods to a class of another module.** In a module file, `declare module './vector'` adds to the module `./vector` instead of describing a new one (<Lesson id="m09-modules-async/02-declaration-files" />). Inside it, an interface with the class's name merges with the class's instance type, so every `Vector` gains a member:
+
+```ts twoslash
+// @filename: vector.ts
+export class Vector {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
+
+// @filename: vector-length.ts
+import { Vector } from './vector';
+
+declare module './vector' {
+  interface Vector {
+    length(): number;
+  }
+}
+
+Vector.prototype.length = function () {
+  return Math.hypot(this.x, this.y);
+};
+
+// @filename: main.ts
+import { Vector } from './vector';
+import './vector-length';
+
+const size = new Vector(3, 4).length();
+//    ^?
+```
+
+The augmentation is a type and nothing more. The method has to exist at run time too, and the assignment to `Vector.prototype` provides it. That assignment gives the function expression its `this`, a `Vector`, so `this.x` is checked. Every file of the program sees `length` once `vector-length.ts` is part of it, but only a file that imports `./vector-length`, as `main.ts` does, can be sure the assignment has run. For a package, the quoted name is the package's name, as with an import.
+
+**Adding to a global interface.** A module adds to the global scope inside `declare global`. There, `interface Array<T>` merges with the `Array<T>` of `lib.es5.d.ts`:
+
+```ts run
+declare global {
+  interface Array<T> {
+    /** The last element, or undefined for an empty array. */
+    last(): T | undefined;
+  }
+}
+
+Array.prototype.last = function <T>(this: T[]): T | undefined {
+  return this[this.length - 1];
+};
+
+const scores = [3, 9, 4];
+console.log(scores.last(), [].last());
+
+export {};
+```
+
+The type parameter must have the lib's name: `interface Array<Item>` is `All declarations of 'Array' must have identical type parameters.` `Array.prototype` has the type `any[]`, so the implementation declares a `this` parameter (<Lesson id="m08-functions-classes/02-this-and-callable-types" />) to keep the element type. Readonly arrays have an interface of their own, `ReadonlyArray<T>`, which needs its own `last`. Adding to a built-in's prototype is what a polyfill does. In application code, a plain function `last(array)` is the safer choice, because every script on the page shares that prototype.
+
+**Letting an app register its types.** A library can't import the types of the app that uses it, but it can read an interface that the app augments. Here `Register` starts empty, and a conditional type (<Lesson id="m11-conditional-types/01-conditional-types" />) with `infer` (<Lesson id="m11-conditional-types/02-infer" />) falls back to `{ id: string }` until the app adds a `user`:
+
+```ts twoslash
+// @filename: auth.ts
+/** Apps register their user type here. */
+export interface Register {}
+
+export type User = Register extends { user: infer U } ? U : { id: string };
+
+export declare function currentUser(): User;
+
+// @filename: app.ts
+import { currentUser } from './auth';
+
+declare module './auth' {
+  interface Register {
+    user: { id: string; name: string; admin: boolean };
+  }
+}
+
+const me = currentUser();
+//    ^?
+```
+
+The app writes one augmentation, and every function of the library that uses `User` now has the app's type, with no type argument at any call.
+
+## Pitfalls
+
+**Declaring a property twice with different types.** Merging never picks one of the two:
+
+```ts run errors
+interface Order {
+  id: string;
+  total: number;
+}
+
+interface Order {
+  id: number;
+  paidAt: Date;
+}
+```
+
+_Subsequent property declarations must have the same type. Property 'id' must be of type 'string', but here has type 'number'._ An augmentation can add properties to a library's interface, and add overloads to its methods, but it can't change the type of a property the library declared.
+
+**Adding to a global interface from a module without `declare global`.** In a module, the interface is a new one that belongs to the file, and array literals still use the global `Array`:
+
+```ts run errors
+interface Array<T> {
+  last(): T | undefined;
+}
+
+const latest = [3, 9, 4].last();
+
+export {};
+```
+
+_Property 'last' does not exist on type 'number[]'._ Put the interface inside `declare global { … }`. In a script file, which has no `import` or `export`, the interface is global as it is, like the `ImportMeta` in 9.2's `env.d.ts`.
+
+**A namespace with values in a script.** The dojo sets `isolatedModules`, which tools that compile one file at a time rely on:
+
+```ts run errors
+namespace Units {
+  export const px = 1;
+}
+
+console.log(Units.px);
+```
+
+_Namespaces are not allowed in global script files when 'isolatedModules' is enabled. If this file is not intended to be a global script, set 'moduleDetection' to 'force' or add an empty 'export {}' statement._ Make the file a module with an `import` or an `export`. A namespace that holds only types, or a `declare namespace`, is allowed in a script.
+
+## Check yourself
+
+<Predict
+  id="merged-overload-order"
+  code={
+    "interface Box {\n  get(key: string): string;\n}\n\ninterface Box {\n  get(key: 'size'): number;\n  get(key: string): unknown;\n}\n\ndeclare const box: Box;\nconst a = box.get('size');\nconst b = box.get('name');"
+  }
+  question="What are the types of `a` and `b`?"
+  options={[
+    'a is number, b is string',
+    'a is number, b is unknown',
+    'a is string, b is string',
+    'a is unknown, b is unknown',
+  ]}
+  answer={1}
+  explanation="The merged `get` has the later declaration's signatures first, in their own order: `(key: 'size'): number`, then `(key: string): unknown`, then the first declaration's `(key: string): string`. The compiler picks the first signature that fits each call, so `'size'` gets `number` and `'name'` gets `unknown`. The first declaration's signature is never reached."
+/>
+
+<Predict
+  id="augmentation-without-implementation"
+  code={
+    "// money.ts\nexport class Money {\n  constructor(readonly cents: number) {}\n}\n\n// main.ts\nimport { Money } from './money';\n\ndeclare module './money' {\n  interface Money {\n    format(): string;\n  }\n}\n\nconst price = new Money(450);\nconsole.log(price.format());"
+  }
+  question="What happens when `main.ts` runs?"
+  options={[
+    'It is a compile error: Money has no format method',
+    'It prints undefined',
+    'It compiles, and the run throws a TypeError',
+    'It prints 4.50',
+  ]}
+  answer={2}
+  explanation="The augmentation merges `format` into the type of every `Money`, so `price.format()` compiles. An augmentation is a type only and emits nothing, and nothing assigned `Money.prototype.format`, so at run time `price.format` is `undefined` and calling it throws `TypeError: price.format is not a function`."
+/>
+
+## Further reading
+
+- [Handbook: Declaration Merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html), with module and global augmentation
+- [Handbook: Namespaces](https://www.typescriptlang.org/docs/handbook/namespaces.html)
+- [Handbook: Namespaces and Modules](https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html), on when to use which
+- [Handbook: Global: Modifying Module](https://www.typescriptlang.org/docs/handbook/declaration-files/templates/global-modifying-module-d-ts.html), a template for a module that adds to the global scope
+- [TSConfig reference: isolatedModules](https://www.typescriptlang.org/tsconfig/#isolatedModules)
+- [TypeScript 6.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html), the deprecation of `module` for namespaces

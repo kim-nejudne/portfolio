@@ -1,0 +1,28 @@
+id: m06-type-operators/04-rebuilding-the-utilities/04-pick-by-value
+kind: type-challenge
+title: Pick by value
+minutes: 5
+challenge: false
+prompt: |
+  `Pick` chooses properties by name. Write two types in `index.ts` that choose them by type:
+
+  - `KeysOfType<T, V>`: the union of the keys of `T` whose property type, as a whole, is
+    assignable to `V`. An optional property's type includes `undefined`, so `bio?: string`
+    counts for `string | undefined` but not for `string`. No `undefined` may end up in the
+    union of keys itself.
+  - `PickByValue<T, V>`: the properties of `T` whose type is assignable to `V`, with their
+    modifiers, as `Pick` keeps them.
+
+  The type cases try both on a product type with read-only, optional and nullable properties,
+  and the `@ts-expect-error` lines check that a key or a property of the wrong type is
+  rejected. This combines the lesson's mapped and conditional types with indexed access by a
+  union of keys (6.1) and `Pick` (6.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Start with a mapped type over keyof T whose value for each key is a conditional type, giving the key itself or never.
+  - Read every value of that mapped type at once with an indexed access by keyof T; never disappears from the union. If undefined appears in it, remove the ? in the mapped type.
+  - PickByValue needs no new idea, only the first type and a utility from lesson 6.2.

@@ -1,0 +1,15 @@
+id: m98-fixture-sequel/02-tuples/02-optional-element
+kind: predict
+title: 'An optional element'
+minutes: 2
+challenge: false
+code: |
+  type T = [string, number?];
+  type L = T['length'];
+question: 'What is `L`?'
+options:
+  - '2'
+  - '1 | 2'
+  - 'number'
+answer: 1
+explanation: 'The second element may be missing, so the tuple has one or two elements and `length` is `1 | 2`.'

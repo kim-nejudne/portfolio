@@ -1,0 +1,24 @@
+id: m05-generics/02-constraints-and-defaults/01-require-a-length
+kind: fix
+title: Require a length
+minutes: 3
+challenge: false
+prompt: |
+  `shortest` returns the shortest item of a list: a word, an array, anything with a `length`.
+  It doesn't compile:
+
+  - `Property 'length' does not exist on type 'T'.`, twice.
+
+  Make it compile without changing the body, and keep the item type: the shortest of a list of
+  strings is a `string | undefined`, the shortest of a list of `number[]` a
+  `number[] | undefined`, and an object with a `length` comes back with all its properties. A
+  list of numbers, or of objects without a `length`, must be rejected. The type cases and the
+  `@ts-expect-error` lines check this; the tests check what `shortest` returns.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Inside the function, T could be any type at all, a number included. The body needs a promise about T that every call must keep.
+  - The concept's longest function makes that promise in its angle brackets. Strings, arrays and objects all share the property the body reads.

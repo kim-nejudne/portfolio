@@ -1,0 +1,30 @@
+id: m01-types/01-annotations-and-inference/02-which-needs-a-type
+kind: predict
+title: Which one needs a type?
+minutes: 2
+challenge: false
+code: |
+  const prices = [4.5, 12, 3.25];
+
+  function sum(items) {
+    let total = 0;
+    for (const item of items) {
+      total += item;
+    }
+    return total;
+  }
+
+  console.log(sum(prices));
+question: Under the dojo's `strict` settings, the compiler reports exactly one error in this file. Where?
+options:
+  - '`prices`: an array literal needs an annotation'
+  - '`items`: the call `sum(prices)` does not give a parameter its type'
+  - '`total`: a `let` that changes later needs an annotation'
+  - '`sum`: a function without a written return type'
+answer: 1
+explanation: |
+  `Parameter 'items' implicitly has an 'any' type.` Inference works from values: `prices` gets
+  `number[]` from its initialiser, `total` gets `number` from `0`, and the return type comes from
+  `return total`. A parameter has no value inside the function, and the compiler never looks at
+  the calls to find one, so under `strict` it needs an annotation even though `sum(prices)` is
+  right there.

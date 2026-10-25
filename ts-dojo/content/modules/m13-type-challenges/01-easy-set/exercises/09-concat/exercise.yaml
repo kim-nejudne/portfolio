@@ -1,0 +1,21 @@
+id: m13-type-challenges/01-easy-set/09-concat
+kind: type-challenge
+title: Concat
+minutes: 2
+challenge: false
+prompt: |
+  Write `Concat<T, U>` in `index.ts`, the type of `Array.prototype.concat` on two tuples: the
+  elements of `T` followed by those of `U`. `Concat<[1, 2], [3, 4]>` is `[1, 2, 3, 4]`, and
+  `Concat<[], []>` is `[]`.
+
+  One case passes the same `as const` tuple twice, and `null` and `undefined` must be errors.
+
+  From type-challenges [#00533 Concat](https://github.com/type-challenges/type-challenges/blob/main/questions/00533-easy-concat/README.md) by Andrey Krasovsky (@bre30kra69cs) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A tuple type can spread another tuple type into it, as an array literal spreads an array.
+  - Both parameters need a constraint, and the `as const` case decides which one.

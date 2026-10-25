@@ -1,0 +1,24 @@
+id: m06-type-operators/04-rebuilding-the-utilities/01-nullable-and-mutable
+kind: type-challenge
+title: Nullable and Mutable
+minutes: 3
+challenge: false
+prompt: |
+  Write two mapped types in `index.ts`. Neither has a built-in utility, so both are yours to
+  build:
+
+  - `Nullable<T>`: every property of `T` also accepts `null`. A `readonly` property stays
+    `readonly`, an optional one stays optional, and a required one stays required.
+  - `Mutable<T>`: every property of `T` loses `readonly`, and keeps its type and its `?`.
+
+  The type cases try both on two object types, and the `@ts-expect-error` lines check that a
+  `Nullable` still needs its required properties, that it doesn't take `undefined` where `T`
+  didn't, and that a `Mutable` still checks the property types.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Both map over keyof T. A mapped type over keyof T copies each property's modifiers unless you say otherwise.
+  - For Nullable, the modifiers stay as they are and only the value type changes. For Mutable, the value type stays and one modifier goes, with a minus sign.

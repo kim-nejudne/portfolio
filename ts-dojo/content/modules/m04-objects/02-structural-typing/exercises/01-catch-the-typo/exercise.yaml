@@ -1,0 +1,20 @@
+id: m04-objects/02-structural-typing/01-catch-the-typo
+kind: fix
+title: Catch the typo
+minutes: 3
+challenge: false
+prompt: |
+  `save` doesn't compile: the excess property check caught a misspelt option. `remove` has the
+  same typo, but its options go through a variable, so it compiles and the delete button comes
+  out gray instead of red.
+
+  Fix both typos, and annotate `deleteOptions` as `ButtonOptions` so that its literal is checked
+  too. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, type-assertion]
+hints:
+  - The message on `save` already suggests the name `ButtonOptions` uses.
+  - Annotate `deleteOptions` before you look for the second typo, then read the new error.

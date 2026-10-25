@@ -1,0 +1,40 @@
+id: m18-capstones/02-query-builder/04-operators-and-order
+kind: implement
+title: Operators and order
+minutes: 13
+challenge: false
+prompt: |
+  Finish the query builder with SQL's rules for comparing and sorting:
+
+  ```ts
+  const products = shop
+    .from('products')
+    .where('price', '>', 5)
+    .select('name', 'price')
+    .orderBy('price', 'desc')
+    .run();
+  // Pick<Product, 'name' | 'price'>[]
+  ```
+
+  - `where` accepts `'<'` and `'>'` only for a column whose type is `number` or `string`. `'='`
+    and `'!='` work on every column. A column that can be `null` has no order:
+    `where('note', '>', 'a')` is an error when `note` is `string | null`, and
+    `where('note', '!=', null)` is fine.
+  - `orderBy(column, direction)` sorts by a column of the **output** row whose type is `number` or
+    `string`, ascending or descending. A column that was not selected, a boolean and a nullable
+    column are errors.
+  - `orderBy` comes last, as `ORDER BY` does: the query it returns has only `run`, and it does
+    not change the query it was called on.
+
+  This combines the lesson's operators with filtering keys by their value type with an `as`
+  clause (10.2), stopping distribution (11.3), and taking finished steps off a builder's type
+  (15.1, with `Pick` or `Omit` from 6.2). The tests use a table of their own as well as the shop.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, any-expression]
+hints:
+  - The operator's type depends on `Row[K]`, so it is a conditional type over the column's type. Check what `string | null` gives.
+  - The sort keys are the output's keys whose values are numbers or strings. Remapping each other key to `never` drops it.
+  - A query is assignable to a type built from some of its own methods, so `orderBy` can return a new `Query` without a cast.

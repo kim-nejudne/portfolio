@@ -1,0 +1,24 @@
+id: m13-type-challenges/02-medium-set-1/02-omit
+kind: type-challenge
+title: Omit
+minutes: 4
+challenge: false
+prompt: |
+  Write `MyOmit<T, K>` in `index.ts` without using the built-in `Omit`, or `Pick` and
+  `Exclude`: the object type `T` without the properties whose keys are in `K`. For a `Todo`
+  with `title`, `description` and `completed`, `MyOmit<Todo, 'description' | 'completed'>` is
+  `{ title: string }`.
+
+  The properties that stay keep their modifiers: omitting from a `Todo1` whose `title` is
+  `readonly` leaves `{ readonly title: string }`. A case added in the dojo makes a key that
+  `T` doesn't have an error, as in 13.1's Pick.
+
+  From type-challenges [#00003 Omit](https://github.com/type-challenges/type-challenges/blob/main/questions/00003-medium-omit/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lesson 6.4 built Omit from Pick and Exclude. Here it is one mapped type, with an `as` clause that decides which keys come out.
+  - A key remapped to `never` is dropped from the result (10.2, Key remapping). Map over `keyof T`, not over a filtered union, and the modifiers come along.

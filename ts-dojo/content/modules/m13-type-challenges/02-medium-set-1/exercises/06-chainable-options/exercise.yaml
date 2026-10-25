@@ -1,0 +1,39 @@
+id: m13-type-challenges/02-medium-set-1/06-chainable-options
+kind: type-challenge
+title: Chainable Options
+minutes: 6
+challenge: false
+prompt: |
+  Type `Chainable` in `index.ts`, a builder of option objects. `option(key, value)` adds one
+  option and returns the builder, so calls chain, and `get()` returns every option added so
+  far:
+
+  ```ts
+  declare const config: Chainable;
+  const result = config
+    .option('foo', 123)
+    .option('bar', { value: 'Hello World' })
+    .option('name', 'type-challenges')
+    .get();
+  // { foo: number; bar: { value: string }; name: string }
+  ```
+
+  Setting a key a second time is an error, whether the value has the same type or not. Even
+  then the call's result counts: after `.option('name', 'another name')` and an erroring
+  `.option('name', 123)`, `get()` returns `{ name: number }`. The cases compare with `Alike`,
+  so an intersection of options passes.
+
+  The template's methods return `any`. Here the starter's `option` returns `Chainable`, so the
+  chains in `tests.ts` compile from the start, and the dojo splits each erroring chain so its
+  error is a case of its own.
+
+  From type-challenges [#00012 Chainable Options](https://github.com/type-challenges/type-challenges/blob/main/questions/00012-medium-chainable-options/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The options added so far have to live somewhere. Give `Chainable` a type parameter for them, with a default for the empty builder, as the lesson's Counter does.
+  - Make `option` generic in its key and its value, so each call returns a `Chainable` of a bigger object type.
+  - To reject a key already set, the parameter's type can be a conditional on that key (11.1). To replace its type, drop the old key before adding the new one.

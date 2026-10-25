@@ -1,0 +1,31 @@
+id: m16-tooling/03-project-references/02-erase-the-enum
+kind: fix
+title: Erase the enum
+minutes: 3
+challenge: false
+prompt: |
+  This exercise compiles with `erasableSyntaxOnly: true`, so that the file runs once its types
+  are stripped. `index.ts` has three errors, each
+  `This syntax is not allowed when 'erasableSyntaxOnly' is enabled.`: on the `enum`, and on
+  the two parameter properties of `Elevator`.
+
+  Rewrite both with erasable syntax and keep what callers see: `Direction.Up` and
+  `Direction.Down` still exist, `Direction` is also the type `'up' | 'down'` (so a plain
+  `'up'` is accepted, which the enum refused), `floor` stays a public field, and `top` stays
+  out of reach from outside the class.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  erasableSyntaxOnly: true
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    non-null-assertion,
+    type-assertion,
+    as-unknown-as,
+    any-expression,
+  ]
+hints:
+  - Lesson 4.4 showed the erasable twin of an enum, a constant object and a type with the same name built from it.
+  - A parameter property is a field declaration and an assignment in one. Write the two halves yourself.

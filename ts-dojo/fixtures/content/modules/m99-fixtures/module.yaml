@@ -1,0 +1,8 @@
+id: m99-fixtures
+title: Pipeline fixtures
+summary: Three small lessons that exercise every fence kind and exercise kind; replaced at F11.
+prerequisites: []
+lessons:
+  - 01-fix
+  - 02-implement
+  - 03-type-challenge

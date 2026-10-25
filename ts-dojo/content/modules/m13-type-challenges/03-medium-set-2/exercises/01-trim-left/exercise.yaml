@@ -1,0 +1,21 @@
+id: m13-type-challenges/03-medium-set-2/01-trim-left
+kind: type-challenge
+title: Trim Left
+minutes: 3
+challenge: false
+prompt: |
+  Write `TrimLeft<S>` in `index.ts`: the string type `S` without the whitespace at its start.
+  Whitespace here is a space, a newline `\n` and a tab `\t`. `TrimLeft<'  Hello World  '>` is
+  `'Hello World  '`: the spaces at the end stay.
+
+  A string that is all whitespace, `' \n\t'`, gives the empty string, and so does `''`.
+
+  From type-challenges [#00106 Trim Left](https://github.com/type-challenges/type-challenges/blob/main/questions/00106-medium-trimleft/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A template literal pattern can test what a string starts with, and `infer` can name the rest (12.1). What it starts with may be a union.
+  - One match takes off one character. Apply the type again to what is left, until the pattern stops matching.

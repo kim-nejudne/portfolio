@@ -1,0 +1,28 @@
+id: m04-objects/01-type-vs-interface/02-where-is-the-conflict
+kind: predict
+title: Where is the conflict reported?
+minutes: 2
+challenge: false
+code: |
+  type Person = { name: string; age: number };
+
+  interface Student extends Person {
+    age: string;
+  }
+
+  type Teacher = Person & { age: string };
+
+  const teacher: Teacher = { name: 'Ada', age: 'forty' };
+question: Both `Student` and `Teacher` redeclare `age` as a `string`. Which lines does the compiler flag?
+options:
+  - 'Only `interface Student`'
+  - 'Only the `teacher` value'
+  - '`interface Student` and the `teacher` value'
+  - '`interface Student`, `type Teacher` and the `teacher` value'
+answer: 2
+explanation: |
+  `extends` checks the new interface against `Person` where it is declared, so `Student` is an
+  error: `Interface 'Student' incorrectly extends interface 'Person'.` The intersection is
+  accepted as written: its `age` becomes `number & string`, which is `never`. Nothing is wrong
+  until a value has to fit it, so the second error lands on `age: 'forty'` in `teacher`:
+  `Type 'string' is not assignable to type 'never'.`

@@ -1,0 +1,22 @@
+id: m13-type-challenges/03-medium-set-2/06-length-of-string
+kind: type-challenge
+title: Length of String
+minutes: 4
+challenge: false
+prompt: |
+  Write `LengthOfString<S>` in `index.ts`: the length of the string literal type `S`, as a
+  number literal type, counted as `String.prototype.length` counts. `LengthOfString<'kumiko'>`
+  is `6`, and `LengthOfString<''>` is `0`.
+
+  `S['length']` won't do: on a string type it is `number`. A case added in the dojo checks an
+  emoji, whose `length` at run time is `2`.
+
+  From type-challenges [#00298 Length of String](https://github.com/type-challenges/type-challenges/blob/main/questions/00298-medium-length-of-string/README.md) by Pig Fang (@g-plane) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A tuple's `length` is a number literal (13.1's Length of Tuple). Turn the counting into building a tuple.
+  - Walk the string one character at a time (12.1's third matching rule) and add one element to a tuple for each. Keep the tuple in a type parameter with a default, an accumulator like the lesson's Count (12.4, Recursion limits).

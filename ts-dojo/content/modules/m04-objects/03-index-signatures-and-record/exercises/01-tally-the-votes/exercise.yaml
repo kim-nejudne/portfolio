@@ -1,0 +1,20 @@
+id: m04-objects/03-index-signatures-and-record/01-tally-the-votes
+kind: fix
+title: Tally the votes
+minutes: 2
+challenge: false
+prompt: |
+  `tally` counts the votes each option got, but it doesn't compile: `totals` starts as `{}`, a
+  type with no properties, so every `totals[vote]` is `Element implicitly has an 'any' type
+  because expression of type 'string' can't be used to index type '{}'.`
+
+  Give `totals` a type that takes any option name as a key, with a count as its value, and make
+  `tally` return that type. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as]
+hints:
+  - The type of `totals` has to say what any key holds, not which keys exist.
+  - An index signature names a type for the keys and a type for the values; here the keys are option names.

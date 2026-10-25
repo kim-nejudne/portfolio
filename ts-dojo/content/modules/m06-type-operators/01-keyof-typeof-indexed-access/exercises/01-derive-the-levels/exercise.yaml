@@ -1,0 +1,24 @@
+id: m06-type-operators/01-keyof-typeof-indexed-access/01-derive-the-levels
+kind: fix
+title: Derive the levels
+minutes: 2
+challenge: false
+prompt: |
+  `Level` and `Severity` in `index.ts` should be derived from the `LEVELS` object, so that a
+  level added to the object is a `Level` everywhere. Both type aliases report the same kind of
+  error:
+
+  - `'LEVELS' refers to a value, but is being used as a type here. Did you mean 'typeof LEVELS'?`
+
+  The error in `severity` follows from them. Fix both, keeping them derived from `LEVELS` rather than writing the levels out a second time.
+  `Level` is the union of the keys, `'debug' | 'info' | 'warn' | 'error'`, and `Severity` the
+  union of the values, `10 | 20 | 30 | 40`; the type cases check both, and the tests call
+  `severity` and `atLeast` with every level.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - '`LEVELS` is a value. Before `keyof` or an indexed access can use it, something has to turn it into a type.'
+  - '`Severity` indexes the type of `LEVELS` with all of its keys, and `Level` already is that union.'

@@ -1,0 +1,34 @@
+id: m14-type-system-edges/01-assignability-variance/01-accept-every-user
+kind: fix
+title: Accept every user
+minutes: 3
+challenge: false
+prompt: |
+  `notifier` was written for admins, and `index.ts` no longer compiles:
+
+  - `Type '(admin: Admin, message: string) => string' is not assignable to type '(user: User, message: string) => string'.`
+  - `Types of parameters 'admin' and 'user' are incompatible.`
+
+  A `Notifier` is called with plain users as well as admins. Make `notifier.send` accept every
+  `User`, and keep the admin format for admins:
+
+  - a plain user: `'Ada: hello'`
+  - an admin: `'Grace [deploy]: hello'`, the permissions joined with `', '`
+
+  Leave `Notifier` as it is: the tests check that it still rejects a function that only takes
+  admins. `isAdmin` is the type guard of 7.1, ready to use.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - The parameter of a function type is checked in the reverse direction. A function that needs an Admin can't stand in for one that may be given any User.
+  - Give the parameter the type the Notifier promises to pass, and tell admins apart inside the body.

@@ -1,0 +1,32 @@
+id: m09-modules-async/01-esm/03-what-runs
+kind: predict
+title: What does the entry print?
+minutes: 2
+challenge: false
+code: |
+  // shapes.ts
+  console.log('loading shapes');
+
+  export type Shape =
+    | { kind: 'circle'; radius: number }
+    | { kind: 'square'; side: number };
+
+  // index.ts, the entry. The dojo's defaults: isolatedModules on, verbatimModuleSyntax off.
+  import { Shape } from './shapes';
+
+  const unit: Shape = { kind: 'circle', radius: 1 };
+  console.log('radius', unit.radius);
+question: Both files compile. What does running `index.ts` print?
+options:
+  - "'loading shapes', then 'radius 1'"
+  - "Only 'radius 1'"
+  - "'radius 1', then 'loading shapes'"
+  - 'Nothing: the run fails because shapes.ts has no export named Shape'
+answer: 1
+explanation: |
+  Without `verbatimModuleSyntax`, the compiler drops imported names that are used only as
+  types. `Shape` is the only name in the statement, so the whole import is removed, and
+  `shapes.ts` is never loaded: its `console.log` doesn't run. No `Shape` export is asked for,
+  so nothing fails either. With `verbatimModuleSyntax` on, this import is an error, and the fix
+  `import { type Shape } from './shapes'` emits `import {} from './shapes'`, which loads the
+  file and prints both lines; `import type { Shape }` would remove it again.

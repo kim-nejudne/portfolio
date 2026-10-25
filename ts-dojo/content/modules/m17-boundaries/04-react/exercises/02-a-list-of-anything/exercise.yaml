@@ -1,0 +1,26 @@
+id: m17-boundaries/04-react/02-a-list-of-anything
+kind: type-challenge
+title: A list of anything
+minutes: 4
+challenge: false
+prompt: |
+  `List` in `index.tsx` renders a list of options, and only options. Make it generic, so it
+  renders any item that has an `id: string` (the component uses it as the key), and the
+  callbacks get the item's own type:
+
+  - `items`, a readonly array of the items;
+  - `render`, called with one item, returns what to show for it;
+  - `onSelect`, optional, called with the item that was clicked.
+
+  The tests read the props of `List<User>` and `List<Product>` with an instantiation
+  expression (`typeof List<User>`), and check that items without an `id` are rejected and that
+  `render` sees the items' real type.
+entry: index.tsx
+tests: tests.ts
+compilerOptions:
+  jsx: react-jsx
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, type-assertion]
+hints:
+  - A component is a function, so it takes a type parameter the way any function does.
+  - The body reads `item.id`. What does the type parameter need to promise for that to compile?

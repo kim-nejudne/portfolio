@@ -1,0 +1,105 @@
+---
+id: m99-fixtures/01-fix
+title: Fixing an exhaustiveness error
+minutes: 7
+objectives:
+  - Read a never assignment error as a list of unhandled union members
+  - Add the missing case so the switch handles every member again
+prerequisites: []
+tags: [fixture, fix, never, exhaustiveness, discriminated union]
+---
+
+## Concept
+
+A discriminated union is a union of object types that share one property with a different literal type in each member. Checking that property narrows the union, and once every member has been handled nothing is left: the type of what remains is `never`.
+
+```ts twoslash
+type Circle = { kind: 'circle'; radius: number };
+type Square = { kind: 'square'; side: number };
+type Shape = Circle | Square;
+
+function area(shape: Shape): number {
+  if (shape.kind === 'circle') {
+    shape;
+    //  ^?
+    return Math.PI * shape.radius ** 2;
+  }
+  shape;
+  //  ^?
+  return shape.side ** 2;
+}
+```
+
+<Callout kind="tip">
+  In the REPL, put the cursor on `shape` inside a branch and press <Key>K</Key>:
+  the quick info shows the narrowed member.
+</Callout>
+
+## Examples
+
+A `default` branch that assigns the remaining value to a variable of type `never` turns "every member is handled" into something the compiler checks:
+
+```ts run
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+function describe(shape: Shape): string {
+  switch (shape.kind) {
+    case 'circle':
+      return `circle with radius ${shape.radius}`;
+    case 'square':
+      return `square with side ${shape.side}`;
+    default: {
+      const unreachable: never = shape;
+      throw new Error(`unhandled shape: ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
+
+console.log(describe({ kind: 'circle', radius: 2 }));
+console.log(describe({ kind: 'square', side: 3 }));
+```
+
+## Pitfalls
+
+**A member nobody handles.** Add `triangle` to the union and forget the switch: the `never` assignment names the member that is left over. Read the error as a to-do list.
+
+```ts run errors
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'triangle'; base: number; height: number };
+
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case 'circle':
+      return Math.PI * shape.radius ** 2;
+    case 'square':
+      return shape.side ** 2;
+    default: {
+      const unreachable: never = shape;
+      throw new Error(`unhandled shape: ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
+```
+
+## Check yourself
+
+<Predict
+  id="default-branch-type"
+  question="In a switch over Shape with a case for every member that returns, what is the type of shape in the default branch?"
+  options={['Shape', 'never', 'unknown', 'undefined']}
+  answer={1}
+  explanation="Every case has returned, so no member of Shape can reach default. Narrowing by elimination leaves nothing, and the type of nothing is never."
+/>
+
+## Further reading
+
+- [Narrowing: the `never` type and exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#the-never-type)
+
+The rule in one line, as a plain block:
+
+```text
+Shape = Circle | Square: <handle each> & "never" is left
+```

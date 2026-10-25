@@ -1,0 +1,21 @@
+id: m13-type-challenges/01-easy-set/08-if
+kind: type-challenge
+title: If
+minutes: 2
+challenge: false
+prompt: |
+  Write `If<C, T, F>` in `index.ts`: `T` when the condition `C` is `true`, `F` when it is
+  `false`. `If<true, 'a', 'b'>` is `'a'` and `If<false, 'a', 2>` is `2`. When `C` is `boolean`,
+  either could happen, and the result is `'a' | 2`.
+
+  A condition that isn't a boolean, such as `null`, must be an error.
+
+  From type-challenges [#00268 If](https://github.com/type-challenges/type-challenges/blob/main/questions/00268-easy-if/README.md) by Pavel Glushkov (@pashutk) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Rejecting `null` is a constraint on `C`.
+  - '`boolean` is the union `true | false`. What does a conditional type on a bare type parameter do with a union?'

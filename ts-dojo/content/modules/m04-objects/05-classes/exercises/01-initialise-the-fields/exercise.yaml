@@ -1,0 +1,18 @@
+id: m04-objects/05-classes/01-initialise-the-fields
+kind: fix
+title: Initialise the fields
+minutes: 3
+challenge: false
+prompt: |
+  `Stopwatch` doesn't compile:
+  `Property 'laps' has no initializer and is not definitely assigned in the constructor.`, and
+  the same for `total`. Give each field the value a new stopwatch starts with: no laps, and a
+  total of 0. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - The constructor assigns `label` and nothing else, so the other two fields never get a value the compiler can see.
+  - A field can get its starting value where it is declared, as `count` does in the lesson's `Counter`, or in the constructor.

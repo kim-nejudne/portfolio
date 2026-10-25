@@ -1,0 +1,21 @@
+id: m13-type-challenges/01-easy-set/11-push
+kind: type-challenge
+title: Push
+minutes: 2
+challenge: false
+prompt: |
+  Write `Push<T, U>` in `index.ts`, the type of `Array.prototype.push` on a tuple: `T` with
+  `U` added at the end. `Push<[1, 2], '3'>` is `[1, 2, '3']`.
+
+  The two `@ts-expect-error` cases check that `Push` doesn't pretend an array type is a tuple:
+  `Push<number[], string>` is not `string[]`, and `Push<string[], number>` is not
+  `[string, number]`.
+
+  From type-challenges [#03057 Push](https://github.com/type-challenges/type-challenges/blob/main/questions/03057-easy-push/README.md) by jiangshan (@jiangshanmeta) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The Concat exercise spread two tuples into one. Here one of the two sides is a single element.

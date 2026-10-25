@@ -1,0 +1,27 @@
+id: m11-conditional-types/03-distributive-conditionals/01-prop-of
+kind: type-challenge
+title: A property of any member
+minutes: 3
+challenge: false
+prompt: |
+  Indexed access needs a key every member has: `Shape['radius']` is an error when only the
+  circle has a `radius`. Write `PropOf<T, K>` in `index.ts`: the type of property `K` in the
+  members of `T` that have it. Members without `K` add nothing.
+
+  - With `Shape = { kind: 'circle'; radius: number } | { kind: 'square'; side: number }`,
+    `PropOf<Shape, 'radius'>` is `number` and `PropOf<Shape, 'kind'>` is
+    `'circle' | 'square'`.
+  - A key no member has gives `never`, and so does `never` for `T`.
+  - An optional property keeps its `undefined`, and a union of keys gives the union of their
+    types.
+
+  The type cases try a key in one member, in every member and in none, a single object, an
+  optional property, an index signature, a union of keys and `never`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - '`AllKeys` in the theory asks `keyof` once per member. Here each member answers a different question.'
+  - Inside the branch, `T` is one member, and 11.1's `Get` shows how to read a key only when it is there.

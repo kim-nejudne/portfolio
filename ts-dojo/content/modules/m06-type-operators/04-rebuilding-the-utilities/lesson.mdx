@@ -1,0 +1,271 @@
+---
+id: m06-type-operators/04-rebuilding-the-utilities
+title: 'Rebuilding the utilities: a first look at mapped and conditional types'
+minutes: 20
+objectives:
+  - Read and write a mapped type that makes one property for each key of another type
+  - Add and remove the ? and readonly modifiers in a mapped type, as Partial, Required and Readonly do
+  - Write a conditional type, and predict its result when it is given a union
+  - Read the lib's declarations of Pick, Omit, Exclude, Extract and ReturnType
+prerequisites:
+  - m05-generics/04-keyof-constraints
+  - m06-type-operators/01-keyof-typeof-indexed-access
+  - m06-type-operators/02-utility-types-1
+  - m06-type-operators/03-utility-types-2
+tags:
+  - mapped type
+  - conditional type
+  - infer
+  - modifiers
+  - -?
+  - -readonly
+  - distributive
+  - Partial
+  - Required
+  - Readonly
+  - Pick
+  - Omit
+  - Exclude
+  - Extract
+  - ReturnType
+---
+
+## Concept
+
+The utilities of <Lesson id="m06-type-operators/02-utility-types-1" /> and <Lesson id="m06-type-operators/03-utility-types-2" /> are not built into the compiler. They are type aliases in TypeScript's own lib file, `lib.es5.d.ts`, written with two features you can use too. A **mapped type** makes one property for each key of a set of keys. A **conditional type** tests one type against another and picks one of two results. Here is a `Partial` and an `Exclude` of your own:
+
+```ts twoslash
+type MyPartial<T> = { [K in keyof T]?: T[K] };
+type MyExclude<T, U> = T extends U ? never : T;
+
+type User = { id: number; name: string };
+type Patch = MyPartial<User>;
+//    ^?
+type Rest = MyExclude<'a' | 'b' | 'c', 'a'>;
+//    ^?
+```
+
+Read the mapped type as a loop over keys. `keyof T` is the union of `T`'s property names (<Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />), `K` takes each of them in turn, and each one becomes a property whose type is `T[K]`, the indexed access type of that key. The `?` makes every property optional.
+
+Read the conditional type as a ternary on types. `T extends U` asks whether `T` is assignable to `U`, the same test as for an assignment. If it is, the result is the type after `?`; if not, the type after `:`.
+
+This lesson is a first look. Module 10 covers mapped types in full, including renaming keys, and module 11 covers conditional types and `infer`.
+
+## Examples
+
+**A mapped type of your own.** The value side of a mapped type can be any type, not only `T[K]`. A form that tracks which fields the user has visited needs one `boolean` per field of the form's type:
+
+```ts run
+type SignUp = { email: string; password: string; age: number };
+type Touched<T> = { [K in keyof T]: boolean };
+
+const touched: Touched<SignUp> = { email: true, password: false, age: false };
+
+function showErrorFor(field: keyof SignUp): boolean {
+  return touched[field];
+}
+
+console.log(showErrorFor('email'), showErrorFor('age'));
+```
+
+Give `SignUp` another field, and `touched` stops compiling until it has that field too. A mapped type over `keyof T` also copies each property's modifiers: a `readonly` property stays `readonly`, and an optional one stays optional.
+
+```ts twoslash
+type Touched<T> = { [K in keyof T]: boolean };
+type Settings = { readonly theme: string; fontSize?: number };
+
+type SettingsFlags = Touched<Settings>;
+//        ^?
+```
+
+**Adding and removing modifiers.** Write `?` after the brackets, or `readonly` before them, and every property gets the modifier. Put a `-` in front, and every property loses it: `-?` makes each property required and takes away the `undefined` that came with the `?`, and `-readonly` makes each property writable. No built-in utility removes `readonly`, so `Mutable` is a common one to write yourself:
+
+```ts twoslash
+type User = { readonly id: number; name: string; email?: string };
+
+type MyReadonly<T> = { readonly [K in keyof T]: T[K] };
+type MyRequired<T> = { [K in keyof T]-?: T[K] };
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+type Frozen = MyReadonly<User>;
+//     ^?
+type Complete = MyRequired<User>;
+//      ^?
+type Editable = Mutable<User>;
+//      ^?
+```
+
+Each one changes one modifier and copies the other: `Complete` keeps `readonly id`, and `Editable` keeps `email?`. Compare them with the lib's declarations, which call the key `P`:
+
+```ts
+type Partial<T> = { [P in keyof T]?: T[P] };
+type Required<T> = { [P in keyof T]-?: T[P] };
+type Readonly<T> = { readonly [P in keyof T]: T[P] };
+```
+
+**Mapping over some of the keys.** After `in` can come any union of keys, not only `keyof T`. `Pick` maps over the keys you pass, and constrains them with `K extends keyof T`, the constraint from <Lesson id="m05-generics/04-keyof-constraints" />, so that `T[P]` is a property `T` has. `Record` maps over any keys at all, `keyof any` being `string | number | symbol`, and gives each one the same type:
+
+```ts twoslash
+type MyPick<T, K extends keyof T> = { [P in K]: T[P] };
+type MyRecord<K extends keyof any, V> = { [P in K]: V };
+
+type User = { readonly id: number; name: string; email?: string };
+type Card = MyPick<User, 'id' | 'email'>;
+//    ^?
+type Counts = MyRecord<'draft' | 'published', number>;
+//     ^?
+```
+
+These match the lib's `Pick` and `Record` line for line. `Pick` copies modifiers as well, because its keys are constrained by `keyof T`.
+
+**A conditional type, and a union.** A conditional type tests the type it is given:
+
+```ts twoslash
+type IsString<T> = T extends string ? 'yes' : 'no';
+
+type A = IsString<'hello'>;
+//   ^?
+type B = IsString<number>;
+//   ^?
+```
+
+`Exclude` and `Extract` are conditional types, and the lib declares them exactly like this:
+
+```ts twoslash
+type MyExclude<T, U> = T extends U ? never : T;
+type MyExtract<T, U> = T extends U ? T : never;
+
+type Letters = MyExtract<'a' | 'b' | 1 | 2, string>;
+//      ^?
+```
+
+`'a' | 'b' | 1 | 2` is not assignable to `string` as a whole, yet the result is not `never`. When the type left of `extends` is a type parameter on its own, like `T` here, and a union is passed for it, the condition is checked for each member separately, and the results are joined into a union again: `'a'` gives `'a'`, `'b'` gives `'b'`, `1` and `2` give `never`, and `never` disappears from a union. This is called distribution, and module 11 covers its rules.
+
+**Both together: `Omit`.** The lib builds `Omit` from the two of them:
+
+```ts
+type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
+```
+
+`Exclude` takes the keys to drop out of `keyof T`, and `Pick` keeps the rest. That explains the two `Omit` pitfalls of lesson 6.2. `K` is constrained by `keyof any`, so a key `T` doesn't have is accepted and removes nothing. And `keyof` of a union is only the keys every member has, so the other keys are lost. Distribution fixes the second one: a conditional type whose condition is always true, `T extends unknown`, does nothing but split the union, and `Omit` is then applied to each member:
+
+```ts run
+type Shape =
+  | { kind: 'circle'; id: string; radius: number }
+  | { kind: 'square'; id: string; side: number };
+
+type EachOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;
+type NewShape = EachOmit<Shape, 'id'>;
+
+function create(shape: NewShape, id: string): Shape {
+  return { ...shape, id };
+}
+
+console.log(create({ kind: 'circle', radius: 2 }, 'c1'));
+console.log(create({ kind: 'square', side: 3 }, 's1'));
+```
+
+`NewShape` is `Omit<Circle, 'id'> | Omit<Square, 'id'>` with the members written out, still a discriminated union, so `{ kind: 'circle', side: 3 }` is rejected.
+
+**`infer`, once.** `ReturnType` needs a type that only exists inside another one: the return type inside a function type. In the `extends` clause of a conditional type, `infer R` declares a new type variable `R`, and the compiler fills it in while it matches the type against the pattern:
+
+```ts twoslash
+type MyReturnType<F extends (...args: any) => any> = F extends (
+  ...args: any
+) => infer R
+  ? R
+  : never;
+
+function parse(text: string) {
+  return text.split(',').map(Number);
+}
+
+type Parsed = MyReturnType<typeof parse>;
+//      ^?
+```
+
+The pattern `(...args: any) => infer R` matches any function type, and `R` is whatever its return type turns out to be. The `any`s say "any arguments" and "any return": `(...args: any) => any` is how the lib writes "any function", and none of that `any` reaches the result. The lib declares `ReturnType` the same way, with `any` instead of `never` in the false branch; the constraint already lets only function types in. `Parameters` puts `infer` on the argument list instead. Module 11 comes back to `infer`, with every place it can go.
+
+## Pitfalls
+
+**Mapping over `T` instead of `keyof T`.** `in` takes a union of keys. A type parameter with no constraint could be any type, an object type included, so it can't be used as the keys:
+
+```ts run errors
+type Touched<T> = { [K in T]: boolean };
+```
+
+`Type 'T' is not assignable to type 'string | number | symbol'.` Write `[K in keyof T]` to map over the property names of `T`.
+
+**A key parameter without `extends keyof T`.** Mapping over a parameter `K` of your own fails for the same reason, and `T[P]` fails as well, because nothing says `P` is a key of `T`:
+
+```ts run errors
+type MyPick<T, K> = { [P in K]: T[P] };
+```
+
+`Type 'K' is not assignable to type 'string | number | symbol'.` and `Type 'P' cannot be used to index type 'T'.` The constraint `K extends keyof T` from lesson 5.4 fixes both, and checks the keys where `MyPick` is used.
+
+**A conditional type on a union answers once per member.** Distribution is what makes `Exclude` work, and it surprises you when you wanted the union treated as one type. This `ToArray` gives an array of strings or an array of numbers, not an array of both:
+
+```ts run errors
+type ToArray<T> = T extends unknown ? T[] : never;
+
+const mixed: ToArray<string | number> = ['a', 1];
+```
+
+`Type '(string | number)[]' is not assignable to type 'string[] | number[]'.` `ToArray<string | number>` is `string[] | number[]`. Wrapping both sides in brackets, `[T] extends [unknown]`, turns distribution off and gives `(string | number)[]`; module 11 explains why. When the type you test is not a bare type parameter, such as `T[K]` in a mapped type, there is no distribution at all.
+
+## Check yourself
+
+<Predict
+  id="wrap-each-member"
+  code={
+    "type Wrap<T> = T extends string ? { text: T } : { value: T };\ntype W = Wrap<'hi' | 42>;"
+  }
+  question="What is `W`?"
+  options={[
+    "{ value: 'hi' | 42 }",
+    "{ text: 'hi' } | { value: 42 }",
+    "{ text: 'hi' | 42 }",
+    'never',
+  ]}
+  answer={1}
+  explanation="`T` stands alone on the left of `extends`, so the union is split and each member is tested on its own. `'hi'` is a string and gives `{ text: 'hi' }`; `42` is not and gives `{ value: 42 }`. The two results are joined into a union. Tested as a whole, `'hi' | 42` would not be a string, and the answer would be `{ value: 'hi' | 42 }`."
+/>
+
+<Predict
+  id="infer-no-match"
+  code={
+    'type Ret<F> = F extends (...args: any) => infer R ? R : never;\ntype S = Ret<string>;'
+  }
+  question="What is `S`?"
+  options={[
+    'string',
+    'never',
+    'unknown',
+    'An error: string is not a function type',
+  ]}
+  answer={1}
+  explanation="`Ret` has no constraint on `F`, so passing `string` is allowed. A `string` doesn't match the pattern of a function type, so `R` is never filled in and the false branch is taken: `never`. The lib's `ReturnType` constrains its parameter to a function type, so `ReturnType<string>` would be an error instead."
+/>
+
+<Predict
+  id="omit-unknown-key"
+  code={
+    "type MyOmit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;\ntype O = MyOmit<{ a: number; b?: string }, 'a' | 'z'>;"
+  }
+  question="What is `O`?"
+  options={[
+    "An error: 'z' is not a key of the object type",
+    '{ b?: string | undefined }',
+    '{ b: string }',
+    '{}',
+  ]}
+  answer={1}
+  explanation="`K` only has to be some key, so `'z'` is accepted. `Exclude<'a' | 'b', 'a' | 'z'>` is `'b'`, because `'z'` was never among the keys and removes nothing. `Pick` then keeps `b`, and copies its `?`, which the editor shows as `b?: string | undefined`."
+/>
+
+## Further reading
+
+- [Handbook: Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html), including distributive conditional types and inferring within conditional types
+- [Handbook: Utility types](https://www.typescriptlang.org/docs/handbook/utility-types.html)

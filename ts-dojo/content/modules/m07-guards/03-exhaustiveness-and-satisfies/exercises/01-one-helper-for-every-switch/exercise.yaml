@@ -1,0 +1,25 @@
+id: m07-guards/03-exhaustiveness-and-satisfies/01-one-helper-for-every-switch
+kind: fix
+title: One helper for every switch
+minutes: 3
+challenge: false
+prompt: |
+  `describe` and `fee` both end their `switch` with a call to `assertNever`, but the helper
+  was written with the wrong types, and the file reports the same error for each function:
+
+  - `Function lacks ending return statement and return type does not include 'undefined'.`
+
+  Give `assertNever` the types from the lesson, so that a call to it ends the branch and checks
+  that nothing is left. Then handle whatever the compiler reports next: a voucher is described
+  as `'voucher SPRING10'` for the code `SPRING10`, and its fee is `0.1`. Keep both calls to
+  `assertNever`. The tests check its type, every kind of payment, and a payment read from JSON
+  whose `method` no member has: both functions must still throw for it.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - A call ends a branch only when the function's return type says it never returns.
+  - The parameter's type decides which arguments compile. Which type accepts only a value that narrowing has used up?
+  - Once the helper is right, its errors name the member that reaches the default branch with no case of its own.

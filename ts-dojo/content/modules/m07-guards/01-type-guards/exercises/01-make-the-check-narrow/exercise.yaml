@@ -1,0 +1,23 @@
+id: m07-guards/01-type-guards/01-make-the-check-narrow
+kind: fix
+title: Make the check narrow
+minutes: 2
+challenge: false
+prompt: |
+  `isSong` tells a song from a podcast episode, but `credit` doesn't compile. The call to
+  `isSong` narrows nothing, so both branches still see `Song | Episode`:
+
+  - `Property 'artist' does not exist on type 'Song | Episode'.`
+  - `Property 'show' does not exist on type 'Song | Episode'.`
+  - `Property 'number' does not exist on type 'Song | Episode'.`
+
+  Make `isSong` a type guard, so that `credit` compiles as written. Keep calling `isSong` in
+  `credit`: the tests check the type of `isSong` as well as what both functions return.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The check inside `isSong` is right. What is missing is a return type that tells callers what `true` means.
+  - A predicate names a parameter and the type it has when the function returns true.

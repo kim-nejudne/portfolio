@@ -1,0 +1,227 @@
+---
+id: m12-template-tuples/04-recursion-limits
+title: Recursion limits, tail recursion and accumulators
+minutes: 20
+objectives:
+  - Recognise TS2589 and explain why a recursive type ran into it
+  - Tell a recursive call in tail position from one wrapped in a tuple, a template literal or a union
+  - Rewrite a recursive type with an accumulator, so it runs for hundreds of steps instead of about fifty
+  - Count at the type level with a tuple's length, and guard the count against number, negative and fractional inputs
+prerequisites:
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/04-recursive-conditionals
+  - m12-template-tuples/01-template-literal-types
+  - m12-template-tuples/02-variadic-tuples
+  - m12-template-tuples/03-tuple-manipulation
+tags:
+  - recursion
+  - recursive type
+  - TS2589
+  - excessively deep
+  - tail recursion
+  - accumulator
+  - counter
+  - BuildTuple
+  - Range
+  - type-level counting
+---
+
+## Concept
+
+Lessons <Lesson id="m12-template-tuples/01-template-literal-types" /> and <Lesson id="m12-template-tuples/03-tuple-manipulation" /> wrote types that call themselves on the rest of a string or a tuple. The compiler can't know whether such a recursion ends, so it counts how deep it goes and stops past a limit. `Flip` reverses a string:
+
+```ts twoslash
+type Flip<S extends string> = S extends `${infer H}${infer R}`
+  ? `${Flip<R>}${H}`
+  : '';
+
+type Short = Flip<'stressed'>;
+//    ^?
+```
+
+Give it a longer string and it fails:
+
+```ts run errors
+type Flip<S extends string> = S extends `${infer H}${infer R}`
+  ? `${Flip<R>}${H}`
+  : '';
+
+type Text = 'the quick brown fox jumps over the lazy dog and keeps running on';
+type Long = Flip<Text>;
+```
+
+`Type instantiation is excessively deep and possibly infinite.` is TS2589. Each level of `Flip` puts the next level's result inside a template literal, so no level can finish before the one below it has, and every level is open at once. TypeScript 6.0.3 stops a little under fifty levels deep. `Flip` gets through 48 or 49 new characters, depending on what the compiler has already worked out in the file, and a fresh string of 50 always fails. Only levels not computed before count: once `Flip` of a 40-character string is known, `Flip` of an 80-character string ending in it needs just 40 new levels. The `Reverse` of <Lesson id="m12-template-tuples/03-tuple-manipulation" /> has the same budget in elements, and the `Split` of <Lesson id="m12-template-tuples/01-template-literal-types" /> in pieces. The error is reported where the type is used, not where it is declared, and the type that comes out is not to be trusted: where the compiler gave up, it put `any`.
+
+**Tail recursion.** Since TypeScript 4.5, when a branch of a conditional type is the recursive call itself, nothing waits for its result. The compiler replaces the current step with the next one instead of nesting it, and these tail calls get a much larger budget: 999 steps compile, and the thousandth reports the same TS2589. To put the call in tail position, carry the result built so far in an extra type parameter, the **accumulator**, and return it when the input runs out:
+
+```ts twoslash
+type Flip<
+  S extends string,
+  Acc extends string = '',
+> = S extends `${infer H}${infer R}` ? Flip<R, `${H}${Acc}`> : Acc;
+
+type Short = Flip<'stressed'>;
+//    ^?
+type Text = 'the quick brown fox jumps over the lazy dog and keeps running on';
+type Long = Flip<Text>;
+//    ^?
+```
+
+Each step moves one character to the front of `Acc`, and the default `''` means callers still write `Flip<S>`. A call is in tail position when it is the whole branch, or the branch of a conditional type that is itself the whole branch (a nested `extends` check, or `extends infer X ? … : …`), or an alias that stands for such a conditional type. It is not when anything wraps it: a tuple `[H, ...F<R>]`, a template literal, a union `S | F<R>`. The arguments of a tail call may hold any work you like, including spreads, template literals and other conditional types.
+
+## Examples
+
+**Counting with a tuple's length.** Type-level numbers have no arithmetic: there is no `N - 1`. A tuple's `length` is a literal type, as <Lesson id="m12-template-tuples/03-tuple-manipulation" /> showed, so a tuple that grows by one element per step is a counter. `BuildTuple` stops when the counter's length is `N`:
+
+```ts twoslash
+type BuildTuple<
+  N extends number,
+  Acc extends unknown[] = [],
+> = Acc['length'] extends N ? Acc : BuildTuple<N, [...Acc, unknown]>;
+
+type Three = BuildTuple<3>;
+//    ^?
+type Big = BuildTuple<500>['length'];
+//   ^?
+```
+
+The recursive call is the whole false branch, so 500 steps are fine.
+
+**One tuple as counter and result.** `Range<N>` is `[0, 1, …, N - 1]`. The accumulator's length is the next number to append, so one tuple does both jobs. `number extends N` comes first: with `N` as plain `number`, `0 extends number` would be true at the first step and the result would be `[]`. Here it is at run time, with the single `as` on the return from `last` in <Lesson id="m12-template-tuples/03-tuple-manipulation" />:
+
+```ts run
+type Range<N extends number, Acc extends number[] = []> = number extends N
+  ? number[]
+  : Acc['length'] extends N
+    ? Acc
+    : Range<N, [...Acc, Acc['length']]>;
+
+function range<N extends number>(n: N): Range<N> {
+  // The compiler can't follow Range through Array.from.
+  return Array.from({ length: n }, (_, i) => i) as Range<N>;
+}
+
+const five = range(5);
+const many = range(300);
+const fromInput = range(Number('7'));
+
+console.log(five, many.length, fromInput);
+```
+
+`five` has the type `[0, 1, 2, 3, 4]`, `many.length` the type `300`, and `fromInput` the type `number[]`, since `Number('7')` is a `number`.
+
+**Counting matches.** A counter doesn't have to grow every step. `CountOf` walks a tuple and adds an element to its accumulator only when the head matches; the answer is the accumulator's length:
+
+```ts twoslash
+type CountOf<
+  T extends readonly unknown[],
+  U,
+  Acc extends unknown[] = [],
+> = T extends readonly [infer H, ...infer R]
+  ? CountOf<R, U, H extends U ? [...Acc, H] : Acc>
+  : Acc['length'];
+
+type Twice = CountOf<['a', 'b', 'a', 'c'], 'a'>;
+//    ^?
+```
+
+The decision `H extends U ? … : …` sits in an argument, so the call itself stays in tail position. When a type is slow rather than too deep, <Lesson id="m18-capstones/05-type-performance" /> measures where the time goes with `--generateTrace`.
+
+## Pitfalls
+
+**A wrapper around the recursive call.** A union is a wrapper too. `Suffixes` lists every suffix of a string, and each level waits to join its own `S` to the rest:
+
+```ts run errors
+type Suffixes<S extends string> = S extends `${string}${infer R}`
+  ? S | Suffixes<R>
+  : never;
+
+type Few = Suffixes<'abc'>;
+type Text = 'the quick brown fox jumps over the lazy dog and keeps running on';
+type Many = Suffixes<Text>;
+```
+
+`Few` is the union of `'abc'`, `'bc'` and `'c'`, and `Many` reports TS2589. Collect the union in an accumulator instead, `Suffixes<R, Acc | S>` with `Acc extends string = never`, and return `Acc` when the string is empty.
+
+**A count that is never reached.** `Acc['length'] extends N` is only true when the counter lands on `N` exactly. A negative or fractional `N` is never reached, so the recursion runs to its limit:
+
+```ts run errors
+type BuildTuple<
+  N extends number,
+  Acc extends unknown[] = [],
+> = Acc['length'] extends N ? Acc : BuildTuple<N, [...Acc, unknown]>;
+
+type Half = BuildTuple<2.5>;
+type Minus = BuildTuple<-1>;
+```
+
+Both report TS2589, after a thousand steps of work. Plain `number` fails the other way: `0 extends number`, so `BuildTuple<number>` is `[]` without an error. Guard before you count. `number extends N` catches `number`, and the digits of a literal catch the rest:
+
+```ts twoslash
+type BuildTuple<
+  N extends number,
+  Acc extends unknown[] = [],
+> = Acc['length'] extends N ? Acc : BuildTuple<N, [...Acc, unknown]>;
+
+type SafeTuple<N extends number> = number extends N
+  ? unknown[]
+  : `${N}` extends `-${string}` | `${string}.${string}`
+    ? never
+    : BuildTuple<N>;
+
+type Half = SafeTuple<2.5>;
+//   ^?
+type Any = SafeTuple<number>;
+//   ^?
+```
+
+**Prepending where the order matters.** Moving a non-tail type to an accumulator changes where each piece goes. `[F<H>, ...Map<R>]` becomes `Map<R, [...Acc, F<H>]>`, with the new piece at the end. Put it at the front and the result comes out reversed, which is exactly how the tail-recursive `Flip` reverses:
+
+```ts run errors
+type Stringify<
+  T extends readonly unknown[],
+  Acc extends string[] = [],
+> = T extends readonly [infer H extends string | number, ...infer R]
+  ? Stringify<R, [`${H}`, ...Acc]>
+  : Acc;
+
+const labels: Stringify<[1, 2, 3]> = ['1', '2', '3'];
+```
+
+`Type '"1"' is not assignable to type '"3"'.` The type is `["3", "2", "1"]`. Append with ``[...Acc, `${H}`]`` to keep the order.
+
+## Check yourself
+
+<Predict
+  id="last-char-depth"
+  code={
+    "type LastChar<S extends string> = S extends `${infer H}${infer R}`\n  ? R extends ''\n    ? H\n    : LastChar<R>\n  : never;"
+  }
+  question="What happens when `LastChar` is given a string of 300 characters?"
+  options={[
+    'TS2589: more than about fifty levels',
+    'It gives the last character',
+    'It gives never',
+  ]}
+  answer={1}
+  explanation="The recursive call is the false branch of a conditional type that is itself the whole true branch, so it is in tail position. Tail calls get 999 steps, and 300 characters take 300 of them."
+/>
+
+<Predict
+  id="build-tuple-of-number"
+  code={
+    "type BuildTuple<N extends number, Acc extends unknown[] = []> =\n  Acc['length'] extends N ? Acc : BuildTuple<N, [...Acc, unknown]>;\n\ntype B = BuildTuple<number>;"
+  }
+  question="What is `B`?"
+  options={['unknown[]', '[]', 'TS2589: the count is never reached']}
+  answer={1}
+  explanation="At the first step the counter is `[]`, whose length is `0`, and `0 extends number` is true. The recursion stops at once with `[]`. Guard with `number extends N` before counting."
+/>
+
+## Further reading
+
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [TypeScript 4.5 release notes: tail-recursion elimination on conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html#tail-recursion-elimination-on-conditional-types)
+- [TypeScript 4.1 release notes: recursive conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html#recursive-conditional-types)

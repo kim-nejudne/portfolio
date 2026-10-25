@@ -1,0 +1,30 @@
+---
+id: m97-fixture-capstone/03-indexed-access
+title: Indexed access types
+minutes: 5
+optional: true
+objectives:
+  - Look up a property type with T[K]
+  - Look up several properties with a union key
+prerequisites: [m97-fixture-capstone/02-typeof]
+tags: [fixture, indexed access]
+---
+
+## Concept
+
+`T[K]` is the type of the property `K` of `T`, the type-level version of reading a property.
+
+```ts
+type User = { name: string; age: number };
+type Name = User['name'];
+//   ^ string
+```
+
+## Examples
+
+The two exercises of this fixture lesson are `predict` questions about the example above. The
+lesson exists so the roadmap has more than one module: it is replaced at F11.
+
+## Further reading
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

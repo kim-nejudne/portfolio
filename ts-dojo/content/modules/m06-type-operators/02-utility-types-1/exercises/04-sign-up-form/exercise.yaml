@@ -1,0 +1,36 @@
+id: m06-type-operators/02-utility-types-1/04-sign-up-form
+kind: implement
+title: The sign-up form
+minutes: 6
+challenge: false
+prompt: |
+  `SignUp` in `index.ts` is what the server needs to create an account. The two types under it
+  were written by hand and accept fields that `SignUp` doesn't have.
+
+  - Derive `Draft`, what the form holds while the user types: any field of `SignUp` may still be
+    missing. Derive `FormErrors`: at most one message, a `string`, for each field of `SignUp`.
+    List no field of `SignUp` again, so that a field added to it changes both types.
+  - Implement `validate(draft)`. It returns an object with one message for each field that
+    fails, and no entry for a field that passes:
+    - `email` is missing or has no `@`: `'Enter an email address.'`
+    - `password` is missing or shorter than 8 characters: `'Use at least 8 characters.'`
+    - `age` is missing, not a whole number, or under 13: `'You must be 13 or older.'`
+    - `inviteCode` is optional; when present, it must be exactly 6 characters:
+      `'Invite codes have 6 characters.'`
+  - Implement `submit(draft)`. When `validate` finds errors, it returns `{ ok: false, errors }`.
+    Otherwise it returns `{ ok: true, value }`, where `value` is a new object with the draft's
+    `email`, `password` and `age`, and its `inviteCode` only when the draft has one. A draft
+    object may carry other properties; `value` leaves them out.
+
+  The type cases check both types, and the tests run `validate` and `submit` over many drafts.
+  This combines the lesson with `Record` and union keys (4.3), `keyof` (6.1), `undefined` checks
+  (3.2) and a discriminated union for the result (3.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Each of the two types is built from `SignUp` with one utility, or two nested.
+  - Each rule in `validate` starts by checking whether the field is there; a missing field and a wrong one get the same message.
+  - In `submit`, the compiler doesn't know that an empty error object means the fields are there. Check them yourself before building `value`, and add the invite code in a separate step.

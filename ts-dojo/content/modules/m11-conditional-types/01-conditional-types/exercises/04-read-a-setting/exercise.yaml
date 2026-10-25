@@ -1,0 +1,40 @@
+id: m11-conditional-types/01-conditional-types/04-read-a-setting
+kind: implement
+title: Read a setting
+minutes: 5
+challenge: false
+prompt: |
+  `readSetting(raw, fallback)` reads one setting from the text of a settings form field,
+  and uses the type of `fallback` to know what to parse. Write it in `index.ts` with
+  the type `Widen<T>`:
+
+  - `Widen<T>` turns a literal into its primitive: a string literal into `string`, a number
+    literal into `number`, `true` or `false` into `boolean`. Any other type stays as it is.
+  - `readSetting(raw, fallback)` returns `Widen<T>`, where `T` is the type of `fallback`, so
+    `readSetting(port, 3000)` is a `number`, not the literal `3000`. Keep the
+    signature the starter gives callers.
+  - A `raw` of `undefined` gives `fallback`. For a number fallback, a blank `raw` or one that is
+    not a number gives `fallback`, and any other is parsed with `Number`. For a boolean
+    fallback, `'true'` and `'false'` give `true` and `false`, and anything else gives
+    `fallback`. For a string fallback, `raw` is used as it is, even when it is empty.
+
+  Returning a value as `Widen<T>` fails, as the lesson's second pitfall shows. Casts are
+  forbidden here, so use what the lesson does instead. This combines the lesson with literal
+  widening (1.2), `typeof` narrowing (3.3), constraints (5.2) and overloads (8.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    any-expression,
+    non-null-assertion,
+    angle-cast,
+  ]
+hints:
+  - Write `Widen` as a chain of conditions, one per primitive, with `T` itself in the last branch.
+  - Keep the generic signature for callers as an overload, and add an implementation below it whose types are plain unions.
+  - In the implementation, narrow `fallback` with `typeof` to know which kind of setting you parse.

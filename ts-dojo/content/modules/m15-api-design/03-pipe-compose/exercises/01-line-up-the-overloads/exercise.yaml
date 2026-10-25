@@ -1,0 +1,31 @@
+id: m15-api-design/03-pipe-compose/01-line-up-the-overloads
+kind: fix
+title: Line up the overloads
+minutes: 4
+challenge: false
+prompt: |
+  `pipe` and `compose` in `index.ts` are typed with one overload per length, and the
+  implementations are right. Three of the overloads have a link that doesn't line up, and the
+  calls at the bottom of the file report it:
+
+  - `Property 'join' does not exist on type 'string'.`
+  - `Property 'padStart' does not exist on type 'number'.`
+  - `Argument of type 'number' is not assignable to parameter of type 'string'.`
+
+  Fix the overloads so that each function takes what the function before it returns, in the
+  order the data flows. Don't change the calls.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Each error names the type a callback received. Find the parameter in the overload that gave it that type.
+  - In a pipe, every function's parameter is the type parameter that the function before it returns. In compose the data flows from the last function to the first.

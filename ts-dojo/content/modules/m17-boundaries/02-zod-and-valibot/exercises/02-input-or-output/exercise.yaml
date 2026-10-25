@@ -1,0 +1,28 @@
+id: m17-boundaries/02-zod-and-valibot/02-input-or-output
+kind: predict
+title: Input or output?
+minutes: 2
+challenge: false
+code: |
+  import { z } from 'zod';
+
+  const Search = z.object({
+    q: z.string().trim(),
+    page: z.string().transform(Number).pipe(z.number().int()).default(1),
+  });
+
+  type A = z.input<typeof Search>;
+  type B = z.output<typeof Search>;
+question: What are `A` and `B`?
+options:
+  - '`A` is `{ q: string; page?: string | undefined }` and `B` is `{ q: string; page: number }`'
+  - '`A` is `{ q: string; page: string }` and `B` is `{ q: string; page: number }`'
+  - '`A` is `{ q: string; page?: number | undefined }` and `B` is `{ q: string; page: number }`'
+  - 'Both are `{ q: string; page: number }`'
+answer: 0
+explanation: |
+  `z.input` is the type before parsing. `page` starts as a string, and `.default(1)` lets it be
+  missing, so it is optional. `z.output`, which `z.infer` also gives, is the type after
+  parsing. The transform turned the string into a number, the pipe checked it, and the default
+  fills a missing value, so `page` is always a `number`. `.trim()` changes the string without
+  changing its type, so `q` is a `string` on both sides.

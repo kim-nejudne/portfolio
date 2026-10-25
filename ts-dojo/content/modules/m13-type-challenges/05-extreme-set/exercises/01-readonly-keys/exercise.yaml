@@ -1,0 +1,31 @@
+id: m13-type-challenges/05-extreme-set/01-readonly-keys
+kind: type-challenge
+title: Get Readonly Keys
+minutes: 7
+challenge: false
+prompt: |
+  Write `GetReadonlyKeys<T>` in `index.ts`: the union of the keys of `T`'s `readonly`
+  properties. With
+
+  ```ts
+  interface Todo {
+    readonly title: string;
+    readonly description: string;
+    completed: boolean;
+  }
+  ```
+
+  `GetReadonlyKeys<Todo>` is `'title' | 'description'`. An optional property counts like any
+  other: `readonly` or not is all that matters. Cases added in the dojo check an object with no
+  `readonly` keys, the empty object type, a `readonly` optional property, and `readonly`
+  properties of type `undefined` and `unknown`.
+
+  From type-challenges [#00005 Get Readonly Keys](https://github.com/type-challenges/type-challenges/blob/main/questions/00005-extreme-readonly-keys/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Ask each key a question and collect the keys that answer yes, as Required Keys did in 13.4. The question is whether the property is the same as its `readonly` version.
+  - Assignability can't answer that (the lesson's first pitfall). The `Equal` of 13.1 can, and you may write your own copy of it in `index.ts`.

@@ -1,0 +1,18 @@
+id: m16-tooling/04-typescript-6-and-7/02-deprecated-or-not
+kind: predict
+title: Deprecated or not
+minutes: 2
+challenge: false
+question: Which of these settings does TypeScript 6.0.3 report as deprecated?
+options:
+  - '`"strict": false`'
+  - '`"esModuleInterop": false`'
+  - '`"noUncheckedSideEffectImports": false`'
+  - '`"target": "es2015"`'
+answer: 1
+explanation: |
+  `esModuleInterop` defaults to `true` in 6.0, and setting it to `false` reports TS5107,
+  `Option 'esModuleInterop=false' is deprecated and will stop functioning in TypeScript 7.0.`
+  The others are allowed. `strict: false` turns off a default but is not deprecated, and neither
+  is `noUncheckedSideEffectImports: false`. Of the targets, only `es5` is deprecated (`es3` is
+  already removed), so `es2015` is fine.

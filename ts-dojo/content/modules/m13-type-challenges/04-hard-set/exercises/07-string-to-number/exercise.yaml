@@ -1,0 +1,21 @@
+id: m13-type-challenges/04-hard-set/07-string-to-number
+kind: type-challenge
+title: String to Number
+minutes: 5
+challenge: false
+prompt: |
+  Write `ToNumber<S>` in `index.ts`: the number literal type that the string literal type `S`
+  spells. `ToNumber<'12'>` is `12`, and `ToNumber<'0'>` is `0`. A string that isn't a number,
+  such as `'18@7_$%'`, gives `never`.
+
+  Cases added in the dojo check a negative number, `'-3'`, the empty string, which gives
+  `never`, and a union, which gives the union of the numbers.
+
+  From type-challenges [#00300 String to Number](https://github.com/type-challenges/type-challenges/blob/main/questions/00300-hard-string-to-number/README.md) by Pig Fang (@g-plane) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - There is no need to count digits. An `infer` in a template literal pattern can carry a constraint (11.2), and the lesson's Concept shows what a number constraint does there.

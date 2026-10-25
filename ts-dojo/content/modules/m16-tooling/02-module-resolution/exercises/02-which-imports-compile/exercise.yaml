@@ -1,0 +1,38 @@
+id: m16-tooling/02-module-resolution/02-which-imports-compile
+kind: predict
+title: Which imports compile?
+minutes: 3
+challenge: false
+code: |
+  // package.json
+  { "type": "module", "dependencies": { "zod": "^4.6.7" } }
+
+  // tsconfig.json
+  {
+    "compilerOptions": {
+      "module": "nodenext",
+      "paths": { "@/*": ["./src/*"] }
+    }
+  }
+
+  // src/lib/format.ts and src/lib/index.ts exist. This is src/main.ts:
+  import { formatPrice } from './lib/format.js'; // A
+  import { formatPrice as b } from './lib'; // B
+  import { formatPrice as c } from '@/lib/format'; // C
+  import { z } from 'zod'; // D
+question: Which of the imports A to D compile?
+options:
+  - Only A
+  - A and D
+  - A, C and D
+  - All four
+answer: 1
+explanation: |
+  The package.json says `"type": "module"`, so under `nodenext` `main.ts` is an ES module and
+  every specifier must name the file Node will load. A names `format.js`, which the compiler maps
+  back to `format.ts`. D is a package: `zod`'s `exports` field lists `"."`, so it resolves.
+  B names a folder and reports
+  `Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.`
+  C goes through `paths`, but the same rule applies to the path it maps to, `./src/lib/format`,
+  which has no extension: `Cannot find module '@/lib/format' or its corresponding type declarations.`
+  `'./lib/index.js'` and `'@/lib/format.js'` compile.

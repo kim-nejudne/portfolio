@@ -1,0 +1,29 @@
+id: m14-type-system-edges/05-decorators/01-trace-the-calls
+kind: fix
+title: Trace the calls
+minutes: 3
+challenge: false
+prompt: |
+  `traced` is a method decorator that records every call in `calls`, as `add(4, 3)`, and then
+  runs the method. It is typed for any method at all, so it is typed for none, and `index.ts`
+  reports:
+
+  - `'this' implicitly has type 'any' because it does not have a type annotation.` in the
+    replacement function.
+  - `Unable to resolve signature of method decorator when called as an expression.` on
+    `@traced` above `add`.
+  - `Decorator function return type '(...args: unknown[]) => unknown' is not assignable to
+    type …` on both `@traced` lines.
+
+  Type `traced` so that it fits every method it decorates, keeps the method's `this`, its
+  parameters and its return type, and records each call as it does now. Keep both `@traced`
+  lines, and use no `any` and no cast. The tests also decorate a method of another class.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, type-assertion, as-unknown-as, any-expression]
+hints:
+  - The decorator is called with one particular method, so it can be generic over that method's this, its parameter list and its return type.
+  - The context type takes the same two things the method has, the type of this and the method's own type.
+  - The replacement function needs a this parameter too, with the decorator's type for it.

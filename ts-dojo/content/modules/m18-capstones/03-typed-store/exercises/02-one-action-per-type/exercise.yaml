@@ -1,0 +1,34 @@
+id: m18-capstones/03-typed-store/02-one-action-per-type
+kind: fix
+title: One action per type
+minutes: 5
+challenge: false
+prompt: |
+  The todo reducer in `index.ts` types its actions as one object, with every type and every
+  payload: `{ type: keyof TodoMap; payload: TodoMap[keyof TodoMap] }`. Nothing ties a payload
+  to its type, so the reducer doesn't compile:
+
+  - `Type 'string | number | void | { id: number; title: string; }' is not assignable to type 'string'.`
+  - `Property 'id' does not exist on type 'string | number | void | { id: number; title: string; }'.`
+  - `Type 'TodoAction' is not assignable to type 'never'.`
+
+  Write and export `ActionOf<M>` as in the lesson, with no `payload` for a `void` value, and
+  derive `TodoAction` from `TodoMap` with it. Once the actions are a discriminated union, the
+  `never` check has one more thing to say: handle it, and keep the check. `clearDone` removes
+  every todo that is done. The tests run the reducer on every action, and on an action read
+  from JSON whose `type` the map doesn't have: it must still throw.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - Each error comes from one object type standing for every action. A union with one member per key of the map lets `switch` narrow the payload.
+  - After the fix, the error in `default` names the member that has no `case` yet.

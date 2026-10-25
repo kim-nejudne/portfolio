@@ -1,0 +1,268 @@
+---
+id: m04-objects/04-enums-vs-as-const
+title: Enums vs as const unions
+minutes: 15
+objectives:
+  - Declare numeric and string enums, and predict their values and reverse mappings
+  - Explain what an enum compiles to, and why a plain string does not fit a string enum
+  - Replace an enum with an as const object and the union of its values
+  - Predict what const enum does under isolatedModules
+  - Choose between an enum, an as const object or array, and a plain union
+prerequisites:
+  - m01-types/02-primitives-literals-widening
+  - m03-unions/01-union-and-literal-types
+  - m03-unions/05-discriminated-unions
+  - m04-objects/03-index-signatures-and-record
+tags:
+  - enum
+  - numeric enum
+  - string enum
+  - const enum
+  - reverse mapping
+  - as const
+  - union of values
+  - isolatedModules
+  - erasableSyntaxOnly
+---
+
+## Concept
+
+An **enum** names a set of related constants and makes the set a type. It is also the exception that <Lesson id="m00-orientation/01-why-typescript" /> mentioned: most of what TypeScript adds is erased, but an enum is an object that exists when the program runs.
+
+```ts run
+enum Direction {
+  Up,
+  Down,
+  Left,
+  Right,
+}
+
+function turn(direction: Direction): string {
+  return `turning ${Direction[direction]}`;
+}
+
+console.log(Direction.Up, Direction.Left);
+console.log(turn(Direction.Right));
+```
+
+It prints `0 2`, then `turning Right`. The members are numbers counting up from 0, and `Direction` maps them both ways: `Direction.Right` is `3`, and `Direction[3]` is `'Right'`. As a type, `Direction` stands for its four members, with one gap that Pitfalls shows. As a value, it is the object that this JavaScript builds, where an `interface` or a `type` would have left nothing behind:
+
+```js
+var Direction;
+(function (Direction) {
+  Direction[(Direction['Up'] = 0)] = 'Up';
+  Direction[(Direction['Down'] = 1)] = 'Down';
+  Direction[(Direction['Left'] = 2)] = 'Left';
+  Direction[(Direction['Right'] = 3)] = 'Right';
+})(Direction || (Direction = {}));
+```
+
+Each line sets a name to its number, then the number back to the name. That second half is the **reverse mapping**.
+
+The same named constants can be plain JavaScript with types on top: an object whose literal types `as const` keeps, which <Lesson id="m01-types/02-primitives-literals-widening" /> previewed, and a union type of its values. Erasure removes the types and leaves an ordinary object. This lesson compares the two, and shows when an enum is still the right call.
+
+## Examples
+
+**Numeric enums.** Members count up from 0. An initialiser sets a member's value, and the members after it count on from there:
+
+```ts run
+enum HttpStatus {
+  Ok = 200,
+  Created,
+  Accepted,
+  NotFound = 404,
+}
+
+console.log(HttpStatus.Created, HttpStatus.NotFound, HttpStatus[202]);
+```
+
+It prints `201 404 Accepted`. A parameter typed with an enum takes the enum's members, and a number literal that isn't one is an error: `turn(7)`, with `turn` from Concept, reports `Argument of type '7' is not assignable to parameter of type 'Direction'.` Pitfalls shows the gap that is left.
+
+**String enums.** Members can hold strings instead. A member after a string member can't count on from it, so it needs an initialiser of its own (`Enum member must have initializer.`), and there is no reverse mapping: the object maps names to values and nothing else.
+
+```ts run
+enum Status {
+  Active = 'active',
+  Archived = 'archived',
+}
+
+function describe(status: Status): string {
+  return `this project is ${status}`;
+}
+
+console.log(describe(Status.Archived));
+console.log(Object.keys(Status), Object.values(Status));
+```
+
+A `Status` fits where a `string` is expected, but not the other way round: even `'archived'`, the exact value of `Status.Archived`, is not a `Status`. Every value has to be written as a member, which is the one thing a string enum does that the alternative below doesn't (see Pitfalls).
+
+**An `as const` object and a union.** The erasable alternative is an object of constants and a type built from it:
+
+```ts twoslash
+const Status = {
+  Active: 'active',
+  Archived: 'archived',
+} as const;
+
+type Status = (typeof Status)[keyof typeof Status];
+//        ^?
+
+function describe(status: Status): string {
+  return `this project is ${status}`;
+}
+
+describe(Status.Archived);
+describe('archived');
+```
+
+`as const` keeps each value's literal type, so `Status.Archived` is `'archived'`, not `string`. Take `(typeof Status)[keyof typeof Status]` as a recipe for "the union of an object's values": `typeof Status` is the object's type, and indexing it with all of its keys gives the type of every value; lesson 6.1 takes the pieces apart. A value and a type may share a name, since one is used where values go and the other where types go, so the code reads as it did with the enum. The difference is in the last line: `Status` is a union of string literals (<Lesson id="m03-unions/01-union-and-literal-types" />), so the plain string `'archived'` fits.
+
+**An `as const` array and a union.** When the values need no names, a list will do. Indexing a tuple's type with `number` gives the type of any element:
+
+```ts twoslash
+const SIZES = ['small', 'medium', 'large'] as const;
+
+type Size = (typeof SIZES)[number];
+//      ^?
+
+for (const size of SIZES) {
+  console.log(size);
+}
+```
+
+The object and the array give you something a union written out on its own can't: the values at run time, to loop over or to check input against. `type Size = 'small' | 'medium' | 'large'` is erased completely.
+
+**`const enum`.** Written `const enum Level { Debug, Info, Warn }`, an enum asks the compiler to inline its values: to write `2` wherever the code says `Level.Warn`, and to emit no object. For that it needs the declaration while it emits the code that uses it, and under `isolatedModules`, which the dojo's defaults turn on, each file is emitted on its own. So with `isolatedModules` the compiler emits a `const enum` as an ordinary enum object, and every use reads the value from it. The object even has the reverse mapping, but the compiler won't let you use it: `Level[2]` reports `A const enum member can only be accessed using a string literal.`
+
+A `const enum` that is only declared, with `declare` in front as in a library's `.d.ts` files, comes with no JavaScript at all, so its values could only ever be inlined. Under `isolatedModules`, using one is an error:
+
+```ts run errors
+declare const enum Level {
+  Debug,
+  Info,
+  Warn,
+}
+
+console.log(Level.Warn);
+```
+
+`Cannot access ambient const enums when 'isolatedModules' is enabled.` Ambient means declared but not defined.
+
+**Choosing.** Each of the three fits a different case:
+
+- A plain union of literals, when the values are just strings or numbers passed around. Nothing reaches the output.
+- An `as const` object or array with a union, when you also want names such as `Status.Archived`, or the values at run time.
+- An enum, when the code you work with already uses enums, such as a library that exports one, or when you want a string enum's strictness on purpose, so that a raw string can't stand in for a member.
+
+The compiler option `erasableSyntaxOnly`, for code that Node runs by stripping its types (module 16), rejects `enum` and `const enum` alike with `This syntax is not allowed when 'erasableSyntaxOnly' is enabled.`; only a `declare`d enum, which emits nothing, passes.
+
+## Pitfalls
+
+**A string where a string enum is expected.** Values that arrive as strings, from JSON, a form or a URL, don't fit a string enum, even when they match a member's value. The literal reports `Argument of type '"archived"' is not assignable to parameter of type 'Status'.`, and the variable `Argument of type 'string' is not assignable to parameter of type 'Status'.`
+
+```ts run errors
+enum Status {
+  Active = 'active',
+  Archived = 'archived',
+}
+
+function describe(status: Status): string {
+  return `this project is ${status}`;
+}
+
+describe('archived');
+
+const fromServer: string = 'active';
+describe(fromServer);
+```
+
+Every such string has to be checked and turned into a member first. With the `as const` object, the literal compiles; the `string` variable still doesn't, and rightly: it could hold anything, so it needs the same check.
+
+**Any `number` fits a numeric enum.** A literal that isn't a member is caught, but a value typed `number` is accepted whatever it holds. This compiles and prints `turning undefined`:
+
+```ts run
+enum Direction {
+  Up,
+  Down,
+  Left,
+  Right,
+}
+
+function turn(direction: Direction): string {
+  return `turning ${Direction[direction]}`;
+}
+
+const fromInput: number = 7;
+console.log(turn(fromInput));
+```
+
+A union of literals has no such gap: `number` is not assignable to `0 | 1 | 2 | 3`. String enums don't have it either.
+
+**Looping over a numeric enum.** The reverse mapping puts the numbers in the object too, so `Object.keys` and `Object.values` give twice as many entries as there are members:
+
+```ts run
+enum Direction {
+  Up,
+  Down,
+  Left,
+  Right,
+}
+
+console.log(Object.keys(Direction));
+console.log(Object.values(Direction));
+```
+
+The keys are `'0'` to `'3'`, then the names: JavaScript stores every key as a string and lists integer-like keys first. The values are the names, then the numbers, and their type, `(string | Direction)[]`, says so. A string enum has no reverse mapping, so its keys and values are the members alone, and an `as const` array is a list of the values to begin with.
+
+## Check yourself
+
+<Predict
+  id="string-enum-argument"
+  question="Given `enum Status { Active = 'active', Archived = 'archived' }` and `function describe(status: Status)`, which call compiles?"
+  options={[
+    "describe('archived')",
+    'describe(Status.Archived)',
+    "describe('Archived')",
+    "describe(Status['archived'])",
+  ]}
+  answer={1}
+  explanation="Only a member fits a string enum. `'archived'` is the value of `Status.Archived`, but a string literal is not a `Status`; `'Archived'` is the member's name, not even its value; and `Status['archived']` looks up a member called `archived`, which doesn't exist. With an `as const` object and a union, the first call would compile too."
+/>
+
+<Predict
+  id="numeric-enum-keys"
+  code={
+    'enum Direction {\n  Up,\n  Down,\n}\n\nconsole.log(Object.keys(Direction));'
+  }
+  question="What does this print?"
+  options={[
+    "['Up', 'Down']",
+    "['0', '1', 'Up', 'Down']",
+    "['Up', 'Down', '0', '1']",
+    '[0, 1]',
+  ]}
+  answer={1}
+  explanation="A numeric enum maps both ways, so its object has the names and the numbers as keys. JavaScript stores every key as a string and lists integer-like keys first, so `'0'` and `'1'` come before the names. A string enum has no reverse mapping, and its keys would be the names alone."
+/>
+
+<Predict
+  id="what-is-erased"
+  question="Under the dojo's default options, which of these leaves nothing in the JavaScript that runs?"
+  options={[
+    'enum Size { Small, Large }',
+    'const enum Size { Small, Large }',
+    "const Size = { Small: 's', Large: 'l' } as const",
+    "type Size = 's' | 'l'",
+  ]}
+  answer={3}
+  explanation="A type alias is erased completely. An enum compiles to an object, and so does a `const enum` under `isolatedModules`, which the defaults turn on. The `as const` object is an ordinary JavaScript object: only `as const` itself is erased."
+/>
+
+## Further reading
+
+- [Handbook: Enums](https://www.typescriptlang.org/docs/handbook/enums.html)
+- [Handbook: Enums, reverse mappings](https://www.typescriptlang.org/docs/handbook/enums.html#reverse-mappings)
+- [Handbook: Enums, const enum pitfalls](https://www.typescriptlang.org/docs/handbook/enums.html#const-enum-pitfalls)
+- [Handbook: Enums, objects vs enums](https://www.typescriptlang.org/docs/handbook/enums.html#objects-vs-enums)
+- [TSConfig reference: isolatedModules](https://www.typescriptlang.org/tsconfig/#isolatedModules)
+- [TSConfig reference: erasableSyntaxOnly](https://www.typescriptlang.org/tsconfig/#erasableSyntaxOnly)

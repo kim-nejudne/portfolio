@@ -1,0 +1,35 @@
+id: m11-conditional-types/04-recursive-conditionals/02-editable-draft
+kind: fix
+title: An editable draft
+minutes: 3
+challenge: false
+prompt: |
+  A store hands out `Settings`, read-only at every level. `applyEdits` in `index.ts` changes a
+  `Draft<Settings>`, a copy that is meant to be editable, but `Draft` only removes `readonly`
+  from the top level, so the edits below it don't compile:
+
+  - `Cannot assign to 'mode' because it is a read-only property.`
+  - `Cannot assign to '0' because it is a read-only property.`
+  - `Property 'push' does not exist on type 'readonly number[]'.`
+  - `Cannot assign to 'enabled' because it is a read-only property.`, and the same for
+    `tabSize`.
+
+  Fix `Draft<T>` so that every level is writable, read-only arrays and tuples included, and
+  `draft.format` can still be called. Keep `Settings` and `applyEdits` as they are; the type
+  cases also try `Draft` on other types.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    non-null-assertion,
+    angle-cast,
+    any-expression,
+  ]
+hints:
+  - Each property keeps its type, `T[K]`, so only the top level changes. What if that type went through `Draft` too?
+  - If `draft.format` stops being callable, read the second pitfall in the theory.

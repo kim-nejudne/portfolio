@@ -1,0 +1,429 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/jetbrains-mono';
+@import '@shikijs/twoslash/style-classic.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* The terminal look (spec §6 Theme and type, restyled 25 October 2026): one monospace face
+   everywhere, square corners, no shadows. The colour tokens (`--bg`, `--fg`, `--accent`, the
+   sixteen ANSI colours…) come from the generated scheme stylesheet, virtual:ts-dojo-schemes.css
+   (src/theme/css.ts), selected by data-scheme and data-mode on <html>; everything below maps the
+   UI onto them, so a utility class never names a colour of its own. */
+@theme inline {
+  --font-sans:
+    'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --font-mono:
+    'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --font-heading: var(--font-sans);
+
+  /* shadcn's semantic colours, over the terminal tokens. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--selection);
+  --color-accent-foreground: var(--fg);
+  --color-destructive: var(--red);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
+
+  /* The terminal roles: `text-link`, `text-success`, `bg-selection`, `text-ansi-green`… */
+  --color-link: var(--accent);
+  --color-cursor: var(--cursor);
+  --color-selection: var(--selection);
+  --color-success: var(--green);
+  --color-warning: var(--yellow);
+  --color-error: var(--red);
+  --color-info: var(--blue);
+  --color-ansi-black: var(--black);
+  --color-ansi-red: var(--red);
+  --color-ansi-green: var(--green);
+  --color-ansi-yellow: var(--yellow);
+  --color-ansi-blue: var(--blue);
+  --color-ansi-magenta: var(--magenta);
+  --color-ansi-cyan: var(--cyan);
+  --color-ansi-white: var(--white);
+  --color-ansi-bright-black: var(--bright-black);
+  --color-ansi-bright-red: var(--bright-red);
+  --color-ansi-bright-green: var(--bright-green);
+  --color-ansi-bright-yellow: var(--bright-yellow);
+  --color-ansi-bright-blue: var(--bright-blue);
+  --color-ansi-bright-magenta: var(--bright-magenta);
+  --color-ansi-bright-cyan: var(--bright-cyan);
+  --color-ansi-bright-white: var(--bright-white);
+
+  /* Square corners and no shadows, whatever utility a component asks for. */
+  --radius: 0px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+}
+
+/* The semantic roles, the same in every scheme and mode: the scheme stylesheet changes the
+   tokens under them. */
+:root {
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --card: var(--bg-alt);
+  --card-foreground: var(--fg);
+  --popover: var(--bg-alt);
+  --popover-foreground: var(--fg);
+  --primary: var(--accent);
+  --primary-foreground: var(--bg);
+  --secondary: var(--bg-alt);
+  --secondary-foreground: var(--fg);
+  --muted: var(--bg-alt);
+  --muted-foreground: var(--fg-muted);
+  --destructive: var(--red);
+  --ring: var(--accent);
+
+  /* Editor colours (src/editor/extensions.ts): syntax from the ANSI colours, chrome from the
+     terminal tokens. */
+  --syntax-keyword: var(--magenta);
+  --syntax-string: var(--green);
+  --syntax-number: var(--yellow);
+  --syntax-comment: var(--fg-muted);
+  --syntax-type: var(--cyan);
+  --syntax-property: var(--blue);
+  --syntax-function: var(--blue);
+  --syntax-variable: var(--fg);
+  --syntax-operator: var(--fg-muted);
+  --editor-active-line: var(--bg-alt);
+  --editor-selection: var(--selection);
+  --editor-match: color-mix(in srgb, var(--yellow) 30%, transparent);
+  --editor-cursor: var(--cursor);
+
+  /* Roadmap (spec §6): the progress ring's accent and track, and the prerequisite edges. */
+  --progress: var(--green);
+  --progress-track: var(--border);
+  --roadmap-edge: var(--fg-muted);
+
+  /* Theory code blocks (spec §3 lesson.mdx): shiki's CSS-variables theme, rendered at build
+     time (src/content/node/mdx.ts), reads these; the ANSI colours give each token its hue. */
+  --shiki-foreground: var(--fg);
+  --shiki-background: var(--bg-alt);
+  --shiki-token-constant: var(--yellow);
+  --shiki-token-string: var(--green);
+  --shiki-token-comment: var(--fg-muted);
+  --shiki-token-keyword: var(--magenta);
+  --shiki-token-parameter: var(--fg);
+  --shiki-token-function: var(--blue);
+  --shiki-token-string-expression: var(--green);
+  --shiki-token-punctuation: var(--fg);
+  --shiki-token-link: var(--accent);
+  --shiki-token-inserted: var(--green);
+  --shiki-token-deleted: var(--red);
+  --shiki-token-changed: var(--yellow);
+  --shiki-ansi-black: var(--black);
+  --shiki-ansi-red: var(--red);
+  --shiki-ansi-green: var(--green);
+  --shiki-ansi-yellow: var(--yellow);
+  --shiki-ansi-blue: var(--blue);
+  --shiki-ansi-magenta: var(--magenta);
+  --shiki-ansi-cyan: var(--cyan);
+  --shiki-ansi-white: var(--white);
+  --shiki-ansi-bright-black: var(--bright-black);
+  --shiki-ansi-bright-red: var(--bright-red);
+  --shiki-ansi-bright-green: var(--bright-green);
+  --shiki-ansi-bright-yellow: var(--bright-yellow);
+  --shiki-ansi-bright-blue: var(--bright-blue);
+  --shiki-ansi-bright-magenta: var(--bright-magenta);
+  --shiki-ansi-bright-cyan: var(--bright-cyan);
+  --shiki-ansi-bright-white: var(--bright-white);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-feature-settings: 'calt' 1;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  ::selection {
+    background: var(--selection);
+    color: var(--fg);
+  }
+  ::placeholder {
+    color: var(--fg-muted);
+  }
+  kbd {
+    border: 1px solid var(--border);
+    padding: 0 0.3em;
+    font-family: inherit;
+  }
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+  input,
+  textarea {
+    caret-color: var(--cursor);
+  }
+  input[type='radio'],
+  input[type='checkbox'] {
+    accent-color: var(--accent);
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: 0;
+  }
+}
+
+/* Terminal chrome ------------------------------------------------------------------------- */
+
+/* In Tailwind's `components` layer so that utilities on the same element win: unlayered rules
+   beat every layered one whatever their specificity, and the roadmap card's
+   `focus-visible:border-ring` and `[&>.term-title]:bg-foreground`, or a link button's
+   `before:content-none`, must override these defaults. */
+@layer components {
+  /* A pane: a tmux pane or a terminal window with a title bar. `.term-title` is the bar, with
+     the three window dots when `.term-dots` is inside it. */
+  .term-pane {
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .term-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.5rem;
+    padding: 0 0.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-alt);
+    color: var(--fg-muted);
+    font-size: 0.75rem;
+    line-height: 1.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .term-dots {
+    display: inline-flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+  .term-dots > i {
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    background: var(--red);
+  }
+  .term-dots > i:nth-child(2) {
+    background: var(--yellow);
+  }
+  .term-dots > i:nth-child(3) {
+    background: var(--green);
+  }
+
+  /* Headings as prompts: `❯ Roadmap`, with the block cursor blinking after the main heading
+     (`data-cursor`); `.prompt-prefix` is the same glyph before any other element. The generated
+     text has empty alternative text, so an accessible name and `textContent` stay the element's
+     own words. */
+  .prompt-heading::before,
+  .prompt-prefix::before {
+    content: '❯ ' / '';
+    color: var(--accent);
+  }
+  .prompt-heading[data-cursor]::after {
+    content: '▍' / '';
+    margin-left: 0.15em;
+    color: var(--cursor);
+    animation: term-blink 1.1s steps(1, end) infinite;
+  }
+  /* Section headings as a shell comment: `# Tier 0`. */
+  .section-heading::before {
+    content: '# ' / '';
+    color: var(--fg-muted);
+  }
+  /* The prompt glyph before an input or a path. */
+  .prompt-glyph {
+    color: var(--accent);
+    user-select: none;
+  }
+  @keyframes term-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* Buttons as bracketed commands, `[ run ]`, inverted on hover and focus (src/components/ui/
+     button.tsx adds the colours). */
+  .btn-term::before {
+    content: '[' / '';
+  }
+  .btn-term::after {
+    content: ']' / '';
+  }
+
+  /* A blinking block cursor accent after an empty prompt input (src/components/ui/input.tsx). */
+  .prompt-line:has(> input:placeholder-shown)::after {
+    content: '▍' / '';
+    margin-left: -0.5rem;
+    color: var(--cursor);
+    pointer-events: none;
+    animation: term-blink 1.1s steps(1, end) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .prompt-heading[data-cursor]::after,
+    .prompt-line:has(> input:placeholder-shown)::after {
+      animation: none;
+    }
+  }
+}
+
+/* Theory code blocks (spec §3 lesson.mdx): shiki renders every token as a class whose rule
+   reads a `--shiki-*` variable (the CodeStyles element of each lesson), so the block follows
+   the scheme with no highlighting code in the browser. The twoslash classic stylesheet above
+   draws the `^?` results and hover popups. */
+.shiki {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  background: var(--shiki-background);
+  color: var(--shiki-foreground);
+  font-family: var(--font-mono);
+  /* §7 `fontSize` (F10), shared with the editor; src/app/font-size.ts sets it on <html>. */
+  font-size: var(--code-font-size, 0.875rem);
+  line-height: 1.5;
+}
+/* The classic renderer's markup: a `^?` result is `.meta-line > .popover`, a hover popup is
+   `.lsp .popover`; both get the app's popover colours in either theme. */
+.twoslash .popover,
+.twoslash .meta-line .popover {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.twoslash .meta-line .popover .arrow {
+  background: var(--popover);
+  border-color: var(--border);
+}
+
+/* Theory prose (spec §1 Lesson anatomy, §6 Lesson page). */
+.theory {
+  max-width: 44rem;
+  line-height: 1.6;
+}
+.theory h2 {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.theory h2::before {
+  content: '## ' / '';
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+.theory p,
+.theory ul,
+.theory ol {
+  margin: 0.75rem 0;
+}
+.theory ul,
+.theory ol {
+  padding-left: 1.5rem;
+}
+.theory ul {
+  list-style: '- ';
+}
+.theory ol {
+  list-style: decimal;
+}
+.theory li {
+  margin: 0.25rem 0;
+}
+.theory a,
+.prompt a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.theory :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-alt);
+  padding: 0.1em 0.3em;
+}
+.theory .code-block {
+  margin: 1rem 0;
+}
+.theory .code-block ul,
+.theory .predict ol {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* The exercise prompt (spec §1: Markdown, compiled at build time; §6 Lesson page). */
+.prompt {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.prompt p,
+.prompt ul,
+.prompt ol,
+.prompt pre {
+  margin: 0.5rem 0;
+}
+.prompt ul,
+.prompt ol {
+  padding-left: 1.25rem;
+}
+.prompt ul {
+  list-style: '- ';
+}
+.prompt ol {
+  list-style: decimal;
+}
+.prompt :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-alt);
+  padding: 0.1em 0.3em;
+}
+.prompt pre {
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+}

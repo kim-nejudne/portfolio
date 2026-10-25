@@ -1,0 +1,319 @@
+---
+id: m09-modules-async/04-errors
+title: 'Errors: unknown in catch, Result-style returns'
+minutes: 15
+objectives:
+  - Narrow the unknown value a catch clause receives, and know which annotations it accepts
+  - Treat the any reason of a .catch callback as unknown before using it
+  - Throw custom error classes, tell them apart with instanceof, and chain them with cause
+  - Return a Result for failures the caller should handle, and wrap a throwing call into one
+  - Give functions that always throw the return type never, in a form the compiler follows
+prerequisites:
+  - m01-types/04-any-unknown-never-void
+  - m03-unions/03-narrowing
+  - m03-unions/05-discriminated-unions
+  - m04-objects/05-classes
+  - m05-generics/03-generic-types-and-classes
+  - m07-guards/02-assertion-functions
+  - m09-modules-async/03-async
+tags:
+  - errors
+  - throw
+  - try
+  - catch
+  - unknown
+  - useUnknownInCatchVariables
+  - TS1196
+  - instanceof
+  - Error
+  - custom error class
+  - cause
+  - ErrorOptions
+  - Result
+  - never
+  - rejection
+---
+
+## Concept
+
+JavaScript can throw any value, not only an `Error`: `throw 'timeout'` and `throw 404` are legal, and so is a library that rejects a promise with a plain object. Nothing in a function's type says what it throws, so a `catch` clause can't know what it receives. Under `strict` the compiler admits it: the flag `useUnknownInCatchVariables`, part of `strict` since TypeScript 4.4, gives the caught value the type `unknown`, and <Lesson id="m03-unions/03-narrowing" /> showed how `instanceof` gets you from there to an error's properties:
+
+```ts twoslash
+function parsePort(text: string): number {
+  const port = Number(text);
+  if (!Number.isInteger(port)) {
+    throw new RangeError(`not a port: ${text}`);
+  }
+  return port;
+}
+
+try {
+  parsePort('http');
+} catch (error) {
+  //     ^?
+  if (error instanceof Error) {
+    console.log(error.name, error.message);
+    //          ^?
+  } else {
+    console.log('something else was thrown:', error);
+  }
+}
+```
+
+Turn the flag off and the caught value is `any`, as it was before 4.4. You can also write the type on the clause: `catch (error: unknown)` says the same thing whatever the flag, and `catch (error: any)` opts out of checking. Those are the only two annotations allowed. Anything else, such as `catch (error: Error)`, reports _Catch clause variable type annotation must be 'any' or 'unknown' if specified._ The annotation would be a promise about what was thrown, and nothing could check it.
+
+**Rejections.** A promise that rejects is the asynchronous throw, and `Promise<T>` doesn't describe its reason either (9.3 said so). With `await` inside `try`, the rejection arrives in `catch` as `unknown`, like any other throw. The callbacks of `.catch` and the second argument of `.then` are typed by the lib, though, and there the reason is `any`, as it is in `PromiseRejectedResult.reason` from `Promise.allSettled`. `any` switches checking off (<Lesson id="m01-types/04-any-unknown-never-void" />): a typo or a wrong guess about the reason compiles. Write `(reason: unknown)` on the callback yourself to turn checking back on.
+
+**Failures in the return type.** A thrown error is invisible to the caller's types: `parsePort` above says it returns a `number`, and nothing reminds a caller to catch. When a failure is an ordinary outcome that the caller has to decide about, put it in the return type instead. That is the `Result` that <Lesson id="m05-generics/03-generic-types-and-classes" /> made generic out of the `ParseResult` of <Lesson id="m03-unions/05-discriminated-unions" />:
+
+```ts
+type Result<T, E = string> = { ok: true; value: T } | { ok: false; error: E };
+```
+
+A caller can't read `value` until it has checked `ok`, so the compiler makes every caller handle the failure. And `E` says what can go wrong, which a `throw` never does.
+
+## Examples
+
+**Custom error classes and `cause`.** An error class extends `Error`, adds the fields a handler needs, and sets `name`, which `String(error)` and stack traces print. When code catches one error and throws a more meaningful one, it passes the first as the `cause` option, so nothing is lost. `cause` comes with the es2022 lib, which the es2025 lib includes. Its type is `unknown`, because any value can be a cause, so it is narrowed like a caught value:
+
+```ts run
+class NotFoundError extends Error {
+  override name = 'NotFoundError';
+  readonly path: string;
+
+  constructor(path: string) {
+    super(`no file at ${path}`);
+    this.path = path;
+  }
+}
+
+const files = new Map([['a.json', '{"theme":"dark"}']]);
+
+function readFile(path: string): string {
+  const text = files.get(path);
+  if (text === undefined) {
+    throw new NotFoundError(path);
+  }
+  return text;
+}
+
+function loadConfig(path: string): unknown {
+  try {
+    return JSON.parse(readFile(path));
+  } catch (error) {
+    throw new Error(`could not load ${path}`, { cause: error });
+  }
+}
+
+for (const path of ['a.json', 'b.json']) {
+  try {
+    console.log(loadConfig(path));
+  } catch (error) {
+    if (error instanceof Error && error.cause instanceof NotFoundError) {
+      console.log(`${error.message}: ${error.cause.path} does not exist`);
+    } else {
+      throw error;
+    }
+  }
+}
+```
+
+The `else` throws again what it doesn't know how to handle, rather than swallow it. `override` is the modifier from <Lesson id="m08-functions-classes/03-classes-2" />: `Error` already has a `name`.
+
+**The reason in `.catch` is `any`.** The same rejection reads as `any` in a callback and as `unknown` after `await`:
+
+```ts twoslash
+declare function loadUser(id: number): Promise<{ name: string }>;
+
+loadUser(1).catch((reason) => console.log(reason.mesage));
+//                 ^?
+
+export const name = await loadUser(1).then(
+  (user) => user.name,
+  (reason: unknown) =>
+    reason instanceof Error ? reason.message : 'unknown error',
+);
+
+try {
+  await loadUser(1);
+} catch (error) {
+  //     ^?
+}
+```
+
+`reason.mesage` is misspelt, and it compiles: the lib declares the callback's parameter as `any`. Annotating it `unknown` is allowed, because an `any` can be passed to an `unknown`, and from then on the compiler asks for a check.
+
+**A `Result` with typed errors.** `E` can be a discriminated union of its own, so a caller can tell the failures apart and say something useful about each:
+
+```ts run
+type Result<T, E = string> = { ok: true; value: T } | { ok: false; error: E };
+
+type PortError =
+  | { kind: 'not-a-number'; text: string }
+  | { kind: 'out-of-range'; port: number };
+
+function parsePort(text: string): Result<number, PortError> {
+  const port = Number(text);
+  if (!Number.isInteger(port)) {
+    return { ok: false, error: { kind: 'not-a-number', text } };
+  }
+  if (port < 1 || port > 65535) {
+    return { ok: false, error: { kind: 'out-of-range', port } };
+  }
+  return { ok: true, value: port };
+}
+
+for (const text of ['8080', 'http', '70000']) {
+  const result = parsePort(text);
+  if (result.ok) {
+    console.log(`listening on ${result.value}`);
+  } else if (result.error.kind === 'not-a-number') {
+    console.log(`${result.error.text} is not a number`);
+  } else {
+    console.log(`${result.error.port} is out of range`);
+  }
+}
+```
+
+**Wrapping a call that throws.** Most libraries throw, `JSON.parse` among them. Where you want a `Result`, catch at the boundary and turn the caught value into the error type, here an `Error`. Since anything can be thrown, a value that isn't an `Error` gets wrapped in one, with the original as its `cause`:
+
+```ts twoslash
+type Result<T, E = string> = { ok: true; value: T } | { ok: false; error: E };
+
+function parseJson(text: string): Result<unknown, Error> {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { ok: false, error };
+    }
+    return { ok: false, error: new Error(String(error), { cause: error }) };
+  }
+}
+
+const parsed = parseJson('{"port": 8080');
+if (!parsed.ok) {
+  console.log(parsed.error);
+  //                 ^?
+}
+```
+
+The return type says `unknown` for the value, not the `any` that `JSON.parse` returns, so the caller has to check the data as well (<Lesson id="m07-guards/01-type-guards" />).
+
+**Throw or return a `Result`?** Throw when the caller can't do anything sensible about the failure where it calls: a bug, such as an argument that breaks the function's contract or a state that can't happen, or a failure that ends the whole operation, which one `catch` near the top reports. Return a `Result` when the failure is an expected outcome the caller must decide about: input that doesn't parse, a record that isn't there, a payment that is declined. A thrown error asks nothing of a caller who forgets it, and a `Result` can't be ignored. Many codebases do both: they wrap throwing library calls into `Result`s at the edge, and throw for what they don't expect.
+
+**Functions that never return.** <Lesson id="m01-types/04-any-unknown-never-void" /> wrote `: never` on a function that always throws. A call to it is an expression of type `never`, which fits anywhere and drops out of a union, so it makes a short way to give up on a missing value:
+
+```ts twoslash
+function fail(message: string): never {
+  throw new Error(message);
+}
+
+const env: Record<string, string | undefined> = { PORT: '8080' };
+const port = env.PORT ?? fail('PORT is not set');
+//    ^?
+```
+
+## Pitfalls
+
+**Using the caught value before checking it.** It is `unknown`, so reading a property is an error, and an annotation that names the type you expect isn't allowed either:
+
+```ts run errors
+try {
+  JSON.parse('{');
+} catch (error) {
+  console.log(error.message);
+}
+
+try {
+  JSON.parse('{');
+} catch (error: Error) {
+  console.log(error.message);
+}
+```
+
+`'error' is of type 'unknown'.` and `Catch clause variable type annotation must be 'any' or 'unknown' if specified.` After the second error the compiler checks nothing else in the block: it treats `error` as `any`, so `error.status` would compile too. Narrow with `instanceof` instead, and use `String(error)` for a value you can't narrow further.
+
+**A type on a rejection reason.** Because the reason is `any`, `(error: Error)` on a `.catch` callback compiles, and it checks nothing. Here the promise rejects with a string:
+
+```ts run
+export function timeout(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject('timeout'), ms);
+  });
+}
+
+await timeout(10).catch((error: Error) => {
+  console.log(`failed: ${error.message}`);
+});
+```
+
+It prints `failed: undefined`. Write `(error: unknown)` and narrow, as in the examples.
+
+**An arrow function returning `never`, without a type on its variable.** The compiler only treats a call as the end of the code when the function's name was declared with an explicit type. That is the rule <Lesson id="m07-guards/02-assertion-functions" /> showed for assertion functions. The `: never` written on the arrow function's return isn't an annotation on `fail` itself:
+
+```ts run errors
+const fail = (message: string): never => {
+  throw new Error(message);
+};
+
+export function first(items: string[]): string {
+  const item = items.at(0);
+  if (item === undefined) {
+    fail('no items');
+  }
+  return item;
+}
+```
+
+`Type 'string | undefined' is not assignable to type 'string'.` The compiler thinks the code can go on after `fail(…)`, so `item` may still be `undefined`. Unlike an assertion function, the call itself reports nothing. Write a function declaration, or give the variable the whole function type: `const fail: (message: string) => never = …`. `return fail(…)` also works, whatever the declaration.
+
+## Check yourself
+
+<Predict
+  id="catch-annotation"
+  question="Under strict, which of these catch clauses is a compile error?"
+  options={[
+    'catch (error)',
+    'catch (error: unknown)',
+    'catch (error: any)',
+    'catch (error: Error)',
+  ]}
+  answer={3}
+  explanation="A catch clause accepts no annotation, `unknown` or `any`. Anything else reports `Catch clause variable type annotation must be 'any' or 'unknown' if specified.`, because the compiler has no way to know what was thrown. Without an annotation, `strict` turns on `useUnknownInCatchVariables`, so the value is `unknown`."
+/>
+
+<Predict
+  id="never-arrow"
+  code={
+    "const fail = (message: string): never => {\n  throw new Error(message);\n};\n\nfunction first(items: string[]): string {\n  const item = items.at(0);\n  if (item === undefined) {\n    fail('no items');\n  }\n  return item;\n}"
+  }
+  question="Does this compile?"
+  options={[
+    'Yes: fail returns never, so item is a string after the if',
+    "No: 'return item' is an error, because item may still be undefined",
+    'No: an arrow function cannot return never',
+  ]}
+  answer={1}
+  explanation="A call ends the code for the compiler only when the function's name has an explicit type. `fail` is a `const` whose type was inferred, so the compiler assumes the code goes on, and `item` is still `string | undefined` at the `return`. A function declaration, or `const fail: (message: string) => never`, makes it compile."
+/>
+
+<Predict
+  id="throw-or-result"
+  question="Which failure suits a Result return better than a throw?"
+  options={[
+    'A sign-up form was sent with an email address that has no @',
+    'A function was called with a negative length that its own module computed',
+    'A switch reached a member of a union that should have been impossible',
+  ]}
+  answer={0}
+  explanation="A bad email address is an expected outcome: the caller has to show a message and let the user try again, and a `Result` makes it handle that. The other two are bugs. No caller can fix them where it calls, so they throw, and a `catch` near the top reports them."
+/>
+
+## Further reading
+
+- [TypeScript 4.4 release notes: useUnknownInCatchVariables](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-4.html#defaulting-to-the-unknown-type-in-catch-variables---useunknownincatchvariables)
+- [TSConfig reference: useUnknownInCatchVariables](https://www.typescriptlang.org/tsconfig/#useUnknownInCatchVariables)
+- [Handbook: Narrowing, the never type](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#the-never-type)
+- [MDN: Error, cause](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause)
+- [MDN: Custom error types](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error#custom_error_types)

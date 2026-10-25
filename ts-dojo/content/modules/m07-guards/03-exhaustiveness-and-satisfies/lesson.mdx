@@ -1,0 +1,356 @@
+---
+id: m07-guards/03-exhaustiveness-and-satisfies
+title: Exhaustive switch, assertNever, satisfies and as const for config
+minutes: 25
+objectives:
+  - Write assertNever and end every exhaustive switch with it, so that a missed member is a compile error that names it and bad data throws at run time
+  - Call assertNever as a statement or with return, and explain why a call alone ends a branch only when the helper has a written type
+  - Check a value against a type with satisfies while keeping its inferred type, and choose it over an annotation or an as cast
+  - Write a config object with as const satisfies, and derive a union from its keys with keyof typeof
+prerequisites:
+  - m01-types/02-primitives-literals-widening
+  - m03-unions/05-discriminated-unions
+  - m04-objects/04-enums-vs-as-const
+  - m06-type-operators/01-keyof-typeof-indexed-access
+  - m07-guards/02-assertion-functions
+tags:
+  - assertNever
+  - exhaustiveness
+  - exhaustive switch
+  - never
+  - satisfies
+  - as const
+  - as const satisfies
+  - config
+  - keyof typeof
+  - excess property check
+  - noFallthroughCasesInSwitch
+---
+
+## Concept
+
+<Lesson id="m03-unions/05-discriminated-unions" /> proved that a `switch`
+handled every member by assigning what was left to a `never` variable in
+`default`. That check is two lines, copied into every `switch`. Put it in a
+function, and each copy shrinks to one call:
+
+```ts twoslash
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+function assertNever(value: never): never {
+  throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+}
+
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case 'circle':
+      return Math.PI * shape.radius ** 2;
+    case 'square':
+      return shape.side ** 2;
+    default:
+      shape;
+      // ^?
+      return assertNever(shape);
+  }
+}
+```
+
+The parameter has type `never`, so a call compiles only where narrowing has used up the union. The return type is `never` too, because the function always throws, and a `never` fits wherever any type is expected, so `return assertNever(shape)` compiles in a function that returns a `number`. TypeScript doesn't ship `assertNever`: it is ordinary code that you write once, and most codebases have one that looks like this.
+
+The second half of the lesson is a check of another kind. An annotation checks a value against a type and then gives the variable that type, whatever the value was. `satisfies`, written after an expression, does the check and nothing more. The variable keeps the type inferred from the value:
+
+```ts twoslash
+type Settings = { mode: 'fast' | 'safe'; retries: number };
+
+const annotated: Settings = { mode: 'fast', retries: 3 };
+annotated.mode;
+//          ^?
+const checked = { mode: 'fast', retries: 3 } satisfies Settings;
+checked.mode;
+//        ^?
+```
+
+The annotated `mode` is any mode; the checked one is still known to be `'fast'`. For an object that is written once and read everywhere, such as a config, that difference decides which types the rest of the program can derive from it.
+
+## Examples
+
+**What a missed member looks like.** Add a triangle to `Shape`, and every call to `assertNever` that the triangle can reach reports it by name. That works the same in a function that returns nothing, and in a `switch` over a union of plain literals:
+
+```ts run errors
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'triangle'; base: number; height: number };
+
+function assertNever(value: never): never {
+  throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+}
+
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case 'circle':
+      return Math.PI * shape.radius ** 2;
+    case 'square':
+      return shape.side ** 2;
+    default:
+      return assertNever(shape);
+  }
+}
+
+function draw(shape: Shape): void {
+  switch (shape.kind) {
+    case 'circle':
+      console.log(`circle, radius ${shape.radius}`);
+      break;
+    case 'square':
+      console.log(`square, side ${shape.side}`);
+      break;
+    default:
+      assertNever(shape);
+  }
+}
+
+type Status = 'draft' | 'published' | 'archived';
+
+function badge(status: Status): string {
+  switch (status) {
+    case 'draft':
+      return 'Draft';
+    case 'published':
+      return 'Live';
+    default:
+      return assertNever(status);
+  }
+}
+```
+
+`area` and `draw` report `Argument of type '{ kind: "triangle"; base: number; height: number; }' is not assignable to parameter of type 'never'.`, and `badge` reports `Argument of type '"archived"' is not assignable to parameter of type 'never'.` Like the inline check from 3.5, each error names the member that reached `default`, and the `void` function `draw` is covered too.
+
+`draw` calls `assertNever` as a statement, with no `return`, and the call still ends the branch. That needs the same thing as an assertion call in <Lesson id="m07-guards/02-assertion-functions" />: a function declaration, or a name with a written type. Make `assertNever` an arrow function in an unannotated `const`, and a function that must return a value reports the missing return again. `return assertNever(...)` works either way.
+
+In a `switch` with `break`, a case that forgets its `break` runs on into the next one. The compiler allows that by default. The option `noFallthroughCasesInSwitch`, which `strict` doesn't include, reports it as _Fallthrough case in switch._
+
+**Data the types don't describe.** The types say that `default` can't be reached, but a value from outside the program can reach it anyway. `JSON.parse` returns `any`, which the compiler accepts as a `Shape` whatever it holds:
+
+```ts run
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+function assertNever(value: never): never {
+  throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+}
+
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case 'circle':
+      return Math.PI * shape.radius ** 2;
+    case 'square':
+      return shape.side ** 2;
+    default:
+      return assertNever(shape);
+  }
+}
+
+const shapes: Shape[] = JSON.parse(
+  '[{"kind":"circle","radius":1},{"kind":"hexagon","side":2}]',
+);
+for (const shape of shapes) {
+  try {
+    console.log(area(shape).toFixed(2));
+  } catch (error) {
+    console.log(String(error));
+  }
+}
+```
+
+The hexagon reaches `assertNever`, and the error carries the value. Both checks name a missed member at compile time, so `assertNever` beats the inline check twice over: one helper instead of a copy per `switch`, and a throw with the bad value at run time, which the inline check gives only if you write the `throw` every time.
+
+**`satisfies` keeps what it checks.** The type after `satisfies` is still the context for inference, as an annotation's type would be. Where it asks for literal types, a literal keeps its literal type; where it asks for a tuple, an array literal becomes a tuple. Everywhere else, inference goes on as usual:
+
+```ts twoslash
+type Rgb = [number, number, number];
+type Palette = Record<'background' | 'text' | 'accent', string | Rgb>;
+
+const palette = {
+  background: '#fdf6e3',
+  text: [101, 123, 131],
+  accent: '#b58900',
+} satisfies Palette;
+
+palette.text;
+//        ^?
+palette.accent;
+//        ^?
+```
+
+`palette.text.join(', ')` and `palette.accent.toUpperCase()` both compile. Annotated with `Palette`, every colour would be a `string | Rgb`, and both calls would be errors. Without either, `text` would be a `number[]`, which isn't a colour, and nothing would say so. The check is the one an annotation makes, excess properties included:
+
+```ts run errors
+type Settings = { mode: 'fast' | 'safe'; retries: number };
+
+const missing = { mode: 'fast' } satisfies Settings;
+const typo = { mode: 'fast', retries: 3, retry: 2 } satisfies Settings;
+const wrong = { mode: 'fsat', retries: 3 } satisfies Settings;
+```
+
+`Type '{ mode: "fast"; }' does not satisfy the expected type 'Settings'.`, then _Object literal may only specify known properties, and 'retry' does not exist in type 'Settings'._, then _Type '"fsat"' is not assignable to type '"fast" | "safe"'._
+
+**`as const satisfies` for config.** A config wants everything at once: every literal kept and nothing changed by accident, which is `as const` (<Lesson id="m01-types/02-primitives-literals-widening" />), and every entry checked against a shape, which is `satisfies`. Write them in that order:
+
+```ts twoslash
+type Route = { path: string; auth: boolean };
+
+const routes = {
+  home: { path: '/', auth: false },
+  account: { path: '/account', auth: true },
+} as const satisfies Record<string, Route>;
+
+routes.account;
+//          ^?
+type RouteName = keyof typeof routes;
+//          ^?
+```
+
+`Record<string, Route>` accepts any key and checks every value, so a misspelt property is caught where it is written: `pth: '/account'` reports _Object literal may only specify known properties, but 'pth' does not exist in type 'Route'. Did you mean to write 'path'?_ And because `satisfies` leaves the type alone, the keys are the ones written, and `keyof typeof routes` (<Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />) is the union of them, as it was for the `as const` objects in <Lesson id="m04-objects/04-enums-vs-as-const" />. The other order, `satisfies Record<string, Route> as const`, is an error: _A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals._
+
+**One list, every check.** The derived union plugs into everything else in this lesson. Functions take a `RouteName`, and a `switch` over it ends in `assertNever`:
+
+```ts run
+type Route = { path: string; auth: boolean };
+
+const routes = {
+  home: { path: '/', auth: false },
+  account: { path: '/account', auth: true },
+} as const satisfies Record<string, Route>;
+
+type RouteName = keyof typeof routes;
+
+function assertNever(value: never): never {
+  throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+}
+
+function href(name: RouteName): string {
+  return `https://dojo.example${routes[name].path}`;
+}
+
+function title(name: RouteName): string {
+  switch (name) {
+    case 'home':
+      return 'Home';
+    case 'account':
+      return 'Your account';
+    default:
+      return assertNever(name);
+  }
+}
+
+console.log(href('account'), title('account'));
+```
+
+Add `settings: { path: '/settings', auth: true }` to `routes`, and `href('settings')` compiles with no other edit, while `title` reports `Argument of type '"settings"' is not assignable to parameter of type 'never'.` The object is the one place where the routes are listed, and the compiler finds every place that has to hear about a new one.
+
+## Pitfalls
+
+**An annotation on the config.** Annotating the object with the type you meant to check against replaces the keys that were written with the annotation's key type:
+
+```ts run errors
+type Route = { path: string; auth: boolean };
+
+const routes: Record<string, Route> = {
+  home: { path: '/', auth: false },
+  account: { path: '/account', auth: true },
+};
+
+type RouteName = keyof typeof routes;
+
+function assertNever(value: never): never {
+  throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+}
+
+function title(name: RouteName): string {
+  switch (name) {
+    case 'home':
+      return 'Home';
+    case 'account':
+      return 'Your account';
+    default:
+      return assertNever(name);
+  }
+}
+```
+
+`RouteName` is `string`, so no list of cases can use it up: `Argument of type 'string' is not assignable to parameter of type 'never'.` Elsewhere the damage is quieter. `routes.hme.path` compiles, and fails at run time. Check the object with `as const satisfies Record<string, Route>` instead.
+
+**`as` where `satisfies` was meant.** `as` doesn't check that a value fits a type. It reports only a conversion where the two types don't overlap enough in either direction, as with `'fsat'` for a mode: `Conversion of type '{ mode: "fsat"; retries: number; }' to type 'Settings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.` A `Settings` has everything that `{ mode: 'fast' }` has, so this compiles:
+
+```ts run
+type Settings = { mode: 'fast' | 'safe'; retries: number };
+
+const settings = { mode: 'fast' } as Settings;
+console.log(`retrying ${settings.retries} times`);
+```
+
+It prints `retrying undefined times`, and `settings.retries` is typed `number` throughout. An extra property passes too, as long as nothing is missing: `{ mode: 'fast', retries: 3, retry: 2 } as Settings` compiles. `satisfies Settings` would report the missing `retries` where the object is written.
+
+**`satisfies` on a value that changes.** The variable keeps the narrow type that was inferred, so a later assignment has to fit that type, not the one it was checked against:
+
+```ts run errors
+type Settings = { mode: 'fast' | 'safe'; retries: number };
+
+const settings = { mode: 'fast', retries: 3 } satisfies Settings;
+settings.retries = 5;
+settings.mode = 'safe';
+```
+
+`retries` was inferred as `number`, so the first assignment compiles. `mode` was inferred as `'fast'`: _Type '"safe"' is not assignable to type '"fast"'._ When a variable should hold any `Settings` over time, annotate it. `satisfies` is for values whose own type you want to keep.
+
+## Check yourself
+
+<Predict
+  id="arrow-assert-never"
+  code={
+    "type Shape =\n  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };\n\nconst assertNever = (value: never): never => {\n  throw new Error('unexpected value');\n};\n\nfunction area(shape: Shape): number {\n  switch (shape.kind) {\n    case 'circle':\n      return Math.PI * shape.radius ** 2;\n    case 'square':\n      return shape.side ** 2;\n    default:\n      assertNever(shape);\n  }\n}"
+  }
+  question="Every member of Shape has a case. What does the compiler report?"
+  options={[
+    'Nothing: every member has a case, and assertNever never returns',
+    "Function lacks ending return statement and return type does not include 'undefined'.",
+    'Assertions require every name in the call target to be declared with an explicit type annotation.',
+  ]}
+  answer={1}
+  explanation="A call alone ends a branch only when the compiler can see from written types that the function never returns: a function declaration, or a name with a type annotation. The type of this `const` is inferred from the arrow, so the call doesn't count, and `area` seems to fall off the end of the `switch`. The assertion error is for `asserts` return types, not `never`. Write `return assertNever(shape)`, or declare the helper with `function`."
+/>
+
+<Predict
+  id="derived-keys"
+  code={
+    "type Route = { path: string };\n\nconst routes = {\n  home: { path: '/' },\n  about: { path: '/about' },\n} satisfies Record<string, Route>;\n\ntype RouteName = keyof typeof routes;"
+  }
+  question="What is RouteName?"
+  options={['string', "'home' | 'about'", "'/' | '/about'", 'never']}
+  answer={1}
+  explanation="`satisfies` checks every entry against `Route` but leaves the object's inferred type alone, so its keys are the two that were written, and `keyof` gives their union. Annotated as `Record<string, Route>` instead, the object's type would be the annotation, and `RouteName` would be `string`."
+/>
+
+<Predict
+  id="as-missing-property"
+  code={
+    "type Settings = { mode: 'fast' | 'safe'; retries: number };\n\nconst settings = { mode: 'fast' } as Settings;"
+  }
+  question="What does the compiler say about this line?"
+  options={[
+    "Property 'retries' is missing in type '{ mode: \"fast\"; }' but required in type 'Settings'.",
+    'Nothing: settings is a Settings, and settings.retries is undefined at run time',
+    "Conversion of type '{ mode: \"fast\"; }' to type 'Settings' may be a mistake.",
+  ]}
+  answer={1}
+  explanation="`as` reports only a conversion where the two types don't overlap enough in either direction. A `Settings` has everything this object has, so the cast compiles, and the program believes `settings.retries` is a `number`. `satisfies Settings` would report the missing property."
+/>
+
+## Further reading
+
+- [TypeScript 4.9: the satisfies operator](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#the-satisfies-operator)
+- [Narrowing: exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking)
+- [TypeScript 3.4: const assertions](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions)
+- [TSConfig reference: noFallthroughCasesInSwitch](https://www.typescriptlang.org/tsconfig/#noFallthroughCasesInSwitch)

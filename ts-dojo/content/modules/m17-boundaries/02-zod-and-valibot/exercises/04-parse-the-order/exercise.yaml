@@ -1,0 +1,37 @@
+id: m17-boundaries/02-zod-and-valibot/04-parse-the-order
+kind: implement
+title: Parse the order with Zod
+minutes: 6
+challenge: false
+prompt: |
+  The order from lesson 17.1 again, this time with Zod. Fill in the schemas in `index.ts`, then
+  `parseOrder`:
+
+  - `Email`: a string that, trimmed and lower-cased, is an email address. Its output is branded
+    `'Email'`; its input stays a plain `string`.
+  - `Sku`: a string like `ABC-1234` (three capital letters, a dash, four digits), branded
+    `'Sku'`. Anything else fails with the message `'expected a SKU like ABC-1234'`.
+  - `Order`: an `id` of at least one character, an `email`, a `placedAt` ISO date such as
+    `'2026-03-01'` that comes out as a `Date`, and at least one line in `lines`, each a `sku`
+    and a `quantity`, a whole number from 1 to 99.
+  - `parseOrder(input)`: the 17.1 `Result`. On success its `value` is the parsed order; on
+    failure `errors` lists every issue Zod found, each as just its `path` and `message`.
+
+  This combines the lesson with brands (14.3), `Result` returns (9.4) and the parsers of 17.1.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Checks and changes run in the order you write them, so trim before you check the address.
+  - A check takes its own message as its last argument, and a brand goes on the end of a schema.
+  - In `parseOrder`, the result of `safeParse` tells you which `Result` to build; copy only the two properties of each issue.

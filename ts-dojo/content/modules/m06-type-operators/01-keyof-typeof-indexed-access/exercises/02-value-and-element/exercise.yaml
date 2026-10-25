@@ -1,0 +1,25 @@
+id: m06-type-operators/01-keyof-typeof-indexed-access/02-value-and-element
+kind: type-challenge
+title: The values and the elements
+minutes: 4
+challenge: false
+prompt: |
+  Write two generic helper types in `index.ts`:
+
+  - `ValueOf<T>` is the union of the types of all of `T`'s property values:
+    `ValueOf<{ x: number; label: string }>` is `number | string`.
+  - `ElementOf<T>` is the type of the elements of an array or tuple type `T`, readonly arrays and
+    tuples included: `ElementOf<string[]>` is `string`. A type that is not an array, such as
+    `string`, must be rejected.
+
+  The type cases try both on object types, a dictionary, arrays, tuples and `as const` values, and
+  the `@ts-expect-error` lines check that `ElementOf` refuses what is not an array. This builds on
+  generic type aliases (5.3) and constraints (5.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Each helper is one indexed access type on `T`. Ask what to index with to reach every property, and what to index with to reach every element.
+  - The compiler lets you index `T` with `number` only once it knows `T` is an array. A constraint says so; choose an array type wide enough that readonly arrays and tuples fit it too.

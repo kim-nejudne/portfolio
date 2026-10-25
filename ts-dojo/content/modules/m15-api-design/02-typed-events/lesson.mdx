@@ -1,0 +1,335 @@
+---
+id: m15-api-design/02-typed-events
+title: Typed event emitters and pub/sub
+minutes: 25
+objectives:
+  - Type on and emit from an event map with K extends keyof E, so that each listener gets the payload of its own event
+  - Give an event several arguments, or none, with a tuple in the map and a rest parameter
+  - Return a function that removes a listener, and type a listener for every event as a union of name and argument pairs
+  - Select topics by their names with template literal types, and explain why a name typed as a union lets the wrong payload through
+prerequisites:
+  - m05-generics/04-keyof-constraints
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m12-template-tuples/01-template-literal-types
+  - m12-template-tuples/02-variadic-tuples
+  - m03-unions/05-discriminated-unions
+  - m11-conditional-types/03-distributive-conditionals
+  - m07-guards/01-type-guards
+tags:
+  - event emitter
+  - pub/sub
+  - event map
+  - K extends keyof
+  - listener
+  - unsubscribe
+  - once
+  - wildcard listener
+  - topics
+  - API design
+---
+
+## Concept
+
+An emitter connects the code that announces something to the code that reacts to it, through an event name. Typed loosely, as `on(type: string, listener: (payload: unknown) => void)`, nothing ties a listener to its event: a misspelled name subscribes to nothing, and every listener has to check its payload before using it.
+
+A typed emitter starts from an **event map**, one type whose keys are the event names and whose values are the payloads. Each method takes the name as a type parameter `K extends keyof E`, and the payload is the indexed access `E[K]` (<Lesson id="m05-generics/04-keyof-constraints" />). <Lesson id="m09-modules-async/02-declaration-files" /> showed a single `emit` written this way. Here is the emitter around it:
+
+```ts twoslash
+// @errors: 2353
+interface AppEvents {
+  login: { user: string };
+  checkout: { total: number };
+}
+
+class Emitter<E> {
+  readonly #listeners: { [K in keyof E]?: Array<(payload: E[K]) => void> } = {};
+
+  on<K extends keyof E>(type: K, listener: (payload: E[K]) => void): void {
+    (this.#listeners[type] ??= []).push(listener);
+  }
+
+  emit<K extends keyof E>(type: K, payload: E[K]): void {
+    for (const listener of this.#listeners[type] ?? []) listener(payload);
+  }
+}
+
+const bus = new Emitter<AppEvents>();
+bus.on('login', (payload) => console.log(payload.user));
+//                    ^?
+bus.emit('checkout', { user: 'Ada' });
+```
+
+The listeners are kept in a mapped type over the same keys (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), with a list of listeners for `E[K]` under each key `K`. Indexed with a `K`, it gives `Array<(payload: E[K]) => void> | undefined`, so `on` stores a listener and `emit` calls it without a cast. The DOM's own types use the same pattern: in `lib.dom.d.ts`, `window.addEventListener` takes `K extends keyof WindowEventMap` and a listener of `WindowEventMap[K]`, which is how a `'keydown'` listener gets a `KeyboardEvent`.
+
+## Examples
+
+**Several arguments, or none.** A payload object is one argument. When the map's values are tuples instead, `emit` takes the tuple as a rest parameter and the listener takes it as its parameter list, so an event can carry two arguments, or none with `[]`. The tuple's labels become the parameter names that hovers show. `...args: E[K]` needs every `E[K]` to be an array type, or the compiler reports `A rest parameter must be of an array type.` (<Lesson id="m12-template-tuples/02-variadic-tuples" />), so `E` is constrained to an object whose every value is an array:
+
+```ts run
+type Listener<Args extends unknown[]> = (...args: Args) => void;
+
+class Emitter<E extends { [K in keyof E]: unknown[] }> {
+  readonly #listeners: { [K in keyof E]?: Set<Listener<E[K]>> } = {};
+
+  on<K extends keyof E>(type: K, listener: Listener<E[K]>): void {
+    (this.#listeners[type] ??= new Set()).add(listener);
+  }
+
+  emit<K extends keyof E>(type: K, ...args: E[K]): void {
+    for (const listener of this.#listeners[type] ?? []) listener(...args);
+  }
+}
+
+interface PointerEvents {
+  move: [x: number, y: number];
+  rename: [name: string];
+  reset: [];
+}
+
+const pointer = new Emitter<PointerEvents>();
+pointer.on('move', (x, y) => console.log(`moved to ${x}, ${y}`));
+pointer.on('rename', (name) => console.log(`renamed to ${name}`));
+pointer.on('reset', () => console.log('reset'));
+
+pointer.emit('move', 3, 4);
+pointer.emit('rename', 'cursor');
+pointer.emit('reset');
+```
+
+`pointer.emit('move', 3)` reports `Expected 3 arguments, but got 2.`, and `pointer.emit('reset', 1)` reports `Expected 1 arguments, but got 2.` A listener returns `void`, so one whose body happens to return a value, such as an arrow that pushes into an array, still fits (<Lesson id="m02-functions/03-void-returns" />).
+
+**Removing a listener.** `off` takes the event and the very function that was added, typed like `on`'s listener, so a caller would have to keep that function in a variable. `on` returns a function that removes it instead:
+
+```ts run
+type Listener<Args extends unknown[]> = (...args: Args) => void;
+
+class Emitter<E extends { [K in keyof E]: unknown[] }> {
+  readonly #listeners: { [K in keyof E]?: Set<Listener<E[K]>> } = {};
+
+  on<K extends keyof E>(type: K, listener: Listener<E[K]>): () => void {
+    (this.#listeners[type] ??= new Set()).add(listener);
+    return () => this.off(type, listener);
+  }
+
+  off<K extends keyof E>(type: K, listener: Listener<E[K]>): void {
+    this.#listeners[type]?.delete(listener);
+  }
+
+  emit<K extends keyof E>(type: K, ...args: E[K]): void {
+    for (const listener of this.#listeners[type] ?? []) listener(...args);
+  }
+}
+
+interface PointerEvents {
+  move: [x: number, y: number];
+  reset: [];
+}
+
+const pointer = new Emitter<PointerEvents>();
+const stop = pointer.on('move', (x, y) => console.log('move', x, y));
+
+pointer.emit('move', 1, 2);
+stop();
+pointer.emit('move', 3, 4);
+console.log('done');
+```
+
+Only the first move is printed. A `once`, which runs a listener for the next event only, is built from the same two pieces: it adds a wrapper with `on`, and the wrapper calls the function `on` returned before it calls the listener. Written as `(...args) => …`, the wrapper takes its parameter type, `E[K]`, from `on`'s listener type.
+
+**One listener for every event.** A logger wants every event. Its listener can't take `E[keyof E]`, the union of all the argument lists, because nothing would then say which list goes with which name. Instead, map each name to a `[name, arguments]` pair and index the mapped type with `keyof E`: the result is a union with one pair per event. A rest parameter of that union can be written as two parameters, and checking the first narrows the second, as with a discriminated union (<Lesson id="m03-unions/05-discriminated-unions" />):
+
+```ts twoslash
+interface PointerEvents {
+  move: [x: number, y: number];
+  rename: [name: string];
+  reset: [];
+}
+
+type EventOf<E, K extends keyof E = keyof E> = {
+  [P in keyof E]: [type: P, args: E[P]];
+}[K];
+
+type AnyPointerEvent = EventOf<PointerEvents>;
+//                ^?
+
+declare function onAny(listener: (...event: AnyPointerEvent) => void): void;
+
+onAny((type, args) => {
+  if (type === 'move') {
+    console.log(args);
+    //            ^?
+  }
+});
+```
+
+In the emitter, `onAny` keeps its listeners in a field `#any` of type `Set<Listener<EventOf<E>>>`, and `emit` builds the pair before calling them. `K` picks one member of the mapped type, so `[type, args]` is an `EventOf<E, K>` with no cast, and an `EventOf<E, K>` fits where an `EventOf<E>` is expected:
+
+```ts
+emit<K extends keyof E>(type: K, ...args: E[K]): void {
+  for (const listener of this.#listeners[type] ?? []) listener(...args);
+  const event: EventOf<E, K> = [type, args];
+  for (const listener of this.#any) listener(...event);
+}
+```
+
+**Topics.** In publish/subscribe, publishers and subscribers never meet: both know a broker and the topic names. The types are the same map, with topics for keys and one payload each. A listener that hears several topics gets a message, `{ topic, payload }`, and `Message<T, K>` maps each topic to its message and indexes with `K`, which makes a discriminated union on `topic`. Topic names often have a structure, a namespace and a verb, and template literal types (<Lesson id="m12-template-tuples/01-template-literal-types" />) can read it: `Extract` with `` `user/${string}` `` keeps the topics of the `user` namespace. The broker below is only declared, since the point is its signatures:
+
+```ts twoslash
+type Topics = {
+  'user/created': { id: string; name: string };
+  'user/deleted': { id: string };
+  'order/paid': { orderId: string; cents: number };
+};
+
+type Message<T, K extends keyof T = keyof T> = {
+  [P in keyof T]: { topic: P; payload: T[P] };
+}[K];
+
+declare class Broker<T> {
+  publish<K extends keyof T>(topic: K, payload: T[K]): void;
+  subscribe<K extends keyof T>(
+    topics: readonly K[],
+    listener: (message: Message<T, K>) => void,
+  ): () => void;
+}
+
+type UserTopic = Extract<keyof Topics, `user/${string}`>;
+//         ^?
+
+const broker = new Broker<Topics>();
+const userTopics: UserTopic[] = ['user/created', 'user/deleted'];
+broker.subscribe(userTopics, (message) => {
+  //                            ^?
+  if (message.topic === 'user/created') console.log(message.payload.name);
+  else console.log(message.payload.id);
+});
+```
+
+`K` is inferred from the list, so the listener hears exactly those topics. Subscribing with a pattern such as `'user/*'` instead of a list needs the namespaces themselves, which `infer` can read from the keys; the last exercise builds that.
+
+## Pitfalls
+
+**A `void` payload for an event without data.** It looks like the way to say "no argument", but the call without one doesn't compile:
+
+```ts run errors
+interface AppEvents {
+  login: { user: string };
+  logout: void;
+}
+
+function emit<K extends keyof AppEvents>(type: K, payload: AppEvents[K]) {
+  console.log(type, payload);
+}
+
+emit('login', { user: 'Ada' });
+emit('logout');
+```
+
+`Expected 2 arguments, but got 1.` An argument may be left out when its parameter's declared type is `void`, and the compiler counts the arguments against the signature as written, where the parameter's type is `AppEvents[K]`. `emit('logout', undefined)` compiles; a tuple map says it directly, with `logout: []`.
+
+**Passing the name as a union.** `K extends keyof E` admits a union of names as well as one name. A function that forwards a name and its arguments, each typed with every event, gives `emit` exactly that, and the call compiles whatever the pairing:
+
+```ts run
+type Listener<Args extends unknown[]> = (...args: Args) => void;
+
+class Emitter<E extends { [K in keyof E]: unknown[] }> {
+  readonly #listeners: { [K in keyof E]?: Set<Listener<E[K]>> } = {};
+
+  on<K extends keyof E>(type: K, listener: Listener<E[K]>): void {
+    (this.#listeners[type] ??= new Set()).add(listener);
+  }
+
+  emit<K extends keyof E>(type: K, ...args: E[K]): void {
+    for (const listener of this.#listeners[type] ?? []) listener(...args);
+  }
+}
+
+interface PointerEvents {
+  move: [x: number, y: number];
+  rename: [name: string];
+}
+
+const pointer = new Emitter<PointerEvents>();
+pointer.on('rename', (name) => console.log(name.toUpperCase()));
+
+function replay(
+  type: keyof PointerEvents,
+  ...args: PointerEvents[keyof PointerEvents]
+) {
+  pointer.emit(type, ...args);
+}
+
+replay('rename', 3, 4);
+```
+
+It throws: `name.toUpperCase is not a function`. Take the name and its arguments as one value, the union of pairs from the examples, `function replay(...[type, args]: EventOf<PointerEvents>)`, and `replay('rename', [3, 4])` is an error at the call, where the pairing is still known.
+
+**Constraining the map with `Record<string, unknown[]>`.** It reads as "every value is an array", and it rejects an interface:
+
+```ts run errors
+class Emitter<E extends Record<string, unknown[]>> {
+  emit<K extends keyof E>(type: K, ...args: E[K]): void {
+    console.log(type, args);
+  }
+}
+
+interface PointerEvents {
+  move: [x: number, y: number];
+  reset: [];
+}
+
+const pointer = new Emitter<PointerEvents>();
+```
+
+`Type 'PointerEvents' does not satisfy the constraint 'Record<string, unknown[]>'.`, then `Index signature for type 'string' is missing in type 'PointerEvents'.` A `Record<string, …>` has an index signature, and an object type written in a type alias is given an implicit one when it is compared with it, but an interface is not. Constrain with a mapped type over the map's own keys, `E extends { [K in keyof E]: unknown[] }`, which checks only the keys `E` has, and an interface or a type alias passes.
+
+## Check yourself
+
+<Predict
+  id="remove-with-a-new-function"
+  code={
+    "const log = (x: number, y: number) => console.log(x, y);\n\npointer.on('move', log);\npointer.off('move', (x, y) => log(x, y));\npointer.emit('move', 1, 2);"
+  }
+  question="`pointer` is the emitter from the second example, whose `off` deletes the function it is given from the event's set. How many times does `log` run?"
+  options={['0', '1', '2']}
+  answer={1}
+  explanation="`off` removes a listener by identity. The arrow passed to it is a new function that was never added, so nothing is removed and `log` runs once. The types can't catch this, because the arrow is a perfectly good listener for `move`. Keep the function that `on` returns, or the listener itself, to remove it."
+/>
+
+<Predict
+  id="narrowed-args"
+  code={
+    "onAny((type, args) => {\n  if (type === 'rename') {\n    // here\n  }\n});"
+  }
+  question="With `PointerEvents` and `onAny` from the examples, what is the type of `args` at the comment?"
+  options={[
+    '`[name: string]`',
+    '`[x: number, y: number] | [name: string] | []`',
+    '`unknown[]`',
+  ]}
+  answer={0}
+  explanation="The listener's parameters come from a union of `[name, arguments]` pairs, one per event. Checking `type` picks the pair whose first element is `'rename'`, and `args` is narrowed with it to that pair's second element, `[name: string]`."
+/>
+
+<Predict
+  id="topics-in-a-namespace"
+  code={
+    "type Topics = {\n  'user/created': { id: string };\n  'users/listed': { count: number };\n  'user/profile/updated': { id: string };\n};\n\ntype UserTopic = Extract<keyof Topics, `user/${string}`>;"
+  }
+  question="What is `UserTopic`?"
+  options={[
+    "`'user/created'`",
+    "`'user/created' | 'user/profile/updated'`",
+    "`'user/created' | 'users/listed' | 'user/profile/updated'`",
+  ]}
+  answer={1}
+  explanation="A topic is kept when it starts with `user/`. `'users/listed'` has an `s` where the pattern needs the `/`, so it is dropped. `${string}` matches any rest, slashes included, so `'user/profile/updated'` is kept."
+/>
+
+## Further reading
+
+- [Generics: using type parameters in generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#using-type-parameters-in-generic-constraints)
+- [Indexed access types](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html) and [mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)
+- [Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [TypeScript 4.0: labeled tuple elements](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#labeled-tuple-elements)
+- [TypeScript 4.6: control-flow analysis for dependent parameters](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-6.html#control-flow-analysis-for-dependent-parameters), the narrowing in `onAny`

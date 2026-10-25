@@ -1,0 +1,22 @@
+id: m01-types/03-arrays-tuples-objects/01-accept-a-readonly-list
+kind: fix
+title: Accept a readonly list
+minutes: 2
+challenge: false
+prompt: |
+  `index.ts` doesn't compile:
+  `Argument of type 'readonly number[]' is not assignable to parameter of type 'number[]'.`
+  `SIZES` is a read-only list, and `largest`, which only reads its list, asks for one it could
+  change.
+
+  Make the call compile without changing `SIZES`, the body of `largest` or the call. The type
+  cases check that `SIZES` is still `readonly number[]` and that `largest` accepts a read-only
+  list; the tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Dropping `readonly` from `SIZES` would silence the error and lose the promise that nothing changes the sizes. The type to change is on the other side of the call.
+  - A parameter's type says what the function may do with the value. What does `largest` do with its list?

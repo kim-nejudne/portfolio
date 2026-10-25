@@ -1,0 +1,32 @@
+id: m04-objects/04-enums-vs-as-const/03-track-the-order
+kind: implement
+title: Track the order
+minutes: 5
+challenge: false
+prompt: |
+  A shop names its order statuses with an `as const` object, `OrderStatus`. Finish the types,
+  then implement the two functions in `index.ts`:
+
+  - Make the type `OrderStatus` the union of the object's values, in place of `string`.
+  - Give `labels` a type that needs a label for every status, then add the missing one:
+    `cancelled` shows as `Cancelled`.
+  - `next(status)` returns the status an order moves on to: `pending` to `paid`, `paid` to
+    `shipped`. A shipped or cancelled order goes no further, so `next` returns `undefined`.
+    A status `next` doesn't know, which the types rule out but could still arrive at run time,
+    throws an `Error`. Write it as a `switch` whose `default` does a `never` check and then
+    throws, so that a status added to `OrderStatus` later also stops this function from
+    compiling.
+  - `parseStatus(text)` returns the status whose value is `text`, such as `'paid'`, or
+    `undefined` when there is none. A member's name, such as `'Paid'`, is not a status.
+
+  This combines the lesson with `Record` keyed by a union (4.3), the `never` check (3.5) and
+  returning `undefined` for a missing value (3.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - The type is the lesson's recipe for the union of an object's values. Once it is right, a `Record` keyed by it makes the compiler name the label that is missing.
+  - In `next`, compare with the object's members rather than string literals. After the last case `status` has no members left, so it can be assigned to a variable of type `never`.
+  - A union is erased, but the object is still there at run time, and its values are a list you can search for `text`.

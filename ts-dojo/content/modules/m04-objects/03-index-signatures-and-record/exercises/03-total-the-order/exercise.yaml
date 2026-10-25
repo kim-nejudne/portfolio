@@ -1,0 +1,27 @@
+id: m04-objects/03-index-signatures-and-record/03-total-the-order
+kind: implement
+title: Total the order
+minutes: 5
+challenge: false
+prompt: |
+  The café's `orderTotal` isn't written yet, and the types around it hide two bugs. Fix the
+  types, then implement the function in `index.ts`:
+
+  - `discounts` has no entry for `gold`, and its type didn't notice. Give it a type that needs a
+    discount for every `Tier`, then add gold at 10 percent.
+  - A product missing from a `PriceList` has no price, yet a read of one says `number`. Change
+    `PriceList` so that a read says the price may be missing.
+  - `orderTotal(order, prices, tier)` adds up price × quantity for every product in the order,
+    takes the tier's percentage off, and rounds the result with `Math.round`. A product with no
+    price throws an `Error` whose message names the product.
+
+  This combines the lesson with literal unions (3.1) and narrowing away `undefined` (3.2, 3.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - A `Record` keyed by a union of literals needs a property for every member, so a missing tier becomes a compile error.
+  - Once a read of `PriceList` can be `undefined`, the compiler won't let you multiply it until that case is handled.
+  - 'Water costs 0, which is falsy: test for `undefined` itself.'

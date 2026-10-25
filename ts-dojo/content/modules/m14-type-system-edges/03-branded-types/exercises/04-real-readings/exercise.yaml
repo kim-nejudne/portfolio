@@ -1,0 +1,34 @@
+id: m14-type-system-edges/03-branded-types/04-real-readings
+kind: implement
+title: Real readings
+minutes: 4
+challenge: false
+prompt: |
+  `Celsius` and `Fahrenheit` have the same members, so `isFreezing(new Fahrenheit(23))` compiles,
+  and so does `isFreezing({ degrees: -5 })`. Make both classes nominal, and finish the two
+  functions:
+
+  - `isFreezing` accepts only a `Celsius`: a `Fahrenheit` or a plain object is a compile error.
+  - `Celsius.is(value)` is true only for an object that the `Celsius` constructor made. It is
+    false for a `Fahrenheit`, a plain object, a JSON or spread copy of a `Celsius`, an object made
+    with `Object.create(Celsius.prototype)`, and for `null` or a number, without throwing.
+  - `toCelsius(reading)` returns a `Celsius` as it is, the same object, and converts a
+    `Fahrenheit` with (F − 32) × 5 / 9. Tell the two apart with `Celsius.is`.
+
+  Keep `degrees` and the constructors as they are, and use no cast. This combines the lesson
+  with `#` fields (4.5, Classes I) and type guards (7.1, Type guards).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - A member that only the class itself can declare makes it fit nothing else, and `Fahrenheit` needs one of its own too.
+  - '`instanceof` reads the prototype chain, which `Object.create` can fake, and a `private` property survives a copy. One form of `in` asks whether the constructor ran.'

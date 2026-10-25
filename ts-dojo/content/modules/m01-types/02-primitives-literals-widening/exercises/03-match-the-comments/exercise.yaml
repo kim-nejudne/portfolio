@@ -1,0 +1,20 @@
+id: m01-types/02-primitives-literals-widening/03-match-the-comments
+kind: implement
+title: Match the comments
+minutes: 2
+challenge: false
+prompt: |
+  `index.ts` holds four settings for a reading app. Each one has the right value and the wrong
+  type. Change how each is declared, not what it holds, so that its type is the one named in the
+  comment above it.
+
+  The type cases check the four types, and the test checks that the values are unchanged.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Ask of each value whether it can change. One that never changes can keep its literal type; one that changes needs a type that admits other values.
+  - One of the four types is written with a capital letter. Is that the primitive?
+  - '`as const` can cover a whole value or a single property.'

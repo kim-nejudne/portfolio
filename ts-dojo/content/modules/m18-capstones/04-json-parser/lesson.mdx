@@ -1,0 +1,274 @@
+---
+id: m18-capstones/04-json-parser
+title: A type-level JSON parser
+minutes: 60
+optional: true
+objectives:
+  - Write parsers as types that each read a value from the start of a string and return it with the rest of the string, or an error
+  - Read whitespace, literals, strings and numbers with template literal patterns and a constrained infer
+  - Parse arrays and objects with tail-recursive loops that call back into the value parser for each element
+  - Report bad input with an error type that no JSON value can match, and pass it up from where it happened
+  - Type a runtime parse function with the parser, so literal JSON text gets an exact type and bad text doesn't compile
+prerequisites:
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/04-recursive-conditionals
+  - m12-template-tuples/01-template-literal-types
+  - m12-template-tuples/04-recursion-limits
+  - m13-type-challenges/04-hard-set
+  - m14-type-system-edges/03-branded-types
+tags:
+  - JSON
+  - parser
+  - ParseJson
+  - recursive descent
+  - template literal type
+  - infer
+  - accumulator
+  - tail recursion
+  - type-level programming
+  - capstone
+---
+
+## Concept
+
+The goal is one type: `ParseJson<'{"a": [1, true, null]}'>` is `{ a: [1, true, null] }`. Every tool it needs is from Tier 3: template literal patterns with `infer` (<Lesson id="m12-template-tuples/01-template-literal-types" />), recursion (<Lesson id="m11-conditional-types/04-recursive-conditionals" />), accumulators and tail calls (<Lesson id="m12-template-tuples/04-recursion-limits" />) and mapped types (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />). What this lesson adds is the shape that lets those pieces work together.
+
+That shape is the one hand-written parsers use, recursive descent. A parser reads one thing from the start of the string and returns a pair: the value it read, and the rest of the string, still unread. Whoever called it decides what must come next. When the text doesn't fit, it returns an error instead:
+
+```ts twoslash
+declare const failure: unique symbol;
+type ParseError<Message extends string> = { readonly [failure]: Message };
+
+type ParseLiteral<S extends string> = S extends `true${infer Rest}`
+  ? [true, Rest]
+  : S extends `false${infer Rest}`
+    ? [false, Rest]
+    : S extends `null${infer Rest}`
+      ? [null, Rest]
+      : ParseError<`Unexpected input: ${S}`>;
+
+type Read = ParseLiteral<'true, null]'>;
+//    ^?
+type Failed = ParseLiteral<'nope'>;
+//     ^?
+```
+
+`ParseLiteral` reads `true` and leaves `, null]` for its caller, which will be an array parser looking for a `,` or a `]`. It doesn't check what follows the literal: that is the caller's job.
+
+The error type has a `unique symbol` key, the brand of <Lesson id="m14-type-system-edges/03-branded-types" />, for a reason. A JSON value is a primitive, an array or an object with string keys, so no value the parser produces can have that key. With `{ error: Message }` instead, the text `{"error": "disk full"}` would parse into something that looks like a failure (the second pitfall).
+
+The examples build the parser in steps: whitespace and strings, numbers, a loop for arrays, then one value parser that chooses by the first character. The exercises finish it with objects and the check on the whole text, then put it on a runtime `parse` function.
+
+## Examples
+
+**Whitespace and strings.** A union in a placeholder matches any one of its members, so one pattern skips any whitespace character, and the recursive call is the whole branch. A string runs from its opening quote to the next quote. That is rule 2 of <Lesson id="m12-template-tuples/01-template-literal-types" />: an `infer` followed by text stops at the first place that text appears.
+
+```ts twoslash
+declare const failure: unique symbol;
+type ParseError<Message extends string> = { readonly [failure]: Message };
+
+type Space = ' ' | '\n' | '\r' | '\t';
+type SkipSpace<S extends string> = S extends `${Space}${infer Rest}`
+  ? SkipSpace<Rest>
+  : S;
+
+type ParseString<S extends string> = S extends `"${infer Body}"${infer Rest}`
+  ? [Body, Rest]
+  : ParseError<'Expected a string'>;
+
+type Key = ParseString<SkipSpace<'\n  "id": 7 }'>>;
+//   ^?
+type Open = ParseString<'"id: 7 }'>;
+//    ^?
+```
+
+The first quote after the opening one ends the string, so an escaped quote, `\"`, would end it too early. This lesson's strings have no escapes, and exercise 1 turns a backslash into an error.
+
+**Numbers: reading a run.** A number has no closing quote. It ends where the characters stop being number characters, so read them one at a time into an accumulator. `infer C extends Digit` takes exactly one character, because another `infer` follows it, and matches only when that character is a digit. Then a constrained `infer` (<Lesson id="m11-conditional-types/02-infer" />), used in a string pattern as in <Lesson id="m13-type-challenges/04-hard-set" />, turns the run into a number literal type:
+
+```ts run
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+
+type ReadDigits<
+  S extends string,
+  Acc extends string = '',
+> = S extends `${infer C extends Digit}${infer Rest}`
+  ? ReadDigits<Rest, `${Acc}${C}`>
+  : [Acc, S];
+
+type ParseInteger<S extends string> =
+  ReadDigits<S> extends [`${infer N extends number}`, infer Rest]
+    ? [N, Rest]
+    : never;
+
+const port: ParseInteger<'8080, "tls": true'> = [8080, ', "tls": true'];
+const padded: ParseInteger<'007]'> = [7, ']'];
+console.log(port, padded);
+```
+
+`port` has the type `[8080, ', "tls": true']`. `padded` has the type `[number, ']']`: `infer N extends number` gives the literal only when the literal, printed back, is the same text, and `7` prints as `'7'`, not `'007'`. JSON has the same cases: `1.0`, `1.50` and `1e3` are numbers, and the parser can only call them `number`. With no digits at all, the run is `''`, which isn't a number, so `ParseInteger` gives `never`. The parser of the exercises returns an error there.
+
+**Arrays: a loop with an accumulator.** After a `[`, read a value, then look at what follows it. A `,` means another element: go round again with the value added to the accumulator. A `]` means the end. Anything else is an error. Here the elements are literals only:
+
+```ts twoslash
+declare const failure: unique symbol;
+type ParseError<Message extends string> = { readonly [failure]: Message };
+type Space = ' ' | '\n' | '\r' | '\t';
+type SkipSpace<S extends string> = S extends `${Space}${infer Rest}`
+  ? SkipSpace<Rest>
+  : S;
+type ParseLiteral<S extends string> = S extends `true${infer Rest}`
+  ? [true, Rest]
+  : S extends `false${infer Rest}`
+    ? [false, Rest]
+    : S extends `null${infer Rest}`
+      ? [null, Rest]
+      : ParseError<`Unexpected input: ${S}`>;
+
+// The items of a list after its [, up to and including the ].
+type ParseItems<S extends string, Acc extends unknown[] = []> =
+  ParseLiteral<SkipSpace<S>> extends [infer V, infer Rest extends string]
+    ? SkipSpace<Rest> extends `,${infer Next}`
+      ? ParseItems<Next, [...Acc, V]>
+      : SkipSpace<Rest> extends `]${infer Next}`
+        ? [[...Acc, V], Next]
+        : ParseError<`Expected , or ] at: ${Rest}`>
+    : ParseLiteral<SkipSpace<S>>;
+
+type Items = ParseItems<'true, null ,false], 1'>;
+//    ^?
+type NoComma = ParseItems<'true null]'>;
+//     ^?
+```
+
+Three details carry over to the whole parser. The recursive call is the whole branch, a tail call, so a list can be hundreds of items long. The call to `ParseLiteral` sits in the check of the conditional type, where nothing can be in tail position; that costs nothing here, because a literal is read in one step. And when the element fails, the last line returns the element parser's own result, its error, so the first mistake travels up with its message.
+
+**One parser for every kind of value.** A JSON value's first character says what it is: `[` an array, `{` an object, `"` a string, a digit or `-` a number, anything else a literal. `ParseValue` makes that choice, and the element loop calls `ParseValue` instead of `ParseLiteral`. Now the types call each other: an array holds values, and a value can be an array. That is allowed for the reason <Lesson id="m11-conditional-types/04-recursive-conditionals" /> gave: the way round from `ParseValue` back to itself passes through a branch of a conditional type, and a branch is deferred. With literals and arrays only:
+
+```ts twoslash
+declare const failure: unique symbol;
+type ParseError<Message extends string> = { readonly [failure]: Message };
+type Space = ' ' | '\n' | '\r' | '\t';
+type SkipSpace<S extends string> = S extends `${Space}${infer Rest}`
+  ? SkipSpace<Rest>
+  : S;
+type ParseLiteral<S extends string> = S extends `true${infer Rest}`
+  ? [true, Rest]
+  : S extends `false${infer Rest}`
+    ? [false, Rest]
+    : S extends `null${infer Rest}`
+      ? [null, Rest]
+      : ParseError<`Unexpected input: ${S}`>;
+
+type ParseValue<S extends string> =
+  SkipSpace<S> extends `[${infer Rest}`
+    ? ParseArray<Rest>
+    : ParseLiteral<SkipSpace<S>>;
+
+// After the [: an empty array, or the elements.
+type ParseArray<S extends string> =
+  SkipSpace<S> extends `]${infer Rest}` ? [[], Rest] : ParseElements<S>;
+
+type ParseElements<S extends string, Acc extends unknown[] = []> =
+  ParseValue<S> extends [infer V, infer Rest extends string]
+    ? SkipSpace<Rest> extends `,${infer Next}`
+      ? ParseElements<Next, [...Acc, V]>
+      : SkipSpace<Rest> extends `]${infer Next}`
+        ? [[...Acc, V], Next]
+        : ParseError<`Expected , or ] at: ${Rest}`>
+    : ParseValue<S>;
+
+type Nested = ParseValue<'[true, [null, []], false]'>;
+//     ^?
+```
+
+Each level of nesting opens one more `ParseValue` inside the check of the level above, and that nesting is what counts toward the limit of <Lesson id="m12-template-tuples/04-recursion-limits" />. The length of an array costs no depth, since the loop over its elements is a tail call. Measured in 6.0.3, the full parser of exercise 4 reads arrays nested 90 deep, and a flat array of 900 elements.
+
+Objects follow the array loop, with a key and a `:` before each value, and an object type as the accumulator. The last step is the whole text: after the value, only whitespace may be left, so `'[1] [2]'` is an error and not `[1]`.
+
+## Pitfalls
+
+**Splitting on the delimiter.** Splitting the text at each `,` is quicker to write than a loop that parses each element. It is wrong as soon as an element contains a comma of its own, as a nested array or a string does:
+
+```ts run errors
+type SplitItems<S extends string> = S extends `${infer Item},${infer Rest}`
+  ? [Item, ...SplitItems<Rest>]
+  : [S];
+
+const items: SplitItems<'[1,2],3'> = ['[1,2]', '3'];
+```
+
+`Type '"[1,2]"' is not assignable to type '"[1"'.` The split gives three pieces, `'[1'`, `'2]'` and `'3'`. Only a parser that reads the element knows where it ends, so let `ParseValue` read it and look for the `,` in the rest.
+
+**An error type a value can match.** An error with an ordinary property name is a shape, and parsed JSON can have the same shape:
+
+```ts run errors
+type ParseError<Message extends string> = { error: Message };
+type Failed<T> = T extends ParseError<string> ? true : false;
+
+// What '{"error": "disk full"}' parses to: a value, not a failure.
+type Report = { error: 'disk full' };
+const failed: Failed<Report> = false;
+```
+
+`Type 'false' is not assignable to type 'true'.` A parser that checks its elements with `extends ParseError` would stop at this valid object. Key the error with a `unique symbol`, which no JSON text can produce.
+
+**Building an object with `&`.** Adding each member to the accumulator with an intersection reads naturally. But JSON allows a key twice, and `JSON.parse` keeps the last value, while an intersection keeps both, and two different literals for one key make it `never`:
+
+```ts run errors
+type AddMember<Obj, K extends string, V> = Obj & { [P in K]: V };
+
+// '{"id": 1, "id": 2}', one member at a time.
+type Parsed = AddMember<AddMember<{}, 'id', 1>, 'id', 2>;
+const value: Parsed = { id: 2 };
+```
+
+`Type 'number' is not assignable to type 'never'.` Even without a repeated key, `Equal` from <Lesson id="m13-type-challenges/01-easy-set" /> tells `{ a: 1 } & { b: 2 }` from `{ a: 1; b: 2 }`. Rebuild the object at each step with a mapped type over its old keys and the new one, as the Query String Parser of <Lesson id="m13-type-challenges/05-extreme-set" /> did.
+
+## Check yourself
+
+<Predict
+  id="reads-a-prefix"
+  code={"type R = ParseLiteral<'nullable'>; // ParseLiteral from the Concept"}
+  question="What is `R`?"
+  options={["[null, 'able']", 'a ParseError', "[null, '']", 'never']}
+  answer={0}
+  explanation="`ParseLiteral` checks only that the text starts with `null`, and returns whatever follows as the rest. Whether `able` may come next is for the caller to decide: the top level of `ParseJson` would reject it, because only whitespace may follow the value."
+/>
+
+<Predict
+  id="long-list"
+  question="`ParseItems` from the examples is given a list of 300 literals, `'true, true, …, true]'`. What happens?"
+  options={[
+    'TS2589: the list is far longer than about fifty levels',
+    'It gives a tuple of 300 trues and the rest',
+    'It gives the first 49 and an error',
+  ]}
+  answer={1}
+  explanation="The recursive call `ParseItems<Next, [...Acc, V]>` is the whole branch of a conditional type that is itself a whole branch, so it is a tail call, and tail calls get 999 steps. 300 items take 300 of them. Only a loop that waits for its own call, such as `[V, ...ParseItems<Next>]`, runs out near fifty."
+/>
+
+<Predict
+  id="error-travels-up"
+  code={
+    "// ParseValue from the examples: literals and arrays.\ntype Deep = ParseValue<'[[[nul]]]'>;"
+  }
+  question="What is `Deep`?"
+  options={[
+    'ParseError<"Unexpected input: nul]]]">',
+    'ParseError<"Expected , or ] at: nul]]]">',
+    '[[[never]]]',
+    'never',
+  ]}
+  answer={0}
+  explanation="The innermost `ParseValue` hands `nul]]]` to `ParseLiteral`, which returns its error. That result doesn't match `[infer V, infer Rest]`, so each `ParseElements` on the way up takes its last branch and returns `ParseValue<S>`, the same error. The message from where the text went wrong reaches the top unchanged."
+/>
+
+## Further reading
+
+- [Handbook: Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html), on inferring within conditional types
+- [TypeScript 4.5 release notes: tail-recursion elimination on conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html#tail-recursion-elimination-on-conditional-types)
+- [TypeScript 4.8 release notes: improved inference for infer types in template string types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-8.html#improved-inference-for-infer-types-in-template-string-types)
+- [json.org](https://www.json.org/json-en.html), the JSON grammar. This lesson's parser leaves out escapes, and it takes any run of number characters that reads as a number, so it accepts a few numbers, such as `01`, that JSON doesn't

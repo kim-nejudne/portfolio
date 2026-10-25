@@ -1,0 +1,25 @@
+id: m03-unions/01-union-and-literal-types/02-swallowed-literals
+kind: predict
+title: The union that swallowed its literals
+minutes: 1
+challenge: false
+code: |
+  type Port = 80 | 443 | number;
+
+  function connect(port: Port): string {
+    return `connecting on ${port}`;
+  }
+
+  connect(8080);
+question: What does quick info show for `Port`, and does `connect(8080)` compile?
+options:
+  - '`type Port = number`, and the call compiles'
+  - '`type Port = 80 | 443 | number`, and the call compiles'
+  - '`type Port = 80 | 443`, and the call is an error: 8080 is neither 80 nor 443'
+  - '`Port` itself is an error: a union cannot mix literal types with `number`'
+answer: 0
+explanation: |
+  Every number literal type is already part of `number`, so next to `number` the literals 80 and
+  443 disappear, and quick info shows `type Port = number`. Any number is a `Port`, so
+  `connect(8080)` compiles. It is the same reduction as `'small' | 'large' | string` in the
+  lesson: if only 80 and 443 should pass, leave `number` out.

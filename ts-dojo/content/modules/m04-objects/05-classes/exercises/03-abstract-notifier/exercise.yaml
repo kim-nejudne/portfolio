@@ -1,0 +1,26 @@
+id: m04-objects/05-classes/03-abstract-notifier
+kind: implement
+title: An abstract notifier
+minutes: 4
+challenge: false
+prompt: |
+  `Notifier` is written the JavaScript way: its `format` throws, so a subclass that forgets to
+  write one is only found when a message is sent. Let the compiler enforce it instead, in
+  `index.ts`:
+
+  - Make `Notifier` abstract, with `format` an abstract method, so that `new Notifier()` and a
+    subclass without a `format` are compile errors.
+  - Make `sent` impossible to replace from outside, while `send` can still add to it.
+  - Implement `SmsNotifier`'s `format`: `sms `, the phone number, `: `, then the first 20
+    characters of the message, such as `sms +46700000000: Your order has shipp`.
+
+  The type cases check the first two; the tests check what each notifier sends.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - The lesson's `Shape` leaves `area` to its subclasses. `format` needs the same treatment, and an abstract member can only live in a class that says it is abstract too.
+  - An abstract method has a signature and no body, so the `throw` goes.
+  - The modifier that stops a field from being reassigned is shallow, so `push` on the array it holds still compiles.

@@ -1,0 +1,30 @@
+---
+id: m98-fixture-sequel/01-literal-widening
+title: Literal widening
+minutes: 5
+objectives:
+  - Predict when a string literal type widens to string
+  - Keep literal types with as const
+prerequisites: [m99-fixtures/03-type-challenge]
+tags: [fixture, literal, widening, as const]
+---
+
+## Concept
+
+A `const` holding a string literal keeps the literal type; a `let` widens it, because the variable may be reassigned later.
+
+```ts
+const fixed = 'on';
+//    ^ 'on'
+let loose = 'on';
+//  ^ string
+```
+
+## Examples
+
+The two exercises of this fixture lesson are `predict` questions about the example above. The
+lesson exists so the roadmap has more than one module: it is replaced at F11.
+
+## Further reading
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

@@ -1,0 +1,30 @@
+id: m07-guards/04-narrowing-pitfalls/04-ship-the-order
+kind: implement
+title: Ship the order
+minutes: 5
+challenge: false
+prompt: |
+  An order is a list of lines: items, each with a `sku` and a `quantity`, and discounts, each
+  with a `percent`. Implement three functions in `index.ts`:
+
+  - `itemLines(lines)` returns the item lines, in their order, typed `ItemLine[]`.
+  - `canShip(lines, stock)` returns `true` when every item line can ship: `stock` has a count
+    for its sku, and the count is at least its quantity. A sku that was never counted can't
+    ship. An order with no items can always ship.
+  - `orderTotal(catalog, lines)` adds price × quantity for every item line, looking the price
+    up in `catalog` by sku, then takes each discount off the result in turn: 10 percent off
+    100 leaves 90. When an item's sku is not in the catalog, it throws an `Error` whose
+    message is `unknown sku: ` followed by the sku.
+
+  This combines the lesson with discriminated unions (3.5), `Record` and `Extract` (6.2 and
+  6.3) and inferred type predicates (7.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [explicit-any, as-unknown-as, non-null-assertion, angle-cast, type-assertion]
+hints:
+  - A check on the discriminant, written as an arrow function, is a predicate that `filter` can use.
+  - The stock count is a lookup whose key is a property of the line. Give the key or the count a name of its own before you compare.
+  - In `orderTotal`, `find` can come back empty. Handle that case before you read the price.

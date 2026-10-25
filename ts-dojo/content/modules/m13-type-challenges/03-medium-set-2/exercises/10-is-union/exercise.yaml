@@ -1,0 +1,27 @@
+id: m13-type-challenges/03-medium-set-2/10-is-union
+kind: type-challenge
+title: IsUnion
+minutes: 6
+challenge: false
+prompt: |
+  Write `IsUnion<T>` in `index.ts`: `true` when `T` is a union of two or more types, `false`
+  otherwise. `IsUnion<string | number>` is `true`; `IsUnion<string>` is `false`, and so is
+  `IsUnion<[string | number]>`, a tuple with a union inside rather than a union.
+
+  What counts is the type `T` comes out as. `string | 'a'` is just `string`, `string | unknown`
+  is `unknown` and `string | never` is `string`, so each gives `false`, and so does `never`. A
+  case added in the dojo checks `boolean`. You may add type parameters, if each has a default.
+
+  The original also checks `string | any`. Explicit `any` is forbidden in every file of a
+  type-challenge here, so that case takes its `any` from `ReturnType<typeof JSON.parse>`.
+
+  From type-challenges [#01097 IsUnion](https://github.com/type-challenges/type-challenges/blob/main/questions/01097-medium-isunion/README.md) by @bencor (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Distribute over `T`, and keep a copy of the whole union to compare each member with, as the lesson's Rival does.
+  - Inside the branch, a single type is still the whole of the copy, and a member of a union is not. That comparison must not distribute (11.3).
+  - '`IsUnion<never>` must be `false`. Decide it before anything distributes (the first pitfall).'

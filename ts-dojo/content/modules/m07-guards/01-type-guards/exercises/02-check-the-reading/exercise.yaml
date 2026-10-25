@@ -1,0 +1,35 @@
+id: m07-guards/01-type-guards/02-check-the-reading
+kind: implement
+title: Check the reading
+minutes: 4
+challenge: false
+prompt: |
+  A thermometer sends its readings as JSON text. Implement two functions in `index.ts`:
+
+  - `isReading(value)` is a type guard for `Reading`. It returns `true` when `value` is an
+    object with a `sensor` that is a string, a `unit` that is `'C'` or `'F'`, and a `value`
+    that is a number. Extra properties are fine. Anything else, including `null`, an array, a
+    string, or an object with one property missing or of the wrong type, gives `false`.
+  - `toCelsius(json)` parses the text and returns the temperature in degrees Celsius when the
+    data is a reading, or `undefined` when it isn't. A Fahrenheit value converts as
+    `(value - 32) * 5 / 9`. The text is always valid JSON.
+
+  The tests try many values that are almost readings, and a type case checks that `isReading`
+  is a guard taking `unknown`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Rule out everything that isn't an object first, and remember that `typeof null` is `'object'`.
+  - Before reading a property of an object you know nothing about, check that it is there with `in`. Then `typeof` or a comparison can test its value.
+  - In `toCelsius`, keep the parsed data as `unknown` and let `isReading` narrow it before you read `unit` and `value`.
