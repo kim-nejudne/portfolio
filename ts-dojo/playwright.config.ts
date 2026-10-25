@@ -15,10 +15,21 @@
 // precache would otherwise download the whole app into every context. The offline, update and
 // CSP specs allow them. The §9 budgets are their own project, run on demand and alone
 // (`pnpm test:e2e --project budgets`), never under the main suite's CPU load.
+//
+// v1 gate (ship-prompt deviations D1 and D2): the `deployed` project runs e2e/deployed.spec.ts
+// against a site that is already serving, `DEPLOYED_URL` (https://dojo.kimnejudne.dev by
+// default, or a `pnpm preview` of dist/ first), on demand and alone:
+//
+//   DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed
+//
+// It is the keyboard-only walk of Tier 0 and Tier 1 and the Tier 4 checks, in one serial file
+// with its own Chrome profiles, service workers allowed for the offline step. Like `budgets`,
+// it is off by default and never part of `pnpm test:e2e`.
 import { defineConfig } from '@playwright/test';
 
 const PORT = 4173;
 const CI = process.env.CI !== undefined && process.env.CI !== '';
+const DEPLOYED_URL = process.env.DEPLOYED_URL ?? 'https://dojo.kimnejudne.dev';
 
 export default defineConfig({
   testDir: 'e2e',
@@ -40,7 +51,7 @@ export default defineConfig({
     {
       name: 'chrome',
       use: { browserName: 'chromium', channel: 'chrome' },
-      testIgnore: /budgets\.spec\.ts$/,
+      testIgnore: /(budgets|deployed)\.spec\.ts$/,
     },
     {
       name: 'budgets',
@@ -48,6 +59,20 @@ export default defineConfig({
       testMatch: /budgets\.spec\.ts$/,
       fullyParallel: false,
       default: false,
+    },
+    {
+      name: 'deployed',
+      use: {
+        browserName: 'chromium',
+        channel: 'chrome',
+        baseURL: DEPLOYED_URL,
+        serviceWorkers: 'allow',
+      },
+      testMatch: /deployed\.spec\.ts$/,
+      fullyParallel: false,
+      default: false,
+      // One test walks a whole module of lessons over the network.
+      timeout: 600_000,
     },
   ],
   webServer: {
