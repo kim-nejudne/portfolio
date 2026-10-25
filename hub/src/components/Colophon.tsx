@@ -41,8 +41,8 @@ export default function Colophon() {
           the practice cannot go stale.
         */}
         <p className="colophon-lede">
-          A standalone product with its own art direction, held to the same craft bar as the page
-          that introduces it. The designer’s eye behind them is an editorial one,
+          Two standalone products, each with its own art direction. The range is the point; the
+          craft bar is the same on every one. The designer’s eye behind them is an editorial one,
           out of magazine and desktop-publishing work that predates the nine years of JavaScript,
           and the motion holds 60fps everywhere it appears. All of that is checked rather than
           claimed: the site is verified in a real browser against production, and the checks

@@ -19,4 +19,4 @@ Node 24 and pnpm 12 (`corepack enable` picks the version pinned in `package.json
 | `pnpm test --run` / `pnpm test:watch` | Vitest, one pass or watching |
 | `pnpm test:e2e` | Playwright against a fresh build, in the installed Google Chrome |
 
-CI (`.github/workflows/ci.yml`) runs typecheck, lint, format check, unit tests and build on every push and pull request.
+Since 25 October 2026 ts-dojo lives in `ts-dojo/` of the [portfolio](https://github.com/kim-nejudne/portfolio) repository, imported with its history; the standalone repository is archived. Run every script from this directory. The portfolio's CI (`.github/workflows/ci.yml` at the repository root) runs typecheck, lint, format check, unit tests, the content lint and build on every push and pull request.

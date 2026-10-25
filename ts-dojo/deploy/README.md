@@ -27,7 +27,7 @@ Not deployed yet. The first deploy is the DNS/TLS section below, in order, then 
 TS_DOJO_HOST=user@host ./deploy/deploy.sh
 ```
 
-From the repository root, on the workstation. `TS_DOJO_HOST` is required and has no default. In
+From `ts-dojo/` in the portfolio repository, on the workstation. `TS_DOJO_HOST` is required and has no default. In
 order, the script:
 
 1. runs `pnpm typecheck`, `pnpm lint` and `pnpm content:lint` (every exercise proven solvable,

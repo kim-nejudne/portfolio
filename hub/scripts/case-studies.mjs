@@ -167,7 +167,7 @@ function readSource(spoke) {
 /**
  * One row of a `.cs-others-list`.
  *
- * Shared by the "other four" at the foot of each page and by the five on
+ * Shared by the "other" list at the foot of each page and by the full list on
  * `work/index.html`, because they are the same object seen from two places. A
  * second copy would be a second thing to remember when the row grows a column.
  */
@@ -182,7 +182,17 @@ function row(spoke) {
   );
 }
 
-/** The "other four" list at the foot of each page. */
+/*
+ * The two list headings, counted from SPOKES rather than typed. They were
+ * "The other four" and "All five" as literals, and the first survived two
+ * takedowns saying four while the footer under it listed two and then one.
+ */
+const COUNT_WORDS = ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const countWord = (n) => COUNT_WORDS[n] ?? String(n);
+const OTHERS_HEADING = `The other ${countWord(SPOKES.length - 1)}`;
+const ALL_HEADING = SPOKES.length === 2 ? 'Both' : `All ${countWord(SPOKES.length)}`;
+
+/** The "other" list at the foot of each page. */
 function others(self) {
   return SPOKES.filter((s) => s.id !== self.id)
     .map(row)
@@ -253,6 +263,7 @@ for (const spoke of SPOKES) {
      * of string equality.
      */
     .replaceAll('{{REPO_LABEL}}', text(repoLabel(spoke.repo)))
+    .replaceAll('{{OTHERS_HEADING}}', text(OTHERS_HEADING))
     .replaceAll('{{OTHERS}}', others(spoke))
     .replaceAll('{{BODY}}', renderCaseStudy(markdown));
 
@@ -294,6 +305,7 @@ writeFileSync(
        of the same picture is exactly the drift `identity.ts` was created to
        end. `case-study-cards.mjs` already imports from there. */
     .replaceAll('{{CARD_ALT}}', attr(OG_IMAGE_ALT))
+    .replaceAll('{{ALL_HEADING}}', text(ALL_HEADING))
     .replaceAll('{{ROWS}}', SPOKES.map(row).join('\n')),
   'utf8',
 );

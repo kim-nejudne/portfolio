@@ -75,8 +75,8 @@ and a decade in desktop publishing and magazine design before any of it, which
 is where the eye came from. I build the whole thing: interface, motion, API,
 schema, pipeline, and the box it runs on.
 
-One product currently shipped and running at **kimnejudne.dev**, with its own
-art direction, a written case study and public source.
+Two products currently shipped and running at **kimnejudne.dev**: two
+distinct art directions, a written case study each, public source for both.
 
 > Two paragraphs, not nine lines of prose. The second exists to catch the
 > skim: Selected Work is on page 2, and this is what tells a reader it is
@@ -292,7 +292,14 @@ stored, so undoing work de-evolves it for free.
 *React · FastAPI · MongoDB · real PokéAPI growth curves*
 poketrack.kimnejudne.dev
 
-The bar: 60fps motion, `prefers-reduced-motion` honoured throughout,
+**TS-DOJO.** A TypeScript course graded by the real compiler. TypeScript 6
+runs in a Web Worker for live diagnostics and inferred types, every exercise
+passes or fails by the compiler and its tests, and the REPL is driven by Vim
+keys. No backend; it works offline.
+*Vite · React · TypeScript 6 · CodeMirror 6 · Web Workers*
+dojo.kimnejudne.dev
+
+Across both: 60fps motion, `prefers-reduced-motion` honoured throughout,
 keyboard-navigable, and self-hosted on a single DigitalOcean droplet behind
 nginx, with no PaaS anywhere.
 

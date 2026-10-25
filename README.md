@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml)
 
-An independent web application and the homepage that links it, by
-[Kim Nejudne](https://kimnejudne.dev). It is live, self-hosted, and has a
+Two independent web applications and the homepage that links them, by
+[Kim Nejudne](https://kimnejudne.dev). Both are live, self-hosted, and have a
 written case study.
 
-That badge builds both from their own lockfiles, then runs the hub's
+That badge builds all three from their own lockfiles, then runs the hub's
 browser assertions against the built site over the DevTools protocol and an
 axe-core sweep of every hub page. The assertions are tested too: they are
 deliberately broken to confirm they fail, because a check that has never
@@ -16,6 +16,7 @@ failed is a check nobody has verified.
 |---|---|---|---|
 | **[hub](hub/)** | The homepage. A pen-and-ink portrait that hinges open on scroll and shows the work | Vite · React · GSAP | [kimnejudne.dev](https://kimnejudne.dev) |
 | **[poketrack](poketrack/)** | Project tracking that levels up. A partner's whole state is derived from the sum of its XP events and never stored | React · FastAPI · MongoDB | [poketrack.kimnejudne.dev](https://poketrack.kimnejudne.dev) |
+| **[ts-dojo](ts-dojo/)** | A TypeScript course graded by the real compiler, running in a Web Worker, with a Vim-keyed REPL and no backend | Vite · React · TypeScript 6 · CodeMirror | [dojo.kimnejudne.dev](https://dojo.kimnejudne.dev) |
 
 Case studies for every spoke are published at
 [kimnejudne.dev/work](https://kimnejudne.dev/work).
@@ -27,9 +28,11 @@ direction, and the range is the argument. Coherence comes from a consistent
 craft bar and a single curatorial voice in the case studies, not from a shared
 design system.
 
-The bar every one of them holds to: 60fps motion with no layout thrash,
+The bar every one of them holds to: motion with no layout thrash,
 `prefers-reduced-motion` honoured throughout, keyboard-navigable with proper
-semantics, and real performance budgets that survive a mid-range phone.
+semantics, and real performance budgets, measured rather than assumed. ts-dojo
+is desktop-only by its spec, because a lesson needs two panes side by side; the
+others are budgeted against a mid-range phone.
 
 ## How this repository is arranged
 
@@ -38,8 +41,9 @@ own lockfile and its own `node_modules`.
 
 **There is deliberately no root `package.json` and no workspace.** The projects
 do not share dependencies and should not: poketrack is on Tailwind 3 and
-TypeScript 4.9 behind Create React App, while the hub is on Tailwind 4 and
-TypeScript 5.9. Hoisting them into one dependency
+TypeScript 4.9 behind Create React App, the hub is on Tailwind 4 and
+TypeScript 5.9, and ts-dojo is on TypeScript 6 under pnpm and Node 24, with
+the compiler version pinned because it also runs inside the app. Hoisting them into one dependency
 graph would buy a smaller `node_modules` at the cost of breaking builds that
 currently work. They are colocated, not merged.
 
@@ -48,6 +52,7 @@ Each project builds from its own directory:
 ```
 cd hub && npm ci && npm run build
 cd poketrack/frontend && npm ci && npm run build   # Python API under backend/
+cd ts-dojo && pnpm install --frozen-lockfile && pnpm build
 ```
 
 `hub` is the exception worth knowing about: its build reads each spoke's

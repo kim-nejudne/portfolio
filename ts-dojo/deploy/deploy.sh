@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Ships a fresh build of ts-dojo to the droplet (spec §10). Run from the repository root:
+# Ships a fresh build of ts-dojo to the droplet (spec §10). Run from ts-dojo/ in the portfolio:
 #
 #   TS_DOJO_HOST=user@host ./deploy/deploy.sh
 #

@@ -15,7 +15,7 @@
 # cannot touch it. Naming it on the command line re-shoots it headlessly and
 # overwrites the choice:
 #
-#   npm run crops                # every stand-in (none right now)
+#   npm run crops                # every stand-in: ts-dojo
 #   npm run crops -- poketrack   # explicit, and CLOBBERS the chosen crop
 #
 # To re-derive a chosen crop from its source instead, which is what you almost
@@ -49,6 +49,7 @@ H=600
 url_for() {
   case $1 in
     poketrack) echo https://poketrack.kimnejudne.dev/ ;;
+    ts-dojo)   echo https://dojo.kimnejudne.dev/ ;;
     *) echo "unknown spoke: $1" >&2; return 1 ;;
   esac
 }
@@ -79,7 +80,7 @@ shoot() {
 
 # Default to the ones that are still stand-ins. Naming a spoke opts in — see
 # the clobber warning above.
-STANDINS=()
+STANDINS=(ts-dojo)
 spokes=("$@")
 if [ ${#spokes[@]} -eq 0 ]; then
   spokes=("${STANDINS[@]}")

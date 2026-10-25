@@ -108,7 +108,8 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
  *
  * Five names, and the constraint on the list is that every one has a shipped
  * spoke behind it rather than that it covers the most job postings.
- * TypeScript, React, FastAPI, MongoDB and Python are all POKÉTRACK. Next.js
+ * TypeScript and React are both spokes; FastAPI, MongoDB and Python are
+ * POKÉTRACK's backend. Next.js
  * and NestJS came off on 2026-10-25 with FORME and SUKI, and Express and
  * Postgres the same day with TALLOW, the only spokes that carried them. Nothing
  * here is a claim Kim cannot be tested on, which is the whole difference
@@ -219,7 +220,7 @@ export const DESCRIPTION = `${PITCH_SENTENCE} Nine years of production JavaScrip
  * `og:description`. Deliberately not the same as `DESCRIPTION`: a search result
  * wants the credentials, and a pasted link wants to know what is behind it.
  */
-export const OG_DESCRIPTION = `${PITCH_SENTENCE} One standalone product, with its own art direction.`;
+export const OG_DESCRIPTION = `${PITCH_SENTENCE} Two standalone products, each with its own art direction.`;
 
 /** `og:image:alt`. Describes the card, then quotes what is printed on it. */
 export const OG_IMAGE_ALT = `A pen-and-ink portrait of Kim, the top of his head hinged open onto a circle of sky. Beside it: ${PITCH_SENTENCE.toLowerCase()}`;

@@ -63,4 +63,6 @@ Hooks (`.claude/settings.json`, scripts in `.claude/hooks/*.mts`, Node 24, each 
 - Prettier formats every edited `.ts .tsx .mts .cts .mdx .yaml .yml .json` file once it is installed; never `.md`.
 - Stop runs `pnpm typecheck` when `src/`, `content/` or `scripts/` changed and sends Claude back on a failure, once per stop.
 
+Monorepo: since 25 October 2026 this is `ts-dojo/` inside the portfolio repository (github.com/kim-nejudne/portfolio), imported with its history. Start Claude Code sessions in `ts-dojo/` so `.claude/` loads; the hooks resolve paths through `CLAUDE_PROJECT_DIR`. The git root is the portfolio, so `git status` and commits also see `hub/` and `poketrack/`: stage only `ts-dojo/` paths. CI is the root `.github/workflows/ci.yml`, job `ts-dojo`. The case study the hub publishes at kimnejudne.dev/work/ts-dojo/ is `CASE-STUDY.md` here.
+
 rtk: Kim's user-level hook rewrites some commands (`git`, `cat`, `grep`, `curl`, ...) to `rtk ...` to save tokens; use `rtk proxy <cmd>` when raw output is needed.

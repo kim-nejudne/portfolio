@@ -72,7 +72,8 @@ export type Spoke = {
  *
  * Kim's ordering, 2026-08-08, less FORME and SUKI, which were taken down on
  * 2026-10-25, and TALLOW and PLINTH, which followed them the same day. SUKI
- * led until then; PokéTrack inherits the first card.
+ * led until then; PokéTrack inherits the first card. ts-dojo joined on
+ * 2026-10-25, imported with its history, and takes the second.
  */
 export const SPOKES: readonly Spoke[] = [
   {
@@ -82,6 +83,14 @@ export const SPOKES: readonly Spoke[] = [
     href: 'https://poketrack.kimnejudne.dev/',
     caseStudy: '/work/poketrack/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
+  },
+  {
+    id: 'ts-dojo',
+    name: 'ts-dojo',
+    line: 'A TypeScript course the compiler grades, with the compiler running in the page.',
+    href: 'https://dojo.kimnejudne.dev/',
+    caseStudy: '/work/ts-dojo/',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/ts-dojo',
   },
 ];
 

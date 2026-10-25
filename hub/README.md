@@ -86,8 +86,8 @@ load-bearing:
   stand-in was a stale build with the wrong CTA copy.
 - **A stand-in is a headless screenshot**, and the brief is clear that a
   screenshot is not the decision: the real crop is chosen for silhouette and
-  colour, not legibility. None is a stand-in right now; TALLOW and PLINTH were
-  the last two when they were taken down on 2026-10-25.
+  colour, not legibility. `ts-dojo` is one, shot when it joined on
+  2026-10-25.
 
 `npm run crops` defaults to the stand-ins, so it cannot quietly overwrite a
 chosen crop. Naming one opts in and clobbers it. To re-derive a chosen crop from its
