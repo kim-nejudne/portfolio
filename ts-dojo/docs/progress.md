@@ -16,7 +16,7 @@ The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion fr
 
 - [x] The §4 Vim checklist has a recorded result for every item: pass, workaround (with the mapping), or gap.
 - [x] `public/ts/6.0.3/` holds every `lib.*.d.ts` from `typescript@6.0.3`, and §2's sizes are confirmed or corrected.
-- [ ] `dojo.kimnejudne.dev` resolves to the droplet. (by hand)
+- [x] `dojo.kimnejudne.dev` resolves to the droplet. (by hand) Ticked 25 October 2026 under D4: `dig +short dojo.kimnejudne.dev` answers `165.245.189.5`, the droplet, and Kim ticked the Prep A-record item under For Kim.
 
 > **Gate (§11):** every P item passes or has a working mapping, and the W list is written down.
 
@@ -385,7 +385,7 @@ Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the �
 
 - [x] M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two exercises (one in M00), at least one `predict`, hints on every editor exercise, and at least one `ts twoslash` block.
 - [x] `pnpm content:lint` passes for the whole tree.
-- [x] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate).
+- [ ] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate).
 
 > **Gate (§11):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
 
@@ -787,7 +787,7 @@ Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
 
 ## v1 gate
 
-- [x] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand)
+- [ ] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand)
 
 ## Deviations
 
@@ -826,6 +826,13 @@ Anything built differently from what the spec names (library, version, flag, key
   - An exercise's `entry` may be a `.tsx` file (17.4). `tests` stays `tests.ts`.
   - §5 says `tests.ts` imports from the solution's files and `@dojo/type-utils`. It may also import the pre-bundled packages: `zod` (17.2, 17.3) and React's types (17.4).
 - **§9 precache budget (F14, Kim's decision with the F14 plan on 23 October 2026).** Tier 4 doesn't fit in 15 MB raw: before its lessons, the packages alone took the precache to 15.32 MB. `lib.webworker*.d.ts` (0.79 MB, used by no lesson) is left out of the precache (`globIgnores` in `vite.config.ts`); the files still ship and are fetched online if the Settings name them. Everything else stays complete (the real csstype, all of Zod). The measured total, 17,439,897 bytes in 546 entries on 24 October 2026, is recorded as a noted miss under Measured budgets. `e2e/budgets.spec.ts`'s threshold is 18,000,000. The plan said the next 0.5 MB, but 17.5 MB would have left 60 KB for content edits. The §9 figure is under Spec questions.
+
+- **Ship-prompt deviations D1–D5 (approved by Kim in the ship prompt, 25 October 2026).**
+  - **D1, the §11 v1 gate.** "Kim completes Tier 0 and Tier 1 on the deployed site without a mouse" is met by a keyboard-only Playwright walk against https://dojo.kimnejudne.dev (`e2e/deployed.spec.ts`, the `deployed` project) that completes every M00–M04 lesson end to end from a fresh Chrome profile, with every blocking bug it finds fixed. Kim's own run-through is optional and non-blocking (For Kim).
+  - **D2, the F14 by-hand checks.** The "single-page site" link check and the "Tier 4 in the browser" check are done by Claude with Playwright in headless Chrome and ticked with the evidence written in.
+  - **D3, the Prep spike items.** Browser-reserved keys in a tab, in an installed window, and the terminal clipboard round trip do not block v1: marked deferred, non-blocking under For Kim and left unticked. The HTTPS clipboard was confirmed by Kim under F3/F15.
+  - **D4, ticking by-hand and droplet boxes.** For the ship session only, Claude may tick a by-hand or droplet box when its evidence is a test run against the deployed site, a Kim confirmation already recorded in this file, or `dig`, and writes that evidence next to the box. Nothing else in the rules changes.
+  - **D5, pushing.** Pushing to origin main (kim-nejudne/ts-dojo, private) is approved for every commit of the ship session.
 
 ## Spec questions
 
@@ -1012,9 +1019,9 @@ F14 re-measured the budgets against the course build on 24 October 2026: the sam
 Checks only Kim can do. Feature sessions add their items here with exact steps; Kim ticks them here and in the feature's section above.
 
 - [x] Prep: add the Namecheap A record `dojo` → the droplet, then confirm `dojo.kimnejudne.dev` resolves (`dig +short dojo.kimnejudne.dev`).
-- [ ] Prep (by hand): browser-reserved keys in a tab. `pnpm spike:vim`, open http://localhost:5179 in Chrome, tick "preventDefault on every Ctrl key", click into the editor and press every key in the table "Ctrl keys the page can intercept" in docs/prep-vim.md. A key that reaches the page appears in the key log as "page prevented default"; a key the browser keeps never appears. Fill the "Tab" column.
-- [ ] Prep (by hand): the same in an installed window. Chrome menu → Cast, save and share → Install page as app (or the install icon in the address bar), repeat the key presses there and fill the "Installed window" column.
-- [ ] Prep (by hand): clipboard round trip. In the spike editor in normal mode type `"+yy`, then paste in a terminal; copy a line in a terminal, then type `"+p` in the editor. Both directions should carry the text; note whether Chrome asked for clipboard permission. Record the answer in docs/prep-vim.md.
+- [ ] Prep (by hand; deferred, non-blocking for v1 under D3, 25 October 2026): browser-reserved keys in a tab. `pnpm spike:vim`, open http://localhost:5179 in Chrome, tick "preventDefault on every Ctrl key", click into the editor and press every key in the table "Ctrl keys the page can intercept" in docs/prep-vim.md. A key that reaches the page appears in the key log as "page prevented default"; a key the browser keeps never appears. Fill the "Tab" column.
+- [ ] Prep (by hand; deferred, non-blocking for v1 under D3): the same in an installed window. Chrome menu → Cast, save and share → Install page as app (or the install icon in the address bar), repeat the key presses there and fill the "Installed window" column.
+- [ ] Prep (by hand; deferred, non-blocking for v1 under D3; the HTTPS clipboard round trip on the deployed site is already Kim's ticked F3 item below): clipboard round trip. In the spike editor in normal mode type `"+yy`, then paste in a terminal; copy a line in a terminal, then type `"+p` in the editor. Both directions should carry the text; note whether Chrome asked for clipboard permission. Record the answer in docs/prep-vim.md.
 - [x] F1: push the `F1: Scaffold` commit, then open the repository's Actions tab on GitHub and confirm the "CI" run for it is green (Typecheck, Lint, Format check, Unit tests, Build all pass on the `ubuntu-latest` runner with Node 24). Done 17 October 2026 at Kim's request: repository `kim-nejudne/ts-dojo` (private), run 39016881255 for `f0dbd4d` green in 48 s; Kim confirmed the tick.
 - [x] F3 (droplet, after F15): clipboard over HTTPS. On https://dojo.kimnejudne.dev/repl in normal mode type `"+yy`, paste in a terminal; copy a line in a terminal, type `"+p` in the editor. Both directions carry the text (Playwright proved localhost; §12 F3 names HTTPS too).
 - [x] F15 (droplet): the first deploy, in the order of `deploy/README.md` DNS/TLS.
@@ -1046,7 +1053,23 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
   4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
 - [x ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
-- [ ] F14 (by hand): the Further reading links on single-page sites, which answer 200 for any path. Open each in Chrome; expected, the named page and not a "not found" view:
+- [x] F14 (by hand; done by Claude under D2 and D4 on 25 October 2026): the Further reading links on single-page sites, which answer 200 for any path. Open each in Chrome; expected, the named page and not a "not found" view. Checked with a Playwright script in headless Chrome (each URL loaded until the network went idle; a failure is a status of 400 or more, a not-found text in the title or first heading, or a title and heading without the page's topic). Every link is live; no content change was needed:
+
+  | Lesson | URL | Status | Title |
+  | --- | --- | --- | --- |
+  | 17.2 | https://zod.dev/basics | 200 | Basic usage \| Zod |
+  | 17.2 | https://zod.dev/api | 200 | Defining schemas \| Zod (the lesson's link text) |
+  | 17.2 | https://zod.dev/error-formatting | 200 | Formatting errors \| Zod |
+  | 17.2 | https://valibot.dev/guides/introduction/ | 200 | Introduction \| Valibot |
+  | 17.2 | https://valibot.dev/guides/comparison/ | 200 | Comparison with Zod and others \| Valibot |
+  | 17.2 | https://standardschema.dev/ | 200 | Standard Schema |
+  | 17.3 | https://vite.dev/guide/env-and-mode | 200 | Env Variables and Modes \| Vite |
+  | 17.4 | https://react-typescript-cheatsheet.netlify.app/ | 200 | React TypeScript Cheatsheet |
+  | 18.2 | https://kysely.dev | 200 | Kysely — Type-safe SQL query builder for TypeScript |
+  | 18.5 | https://github.com/microsoft/TypeScript/wiki/Performance | 200 | Performance · microsoft/TypeScript Wiki |
+  | 18.5 | https://github.com/microsoft/TypeScript/wiki/Performance-Tracing | 200 | Performance Tracing · microsoft/TypeScript Wiki |
+
+  The item's original steps:
   1. 17.2 `/l/m17-boundaries/02-zod-and-valibot`: https://zod.dev/basics, https://zod.dev/api, https://zod.dev/error-formatting, https://valibot.dev/guides/introduction/, https://valibot.dev/guides/comparison/, https://standardschema.dev/.
   2. 17.3 `/l/m17-boundaries/03-fetch-json-env`: https://vite.dev/guide/env-and-mode.
   3. 17.4 `/l/m17-boundaries/04-react`: https://react-typescript-cheatsheet.netlify.app/.
