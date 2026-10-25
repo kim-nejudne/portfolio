@@ -34,7 +34,7 @@ https://kimnejudne.dev/work/*    301 -> trailing slash
 ```
 
 **The case studies needed no change to `hub.conf`.** `try_files $uri $uri/ =404`
-already resolves `/work/tallow/` to `/var/www/hub/work/tallow/index.html`, and
+already resolves `/work/poketrack/` to `/var/www/hub/work/poketrack/index.html`, and
 nginx 301s the slashless form itself. The last two lines above are checked by
 `deploy.sh` after every reload, because they are the only part of this that
 `vite preview` reaches by a different code path and so cannot answer.
@@ -192,7 +192,7 @@ That last one is not a formality — see *Caching and the SPA fallback* below.
 Worth also confirming the spokes still answer, since a reload is box-wide:
 
 ```sh
-for s in tallow plinth poketrack; do
+for s in poketrack; do
   curl -sS -o /dev/null -w "$s %{http_code}\n" "https://$s.kimnejudne.dev/"
 done
 ```
@@ -349,6 +349,5 @@ They are served from their own `location` block, with the artwork's week rather
 than `/assets/`'s year or `location /`'s `no-cache`. A year would pin the first
 card any platform ever scraped; `no-cache` would make every scrape and every tab
 revalidate a file that changes about never.
-- **Two of the three crops are headless screenshots**, not chosen crops —
-  `tallow` and `plinth`. `poketrack` is a chosen capture with its source in
-  `art/crops/`. Long-standing; see `../README.md`.
+- **`poketrack` is the only crop**, and it is a chosen capture with its
+  source in `art/crops/`. See `../README.md`.

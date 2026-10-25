@@ -12,12 +12,4 @@
     <loc>https://kimnejudne.dev/work/poketrack/</loc>
     <changefreq>monthly</changefreq>
   </url>
-  <url>
-    <loc>https://kimnejudne.dev/work/tallow/</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://kimnejudne.dev/work/plinth/</loc>
-    <changefreq>monthly</changefreq>
-  </url>
 </urlset>

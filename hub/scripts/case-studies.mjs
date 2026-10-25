@@ -16,7 +16,7 @@
  * Why a script and not a Vite plugin. `transformIndexHtml` cannot *create* the
  * five entries; it only transforms HTML that already exists, so a plugin would
  * still need five files on disk and a way to keep their metadata in step. More
- * to the point, `../tallow/CASE-STUDY.md` is outside the project root, outside
+ * to the point, `../poketrack/CASE-STUDY.md` is outside the project root, outside
  * the module graph, unwatched and not part of any invalidation — doing that
  * read inside a bundler hook would smuggle a dependency Vite cannot see into a
  * place that looks like it understands dependencies. A script is honest about
@@ -203,11 +203,11 @@ for (const spoke of SPOKES) {
   /*
    * Everything on the page that is not prose comes from `spokes.ts`, never
    * from the markdown. That is not tidiness — nothing is reliably derivable
-   * from the source. The five H1s disagree about case (`PLINTH — case study`
-   * is lowercase where the others are not), only three of the five carry a
-   * "Live at" line and all three shape it differently, and TALLOW has none at
-   * all. `spokes.ts` carries the canonical display names and the canonical
-   * URLs; the prose carries the argument.
+   * from the source. When there were five, the H1s disagreed about case
+   * (`PLINTH — case study` was lowercase where the others were not), only
+   * three carried a "Live at" line and all three shaped it differently, and
+   * TALLOW had none at all. `spokes.ts` carries the canonical display names
+   * and the canonical URLs; the prose carries the argument.
    *
    * `s.line` doubles as the meta description deliberately: it is already the
    * line the homepage index shows for this same link, so the search result and

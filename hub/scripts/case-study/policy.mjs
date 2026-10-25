@@ -13,11 +13,11 @@
  * which refuses to ship one. Both import this file, so they cannot drift into
  * disagreeing about what the rule is.
  *
- * It is deliberately *not* a string match on a heading. Four of the five spokes
- * write `## Where this started, plainly`; PLINTH writes `## Where this page
- * came from, plainly`, because it is a marketing page rather than an app. A
- * literal comparison would have failed the one spoke whose disclosure is the
- * longest, which is the wrong answer loudly.
+ * It is deliberately *not* a string match on a heading. Most spokes write
+ * `## Where this started, plainly`; the retired PLINTH wrote `## Where this
+ * page came from, plainly`, because it was a marketing page rather than an app.
+ * A literal comparison would have failed the one spoke whose disclosure was
+ * the longest, which is the wrong answer loudly.
  */
 
 /** The heading that opens the disclosure. Anchored, so it matches a heading
@@ -28,13 +28,14 @@ export const DISCLOSURE_HEADING = /^where\b.*\bplainly$/i;
  *  is about the statement underneath it. */
 export const DISCLOSURE_BODY = /\b(AI|scaffold|scaffolded|generated|app builder)\b/i;
 
-/** How near the top it has to be. Second section in all five today; allowing
+/** How near the top it has to be. Second section in every one today; allowing
  *  the first two means a spoke may open with its own framing, but nobody can
  *  bury the disclosure at the bottom and still pass. */
 export const DISCLOSURE_MAX_INDEX = 1;
 
 /** How much prose it takes before a disclosure counts as plain rather than a
- *  line of throat-clearing. The shortest of the five today is ~700 characters. */
+ *  line of throat-clearing. The shortest when there were five was ~700
+ *  characters. */
 export const DISCLOSURE_MIN_CHARS = 400;
 
 /**
@@ -86,8 +87,8 @@ export function checkDisclosure(markdown) {
  * ## Why this rule demands exact labels when the one above refuses to
  *
  * The disclosure rule is deliberately loose, and its comment explains why: a
- * literal match would fail PLINTH, whose disclosure is the longest of the five
- * and whose heading is its own. This rule is the opposite on purpose, and the
+ * literal match would have failed the retired PLINTH, whose disclosure was the
+ * longest of the five and whose heading was its own. This rule is the opposite on purpose, and the
  * difference is worth stating so it does not read as an inconsistency.
  *
  * A disclosure is a *statement*, and a statement can be made in whatever words

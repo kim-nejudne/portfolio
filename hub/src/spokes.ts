@@ -1,5 +1,5 @@
 /**
- * The three ideas.
+ * The ideas.
  *
  * One line each, and the line has a job: a hook a recruiter finishes reading,
  * and a technical tell that says the thing behind it was engineered. The hub
@@ -16,8 +16,8 @@ export type Spoke = {
    *
    * Each spoke's case study lives as `CASE-STUDY.md` in that spoke's own
    * directory; `scripts/case-studies.mjs` reads them from the siblings at
-   * build time and renders them into this site, so the three are set in one
-   * type and read as one voice rather than as three more art directions.
+   * build time and renders them into this site, so they are set in one type
+   * and read as one voice rather than as more art directions.
    *
    * Those five were separate repositories until the six were merged, and that
    * read genuinely crossed a repo boundary. It is an ordinary sibling read
@@ -71,7 +71,8 @@ export type Spoke = {
  * row here moves the showcase, the index, the roster and the sitemap together.
  *
  * Kim's ordering, 2026-08-08, less FORME and SUKI, which were taken down on
- * 2026-10-25. SUKI led until then; PokéTrack inherits the first card.
+ * 2026-10-25, and TALLOW and PLINTH, which followed them the same day. SUKI
+ * led until then; PokéTrack inherits the first card.
  */
 export const SPOKES: readonly Spoke[] = [
   {
@@ -81,22 +82,6 @@ export const SPOKES: readonly Spoke[] = [
     href: 'https://poketrack.kimnejudne.dev/',
     caseStudy: '/work/poketrack/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
-  },
-  {
-    id: 'tallow',
-    name: 'Tallow',
-    line: 'Dry-aged, live fire, and an 86 board wired to the kitchen.',
-    href: 'https://tallow.kimnejudne.dev/',
-    caseStudy: '/work/tallow/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/tallow',
-  },
-  {
-    id: 'plinth',
-    name: 'Plinth',
-    line: 'Sixteen weeks of strength, told entirely in type. No photography anywhere.',
-    href: 'https://plinth.kimnejudne.dev/',
-    caseStudy: '/work/plinth/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/plinth',
   },
 ];
 
@@ -113,7 +98,7 @@ export const crop = (id: string) => ({
 
 /**
  * The visible text for a `repo` link: the repository name and the directory
- * inside it, `portfolio/tallow`.
+ * inside it, `portfolio/poketrack`.
  *
  * It lives here, beside the URLs it reads, because two places need it and they
  * must not disagree: `scripts/case-studies.mjs` renders it, and `verify.mjs`
@@ -131,7 +116,7 @@ export const crop = (id: string) => ({
  *
  * Falls back to the bare repository name when the URL is not a deep link, so a
  * spoke that ever goes back to having its own repository still reads sensibly
- * rather than as `tallow/tallow`.
+ * rather than as `poketrack/poketrack`.
  */
 export const repoLabel = (repo: string): string => {
   const segments = new URL(repo).pathname.split('/').filter(Boolean);

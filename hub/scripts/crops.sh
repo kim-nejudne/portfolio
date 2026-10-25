@@ -2,8 +2,8 @@
 #
 # Grab a placeholder crop from a live spoke.
 #
-# Two of the three crops are still stand-ins for a curatorial decision rather
-# than the decision. The brief says the crop is chosen "for silhouette and
+# A stand-in crop is a placeholder for a curatorial decision rather than the
+# decision. The brief says the crop is chosen "for silhouette and
 # colour, not legibility" — that is Kim's call per spoke, and a headless
 # screenshot of whatever happens to be above the fold is not it. What these are
 # for is the one thing a grey box cannot test: whether the colour rule survives
@@ -15,7 +15,7 @@
 # cannot touch it. Naming it on the command line re-shoots it headlessly and
 # overwrites the choice:
 #
-#   npm run crops                # tallow plinth — the two stand-ins
+#   npm run crops                # every stand-in (none right now)
 #   npm run crops -- poketrack   # explicit, and CLOBBERS the chosen crop
 #
 # To re-derive a chosen crop from its source instead, which is what you almost
@@ -48,8 +48,6 @@ H=600
 
 url_for() {
   case $1 in
-    tallow)    echo https://tallow.kimnejudne.dev/ ;;
-    plinth)    echo https://plinth.kimnejudne.dev/ ;;
     poketrack) echo https://poketrack.kimnejudne.dev/ ;;
     *) echo "unknown spoke: $1" >&2; return 1 ;;
   esac
@@ -61,9 +59,9 @@ shoot() {
   tmp=$(mktemp -d)
   # Forced reduced motion, deliberately. Every spoke's reduced-motion policy
   # renders the page complete and static — which is exactly the state a
-  # screenshot wants, and the only one it can reliably catch. Without it
-  # PLINTH photographs as a black rectangle: its intro curtain is a CSS wipe
-  # that a headless run under virtual time never finishes.
+  # screenshot wants, and the only one it can reliably catch. Without it the
+  # retired PLINTH photographed as a black rectangle: its intro curtain was a
+  # CSS wipe that a headless run under virtual time never finished.
   chromium --headless --disable-gpu --hide-scrollbars \
     --force-prefers-reduced-motion \
     --virtual-time-budget=6000 \
@@ -79,11 +77,16 @@ shoot() {
   rm -rf "$tmp"
 }
 
-# Default to the two that are still stand-ins. Naming a spoke opts in — see
+# Default to the ones that are still stand-ins. Naming a spoke opts in — see
 # the clobber warning above.
+STANDINS=()
 spokes=("$@")
 if [ ${#spokes[@]} -eq 0 ]; then
-  spokes=(tallow plinth)
+  spokes=("${STANDINS[@]}")
+fi
+if [ ${#spokes[@]} -eq 0 ]; then
+  echo "no stand-in crops left; name a spoke to re-shoot it" >&2
+  exit 0
 fi
 
 for s in "${spokes[@]}"; do

@@ -19,8 +19,6 @@ def _require_jwt_secret() -> str:
     failure mode is silent: the app boots happily and signs every session token
     with a value anyone reading the source already knows. A missing secret
     should be a failed deploy, not a working one with forgeable tokens.
-
-    Matches how TALLOW handles its own signing secret.
     """
     secret = os.environ.get("JWT_SECRET", "").strip()
     if len(secret) < 32:

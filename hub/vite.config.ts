@@ -25,10 +25,10 @@ export default defineConfig({
        * alongside `dist/`.
        *
        * They have to live *inside* the project root. Vite derives an entry's
-       * emitted path from its path relative to root, so `work/tallow/
-       * index.html` becomes `dist/work/tallow/index.html`; anywhere outside
-       * root and the relative path picks up `../` segments, at which point all
-       * five collide on a single `index.html`.
+       * emitted path from its path relative to root, so `work/poketrack/
+       * index.html` becomes `dist/work/poketrack/index.html`; anywhere outside
+       * root and the relative path picks up `../` segments, at which point
+       * every page collides on a single `index.html`.
        *
        * `index` must be relisted. Naming any input at all replaces the
        * implicit one, and dropping it here would silently stop emitting the

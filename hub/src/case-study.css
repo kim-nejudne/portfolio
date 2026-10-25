@@ -44,9 +44,9 @@ img {
 /*
  * Note what is *not* here: `overflow-x: hidden`, which `index.css` sets on
  * `body` for the pinned stage. Copying it across would hide horizontal
- * overflow rather than prevent it — and PLINTH's case study, one of the five
- * documents this stylesheet renders, is partly about shipping a page with two
- * horizontal scrollbars and a 4,320px document. The `verify.mjs` assertion
+ * overflow rather than prevent it — and the retired PLINTH's case study, one
+ * of the documents this stylesheet rendered, was partly about shipping a page
+ * with two horizontal scrollbars and a 4,320px document. The `verify.mjs` assertion
  * that no page overflows at 390px is only meaningful while nothing is
  * suppressing the evidence.
  */
@@ -204,11 +204,12 @@ body.cs {
 }
 
 /*
- * No `::before` counter on the headings. Four of the five sources number their
- * own sections in the markdown and PLINTH does not — it is a marketing page
- * and its structure is prose rather than a list of fixes. A generated counter
- * would double the numbers on four pages and invent them on the fifth. The
- * renderer assumes nothing about structure and neither does this.
+ * No `::before` counter on the headings. Some sources number their own
+ * sections in the markdown and some do not — the retired PLINTH was a
+ * marketing page whose structure was prose rather than a list of fixes. A
+ * generated counter would double the numbers on one kind and invent them on
+ * the other. The renderer assumes nothing about structure and neither does
+ * this.
  */
 .cs-body h2 {
   font-size: 1.6rem;
@@ -222,9 +223,9 @@ body.cs {
 }
 
 /*
- * PLINTH's h3s are full sentences — "The one that mattered most: the page
- * argued with itself" — so this cannot be the mono-caps label the rest of the
- * site uses for small headings. It is a smaller, heavier serif instead.
+ * Case-study h3s can be full sentences — the retired PLINTH's included "The
+ * one that mattered most: the page argued with itself" — so this cannot be the
+ * mono-caps label the rest of the site uses for small headings. It is a smaller, heavier serif instead.
  */
 .cs-body h3 {
   font-size: 1.15rem;

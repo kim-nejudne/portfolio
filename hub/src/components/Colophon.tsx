@@ -22,7 +22,7 @@ export default function Colophon() {
           proof of it that cannot be faked.
 
           Here it reads as range instead of as a category, which is what it is,
-          and it reads to someone who has already been through the three
+          and it reads to someone who has already been through the
           products rather than to someone deciding whether to look at them. The
           60fps claim came down with it, for the same reason and to the same
           place: it is a craft fact, and this is where the craft facts live.
@@ -41,8 +41,8 @@ export default function Colophon() {
           the practice cannot go stale.
         */}
         <p className="colophon-lede">
-          Three standalone products, each with its own art direction. The range is the point; the
-          craft bar is the same on every one. The designer’s eye behind them is an editorial one,
+          A standalone product with its own art direction, held to the same craft bar as the page
+          that introduces it. The designer’s eye behind them is an editorial one,
           out of magazine and desktop-publishing work that predates the nine years of JavaScript,
           and the motion holds 60fps everywhere it appears. All of that is checked rather than
           claimed: the site is verified in a real browser against production, and the checks
@@ -60,7 +60,7 @@ export default function Colophon() {
         <dl className="colophon-facts mono">
           <div>
             <dt>Stack</dt>
-            <dd>TypeScript end to end · React · Express · Postgres · GSAP</dd>
+            <dd>TypeScript end to end · React · FastAPI · MongoDB · GSAP</dd>
           </div>
           <div>
             <dt>Hosting</dt>

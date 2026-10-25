@@ -1,4 +1,4 @@
-# Typecheck and build all four projects, then run the hub's assertion suite.
+# Typecheck and build both projects, then run the hub's assertion suite.
 #
 # Two reasons this exists, and the second is the bigger one.
 #
@@ -11,11 +11,11 @@
 # claim in the portfolio and it was visible only in commit messages. A green
 # check is a thing somebody can see without being asked to believe it.
 #
-# ## Why four jobs and four installs
+# ## Why one job and one install per project
 #
 # There is no root `package.json` and no workspace, deliberately (see the
 # monorepo section of the planning notes): `poketrack` is Tailwind 3 /
-# TypeScript 4.9 / CRA against Tailwind 4 / TypeScript 5.9 elsewhere, with 42
+# TypeScript 4.9 / CRA against Tailwind 4 / TypeScript 5.9 in the hub, with 42
 # yarn-classic `resolutions` using `**/` globs npm cannot express. Hoisting is
 # where every risk lives. Independent installs and one lockfile each is the shape the
 # repository already has, and the matrix follows it rather than fighting it.
@@ -28,10 +28,10 @@
 #
 # ## What is deliberately not here
 #
-# Tests that need a database. TALLOW's API wants real Postgres. That is worth
-# adding behind a
-# service container, but a workflow that silently skips them while reporting
-# green is worse than one that never claimed to run them.
+# Tests that need a database. POKÉTRACK's guard sweep runs against a live API,
+# and the API wants a real MongoDB. That is worth adding behind a service
+# container, but a workflow that silently skips them while reporting green is
+# worse than one that never claimed to run them.
 
 name: CI
 
@@ -57,12 +57,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: tallow
-            dir: tallow
-            manager: npm
-          - name: plinth
-            dir: plinth/frontend
-            manager: npm
           # yarn, not npm. See the note at the top about `resolutions`.
           - name: poketrack
             dir: poketrack/frontend
@@ -170,16 +164,15 @@ jobs:
         run: npm run verify -- http://localhost:4173/
 
       # `axe.mjs` REPLACES its whole target list when given arguments, so passing
-      # one URL sweeps one page and still reports green. The hub's own seven
-      # pages are derived from `src/spokes.ts` here for the same reason axe.mjs
-      # derives them itself: a sixth spoke should join the sweep without anybody
+      # one URL sweeps one page and still reports green. The hub's own pages
+      # are derived from `src/spokes.ts` here for the same reason axe.mjs
+      # derives them itself: a new spoke should join the sweep without anybody
       # remembering to edit this file.
       #
-      # The five spoke landing pages are deliberately left out. They are
-      # separate deployments on a separate box, and a spoke being down is not a
-      # reason for the hub's build to go red. `npm run axe` with no arguments
-      # still sweeps all twelve against production, which is where that check
-      # belongs.
+      # The spoke landing pages are deliberately left out. They are separate
+      # deployments on a separate box, and a spoke being down is not a reason
+      # for the hub's build to go red. `npm run axe` with no arguments still
+      # sweeps them all against production, which is where that check belongs.
       - name: axe
         working-directory: hub
         env:

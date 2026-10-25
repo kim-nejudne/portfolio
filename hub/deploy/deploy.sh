@@ -75,7 +75,7 @@ DIST="dist"
 # cannot import it. That duplication is safe only because `verify.mjs` does
 # read the source and asserts the same set, so a spoke added there and
 # forgotten here fails the gate above rather than shipping half-linked.
-for spoke in tallow plinth poketrack; do
+for spoke in poketrack; do
   [ -f "${DIST}/work/${spoke}/index.html" ] || {
     echo "missing ${DIST}/work/${spoke}/index.html — did prebuild run? try: npm run cases" >&2
     exit 1
@@ -156,7 +156,7 @@ ssh "$HOST" "chown -R www-data:www-data ${REMOTE} && nginx -t && systemctl reloa
 # `$uri/` resolved the directory and autoindex is off — and the only one that
 # is printed on the CV.
 echo "==> Confirm the case studies through nginx"
-for path in work work/tallow work/plinth work/poketrack; do
+for path in work work/poketrack; do
   slash="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/${path}/")"
   bare="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/${path}")"
   printf '    /%-15s %s (bare: %s)\n' "${path}/" "$slash" "$bare"

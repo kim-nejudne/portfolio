@@ -107,10 +107,10 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
  * The stack, above the fold, in the order someone scanning for it reads.
  *
  * Five names, and the constraint on the list is that every one has a shipped
- * spoke behind it rather than that it covers the most job postings. TypeScript
- * and React are all three; Express and Postgres are TALLOW; Python is
- * POKÉTRACK's FastAPI backend. Next.js and NestJS came off on 2026-10-25 with
- * FORME and SUKI, the only spokes that carried them. Nothing
+ * spoke behind it rather than that it covers the most job postings.
+ * TypeScript, React, FastAPI, MongoDB and Python are all POKÉTRACK. Next.js
+ * and NestJS came off on 2026-10-25 with FORME and SUKI, and Express and
+ * Postgres the same day with TALLOW, the only spokes that carried them. Nothing
  * here is a claim Kim cannot be tested on, which is the whole difference
  * between a stack line and a skills dump.
  *
@@ -119,10 +119,10 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
  * claim like that belongs.
  *
  * The wider list still exists, in `Colophon.tsx`'s `Stack` row, where a reader
- * who has gone through the whole page can have Express, FastAPI, Mongo, GSAP,
- * Docker and nginx. Two tiers, and this is the one that has six seconds.
+ * who has gone through the whole page can have GSAP, with nginx in the
+ * Hosting row beside it. Two tiers, and this is the one that has six seconds.
  */
-export const STACK = 'TypeScript · React · Express · Postgres · Python';
+export const STACK = 'TypeScript · React · FastAPI · MongoDB · Python';
 
 /** `STACK` typeset. It wraps at 320px, and must fold at a separator. */
 export const STACK_SET = bindSeparators(STACK);
@@ -148,7 +148,7 @@ export const STACK_SET = bindSeparators(STACK);
  * study goes missing, and a hero that says five while the index lists four
  * would be a worse version of the same defect, and a silent one.
  */
-export const PITCH_META = `9 years in production · ${SPOKES.length} products live, front end to droplet`;
+export const PITCH_META = `9 years in production · ${SPOKES.length} ${SPOKES.length === 1 ? 'product' : 'products'} live, front end to droplet`;
 
 /**
  * `PITCH_META` typeset: the same line, bound so it can only break between its
@@ -219,7 +219,7 @@ export const DESCRIPTION = `${PITCH_SENTENCE} Nine years of production JavaScrip
  * `og:description`. Deliberately not the same as `DESCRIPTION`: a search result
  * wants the credentials, and a pasted link wants to know what is behind it.
  */
-export const OG_DESCRIPTION = `${PITCH_SENTENCE} Three standalone products, each with its own art direction.`;
+export const OG_DESCRIPTION = `${PITCH_SENTENCE} One standalone product, with its own art direction.`;
 
 /** `og:image:alt`. Describes the card, then quotes what is printed on it. */
 export const OG_IMAGE_ALT = `A pen-and-ink portrait of Kim, the top of his head hinged open onto a circle of sky. Beside it: ${PITCH_SENTENCE.toLowerCase()}`;

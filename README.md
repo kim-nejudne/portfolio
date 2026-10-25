@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml)
 
-Three independent web applications and the homepage that links them, by
-[Kim Nejudne](https://kimnejudne.dev). Every one of them is live, self-hosted,
-and has a written case study.
+An independent web application and the homepage that links it, by
+[Kim Nejudne](https://kimnejudne.dev). It is live, self-hosted, and has a
+written case study.
 
-That badge builds all four from their own lockfiles, then runs the hub's
+That badge builds both from their own lockfiles, then runs the hub's
 browser assertions against the built site over the DevTools protocol and an
 axe-core sweep of every hub page. The assertions are tested too: they are
 deliberately broken to confirm they fail, because a check that has never
@@ -15,11 +15,9 @@ failed is a check nobody has verified.
 | | | Stack | Live |
 |---|---|---|---|
 | **[hub](hub/)** | The homepage. A pen-and-ink portrait that hinges open on scroll and shows the work | Vite · React · GSAP | [kimnejudne.dev](https://kimnejudne.dev) |
-| **[tallow](tallow/)** | Dry-aged steakhouse. Reservations against real cover capacity, and an 86 board wired from the kitchen to the public menu | Vite · React · Express · Postgres | [tallow.kimnejudne.dev](https://tallow.kimnejudne.dev) |
-| **[plinth](plinth/)** | A sixteen-week periodised strength program told entirely in type. No photography anywhere, by design | Vite · React · GSAP | [plinth.kimnejudne.dev](https://plinth.kimnejudne.dev) |
 | **[poketrack](poketrack/)** | Project tracking that levels up. A partner's whole state is derived from the sum of its XP events and never stored | React · FastAPI · MongoDB | [poketrack.kimnejudne.dev](https://poketrack.kimnejudne.dev) |
 
-Case studies for all three spokes are published at
+Case studies for every spoke are published at
 [kimnejudne.dev/work](https://kimnejudne.dev/work).
 
 ## Why the art directions do not match
@@ -35,12 +33,12 @@ semantics, and real performance budgets that survive a mid-range phone.
 
 ## How this repository is arranged
 
-Four directories, each a self-contained project with its own `package.json`,
-its own lockfile and its own `node_modules`.
+Each directory is a self-contained project with its own `package.json`, its
+own lockfile and its own `node_modules`.
 
-**There is deliberately no root `package.json` and no workspace.** The four do
-not share dependencies and should not: poketrack is on Tailwind 3 and
-TypeScript 4.9 behind Create React App, while the rest are on Tailwind 4 and
+**There is deliberately no root `package.json` and no workspace.** The projects
+do not share dependencies and should not: poketrack is on Tailwind 3 and
+TypeScript 4.9 behind Create React App, while the hub is on Tailwind 4 and
 TypeScript 5.9. Hoisting them into one dependency
 graph would buy a smaller `node_modules` at the cost of breaking builds that
 currently work. They are colocated, not merged.
@@ -48,15 +46,14 @@ currently work. They are colocated, not merged.
 Each project builds from its own directory:
 
 ```
-cd tallow && npm ci && npm run build
-cd plinth/frontend && npm ci && npm run build      # code lives under frontend/
+cd hub && npm ci && npm run build
 cd poketrack/frontend && npm ci && npm run build   # Python API under backend/
 ```
 
 `hub` is the exception worth knowing about: its build reads each spoke's
 `CASE-STUDY.md` from the sibling directory and **fails naming the path** if one
-is missing, because publishing two case studies of three silently is the worst
-outcome available.
+is missing, because silently publishing fewer case studies than there are
+spokes is the worst outcome available.
 
 ## `spoke-plinth-recovered-craft-pass` is an archive, not a feature branch
 
@@ -66,7 +63,8 @@ outcome available.
 > work-in-progress. It is not.
 
 It holds the **retired PLINTH gym marketing site**, replaced on 2026-08-02 by
-the sixteen-week strength program that `plinth/` carries today. Twelve commits
+a sixteen-week strength program that was itself taken down on 2026-10-25; that
+one is in `main`'s history before the commit that removed `plinth/`. Twelve commits
 and ninety-four files that exist nowhere else in this graph, on a **disjoint
 root** — it shares no merge base with `main` at all, so merging it would need
 `--allow-unrelated-histories` and would graft a dead site into the live tree.

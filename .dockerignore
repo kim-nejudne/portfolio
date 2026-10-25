@@ -1,12 +1,13 @@
 # A guard, not a build input. Nothing is meant to be built from this directory.
 #
-# Every image in this repository takes its own project directory as context --
-# `tallow/`, `poketrack/` -- and each of those has its own .dockerignore that is
-# the real one. This file exists for the mistake those cannot catch: running
-# `docker build -f tallow/Dockerfile .` from here instead of from tallow/.
+# The one image in this repository takes its own project directory as context --
+# `poketrack/` -- and that has its own .dockerignore that is the real one. This
+# file exists for the mistake it cannot catch: running
+# `docker build -f poketrack/Dockerfile .` from here instead of from
+# poketrack/.
 #
 # Without this, that command uploads every project as build context --
-# including any untracked node_modules, which is over 100MB in plinth/ alone --
+# including any untracked node_modules, which run to hundreds of MB --
 # and only then fails on a COPY that is not there. The failure is loud either
 # way; this keeps it from being slow and from heating the daemon first.
 */node_modules

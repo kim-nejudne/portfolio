@@ -6,7 +6,7 @@
 #
 #   docker compose up -d
 #
-# PokéTrack shares a 1.9GB box with n8n, tallow and netint-vpuaas. Every service
+# PokéTrack shares a 1.9GB box with n8n, jobsearch and the static sites. Every service
 # is capped so a leak here cannot take the others down.
 
 name: poketrack

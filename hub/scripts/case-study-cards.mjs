@@ -15,7 +15,7 @@
  * precisely the exception the one colour rule already carves out.
  *
  * It also has to be same-origin. `verify.mjs` requires `og:image` to sit on the
- * canonical origin, so pointing these at `tallow.kimnejudne.dev/og-card.png`
+ * canonical origin, so pointing these at `poketrack.kimnejudne.dev/og-card.png`
  * was never an option even before the argument above.
  *
  * Node rather than extending `brand.sh`, because the card varies per spoke and

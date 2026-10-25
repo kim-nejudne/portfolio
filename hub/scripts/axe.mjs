@@ -80,7 +80,6 @@ const TARGETS =
    a whole product when it swept a front door. */
 const UNSWEPT = [
   'poketrack: every team view (sign-in)',
-  'tallow: the admin, inventory and 86 board (sign-in)',
 ];
 
 let nextId = 1;

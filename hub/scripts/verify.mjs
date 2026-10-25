@@ -2516,9 +2516,9 @@ async function main() {
       /*
        * No horizontal overflow on a phone.
        *
-       * PLINTH's own case study — one of the five documents this renders — is
-       * partly about shipping a page with two horizontal scrollbars and a
-       * 4,320px document, so this is that lesson turned into a gate. It is the
+       * The retired PLINTH's case study was partly about shipping a page with
+       * two horizontal scrollbars and a 4,320px document, so this is that
+       * lesson turned into a gate. It is the
        * assertion most likely to fire while editing: the longest inline code
        * span in the corpus is 69 characters and the longest fenced line is 84,
        * and either will widen a 390px page if the stylesheet stops handling

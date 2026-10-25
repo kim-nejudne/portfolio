@@ -14,7 +14,7 @@ Two artifacts, two paths, one hostname:
 
 | | |
 |---|---|
-| Host | DigitalOcean droplet (sgp1), shared with `n8n`, `tallow`, `netint-vpuaas` |
+| Host | DigitalOcean droplet (sgp1), shared with `n8n`, `jobsearch` and the static sites |
 | API | `poketrack:<tag>` container, uvicorn on **loopback `127.0.0.1:3004`** → nginx `/api/` |
 | SPA | CRA build served off disk by nginx from **`/var/www/poketrack`** → nginx `/` |
 | Data | `mongo:7` on the compose-internal network, **no published port**, volume `poketrack_poketrack-mongo` |

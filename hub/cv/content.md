@@ -75,8 +75,8 @@ and a decade in desktop publishing and magazine design before any of it, which
 is where the eye came from. I build the whole thing: interface, motion, API,
 schema, pipeline, and the box it runs on.
 
-Three products currently shipped and running at **kimnejudne.dev**: three
-distinct art directions, a written case study each, public source for all three.
+One product currently shipped and running at **kimnejudne.dev**, with its own
+art direction, a written case study and public source.
 
 > Two paragraphs, not nine lines of prose. The second exists to catch the
 > skim: Selected Work is on page 2, and this is what tells a reader it is
@@ -286,24 +286,13 @@ React, Redux, NodeJS, Express, MongoDB, Firebase. Owned end to end.
 
 ## Selected Work (page 2)
 
-**TALLOW.** Dry-aged steakhouse. Reservations booked against real cover
-capacity, and an 86 board wired from the kitchen straight to the public menu.
-*Vite · React · Express · Postgres*
-tallow.kimnejudne.dev
-
-**PLINTH.** A sixteen-week periodised strength program told entirely in type.
-No photography anywhere, by design: everything is type, rule, colour and drawn
-SVG.
-*Vite · React · GSAP*
-plinth.kimnejudne.dev
-
 **POKÉTRACK.** Project tracking that levels up. A partner's entire state
 (species, level, evolution) is derived from the sum of its XP events and never
 stored, so undoing work de-evolves it for free.
 *React · FastAPI · MongoDB · real PokéAPI growth curves*
 poketrack.kimnejudne.dev
 
-Across all three: 60fps motion, `prefers-reduced-motion` honoured throughout,
+The bar: 60fps motion, `prefers-reduced-motion` honoured throughout,
 keyboard-navigable, and self-hosted on a single DigitalOcean droplet behind
 nginx, with no PaaS anywhere.
 
@@ -318,7 +307,8 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 > directions, a case study each, public source) and page 1 has to carry that,
 > since it is the part a skim reaches. Nothing was lost: the case-study and
 > source URLs are on the closing line below, and the five entries are their
-> own argument. Page 2 now opens straight onto TALLOW.
+> own argument. Page 2 opened straight onto TALLOW until TALLOW and PLINTH
+> were taken down on 2026-10-25; it now opens onto POKÉTRACK.
 
 ---
 
