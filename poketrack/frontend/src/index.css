@@ -12,9 +12,11 @@
    it intact, since half-width scaled by 1.22 is still 39% narrower than what
    it replaced.
    Latin range only — the package's Japanese subset is 3MB and nothing here
-   renders kana. Glyphs outside this range (the ← → on the move buttons, the ▶
-   on buttons) fall through to the monospace stack, exactly as they did under
-   Press Start 2P, whose Google subset did not carry them either. */
+   renders kana. Glyphs outside this range (the ▶ on buttons) fall through to
+   the monospace stack, exactly as they did under Press Start 2P, whose Google
+   subset did not carry them either. The ticket card's move buttons used to be
+   ← → text and rendered as smudges that way; they are inline SVG now
+   (components/game/Icons.js). */
 @font-face {
   font-family: "DotGothic16";
   font-style: normal;

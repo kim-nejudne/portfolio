@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useDraggable } from "@dnd-kit/core";
 import { GameFrame } from "./GameFrame";
+import { ChevronLeft, ChevronRight, GripVertical } from "./Icons";
 
 const POINT_COLORS = { 1: "#7AC74C", 2: "#96D9D6", 3: "#6390F0", 5: "#F7D02C", 8: "#EE8130", 13: "#F95587" };
 
@@ -9,6 +10,11 @@ const POINT_COLORS = { 1: "#7AC74C", 2: "#96D9D6", 3: "#6390F0", 5: "#F7D02C", 8
 // column, once inside the DragOverlay while a drag is in flight.
 function TicketFace({ ticket, assignee, onEdit, onMoveLeft, onMoveRight, handleProps, interactive = true }) {
   const pointColor = POINT_COLORS[ticket.story_points] || "#6390F0";
+  // Disabled, not hidden, at the board's edges: the row keeps its shape and a
+  // keyboard user still learns where they are.
+  const canMoveLeft = ticket.status !== "backlog";
+  const canMoveRight = ticket.status !== "done";
+  const moveBtn = "grid place-items-center h-6 w-6 rounded-md ring-2 ring-black/70 bg-white/10 hover:bg-white/20 text-game-ink disabled:opacity-30 disabled:hover:bg-white/10 disabled:cursor-not-allowed";
   return (
     <GameFrame className="p-0 relative" tone="panel2" rivets={false}>
       {/* type stripe */}
@@ -29,11 +35,11 @@ function TicketFace({ ticket, assignee, onEdit, onMoveLeft, onMoveRight, handleP
             </span>
           ) : <span className="font-body text-xs text-white/50">Unassigned</span>}
           <div className="flex items-center gap-1">
-            <button aria-label="Move left" onClick={interactive ? () => onMoveLeft(ticket) : undefined} tabIndex={interactive ? undefined : -1} className="px-2 py-1 rounded-md ring-2 ring-black/70 bg-white/10 hover:bg-white/20 font-pixel text-[9px]" data-testid={interactive ? `ticket-move-left-${ticket.id}` : undefined}>←</button>
-            <button aria-label="Move right" onClick={interactive ? () => onMoveRight(ticket) : undefined} tabIndex={interactive ? undefined : -1} className="px-2 py-1 rounded-md ring-2 ring-black/70 bg-white/10 hover:bg-white/20 font-pixel text-[9px]" data-testid={interactive ? `ticket-move-right-${ticket.id}` : undefined}>→</button>
+            <button type="button" aria-label="Move left" disabled={!canMoveLeft} onClick={interactive ? () => onMoveLeft(ticket) : undefined} tabIndex={interactive ? undefined : -1} className={moveBtn} data-testid={interactive ? `ticket-move-left-${ticket.id}` : undefined}><ChevronLeft /></button>
+            <button type="button" aria-label="Move right" disabled={!canMoveRight} onClick={interactive ? () => onMoveRight(ticket) : undefined} tabIndex={interactive ? undefined : -1} className={moveBtn} data-testid={interactive ? `ticket-move-right-${ticket.id}` : undefined}><ChevronRight /></button>
             {/* touch-none: PointerSensor cannot start a drag on a phone until the
                 browser stops claiming the gesture for scrolling. */}
-            <span {...handleProps} className="px-2 py-1 touch-none cursor-grab active:cursor-grabbing rounded-md ring-2 ring-black/70 bg-white/5 font-pixel text-[9px] text-white/60" data-testid={interactive ? `ticket-drag-handle-${ticket.id}` : undefined}>DRAG</span>
+            <span {...handleProps} aria-label="Drag ticket" className="grid place-items-center h-6 w-6 touch-none cursor-grab active:cursor-grabbing rounded-md ring-2 ring-black/70 bg-white/5 text-white/50 hover:text-white/90" data-testid={interactive ? `ticket-drag-handle-${ticket.id}` : undefined}><GripVertical /></span>
           </div>
         </div>
       </div>
