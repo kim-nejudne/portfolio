@@ -79,9 +79,7 @@ const TARGETS =
 /* Pages a cold visitor cannot reach, named so the report cannot imply it swept
    a whole product when it swept a front door. */
 const UNSWEPT = [
-  'forme: the portal, prepress queue and press board (sign-in)',
   'poketrack: every team view (sign-in)',
-  'suki: the till, lista and stock (PIN)',
   'tallow: the admin, inventory and 86 board (sign-in)',
 ];
 

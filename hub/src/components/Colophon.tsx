@@ -22,7 +22,7 @@ export default function Colophon() {
           proof of it that cannot be faked.
 
           Here it reads as range instead of as a category, which is what it is,
-          and it reads to someone who has already been through the five
+          and it reads to someone who has already been through the three
           products rather than to someone deciding whether to look at them. The
           60fps claim came down with it, for the same reason and to the same
           place: it is a craft fact, and this is where the craft facts live.
@@ -37,11 +37,11 @@ export default function Colophon() {
           assertion count, and this repository has already watched that number
           drift by eleven in the layer that describes it. A count is also the
           weakest available form of this argument, which is the same criticism
-          the brief makes of FORME's "172 tests". The practice is the claim, and
+          the brief made of FORME's "172 tests". The practice is the claim, and
           the practice cannot go stale.
         */}
         <p className="colophon-lede">
-          Five standalone products, each with its own art direction. The range is the point; the
+          Three standalone products, each with its own art direction. The range is the point; the
           craft bar is the same on every one. The designer’s eye behind them is an editorial one,
           out of magazine and desktop-publishing work that predates the nine years of JavaScript,
           and the motion holds 60fps everywhere it appears. All of that is checked rather than
@@ -60,7 +60,7 @@ export default function Colophon() {
         <dl className="colophon-facts mono">
           <div>
             <dt>Stack</dt>
-            <dd>TypeScript end to end · React · NestJS · Postgres · GSAP</dd>
+            <dd>TypeScript end to end · React · Express · Postgres · GSAP</dd>
           </div>
           <div>
             <dt>Hosting</dt>

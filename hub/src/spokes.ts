@@ -1,5 +1,5 @@
 /**
- * The five ideas.
+ * The three ideas.
  *
  * One line each, and the line has a job: a hook a recruiter finishes reading,
  * and a technical tell that says the thing behind it was engineered. The hub
@@ -16,8 +16,8 @@ export type Spoke = {
    *
    * Each spoke's case study lives as `CASE-STUDY.md` in that spoke's own
    * directory; `scripts/case-studies.mjs` reads them from the siblings at
-   * build time and renders them into this site, so the five are set in one
-   * type and read as one voice rather than as five more art directions.
+   * build time and renders them into this site, so the three are set in one
+   * type and read as one voice rather than as three more art directions.
    *
    * Those five were separate repositories until the six were merged, and that
    * read genuinely crossed a repo boundary. It is an ordinary sibling read
@@ -29,7 +29,7 @@ export type Spoke = {
    * "Case study" link on the homepage is worse than no link at all. It is not
    * optional in practice any more: `verify.mjs` fetches every one of these and
    * fails the deploy unless it comes back as that spoke's own page, and
-   * `deploy.sh` refuses to ship a build that is missing any of the five.
+   * `deploy.sh` refuses to ship a build that is missing any of them.
    */
   readonly caseStudy?: string;
   /**
@@ -66,24 +66,14 @@ export type Spoke = {
  *
  * Nothing reads a spoke by position: `Showcase` numbers the cards off the
  * index, `Index` and the `/work/` table render rows in sequence, and the
- * sitemap, the five case-study pages and their asides all derive from this
+ * sitemap, the case-study pages and their asides all derive from this
  * array. So this list is the only place the sequence is stated, and moving a
  * row here moves the showcase, the index, the roster and the sitemap together.
  *
- * Kim's ordering, 2026-08-08. Suki leads: it is the only spoke where
- * offline-first is a requirement rather than a feature, and the warmest thing
- * in the set, which is what a visitor who watches exactly one card come out of
- * the head should be handed.
+ * Kim's ordering, 2026-08-08, less FORME and SUKI, which were taken down on
+ * 2026-10-25. SUKI led until then; PokéTrack inherits the first card.
  */
 export const SPOKES: readonly Spoke[] = [
-  {
-    id: 'suki',
-    name: 'Suki',
-    line: "A neighbourhood shop's ledger. Works with no signal, and the sums cannot disagree.",
-    href: 'https://suki.kimnejudne.dev/',
-    caseStudy: '/work/suki/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/suki',
-  },
   {
     id: 'poketrack',
     name: 'PokéTrack',
@@ -91,14 +81,6 @@ export const SPOKES: readonly Spoke[] = [
     href: 'https://poketrack.kimnejudne.dev/',
     caseStudy: '/work/poketrack/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
-  },
-  {
-    id: 'forme',
-    name: 'Forme',
-    line: "A trade printer's floor. The preflight engine measures your PDF rather than trusting it.",
-    href: 'https://forme.kimnejudne.dev/',
-    caseStudy: '/work/forme/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/forme',
   },
   {
     id: 'tallow',
@@ -131,7 +113,7 @@ export const crop = (id: string) => ({
 
 /**
  * The visible text for a `repo` link: the repository name and the directory
- * inside it, `portfolio/forme`.
+ * inside it, `portfolio/tallow`.
  *
  * It lives here, beside the URLs it reads, because two places need it and they
  * must not disagree: `scripts/case-studies.mjs` renders it, and `verify.mjs`

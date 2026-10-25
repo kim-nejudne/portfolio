@@ -5,7 +5,7 @@ import { SPOKES } from '../spokes';
  *
  * The showcase is a performance and it leaves. This does not. Anyone who flung
  * past the whole sequence, or arrived with reduced motion, or is reading with
- * a screen reader, lands here — five links, always present, in the document,
+ * a screen reader, lands here — one link per spoke, always present, in the document,
  * needing nothing to run.
  *
  * It is also the reason the keyboard story is simple. An earlier version hid
@@ -21,7 +21,7 @@ export default function Index() {
   return (
     <section className="index" id="work" aria-labelledby="work-heading">
       <h2 className="index-heading mono" id="work-heading">
-        The work — five standalone products
+        The work — three standalone products
       </h2>
       <ol className="index-list">
         {SPOKES.map((s, i) => (

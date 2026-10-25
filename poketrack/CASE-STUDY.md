@@ -132,7 +132,7 @@ failure mode is silent: if the variable ever went missing, the app would boot
 happily and sign every session token with a value anyone reading the source
 already knows. Nothing would look wrong.
 
-It now refuses to start, which is how TALLOW and FORME handle the same problem.
+It now refuses to start, which is how TALLOW handles the same problem.
 A missing secret should be a failed deploy, not a working one with forgeable
 tokens.
 

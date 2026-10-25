@@ -106,10 +106,11 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
 /**
  * The stack, above the fold, in the order someone scanning for it reads.
  *
- * Six names, and the constraint on the list is that every one has a shipped
+ * Five names, and the constraint on the list is that every one has a shipped
  * spoke behind it rather than that it covers the most job postings. TypeScript
- * and React are all five; Next.js is FORME; NestJS is FORME and SUKI; Postgres
- * is TALLOW, FORME and SUKI; Python is POKÉTRACK's FastAPI backend. Nothing
+ * and React are all three; Express and Postgres are TALLOW; Python is
+ * POKÉTRACK's FastAPI backend. Next.js and NestJS came off on 2026-10-25 with
+ * FORME and SUKI, the only spokes that carried them. Nothing
  * here is a claim Kim cannot be tested on, which is the whole difference
  * between a stack line and a skills dump.
  *
@@ -121,7 +122,7 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
  * who has gone through the whole page can have Express, FastAPI, Mongo, GSAP,
  * Docker and nginx. Two tiers, and this is the one that has six seconds.
  */
-export const STACK = 'TypeScript · React · Next.js · NestJS · Postgres · Python';
+export const STACK = 'TypeScript · React · Express · Postgres · Python';
 
 /** `STACK` typeset. It wraps at 320px, and must fold at a separator. */
 export const STACK_SET = bindSeparators(STACK);
@@ -218,7 +219,7 @@ export const DESCRIPTION = `${PITCH_SENTENCE} Nine years of production JavaScrip
  * `og:description`. Deliberately not the same as `DESCRIPTION`: a search result
  * wants the credentials, and a pasted link wants to know what is behind it.
  */
-export const OG_DESCRIPTION = `${PITCH_SENTENCE} Five standalone products, each with its own art direction.`;
+export const OG_DESCRIPTION = `${PITCH_SENTENCE} Three standalone products, each with its own art direction.`;
 
 /** `og:image:alt`. Describes the card, then quotes what is printed on it. */
 export const OG_IMAGE_ALT = `A pen-and-ink portrait of Kim, the top of his head hinged open onto a circle of sky. Beside it: ${PITCH_SENTENCE.toLowerCase()}`;

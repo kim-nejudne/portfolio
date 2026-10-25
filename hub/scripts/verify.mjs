@@ -719,7 +719,7 @@ async function main() {
       }
     }
     check(
-      '/work/ is a page, canonical, listing exactly the five case studies',
+      '/work/ is a page, canonical, listing exactly the case studies in SPOKES',
       workIndex.bad.length === 0,
       workIndex.bad.length ? workIndex.bad.join('; ') : `${SPOKES.length} rows, discloses origin`,
     );
@@ -730,8 +730,8 @@ async function main() {
     );
     const parsed = JSON.parse(links);
     check(
-      'the index is a list of five links with real names',
-      parsed.length === 5 && parsed.every((l) => l.name.length > 3 && /^https:\/\//.test(l.href)),
+      'the index is a list of one link per spoke with real names',
+      parsed.length === SPOKES.length && parsed.every((l) => l.name.length > 3 && /^https:\/\//.test(l.href)),
       `${parsed.length} links`,
     );
 
@@ -1976,10 +1976,10 @@ async function main() {
       await ev(`getComputedStyle(document.querySelector('.showcase')).display === 'none'`),
     );
     check(
-      'reduced motion still shows all five links in the index',
+      'reduced motion still shows every spoke link in the index',
       await ev(`(() => {
         const rows = [...document.querySelectorAll('.index-link')];
-        return rows.length === 5 && rows.every(a => a.getBoundingClientRect().height > 0);
+        return rows.length === ${SPOKES.length} && rows.every(a => a.getBoundingClientRect().height > 0);
       })()`),
     );
     const staticLid = JSON.parse(await ev(`(() => {
@@ -2409,13 +2409,13 @@ async function main() {
 
       const otherIds = SPOKES.filter((o) => o.id !== s.id).map((o) => `/work/${o.id}/`);
       check(
-        `${s.id}: links home, to its spoke, and to the other four`,
+        `${s.id}: links home, to its spoke, and to the other ${otherIds.length}`,
         await ev(`(() => {
           const back = !!document.querySelector('a[href="/#work"]');
           const live = [...document.querySelectorAll('a')].some(a => a.href === ${JSON.stringify(s.href)});
           const others = [...document.querySelectorAll('.cs-others-link')].map(a => new URL(a.href).pathname).sort();
           const want = ${JSON.stringify(otherIds.slice().sort())};
-          return back && live && others.length === 4 && others.every((p, i) => p === want[i]);
+          return back && live && others.length === ${otherIds.length} && others.every((p, i) => p === want[i]);
         })()`),
       );
 

@@ -75,8 +75,8 @@ and a decade in desktop publishing and magazine design before any of it, which
 is where the eye came from. I build the whole thing: interface, motion, API,
 schema, pipeline, and the box it runs on.
 
-Five products currently shipped and running at **kimnejudne.dev**: five
-distinct art directions, a written case study each, public source for all five.
+Three products currently shipped and running at **kimnejudne.dev**: three
+distinct art directions, a written case study each, public source for all three.
 
 > Two paragraphs, not nine lines of prose. The second exists to catch the
 > skim: Selected Work is on page 2, and this is what tells a reader it is
@@ -297,26 +297,13 @@ SVG.
 *Vite · React · GSAP*
 plinth.kimnejudne.dev
 
-**FORME.** A trade printer's production system. The preflight engine measures
-your PDF with poppler and ghostscript rather than asserting it passed, and
-reports `SKIPPED` with a stated reason for the three checks it cannot make.
-*Next.js · NestJS · Postgres · Drizzle · 172 tests*
-forme.kimnejudne.dev
-
 **POKÉTRACK.** Project tracking that levels up. A partner's entire state
 (species, level, evolution) is derived from the sum of its XP events and never
 stored, so undoing work de-evolves it for free.
 *React · FastAPI · MongoDB · real PokéAPI growth curves*
 poketrack.kimnejudne.dev
 
-**SUKI.** A neighbourhood sari-sari store's ledger, built for a cheap Android
-phone with no signal. Hand-rolled sync over IndexedDB: an append-only operation
-queue, client-generated UUIDs as idempotency keys, server authoritative. No
-CRDTs, because there is one writer and sums commute.
-*Vite · React · NestJS · Postgres · offline-first*
-suki.kimnejudne.dev
-
-Across all five: 60fps motion, `prefers-reduced-motion` honoured throughout,
+Across all three: 60fps motion, `prefers-reduced-motion` honoured throughout,
 keyboard-navigable, and self-hosted on a single DigitalOcean droplet behind
 nginx, with no PaaS anywhere.
 
@@ -338,8 +325,8 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 ## Skills
 
 **Languages** TypeScript · JavaScript · Python · SQL
-**Frontend** React · Next.js · styled-components · Tailwind · SCSS · GSAP
-**Backend & data** NestJS · Express · FastAPI · Postgres · MongoDB · Drizzle · Elasticsearch
+**Frontend** React · styled-components · Tailwind · SCSS · GSAP
+**Backend & data** NestJS · Express · FastAPI · Postgres · MongoDB · Elasticsearch
 **Craft** Accessibility (keyboard, semantics, reduced motion) · performance budgets · motion design · typography · tests proven by sabotage
 **Automation & AI** n8n · Python scrapers · LLM integrations
 **Infrastructure** Docker · nginx · Linux · CI/CD · Git

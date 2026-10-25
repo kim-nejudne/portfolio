@@ -20,7 +20,7 @@ def _require_jwt_secret() -> str:
     with a value anyone reading the source already knows. A missing secret
     should be a failed deploy, not a working one with forgeable tokens.
 
-    Matches how TALLOW and FORME handle their own signing secrets.
+    Matches how TALLOW handles its own signing secret.
     """
     secret = os.environ.get("JWT_SECRET", "").strip()
     if len(secret) < 32:

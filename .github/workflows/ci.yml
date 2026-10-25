@@ -1,4 +1,4 @@
-# Typecheck and build all six projects, then run the hub's assertion suite.
+# Typecheck and build all four projects, then run the hub's assertion suite.
 #
 # Two reasons this exists, and the second is the bigger one.
 #
@@ -11,14 +11,13 @@
 # claim in the portfolio and it was visible only in commit messages. A green
 # check is a thing somebody can see without being asked to believe it.
 #
-# ## Why six jobs and six installs
+# ## Why four jobs and four installs
 #
 # There is no root `package.json` and no workspace, deliberately (see the
 # monorepo section of the planning notes): `poketrack` is Tailwind 3 /
 # TypeScript 4.9 / CRA against Tailwind 4 / TypeScript 5.9 elsewhere, with 42
-# yarn-classic `resolutions` using `**/` globs npm cannot express, and `suki`
-# has a root `overrides` that npm would apply repository-wide. Hoisting is where
-# every risk lives. Six independent installs and six lockfiles is the shape the
+# yarn-classic `resolutions` using `**/` globs npm cannot express. Hoisting is
+# where every risk lives. Independent installs and one lockfile each is the shape the
 # repository already has, and the matrix follows it rather than fighting it.
 #
 # `poketrack/frontend` carries **both** a `package-lock.json` and a `yarn.lock`,
@@ -29,8 +28,8 @@
 #
 # ## What is deliberately not here
 #
-# Tests that need a database. FORME's 172 tests include 36 e2e against real
-# Postgres, and SUKI's API tests want one too. Those are worth adding behind a
+# Tests that need a database. TALLOW's API wants real Postgres. That is worth
+# adding behind a
 # service container, but a workflow that silently skips them while reporting
 # green is worse than one that never claimed to run them.
 
@@ -63,12 +62,6 @@ jobs:
             manager: npm
           - name: plinth
             dir: plinth/frontend
-            manager: npm
-          - name: forme
-            dir: forme
-            manager: npm
-          - name: suki
-            dir: suki
             manager: npm
           # yarn, not npm. See the note at the top about `resolutions`.
           - name: poketrack
@@ -148,7 +141,7 @@ jobs:
         run: npm ci
 
       # `prebuild` runs identity-check, the cards, the case studies and the SEO
-      # files. It fails the build if any of the five case studies is missing, if
+      # files. It fails the build if any spoke's case study is missing, if
       # a disclosure or a short-version block is absent, or if any of the ten
       # identity surfaces disagrees with src/identity.ts.
       - name: build

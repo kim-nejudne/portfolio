@@ -189,10 +189,10 @@ curl -sI https://kimnejudne.dev/no-such     | head -1   # 404, NOT 200
 
 That last one is not a formality — see *Caching and the SPA fallback* below.
 
-Worth also confirming the five spokes still answer, since a reload is box-wide:
+Worth also confirming the spokes still answer, since a reload is box-wide:
 
 ```sh
-for s in tallow plinth forme poketrack suki; do
+for s in tallow plinth poketrack; do
   curl -sS -o /dev/null -w "$s %{http_code}\n" "https://$s.kimnejudne.dev/"
 done
 ```
@@ -349,6 +349,6 @@ They are served from their own `location` block, with the artwork's week rather
 than `/assets/`'s year or `location /`'s `no-cache`. A year would pin the first
 card any platform ever scraped; `no-cache` would make every scrape and every tab
 revalidate a file that changes about never.
-- **Three of the five crops are headless screenshots**, not chosen crops —
-  `tallow`, `plinth` and `forme`. `poketrack` and `suki` are chosen captures
-  with sources in `art/crops/`. Long-standing; see `../README.md`.
+- **Two of the three crops are headless screenshots**, not chosen crops —
+  `tallow` and `plinth`. `poketrack` is a chosen capture with its source in
+  `art/crops/`. Long-standing; see `../README.md`.
