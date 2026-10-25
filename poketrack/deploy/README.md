@@ -30,8 +30,26 @@ of host RAM and crowd out n8n. Both services carry a `mem_limit`.
 
 ## Deploying
 
-Everything is built **on the workstation**. The droplet runs no build of any
-kind — it has not the memory headroom next to its co-tenants.
+**A push to `main` that touches `poketrack/` deploys it.** The workflow is
+`.github/workflows/deploy-poketrack.yml`: the two offline backend suites and the
+CRA build run first; then the API image is built on the runner and shipped with
+`docker save | ssh docker load`, the bundle is rsynced into a staging directory,
+and one script on the box re-points `IMAGE_TAG`, restarts the API, waits for
+`/api/health` *and* `/api/auth/demo-accounts` to answer on loopback, and only
+then swaps the SPA in. A failed gate rolls `IMAGE_TAG` back and leaves the SPA
+alone. Afterwards the route-guard sweep (`test_api_guards.py`) runs against the
+public URL as a smoke test. Markdown-only commits do not redeploy.
+
+Watch a run with `gh run watch`, or start one by hand with
+`gh workflow run deploy-poketrack.yml`.
+
+The pipeline ships the image, the bundle and `deploy/compose.deploy.yaml`
+(as `/opt/poketrack/compose.yaml`). It does **not** ship `deploy/nginx/*` or
+`deploy/scripts/*` — both are root-owned on the box and a person moves them.
+
+The droplet still runs no build of any kind — it has not the memory headroom
+next to its co-tenants. Everything below is the same release done by hand,
+the break-glass path when Actions is the thing that is broken.
 
 From `poketrack/`:
 
@@ -53,7 +71,7 @@ docker save poketrack:$TAG | ssh $DEPLOY_HOST 'docker load'
 #    host would work but would start sending needless CORS preflights.
 ( cd frontend && REACT_APP_BACKEND_URL= GENERATE_SOURCEMAP=false yarn build )
 rsync -az --delete frontend/build/ $DEPLOY_HOST:/var/www/poketrack/
-ssh $DEPLOY_HOST 'chown -R www-data:www-data /var/www/poketrack'
+# (no chown needed: the directory is deploy:www-data and nginx only reads it)
 
 # 3. point the stack at the new tag and restart the API
 ssh $DEPLOY_HOST "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' /opt/poketrack/.env \
@@ -69,20 +87,37 @@ image, and survives. On a **fresh volume** it has to be built once — see
 
 ## Rolling back
 
-Previous images stay on the box. Roll back without rebuilding:
+Previous images stay on the box. The push-button way is the workflow itself:
 
 ```bash
-ssh $DEPLOY_HOST 'docker images poketrack'          # list known-good tags
+ssh $DEPLOY_HOST 'docker images poketrack'                  # list known-good tags
+gh workflow run deploy-poketrack.yml -f tag=<good-sha>      # no build; re-points IMAGE_TAG through the same gate
+```
+
+Or by hand:
+
+```bash
 ssh $DEPLOY_HOST "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<good-sha>/' /opt/poketrack/.env \
   && cd /opt/poketrack && docker compose up -d app"
 ```
 
-The SPA has no equivalent — `rsync --delete` overwrote it. Roll the bundle back by
-checking out the old sha and re-running step 2.
+The SPA keeps **one** previous bundle: every successful deploy moves the outgoing
+`/var/www/poketrack` to `/var/www/poketrack.prev` before swapping the new one in.
+A re-point does not touch the SPA, so if the bundle has to go back too:
+
+```bash
+ssh $DEPLOY_HOST 'rsync -a --delete /var/www/poketrack.prev/ /var/www/poketrack/'
+```
+
+Further back than one release, check out the old sha and re-run step 2 by hand.
 
 ## Environment
 
-`/opt/poketrack/.env`, modelled on `.env.production.example`. Notes that bite:
+`/opt/poketrack/.env` holds six keys: `IMAGE_TAG`, `MONGO_USER`, `MONGO_PASSWORD`,
+`DB_NAME`, `JWT_SECRET`, `CORS_ORIGINS`. It is owned by `deploy` (mode 600) so the
+pipeline can rewrite `IMAGE_TAG`; `/opt/poketrack` itself is `root:deploy` with the
+sticky bit, which lets `deploy` rename its own files into the directory but not
+unlink root's `scripts/` or `backups/`. Notes that bite:
 
 - **`MONGO_PASSWORD` is consumed once.** `MONGO_INITDB_ROOT_*` only runs against an
   empty volume. Editing it later does not change the stored user — it just breaks
@@ -300,6 +335,13 @@ and should. It is that the key was not Kim's, so the data was unreadable to him
 while the recording liability was his; the loader was a parser-blocking script
 from an origin he does not control; and neither was referenced anywhere in the
 application code.
+
+**2026-10-25:** deploys moved from the workstation to GitHub Actions
+(`deploy-poketrack.yml`, above). The `deploy` user's old
+`github-actions-deploy@poketrack` key — the one the retired poke-project workflow
+used — was removed from `authorized_keys` and replaced with a key only this
+repository's secrets hold, so that workflow can no longer reach the box even if
+someone re-enables it.
 
 This subdomain previously served **poke-project** — an unrelated Next.js +
 Drizzle + Postgres + Clerk app, deployed pull-based from GHCR by a GitHub Actions
