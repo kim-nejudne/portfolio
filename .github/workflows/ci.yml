@@ -1,0 +1,201 @@
+# Typecheck and build all six projects, then run the hub's assertion suite.
+#
+# Two reasons this exists, and the second is the bigger one.
+#
+# `CI/CD` was a claimed skill on the CV against six public projects with zero
+# workflow files, which is the cheapest claim on that document to falsify: a
+# screener who clones the repository finds out in thirty seconds.
+#
+# And the hub carries 127 browser assertions, 40 of them proven by deliberately
+# breaking the assertion to confirm it fails. That was the strongest engineering
+# claim in the portfolio and it was visible only in commit messages. A green
+# check is a thing somebody can see without being asked to believe it.
+#
+# ## Why six jobs and six installs
+#
+# There is no root `package.json` and no workspace, deliberately (see the
+# monorepo section of the planning notes): `poketrack` is Tailwind 3 /
+# TypeScript 4.9 / CRA against Tailwind 4 / TypeScript 5.9 elsewhere, with 42
+# yarn-classic `resolutions` using `**/` globs npm cannot express, and `suki`
+# has a root `overrides` that npm would apply repository-wide. Hoisting is where
+# every risk lives. Six independent installs and six lockfiles is the shape the
+# repository already has, and the matrix follows it rather than fighting it.
+#
+# `poketrack/frontend` carries **both** a `package-lock.json` and a `yarn.lock`,
+# and the yarn one is authoritative: `resolutions` is a yarn field that npm
+# ignores outright, so `npm ci` there installs a different dependency graph than
+# anybody has ever run. That is why one row of the matrix uses a different
+# package manager, and it is not an inconsistency to tidy up.
+#
+# ## What is deliberately not here
+#
+# Tests that need a database. FORME's 172 tests include 36 e2e against real
+# Postgres, and SUKI's API tests want one too. Those are worth adding behind a
+# service container, but a workflow that silently skips them while reporting
+# green is worse than one that never claimed to run them.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Typecheck and build each project from its own lockfile.
+  projects:
+    name: build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tallow
+            dir: tallow
+            manager: npm
+          - name: plinth
+            dir: plinth/frontend
+            manager: npm
+          - name: forme
+            dir: forme
+            manager: npm
+          - name: suki
+            dir: suki
+            manager: npm
+          # yarn, not npm. See the note at the top about `resolutions`.
+          - name: poketrack
+            dir: poketrack/frontend
+            manager: yarn
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: ${{ matrix.manager }}
+          cache-dependency-path: |
+            ${{ matrix.dir }}/package-lock.json
+            ${{ matrix.dir }}/yarn.lock
+
+      - name: install
+        working-directory: ${{ matrix.dir }}
+        run: |
+          if [ "${{ matrix.manager }}" = "yarn" ]; then
+            yarn install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      # Not every project has a `typecheck` script (poketrack is CRA, which
+      # typechecks inside its build). Run it where it exists and say so where it
+      # does not, rather than failing on a script that was never defined.
+      - name: typecheck
+        working-directory: ${{ matrix.dir }}
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.typecheck ? 0 : 1)"; then
+            npm run typecheck
+          else
+            echo "no typecheck script in ${{ matrix.dir }}; the build covers it"
+          fi
+
+      - name: build
+        working-directory: ${{ matrix.dir }}
+        env:
+          CI: false # CRA turns warnings into errors under CI=true. poketrack has warnings.
+        run: npm run build
+
+  # The hub gets its own job: it builds, serves the build, and runs the whole
+  # assertion suite against it over CDP.
+  hub:
+    name: hub, 127 assertions
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hub/package-lock.json
+
+      # `verify.mjs` and `axe.mjs` drive a real headless browser over the
+      # DevTools protocol. `ubuntu-latest` ships Chrome as `google-chrome` and
+      # has no `chromium`, which is exactly why `scripts/chromium.mjs` exists and
+      # why $CHROMIUM is set below rather than left to the search order.
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      # The share cards are rendered by headless chromium at `prebuild`, and
+      # `cv.pdf` is a render too. pdftotext is what `identity-check.mjs` uses to
+      # read the PDF, and without it the tenth surface goes unchecked.
+      - name: poppler for the PDF check
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: install
+        working-directory: hub
+        run: npm ci
+
+      # `prebuild` runs identity-check, the cards, the case studies and the SEO
+      # files. It fails the build if any of the five case studies is missing, if
+      # a disclosure or a short-version block is absent, or if any of the ten
+      # identity surfaces disagrees with src/identity.ts.
+      - name: build
+        working-directory: hub
+        env:
+          CHROMIUM: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run build
+
+      - name: serve the build
+        working-directory: hub
+        run: |
+          npx vite preview --port 4173 &
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:4173/ >/dev/null && break
+            sleep 0.5
+          done
+          curl -sf http://localhost:4173/ >/dev/null
+
+      # The point of the whole workflow. If this step is ever made conditional
+      # or allowed to continue-on-error, the badge stops meaning anything and
+      # starts actively misleading, which is worse than not having it.
+      - name: verify
+        working-directory: hub
+        env:
+          CHROMIUM: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run verify -- http://localhost:4173/
+
+      # `axe.mjs` REPLACES its whole target list when given arguments, so passing
+      # one URL sweeps one page and still reports green. The hub's own seven
+      # pages are derived from `src/spokes.ts` here for the same reason axe.mjs
+      # derives them itself: a sixth spoke should join the sweep without anybody
+      # remembering to edit this file.
+      #
+      # The five spoke landing pages are deliberately left out. They are
+      # separate deployments on a separate box, and a spoke being down is not a
+      # reason for the hub's build to go red. `npm run axe` with no arguments
+      # still sweeps all twelve against production, which is where that check
+      # belongs.
+      - name: axe
+        working-directory: hub
+        env:
+          CHROMIUM: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          PAGES=$(node --input-type=module -e "
+            import { SPOKES } from './src/spokes.ts';
+            const base = 'http://localhost:4173';
+            console.log([base + '/', base + '/work/', ...SPOKES.map(s => \`\${base}/work/\${s.id}/\`)].join(' '));
+          ")
+          echo "sweeping: $PAGES"
+          npm run axe -- $PAGES
