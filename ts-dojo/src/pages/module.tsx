@@ -30,7 +30,7 @@ export const STATE_LABEL: Record<LessonState, string> = {
 export function OptionalTag() {
   return (
     <span
-      className="ml-2 rounded border px-1 text-xs text-muted-foreground"
+      className="ml-2 border px-1 text-xs text-muted-foreground"
       data-field="optional"
     >
       optional
@@ -67,7 +67,7 @@ export function ModulePage() {
   if (module === undefined) {
     return (
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="prompt-heading text-2xl font-semibold">
           Module not found
         </h1>
         <p className="font-mono text-sm text-muted-foreground">/m/{id ?? ''}</p>
@@ -91,7 +91,7 @@ export function ModulePage() {
       data-state={moduleState(core.map(lessonState), optional.map(lessonState))}
     >
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="prompt-heading text-2xl font-semibold">
           {module.title}
         </h1>
         <p className="text-sm text-muted-foreground">{module.summary}</p>
@@ -99,7 +99,9 @@ export function ModulePage() {
 
       {module.prerequisites.length > 0 && (
         <section aria-label="Prerequisites" className="flex flex-col gap-1">
-          <h2 className="text-sm font-semibold">Prerequisites</h2>
+          <h2 className="section-heading text-sm font-semibold">
+            Prerequisites
+          </h2>
           <ul className="flex flex-col gap-1 text-sm">
             {module.prerequisites.map((prerequisite) => {
               const state = states.get(prerequisite) ?? 'not-started';
@@ -112,7 +114,7 @@ export function ModulePage() {
                 >
                   <Link
                     to={`/m/${prerequisite}`}
-                    className="underline-offset-2 hover:underline"
+                    className="text-link underline underline-offset-2 hover:text-foreground"
                   >
                     {registry.module(prerequisite)?.title ?? prerequisite}
                   </Link>
@@ -132,9 +134,7 @@ export function ModulePage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        <kbd className="rounded border px-1 font-mono">j</kbd>{' '}
-        <kbd className="rounded border px-1 font-mono">k</kbd> move,{' '}
-        <kbd className="rounded border px-1 font-mono">Enter</kbd> opens
+        <kbd>j</kbd> <kbd>k</kbd> move, <kbd>Enter</kbd> opens
       </p>
       <ol
         className="module-lessons flex flex-col gap-1 text-sm"
@@ -151,13 +151,13 @@ export function ModulePage() {
               key={lessonId}
               data-lesson={lessonId}
               data-state={state}
-              className="group flex flex-col rounded-md px-2 py-1 focus-within:bg-muted"
+              className="group flex flex-col border-l-2 border-transparent px-2 py-1 focus-within:border-link focus-within:bg-selection"
             >
               <div className="flex items-baseline gap-3">
                 <Link
                   to={lessonHref(lessonId)}
                   data-lesson-link={lessonId}
-                  className="underline-offset-2 outline-none hover:underline focus-visible:underline"
+                  className="text-link underline underline-offset-2 outline-none hover:text-foreground focus-visible:text-foreground"
                 >
                   {lesson?.title ?? lessonId}
                 </Link>

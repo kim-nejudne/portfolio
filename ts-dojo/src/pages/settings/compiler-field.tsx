@@ -119,7 +119,7 @@ export function CompilerDefaultsField({
           </figcaption>
           <pre
             aria-label="Default compiler options"
-            className="overflow-x-auto rounded-lg bg-muted px-2.5 py-2 font-mono text-xs"
+            className="overflow-x-auto bg-muted px-2.5 py-2 font-mono text-xs"
           >
             {DEFAULTS_TEXT}
           </pre>

@@ -193,6 +193,8 @@ test('the precache lists the app, both worker chunks, every lib file but the web
     'index.html',
     'favicon.svg',
     'manifest.webmanifest',
+    // The head script that sets the colour scheme before the first paint (the terminal restyle).
+    'theme-init.js',
     ...assets.map((name) => `assets/${name}`),
     ...libs
       .filter((name) => !webworker.includes(name))

@@ -29,6 +29,11 @@ const { contentDirFor, outDirFor } = (await tsImport(
   './src/content/node/roots.ts',
   import.meta.url,
 )) as typeof import('./src/content/node/roots');
+// The colour scheme stylesheet, generated from src/theme/schemes (the terminal restyle).
+const { tsDojoSchemes } = (await tsImport(
+  './src/theme/node/vite-plugin.ts',
+  import.meta.url,
+)) as typeof import('./src/theme/node/vite-plugin');
 
 /** Workbox skips larger files with only a warning; the ts-ls chunk is 3.6 MB, lib.dom.d.ts 2.4 MB. */
 const PRECACHE_FILE_LIMIT = 8 * 1024 * 1024;
@@ -36,6 +41,7 @@ const PRECACHE_FILE_LIMIT = 8 * 1024 * 1024;
 export default defineConfig(({ mode }) => ({
   plugins: [
     ...tsDojoContent({ contentDir: contentDirFor(mode) }),
+    tsDojoSchemes(),
     react(),
     tailwindcss(),
     // §9 Offline: generateSW precaches the app, both worker chunks, public/ts/6.0.3/** (but the
@@ -55,8 +61,8 @@ export default defineConfig(({ mode }) => ({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#111827',
+        background_color: '#1e1e2e',
+        theme_color: '#1e1e2e',
         icons: [
           {
             src: '/favicon.svg',

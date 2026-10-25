@@ -20,7 +20,10 @@ export function HelpOverlay({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[85svh] overflow-y-auto sm:max-w-2xl"
+        titleBar="man ts-dojo"
+      >
         <DialogHeader>
           <DialogTitle>Keyboard help</DialogTitle>
           <DialogDescription>
@@ -32,7 +35,10 @@ export function HelpOverlay({
           aria-labelledby="help-global-keys"
           className="flex flex-col gap-2"
         >
-          <h3 id="help-global-keys" className="text-sm font-semibold">
+          <h3
+            id="help-global-keys"
+            className="section-heading text-sm font-semibold"
+          >
             Global keys
           </h3>
           <table className="w-full text-sm">
@@ -55,7 +61,10 @@ export function HelpOverlay({
           aria-labelledby="help-ex-commands"
           className="flex flex-col gap-2"
         >
-          <h3 id="help-ex-commands" className="text-sm font-semibold">
+          <h3
+            id="help-ex-commands"
+            className="section-heading text-sm font-semibold"
+          >
             Ex commands
           </h3>
           <table className="w-full text-sm">
@@ -92,7 +101,10 @@ export function HelpOverlay({
           aria-labelledby="help-vim-gaps"
           className="flex flex-col gap-2"
         >
-          <h3 id="help-vim-gaps" className="text-sm font-semibold">
+          <h3
+            id="help-vim-gaps"
+            className="section-heading text-sm font-semibold"
+          >
             What Vim mode can&apos;t do
           </h3>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">

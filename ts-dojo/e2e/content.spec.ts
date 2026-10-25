@@ -259,13 +259,23 @@ test.describe('§12 F6: a ts twoslash block renders its ^? results at build time
 });
 
 // Pre-F13 fixes (Kim, 23 October 2026, the §9 precache): shiki's inline colour styles became
-// classes, with one stylesheet per lesson. The tokens still take the light theme's colours in
-// light mode and the dark theme's in dark mode.
+// classes, with one stylesheet per lesson. Since the terminal restyle (25 October 2026) each
+// class reads a `--shiki-token-*` variable, which globals.css maps onto the active colour
+// scheme's ANSI colours (a keyword is `--magenta`), so a token takes the scheme's light palette
+// in light mode and its dark palette in dark mode.
 test.describe('pre-F13: theory tokens are coloured by class, in both themes', () => {
   const hexToRgb = (hex: string): string => {
     const n = Number.parseInt(hex.slice(1), 16);
     return `rgb(${String((n >> 16) & 255)}, ${String((n >> 8) & 255)}, ${String(n & 255)})`;
   };
+  const rootToken = (page: Page, name: string): Promise<string> =>
+    page.evaluate(
+      (token) =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue(token)
+          .trim(),
+      name,
+    );
 
   for (const scheme of ['light', 'dark'] as const) {
     test(`01-fix in ${scheme} mode: no inline colour style, one lesson stylesheet, and a keyword in its ${scheme} colour`, async ({
@@ -288,15 +298,16 @@ test.describe('pre-F13: theory tokens are coloured by class, in both themes', ()
       await expect(keyword).toBeVisible();
       const name = (await keyword.getAttribute('class')) ?? '';
       const rule = new RegExp(
-        `\\.${name}\\{--shiki-light:(#[0-9a-fA-F]{6});--shiki-dark:(#[0-9a-fA-F]{6})`,
+        `\\.${name}\\{color:var\\(--shiki-token-keyword\\)`,
       ).exec(css);
       expect(rule, `the stylesheet has a rule for .${name}`).not.toBeNull();
-      const [, light, dark] = rule ?? [];
-      expect(light).not.toBe(dark);
-      await expect(keyword).toHaveCSS(
-        'color',
-        hexToRgb((scheme === 'light' ? light : dark) ?? ''),
-      );
+      expect(css).not.toMatch(/#[0-9a-fA-F]{6}/);
+      const magenta = await rootToken(page, '--magenta');
+      const fg = await rootToken(page, '--fg');
+      expect(magenta).toMatch(/^#[0-9a-f]{6}$/);
+      expect(magenta).not.toBe(fg);
+      await expect(page.locator('html')).toHaveAttribute('data-mode', scheme);
+      await expect(keyword).toHaveCSS('color', hexToRgb(magenta));
     });
   }
 });

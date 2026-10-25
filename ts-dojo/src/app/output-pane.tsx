@@ -172,7 +172,7 @@ export function OutputPane({
       aria-label="Output"
       onKeyDown={onKeyDown}
       className={cn(
-        'flex min-h-0 flex-col border-t font-mono text-xs outline-none focus:ring-2 focus:ring-ring focus:ring-inset',
+        'flex min-h-0 flex-col border-t font-mono text-xs outline-none focus:ring-1 focus:ring-ring focus:ring-inset',
         className,
       )}
     >
@@ -181,8 +181,8 @@ export function OutputPane({
         onValueChange={(value) => onTabChange(value as OutputTab)}
         className="min-h-0 flex-1 gap-0"
       >
-        <div className="flex shrink-0 items-center gap-3 border-b px-2 py-1">
-          <TabsList variant="line" className="h-6">
+        <div className="flex h-7 shrink-0 items-center gap-3 border-b bg-muted px-2">
+          <TabsList variant="line" className="h-full">
             <TabsTrigger value="console" tabIndex={-1} className="text-xs">
               Console
               {state.entries.length > 0 && ` (${String(state.entries.length)})`}
@@ -229,8 +229,8 @@ export function OutputPane({
                     tab === 'console' && i === selected ? 'true' : undefined
                   }
                   className={cn(
-                    'flex gap-3 rounded px-1 whitespace-pre-wrap',
-                    tab === 'console' && i === selected && 'bg-accent',
+                    'flex gap-3 px-1 whitespace-pre-wrap',
+                    tab === 'console' && i === selected && 'bg-selection',
                     entry.kind === 'error' && 'text-destructive',
                     entry.kind === 'console' &&
                       entry.level === 'warn' &&
@@ -261,8 +261,8 @@ export function OutputPane({
                     tab === 'problems' && i === selected ? 'true' : undefined
                   }
                   className={cn(
-                    'rounded px-1',
-                    tab === 'problems' && i === selected && 'bg-accent',
+                    ' px-1',
+                    tab === 'problems' && i === selected && 'bg-selection',
                   )}
                 >
                   <span className="text-muted-foreground">

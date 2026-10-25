@@ -132,9 +132,8 @@ export const dojoTheme = EditorView.theme({
     backgroundColor: 'var(--popover)',
     color: 'var(--popover-foreground)',
     border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: '0',
     fontFamily: 'var(--font-mono)',
-    boxShadow: '0 4px 16px rgb(0 0 0 / 0.12)',
   },
   '.cm-tooltip.cm-tooltip-autocomplete > ul': {
     fontFamily: 'var(--font-mono)',
@@ -151,7 +150,7 @@ export const dojoTheme = EditorView.theme({
     padding: '0',
     fontFamily: 'var(--font-mono)',
   },
-  '.cm-tooltip-lint': { fontFamily: 'var(--font-sans)' },
+  '.cm-tooltip-lint': { fontFamily: 'var(--font-mono)' },
   '.cm-diagnostic': { borderLeftWidth: '3px' },
   '.cm-lintRange-error': {
     backgroundImage: 'none',

@@ -2,6 +2,7 @@
 // ready"; §6 Theme and type: the one-line header carries it; §9 Staleness and failure: a
 // restart shows for 5 s). It is a live region so Playwright and screen readers can wait on it.
 import { useEffect, useState } from 'react';
+import { cn } from 'cn';
 import type { CompilerStatus } from '@/workers/ts-ls/client';
 import { useCompilerStatus } from './compiler';
 
@@ -46,7 +47,11 @@ export function CompilerStatusChip() {
       role="status"
       aria-label="compiler status"
       data-state={status.state}
-      className="rounded border px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
+      className={cn(
+        'border px-1.5 py-0.5 font-mono text-xs text-muted-foreground',
+        status.state === 'failed' && 'border-destructive text-destructive',
+        status.state === 'ready' && !showRestarted && 'text-success',
+      )}
     >
       {compilerStatusText(status, showRestarted)}
     </span>

@@ -1,5 +1,7 @@
 // Settings are one JSON object in localStorage under `ts-dojo:settings` (spec §7): vimrc,
-// relativeNumbers, fontSize, theme, defaultTimeoutMs, compilerDefaults, layout. F1 read `theme`;
+// relativeNumbers, fontSize, theme, defaultTimeoutMs, compilerDefaults, layout, and since the
+// terminal restyle (25 October 2026, under "Spec questions") `scheme`, the colour scheme id
+// from src/theme/schemes, read by src/app/theme.ts beside `theme`. F1 read `theme`;
 // F3 reads and writes `vimrc`, `relativeNumbers`, `theme` (`:set bg=`) and, because §4 says
 // `:set nu` and `:set wrap` persist too, `lineNumbers` and `wrap` (logged under "Spec
 // questions"). F8 adds `layout`, the lesson page's last `:layout` choice, the default for a
@@ -11,6 +13,7 @@
 // through the `storage` event.
 import { DEFAULT_TIMEOUT_MS } from '@/protocol/sandbox';
 import type { CompilerOptionsJson } from '@/protocol/ts-ls';
+import { isSchemeId } from '@/theme/schemes';
 
 export const SETTINGS_KEY = 'ts-dojo:settings';
 
@@ -39,7 +42,10 @@ export const APP_OWNED_COMPILER_OPTIONS = [
 ] as const;
 
 export interface Settings {
+  /** The mode: light, dark, or the system's (§6 Theme and type). */
   theme?: ThemePreference;
+  /** The colour scheme id (src/theme/schemes); absent means the default scheme. */
+  scheme?: string;
   /** The vimrc text (§4 Mappings and the vimrc); absent means the shipped default. */
   vimrc?: string;
   /** `:set rnu` / `:set nornu`. */
@@ -99,6 +105,7 @@ export function parseSettings(value: unknown): Settings {
   const record = value as Record<string, unknown>;
   const settings: Settings = {};
   if (isThemePreference(record['theme'])) settings.theme = record['theme'];
+  if (isSchemeId(record['scheme'])) settings.scheme = record['scheme'];
   if (typeof record['vimrc'] === 'string') settings.vimrc = record['vimrc'];
   const layout = record['layout'];
   if (

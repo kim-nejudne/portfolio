@@ -97,9 +97,9 @@ export function Editor(props: EditorProps) {
       <div
         role="tablist"
         aria-label="Files"
-        className="flex shrink-0 items-end gap-1 border-b px-2 pt-1 text-xs"
+        className="flex h-7 shrink-0 items-stretch border-b bg-muted text-xs"
       >
-        {files.map((file) => {
+        {files.map((file, index) => {
           const selected = file.path === current;
           return (
             <button
@@ -112,16 +112,19 @@ export function Editor(props: EditorProps) {
               tabIndex={-1}
               onClick={() => controllerRef.current?.openFile(file.path)}
               className={cn(
-                'flex items-center gap-1.5 rounded-t border border-b-0 px-2.5 py-1 font-mono',
+                'flex items-center gap-1.5 border-r px-2.5 font-mono',
                 selected
                   ? 'bg-background text-foreground'
-                  : 'bg-muted text-muted-foreground',
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
+              <span className="text-muted-foreground" aria-hidden="true">
+                {index}:
+              </span>
               {basename(file.path)}
               {file.readOnly === true && (
                 <span
-                  className="rounded bg-muted-foreground/15 px-1 text-[10px] uppercase tracking-wide"
+                  className="border px-1 text-[10px]"
                   title="Lesson-supplied declarations: read-only"
                 >
                   read-only

@@ -81,7 +81,7 @@ export function Question({
       aria-labelledby={questionId}
       onKeyDown={onKeyDown}
       className={cn(
-        'my-4 rounded-md border px-4 py-3 outline-none focus:ring-2 focus:ring-ring',
+        'my-4 border px-4 py-3 outline-none focus:border-ring focus:ring-1 focus:ring-ring',
         className,
       )}
       {...dataAttributes}
@@ -90,7 +90,7 @@ export function Question({
         <InlineText text={question} />
       </p>
       {code !== undefined ? (
-        <pre className="my-2 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-sm">
+        <pre className="my-2 overflow-x-auto bg-muted px-3 py-2 font-mono text-sm">
           {code}
         </pre>
       ) : null}
@@ -102,8 +102,8 @@ export function Question({
             data-highlighted={index === highlight ? 'true' : undefined}
             data-chosen={index === chosen ? 'true' : undefined}
             className={cn(
-              'flex gap-2 rounded px-1 py-0.5',
-              index === highlight && 'bg-accent',
+              'flex gap-2 px-1 py-0.5',
+              index === highlight && 'bg-selection',
             )}
           >
             <span className="w-4 shrink-0 text-muted-foreground">
@@ -123,7 +123,7 @@ export function Question({
           <p
             className={cn(
               'm-0 font-medium',
-              correct ? 'text-foreground' : 'text-destructive',
+              correct ? 'text-success' : 'text-destructive',
             )}
             data-result={correct ? 'correct' : 'incorrect'}
           >

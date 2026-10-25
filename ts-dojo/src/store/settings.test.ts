@@ -53,6 +53,17 @@ describe('readSettings (§7)', () => {
     expect(readSettings(storageWith('{"theme":3}'))).toEqual({});
   });
 
+  it('keeps a known colour scheme id and drops an unknown one (the terminal restyle)', () => {
+    expect(readSettings(storageWith('{"scheme":"gruvbox"}'))).toEqual({
+      scheme: 'gruvbox',
+    });
+    expect(
+      readSettings(storageWith('{"theme":"dark","scheme":"rose-pine"}')),
+    ).toEqual({ theme: 'dark', scheme: 'rose-pine' });
+    expect(readSettings(storageWith('{"scheme":"sepia"}'))).toEqual({});
+    expect(readSettings(storageWith('{"scheme":3}'))).toEqual({});
+  });
+
   it('returns {} when the storage throws (blocked or private storage)', () => {
     const throwing = {
       getItem: (): string | null => {

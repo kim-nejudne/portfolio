@@ -128,7 +128,7 @@ export function ProgressPage() {
   return (
     <section className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
+        <h1 className="prompt-heading text-2xl font-semibold">Progress</h1>
         {summary !== null && (
           <p className="text-sm text-muted-foreground" data-field="totals">
             {summary.totals.lessonsComplete} of {summary.totals.lessonsTotal}{' '}
@@ -261,7 +261,7 @@ export function ProgressPage() {
         (summary.orphans.lessons.length > 0 ||
           summary.orphans.exercises.length > 0) && (
           <section aria-labelledby="orphaned" className="flex flex-col gap-1">
-            <h2 id="orphaned" className="text-sm font-semibold">
+            <h2 id="orphaned" className="section-heading text-sm font-semibold">
               Orphaned
             </h2>
             <p className="text-xs text-muted-foreground">

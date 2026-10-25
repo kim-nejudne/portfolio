@@ -8,6 +8,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import '@/app/globals.css';
+import 'virtual:ts-dojo-schemes.css';
 import { startCompiler } from '@/app/compiler';
 import { router } from '@/app/router';
 import { initFontSize } from '@/app/font-size';
