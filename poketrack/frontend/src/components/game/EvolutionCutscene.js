@@ -2,8 +2,11 @@ import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import DialogueBox from "./DialogueBox";
 import { GameButton } from "./GameButton";
+import { ChevronRight } from "./Icons";
 import { useReducedMotionMedia } from "@/lib/motion";
-import { typeColor } from "@/lib/types";
+import { typeTint } from "@/lib/types";
+
+const cap = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 
 // Full-screen evolution cutscene. Old sprite silhouettes and cross-fades to new sprite, with flashes, rays, confetti, dialogue.
 export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
@@ -15,7 +18,8 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onDone]);
 
-  const color = typeColor((toMon?.types || ["electric"])[0] || "electric");
+  const toType = (toMon?.types || ["electric"])[0] || "electric";
+  const tint = (pct) => typeTint(toType, pct);
 
   return (
     <AnimatePresence>
@@ -25,10 +29,11 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm grid place-items-center px-4"
+          className="fixed inset-0 z-[100] grid place-items-center bg-[color-mix(in_srgb,var(--bg)_94%,transparent)] px-4"
           data-testid="evolution-cutscene"
           role="dialog"
           aria-modal="true"
+          aria-label="Evolution"
         >
           {/* rays */}
           {!reduce && (
@@ -37,7 +42,7 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
                   the old stop list ran transparent → colour across 0°/360°,
                   which left a hard seam raking across the screen. */}
               <div className="h-[120vmax] w-[120vmax] animate-ray-burst opacity-70"
-                style={{ background: `repeating-conic-gradient(from 0deg, ${color}00 0deg, ${color}7a 20deg, ${color}00 40deg, ${color}00 90deg)` }} />
+                style={{ background: `repeating-conic-gradient(from 0deg, ${tint(0)} 0deg, ${tint(48)} 20deg, ${tint(0)} 40deg, ${tint(0)} 90deg)` }} />
             </div>
           )}
 
@@ -54,7 +59,7 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
               <div
                 className="pointer-events-none absolute left-1/2 top-1/2 h-[150vmin] w-[150vmin] -translate-x-1/2 -translate-y-1/2"
                 style={{
-                  background: `radial-gradient(circle closest-side, ${color}5c 0%, ${color}33 26%, ${color}16 46%, ${color}07 64%, ${color}00 80%)`,
+                  background: `radial-gradient(circle closest-side, ${tint(36)} 0%, ${tint(20)} 26%, ${tint(9)} 46%, ${tint(3)} 64%, ${tint(0)} 80%)`,
                 }}
               />
               {/* old sprite */}
@@ -78,14 +83,14 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
               {/* flash */}
               {!reduce && (
                 <motion.div
-                  className="absolute inset-0 rounded-full bg-white"
+                  className="absolute inset-0 rounded-full bg-fg"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: [0, 0.9, 0, 0.9, 0, 0.9, 0] }}
                   transition={{ duration: 2.2, times: [0, 0.2, 0.35, 0.5, 0.65, 0.8, 1] }}
                 />
               )}
               {/* shadow ellipse */}
-              <span className="absolute -bottom-6 h-3 w-40 rounded-full bg-black/60 blur-md" />
+              <span className="absolute -bottom-6 h-3 w-40 rounded-full bg-[var(--shadow-hard)] blur-md" />
             </div>
           </div>
 
@@ -97,10 +102,10 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
             transition={{ delay: reduce ? 0 : 2.2, duration: 0.4 }}
           >
             <DialogueBox
-              text={`CONGRATULATIONS! YOUR ${String(fromMon?.name || "POKÉMON").toUpperCase()} EVOLVED INTO ${String(toMon?.name || "POKÉMON").toUpperCase()}!`}
+              text={`Congratulations! Your ${cap(fromMon?.name || "Pokémon")} evolved into ${cap(toMon?.name || "Pokémon")}!`}
             />
             <div className="mt-3 flex justify-end">
-              <GameButton tone={(toMon?.types || ["electric"])[0]} onClick={onDone} testId="evolution-cutscene-continue-button">CONTINUE ▶</GameButton>
+              <GameButton onClick={onDone} testId="evolution-cutscene-continue-button">Continue <ChevronRight /></GameButton>
             </div>
           </motion.div>
 
@@ -112,7 +117,7 @@ export function EvolutionCutscene({ open, fromMon, toMon, onDone }) {
               initial={{ opacity: 0, x: 0, y: 0 }}
               animate={{ opacity: [0, 1, 0], x: (Math.random() - 0.5) * 800, y: (Math.random() - 0.5) * 400, rotate: Math.random() * 360 }}
               transition={{ delay: 2.0 + Math.random() * 0.3, duration: 1.6, ease: "easeOut" }}
-              style={{ left: "50%", top: "45%", width: 8, height: 12, background: ["#F7D02C", "#EE8130", "#7AC74C", "#6390F0", "#F95587"][i % 5] }}
+              style={{ left: "50%", top: "45%", width: 8, height: 12, background: `var(--pts-${[1, 2, 3, 5, 8][i % 5]}-bg)` }}
             />
           ))}
         </motion.div>

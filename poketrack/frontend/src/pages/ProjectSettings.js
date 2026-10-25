@@ -47,50 +47,50 @@ export default function ProjectSettings() {
   if (!project) return null;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
-      <GameFrame className="p-6">
-        <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow" data-testid="project-settings-title">PROJECT SETTINGS</p>
-        <label className="block mt-4">
-          <span className="font-pixel text-[9px] tracking-hud text-white/70">PROJECT NAME</span>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <GameFrame className="p-6 sm:p-7">
+        <h1 className="font-display text-[32px] font-bold leading-tight text-fg" data-testid="project-settings-title">Project settings</h1>
+        <label className="block mt-5">
+          <span className="field-label">Project name</span>
           <input value={name} onChange={(e) => setName(e.target.value)}
             data-testid="project-settings-name"
-            className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+            className="field" />
         </label>
-        <label className="block mt-4">
-          <span className="font-pixel text-[9px] tracking-hud text-white/70">XP PER STORY POINT ({xpPer})</span>
+        <label className="block mt-5">
+          <span className="field-label">XP per story point ({xpPer})</span>
           <input type="range" min="1" max="200" value={xpPer} onChange={(e) => setXpPer(parseInt(e.target.value, 10))}
             data-testid="project-settings-xp-per-point"
-            className="mt-2 w-full accent-yellow-300" />
+            className="mt-3 w-full accent-[var(--accent)]" />
         </label>
-        <label className="block mt-3">
-          <span className="font-pixel text-[9px] tracking-hud text-white/70">SYNTHETIC EVOLUTION LEVEL for non-level triggers ({synth})</span>
+        <label className="block mt-5">
+          <span className="field-label">Synthetic evolution level for non-level triggers ({synth})</span>
           <input type="range" min="5" max="90" value={synth} onChange={(e) => setSynth(parseInt(e.target.value, 10))}
             data-testid="project-settings-synth"
-            className="mt-2 w-full accent-pink-400" />
+            className="mt-3 w-full accent-[var(--prestige)]" />
         </label>
-        <label className="block mt-3">
-          <span className="font-pixel text-[9px] tracking-hud text-white/70">EVOLUTION LEVEL % (scales every gate) ({pct}%)</span>
+        <label className="block mt-5">
+          <span className="field-label">Evolution level % (scales every gate) ({pct}%)</span>
           <input type="range" min="10" max="400" value={pct} onChange={(e) => setPct(parseInt(e.target.value, 10))}
             data-testid="project-settings-pct"
-            className="mt-2 w-full accent-emerald-400" />
+            className="mt-3 w-full accent-[var(--success)]" />
         </label>
-        <div className="mt-5 flex justify-end gap-2">
-          <GameButton variant="secondary" onClick={() => nav(`/projects/${projectId}`)} testId="project-settings-cancel">CANCEL</GameButton>
-          <GameButton tone="grass" onClick={save} testId="project-settings-save">SAVE</GameButton>
+        <div className="mt-6 flex justify-end gap-3">
+          <GameButton variant="secondary" onClick={() => nav(`/projects/${projectId}`)} testId="project-settings-cancel">Cancel</GameButton>
+          <GameButton onClick={save} testId="project-settings-save">Save</GameButton>
         </div>
       </GameFrame>
 
-      <GameFrame className="p-6">
-        <p className="font-pixel text-[11px] tracking-display text-red-300 pixel-shadow">DANGER ZONE</p>
-        <p className="mt-3 font-body text-sm text-white/80">Deleting this project removes every ticket, XP event, evolution history, and Pokémon associated with it.</p>
-        <label className="block mt-3">
-          <span className="font-pixel text-[9px] tracking-hud text-white/70">TYPE THE PROJECT NAME TO CONFIRM</span>
+      <GameFrame className="p-6 sm:p-7">
+        <h2 className="font-display text-[24px] font-bold text-danger-text">Danger zone</h2>
+        <p className="mt-2 font-body text-[15px] text-muted">Deleting this project removes every ticket, XP event, evolution history, and Pokémon associated with it.</p>
+        <label className="block mt-4">
+          <span className="field-label">Type the project name to confirm</span>
           <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)}
             data-testid="project-settings-confirm-name"
-            className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+            className="field" />
         </label>
-        <div className="mt-3">
-          <GameButton variant="danger" onClick={del} disabled={confirmName !== project.name} testId="project-settings-delete">DELETE PROJECT</GameButton>
+        <div className="mt-4">
+          <GameButton variant="danger" onClick={del} disabled={confirmName !== project.name} testId="project-settings-delete">Delete project</GameButton>
         </div>
       </GameFrame>
     </div>

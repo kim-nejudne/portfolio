@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { getToken } from "@/lib/api";
-import AmbientBackground from "@/components/game/AmbientBackground";
 import Toaster from "@/components/game/Toaster";
 import Landing from "@/pages/Landing";
 import SignIn from "@/pages/SignIn";
@@ -22,10 +21,9 @@ function Protected({ children }) {
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen relative">
-      <AmbientBackground />
+    <div className="min-h-screen relative bg-bg">
       <TopBar />
-      <main className="px-3 sm:px-4 lg:px-6 py-6">{children}</main>
+      <main className="px-6 py-7">{children}</main>
       <Toaster />
     </div>
   );

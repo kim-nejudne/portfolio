@@ -13,21 +13,18 @@ function Credential({ label, value, copied, onCopy }) {
   return (
     <div className="px-3 py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-pixel text-[9px] tracking-hud text-white/60">{label}</span>
+        <span className="field-label">{label}</span>
         <button
           type="button"
           onClick={onCopy}
           aria-label={`Copy ${label.toLowerCase()} ${value}`}
-          className="font-pixel text-[8px] tracking-hud px-2 py-1 rounded-[6px] shrink-0
-                     bg-white/10 text-white/80 ring-1 ring-white/15
-                     hover:bg-white/20 hover:text-white
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70
-                     transition-colors duration-150 motion-reduce:transition-none"
+          className="h-8 shrink-0 rounded-chip bg-surface-raised px-3 font-body text-[13px] font-extrabold text-fg shadow-hard
+                     transition-transform duration-100 active:translate-y-[2px] motion-reduce:active:translate-y-0"
         >
-          {copied ? "COPIED" : "COPY"}
+          {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <code className="mt-1 block font-mono text-[13px] leading-snug text-white break-all">
+      <code className="mt-1 block break-all font-mono text-[14px] leading-snug text-fg">
         {value}
       </code>
     </div>
@@ -105,30 +102,31 @@ export default function SignIn() {
 
   return (
     <div className="max-w-md mx-auto py-10">
-      <GameFrame className="p-6">
-        <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow" data-testid="sign-in-title">TRAINER SIGN-IN</p>
-        <form onSubmit={submit} className="mt-5 space-y-3" data-testid="sign-in-form">
+      <GameFrame className="p-6 sm:p-7">
+        <h1 className="font-display text-[32px] font-bold leading-tight text-fg" data-testid="sign-in-title">Trainer sign-in</h1>
+        <form onSubmit={submit} className="mt-5 space-y-4" data-testid="sign-in-form">
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-hud text-white/70">EMAIL</span>
+            <span className="field-label">Email</span>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
               data-testid="sign-in-email"
-              className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+              className="field" />
           </label>
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-hud text-white/70">PASSWORD</span>
+            <span className="field-label">Password</span>
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
               data-testid="sign-in-password"
-              className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+              className="field" />
           </label>
-          <GameButton type="submit" tone="water" disabled={busy} testId="sign-in-submit">{loading ? "SIGNING IN…" : "BATTLE ON!"}</GameButton>
+          <GameButton type="submit" className="w-full" disabled={busy} testId="sign-in-submit">{loading ? "Signing in…" : "Battle on!"}</GameButton>
         </form>
-        <p className="mt-4 font-body text-sm text-white/70">New here? <Link to="/sign-up" className="underline" data-testid="sign-in-goto-signup">Create a trainer account</Link></p>
+        <p className="mt-5 font-body text-[15px] text-muted">New here? <Link to="/sign-up" className="font-bold text-label underline underline-offset-2" data-testid="sign-in-goto-signup">Create a trainer account</Link></p>
       </GameFrame>
 
       {demos.length > 0 && (
-        <GameFrame className="mt-5 p-6" tone="panel2" testId="demo-accounts">
-          <p className="font-pixel text-[11px] tracking-display text-type-electric">JUST LOOKING?</p>
-          <p className="mt-2 font-body text-sm text-white/75">
+        <GameFrame className="mt-6 p-6 sm:p-7" testId="demo-accounts">
+          <p className="font-body text-[13px] font-extrabold uppercase tracking-[0.07em] text-label">Just looking?</p>
+          <h2 className="mt-1 font-display text-[24px] font-bold text-fg">Try a demo trainer</h2>
+          <p className="mt-2 font-body text-[15px] text-muted">
             Use one of these accounts — no sign-up needed. Sign in with a single button,
             or type the credentials into the form above. Each trainer drops you at a
             different point in the progression.
@@ -141,17 +139,17 @@ export default function SignIn() {
                 <li
                   key={d.email}
                   data-testid={`demo-account-${d.email}`}
-                  className="rounded-[12px] bg-black/40 px-4 py-4 ring-2 ring-black/70 border border-white/10"
+                  className="rounded-card bg-surface-sunken p-4"
                 >
-                  <p className="font-pixel text-[10px] tracking-hud text-white pixel-shadow">
+                  <p className="font-display text-[18px] font-semibold text-fg">
                     {d.role_label || d.name}
                   </p>
-                  <p className="mt-2 font-body text-sm text-white/90">{d.name}</p>
+                  <p className="mt-1 font-body text-[15px] font-bold text-fg">{d.name}</p>
                   {d.blurb && (
-                    <p className="mt-1 font-body text-xs text-white/65">{d.blurb}</p>
+                    <p className="mt-1 font-body text-[14px] text-muted">{d.blurb}</p>
                   )}
 
-                  <div className="mt-3 rounded-[8px] bg-black/60 ring-1 ring-white/15 divide-y divide-white/10">
+                  <div className="mt-3 divide-y-2 divide-surface-sunken rounded-2xl bg-bg">
                     <Credential
                       label="EMAIL"
                       value={d.email}
@@ -167,7 +165,6 @@ export default function SignIn() {
                   </div>
 
                   <GameButton
-                    tone="electric"
                     size="sm"
                     className="mt-3 w-full"
                     disabled={busy}
@@ -177,13 +174,13 @@ export default function SignIn() {
                     // its own when three of these sit in a row.
                     aria-label={`Sign in as ${d.name}${d.role_label ? `, ${d.role_label.toLowerCase()}` : ""}`}
                   >
-                    {pending ? "SIGNING IN…" : `SIGN IN AS ${firstName.toUpperCase()} ▶`}
+                    {pending ? "Signing in…" : `Sign in as ${firstName}`}
                   </GameButton>
                 </li>
               );
             })}
           </ul>
-          <p className="mt-4 font-body text-xs text-white/55">
+          <p className="mt-4 font-body text-[14px] text-muted">
             Shared accounts, wiped and rebuilt on a schedule. Play with them freely — finish
             tickets, evolve a partner, drag things back out of Done.
           </p>

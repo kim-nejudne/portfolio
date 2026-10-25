@@ -33,18 +33,18 @@ export default function InviteAccept() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <GameFrame className="p-6">
-        <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow" data-testid="invite-title">TEAM INVITATION</p>
-        {state.status === "invalid" && <p className="mt-3 font-body text-white/80">This invite link is invalid.</p>}
-        {state.status === "revoked" && <p className="mt-3 font-body text-white/80">This invite has been revoked.</p>}
-        {state.status === "expired" && <p className="mt-3 font-body text-white/80">This invite has expired.</p>}
-        {state.status === "accepted" && <p className="mt-3 font-body text-white/80">This invite has already been accepted. <a className="underline" href={`/teams/${state.team_id}`}>Open team →</a></p>}
+      <GameFrame className="p-6 sm:p-7">
+        <h1 className="font-display text-[32px] font-bold leading-tight text-fg" data-testid="invite-title">Team invitation</h1>
+        {state.status === "invalid" && <p className="mt-3 font-body text-[15px] text-muted">This invite link is invalid.</p>}
+        {state.status === "revoked" && <p className="mt-3 font-body text-[15px] text-muted">This invite has been revoked.</p>}
+        {state.status === "expired" && <p className="mt-3 font-body text-[15px] text-muted">This invite has expired.</p>}
+        {state.status === "accepted" && <p className="mt-3 font-body text-[15px] text-muted">This invite has already been accepted. <a className="font-bold text-label underline underline-offset-2" href={`/teams/${state.team_id}`}>Open team</a></p>}
         {state.status === "pending" && (
           <>
-            <p className="mt-3 font-body text-white/90">You've been invited to join <b className="font-pixel text-[10px] tracking-hud">{state.team_name}</b> as <b>{state.email}</b>.</p>
-            <div className="mt-5 flex gap-2">
-              <GameButton tone="grass" onClick={accept} testId="invite-accept-button">ACCEPT INVITE</GameButton>
-              <GameButton variant="secondary" onClick={() => nav("/")} testId="invite-decline">NOT NOW</GameButton>
+            <p className="mt-3 font-body text-[15px] text-muted">You've been invited to join <b className="font-display font-semibold text-fg">{state.team_name}</b> as <b className="text-fg">{state.email}</b>.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <GameButton variant="success" onClick={accept} testId="invite-accept-button">Accept invite</GameButton>
+              <GameButton variant="secondary" onClick={() => nav("/")} testId="invite-decline">Not now</GameButton>
             </div>
           </>
         )}

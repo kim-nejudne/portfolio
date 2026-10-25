@@ -1,9 +1,8 @@
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GameFrame } from "./GameFrame";
 import { GameButton } from "./GameButton";
 import { TypeChip } from "./TypeChip";
-import { partnerGradient } from "@/lib/types";
+import { typeTint } from "@/lib/types";
 
 export function BranchChoiceModal({ open, options = [], onChoose, onCancel }) {
   useEffect(() => {
@@ -17,44 +16,41 @@ export function BranchChoiceModal({ open, options = [], onChoose, onCancel }) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm px-4 py-8 overflow-y-auto"
+          className="fixed inset-0 z-[90] overflow-y-auto bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 py-8"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           data-testid="branch-choice-modal"
-          role="dialog" aria-modal="true"
+          role="dialog" aria-modal="true" aria-labelledby="branch-choice-heading"
         >
           <div className="mx-auto max-w-6xl">
-            <div className="text-center mb-4">
-              <p className="font-pixel text-[12px] tracking-display text-white/90 pixel-shadow">CHOOSE YOUR EVOLUTION!</p>
-              <p className="font-body text-sm text-white/70 mt-2">Your partner is ready to evolve. Pick a path — this choice is permanent (until XP reversals!).</p>
+            <div className="mb-6 text-center">
+              <p className="font-body text-[13px] font-extrabold uppercase tracking-[0.07em] text-label">Evolution</p>
+              <h2 id="branch-choice-heading" className="mt-1 font-display text-[32px] font-bold text-fg">Choose your evolution</h2>
+              <p className="mx-auto mt-2 max-w-xl font-body text-[15px] text-muted">Your partner is ready to evolve. Pick a path — this choice is permanent (until XP reversals!).</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
               {options.map((mon, i) => (
                 <motion.button
                   key={mon.species_id}
+                  type="button"
                   onClick={() => onChoose(mon.species_id)}
                   initial={{ y: 16, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.05 * i, type: "spring", stiffness: 420, damping: 32 }}
-                  whileHover={{ scale: 1.05, y: -4 }}
-                  className="text-left"
+                  className="flex flex-col rounded-card bg-surface-raised p-4 text-left shadow-hard-lg transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
                   data-testid={`branch-option-${mon.species_id}`}
                 >
-                  <GameFrame className="h-full" tone="panel2" style={{ background: partnerGradient(mon.types) }}>
-                    <div className="p-4 backdrop-blur-[2px] bg-black/25">
-                      <div className="grid place-items-center h-32">
-                        <img src={mon.sprite} alt={mon.name} className="sprite h-28 w-28 object-contain drop-shadow-[0_6px_0_rgba(0,0,0,0.5)] animate-idle-bob" />
-                      </div>
-                      <div className="mt-2 font-pixel text-[11px] tracking-display capitalize text-white pixel-shadow">{mon.name}</div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {mon.types.map((t) => <TypeChip key={t} type={t} size="sm" />)}
-                      </div>
-                    </div>
-                  </GameFrame>
+                  <div className="mx-auto grid h-32 w-32 place-items-center rounded-full" style={{ background: typeTint(mon.types?.[0], 22) }}>
+                    <img src={mon.sprite} alt="" className="sprite h-28 w-28 object-contain animate-idle-bob" />
+                  </div>
+                  <div className="mt-3 font-display text-[20px] font-bold capitalize text-fg">{mon.name}</div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {mon.types.map((t) => <TypeChip key={t} type={t} size="sm" />)}
+                  </div>
                 </motion.button>
               ))}
             </div>
             {onCancel && (
-              <div className="mt-6 text-center">
+              <div className="mt-8 text-center">
                 <GameButton variant="secondary" onClick={onCancel} testId="branch-choice-cancel">Not now</GameButton>
               </div>
             )}
