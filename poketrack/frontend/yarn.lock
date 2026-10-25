@@ -1352,15 +1352,15 @@
     "@eslint/core" "^0.15.1"
     levn "^0.4.1"
 
-"@fontsource-variable/inter@^5.3.0":
+"@fontsource-variable/fredoka@^5.3.0":
   version "5.3.0"
-  resolved "https://registry.npmjs.org/@fontsource-variable/inter/-/inter-5.3.0.tgz"
-  integrity sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==
+  resolved "https://registry.npmjs.org/@fontsource-variable/fredoka/-/fredoka-5.3.0.tgz"
+  integrity sha512-13w98iw2RcmYfZQRZPLSu+0YJK3HHm5A2XrpU26moFIAePmfiKfvkmEJUgkc8r5GNR+pbDijOueS1KdGAMAWmQ==
 
-"@fontsource/dotgothic16@^5.3.0":
+"@fontsource-variable/nunito@^5.3.0":
   version "5.3.0"
-  resolved "https://registry.npmjs.org/@fontsource/dotgothic16/-/dotgothic16-5.3.0.tgz"
-  integrity sha512-HYOA4yd61tGyjFvDXG0dzvCdXjmPIVuqDFCaMk2ok0G/eWbub6nJ9NlrHaGOUKUWiypGIoz6vZuzm11uFNdm8w==
+  resolved "https://registry.npmjs.org/@fontsource-variable/nunito/-/nunito-5.3.0.tgz"
+  integrity sha512-tw0ch7evIDSwoeUy+0XzocYHfbRWLeCRPJy22KgbrLjDLAbNw/fErBiil10Ssrs3Sjr55zaZrr36a975j8cBkQ==
 
 "@humanfs/core@^0.19.2":
   version "0.19.2"

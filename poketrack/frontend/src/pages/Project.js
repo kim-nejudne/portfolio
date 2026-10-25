@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
-import { motion } from "framer-motion";
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, pointerWithin } from "@dnd-kit/core";
 import { api, getUser } from "@/lib/api";
 import GameFrame from "@/components/game/GameFrame";
+import { Gear, Plus } from "@/components/game/Icons";
+import PageTitle from "@/components/game/PageTitle";
 import GameButton from "@/components/game/GameButton";
 import PokeBallLoader from "@/components/game/PokeBallLoader";
 import StarterPicker from "@/components/game/StarterPicker";
@@ -17,8 +18,21 @@ import BranchChoiceModal from "@/components/game/BranchChoiceModal";
 import LevelUpBanner from "@/components/game/LevelUpBanner";
 import { pushToast } from "@/components/game/Toaster";
 import { useReducedMotionMedia } from "@/lib/motion";
+import { avatarColors, pointBadge } from "@/lib/palette";
 
 const STATUSES = ["backlog", "in_progress", "done"];
+const STATUS_LABEL = { backlog: "Backlog", in_progress: "In battle", done: "Victory" };
+const TABS = [["board", "Board"], ["list", "List"], ["leaderboard", "Leaderboard"]];
+
+// The column under the pointer wins. closestCenter alone measures from each
+// column's centre, which only works while the columns share a height — once
+// the grid wraps them onto separate rows on narrower screens, a long column's
+// centre can sit thousands of pixels below the card being dropped at its top.
+// It stays as the fallback for a release in the gap between columns.
+const collisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length ? hits : closestCenter(args);
+};
 
 export default function ProjectPage() {
   const { projectId } = useParams();
@@ -232,19 +246,24 @@ export default function ProjectPage() {
     } catch (err) { pushToast(err.response?.data?.detail || "Could not prestige"); } finally { setBusy(false); }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // The whole card is the drag target, so touch cannot claim the gesture the
+  // way the old handle did (touch-action: none) without stopping the board
+  // from scrolling on a phone. Mouse drags after 6px, as before; touch drags
+  // after a short press and scrolls otherwise.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
-  if (loading) return <div className="grid place-items-center py-16"><PokeBallLoader label="LOADING PROJECT" /></div>;
+  if (loading) return <div className="grid place-items-center py-16"><PokeBallLoader label="Loading project" /></div>;
   if (!project) return null;
 
   // Prestige starter selection screen
   if (tab === "prestige") {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-[1360px]">
         <div className="mb-6">
-          <p className="font-pixel text-[10px] tracking-display text-type-electric">PRESTIGE</p>
-          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow">START OVER, KEEP THE LEGEND</h1>
-          <p className="mt-2 font-body text-sm text-white/70">Pick a new starter. Your lifetime XP stays on the leaderboard as a ⭐ badge.</p>
+          <PageTitle label="Prestige" lede="Pick a new starter. Your lifetime XP stays on the leaderboard as a star badge.">Start over, keep the legend</PageTitle>
         </div>
         <StarterPicker starters={starters} onConfirm={confirmPrestige} loading={busy} testIdPrefix="prestige-starter" />
       </div>
@@ -254,11 +273,9 @@ export default function ProjectPage() {
   // Forced starter picker gate
   if (!mon) {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-[1360px]">
         <div className="mb-6">
-          <p className="font-pixel text-[10px] tracking-display text-type-electric">FIRST VISIT</p>
-          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="starter-gate-title">PICK YOUR PARTNER TO CONTINUE</h1>
-          <p className="mt-2 font-body text-sm text-white/70">You can't see the board until you've chosen a Pokémon partner. Every ticket you complete will level them up.</p>
+          <PageTitle label="First visit" testId="starter-gate-title" lede="You can't see the board until you've chosen a Pokémon partner. Every ticket you complete will level them up.">Pick your partner to continue</PageTitle>
         </div>
         <StarterPicker starters={starters} onConfirm={chooseStarter} loading={busy} />
       </div>
@@ -270,52 +287,47 @@ export default function ProjectPage() {
   const draggingTicket = draggingId ? tickets.find((t) => t.id === draggingId) : null;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
-        <div>
-          <p className="font-pixel text-[9px] tracking-display text-type-electric">PROJECT</p>
-          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="project-name">{project.name}</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-[12px] p-1 bg-black/40 ring-2 ring-black/70">
-            {[["board","BOARD"],["list","LIST"],["leaderboard","LEADERBOARD"]].map(([k,label]) => (
-              <button key={k} onClick={() => setTab(k)}
+    <div className="mx-auto max-w-[1360px]">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <PageTitle label="Project" testId="project-name">{project.name}</PageTitle>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-chip bg-surface-raised p-[5px] shadow-hard" role="group" aria-label="View">
+            {TABS.map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setTab(k)}
+                aria-pressed={tab === k}
                 data-testid={`tab-${k}`}
-                className={`px-3 py-1 rounded-[10px] font-pixel text-[9px] tracking-hud ${tab === k ? "bg-type-water text-type-water-ink" : "text-white/80"}`}>{label}</button>
+                className={`h-10 rounded-chip px-4 font-body text-[15px] font-extrabold transition-colors duration-150 ${tab === k ? "bg-accent text-accent-ink" : "text-tab hover:text-fg"}`}>{label}</button>
             ))}
           </div>
-          <GameButton size="sm" tone="grass" onClick={openNewTicket} testId="new-ticket-button">+ NEW TICKET</GameButton>
-          <Link to={`/projects/${projectId}/settings`} data-testid="project-settings-link">
-            <GameButton size="sm" variant="secondary">SETTINGS</GameButton>
+          <GameButton variant="success" onClick={openNewTicket} testId="new-ticket-button"><Plus /> New ticket</GameButton>
+          <Link to={`/projects/${projectId}/settings`} data-testid="project-settings-link" aria-label="Project settings"
+            className="grid h-[50px] w-[50px] place-items-center rounded-full bg-surface-raised text-fg shadow-hard transition-[transform,box-shadow] duration-100 hover:text-label active:translate-y-[2px] active:shadow-none motion-reduce:active:translate-y-0">
+            <Gear />
           </Link>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-6">
-        <div className="space-y-3">
+      <div className="flex flex-wrap items-start gap-6">
+        <div className="min-w-0 flex-[1_1_300px] max-w-[360px]">
           <PartnerPanel mon={mon} animateKey={xpKey}
             onEvolveClick={() => setBranchOpen(true)}
             onPrestigeClick={doPrestige}
           />
         </div>
 
-        {/* min-w-0 is load-bearing. The board below is a scroll container, but its
-            columns carry an explicit min-w-[280px] — an explicit floor, unlike an
-            automatic one, still counts toward the scroller's min-content width
-            (3x280 + 2x16 gap = 872px). A grid item defaults to min-width:auto, so
-            that 872 becomes the track's floor and the *page* scrolls sideways
-            instead of the board. Zeroing it lets the track take the column width
-            and hands the overflow back to the scroller. */}
-        <div className="min-w-0">
+        {/* min-w-0 lets this flex item shrink below its content, so a wide
+            table scrolls inside its own panel rather than pushing the page
+            sideways. */}
+        <div className="min-w-0 flex-[999_1_640px]">
           {tab === "board" && (
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={collisionDetection}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onDragCancel={() => setDraggingId(null)}
             >
-              <div className="flex gap-4 overflow-x-auto pb-4" data-testid="board">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(270px,1fr))] gap-[18px]" data-testid="board">
                 {STATUSES.map((s) => (
                   <BoardColumn key={s} status={s} tickets={byStatus(s)}>
                     {byStatus(s).map((t) => (
@@ -325,8 +337,8 @@ export default function ProjectPage() {
                   </BoardColumn>
                 ))}
               </div>
-              {/* Portalled to the body: the columns and the board scroller both
-                  clip their overflow, so the card has to travel outside them. */}
+              {/* Portalled to the body so nothing on the board can clip the
+                  card while it travels. */}
               <DragOverlay dropAnimation={reduce ? null : undefined}>
                 {draggingTicket && (
                   <TicketCardPreview ticket={draggingTicket} assignee={memberMap[draggingTicket.assignee_id]} />
@@ -335,28 +347,47 @@ export default function ProjectPage() {
             </DndContext>
           )}
           {tab === "list" && (
-            <GameFrame className="p-0 overflow-hidden">
-              <table className="w-full border-collapse" data-testid="tickets-list">
-                <thead>
-                  <tr className="font-pixel text-[9px] tracking-hud text-white/70">
-                    <th className="text-left px-4 py-2">Ticket</th>
-                    <th className="text-left px-4 py-2">Status</th>
-                    <th className="text-right px-4 py-2">Points</th>
-                    <th className="text-left px-4 py-2">Assignee</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tickets.map((t) => (
-                    <tr key={t.id} className="border-t border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => openEditTicket(t)} data-testid={`list-row-${t.id}`}>
-                      <td className="px-4 py-2 font-body text-sm text-white">{t.title}</td>
-                      <td className="px-4 py-2 font-pixel text-[9px] tracking-hud uppercase text-white/70">{t.status.replace("_", " ")}</td>
-                      <td className="px-4 py-2 text-right font-pixel text-[10px] text-white">{t.story_points}</td>
-                      <td className="px-4 py-2 font-body text-xs text-white/70">{memberMap[t.assignee_id]?.name || "—"}</td>
+            <GameFrame className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse" data-testid="tickets-list">
+                  <thead>
+                    <tr className="font-body text-[13px] font-extrabold uppercase tracking-[0.07em] text-label">
+                      <th scope="col" className="px-5 pb-2 pt-5 text-left">Ticket</th>
+                      <th scope="col" className="px-4 pb-2 pt-5 text-left">Status</th>
+                      <th scope="col" className="px-4 pb-2 pt-5 text-right">Points</th>
+                      <th scope="col" className="px-5 pb-2 pt-5 text-left">Assignee</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {tickets.length === 0 && <p className="font-body text-sm text-white/60 px-4 py-6">No tickets yet. Add one to get started.</p>}
+                  </thead>
+                  <tbody>
+                    {tickets.map((t) => {
+                      const who = memberMap[t.assignee_id];
+                      return (
+                        <tr key={t.id} className="cursor-pointer border-t-2 border-bg hover:bg-surface-raised" onClick={() => openEditTicket(t)} data-testid={`list-row-${t.id}`}>
+                          <td className="px-5 py-3">
+                            <button type="button" className="rounded-md text-left font-display text-[16px] font-semibold leading-[1.3] text-fg hover:underline"
+                              onClick={(e) => { e.stopPropagation(); openEditTicket(t); }}>{t.title}</button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span data-col={t.status} className="whitespace-nowrap rounded-chip bg-col-bg px-3 py-1 font-body text-[13px] font-extrabold text-col-icon">{STATUS_LABEL[t.status] || t.status}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span style={pointBadge(t.story_points)} className="inline-grid h-[30px] min-w-[30px] place-items-center rounded-full px-1 font-display text-[15px] font-semibold">{t.story_points}</span>
+                          </td>
+                          <td className="px-5 py-3 font-body text-[14px] font-semibold">
+                            {who ? (
+                              <span className="inline-flex items-center gap-2 text-fg">
+                                <span style={avatarColors(who.user_id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-extrabold" aria-hidden>{(who.name || who.email || "?").slice(0, 1).toUpperCase()}</span>
+                                {who.name || who.email}
+                              </span>
+                            ) : <span className="text-[var(--unassigned-text)]">Unassigned</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {tickets.length === 0 && <p className="px-5 pb-6 pt-2 font-body text-[15px] text-muted">No tickets yet. Add one to get started.</p>}
             </GameFrame>
           )}
           {tab === "leaderboard" && (

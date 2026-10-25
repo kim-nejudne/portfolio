@@ -5,6 +5,9 @@ import GameFrame from "@/components/game/GameFrame";
 import GameButton from "@/components/game/GameButton";
 import { pushToast } from "@/components/game/Toaster";
 import PokeBallLoader from "@/components/game/PokeBallLoader";
+import PageTitle from "@/components/game/PageTitle";
+import { Gear } from "@/components/game/Icons";
+import { avatarColors } from "@/lib/palette";
 
 export default function TeamDetail() {
   const { teamId } = useParams();
@@ -82,79 +85,78 @@ export default function TeamDetail() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <p className="font-pixel text-[9px] tracking-display text-type-electric">TEAM</p>
-          <h1 className="font-pixel text-2xl tracking-display text-white pixel-shadow" data-testid="team-name">{team.name}</h1>
-        </div>
+      <div className="flex items-end justify-between gap-4">
+        <PageTitle label="Team" testId="team-name">{team.name}</PageTitle>
         {isOwner && (
-          <Link to={`/teams/${teamId}/settings`} data-testid="team-settings-link">
-            <GameButton size="sm" variant="secondary">SETTINGS</GameButton>
+          <Link to={`/teams/${teamId}/settings`} data-testid="team-settings-link" aria-label="Team settings"
+            className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-full bg-surface-raised text-fg shadow-hard transition-[transform,box-shadow] duration-100 hover:text-label active:translate-y-[2px] active:shadow-none motion-reduce:active:translate-y-0">
+            <Gear />
           </Link>
         )}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-5">
-        <GameFrame className="p-5">
-          <div className="flex items-center justify-between">
-            <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow">PROJECTS</p>
-          </div>
+      <div className="grid items-start gap-6 md:grid-cols-2">
+        <GameFrame className="p-5 sm:p-6">
+          <h2 className="font-display text-[24px] font-bold text-fg">Projects</h2>
           <div className="mt-3 space-y-2">
-            {projects.length === 0 ? <p className="font-body text-sm text-white/70">No projects yet.</p> :
+            {projects.length === 0 ? <p className="font-body text-[15px] text-muted">No projects yet.</p> :
               projects.map((p) => (
-                <Link key={p.id} to={`/projects/${p.id}`} className="block" data-testid={`project-card-${p.id}`}>
-                  <div className="rounded-[12px] px-4 py-3 ring-2 ring-black/70 bg-white/5 hover:bg-white/10 font-pixel text-[10px] tracking-hud">{p.name}</div>
+                <Link key={p.id} to={`/projects/${p.id}`} className="block rounded-card transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0" data-testid={`project-card-${p.id}`}>
+                  <div className="rounded-card bg-surface-sunken px-4 py-3 font-display text-[16px] font-semibold text-fg shadow-hard">{p.name}</div>
                 </Link>
               ))
             }
           </div>
-          <form onSubmit={createProject} className="mt-4 flex items-end gap-2" data-testid="project-create-form">
-            <label className="flex-1">
-              <span className="font-pixel text-[9px] tracking-hud text-white/70">NEW PROJECT</span>
+          <form onSubmit={createProject} className="mt-5 flex items-end gap-3" data-testid="project-create-form">
+            <label className="min-w-0 flex-1">
+              <span className="field-label">New project</span>
               <input value={pname} onChange={(e) => setPname(e.target.value)}
                 data-testid="project-create-name"
-                className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+                className="field" />
             </label>
-            <GameButton disabled={busy} type="submit" tone="electric" testId="project-create-submit">CREATE</GameButton>
+            <GameButton disabled={busy} type="submit" variant="success" testId="project-create-submit">Create</GameButton>
           </form>
         </GameFrame>
 
-        <GameFrame className="p-5">
-          <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow">ROSTER</p>
+        <GameFrame className="p-5 sm:p-6">
+          <h2 className="font-display text-[24px] font-bold text-fg">Roster</h2>
           <ul className="mt-3 space-y-2" data-testid="members-list">
             {members.map((m) => (
-              <li key={m.user_id} className="flex items-center justify-between rounded-[10px] px-3 py-2 ring-2 ring-black/70 bg-white/5">
-                <div>
-                  <p className="font-pixel text-[10px] tracking-hud text-white">{m.name}</p>
-                  <p className="font-body text-xs text-white/60">{m.email}</p>
+              <li key={m.user_id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface-sunken px-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span style={avatarColors(m.user_id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full font-body text-[15px] font-extrabold" aria-hidden>{(m.name || m.email || "?").slice(0, 1).toUpperCase()}</span>
+                  <div className="min-w-0">
+                    <p className="truncate font-body text-[15px] font-bold text-fg">{m.name}</p>
+                    <p className="truncate font-body text-[13px] text-muted">{m.email}</p>
+                  </div>
                 </div>
-                <span className="font-pixel text-[9px] px-2 py-0.5 rounded-chip bg-white/10 text-white ring-2 ring-black/70 uppercase">{m.role}</span>
+                <span className="shrink-0 rounded-chip bg-bg px-3 py-1 font-body text-[13px] font-extrabold capitalize text-label">{m.role}</span>
               </li>
             ))}
           </ul>
 
           {isOwner && (
-            <div className="mt-5 border-t border-white/10 pt-5">
-              <p className="font-pixel text-[10px] tracking-display text-white/70">INVITE TEAMMATE</p>
-              <form onSubmit={invite} className="mt-2 flex gap-2" data-testid="invite-form">
-                <input value={iemail} onChange={(e) => setIemail(e.target.value)} type="email" placeholder="friend@team.com"
+            <div className="mt-6 border-t-2 border-bg pt-5">
+              <label htmlFor="invite-email" className="field-label">Invite teammate</label>
+              <form onSubmit={invite} className="mt-2 flex items-start gap-3" data-testid="invite-form">
+                <input id="invite-email" value={iemail} onChange={(e) => setIemail(e.target.value)} type="email" placeholder="friend@team.com"
                   data-testid="invite-email"
-                  className="flex-1 rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
-                <GameButton disabled={busy} type="submit" tone="water" testId="invite-submit">INVITE</GameButton>
+                  className="field mt-0 min-w-0 flex-1" />
+                <GameButton disabled={busy} type="submit" testId="invite-submit">Invite</GameButton>
               </form>
               {invites.length > 0 && (
                 <ul className="mt-3 space-y-2" data-testid="invites-list">
                   {invites.map((iv) => {
                     const link = `${window.location.origin}/invite/${iv.token}`;
                     return (
-                      <li key={iv.id} className="rounded-[10px] px-3 py-2 ring-2 ring-black/70 bg-white/5 flex items-center justify-between gap-2 flex-wrap">
-                        <div>
-                          <p className="font-body text-sm text-white/90">{iv.email}</p>
-                          <p className="font-body text-xs text-white/50 break-all">{link}</p>
+                      <li key={iv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-sunken px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="font-body text-[15px] font-bold text-fg">{iv.email}</p>
+                          <p className="break-all font-body text-[13px] text-muted">{link}</p>
                         </div>
                         <div className="flex gap-2">
-                          <GameButton size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(link); pushToast("Link copied"); }} testId={`invite-copy-${iv.id}`}>COPY</GameButton>
-                          <GameButton size="sm" variant="danger" onClick={() => revoke(iv.id)} testId={`invite-revoke-${iv.id}`}>REVOKE</GameButton>
+                          <GameButton size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(link); pushToast("Link copied"); }} testId={`invite-copy-${iv.id}`}>Copy</GameButton>
+                          <GameButton size="sm" variant="danger" onClick={() => revoke(iv.id)} testId={`invite-revoke-${iv.id}`}>Revoke</GameButton>
                         </div>
                       </li>
                     );

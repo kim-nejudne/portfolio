@@ -29,30 +29,30 @@ export default function SignUp() {
 
   return (
     <div className="max-w-md mx-auto py-10">
-      <GameFrame className="p-6">
-        <p className="font-pixel text-[12px] tracking-display text-white pixel-shadow" data-testid="sign-up-title">NEW TRAINER REGISTRATION</p>
-        <form onSubmit={submit} className="mt-5 space-y-3" data-testid="sign-up-form">
+      <GameFrame className="p-6 sm:p-7">
+        <h1 className="font-display text-[32px] font-bold leading-tight text-fg" data-testid="sign-up-title">New trainer registration</h1>
+        <form onSubmit={submit} className="mt-5 space-y-4" data-testid="sign-up-form">
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-hud text-white/70">TRAINER NAME</span>
+            <span className="field-label">Trainer name</span>
             <input required value={name} onChange={(e) => setName(e.target.value)}
               data-testid="sign-up-name"
-              className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+              className="field" />
           </label>
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-hud text-white/70">EMAIL</span>
+            <span className="field-label">Email</span>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
               data-testid="sign-up-email"
-              className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+              className="field" />
           </label>
           <label className="block">
-            <span className="font-pixel text-[9px] tracking-hud text-white/70">PASSWORD (6+ chars)</span>
+            <span className="field-label">Password (6+ characters)</span>
             <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
               data-testid="sign-up-password"
-              className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+              className="field" />
           </label>
-          <GameButton type="submit" tone="grass" disabled={loading} testId="sign-up-submit">{loading ? "CREATING TRAINER…" : "START MY JOURNEY"}</GameButton>
+          <GameButton type="submit" className="w-full" disabled={loading} testId="sign-up-submit">{loading ? "Creating trainer…" : "Start my journey"}</GameButton>
         </form>
-        <p className="mt-4 font-body text-sm text-white/70">Already registered? <Link to="/sign-in" className="underline" data-testid="sign-up-goto-signin">Sign in</Link></p>
+        <p className="mt-5 font-body text-[15px] text-muted">Already registered? <Link to="/sign-in" className="font-bold text-label underline underline-offset-2" data-testid="sign-up-goto-signin">Sign in</Link></p>
       </GameFrame>
     </div>
   );

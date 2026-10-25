@@ -26,17 +26,17 @@ export default function TeamSettings() {
   if (!team) return null;
   return (
     <div className="max-w-lg mx-auto">
-      <GameFrame className="p-6">
-        <p className="font-pixel text-[11px] tracking-display text-white pixel-shadow" data-testid="team-settings-title">TEAM SETTINGS</p>
-        <label className="block mt-4">
-          <span className="font-pixel text-[9px] tracking-hud text-white/70">TEAM NAME</span>
+      <GameFrame className="p-6 sm:p-7">
+        <h1 className="font-display text-[32px] font-bold leading-tight text-fg" data-testid="team-settings-title">Team settings</h1>
+        <label className="block mt-5">
+          <span className="field-label">Team name</span>
           <input value={name} onChange={(e) => setName(e.target.value)}
             data-testid="team-settings-name"
-            className="mt-1 w-full rounded-[10px] bg-black/40 text-white font-body px-3 py-2 ring-2 ring-black/70 border border-white/10" />
+            className="field" />
         </label>
-        <div className="mt-5 flex justify-end gap-2">
-          <GameButton variant="secondary" onClick={() => nav(`/teams/${teamId}`)} testId="team-settings-cancel">CANCEL</GameButton>
-          <GameButton tone="grass" onClick={save} testId="team-settings-save">SAVE</GameButton>
+        <div className="mt-6 flex justify-end gap-3">
+          <GameButton variant="secondary" onClick={() => nav(`/teams/${teamId}`)} testId="team-settings-cancel">Cancel</GameButton>
+          <GameButton onClick={save} testId="team-settings-save">Save</GameButton>
         </div>
       </GameFrame>
     </div>

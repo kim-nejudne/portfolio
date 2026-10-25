@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotionMedia } from "@/lib/motion";
 
-// LEVEL UP! banner that slams in with optional screen shake.
+// "Level up!" pill that pops in under the top bar.
 export function LevelUpBanner({ level, visible, onDone }) {
   const reduce = useReducedMotionMedia();
   useEffect(() => {
@@ -16,21 +16,20 @@ export function LevelUpBanner({ level, visible, onDone }) {
       {visible && (
         <motion.div
           key={level}
-          initial={{ y: -20, opacity: 0, scale: 0.9 }}
+          initial={reduce ? { opacity: 0 } : { y: -20, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -12, opacity: 0 }}
+          exit={{ y: reduce ? 0 : -12, opacity: 0 }}
           transition={{ type: "spring", stiffness: 760, damping: 26 }}
-          className="pointer-events-none fixed left-1/2 top-16 z-[80] -translate-x-1/2"
+          className="pointer-events-none fixed left-1/2 top-20 z-[80] -translate-x-1/2"
           data-testid="level-up-banner"
+          role="status"
         >
-          <div className="relative rounded-[16px] bg-white text-black ring-4 ring-black shadow-frame px-6 py-3 font-pixel text-[12px] tracking-display">
-            LEVEL UP! <span className="text-type-fire">LV {level}</span>
-            <div className="pointer-events-none absolute inset-0 rounded-[16px]"
-              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0) 60%)" }} />
+          <div className="relative whitespace-nowrap rounded-chip bg-accent px-6 py-3 font-display text-[20px] font-bold text-accent-ink shadow-[0_4px_0_var(--accent-shadow)]">
+            Level up! <span className="ml-1 rounded-chip bg-accent-ink px-2.5 py-0.5 text-[16px] text-accent">Lv {level}</span>
             {!reduce && Array.from({ length: 10 }).map((_, i) => (
               <span key={i}
-                className="absolute top-1/2 left-1/2 h-1 w-1 rounded-full bg-yellow-300 animate-ray-burst"
-                style={{ transform: `rotate(${i * 36}deg) translate(30px)`, animationDelay: `${i * 40}ms` }}
+                className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-[var(--pts-5-bg)] animate-ray-burst"
+                style={{ transform: `rotate(${i * 36}deg) translate(40px)`, animationDelay: `${i * 40}ms` }}
               />
             ))}
           </div>

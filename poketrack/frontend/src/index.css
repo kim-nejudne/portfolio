@@ -2,51 +2,167 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DotGothic16, self-hosted out of @fontsource. Declared here rather than
-   imported from the package so it can carry a size-adjust.
-   Measured against the Press Start 2P it replaced: that face has a cap height
-   of exactly 1.0em and a full-em advance on every glyph. DotGothic16 sits at
-   0.818em cap and half the advance. Left alone, every label in the app would
-   render a fifth smaller at the same px values and the whole type scale would
-   quietly collapse. 122% restores the old cap height; the width win survives
-   it intact, since half-width scaled by 1.22 is still 39% narrower than what
-   it replaced.
-   Latin range only — the package's Japanese subset is 3MB and nothing here
-   renders kana. Glyphs outside this range (the ▶ on buttons) fall through to
-   the monospace stack, exactly as they did under Press Start 2P, whose Google
-   subset did not carry them either. The ticket card's move buttons used to be
-   ← → text and rendered as smudges that way; they are inline SVG now
-   (components/game/Icons.js). */
-@font-face {
-  font-family: "DotGothic16";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  size-adjust: 122%;
-  src: url("~@fontsource/dotgothic16/files/dotgothic16-latin-400-normal.woff2") format("woff2"),
-       url("~@fontsource/dotgothic16/files/dotgothic16-latin-400-normal.woff") format("woff");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191,
-    U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
+/* Theme tokens. Every colour in the app resolves to one of these, so a light
+   theme is a second block of values under another selector, not a hunt
+   through components. Tailwind's colour names (tailwind.config.js) and the
+   JS helpers in lib/types.js and lib/palette.js point here rather than
+   carrying hex of their own.
 
+   Hex rather than channel triplets, deliberately: nothing uses Tailwind's
+   /50-style opacity modifiers on these, and the values stay readable next to
+   the design spec they came from. Translucency, where it is wanted, goes
+   through color-mix(). */
 :root {
   color-scheme: dark;
-  --radius: 0.5rem;
+
+  /* Base */
+  --bg: #17141F;
+  --surface: #221E2E;
+  --surface-raised: #252131;
+  --surface-sunken: #2A2538;
+  --text: #F3F0FA;
+  --text-muted: #B7AFCF;
+  --label: #A99BE8;
+  --shadow-hard: #0E0C14;
+  --tab-inactive: #CFC8E6;
+  --field-border: #7A7299; /* 3.3:1 on --surface-sunken, the non-text floor */
+
+  /* Accent: primary actions, the active tab, "move forward" */
+  --accent: #A99BFF;
+  --accent-ink: #17123A;
+  --accent-shadow: #6F62C4;
+
+  /* Named actions */
+  --success: #4FD1A1;
+  --success-ink: #0B2C20;
+  --success-shadow: #2E9C74;
+  --prestige: #FF8FC0;
+  --prestige-ink: #3A0A20;
+  --prestige-shadow: #C2507F;
+  --danger: #FF9A9A;
+  --danger-ink: #3D0A0A;
+  --danger-shadow: #C25757;
+  --danger-text: #FFB3B3;
+
+  /* Columns: bg / card / card shadow / title / icon+count / description /
+     move-back bg / move-back icon */
+  --backlog-bg: #262039;
+  --backlog-card: #2F2943;
+  --backlog-shadow: #18142A;
+  --backlog-title: #E2DBFF;
+  --backlog-icon: #C9BEFF;
+  --backlog-desc: #B7AFCF;
+  --backlog-back: #3D3655;
+  --backlog-back-ink: #E4DEF7;
+
+  --battle-bg: #33241E;
+  --battle-card: #3E2E27;
+  --battle-shadow: #22160F;
+  --battle-title: #FFE1CF;
+  --battle-icon: #FFB88F;
+  --battle-desc: #D2BDB2;
+  --battle-back: #54403A;
+  --battle-back-ink: #FFE7DA;
+
+  --victory-bg: #1B2E27;
+  --victory-card: #253A32;
+  --victory-shadow: #0F1C17;
+  --victory-title: #CFF5E3;
+  --victory-icon: #8EE3BE;
+  --victory-desc: #ABCBBE;
+  --victory-back: #34504A;
+  --victory-back-ink: #DDF5EA;
+
+  /* Partner hero + XP */
+  --hero-bg: #3A2721;
+  --hero-sprite: #47302A;
+  --hero-accent: #FFB88F;
+  --xp-track: #2E2940;
+  --xp-fill: #FF9A62;
+  --xp-glow: rgba(255, 154, 98, 0.45);
+
+  /* Story-point badges */
+  --pts-1-bg: #9FE6C6; --pts-1-ink: #0F3B2A;
+  --pts-2-bg: #9EE3E8; --pts-2-ink: #0E3C40;
+  --pts-3-bg: #B3CCFF; --pts-3-ink: #132B66;
+  --pts-5-bg: #FFDB73; --pts-5-ink: #4A3300;
+  --pts-8-bg: #FFAF85; --pts-8-ink: #5C1F05;
+
+  /* Assignee avatars */
+  --avatar-blue-bg: #CFE3FF;   --avatar-blue-ink: #1B3F7A;
+  --avatar-pink-bg: #FFD3E6;   --avatar-pink-ink: #7A1A45;
+  --avatar-violet-bg: #E3D9FF; --avatar-violet-ink: #3E2A8C;
+  --avatar-mint-bg: #CDEFDF;   --avatar-mint-ink: #17573E;
+  --avatar-peach-bg: #FFE0C7;  --avatar-peach-ink: #7A3A10;
+  --unassigned-border: #6E6788;
+  --unassigned-text: #A79FC2;
+
+  /* Medals (leaderboard ranks 1–3) */
+  --medal-1-bg: #FFDB73; --medal-1-ink: #4A3300;
+  --medal-2-bg: #DCDDEB; --medal-2-ink: #2A2B3D;
+  --medal-3-bg: #FFC3A0; --medal-3-ink: #5C2A0A;
+
+  /* Pokémon types as pastel pills: the canonical hue, lifted, with a dark ink
+     of the same hue. Every ink clears 7:1 on its pill. */
+  --type-normal-bg: #D9D5C0;   --type-normal-ink: #2E2A1A;
+  --type-fire-bg: #FF8A4C;     --type-fire-ink: #2B1405;
+  --type-water-bg: #8FB6FF;    --type-water-ink: #0E2350;
+  --type-electric-bg: #FFE066; --type-electric-ink: #3A2E00;
+  --type-grass-bg: #9EE08A;    --type-grass-ink: #12380A;
+  --type-ice-bg: #A8ECEA;      --type-ice-ink: #0D3A3A;
+  --type-fighting-bg: #FF8F87; --type-fighting-ink: #3D0B08;
+  --type-poison-bg: #E0A3E8;   --type-poison-ink: #3A0F40;
+  --type-ground-bg: #F2D08A;   --type-ground-ink: #3D2A05;
+  --type-flying-bg: #B9A8FF;   --type-flying-ink: #241A55;
+  --type-psychic-bg: #FF9EC0;  --type-psychic-ink: #4A0A24;
+  --type-bug-bg: #CDE27A;      --type-bug-ink: #2C3300;
+  --type-rock-bg: #E3D08F;     --type-rock-ink: #352B08;
+  --type-ghost-bg: #BFA8E8;    --type-ghost-ink: #2A1550;
+  --type-dragon-bg: #A890FF;   --type-dragon-ink: #1E0E5C;
+  --type-dark-bg: #C7B2A3;     --type-dark-ink: #2B1D14;
+  --type-steel-bg: #CFD3E6;    --type-steel-ink: #22263A;
+  --type-fairy-bg: #FFB8DC;    --type-fairy-ink: #4A1033;
+
+  /* The Poké Ball, the one illustration the UI draws itself */
+  --ball-top: #FF8A80;
+  --ball-bottom: #F3F0FA;
+  --ball-band: #17141F;
+}
+
+/* A column's theme, picked by data-col. The card face sets it too, because
+   the drag preview is portalled to <body> and leaves its column behind. */
+[data-col="backlog"] {
+  --col-bg: var(--backlog-bg);       --col-card: var(--backlog-card);
+  --col-shadow: var(--backlog-shadow); --col-title: var(--backlog-title);
+  --col-icon: var(--backlog-icon);   --col-desc: var(--backlog-desc);
+  --col-back: var(--backlog-back);   --col-back-ink: var(--backlog-back-ink);
+}
+[data-col="in_progress"] {
+  --col-bg: var(--battle-bg);        --col-card: var(--battle-card);
+  --col-shadow: var(--battle-shadow); --col-title: var(--battle-title);
+  --col-icon: var(--battle-icon);    --col-desc: var(--battle-desc);
+  --col-back: var(--battle-back);    --col-back-ink: var(--battle-back-ink);
+}
+[data-col="done"] {
+  --col-bg: var(--victory-bg);       --col-card: var(--victory-card);
+  --col-shadow: var(--victory-shadow); --col-title: var(--victory-title);
+  --col-icon: var(--victory-icon);   --col-desc: var(--victory-desc);
+  --col-back: var(--victory-back);   --col-back-ink: var(--victory-back-ink);
 }
 
 html, body, #root {
   min-height: 100vh;
-  background: #070A12;
-  color: #EAF0FF;
+  background: var(--bg);
+  color: var(--text);
 }
 
 body {
   margin: 0;
-  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Nunito Variable", "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #070A12;
 }
 
 /* Pixelated sprites everywhere they appear */
@@ -57,37 +173,43 @@ img.sprite {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #0B1020; }
+::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #101B3A, #05070D);
-  border-radius: 8px;
-  border: 2px solid #0B1020;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
 }
 
-/* Utility for pixel text rendering */
-.pixel-shadow {
-  text-shadow: 2px 2px 0 rgba(0,0,0,0.7);
-}
-
-/* Focus ring reset */
 *:focus-visible {
-  outline: 3px solid #F7D02C;
-  outline-offset: 3px;
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Form fields share one look across every screen. */
+@layer components {
+  .field {
+    @apply mt-1 w-full rounded-2xl bg-surface-sunken px-4 py-3 font-body text-[15px] text-fg;
+    box-shadow: inset 0 0 0 2px var(--field-border);
+  }
+  .field::placeholder { color: var(--text-muted); }
+  .field-label {
+    @apply font-body text-[13px] font-extrabold uppercase tracking-[0.07em] text-label;
+  }
 }
 
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-idle-bob,
   .animate-shine-sweep,
-  .animate-tick-fill,
-  .animate-screen-shake,
   .animate-capture-wobble,
   .animate-ray-burst,
-  .animate-aurora-drift,
   .animate-float-up,
-  .animate-level-up-slam,
+  .animate-pop-in,
   .animate-typewriter-caret,
   .animate-dialogue-arrow-blink {
     animation: none !important;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,26 +1,25 @@
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { typeColor } from "@/lib/types";
+import { motion } from "framer-motion";
 import { useReducedMotionMedia } from "@/lib/motion";
 
-// Segmented XP bar with tick fill animation and a shine sweep. It also owns the LEVEL UP! banner + screen shake.
+// One smooth rounded fill that eases to its new width whenever XP arrives.
+// `needed` of 0 means the engine has no next level to report (level cap).
 export function XPBar({
   level,
-  types = ["water"],
   current = 0,
-  needed = 1,
+  needed = 0,
   totalXp = 0,
   animateKey = 0,   // increment when a new XP event has arrived to re-run the fill animation
   testId = "partner-xp-bar",
 }) {
   const reduce = useReducedMotionMedia();
-  const fill = Math.max(0, Math.min(1, needed > 0 ? current / needed : 1));
+  const maxed = !(needed > 0);
+  const fill = maxed ? 1 : Math.max(0, Math.min(1, current / needed));
   const [displayFill, setDisplayFill] = useState(fill);
   const raf = useRef(null);
 
   useEffect(() => {
     if (reduce) { setDisplayFill(fill); return; }
-    // Tick from current display value to target over ~800ms
     const startVal = displayFill;
     const startTs = performance.now();
     const dur = 900;
@@ -34,45 +33,44 @@ export function XPBar({
     return () => { if (raf.current) cancelAnimationFrame(raf.current); };
   }, [animateKey, fill, reduce]); // eslint-disable-line
 
-  const color = typeColor(types[0] || "water");
+  const remaining = Math.max(0, needed - current);
+  const label = maxed
+    ? `Level ${level}, maximum level reached`
+    : `Level ${level}: ${current.toLocaleString()} of ${needed.toLocaleString()} XP, ${remaining.toLocaleString()} to level ${level + 1}`;
+
   return (
-    <div data-testid={testId} className="space-y-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex items-baseline gap-3">
-          <span className="font-pixel text-[10px] tracking-display text-white/80">LV</span>
+    <div data-testid={testId} className="flex flex-col gap-2.5">
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-body text-[14px] font-extrabold text-muted">Lv</span>
           <motion.span
             key={level}
-            initial={reduce ? {} : { scale: 1.4, y: -6 }}
+            initial={reduce ? {} : { scale: 1.25, y: -4 }}
             animate={{ scale: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 620, damping: 22 }}
-            className="font-pixel text-3xl text-white pixel-shadow"
+            className="font-display text-[44px] font-bold leading-none text-fg"
             data-testid="partner-level-text"
           >
             {level}
           </motion.span>
         </div>
-        <span className="font-pixel text-[9px] tracking-hud text-white/70" data-testid="partner-total-xp">{totalXp.toLocaleString()} XP</span>
+        <span className="pb-1 font-body text-[14px] font-semibold text-muted" data-testid="partner-total-xp">
+          {totalXp.toLocaleString()} XP total
+        </span>
       </div>
-      <div className="relative rounded-[14px] bg-black/50 ring-2 ring-black/70 shadow-frameSm overflow-hidden">
-        <div className="grid grid-cols-12 gap-[3px] p-[6px]">
-          {Array.from({ length: 12 }).map((_, i) => {
-            const segStart = i / 12;
-            const segEnd = (i + 1) / 12;
-            const seg = Math.max(0, Math.min(1, (displayFill - segStart) / (segEnd - segStart)));
-            return (
-              <div key={i} className="relative h-3 rounded-[6px] bg-white/10 overflow-hidden">
-                <div className="absolute inset-0 origin-left transition-transform duration-150 ease-out"
-                  style={{ background: color, transform: `scaleX(${seg})` }} />
-                <div className="pointer-events-none absolute inset-y-0 -left-1/2 w-2/3 opacity-70"
-                  style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)", animation: "shine-sweep 2s ease-in-out infinite" }} />
-              </div>
-            );
-          })}
-        </div>
+      <div role="img" aria-label={label} className="h-[22px] rounded-chip bg-[var(--xp-track)] p-1">
+        <div
+          className="h-full rounded-chip bg-[var(--xp-fill)] shadow-[0_0_12px_var(--xp-glow)]"
+          // Any progress at all shows at least a round dot; a rounded bar
+          // narrower than it is tall collapses into a smear.
+          style={{ width: `${displayFill * 100}%`, minWidth: displayFill > 0 ? 14 : 0 }}
+        />
       </div>
-      <div className="flex justify-between font-pixel text-[8px] tracking-hud text-white/70">
-        <span data-testid="partner-xp-progress">{current.toLocaleString()} / {needed.toLocaleString()}</span>
-        <span>NEXT LV</span>
+      <div className="flex justify-between gap-3 font-body text-[13px] font-semibold text-muted" aria-hidden>
+        <span data-testid="partner-xp-progress">
+          {maxed ? "Max level" : `${current.toLocaleString()} / ${needed.toLocaleString()} XP`}
+        </span>
+        {!maxed && <span>{remaining.toLocaleString()} to Lv {level + 1}</span>}
       </div>
     </div>
   );
