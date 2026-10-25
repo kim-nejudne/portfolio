@@ -104,6 +104,14 @@ async function attach(name: string): Promise<void> {
   });
 }
 
+/**
+ * How long a cold load may take before the measurement is abandoned. Over a real link
+ * (`BUDGETS_URL`) the path to the droplet can run at tens of KB/s for seconds at a time (seen
+ * on 25 October 2026), so the wait is longer there: the figure is then recorded as the miss
+ * it is, with its note, rather than lost to a timeout.
+ */
+const LOAD_WAIT_MS = external === undefined ? 30_000 : 120_000;
+
 /** The two load marks, once both are set (ms from navigation start). */
 async function loadMarks(
   page: Page,
@@ -119,7 +127,7 @@ async function loadMarks(
         : null;
     },
     null,
-    { timeout: 30_000 },
+    { timeout: LOAD_WAIT_MS },
   );
   return (await handle.jsonValue()) as { shell: number; ready: number };
 }
@@ -127,7 +135,7 @@ async function loadMarks(
 test('cold load: shell interactive under 2 s, compiler ready under 5 s', async ({
   browser,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(COLD_RUNS * LOAD_WAIT_MS + 30_000);
   const shell: number[] = [];
   const ready: number[] = [];
   for (let i = 0; i < COLD_RUNS; i += 1) {
@@ -158,14 +166,15 @@ test('cold load: shell interactive under 2 s, compiler ready under 5 s', async (
 test('warm load from the service worker: compiler ready under 1.5 s; total precache under 15 MB', async ({
   browser,
 }) => {
-  test.setTimeout(180_000);
+  // Over a real link the first load and the whole precache (17 MB) can take minutes.
+  test.setTimeout(external === undefined ? 180_000 : 900_000);
   const context = await browser.newContext({
     baseURL,
     serviceWorkers: 'allow',
   });
   const page = await context.newPage();
   await page.goto('/');
-  await waitForCompilerReady(page);
+  await loadMarks(page);
   // Registered once the compiler is ready; active once the whole precache is in.
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
@@ -357,7 +366,7 @@ async function workerHeap(
 test('in /repl: diagnostics for a 200-line file, quick info, a trivial run, and the worker heap', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(240_000 + LOAD_WAIT_MS);
   const context = await browser.newContext({
     baseURL,
     serviceWorkers: 'block',
@@ -367,6 +376,8 @@ test('in /repl: diagnostics for a 200-line file, quick info, a trivial run, and 
   page.on('worker', (worker) => workers.push(worker));
   await page.goto('/repl');
   await focusEditor(page);
+  // The cold load is not measured here; over a real link it may take as long as LOAD_WAIT_MS.
+  await loadMarks(page);
   await waitForCompilerReady(page);
   // The ts-ls worker is the only one before any run.
   const tsLs = workers.find((w) => WORKER_CHUNK.test(w.url()));

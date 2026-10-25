@@ -336,7 +336,8 @@ async function runFirstExample(page: Page): Promise<void> {
   await expect(output.getByRole('status')).toHaveText(DONE_IN, {
     timeout: 30_000,
   });
-  await expect(output.locator('li')).not.toHaveCount(0);
+  // The F14 For Kim step: "the four lines of output" (one user, two issues, one for null).
+  await expect(output.locator('li')).toHaveCount(4);
   await expect(output.locator('li.text-destructive')).toHaveCount(0);
 }
 
