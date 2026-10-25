@@ -203,7 +203,7 @@ done
 ./deploy/deploy.sh
 ```
 
-Typechecks, builds, **runs the 112 browser assertions**, precompresses
+Typechecks, builds, **runs the 85 browser assertions**, precompresses
 (`gzip -9`, served by `gzip_static` so the shared vCPU isn't recompressing per
 request), tars the current `/var/www/hub` to
 `/var/backups/hub-<UTC-stamp>.tar.gz`, rsyncs with `--delete` so stale asset

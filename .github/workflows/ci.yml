@@ -6,7 +6,7 @@
 # workflow files, which is the cheapest claim on that document to falsify: a
 # screener who clones the repository finds out in thirty seconds.
 #
-# And the hub carries 127 browser assertions, 40 of them proven by deliberately
+# And the hub carries 85 browser assertions, 40 of them proven by deliberately
 # breaking the assertion to confirm it fails. That was the strongest engineering
 # claim in the portfolio and it was visible only in commit messages. A green
 # check is a thing somebody can see without being asked to believe it.
@@ -153,7 +153,7 @@ jobs:
   # The hub gets its own job: it builds, serves the build, and runs the whole
   # assertion suite against it over CDP.
   hub:
-    name: hub, 127 assertions
+    name: hub, 85 assertions
     runs-on: ubuntu-latest
 
     steps:
