@@ -28,7 +28,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
  * edits one of them.
  */
 import { SPOKES, repoLabel } from '../src/spokes.ts';
-import { chromiumPath } from './chromium.mjs';
+import { HEADLESS_FLAGS, chromiumPath } from './chromium.mjs';
 import { CV } from '../src/cv.ts';
 import { CONTACT } from '../src/contact.ts';
 import {
@@ -225,8 +225,7 @@ async function main() {
   const chrome = spawn(
     chromiumPath(),
     [
-      '--headless',
-      '--disable-gpu',
+      ...HEADLESS_FLAGS,
       '--hide-scrollbars',
       `--remote-debugging-port=${PORT}`,
       '--user-data-dir=/tmp/hub-verify-profile',

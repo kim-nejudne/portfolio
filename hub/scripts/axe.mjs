@@ -52,7 +52,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { SPOKES } from '../src/spokes.ts';
-import { chromiumPath } from './chromium.mjs';
+import { HEADLESS_FLAGS, chromiumPath } from './chromium.mjs';
 
 const require = createRequire(import.meta.url);
 /* Read off disk rather than fetched from a CDN. A sweep whose rule set changes
@@ -99,8 +99,7 @@ const rpc = (ws, method, params = {}) =>
 const chrome = spawn(
   chromiumPath(),
   [
-    '--headless',
-    '--disable-gpu',
+    ...HEADLESS_FLAGS,
     '--hide-scrollbars',
     `--remote-debugging-port=${PORT}`,
     '--user-data-dir=/tmp/hub-axe-profile',

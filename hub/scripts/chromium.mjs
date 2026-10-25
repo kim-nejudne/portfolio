@@ -24,6 +24,24 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 
+/**
+ * The flags every headless launch starts with.
+ *
+ * `--no-sandbox` under CI only. Chromium's sandbox needs either unprivileged
+ * user namespaces or a setuid-root `chrome-sandbox` helper, and a GitHub
+ * `ubuntu-24.04` runner has neither for the setup-chrome binary: AppArmor
+ * restricts the namespaces, and the helper unpacked into the tool cache is not
+ * setuid. Chromium's answer is to abort on startup rather than run unsandboxed,
+ * which reaches node as an exit code of `null` (killed by a signal) and nothing
+ * else, because the callers discarded its stderr. That was every CI run of the
+ * hub job until this flag existed.
+ *
+ * The workstation keeps the sandbox: `npm run axe` with no arguments loads the
+ * production spokes, which is not the same as loading a page this repository
+ * just built.
+ */
+export const HEADLESS_FLAGS = ['--headless', '--disable-gpu', ...(process.env.CI ? ['--no-sandbox'] : [])];
+
 /** In preference order. `chromium` first, because that is the workstation. */
 const CANDIDATES = ['chromium', 'chromium-browser', 'google-chrome-stable', 'google-chrome', 'chrome'];
 

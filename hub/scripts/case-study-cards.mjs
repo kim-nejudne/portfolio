@@ -32,7 +32,7 @@ import { existsSync, mkdirSync, readFile, statSync } from 'node:fs';
 import { readFile as read, unlink, writeFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromiumPath } from './chromium.mjs';
+import { HEADLESS_FLAGS, chromiumPath } from './chromium.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
@@ -268,17 +268,24 @@ for (const spoke of SPOKES) {
     const p = spawn(
       CHROME,
       [
-        '--headless',
-        '--disable-gpu',
+        ...HEADLESS_FLAGS,
         '--hide-scrollbars',
         '--force-color-profile=srgb',
         `--screenshot=${join(ROOT, 'public/cards', `${spoke.id}.png`)}`,
         '--window-size=1200,630',
         `http://127.0.0.1:${PORT}/.card-${spoke.id}.tmp.html`,
       ],
-      { stdio: 'ignore' },
+      { stdio: ['ignore', 'ignore', 'pipe'] },
     );
-    p.on('exit', (code) => (code === 0 ? res() : rej(new Error(`chromium exited ${code}`))));
+    // stderr is kept for the failure message. `chromium exited null` with
+    // nothing after it was all six red CI runs ever said about the sandbox.
+    let stderr = '';
+    p.stderr.on('data', (d) => (stderr += d));
+    p.on('close', (code, signal) => {
+      if (code === 0) return res();
+      const tail = stderr.trim().split('\n').slice(-5).join('\n');
+      rej(new Error(`chromium exited ${code ?? signal}${tail ? `\n${tail}` : ''}`));
+    });
   });
 
   await unlink(tmp);
