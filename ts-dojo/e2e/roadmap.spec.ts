@@ -417,6 +417,50 @@ test.describe('§12 F9: The roadmap renders every tier and module from `roadmap.
     }
   });
 
+  test('the focused card shows it: its border is the accent and its title bar inverts, while the others keep the pane colours', async ({
+    page,
+  }) => {
+    // The chrome classes live in Tailwind's components layer; unlayered, they would beat the
+    // card's focus-visible utilities and `j` would move an invisible focus.
+    const token = (name: string): Promise<string> =>
+      page.evaluate(
+        (t) =>
+          getComputedStyle(document.documentElement).getPropertyValue(t).trim(),
+        name,
+      );
+    const rgb = (hex: string): string => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
+    };
+    await openApp(page);
+    const card = (id: string): Locator =>
+      page.locator(`a[data-module="${id}"]`);
+    const title = (id: string): Locator => card(id).locator('> .term-title');
+    await expect(title(M99)).toHaveCSS(
+      'background-color',
+      rgb(await token('--bg-alt')),
+    );
+    await page.keyboard.press('j');
+    await expectFocusedCard(page, M99, 'j from the body');
+    await expect(card(M99)).toHaveCSS(
+      'border-top-color',
+      rgb(await token('--accent')),
+    );
+    await expect(title(M99)).toHaveCSS(
+      'background-color',
+      rgb(await token('--fg')),
+    );
+    await expect(title(M99)).toHaveCSS('color', rgb(await token('--bg')));
+    await expect(card(M98)).toHaveCSS(
+      'border-top-color',
+      rgb(await token('--border')),
+    );
+    await expect(title(M98)).toHaveCSS(
+      'background-color',
+      rgb(await token('--bg-alt')),
+    );
+  });
+
   test('Enter on a focused card opens its module page', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('j');
