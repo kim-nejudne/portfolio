@@ -125,7 +125,9 @@ export function RoadmapPage() {
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
       <div className="flex items-baseline gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Roadmap</h1>
+        <h1 className="prompt-heading text-2xl font-semibold" data-cursor="">
+          Roadmap
+        </h1>
         <p className="text-xs text-muted-foreground">
           <Kbd>j</Kbd> <Kbd>k</Kbd> <Kbd>h</Kbd> <Kbd>l</Kbd> move,{' '}
           <Kbd>Enter</Kbd> opens, <Kbd>c</Kbd> continues
@@ -174,7 +176,7 @@ export function RoadmapPage() {
             data-tier={tier.id}
             className="flex flex-col gap-2"
           >
-            <h2 className="relative z-10 w-fit bg-background pr-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+            <h2 className="section-heading relative z-10 w-fit bg-background pr-2 text-sm font-semibold text-muted-foreground">
               {tier.title}
             </h2>
             <ul className="flex flex-wrap gap-x-8 gap-y-6">
@@ -205,7 +207,7 @@ export function RoadmapPage() {
 }
 
 function Kbd({ children }: { children: string }) {
-  return <kbd className="rounded border px-1 font-mono">{children}</kbd>;
+  return <kbd>{children}</kbd>;
 }
 
 function ContinueBar({ target }: { target: ContinueTarget }) {
@@ -214,7 +216,7 @@ function ContinueBar({ target }: { target: ContinueTarget }) {
     <Link
       to={continueHref(target)}
       data-continue={target.kind}
-      className="flex items-baseline gap-3 rounded-md border px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="prompt-prefix flex flex-wrap items-baseline gap-x-3 gap-y-1 border px-4 py-3 text-sm outline-none focus-visible:border-ring focus-visible:bg-selection"
     >
       <span className="font-medium">{verb}</span>
       <span data-field="exercise">
@@ -244,42 +246,55 @@ function Card({
       data-module={card.id}
       data-state={card.state}
       className={cn(
-        'relative z-10 flex w-64 items-start gap-3 rounded-md border bg-background px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'term-pane relative z-10 flex w-64 flex-col outline-none focus-visible:border-ring focus-visible:[&>.term-title]:bg-foreground focus-visible:[&>.term-title]:text-background',
         card.state === 'in-progress' && 'border-(--progress)',
       )}
     >
-      <ProgressRing progress={card.progress} state={card.state} />
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span
-          className={cn(
-            'font-medium',
-            card.state === 'not-started' && 'text-muted-foreground',
+      <span className="term-title">
+        <span className="term-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="truncate">{card.id}</span>
+      </span>
+      <span className="flex items-start gap-3 px-3 py-2">
+        <ProgressRing progress={card.progress} state={card.state} />
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span
+            className={cn(
+              'font-medium',
+              card.state === 'not-started' && 'text-muted-foreground',
+            )}
+          >
+            {card.title}
+          </span>
+          <span className="text-xs text-muted-foreground" data-field="progress">
+            {card.lessonsComplete} of {card.lessonsTotal} lessons complete
+          </span>
+          <span className="text-xs text-muted-foreground" data-field="minutes">
+            {card.minutesLeft} min left
+          </span>
+          {card.optionalLessons > 0 && (
+            <span
+              className="text-xs text-muted-foreground"
+              data-field="optional"
+            >
+              {card.optionalLessons === 1
+                ? '1 optional lesson'
+                : `${String(card.optionalLessons)} optional lessons`}
+            </span>
           )}
-        >
-          {card.title}
-        </span>
-        <span className="text-xs text-muted-foreground" data-field="progress">
-          {card.lessonsComplete} of {card.lessonsTotal} lessons complete
-        </span>
-        <span className="text-xs text-muted-foreground" data-field="minutes">
-          {card.minutesLeft} min left
-        </span>
-        {card.optionalLessons > 0 && (
-          <span className="text-xs text-muted-foreground" data-field="optional">
-            {card.optionalLessons === 1
-              ? '1 optional lesson'
-              : `${String(card.optionalLessons)} optional lessons`}
+          <span className="text-xs" data-field="state">
+            {STATE_LABEL[card.state]}
           </span>
-        )}
-        <span className="text-xs" data-field="state">
-          {STATE_LABEL[card.state]}
+          {card.recommendedFirst.length > 0 && (
+            <span className="text-xs" data-field="recommended">
+              Recommended first:{' '}
+              {card.recommendedFirst.map((m) => m.title).join(', ')}
+            </span>
+          )}
         </span>
-        {card.recommendedFirst.length > 0 && (
-          <span className="text-xs" data-field="recommended">
-            Recommended first:{' '}
-            {card.recommendedFirst.map((m) => m.title).join(', ')}
-          </span>
-        )}
       </span>
     </Link>
   );

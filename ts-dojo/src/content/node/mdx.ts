@@ -1,16 +1,16 @@
 // The lesson.mdx code-fence pipeline (spec §3 lesson.mdx, §2 Build "twoslash pre-render
 // through the shiki transformer"): every fence becomes a `<CodeBlock>` element at build
-// time, with shiki's highlighting as HTML (light and dark themes side by side, so no theme
-// code runs in the browser), and per kind: `ts twoslash` renders its `^?` queries through
+// time, with shiki's highlighting as HTML (its CSS-variables theme, so the block follows the
+// colour scheme and no theme code runs in the browser), and per kind: `ts twoslash` renders its `^?` queries through
 // `twoslash` 0.3.9 and `@shikijs/twoslash` with the §2 default compiler options and the same
 // lib files and ambient runtime declarations the app's worker uses, so the types shown are
 // the types the editor would show; `ts run` and `ts run errors` carry the snippet's emitted
 // JavaScript so Run needs no compiler round trip, and `run errors` carries the diagnostics the
 // app's own ts-ls core reports, rendered under the block. A fence in another language is
 // `plain` (after F13, Kim's decision on 23 October 2026): highlighted in that language when
-// shiki bundles it, else as text, and nothing more. Shiki's inline colour styles become
-// classes named from the colour pair, and each lesson gets one `<CodeStyles>` element with
-// their declarations (pre-F13 fixes, Kim's decision on 23 October 2026: about 40% of a lesson
+// shiki bundles it, else as text, and nothing more. Shiki's inline styles become classes
+// named from their declarations, and each lesson gets one `<CodeStyles>` element with
+// those declarations (pre-F13 fixes, Kim's decision on 23 October 2026: about 40% of a lesson
 // chunk was those styles, against the §9 precache budget). Nothing here reaches the browser:
 // the Vite plugin (src/content/vite-plugin.ts) and the content lint share this file.
 import { transformerTwoslash } from '@shikijs/twoslash';
@@ -20,6 +20,7 @@ import type { MdxJsxAttribute, MdxJsxFlowElement } from 'mdast-util-mdx-jsx';
 import remarkFrontmatter from 'remark-frontmatter';
 import {
   bundledLanguages,
+  createCssVariablesTheme,
   createHighlighter,
   type BundledLanguage,
   type Highlighter,
@@ -55,10 +56,17 @@ import {
   type CodeBlockProps,
 } from '../fences';
 
-export const SHIKI_THEMES = {
-  light: 'github-light',
-  dark: 'github-dark',
-} as const;
+/**
+ * The one shiki theme (the terminal restyle, 25 October 2026): every token's colour is a
+ * `--shiki-*` CSS variable, which globals.css maps onto the active colour scheme's ANSI
+ * colours, so a theory block follows the scheme picker like the editor does.
+ */
+export const SHIKI_THEME_NAME = 'ts-dojo-css-variables';
+export const SHIKI_THEME = createCssVariablesTheme({
+  name: SHIKI_THEME_NAME,
+  variablePrefix: '--shiki-',
+  fontStyle: true,
+});
 
 export type { CodeBlockProps };
 export { CODE_BLOCK_COMPONENT, CODE_STYLES_COMPONENT, SNIPPET_PATH };
@@ -68,8 +76,12 @@ export interface RenderedFence extends CodeBlockProps {
   styles: Record<string, string>;
 }
 
-/** A style shiki writes with `defaultColor: false`: its theme variables and nothing else. */
-const SHIKI_VARIABLES = /^(?:--shiki-[a-z-]+:[^;]+;?)+$/;
+/**
+ * A style shiki writes under the CSS-variables theme: colours that are `--shiki-*` variables and
+ * font styles, nothing else (`color:var(--shiki-token-keyword);font-style:italic`).
+ */
+const SHIKI_VARIABLES =
+  /^(?:(?:color|background-color):var\(--shiki-[a-z-]+\);?|font-(?:style|weight):[a-z]+;?|text-decoration:[a-z]+;?)+$/;
 
 /** `sk-` and a base-36 FNV-1a hash of the declarations: one pair, one class, in every build. */
 export function styleClass(style: string): string {
@@ -193,7 +205,7 @@ export async function createRenderer(): Promise<Renderer> {
   const [highlighter, twoslasher]: [Highlighter, TwoslashInstance] =
     await Promise.all([
       createHighlighter({
-        themes: [SHIKI_THEMES.light, SHIKI_THEMES.dark],
+        themes: [SHIKI_THEME],
         langs: ['ts'],
       }),
       createDojoTwoslasher(),
@@ -225,8 +237,7 @@ export async function createRenderer(): Promise<Renderer> {
     const styles = new Map<string, string>();
     const html = highlighter.codeToHtml(code, {
       lang,
-      themes: SHIKI_THEMES,
-      defaultColor: false,
+      theme: SHIKI_THEME_NAME,
       transformers: [
         ...(twoslash
           ? [

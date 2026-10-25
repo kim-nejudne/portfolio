@@ -57,10 +57,11 @@ describe('the renderer', () => {
     expect(block.js).toBeUndefined();
   });
 
-  // Pre-F13 fixes (Kim, 23 October 2026, the §9 precache): shiki's inline
-  // `style="--shiki-light:…;--shiki-dark:…"` became a class per colour pair, with the pairs
-  // returned beside the block for the lesson's one stylesheet.
-  it('writes each colour pair as a class, not an inline style, and returns the classes with their pairs', async () => {
+  // Pre-F13 fixes (Kim, 23 October 2026, the §9 precache): shiki's inline styles became a class
+  // per declaration set, returned beside the block for the lesson's one stylesheet. Since the
+  // terminal restyle (25 October 2026) the styles are the CSS-variables theme's:
+  // `color:var(--shiki-token-keyword)`, mapped onto the colour scheme by globals.css.
+  it('writes each token style as a class, not an inline style, and returns the classes with their declarations', async () => {
     const block = await renderer.render('twoslash', TWOSLASH, {
       path: 'x.mdx',
       line: 1,
@@ -73,14 +74,15 @@ describe('the renderer', () => {
     expect(new Set(Object.keys(block.styles))).toEqual(used);
     for (const style of Object.values(block.styles)) {
       expect(style).toMatch(
-        /^--shiki-light:#[0-9a-f]+;--shiki-dark:#[0-9a-f]+/i,
+        /^(?:background-color|color):var\(--shiki-[a-z-]+\)/,
       );
+      expect(style).not.toMatch(/#[0-9a-f]{3,8}/i);
     }
     // The block's own colours (its background too) are a class on the <pre>.
     expect(block.html).toMatch(/^<pre class="shiki [^"]*\bsk-[0-9a-z]+/);
   });
 
-  it('names a colour pair the same in every block and every build', async () => {
+  it('names a token style the same in every block and every build', async () => {
     const one = await renderer.render('static', 'const a = 1;', {
       path: 'a.mdx',
       line: 1,
@@ -93,7 +95,7 @@ describe('the renderer', () => {
       /<span class="(sk-[0-9a-z]+)">const<\/span>/.exec(html)?.[1];
     expect(keyword(one.html)).toBeDefined();
     expect(keyword(one.html)).toBe(keyword(two.html));
-    expect(styleClass('--shiki-light:#D73A49;--shiki-dark:#F97583')).toBe(
+    expect(styleClass('color:var(--shiki-token-keyword)')).toBe(
       keyword(one.html),
     );
   });
@@ -402,7 +404,7 @@ describe('a compiled lesson', () => {
     expect(out).toContain('2322');
     // One stylesheet for the lesson's colour classes, and no inline colour styles.
     expect(out.match(/CodeStyles/g)?.length).toBeGreaterThanOrEqual(1);
-    expect(out).toMatch(/css: "[^"]*\.sk-[0-9a-z]+\{--shiki-light:/);
+    expect(out).toMatch(/css: "[^"]*\.sk-[0-9a-z]+\{color:var\(--shiki-/);
     expect(out).not.toMatch(/style=\\"--shiki/);
     const imports = [...out.matchAll(/^import .* from "([^"]+)";?$/gm)].map(
       (m) => m[1],

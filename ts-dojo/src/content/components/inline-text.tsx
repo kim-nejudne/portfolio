@@ -5,10 +5,7 @@ import { codeSpans } from '../inline-code';
 export function InlineText({ text }: { text: string }) {
   return codeSpans(text).map((span, index) =>
     span.code ? (
-      <code
-        key={index}
-        className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]"
-      >
+      <code key={index} className="bg-muted px-1 font-mono text-[0.95em]">
         {span.text}
       </code>
     ) : (

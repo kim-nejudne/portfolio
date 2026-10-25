@@ -7,6 +7,7 @@
 // Keyboard: native controls in Tab order; the global keys stay out of the text fields.
 import { useState } from 'react';
 import { cn } from 'cn';
+import { PromptLine } from '@/components/prompt-line';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_TIMEOUT_MS } from '@/protocol/sandbox';
 import {
@@ -37,7 +38,7 @@ export function SettingsPage() {
   return (
     <section className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="prompt-heading text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">
           Kept in this browser and included in the progress export. A change
           applies at once, in every open tab.
@@ -62,7 +63,8 @@ export function SettingsPage() {
         </div>
         <p className="text-xs text-muted-foreground">
           System follows the operating system. <code>:set bg=dark</code> and{' '}
-          <code>:set bg=light</code> in the editor change it too.
+          <code>:set bg=light</code> in the editor change it too. The colour
+          scheme is the <code>theme:</code> control in the status bar.
         </p>
       </fieldset>
 
@@ -142,24 +144,27 @@ function NumberField(props: NumberFieldProps) {
       <label htmlFor={props.id} className="text-sm font-medium">
         {props.label} ({props.unit})
       </label>
-      <Input
-        id={props.id}
-        type="number"
-        inputMode="numeric"
-        min={props.min}
-        max={props.max}
-        step={1}
-        value={draft}
-        onChange={(event) => {
-          const text = event.target.value;
-          setDraft(text);
-          const next = props.parse(text);
-          if (next.ok && next.value !== props.stored) props.onValid(next.value);
-        }}
-        aria-invalid={!parsed.ok}
-        aria-describedby={helpId}
-        className="w-36"
-      />
+      <PromptLine>
+        <Input
+          id={props.id}
+          type="number"
+          inputMode="numeric"
+          min={props.min}
+          max={props.max}
+          step={1}
+          value={draft}
+          onChange={(event) => {
+            const text = event.target.value;
+            setDraft(text);
+            const next = props.parse(text);
+            if (next.ok && next.value !== props.stored)
+              props.onValid(next.value);
+          }}
+          aria-invalid={!parsed.ok}
+          aria-describedby={helpId}
+          className="w-36"
+        />
+      </PromptLine>
       <p
         id={helpId}
         className={cn(

@@ -59,7 +59,7 @@ function BlockOutput({ runner }: { runner: SandboxRunner }) {
   if (state.status.kind === 'idle') return null;
   return (
     <div
-      className="code-block-output rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs"
+      className="code-block-output border bg-muted/50 px-3 py-2 font-mono text-xs"
       role="region"
       aria-label="Output"
     >
@@ -149,7 +149,7 @@ export function CodeBlock({
   return (
     /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- a focused block opens in the REPL with Enter (§6) */
     <div
-      className="code-block rounded-md outline-none focus:ring-2 focus:ring-ring"
+      className="code-block outline-none focus:ring-1 focus:ring-ring"
       data-kind={kind}
       tabIndex={0}
       role="group"
@@ -157,8 +157,7 @@ export function CodeBlock({
       onKeyDown={onKeyDown}
     >
       <div
-        className="twoslash-host"
-        // Build-time output of shiki and twoslash over the lesson's own source (§3).
+        className="twoslash-host" // Build-time output of shiki and twoslash over the lesson's own source (§3).
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {runnable ? (
@@ -173,7 +172,7 @@ export function CodeBlock({
       ) : null}
       {kind === 'run-errors' && diags.length > 0 ? (
         <ul
-          className="code-block-diagnostics m-0 mt-1 list-none rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 font-mono text-xs"
+          className="code-block-diagnostics m-0 mt-1 list-none border border-l-2 border-l-destructive bg-muted/50 px-3 py-2 font-mono text-xs"
           aria-label="Diagnostics"
         >
           {diags.map((diag, index) => (

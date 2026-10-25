@@ -156,6 +156,13 @@ describe('isInDialog', () => {
     expect(isInDialog(element(true))).toBe(true);
     expect(isInDialog(element(false))).toBe(false);
     expect(isInDialog(null)).toBe(false);
+    // An open list box (the status bar's theme pickers) keeps its arrow keys too.
+    expect(
+      isInDialog({
+        closest: (selector: string) =>
+          selector.includes('[role="listbox"]') ? {} : null,
+      }),
+    ).toBe(true);
   });
 });
 

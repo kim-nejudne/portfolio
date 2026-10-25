@@ -149,7 +149,7 @@ export function TestsTab({ rows, selected, active, verdict }: TestsTabProps) {
         data-verdict={verdict.kind}
         className={cn(
           'mb-1 px-1',
-          verdict.kind === 'passed' && 'font-semibold',
+          verdict.kind === 'passed' && 'font-semibold text-success',
           (verdict.kind === 'failed' || verdict.kind === 'error') &&
             'text-destructive',
           (verdict.kind === 'idle' || verdict.kind === 'running') &&
@@ -172,9 +172,13 @@ export function TestsTab({ rows, selected, active, verdict }: TestsTabProps) {
               data-status={rowStatus(row)}
               data-selected={isSelected ? 'true' : undefined}
               className={cn(
-                'flex gap-2 rounded px-1 whitespace-pre-wrap',
+                'flex gap-2 px-1 whitespace-pre-wrap',
                 indent(row),
-                isSelected && 'bg-accent',
+                isSelected && 'bg-selection',
+                row.kind === 'group' && row.status === 'pass' && 'text-success',
+                row.kind === 'test' &&
+                  row.test.status === 'pass' &&
+                  'text-success',
                 row.kind === 'group' &&
                   row.status === 'fail' &&
                   'text-destructive',

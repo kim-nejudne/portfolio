@@ -11,9 +11,9 @@ const LABEL: Record<CalloutKind, string> = {
 };
 
 const STYLE: Record<CalloutKind, string> = {
-  tip: 'border-primary/40 bg-primary/5',
-  warn: 'border-destructive/40 bg-destructive/5',
-  ts7: 'border-border bg-muted/50',
+  tip: 'border-l-info [&>p]:text-info',
+  warn: 'border-l-warning [&>p]:text-warning',
+  ts7: 'border-l-ansi-magenta [&>p]:text-ansi-magenta',
 };
 
 export function Callout({
@@ -26,12 +26,13 @@ export function Callout({
   return (
     <aside
       className={cn(
-        'callout my-4 rounded-md border px-4 py-3 text-sm',
+        'callout my-4 border border-l-2 bg-muted/50 px-4 py-3 text-sm',
         STYLE[kind],
       )}
       data-kind={kind}
     >
-      <p className="m-0 mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      <p className="m-0 mb-1 font-mono text-xs font-semibold">
+        <span aria-hidden="true">## </span>
         {LABEL[kind]}
       </p>
       <div className="callout-body [&>p]:m-0">{children}</div>

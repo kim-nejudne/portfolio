@@ -1,5 +1,6 @@
-// The app shell around every §6 page: a one-line header (the current path and the compiler
-// status chip), the page, the global keys, the `?` help overlay and the Ctrl-p palette.
+// The app shell around every §6 page: a one-line header as a prompt (`ts-dojo ❯ /path`, with
+// the compiler status chip), the page, the status bar with the theme pickers (the terminal
+// restyle, 25 October 2026), the global keys, the `?` help overlay and the Ctrl-p palette.
 // shadcn's Tooltip needs one provider above everything that uses it.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
@@ -15,6 +16,7 @@ import type { GlobalAction } from './keys';
 import { openInRepl } from './open-in-repl';
 import { getPageActions } from './page-actions';
 import { publishAppSeam } from './seam';
+import { StatusBar } from './status-bar';
 import { UpdatePrompt } from './update-prompt';
 import { useGlobalKeys, type GlobalKeyHandlers } from './use-global-keys';
 
@@ -77,22 +79,29 @@ export function Layout() {
     <AppActionsContext value={actions}>
       <TooltipProvider>
         <div className="flex h-svh flex-col bg-background text-foreground">
-          <header className="flex h-10 shrink-0 items-center gap-3 border-b px-4 text-sm">
-            <Link to="/" className="font-semibold tracking-tight">
+          <header className="flex h-9 shrink-0 items-center gap-2 border-b px-3 font-mono text-sm">
+            <Link
+              to="/"
+              className="shrink-0 font-semibold text-link outline-none focus-visible:bg-foreground focus-visible:text-background"
+            >
               ts-dojo
             </Link>
-            <span className="font-mono text-muted-foreground">{pathname}</span>
+            <span className="prompt-glyph" aria-hidden="true">
+              ❯
+            </span>
+            <span className="truncate text-muted-foreground">{pathname}</span>
             <span className="ml-auto flex items-center gap-3 text-muted-foreground">
               <UpdatePrompt />
               <CompilerStatusChip />
-              <span>
-                <kbd className="rounded border px-1 font-mono">?</kbd> keys
+              <span className="hidden sm:inline">
+                <kbd>?</kbd> keys
               </span>
             </span>
           </header>
           <main className="flex min-h-0 flex-1 flex-col overflow-auto">
             <Outlet />
           </main>
+          <StatusBar />
         </div>
         <HelpOverlay open={helpOpen} onOpenChange={setHelpOpen} />
         <CommandPalette

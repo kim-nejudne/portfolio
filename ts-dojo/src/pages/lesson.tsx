@@ -551,10 +551,11 @@ function ExerciseStrip({
                 to={lessonHref(lesson.id, exercise.folder)}
                 tabIndex={-1}
                 className={cn(
-                  'flex items-center gap-1 rounded-full border px-2 py-0.5',
+                  'flex items-center gap-1 border px-2 py-0.5',
                   selected
-                    ? 'border-ring bg-accent text-accent-foreground'
-                    : 'text-muted-foreground',
+                    ? 'border-ring bg-selection text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                  state === 'passed' && 'text-success',
                 )}
               >
                 <span aria-hidden>

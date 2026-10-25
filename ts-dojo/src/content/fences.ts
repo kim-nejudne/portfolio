@@ -11,8 +11,9 @@ export type FenceKind =
 /** The component every fence renders as (src/content/components/code-block.tsx). */
 export const CODE_BLOCK_COMPONENT = 'CodeBlock';
 /**
- * The element that carries a lesson's colour classes (`.sk-…{--shiki-light:…;--shiki-dark:…}`),
- * once per lesson: shiki's inline styles became classes for the §9 precache (pre-F13 fixes).
+ * The element that carries a lesson's colour classes (`.sk-…{color:var(--shiki-token-keyword)}`),
+ * once per lesson: shiki's inline styles became classes for the §9 precache (pre-F13 fixes);
+ * the variables are mapped onto the active colour scheme in globals.css (the terminal restyle).
  */
 export const CODE_STYLES_COMPONENT = 'CodeStyles';
 /** The virtual path a theory snippet is checked and emitted under. */

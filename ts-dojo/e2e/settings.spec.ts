@@ -543,9 +543,9 @@ test('§12 F10 criterion 1, keyboard: every control is reached with Tab from the
     'button Save compiler defaults',
     'button Clear',
   ]);
-  expect(['body', 'a ts-dojo'], 'nothing on the page after Clear').toContain(
-    (await tabStops(page, 1))[0],
-  );
+  // After the page's last control the status bar's theme picker takes the focus (the terminal
+  // restyle); nothing else on the page does.
+  expect(await tabStops(page, 1)).toEqual(['#scheme-picker']);
 
   // Space toggles the checkbox, and writes it.
   await tabTo(page, relativeNumbersBox(page));

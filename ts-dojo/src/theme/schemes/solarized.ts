@@ -1,0 +1,68 @@
+// Solarized, light and dark: https://ethanschoonover.com/solarized/. Body text is base1 on dark
+// and, on light, base01 darkened 1.5% (#586e75 is 4.39:1 on base2), because the palette's
+// default content tones (base0, base00) sit under 4.5:1. Light's muted text is base00 darkened
+// 5.5% and its blue darkened 15%; dark's blue is lightened 7.5% (4.08:1 on base03).
+import type { Scheme } from '../palette';
+
+export const solarized: Scheme = {
+  id: 'solarized',
+  label: 'Solarized',
+  light: {
+    name: 'Light',
+    bg: '#fdf6e3',
+    bgAlt: '#eee8d5',
+    fg: '#576c73',
+    fgMuted: '#5f747c',
+    border: '#93a1a1',
+    accent: '#2076b3',
+    selection: '#eee8d5',
+    cursor: '#586e75',
+    ansi: {
+      black: '#073642',
+      red: '#dc322f',
+      green: '#859900',
+      yellow: '#b58900',
+      blue: '#268bd2',
+      magenta: '#d33682',
+      cyan: '#2aa198',
+      white: '#eee8d5',
+      brightBlack: '#002b36',
+      brightRed: '#cb4b16',
+      brightGreen: '#586e75',
+      brightYellow: '#657b83',
+      brightBlue: '#839496',
+      brightMagenta: '#6c71c4',
+      brightCyan: '#93a1a1',
+      brightWhite: '#fdf6e3',
+    },
+  },
+  dark: {
+    name: 'Dark',
+    bg: '#002b36',
+    bgAlt: '#073642',
+    fg: '#93a1a1',
+    fgMuted: '#839496',
+    border: '#586e75',
+    accent: '#3694d5',
+    selection: '#073642',
+    cursor: '#93a1a1',
+    ansi: {
+      black: '#073642',
+      red: '#dc322f',
+      green: '#859900',
+      yellow: '#b58900',
+      blue: '#268bd2',
+      magenta: '#d33682',
+      cyan: '#2aa198',
+      white: '#eee8d5',
+      brightBlack: '#002b36',
+      brightRed: '#cb4b16',
+      brightGreen: '#586e75',
+      brightYellow: '#657b83',
+      brightBlue: '#839496',
+      brightMagenta: '#6c71c4',
+      brightCyan: '#93a1a1',
+      brightWhite: '#fdf6e3',
+    },
+  },
+};

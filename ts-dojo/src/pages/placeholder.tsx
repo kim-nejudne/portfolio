@@ -11,7 +11,7 @@ export function Placeholder({
 }) {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="prompt-heading text-2xl font-semibold">{title}</h1>
       {detail !== undefined && (
         <p className="font-mono text-sm text-muted-foreground">{detail}</p>
       )}

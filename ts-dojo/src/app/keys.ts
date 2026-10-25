@@ -131,8 +131,13 @@ export function isEditableTarget(
   return inEditor !== null && inEditor !== undefined;
 }
 
-/** True inside a dialog (the help overlay, the palette): its own keys, `Esc` included, win. */
+/**
+ * True inside a dialog (the help overlay, the palette) or an open list box (the status bar's
+ * theme pickers): its own keys, `Esc` and the arrows included, win.
+ */
 export function isInDialog(target: TargetLike | null | undefined): boolean {
-  const dialog = target?.closest?.('[role="dialog"], [role="alertdialog"]');
+  const dialog = target?.closest?.(
+    '[role="dialog"], [role="alertdialog"], [role="listbox"]',
+  );
   return dialog !== null && dialog !== undefined;
 }

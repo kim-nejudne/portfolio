@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { PromptLine } from '@/components/prompt-line';
 import { Input } from '@/components/ui/input';
 
 export const RESET_WORD = 'reset';
@@ -93,14 +94,16 @@ export function ResetDialog({
               <label htmlFor={wordId}>
                 Type <span className="font-mono">{RESET_WORD}</span> to confirm
               </label>
-              <Input
-                id={wordId}
-                ref={word}
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-              />
+              <PromptLine>
+                <Input
+                  id={wordId}
+                  ref={word}
+                  value={typed}
+                  onChange={(event) => setTyped(event.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </PromptLine>
             </div>
           )}
           <DialogFooter>
