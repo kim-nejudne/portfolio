@@ -1,6 +1,7 @@
 // Proves §12 F1 at the repository level: the §2 scripts exist (criterion 1), the CI workflow
-// runs typecheck, lint, format check, unit tests and build on every push and pull request
-// (criterion 2), tsconfig.json carries every §2 flag (criterion 3), and shadcn is initialised
+// runs typecheck, lint, format check, unit tests and build on pushes to main and every pull
+// request (criterion 2; since the import into the portfolio monorepo, the root workflow's
+// `ts-dojo` job, and pushes to main only, under Deviations in docs/progress.md), tsconfig.json carries every §2 flag (criterion 3), and shadcn is initialised
 // as base-nova with the six primitives (criterion 5). Criterion 4 (every §6 route in light and
 // dark, `?` opening the help overlay) is e2e/scaffold.spec.ts.
 import { existsSync, readFileSync } from 'node:fs';
@@ -69,32 +70,45 @@ interface WorkflowStep {
   run?: string;
   with?: Record<string, unknown>;
 }
+interface WorkflowJob {
+  'runs-on': string;
+  defaults?: { run?: { 'working-directory'?: string } };
+  steps: WorkflowStep[];
+}
 interface Workflow {
   on: Record<string, unknown>;
-  jobs: Record<string, { 'runs-on': string; steps: WorkflowStep[] }>;
+  jobs: Record<string, WorkflowJob>;
 }
 
-describe('.github/workflows/ci.yml (§12 F1)', () => {
+// The portfolio's workflow, one directory up: a workflow under ts-dojo/.github never runs.
+describe('the portfolio .github/workflows/ci.yml, job ts-dojo (§12 F1)', () => {
   const load = (): Workflow =>
-    parse(read('.github/workflows/ci.yml')) as Workflow;
+    parse(read('../.github/workflows/ci.yml')) as Workflow;
 
-  it('runs on every push and every pull request', () => {
+  it('runs on pushes to main and every pull request', () => {
     const workflow = load();
     expect(Object.keys(workflow.on)).toEqual(
       expect.arrayContaining(['push', 'pull_request']),
     );
     const push = workflow.on['push'];
-    const everyBranch =
-      push === null || (typeof push === 'object' && !('branches' in push));
-    expect(everyBranch, 'push is not limited to some branches').toBe(true);
+    const branches =
+      push !== null && typeof push === 'object' && 'branches' in push
+        ? (push as { branches: string[] }).branches
+        : null;
+    expect(branches === null || branches.includes('main')).toBe(true);
+    const pr = workflow.on['pull_request'];
+    const everyPr =
+      pr === null || (typeof pr === 'object' && !('branches' in pr));
+    expect(everyPr, 'pull_request is not limited to some branches').toBe(true);
   });
 
-  it('runs typecheck, lint, format check, unit tests and build in that order, on Node 24 with pnpm', () => {
+  it('runs typecheck, lint, format check, unit tests and build in that order, on Node 24 with pnpm, in ts-dojo/', () => {
     const workflow = load();
-    const jobs = Object.values(workflow.jobs);
-    expect(jobs).toHaveLength(1);
-    const job = jobs[0] as Workflow['jobs'][string];
+    const job = workflow.jobs['ts-dojo'];
+    expect(job, 'a ts-dojo job').toBeDefined();
+    if (!job) return;
     expect(job['runs-on']).toBe('ubuntu-latest');
+    expect(job.defaults?.run?.['working-directory']).toBe('ts-dojo');
     const order = [
       'pnpm install --frozen-lockfile',
       'pnpm typecheck',
