@@ -1,0 +1,39 @@
+id: m07-guards/02-assertion-functions/04-check-the-order
+kind: implement
+title: Check the order
+minutes: 4
+challenge: false
+prompt: |
+  A shop receives orders as JSON text. `OrderChecker` in `index.ts` checks them against a
+  limit on how many of one item a customer may buy. Implement its two assertion methods and
+  one function:
+
+  - `assertLineItem(value)` returns when `value` is an object with a `sku` that is a string and
+    a `quantity` that is a whole number from 1 to the checker's `maxQuantity`. Otherwise it
+    throws a `TypeError`.
+  - `assertOrder(value)` returns when `value` is an object with an `id` that is a string, an
+    `items` array whose every entry passes `assertLineItem`, and a `coupon` that is either
+    missing or a string. Otherwise it throws a `TypeError`. An order with no items is fine.
+  - `totalQuantity(json, checker)` parses the text, checks it with `checker`, and returns the
+    sum of the quantities. The text is always valid JSON; data that is not an order throws the
+    checker's `TypeError`.
+
+  Extra properties are fine everywhere. This combines the lesson with checking `unknown` values
+  inside a guard (7.1) and classes (4.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - The checks are the ones a guard would make, written so that a failed check throws instead of returning false.
+  - Inside the class, an assertion method can call another one on `this`, so `assertOrder` need not repeat the item checks.
+  - In `totalQuantity`, keep the parsed data as `unknown` and pass it to the checker's assertion. After that call, its items can be read.

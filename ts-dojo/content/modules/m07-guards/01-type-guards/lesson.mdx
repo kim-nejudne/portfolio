@@ -1,0 +1,246 @@
+---
+id: m07-guards/01-type-guards
+title: User-defined type guards (is) and inferred type predicates
+minutes: 20
+objectives:
+  - Write a type guard with a predicate return type, value is Type, and narrow with it in both branches
+  - Check an unknown value one step at a time inside a guard
+  - Predict when the compiler infers a type predicate for a function and when it infers boolean
+  - Keep a written predicate honest, knowing that the compiler takes it on trust
+prerequisites:
+  - m01-types/04-any-unknown-never-void
+  - m03-unions/03-narrowing
+  - m03-unions/04-control-flow-analysis
+  - m03-unions/05-discriminated-unions
+tags:
+  - type guard
+  - type predicate
+  - is
+  - inferred type predicate
+  - unknown
+  - JSON
+  - narrowing
+  - this is
+---
+
+## Concept
+
+The checks in <Lesson id="m03-unions/03-narrowing" /> narrow where you write them. Move one into a function, and a caller with an `unknown` input learns nothing from it: a function that returns `boolean` says nothing about its argument, so `if (isString(input))` leaves `input` an `unknown`, and `input.toUpperCase()` is an error, _'input' is of type 'unknown'._
+
+A type predicate says what the `boolean` means. Write `value is string` where the return type goes, and a call that returns `true` narrows the argument:
+
+```ts twoslash
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function shout(input: unknown): string {
+  if (isString(input)) {
+    input;
+    // ^?
+    return input.toUpperCase();
+  }
+  return '';
+}
+```
+
+A function whose return type is a predicate is a user-defined type guard. At run time it is an ordinary function that returns `true` or `false`; the predicate is erased. The name before `is` must be one of the function's parameters, or the compiler reports _Cannot find parameter 'input'._, and the type after it must fit that parameter's type: `value is number` on a `string` parameter is _A type predicate's type must be assignable to its parameter's type._
+
+## Examples
+
+**Both branches narrow.** A guard narrows like a check written in place. The `true` branch gets the predicate's type, and the `false` branch, or the code after an early return, gets what is left of the union:
+
+```ts twoslash
+type Book = { title: string; pages: number };
+type Film = { title: string; minutes: number };
+
+function isBook(item: Book | Film): item is Book {
+  return 'pages' in item;
+}
+
+function length(item: Book | Film): string {
+  if (isBook(item)) {
+    item;
+    // ^?
+    return `${item.pages} pages`;
+  }
+  item;
+  // ^?
+  return `${item.minutes} min`;
+}
+```
+
+So `item is Book` promises two things: `true` means the item is a `Book`, and `false` means it isn't one.
+
+**Guards on `unknown`.** A guard's main job is data whose type nobody knows yet: a parsed request, a file, a message from a worker. `JSON.parse` returns `any`, so store its result as `unknown`, as <Lesson id="m01-types/04-any-unknown-never-void" /> advised, and let a guard check it. Inside the guard, each check narrows the next. `typeof value === 'object'` leaves `object | null`, `value !== null` leaves `object`, and `'x' in value` adds the property, typed `unknown`, so `value.x` can be read and tested:
+
+```ts twoslash
+function hasX(value: unknown) {
+  if (typeof value === 'object' && value !== null && 'x' in value) {
+    value;
+    // ^?
+  }
+}
+```
+
+Put the checks for every property together, and the guard can tell a point from anything else that JSON can hold:
+
+```ts run
+type Point = { x: number; y: number };
+
+function isPoint(value: unknown): value is Point {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'x' in value &&
+    'y' in value &&
+    typeof value.x === 'number' &&
+    typeof value.y === 'number'
+  );
+}
+
+for (const text of ['{"x":1,"y":2}', '{"x":1}', '{"x":"1","y":2}', 'null']) {
+  const data: unknown = JSON.parse(text);
+  if (isPoint(data)) {
+    console.log(`point at ${data.x}, ${data.y}`);
+  } else {
+    console.log(`not a point: ${text}`);
+  }
+}
+```
+
+**Inferred type predicates.** Since TypeScript 5.5, you often don't write the predicate. When a function has no return type annotation and its body is a single `return` of a check on a parameter, the compiler infers the predicate itself. Array methods that accept a guard, such as `filter`, then narrow their result:
+
+```ts twoslash
+const isDefined = (name: string | undefined) => name !== undefined;
+isDefined;
+// ^?
+
+const names = ['Ada', undefined, 'Grace'].filter(isDefined);
+names;
+// ^?
+```
+
+The compiler infers a predicate only when it can prove both halves of the promise: `true` means the parameter has the narrower type, and `false` means it doesn't. It also gives up when the function has more than one `return` or assigns to the parameter. Two common checks don't qualify:
+
+```ts twoslash
+const isFilled = (name: string | undefined) => !!name;
+isFilled;
+// ^?
+
+const hasNumericX = (value: unknown) =>
+  typeof value === 'object' &&
+  value !== null &&
+  'x' in value &&
+  typeof value.x === 'number';
+hasNumericX;
+// ^?
+```
+
+`isFilled` returns `false` for `''` too, so `false` doesn't mean `undefined`. `hasNumericX` returns `false` for `{ x: '1' }`, which is still an object with an `x`: the `typeof` check narrows the property `value.x`, not `value`. Both get `boolean`. For checks like the second one, write the predicate yourself, as `isPoint` does.
+
+An inferred predicate is proved from the body; a written one is taken on trust, which is the subject of the pitfalls below. A method can also guard the object it is called on, with `this is Type` as its return type. <Lesson id="m08-functions-classes/02-this-and-callable-types" /> covers `this` types.
+
+## Pitfalls
+
+**A `boolean` return type.** Annotating the return type as `boolean` replaces the predicate the compiler would have inferred, and the call stops narrowing:
+
+```ts run errors
+type Book = { title: string; pages: number };
+type Film = { title: string; minutes: number };
+
+function isBook(item: Book | Film): boolean {
+  return 'pages' in item;
+}
+
+function length(item: Book | Film): string {
+  if (isBook(item)) {
+    return `${item.pages} pages`;
+  }
+  return `${item.minutes} min`;
+}
+```
+
+_Property 'pages' does not exist on type 'Book | Film'._ Annotate a guard with its predicate, `item is Book`, or leave the return type out and let the compiler infer it.
+
+**A guard that lies.** The compiler doesn't compare a written predicate with the body. `isFilm` was copied from `isBook`, and its check was never changed. It compiles, and the call narrows the wrong way:
+
+```ts run
+type Book = { title: string; pages: number };
+type Film = { title: string; minutes: number };
+
+function isFilm(item: Book | Film): item is Film {
+  return 'pages' in item;
+}
+
+function length(item: Book | Film): string {
+  if (isFilm(item)) {
+    return `${item.minutes.toFixed(0)} min`;
+  }
+  return `${item.pages} pages`;
+}
+
+console.log(length({ title: 'Dune', pages: 412 }));
+```
+
+`item.minutes` is `undefined` at run time, and the call crashes. A guard is as trustworthy as its body. Keep the body the plain check for the type, test it with values that should fail, and let the compiler infer the predicate when it can.
+
+**A guard that checks more than its type.** The `false` branch narrows too. `isPositive` tests the sign as well as the type, so `false` doesn't mean "not a number", yet the predicate says it does:
+
+```ts run
+function isPositive(value: number | string): value is number {
+  return typeof value === 'number' && value > 0;
+}
+
+function format(value: number | string): string {
+  if (isPositive(value)) {
+    return value.toFixed(2);
+  }
+  return value.toUpperCase();
+}
+
+console.log(format(-1));
+```
+
+In the second branch `value` is typed `string`, and `-1` crashes `toUpperCase`. The predicate's type should be exactly what the body checks. Here, make the guard `typeof value === 'number'` and test the sign at the call site.
+
+## Check yourself
+
+<Predict
+  id="false-branch"
+  question="`isBook` has the return type `item is Book`, and `item` is a `Book | Film`. What is the type of `item` in the `else` branch of `if (isBook(item))`?"
+  options={['Book | Film', 'Film', 'never', 'unknown']}
+  answer={1}
+  explanation="A guard narrows both branches. `true` means `item` is a `Book`, so `false` means it isn't, and `Film` is what is left of the union. That is why the predicate must hold in both directions."
+/>
+
+<Predict
+  id="which-infers"
+  question="None of these has a return type annotation. Which one does the compiler infer a type predicate for?"
+  options={[
+    '(name: string | undefined) => !!name',
+    '(name: string | undefined) => name !== undefined',
+    '(name: string | undefined) => name !== undefined && name !== ""',
+  ]}
+  answer={1}
+  explanation="A predicate is inferred only when `false` also means the parameter is not the narrower type. `name !== undefined` is false exactly for `undefined`. The other two are false for the empty string too, so `false` doesn't rule out `string`, and they return `boolean`."
+/>
+
+<Predict
+  id="lying-guard"
+  question="`isFilm` has the return type `item is Film`, but its body returns `'pages' in item`, the check for a `Book`. What does the compiler report?"
+  options={[
+    'An error in isFilm: the body does not match the predicate',
+    'Nothing: a written predicate is taken on trust',
+    'An error at every call of isFilm',
+  ]}
+  answer={1}
+  explanation="The compiler checks that the body returns a `boolean` and that `Film` fits the parameter's type, and nothing more. Callers narrow the wrong way and fail at run time. Only an inferred predicate is proved from the body."
+/>
+
+## Further reading
+
+- [Narrowing: using type predicates](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)
+- [TypeScript 5.5: inferred type predicates](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html#inferred-type-predicates)
+- [TypeScript 4.9: unlisted property narrowing with the `in` operator](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#unlisted-property-narrowing-with-the-in-operator)
+- [Classes: `this`-based type guards](https://www.typescriptlang.org/docs/handbook/2/classes.html#this-based-type-guards)

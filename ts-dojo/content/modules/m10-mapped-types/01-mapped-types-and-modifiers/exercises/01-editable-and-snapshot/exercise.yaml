@@ -1,0 +1,25 @@
+id: m10-mapped-types/01-mapped-types-and-modifiers/01-editable-and-snapshot
+kind: type-challenge
+title: Editable and Snapshot
+minutes: 3
+challenge: false
+prompt: |
+  The lesson's `Draft` removes `readonly` and adds `?`, and its `Complete` does the opposite.
+  Write the other two combinations in `index.ts`:
+
+  - `Editable<T>`: every property of `T` is writable and required. Unlike 6.4's `Mutable`,
+    which removed only `readonly`, it removes `?` too. A property that was optional loses the `undefined` its `?` brought; a required property whose type includes
+    `undefined` keeps it.
+  - `Snapshot<T>`: every property of `T` is read-only and optional.
+
+  The type cases try both on an account type with every mix of modifiers, on `{}` and on a
+  primitive, and the `@ts-expect-error` lines check that an `Editable` needs every property and
+  that a `Snapshot` can't be written to.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Both are homomorphic mapped types over keyof T, and the value of each property is T[K] unchanged.
+  - Each one changes both modifiers. A plus sign, or no sign, adds a modifier; a minus sign removes it.

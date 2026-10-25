@@ -1,0 +1,27 @@
+id: m04-objects/03-index-signatures-and-record/02-years-as-keys
+kind: predict
+title: Years as keys
+minutes: 2
+challenge: false
+code: |
+  const champions: { [year: number]: string } = {
+    2018: 'France',
+    2022: 'Argentina',
+  };
+
+  for (const year of Object.keys(champions)) {
+    console.log(year + 4);
+  }
+question: Does this compile, and if it does, what does it print?
+options:
+  - 'A compile error: year is a string, and a string plus a number is not allowed'
+  - 'It compiles and prints 2022 and 2026'
+  - 'It compiles and prints 20184 and 20224'
+  - 'A compile error: Object.keys needs an object with string keys'
+answer: 2
+explanation: |
+  `Object.keys` returns `string[]`, and here that type is simply true: JavaScript stores every
+  property key as a string, so the keys are `'2018'` and `'2022'` even though the index
+  signature takes numbers. `+` with a string on one side joins the two as text, which
+  TypeScript allows, so the loop prints `20184` and `20224`. `Number(year) + 4` would give the
+  years of the next two cups.

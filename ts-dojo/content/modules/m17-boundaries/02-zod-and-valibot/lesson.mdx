@@ -1,0 +1,290 @@
+---
+id: m17-boundaries/02-zod-and-valibot
+title: 'Zod and Valibot: schema inference, transforms, branded output'
+minutes: 25
+objectives:
+  - Declare a Zod schema and read its type out with z.infer, so the type and the check can't drift apart
+  - Handle a safeParse result and read the path and message of every issue
+  - Change values while parsing with transform, pipe and default, and tell z.input from z.output
+  - Brand a schema's output so that only parsed values fit the type
+  - Read the same schema written with Valibot's functions
+prerequisites:
+  - m17-boundaries/01-parse-dont-validate
+  - m14-type-system-edges/03-branded-types
+  - m11-conditional-types/01-conditional-types
+  - m09-modules-async/04-errors
+tags:
+  - Zod
+  - Valibot
+  - schema
+  - z.infer
+  - z.input
+  - z.output
+  - safeParse
+  - transform
+  - pipe
+  - brand
+  - validation
+  - Standard Schema
+---
+
+## Concept
+
+In <Lesson id="m17-boundaries/01-parse-dont-validate" /> you wrote each type first, then a parser that checked it property by property, and kept the two in step by hand. A schema library turns that around. You declare a **schema**, a value that knows how to parse, and read the type out of it. There is one description of the data, so the type can't promise a property the check forgot.
+
+Zod is pre-bundled in the dojo: `import { z } from 'zod'` type-checks everywhere and runs when you press Run.
+
+```ts twoslash
+import { z } from 'zod';
+
+const User = z.object({
+  name: z.string(),
+  age: z.number().int().min(0),
+  email: z.email().optional(),
+});
+
+type User = z.infer<typeof User>;
+//   ^?
+
+const user = User.parse({ name: 'Ada', age: 36 });
+//    ^?
+```
+
+`z.object`, `z.string()` and `z.email()` build schemas, and methods such as `.int()`, `.min(0)` and `.optional()` return new schemas with more checks. `typeof User` is the schema's type, a `ZodObject` whose type parameter is the shape, `{ name: ZodString; … }`. From that shape Zod computes the type the schema parses to and keeps it on a `_zod.output` property, and `z.infer` reads it from there. It is a conditional type of the kind in <Lesson id="m11-conditional-types/01-conditional-types" />, roughly `T extends { _zod: { output: any } } ? T['_zod']['output'] : unknown`, so it needs the schema's type, `typeof User`, never the value itself.
+
+The value `User` and the type `User` share a name. Values and types live in separate namespaces, so this is allowed, and it is the usual Zod style: `import { User }` brings both. `parse` returns a `User` or throws a `ZodError`.
+
+## Examples
+
+**`safeParse` and its issues.** At a boundary, bad input is expected, so `safeParse` returns the outcome instead of throwing. Its result is a discriminated union on `success`, the `Result` from <Lesson id="m09-modules-async/04-errors" /> under other names:
+
+```ts run
+import { z } from 'zod';
+
+const User = z.object({
+  name: z.string().min(1),
+  age: z.number().int().min(0),
+  email: z.email().optional(),
+});
+
+const inputs: unknown[] = [
+  { name: 'Ada', age: 36, admin: true },
+  { name: 'Grace', age: 36.5, email: 'grace' },
+  null,
+];
+
+for (const input of inputs) {
+  const result = User.safeParse(input);
+  if (result.success) {
+    console.log('user', result.data);
+  } else {
+    for (const issue of result.error.issues) {
+      console.log(issue.path, issue.message);
+    }
+  }
+}
+```
+
+After `result.success` the compiler knows `result.data` is a `User`; otherwise `result.error` is a `ZodError` whose `issues` list every problem, not just the first. Each issue has a `path`, the keys and indices that lead to the bad value (typed `PropertyKey[]`), a `message` and a `code`. Every check takes its own message as a last argument: `z.string().min(1, 'name is required')`.
+
+`admin` is gone from the first user. `z.object` keeps only the keys it names, as the parsers you wrote in <Lesson id="m17-boundaries/01-parse-dont-validate" /> did by building a new object. `z.strictObject` reports unknown keys as an issue instead, and `z.looseObject` keeps them.
+
+**Transforms: one schema, two types.** A schema can change the value it parses. Then what goes in and what comes out have different types, and Zod tracks both:
+
+```ts twoslash
+import { z } from 'zod';
+
+const Query = z.object({
+  q: z.string().trim().min(1),
+  page: z.string().transform(Number).pipe(z.number().int().min(1)).default(1),
+  since: z.iso.date().transform((text) => new Date(text)),
+});
+
+type QueryInput = z.input<typeof Query>;
+//   ^?
+type Query = z.output<typeof Query>;
+//   ^?
+```
+
+- `.transform(fn)` runs `fn` on the value once the schema before it has passed, and the output type is what `fn` returns.
+- `.pipe(schema)` parses that output again with another schema. `Number('two')` is `NaN`, which is a `number`; the pipe into `z.number()` is what rejects it.
+- `.default(1)` makes the input optional and the output always present.
+- `.trim()` and `.toLowerCase()` change a string without changing its type.
+
+`z.input` gives the type of the data as it arrives and `z.output` the type `parse` returns. `z.infer` is `z.output`. Run it:
+
+```ts run
+import { z } from 'zod';
+
+const Query = z.object({
+  q: z.string().trim().min(1),
+  page: z.string().transform(Number).pipe(z.number().int().min(1)).default(1),
+  since: z.iso.date().transform((text) => new Date(text)),
+});
+
+console.log(Query.parse({ q: '  zod ', since: '2026-03-01' }));
+
+for (const page of ['3', '2.5', 'two']) {
+  const result = Query.safeParse({ q: 'zod', page, since: '2026-03-01' });
+  console.log(
+    page,
+    result.success ? result.data.page : result.error.issues[0].message,
+  );
+}
+```
+
+Checks and changes run in the order you write them. `z.email().trim()` checks the address before it trims, so it rejects `' ada@example.com'`; `z.string().trim().pipe(z.email())` trims first.
+
+**Branded output.** `.brand()` puts a brand from <Lesson id="m14-type-system-edges/03-branded-types" /> on the output type. A plain string doesn't have it, so short of a cast the only way to get an `Email` is through the schema:
+
+```ts twoslash
+// @errors: 2345
+import { z } from 'zod';
+
+const Email = z.string().trim().toLowerCase().pipe(z.email()).brand<'Email'>();
+
+type Email = z.infer<typeof Email>;
+//   ^?
+
+function sendWelcome(to: Email): string {
+  return `welcome mail to ${to}`;
+}
+
+sendWelcome(Email.parse(' Ada@Example.com '));
+sendWelcome('ada@example.com');
+```
+
+`$brand<"Email">` is an object type keyed by a `unique symbol`, so no string has it. Like every brand it exists only in the types: at run time `Email.parse` returns the string itself. The input stays a plain `string`, because `.brand()` brands the output. A branded schema composes like any other: in `z.object({ to: Email })` the output's `to` is an `Email`.
+
+**The same schema in Valibot.** Valibot has the same three ideas in a different shape. A schema is built from functions, and `v.pipe` takes a schema followed by actions, checks and transforms, run in order. Each check is its own export, so a bundler keeps only the ones you import; Valibot is designed around that small bundle. Valibot isn't bundled in the dojo, so this block shows types only:
+
+```ts twoslash
+import * as v from 'valibot';
+
+const Email = v.pipe(
+  v.string(),
+  v.trim(),
+  v.toLowerCase(),
+  v.email(),
+  v.brand('Email'),
+);
+
+const Signup = v.object({
+  email: Email,
+  joined: v.pipe(
+    v.string(),
+    v.isoDate(),
+    v.transform((text) => new Date(text)),
+  ),
+  newsletter: v.optional(v.boolean(), false),
+});
+
+type SignupInput = v.InferInput<typeof Signup>;
+//   ^?
+type Signup = v.InferOutput<typeof Signup>;
+//   ^?
+
+const result = v.safeParse(Signup, {
+  email: ' Ada@Example.com ',
+  joined: '2026-03-01',
+});
+if (result.success) {
+  result.output;
+  //     ^?
+}
+```
+
+`v.InferOutput` is `z.output`, `v.InferInput` is `z.input`, `v.optional(schema, false)` is `.default(false)`, and `v.brand('Email')` is `.brand<'Email'>()`. `v.safeParse(schema, input)` returns `success` with `output` or `issues`, where Zod has `data` or `error`. Both libraries implement Standard Schema, a shared interface under the `'~standard'` key, so a library that accepts a Standard Schema takes either.
+
+## Pitfalls
+
+**Reading `data` before checking `success`.** The failed member of the result declares `data?: never`, so until you check `success`, `data` may be `undefined`:
+
+```ts run errors
+import { z } from 'zod';
+
+const User = z.object({ name: z.string() });
+
+function greet(input: unknown): string {
+  const result = User.safeParse(input);
+  return `Hello, ${result.data.name}`;
+}
+```
+
+`'result.data' is possibly 'undefined'.` Check `result.success` first and handle the failure. A `!` would compile and then throw on the first bad input.
+
+**Typing raw data with `z.infer`.** `z.infer` is the output. When a schema transforms, data that hasn't been parsed yet, such as a test fixture, a form's state or a body you are about to send, has the input type:
+
+```ts run errors
+import { z } from 'zod';
+
+const Event = z.object({
+  title: z.string(),
+  at: z.iso.date().transform((text) => new Date(text)),
+});
+
+const fixture: z.infer<typeof Event> = { title: 'Launch', at: '2026-03-01' };
+```
+
+`Type 'string' is not assignable to type 'Date'.` Write `z.input<typeof Event>` for data on its way in, and `z.output` (or `z.infer`) for what `parse` gives back.
+
+**Expecting `.brand()` to check something.** A brand changes the type and nothing else:
+
+```ts run
+import { z } from 'zod';
+
+const Email = z.string().brand<'Email'>();
+
+console.log(Email.safeParse('not an email'));
+```
+
+It prints `success: true`, and the result is typed `Email`. Brand a schema that does the checking, `z.email().brand<'Email'>()`, or the brand promises what nothing verified.
+
+## Check yourself
+
+<Predict
+  id="unknown-keys"
+  code={
+    "import { z } from 'zod';\n\nconst User = z.object({ name: z.string() });\n\nconsole.log(User.parse({ name: 'Ada', admin: true }));"
+  }
+  question="What does this print?"
+  options={[
+    "{ name: 'Ada' }",
+    "{ name: 'Ada', admin: true }",
+    'Nothing: parse throws a ZodError because admin is not in the schema',
+  ]}
+  answer={0}
+  explanation="`z.object` keeps only the keys it names and drops the rest, so the output matches the type exactly, as a hand-written parser that builds a new object does. `z.strictObject` would report `admin` as an issue instead, and `z.looseObject` would keep it."
+/>
+
+<Predict
+  id="issue-path"
+  code={
+    "import { z } from 'zod';\n\nconst Order = z.object({\n  lines: z.array(z.object({ qty: z.number() })),\n});\n\nconst result = Order.safeParse({ lines: [{ qty: 1 }, { qty: '2' }] });\nif (!result.success) console.log(result.error.issues[0].path);"
+  }
+  question="What path does the first issue have?"
+  options={["['qty']", "['lines', 'qty']", "['lines', 1, 'qty']", '[]']}
+  answer={2}
+  explanation="A path lists every key and index from the root to the bad value: the `lines` property, element `1` of the array, then its `qty`. An empty path means the root value itself failed."
+/>
+
+<Predict
+  id="default-input"
+  code={
+    "import { z } from 'zod';\n\nconst Count = z.string().transform((text) => text.length).default(0);\n\ntype In = z.input<typeof Count>;"
+  }
+  question="What is `In`?"
+  options={['string', 'string | undefined', 'number', 'number | undefined']}
+  answer={1}
+  explanation="The input type is what the schema accepts before any transform: a `string`, and `.default(0)` lets it be missing, so `string | undefined`. The output, `z.output` or `z.infer`, is `number`: the transform's result, or the default when the input was `undefined`."
+/>
+
+## Further reading
+
+- [Zod: Basic usage](https://zod.dev/basics), on `parse`, `safeParse` and `z.infer`
+- [Zod: Defining schemas](https://zod.dev/api), with transforms, pipes, defaults and brands
+- [Zod: Formatting errors](https://zod.dev/error-formatting), on issues and `z.prettifyError`
+- [Valibot: Introduction](https://valibot.dev/guides/introduction/), the library's design in its own words
+- [Valibot: Comparison](https://valibot.dev/guides/comparison/), Valibot set against Zod and others
+- [Standard Schema](https://standardschema.dev/), the interface both libraries implement
+- [Handbook: Typeof type operator](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html), why `z.infer` takes `typeof Schema`

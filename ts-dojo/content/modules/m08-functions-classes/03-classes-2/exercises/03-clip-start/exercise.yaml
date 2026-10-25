@@ -1,0 +1,27 @@
+id: m08-functions-classes/03-classes-2/03-clip-start
+kind: implement
+title: Where the clip starts
+minutes: 4
+challenge: false
+prompt: |
+  Implement the class `Clip` in `index.ts`. Times are in seconds.
+
+  - `new Clip(title, length)` declares both as parameter properties: `title` can be read but not
+    reassigned, and `length` is private.
+  - `start` is where playback starts, 0 for a new clip, and always reads as a `number`. It can
+    be assigned a number of seconds, or text in the form `m:ss`, such as `1:30` for 90 seconds.
+    Either way it is clamped to the clip: below 0 becomes 0, past the length becomes the length.
+  - `remaining` is the number of seconds from `start` to the end of the clip, and it is
+    read-only.
+
+  The tests assign text to `start` and read `remaining`, so the test file doesn't compile until
+  `Clip` has those members: that is the first thing to fix.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - The value of start has to live somewhere the getter and the setter both reach, and that nothing outside the class can write.
+  - A setter's parameter type may be wider than its getter's return type. Annotate both.
+  - A property with a getter and no setter is read-only.

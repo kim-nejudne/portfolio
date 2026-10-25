@@ -1,0 +1,28 @@
+id: m02-functions/02-function-types-and-callbacks/04-build-a-pipeline
+kind: implement
+title: Build a pipeline
+minutes: 5
+challenge: false
+prompt: |
+  A `Step` is one step of a calculation: it takes a number and returns a number. The two stubs
+  take `unknown` where their parameter types should be. Replace each `unknown` with a type, then
+  write the bodies:
+
+  - `pipe(value, ...steps)` runs `value` through any number of steps, in order:
+    `pipe(3, double, increment)` is `increment(double(3))`, which is 7, and `pipe(3)` is 3.
+  - `repeat(step, count)` returns a new step that applies `step` `count` times in a row.
+    `count` is 2 unless given, so `repeat(double)(3)` is 12, and `repeat(double, 0)` changes
+    nothing.
+
+  The type cases reject a step that takes or returns something other than a number, so the
+  parameter types matter as much as the bodies. This combines the lesson with rest and default
+  parameters (2.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - Every argument after `value` is a step, and a rest parameter's type is an array of what each argument is.
+  - '`repeat` returns a function, and its declared return type is already there. What does that tell the function you return about its parameter?'
+  - Inside the returned step, start from its argument and call `step` on the result `count` times.

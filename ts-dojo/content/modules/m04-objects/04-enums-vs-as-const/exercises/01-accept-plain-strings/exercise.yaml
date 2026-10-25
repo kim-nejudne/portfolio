@@ -1,0 +1,21 @@
+id: m04-objects/04-enums-vs-as-const/01-accept-plain-strings
+kind: fix
+title: Accept plain strings
+minutes: 2
+challenge: false
+prompt: |
+  The saved settings hold the theme as a plain string, and the `Theme` enum won't take one:
+  `saved` reports `Type '"dark"' is not assignable to type 'Theme'.`, and the tests that pass a
+  string to `background` fail the same way.
+
+  Replace the enum with an `as const` object named `Theme` and a union type of its values, also
+  named `Theme`, so that both `Theme.Dark` and `'dark'` fit. Leave `background`, `saved` and the
+  tests as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as]
+hints:
+  - Written as an object with `as const`, each value keeps its literal type, so `Theme.Dark` is `'dark'` rather than `string`.
+  - The type is the union of the object's values, which the lesson builds from `typeof Theme` and its keys.

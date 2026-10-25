@@ -1,0 +1,41 @@
+id: m15-api-design/01-builders/04-typed-settings
+kind: implement
+title: Typed settings
+minutes: 6
+challenge: false
+prompt: |
+  `settings()` starts a builder that takes any keys, one `set(key, value)` at a time:
+
+  ```ts
+  const server = settings().set('host', 'localhost').set('port', 8080).build();
+  // { host: string; port: number }
+  ```
+
+  Write `set` and `build` in `SettingsBuilder`:
+
+  - Each `set` records its key and the type of its value in the builder's type, and `build`
+    returns them as **one** object type, not an intersection.
+  - A key can be set once: `settings().set('port', 1).set('port', 2)` is an error.
+  - A step never changes the builder it was called on.
+
+  A computed key of a generic type needs either one assertion or an overload over a looser
+  implementation signature (8.1). Use the overload here: no cast is allowed.
+
+  This combines the lesson with overloads (8.1), flattening an intersection with a mapped type
+  (10.1), and `Exclude` (6.3) or a conditional type (11.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - '`set` needs two type parameters, one for the key and one for the value, and returns a builder of `T` with one more property. The body can live under a looser signature that callers never see.'
+  - The intersection that grows step by step can be flattened at each step, by the identity mapped type from 10.1.
+  - A key is rejected when the parameter's type leaves nothing for it. Which keys are already in `T`?

@@ -1,0 +1,369 @@
+---
+id: m08-functions-classes/04-mixins
+title: Mixins
+minutes: 15
+optional: true
+objectives:
+  - Write a mixin, a generic function that takes a class and returns a class extending it
+  - Type the class parameter with a construct signature whose single rest parameter is any[], and read error TS2545
+  - Constrain a mixin to classes whose instances have the members it uses
+  - Compose several mixins and read the resulting constructor and instance types
+  - Name the limits of mixins with static members, abstract classes, declaration files and instanceof
+prerequisites:
+  - m05-generics/02-constraints-and-defaults
+  - m08-functions-classes/02-this-and-callable-types
+  - m08-functions-classes/03-classes-2
+tags:
+  - mixin
+  - class expression
+  - extends
+  - construct signature
+  - Constructor
+  - any[]
+  - TS2545
+  - composition
+  - instanceof
+---
+
+## Concept
+
+A class extends one base class. When unrelated classes need the same extra members, a mixin adds them: a function that takes a class and returns a new class that extends it. `extends` accepts any expression in JavaScript, so `class extends Base` with `Base` a parameter is plain JavaScript. What TypeScript adds is a type for `Base`: a type parameter constrained to a construct signature (<Lesson id="m08-functions-classes/02-this-and-callable-types" />), so that the returned class keeps everything the class passed in had.
+
+```ts twoslash
+type Constructor = new (...args: any[]) => {};
+
+function Timestamped<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    createdAt = Date.now();
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+const TimestampedUser = Timestamped(User);
+const user = new TimestampedUser('Ada');
+//    ^?
+```
+
+The instance type is an intersection: the mixin's class, which the compiler calls `Timestamped<typeof User>.(Anonymous class)` and which has `createdAt`, and `User`, which has `name`. `TimestampedUser` takes the arguments `User` takes.
+
+## Examples
+
+**One mixin, many classes.** The same function adds the same members to any class, whatever its constructor takes. Each call returns a new class:
+
+```ts run
+type Constructor = new (...args: any[]) => {};
+
+function Activatable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    active = false;
+
+    activate(): void {
+      this.active = true;
+    }
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+class Task {
+  constructor(
+    readonly title: string,
+    readonly due: number,
+  ) {}
+}
+
+const ActivatableUser = Activatable(User);
+const ActivatableTask = Activatable(Task);
+
+const ada = new ActivatableUser('Ada');
+const report = new ActivatableTask('Report', 5);
+ada.activate();
+console.log(ada.name, ada.active);
+console.log(report.title, report.due, report.active);
+console.log(ada instanceof User);
+```
+
+`new ActivatableUser(42)` reports _Argument of type 'number' is not assignable to parameter of type 'string'._, and `new ActivatableTask('Report')` reports _Expected 2 arguments, but got 1._ The mixin's own constructor type said `...args: any[]`, but the class it returns takes the parameters of the class passed in.
+
+**The constructor type.** A mixin doesn't know what its base class's constructor takes, so it has to accept anything and pass it on. TypeScript writes that requirement into a rule: when a class extends a value whose type is a type parameter, the constraint's construct signature must have a single rest parameter of type `any[]`. Elsewhere `unknown[]` is the safe way to say "any arguments", and 8.2 used `never[]` to accept every constructor, but here both are errors:
+
+```ts run errors
+type UnknownArgs = new (...args: unknown[]) => {};
+type NeverArgs = new (...args: never[]) => {};
+
+function Activatable<TBase extends UnknownArgs>(Base: TBase) {
+  return class extends Base {
+    active = false;
+  };
+}
+
+function Timestamped<TBase extends NeverArgs>(Base: TBase) {
+  return class extends Base {
+    createdAt = Date.now();
+  };
+}
+```
+
+Both report _A mixin class must have a constructor with a single rest parameter of type 'any[]'._ (TS2545) on `class`. A constraint with named parameters, such as `new (name: string) => {}`, reports the same. This is the one place where `any[]` is the spelling TypeScript asks for, and it costs nothing: the `any` sits in the constraint, and the class the mixin returns still has its base class's real parameter types. If the mixin class declares a constructor of its own, the same rule applies to it, so it takes `...args: any[]` and passes them to `super`:
+
+```ts run
+type Constructor = new (...args: any[]) => {};
+
+function Logged<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    log: string[] = [];
+
+    constructor(...args: any[]) {
+      super(...args);
+      this.log.push(`created with ${args.length} arguments`);
+    }
+  };
+}
+
+class Point {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
+
+const LoggedPoint = Logged(Point);
+console.log(new LoggedPoint(3, 4).log);
+```
+
+**Constrained mixins.** A mixin that uses a member of its base class has to say that the member is there. Give the alias a type parameter for the instance type, with `{}` as the default (<Lesson id="m05-generics/02-constraints-and-defaults" />), and constrain the mixin with it:
+
+```ts run
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+function Greeter<TBase extends Constructor<{ name: string }>>(Base: TBase) {
+  return class extends Base {
+    greet(): string {
+      return `Hello, ${this.name}`;
+    }
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+class Robot {
+  name = 'R2';
+  model = 'astromech';
+}
+
+console.log(new (Greeter(User))('Ada').greet());
+console.log(new (Greeter(Robot))().greet());
+```
+
+Inside the mixin, `this.name` is a `string` because every instance of `TBase` has one. With the plain `Constructor`, the same body reports _Property 'name' does not exist on type '(Anonymous class)'._ And a class without a `name` is turned away where the mixin is applied: `Greeter(class { title = 'Dr' })` reports `Argument of type 'typeof (Anonymous class)' is not assignable to parameter of type 'Constructor<{ name: string; }>'.`, with _Property 'name' is missing_ on the next line of the message.
+
+**Composing mixins.** A mixin takes a class and returns one, so the result of one mixin can be the argument of the next. Each layer adds its members and keeps the ones below:
+
+```ts run
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+function Timestamped<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    createdAt = 1_700_000_000_000;
+  };
+}
+
+function Activatable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    active = false;
+
+    activate(): void {
+      this.active = true;
+    }
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+const SmartUser = Timestamped(Activatable(User));
+const ada = new SmartUser('Ada');
+ada.activate();
+console.log(ada.name, ada.active, ada.createdAt);
+```
+
+Read the type from the inside out:
+
+```ts twoslash
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+function Timestamped<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    createdAt = 1_700_000_000_000;
+  };
+}
+
+function Activatable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    active = false;
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+const SmartUser = Timestamped(Activatable(User));
+const ada = new SmartUser('Ada');
+//    ^?
+type SmartUserArgs = ConstructorParameters<typeof SmartUser>;
+//   ^?
+```
+
+The instance type ends in three parts joined by `&`: `Timestamped`'s class, whose type argument is the whole constructor type that `Activatable` returned, then `Activatable<typeof User>`'s class, then `User`. So it has the members of all three. The constructor still takes `User`'s parameters, so `new SmartUser(42)` is an error at every depth. The order matters only when a mixin is constrained: `Greeter(Timestamped(User))` works, because the instances of `Timestamped(User)` still have `name`.
+
+**Limits.** Mixins are classes, so most of what a class can do works inside one. A few things work differently:
+
+- _Static members._ A mixin class can declare `static` members, and the class it returns also keeps the base class's statics: with `static kind = 'activatable'` in `Activatable` and `static count = 0` in `User`, both `SmartUser.kind` and `SmartUser.count` compile.
+- _Abstract classes._ `Constructor` doesn't accept an abstract class (_Cannot assign an abstract constructor type to a non-abstract constructor type._). With `abstract new (...args: any[]) => T` as the constraint, the returned class has to be abstract too, or the compiler reports _A mixin class that extends from a type variable containing an abstract construct signature must also be declared 'abstract'._ A class expression can't be abstract, so declare an `abstract class` inside the function and return it.
+- _Declaration files._ A library that publishes `.d.ts` files compiles with `declaration: true`, which writes the type of every export. An anonymous class with a `private`, `protected` or `#` member can't be written there, so exporting the mixin reports _Property '#count' of exported anonymous class type may not be private or protected._ (TS4094), once for each such member. The dojo doesn't emit declarations, so `#` fields in a mixin compile here, as in the exercises.
+
+```ts twoslash
+// @declaration: true
+// @errors: 4094
+type Constructor = new (...args: any[]) => {};
+
+export function Counted<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    #count = 0;
+
+    bump(): number {
+      return ++this.#count;
+    }
+  };
+}
+```
+
+## Pitfalls
+
+**A constructor type with unknown arguments.** The habit of writing `unknown[]` instead of `any[]` doesn't fit here. The mixin reports TS2545, and applying it fails as well, because `User`'s constructor needs a `string` and `unknown` isn't one:
+
+```ts run errors
+type Constructor = new (...args: unknown[]) => {};
+
+function Timestamped<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    createdAt = Date.now();
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+const TimestampedUser = Timestamped(User);
+```
+
+_A mixin class must have a constructor with a single rest parameter of type 'any[]'._ on `class`, and on `User` _Argument of type 'typeof User' is not assignable to parameter of type 'Constructor'._ with _Type 'unknown' is not assignable to type 'string'._ at the end. Write `any[]`.
+
+**Leaving out the type parameter.** Without the type parameter, `Base` is any constructor, and the rule above doesn't apply because `Base` isn't a type parameter, so even `unknown[]` wouldn't report TS2545. But the returned class only knows what `Constructor` says about its instances, which is nothing, and the base class's members are gone from its type:
+
+```ts run errors
+type Constructor = new (...args: any[]) => {};
+
+function Timestamped(Base: Constructor) {
+  return class extends Base {
+    createdAt = Date.now();
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+const TimestampedUser = Timestamped(User);
+const user = new TimestampedUser('Ada');
+console.log(user.name);
+```
+
+_Property 'name' does not exist on type '(Anonymous class)'._ The object has a `name` at run time; the type lost it. Make the function generic, `<TBase extends Constructor>(Base: TBase)`, so the result is typed from the class actually passed in.
+
+**`instanceof` against a mixin.** A mixin is a function that makes a class, not a class, and every call makes a different one. TypeScript accepts a function on the right of `instanceof`, so these lines compile, but the first is always `false`, and so is the second, because `A` and `B` are two classes:
+
+```ts run
+type Constructor = new (...args: any[]) => {};
+
+function Activatable<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    active = false;
+  };
+}
+
+class User {
+  constructor(readonly name: string) {}
+}
+
+const A = Activatable(User);
+const B = Activatable(User);
+const ada = new A('Ada');
+
+console.log(ada instanceof Activatable);
+console.log(ada instanceof B);
+console.log(ada instanceof A, ada instanceof User);
+```
+
+Apply a mixin once, keep the class it returns, and check against that class, or check for the member itself with `in`.
+
+## Check yourself
+
+<Predict
+  id="rest-parameter-type"
+  code={
+    'function Activatable<TBase extends Ctor>(Base: TBase) {\n  return class extends Base {\n    active = false;\n  };\n}'
+  }
+  question="Which definition of Ctor lets this mixin compile?"
+  options={[
+    'type Ctor = new (...args: unknown[]) => {};',
+    'type Ctor = new (...args: never[]) => {};',
+    'type Ctor = new (...args: any[]) => {};',
+    'type Ctor = new (name: string) => {};',
+  ]}
+  answer={2}
+  explanation="A class that extends a value whose type is a type parameter is a mixin class, and its constraint's construct signature must have a single rest parameter of type `any[]`. Every other choice reports TS2545: `A mixin class must have a constructor with a single rest parameter of type 'any[]'.` The returned class still takes the real parameters of the class passed in."
+/>
+
+<Predict
+  id="constrained-greeter"
+  code={
+    'type Constructor<T = {}> = new (...args: any[]) => T;\n\nfunction Greeter<TBase extends Constructor<{ name: string }>>(Base: TBase) {\n  return class extends Base {\n    greet() {\n      return `Hello, ${this.name}`;\n    }\n  };\n}'
+  }
+  question="Which call compiles?"
+  options={[
+    "Greeter(class { name = 'Ada'; age = 36; })",
+    "Greeter(class { title = 'Dr'; })",
+    'Greeter(class { name = 42; })',
+  ]}
+  answer={0}
+  explanation="The constraint asks for classes whose instances have a `name` of type `string`. Extra members are fine, as with any object type, so the first class fits. The second has no `name`, and the third has a `number` one, so both are rejected where `Greeter` is called."
+/>
+
+<Predict
+  id="same-mixin-twice"
+  code={
+    "const A = Activatable(User);\nconst B = Activatable(User);\nconst ada = new A('Ada');\n\nconsole.log(ada instanceof B, ada instanceof User);"
+  }
+  question="Activatable is a mixin and User a class. What does this print?"
+  options={['true true', 'false true', 'false false', 'true false']}
+  answer={1}
+  explanation="Each call to a mixin runs its `class` expression again and returns a new class, so `A` and `B` are two classes and `ada` is an instance of only one of them. Both extend `User`, so `ada instanceof User` is `true`."
+/>
+
+## Further reading
+
+- [Handbook: Mixins](https://www.typescriptlang.org/docs/handbook/mixins.html)
+- [More on Functions: construct signatures](https://www.typescriptlang.org/docs/handbook/2/functions.html#construct-signatures)
+- [TypeScript 2.2: support for mix-in classes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-2.html#support-for-mix-in-classes)
+- [TypeScript 4.2: abstract construct signatures and mixins](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-2.html#abstract-construct-signatures)

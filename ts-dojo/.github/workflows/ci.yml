@@ -1,0 +1,48 @@
+# CI for ts-dojo (spec §12 F1): typecheck, lint, format check, unit tests and build on every
+# push and pull request, with Node 24 and the pnpm version pinned in package.json's
+# packageManager, and the content lint before the build (§2 Build). Playwright e2e runs on
+# Kim's machine, where Google Chrome is (playwright.config.ts).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint, format, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Unit tests
+        run: pnpm test --run
+
+      - name: Content lint
+        run: pnpm content:lint
+
+      - name: Build
+        run: pnpm build

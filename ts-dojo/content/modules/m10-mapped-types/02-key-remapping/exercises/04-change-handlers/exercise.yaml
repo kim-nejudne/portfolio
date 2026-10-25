@@ -1,0 +1,33 @@
+id: m10-mapped-types/02-key-remapping/04-change-handlers
+kind: type-challenge
+title: Change handlers
+minutes: 4
+challenge: false
+prompt: |
+  A component reports changes to its state through handlers named after the state's
+  properties. Write `ChangeHandlers<T>` in `index.ts`: for every property of `T` that holds
+  data, a handler named `on`, the key with its first letter uppercased, then `Change`, which
+  takes the property's new value and returns `void`.
+
+  ```ts
+  type H = ChangeHandlers<{ text: string; _draft: string; save(): void }>;
+  // { onTextChange?: (value: string) => void }
+  ```
+
+  - Leave out methods and properties whose type is a function, keys that start with `_`, and
+    number and symbol keys.
+  - Every handler is optional and writable, whatever modifiers its property has. The handler of
+    an optional property takes `undefined` too.
+
+  The type cases try `ChangeHandlers` on several state types, and the `@ts-expect-error` lines
+  check that a handler for a method is rejected and that a handler must accept the property's
+  type. This combines the lesson's renaming and filtering with the `+`/`-` modifiers of 10.1
+  and the filter by value type of 6.4's exercise 04.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - One as clause can drop a key and rename the ones it keeps. Conditional types nest, so the false branch of one test can be another test.
+  - The handlers' modifiers don't follow the source. Which signs did 10.1 use to add one modifier and remove the other?

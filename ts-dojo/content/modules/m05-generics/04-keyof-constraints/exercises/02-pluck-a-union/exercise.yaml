@@ -1,0 +1,31 @@
+id: m05-generics/04-keyof-constraints/02-pluck-a-union
+kind: predict
+title: Pluck with a union of keys
+minutes: 2
+challenge: false
+code: |
+  function pluck<T, K extends keyof T>(items: readonly T[], key: K): T[K][] {
+    return items.map((item) => item[key]);
+  }
+
+  type Player = { name: string; level: number; active: boolean };
+  const players: Player[] = [{ name: 'Ada', level: 3, active: true }];
+
+  const column = players.length > 10 ? 'level' : 'name';
+
+  const a = pluck(players, 'active');
+  const b = pluck(players, column);
+question: What are the types of a and b, in that order?
+options:
+  - 'boolean[], (string | number)[]'
+  - 'boolean[], string[] | number[]'
+  - 'boolean[], (string | number | boolean)[]'
+  - 'Player[], Player[]'
+answer: 0
+explanation: |
+  For `a`, `K` is the literal `'active'`, so `T[K]` is `boolean` and the result a `boolean[]`.
+  `column` is a `const` holding one of two literals, so its type is `'level' | 'name'`, and that
+  union is `K` for `b`. `T[K]` is then the union of the two properties' types, `string | number`,
+  and the result an array of that. It is not `string[] | number[]`: `T[K][]` is one array type,
+  and the compiler doesn't split it per key. Nor does it include `boolean`, because `'active'` is
+  not in `K`.

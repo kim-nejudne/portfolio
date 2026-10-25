@@ -1,0 +1,261 @@
+---
+id: m01-types/04-any-unknown-never-void
+title: 'any, unknown, never and void: what each allows'
+minutes: 20
+objectives:
+  - Explain how any switches checking off in both directions, and follow it as it spreads from JSON.parse
+  - Tell the implicit any that strict reports from an explicit one, which no flag reports
+  - Use unknown for a value nothing has checked yet, and check it with typeof before using it
+  - Read never as the type with no values, and write it on a function that always throws
+  - Read void as the return type of a function that returns nothing useful
+prerequisites:
+  - m00-orientation/01-why-typescript
+  - m01-types/01-annotations-and-inference
+  - m01-types/02-primitives-literals-widening
+  - m01-types/03-arrays-tuples-objects
+tags:
+  - any
+  - unknown
+  - never
+  - void
+  - noImplicitAny
+  - implicit any
+  - JSON.parse
+  - typeof
+  - throw
+  - return type
+---
+
+## Concept
+
+Most types describe a kind of value: `string`, `number[]`, `{ title: string }`. The four in this lesson are different: two accept every value, one accepts none, and one marks a function that returns nothing useful. Two questions tell them apart: which values a variable of the type accepts, and what code may then do with it.
+
+- **`any`** accepts every value and allows everything. An `any` can be assigned to every type except `never`, and every property, call and operator on it compiles. It switches checking off.
+- **`unknown`** accepts every value too, and allows almost nothing. It can be assigned only to `unknown` and `any`, and reading a property, calling it or doing arithmetic with it is an error until a check has shown what it holds.
+- **`never`** accepts no value at all. A value of type `never` can't exist, so the type turns up where code can't go on, such as the return type of a function that always throws.
+- **`void`** is the return type of a function that returns nothing useful. Callers can't test what it returns for truthiness, or assign it to a type such as `string`.
+
+The first two side by side:
+
+```ts run errors
+const loose: any = 'Ada';
+const guarded: unknown = 'Ada';
+
+const a: number = loose;
+const b: number = guarded;
+
+loose.toFixed(2);
+guarded.toFixed(2);
+```
+
+The `any` lines compile, although `'Ada'` is not a number and has no `toFixed`: run the block and the call throws a `TypeError`. The `unknown` lines report `Type 'unknown' is not assignable to type 'number'.` and `'guarded' is of type 'unknown'.` With `any` the compiler stops checking. With `unknown` it keeps checking, and makes you find out what the value is before you use it.
+
+## Examples
+
+**`any` goes both ways.** Every value can go into an `any`, and an `any` can go into every type except `never`, so a mistake passes through it unseen:
+
+```ts run
+let loose: any = 'Ada';
+loose = 42;
+loose = { name: 'Ada' };
+
+const name: string = loose;
+console.log(name.toUpperCase());
+```
+
+It compiles. The compiler takes `name` for a `string`, because its annotation says so. At runtime it holds an object, and the last line throws a `TypeError`.
+
+**`any` spreads.** `JSON.parse` is declared to return `any`, since what it returns depends on the text. Everything reached through an `any` is `any` too: its properties, what its methods return, and the return type of a function that returns one:
+
+```ts twoslash
+const config = JSON.parse('{"port": 8080}');
+//         ^?
+const port = config.port;
+//       ^?
+const label = port.toFixed(2);
+//        ^?
+
+function loadPort(text: string) {
+  //            ^?
+  return JSON.parse(text).port;
+}
+```
+
+`label` is `any`, not `string`: through an `any`, the compiler doesn't look `toFixed` up at all. One call to `JSON.parse` made three names `any`, and `loadPort` hands an `any` to every caller.
+
+<Callout kind="tip">
+  An `any` causes no error to find it by. In the REPL, press <Key>K</Key> on a
+  name: where quick info says `any`, checking has stopped.
+</Callout>
+
+**Implicit and explicit `any`.** <Lesson id="m01-types/01-annotations-and-inference" /> showed `Parameter 'width' implicitly has an 'any' type.` That error comes from `noImplicitAny`, part of `strict`: it reports an `any` the compiler would otherwise make up because nothing says what a type is. An `any` you write, as in `width: any`, and one a declaration hands you, such as the result of `JSON.parse`, are explicit, since someone wrote `any` down, and the compiler has no flag that reports them. So `strict` stops `any` from appearing by accident, not from appearing.
+
+**`unknown`: check before use.** `unknown` is the honest type for a value nothing has checked yet. It accepts everything, and allows what is safe for any value, such as passing it to `console.log` or comparing it with `===`:
+
+```ts run errors
+const input: unknown = JSON.parse('"hello"');
+
+console.log(input);
+console.log(input === 'hello');
+
+const text: string = input;
+input.toUpperCase();
+```
+
+The first lines compile. Then `Type 'unknown' is not assignable to type 'string'.` and `'input' is of type 'unknown'.` The annotation is what turns checking back on: `JSON.parse` still returns `any`, an `any` can be assigned to `unknown`, as to every type but `never`, and from then on `input` is checked.
+
+To use the value, find out what it is. A `typeof` check is ordinary JavaScript, and the compiler follows it: inside the `if`, `input` is a `number`.
+
+```ts twoslash
+function describe(input: unknown): string {
+  if (typeof input === 'number') {
+    return input.toFixed(2);
+    //         ^?
+  }
+  return 'not a number';
+}
+```
+
+A check that the compiler follows like this is called narrowing; <Lesson id="m03-unions/03-narrowing" /> covers `typeof` and the other checks. You meet `unknown` there again: under `strict`, the value a `catch` clause receives is `unknown`, because JavaScript can throw anything.
+
+**`never`: no value at all.** Nothing can be assigned to `never`: not `undefined`, and not even `any`.
+
+```ts run errors
+const nothing: never = undefined;
+const parsed: never = JSON.parse('1');
+```
+
+`Type 'undefined' is not assignable to type 'never'.` and `Type 'any' is not assignable to type 'never'.` The other way round always works: a `never` can be assigned to every type, because there is never a value of it that could be wrong. That makes `never` the return type to write on a function that never returns normally, such as one that always throws, and a call to it fits wherever a value is expected:
+
+```ts run
+function fail(message: string): never {
+  throw new Error(message);
+}
+
+function parsePort(text: string): number {
+  const port = Number(text);
+  if (Number.isInteger(port) && port > 0) {
+    return port;
+  }
+  return fail(`not a port: ${text}`);
+}
+
+console.log(parsePort('8080'));
+```
+
+`return fail(…)` compiles in a function that returns a `number`. With `: never` written on `fail`, a plain `fail(…);` without the `return` compiles too: the compiler knows the code after the call can't run.
+
+`never` also appears where a type has nothing left in it. `&` asks for a value that is both types at once, an intersection (<Lesson id="m04-objects/01-type-vs-interface" />), and no value is a string and a number:
+
+```ts twoslash
+type Both = string & number;
+//      ^?
+```
+
+The same happens when narrowing has ruled out every possibility. <Lesson id="m03-unions/05-discriminated-unions" /> uses that to make the compiler prove that a `switch` handles every case.
+
+**`void`: nothing useful comes back.** A function that doesn't return a value is inferred to return `void`:
+
+```ts twoslash
+function log(message: string) {
+  //       ^?
+  console.log(`[app] ${message}`);
+}
+```
+
+At runtime the call gives `undefined`, but the compiler doesn't let callers assign the result to a type such as `string`, or test it for truthiness:
+
+```ts run errors
+function log(message: string): void {
+  console.log(`[app] ${message}`);
+}
+
+const result = log('saved');
+const text: string = result;
+if (result) {
+  console.log('logged');
+}
+```
+
+`Type 'void' is not assignable to type 'string'.` and `An expression of type 'void' cannot be tested for truthiness.` Written as a return type, `: void` says the same thing: callers get nothing they should use. How `void` differs from `undefined`, and why a callback typed `=> void` may still return a value, is <Lesson id="m02-functions/03-void-returns" />.
+
+## Pitfalls
+
+**An annotation on an `any` checks nothing.** A type written on the result of `JSON.parse` looks like a description of the data. But an `any` can be assigned to every type except `never`, so the compiler compares nothing:
+
+```ts run
+type Settings = { port: number };
+
+const settings: Settings = JSON.parse('{"port": "8080"}');
+console.log(settings.port + 1);
+```
+
+It compiles and prints `80801`: the port arrived as a string. The annotation works like a cast (<Lesson id="m00-orientation/01-why-typescript" />): it states what you hope, and nothing checks it. A return type on a function that returns an `any` is the same. Write `unknown` instead, then check: `typeof` for a single value, and for an object the checks in <Lesson id="m03-unions/03-narrowing" />.
+
+**Swapping `unknown` for `any` to silence the error.** The error on an `unknown` value means the code uses something nothing has checked:
+
+```ts run errors
+function shout(text: unknown): string {
+  return text.toUpperCase();
+}
+```
+
+`'text' is of type 'unknown'.` Change the parameter to `any` and it compiles, and then `shout(42)` throws a `TypeError` when it runs: the mistake is still there, only now nothing reports it. Keep `unknown` and add the check, as `describe` does above. Or, if every caller passes a string, say so: `text: string`.
+
+**A function declaration that always throws is `void`, not `never`.** `fail` never returns, but nothing says so:
+
+```ts run errors
+function fail(message: string) {
+  throw new Error(message);
+}
+
+function parsePort(text: string): number {
+  const port = Number(text);
+  if (Number.isInteger(port) && port > 0) {
+    return port;
+  }
+  fail(`not a port: ${text}`);
+}
+```
+
+`Function lacks ending return statement and return type does not include 'undefined'.` Inference gives a function declaration that only throws the return type `void`, as if it simply ended, so the compiler thinks `parsePort` can run past the call and off its end. `return fail(…)` fails as well, with `Type 'void' is not assignable to type 'number'.` Write `: never` on `fail`, as in the example above, and both forms compile.
+
+## Check yourself
+
+<Predict
+  id="any-spreads"
+  code={
+    'const config = JSON.parse(\'{"retries": 3}\');\nconst retries = config.retries;\nconst label = retries.toFixed(0);'
+  }
+  question="What type does the compiler give `label`?"
+  options={['string', 'any', 'unknown', 'number']}
+  answer={1}
+  explanation="`JSON.parse` returns `any`, and everything reached through an `any` is `any`: the property `retries`, and what calling `toFixed` on it returns. The compiler doesn't look `toFixed` up, so it never learns that it returns a string. With `config: unknown`, the second line would be an error instead."
+/>
+
+<Predict
+  id="never-both-ways"
+  code={
+    "function fail(message: string): never {\n  throw new Error(message);\n}\n\nconst port: number = fail('no port'); // 1\nconst nothing: never = undefined; // 2"
+  }
+  question="Which of the lines 1 and 2 does the compiler reject?"
+  options={['Neither', 'Only 1', 'Only 2', 'Both']}
+  answer={2}
+  explanation="A `never` can be assigned to every type, since no value of it ever exists: `fail` never returns, so line 1 compiles. Nothing can be assigned to `never`, not `undefined` and not even `any`, so line 2 reports `Type 'undefined' is not assignable to type 'never'.`"
+/>
+
+<Predict
+  id="throwing-declaration"
+  code={'function fail(message: string) {\n  throw new Error(message);\n}'}
+  question="No return type is written. Which return type does the compiler infer for `fail`?"
+  options={['never', 'void', 'undefined', 'unknown']}
+  answer={1}
+  explanation="Inference gives a function declaration that only throws the return type `void`, as if it simply ended. Write `: never` yourself, so that callers know the call doesn't come back."
+/>
+
+## Further reading
+
+- [Everyday Types: any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)
+- [More on Functions: void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void), [unknown](https://www.typescriptlang.org/docs/handbook/2/functions.html#unknown) and [never](https://www.typescriptlang.org/docs/handbook/2/functions.html#never)
+- [TypeScript 3.0 release notes: the unknown type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type)
+- [TSConfig reference: `noImplicitAny`](https://www.typescriptlang.org/tsconfig/#noImplicitAny)

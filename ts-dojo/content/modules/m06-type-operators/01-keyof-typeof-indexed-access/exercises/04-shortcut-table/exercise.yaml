@@ -1,0 +1,30 @@
+id: m06-type-operators/01-keyof-typeof-indexed-access/04-shortcut-table
+kind: implement
+title: The shortcut table
+minutes: 5
+challenge: false
+prompt: |
+  `SHORTCUTS` in `index.ts` lists the dojo's keyboard shortcuts. The three types under it were
+  written by hand, so they accept shortcuts the list doesn't have.
+
+  - Derive `Shortcut`, the type of one entry of `SHORTCUTS`, then `Action` and `Scope`, the
+    unions of the actions and of the scopes that appear in it. Write no action or scope out by
+    hand in the three types: a shortcut added to the list should change all three.
+  - Implement `keysFor(shortcuts, action)`: the keys of the shortcut in `shortcuts` that runs
+    `action`, or `undefined` when no shortcut in that list does.
+  - Implement `actionsByScope(shortcuts)`: an object with one array per scope, holding the
+    actions of that scope in the order of `shortcuts`. A scope with no shortcuts in the list gets
+    an empty array, and every call builds new arrays.
+
+  The type cases check the three types, and the tests call both functions with the whole list,
+  parts of it and an empty one. This combines the lesson with readonly tuples from `as const`
+  (1.3, 4.4), `undefined` in a return type (3.2) and `Record` with union keys (4.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - '`SHORTCUTS` is a value, and a readonly tuple once you take its type. Indexing that type with `number` gives a union of its entries.'
+  - From the entry type, an indexed access with a property name gives the union of that property across every entry.
+  - In `actionsByScope`, a `Record` keyed by `Scope` wants every scope present from the start, and each property can then collect its actions.

@@ -1,0 +1,21 @@
+id: m01-types/04-any-unknown-never-void/03-a-call-that-never-returns
+kind: fix
+title: A call that never returns
+minutes: 3
+challenge: false
+prompt: |
+  `parsePort` doesn't compile:
+  `Function lacks ending return statement and return type does not include 'undefined'.`
+  Yet its body is right: every path either returns a port or calls `fail`, which throws.
+
+  Make it compile without changing `parsePort`: the problem is in what one of the helpers says
+  about itself. The type cases check the three signatures; the tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - The compiler believes one of the calls in `parsePort` might come back, and then the function would run off its end. Which call can't?
+  - Press `K` on `fail` and read the return type inference gave it.
+  - '`warn` and `fail` both return nothing, but only one of them ever finishes.'

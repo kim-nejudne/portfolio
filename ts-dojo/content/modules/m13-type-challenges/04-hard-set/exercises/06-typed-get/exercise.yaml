@@ -1,0 +1,26 @@
+id: m13-type-challenges/04-hard-set/06-typed-get
+kind: type-challenge
+title: Typed Get
+minutes: 6
+challenge: false
+prompt: |
+  Write `Get<T, K>` in `index.ts`, the type of lodash's `get`: the type at the dotted path `K`
+  in the object type `T`. With the `Data` in `tests.ts`, `Get<Data, 'hello'>` is `'world'`,
+  `Get<Data, 'foo.bar.count'>` is `6`, and `Get<Data, 'foo.bar'>` is the object at that path.
+
+  A key may itself hold a dot: `Data` has a property `'foo.baz'`, and `Get<Data, 'foo.baz'>`
+  is its type, `false`. A path that leads nowhere, `'no.existed'`, gives `never`. Paths into
+  arrays aren't needed. Cases added in the dojo check a path that fails at its last step and a
+  union of paths, which gives the union of their types.
+
+  The template is `type Get<T, K> = string`, and the starter keeps it.
+
+  From type-challenges [#00270 Typed Get](https://github.com/type-challenges/type-challenges/blob/main/questions/00270-hard-typed-get/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Try the whole path as a key of `T` first. That is how `'foo.baz'` is found.
+  - Otherwise split at the first dot (12.1), check that the part before it is a key, and go on with the rest in that property's type.

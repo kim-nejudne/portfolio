@@ -1,0 +1,20 @@
+id: m13-type-challenges/03-medium-set-2/08-is-never
+kind: type-challenge
+title: IsNever
+minutes: 3
+challenge: false
+prompt: |
+  Write `IsNever<T>` in `index.ts`: `true` when `T` is `never`, `false` for every other type.
+  `IsNever<never>` is `true`; `IsNever<undefined>`, `IsNever<null>`, `IsNever<[]>` and
+  `IsNever<{}>` are `false`, and so is `IsNever<never | string>`, which is just `string`. A
+  case added in the dojo checks `unknown`.
+
+  From type-challenges [#01042 IsNever](https://github.com/type-challenges/type-challenges/blob/main/questions/01042-medium-isnever/README.md) by hiroya iizuka (@hiroyaiizuka) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - "`T extends never ? true : false` looks right and isn't. The lesson's first pitfall says what a conditional on a naked type parameter does with `never`."
+  - Distribution happens only when the checked type is the bare type parameter. Lesson 11.3, Distributive conditional types, shows how to wrap it so that it doesn't.

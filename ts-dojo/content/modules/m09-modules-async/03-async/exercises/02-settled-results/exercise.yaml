@@ -1,0 +1,34 @@
+id: m09-modules-async/03-async/02-settled-results
+kind: predict
+title: Settled results
+minutes: 2
+challenge: false
+code: |
+  export interface User {
+    name: string;
+  }
+  declare function loadUser(id: number): Promise<User>;
+  declare function loadScore(id: number): Promise<number>;
+
+  const results = await Promise.allSettled([loadUser(1), loadScore(1)]);
+
+  const first = results[0];
+  if (first.status === 'fulfilled') {
+    console.log(first.value.name); // A
+  }
+  console.log(results[1].status); // B
+  console.log(results[1].value); // C
+question: Which of the lines A, B and C is a compile error?
+options:
+  - None of them
+  - Only C
+  - B and C
+  - A and C
+answer: 1
+explanation: |
+  `Promise.allSettled` over a tuple gives a tuple: `[PromiseSettledResult<User>,
+  PromiseSettledResult<number>]`. Each element is a discriminated union of
+  `PromiseFulfilledResult<T>`, which has `value`, and `PromiseRejectedResult`, which has
+  `reason`. `status` is on both members, so B compiles. A compiles because the `if` narrowed
+  `first` to the fulfilled member. C reads `value` from a result that may have been rejected:
+  `Property 'value' does not exist on type 'PromiseSettledResult<number>'.`

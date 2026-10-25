@@ -1,0 +1,24 @@
+id: m06-type-operators/02-utility-types-1/01-patch-the-settings
+kind: fix
+title: Patch the settings
+minutes: 2
+challenge: false
+prompt: |
+  `applyPatch` in `index.ts` should take a patch that names only the settings to change, but its
+  `patch` parameter asks for a whole `Settings` object. Both calls at the bottom of the file
+  report the same kind of error, the first one:
+
+  - `Argument of type '{ fontSize: number; }' is not assignable to parameter of type 'Settings'.`
+
+  Change the type of `patch` so that both calls compile, without listing the properties of
+  `Settings` again. A patch must still give each property its own type: the `@ts-expect-error`
+  lines check that a text font size, an unknown theme and an unknown property are rejected, and
+  the tests check that `applyPatch` merges correctly.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A patch is a Settings object in which every property may be left out.
+  - One of the utility types makes every property of a type optional while keeping its type.

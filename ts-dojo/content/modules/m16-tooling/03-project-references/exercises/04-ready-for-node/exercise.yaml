@@ -1,0 +1,43 @@
+id: m16-tooling/03-project-references/04-ready-for-node
+kind: fix
+title: Ready for Node
+minutes: 5
+challenge: false
+prompt: |
+  These two files are about to be run by Node with type stripping and published with
+  declarations written file by file. The exercise turns on everything that needs:
+  `erasableSyntaxOnly`, `declaration` with `isolatedDeclarations`, and `verbatimModuleSyntax`
+  from lesson 9.1. Nothing compiles yet:
+
+  - `units.ts`: `This syntax is not allowed when 'erasableSyntaxOnly' is enabled.` on the
+    namespace, and `Function must have an explicit return type annotation with --isolatedDeclarations.`
+    on `pick`.
+  - `index.ts`: `'Unit' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.`,
+    the return type of `formatSize`, the two parameter properties of `FileEntry`, and
+    `Variable must have an explicit type annotation with --isolatedDeclarations.` on `README`.
+
+  Fix them without changing what the code does. `STEP` and `pick` become exports of
+  `units.ts` itself, since `tests.ts` imports them from there; the calls `Units.pick` and
+  `Units.STEP` in `index.ts` may stay as they are. `name` and `bytes` stay public and
+  `readonly`. This combines the lesson with type-only imports (9.1), parameter properties
+  (8.3) and namespaces (14.4).
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  declaration: true
+  isolatedDeclarations: true
+  erasableSyntaxOnly: true
+  verbatimModuleSyntax: true
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    non-null-assertion,
+    type-assertion,
+    as-unknown-as,
+    any-expression,
+  ]
+hints:
+  - A module is already a namespace. Unwrap the namespace in `units.ts`, and let `index.ts` import the whole module under the old name.
+  - Of the two names `index.ts` imports, one is only a type. Under `verbatimModuleSyntax` the import has to say so.
+  - Each annotation names a type that already exists, `Unit`, `string` or the class itself.

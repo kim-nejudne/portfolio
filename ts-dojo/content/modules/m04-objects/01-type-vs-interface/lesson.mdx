@@ -1,0 +1,240 @@
+---
+id: m04-objects/01-type-vs-interface
+title: type vs interface, and intersections
+minutes: 20
+objectives:
+  - Name an object type with a type alias or with an interface
+  - Build one object type on another with extends or with an intersection
+  - Tell what only a type alias can name, and why an interface cannot extend a union
+  - Predict where a conflicting property is reported with extends, and what it becomes in an intersection
+  - Choose a default between the two and know when to switch
+prerequisites:
+  [m01-types/03-arrays-tuples-objects, m03-unions/05-discriminated-unions]
+tags: [type alias, interface, extends, intersection, declaration merging]
+---
+
+## Concept
+
+There are two ways to give an object type a name. A **type alias** names any type with `type Name = …`. An **interface** declares an object type with `interface Name { … }`.
+
+```ts run
+type Point = { x: number; y: number };
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+const origin: Point = { x: 0, y: 0 };
+const box: Size = { width: 2, height: 3 };
+console.log(origin, box);
+```
+
+For a plain object shape the two do the same job: a value is checked against either one the same way. Object types themselves, with optional and `readonly` properties, are in <Lesson id="m01-types/03-arrays-tuples-objects" />. This lesson is about the two ways to name and combine them, which differ in three places:
+
+- **Building one type on another.** An interface uses `extends`. A type alias uses an **intersection**, `A & B`: the type of values that are an `A` and a `B` at once, so it has every property of both.
+- **What they can name.** A type alias can name any type: a union, a tuple, a primitive, a literal type. An interface always describes an object type.
+- **The same name twice.** Two interfaces with the same name merge into one. A second type alias with the same name is an error.
+
+## Examples
+
+**`extends` and `&`.** Both add properties to an existing type, and they mix freely: an intersection can include an interface, as `Contractor` does, and an interface can extend a type alias of an object type.
+
+```ts run
+interface Person {
+  name: string;
+  email: string;
+}
+
+interface Employee extends Person {
+  company: string;
+}
+
+type Contractor = Person & {
+  agency: string;
+};
+
+const ada: Employee = {
+  name: 'Ada',
+  email: 'ada@example.com',
+  company: 'Initech',
+};
+const kim: Contractor = {
+  name: 'Kim',
+  email: 'kim@example.com',
+  agency: 'Dojo',
+};
+
+const people: Person[] = [ada, kim];
+console.log(people.map((person) => person.name));
+```
+
+An `Employee` and a `Contractor` are both `Person`s, so both fit in a `Person[]`. An interface can also extend several types at once: `interface Lead extends Employee, Contractor {}`.
+
+**Making a property more specific.** Either form can redeclare an inherited property with a narrower type, as long as the new type fits the old one. `'pro'` is one of `'free' | 'pro'`, so this is allowed:
+
+```ts twoslash
+interface Account {
+  id: string;
+  plan: 'free' | 'pro';
+}
+
+interface ProAccount extends Account {
+  plan: 'pro';
+  seats: number;
+}
+
+type FreeAccount = Account & { plan: 'free' };
+
+const pro: ProAccount = { id: 'a1', plan: 'pro', seats: 5 };
+const free: FreeAccount = { id: 'a2', plan: 'free' };
+
+const proPlan = pro.plan;
+//          ^?
+const freePlan = free.plan;
+//           ^?
+```
+
+**What only a type alias can name.** Unions, tuples, primitives and literal types have no interface form:
+
+```ts run
+type Email = string;
+type Id = string | number;
+type Status = 'idle' | 'loading' | 'done';
+type Entry = [string, number];
+
+const contact: Email = 'ada@example.com';
+const id: Id = 7;
+const status: Status = 'idle';
+const entry: Entry = ['answer', 42];
+console.log(contact, id, status, entry);
+```
+
+**Adding properties to every member of a union.** Because a type alias can name a union, `&` works on one too: the extra properties go onto each member, and narrowing on the discriminant (<Lesson id="m03-unions/05-discriminated-unions" />) still works. Quick info shows an intersection as its parts joined by `&`:
+
+```ts twoslash
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+type Labelled = Shape & { label: string };
+
+function caption(shape: Labelled): string {
+  if (shape.kind === 'circle') {
+    shape;
+    //  ^?
+    return `${shape.label}: radius ${shape.radius}`;
+  }
+  return `${shape.label}: side ${shape.side}`;
+}
+```
+
+**The same name twice.** Two interfaces with the same name in the same scope merge into one interface with the properties of both:
+
+```ts run
+interface Settings {
+  theme: 'light' | 'dark';
+}
+
+interface Settings {
+  fontSize: number;
+}
+
+const settings: Settings = { theme: 'dark', fontSize: 14 };
+console.log(settings);
+```
+
+Two type aliases named `Settings` would be an error instead: `Duplicate identifier 'Settings'.` Merging is how a library lets you add properties to one of its interfaces, which comes back in module 14. In your own code it mostly means that declaring an interface whose name another interface already uses adds to that interface rather than failing.
+
+**A default.** For object shapes both work, so pick one and stay consistent. The TypeScript handbook's heuristic is to use `interface` until you need something only `type` can do. It has a practical upside: an interface that conflicts with what it extends is an error where you declare it, while the same conflict in an intersection waits until a value meets it (see Pitfalls). Use `type` for unions, tuples, primitives and literal types, and for adding properties to a union with `&`.
+
+## Pitfalls
+
+**An incompatible property in `extends`.** The compiler checks that an interface still fits everything it extends, and reports a conflict on the declaration: `Interface 'Row' incorrectly extends interface 'User'.`, then `Types of property 'id' are incompatible.`
+
+```ts run errors
+interface User {
+  id: string;
+  name: string;
+}
+
+interface Row extends User {
+  id: number;
+}
+```
+
+**The same conflict in an intersection.** `&` doesn't replace a property, it asks for both. Here `id` must be a `string` and a `number` at once, and `string & number` is `never`, a type with no values. The declaration compiles; the error only appears when a value meets the type, and it reads `Type 'number' is not assignable to type 'never'.`, a long way from the line that caused it:
+
+```ts run errors
+type User = { id: string; name: string };
+type Row = User & { id: number };
+
+const row: Row = { id: 1, name: 'Ada' };
+```
+
+When the conflicting properties are different literal types, such as two `kind`s, TypeScript goes further and reduces the whole intersection to `never`. A union, `Cat | Dog`, is usually what was meant:
+
+```ts twoslash
+type Cat = { kind: 'cat'; meows: boolean };
+type Dog = { kind: 'dog'; barks: boolean };
+type CatDog = Cat & Dog;
+//        ^?
+```
+
+**Extending a union.** An interface can only extend types whose members are known up front, and a union isn't one: `An interface can only extend an object type or intersection of object types with statically known members.` Write it as a type alias with `&`, as in Examples.
+
+```ts run errors
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+interface Labelled extends Shape {
+  label: string;
+}
+```
+
+## Check yourself
+
+<Predict
+  id="only-a-type-alias"
+  question="Which of these can only be named with `type`, not with `interface`?"
+  options={[
+    'An object with a name and an email',
+    "The union `'idle' | 'loading' | 'done'`",
+    'An object type that adds a property to another one',
+    'An object type with an optional property',
+  ]}
+  answer={1}
+  explanation="An interface always describes an object type, so it cannot name a union, a tuple, a primitive or a literal type. The other three are object shapes, which both forms can name; adding a property is `extends` for an interface and `&` for a type alias."
+/>
+
+<Predict
+  id="disjoint-kinds"
+  question="What is the type `{ kind: 'on' } & { kind: 'off' }`?"
+  options={[
+    "`{ kind: 'on' | 'off' }`",
+    '`{ kind: never }`',
+    '`never`',
+    'A compile error on the declaration',
+  ]}
+  answer={2}
+  explanation="An intersection asks for both, so `kind` would have to be `'on'` and `'off'` at once. When the conflict is between different literal types like these, TypeScript reduces the whole intersection to `never`. With types such as `string` and `number`, only the property becomes `never`."
+/>
+
+<Predict
+  id="same-name-interfaces"
+  question="A file declares `interface Settings { theme: string }` and, further down, `interface Settings { fontSize: number }`. What is `Settings`?"
+  options={[
+    'An error: duplicate identifier',
+    'The second declaration, which replaces the first',
+    'One interface with both `theme` and `fontSize`',
+    'A union of the two declarations',
+  ]}
+  answer={2}
+  explanation="Interfaces with the same name in the same scope merge, so a `Settings` value needs both properties. Two type aliases with the same name would be the error: `Duplicate identifier 'Settings'.`"
+/>
+
+## Further reading
+
+- [Everyday Types: differences between type aliases and interfaces](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#differences-between-type-aliases-and-interfaces)
+- [Object Types: extending types](https://www.typescriptlang.org/docs/handbook/2/objects.html#extending-types)
+- [Object Types: intersection types](https://www.typescriptlang.org/docs/handbook/2/objects.html#intersection-types)
+- [Declaration merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html)

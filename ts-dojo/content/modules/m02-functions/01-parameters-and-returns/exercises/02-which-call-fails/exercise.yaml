@@ -1,0 +1,22 @@
+id: m02-functions/01-parameters-and-returns/02-which-call-fails
+kind: predict
+title: Which call fails?
+minutes: 2
+challenge: false
+code: |
+  function badge(text: string, count = 0, ...tags: string[]) {
+    return `${text} (${count}) ${tags.join(' ')}`;
+  }
+question: Which of these calls is a compile error?
+options:
+  - "badge('inbox')"
+  - "badge('inbox', 3, 'new', 'urgent')"
+  - "badge('inbox', 'new')"
+  - "badge('inbox', undefined, 'new')"
+answer: 2
+explanation: |
+  `count` takes its type from its default, so it is an optional `number`. Arguments are still
+  matched by position: the second argument always goes to `count`, and `'new'` is not a number
+  (`Argument of type 'string' is not assignable to parameter of type 'number'.`). To pass tags
+  and keep the default count, pass `undefined` in its place, as the last call does. The first
+  call leaves out `count` and passes no tags at all, which both allow.

@@ -1,0 +1,10 @@
+id: m16-tooling
+title: Tooling and configuration
+summary: The strictness flags, module resolution, project references, what TypeScript 6 and 7 change, and declaration files for JavaScript.
+prerequisites: [m09-modules-async]
+lessons:
+  - 01-strict-flags
+  - 02-module-resolution
+  - 03-project-references
+  - 04-typescript-6-and-7
+  - 05-authoring-declarations

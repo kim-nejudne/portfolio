@@ -1,0 +1,26 @@
+id: m05-generics/05-when-generics-hurt/02-the-callback-parameter
+kind: predict
+title: A type parameter for the callback
+minutes: 2
+challenge: false
+code: |
+  function apply<T, R, F extends (value: T) => R>(value: T, fn: F): R {
+    return fn(value);
+  }
+
+  const size = apply<string, number>('coffee', (drink) => drink.length);
+question: The caller passes type arguments to get a number back. What does the last line do?
+options:
+  - 'Compiles, and size is a number'
+  - 'Compiles, and size is unknown'
+  - 'Reports Expected 3 type arguments, but got 2.'
+  - 'Compiles, and F is inferred from the callback'
+answer: 2
+explanation: |
+  Explicit type arguments are all or nothing (5.1), and `apply` declares three. So the caller
+  who wants to say what `T` and `R` are must also spell out `F`, the callback's whole type:
+  `apply<string, number, (value: string) => number>`. The call reports a second error too,
+  `Property 'length' does not exist on type 'T'.`, because the type arguments were not applied.
+  The extra type parameter costs callers as well as inference. With `fn: (value: T) => R` and no `F`,
+  `apply<string, number>` compiles, and so does `apply('coffee', …)` with no type arguments at
+  all.

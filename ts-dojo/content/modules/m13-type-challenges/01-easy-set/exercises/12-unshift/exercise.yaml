@@ -1,0 +1,18 @@
+id: m13-type-challenges/01-easy-set/12-unshift
+kind: type-challenge
+title: Unshift
+minutes: 2
+challenge: false
+prompt: |
+  Write `Unshift<T, U>` in `index.ts`, the type of `Array.prototype.unshift` on a tuple: `T`
+  with `U` added at the start. `Unshift<[1, 2], 0>` is `[0, 1, 2]`, and `Unshift<[], 1>` is
+  `[1]`.
+
+  From type-challenges [#03060 Unshift](https://github.com/type-challenges/type-challenges/blob/main/questions/03060-easy-unshift/README.md) by jiangshan (@jiangshanmeta) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Push, the other way round.

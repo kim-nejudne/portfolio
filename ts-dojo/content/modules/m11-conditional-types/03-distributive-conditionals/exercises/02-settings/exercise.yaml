@@ -1,0 +1,26 @@
+id: m11-conditional-types/03-distributive-conditionals/02-settings
+kind: fix
+title: One setting, not one per value
+minutes: 3
+challenge: false
+prompt: |
+  `Setting<T>` in `index.ts` describes one entry in a settings panel: a toggle when its value
+  is a boolean, and a choice from a list of options otherwise. The choices don't compile:
+
+  - `Type '("light" | "dark" | "system")[]' is not assignable to type 'readonly "light"[] | readonly "dark"[] | readonly "system"[]'.`
+  - and the same for `fontSize`, with `12 | 14 | 16`.
+
+  Fix `Setting` so that a union is taken as one type: `Setting<Theme>` is one choice whose
+  `value` is any theme and whose `options` list all of them, and `Setting<boolean>` is one
+  toggle whose `value` is `boolean`. Keep the toggle and the choice, and keep the settings as
+  they are. The type cases try `boolean`, `true`, `Theme`, `number` and `boolean | 'auto'`,
+  which is a choice because not every member is a boolean.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [explicit-any, as-unknown-as, type-assertion, angle-cast, any-expression]
+hints:
+  - The error lists one array type per theme. Something asks the condition once for each member of `Theme`.
+  - '`T` is a naked type parameter. Change the condition so that it tests `T` as a whole.'

@@ -1,0 +1,23 @@
+id: m13-type-challenges/01-easy-set/01-pick
+kind: type-challenge
+title: Pick
+minutes: 2
+challenge: false
+prompt: |
+  Write `MyPick<T, K>` in `index.ts` without using the built-in `Pick`. It is an object type
+  with only those properties of `T` whose keys are in `K`: for a `Todo` with `title`,
+  `description` and `completed`, `MyPick<Todo, 'title' | 'completed'>` is
+  `{ title: string; completed: boolean }`.
+
+  A key that `T` doesn't have must be an error. A case added in the dojo checks that a picked
+  `readonly` or optional property keeps its modifier.
+
+  From type-challenges [#00004 Pick](https://github.com/type-challenges/type-challenges/blob/main/questions/00004-easy-pick/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lesson 6.4 rebuilt this one. A mapped type can loop over any union of keys, not only `keyof T`.
+  - The rejected key is the job of a constraint on `K`, the kind lesson 5.4 used for property names.

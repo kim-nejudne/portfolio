@@ -1,0 +1,23 @@
+id: m11-conditional-types/01-conditional-types/03-loud-strings
+kind: fix
+title: Loud strings, quiet numbers
+minutes: 3
+challenge: false
+prompt: |
+  `Loud<T>` in `index.ts` should write every string property of `T` in capitals and leave
+  every other property as it is, with its modifiers. It doesn't compile:
+
+  - `Type 'T[K]' does not satisfy the constraint 'string'.`
+
+  `Uppercase` takes only string types, and nothing says that `T[K]` is one. Fix `Loud` without
+  changing what it accepts: `Loud` must still take any object type, numbers and arrays
+  included. The type cases try it on three object types, and the `@ts-expect-error` line checks
+  that a lower-case value is rejected where a capital one is required.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, any-expression]
+hints:
+  - The value side of the mapped type can be a conditional type, asked once for each property.
+  - In the true branch of a condition, the compiler knows what the condition proved about the type it tested.

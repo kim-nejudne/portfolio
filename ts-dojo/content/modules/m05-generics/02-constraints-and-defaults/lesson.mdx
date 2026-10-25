@@ -1,0 +1,266 @@
+---
+id: m05-generics/02-constraints-and-defaults
+title: Constraints and defaults
+minutes: 20
+objectives:
+  - Constrain a type parameter with extends so that the body can use what the constraint promises
+  - Return the type parameter rather than its constraint, so that callers keep their own types
+  - Relate two type parameters by constraining one with the other
+  - Give a type parameter a default, and predict whether the default, inference or an explicit type argument decides it
+  - Explain why a value of the constraint's type is not assignable to the type parameter
+prerequisites:
+  - m05-generics/01-generic-functions
+  - m04-objects/02-structural-typing
+  - m01-types/02-primitives-literals-widening
+  - m02-functions/01-parameters-and-returns
+tags:
+  - generics
+  - constraint
+  - extends
+  - generic constraint
+  - default type argument
+  - type parameter default
+  - subtype of constraint
+  - NoInfer
+---
+
+## Concept
+
+<Lesson id="m05-generics/01-generic-functions" /> left `longest` with `Property 'length' does not exist on type 'T'.` Inside the function, `T` can be any type the caller picks, `number` and `undefined` included, so the body may use only what every type has. A constraint narrows the choice. `T extends { length: number }` says that whatever `T` is, it has a numeric `length`:
+
+```ts twoslash
+function longest<T extends { length: number }>(a: T, b: T): T {
+  return a.length >= b.length ? a : b;
+}
+
+const list = longest([1, 2], [3]);
+//    ^?
+const tags = longest(['new'], ['sale', 'blue']);
+//    ^?
+```
+
+A constraint works in both directions. Inside, the body may use everything `{ length: number }` has, because every `T` will have it. Outside, every call must pass a type assignable to the constraint, and the call is checked against it:
+
+```ts run errors
+function longest<T extends { length: number }>(a: T, b: T): T {
+  return a.length >= b.length ? a : b;
+}
+
+const larger = longest(10, 20);
+```
+
+`Argument of type 'number' is not assignable to parameter of type '{ length: number; }'.` Here `extends` means "is assignable to", the structural check of <Lesson id="m04-objects/02-structural-typing" />: strings, arrays and any object with a numeric `length` pass, whatever else they have. And `T` is still inferred from each call, so the result is the caller's type, not `{ length: number }`.
+
+## Examples
+
+**Return `T`, not the constraint.** A constraint is what the function needs from its argument, not what it gives back. A function that needs only a `createdAt` could take that shape as its parameter type. A `Post` is assignable to the shape, so the call compiles, but the shape is all that comes back:
+
+```ts run errors
+type Post = { title: string; createdAt: number };
+
+function newest(
+  items: readonly { createdAt: number }[],
+): { createdAt: number } | undefined {
+  let best: { createdAt: number } | undefined;
+  for (const item of items) {
+    if (best === undefined || item.createdAt > best.createdAt) {
+      best = item;
+    }
+  }
+  return best;
+}
+
+const posts: Post[] = [
+  { title: 'Hello', createdAt: 1 },
+  { title: 'Again', createdAt: 2 },
+];
+console.log(newest(posts)?.title);
+```
+
+`Property 'title' does not exist on type '{ createdAt: number; }'.` Make the item type a type parameter, constrain it to the shape, and return the type parameter:
+
+```ts twoslash
+type Post = { title: string; createdAt: number };
+
+function newest<T extends { createdAt: number }>(
+  items: readonly T[],
+): T | undefined {
+  let best: T | undefined;
+  for (const item of items) {
+    if (best === undefined || item.createdAt > best.createdAt) {
+      best = item;
+    }
+  }
+  return best;
+}
+
+const posts: Post[] = [
+  { title: 'Hello', createdAt: 1 },
+  { title: 'Again', createdAt: 2 },
+];
+const latest = newest(posts);
+//    ^?
+```
+
+The body reads `item.createdAt` because of the constraint, and the caller gets a `Post` back, `title` included.
+
+**Primitive constraints keep literal types.** A `T` that is returned as it is keeps a literal type (5.1). A `T` inside another type, such as an object, widens to the primitive, unless its constraint is a primitive type such as `string` or `number`:
+
+```ts twoslash
+function wrap<T>(value: T): { value: T } {
+  return { value };
+}
+
+function wrapName<T extends string>(value: T): { value: T } {
+  return { value };
+}
+
+const loose = wrap('red');
+//    ^?
+const exact = wrapName('red');
+//    ^?
+```
+
+**A constraint written with another type parameter.** This `append` compiles, and it lets a value into a list that should not hold it:
+
+```ts run
+function append<T>(list: T[], item: T): void {
+  list.push(item);
+}
+
+type Role = 'admin' | 'editor';
+const roles: Role[] = ['admin'];
+const input: string = 'guest';
+append(roles, input);
+
+console.log(roles);
+```
+
+Both arguments offer a candidate for `T`. `string` is a supertype of `Role`, so `T` is `string` (5.1), and a `Role[]` is accepted where a `string[]` is expected. `roles` now holds `'guest'`, which is no `Role`. The item should fit the list, not widen it, so give the item its own type parameter and constrain it with the list's:
+
+```ts run errors
+function append<T, U extends T>(list: T[], item: U): void {
+  list.push(item);
+}
+
+type Role = 'admin' | 'editor';
+const roles: Role[] = ['admin'];
+const input: string = 'guest';
+append(roles, 'editor');
+append(roles, input);
+```
+
+`Argument of type 'string' is not assignable to parameter of type 'Role'.` Now `T` comes only from the list, `Role`, and `U` from the item. `'editor'` satisfies `U extends Role`, `string` doesn't. A constraint may name any type parameter of the same list, declared before it or after it.
+
+<Callout kind="tip">
+  TypeScript 5.4 added a built-in type for this case. Writing `item: NoInfer<T>` tells the
+  compiler not to infer `T` from that argument, so `T` comes from the list alone, with one type
+  parameter instead of two.
+</Callout>
+
+**Default type arguments.** `= Type` after a type parameter gives it a default: the type argument it takes when nothing else decides it. Inference comes first, and the default fills in only when there is nothing to infer from:
+
+```ts twoslash
+function makeList<T = string>(...items: T[]): T[] {
+  return items;
+}
+
+const scores = makeList(3, 9);
+//    ^?
+const names = makeList();
+//    ^?
+```
+
+Without `= string`, a call with no arguments infers `unknown`, so `names` would be an `unknown[]`. Generic types and classes take defaults the same way, as <Lesson id="m05-generics/03-generic-types-and-classes" /> shows.
+
+**Defaults and explicit type arguments.** In 5.1, explicit type arguments were all or nothing. A type parameter with a default may be left out of the list, and then it takes its default; it is not inferred. A default may also name an earlier type parameter, as `U = T` does here:
+
+```ts run errors
+function pair<T, U = T>(first: T, second?: U): [T, U | undefined] {
+  return [first, second];
+}
+
+const same = pair<string>('a', 'b');
+const mixed = pair<string>('a', 3);
+```
+
+`Argument of type 'number' is not assignable to parameter of type 'string'.` `pair<string>` sets `T` to `string`, and `U` takes its default, `T`, which is `string` too. `pair('a', 3)` infers both and compiles, and so does `pair<string, number>('a', 3)`.
+
+## Pitfalls
+
+**Returning a value of the constraint's type as `T`.** The constraint is the least a `T` has. The caller's `T` may have more, so a value that has only what the constraint names is not a `T`:
+
+```ts run errors
+function resetCount<T extends { count: number }>(item: T): T {
+  return { count: 0 };
+}
+```
+
+`Type '{ count: number; }' is not assignable to type 'T'.`, then `'{ count: number; }' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint '{ count: number; }'.` A call such as `resetCount({ count: 3, name: 'Ada' })` promises an object with a `name`, and `{ count: 0 }` has none. The same goes for primitives: under `T extends number`, `T` could be the literal type `5`, so `0` is not a `T` either. Build the result from the value you were given: `{ ...item, count: 0 }` has the type `T & { count: number }`, which is assignable to `T`. The compiler doesn't check the property you overwrite against `T`, though. If a caller's `T` had `count: 3`, the result would claim a `3` it doesn't hold.
+
+**Expecting a default to constrain `T`.** A default only fills in `T` when nothing else does. A caller can still pass any type, so the body may use nothing more than before:
+
+```ts run errors
+function shout<T = string>(text: T) {
+  return text.toUpperCase();
+}
+```
+
+`Property 'toUpperCase' does not exist on type 'T'.` What the body relies on is a constraint, `T extends string`. The two combine as `<T extends string = string>`, and the default must satisfy the constraint: `<T extends string = number>` reports `Type 'number' does not satisfy the constraint 'string'.`
+
+**A required type parameter after one with a default.** Explicit type arguments are matched by position, so the type parameters with defaults go last, like optional parameters (<Lesson id="m02-functions/01-parameters-and-returns" />):
+
+```ts run errors
+function convert<T = string, U>(value: T, to: (value: T) => U): U {
+  return to(value);
+}
+```
+
+`Required type parameters may not follow optional type parameters.` Swap them, `<U, T = string>`, so that `convert<number>` can only mean `U`.
+
+## Check yourself
+
+<Predict
+  id="literal-subtype"
+  question="Why does `function zero<T extends number>(n: T): T { return 0; }` fail to compile?"
+  options={[
+    'A type parameter with a constraint cannot appear in the return type',
+    'T could be a narrower type than number, such as the literal type 5, and 0 is not a 5',
+    'The constraint should be written as T = number',
+    'The parameter n is never used',
+  ]}
+  answer={1}
+  explanation="The caller chooses `T`, and any subtype of `number` satisfies the constraint, the literal type `5` included. A call `zero(5)` promises a `5`, and `0` isn't one. The compiler says so: `'number' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint 'number'.`"
+/>
+
+<Predict
+  id="item-fits-list"
+  code={
+    "function append<T, U extends T>(list: T[], item: U): void {\n  list.push(item);\n}\n\nconst roles: ('admin' | 'editor')[] = ['admin'];\nconst input: string = 'editor';\n\nappend(roles, 'editor'); // A\nappend(roles, input); // B"
+  }
+  question="Which of the calls A and B compile?"
+  options={['A only', 'B only', 'Both', 'Neither']}
+  answer={0}
+  explanation={
+    "`T` is inferred from the list alone, as the union of the two roles. In A, `U` is the literal type of `'editor'`, which satisfies `U extends T`. In B, `U` is `string`, which doesn't, even though the value happens to be `'editor'`: the check uses the declared type of `input`. The error is `Argument of type 'string' is not assignable to parameter of type '\"admin\" | \"editor\"'.`"
+  }
+/>
+
+<Predict
+  id="explicit-skips-inference"
+  question="`pair` is declared as `function pair<T, U = T>(first: T, second?: U): [T, U | undefined]`. What does `pair<string>('a', 3)` do?"
+  options={[
+    'Compiles: T is string, and U is inferred as number',
+    "Reports Argument of type 'number' is not assignable to parameter of type 'string'.",
+    'Reports Expected 2 type arguments, but got 1.',
+    'Compiles: U is unknown',
+  ]}
+  answer={1}
+  explanation="A type parameter with a default may be left out of an explicit list, and then it takes its default rather than being inferred. `U` defaults to `T`, which is `string`, so `3` doesn't fit. Without the default, leaving `U` out would report `Expected 2 type arguments, but got 1.` instead."
+/>
+
+## Further reading
+
+- [Handbook: Generics, generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-constraints) and [generic parameter defaults](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-parameter-defaults)
+- [Handbook: More on functions, constraints](https://www.typescriptlang.org/docs/handbook/2/functions.html#constraints) and [working with constrained values](https://www.typescriptlang.org/docs/handbook/2/functions.html#working-with-constrained-values)
+- [TypeScript 5.4 release notes: the NoInfer utility type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-4.html#the-noinfer-utility-type)

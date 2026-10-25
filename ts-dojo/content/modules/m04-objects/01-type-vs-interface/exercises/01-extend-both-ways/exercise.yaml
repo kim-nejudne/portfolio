@@ -1,0 +1,23 @@
+id: m04-objects/01-type-vs-interface/01-extend-both-ways
+kind: type-challenge
+title: Extend it both ways
+minutes: 3
+challenge: false
+prompt: |
+  `Book` has a `title` and an `author`. Build two types on it in `index.ts`:
+
+  - `Ebook`, an **interface** that extends `Book` with `sizeMb`, a `number`.
+  - `Audiobook`, a **type alias** that intersects `Book` with `narrator`, a `string`, and
+    `hours`, a `number`.
+
+  Build both on `Book` rather than copying its properties: a copy doesn't pick up a property
+  added to `Book` later, and the type cases add one. They also check that neither type accepts
+  a value with a property missing.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - An interface names the type it builds on after `extends`, then lists only the properties it adds.
+  - '`&` joins `Book` with an object type that holds only the two new properties.'

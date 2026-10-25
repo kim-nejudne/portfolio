@@ -1,0 +1,9 @@
+id: m08-functions-classes
+title: Functions and classes II
+summary: Overloads, this, callable and constructable types, and the rest of what classes can do.
+prerequisites: [m07-guards]
+lessons:
+  - 01-overloads
+  - 02-this-and-callable-types
+  - 03-classes-2
+  - 04-mixins

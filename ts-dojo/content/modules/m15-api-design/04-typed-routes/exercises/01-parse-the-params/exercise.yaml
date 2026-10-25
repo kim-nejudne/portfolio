@@ -1,0 +1,26 @@
+id: m15-api-design/04-typed-routes/01-parse-the-params
+kind: type-challenge
+title: Parse the params
+minutes: 4
+challenge: false
+prompt: |
+  Write `Params<P>`: the parameters of a route pattern, as an object type with a `string`
+  property for each one.
+
+  ```ts
+  type UserPost = Params<'/users/:id/posts/:postId'>; // { id: string; postId: string }
+  type About = Params<'/about'>; // {}
+  ```
+
+  A segment is the text between two slashes, and it is a parameter when it starts with `:`.
+  The name is the rest of the segment, up to the next `/`: `:post-id` is the parameter
+  `post-id`, and a colon in the middle of a segment, as in `/at/12:30`, is plain text.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Split the pattern first. A recursive conditional type can stop an `infer` at the first `/` and call itself on the rest, collecting every segment in a union.
+  - A conditional type applied to that union runs once per segment. Keep what follows a leading `:`, and send every other segment to `never`.
+  - A mapped type over the names that are left gives each one a `string`.

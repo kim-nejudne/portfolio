@@ -1,0 +1,29 @@
+---
+id: m98-fixture-sequel/02-tuples
+title: Tuple lengths
+minutes: 5
+objectives:
+  - Read the length of a tuple type
+  - Predict the length of a tuple with an optional element
+prerequisites: [m98-fixture-sequel/01-literal-widening]
+tags: [fixture, tuple, length]
+---
+
+## Concept
+
+A tuple type fixes its length, so `length` on a tuple type is a number literal rather than `number`.
+
+```ts
+type Pair = [string, number];
+type Size = Pair['length'];
+//   ^ 2
+```
+
+## Examples
+
+The two exercises of this fixture lesson are `predict` questions about the example above. The
+lesson exists so the roadmap has more than one module: it is replaced at F11.
+
+## Further reading
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

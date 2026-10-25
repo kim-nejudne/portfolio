@@ -1,0 +1,40 @@
+id: m17-boundaries/01-parse-dont-validate/02-what-gets-through
+kind: predict
+title: What gets through?
+minutes: 2
+challenge: false
+code: |
+  type User = { name: string };
+
+  function isUser(value: unknown): value is User {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'name' in value &&
+      typeof value.name === 'string'
+    );
+  }
+
+  function parseUser(value: unknown): User {
+    if (!isUser(value)) throw new TypeError('expected a user');
+    return { name: value.name };
+  }
+
+  const data: unknown = JSON.parse('{"name":"ada","admin":true}');
+  if (isUser(data)) {
+    console.log(Object.keys(data).join(','));
+    console.log(Object.keys(parseUser(data)).join(','));
+  }
+question: What do the two `console.log` calls print?
+options:
+  - '`name` and `name`'
+  - '`name,admin` and `name`'
+  - '`name,admin` and `name,admin`'
+  - 'Nothing: the code does not compile, because `User` has no `admin`'
+answer: 1
+explanation: |
+  `isUser` checks `name` and returns `true`, so `data` is narrowed to `User`, but it is still
+  the same object, with `admin` in it. A guard can only narrow the value it was given.
+  `parseUser` builds a new object with only the property `User` names, so `admin` is left
+  behind. It compiles: a type says which properties a value has at least, and the extra
+  property check only applies to object literals.

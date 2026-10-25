@@ -1,0 +1,33 @@
+id: m10-mapped-types/03-mapping-unions-tuples-arrays/02-receipts
+kind: fix
+title: One describer per payment method
+minutes: 4
+challenge: false
+prompt: |
+  `Describers<P>` in `index.ts` should hold one function per member of the union `P`, keyed
+  by the member's `method`, and each function should take a payment of that member only.
+  `describe` uses it for `Payment`, and the file doesn't compile:
+
+  - `Property 'last4' does not exist on type 'Payment'.`
+  - `Property 'iban' does not exist on type 'Payment'.`
+
+  Fix `Describers`, not the code that uses it: `describe` must still read `payment.last4` and
+  `payment.iban`. The type cases check `Describers` on `Payment` and on other unions, the
+  `@ts-expect-error` lines check that every method needs a function and that the card
+  describer rejects a cash payment, and the tests run `receipt`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Looping over the method names gives each key, but nothing in the value knows which member of P that key came from.
+  - The union after in can be the members of P themselves, as in the lesson's AreaOf. Then each member needs a key.

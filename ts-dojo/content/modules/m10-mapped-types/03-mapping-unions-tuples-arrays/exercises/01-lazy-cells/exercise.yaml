@@ -1,0 +1,28 @@
+id: m10-mapped-types/03-mapping-unions-tuples-arrays/01-lazy-cells
+kind: type-challenge
+title: Cells computed on demand
+minutes: 3
+challenge: false
+prompt: |
+  A spreadsheet computes a cell only when something reads it, so a row holds functions
+  instead of values. Write `Lazy<T>` in `index.ts`: the same shape as `T`, with every element
+  or property replaced by a function that takes no arguments and returns it.
+
+  ```ts
+  type Row = Lazy<[name: string, age: number]>;
+  // [name: () => string, age: () => number]
+  ```
+
+  A tuple stays a tuple, with its labels, its optional and rest elements and its `readonly`;
+  an array stays an array; an object keeps its modifiers. A union is mapped member by member,
+  and a primitive passes through. The type cases try all of these, and the `@ts-expect-error`
+  lines check that a `Lazy` tuple still has a fixed length, is still an array, and checks
+  what each function returns.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Start from the lesson's Boxed and change only the value of each element.
+  - The tuple, array and union cases come from the form of the mapped type, not from extra code. Which form did Boxed use?

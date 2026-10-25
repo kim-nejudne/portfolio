@@ -1,0 +1,341 @@
+---
+id: m18-capstones/02-query-builder
+title: A query builder
+minutes: 45
+objectives:
+  - Derive a query's result row from the selected columns, with a type parameter and Pick
+  - Tie a filter value to its column's type by giving the column its own type parameter
+  - Restrict operators and sort keys to the columns whose types support them
+  - Parse aliases such as "name as author" with template literal types and rename the output keys
+prerequisites:
+  - m05-generics/04-keyof-constraints
+  - m06-type-operators/02-utility-types-1
+  - m10-mapped-types/02-key-remapping
+  - m11-conditional-types/03-distributive-conditionals
+  - m12-template-tuples/01-template-literal-types
+  - m15-api-design/01-builders
+tags:
+  - query builder
+  - SQL
+  - schema type
+  - select
+  - where
+  - orderBy
+  - alias
+  - capstone
+---
+
+## Concept
+
+A query builder is a builder from <Lesson id="m15-api-design/01-builders" /> whose type parameters describe rows instead of steps. A schema type maps each table name to its row type, and three choices type every query written against it:
+
+- The table name picks the row type, by an indexed access on the schema: `Schema[T]`.
+- `select` records the chosen columns in its own type parameter `C`, and the query's output row becomes `Pick<Row, C>` (<Lesson id="m06-type-operators/02-utility-types-1" />).
+- `where` gives the column a type parameter `K` of its own, so the value can be typed `Row[K]`: the type of that one column.
+
+```ts twoslash
+type User = { id: number; name: string; age: number; email: string | null };
+type Post = { id: number; authorId: number; title: string; published: boolean };
+type Schema = { users: User; posts: Post };
+type Op = '=' | '<' | '>';
+
+declare class Query<Row, Out> {
+  select<C extends keyof Row>(...columns: C[]): Query<Row, Pick<Row, C>>;
+  where<K extends keyof Row>(column: K, op: Op, value: Row[K]): Query<Row, Out>;
+  run(): Out[];
+}
+
+declare function from<T extends keyof Schema>(
+  table: T,
+): Query<Schema[T], Schema[T]>;
+
+const adults = from('users').select('id', 'name').where('age', '>', 30).run();
+//    ^?
+```
+
+`Query` has two type parameters: `Row`, the table's row, which `where` filters on, and `Out`, the row that `run` returns. `where` can test a column that wasn't selected, as in SQL, and leaves `Out` alone. The caller writes no type at all. Each type parameter is inferred as the literal name it was given and checked against its `keyof` constraint (<Lesson id="m05-generics/04-keyof-constraints" />), and everything else is computed from those names.
+
+## Examples
+
+**The run time.** A query holds three things: the rows of its table, the filters that `where` added, and a projection, a function from a row to an output row. `Out` is the projection's return type, so the type parameter describes a value the query holds, as the builder's did in 15.1. Each step returns a new query:
+
+```ts run
+type User = { id: number; name: string; age: number; email: string | null };
+type Post = { id: number; authorId: number; title: string; published: boolean };
+type Schema = { users: User; posts: Post };
+type Op = '=' | '<' | '>';
+type Filter<Row> = (row: Row) => boolean;
+
+// An assertion that holds: the loop copies every column in `columns`, which is C.
+function pick<Row, C extends keyof Row>(
+  row: Row,
+  columns: readonly C[],
+): Pick<Row, C> {
+  const picked = {} as Pick<Row, C>;
+  for (const column of columns) picked[column] = row[column];
+  return picked;
+}
+
+function compare<V>(left: V, op: Op, right: V): boolean {
+  if (op === '=') return left === right;
+  return op === '<' ? left < right : left > right;
+}
+
+class Query<Row, Out> {
+  readonly #rows: readonly Row[];
+  readonly #filters: readonly Filter<Row>[];
+  readonly #project: (row: Row) => Out;
+
+  constructor(
+    rows: readonly Row[],
+    filters: readonly Filter<Row>[],
+    project: (row: Row) => Out,
+  ) {
+    this.#rows = rows;
+    this.#filters = filters;
+    this.#project = project;
+  }
+
+  select<C extends keyof Row>(...columns: C[]): Query<Row, Pick<Row, C>> {
+    return new Query(this.#rows, this.#filters, (row) => pick(row, columns));
+  }
+
+  where<K extends keyof Row>(
+    column: K,
+    op: Op,
+    value: Row[K],
+  ): Query<Row, Out> {
+    const test = (row: Row) => compare(row[column], op, value);
+    return new Query(this.#rows, [...this.#filters, test], this.#project);
+  }
+
+  run(): Out[] {
+    return this.#rows
+      .filter((row) => this.#filters.every((test) => test(row)))
+      .map(this.#project);
+  }
+}
+
+class Database<S> {
+  readonly #tables: { [T in keyof S]: readonly S[T][] };
+
+  constructor(tables: { [T in keyof S]: readonly S[T][] }) {
+    this.#tables = tables;
+  }
+
+  from<T extends keyof S>(table: T): Query<S[T], S[T]> {
+    return new Query(this.#tables[table], [], (row) => ({ ...row }));
+  }
+}
+
+const db = new Database<Schema>({
+  users: [
+    { id: 1, name: 'Ada', age: 36, email: 'ada@example.com' },
+    { id: 2, name: 'Alan', age: 41, email: null },
+    { id: 3, name: 'Grace', age: 29, email: 'grace@example.com' },
+  ],
+  posts: [{ id: 10, authorId: 1, title: 'Notes', published: true }],
+});
+
+console.log(db.from('users').select('id', 'name').where('age', '>', 30).run());
+console.log(db.from('users').where('email', '=', null).select('name').run());
+console.log(db.from('posts').where('published', '=', true).run());
+```
+
+`Database` takes its schema as a type argument and its tables as a mapped type over it (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), so a table missing from the object, or a row of the wrong shape, is an error where the data is written. An object built key by key starts as `{}`, which is not yet a `Pick<Row, C>`; it is one once the loop has copied every column in `columns`, whose elements are exactly `C`. As with the options builder in <Lesson id="m15-api-design/01-builders" />, there are two ways through. `pick` takes one assertion, which is true. Or an overload gives `pick` the generic signature callers see and puts the body under a looser implementation signature, `pick(row: unknown, columns: readonly PropertyKey[]): Record<PropertyKey, unknown>`, where it compiles without one.
+
+**What the types reject.** A column that is not in the row, a value of the wrong type for its column, and a table that is not in the schema:
+
+```ts twoslash
+// @errors: 2345
+type User = { id: number; name: string; age: number; email: string | null };
+type Post = { id: number; authorId: number; title: string; published: boolean };
+type Schema = { users: User; posts: Post };
+type Op = '=' | '<' | '>';
+
+declare class Query<Row, Out> {
+  select<C extends keyof Row>(...columns: C[]): Query<Row, Pick<Row, C>>;
+  where<K extends keyof Row>(column: K, op: Op, value: Row[K]): Query<Row, Out>;
+  run(): Out[];
+}
+
+declare function from<T extends keyof Schema>(
+  table: T,
+): Query<Schema[T], Schema[T]>;
+
+from('users').select('id', 'nickname');
+from('users').where('age', '>', '30');
+from('posts').where('published', '=', 1);
+from('comments');
+```
+
+The second call reports `Argument of type 'string' is not assignable to parameter of type 'number'.`: `K` is inferred from the column, `'age'`, before the value is checked against `User['age']`.
+
+**Operators by column type.** `<` and `>` make sense for numbers and strings, and not for a boolean or a column that can be `null`. A conditional type (<Lesson id="m11-conditional-types/01-conditional-types" />) over the column's type picks the operators. The brackets around `V` stop it from distributing (<Lesson id="m11-conditional-types/03-distributive-conditionals" />): `string | null` should count as one type that may be `null`, not as a `string` that gets every operator and a `null` that gets `'='`:
+
+```ts twoslash
+// @errors: 2345
+type User = { id: number; name: string; age: number; email: string | null };
+type Op = '=' | '<' | '>';
+type OpFor<V> = [V] extends [number | string] ? Op : '=';
+
+declare class Query<Row> {
+  where<K extends keyof Row>(
+    column: K,
+    op: OpFor<Row[K]>,
+    value: Row[K],
+  ): Query<Row>;
+}
+
+declare const users: Query<User>;
+
+type Email = OpFor<User['email']>;
+//   ^?
+users.where('name', '<', 'M').where('age', '>', 30);
+users.where('email', '=', null);
+users.where('email', '<', 'm');
+```
+
+**Aliases.** SQL renames an output column with `AS`. A template literal type (<Lesson id="m12-template-tuples/01-template-literal-types" />) can list the specs a `select` accepts, a column or a column followed by `as` and any name, and `infer` takes a spec apart again:
+
+```ts twoslash
+// @errors: 2322
+type User = { id: number; name: string; age: number; email: string | null };
+
+type Spec<Row> = (keyof Row & string) | `${keyof Row & string} as ${string}`;
+type ColumnOf<S> = S extends `${infer C} as ${string}` ? C : S;
+type AliasOf<S> = S extends `${string} as ${infer A}` ? A : S;
+
+type UserSpec = Spec<User>;
+//   ^?
+type Author = AliasOf<'name as author'>;
+//   ^?
+type Source = ColumnOf<'name as author'>;
+//   ^?
+const typo: Spec<User> = 'nmae as author';
+```
+
+`keyof Row & string` keeps only the string keys, since a template literal can't hold a `symbol`. With an `as` clause (<Lesson id="m10-mapped-types/02-key-remapping" />), a mapped type over the specs can then use `AliasOf` for each output key and `ColumnOf` to look up its type in the row. That `select` is the third exercise.
+
+## Pitfalls
+
+**Typing the value with every column at once.** Without a type parameter for the column, the value can only be `Row[keyof Row]`, the union of every column's type. A value meant for one column is then accepted for any other, and the filter quietly matches nothing:
+
+```ts run
+type User = { id: number; name: string; age: number };
+
+const users: User[] = [
+  { id: 1, name: 'Ada', age: 36 },
+  { id: 2, name: 'Alan', age: 41 },
+];
+
+function where<Row>(
+  rows: readonly Row[],
+  column: keyof Row,
+  value: Row[keyof Row],
+): Row[] {
+  return rows.filter((row) => row[column] === value);
+}
+
+console.log(where(users, 'age', '36'));
+```
+
+It prints `[]`: `'36'` is a `string`, and `string` is one of `number | string`. Give the column its own type parameter, `<Row, K extends keyof Row>(rows: readonly Row[], column: K, value: Row[K])`, and the call reports `Argument of type 'string' is not assignable to parameter of type 'number'.`
+
+**Selecting nothing.** A rest parameter of type `C[]` accepts no arguments at all. With no argument, `C` has no candidate and falls back to its constraint, `keyof User` (<Lesson id="m05-generics/02-constraints-and-defaults" />), so the type promises every column while the run time picks none:
+
+```ts run
+type User = { id: number; name: string; age: number };
+
+const users: User[] = [
+  { id: 1, name: 'Ada', age: 36 },
+  { id: 2, name: 'Alan', age: 41 },
+];
+
+function pick<Row, C extends keyof Row>(
+  row: Row,
+  columns: readonly C[],
+): Pick<Row, C> {
+  const picked = {} as Pick<Row, C>;
+  for (const column of columns) picked[column] = row[column];
+  return picked;
+}
+
+function select<C extends keyof User>(...columns: C[]): Pick<User, C>[] {
+  return users.map((user) => pick(user, columns));
+}
+
+const everyone = select();
+console.log(everyone[0].name.toUpperCase());
+```
+
+It throws `Cannot read properties of undefined (reading 'toUpperCase')`, on a line that compiled. Require one column in the signature, `select<C extends keyof User>(first: C, ...rest: C[])`, and `select()` reports `Expected at least 1 arguments, but got 0.`
+
+**Passing a column name that is only a `string`.** A column that comes from outside the program, such as a sort field from a request, has type `string`, and a `string` is not one of the columns:
+
+```ts run errors
+type User = { id: number; name: string; age: number };
+
+const users: User[] = [
+  { id: 1, name: 'Ada', age: 36 },
+  { id: 2, name: 'Alan', age: 41 },
+];
+
+function sortBy<K extends keyof User>(column: K): User[] {
+  return users.toSorted((a, b) => (a[column] < b[column] ? -1 : 1));
+}
+
+function handle(request: { sort: string }): User[] {
+  return sortBy(request.sort);
+}
+```
+
+`Argument of type 'string' is not assignable to parameter of type 'keyof User'.` An assertion, `request.sort as keyof User`, compiles and lets any text through. Check the name instead, with a type guard (<Lesson id="m07-guards/01-type-guards" />) that compares it with a list of the columns, and pass the narrowed name.
+
+## Check yourself
+
+<Predict
+  id="where-keeps-the-output"
+  code="const titles = from('posts').select('title').where('published', '=', true).run();"
+  question="With `from` and `Query` as in the Concept, what is the type of `titles`?"
+  options={[
+    '`Post[]`',
+    "`Pick<Post, 'title'>[]`",
+    "`Pick<Post, 'title' | 'published'>[]`",
+    'An error: `published` was not selected',
+  ]}
+  answer={1}
+  explanation="`select` sets `Out` to `Pick<Post, 'title'>`, and `where` returns `Query<Row, Out>` unchanged. Its `K` ranges over `keyof Row`, the whole table, so it may test `published` without adding it to the output, as a SQL `WHERE` can test a column the `SELECT` leaves out."
+/>
+
+<Predict
+  id="operators-for-email"
+  question="With `op: OpFor<Row[K]>` and `OpFor<V> = [V] extends [number | string] ? Op : '='`, which operators does `users.where('email', …)` accept, when `email` is `string | null`?"
+  options={[
+    "`'='` only",
+    "`'='`, `'<'` and `'>'`",
+    'None: a column that can be `null` cannot be filtered',
+  ]}
+  answer={0}
+  explanation="`[string | null]` is not assignable to `[number | string]`, because `null` is neither, so the conditional takes its false branch. Without the brackets it would distribute: `string` would get every operator, `null` would get `'='`, and the union of the two is every operator again."
+/>
+
+<Predict
+  id="select-with-no-columns"
+  question="With `select<C extends keyof Row>(...columns: C[]): Query<Row, Pick<Row, C>>`, what is the output row type of `from('users').select()`?"
+  options={[
+    '`{}`',
+    '`Pick<User, keyof User>`, every column',
+    'An error: `select` needs at least one column',
+  ]}
+  answer={1}
+  explanation="With no argument there is nothing to infer `C` from, so it falls back to its constraint, `keyof User`. The type promises every column while the projection picks none, which is why `select` should require its first column."
+/>
+
+## Further reading
+
+- [Indexed access types](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)
+- [Generics: using type parameters in generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#using-type-parameters-in-generic-constraints)
+- [Conditional types: distributive conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#distributive-conditional-types)
+- [Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html) and [key remapping via `as`](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#key-remapping-via-as)
+- [Kysely](https://kysely.dev), a SQL query builder for TypeScript whose result types are derived the same way

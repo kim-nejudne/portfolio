@@ -1,0 +1,18 @@
+id: m99-fixtures/01-fix/01-handle-the-new-shape
+kind: fix
+title: Handle the new shape
+minutes: 4
+challenge: false
+prompt: |
+  A `triangle` was added to `Shape`, and `area` no longer compiles: the `never` check in the
+  `default` branch names the member nobody handles. Make `area` compile again by handling it.
+  The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+timeoutMs: 5000
+hints:
+  - The union has three members and the switch handles two. The error on the `never` line names the one that is left.
+  - Inside `case 'triangle':`, `shape` narrows to the triangle member, so `base` and `height` are available.

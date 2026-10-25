@@ -1,0 +1,37 @@
+id: m16-tooling/03-project-references/01-annotate-the-exports
+kind: fix
+title: Annotate the exports
+minutes: 3
+challenge: false
+prompt: |
+  This exercise compiles with `declaration: true` and `isolatedDeclarations: true`, so every
+  export must carry a type that can be read off the source. `index.ts` has errors on all
+  three exports:
+
+  - `Function must have an explicit return type annotation with --isolatedDeclarations.` on
+    `sizeOf`
+  - `Expression type can't be inferred with --isolatedDeclarations.` twice, on the two
+    properties of the object `summarize` returns: with no return type, the compiler tries to
+    read one off that object and can't
+  - `Variable must have an explicit type annotation with --isolatedDeclarations.` on `EMPTY`
+
+  Add the annotations. Write the types the checker infers today, so that no caller sees a
+  change: the type cases compare the three types with what they were before the flag. Don't
+  change what the functions do.
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  declaration: true
+  isolatedDeclarations: true
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    non-null-assertion,
+    type-assertion,
+    as-unknown-as,
+    any-expression,
+  ]
+hints:
+  - Each annotation should say exactly what the checker worked out. Hover over a name to see its inferred type before you write anything.
+  - '`string` would compile in `index.ts`, but it is wider than the three sizes. Name the union and the object type once, and use the names in all three annotations.'

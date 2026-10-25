@@ -1,0 +1,229 @@
+---
+id: m10-mapped-types/03-mapping-unions-tuples-arrays
+title: Mapping over unions, tuples and arrays
+minutes: 20
+objectives:
+  - Map the elements of an array or a tuple with a homomorphic mapped type, and predict what the result keeps
+  - Explain why a generic homomorphic mapped type given a union maps each member on its own
+  - Build an object type from a union of object types by looping over the union with an as clause
+  - Tell when a mapped type over a tuple gives an object type instead, and keep only the positions when an object is what you want
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m03-unions/05-discriminated-unions
+  - m06-type-operators/03-utility-types-2
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m10-mapped-types/02-key-remapping
+tags:
+  - mapped type
+  - homomorphic
+  - tuple
+  - array
+  - readonly tuple
+  - union
+  - distribution
+  - as clause
+  - Extract
+  - discriminated union
+  - TS2740
+  - TS2353
+---
+
+## Concept
+
+In <Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> a homomorphic mapped type left a primitive alone. Given an array or a tuple, it maps the elements and gives back an array or a tuple. `K` loops over the positions only, not over `length` or the array methods, and `T[K]` is the element at that position:
+
+```ts twoslash
+type Box<V> = { value: V };
+type Boxed<T> = { [K in keyof T]: Box<T[K]> };
+
+type Pair = Boxed<[string, number]>;
+//    ^?
+type List = Boxed<boolean[]>;
+//    ^?
+type User = Boxed<{ name: string }>;
+//    ^?
+```
+
+One type, written as if for objects, works on lists too. That is why the homomorphic utilities handle arrays: `Readonly<string[]>` is `readonly string[]`, as <Lesson id="m06-type-operators/02-utility-types-1" /> showed. The rule needs a type parameter: `Boxed` is generic, and `keyof T` meets the tuple only when `T` is replaced by it. The same generic type, given a union, maps each member on its own. And `in` can loop over a union that isn't made of keys, such as a union of object types, when an `as` clause gives each member its key.
+
+## Examples
+
+**What a tuple keeps.** The result has the same length, labels, optional and rest elements, and `readonly`. The modifiers of <Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> apply to the elements: `-readonly` makes a read-only tuple writable, and `-?` makes optional elements required. In a tuple, `K` is each position as a string literal type, `'0'` and `'1'`; in an array, it is `number`:
+
+```ts twoslash
+type Box<V> = { value: V };
+type Boxed<T> = { [K in keyof T]: Box<T[K]> };
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+type Keys<T> = { [K in keyof T]: K };
+
+type Entry = Boxed<readonly [name: string, age?: number, ...tags: string[]]>;
+//    ^?
+type Open = Mutable<readonly [1, 2]>;
+//    ^?
+type Filled = Required<[a?: string, b?: number]>;
+//     ^?
+type Positions = Keys<['x', 'y']>;
+//      ^?
+type Indexes = Keys<string[]>;
+//     ^?
+```
+
+An optional element reads like an optional property: `T[K]` of `age?` includes `undefined`, so `Entry` has `Box<number | undefined>` at that position.
+
+**The result is a real array type.** It has `length`, indexing by position and every array method, so the code that uses it reads like code over any tuple:
+
+```ts run
+type Field<V> = { value: V; dirty: boolean };
+type Fields<T> = { [K in keyof T]: Field<T[K]> };
+type Entry = [name: string, age: number];
+
+const entry: Fields<Entry> = [
+  { value: 'Ada', dirty: false },
+  { value: 36, dirty: true },
+];
+
+console.log(entry.length, entry[1].value.toFixed(1));
+console.log(entry.filter((field) => field.dirty).length);
+```
+
+`entry[1].value` is a `number`, so `toFixed` compiles; `entry[0].value.toFixed(1)` would not. The lib uses the same rule: `Promise.all` declares its result as a mapped type over the tuple it is given, with `Awaited` (<Lesson id="m09-modules-async/03-async" />) on each element, which is why `const [user, count] = await Promise.all([loadUser(), countPosts()])` gives `user` and `count` types of their own.
+
+**A union maps one member at a time.** When the type parameter of a homomorphic mapped type is given a union, the mapped type is applied to each member, and the results form a union again. A primitive member passes through, and a tuple member stays a tuple:
+
+```ts twoslash
+type Box<V> = { value: V };
+type Boxed<T> = { [K in keyof T]: Box<T[K]> };
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+type EachBoxed = Boxed<Shape>;
+//      ^?
+type Mixed = Boxed<[number] | string>;
+//    ^?
+```
+
+`Boxed<Shape>` keeps `radius` in the circle and `side` in the square. Without that, the mapped type would see `keyof Shape`, which is only `'kind'`, the key both members share; the last pitfall shows what that does. Conditional types distribute over unions too, under rules of their own; <Lesson id="m11-conditional-types/03-distributive-conditionals" /> covers them.
+
+**Looping over a union that isn't keys.** <Lesson id="m10-mapped-types/02-key-remapping" /> ended with this: the union after `in` can be a union of object types. Each member is then not a key, so an `as` clause names the key, here the member's discriminant (<Lesson id="m03-unions/05-discriminated-unions" />), and the variable holds the whole member:
+
+```ts twoslash
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'rect'; width: number; height: number };
+
+type AreaOf = { [S in Shape as S['kind']]: (shape: S) => number };
+//    ^?
+```
+
+Each function takes only its own member. Looping over the keys, `{ [K in Shape['kind']]: … }`, gives the same type only if the value finds the member for each key, with `Extract<Shape, { kind: K }>` from <Lesson id="m06-type-operators/03-utility-types-2" />. The table checks code written against it:
+
+```ts run
+type Shape =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number }
+  | { kind: 'rect'; width: number; height: number };
+
+type AreaOf = { [S in Shape as S['kind']]: (shape: S) => number };
+
+const areaOf: AreaOf = {
+  circle: (shape) => Math.PI * shape.radius ** 2,
+  square: (shape) => shape.side ** 2,
+  rect: (shape) => shape.width * shape.height,
+};
+
+console.log(areaOf.square({ kind: 'square', side: 3 }));
+console.log(areaOf.rect({ kind: 'rect', width: 2, height: 5 }));
+```
+
+Each `shape` parameter is typed from its member, so `shape.radius` compiles only in `circle`. Add a member to `Shape`, and `areaOf` stops compiling until it has a function for it. Two members with the same `kind` get one key, and its value takes their union, as two keys renamed alike did in <Lesson id="m10-mapped-types/02-key-remapping" />.
+
+## Pitfalls
+
+**Taking `keyof` of a tuple type directly.** The tuple rule needs a type parameter. Written against a tuple type itself, `keyof Point` is every key a tuple has, `length` and the methods included, and the result is an object type with all of them:
+
+```ts run errors
+type Point = [x: number, y: number];
+type Labels = { [K in keyof Point]: string };
+
+const labels: Labels = ['x', 'y'];
+```
+
+`Type '[string, string]' is not assignable to type 'Labels'.`, because `Types of property 'length' are incompatible.`: `Labels` wants a string `length`, and string methods. Write the mapped type generic and apply it: with `type Labels<T> = { [K in keyof T]: string }`, `Labels<Point>` is `[x: string, y: string]`.
+
+**An `as` clause over a tuple.** Any `as` clause, even `as K`, which renames nothing, makes the mapped type loop over every key of the tuple, so the result is an object type again. The `Getters` of <Lesson id="m10-mapped-types/02-key-remapping" />, on a tuple, asks for a getter per method:
+
+```ts run errors
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<K & string>}`]: () => T[K];
+};
+type Pair = [name: string, age: number];
+
+const pair: Getters<Pair> = { get0: () => 'Ada', get1: () => 36 };
+```
+
+`Type '{ get0: () => string; get1: () => number; }' is missing the following properties from type 'Getters<Pair>': getLength, getToString, getToLocaleString, getPop, and 35 more.` When an object type keyed by position is what you want, keep only the positions: ``K extends `${number}` ? `get${K}` : never`` gives `{ get0: () => string; get1: () => number }`. When you want a tuple back, map without `as`.
+
+**`keyof` of a union outside a generic.** Written against a union directly, `keyof Shape` holds only the keys every member has, so the mapped type makes one object with those keys:
+
+```ts run errors
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+type Copy = { [K in keyof Shape]: Shape[K] };
+
+const circle: Copy = { kind: 'circle', radius: 1 };
+```
+
+`Object literal may only specify known properties, and 'radius' does not exist in type 'Copy'.` `Copy` is `{ kind: 'circle' | 'square' }`. A generic `Copy<T>` applied to `Shape` maps each member and keeps `radius` and `side`.
+
+## Check yourself
+
+<Predict
+  id="keys-of-a-tuple"
+  code={"type Keys<T> = { [K in keyof T]: K };\ntype P = Keys<['a', 'b']>;"}
+  question="What is `P`?"
+  options={[
+    "['a', 'b']",
+    '[0, 1]',
+    "['0', '1']",
+    "An object type with keys '0', '1', 'length' and every array method",
+  ]}
+  answer={2}
+  explanation="`Keys` is generic and homomorphic, so given a tuple it gives a tuple, with one element per position. In a tuple, `K` is each position as a string literal type, so the elements are `'0'` and `'1'`, not the numbers and not the values."
+/>
+
+<Predict
+  id="as-clause-on-a-tuple"
+  code={
+    'type Same<T> = { [K in keyof T as K]: T[K] };\ntype S = Same<[string, number]>;'
+  }
+  question="What is `S`?"
+  options={[
+    '[string, number]',
+    '{ 0: string; 1: number }',
+    'An object type with 0, 1, length and every array method',
+    'string | number',
+  ]}
+  answer={2}
+  explanation="An `as` clause, even one that renames nothing, makes the mapped type loop over every key of the tuple, so the result is an object type with the positions, `length` and every method. Without the `as` clause it would be `[string, number]`."
+/>
+
+<Predict
+  id="partial-of-a-union"
+  code={'type P = Partial<string | { a: number }>;'}
+  question="What is `P`?"
+  options={[
+    '{ a?: number }',
+    'string | { a?: number }',
+    '{ a?: number; length?: number }',
+    '{}',
+  ]}
+  answer={1}
+  explanation="`Partial` is a generic homomorphic mapped type, so given a union it is applied to each member. `Partial<string>` is `string`, because a primitive passes through, and `Partial<{ a: number }>` is `{ a?: number }`."
+/>
+
+## Further reading
+
+- [Handbook: Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html), whose section [Key remapping via `as`](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#key-remapping-via-as) maps over a union of object types
+- [TypeScript 3.1 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-1.html), section "Mapped types on tuples and arrays", where tuples started to stay tuples
+- [TypeScript 4.1 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html), section "Key Remapping in Mapped Types", where `as` clauses were added

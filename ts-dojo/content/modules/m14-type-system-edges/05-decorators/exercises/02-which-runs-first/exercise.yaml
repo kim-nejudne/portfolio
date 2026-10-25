@@ -1,0 +1,37 @@
+id: m14-type-system-edges/05-decorators/02-which-runs-first
+kind: predict
+title: Which runs first?
+minutes: 2
+challenge: false
+code: |
+  function tag(label: string) {
+    return function (value: unknown, context: ClassMethodDecoratorContext) {
+      console.log(`decorate ${label}`);
+      context.addInitializer(() => console.log(`init ${label}`));
+    };
+  }
+
+  class Report {
+    @tag('outer')
+    @tag('inner')
+    render() {}
+  }
+
+  console.log('class defined');
+  new Report();
+  new Report();
+question: What does this print, line by line?
+options:
+  - 'decorate outer, decorate inner, class defined, init outer, init inner, init outer, init inner'
+  - 'decorate inner, decorate outer, class defined, init inner, init outer, init inner, init outer'
+  - 'class defined, decorate inner, decorate outer, init inner, init outer, decorate inner, decorate outer, init inner, init outer'
+  - 'decorate inner, decorate outer, init inner, init outer, class defined'
+answer: 1
+explanation: |
+  Decorators run once, while the class is being defined, so both `decorate` lines come
+  before `class defined`, and `new` doesn't run them again. Stacked decorators apply from the
+  one closest to the member outwards: `@tag('inner')` gets the original `render` first, then
+  `@tag('outer')` gets what `inner` returned. (The `tag('outer')` and `tag('inner')` calls
+  themselves are evaluated top to bottom, but they print nothing here.) An initializer that a
+  method decorator adds runs at the start of every construction, in the order it was added,
+  so each `new Report()` prints `init inner` and then `init outer`.

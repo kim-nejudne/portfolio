@@ -1,0 +1,24 @@
+id: m12-template-tuples/01-template-literal-types/01-event-names
+kind: type-challenge
+title: Event names from handler names
+minutes: 3
+challenge: false
+prompt: |
+  The theory built `` `on${Capitalize<Action>}` `` from event names, and `PropName` took a
+  `get` prefix off. Go the other way for event handlers: write `EventName<H>` in `index.ts`,
+  which takes a handler name such as `'onClick'` and gives the event name, `'click'`.
+
+  - Remove the `on` prefix and lowercase the first character of what is left:
+    `EventName<'onKeyDown'>` is `'keyDown'`.
+  - A name that doesn't start with `on` gives `never`, so a union of names keeps only the
+    handlers: `EventName<'onClick' | 'handleClick'>` is `'click'`.
+
+  The type cases try handler names of every length and some that aren't handlers.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A conditional type whose pattern is a template literal can match the prefix and capture the rest with infer.
+  - The captured rest still starts with an uppercase letter; one of the four intrinsics lowercases only that one.

@@ -1,0 +1,27 @@
+id: m03-unions/05-discriminated-unions/04-largest-shape
+kind: implement
+title: The largest shape
+minutes: 5
+challenge: false
+prompt: |
+  Implement two functions over the `Shape` union in `index.ts`:
+
+  - `area(shape)` returns the area of one shape. Handle every kind, and prove it with a `never`
+    check in the `default` branch, so that a kind added later fails to compile here. At run
+    time, a shape the types don't describe, such as one read from JSON with an unknown `kind`,
+    reaches that `default`: throw an `Error` there whose message starts with `unhandled shape`.
+  - `largest(shapes)` returns the shape with the largest area from a `readonly` list, or
+    `undefined` when the list is empty. When several shapes share the largest area, it returns
+    the first of them.
+
+  This combines the lesson with `undefined` in a return type (3.2), narrowing on the right of
+  `||` (3.4) and readonly arrays (1.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - Start with `area`, one `case` per kind. In the `default` branch nothing is left of `shape`, and a `never` variable can say so.
+  - For `largest`, keep the best shape seen so far in a variable that is `undefined` until the first shape arrives.
+  - Compare areas only once the best shape so far is known to be a `Shape`; the left side of `||` can make sure of that. To keep the first of equal areas, replace it only when the new area is strictly larger.

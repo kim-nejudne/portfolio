@@ -1,0 +1,41 @@
+id: m18-capstones/03-typed-store/05-listen-and-watch
+kind: implement
+title: Listen by type, watch a selection
+minutes: 12
+challenge: false
+prompt: |
+  Give the store two more ways to listen. Start from your `createStore` of exercise 04; the
+  `Store` type in `index.ts` already has its four methods typed, and two loose ones.
+
+  - `on(type, listener)` calls the listener with the action and the new state after every
+    dispatch of an action with that `type`, whether or not the state changed, and never for
+    another type. Type it so that the listener's action is the member of the store's action
+    union with that type: in `store.on('toggle', (action) => …)`, `action.payload` is a
+    `number`. A `type` the actions don't have is an error.
+  - `watch(selector, listener)` reads the selector on the current state, then, after each
+    dispatch that changes the state, reads it again and calls the listener with the new value
+    and the one before when they differ by `Object.is`. The listener's two parameters have the
+    selector's inferred return type.
+
+  Both return a function that removes the listener. The tests build a todo store whose actions
+  come from an action map with `ActionOf`.
+
+  This combines the lesson with typed listeners and unsubscribe functions (15.2), `Extract`
+  (6.3), type guards (7.1) and a method's own type parameter inferred at the call (5.1). No cast
+  is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - "`on` needs its own type parameter for the action type, constrained by the types the store's actions have. Which utility type keeps the members of a union that have it?"
+  - Inside the generic store, `action.type === type` doesn't narrow `A`. A function whose return type is a type predicate can say what the comparison proves.
+  - '`watch` can be built on `subscribe`: keep the last value in a variable and compare it with each new one.'

@@ -1,0 +1,34 @@
+id: m18-capstones/05-type-performance/03-one-type-per-product
+kind: fix
+title: One type per product
+minutes: 4
+challenge: false
+prompt: |
+  A shop has 2,000 SKUs, `A000` to `B999`. `index.ts` gives each of them an object type of its
+  own, and the last line no longer compiles:
+
+  - `Expression produces a union type that is too complex to represent.`
+
+  Fix the types, not the code that uses them:
+
+  - `Product` is one object type, with a `sku` that may be any `Sku` and a `price`.
+  - `CartLine` is one flat object type with the properties of `Product` and a `quantity`. Write
+    it so that a property that disagrees with `Product` would be reported where `CartLine` is
+    declared.
+  - `sample` stays an array literal of two cart lines.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - The error is on the array literal, but the cause is the 2,000 members of `Product` that it has to reduce.
+  - Does anything need to know which `sku` goes with which object type? A union can sit inside one property instead.
+  - The third pitfall shows which kind of declaration reports a conflict with the type it extends.

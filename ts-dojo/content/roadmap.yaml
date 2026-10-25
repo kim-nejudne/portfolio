@@ -1,0 +1,32 @@
+# The roadmap (spec §3): tiers in order, each listing its modules (§8). F11 ships Tier 0 and
+# Tier 1; F12–F14 add Tiers 2–4.
+tiers:
+  - id: t0
+    title: Orientation
+    modules: [m00-orientation]
+  - id: t1
+    title: Foundations
+    modules: [m01-types, m02-functions, m03-unions, m04-objects]
+  - id: t2
+    title: Intermediate
+    modules:
+      [
+        m05-generics,
+        m06-type-operators,
+        m07-guards,
+        m08-functions-classes,
+        m09-modules-async,
+      ]
+  - id: t3
+    title: Advanced type system
+    modules:
+      [
+        m10-mapped-types,
+        m11-conditional-types,
+        m12-template-tuples,
+        m13-type-challenges,
+        m14-type-system-edges,
+      ]
+  - id: t4
+    title: Expert
+    modules: [m15-api-design, m16-tooling, m17-boundaries, m18-capstones]

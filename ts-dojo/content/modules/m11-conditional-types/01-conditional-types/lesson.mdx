@@ -1,0 +1,277 @@
+---
+id: m11-conditional-types/01-conditional-types
+title: Conditional types and assignability
+minutes: 20
+objectives:
+  - Read a conditional type as a question about assignability, and predict its answer for literals, objects, arrays and functions
+  - Tell extends in a conditional type, which chooses a branch, from extends in a constraint, which rejects a type
+  - Use the true branch to rely on what the condition proved, as Uppercase and indexed access need
+  - Predict a conditional type's result for never, any and unknown, and for a type parameter that is not known yet
+  - Give a function a conditional return type with an overload, and know what the compiler no longer checks
+prerequisites:
+  - m02-functions/02-function-types-and-callbacks
+  - m04-objects/02-structural-typing
+  - m05-generics/02-constraints-and-defaults
+  - m06-type-operators/04-rebuilding-the-utilities
+  - m08-functions-classes/01-overloads
+  - m10-mapped-types/01-mapped-types-and-modifiers
+tags:
+  - conditional type
+  - extends
+  - assignability
+  - constraint
+  - deferred
+  - never
+  - any
+  - unknown
+  - Uppercase
+  - overloads
+---
+
+## Concept
+
+<Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> read `T extends U
+? X : Y` as a ternary on types. This module takes it apart. The condition asks
+exactly one question: **is `T` assignable to `U`?** It is the check the compiler
+makes when you assign a value of type `T` to a variable of type `U`. If the
+answer is yes, the result is `X`; if no, `Y`:
+
+```ts twoslash
+type IsString<T> = T extends string ? true : false;
+
+type A = IsString<'hello'>;
+//   ^?
+type B = IsString<number>;
+//   ^?
+```
+
+`'hello'` is assignable to `string`, so `A` is `true`. Nothing else is being asked: not whether the two types are equal, and not whether one was declared as an extension of the other. Every rule of assignability you know from values applies here unchanged, structural typing included.
+
+## Examples
+
+**The question is assignability.** `Fits` asks the question for any two types. Each line below is a rule from an earlier lesson:
+
+```ts twoslash
+type Fits<A, B> = A extends B ? 'yes' : 'no';
+
+type A = Fits<'red', string>;
+//   ^?
+type B = Fits<string, 'red'>;
+//   ^?
+type C = Fits<{ id: number; name: string }, { id: number }>;
+//   ^?
+type D = Fits<{ id?: number }, { id: number }>;
+//   ^?
+type E = Fits<readonly string[], string[]>;
+//   ^?
+type F = Fits<string[], readonly string[]>;
+//   ^?
+type G = Fits<(x: string) => void, (x: string, y: number) => void>;
+//   ^?
+type H = Fits<[1, 2], number[]>;
+//   ^?
+```
+
+A literal fits its primitive, and not the other way round. An object type with more properties fits one with fewer, as in <Lesson id="m04-objects/02-structural-typing" />; the excess property check is for object literals and plays no part here. An optional property doesn't fit a required one. A mutable array fits a `readonly` one, but a `readonly` array doesn't fit a mutable one. A function with fewer parameters fits a function type that passes more (<Lesson id="m02-functions/02-function-types-and-callbacks" />). A tuple fits an array of its elements.
+
+**Chains: the first condition that holds wins.** The false branch can be another conditional type, which reads like `else if`. Here a form gets one kind of input for each field of its model, with a mapped type from lesson 6.4 that calls the chain once per property:
+
+```ts run
+type Input<T> = T extends boolean
+  ? 'checkbox'
+  : T extends number
+    ? 'number'
+    : 'text';
+
+type SignUp = { email: string; age: number; newsletter: boolean };
+type Fields = { [K in keyof SignUp]: Input<SignUp[K]> };
+
+const fields: Fields = { email: 'text', age: 'number', newsletter: 'checkbox' };
+
+for (const [name, input] of Object.entries(fields)) {
+  console.log(`<input name="${name}" type="${input}">`);
+}
+```
+
+Give `SignUp` a `boolean` field and `fields` must say `'checkbox'` for it. Order matters as in an `if` chain: put the narrower test first. A function type is assignable to `object`, so a chain that asks `T extends object` before it asks about functions never reaches the function branch.
+
+**The true branch knows the answer.** Inside the true branch, the compiler treats `T` as assignable to `U`, so you can use `T` where a `U` is required. `Uppercase<S>` is a built-in type that writes a string type in capitals, met in <Lesson id="m10-mapped-types/02-key-remapping" /> (<Lesson id="m12-template-tuples/01-template-literal-types" /> covers it and its siblings); its parameter is constrained to `string`. Indexed access `T[K]` needs `K` to be a key of `T`:
+
+```ts twoslash
+type Shout<T> = T extends string ? Uppercase<T> : T;
+type Get<T, K> = K extends keyof T ? T[K] : undefined;
+
+type S1 = Shout<'hello'>;
+//   ^?
+type S2 = Shout<42>;
+//   ^?
+
+type User = { id: number; name: string };
+type G1 = Get<User, 'name'>;
+//   ^?
+type G2 = Get<User, 'email'>;
+//   ^?
+```
+
+Without the condition, nothing says that `T` is a string or that `K` is a key of `T`, and both fail:
+
+```ts twoslash
+// @errors: 2344 2536
+type Shout<T> = Uppercase<T>;
+type Get<T, K> = T[K];
+```
+
+**Two kinds of `extends`.** The same keyword does two different jobs. In a type parameter list, `T extends string` is a constraint from <Lesson id="m05-generics/02-constraints-and-defaults" />: a type that breaks it is an error where it is passed. In a conditional type, `T extends string` is a question, and a type that fails it takes the false branch with no error:
+
+```ts twoslash
+// @errors: 2344
+type OnlyText<T extends string> = T;
+type IfText<T> = T extends string ? T : never;
+
+type A = OnlyText<42>;
+type B = IfText<42>;
+//   ^?
+```
+
+Use a constraint to reject a type, and a conditional to choose between results.
+
+**`never`, `any` and `unknown` as inputs.** These three give answers worth knowing by heart:
+
+```ts twoslash
+type IsString<T> = T extends string ? true : false;
+
+type U = IsString<unknown>;
+//   ^?
+type Y = IsString<any>;
+//   ^?
+type N = IsString<never>;
+//   ^?
+type Direct = never extends string ? true : false;
+//     ^?
+```
+
+`unknown` is assignable only to `unknown` and `any`, so it takes the false branch. `any` takes both branches, and the result is their union, `true | false`, which is `boolean`. `never` is the surprise. Written out directly, `never` is assignable to every type, so `Direct` is `true`. Passed through the type parameter, it gives `never`. 6.4 showed that a conditional type on a bare type parameter answers once for each member of a union; `never` is the empty union, so there is nothing to answer for and the result is empty. <Lesson id="m11-conditional-types/03-distributive-conditionals" /> gives the rules and the way to turn it off.
+
+**Deferred while the type is not known.** A conditional type on a type parameter can only be answered once the parameter is known. At a call site it is; inside the generic function it is not, so the type stays a conditional, deferred. This is `parse` from <Lesson id="m08-functions-classes/01-overloads" /> with one conditional return type instead of three overloads:
+
+```ts twoslash
+type Parsed<T> = T extends string ? number : number[];
+
+function parse<T extends string | string[]>(input: T): Parsed<T>;
+function parse(input: string | string[]): number | number[] {
+  return typeof input === 'string' ? Number(input) : input.map(Number);
+}
+
+const one = parse('42');
+//    ^?
+const many = parse(['1', '2']);
+//    ^?
+declare const either: string | string[];
+const both = parse(either);
+//    ^?
+
+function twice<T extends string | string[]>(input: T) {
+  const result = parse(input);
+  //    ^?
+  return result;
+}
+```
+
+A union argument works too, because `Parsed` answers once per member; 8.1 needed a third overload for that. Inside `twice`, `result` stays `Parsed<T>`: the compiler doesn't pick a branch until `T` is chosen, and it doesn't use the constraint to pick one either: with `T extends 'a'`, `IsString<T>` stays deferred too. The function has one overload signature, the one callers see, and an implementation signature with a plain return type, because the body can't be checked against a deferred conditional; the Pitfalls show what happens without it. It runs like any function:
+
+```ts run
+type Parsed<T> = T extends string ? number : number[];
+
+function parse<T extends string | string[]>(input: T): Parsed<T>;
+function parse(input: string | string[]): number | number[] {
+  return typeof input === 'string' ? Number(input) : input.map(Number);
+}
+
+const one = parse('42');
+const many = parse(['1', '2', '3']);
+console.log(one + 1, many.length);
+```
+
+## Pitfalls
+
+**Expecting a conditional type to reject a type.** `Tag` is meant for strings only. `Tag<number>` is accepted without a word, because a type that fails the condition takes the false branch, here `never`. The error appears later, wherever a value has to fit:
+
+```ts run errors
+type Tag<T> = T extends string ? { tag: T } : never;
+
+type Price = Tag<number>;
+const price: Price = { tag: 9.99 };
+```
+
+`Type '{ tag: number; }' is not assignable to type 'never'.` names the value, not the mistake. When a type must be refused, say so with a constraint, `type Tag<T extends string> = { tag: T }`, and `Tag<number>` itself is the error: `Type 'number' does not satisfy the constraint 'string'.`
+
+**Returning a value as a deferred conditional type.** Give `parse` a single signature and the body stops compiling:
+
+```ts run errors
+function parse<T extends string | string[]>(
+  input: T,
+): T extends string ? number : number[] {
+  return typeof input === 'string' ? Number(input) : input.map(Number);
+}
+```
+
+`Type 'number' is not assignable to type 'T extends string ? number : number[]'.`, and the same for `number[]`. Narrowing `input` with `typeof` narrows the value, not `T`, so the return type stays deferred and no value fits it. Write an overload over an implementation with a plain return type, as in Examples. Know what that costs: the compiler only checks the body against the implementation's return type, `number | number[]`, so a body that swapped the two results would still compile. Tests have to cover what the types no longer do.
+
+**Testing for "an object" with `{}`.** `{}` is the type of everything except `null` and `undefined`, because every other value has properties to read. A string is assignable to it:
+
+```ts run errors
+type Kind<T> = T extends {} ? 'object' : 'primitive';
+
+const kind: Kind<string> = 'primitive';
+```
+
+`Type '"primitive"' is not assignable to type '"object"'.` To ask whether a type is an object, functions and arrays included, test against `object`, which no primitive fits.
+
+## Check yourself
+
+<Predict
+  id="extra-property"
+  code="type A = { id: number; name: string } extends { id: number } ? 'yes' : 'no';"
+  question="What is `A`?"
+  options={[
+    "'yes'",
+    "'no'",
+    "'yes' | 'no'",
+    'An error: name is an excess property',
+  ]}
+  answer={0}
+  explanation="The condition asks whether the left type is assignable to the right one. An object type with more properties is assignable to one with fewer, because everything that reads `id` finds it. The excess property check is only for object literals written where a type is expected, so it plays no part in a conditional type."
+/>
+
+<Predict
+  id="any-input"
+  code={
+    'type IsString<T> = T extends string ? true : false;\ntype Y = IsString<any>;'
+  }
+  question="What is `Y`?"
+  options={['true', 'false', 'boolean', 'never']}
+  answer={2}
+  explanation="`any` takes both branches of a conditional type, and the result is the union of the two, `true | false`, which the editor writes as `boolean`. `unknown` would take only the false branch, and `never` passed through a type parameter would give `never`."
+/>
+
+<Predict
+  id="no-error-for-42"
+  code={
+    'type OnlyText<T> = T extends string ? T : never;\ntype X = OnlyText<42>;'
+  }
+  question="What does the compiler make of `X`?"
+  options={[
+    'An error: 42 does not satisfy the constraint string',
+    'X is never',
+    'X is 42',
+    'X is string',
+  ]}
+  answer={1}
+  explanation="`OnlyText` has no constraint, so any type may be passed. `42` is not assignable to `string`, so the false branch is taken, and that is `never`. Only a constraint, `OnlyText<T extends string>`, would make `OnlyText<42>` an error."
+/>
+
+## Further reading
+
+- [Handbook: Conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html), up to "Inferring within conditional types", which is <Lesson id="m11-conditional-types/02-infer" />
+- [Handbook: Type compatibility](https://www.typescriptlang.org/docs/handbook/type-compatibility.html), the rules every condition applies
+- [Handbook: Generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-constraints), the other `extends`

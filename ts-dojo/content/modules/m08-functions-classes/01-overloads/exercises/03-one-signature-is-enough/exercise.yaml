@@ -1,0 +1,30 @@
+id: m08-functions-classes/01-overloads/03-one-signature-is-enough
+kind: fix
+title: One signature is enough
+minutes: 3
+challenge: false
+prompt: |
+  `characters` and `last` were written with overloads that a single signature says better, and
+  the two exports at the bottom of `index.ts` don't compile. Each reports:
+
+  - `No overload matches this call.`
+
+  Replace each function's overloads with one signature, and don't change the two exports:
+
+  - `characters(input)` counts the characters in a string, or in all the strings of a list. Its
+    one signature is `(input: string | readonly string[]) => number`.
+  - `last(items)` returns the last element of a `readonly` list of any element type, or
+    `undefined` when the list is empty. The type cases call it with booleans, dates and
+    objects, and check that the result has the element's type, not `unknown`.
+
+  The type cases also check that `characters` is no longer overloaded. This builds on generic
+  functions (5.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Each error says no overload takes the argument, although the implementation would. Callers can't see the implementation's signature.
+  - The overloads of characters all return the same type, so their parameter types can be joined into one.
+  - The return type of last follows the element type of its argument, whatever that is. A type parameter can say that once for every type.

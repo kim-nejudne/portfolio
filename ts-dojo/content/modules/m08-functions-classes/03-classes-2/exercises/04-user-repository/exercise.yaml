@@ -1,0 +1,35 @@
+id: m08-functions-classes/03-classes-2/04-user-repository
+kind: implement
+title: A repository of users
+minutes: 4
+challenge: false
+prompt: |
+  This exercise turns on `noImplicitOverride`. `index.ts` has a generic `Repository`, like the
+  one from lesson 5.3, and a `UserRepository` that extends it with `User` as the type argument.
+
+  First, two changes to `Repository`:
+
+  - `save(item)` returns the repository itself, so calls chain. On a subclass, the chain keeps
+    the subclass's type: `users.save(ada).findByEmail(...)` compiles.
+  - `size` is read as a property, `repository.size`, and it is read-only.
+
+  Then implement `UserRepository`, a `Repository` of `User`s whose emails are unique, ignoring
+  case:
+
+  - its `save(user)` throws an `Error` when a user with another `id` already has that email, and
+    saves nothing then; otherwise it saves like `Repository`'s.
+  - `findByEmail(email)` returns the user with that email, ignoring case, or `undefined`.
+
+  The test file chains `save` and reads `size`, so it doesn't compile until `Repository` has
+  both changes: that is the first thing to fix. This combines the lesson with the `this` type
+  (8.2) and `#` fields (4.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions:
+  noImplicitOverride: true
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - If save promised a Repository, a chain on a UserRepository would lose findByEmail. Lesson 8.2 has a return type that means the object the method was called on.
+  - A member read like a property but computed on each read, with no way to assign it, is a getter alone.
+  - UserRepository's save replaces the inherited one. It checks the email, then lets the base class do the saving.

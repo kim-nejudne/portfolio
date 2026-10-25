@@ -1,0 +1,30 @@
+id: m03-unions/02-null-undefined-strict/02-what-slips-through
+kind: predict
+title: What slips through
+minutes: 1
+challenge: false
+code: |
+  // compiled with strictNullChecks: false
+  function initials(fullName: string): string {
+    return fullName
+      .split(' ')
+      .map((part) => part[0])
+      .join('');
+  }
+
+  const authors = ['Ada Lovelace', 'Grace Hopper'];
+  const author = authors.find((name) => name.startsWith('Alan'));
+  console.log(initials(author));
+question: With `strictNullChecks` off, what happens?
+options:
+  - 'It does not compile: `author` is `string | undefined`, and `initials` takes a `string`'
+  - It compiles, and running it throws a TypeError inside `initials`
+  - It compiles and prints an empty line
+  - It compiles and prints `undefined`
+answer: 1
+explanation: |
+  With the flag off, `undefined` belongs to every type, so `find` returns plain `string` and the
+  call compiles. No author's name starts with Alan, so `author` is `undefined` when the code
+  runs, and `fullName.split` throws a TypeError. Turn the flag on and `author` is
+  `string | undefined`: the call becomes the error in the first option,
+  `Argument of type 'string | undefined' is not assignable to parameter of type 'string'.`

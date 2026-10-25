@@ -1,0 +1,267 @@
+---
+id: m11-conditional-types/02-infer
+title: infer
+minutes: 20
+objectives:
+  - Declare a type variable with infer and read a type out of a function, an array, a promise, a class or an object
+  - Match several parts of a type in one pattern, and predict what a name inferred twice becomes
+  - Constrain an inferred type with infer X extends C, and use it where the constraint is required
+  - Predict what ReturnType and Parameters give for an overloaded function
+prerequisites:
+  - m06-type-operators/03-utility-types-2
+  - m06-type-operators/04-rebuilding-the-utilities
+  - m08-functions-classes/01-overloads
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m11-conditional-types/01-conditional-types
+tags:
+  - infer
+  - conditional type
+  - pattern
+  - ReturnType
+  - Parameters
+  - Awaited
+  - InstanceType
+  - constraint
+  - overloads
+---
+
+## Concept
+
+<Lesson id="m11-conditional-types/01-conditional-types" /> asked whether one
+type is assignable to another. `infer` turns the question into a pattern match.
+Inside the `extends` clause, `infer E` declares a new type variable `E`, and the
+compiler fills it in with whatever type sits in that place when it matches:
+
+```ts twoslash
+type ElementOf<T> = T extends readonly (infer E)[] ? E : never;
+
+type A = ElementOf<string[]>;
+//   ^?
+type B = ElementOf<readonly [1, 'a']>;
+//   ^?
+type C = ElementOf<number>;
+//   ^?
+```
+
+The condition is the same assignability question as before, asked with `E` left open: is there an `E` that makes `T` assignable to `readonly E[]`? For `string[]` there is, `string`. A tuple is an array of its elements, so `B` is the union of them. A `number` is no array at all, so the false branch is taken and `E` is never filled. `E` exists only in the true branch.
+
+<Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> wrote
+`ReturnType` this way, and the other readers of
+<Lesson id="m06-type-operators/03-utility-types-2" />, `Parameters`, `Awaited`
+and `InstanceType`, are built the same way. This lesson covers every place an
+`infer` can go.
+
+## Examples
+
+**Anywhere in the pattern.** An `infer` can stand wherever a type can: a return type, a parameter, a property, a type argument, the instance type of a constructor:
+
+```ts twoslash
+type Ret<F> = F extends (...args: never[]) => infer R ? R : never;
+type FirstArg<F> = F extends (first: infer A, ...rest: never[]) => unknown
+  ? A
+  : never;
+type DataOf<T> = T extends { data: infer D } ? D : never;
+type Resolved<P> = P extends Promise<infer V> ? V : P;
+type Built<C> = C extends new (...args: never[]) => infer I ? I : never;
+
+declare function send(to: string, body: string, retries: number): boolean;
+class Timer {
+  constructor(public ms: number) {}
+}
+
+type R = Ret<typeof send>;
+//   ^?
+type A = FirstArg<typeof send>;
+//   ^?
+type D = DataOf<{ data: Date[]; ok: true }>;
+//   ^?
+type V = Resolved<Promise<Promise<number>>>;
+//   ^?
+type I = Built<typeof Timer>;
+//   ^?
+type None = FirstArg<() => void>;
+//    ^?
+```
+
+`(...args: never[]) => unknown` matches every function type without an `any`. A function fits a function type when its parameters accept the arguments that type passes, and every parameter accepts `never`. Each part of the pattern you don't care about is written as the widest type that still lets everything through, `unknown` for a result and `never` for a parameter.
+
+Two results need a second look. `Resolved` unwraps one promise, so `V` is still a `Promise<number>`; `Awaited` repeats the match until no promise is left. And `None` is `unknown`: a function with no parameters fits the pattern, because a function may ignore the arguments it is passed, but there is no first parameter for `A` to match. An `infer` that the match leaves empty is `unknown`.
+
+**Naming a type a library didn't export.** `FirstArg` gives a name to the options object of a function, ready for a variable that is passed to it later:
+
+```ts run
+function connect(options: { host: string; port: number; tls?: boolean }) {
+  const scheme = options.tls ? 'https' : 'http';
+  return `${scheme}://${options.host}:${options.port}`;
+}
+
+type FirstArg<F> = F extends (first: infer A, ...rest: never[]) => unknown
+  ? A
+  : never;
+type ConnectOptions = FirstArg<typeof connect>;
+
+const local: ConnectOptions = { host: 'localhost', port: 8080 };
+const remote: ConnectOptions = { host: 'db.example.com', port: 443, tls: true };
+
+console.log(connect(local));
+console.log(connect(remote));
+```
+
+A misspelt `prot: 8080` in `local` is caught where it's written, not at the call.
+
+**Several `infer`s in one pattern.** Each `infer` matches its own part, and the true branch can put them together again in a new shape. `Flip` swaps the first two parameters of a function:
+
+```ts twoslash
+type Flip<F> = F extends (a: infer A, b: infer B) => infer R
+  ? (b: B, a: A) => R
+  : never;
+
+type F = Flip<(name: string, age: number) => boolean>;
+//   ^?
+```
+
+The same name may appear twice. Where it stands for something read, a property or a return type, the result is the union of the candidates. Where it stands for a parameter, the result is their intersection, because a function that takes both parameter types must take a value that is both:
+
+```ts twoslash
+type Ends<T> = T extends { from: infer P; to: infer P } ? P : never;
+type Both<T> = T extends { a: (x: infer P) => void; b: (x: infer P) => void }
+  ? P
+  : never;
+
+type HasId = (x: { id: number }) => void;
+type HasName = (x: { name: string }) => void;
+
+type E = Ends<{ from: 'home'; to: 'work' }>;
+//   ^?
+type B = Both<{ a: HasId; b: HasName }>;
+//   ^?
+```
+
+<Lesson id="m11-conditional-types/04-recursive-conditionals" /> uses the second
+rule to turn a union into an intersection.
+
+**Constraining what `infer` takes.** In the true branch, an inferred type is known only as what the match found. Nothing says it is a string, so `Uppercase` refuses it:
+
+```ts twoslash
+// @errors: 2344
+type ShoutFirst<T> = T extends [infer H, ...unknown[]] ? Uppercase<H> : never;
+```
+
+`infer H extends string` adds a constraint to the variable. The match succeeds only when the type found is assignable to `string`, and in the true branch `H` is known to be one:
+
+```ts twoslash
+type ShoutFirst<T> = T extends [infer H extends string, ...unknown[]]
+  ? Uppercase<H>
+  : never;
+
+type S = ShoutFirst<['hello', 1]>;
+//   ^?
+type N = ShoutFirst<[1, 'hello']>;
+//   ^?
+type E = ShoutFirst<[]>;
+//   ^?
+```
+
+A first element that isn't a string takes the false branch, as a failed match does. The constraint saves a second condition, `H extends string ? … : never`, inside the true branch. It also tests `H` as a whole: for a first element of type `'a' | 1`, which is not a string, the result is `never`, where a second condition on `H` would answer once for each member and give `'A'` (<Lesson id="m11-conditional-types/03-distributive-conditionals" /> says why). The same constraint works in the string patterns of <Lesson id="m12-template-tuples/01-template-literal-types" />, where `extends number` on an `infer` reads a string such as `'42'` as the number literal `42`; <Lesson id="m13-type-challenges/04-hard-set" /> comes back to that.
+
+**Overloaded functions give their last signature.** `ReturnType` and `Parameters` work on the type of a function, and an overloaded function has several call signatures in that type. An `infer` doesn't choose between them: it matches the last one. The implementation signature isn't part of the type, so it's never seen:
+
+```ts twoslash
+function read(key: 'count'): number;
+function read(key: 'name'): string;
+function read(key: string): number | string {
+  return key === 'count' ? 0 : '';
+}
+
+type Out = ReturnType<typeof read>;
+//   ^?
+type In = Parameters<typeof read>;
+//   ^?
+```
+
+The compiler can't resolve an overload without arguments, and a type has none to offer. <Lesson id="m08-functions-classes/01-overloads" /> put a catch-all overload last for callers holding a union; that last signature is also what every `infer` sees, so a function whose types are read this way should end with its widest overload.
+
+## Pitfalls
+
+**Using an inferred name outside the true branch.** An `infer` is declared by the match, so it exists only where the match succeeded. A type parameter list is no place for one, and neither is the false branch:
+
+```ts run errors
+type Ret<F extends (...args: never[]) => infer R> = R;
+type Ret2<F> = F extends (...args: never[]) => infer R ? R : R;
+```
+
+`'infer' declarations are only permitted in the 'extends' clause of a conditional type.`, and `Cannot find name 'R'.` for each `R` the match doesn't reach. Write the `infer` in the condition and use it in the true branch; the false branch gets a type of its own, such as `never` or `F`.
+
+**A pattern that asks for too little.** A pattern is a type, and a type that matches only some functions fails for the rest. `(x: infer A) => unknown` passes one argument, so a function that needs two doesn't fit it:
+
+```ts run errors
+type FirstArg<F> = F extends (x: infer A) => unknown ? A : never;
+
+function listen(port: number, host: string) {
+  console.log(`listening on ${host}:${port}`);
+}
+
+const port: FirstArg<typeof listen> = 8080;
+```
+
+`Type '8080' is not assignable to type 'never'.` The match failed, so the false branch was taken. Leave room for the rest, `(x: infer A, ...rest: never[]) => unknown`, as in Examples. Arrays go wrong the same way: `(infer E)[]` doesn't match a `readonly` array or a tuple from `as const`, and `readonly (infer E)[]` matches both kinds.
+
+**Expecting the overload that would match a call.** `ReturnType<typeof read>` describes the last signature, whatever the call looks like:
+
+```ts run errors
+function read(key: 'count'): number;
+function read(key: 'name'): string;
+function read(key: string): number | string {
+  return key === 'count' ? 0 : '';
+}
+
+const count: ReturnType<typeof read> = read('count');
+```
+
+`Type 'number' is not assignable to type 'string'.` The call picks the first overload and returns a `number`; the type was read from the last one. Annotate with the type you know, here `number`, or end the overloads with one that returns `number | string`.
+
+## Check yourself
+
+<Predict
+  id="same-name-twice"
+  code={
+    "type Ends<T> = T extends { from: infer P; to: infer P } ? P : never;\ntype E = Ends<{ from: 'home'; to: 'work' }>;"
+  }
+  question="What is `E`?"
+  options={["'home'", "'work'", "'home' | 'work'", 'never']}
+  answer={2}
+  explanation="`P` appears twice, both times as the type of a property, so each property gives a candidate and the result is their union. Neither match fails: any `P` that both `'home'` and `'work'` are assignable to will do, and the union is the narrowest one. Only in parameter positions would the candidates be intersected."
+/>
+
+<Predict
+  id="constraint-fails"
+  code={
+    "type IdOf<T> = T extends { id: infer I extends string } ? I : 'none';\ntype X = IdOf<{ id: 42 }>;"
+  }
+  question="What is `X`?"
+  options={[
+    '42',
+    "'none'",
+    'never',
+    'An error: 42 does not satisfy the constraint string',
+  ]}
+  answer={1}
+  explanation="The constraint on `I` is part of the match. `42` is not assignable to `string`, so the match fails and the false branch, `'none'`, is taken. A type that breaks the constraint on an `infer` is not an error; it decides the branch, like the rest of the condition."
+/>
+
+<Predict
+  id="empty-infer"
+  code={
+    'type FirstArg<F> = F extends (first: infer A, ...rest: never[]) => unknown ? A : never;\ntype N = FirstArg<() => string>;'
+  }
+  question="What is `N`?"
+  options={['never', 'undefined', 'unknown', 'string']}
+  answer={2}
+  explanation="A function with no parameters fits the pattern, because a function may ignore the arguments it is given, so the true branch is taken. But there is no first parameter for `A` to match, and an `infer` that the match leaves empty is `unknown`."
+/>
+
+## Further reading
+
+- [Handbook: Inferring within conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types), including the rule for overloaded functions
+- [TypeScript 4.7 release notes: `extends` constraints on `infer` type variables](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-7.html#extends-constraints-on-infer-type-variables)
+- [TypeScript 2.8 release notes: type inference in conditional types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html#type-inference-in-conditional-types), where the union and intersection rules for a name inferred twice come from

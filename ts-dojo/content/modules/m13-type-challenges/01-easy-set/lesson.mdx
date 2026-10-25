@@ -1,0 +1,231 @@
+---
+id: m13-type-challenges/01-easy-set
+title: type-challenges, easy set
+minutes: 45
+objectives:
+  - Read a type-challenge, with its template to fill in, its cases built from Expect and Equal, and its @ts-expect-error lines
+  - Tell the exact equality that Equal checks from the assignability that extends checks
+  - Choose constraints that accept readonly tuples and reject what a challenge must reject
+  - Solve the thirteen easy challenges with mapped types, conditional types, infer and variadic tuples
+prerequisites:
+  - m05-generics/04-keyof-constraints
+  - m06-type-operators/03-utility-types-2
+  - m06-type-operators/04-rebuilding-the-utilities
+  - m10-mapped-types/01-mapped-types-and-modifiers
+  - m11-conditional-types/01-conditional-types
+  - m11-conditional-types/02-infer
+  - m11-conditional-types/03-distributive-conditionals
+  - m12-template-tuples/02-variadic-tuples
+  - m12-template-tuples/03-tuple-manipulation
+tags:
+  - type-challenges
+  - easy
+  - Equal
+  - Expect
+  - ts-expect-error
+  - Pick
+  - Readonly
+  - Exclude
+  - Awaited
+  - Parameters
+  - Includes
+  - readonly tuple
+  - infer
+---
+
+## Concept
+
+[type-challenges](https://github.com/type-challenges/type-challenges) is an open collection of puzzles solved in types alone. Each one gives a template, a type alias whose body you replace, and a file of test cases that compile only once the body is right. Here is the format on a problem of our own, `Swap`, which swaps the two elements of a pair, before anyone has solved it:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type Swap<T extends readonly [unknown, unknown]> = unknown;
+
+type cases = [
+  Expect<Equal<Swap<[1, 'one']>, ['one', 1]>>,
+  Expect<Equal<Swap<readonly [true, null]>, [null, true]>>,
+];
+
+// @ts-expect-error
+type tooShort = Swap<[1]>;
+```
+
+Both cases fail with _Type 'false' does not satisfy the constraint 'true'._ Three pieces make the format:
+
+- **`Expect<T extends true>`** passes `T` through unchanged. Its constraint is the check: a case compiles only when its type is `true`.
+- **`Equal<X, Y>`** is `true` when `X` and `Y` are the same type. It compares two generic functions. The compiler can't choose a branch of `T extends X ? 1 : 2` for a `T` it doesn't know, so it treats the two functions as related only when `X` and `Y` are identical. That is stricter than assignability either way: `any` is not equal to `unknown`, and `{ readonly a: 1 }` is not equal to `{ a: 1 }`.
+- **A line under `// @ts-expect-error`** is a case that must _not_ compile. `Swap<[1]>` breaks the constraint, so the directive has an error to expect. If the line compiled, the directive would be the error: _Unused '@ts-expect-error' directive._
+
+In the dojo, each exercise's `tests.ts` imports `Equal` and `Expect` from `@dojo/type-utils`, a copy of type-challenges' own utilities, and imports your type from `index.ts`. Every element of a `cases` tuple and every `@ts-expect-error` statement is one case, named by the comment after it, and the Type cases group shows each one passing or failing. `any` is forbidden in every type-challenge, in your file and in `tests.ts` alike, so the starters write `unknown` where the originals write `any`.
+
+The thirteen easy challenges need the tools of Tier 3 at their simplest. Pick, Readonly and Exclude are the utilities <Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> rebuilt; Awaited and Parameters rebuild two from <Lesson id="m06-type-operators/03-utility-types-2" />. They lean on mapped types (<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" />), conditional types (<Lesson id="m11-conditional-types/01-conditional-types" />, <Lesson id="m11-conditional-types/03-distributive-conditionals" />), `infer` (<Lesson id="m11-conditional-types/02-infer" />), and the tuple types of module 12 (<Lesson id="m12-template-tuples/02-variadic-tuples" />, <Lesson id="m12-template-tuples/03-tuple-manipulation" />).
+
+## Examples
+
+**Solving `Swap`.** Read the cases before writing anything: they say what the inputs look like and what must come out. The constraint is part of the template here, a pair, `readonly` so that `as const` pairs fit too. The body indexes the pair from the other end:
+
+```ts twoslash
+type Swap<T extends readonly [unknown, unknown]> = [T[1], T[0]];
+
+type A = Swap<[1, 'one']>;
+//   ^?
+type B = Swap<readonly [true, null]>;
+//   ^?
+```
+
+`B` is not `readonly`. A tuple type written out with brackets is a new tuple, mutable whatever `T` was, and that is what the second case expects. With this body both cases pass, and `Swap<[1]>` still breaks the constraint.
+
+**A solved challenge is a type you can use.** The same `Swap` types a function. The `as const` pair keeps its literal types, and the result knows its first element is the string:
+
+```ts run
+type Swap<T extends readonly [unknown, unknown]> = [T[1], T[0]];
+
+function swap<T extends readonly [unknown, unknown]>(pair: T): Swap<T> {
+  return [pair[1], pair[0]];
+}
+
+const flipped = swap([1, 'one'] as const);
+console.log(flipped, flipped[0].toUpperCase());
+```
+
+**What `Equal` sees.** When a case fails and you can't see why, put both sides in aliases and look at them. `Equal` cares about modifiers and `any`; it does not care about the order of properties:
+
+```ts twoslash
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+
+type AnyIsUnknown = Equal<any, unknown>;
+//        ^?
+type ReadonlyMatters = Equal<{ readonly a: 1 }, { a: 1 }>;
+//        ^?
+type SameShape = Equal<{ a: 1; b: 2 }, { b: 2; a: 1 }>;
+//        ^?
+```
+
+<Callout kind="tip">
+  In the editor, a `// ^?` comment under an alias shows the alias's type and
+  updates as you type. Copy the input of a failing case into an alias, query it,
+  and compare it with what the case expects.
+</Callout>
+
+## Pitfalls
+
+**A constraint that turns away readonly tuples.** `as const` makes a readonly tuple, and a readonly tuple is not assignable to a mutable array or tuple type. Several challenges in this set pass `as const` tuples:
+
+```ts run errors
+const pair = [1, 'one'] as const;
+
+type Swap<T extends [unknown, unknown]> = [T[1], T[0]];
+type Flipped = Swap<typeof pair>;
+```
+
+_Type 'readonly [1, "one"]' does not satisfy the constraint '[unknown, unknown]'._, then _The type 'readonly [1, "one"]' is 'readonly' and cannot be assigned to the mutable type '[unknown, unknown]'._ Constrain with `readonly`: a mutable tuple is assignable to a readonly one, so `readonly [unknown, unknown]` and `readonly unknown[]` accept both kinds.
+
+**`extends` where a case wants `Equal`.** A conditional type asks whether one type is assignable to another, and a case asks whether two types are the same. They part ways at literal types, unions and empty objects: `true` is assignable to `boolean` without being `boolean`, and `{ a: 'A' }` is assignable to `{}`:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type IsBoolean<T> = T extends boolean ? true : false;
+
+type cases = [Expect<Equal<IsBoolean<true>, false>>];
+```
+
+`IsBoolean<true>` is `true`, because `true extends boolean` holds. When the answer depends on two types being the same, compare them with the trick inside `Equal`, which you can write into your own file.
+
+**An intersection is not the object it describes.** `{ name: string } & { id: number }` has the same properties as `{ name: string; id: number }`, and either is assignable to the other, yet `Equal` tells them apart:
+
+```ts run errors
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+
+type WithId<T> = T & { id: number };
+
+type cases = [
+  Expect<Equal<WithId<{ name: string }>, { name: string; id: number }>>,
+];
+```
+
+A mapped type over the result, `{ [K in keyof X]: X[K] }`, builds one object type with the same properties, and that one is equal. No easy challenge needs it, but the medium sets do (<Lesson id="m13-type-challenges/02-medium-set-1" />).
+
+## Check yourself
+
+<Predict
+  id="unused-directive"
+  question="A tests.ts has `// @ts-expect-error` above `MyPick<Todo, 'invalid'>`, and your `MyPick` is still the starter's `unknown`. What happens to that case?"
+  options={[
+    'It passes: the line is an error, as the directive expects',
+    'It fails: the line compiles, so the directive is reported as unused',
+    'It is skipped until the other cases pass',
+  ]}
+  answer={1}
+  explanation="The starter's `MyPick` has no constraint on `K`, so `MyPick<Todo, 'invalid'>` is a valid type and the line compiles. A `@ts-expect-error` with nothing to suppress is an error itself, Unused '@ts-expect-error' directive, and it falls inside the case, so the case fails until a constraint on `K` rejects the key."
+/>
+
+<Predict
+  id="intersection-equal"
+  question="What is `Equal<{ a: 1 } & { b: 2 }, { a: 1; b: 2 }>`?"
+  options={['true', 'false', 'boolean']}
+  answer={1}
+  explanation="The two types have the same properties and each is assignable to the other, but one is an intersection and the other a single object type, and `Equal` checks that the types are identical. A mapped type over the intersection makes one object type of it, and that is equal."
+/>
+
+<Predict
+  id="readonly-constraint"
+  question="`const pair = [1, 2] as const`. Which constraint on `T` accepts both `typeof pair` and `[1, 2]`?"
+  options={[
+    'T extends unknown[]',
+    'T extends readonly unknown[]',
+    'Either one',
+    'Neither: as const tuples need their own constraint',
+  ]}
+  answer={1}
+  explanation="`as const` makes `readonly [1, 2]`, which is not assignable to the mutable `unknown[]`. A mutable tuple is assignable to a readonly array type, so `readonly unknown[]` takes both."
+/>
+
+## Further reading
+
+- [Generics: generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-constraints)
+- [Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html), [conditional types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html) and the [utility types](https://www.typescriptlang.org/docs/handbook/utility-types.html)
+- [Object types: readonly tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#readonly-tuple-types)
+- [type-challenges](https://github.com/type-challenges/type-challenges): the whole collection, by difficulty
+
+The challenges in this lesson are from type-challenges, by Anthony Fu and its contributors, used under the MIT License:
+
+```text
+MIT License
+
+Copyright (c) 2020 Anthony Fu <https://github.com/antfu>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

@@ -1,0 +1,27 @@
+id: m04-objects/02-structural-typing/02-what-gets-through
+kind: predict
+title: What gets through?
+minutes: 2
+challenge: false
+code: |
+  type Style = { width?: number; color?: string };
+
+  function describe(style: Style): string {
+    return `${style.width ?? 50}px, ${style.color ?? 'black'}`;
+  }
+
+  const custom = { width: 100, colour: 'red' };
+  console.log(describe(custom));
+question: Does this compile, and if it does, what does it print?
+options:
+  - 'A compile error: colour does not exist in type Style'
+  - 'A compile error: custom has no properties in common with Style'
+  - 'It compiles and prints 100px, red'
+  - 'It compiles and prints 100px, black'
+answer: 3
+explanation: |
+  `custom` is a variable, not a fresh object literal, so there is no excess property check.
+  Every property of `Style` is optional, but `custom` shares `width` with it, so the check for
+  properties in common passes too. At run time `colour` is an extra property that `describe`
+  never reads, and the color falls back to `'black'`. Annotating `custom` as `Style` would have
+  caught the typo.

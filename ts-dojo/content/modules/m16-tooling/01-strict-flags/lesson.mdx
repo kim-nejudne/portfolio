@@ -1,0 +1,277 @@
+---
+id: m16-tooling/01-strict-flags
+title: 'tsconfig: the strict family, noUncheckedIndexedAccess, exactOptionalPropertyTypes, noPropertyAccessFromIndexSignature, and what each catches'
+minutes: 25
+objectives:
+  - Name the eight checks that strict turns on in TypeScript 6.0.3, and turn one off without losing the others
+  - Handle the undefined that noUncheckedIndexedAccess adds to index signature and array reads
+  - Leave an optional property out instead of setting it to undefined under exactOptionalPropertyTypes
+  - Read index signature properties with brackets under noPropertyAccessFromIndexSignature, and say what typo it catches
+prerequisites:
+  - m03-unions/02-null-undefined-strict
+  - m04-objects/03-index-signatures-and-record
+  - m06-type-operators/02-utility-types-1
+  - m09-modules-async/04-errors
+  - m10-mapped-types/01-mapped-types-and-modifiers
+tags:
+  - tsconfig
+  - compilerOptions
+  - strict
+  - strict family
+  - noUncheckedIndexedAccess
+  - exactOptionalPropertyTypes
+  - noPropertyAccessFromIndexSignature
+  - strictBindCallApply
+  - strictBuiltinIteratorReturn
+  - alwaysStrict
+  - TS2532
+  - TS2375
+  - TS4111
+ts7: alwaysStrict is no longer part of strict in 6.0; alwaysStrict false is deprecated and stops working in TypeScript 7.0.
+---
+
+## Concept
+
+The `compilerOptions` in a `tsconfig.json` decide how much the checker asks of your code. `strict` is not one check but a switch for a family of them. In TypeScript 6.0.3 the family has eight members, and you have met most of them already:
+
+- `noImplicitAny` reports a parameter or variable whose type would silently be `any` (<Lesson id="m01-types/01-annotations-and-inference" />).
+- `strictNullChecks` takes `null` and `undefined` out of every other type, so a value that may be missing must be checked (<Lesson id="m03-unions/02-null-undefined-strict" />).
+- `strictFunctionTypes` checks the parameters of function types contravariantly (<Lesson id="m14-type-system-edges/01-assignability-variance" />).
+- `strictBindCallApply` checks the arguments of `call`, `bind` and `apply` against the function: `greet.call(undefined, 'Ada')` for a two-parameter `greet` reports _Expected 3 arguments, but got 2._
+- `strictPropertyInitialization` reports a class field that the constructor doesn't assign (<Lesson id="m04-objects/05-classes" />).
+- `noImplicitThis` reports a `this` whose type would be `any` (<Lesson id="m08-functions-classes/02-this-and-callable-types" />).
+- `useUnknownInCatchVariables` types a caught value as `unknown`, not `any` (<Lesson id="m09-modules-async/04-errors" />).
+- `strictBuiltinIteratorReturn` types the value a built-in iterator returns when it is done as `undefined`, not `any`.
+
+`strict: true` turns all eight on, and each can still be set to `false` on its own. Every exercise in the dojo compiles with `strict: true`, and since TypeScript 6.0 a `tsconfig.json` that doesn't mention `strict` gets it too (<Lesson id="m16-tooling/04-typescript-6-and-7" /> covers the new defaults).
+
+Three more checks are not in the family. Each one also reports code that runs correctly, so you opt in to them by name:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true
+  }
+}
+```
+
+All three are about the same blind spot: what a type says about a property that may not be there. `noUncheckedIndexedAccess` adds `undefined` to every read through an index signature or an array index. `exactOptionalPropertyTypes` stops `?` from meaning "or `undefined`". `noPropertyAccessFromIndexSignature` makes a read through an index signature look different from a read of a declared property. The first two build on `strictNullChecks`: with it off, `noUncheckedIndexedAccess` changes nothing, and `exactOptionalPropertyTypes` is an error in the tsconfig itself, `Option 'exactOptionalPropertyTypes' cannot be specified without specifying option 'strictNullChecks'.`
+
+<Callout kind="ts7">
+  `alwaysStrict`, which emits `"use strict"`, is not one of the eight in 6.0.3:
+  it is on by default whatever `strict` says. Setting it to `false` reports
+  _Option 'alwaysStrict=false' is deprecated and will stop functioning in
+  TypeScript 7.0._ (TS5107).
+</Callout>
+
+## Examples
+
+**`noUncheckedIndexedAccess`.** <Lesson id="m04-objects/03-index-signatures-and-record" /> showed that an index signature promises a value for every key, so a read through it has the value type, even for a key nobody set. Under the defaults this compiles, and prints `NaN`:
+
+```ts run
+const prices: Record<string, number> = { apple: 1.2, pear: 0.9 };
+
+function total(items: readonly string[]): number {
+  let sum = 0;
+  for (const item of items) {
+    sum += prices[item];
+  }
+  return sum;
+}
+
+console.log(total(['apple', 'kiwi']));
+```
+
+With the flag on, `prices[item]` is `number | undefined`, and the `+=` reports it:
+
+```ts twoslash
+// @noUncheckedIndexedAccess: true
+// @errors: 2532
+const prices: Record<string, number> = { apple: 1.2, pear: 0.9 };
+
+function total(items: readonly string[]): number {
+  let sum = 0;
+  for (const item of items) {
+    sum += prices[item];
+  }
+  return sum;
+}
+```
+
+Keep the read in a variable and check it, and the rest of the function sees a `number`. Arrays get the same treatment, because a `string[]` is an index signature with number keys, and so does array destructuring. Tuples don't: their length is part of the type, so an index inside it is known to be there. A `for…of` loop never reads an index you chose, and its element stays `string`:
+
+```ts twoslash
+// @noUncheckedIndexedAccess: true
+const names: string[] = ['Ada', 'Grace'];
+const first = names[0];
+//    ^?
+const [second] = names;
+//     ^?
+const point: [number, number] = [3, 4];
+const x = point[0];
+//    ^?
+for (const name of names) {
+  console.log(name.toUpperCase());
+  //          ^?
+}
+```
+
+**`exactOptionalPropertyTypes`.** Under the defaults, `theme?: string` accepts a missing `theme` and also `theme: undefined`, and the compiler treats the two as the same. They aren't: `'theme' in settings` and `Object.keys` tell them apart, and a spread copies an `undefined` over a default. This compiles, the type of `merged.theme` is `string`, and it prints `{ theme: undefined, fontSize: 14 }`:
+
+```ts run
+type Settings = { theme?: string; fontSize?: number };
+
+const defaults = { theme: 'light', fontSize: 14 };
+
+function merge(overrides: Settings) {
+  return { ...defaults, ...overrides };
+}
+
+const merged = merge({ theme: undefined });
+console.log(merged);
+```
+
+With the flag on, `?` only means "may be missing". A property that may also hold `undefined` says so in its type, as `fontSize` does here. Reading an optional property still gives `string | undefined`, because a missing property reads as `undefined`:
+
+```ts twoslash
+// @exactOptionalPropertyTypes: true
+// @errors: 2375
+type Settings = { theme?: string; fontSize?: number | undefined };
+
+const empty: Settings = {};
+const unset: Settings = { fontSize: undefined };
+const cleared: Settings = { theme: undefined };
+
+function themeOf(settings: Settings) {
+  const theme = settings.theme;
+  //    ^?
+  return theme;
+}
+```
+
+<Lesson id="m10-mapped-types/01-mapped-types-and-modifiers" /> showed the same
+flag from the other side: `Required` then removes only the "may be missing", not
+an `undefined` written into the type.
+
+**`noPropertyAccessFromIndexSignature`.** A dot normally reaches declared properties and index signature keys alike, so a typo in a declared name compiles as a key nobody set. With the flag on, a dot can only reach what the type declares, and every other key needs brackets:
+
+```ts twoslash
+// @noPropertyAccessFromIndexSignature: true
+// @errors: 4111
+type Headers = { contentType: string; [name: string]: string | undefined };
+
+function show(headers: Headers): void {
+  console.log(headers.contentType);
+  console.log(headers['accept']);
+  console.log(headers.contentTyp);
+}
+```
+
+The error names the fix, brackets, but the point is what it found: `contentTyp` is a typo. Under the defaults that line compiles and logs `undefined`. With the flag, a bracket says "this key may not exist" and a dot says "this property is declared", and the code shows which is which.
+
+## Pitfalls
+
+**Switching `strict` off to silence one error.** A caught value is `unknown` under `strict`, so reading its `message` is an error:
+
+```ts run errors
+function checkPort(port: number): void {
+  if (!Number.isInteger(port)) {
+    throw new RangeError(`not a port: ${port}`);
+  }
+}
+
+try {
+  checkPort(80.5);
+} catch (err) {
+  console.log(err.message);
+}
+```
+
+_'err' is of type 'unknown'._ `strict: false` makes it compile, and turns off the other seven checks with it. `useUnknownInCatchVariables: false` alone gives `err` the type `any` again, which only trades the error for no check. Narrow it instead, `err instanceof Error`, as <Lesson id="m09-modules-async/04-errors" /> did. When a project really can't meet one check yet, keep `strict: true` and set only that flag to `false`.
+
+**Index loops under `noUncheckedIndexedAccess`.** The flag doesn't know that `i` stays below `length`, so a classic `for` loop reports every read:
+
+```ts twoslash
+// @noUncheckedIndexedAccess: true
+// @errors: 2532
+const names: string[] = ['Ada', 'Grace'];
+
+for (let i = 0; i < names.length; i++) {
+  console.log(names[i].toUpperCase());
+}
+```
+
+_Object is possibly 'undefined'._ Write `for (const name of names)`, or `for (const [i, name] of names.entries())` when you need the index too: neither reads an index, so neither adds `undefined`. A `!` would compile, but it switches the check off at exactly the place it exists for.
+
+**Passing an optional value straight through under `exactOptionalPropertyTypes`.** An optional parameter is `number | undefined`, and putting it into an object puts the `undefined` there too:
+
+```ts twoslash
+// @exactOptionalPropertyTypes: true
+// @errors: 2375
+type Options = { host: string; port?: number };
+
+function connect(port?: number): Options {
+  return { host: 'localhost', port };
+}
+```
+
+The message ends with _Consider adding 'undefined' to the types of the target's properties._ Do that only when `undefined` is a value the property should hold. Otherwise leave the property out when there is nothing to put in it: `{ host: 'localhost', ...(port === undefined ? {} : { port }) }`, or build the object first and assign `options.port = port` inside an `if`.
+
+## Check yourself
+
+<Predict
+  id="what-strict-turns-on"
+  question="Which of these does `strict: true` turn on in TypeScript 6.0.3?"
+  options={[
+    '`noUncheckedIndexedAccess`',
+    '`useUnknownInCatchVariables`',
+    '`exactOptionalPropertyTypes`',
+    '`noPropertyAccessFromIndexSignature`',
+  ]}
+  answer={1}
+  explanation="`useUnknownInCatchVariables` is one of the eight checks in the strict family, the one that types a caught value as `unknown`. The other three are opt-in: each also reports code that runs correctly, so a project turns them on by name."
+/>
+
+<Predict
+  id="tuple-or-array"
+  code={
+    "// compiled with noUncheckedIndexedAccess: true\nconst pair: [string, number] = ['Ada', 36];\nconst names: string[] = ['Ada', 'Grace'];\n\nconst a = pair[0];\nconst b = names[0];"
+  }
+  question="What are the types of `a` and `b`?"
+  options={[
+    '`a` is `string`, `b` is `string`',
+    '`a` is `string`, `b` is `string | undefined`',
+    '`a` is `string | undefined`, `b` is `string | undefined`',
+    '`a` is `string | undefined`, `b` is `string`',
+  ]}
+  answer={1}
+  explanation="A tuple's length is part of its type, so index `0` of `[string, number]` is known to exist and stays `string`. A `string[]` has a number index signature and any length, including zero, so with the flag every index read is `string | undefined`."
+/>
+
+<Predict
+  id="exact-optional"
+  code={
+    '// compiled with exactOptionalPropertyTypes: true\ntype Options = { label?: string; color?: string | undefined };'
+  }
+  question="Which of these objects is not assignable to `Options`?"
+  options={[
+    '`{}`',
+    "`{ label: 'Save' }`",
+    '`{ color: undefined }`',
+    '`{ label: undefined }`',
+  ]}
+  answer={3}
+  explanation="With the flag, `label?: string` means `label` may be missing, but when it is there it is a `string`. `color` has `undefined` written into its type, so `{ color: undefined }` is fine. Only `{ label: undefined }` is rejected, with the error that suggests adding `undefined` to the property's type."
+/>
+
+## Further reading
+
+- [TSConfig reference: `strict`](https://www.typescriptlang.org/tsconfig/#strict), and the type checking flags around it
+- [TSConfig reference: `noUncheckedIndexedAccess`](https://www.typescriptlang.org/tsconfig/#noUncheckedIndexedAccess)
+- [TSConfig reference: `exactOptionalPropertyTypes`](https://www.typescriptlang.org/tsconfig/#exactOptionalPropertyTypes)
+- [TSConfig reference: `noPropertyAccessFromIndexSignature`](https://www.typescriptlang.org/tsconfig/#noPropertyAccessFromIndexSignature)
+- [TypeScript 4.4 release notes: exact optional property types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-4.html#exact-optional-property-types---exactoptionalpropertytypes)
+- [TypeScript 6.0 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html)

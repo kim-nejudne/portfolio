@@ -1,0 +1,229 @@
+---
+id: m05-generics/04-keyof-constraints
+title: keyof constraints and typed property access
+minutes: 20
+objectives:
+  - Constrain a key parameter with K extends keyof T so that only real property names are accepted
+  - Return T[K] so that the result has the type of the property that was asked for
+  - Predict T[K] when the key is a union of property names
+  - Write pluck and setProperty style helpers that take a property name
+  - Explain why a key typed string, or a K used as a string, fails to compile
+prerequisites:
+  - m05-generics/02-constraints-and-defaults
+  - m05-generics/03-generic-types-and-classes
+  - m04-objects/03-index-signatures-and-record
+  - m01-types/02-primitives-literals-widening
+tags:
+  - generics
+  - keyof
+  - K extends keyof T
+  - T[K]
+  - indexed access type
+  - typed property access
+  - pluck
+  - setProperty
+  - sortBy
+  - property name
+---
+
+## Concept
+
+Reading a property by name is everyday JavaScript: `obj[key]`. With the key typed `string`, it doesn't compile, which is the error <Lesson id="m04-objects/03-index-signatures-and-record" /> met with keys from `Object.keys`:
+
+```ts run errors
+type Track = { title: string; artist: string; seconds: number };
+
+function field(track: Track, key: string) {
+  return track[key];
+}
+```
+
+`Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Track'.`, then `No index signature with a parameter of type 'string' was found on type 'Track'.` A `Track` has three properties, and most strings name none of them. Only a type with a `string` index signature can be read with any string.
+
+The key should be one of `Track`'s property names, and `keyof Track` is that type: the union `'title' | 'artist' | 'seconds'`. (<Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" /> takes `keyof` further.) With `key: keyof Track`, `field` compiles, but its result is `string | number`, the type of every property at once, because the signature doesn't say which key came in. The link between the key and the result is a type parameter (5.1), constrained to the keys (5.2):
+
+```ts twoslash
+function get<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const track = { title: 'Intro', artist: 'The xx', seconds: 128 };
+
+const title = get(track, 'title');
+//    ^?
+const seconds = get(track, 'seconds');
+//    ^?
+```
+
+Read the signature from left to right. `T` is inferred from `obj`. `K extends keyof T` says that `K` is one of `T`'s property names, and it is inferred from `key` as the literal type of the name, such as `'seconds'`. `T[K]` is an indexed access type: the type of the property `K` of `T`, so `number` for `'seconds'`. Inside the body, `obj[key]` compiles because `key` is a key of `obj`, and its type is `T[K]`. Outside, a name `T` doesn't have is rejected at the call: `get(track, 'album')` reports `Argument of type '"album"' is not assignable to parameter of type '"title" | "artist" | "seconds"'.`
+
+Like every type, all of this is erased. The JavaScript is `function get(obj, key) { return obj[key]; }`.
+
+## Examples
+
+**A union of keys.** `K` is whatever the key's type is. When that is a union of names, `T[K]` is the union of those properties' types, no more:
+
+```ts twoslash
+function get<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+type Track = { title: string; artist: string; seconds: number };
+const track: Track = { title: 'Intro', artist: 'The xx', seconds: 128 };
+
+const sortKey = track.seconds > 60 ? 'seconds' : 'title';
+const value = get(track, sortKey);
+//    ^?
+```
+
+`sortKey` is a `const`, so its type is `'seconds' | 'title'`, and `value` is a `string | number`. It can't be a `boolean` or anything else: the result is exactly as precise as the key.
+
+**`pluck`: one property of every item.** The key constraint works the same when `T` is the item type of a list, and `T[K]` can sit inside another type, here an array:
+
+```ts run
+function pluck<T, K extends keyof T>(items: readonly T[], key: K): T[K][] {
+  return items.map((item) => item[key]);
+}
+
+type Track = { title: string; artist: string; seconds: number };
+const album: Track[] = [
+  { title: 'Intro', artist: 'The xx', seconds: 128 },
+  { title: 'VCR', artist: 'The xx', seconds: 157 },
+];
+
+const titles = pluck(album, 'title');
+const lengths = pluck(album, 'seconds');
+console.log(titles.join(', '), Math.max(...lengths));
+```
+
+`titles` is a `string[]` and `lengths` a `number[]`, so `Math.max(...lengths)` compiles and `Math.max(...titles)` would not.
+
+**`setProperty`: the value must fit the key.** `T[K]` works as a parameter type too. The compiler checks the value against the property the key names:
+
+```ts run
+function setProperty<T, K extends keyof T>(obj: T, key: K, value: T[K]): void {
+  obj[key] = value;
+}
+
+type Track = { title: string; artist: string; seconds: number };
+const track: Track = { title: 'Intro', artist: 'The xx', seconds: 128 };
+
+setProperty(track, 'seconds', 130);
+setProperty(track, 'title', 'Intro (live)');
+console.log(track);
+```
+
+`setProperty(track, 'seconds', '130')` reports `Argument of type 'string' is not assignable to parameter of type 'number'.` The check is only as precise as `K`, though. With the `sortKey` from above, `value` must be a `string | number`, so `setProperty(track, sortKey, 'long')` compiles, and it writes a string into `seconds` when `sortKey` is `'seconds'`. Pass a single name when you write.
+
+**When the result doesn't depend on the key.** A `sortBy` takes a property name too, but it returns the items, whichever key it sorted by. Then `key: keyof T` is all it needs, with no `K`:
+
+```ts run
+function sortBy<T>(items: readonly T[], key: keyof T): T[] {
+  return [...items].sort((a, b) =>
+    a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0,
+  );
+}
+
+type Track = { title: string; artist: string; seconds: number };
+const album: Track[] = [
+  { title: 'VCR', artist: 'The xx', seconds: 157 },
+  { title: 'Intro', artist: 'The xx', seconds: 128 },
+];
+
+console.log(sortBy(album, 'title').map((track) => track.title));
+console.log(sortBy(album, 'seconds').map((track) => track.seconds));
+```
+
+`sortBy(album, 'year')` is still rejected. A `K` earns its place when it appears a second time, in `T[K]`, as it did in `get`, `pluck` and `setProperty`. <Lesson id="m05-generics/05-when-generics-hurt" /> comes back to type parameters that appear only once.
+
+## Pitfalls
+
+**Typing the key as `keyof T` when the result depends on it.** Without its own type parameter, the key can be any of the names, so the result is the type of any of the properties:
+
+```ts run errors
+function get<T>(obj: T, key: keyof T): T[keyof T] {
+  return obj[key];
+}
+
+type Track = { title: string; artist: string; seconds: number };
+const track: Track = { title: 'Intro', artist: 'The xx', seconds: 128 };
+
+const title: string = get(track, 'title');
+```
+
+`Type 'string | number' is not assignable to type 'string'.`, then `Type 'number' is not assignable to type 'string'.` The call knows the key is `'title'`, but the signature has nowhere to keep that. Give the key a type parameter, `K extends keyof T`, and return `T[K]`.
+
+**Passing a key that is only known to be a `string`.** The constraint checks the key's type, not its value. A `let` widens `'title'` to `string` (<Lesson id="m01-types/02-primitives-literals-widening" />), and a `string` is not a key of `Track`:
+
+```ts run errors
+function get<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+type Track = { title: string; artist: string; seconds: number };
+const track: Track = { title: 'Intro', artist: 'The xx', seconds: 128 };
+
+let key = 'title';
+console.log(get(track, key));
+```
+
+`Argument of type 'string' is not assignable to parameter of type 'keyof Track'.` The same goes for a key from `Object.keys`, which is a `string` (4.3). Declare the key with `const`, or type it `keyof Track`, or loop over a list of names declared `as const`: `for (const key of ['title', 'artist'] as const)` gives each key its literal type.
+
+**Treating `K` as a string.** `keyof T` is not always a union of strings. Property names can be numbers and symbols too, and for a `T` with a `string` index signature `keyof T` is `string | number` (6.1). Inside a generic, `K` could be any of them:
+
+```ts run errors
+function label<T, K extends keyof T>(obj: T, key: K): string {
+  return `${key.toUpperCase()}: ${obj[key]}`;
+}
+```
+
+`Property 'toUpperCase' does not exist on type 'string | number | symbol'.` When only string names make sense, say so in the constraint, `K extends keyof T & string`, and the body may use string methods. Or turn the key into a string first, with `String(key)`.
+
+## Check yourself
+
+<Predict
+  id="key-without-k"
+  code={
+    "function get<T>(obj: T, key: keyof T): T[keyof T] {\n  return obj[key];\n}\n\ntype Player = { name: string; level: number; active: boolean };\nconst player: Player = { name: 'Ada', level: 3, active: true };\n\nconst level = get(player, 'level');"
+  }
+  question="What is the type of `level`?"
+  options={['number', 'string | number | boolean', 'Player', 'unknown']}
+  answer={1}
+  explanation="The key is typed `keyof T`, with no type parameter of its own, so the signature doesn't keep which name was passed. The result is `T[keyof T]`, the type of every property at once. With `K extends keyof T` and a `T[K]` result, `level` would be a `number`."
+/>
+
+<Predict
+  id="const-or-let-key"
+  code={
+    "function get<T, K extends keyof T>(obj: T, key: K): T[K] {\n  return obj[key];\n}\n\nconst player = { name: 'Ada', level: 3 };\n\nconst a = 'name';\nlet b = 'name';\n\nget(player, a); // A\nget(player, b); // B"
+  }
+  question="Which of the calls A and B compile?"
+  options={['A only', 'B only', 'Both', 'Neither']}
+  answer={0}
+  explanation={
+    "The constraint checks the key's type. `a` is a `const`, so its type is the literal `'name'`, which is one of the names. `b` is a `let`, which widens `'name'` to `string`, and a `string` is not a key of the object: `Argument of type 'string' is not assignable to parameter of type '\"name\" | \"level\"'.`"
+  }
+/>
+
+<Predict
+  id="set-with-union-key"
+  code={
+    "function setProperty<T, K extends keyof T>(obj: T, key: K, value: T[K]): void {\n  obj[key] = value;\n}\n\nconst player = { name: 'Ada', level: 3 };\nconst key = Math.random() < 0.5 ? 'name' : 'level';\n\nsetProperty(player, key, 'Grace');"
+  }
+  question="What does the last line do?"
+  options={[
+    "Reports Argument of type 'string' is not assignable to parameter of type 'number'.",
+    'Compiles, and may write a string into level',
+    'Compiles, and the compiler narrows key to name',
+    'Reports that a union cannot be used as a key',
+  ]}
+  answer={1}
+  explanation="`key` is a `'name' | 'level'`, so `K` is that union and `T[K]` is `string | number`. A string fits, so the call compiles, and half the time it puts `'Grace'` into `level`. `T[K]` is only as precise as the key, which is why a write should pass a single name."
+/>
+
+## Further reading
+
+- [Handbook: Generics, using type parameters in generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#using-type-parameters-in-generic-constraints)
+- [Handbook: The keyof type operator](https://www.typescriptlang.org/docs/handbook/2/keyof-types.html)
+- [Handbook: Indexed access types](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)
+- [TypeScript 2.1 release notes: keyof and lookup types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-1.html#keyof-and-lookup-types)

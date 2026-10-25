@@ -1,0 +1,23 @@
+id: m13-type-challenges/03-medium-set-2/03-capitalize
+kind: type-challenge
+title: Capitalize
+minutes: 3
+challenge: false
+prompt: |
+  Write `MyCapitalize<S>` in `index.ts` without using the built-in `Capitalize`: the string
+  type `S` with its first character in upper case and the rest as it is.
+  `MyCapitalize<'foo bar'>` is `'Foo bar'`, `MyCapitalize<'FOOBAR'>` stays `'FOOBAR'`, and
+  `MyCapitalize<''>` is `''`. The other intrinsics, `Uppercase` among them, are allowed.
+
+  The cases check every letter from `a` to `z`. A case added in the dojo passes a union, which
+  is capitalized member by member.
+
+  From type-challenges [#00110 Capitalize](https://github.com/type-challenges/type-challenges/blob/main/questions/00110-medium-capitalize/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Split the first character off the rest. Two `infer`s side by side in a pattern do that (lesson 12.1's third matching rule).
+  - Lesson 12.1 named four intrinsics. One of them changes the case of a whole string, and the first character is a whole string of one.

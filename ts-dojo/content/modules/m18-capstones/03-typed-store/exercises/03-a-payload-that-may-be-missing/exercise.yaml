@@ -1,0 +1,28 @@
+id: m18-capstones/03-typed-store/03-a-payload-that-may-be-missing
+kind: predict
+title: A payload that may be missing
+minutes: 2
+challenge: false
+code: |
+  type ActionOf<M, K extends keyof M = keyof M> = {
+    [P in keyof M]: M[P] extends void ? { type: P } : { type: P; payload: M[P] };
+  }[K];
+
+  interface SearchMap {
+    clear: void;
+    search: string | undefined;
+  }
+
+  type SearchAction = ActionOf<SearchMap>;
+question: What is `SearchAction`?
+options:
+  - "`{ type: 'clear' } | { type: 'search'; payload: string | undefined }`"
+  - "`{ type: 'clear' } | { type: 'search' } | { type: 'search'; payload: string }`"
+  - "`{ type: 'clear' } | { type: 'search'; payload: string }`"
+answer: 0
+explanation: |
+  `M[P] extends void` tests the whole value type at once. `M[P]` is not a naked type parameter,
+  so the conditional doesn't distribute over `string | undefined` (11.3), and
+  `string | undefined` is not assignable to `void`, because `string` isn't. So `search` keeps
+  its `payload`, typed `string | undefined`: the property must be written, and its value may be
+  `undefined`. Only a value that is `void` or `undefined` as a whole, like `clear`, drops it.

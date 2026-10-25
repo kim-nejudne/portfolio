@@ -1,0 +1,32 @@
+id: m15-api-design/04-typed-routes/02-built-patterns
+kind: predict
+title: Built patterns
+minutes: 2
+challenge: false
+code: |
+  // Params and HrefArgs as in the lesson's second example.
+  declare function href<P extends string>(
+    pattern: P,
+    ...args: HrefArgs<P>
+  ): string;
+
+  const base = '/users';
+  const byTemplate = `${base}/:id`;
+  const byPlus = base + '/:id';
+
+  href(byTemplate, { id: '7' });
+  href(byPlus, { id: '7' });
+question: Which of the two calls does the compiler report?
+options:
+  - Neither
+  - "Only `href(byPlus, { id: '7' })`: `Expected 1 arguments, but got 2.`"
+  - "Only `href(byTemplate, { id: '7' })`: `Expected 1 arguments, but got 2.`"
+  - Both
+answer: 1
+explanation: |
+  `byTemplate` is a template literal whose parts are literal types, and in a `const` it keeps the
+  literal type `'/users/:id'`, so its call takes `{ id: string }`. `+` on two strings gives a
+  `string`, so `byPlus` is a `string`. `string` matches no template pattern, `Params<string>` is
+  `{}`, and `HrefArgs<string>` is the empty tuple: the call may pass the pattern alone, and the
+  object is one argument too many. Without the object it would compile, and throw `missing :id`
+  at run time.

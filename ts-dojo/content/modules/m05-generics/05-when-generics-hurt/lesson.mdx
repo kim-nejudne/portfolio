@@ -1,0 +1,235 @@
+---
+id: m05-generics/05-when-generics-hurt
+title: 'When generics hurt: over-generic code and the return-type-only smell'
+minutes: 15
+optional: true
+objectives:
+  - Count where a type parameter appears in a signature, and replace one that appears once by its constraint or unknown
+  - Recognise a type parameter that appears only in the return type as a cast the caller writes
+  - Replace a return-type-only generic with an unknown result or with a decoder parameter that mentions T
+  - Push type parameters down to the items, and drop the ones that only name a parameter's type
+  - Explain when a union or overloads describe a function better than a type parameter
+prerequisites:
+  - m05-generics/01-generic-functions
+  - m05-generics/02-constraints-and-defaults
+  - m05-generics/04-keyof-constraints
+  - m01-types/04-any-unknown-never-void
+  - m03-unions/03-narrowing
+tags:
+  - generics
+  - type parameter
+  - over-generic
+  - return-type-only generic
+  - cast
+  - unknown
+  - decoder
+  - JSON.parse
+  - push type parameters down
+  - fewer type parameters
+---
+
+## Concept
+
+A type parameter is a link (<Lesson id="m05-generics/01-generic-functions" />). In `first<T>(items: readonly T[]): T | undefined`, `T` joins the items that go in to the item that comes out. A link needs two ends. Count where a type parameter appears in the signature, its parameters and its return type. When it appears only once, it relates nothing, and the function does the same without it. Replace it by its constraint, or by `unknown` when it has none:
+
+```ts run
+function describe<T>(value: T): string {
+  return `${typeof value}: ${String(value)}`;
+}
+
+function describePlain(value: unknown): string {
+  return `${typeof value}: ${String(value)}`;
+}
+
+console.log(describe(42), describePlain(42));
+console.log(describe(['a', 'b']), describePlain(['a', 'b']));
+```
+
+Both accept every argument and both return a `string`. The type argument that `describe` infers at each call goes nowhere. The same holds with a constraint: `size<T extends { length: number }>(x: T): number` is `size(x: { length: number }): number`. Callers see one difference. An object literal passed straight to the plain version gets the excess property check of <Lesson id="m04-objects/02-structural-typing" />, which a type parameter skips. Uses inside the body don't count: there, too, the constraint would do. That is why `sortBy` in <Lesson id="m05-generics/04-keyof-constraints" /> took `key: keyof T` with no `K`: a `K` would have appeared once.
+
+A type parameter that appears only in the return type does harm:
+
+```ts twoslash
+type User = { name: string; age: number };
+
+function parse<T>(json: string): T {
+  return JSON.parse(json);
+}
+
+const user = parse<User>('{"nme":"Ada"}');
+//    ^?
+const data = parse('{"name":"Ada"}');
+//    ^?
+```
+
+No argument mentions `T`, so nothing can check it. The caller picks it, by writing a type argument, `parse<User>`, or by the type it assigns to: for `const user: User = parse(text)`, the compiler infers `T` from the expected type. With neither, `T` is `unknown`. The body compiles because `JSON.parse` returns `any` in the lib, and `any` is assignable to every `T`. So `parse<User>(text)` is `JSON.parse(text) as User`, a cast, dressed as a type argument so that it looks like a checked conversion. `get<T>(key: string): T` on a store is the same smell.
+
+## Examples
+
+**What the compiler doesn't check.** The JSON below has a misspelt `name` and a string `age`. It compiles, and it runs:
+
+```ts run
+type User = { name: string; age: number };
+
+function parse<T>(json: string): T {
+  return JSON.parse(json);
+}
+
+const user = parse<User>('{"nme":"Ada","age":"36"}');
+console.log(user.name, typeof user.age);
+```
+
+To the compiler, `user.name` is a `string` and `user.age` a `number`. At run time they are `undefined` and a string. The error comes later, wherever the code first relies on the type, far from the `parse` that caused it.
+
+**Return `unknown`, and narrow.** An honest signature says what the function knows. `JSON.parse` can return anything, so the result is `unknown`, and the caller narrows it before use (<Lesson id="m03-unions/03-narrowing" />):
+
+```ts run
+function parseJson(text: string): unknown {
+  return JSON.parse(text);
+}
+
+const data = parseJson('{"name":"Ada","age":36}');
+if (
+  typeof data === 'object' &&
+  data !== null &&
+  'name' in data &&
+  typeof data.name === 'string'
+) {
+  console.log(data.name.toUpperCase());
+}
+```
+
+Each check narrows a step further: to `object`, then to an object with a `name` property, and then `data.name` to a `string`. <Lesson id="m07-guards/01-type-guards" /> packs such checks into a function you can reuse.
+
+**Take a decoder that mentions `T`.** A decoder is a function that turns an `unknown` into a `T` or throws. As a parameter, it gives `T` its second appearance, and a real check behind it:
+
+```ts run
+const settings = new Map<string, unknown>([
+  ['port', 8080],
+  ['host', 'localhost'],
+]);
+
+function getSetting<T>(key: string, decode: (value: unknown) => T): T {
+  return decode(settings.get(key));
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value !== 'number') {
+    throw new Error(`expected a number, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+const port = getSetting('port', toNumber);
+console.log(port + 1);
+```
+
+`T` is inferred from the decoder, so `port` is a `number` without a type argument. And the type is now as true as the decoder: `getSetting('host', toNumber)` throws at the call, instead of handing back a string typed `number`.
+
+**Push type parameters down.** Put the type parameter on the part you use. `L` stands for the whole list, and the compiler reads `list[0]` through `L`'s constraint, so the item is `unknown`. `T` stands for the item itself:
+
+```ts twoslash
+function firstOf<L extends readonly unknown[]>(list: L) {
+  return list[0];
+}
+
+function first<T>(list: readonly T[]) {
+  return list[0];
+}
+
+const a = firstOf([3, 9]);
+//    ^?
+const b = first([3, 9]);
+//    ^?
+```
+
+## Pitfalls
+
+**Silencing the error with `as T`.** Without `JSON.parse`'s `any`, a return-type-only generic doesn't compile. A `Map<string, unknown>` gives back an `unknown`:
+
+```ts run errors
+const settings = new Map<string, unknown>([['port', 8080]]);
+
+function getSetting<T>(key: string): T {
+  return settings.get(key);
+}
+```
+
+`Type 'unknown' is not assignable to type 'T'.`, then `'T' could be instantiated with an arbitrary type which could be unrelated to 'unknown'.` The compiler is right: the map holds values of unknown type, and the caller may ask for any `T`. `return settings.get(key) as T` silences it and keeps the smell, since `getSetting<number>('host')` then compiles. Return `unknown`, or take a decoder.
+
+**A type parameter for the callback.** A type parameter that only names one parameter's type appears once, as `F` does here. It looks precise, but `U` now appears in no parameter, only in `F`'s constraint, so no argument fills it in:
+
+```ts run errors
+function mapAll<T, U, F extends (item: T) => U>(
+  items: readonly T[],
+  fn: F,
+): U[] {
+  return items.map(fn);
+}
+
+const lengths = mapAll(['tea', 'coffee'], (drink) => drink.length);
+console.log(Math.max(...lengths));
+```
+
+`Argument of type 'unknown' is not assignable to parameter of type 'number'.` `U` falls back to `unknown`, so `lengths` is an `unknown[]`, and the error lands on `Math.max`, a line away from its cause. Drop `F` and type the parameter `fn: (item: T) => U`: the callback's parameter is still typed from `T`, `U` is inferred from what the callback returns, and the signature has one name fewer to read.
+
+**Promising the argument's type back.** Two appearances are necessary, not enough. A result typed `T` promises the caller's own type, so it must be built from the argument. Here the body makes new values:
+
+```ts run errors
+function double<T extends string | number>(value: T): T {
+  if (typeof value === 'number') {
+    return value * 2;
+  }
+  return String(value).repeat(2);
+}
+```
+
+`Type 'number' is not assignable to type 'T'.`, then `'number' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint 'string | number'.`, and the same for `string`. Under `T extends string | number`, the caller's `T` can be the literal type `2` (5.2), and a cast would make `double(2)` claim to be a `2` while it holds `4`. What the function means is "a number gives a number, a string gives a string". Say it with two overloads, `double(value: number): number` and `double(value: string): string` (<Lesson id="m08-functions-classes/01-overloads" />), or with a union, `double(value: string | number): string | number`.
+
+## Check yourself
+
+<Predict
+  id="appears-once"
+  question="In which of these signatures can the type parameter be replaced by unknown without changing what callers get?"
+  options={[
+    'function first<T>(items: readonly T[]): T | undefined',
+    'function count<T>(items: readonly T[]): number',
+    'function fill<T>(value: T, times: number): T[]',
+    'function choose<T>(a: T, b: T): T',
+  ]}
+  answer={1}
+  explanation="Count the appearances in the signature. In `count`, `T` appears once, in `items`, and links it to nothing: `items: readonly unknown[]` accepts the same lists and returns the same `number`. In the others `T` appears twice or more, and each call's result keeps the type that went in."
+/>
+
+<Predict
+  id="what-is-checked"
+  code={
+    'type User = { name: string; age: number };\n\nfunction parse<T>(json: string): T {\n  return JSON.parse(json);\n}\n\nconst user = parse<User>(text);'
+  }
+  question="What does the compiler check about the value in user?"
+  options={[
+    'That it has a name and an age of the right types',
+    'That it is an object',
+    'Nothing: User is whatever the caller wrote, and JSON.parse returns any',
+    'That text is valid JSON',
+  ]}
+  answer={2}
+  explanation="`T` appears only in the return type, so no argument is checked against it. The body compiles because `JSON.parse` returns `any`, which is assignable to every `T`. The call is a cast, `JSON.parse(text) as User`. Whether `text` is valid JSON is found out at run time, by `JSON.parse` throwing."
+/>
+
+<Predict
+  id="no-type-argument"
+  code={
+    "function parse<T>(json: string): T {\n  return JSON.parse(json);\n}\n\nconst data = parse('[1, 2, 3]');"
+  }
+  question="What is the type of data?"
+  options={['number[]', 'any', 'unknown', 'never']}
+  answer={2}
+  explanation="The compiler doesn't look inside the string, and no argument mentions `T`. With no type argument and no expected type to infer from, `T` is `unknown`. It isn't `any`: the `any` that `JSON.parse` returns stays inside the body, where it is returned as a `T`."
+/>
+
+## Further reading
+
+- [Handbook: More on functions, guidelines for writing good generic functions](https://www.typescriptlang.org/docs/handbook/2/functions.html#guidelines-for-writing-good-generic-functions)
+- [Handbook: Generics, generic constraints](https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-constraints)
+- [typescript-eslint: no-unnecessary-type-parameters](https://typescript-eslint.io/rules/no-unnecessary-type-parameters/), a lint rule that finds type parameters used once

@@ -1,0 +1,8 @@
+id: m97-fixture-capstone
+title: Fixture capstone
+summary: Three predict-only lessons in a second band after both fixture modules, so the roadmap draws its edges.
+prerequisites: [m99-fixtures, m98-fixture-sequel]
+lessons:
+  - 01-keyof
+  - 02-typeof
+  - 03-indexed-access

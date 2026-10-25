@@ -1,0 +1,22 @@
+id: m13-type-challenges/03-medium-set-2/04-replace
+kind: type-challenge
+title: Replace
+minutes: 4
+challenge: false
+prompt: |
+  Write `Replace<S, From, To>` in `index.ts`: the string type `S` with the first occurrence of
+  `From` replaced by `To`. `Replace<'types are fun!', 'fun', 'awesome'>` is
+  `'types are awesome!'`, and `Replace<'foobarbar', 'bar', 'foo'>` is `'foofoobar'`: only the
+  first `bar` changes.
+
+  When `From` doesn't occur in `S`, or `From` is the empty string, `S` comes back unchanged.
+
+  From type-challenges [#00116 Replace](https://github.com/type-challenges/type-challenges/blob/main/questions/00116-medium-replace/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A type parameter can sit in a pattern between two `infer`s, and the first `infer` stops at the first place it appears (12.1).
+  - An empty `From` leaves two `infer`s side by side, a pattern that matches almost every string (the lesson's second pitfall). Deal with `''` before you match.

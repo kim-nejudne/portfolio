@@ -1,0 +1,22 @@
+id: m08-functions-classes/02-this-and-callable-types/01-declare-this
+kind: fix
+title: Declare what this is
+minutes: 3
+challenge: false
+prompt: |
+  `vote` adds votes to a `Tally` and is meant to be called as a method of a tally, or with
+  `vote.call(tally, by)`. Every use of `this` in its body reports:
+
+  - `'this' implicitly has type 'any' because it does not have a type annotation.`
+
+  Make `index.ts` compile. Keep `vote` a function that reads the tally from `this`: the tests
+  call it with `call` and as a method, check that `by` is still its only parameter, and check
+  that a plain call `vote(1)` no longer compiles.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Under strict, a function that uses this has to say what this is. Where does a function declare the types of its inputs?
+  - The declaration goes first in the parameter list, and callers never pass it as an argument.

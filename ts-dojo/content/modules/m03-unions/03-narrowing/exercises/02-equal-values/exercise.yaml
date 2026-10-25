@@ -1,0 +1,23 @@
+id: m03-unions/03-narrowing/02-equal-values
+kind: predict
+title: What equal values share
+minutes: 1
+challenge: false
+code: |
+  function matches(id: string | number, query: string | null): string {
+    if (id === query) {
+      return id.toUpperCase();
+    }
+    return 'no match';
+  }
+question: Does `id.toUpperCase()` compile?
+options:
+  - 'No: `id` is still `string | number`, and `toUpperCase` is a `string` method'
+  - 'Yes: inside the `if`, `id` and `query` are both `string`'
+  - 'No: `string | number` and `string | null` cannot be compared with `===`'
+answer: 1
+explanation: |
+  Equal values have the same type, so `===` narrows both sides to the members their types
+  share. The only one is `string`: a number never equals a string or `null`. Inside the `if`,
+  `id` and `query` are both `string`, and `toUpperCase` compiles. The comparison itself is fine
+  because the types overlap; it is an error only when they have nothing in common.

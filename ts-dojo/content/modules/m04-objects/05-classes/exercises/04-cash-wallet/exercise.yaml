@@ -1,0 +1,32 @@
+id: m04-objects/05-classes/04-cash-wallet
+kind: implement
+title: A cash wallet
+minutes: 6
+challenge: false
+prompt: |
+  Implement the class `CashWallet` and the function `transfer` in `index.ts`. Amounts are whole
+  numbers of cents.
+
+  - `new CashWallet(owner)` starts with a balance of 0. Its `owner` can be read but never
+    reassigned.
+  - `deposit(amount)` and `withdraw(amount)` return a `Result`. An amount that isn't a positive
+    whole number fails with `invalid-amount`, checked first; withdrawing more than the balance
+    fails with `insufficient-funds`. A failed call leaves the balance as it was, and a
+    successful one returns the new balance. `balance()` returns the balance.
+  - Only the class can reach the balance, at run time too: it is not a property of the wallet,
+    so `JSON.stringify(wallet)` doesn't show it, and a plain object with the same methods is
+    not accepted where a `CashWallet` is expected.
+  - `transfer(from, to, amount)` moves `amount` between any two `Wallet`s, using only the
+    interface's methods. It returns the result of the withdrawal, and deposits only when the
+    withdrawal succeeded.
+
+  This combines the lesson with interfaces (4.1) and discriminated unions (3.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - The interface's `readonly` doesn't carry over to the class, because `implements` only checks the class. The class's own field has to say it.
+  - A `private` field is erased to an ordinary property, which `JSON.stringify` writes out. One kind of field is private at run time too, and it also turns away the plain object.
+  - In `transfer`, check `ok` on what `withdraw` returns. Only the branch where it is `true` has anything to deposit.

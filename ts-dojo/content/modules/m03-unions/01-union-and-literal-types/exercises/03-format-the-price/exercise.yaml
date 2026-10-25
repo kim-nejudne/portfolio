@@ -1,0 +1,24 @@
+id: m03-unions/01-union-and-literal-types/03-format-the-price
+kind: fix
+title: Format the price
+minutes: 3
+challenge: false
+prompt: |
+  `formatPrice` takes an amount that arrives either as a number or as a numeric string such as
+  `'3.5'`, and returns it with two decimals and the currency, such as `'3.50 SEK'`. `index.ts`
+  has two errors:
+
+  - `Property 'toFixed' does not exist on type 'string | number'.`
+  - `Argument of type 'string' is not assignable to parameter of type 'Currency'.`
+
+  Fix both without changing the parameter types of `formatPrice`: the tests call it with numbers
+  and with numeric strings, and check that `defaultCurrency` holds a `Currency`.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, type-assertion]
+hints:
+  - '`toFixed` is a `number` method, and a union offers only what every member has. Make the amount a `number` before you format it.'
+  - A built-in that turns a string or a number into a number accepts both members, so it can be called on the union as it is.
+  - The second error is widening (lesson 1.2). Declare `defaultCurrency` so that its type stays a `Currency`.

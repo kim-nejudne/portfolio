@@ -1,0 +1,15 @@
+id: m98-fixture-sequel/01-literal-widening/01-let-or-const
+kind: predict
+title: 'What does let infer?'
+minutes: 2
+challenge: false
+code: |
+  const a = 'on';
+  let b = 'on';
+question: 'What is the type of `b`?'
+options:
+  - "'on'"
+  - 'string'
+  - 'any'
+answer: 1
+explanation: "`let` widens the literal to `string` because `b` can be reassigned; `const a` keeps `'on'`."

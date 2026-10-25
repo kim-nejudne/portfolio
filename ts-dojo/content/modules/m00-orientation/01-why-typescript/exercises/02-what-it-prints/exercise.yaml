@@ -1,0 +1,27 @@
+id: m00-orientation/01-why-typescript/02-what-it-prints
+kind: predict
+title: What does the erased program print?
+minutes: 2
+challenge: false
+code: |
+  interface Settings {
+    retries: number;
+  }
+
+  const settings = JSON.parse('{"retries": "3"}') as Settings;
+  const attempts: number = settings.retries + 1;
+
+  console.log(attempts);
+question: What does this program print when it runs?
+options:
+  - '4'
+  - '31'
+  - 'NaN'
+  - 'A TypeError: retries is not a number'
+answer: 1
+explanation: |
+  The program compiles with no errors, and emit deletes the interface, the `as Settings` cast
+  and the `: number` annotation. What runs is `JSON.parse`, a property read and `'3' + 1`. The
+  JSON holds `retries` as the string `"3"`, so `+` joins two strings and the program prints
+  `31`. The cast compiled because `JSON.parse` returns `any`, so the checker took it on trust;
+  nothing checks a cast at runtime.

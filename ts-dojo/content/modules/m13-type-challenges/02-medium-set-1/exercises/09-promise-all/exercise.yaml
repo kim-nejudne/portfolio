@@ -1,0 +1,34 @@
+id: m13-type-challenges/02-medium-set-1/09-promise-all
+kind: type-challenge
+title: Promise.all
+minutes: 6
+challenge: false
+prompt: |
+  Type the declared function `PromiseAll` in `index.ts` as `Promise.all` behaves: it takes an
+  array of values and promises and returns a promise of their resolved values, position by
+  position.
+
+  ```ts
+  PromiseAll([1, 2, Promise.resolve(3)] as const); // Promise<[1, 2, number]>
+  PromiseAll([1, 2, Promise.resolve(3)]); // Promise<[number, number, number]>
+  ```
+
+  An array literal without `as const` still gives a tuple. When a caller passes an array type
+  explicitly, `PromiseAll<(number | Promise<string>)[]>(...)`, the result is
+  `Promise<(number | string)[]>`. The built-in `Awaited` (or your `MyAwaited` from 13.1) may
+  unwrap each element.
+
+  The template is `declare function PromiseAll(values: any): any`. The starter already takes
+  a type parameter, because two cases pass one explicitly; its `values` and its result are
+  still wrong.
+
+  From type-challenges [#00020 Promise.all](https://github.com/type-challenges/type-challenges/blob/main/questions/00020-medium-promise-all/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Let the type parameter be the array or tuple of inputs, and build the result from it with a mapped type. Mapped over a tuple, it gives a tuple (10.3).
+  - Constrain the parameter so that `as const` arrays fit (13.1's readonly pitfall).
+  - An array literal infers an array unless the parameter's type asks for a tuple. The lesson's third pitfall shows the way to ask.

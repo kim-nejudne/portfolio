@@ -1,0 +1,24 @@
+id: m05-generics/02-constraints-and-defaults/03-touch-keeps-the-type
+kind: implement
+title: Touch, and keep the type
+minutes: 3
+challenge: false
+prompt: |
+  Implement `touch` in `index.ts`. It takes any object with an `updatedAt: number` and a time,
+  and returns a new object with every property of the old one and `updatedAt` set to that
+  time. The object passed in is left alone.
+
+  The starter types the item with the shape `touch` needs, `{ updatedAt: number }`, and returns
+  that shape too, so a `Note` goes in and only an `{ updatedAt: number }` comes out. Make the
+  caller's type come back whole: touching a `Note` gives a `Note`, touching a `Task` gives a
+  `Task`. The type cases check that, the `@ts-expect-error` lines check that objects without a
+  numeric `updatedAt` are rejected, and the tests check the copies.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The shape is what touch needs to know about the item, not what it gives back. Let the item's own type be a type parameter that must have that shape.
+  - A fresh object literal with only updatedAt in it is not a T, whatever T the caller picked. Build the copy from the item you were given.
+  - Declare the return type. Without it, the inferred type of the copy is an intersection of T and the property you set, not T itself.

@@ -1,0 +1,34 @@
+id: m08-functions-classes/02-this-and-callable-types/02-chain-type
+kind: predict
+title: What does the chain return?
+minutes: 2
+challenge: false
+code: |
+  class Query {
+    conditions: string[] = [];
+
+    where(condition: string) {
+      this.conditions.push(condition);
+      return this;
+    }
+  }
+
+  class UserQuery extends Query {
+    active() {
+      return this.where('active = true');
+    }
+  }
+
+  const query = new UserQuery().where('age > 18');
+question: What is the type of `query`?
+options:
+  - 'Query'
+  - 'UserQuery'
+  - 'Query | UserQuery'
+  - 'any'
+answer: 1
+explanation: |
+  `where` has no return type annotation, and it returns `this`, so the compiler infers the
+  polymorphic `this` type, not `Query`. On a `UserQuery`, `this` is `UserQuery`, so the chain can
+  go on with `.active()`. Annotate `where` as returning `Query` and `query` would be a `Query`,
+  with no `active` method.

@@ -1,0 +1,238 @@
+---
+id: m12-template-tuples/02-variadic-tuples
+title: Variadic tuple types
+minutes: 20
+objectives:
+  - Spread tuple and array types into a tuple type, at its start, in its middle or at its end
+  - Type a rest parameter with a type parameter, so that a function takes over another function's parameter list
+  - Infer a tuple instead of an array from an argument, with a [...T] parameter
+  - Predict what a spread does with labels, optional elements, readonly tuples and unions
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m02-functions/01-parameters-and-returns
+  - m05-generics/01-generic-functions
+  - m06-type-operators/03-utility-types-2
+  - m11-conditional-types/02-infer
+  - m12-template-tuples/01-template-literal-types
+tags:
+  - variadic tuple
+  - spread
+  - rest element
+  - generic rest parameter
+  - labelled tuple
+  - optional element
+  - Parameters
+  - partial application
+---
+
+## Concept
+
+<Lesson id="m01-types/03-arrays-tuples-objects" /> ended a tuple with a rest
+element, `[label: string, ...readings: number[]]`, and
+<Lesson id="m02-functions/01-parameters-and-returns" /> typed rest parameters
+with tuples. A **variadic tuple type** puts a type parameter in the spread:
+`...T`, where `T` is constrained to an array type. Once `T` is known, the
+compiler puts its elements in that place:
+
+```ts twoslash
+type Framed<T extends unknown[]> = ['start', ...T, 'end'];
+
+type Pair = Framed<[x: number, y: number]>;
+//    ^?
+type Many = Framed<string[]>;
+//    ^?
+type Empty = Framed<[]>;
+//    ^?
+type Either = Framed<[1] | [2, 3]>;
+//     ^?
+```
+
+What `T` holds decides what the spread becomes:
+
+- **A tuple** is spliced in, element by element, with its labels. An empty tuple adds nothing.
+- **An array** becomes a rest element in that place. A rest element can stand at the start, in the middle or at the end of a tuple, but a tuple has at most one. Written out, `[...number[], ...string[]]` is an error, `A rest element cannot follow another rest element.`, and when two spreads of type parameters both turn out to be arrays, the result is one array: `[...A, ...B]` with `number[]` and `string[]` is `(string | number)[]`.
+- **A union** gives one tuple per member, so `Either` is a union of two tuples. `never`, the empty union, gives `never`.
+
+Spreads exist for functions more than for tuples. A rest parameter whose type is a type parameter, `...args: A` with `A extends unknown[]`, takes over another function's whole parameter list, and a tuple type such as `[...A, done: () => void]` adds to it. Before TypeScript 4.0 that needed one overload per length.
+
+## Examples
+
+**Wrapping a function.** `timed` takes any function and returns one with the same parameters and the same return type. `A` is inferred from `fn`'s parameter list, labels, optional and default parameters included, so a call to `timedPad` is checked exactly like a call to `pad`:
+
+```ts run
+function timed<A extends unknown[], R>(
+  name: string,
+  fn: (...args: A) => R,
+): (...args: A) => R {
+  return (...args) => {
+    const start = Date.now();
+    try {
+      return fn(...args);
+    } finally {
+      console.log(`${name} took ${Date.now() - start} ms`);
+    }
+  };
+}
+
+function pad(text: string, width: number, fill = ' '): string {
+  return text.padStart(width, fill);
+}
+
+const timedPad = timed('pad', pad);
+console.log(timedPad('7', 3, '0'));
+console.log(timedPad('ok', 4));
+```
+
+`timedPad` has the type `(text: string, width: number, fill?: string) => string`, and `timedPad('7')` reports `Expected 2-3 arguments, but got 1.` Writing `(...args: unknown[]) => unknown` instead would have thrown both away. `Parameters<typeof pad>` from <Lesson id="m06-type-operators/03-utility-types-2" /> is the same tuple, read off a function you already have; a type parameter does it for whichever function is passed.
+
+**Adding to a parameter list.** Two spreads in a row split a parameter list in two. `partial` fixes the first arguments of a function and returns a function that takes the rest. `A` is inferred from the arguments after `fn`, and `B` is what is left of `fn`'s parameter list once `A` is taken off the front:
+
+```ts twoslash
+function partial<A extends unknown[], B extends unknown[], R>(
+  fn: (...args: [...A, ...B]) => R,
+  ...first: A
+): (...rest: B) => R {
+  return (...rest) => fn(...first, ...rest);
+}
+
+function pad(text: string, width: number, fill = ' '): string {
+  return text.padStart(width, fill);
+}
+
+const padX = partial(pad, 'x');
+//    ^?
+const padX5 = partial(pad, 'x', 5);
+//     ^?
+```
+
+An argument of the wrong type is an error where it is written: `partial(pad, 3)` reports `Argument of type 'number' is not assignable to parameter of type 'string'.` The Currying challenge in <Lesson id="m13-type-challenges/04-hard-set" /> goes one argument at a time.
+
+**Inferring a tuple.** <Lesson id="m01-types/03-arrays-tuples-objects" /> showed that an array literal is inferred as an array. A parameter typed `[...T]` tells the compiler that a tuple is wanted, and it infers one. Spreading values builds the matching type, so `concat`'s body needs no annotation:
+
+```ts twoslash
+function listOf<T extends unknown[]>(items: T): T {
+  return items;
+}
+function tupleOf<T extends unknown[]>(items: [...T]): T {
+  return items;
+}
+
+const list = listOf([1, 'a']);
+//    ^?
+const tuple = tupleOf([1, 'a']);
+//     ^?
+
+function concat<T extends unknown[], U extends unknown[]>(
+  a: readonly [...T],
+  b: readonly [...U],
+): [...T, ...U] {
+  return [...a, ...b];
+}
+
+const joined = concat([1, 'a'], [true]);
+//     ^?
+const ids: number[] = [3, 4];
+const withEnd = concat(ids, ['end']);
+//      ^?
+```
+
+`ids` is a `number[]`, so its spread becomes a rest element at the start of the result. Taking a tuple apart again, with `infer` inside a spread, is the next lesson, <Lesson id="m12-template-tuples/03-tuple-manipulation" />.
+
+## Pitfalls
+
+**Spreading a type parameter that may not be an array.** Without a constraint, `T` could be `string`, and a string can't be spread into a tuple type:
+
+```ts run errors
+type Framed<T> = ['start', ...T, 'end'];
+```
+
+`A rest element type must be an array type.` Constrain it: `T extends unknown[]`, or `T extends readonly unknown[]` to accept readonly tuples as well.
+
+**A readonly tuple for a `[...T]` parameter.** A tuple made with `as const` is readonly, and `[...T]` is a mutable tuple type, so the compiler won't pass one as the other:
+
+```ts run errors
+function concat<T extends unknown[], U extends unknown[]>(
+  a: [...T],
+  b: [...U],
+): [...T, ...U] {
+  return [...a, ...b];
+}
+
+const origin = [0, 0] as const;
+console.log(concat(origin, [1]));
+```
+
+`Argument of type 'readonly [0, 0]' is not assignable to parameter of type '[0, 0]'.`, then `The type 'readonly [0, 0]' is 'readonly' and cannot be assigned to the mutable type '[0, 0]'.` A function that only reads its tuple should say so: `a: readonly [...T]` accepts both kinds, as in the `concat` above. The result is a new array, and a spread copies the element types without the `readonly`, so `[...T, ...U]` is mutable.
+
+**An optional element before a required one.** A required element can't follow an optional one, so when a spread puts a required element after an optional one, the optional one becomes required, with `undefined` added to its type. `withDone` adds a callback after `greet`'s parameters, and `greeting` stops being optional:
+
+```ts run errors
+function withDone<A extends unknown[]>(
+  fn: (...args: A) => void,
+): (...args: [...A, done: () => void]) => void {
+  return (...args) => {
+    console.log(args);
+  };
+}
+
+function greet(name: string, greeting?: string): void {
+  console.log(`${greeting ?? 'Hello'}, ${name}`);
+}
+
+const greetThen = withDone(greet);
+greetThen('Ada', () => console.log('done'));
+```
+
+`Expected 3 arguments, but got 2.` `greetThen` is `(name: string, greeting: string | undefined, done: () => void) => void`: the call must pass `undefined` for `greeting`. Put the added element first, `[done: () => void, ...A]`, and the optional parameters stay optional at the end.
+
+## Check yourself
+
+<Predict
+  id="spread-array-in-middle"
+  code={'type T = [...[1, 2], ...string[], ...[3]];'}
+  question="What is `T`?"
+  options={[
+    '[1, 2, ...string[], 3]',
+    '(string | 1 | 2 | 3)[]',
+    '[1, 2, string, 3]',
+    'An error: a rest element must come last',
+  ]}
+  answer={0}
+  explanation="Each tuple is spliced in where it is spread, and the array becomes a rest element in its own place. A rest element may stand in the middle of a tuple, as long as it is the only one."
+/>
+
+<Predict
+  id="rest-parameter-takes-the-list"
+  code={
+    "function call<A extends unknown[], R>(fn: (...args: A) => R, ...args: A): R {\n  return fn(...args);\n}\n\nfunction pad(text: string, width: number, fill = ' '): string {\n  return text.padStart(width, fill);\n}\n\ncall(pad, 'x');"
+  }
+  question="What does the compiler report for `call(pad, 'x')`?"
+  options={[
+    'Nothing: A is inferred as [string] from the argument',
+    'Expected 3-4 arguments, but got 2.',
+    'Nothing: width becomes optional',
+  ]}
+  answer={1}
+  explanation="`A` is `pad`'s parameter list, `[text: string, width: number, fill?: string]`, so after `fn` the call must pass two or three more arguments, exactly as a call to `pad` would. The count in the message includes `fn` itself."
+/>
+
+<Predict
+  id="optional-before-callback"
+  code={'type Args = [...[name: string, greeting?: string], done: () => void];'}
+  question="Which value is an `Args`?"
+  options={[
+    "['Ada', () => {}]",
+    "['Ada', undefined, () => {}]",
+    'Both',
+    'Neither: the type is an error',
+  ]}
+  answer={1}
+  explanation="A required element can't follow an optional one, so the spread makes `greeting` required, with type `string | undefined`. `Args` always has three elements, and the second one may be `undefined`."
+/>
+
+## Further reading
+
+- [Handbook: Object types, tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#tuple-types), including optional and rest elements
+- [Handbook: More on functions, rest parameters and arguments](https://www.typescriptlang.org/docs/handbook/2/functions.html#rest-parameters-and-arguments)
+- [TypeScript 4.0 release notes: variadic tuple types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#variadic-tuple-types) and [labeled tuple elements](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#labeled-tuple-elements)
+- [TypeScript 4.2 release notes: leading and middle rest elements in tuple types](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-2.html#leadingmiddle-rest-elements-in-tuple-types)

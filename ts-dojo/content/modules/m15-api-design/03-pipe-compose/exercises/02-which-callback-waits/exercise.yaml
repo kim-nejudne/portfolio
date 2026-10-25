@@ -1,0 +1,30 @@
+id: m15-api-design/03-pipe-compose/02-which-callback-waits
+kind: predict
+title: Which callback waits
+minutes: 2
+challenge: false
+code: |
+  declare function compose<A, B, C, D>(
+    cd: (c: C) => D,
+    bc: (b: B) => C,
+    ab: (a: A) => B,
+  ): (a: A) => D;
+
+  const measure = compose(
+    (n) => n * 2,
+    (s: string) => s.length,
+    (x) => x.trim(),
+  );
+question: What does the compiler report?
+options:
+  - 'Nothing: `measure` is `(a: string) => number`'
+  - "An error: `'n' is of type 'unknown'.`"
+  - "An error: `'x' is of type 'unknown'.`"
+answer: 2
+explanation: |
+  `(s: string) => s.length` needs no context, so it is inferred from first and gives `B` as
+  `string` and `C` as `number`. Then the two callbacks are typed in the order they are written.
+  `(n) => n * 2` needs `C`, which is already known, so `n` is a `number`. `(x) => x.trim()` needs
+  `A`, and nothing gives `A` a candidate: `A` is what the composed function will be called with,
+  and no value has been passed yet. It is fixed as `unknown`. In a `pipe` the value at the front
+  would have given it.

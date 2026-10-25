@@ -1,0 +1,29 @@
+id: m07-guards/04-narrowing-pitfalls/03-a-key-from-the-loop
+kind: predict
+title: A key from the loop
+minutes: 1
+challenge: false
+code: |
+  const stock: Record<string, number | undefined> = { tea: 3, cocoa: 0 };
+
+  function unitsOnHand(skus: readonly string[]): number {
+    let units = 0;
+    for (const sku of skus) {
+      if (stock[sku] !== undefined) {
+        units += stock[sku];
+      }
+    }
+    return units;
+  }
+question: What does the compiler say about `units += stock[sku]`?
+options:
+  - 'Nothing: stock[sku] is narrowed to number'
+  - "An error: Object is possibly 'undefined', because a key that isn't a literal never narrows"
+  - "An error: Object is possibly 'undefined', because sku changes on every turn of the loop"
+answer: 0
+explanation: |
+  Since TypeScript 5.5, an element access such as `stock[sku]` narrows when neither the object
+  nor the key is assigned between the check and the use. `stock` is a `const`, and `sku` is a
+  new `const` on each turn of the loop, so inside the `if` the compiler knows it is the same
+  element and gives it the type `number`. A classic `for (let i = 0; ...; i++)` loop is
+  different: `i++` assigns the index, so `rows[i]` is not narrowed there.

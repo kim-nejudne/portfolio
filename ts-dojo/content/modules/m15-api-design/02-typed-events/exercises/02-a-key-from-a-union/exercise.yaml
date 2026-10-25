@@ -1,0 +1,30 @@
+id: m15-api-design/02-typed-events/02-a-key-from-a-union
+kind: predict
+title: A key from a union
+minutes: 2
+challenge: false
+code: |
+  interface AppEvents {
+    login: { user: string };
+    checkout: { total: number };
+  }
+
+  declare function emit<K extends keyof AppEvents>(
+    type: K,
+    payload: AppEvents[K],
+  ): void;
+
+  const type = Math.random() > 0.5 ? 'login' : 'checkout';
+  emit(type, { total: 3 });
+question: What does the compiler report on the last line?
+options:
+  - 'Nothing: the call compiles'
+  - "An error: `{ total: number }` is missing `user`, which a `'login'` payload requires"
+  - 'An error: `K` must be a single event name, not a union'
+answer: 0
+explanation: |
+  `type` is `'login' | 'checkout'`, so `K` is inferred as that union, and `AppEvents[K]` is the
+  union of both payloads. `{ total: 3 }` is one of them, so the call compiles, and half the time
+  a login is emitted with a checkout payload. A constraint `K extends keyof AppEvents` admits a
+  union of keys as well as a single one. A caller that holds a name and a payload together should
+  take them as one value, a union of `[name, payload]` pairs, so that the two can't be mixed.

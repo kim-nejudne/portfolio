@@ -1,0 +1,8 @@
+id: m00-orientation
+title: Orientation
+summary: What the compiler does and doesn't do, how the dojo checks your work, and the Vim editor you'll do it in.
+prerequisites: []
+lessons:
+  - 01-why-typescript
+  - 02-the-dojo
+  - 03-vim-in-the-dojo

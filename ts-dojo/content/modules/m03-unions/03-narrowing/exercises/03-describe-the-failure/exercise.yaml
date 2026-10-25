@@ -1,0 +1,24 @@
+id: m03-unions/03-narrowing/03-describe-the-failure
+kind: implement
+title: Describe the failure
+minutes: 4
+challenge: false
+prompt: |
+  A failed request produces one of three things: a message string, an `Error`, or an
+  `HttpFailure` object with a status. One kind of `Error` is special: `TimeoutError`, a class
+  that extends `Error` and records how long the request ran (classes come in 4.5; here you only
+  test for one). Implement `describeFailure(failure)` in `index.ts`. It returns:
+
+  - for a `TimeoutError`: `'timeout (<ms> ms)'`, such as `'timeout (5000 ms)'`
+  - for any other `Error`: `'error: <message>'`, such as `'error: disk full'`
+  - for an `HttpFailure`: `'HTTP <status> <statusText>'`, such as `'HTTP 404 Not Found'`
+  - for a string: the string as it is
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, type-assertion]
+hints:
+  - Each kind of failure has its own check in the lesson. One is for a primitive, one for a class instance, and one for a plain object type.
+  - A `TimeoutError` is an `Error` as well, so of the two class checks, the one that comes first takes it.
+  - '`in` needs an object on its right. Rule the string out before you test for `status`, or let a final `else` take the member that is left.'

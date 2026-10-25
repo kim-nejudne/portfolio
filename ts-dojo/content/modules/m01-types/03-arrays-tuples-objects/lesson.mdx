@@ -1,0 +1,283 @@
+---
+id: m01-types/03-arrays-tuples-objects
+title: 'Arrays, tuples, objects and readonly; optional properties'
+minutes: 20
+objectives:
+  - Write array types as T[] or Array<T>, and read the type inferred for an array literal
+  - Describe a list of fixed length with a tuple type, including optional, labelled and rest elements
+  - Write object types with optional and readonly properties, and name them with a type alias
+  - Use readonly arrays and tuples to stop code changing them, and accept them in parameters
+  - Explain why readonly is shallow and checked only at compile time
+prerequisites:
+  - m01-types/01-annotations-and-inference
+  - m01-types/02-primitives-literals-widening
+tags:
+  - array type
+  - Array<T>
+  - readonly array
+  - ReadonlyArray
+  - tuple
+  - optional element
+  - labelled tuple
+  - rest element
+  - object type
+  - type alias
+  - optional property
+  - readonly property
+---
+
+## Concept
+
+JavaScript groups values in arrays and objects. TypeScript describes them with three kinds of type:
+
+- An **array type**, `string[]`: any number of elements, all of one type.
+- A **tuple type**, `[string, number]`: an array with a fixed length and a type for each position.
+- An **object type**, `{ title: string; pages: number }`: a type for each property, by name.
+
+```ts run
+const tags: string[] = ['typescript', 'types'];
+const entry: [string, number] = ['answer', 42];
+const book: { title: string; pages: number } = { title: 'Dune', pages: 412 };
+
+console.log(tags, entry, book);
+```
+
+Two modifiers go with them. `readonly` makes the compiler reject code that changes an array, a tuple or a property. `?` marks a property, or a tuple element, that a value may leave out. You met `readonly` in <Lesson id="m01-types/02-primitives-literals-widening" />, where `as const` makes every property `readonly` and turns an array into a `readonly` tuple. Here you write these types yourself.
+
+## Examples
+
+**Array types.** `T[]` and `Array<T>` are two spellings of one type, an array whose elements are all `T`; `T[]` is the usual one. The angle brackets pass a type to a generic type, which module 5 covers. For an array literal, the compiler infers the element type from the elements:
+
+```ts twoslash
+const scores = [7, 10, 4];
+//         ^?
+const grid = [[1, 2], [3]];
+//       ^?
+const cells = ['Ada', 36, true];
+//        ^?
+```
+
+When the elements have different types, the element type is a **union** of them: each element of `cells` is a string, a number or a boolean. Unions, and where their parentheses go, are the subject of <Lesson id="m03-unions/01-union-and-literal-types" />. An empty `[]` has no elements to infer from; <Lesson id="m01-types/01-annotations-and-inference" /> showed when to annotate one.
+
+**Readonly arrays.** `readonly string[]`, also written `ReadonlyArray<string>`, is an array the code can read but not change. The compiler removes every method that changes the array in place (`push`, `pop`, `splice`, `sort`, `reverse` and the rest) and rejects assigning to an element or to `length`. Methods that only read, or return a new array, stay: `map`, `filter`, `slice`, `toSorted`.
+
+```ts run errors
+const names: ReadonlyArray<string> = ['Grace', 'Ada'];
+
+const upper = names.map((name) => name.toUpperCase());
+const sorted = names.toSorted();
+
+names.push('Barbara');
+names[0] = 'Kim';
+names.sort();
+```
+
+`Property 'push' does not exist on type 'readonly string[]'.`, `Index signature in type 'readonly string[]' only permits reading.`, and the `push` message again for `sort`. Errors and quick info print `ReadonlyArray<string>` as `readonly string[]`, and `Array<number>` as `number[]`:
+
+```ts twoslash
+const names: ReadonlyArray<string> = ['Grace', 'Ada'];
+//        ^?
+const counts: Array<number> = [3, 1];
+//         ^?
+```
+
+A `string[]` is accepted wherever a `readonly string[]` is expected, since the receiver will only read it. The other way round is a pitfall, below.
+
+**Tuples.** A tuple type lists one type per position. The compiler knows the length and the type at each index, and destructuring gives each name the type of its position:
+
+```ts twoslash
+const entry: [string, number] = ['answer', 42];
+const [key, value] = entry;
+//              ^?
+const size = entry.length;
+//       ^?
+```
+
+Reading or writing an index the tuple doesn't have is an error: `entry[2]` reports `Tuple type '[string, number]' of length '2' has no element at index '2'.` But a tuple is still an array, and its type keeps every array method. So `push` compiles on a tuple, and the length its type promises is no longer true:
+
+```ts run
+const point: [number, number] = [3, 4];
+point[0] = 5;
+point.push(6);
+
+console.log(point.length);
+```
+
+That prints `3`, while the type of `point.length` is still `2`. A **readonly tuple** closes the gap: it has no `push`, and its elements can't be assigned.
+
+```ts run errors
+const point: readonly [number, number] = [3, 4];
+point[0] = 5;
+point.push(6);
+```
+
+`Cannot assign to '0' because it is a read-only property.` and `Property 'push' does not exist on type 'readonly [number, number]'.` An array literal with `as const` gets exactly this kind of type, with a literal type in each position.
+
+**Optional, labelled and rest elements.** A tuple's positions can be optional, named, or end in a run of any length:
+
+```ts twoslash
+type Version = [major: number, minor?: number];
+
+const node: Version = [24];
+const minor = node[1];
+//        ^?
+const parts = node.length;
+//        ^?
+
+type Row = [label: string, ...readings: number[]];
+
+const temps: Row = ['temps', 18, 21, 19];
+```
+
+- `minor?: number` is an **optional element**. A `Version` has one or two elements, so position 1 reads as `number | undefined` and `length` is `1 | 2`. Optional elements come after the required ones: `A required element cannot follow an optional element.`
+- `major:` and `minor:` are **labels**. They name the positions for the reader, in quick info and in errors, and change nothing else: `[major: number, minor?: number]` is the same type as `[number, number?]`.
+- `...readings: number[]` is a **rest element**: after the string, any number of numbers, including none. <Lesson id="m02-functions/01-parameters-and-returns" /> uses tuple types for rest parameters.
+
+**Object types and type aliases.** An object type lists each property with its type, separated by `;` or `,`. Written out at every use it gets long, so give it a name with a **type alias**, `type Book = { … }`. An alias only names a type: `Book` and the object type it stands for are interchangeable, and quick info shows the name. `interface` is the other way to name an object type; <Lesson id="m04-objects/01-type-vs-interface" /> compares the two.
+
+```ts twoslash
+type Book = {
+  readonly isbn: string;
+  title: string;
+  subtitle?: string;
+  pages: number;
+};
+
+const dune: Book = { isbn: '978-0441013593', title: 'Dune', pages: 412 };
+//       ^?
+const subtitle = dune.subtitle;
+//           ^?
+```
+
+- `subtitle?: string` is an **optional property**: `dune` leaves it out and is still a `Book`. Reading it gives `string | undefined`, because it may be missing. The type comes from `Book`, not from the value, so `subtitle` is `string | undefined` even though `dune` plainly has none.
+- `readonly isbn: string` is a **readonly property**: it is set when the object is created and can be read, but not assigned.
+
+Each of these is checked:
+
+```ts run errors
+type Book = {
+  readonly isbn: string;
+  title: string;
+  subtitle?: string;
+  pages: number;
+};
+
+const draft: Book = { isbn: '978-0441013593', title: 'Dune' };
+
+const dune: Book = { isbn: '978-0441013593', title: 'Dune', pages: 412 };
+dune.isbn = '978-0000000000';
+console.log(dune.subtitle.length);
+```
+
+`Property 'pages' is missing in type '{ isbn: string; title: string; }' but required in type 'Book'.`, then `Cannot assign to 'isbn' because it is a read-only property.`, then `'dune.subtitle' is possibly 'undefined'.` A fallback such as `dune.subtitle ?? ''` is a `string`; <Lesson id="m03-unions/02-null-undefined-strict" /> covers values that may be missing. A property the type doesn't list is an error in an object literal too, a check <Lesson id="m04-objects/02-structural-typing" /> explains.
+
+## Pitfalls
+
+**An array literal is not a tuple.** Inference turns every array literal into an array type, never a tuple: `['Ada', 36]` is a `(string | number)[]` of any length. A function that wants a pair rejects it:
+
+```ts run errors
+function describe(person: [string, number]): string {
+  const [name, age] = person;
+  return `${name} (${age})`;
+}
+
+const ada = ['Ada', 36];
+console.log(describe(ada));
+```
+
+`Argument of type '(string | number)[]' is not assignable to parameter of type '[string, number]'.`, then `Target requires 2 element(s) but source may have fewer.` Annotate the variable, `const ada: [string, number] = ['Ada', 36];`, or pass the literal straight to the call, `describe(['Ada', 36])`, where the parameter's type tells the compiler a tuple is wanted. The same goes for a function that ends in `return [a, b]`: with no return type, it returns an array. Write the tuple as its return type.
+
+**A readonly array where a mutable one is expected.** `total` only reads its list, but its parameter says `number[]`, a type that allows `push`. The compiler won't hand it a list that must not change:
+
+```ts run errors
+function total(prices: number[]): number {
+  let sum = 0;
+  for (const price of prices) {
+    sum += price;
+  }
+  return sum;
+}
+
+const PRICES: readonly number[] = [450, 1200, 325];
+console.log(total(PRICES));
+```
+
+`Argument of type 'readonly number[]' is not assignable to parameter of type 'number[]'.`, then `The type 'readonly number[]' is 'readonly' and cannot be assigned to the mutable type 'number[]'.` Fix the parameter, not the list: `prices: readonly number[]` promises that `total` won't change it, and it still accepts mutable arrays. An array or tuple made with `as const` is readonly too, so the same parameter accepts those. A function that only reads an array should say so.
+
+**`readonly` is shallow, and checked only at compile time.** `readonly` covers the one thing it is written on. A `readonly` property can't be reassigned, but the array it holds is an ordinary `string[]`:
+
+```ts run errors
+type Team = {
+  readonly name: string;
+  readonly members: string[];
+};
+
+const team: Team = { name: 'Core', members: ['Ada'] };
+team.members.push('Grace');
+team.members[0] = 'Kim';
+team.members = [];
+```
+
+Only the last line is rejected: `Cannot assign to 'members' because it is a read-only property.` To protect the array as well, make its type readonly too: `readonly members: readonly string[]`. Objects inside objects are the same, each level needs its own `readonly`; only `as const` reaches all the way down.
+
+And like every type, `readonly` is erased before the code runs (<Lesson id="m00-orientation/01-why-typescript" />): nothing is frozen at runtime. The compiler checks it only where the code uses the readonly type, and, unlike a readonly array, an object with a readonly property can be assigned to a type without one, then changed through it:
+
+```ts run
+type Account = { readonly id: string };
+
+const account: Account = { id: 'a1' };
+const plain: { id: string } = account;
+plain.id = 'b2';
+
+console.log(account.id);
+```
+
+That compiles and prints `b2`.
+
+## Check yourself
+
+<Predict
+  id="mixed-array-literal"
+  code="const entry = ['Ada', 36];"
+  question="What type does the compiler give `entry`?"
+  options={[
+    '[string, number]',
+    '(string | number)[]',
+    'string | number[]',
+    "readonly ['Ada', 36]",
+  ]}
+  answer={1}
+  explanation="Inference makes an array literal an array, never a tuple, and the element type is a union of the elements' types. To get `[string, number]`, annotate the variable or pass the literal where a tuple is expected. `readonly ['Ada', 36]` is what `as const` would give."
+/>
+
+<Predict
+  id="shallow-readonly"
+  code={
+    "type Team = { readonly members: string[] };\nconst team: Team = { members: ['Ada'] };\n\nteam.members.push('Grace'); // 1\nteam.members[0] = 'Kim'; // 2\nteam.members = []; // 3"
+  }
+  question="Which of the lines 1 to 3 does the compiler reject?"
+  options={['All three', 'Only 3', '1 and 2', 'None']}
+  answer={1}
+  explanation="`readonly` covers only the property: `members` can't be given a new array, so line 3 fails. The array it holds is a plain `string[]`, so `push` and assigning to an element compile. Writing `readonly members: readonly string[]` would reject all three."
+/>
+
+<Predict
+  id="optional-property-read"
+  code={
+    "type Book = { title: string; subtitle?: string };\nconst dune: Book = { title: 'Dune' };\nconst subtitle = dune.subtitle;"
+  }
+  question="What is the type of `subtitle`?"
+  options={['string', 'string | undefined', 'undefined', 'any']}
+  answer={1}
+  explanation="The type of `dune` is `Book`, from the annotation, not the object written after it. In `Book`, `subtitle` is optional, so it may be missing and reads as `string | undefined`."
+/>
+
+## Further reading
+
+- [Everyday Types: arrays](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#arrays)
+- [Everyday Types: object types and optional properties](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#object-types)
+- [Object Types: property modifiers, optional and readonly](https://www.typescriptlang.org/docs/handbook/2/objects.html#property-modifiers)
+- [Object Types: the ReadonlyArray type](https://www.typescriptlang.org/docs/handbook/2/objects.html#the-readonlyarray-type)
+- [Object Types: tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#tuple-types)
+- [Object Types: readonly tuple types](https://www.typescriptlang.org/docs/handbook/2/objects.html#readonly-tuple-types)
+- [TypeScript 4.0 release notes: labeled tuple elements](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#labeled-tuple-elements)

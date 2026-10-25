@@ -1,0 +1,23 @@
+id: m05-generics/01-generic-functions/03-zip-two-lists
+kind: implement
+title: Zip two lists
+minutes: 4
+challenge: false
+prompt: |
+  Implement `zip` in `index.ts`. It takes two `readonly` lists and pairs up their items by
+  index: the first item of each list, then the second of each, and so on. It stops at the end
+  of the shorter list, and returns the pairs as a new array of tuples.
+
+  The starter types everything as `unknown`, so the pairs lose their types. Make `zip` generic
+  so that they keep them: zipping a `string[]` with a `number[]` gives a `[string, number][]`.
+  The type cases check that, also with explicit type arguments for the left list and then the
+  right one; the tests check the pairs.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - The two lists can have different element types, so one type parameter is not enough.
+  - Each pair is a tuple whose first element comes from the left list and whose second comes from the right one. Its type can say exactly that.
+  - The number of pairs is the smaller of the two lengths.

@@ -1,0 +1,26 @@
+id: m04-objects/01-type-vs-interface/04-styled-shapes
+kind: implement
+title: Styled shapes
+minutes: 5
+challenge: false
+prompt: |
+  Every shape in a drawing carries a style. In `index.ts`:
+
+  - Define `StyledShape`: any `Shape` together with the properties of `Style`. Narrowing on
+    `kind` must still work.
+  - Implement `toSvg(shape)`, which returns one SVG element as a string:
+    - a circle: `<circle r="5" fill="red" />`
+    - a rect: `<rect width="2" height="3" fill="blue" />`
+    - when `stroke` is set (not `undefined`), it follows `fill`:
+      `<circle r="5" fill="red" stroke="black" />`
+
+  This combines the lesson with discriminated unions (3.5) and optional properties (1.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - "`Shape` is a union, so `StyledShape` can't be an interface. Which declaration can add properties to every member of a union?"
+  - In `toSvg`, a `switch` on `shape.kind` gives you `radius` in one case and `width` and `height` in the other; `fill` is there in both.
+  - '`stroke` is optional: compare it with `undefined` before you add the attribute.'

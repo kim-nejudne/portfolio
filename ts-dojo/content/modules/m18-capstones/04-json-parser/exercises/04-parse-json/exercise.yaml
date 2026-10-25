@@ -1,0 +1,43 @@
+id: m18-capstones/04-json-parser/04-parse-json
+kind: type-challenge
+title: The whole parser
+minutes: 18
+challenge: false
+prompt: |
+  Write `ParseJson<S>` in `index.ts`: the type of the JSON value that the string type `S`
+  spells. `ParseJson<'{"a": [1, true, null]}'>` is `{ a: [1, true, null] }`.
+
+  The starter gives you `SkipSpace`, `ParseLiteral`, `ParseString` and `ParseNumber` from
+  exercises 1 and 2. Each returns `[value, rest]` or a `ParseError`. What is left:
+
+  - **Any value.** Skip whitespace, then let the first character choose: `[` an array, `{` an
+    object, `"` a string, a digit or `-` a number, anything else a literal.
+  - **Arrays.** Elements separated by commas, as in the theory's `ParseElements`. `[]` is an
+    empty tuple.
+  - **Objects.** Members separated by commas, each a string key, a `:` and a value. The result
+    is one object type, so `Equal` sees `{ a: 1; b: 2 }` and not an intersection. A key that
+    appears twice keeps its last value, as `JSON.parse` does. `{}` is `{}`.
+  - **The whole text.** After the value, only whitespace may be left.
+  - **Errors.** Anything else gives a `ParseError`, also when the mistake is deep inside an
+    array or an object. A trailing comma is an error, as in JSON.
+  - **Unions.** A union of texts gives the union of their values, each parsed on its own:
+    `ParseJson<'[1]' | '{"a": 2}'>` is `[1] | { a: 2 }`. Some cases build dozens of texts at
+    once from placeholders such as `` `[${'true' | 'false'}]` ``.
+
+  An array of 150 elements must parse. That is far inside the limit for a tail call, and past
+  the limit for a loop that waits for its own recursive call (12.4).
+
+  The next exercise ships this parser, finished, in its starter, so solve this one first.
+
+  This combines template literal parsing (12.1), recursive conditional types (11.4), the
+  accumulators and tail calls of 12.4, a mapped type over a union of keys (10.1), and an error
+  type with a `unique symbol` key, as 14.3 built brands.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Arrays and objects hold values, and a value may be an array or an object, so the types call each other. Write the value parser first, as in the theory, then one loop for elements and one for members.
+  - When a step fails, return that step's own result, the error, rather than a new one, and the first mistake travels up to the top.
+  - 'For the members, carry the object so far in an accumulator, and rebuild it at each step with a mapped type over its keys and the new key. `&` would leave an intersection, and a repeated key would become `never`.'

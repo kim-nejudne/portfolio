@@ -1,0 +1,281 @@
+---
+id: m18-capstones/03-typed-store
+title: A typed state store with typed actions
+minutes: 45
+objectives:
+  - Derive a discriminated union of actions from an action map, with no payload for actions that carry nothing
+  - Write a reducer over the derived union that a never check keeps exhaustive
+  - Type a store generic over its state and its actions, so that dispatch, subscribe and select take both from the reducer
+  - Type listeners that hear one action type with Extract and a type guard, and selectors whose result type is inferred
+prerequisites:
+  - m15-api-design/02-typed-events
+  - m17-boundaries/04-react
+  - m03-unions/05-discriminated-unions
+  - m07-guards/03-exhaustiveness-and-satisfies
+  - m10-mapped-types/02-key-remapping
+  - m12-template-tuples/01-template-literal-types
+  - m11-conditional-types/03-distributive-conditionals
+  - m07-guards/01-type-guards
+  - m06-type-operators/03-utility-types-2
+tags:
+  - capstone
+  - state store
+  - Redux
+  - reducer
+  - actions
+  - action map
+  - dispatch
+  - subscribe
+  - selectors
+  - Extract
+  - exhaustiveness
+---
+
+## Concept
+
+A store holds one value, the state, and changes it only through actions: plain objects with a `type` and, usually, a `payload`. A reducer computes the next state from the current one and an action, as with `useReducer` in <Lesson id="m17-boundaries/04-react" />. The store adds the rest: `dispatch` runs the reducer, `subscribe` tells listeners about each change, and selectors read values derived from the state. React isn't needed for any of it, so the store in this lesson is plain TypeScript, and it runs.
+
+Writing every action type by hand repeats the same shape for each one. Start instead from an **action map**, built like the event map of <Lesson id="m15-api-design/02-typed-events" />: its keys are the action types and its values are the payloads. A mapped type turns each key into its action, and indexing the result with `keyof M` collects them into a union:
+
+```ts twoslash
+interface CounterMap {
+  add: number;
+  rename: string;
+}
+
+type ActionOf<M, K extends keyof M = keyof M> = {
+  [P in keyof M]: { type: P; payload: M[P] };
+}[K];
+
+type CounterAction = ActionOf<CounterMap>;
+//   ^?
+```
+
+Every member has a literal `type`, so the union is discriminated (<Lesson id="m03-unions/05-discriminated-unions" />): a `switch` on `action.type` narrows the payload, and a `never` check in `default` keeps the reducer exhaustive. `K` picks some of the actions, `ActionOf<CounterMap, 'add'>`. The design in one line: the map is where actions are written, the derived union is what the reducer takes, and the store is generic over the state `S` and that union `A`, which it infers from the reducer it is given.
+
+## Examples
+
+**A reducer and the smallest store.** The reducer takes the derived union. `createStore` doesn't know any action: it takes a reducer for some `S` and some `A extends { type: string }`, and infers both from its arguments, so `dispatch` accepts exactly the reducer's actions:
+
+```ts run
+type ActionOf<M, K extends keyof M = keyof M> = {
+  [P in keyof M]: { type: P; payload: M[P] };
+}[K];
+
+type Todo = { id: number; title: string; done: boolean };
+type TodoState = { readonly todos: readonly Todo[]; readonly nextId: number };
+
+interface TodoMap {
+  add: string;
+  toggle: number;
+}
+
+function todos(state: TodoState, action: ActionOf<TodoMap>): TodoState {
+  switch (action.type) {
+    case 'add': {
+      const todo = { id: state.nextId, title: action.payload, done: false };
+      return { todos: [...state.todos, todo], nextId: state.nextId + 1 };
+    }
+    case 'toggle':
+      return {
+        ...state,
+        todos: state.todos.map((todo) =>
+          todo.id === action.payload ? { ...todo, done: !todo.done } : todo,
+        ),
+      };
+    default: {
+      const unhandled: never = action;
+      throw new Error(`unhandled action ${JSON.stringify(unhandled)}`);
+    }
+  }
+}
+
+function createStore<S, A extends { type: string }>(
+  reducer: (state: S, action: A) => S,
+  initial: S,
+) {
+  let state = initial;
+  return {
+    getState: () => state,
+    dispatch(action: A) {
+      state = reducer(state, action);
+    },
+  };
+}
+
+const store = createStore(todos, { todos: [], nextId: 1 });
+store.dispatch({ type: 'add', payload: 'Write the store' });
+store.dispatch({ type: 'toggle', payload: 1 });
+console.log(store.getState().todos);
+```
+
+**The whole interface.** `subscribe` returns the function that removes its listener, as `on` did in 15.2. `select` has a type parameter of its own, `R`, inferred from each selector, so a selector's result type is never written:
+
+```ts twoslash
+// @errors: 2345
+type Todo = { id: number; title: string; done: boolean };
+type TodoState = { readonly todos: readonly Todo[]; readonly nextId: number };
+type TodoAction =
+  { type: 'add'; payload: string } | { type: 'toggle'; payload: number };
+
+interface Store<S, A extends { type: string }> {
+  getState(): S;
+  dispatch(action: A): void;
+  subscribe(listener: (state: S, action: A) => void): () => void;
+  select<R>(selector: (state: S) => R): R;
+}
+
+declare const store: Store<TodoState, TodoAction>;
+
+const open = store.select((state) => state.todos.filter((t) => !t.done));
+//    ^?
+const stop = store.subscribe((state, action) => console.log(action.type));
+store.dispatch({ type: 'toggle', payload: 'Write the store' });
+```
+
+A reducer that changes nothing returns the state object it was given. The store compares the two with `Object.is` and calls no listener then, which is why a reducer never changes the state in place.
+
+**Actions with nothing to carry.** A `clearDone` action has no data. Write `void` in the map, and let a conditional type inside the mapped type drop the `payload` for it:
+
+```ts twoslash
+type ActionOf<M, K extends keyof M = keyof M> = {
+  [P in keyof M]: M[P] extends void ? { type: P } : { type: P; payload: M[P] };
+}[K];
+
+interface TodoMap {
+  add: string;
+  toggle: number;
+  clearDone: void;
+}
+
+type TodoAction = ActionOf<TodoMap>;
+//   ^?
+```
+
+`undefined` extends `void` as well, so `clearDone: undefined` drops it too. `M[P]` is not a naked type parameter, so the check doesn't distribute over a union (<Lesson id="m11-conditional-types/03-distributive-conditionals" />): it looks at the whole value type at once.
+
+**A map derived from the state.** An action map is a type like any other, so it can be computed. Key remapping (<Lesson id="m10-mapped-types/02-key-remapping" />) and `Capitalize` (<Lesson id="m12-template-tuples/01-template-literal-types" />) give one setter per property of a settings state:
+
+```ts twoslash
+type ActionOf<M, K extends keyof M = keyof M> = {
+  [P in keyof M]: M[P] extends void ? { type: P } : { type: P; payload: M[P] };
+}[K];
+
+type SetterMap<S> = { [K in keyof S & string as `set${Capitalize<K>}`]: S[K] };
+
+type Settings = { theme: 'light' | 'dark'; fontSize: number };
+
+type SettingsAction = ActionOf<SetterMap<Settings>>;
+//   ^?
+```
+
+**Listening to one action type.** A listener for `toggle` alone should get a toggle action. `on` takes the type as its own type parameter `K`, constrained to the action types, and `Extract` keeps the members of the union whose `type` is `K` (<Lesson id="m06-type-operators/03-utility-types-2" />):
+
+```ts twoslash
+type TodoAction =
+  | { type: 'add'; payload: string }
+  | { type: 'toggle'; payload: number }
+  | { type: 'clearDone' };
+
+declare function on<K extends TodoAction['type']>(
+  type: K,
+  listener: (action: Extract<TodoAction, { type: K }>) => void,
+): () => void;
+
+on('toggle', (action) => console.log(action.payload));
+//            ^?
+```
+
+In the store, the union is the type parameter `A`, and the last exercise writes `on` there.
+
+## Pitfalls
+
+**One action type with a union payload.** `{ type: keyof M; payload: M[keyof M] }` looks like the same thing in one line. It is one object type, not a union, so checking `type` narrows nothing, and nothing stops `{ type: 'add', payload: 3 }` either:
+
+```ts run errors
+interface TodoMap {
+  add: string;
+  toggle: number;
+}
+
+type TodoAction = { type: keyof TodoMap; payload: TodoMap[keyof TodoMap] };
+
+function titles(
+  list: readonly string[],
+  action: TodoAction,
+): readonly string[] {
+  switch (action.type) {
+    case 'add':
+      return [...list, action.payload];
+    default:
+      return list;
+  }
+}
+```
+
+`Type 'string | number' is not assignable to type 'string'.` Derive the union with `ActionOf`, and each `case` sees its own payload.
+
+**Changing the state in place.** Pushing into the current list and returning the same state object looks cheaper. With `readonly` in the state type, the compiler refuses it:
+
+```ts run errors
+type TodoState = { readonly titles: readonly string[] };
+type TodoAction = { type: 'add'; payload: string };
+
+function todos(state: TodoState, action: TodoAction): TodoState {
+  state.titles.push(action.payload);
+  return state;
+}
+```
+
+`Property 'push' does not exist on type 'readonly string[]'.` Without `readonly` it compiles, and the store above would see the same object come back, conclude that nothing changed and call no listener. Return a new object for every change.
+
+**Comparing `action.type` inside the generic store.** Where the actions are a type parameter `A`, checking `action.type === type` doesn't narrow `A`: narrowing works on a union the compiler can see, and `A` isn't one yet:
+
+```ts run errors
+function forType<A extends { type: string }, K extends A['type']>(
+  type: K,
+  listener: (action: Extract<A, { type: K }>) => void,
+) {
+  return (action: A) => {
+    if (action.type === type) listener(action);
+  };
+}
+```
+
+`Argument of type 'A' is not assignable to parameter of type 'Extract<A, { type: K; }>'.` A type guard (<Lesson id="m07-guards/01-type-guards" />) whose predicate is `Extract<A, { type: K }>` says what the comparison proves. The compiler doesn't check its body against the predicate, so keep the body to that one comparison.
+
+## Check yourself
+
+<Predict
+  id="a-new-object-every-time"
+  code={
+    "// toggle maps over the todos and returns { ...state, todos }\nlet calls = 0;\nstore.subscribe(() => calls++);\nstore.dispatch({ type: 'toggle', payload: 99 });\nconsole.log(calls);"
+  }
+  question="No todo has the id `99`. The store calls its listeners when the reducer returns a different object, by `Object.is`. What is printed?"
+  options={['0', '1']}
+  answer={1}
+  explanation="`map` and the spread build a new list and a new state object even when no todo matches, so `Object.is` sees a different object and the listener runs once. A reducer that wants to report no change returns the state it was given, for instance after checking that some todo has the id."
+/>
+
+<Predict
+  id="which-dispatch-compiles"
+  code={
+    'interface TodoMap {\n  add: string;\n  clearDone: void;\n}\n\ndeclare const store: Store<TodoState, ActionOf<TodoMap>>;'
+  }
+  question="With the `ActionOf` that drops the payload for `void`, which call compiles?"
+  options={[
+    "`store.dispatch({ type: 'clearDone', payload: undefined })`",
+    "`store.dispatch({ type: 'clearDone' })`",
+    "`store.dispatch({ type: 'add' })`",
+  ]}
+  answer={1}
+  explanation="`ActionOf<TodoMap>` is `{ type: 'add'; payload: string } | { type: 'clearDone' }`. The `clearDone` member has no `payload` property, so an object literal that writes one is an excess property error, even with `undefined`. The `add` member requires its payload."
+/>
+
+## Further reading
+
+- [Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html), including key remapping via `as`
+- [Indexed access types](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)
+- [Narrowing: discriminated unions and exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
+- [Utility types: `Extract`](https://www.typescriptlang.org/docs/handbook/utility-types.html#extracttype-union)
+- [Redux: Usage with TypeScript](https://redux.js.org/usage/usage-with-typescript), a store built on the same design

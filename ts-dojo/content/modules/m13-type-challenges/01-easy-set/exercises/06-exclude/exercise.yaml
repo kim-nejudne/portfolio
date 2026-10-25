@@ -1,0 +1,20 @@
+id: m13-type-challenges/01-easy-set/06-exclude
+kind: type-challenge
+title: Exclude
+minutes: 2
+challenge: false
+prompt: |
+  Write `MyExclude<T, U>` in `index.ts` without using the built-in `Exclude`: the members of
+  the union `T` that are not assignable to `U`. `MyExclude<'a' | 'b' | 'c', 'a'>` is
+  `'b' | 'c'`, and removing `Function` from `string | number | (() => void)` leaves
+  `string | number`.
+
+  From type-challenges [#00043 Exclude](https://github.com/type-challenges/type-challenges/blob/main/questions/00043-easy-exclude/README.md) by Zheeeng (@zheeeng) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Lesson 6.4 rebuilt this one with a conditional type.
+  - A conditional type on a bare type parameter checks each member of a union on its own, and `never` vanishes from the union of the results.

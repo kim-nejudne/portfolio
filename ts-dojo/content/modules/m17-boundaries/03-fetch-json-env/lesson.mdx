@@ -1,0 +1,336 @@
+---
+id: m17-boundaries/03-fetch-json-env
+title: Typing fetch, JSON and environment variables
+minutes: 20
+objectives:
+  - Find the any that res.json() and JSON.parse return, and send it into unknown before anything reads it
+  - Write a typed fetch wrapper that takes a parser, and test it with a stand-in fetch instead of the network
+  - Type the data you send as JSON, and name the values that don't survive the round trip
+  - Parse environment variables from a record of optional strings into a typed config, once, at startup
+  - Add variables to ImportMetaEnv, and say what that declaration promises and what it doesn't
+prerequisites:
+  - m17-boundaries/01-parse-dont-validate
+  - m17-boundaries/02-zod-and-valibot
+  - m05-generics/05-when-generics-hurt
+  - m09-modules-async/02-declaration-files
+  - m09-modules-async/04-errors
+  - m14-type-system-edges/04-declaration-merging
+tags:
+  - fetch
+  - Response
+  - res.json
+  - JSON.parse
+  - JSON.stringify
+  - environment variables
+  - process.env
+  - import.meta.env
+  - ImportMetaEnv
+  - config
+  - boundary
+  - unknown
+---
+
+## Concept
+
+Data reaches a program through a few doors: a response body, a JSON string, an environment variable. The compiler can't see what comes through them, and the declarations in the libs say so in two ways. JSON comes in as `any`, and the environment as strings that may be missing:
+
+```ts
+// lib.es5.d.ts, on JSON
+parse(text: string, reviver?: (this: any, key: string, value: any) => any): any;
+
+// lib.dom.d.ts, on Body, which Response extends
+json(): Promise<any>;
+
+// @types/node: process.env is a NodeJS.ProcessEnv, which extends Dict<string>
+interface Dict<T> {
+  [key: string]: T | undefined;
+}
+```
+
+`any` switches checking off for every value it reaches. A misspelt property of it is another `any`, and so is the result of calling it. Give it a type of `unknown` before anything reads it, and the compiler stops every read until a check has run:
+
+```ts twoslash
+const data = JSON.parse('{"user":{"name":"Ada"}}');
+const name = data.user.nmae;
+//    ^?
+
+const body: unknown = JSON.parse('{"user":{"name":"Ada"}}');
+//    ^?
+```
+
+From `unknown`, a parser makes the type: one you write by hand, as in <Lesson id="m17-boundaries/01-parse-dont-validate" />, or a Zod schema, as in <Lesson id="m17-boundaries/02-zod-and-valibot" />. The environment is honest already, but everything in it is a string: a port, a flag or a URL needs parsing too.
+
+`fetch` and `Response` are declared in the DOM lib, which the dojo's default `lib` leaves out: it is `["es2025"]`. So the examples describe a response by the members they use, and the exercises that need the real `Response` add `dom` to their libs.
+
+## Examples
+
+**A fetch wrapper that takes a parser.** `getJson` takes the fetch function, the URL and a parser, and returns what the parser returns:
+
+```ts run
+import { z } from 'zod';
+
+type JsonResponse = { ok: boolean; status: number; json(): Promise<unknown> };
+type Fetch = (url: string) => Promise<JsonResponse>;
+
+async function getJson<T>(
+  fetcher: Fetch,
+  url: string,
+  parse: (data: unknown) => T,
+): Promise<T> {
+  const res = await fetcher(url);
+  if (!res.ok) throw new Error(`GET ${url} failed with ${res.status}`);
+  return parse(await res.json());
+}
+
+const User = z.object({ id: z.number(), name: z.string() });
+
+const bodies: Record<string, unknown> = {
+  '/users/1': { id: 1, name: 'Ada', admin: true },
+  '/users/2': { id: 2, name: 7 },
+};
+
+const stubFetch: Fetch = async (url) => ({
+  ok: url in bodies,
+  status: url in bodies ? 200 : 404,
+  json: async () => bodies[url],
+});
+
+const ada = await getJson(stubFetch, '/users/1', User.parse);
+console.log(ada.name, ada);
+
+for (const url of ['/users/2', '/users/3']) {
+  await getJson(stubFetch, url, User.parse).catch((error: unknown) => {
+    console.log(
+      url,
+      error instanceof z.ZodError ? z.prettifyError(error) : String(error),
+    );
+  });
+}
+```
+
+- `T` appears in the parser's return type and in the result, so the compiler infers it from `User.parse`, and `ada` is an `{ id: number; name: string }` because the schema checked it. That is a type parameter that appears twice, linking an input to the output (<Lesson id="m05-generics/05-when-generics-hurt" />).
+- `JsonResponse` names only the members `getJson` uses, and its `json()` returns `Promise<unknown>`. With the DOM lib loaded, the real `fetch` fits `Fetch` as it is: its `Response` has `ok`, `status` and a `json()` that returns `Promise<any>`, and a `Promise<any>` is assignable to a `Promise<unknown>`. So an app calls `getJson(fetch, url, User.parse)`, and a test passes a stub that never touches the network.
+- `fetch` resolves for a 404 as for a 200, so the `ok` check is what turns it into an error.
+
+**JSON text, both ways.** Parsing can fail before any shape is checked: the text may not be JSON at all. `JSON.parse` throws a `SyntaxError` then, and a wrapper turns that into the `Result` of <Lesson id="m09-modules-async/04-errors" />:
+
+```ts run
+type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+
+function parseJson(text: string): Result<unknown> {
+  try {
+    const value: unknown = JSON.parse(text);
+    return { ok: true, value };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, error: message };
+  }
+}
+
+console.log(parseJson('{"id": 1, "tags": ["ts"]}'));
+console.log(parseJson('{"id": 1,}'));
+```
+
+Going out, `JSON.stringify` takes `any`, so it accepts values that JSON can't hold. JSON has strings, numbers, booleans, `null`, arrays and plain objects. A `Date` goes out as its ISO string and comes back as a string, a property whose value is `undefined` is dropped, and a `Map` becomes `{}`. A recursive type of the values JSON can hold makes the compiler check a body before it is sent:
+
+```ts twoslash
+// @errors: 2345
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
+function toBody(value: Json): string {
+  return JSON.stringify(value);
+}
+
+toBody({ title: 'Launch', tags: ['ts'], seats: 40, draft: false });
+toBody({ title: 'Launch', startsAt: new Date('2026-03-01') });
+```
+
+A `Date` has methods and no index signature, so it isn't a `Json`. Send `startsAt.toISOString()`, and on the way back parse the string into a `Date` again, for example with `z.iso.datetime().transform((text) => new Date(text))`.
+
+**Environment variables.** An environment is a record of optional strings. In Node, `process.env` is typed that way by `@types/node`; the dojo has no `process`, since `types` is empty (<Lesson id="m09-modules-async/02-declaration-files" />). Either way, take the record as a parameter, parse it once at startup, and export the typed result for the rest of the program:
+
+```ts run
+import { z } from 'zod';
+
+type Env = Record<string, string | undefined>;
+
+const Settings = z.object({
+  DATABASE_URL: z.string().startsWith('postgres://'),
+  POOL_SIZE: z
+    .string()
+    .transform(Number)
+    .pipe(z.number().int().min(1))
+    .default(10),
+});
+
+function loadSettings(env: Env) {
+  const { DATABASE_URL, POOL_SIZE } = Settings.parse(env);
+  return { databaseUrl: DATABASE_URL, poolSize: POOL_SIZE };
+}
+
+console.log(
+  loadSettings({ DATABASE_URL: 'postgres://db/app', HOME: '/home/ada' }),
+);
+
+try {
+  loadSettings({ POOL_SIZE: 'ten' });
+} catch (error) {
+  console.log(error instanceof z.ZodError ? z.prettifyError(error) : error);
+}
+```
+
+In Node that is `loadSettings(process.env)`, and a test passes a literal. Every missing or malformed variable is reported at once, at startup, instead of one at a time when some code first reads it. Two details of real environments:
+
+- `Number(env.POOL_SIZE)` compiles whatever `env.POOL_SIZE` holds, because `Number`'s parameter is `any`. A missing variable gives `NaN` and an empty one gives `0`.
+- `POOL_SIZE=` in a `.env` file sets the variable to `''`, not `undefined`, so `.default(10)` doesn't apply to it. Decide what an empty value means before the schema sees it.
+
+**Typing `import.meta.env`.** A bundler such as Vite puts variables on `import.meta.env`, and you declare their types by merging into a global interface (<Lesson id="m14-type-system-edges/04-declaration-merging" />). Vite's client types declare `import.meta.env` as an `ImportMetaEnv`, and you add your own variables to that interface. Here both are declared, since there is no Vite in the block:
+
+```ts twoslash
+// @filename: vite-env.d.ts
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+  readonly VITE_SENTRY_DSN?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+// @filename: flags.ts
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_FLAGS?: string;
+  }
+}
+
+export {};
+
+// @filename: main.ts
+const apiUrl = import.meta.env.VITE_API_URL;
+//    ^?
+const flags = import.meta.env.VITE_FLAGS;
+//    ^?
+export {};
+```
+
+`vite-env.d.ts` has no `import` or `export`, so its interfaces are global as they are. `flags.ts` is a module, so it wraps the interface in `declare global`. Vite's own `ImportMetaEnv` also extends a `Record` with `any` values, so a name you didn't declare, or misspelt, is `any`, unless you turn on `strictImportMetaEnv` in Vite's `ViteTypeOptions` interface. And a declaration checks nothing at run time: `VITE_API_URL: string` stays a `string` in the types whether or not the variable was set.
+
+## Pitfalls
+
+**Annotating the `any`.** An annotation on an `any` compiles whatever the value is, so it works as a cast that doesn't say so:
+
+```ts run
+type User = { id: number; name: string };
+
+const user: User = JSON.parse('{"id":"7","nmae":"Ada"}');
+console.log(user.name.toUpperCase());
+```
+
+It compiles and throws a `TypeError`: `name` is `undefined`. `const user: User = await res.json()` is the same mistake. Store the value as `unknown` instead, and the compiler stops you until a parser has run:
+
+```ts run errors
+type User = { id: number; name: string };
+
+const data: unknown = JSON.parse('{"id":"7","nmae":"Ada"}');
+const user: User = data;
+```
+
+`Type 'unknown' is not assignable to type 'User'.`
+
+**A type parameter in place of a parser.** This wrapper compiles with the DOM lib and checks nothing, because `res.json()` is `Promise<any>` and an `any` is assignable to any `T`:
+
+```ts twoslash
+// @lib: es2025,dom
+type User = { id: number; name: string };
+
+async function getJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  const body = await res.json();
+  //    ^?
+  return body;
+}
+
+const user = await getJson<User>('/users/1');
+//    ^?
+export {};
+```
+
+`getJson<User>` is a cast with a type argument for a disguise, as <Lesson id="m05-generics/05-when-generics-hurt" /> showed for `JSON.parse`. Describe the response with `json(): Promise<unknown>`, and the same body no longer compiles:
+
+```ts run errors
+type JsonResponse = { ok: boolean; status: number; json(): Promise<unknown> };
+type Fetch = (url: string) => Promise<JsonResponse>;
+
+async function getJson<T>(fetcher: Fetch, url: string): Promise<T> {
+  const res = await fetcher(url);
+  return res.json();
+}
+```
+
+`Type 'unknown' is not assignable to type 'T'.` Only a value of type `T` makes a `T`, and a `parse: (data: unknown) => T` parameter is how the caller hands one over.
+
+**Trusting a declared environment.** A type such as `Record<string, string>` says every variable is set:
+
+```ts run
+type Env = Record<string, string>;
+
+function apiBase(env: Env): string {
+  return env.API_URL.replace(/\/$/, '');
+}
+
+console.log(apiBase({ HOME: '/home/ada' }));
+```
+
+It compiles and throws a `TypeError`, since `API_URL` is `undefined`. An `ImportMetaEnv` that declares `VITE_API_URL: string` makes the same promise, and Vite's `any` fallback makes none at all. Type the environment as `Record<string, string | undefined>`, and parse it.
+
+## Check yourself
+
+<Predict
+  id="json-type"
+  code={"const res = await fetch('/api/user');\nconst data = await res.json();"}
+  question="With the DOM lib loaded, what is the type of `data`?"
+  options={['`unknown`', '`any`', '`Response`', '`object`']}
+  answer={1}
+  explanation="`lib.dom.d.ts` declares `json(): Promise<any>`, so `await res.json()` is `any`, and every read of `data` compiles. Write `const data: unknown = await res.json()` and parse it."
+/>
+
+<Predict
+  id="number-of-missing"
+  code={
+    "type Env = Record<string, string | undefined>;\n\nconst env: Env = { HOME: '/home/ada' };\nconst port = Number(env.PORT);\nconsole.log(port);"
+  }
+  question="What happens?"
+  options={[
+    'It does not compile: `string | undefined` is not a valid argument for `Number`',
+    'It prints `NaN`',
+    'It prints `0`',
+    'It prints `undefined`',
+  ]}
+  answer={1}
+  explanation="`Number`'s parameter is `any`, so it takes `string | undefined` without complaint. `Number(undefined)` is `NaN`, and `port` is typed `number` all the same. An empty variable would give `0`. A schema that pipes the number into `z.number().int().min(1)` rejects both."
+/>
+
+<Predict
+  id="fetch-fits"
+  code={
+    'type JsonResponse = { ok: boolean; status: number; json(): Promise<unknown> };\ntype Fetch = (url: string) => Promise<JsonResponse>;\n\nconst real: Fetch = fetch;'
+  }
+  question="With the DOM lib loaded, does the last line compile?"
+  options={[
+    'Yes: `Response` has `ok`, `status` and `json`, and a `Promise<any>` is assignable to a `Promise<unknown>`',
+    'No: `fetch` takes a `RequestInfo | URL`, not a `string`',
+    'No: `Response` has many more members than `JsonResponse`',
+    'No: a `Promise<any>` is not assignable to a `Promise<unknown>`',
+  ]}
+  answer={0}
+  explanation="A function that accepts `RequestInfo | URL` accepts a `string`, which is all `Fetch` passes. `Response` has the three members `JsonResponse` names, and extra members don't matter to an object type. `any` is assignable to `unknown`. So the real `fetch` fits, and a stub with the same shape fits too."
+/>
+
+## Further reading
+
+- [Handbook: More on functions](https://www.typescriptlang.org/docs/handbook/2/functions.html#type-parameters-should-appear-twice), on type parameters that appear only once
+- [Handbook: Declaration merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html#global-augmentation), on global augmentation
+- [MDN: Response.json()](https://developer.mozilla.org/en-US/docs/Web/API/Response/json) and [Using the Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch)
+- [MDN: JSON.stringify()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify), on what JSON can and can't hold
+- [Vite: Env variables and modes](https://vite.dev/guide/env-and-mode), on `ImportMetaEnv` and `strictImportMetaEnv`

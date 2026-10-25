@@ -1,0 +1,15 @@
+id: m97-fixture-capstone/01-keyof/01-keyof-object
+kind: predict
+title: 'The keys of a point'
+minutes: 2
+challenge: false
+code: |
+  type Point = { x: number; y: number };
+  type K = keyof Point;
+question: 'What is `K`?'
+options:
+  - 'string'
+  - "'x' | 'y'"
+  - 'number'
+answer: 1
+explanation: '`keyof` lists the property names as string literal types.'

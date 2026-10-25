@@ -1,0 +1,19 @@
+id: m13-type-challenges/03-medium-set-2/02-trim
+kind: type-challenge
+title: Trim
+minutes: 3
+challenge: false
+prompt: |
+  Write `Trim<S>` in `index.ts`: the string type `S` without the whitespace at either end, as
+  `String.prototype.trim` does for values. Whitespace is a space, `\n` or `\t`, as in Trim
+  Left. `Trim<'  Hello World  '>` is `'Hello World'`, and the space in the middle stays.
+
+  From type-challenges [#00108 Trim](https://github.com/type-challenges/type-challenges/blob/main/questions/00108-medium-trim/README.md) by Anthony Fu (@antfu) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Trim is Trim Left and its mirror image. A pattern can also say what a string ends with, with `infer` naming everything before it.
+  - Either write the mirror as its own type and apply both, or give one conditional a union of the two patterns.

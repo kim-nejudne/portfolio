@@ -1,0 +1,25 @@
+id: m13-type-challenges/03-medium-set-2/07-flatten
+kind: type-challenge
+title: Flatten
+minutes: 5
+challenge: false
+prompt: |
+  Write `Flatten<T>` in `index.ts`: the tuple `T` with every nested tuple spread into it, at
+  every depth, as `Array.prototype.flat(Infinity)` does for values.
+  `Flatten<[1, 2, [3, 4], [[[5]]]]>` is `[1, 2, 3, 4, 5]`. Elements that aren't arrays stay as
+  they are, objects included, and `Flatten<[]>` is `[]`.
+
+  `Flatten<'1'>` is an error: `T` must be an array. The template declares `Flatten` with no
+  type parameter at all; the starter's `T` has no constraint yet. A case added in the dojo
+  flattens tuples that hold only empty tuples.
+
+  From type-challenges [#00459 Flatten](https://github.com/type-challenges/type-challenges/blob/main/questions/00459-medium-flatten/README.md) by zhouyiming (@chbro) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Take the first element off with a tuple pattern (12.3, Tuple manipulation), recurse on the rest, and spread the results into a new tuple.
+  - An element that is an array needs flattening too before it is spread, by the same type.
+  - The error case asks for a constraint on `T`.

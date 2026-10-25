@@ -1,0 +1,37 @@
+id: m15-api-design/01-builders/02-which-steps-count
+kind: predict
+title: Which steps count?
+minutes: 2
+challenge: false
+code: |
+  class Signup<Done extends string = never> {
+    readonly done: Done[] = [];
+
+    name(name: string): Signup<Done | 'name'> {
+      return new Signup();
+    }
+
+    email(email: string): Signup<Done | 'email'> {
+      return new Signup();
+    }
+
+    submit(this: Signup<'name' | 'email'>): string {
+      return 'sent';
+    }
+  }
+
+  const sent = new Signup().name('Ada').submit();
+question: The chain never calls `email`. What does the compiler report on the last line?
+options:
+  - 'Nothing: the call compiles'
+  - "An error: the `this` context of type `Signup<'name'>` is not assignable to `Signup<'name' | 'email'>`"
+  - 'An error: `Done` has no candidate, so `new Signup()` needs a type argument'
+answer: 0
+explanation: |
+  `Done` is used by a member this time, `done: Done[]`, so it is checked, and it is checked
+  covariantly: `Signup<'name'>` is a `Signup<'name' | 'email'>` because `'name'` is one of
+  `'name' | 'email'`. A union of the steps done grows as steps are added, so a builder with fewer
+  steps is assignable to one with more, the opposite of what `submit` needs. Recording each step
+  as a property of an object type turns it the right way round: an object with more properties
+  is assignable to one with fewer. `new Signup()` needs no type argument; `Done` falls back to its
+  default, `never`.

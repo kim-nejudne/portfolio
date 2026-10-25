@@ -1,0 +1,238 @@
+---
+id: m10-mapped-types/01-mapped-types-and-modifiers
+title: 'Mapped types, homomorphism, and the +/- modifiers for readonly and ?'
+minutes: 25
+objectives:
+  - Tell a homomorphic mapped type from one that only maps over key names, and predict the modifiers each one gives
+  - Add and remove readonly and ? with + and -, one at a time or together
+  - Explain where the undefined of an optional property comes from, and when -? takes it away
+  - Flatten an intersection into one object type with a homomorphic mapped type
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m04-objects/01-type-vs-interface
+  - m05-generics/04-keyof-constraints
+  - m06-type-operators/02-utility-types-1
+  - m06-type-operators/04-rebuilding-the-utilities
+tags:
+  - mapped type
+  - homomorphic
+  - modifiers
+  - readonly
+  - optional
+  - -readonly
+  - -?
+  - +readonly
+  - +?
+  - Required
+  - Record
+  - exactOptionalPropertyTypes
+  - Simplify
+  - TS1354
+---
+
+## Concept
+
+In <Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> you wrote `{ [K in keyof T]: T[K] }` and saw that it copies each property's `readonly` and `?`. That copying has a rule. A mapped type that loops over the keys of an existing type, with `keyof` written right after `in`, is **homomorphic**: the compiler knows where each key came from, so each new property gets the modifiers it has in the source. A mapped type over any other list of keys only knows the names, and every property it makes is required and writable:
+
+```ts twoslash
+type User = { readonly id: number; name: string; email?: string };
+
+type Copy<T> = { [K in keyof T]: T[K] };
+type Same = Copy<User>;
+//   ^?
+type Loose = { [K in 'id' | 'name' | 'email']: User[K] };
+//    ^?
+```
+
+Both loop over the same three keys and read the same property types. `Same` keeps `readonly id` and `email?`; `Loose` has neither. Its `email` still holds `string | undefined`, because that is the type `User['email']` reads, but the property itself is now required. On top of whatever is copied, a mapped type can add a modifier with `+` and remove one with `-`, for `readonly` and `?` alike.
+
+## Examples
+
+**What counts as homomorphic.** Two forms are: `keyof X` written in the brackets, where `X` is a type parameter or a concrete type, and a type parameter whose constraint is `keyof T`, as in `Pick<T, K extends keyof T>`. Everything else maps over names only: the keys of a concrete type saved in an alias first (`type UserKeys = keyof User`), a union of literals, and `Record<keyof T, V>`, whose keys are constrained by `keyof any` and so come from no type in particular:
+
+```ts twoslash
+type User = { readonly id: number; name: string; email?: string };
+
+type Direct = { [K in keyof User]: User[K] };
+//     ^?
+type UserKeys = keyof User;
+type ViaAlias = { [K in UserKeys]: User[K] };
+//      ^?
+type Flags = Record<keyof User, boolean>;
+//    ^?
+type Card = Pick<User, 'id' | 'email'>;
+//    ^?
+```
+
+`Direct` is homomorphic without a type parameter: what matters is that `keyof` stands in the brackets. `ViaAlias` is not, although `UserKeys` is the same union: `keyof User` was resolved to `'id' | 'name' | 'email'` where the alias was declared. A generic alias stays homomorphic, because inside the mapped type it is still `keyof T` of the type parameter: with `type KeysOf<T> = keyof T`, `{ [K in KeysOf<T>]: T[K] }` given `User` keeps `readonly id` and `email?`. A generic homomorphic mapped type also leaves a primitive alone: `Partial<string>` and `Copy<string>` are both `string`. <Lesson id="m10-mapped-types/03-mapping-unions-tuples-arrays" /> shows what one does with those.
+
+**`+` and `-`.** A modifier written without a sign means `+`, so `readonly` and `+readonly` are the same, and so are `?` and `+?`. A `-` removes the modifier from every property. The two modifiers are independent: a mapped type can add one and remove the other, and a modifier it doesn't mention is copied from the source:
+
+```ts twoslash
+type User = { readonly id: number; name: string; email?: string };
+
+type Draft<T> = { -readonly [K in keyof T]+?: T[K] };
+type Complete<T> = { +readonly [K in keyof T]-?: T[K] };
+
+type UserDraft = Draft<User>;
+//      ^?
+type FullUser = Complete<User>;
+//      ^?
+```
+
+A form that edits a configuration fits both. The draft is filled in a field at a time, and what comes out has every field, read-only:
+
+```ts run
+type Config = { readonly host: string; readonly port: number; debug?: boolean };
+
+type Draft<T> = { -readonly [K in keyof T]+?: T[K] };
+type Complete<T> = { readonly [K in keyof T]-?: T[K] };
+
+const defaults: Complete<Config> = {
+  host: 'localhost',
+  port: 8080,
+  debug: false,
+};
+
+function finish(draft: Draft<Config>): Complete<Config> {
+  return { ...defaults, ...draft };
+}
+
+const draft: Draft<Config> = {};
+draft.port = 3000;
+draft.debug = true;
+
+console.log(finish(draft));
+console.log(finish({ host: 'example.com' }));
+```
+
+`draft.port = 3000` compiles because `Draft` removed `readonly`, and `{}` is a draft because every property is optional. Add a property to `Config`, and `defaults` stops compiling until it has a value for it, because `Complete` made it required.
+
+**Optional properties carry `undefined`.** Under the default options, `?` says that a property may be missing, and the compiler adds `undefined` to its type, since reading a missing property gives `undefined`. `-?` removes the `?` and the `undefined` that came with it. It leaves a property that was never optional alone, even when its type includes `undefined`:
+
+```ts twoslash
+type Settings = { theme?: string; fontSize: number | undefined };
+
+type Theme = Settings['theme'];
+//    ^?
+type Strict = Required<Settings>;
+//     ^?
+```
+
+`Required` is `-?` and nothing else, as its declaration in 6.4 showed. The default options can't tell `theme?: string` from `theme?: string | undefined`: both accept a property set to `undefined`, so `-?` removes both kinds of `undefined`. That is also why `finish({ port: undefined })` above compiles, and returns a config whose `port` is `undefined`. The option `exactOptionalPropertyTypes`, which <Lesson id="m16-tooling/01-strict-flags" /> covers, separates the two: `?` then means only "may be missing", an `undefined` value must be written into the type to be allowed, and `-?` removes only the "missing":
+
+```ts twoslash
+// @exactOptionalPropertyTypes: true
+type Settings = { theme?: string; fontSize?: number | undefined };
+
+type Strict = Required<Settings>;
+//     ^?
+```
+
+**Flattening an intersection.** An intersection (<Lesson id="m04-objects/01-type-vs-interface" />) is shown as its parts joined by `&`. The identity mapped type turns it into one object type, and because it is homomorphic, every property keeps the modifiers it had in its part:
+
+```ts twoslash
+type User = { readonly id: number; name: string; email?: string };
+type Simplify<T> = { [K in keyof T]: T[K] };
+
+type Member = User & { role: 'admin' | 'member' };
+//     ^?
+type FlatMember = Simplify<Member>;
+//       ^?
+```
+
+`Member` and `FlatMember` accept the same values. `Equal` from `@dojo/type-utils` still tells them apart, because it compares how the types are built: `Equal<Member, { readonly id: number; name: string; email?: string; role: 'admin' | 'member' }>` is false, and the same comparison with `FlatMember` is true. `Simplify` is not in the lib; it is a common name for this one-line type.
+
+## Pitfalls
+
+**Saving the keys in an alias first.** `keyof User` is resolved to `'id' | 'name' | 'email'` where the alias is declared, so the mapped type gets a union of names and no source to copy modifiers from:
+
+```ts run errors
+type User = { readonly id: number; name: string; email?: string };
+
+type UserKeys = keyof User;
+type UserCopy = { [K in UserKeys]: User[K] };
+
+const ada: UserCopy = { id: 1, name: 'Ada' };
+```
+
+`Property 'email' is missing in type '{ id: number; name: string; }' but required in type 'UserCopy'.` And `ada.id` can be reassigned. Adding `-?` doesn't clean it up either: with no source to say which properties were optional, `{ [K in UserKeys]-?: User[K] }` still has `email: string | undefined`. Write `keyof User` in the brackets, and for the same reason prefer `{ [K in keyof T]: V }` to `Record<keyof T, V>` when the modifiers should follow `T`.
+
+**`readonly` on the value side.** The modifiers belong to the key: `readonly` goes before the brackets and `?` after them. Written in front of the value, `readonly` is the type operator of <Lesson id="m01-types/03-arrays-tuples-objects" />, which only arrays and tuples take:
+
+```ts run errors
+type Frozen<T> = { [K in keyof T]: readonly T[K] };
+```
+
+`'readonly' type modifier is only permitted on array and tuple literal types.` Write `{ readonly [K in keyof T]: T[K] }`.
+
+**Expecting `-?` to take `undefined` out of the value.** `-?` removes `undefined` from the property's type as a whole, the union a `?` made. Inside the value, `T[K]` of an optional property is still `string | undefined`, so a value built from it keeps the `undefined`:
+
+```ts run errors
+type Profile = { readonly id: number; nickname?: string };
+type Getters<T> = { [K in keyof T]-?: () => T[K] };
+
+const profile: Profile = { id: 7 };
+const getters: Getters<Profile> = {
+  id: () => profile.id,
+  nickname: () => profile.nickname,
+};
+
+console.log(getters.nickname().toUpperCase());
+```
+
+`Object is possibly 'undefined'.` The `nickname` getter is required, and it can return `undefined`, which is the truth here. When the value must be defined, say so in the value: `() => Exclude<T[K], undefined>`.
+
+## Check yourself
+
+<Predict
+  id="literal-keys"
+  code={
+    "type Source = { readonly a: string; b?: number };\ntype Mapped = { [K in 'a' | 'b']: Source[K] };"
+  }
+  question="What is `Mapped`?"
+  options={[
+    '{ readonly a: string; b?: number | undefined }',
+    '{ a: string; b: number | undefined }',
+    '{ a: string; b: number }',
+    '{ a: string; b?: number | undefined }',
+  ]}
+  answer={1}
+  explanation="The keys are a union of literals, not `keyof Source`, so the mapped type is not homomorphic and copies no modifiers: both properties are required and writable. The value types are still read from `Source`, and `Source['b']` is `number | undefined`, because `b` is optional there."
+/>
+
+<Predict
+  id="minus-question"
+  code={
+    'type MyRequired<T> = { [K in keyof T]-?: T[K] };\ntype R = MyRequired<{ a?: string; b: string | undefined }>;'
+  }
+  question="What is `R`?"
+  options={[
+    '{ a: string; b: string }',
+    '{ a: string; b: string | undefined }',
+    '{ a: string | undefined; b: string | undefined }',
+    '{ a?: string; b: string | undefined }',
+  ]}
+  answer={1}
+  explanation="`-?` makes `a` required and removes the `undefined` its `?` brought. `b` was never optional, so `-?` leaves it as it is, and its `undefined` is part of its declared type."
+/>
+
+<Predict
+  id="partial-of-a-primitive"
+  code={'type P = Partial<string>;'}
+  question="What is `P`?"
+  options={[
+    'string',
+    '{}',
+    "An object type with string's methods, each optional",
+    'An error: Partial takes an object type',
+  ]}
+  answer={0}
+  explanation="`Partial` is a homomorphic mapped type over its type parameter, and a homomorphic mapped type given a primitive returns the primitive unchanged. `Partial` has no constraint, so `string` is accepted."
+/>
+
+## Further reading
+
+- [Handbook: Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html), including [mapping modifiers](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html#mapping-modifiers)
+- [TypeScript 2.8: improved control over mapped type modifiers](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html#improved-control-over-mapped-type-modifiers), where `+` and `-` were added
+- [TSConfig reference: `exactOptionalPropertyTypes`](https://www.typescriptlang.org/tsconfig/#exactOptionalPropertyTypes)

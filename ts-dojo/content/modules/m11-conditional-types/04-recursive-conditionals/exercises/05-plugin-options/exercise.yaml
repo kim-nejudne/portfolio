@@ -1,0 +1,40 @@
+id: m11-conditional-types/04-recursive-conditionals/05-plugin-options
+kind: implement
+title: One options object for every plugin
+minutes: 5
+challenge: false
+prompt: |
+  An app is built from plugins. Each plugin's `setup` takes its own options object, and
+  `createApp(plugins, options)` passes one options object to all of them, so it must have every
+  plugin's options at once. Write the types and the body in `index.ts`:
+
+  - `OptionsOf<P>` is the options a plugin's `setup` takes, and `{}` for a `setup` without
+    parameters. Given a union of plugins, it gives one answer per member.
+  - `UnionToIntersection<U>` turns `A | B` into `A & B`. Write it yourself, as in the theory.
+  - `AppOptions<P>`, for a list of plugins `P`, is one object type with every plugin's
+    options: `AppOptions<[typeof logger, typeof metrics]>` in the tests is
+    `{ level: 'info' | 'debug'; port: number }`, not an intersection of the two.
+  - `createApp` accepts only `AppOptions<P>` for its options, runs each `setup` with them in
+    order, and returns one line per plugin, `` `${name}: ${what setup returned}` ``.
+
+  The starter compiles, but its types are `unknown` and its body throws. Inside a generic body
+  `AppOptions<P>` is deferred, and casts are forbidden, so give `createApp` the shape lesson 11.1
+  used for `parse`. This combines `UnionToIntersection` with `infer` (11.2), distribution
+  (11.3), the identity mapped type `Simplify` (10.1) and overloads (8.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    type-assertion,
+    any-expression,
+    non-null-assertion,
+    angle-cast,
+  ]
+hints:
+  - '`P[number]` is the union of the plugins. `OptionsOf` reads one parameter with `infer`; a `setup` without parameters matches that pattern too, with what result?'
+  - '`unknown` in a union swallows the other members. Catch the setup that takes nothing before the one that takes options.'
+  - '`Equal` tells `A & B` from one object type with both; lesson 10.1 flattened an intersection.'

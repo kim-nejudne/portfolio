@@ -1,0 +1,43 @@
+id: m15-api-design/03-pipe-compose/03-data-last-steps
+kind: implement
+title: Data-last steps
+minutes: 6
+challenge: false
+prompt: |
+  Write four data-last steps for the lesson's `pipe` (in `pipe.ts`, given). Each takes its
+  options now and returns the function that `pipe` calls with the value later, and each takes
+  its types from the pipe it is passed to, so the callbacks need no annotations:
+
+  ```ts
+  const modern = pipe(
+    books,
+    filter((book) => book.year > 1900), // book: Book
+    pluck('title'), // pluck('author') is an error
+  ); // string[]
+  ```
+
+  - `map(fn)` and `filter(keep)` return new arrays, like the array methods.
+  - `pluck(key)` reads one property of every item. The key must be a key of the items.
+  - `defaultTo(fallback)` replaces `undefined`, and nothing else: a `null` stays. The pipe's
+    value decides the type, so `pipe(theme, defaultTo('light'))` with a
+    `'light' | 'dark' | undefined` theme is a `'light' | 'dark'`, and `defaultTo('blue')` is an
+    error at the fallback.
+
+  The starter's steps take `unknown`, so `tests.ts` doesn't compile against them yet
+  (`'book' is of type 'unknown'.`) and every step throws. No cast is needed.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - A step's type parameters can be inferred from the type its result must have. Write the returned function's parameter in terms of them.
+  - '`pluck` needs two type parameters: one for the item, and one for a key of it.'
+  - '`defaultTo` should check its fallback against `T` without letting the fallback offer a candidate for it.'

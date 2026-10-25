@@ -1,0 +1,23 @@
+id: m05-generics/03-generic-types-and-classes/01-give-the-stack-a-type
+kind: fix
+title: Give the stack a type
+minutes: 3
+challenge: false
+prompt: |
+  `history` keeps the pages a browser tab has visited, in a `Stack` from the lesson. It doesn't
+  compile:
+
+  - `Generic type 'Stack<T>' requires 1 type argument(s).`
+  - `Type 'unknown' is not assignable to type 'string | undefined'.`
+
+  The `Stack` class is fine. Make the rest compile so that `history` is a stack of strings and
+  `visitAll` takes a stack of strings. The type cases and the `@ts-expect-error` lines check
+  this; the tests check the pages that come back.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - Look at the two places outside the class where Stack is used without saying what it holds.
+  - A type annotation can't leave out a type argument. A new with no constructor arguments can, but then it has nothing to infer the stack's type from.

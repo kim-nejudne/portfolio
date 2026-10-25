@@ -1,0 +1,24 @@
+id: m04-objects/02-structural-typing/04-public-profiles
+kind: implement
+title: Public profiles
+minutes: 5
+challenge: false
+prompt: |
+  Implement `toProfile(account)` in `index.ts`. It returns what other users may see of an
+  account: exactly the properties `Profile` lists for the account's `kind`, and nothing else.
+  A person's `email` and `passwordHash` and a bot's `apiToken` must never reach the result, nor
+  the JSON made from it. The account itself stays as it was.
+
+  `return account` would compile, since every account has the properties its profile needs.
+  The tests show why that isn't enough.
+
+  This combines the lesson with discriminated unions (3.5) and return types (2.1).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, non-null-assertion, as-unknown-as]
+hints:
+  - A narrower return type doesn't remove a single property from the object you return.
+  - A `switch` on `account.kind` narrows `account` to one member; return a new object in each case.
+  - Spreading `account` copies the secrets too. Write each property out, and the excess property check guards the return against a stray one.

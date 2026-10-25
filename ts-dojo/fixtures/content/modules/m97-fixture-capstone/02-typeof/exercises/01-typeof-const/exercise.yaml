@@ -1,0 +1,15 @@
+id: m97-fixture-capstone/02-typeof/01-typeof-const
+kind: predict
+title: 'The type of a config object'
+minutes: 2
+challenge: false
+code: |
+  const config = { port: 8080, host: 'localhost' };
+  type C = typeof config;
+question: 'What is `C`?'
+options:
+  - "{ port: 8080; host: 'localhost' }"
+  - '{ port: number; host: string }'
+  - 'object'
+answer: 1
+explanation: 'Properties of an object literal are mutable, so their literal types widen to `number` and `string`.'

@@ -1,0 +1,37 @@
+id: m06-type-operators/03-utility-types-2/04-shop-client
+kind: implement
+title: Types from a library
+minutes: 6
+challenge: false
+prompt: |
+  The top of `index.ts` stands for a shop's client library: `fetchOrder` and `formatCents`.
+  It exports no type names, so your code below it has to read them from the two functions.
+  Don't change the library part.
+
+  - Derive five types, writing none of them out by hand: `Order`, what `fetchOrder` resolves
+    to; `Status`, the type of an order's `status`; `OpenStatus`, every status but `delivered`
+    and `cancelled`; `Coupon`, an order's coupon without the `null`; and `MoneyOptions`, the
+    options that `formatCents` takes.
+  - Implement `total(order)`: the sum of `qty * unitCents` over the lines, in cents. With a
+    coupon, take `percentOff` percent of that sum off, rounded with `Math.round`.
+  - Implement `nextStatus(status)`: `cart` becomes `paid`, `paid` becomes `shipped`, and
+    `shipped` becomes `delivered`. Prove that every open status is handled with a `never`
+    check, and throw an `Error` there for a value the types don't allow.
+  - Implement `applyCoupon(order, coupon)`, which returns a copy of the order with that coupon
+    and leaves the order passed in alone, and `receipt(order, options)`, which returns the
+    order's id, `': '`, and its total formatted by `formatCents` with those options, such as
+    `'A-1: €21.50'`.
+
+  The type cases check the five types and the signatures, and the `@ts-expect-error` lines
+  check that a finished order can't move on, that a coupon can't be `null`, and that an unknown
+  currency is rejected. This combines the lesson with indexed access types (6.1), `null` checks
+  (3.2) and the `never` check (3.5).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion, angle-cast]
+hints:
+  - Start from Order. fetchOrder is async, so its return type is a promise of the order, and the other types are read out of Order or formatCents.
+  - Status and Coupon are the types of two of Order's properties; each needs one more utility on top, or none.
+  - In total, order.coupon may be null, so check it before reading percentOff. In nextStatus, the switch only needs the open statuses.

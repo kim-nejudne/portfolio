@@ -1,0 +1,23 @@
+id: m05-generics/01-generic-functions/01-make-last-generic
+kind: fix
+title: Make last generic
+minutes: 2
+challenge: false
+prompt: |
+  `last` was written for a list of scores, and now `index.ts` also calls it with a list of
+  names. That call doesn't compile:
+
+  - `Type 'string' is not assignable to type 'number'.`, once for each name.
+
+  Make `last` work for a list of any type, and keep the link between the list and the result:
+  the last of a list of numbers is a `number | undefined`, the last of a list of strings a
+  `string | undefined`. The type cases check both, and a list of booleans too; the tests check
+  what `last` returns.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A union such as number or string would let the names in, but then the result of every call is that union. The type of the result has to depend on the call.
+  - The lesson's first function does the same for the first item. Give last a type parameter and use it for both the items and the result.

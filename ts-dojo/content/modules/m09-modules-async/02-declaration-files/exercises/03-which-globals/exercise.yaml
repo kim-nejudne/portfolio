@@ -1,0 +1,32 @@
+id: m09-modules-async/02-declaration-files/03-which-globals
+kind: predict
+title: Which names are found?
+minutes: 2
+challenge: false
+code: |
+  // tsconfig.json (TypeScript 6.0)
+  { "compilerOptions": { "types": ["node"] } }
+
+  // Installed: lodash, @types/lodash, @types/node and @types/jest.
+  // @types/node declares the global process; @types/jest declares the global test.
+
+  // src/pairs.test.ts
+  import { chunk } from 'lodash';
+
+  const version = process.version;    // A
+  const pairs = chunk([1, 2, 3, 4], 2); // B
+  test('pairs', () => {});            // C
+question: Which of the lines A, B and C is an error?
+options:
+  - None of them
+  - Only C
+  - B and C
+  - A and C
+answer: 1
+explanation: |
+  `types` lists the `@types` packages whose globals join the program without an import.
+  `node` is on the list, so `process` is found (A). `jest` is not, so its global `test` is
+  missing (C): `Cannot find name 'test'. Do you need to install type definitions for a test
+  runner?`, and the message goes on to suggest adding `jest` to the types field. An import is
+  different: `'lodash'` is resolved to `@types/lodash` whatever `types` says, so B compiles.
+  With no `types` at all, TypeScript 6.0 includes no `@types` package, and A would fail too.

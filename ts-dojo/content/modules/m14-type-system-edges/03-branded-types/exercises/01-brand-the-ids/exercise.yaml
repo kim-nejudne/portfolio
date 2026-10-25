@@ -1,0 +1,32 @@
+id: m14-type-system-edges/03-branded-types/01-brand-the-ids
+kind: implement
+title: Brand the ids
+minutes: 3
+challenge: false
+prompt: |
+  User ids look like `'u-42'` and order ids like `'o-7'`, and today both are plain strings, so
+  `shipOrder(order, user)` compiles with its arguments the wrong way round. Make them two types
+  that don't mix:
+
+  - A `UserId` is no `OrderId`, an `OrderId` is no `UserId`, and a plain string is neither,
+    not even a literal in the right format such as `'u-1'`. Both are still strings.
+  - `toUserId(raw)` returns `raw` as a `UserId` when it is `u-` followed by one or more digits,
+    and throws otherwise. `toOrderId(raw)` does the same with `o-`.
+
+  Use no cast: check the format with a type guard (7.1) or an assertion function (7.2), as the
+  lesson's `isEmail` does. Leave `shipOrder` as it is.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    type-assertion,
+    as-unknown-as,
+    non-null-assertion,
+    any-expression,
+  ]
+hints:
+  - A UserId needs a property that no plain string has, and an OrderId a different one. An intersection adds it to the type without changing the value.
+  - With `as` forbidden, the brand comes from a check. A function whose return type says what a true result proves about `raw` narrows it.

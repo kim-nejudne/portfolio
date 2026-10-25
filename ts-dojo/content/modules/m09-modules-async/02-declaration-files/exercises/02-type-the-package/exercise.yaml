@@ -1,0 +1,28 @@
+id: m09-modules-async/02-declaration-files/02-type-the-package
+kind: type-challenge
+title: Type the package
+minutes: 4
+challenge: false
+prompt: |
+  `tiny-slug` is written in JavaScript and ships no types. Complete the `declare module
+  'tiny-slug'` block in `declarations.ts` so that its exports match its README:
+
+  > - `slugify(text, options?)` returns the slug, a string. `options` is an object with two
+  >   optional properties: `separator`, a string (`'-'` by default), and `lowercase`, a
+  >   boolean (`true` by default).
+  > - `new Slugger(options?)` takes the same options. `slugger.slug(text)` returns a string,
+  >   and `slugger.count` is the number of slugs it has made, a read-only number.
+  > - `version` is the package's version, a string.
+  >
+  > Call the options type `SlugOptions`; it is exported too.
+
+  The tests import the four names with `import type`, check their types with type cases, and
+  check with `@ts-expect-error` lines that wrong calls are rejected.
+entry: declarations.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Inside a declare module block every statement is already ambient. Write the exports as you would in a .ts file, without bodies or initializers.
+  - Slugger is a class with a constructor signature, a method and a readonly property, all without bodies.

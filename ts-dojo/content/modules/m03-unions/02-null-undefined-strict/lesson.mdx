@@ -1,0 +1,228 @@
+---
+id: m03-unions/02-null-undefined-strict
+title: null, undefined and strictNullChecks
+minutes: 15
+objectives:
+  - Explain what strictNullChecks changes, and what slips through when it is off
+  - Write T | null or T | undefined where a value may be missing, and read the errors that follow
+  - Handle a missing value with a !== null or !== undefined check, ?. and ??, and name the type each gives
+  - Use the non-null assertion ! only where you can say why the value is there
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m02-functions/01-parameters-and-returns
+  - m03-unions/01-union-and-literal-types
+tags:
+  - 'null'
+  - undefined
+  - strictNullChecks
+  - strict
+  - optional chaining
+  - nullish coalescing
+  - non-null assertion
+  - possibly undefined
+---
+
+## Concept
+
+TypeScript has a type for each of JavaScript's two empty values: the type `null`, whose only value is `null`, and the type `undefined`, whose only value is `undefined`. Which other types they belong to depends on one flag, `strictNullChecks`. This block is compiled with the flag **off**:
+
+```ts twoslash
+// @strictNullChecks: false
+const names = ['Ada', 'Grace'];
+const found = names.find((name) => name.startsWith('L'));
+//        ^?
+console.log(found.length);
+```
+
+No name starts with `L`, so `find` returns `undefined`, yet `found` is typed `string` and the last line compiles. It throws a TypeError when it runs. With the flag off, `null` and `undefined` belong to every type, so no type can say "maybe missing": `string | undefined` collapses to `string`, and the compiler never asks you to check.
+
+The same code with the flag **on**:
+
+```ts twoslash
+// @errors: 18048
+const names = ['Ada', 'Grace'];
+const found = names.find((name) => name.startsWith('L'));
+//        ^?
+console.log(found.length);
+```
+
+Now `null` and `undefined` belong to no other type. A value that may be missing says so with a union, `string | undefined` or `User | null`, and you must handle the missing case before you use the value. That is why the flag is worth having on: a missing value can only reach code whose types say it may.
+
+`strict: true` turns `strictNullChecks` on, and every exercise runs with `strict: true`, so the flag is on unless an exercise turns it off. Only this lesson does that, to show what the flag catches: _Without the safety net_ runs with it off, and _What slips through_ asks about code compiled that way.
+
+## Examples
+
+**Where they come from.** The standard library's types already tell you. `find` and `Map`'s `get` may find nothing and return `T | undefined`; `match` returns `null` when the pattern doesn't match:
+
+```ts twoslash
+const prices = new Map([['apple', 0.5]]);
+const price = prices.get('pear');
+//        ^?
+const digits = 'order 66'.match(/\d+/);
+//         ^?
+```
+
+Your own functions say it the same way, in the return type. A caller then compares with `undefined` (or `null`, whichever the type contains), and inside the `if` the compiler has taken it out of the union:
+
+```ts run
+type User = { id: number; name: string };
+
+const users: User[] = [
+  { id: 1, name: 'Ada' },
+  { id: 2, name: 'Grace' },
+];
+
+function findUser(id: number): User | undefined {
+  return users.find((user) => user.id === id);
+}
+
+const user = findUser(3);
+if (user !== undefined) {
+  console.log(user.name);
+} else {
+  console.log('no user 3');
+}
+```
+
+That is narrowing: the compiler follows the check and gives `user` a smaller type inside each branch. <Lesson id="m03-unions/03-narrowing" /> covers every check it understands; here `!== undefined` and `!== null` are enough.
+
+**Optional chaining and `??`.** `a?.b` reads `b` only when `a` is neither `null` nor `undefined`; otherwise the whole chain stops and gives `undefined`. `a ?? b` gives `a` unless it is `null` or `undefined`, and then `b`. Their types follow: `?.` adds `undefined` to the result, and `??` takes `null` and `undefined` off the left side and adds the type of the right.
+
+```ts twoslash
+type User = { name: string; address?: { city: string } };
+
+function cityOf(user: User | null) {
+  const city = user?.address?.city;
+  //       ^?
+  const label = city ?? 'unknown';
+  //        ^?
+  return label;
+}
+```
+
+`user` may be `null`, but the chain gives `undefined`: optional chaining always stops with `undefined`. You met `??` with optional parameters in <Lesson id="m02-functions/01-parameters-and-returns" />, where the fallback had the same type as the value. It doesn't have to: with `price` typed `number | undefined`, `price ?? null` is `number | null`, because `??` removes `undefined` from the left and adds `null` from the right.
+
+**The non-null assertion `!`.** Writing `!` after an expression tells the compiler it is neither `null` nor `undefined`, and its type loses both. It is a promise, not a check: the `!` is erased from the JavaScript, and if the promise is wrong, the crash is back. Use it only where you know something the compiler can't see, and say what:
+
+```ts twoslash
+const scores = new Map<string, number[]>();
+
+function record(player: string, score: number) {
+  if (!scores.has(player)) scores.set(player, []);
+  // the line above made sure the entry exists; get() can't know that
+  const list = scores.get(player)!;
+  //       ^?
+  list.push(score);
+}
+```
+
+Most of the time a fallback does the same job without a promise:
+
+```ts run
+const scores = new Map<string, number[]>();
+
+function record(player: string, score: number) {
+  const list = scores.get(player) ?? [];
+  list.push(score);
+  scores.set(player, list);
+}
+
+record('ada', 3);
+record('ada', 5);
+console.log(scores.get('ada'));
+```
+
+**Missing or `undefined`.** An optional property, `email?: string`, may be left out of the object, and reading it gives `string | undefined`. A property typed `email: string | undefined` is not optional: it must be written, even when its value is `undefined`.
+
+```ts run errors
+type Draft = { email?: string };
+type Form = { email: string | undefined };
+
+const draft: Draft = {};
+const form: Form = {};
+```
+
+<Callout kind="tip">
+  In the REPL, put the cursor on a value and press <Key>K</Key>: when quick info
+  shows `| undefined` or `| null`, the compiler wants the missing case handled
+  before you use it.
+</Callout>
+
+## Pitfalls
+
+**Checking for the wrong nothing.** `null` and `undefined` are different types, so a `!== null` check leaves `undefined` where it was. Check for the one the type contains, or use `?.` and `??`, which treat both alike:
+
+```ts run errors
+function initial(name: string | undefined): string {
+  if (name !== null) {
+    return name.charAt(0);
+  }
+  return '?';
+}
+```
+
+**A return type that leaves out the missing case.** `find` can come back empty, and a return type of `User` says it can't. Write `User | undefined` and let the callers decide, or return a fallback here:
+
+```ts run errors
+type User = { id: number; name: string };
+
+function findUser(users: User[], id: number): User {
+  return users.find((user) => user.id === id);
+}
+```
+
+**`!` to make the error go away.** This compiles, because `!` told the compiler `found` is a `string`. Run it: the TypeError from the first block of this lesson is back. When the compiler says _possibly 'undefined'_, it is usually right.
+
+```ts run
+const names = ['Ada', 'Grace'];
+const found = names.find((name) => name.startsWith('L'))!;
+console.log(found.length);
+```
+
+## Check yourself
+
+<Predict
+  id="chain-result"
+  question="`user` has type `{ name: string } | null`. What is the type of `user?.name`?"
+  options={[
+    'string',
+    'string | null',
+    'string | undefined',
+    'string | null | undefined',
+  ]}
+  answer={2}
+  explanation="When `user` is `null`, the chain stops and gives `undefined`, never `null`. Otherwise it gives the name, a `string`. So the result is `string | undefined`."
+/>
+
+<Predict
+  id="nullish-result-type"
+  question="`count` has type `number | undefined`. What is the type of `count ?? null`?"
+  options={[
+    'number',
+    'number | null',
+    'number | undefined',
+    'number | null | undefined',
+  ]}
+  answer={1}
+  explanation="`??` takes `null` and `undefined` off the left side, which leaves `number`, and adds the type of the right side, `null`. The result is `number | null`: the `undefined` has been swapped for a `null`."
+/>
+
+<Predict
+  id="assertion-at-run-time"
+  question="What does the `!` in `users.find(isAdmin)!` do when the program runs?"
+  options={[
+    'It throws if find returned undefined',
+    'Nothing: it is erased from the JavaScript',
+    'It replaces undefined with an empty object',
+    'It converts the result to a boolean',
+  ]}
+  answer={1}
+  explanation="The non-null assertion only changes the type the compiler sees. The emitted JavaScript is `users.find(isAdmin)`, so a missing value goes through unchecked and fails wherever it is used."
+/>
+
+## Further reading
+
+- [Everyday types: null and undefined](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#null-and-undefined)
+- [Everyday types: non-null assertion operator](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#non-null-assertion-operator-postfix-)
+- [TSConfig reference: `strictNullChecks`](https://www.typescriptlang.org/tsconfig/#strictNullChecks)
+- [TypeScript 3.7: optional chaining](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#optional-chaining) and [nullish coalescing](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#nullish-coalescing)

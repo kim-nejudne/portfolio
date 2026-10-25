@@ -1,0 +1,25 @@
+id: m01-types/02-primitives-literals-widening/04-retry-the-upload
+kind: fix
+title: Retry the upload
+minutes: 3
+challenge: false
+prompt: |
+  `retry` sends an upload again and records the line it sent, and `index.ts` doesn't compile:
+
+  - `Cannot assign to 'attempts' because it is a read-only property.`
+  - `Variable 'sent' implicitly has type 'any[]' in some locations where its type cannot be
+    determined.` on the declaration, and `Variable 'sent' implicitly has an 'any[]' type.` in
+    `lastSent`.
+
+  Fix both without changing `send`, `retry`, `lastSent` or `sentCount`. `send` needs
+  `upload.method` to keep the type `'POST'`, `attempts` has to count up, and `sent` has to say
+  what it holds. This combines the lesson with lists that start empty, from lesson 1.1
+  (*Annotations and inference*). The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - '`as const` made all of `upload` read-only, but only one of its properties has to keep a literal type.'
+  - The empty `[]` is the problem from lesson 1.1. `lastSent` can't see what `retry` pushes, so the declaration has to say what goes in.

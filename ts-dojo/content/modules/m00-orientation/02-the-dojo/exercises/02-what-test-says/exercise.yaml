@@ -1,0 +1,26 @@
+id: m00-orientation/02-the-dojo/02-what-test-says
+kind: predict
+title: What does :test say?
+minutes: 2
+challenge: false
+code: |
+  // index.ts. tests.ts expects greet('Kim') to return 'Hello, Kim!'.
+  export function greet(name: string) {
+    return `Hello, ${name}!`;
+  }
+
+  // @ts-ignore
+  console.log(greet('Kim', 'Ada'));
+question: The editor shows no errors in this file. What does the verdict line say after `:test`?
+options:
+  - 'Passed. :next opens the next exercise.'
+  - 'Failed: Compiles failed, so the other groups did not run.'
+  - 'Failed: Runtime tests.'
+  - 'Failed: Rules.'
+answer: 3
+explanation: |
+  `@ts-ignore` hides the error on the next line, `Expected 1 arguments, but got 2.`, so
+  Compiles finds no diagnostic and the other groups run. When the program runs, JavaScript
+  ignores the extra argument: `greet('Kim')` returns `'Hello, Kim!'` and the runtime tests
+  pass. The Rules group always rejects `@ts-ignore` outside `tests.ts`, so the exercise fails
+  on Rules alone. Delete the extra argument and the comment with it, and it passes.

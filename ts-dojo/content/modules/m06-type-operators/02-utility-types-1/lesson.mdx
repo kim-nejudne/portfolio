@@ -1,0 +1,273 @@
+---
+id: m06-type-operators/02-utility-types-1
+title: 'Utility types I: Partial, Required, Readonly, Pick, Omit, Record'
+minutes: 20
+objectives:
+  - Type an update patch with Partial, and a value with its defaults filled in with Required
+  - Make an object type read-only with Readonly, knowing that it reaches one level down only
+  - Derive a smaller object type with Pick or Omit, and explain why only Pick checks its keys
+  - Build an exhaustive table with Record and a union of literal keys
+  - Compose utility types, such as Partial<Omit<User, 'id'>>, to describe create and update inputs
+prerequisites:
+  - m01-types/03-arrays-tuples-objects
+  - m04-objects/01-type-vs-interface
+  - m04-objects/03-index-signatures-and-record
+  - m05-generics/01-generic-functions
+  - m06-type-operators/01-keyof-typeof-indexed-access
+tags:
+  - utility types
+  - Partial
+  - Required
+  - Readonly
+  - Pick
+  - Omit
+  - Record
+  - update patch
+  - mapped type
+---
+
+## Concept
+
+An app rarely needs just one type per thing. A `User` is what the server sends back. The form that creates one has no `id` yet, the request that edits one sends only the fields that changed, and the card on screen shows two of them. Write each as an object type of its own and the fields are copied four times, and the copies drift apart.
+
+The **utility types** are generic types built into TypeScript's lib that compute those variants from the one type. You pass the type in angle brackets, as with `Array<string>` or the `Record<string, number>` of <Lesson id="m04-objects/03-index-signatures-and-record" />, and get a new object type back:
+
+```ts twoslash
+type User = { id: number; name: string; email: string };
+
+type UserPatch = Partial<User>;
+//      ^?
+type NewUser = Omit<User, 'id'>;
+//     ^?
+```
+
+This lesson covers six of them:
+
+- `Partial<T>`: every property of `T`, optional;
+- `Required<T>`: every property of `T`, required;
+- `Readonly<T>`: every property of `T`, `readonly`;
+- `Pick<T, K>`: only the properties of `T` named in `K`;
+- `Omit<T, K>`: every property of `T` except those named in `K`;
+- `Record<K, V>`: one property for each key in `K`, each of type `V`.
+
+Each one is a **mapped type**: a type that goes over a set of keys and makes one property per key. <Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> writes a few of them by hand. Here they are tools. Like every type, they are erased: `Partial<User>` makes nothing optional at run time. It changes what the compiler accepts.
+
+## Examples
+
+**`Partial` for an update patch.** A patch names the properties to change and leaves the others out. Every property of `Partial<User>` is optional, so any subset of a `User` is a patch, the empty object included:
+
+```ts run
+type User = { id: number; name: string; email: string };
+
+function updateUser(user: User, patch: Partial<User>): User {
+  return { ...user, ...patch };
+}
+
+const ada: User = { id: 1, name: 'Ada', email: 'ada@example.com' };
+console.log(updateUser(ada, { email: 'ada@lovelace.dev' }));
+console.log(updateUser(ada, {}));
+```
+
+Each property keeps its type. `updateUser(ada, { email: 42 })` reports `Type 'number' is not assignable to type 'string'.`, and a property that `User` doesn't have is an excess property (<Lesson id="m04-objects/02-structural-typing" />): `Object literal may only specify known properties, and 'age' does not exist in type 'Partial<User>'.` An optional property also takes `undefined` under the default options, so `{ name: undefined }` is a patch too, and the spread then sets `name` to `undefined`. The option `exactOptionalPropertyTypes`, in module 16, tells the two apart. This patch can also change `id`; Composing, at the end of Examples, fixes that.
+
+**`Required` once the defaults are in.** `Required` is the reverse: it removes every `?`, and the `undefined` that came with it. A function that fills in defaults takes the optional type and returns the required one, so its callers read the result with no checks:
+
+```ts run
+type Options = { retries?: number; timeoutMs?: number };
+
+const DEFAULTS: Required<Options> = { retries: 3, timeoutMs: 5000 };
+
+function withDefaults(options: Options): Required<Options> {
+  return { ...DEFAULTS, ...options };
+}
+
+const resolved = withDefaults({ retries: 5 });
+console.log(resolved.retries, resolved.timeoutMs * 2);
+```
+
+`resolved.timeoutMs` is a `number`, not `number | undefined`. `DEFAULTS` itself has to be complete: without `timeoutMs`, it reports `Property 'timeoutMs' is missing in type '{ retries: number; }' but required in type 'Required<Options>'.`
+
+**`Readonly` for a value that must not change.** `Readonly<User>` is `User` with `readonly` on every property, the modifier from <Lesson id="m01-types/03-arrays-tuples-objects" />. As a parameter type, it promises that the function only reads its argument:
+
+```ts run errors
+type User = { id: number; name: string; email: string };
+
+function render(user: Readonly<User>): string {
+  user.name = user.name.trim();
+  return `${user.name} <${user.email}>`;
+}
+```
+
+`Cannot assign to 'name' because it is a read-only property.` A plain `User` is still accepted as the argument. On an array type, `Readonly<string[]>` is `readonly string[]`.
+
+**`Pick` and `Omit`.** `Pick` keeps the properties you name, and `Omit` drops them; use whichever has the shorter list. The keys are a union of string literal types, the names that `keyof User` lists (<Lesson id="m06-type-operators/01-keyof-typeof-indexed-access" />):
+
+```ts twoslash
+type User = { id: number; name: string; email: string; passwordHash: string };
+
+type UserCard = Pick<User, 'id' | 'name'>;
+//      ^?
+type PublicUser = Omit<User, 'passwordHash'>;
+//        ^?
+```
+
+The two check their keys differently. `Pick` is declared `Pick<T, K extends keyof T>`, a constraint in the style of <Lesson id="m05-generics/04-keyof-constraints" />, so `Pick<User, 'age'>` reports `Type '"age"' does not satisfy the constraint 'keyof User'.` `Omit` is declared `Omit<T, K extends keyof any>`, and `keyof any` is `string | number | symbol`: any key at all, including one that `User` doesn't have. Pitfalls shows what that costs.
+
+The type removes nothing at run time either. To send a `PublicUser`, take the hash out of the object:
+
+```ts run
+type User = { id: number; name: string; email: string; passwordHash: string };
+type PublicUser = Omit<User, 'passwordHash'>;
+
+function toPublic(user: User): PublicUser {
+  const { passwordHash, ...rest } = user;
+  return rest;
+}
+
+console.log(
+  toPublic({
+    id: 1,
+    name: 'Ada',
+    email: 'ada@example.com',
+    passwordHash: 'x9f2',
+  }),
+);
+```
+
+`return user` would compile as well, because a `User` has every property a `PublicUser` needs (4.2), and the hash would go out with it.
+
+**`Record` with a union of keys.** <Lesson id="m04-objects/03-index-signatures-and-record" /> showed that `Record` with a union of literal keys makes one required property per key. That makes a lookup table exhaustive:
+
+```ts run
+type Status = 'draft' | 'published' | 'archived';
+
+const LABELS: Record<Status, string> = {
+  draft: 'Draft',
+  published: 'Live',
+  archived: 'Archived',
+};
+
+function label(status: Status): string {
+  return LABELS[status];
+}
+
+console.log(label('published'));
+```
+
+Add `'scheduled'` to `Status`, and `LABELS` stops compiling until it has a label for it: `Property 'scheduled' is missing in type '{ draft: string; published: string; archived: string; }' but required in type 'Record<Status, string>'.` It is the `never` check of <Lesson id="m03-unions/05-discriminated-unions" />, for a table instead of a `switch`. When only some keys need an entry, say so with `Partial<Record<Status, number>>`, and every read is then `number | undefined`.
+
+**Composing.** A utility type takes any object type, including another utility type's result, so they nest. Read them from the inside out. Here `Omit` removes the fields the server sets, and `Partial` makes the rest optional:
+
+```ts twoslash
+type User = { id: number; name: string; email: string; createdAt: string };
+
+type NewUser = Omit<User, 'id' | 'createdAt'>;
+//     ^?
+type UserChanges = Partial<Omit<User, 'id' | 'createdAt'>>;
+//        ^?
+```
+
+An update request names the user and carries the changes. An intersection (<Lesson id="m04-objects/01-type-vs-interface" />) joins the required `id` to the optional rest:
+
+```ts run
+type User = { id: number; name: string; email: string; createdAt: string };
+type UserChanges = Partial<Omit<User, 'id' | 'createdAt'>>;
+type UpdateRequest = Pick<User, 'id'> & UserChanges;
+
+function describe(request: UpdateRequest): string {
+  const fields = Object.keys(request).filter((key) => key !== 'id');
+  return `user ${request.id}: ${fields.join(', ') || 'nothing'}`;
+}
+
+console.log(describe({ id: 7, email: 'grace@example.com' }));
+console.log(describe({ id: 7 }));
+```
+
+`{ email: 'grace@example.com' }` without an `id` is rejected, and so is `{ id: 7, createdAt: '2026-10-22' }`. `User` stays the one place where the fields are listed. Add a `bio` to it, and `NewUser`, `UserChanges` and `UpdateRequest` all gain it.
+
+## Pitfalls
+
+**`Readonly` is shallow.** `Readonly<T>` puts `readonly` on the properties of `T` and nothing below them, just as the modifier did in 1.3. The array a property holds can still change:
+
+```ts run errors
+type Team = { name: string; members: string[] };
+
+function rename(team: Readonly<Team>): void {
+  team.members.push('Grace');
+  team.name = 'Core';
+}
+```
+
+Only the last line is rejected: `Cannot assign to 'name' because it is a read-only property.` To protect the array too, its own type has to be readonly, `members: readonly string[]` in `Team`. A `DeepReadonly` that reaches every level is a recursive type, built in module 11.
+
+**`Omit` doesn't check its keys.** A key that is misspelt, or that a later rename has left behind, is accepted, and there is then nothing to remove:
+
+```ts run
+type User = { id: number; name: string; passwordHash: string };
+type PublicUser = Omit<User, 'pasword'>;
+
+const shown: PublicUser = { id: 1, name: 'Ada', passwordHash: 'x9f2' };
+console.log(shown);
+```
+
+No error: `PublicUser` is the same type as `User`, hash included. The same thing happens when `passwordHash` is later renamed to `hash` while the `Omit` still names `passwordHash`. `Pick` has no such gap. When the key list matters, write a `Pick` of the keys to keep, or check the keys with a `K extends keyof T` constraint in a generic of your own, as `Summary` does in the second exercise.
+
+**`Omit` on a union.** The keys of a union type are only the keys that every member has. For this `Shape`, `keyof Shape` is `'id' | 'kind'`, so `Omit<Shape, 'id'>` keeps `kind` and drops `radius` and `side` along with `id`:
+
+```ts run errors
+type Shape =
+  | { kind: 'circle'; id: string; radius: number }
+  | { kind: 'square'; id: string; side: number };
+
+type NewShape = Omit<Shape, 'id'>;
+
+const circle: NewShape = { kind: 'circle', radius: 2 };
+```
+
+`Object literal may only specify known properties, and 'radius' does not exist in type 'NewShape'.` `NewShape` is `{ kind: 'circle' | 'square' }`, no longer a discriminated union. Omit from each member instead, `Omit<Circle, 'id'> | Omit<Square, 'id'>` with each member named. A generic `Omit` that does this for any union needs a conditional type, which <Lesson id="m06-type-operators/04-rebuilding-the-utilities" /> introduces.
+
+## Check yourself
+
+<Predict
+  id="omit-typo"
+  code={
+    "type User = { id: number; name: string; email: string };\ntype Contact = Omit<User, 'emial'>;"
+  }
+  question="What does this give?"
+  options={[
+    "An error: 'emial' is not a key of User",
+    'No error, and Contact has id, name and email',
+    'No error, and Contact has id and name',
+    'No error, and Contact has no properties',
+  ]}
+  answer={1}
+  explanation="`Omit` accepts any key, because its key parameter is constrained by `keyof any`, not by `keyof User`. `User` has no `emial` to remove, so `Contact` is the same type as `User`. `Pick<User, 'emial'>` would be an error, because `Pick` constrains its keys with `keyof T`."
+/>
+
+<Predict
+  id="required-strips-undefined"
+  code={
+    'type Options = { retries?: number };\ntype Resolved = Required<Options>;\ndeclare const resolved: Resolved;\nconst retries = resolved.retries;'
+  }
+  question="What is the type of `retries`?"
+  options={['number', 'number | undefined', 'undefined', 'number | null']}
+  answer={0}
+  explanation="`Required` removes the `?` from every property, and with it the `undefined` that the `?` added. Reading `retries` from a `Required<Options>` gives a plain `number`."
+/>
+
+<Predict
+  id="partial-pick"
+  code={
+    "type User = { id: number; name: string; email: string };\ntype Contact = Partial<Pick<User, 'name' | 'email'>>;"
+  }
+  question="Which of these object literals is a valid `Contact`?"
+  options={['{ id: 1 }', '{}', "{ name: 'Ada', age: 36 }", '{ email: 42 }']}
+  answer={1}
+  explanation="Read it from the inside out: `Pick` keeps `name` and `email`, and `Partial` makes both optional, so the empty object fits. `id` and `age` are not properties of `Contact`, so the literals that have them are excess property errors, and `email` is still a `string`."
+/>
+
+## Further reading
+
+- [Handbook: Utility types](https://www.typescriptlang.org/docs/handbook/utility-types.html)
+- [Handbook: Mapped types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)
+- [TypeScript 3.5 release notes: the Omit helper type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-5.html#the-omit-helper-type)

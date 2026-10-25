@@ -1,0 +1,21 @@
+id: m00-orientation/01-why-typescript/01-next-page
+kind: fix
+title: The next page from a query string
+minutes: 3
+challenge: false
+prompt: |
+  `nextPageFrom` gets the current page from a URL's query string, so `query` is text. The
+  compiler rejects the call to `nextPage` with
+  `Argument of type 'string' is not assignable to parameter of type 'number'.`
+  Make the file compile so that `nextPageFrom('41')` returns the number `42`. This is the
+  lesson's second pitfall inside a function. The tests stay as they are; `:test` runs them.
+
+  `:w` runs the file even now, with the error, and prints what the erased program computes.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - The annotation on `nextPage` doesn't change what arrives at runtime. If `query` holds the text `'41'`, something has to turn it into a number before `page + 1` runs.
+  - JavaScript already has a function that turns `'41'` into `41`; the lesson's second example calls it.

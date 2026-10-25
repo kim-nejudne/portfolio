@@ -1,0 +1,30 @@
+id: m18-capstones/05-type-performance/04-paths-with-a-limit
+kind: type-challenge
+title: Paths with a limit
+minutes: 6
+challenge: false
+prompt: |
+  `index.ts` has the `Paths<T>` of lesson 11.4: every dotted path into an object, with arrays and
+  functions as leaves. On a type that refers to itself, such as a category with a `parent`
+  category, it reports `Type instantiation is excessively deep and possibly infinite.`
+
+  Give it a limit. `Paths<T, Max>` lists the paths of at most `Max` keys, and `Max` is `4` when
+  it is left out:
+
+  - `Paths<{ a: { b: { c: { d: { e: 1 } } } } }>` is `'a' | 'a.b' | 'a.b.c' | 'a.b.c.d'`, and
+    with `Max` of `0` there are no paths, `never`.
+  - Everything else works as in 11.4: string keys only, optional and `null` properties walked
+    into, a union of objects gives the paths of every member.
+  - `Max` is a whole number, and the cases go up to 13 keys deep into a type that refers to itself.
+
+  This combines the lesson with the `Paths` of 11.4 (recursive conditional types) and the tuple
+  counters of 12.4.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - A type can't count with numbers, but a tuple's `length` is a number literal. 12.4 counted with one.
+  - Where does the count live between one level and the next, and what passes it on?
+  - Check the count before anything else, so that the walk stops even when the type never runs out of properties.

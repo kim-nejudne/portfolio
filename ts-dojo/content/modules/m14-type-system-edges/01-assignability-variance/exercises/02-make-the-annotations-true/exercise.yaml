@@ -1,0 +1,31 @@
+id: m14-type-system-edges/01-assignability-variance/02-make-the-annotations-true
+kind: fix
+title: Make the annotations true
+minutes: 4
+challenge: false
+prompt: |
+  `index.ts` declares four generic interfaces, and two of them have variance annotations that
+  don't match how they use `T`. The compiler reports both:
+
+  - `Type 'Source<super-T>' is not assignable to type 'Source<sub-T>' as implied by variance annotation.`
+  - `Type 'Target<sub-T>' is not assignable to type 'Target<super-T>' as implied by variance annotation.`
+
+  Give every interface the annotation that says what it does with `T`:
+
+  - `Source` only hands values out, and `Target` only takes them in. Correct their annotations.
+  - `Sink` only takes values in too, but through a method, so today a `Sink<User>` and a
+    `Sink<Admin>` are assignable to each other both ways. Make it as strict as `Target`, and keep
+    the method syntax.
+  - `Cell` has one mutable property, and today a `Cell<Admin>` is accepted as a `Cell<User>`.
+    Make it reject both directions, without adding members.
+
+  The type cases in `tests.ts` check every direction for every interface.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, any-expression]
+hints:
+  - Read sub-T and super-T in the errors as Admin and User. The annotation you wrote asked for the direction the error says doesn't hold.
+  - out is for a type parameter that only comes out, in for one that only goes in. One annotation also turns a method's two-way parameter check into a one-way one.
+  - A type parameter can carry both modifiers at once.

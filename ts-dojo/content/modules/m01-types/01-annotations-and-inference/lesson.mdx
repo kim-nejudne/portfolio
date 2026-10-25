@@ -1,0 +1,229 @@
+---
+id: m01-types/01-annotations-and-inference
+title: 'Annotations and inference: when to write a type and when not to'
+minutes: 15
+objectives:
+  - Write type annotations on variables, parameters and return types
+  - Read the types the compiler infers from initialisers and return statements
+  - Annotate parameters, exported return types and variables that start empty
+  - Leave out annotations that repeat what inference already knows
+  - Use a return type to move an error from the callers to the line that causes it
+prerequisites:
+  - m00-orientation/01-why-typescript
+  - m00-orientation/03-vim-in-the-dojo
+tags:
+  - annotation
+  - inference
+  - return type
+  - parameter type
+  - noImplicitAny
+  - contextual typing
+---
+
+## Concept
+
+A type annotation is `: Type` written after a name: after a variable, after a parameter, and after a function's parameter list for the type it returns. Inference is the compiler working a type out by itself, from the value a variable starts with and from the values a function returns. Either way the name ends up with a type, and every use of it is checked against that type.
+
+```ts twoslash
+let retries = 3;
+//        ^?
+let timeout: number = 5000;
+//        ^?
+```
+
+Both are `number`. The first was inferred from `3`. The second was written down, and the compiler checked that `5000` fits it. Like every type, an annotation is erased before the code runs (<Lesson id="m00-orientation/01-why-typescript" />), so it never converts or checks a value at runtime.
+
+The same `: Type` goes in all three places, arrow functions included:
+
+```ts run
+let total: number = 0;
+
+function double(n: number): number {
+  return n * 2;
+}
+
+const half = (n: number): number => n / 2;
+
+total = double(4) + half(10);
+console.log(total);
+```
+
+So which should you write? Let inference work wherever there is a value to infer from. Annotate where there is none, and where the type is a promise to other code.
+
+<Callout kind="tip">
+  In the REPL, put the cursor on a name and press <Key>K</Key> to see the type
+  the compiler gave it, written or inferred. A `^?` comment under the name pins
+  the same answer into the buffer.{' '}
+  <Lesson id="m00-orientation/03-vim-in-the-dojo" /> shows both.
+</Callout>
+
+## Examples
+
+**Inference from values.** A variable gets its initialiser's type, an object literal gets one property type per property, and a function's return type comes from its `return` statements:
+
+```ts twoslash
+const price = 4.5 * 3;
+//        ^?
+const label = 'Total: ' + price;
+//        ^?
+const user = { name: 'Ada', admin: true };
+//       ^?
+
+function area(width: number, height: number) {
+  //        ^?
+  return width * height;
+}
+```
+
+The only annotations in that block are the two parameters, which nothing else could have told the compiler. `area` returns `number` because `width * height` is a number.
+
+<Callout kind="tip">
+  A `const` that holds a bare literal, such as `const port = 8080`, shows the
+  literal itself as its type: `const port: 8080`.{' '}
+  <Lesson id="m01-types/02-primitives-literals-widening" /> explains why.
+</Callout>
+
+**Where an annotation pays.** Each annotation here tells the compiler something it could not infer, or states a promise to other code:
+
+```ts run
+// Starts empty and is read by more than one function: say what it holds.
+const orders: number[] = [];
+
+// Parameters always; exported and returns a value, so the return type too.
+export function addOrder(cents: number): number {
+  orders.push(cents);
+  return orders.length;
+}
+
+export function totalCents(): number {
+  let total = 0; // inferred: number
+  for (const cents of orders) {
+    total += cents; // cents is inferred from orders: number
+  }
+  return total;
+}
+
+addOrder(450);
+addOrder(1200);
+console.log(totalCents());
+```
+
+- **Parameters.** A parameter has no value inside the function, and inference never looks at the calls, so its type has to be written. Callbacks are the exception, below.
+- **Return types of functions other code calls.** An exported function's return type is a promise to every caller. Once it is written, the compiler checks each `return` against it, and a mistake is reported inside the function instead of at the callers (see Pitfalls). For a small helper used in one place, the inferred type is fine.
+- **Variables that start with nothing to infer from**: an empty `[]`, or a `let` with no initialiser, used by more than one function. `number[]` is an array of numbers; <Lesson id="m01-types/03-arrays-tuples-objects" /> covers array types.
+
+Everything else in the block, `total` and the loop's `cents`, is inferred.
+
+**Callbacks take their types from context.** A function passed straight to `map` needs no annotations. The compiler knows what `map` on a `string[]` hands its callback, so `name` is typed from there:
+
+```ts twoslash
+const names = ['Ada', 'Grace', 'Barbara'];
+const lengths = names.map((name) => name.length);
+//                            ^?
+```
+
+This is contextual typing: the type flows in from where the function is used. <Lesson id="m02-functions/02-function-types-and-callbacks" /> covers it properly.
+
+**Where an annotation is noise.** Every annotation below repeats what the value already says:
+
+```ts run
+const prices = [4.5, 12, 3.25];
+
+const count: number = prices.length;
+const doubled: number[] = prices.map((price: number): number => price * 2);
+
+console.log(count, doubled);
+```
+
+Delete all four and no type changes: `prices.length` is a `number`, the callback's `price` gets `number` from context, and `map` then returns `number[]`. The annotations only add reading, and one more place to edit when the value changes.
+
+## Pitfalls
+
+**A parameter with no type.** The dojo compiles with `strict`, which turns on `noImplicitAny`. A parameter without an annotation is then an error, even when every call passes numbers:
+
+```ts run errors
+function area(width, height) {
+  return width * height;
+}
+
+console.log(area(3, 4));
+```
+
+`Parameter 'width' implicitly has an 'any' type.` Without `noImplicitAny`, both parameters would silently be `any`, a type that switches checking off (<Lesson id="m01-types/04-any-unknown-never-void" />).
+
+**The error lands at the caller, not at the bug.** With no return type, a function returns whatever its code returns, mistakes included. `toFixed` returns a string, so `percent` returns a string, and the first error is where a caller uses it as a number:
+
+```ts run errors
+function percent(part: number, whole: number) {
+  return ((part / whole) * 100).toFixed(1);
+}
+
+const done = percent(3, 4);
+if (done > 50) {
+  console.log('more than half');
+}
+```
+
+`Operator '>' cannot be applied to types 'string' and 'number'.` Write the return type and the error moves to the line that is wrong, once, however many callers there are:
+
+```ts run errors
+function percent(part: number, whole: number): number {
+  return ((part / whole) * 100).toFixed(1);
+}
+```
+
+`Type 'string' is not assignable to type 'number'.`
+
+**An empty list shared by functions.** In the code where an empty `[]` or a `let` with no initialiser is declared, the compiler follows the assignments and `push` calls that come after it and works the type out. It cannot follow the variable into other functions:
+
+```ts run errors
+const visited = [];
+
+function visit(page: string) {
+  visited.push(page);
+}
+
+function trail() {
+  return visited.join(' > ');
+}
+```
+
+The declaration reports `Variable 'visited' implicitly has type 'any[]' in some locations where its type cannot be determined.`, and `trail` reports `Variable 'visited' implicitly has an 'any[]' type.` Saying what the list holds fixes both: `const visited: string[] = [];`.
+
+## Check yourself
+
+<Predict
+  id="annotation-on-initialised-let"
+  question="What does the annotation change in `let retries: number = 3;` compared with `let retries = 3;`?"
+  options={[
+    'Nothing: both declare retries as a number',
+    'The annotated version also checks the value when the code runs',
+    'Without the annotation, retries is any',
+    'Without the annotation, the compiler reports an error',
+  ]}
+  answer={0}
+  explanation="The initialiser 3 already gives retries the type number, so the annotation only repeats it. Annotations are erased before the code runs, so neither version checks anything at runtime; and since the type is inferred, nothing is any and nothing errors."
+/>
+
+<Predict
+  id="where-the-error-lands"
+  question="percent has no return type. Where does the compiler report the mistake?"
+  code={
+    "function percent(part: number, whole: number) {\n  return ((part / whole) * 100).toFixed(1);\n}\n\nconst done = percent(3, 4);\nif (done > 50) {\n  console.log('more than half');\n}"
+  }
+  options={[
+    'On the return line inside percent',
+    'On done > 50, where a string is compared with a number',
+    'On const done = percent(3, 4)',
+    'Nowhere: it compiles, and the comparison misbehaves at runtime',
+  ]}
+  answer={1}
+  explanation="With no annotation, the return type is whatever the function returns: a string, from toFixed. As far as the compiler knows, percent is fine. The first place a string is wrong is the comparison with 50. Writing `: number` after the parameter list moves the error to the return line, where the bug is."
+/>
+
+## Further reading
+
+- [Everyday Types: type annotations on variables](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#type-annotations-on-variables)
+- [Everyday Types: functions, parameter and return type annotations](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#functions)
+- [Everyday Types: anonymous functions and contextual typing](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#anonymous-functions)
+- [TSConfig reference: `noImplicitAny`](https://www.typescriptlang.org/tsconfig/#noImplicitAny)

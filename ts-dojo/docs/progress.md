@@ -1,0 +1,1129 @@
+# Progress
+
+The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion from docs/spec.md §12, copied verbatim (74 boxes; a trailing `(by hand)` tag was added to the two checks only Kim can do that §12 leaves untagged). Tick a box only when the `acceptance-reviewer` agent reports it met with evidence (a test name or `file:line`), or when Kim confirms a by-hand or droplet check. Claude never ticks a by-hand or droplet item.
+
+**Build order (§11):** Prep → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F15 → F11 → F12 → F13 → F14 → v1 gate. One feature per session, one commit per feature (`F<n>: <title>`). The sections below are in this order; the SessionStart hook reads the first one with an unchecked, automatable item as the current feature.
+
+**Tags**
+
+- `(by hand)`: needs Kim in a real browser; listed under "For Kim" with the exact steps. Never claimed by Claude.
+- `(droplet)`: checked on the droplet after Kim deploys. Same rule.
+- §12 lists F12–F14 as one block; here each wave is its own section because §11 builds and commits them one at a time.
+
+§11 gates are quoted under the feature that closes them.
+
+## Prep
+
+- [x] The §4 Vim checklist has a recorded result for every item: pass, workaround (with the mapping), or gap.
+- [x] `public/ts/6.0.3/` holds every `lib.*.d.ts` from `typescript@6.0.3`, and §2's sizes are confirmed or corrected.
+- [x] `dojo.kimnejudne.dev` resolves to the droplet. (by hand) Ticked 25 October 2026 under D4: `dig +short dojo.kimnejudne.dev` answers `165.245.189.5`, the droplet, and Kim ticked the Prep A-record item under For Kim.
+
+> **Gate (§11):** every P item passes or has a working mapping, and the W list is written down.
+
+**Notes (17 October 2026)**
+
+- Vim spike: `spike/vim/` (the page, `workarounds.ts`, and `checklist.spec.ts`: 94 Playwright tests in Google Chrome 155 through `channel: 'chrome'`, `pnpm spike:vim:check`). The record is docs/prep-vim.md, one row per §4 item with its test. Every P item passes as shipped except four that need a definition, which the gate allows: `"*` (mapped to `"+`), `"+p` (`clipboardPaste()`, see the next bullet), `U` (mapped to `u`, see Spec questions) and `:set rnu/nu/wrap` (`Vim.defineOption`); `:w` is the app's own `defineEx`, and visual block needs one editor setting (next bullet). Of the W items, jumps, macros, `:g`, `:sort` and insert-mode `Ctrl-u Ctrl-o Ctrl-r` pass as shipped; insert `Ctrl-h` needs `imap <C-h> <BS>`; folds need `Vim.defineAction` plus `Vim.mapCommand` over CodeMirror's fold commands; `it`/`at` is a gap in TypeScript buffers; insert `Ctrl-w` stays the browser gap (`Ctrl-Backspace` instead). `defineAction` is confirmed. `:normal` and `gq` work although §4 expects neither.
+- Findings that shape F3: visual block needs `EditorState.allowMultipleSelections.of(true)`; the engine runs the first full key match and waits only when nothing matches in full, so a Space leader works only through a virtual key (`leaderKey()`), the vimrc parser expands `<leader>` itself, a mapping to `:cmd` needs its `<CR>`, and re-applying the vimrc must `mapclear` first because `unmap` only removes the newest definition; `"+p` pastes with a stale linewise flag (`clipboardPaste()` fixes it). Browser-reserved keys and the clipboard round trip are Kim's (For Kim).
+- Lib files: `scripts/copy-ts-libs.ts` copies the 107 `lib.*.d.ts` files (3,783,805 bytes) into `public/ts/6.0.3/`, proven by `scripts/copy-ts-libs.test.ts`. The folder is generated, so it is gitignored; today `pnpm copy-ts-libs` (or `pnpm test --run`, whose §12 test runs the copy) creates it, and F1 wires the copy into `build` and `dev` as §2 says. `lib.d.ts` (the ES5 + DOM + scripthost default) also sits in `typescript/lib` but is not a `lib.*.d.ts` and is not copied; it is the one name `knownLibFilesForCompilerOptions` returns after option conversion, so an F2 that followed §2 literally would request `/ts/6.0.3/lib.d.ts` and get a 404. §2 sizes, measured:
+
+  | What | §2 | Measured | |
+  | --- | --- | --- | --- |
+  | ES chain `es5`–`es2025` (what `lib.es2025.d.ts` resolves) | 569,639 | 573,813 bytes, 76 files: 74 ES files (559,373) plus `lib.decorators.d.ts` and `lib.decorators.legacy.d.ts`, which `lib.es5.d.ts` references | corrected |
+  | `lib.dom.d.ts` | 2,351,349 | 2,349,483 bytes | corrected |
+  | decorators | 14 KB | 13,153 + 1,287 bytes | confirmed |
+  | scripthost | 9 KB | 9,412 bytes | confirmed |
+
+  `knownLibFilesForCompilerOptions` does not return only ES files for the default options, or anything usable: see Spec questions.
+- Setup added for Prep, which F1 extends: `package.json` (pnpm 12.11.2, exact pins for everything §2 pins), `tsconfig.json` with the §2 flags, Prettier (`singleQuote`; `*.md` and `.claude/` ignored so the spec and the hooks keep their formatting), Vitest, Playwright 1.64.1 driving the installed Chrome (its own Chromium 1248 is not in the cache). No ESLint yet, so the pre-commit hook runs typecheck, format:check and the tests.
+
+## F1. Scaffold
+
+- [x] `pnpm dev`, `build`, `preview`, `typecheck`, `lint`, `format:check`, `test --run` and `test:e2e` exist and pass on a clean clone with Node 24 and pnpm 12.
+- [x] GitHub Actions runs typecheck, lint, format check, unit tests and build on every push and pull request.
+- [x] `tsconfig.json` has every flag listed in §2.
+- [x] Every route in §6 renders a placeholder, in light and dark, and `?` opens the help overlay.
+- [x] shadcn is initialised with `base-nova` and the Button, Dialog, Tabs, Tooltip, Command and Sheet primitives.
+
+**Notes (17 October 2026)**
+
+- Reviewed PASS by the acceptance-reviewer on 17 October 2026: every check run by the reviewer itself (typecheck, lint, format:check, 41 unit tests, 19 Playwright tests in Chrome, build, plus `pnpm dev` served `/`, a deep link and a lib file). Criteria 1 and 2 are ticked on the repository-side evidence (`scripts/scaffold.test.ts`, the workflow file, the lockfile matching `package.json`); the live run on GitHub needs Kim's push and is the F1 item under "For Kim".
+
+- Scripts (§2 Build): `dev` and `build` run `copy-ts-libs` first, then Vite. `typecheck` is `tsc` over two projects: `tsconfig.json` is the app (`src/`, `jsx: react-jsx`, `types: ["vite/client"]`, every §2 flag) and `tsconfig.node.json` extends it for the Node side (`scripts/`, `spike/`, `e2e/`, the config files, `types: ["node"]`), so the flags are written once. `.npmrc` sets `save-exact`; every dependency is pinned exactly (Prep's convention), shadcn's additions re-pinned by hand after its init because it writes `^` ranges itself.
+- shadcn 4.22.0 has no `base-nova` preset flag: `pnpm dlx shadcn@4.22.0 init -b base -p nova -y` (Base UI library, Nova preset) writes `style: "base-nova"`, `rsc: false`, and `add button dialog tabs tooltip command sheet -y` also adds `input`, `textarea` and `input-group`, which `command` depends on. Base UI is `@base-ui/react` 1.9.0; `command` is `cmdk` 1.1.1; `cn` 0.4.0 replaces clsx + tailwind-merge; `shadcn` itself is a runtime dependency because `globals.css` imports `shadcn/tailwind.css`, pinned at 4.21.5, the version the 4.22.0 CLI wrote and installed for itself (the CLI ran through `pnpm dlx`, the dependency is only that stylesheet). `src/lib/utils.ts` is shadcn's own helper path, the one file outside the §2 layout. `input-group.tsx` carries one scoped `eslint-disable-next-line` for two jsx-a11y rules: its addon's click handler only forwards focus to the input, and keyboard users reach the input directly.
+- Type (§6): the mono face is JetBrains Mono, confirmed, through `@fontsource-variable/jetbrains-mono` 5.3.0 and `--font-mono` in `src/app/globals.css`; the sans face is Geist (`@fontsource-variable/geist`), what the Nova preset installs. Both are self-hosted and the build emits their woff2 subsets.
+- Theme (§6, §7): `src/app/theme.ts` reads `theme` from the `ts-dojo:settings` object (`src/store/settings.ts`), follows `prefers-color-scheme` for `system` or nothing, and toggles `.dark` on `<html>` (Tailwind's `@custom-variant dark`) plus `color-scheme`. It runs from `main.tsx` before the first render because the §10 CSP has no `'unsafe-inline'` for scripts; a stored `light` or `dark` under the opposite system scheme can show the system colours for one frame until then (F10 can add CSS-only tokens for that case if it shows).
+- Routes (§6): `createBrowserRouter`; `l/*` stands for `/l/:lesson` and `/l/:lesson/:exercise` because lesson ids contain a slash (`parseLessonPath` in `src/app/lesson-path.ts`; see Spec questions). A `*` route renders "Not found", since nginx serves `index.html` for every path.
+- Keys (§6): `src/app/keys.ts` holds the §6 table (the overlay renders it) and the pure matcher; `useGlobalKeys` listens on `window` and skips editable targets and anything inside `.cm-editor` (the conflict rule). Only `?` is wired: F3 adds `Ctrl-p` and the two-key sequences, F8 the pane keys. The overlay is shadcn's `Dialog` with the Vim gaps list from docs/prep-vim.md (`src/editor/gaps.ts`); the listener mounts in an effect, so a Playwright test waits for the page's `h1` before pressing `?`.
+- e2e: root `playwright.config.ts`, Google Chrome through `channel: 'chrome'` (Playwright 1.64.1's Chromium 1248 is not in the cache), one `webServer` running `pnpm build && pnpm preview --port 4173` (Kim's online-voting convention; what F15 needs for the service worker and the CSP; a preview already listening is reused outside CI). CI does not run e2e, which §12 F1 does not ask for; it runs on Kim's machine.
+- Lint covers the Prep spike too: three `no-unsafe-return` lines in `spike/vim/checklist.spec.ts` were wrapped in blocks. `eslint-plugin-react-refresh` is not in §2 and was left out.
+- Measured: `vite build` 340 ms; `index-*.js` 412 KB raw, 135 KB gzip; CSS 64 KB raw, 13 KB gzip; typed `pnpm lint` about 5 s. No compiler in the bundle yet (F2).
+- Left for later features: the compiler status chip in the header (F2), `Ctrl-p` and the palette (F3), the pane keys and the conflict-rule Playwright test (F8), `content:lint` in CI before the build (F6), `vite-plugin-pwa` and the CSP check (F15).
+
+## F2. Language-service worker
+
+- [x] The worker reports `ready` with `tsVersion` `6.0.3`, and no request leaves the origin (Playwright network log).
+- [x] `openProject` with `lib: ["es2025"]` fetches only ES lib files; with `libs: ["dom"]` it also fetches `lib.dom.d.ts`, once.
+- [x] `getDiagnostics` on a 200-line fixture returns in under 300 ms p95 after warm-up, measured by a Vitest benchmark on the core module.
+- [x] `getQuickInfo` returns the display string and docs for an identifier; `getTwoslashQueries` returns one entry per `^?` with the right line and text, and an error entry when the query points at whitespace.
+- [x] `emit` returns JavaScript with an inline source map for every file and elides type-only imports.
+- [x] A reply with an older `version` than the file's current one is dropped by the client (unit test).
+- [x] `lintAst` reports every rule in §5 on a fixture, with file and line.
+- [x] `runTypeTests` groups diagnostics into cases as §5 describes, including the TS2578 case.
+
+**Notes (17 October 2026)**
+
+- Reviewed PASS by the acceptance-reviewer on 17 October 2026, every criterion MET, every check run by the reviewer itself: typecheck, lint, format:check, 106 unit tests, `pnpm bench` (p95 23.86 ms in its run), 22 Playwright tests in Chrome (the 3 F2 compiler tests and the 19 scaffold tests). No F2 criterion is by hand or droplet, so nothing joins "For Kim". After the review the client gained one guard the reviewer flagged for F3 (`openProject` rejects requests still in flight for the previous project with `ProjectChangedError`, since every path restarts at version 0 and the version check alone could not tell), with its unit test; all checks were run again before the commit.
+- Layout (§2): `src/protocol/ts-ls.ts` holds every §2 message, the `Diag` shape and `DEFAULT_COMPILER_OPTIONS`; `src/workers/ts-ls/core.ts` is the pure core (one `ts.LanguageService` over `@typescript/vfs`, every request a method), with `libs.ts` (lib chain), `twoslash.ts` (`^?` sites), `rules.ts` (§5 walkers), `type-tests.ts` (case finder), `ambient.ts` (the runtime `.d.ts`); `adapter.ts` serves the core over a port and `worker.ts` is the three-line Worker entry; `client.ts` is the main-thread side (request ids, versions, stale drop, status, §9 restart); `node/fetch-lib.ts` reads libs from `node_modules` for Vitest and the F6 content lint; `fixtures/two-hundred-lines.ts.txt` is the benchmark file. `src/verify/rules.ts` (ids, messages, always-on set) and `cases.ts` (range grouping) are shared with F7. `src/app/compiler.ts` holds the one client, started from `main.tsx` before the first render (§9 warm-up), and `compiler-status.tsx` is the header chip (`role="status"`, `aria-label="compiler status"`: "compiler loading" → "TypeScript 6.0.3"; "compiler restarting", then "compiler restarted" for 5 s; "compiler failed" after three crashes in a row).
+- Protocol decisions, now in `src/protocol/ts-ls.ts` and the ts-worker skill: paths are virtual-FS absolute (`/index.ts`; `/dojo/*` and `/lib.*.d.ts` reserved); offsets 0-based, lines and columns 1-based; `openProject`, `updateFile` and `dispose` have no reply because §2 lists none: the worker handles requests in order, so the next request's reply means the project is open, and a failure comes back as `error` with that requestId (the client routes it to `onError`); `ProjectFile.version` exists so a restart re-sends the current versions; `error.requestId` is null for a malformed message. One `DocumentRegistry` per core and core-wide unique version strings for project files (libs stay at "0"), with the previous service disposed only after the new program is built, so the lib SourceFiles are parsed once and reused across projects (`core.test.ts` asserts the same `lib.es5.d.ts` object before and after a swap; swap plus first diagnostics 43 ms against 263 ms cold in the planning probe).
+- Rules (§5): `implicit-any` reports codes 7006 and 7031 from a second check of the same files with `noImplicitAny` forced on, because with it off the compiler reports implicit anys only as "a better type may be inferred" suggestions under other codes (7044 and friends); the second service shares the registry. `eval` flags every reference to `eval` (an alias is a call waiting to happen), the global object's `eval` or `Function`, `new Function(...)` and `Function(...)`, and leaves a user object's own `eval` method alone. `ts-directive` walks every comment through the token tree and uses the compiler's own directive forms plus `@ts-nocheck`. Type cases are top-level tuple aliases named `cases*` and top-level `@ts-expect-error` statements; a diagnostic belongs to every case range it overlaps.
+- Tests run in the Node project: `tsconfig.json` now excludes `src/**/*.test.ts(x)`, `src/**/*.bench.ts` and `src/**/node`, which `tsconfig.node.json` includes (with its own `exclude`, since the inherited one would hide them; ESLint's Node block matches the same globs). The benchmark is Vitest 5's `bench` test-context fixture under `benchmark.include` (`pnpm bench` = `vitest bench --run`; `bench` is no longer a top-level export in Vitest 5), and `core.test.ts` asserts the same p95 inside `pnpm test --run`. The 200-line fixture is `.ts.txt` so tsc, ESLint and Prettier leave it alone.
+- Measured (`pnpm bench`, Node 24 on Kim's laptop, 17 October 2026; the result file is `test-results/ts-ls-diagnostics.bench.json`): `getDiagnostics` on the 200-line fixture after an edit, warm, 70 samples: p50 13.0 ms, p95 23.3 ms, p99 25.6 ms, mean 14.3 ms, max 27.8 ms, against the §9 budget of 300 ms p95; `core.test.ts` measures the same cycle 40 times inside `pnpm test --run` and asserts p95 under 300 ms. Cold `init` (76 libs fetched from disk and parsed) about 140 ms in Node. The worker chunk built by Vite 8 is 3,556,432 bytes raw, 990,257 gzip, 745,433 brotli (§2's 9,144,216 raw and 1,531,825 brotli describe the unminified package); `index-*.js` 417,450 raw, 116,333 brotli; `vite build` 1.4 s. In `pnpm dev`, headless Chrome: "compiler loading" → "TypeScript 6.0.3" in 3.3 s on the first load (Vite optimises `typescript` and reloads once) and 1.1 s on the next, 76 distinct lib requests, no DOM, every request same-origin, no console error.
+- Left for later features: F3 wires diagnostics, hover, completions, signature help, definitions and `^?` widgets to `getCompiler()`; F4 widens `/dojo/runtime.d.ts` to the shim and runs `emit`'s modules; F6's content lint uses `createTsLsCore({ fetchLib: nodeFetchLib })`; F7 picks the `@dojo/type-utils` mechanism (F2's tests use a `declare module` in `dtsFiles`, which resolves with no `paths` entry) and assembles the verdict from `runTypeTests` and `lintAst`; F15 precaches `/ts/6.0.3/**` and measures the worker's memory and cold `ready` in Chrome. The 5 s restart notice is the chip's own timer and is not unit-tested; the restart logic is.
+
+## F3. Editor
+
+- [x] Every P item in the §4 checklist passes in Chrome; every W item has its mapping or definition applied by default.
+- [x] The shipped vimrc applies; `imap jk <Esc>` works; a bad vimrc line is reported with its number and skipped, and the good lines still apply.
+- [x] Every ex command in §4 does what its row says, including `:w` running the code and `:set rnu` persisting.
+- [x] Squiggles and gutter marks appear within 300 ms of typing stopping; `]d` and `[d` move between diagnostics; `K` shows quick info at the cursor; `gd` jumps to a definition in another file.
+- [x] A `//   ^?` line shows the queried type under it and updates on edit.
+- [x] Completions open on typing and `Ctrl-Space`; `Ctrl-j`/`Ctrl-k` and `Tab`/`Shift-Tab` move; `Enter` or `Ctrl-y` accept; `Esc` closes and returns to normal mode.
+- [x] `"+y` and `"+p` use the system clipboard over HTTPS and on localhost.
+- [x] Multi-file: tabs, `:b`, `:ls`, `gt`, `gT`; a lesson `.d.ts` is read-only and marked.
+- [x] Editing works before the compiler is ready, with the status chip showing.
+
+**Notes (17 October 2026)**
+
+- Reviewed by the acceptance-reviewer on 17 October 2026, every check run by the reviewer itself (typecheck, lint, format:check, 149 unit tests, 174 Playwright tests in Chrome): criteria 1, 2, 4, 5, 6, 8 and 9 MET; criterion 7 MET on localhost and NEEDS KIM for HTTPS (the "For Kim" item, after F15), so its box waits for Kim; criterion 3 NOT MET as written because `:w` running the code and the rows F4, F5, F7, F8 and F9 own are those features' work, which the F3 plan agreed (Spec questions); every row with an F3 target is proven, so F3's own scope is complete and the reviewer's verdict reads "FAIL (as written)". The box for criterion 3 stays open until F4–F9 close their rows; the SessionStart hook will keep naming F3 until then. After the review, three of its remarks were applied: the visual-mode pane keys (below), the F8 ownership of `:hint`/`:sol`/`:reset` in the Spec questions entry, and the `U` and `it`/`at` record under that same section.
+- Layout (§2): `src/editor/controller.ts` owns the one `EditorView`, one `EditorState` per project file (own history and cursor; `view.setState` on a switch, deferred one microtask past the engine's key handling so a `gt` mapping or `:b` typed at the prompt does not replace the state under the prompt's close) and every ex command's dispatch; `editor.tsx` renders the tabs (`role="tab"`, `data-readonly` and a "read-only" badge for a lesson `.d.ts`) and the vimrc status line; `extensions.ts` is the Prep spike's setup plus the type feedback and a theme on the Tailwind tokens (`--syntax-*` and `--editor-*` in globals.css for light and dark); `vim-defaults.ts` is the spike's `workarounds.ts` lifted (fold actions, `clipboardPaste`, `starRegister`, `lineUndo`, `leaderKey`, `insertCtrlH`); `vimrc.ts` the parser and apply step; `options.ts` the `:set` options as `Vim.defineOption` callbacks over two compartments; `ex-commands.ts` the §4 table as data (registration, parsing, the palette items); `host.ts` the action types and the `EditorHost` a page implements; `diagnostics.ts`, `twoslash.ts`, `quick-info.ts`, `completions.ts`, `signature-help.ts`, `definition.ts` the §4 type feedback over `getCompiler()`; `registry.ts` the mounted editor and the Playwright seam `window.__tsDojo` (the spike's `window.__spike` convention). `/repl` (`src/pages/repl.tsx`) is the F3 host: a fixed demo project (`index.ts`, `shapes.ts`, read-only `units.d.ts`), a Problems list and the host messages in an output region; F5 swaps the file set for the Dexie buffers and F4 turns the region into the output pane.
+- Vim (§4): every P and W item of the checklist runs on `/repl` in `e2e/editor-vim.spec.ts` (73 tests, the spike's checklist ported with the definitions on by default). Engine facts that shaped the code: `mapclear` empties the whole user layer, `Vim.mapCommand` entries included, so the fold keys are re-mapped with the leader, `"*` and `U` after every clear (`vimDefaultMappings`), before the vimrc lines; `@codemirror/lint`'s `nextDiagnostic` selects the range and the adapter turns a selection into visual mode, so `]d`/`[d` walk the lint state and move a plain cursor (`moveToDiagnostic`); the engine re-focuses the editor when the `:` prompt closes, so a host action from a command runs one microtask later; the adapter refuses edits in a `readOnly` state before any transaction, so the read-only notice shows on opening the tab (the transaction filter stays as a guard); the `:set` callback is called once globally and once per editor, the code acts on the global call; the updateFile listener comes before the feedback listeners so a signature-help request follows the `(` into the worker (otherwise the reply is stale and dropped).
+- vimrc (§4): `SHIPPED_VIMRC` is the §4 text; the parser knows the `map` family, `unmap` (and `nunmap iunmap vunmap`), `set opt / noopt / opt=value`, `let mapleader = "<key>"` and `"` comments, expands `<leader>` to the virtual `<Leader>` key, reports a bad line with its number (parse errors and the engine's own refusals, like an unknown `:set` option) and applies the rest; the editor shows the list under the editor (`role="status"` named "vimrc") and in a notification. A custom vimrc replaces the shipped one (not an overlay). `U` ships as a plain undo, insert `Ctrl-h` and the visual-mode `Ctrl-h/j/k/l` pane mappings (§4 prose; the vimrc has `nmap` only) are applied in code, so the Settings vimrc text stays exactly §4's (Spec questions).
+- `:set` persistence (§4, §7): `relativeNumbers`, `lineNumbers`, `wrap` and `theme` in `ts-dojo:settings`; the vimrc's own `set` lines and the stored values apply without persisting, an interactive `:set` persists; stored values win over the vimrc's `set rnu` because they are Kim's later choice; `src/app/theme.ts` now follows every settings write, so `:set bg=` and the F10 Settings page change the theme the same way. `lineNumbers` and `wrap` are two keys §7 does not list: see Spec questions.
+- Ex commands (§4): all 30 table entries and 7 aliases registered (`src/editor/ex-commands.test.ts`), in the palette (42 items, variants listed as their own items, `:b`/`:e` open the `:` line pre-filled) and the `?` overlay. Proven on `/repl` in Chrome (`e2e/editor-ex.spec.ts`): `:b :ls :bnext :bprev :dnext :dprev :info :def :set :help :h :roadmap :rm :output :practice :focus up/down`; `:w`/`:run` transpile through `emit` and hand the modules to the host (the message "emitted 2 modules" on /repl). The rows F4 (`:w` running, `:kill`), F5 (`:e`, `:bd`), F7 (`:test`), F8 (`:hint :sol :reset :done :next :prev :lesson :theory :layout :prompt`, pane focus to the theory pane) and F9 (`:export`) own answer with the owning feature in a notification and are proven when those features land; the box stays open until then (Spec questions).
+- Type feedback (§4): diagnostics 200 ms after typing stops (`linter({ delay: 200 })` + `lintGutter()`), every file's list to the page, the `^?` widgets refreshed in the same cycle; `e2e/editor-types.spec.ts` measures keyup to squiggle in the page and asserts ≤ 300 ms after one warm cycle. Completions through a highest-precedence DOM handler ahead of the Vim plugin (`Ctrl-Space`, `Ctrl-j/k`, `Tab`/`Shift-Tab`, `Ctrl-p` up, `Enter`/`Ctrl-y`, `Esc` closes and exits insert mode); `Ctrl-p` in normal mode opens the palette, in insert mode it is completion (§6). Signature help on `(` and `,`. `gd` across files through `getDefinition`; a lib location is reported, not opened.
+- Global keys (§6): `Ctrl-p` and the two-key sequences `g r` (wired), `g n`, `g p`, `] e`, `[ e` (matched, handlers at F8) with a 1 s sequence timeout; the palette is shadcn's `Command` in a dialog; `Esc` restores focus through the dialog.
+- Dependencies: `@codemirror/lint` 6.9.7 and `@codemirror/autocomplete` 6.20.3 (§2 names both), plus `@lezer/highlight` 1.2.5 made a direct dependency for the `tags` import the highlight style needs (it is `@codemirror/language`'s own dependency; pnpm's strict layout does not expose it otherwise).
+- Tests: 149 unit tests (`pnpm test --run`); 174 Playwright tests (`pnpm test:e2e`, Chrome, about 40 s after the build): the 73-test checklist port plus `editor-vimrc`, `editor-ex`, `editor-types`, `editor-clipboard`, `editor-files`, `editor-before-ready` and `palette`, next to the F1/F2 specs (the F1 overlay test now counts the global keys table only, since the overlay gained the ex table).
+- Measured (`vite build`, 17 October 2026): `index-*.js` 1,109,650 bytes raw, 364,990 gzip (F2: 417,450 raw; CodeMirror, the Vim engine, lang-javascript and cmdk joined the main chunk), CSS 66,720 raw, 13,370 gzip, the worker chunk unchanged at 3,556,432; build 1.7 s. §9's budgets are measured at F15; a split of the editor into its own chunk is an option then.
+- **F9 (21 October 2026)** closed `:export`, the last row of criterion 3 (`e2e/editor-ex.spec.ts` ":export downloads ts-dojo-progress-<date>.json…"; the file's full §7 shape in `e2e/progress.spec.ts`). The acceptance-reviewer re-graded the criterion MET with every §4 row proven, and the box is ticked.
+- **F8 (20 October 2026)** closed the rows of criterion 3 the lesson page owns (`:hint :sol :solution :reset :done :next :n :prev :N :lesson next/prev :theory :practice :output :focus left/right/up/down :layout split/theory/practice :prompt`, `e2e/lesson-ex.spec.ts`), so only `:export` (F9) keeps it open; and re-proved criterion 8's read-only lesson `.d.ts` on the lesson page with the fixture's `types/geometry.d.ts` (`e2e/lesson-files.spec.ts`: the tab, its badge, `:ls` `[RO]`, refused edits, the type in the project).
+- **F7 (20 October 2026)** closed the `:test` row of criterion 3 (`e2e/verify.spec.ts`, `:test` and `:t` on the lesson page). Criterion 3 stays open for the rows F8 and F9 own.
+- **F5 (20 October 2026)** closed the `:e` and `:bd` rows of criterion 3 (`e2e/repl-buffers.spec.ts`) and replaced the `/repl` demo project with the welcome buffers (`index.ts`, `shapes.ts`, both editable). Criterion 8's read-only `.d.ts` half therefore lost its `/repl` test; the controller code is unchanged and F8 re-proves it on the lesson page with a real lesson `.d.ts`. Criterion 3 stays open for the rows F7, F8 and F9 own.
+- Left for later features: running the emitted modules and the output pane with its tabs (F4); scratch buffers, `:e`, `:bd`, autosave (F5); the lesson page's host (F7–F9); the Settings page's vimrc editor (F10: `writeSettings({ vimrc })` re-applies through `subscribeSettings`); lessons and exercises in the palette (F6/F8); the pane keys `1 2 3`, `Ctrl-h/j/k/l` outside the editor and `Esc` (F8).
+
+## F4. Sandbox runner
+
+- [x] `console.log` of a string, a nested object, a Map, a class instance and an Error renders readably with its source line.
+- [x] `while (true) {}` is terminated at the deadline, the page stays responsive throughout (Playwright keeps typing during the run), and the status reads "killed after 5 s".
+- [x] A thrown error shows the message and the TypeScript file and line; `Enter` on it moves the cursor there.
+- [x] Two files importing each other without a cycle run in the right order; a cycle falls back to CommonJS and still runs (fixtures for both).
+- [x] Top-level `await` works in a single-file run.
+- [x] Output stops at 500 entries or 200 KB with one truncation line.
+- [x] A pending `setTimeout` after the entry settles shows "still running (1 timer)"; `:kill` ends it.
+
+**Notes (18 October 2026)**
+
+- Layout (§2, CLAUDE.md): the pure cores under `src/workers/sandbox/` run in Node and in the worker: `serialize.ts` (console arguments as text: depth 3, cycle-safe, Error, Map, Set, Date, class names, functions, typed arrays; a top-level string raw, a nested one quoted), `source-map.ts` (the inline v3 map decoded with about 40 lines of VLQ, no library), `modules.ts` (bundler-style resolution of relative specifiers to project files, the import graph, dependency order, cycle detection, specifier rewriting at the spans ts reports), `loader.ts` (ES modules: one URL per module built leaves first with its specifiers rewritten, then `import(entry)`; CommonJS: each module wrapped in `export default function (require, exports, module) {…}`, every wrapper imported, the entry run with a cached `require`, Node's partial-export semantics for the cycle) and `prelude.ts` (the console shim installed on the given global, the frame → TypeScript position mapping through a registry of loaded URLs, the timer wrappers that count pending timers, the output caps). `worker.ts` is the adapter: one `run` per worker, blob URLs, `error` and `unhandledrejection` → `runtimeError`, `done` when the entry settles. `runner.ts` is the main-thread owner (the analogue of F2's `client.ts`): resolves the graph, re-emits as CommonJS on a cycle, spawns the worker, keeps the deadline timer on the main thread where a tight loop cannot block it, terminates on the deadline, on `:kill` and when the next run starts, and holds the run state the pane renders. `src/protocol/sandbox.ts` has the messages, `DEFAULT_TIMEOUT_MS` 5000, the caps 500 entries / 200 000 bytes (UTF-8) and `TEST_TIMEOUT_MS` 1000 for F7. `src/app/output-pane.tsx` is the §4 pane (Console, Problems, Tests, the status line `role="status"` "run status"), `src/app/run-status.ts` its text, `src/app/sandbox.ts` the app's runner (`new Worker` + the ts-ls client for the fallback); `/repl` hosts it and F8's lesson page reuses it.
+- Protocol: `emit` gained an optional `module: "commonjs"` and `EmittedFile` an `imports` list (specifier and its span, from `ts.preProcessFile` on the emitted text, so the rewriting needs no regex; empty for CommonJS output); the sandbox has a `truncated { entries, bytes }` message and sends `done` a second time with `pendingTimers: 0` when the last timer drains (Spec questions). `mode: "test"` is accepted and runs the entry like `run` until F7 adds the harness.
+- Status line (§4, §12): `running`, `done in 12 ms` / `done in 1.3 s`, `killed after 5 s` (the deadline reports the configured time), `killed after 412 ms` (`:kill` reports the elapsed time), `still running (1 timer)`, `failed: <reason>` (an import outside the project, an emit error); `(CommonJS: cyclic imports)` is shown next to it after the fallback. The deadline is absolute from the start of the run and ends a "still running" run too; on `done` with no timers pending the worker is terminated at once (nothing can run any more).
+- Pane keys: `j`/`k` move the selection, `Enter` opens the entry's file at its line and column through `openFileAt` on the editor handle (new in `src/editor/registry.ts`), `h`/`l` switch the tabs, `Esc` returns to the editor; `:w` switches to Console; `:kill` with nothing running says so in the Vim panel. The Problems and Tests panels stay mounted (`keepMounted`) so the F3 tests keep counting diagnostics; the Tests tab is a placeholder until F7.
+- Engine facts that shaped the code: Chrome does not apply source maps to `Error.stack`, so the shim and the error path map themselves through the module's inline map; `ts.preProcessFile` reports an import's `pos` at the opening quote and `end` without the closing one; TypeScript's CommonJS output hoists `exports.a = void 0` above the `require`, so a module in a cycle sees the key with `undefined` (the fixture asserts that); a cycle with top-level `await` cannot run (the factories are synchronous) and surfaces as a runtime error; Node 24 imports `data:` URLs, which is how the loader tests run real `transpileModule` output without a browser.
+- `src/workers/ts-ls/ambient.ts`: the shim provides exactly `console.log/info/warn/error/debug` and the four timers, and the worker has its own `queueMicrotask`, so the F2 declaration already matched; only its comment changed.
+- Reviewed PASS by the acceptance-reviewer on 18 October 2026, every criterion MET, every check run by the reviewer itself (typecheck, lint, format:check, 197 unit tests, 183 Playwright tests in Chrome); its one remark, a `j`/`k` movement test over several entries, was added afterwards (`e2e/sandbox.spec.ts`, 184 Playwright tests now). No F4 criterion is by hand or droplet, so nothing joins "For Kim".
+- Tests: 197 unit tests (`pnpm test --run`; new: `serialize`, `source-map`, `modules`, `loader`, `prelude`, `runner`, `run-status`, plus the two emit tests in `core.test.ts`); 184 (about 45 s after the build) Playwright tests (`pnpm test:e2e`): `e2e/sandbox.spec.ts` proves the seven criteria plus the pane keys, and the F3 `:w`/`<Space>r` tests now assert the console output (`12.57 cm`).
+- Measured (`vite build`, 18 October 2026): the sandbox worker chunk is 8.3 KB; `index-*.js` 1,136,150 bytes raw, 374,370 gzip (F3: 1,109,650). In Chrome (`e2e/sandbox.spec.ts`, in-page `performance.now()`): `:w` to the `running` status 18–33 ms, `running` to `killed` 4,999–5,000 ms; the §9 budget for a trivial run is measured properly at F15.
+- Left for later features: the test harness, `mode: "test"` and the Tests tab (F7); the lesson page hosting the pane and the attempt row before a run (F8); the default timeout from Settings (F10, `DEFAULT_TIMEOUT_MS` until then); the §9 "run of a trivial file under 150 ms" measurement (F15).
+
+## F5. Standalone REPL
+
+- [x] `/repl` opens the last buffer; `:e name` creates or switches; `:ls` lists; `:bd` deletes after confirmation.
+- [x] A buffer survives a reload, autosaved within 1 s of the last keystroke.
+- [x] Open in REPL from a theory block creates a buffer with the snippet and focuses the editor in normal mode.
+
+> **Gate (§11):** the REPL works: Vim checklist, diagnostics, `^?`, run, kill, clipboard.
+
+**Notes (20 October 2026)**
+
+- Reviewed by the acceptance-reviewer on 20 October 2026, every check run by the reviewer itself (typecheck, lint, format:check, 215 unit tests, 197 Playwright tests in Chrome): criteria 1 and 2 MET; criterion 3 NOT MET as written, "F5's half proven": everything after the click (`createReplBuffer`, the navigation, the last buffer opening, the editor focused in normal mode) is implemented and driven in Chrome through the app seam, but the trigger the criterion names, a theory block, does not exist before F6, the same situation as F3's criterion 3. The verdict reads "FAIL (as written)" with nothing in F5 to fix; the box stayed open until F6 shipped the block and the Playwright test. **F6 (20 October 2026)** closed it: `e2e/content.spec.ts` focuses a `ts run` block's Open in REPL, presses `Enter` and asserts the `/repl` landing (`.cm-content` focused, mode normal, document equal to the fence). The SessionStart hook keeps naming F3 until F7–F9 close its rows.
+- Layout (§2, CLAUDE.md): `src/store/db.ts` is the Dexie database `ts-dojo`, version 1, with all five §7 tables declared at once (`lessons: id`, `exercises: id`, `attempts: ++id, exerciseId`, `buffers: name`, `meta: key`) and their row types, so F7–F9 add rows without a schema version; the fields are `declare`d because `useDefineForClassFields` would otherwise shadow the tables Dexie sets in `super()`. `src/store/buffers.ts` is the name rule behind `:e` (`^[A-Za-z0-9][A-Za-z0-9._-]*$`, `.ts` appended when missing, so `notes` and `notes.ts` are one buffer), the path mapping (`notes.ts` ↔ `/notes.ts`), `allocateBufferName` (`scratch.ts`, `scratch-2.ts`, …) and the queries over `buffers` and `meta.lastBuffer`; `src/store/autosave.ts` the per-key 500 ms debounce (§7) with `flush` and `forget`. `src/pages/repl.tsx` reads the buffers on mount (and again on a new navigation to `/repl`, which Open in REPL from the page itself causes), seeds the two welcome buffers (`src/pages/welcome-buffers.ts`: the F3 demo's `index.ts` and `shapes.ts`, `const unit = 'cm'` in place of the `Unit` line) when the table is empty, opens the last buffer first and focuses the editor; `:e` and `:bd` are its host actions, `:w` runs the current buffer. `src/editor/confirm.ts` is the `y/n` prompt in the Vim panel through the adapter's `openDialog` (the engine's own `:s///c` mechanism; `role="alertdialog"`, a labelled input; `y` deletes, `n`, `Esc`, `Enter` or a lost focus keeps). `src/app/open-in-repl.ts` is the Open in REPL action (`createReplBuffer` + `/repl`), on `AppActions` for F6's block button and published as `window.__tsDojoApp.openInRepl` (`src/app/seam.ts`) for Playwright until then.
+- Editor (§4): the controller's file set is live (`addFile(file, index?)`, `removeFile`, `files`, `onFilesChange`), `:e` inserts in name order (the order a reload shows), the tabs render from the live set, and a change re-opens the project with the live texts because the §2 protocol has no add or remove (the worker reuses the parsed libs through its registry; in-flight requests are rejected as `ProjectChangedError`, which the feedback extensions already drop). `removeFile` of the current buffer returns to the alternate buffer (the one it was opened from, as Vim does), else the next one. `entry` and `initial` are optional editor props: on `/repl` the entry is the current buffer and the initial file is the last buffer. `EditorFile` moved to `src/editor/host.ts`.
+- Decisions: welcome buffers on an empty table ("/repl opens the last buffer" needs something to open on the first visit); `:bd` on the only buffer is refused ("cannot delete the last buffer": the REPL has no unnamed buffer); `:w` on `/repl` runs the buffer being edited (§4's "entry file" of a scratch-buffer REPL), so the F4 cycle fixture switches back to `index.ts` before `:w`; a scratch buffer is never read-only, so the F3 read-only `.d.ts` Playwright test (`e2e/editor-files.spec.ts`) has no host on `/repl` any more and is re-proven on the lesson page at F8 with a real lesson `.d.ts` (the controller's read-only code is unchanged). Dexie's convention repo (suki) is not on this machine; the schema is §7 verbatim.
+- Dependencies: `dexie` 4.4.6 (the registry's `latest`; 4.4.7 is the `dev` tag) and, for Vitest in Node, `fake-indexeddb` 6.2.6 (dev).
+- Tests: 215 unit tests (`pnpm test --run`; new: `src/store/buffers.test.ts`, `src/store/autosave.test.ts`, `src/app/open-in-repl.test.ts`); 197 Playwright tests (`pnpm test:e2e`, Chrome, about 45 s after the build): `e2e/repl-buffers.spec.ts` (16 tests, one `describe` per criterion) plus the F3 and F4 specs updated for the two welcome buffers (`editor-files`, `editor-ex`, `sandbox`). The §11 gate ("the REPL works: Vim checklist, diagnostics, `^?`, run, kill, clipboard") is covered by the F3, F4 and F5 specs on `/repl`; clipboard over HTTPS stays the F3 "For Kim" item.
+- Measured (`vite build`, 20 October 2026): `index-*.js` 1,236,826 bytes raw, 402,184 gzip (F4: 1,136,150 raw; Dexie joined the main chunk), CSS 66,904 raw, 13,440 gzip, the ts-ls worker chunk 3,556,779, the sandbox worker 8,346; build about 2 s.
+- Left for later features: the `ts run` block's Run and Open in REPL buttons calling `openInRepl` (F6, which also proves "from a theory block"); the lesson page's read-only `.d.ts` test (F8); `buffers` in the export and import (F9); the `:e`/`:bd` palette items already exist (F3).
+
+## F6. Content pipeline
+
+- [x] `pnpm content:lint` fails on each §3 condition, proven by one fixture per condition.
+- [x] Every shipped solution passes its own exercise and every starter fails it, checked in Node with the same core modules the app uses.
+- [x] A `ts twoslash` block renders its `^?` results at build time; the browser loads no worker for theory.
+- [x] `ts run` blocks have Run and Open in REPL; `ts run errors` blocks show their diagnostics.
+- [x] Three fixture lessons (one per editor kind, plus a `predict`) exist under `content/` and render.
+
+> **Gate (§11, with F7 and F8):** one lesson works end to end.
+
+**Notes (20 October 2026)**
+
+- Layout (§2, CLAUDE.md): `src/content/schema.ts` is the Zod schemas for the five §3 shapes (roadmap, module, exercise as a `kind` discriminated union, renames, lesson frontmatter) plus the `<Predict>` props; `src/content/build-registry.ts` the pure registry builder both sides share (ids unique, prerequisites resolved and acyclic, folders matched to ids, starter/solution file names paired, `tests.ts` required for non-`fix` kinds; problems come back tagged with their §3 condition, 1, 4, 5 or 7, instead of throwing); `src/content/registry.ts` the browser side over `import.meta.glob` (YAML as validated JSON, exercise files as `?raw`, `lesson.mdx?meta` for the frontmatter and question props, the MDX components lazy, one chunk per lesson); `src/content/fences.ts` the fence kinds and `<CodeBlock>` props; `src/content/components/` the §3 components (`Callout`, `Key`, `Lesson`, `Predict` rendered statically, `CodeBlock`) and `Theory` (objectives, then the MDX); `src/pages/lesson.tsx` the F6 host (theory plus a plain exercise list; F8 builds the two panes around it). Node only, under `src/content/node/`: `analyze.ts` (frontmatter, fences and `<Predict>` literal props from one MDX parse), `load.ts` (the tree from disk into the same input shape as the globs), `mdx.ts` (the fence pipeline), `lint.ts` (the lint) and `vite-plugin.ts`; `scripts/content-lint.ts` is the CLI.
+- Fences (§3, §2 Build): a remark plugin turns every `ts` fence into `<CodeBlock kind code html js? diagnostics?>` at compile time. shiki 4.5.0 highlights with `github-light` and `github-dark` into CSS variables (`defaultColor: false`; globals.css picks one by `html.dark`), so no highlighter ships to the browser. `ts twoslash` runs through `@shikijs/twoslash` 4.5.0's `transformerTwoslash` with a `createTwoslasher` from `twoslash` 0.3.9 built on the app's own pieces: the §2 defaults through `convertCompilerOptionsFromJson`, an `fsMap` filled by `loadLibs` + `nodeFetchLib` (the same 76 lib files the worker fetches; twoslash's default map uses `knownLibFilesForCompilerOptions`, which Prep showed cannot produce the ES-only set) and `/dojo/runtime.d.ts` as an `extraFiles` entry; `rendererClassic` so the output is static markup (`.meta-line > .popover` for a `^?` result; the package's `style-classic.css` is imported, with the app's popover colours over it). `ts run` and `ts run errors` snippets are checked and emitted with `createTsLsCore` under `/snippet.ts`, so Run hands pre-emitted JavaScript to a fresh sandbox worker (no language-service round trip; it works before the compiler is ready) and `run errors` carries the diagnostics the app's own core reports. The renderer queues its core calls: Vite compiles lessons concurrently through one renderer and the core holds one project at a time (a race the first Chrome check caught: Run on lesson 1 printed lesson 2's output).
+- Build (§2, §3): `vite.config.ts` loads the plugin through tsx's `tsImport` because Vite bundles the config with its relative imports and cannot resolve the `@/` alias the plugin's imports use. The plugin validates every YAML file in `transform` (the build fails with the path and the Zod message), answers `lesson.mdx?meta` from a virtual id (the MDX plugin compiles every id whose file ends in `.mdx`, query included, and would wrap a plain `export default` as a layout), and runs the whole loader at `buildStart` so a duplicate id or a bad prerequisite fails the build too. `@mdx-js/rollup` 3.1.1 works under Vite 8's Rolldown unchanged.
+- Verification shipped early (§5; the "Spec questions" entry below): the lint cannot judge "a failing runtime test" or compile a `tests.ts` without the harness, so F6 ships `src/workers/sandbox/harness.ts` (the §5 `test`, `test.skip`, `expect` and matchers, ~250 lines with `deepEqual`, `.not`, `.resolves`, `.rejects`, the 1 s per-test timeout, results streamed as `testStart`/`testResult`/`testSummary` with expected and actual serialized like console output), `mode: 'test'` in both worker adapters, `RunState.tests` and `RunState.testSummary` on the runner, `/dojo/test-harness.d.ts` and `/dojo/type-utils.d.ts` (`src/verify/type-utils.ts`, type-challenges' utils as a `declare module`, MIT) added by the core to every project that has a `tests.ts`, and `src/verify/exercise.ts`: the §5 verdict (`ExerciseResult`, Compiles first and the other groups not run when it fails, `tests.ts` diagnostics outside case ranges prefixed "test file does not compile", `explicit-any` on for `type-challenge`, the runtime group skipped for `type-challenge`, a killed or failed run reported as a synthetic `(run)` entry and a load error as `(load)`). F7 wires `:test` and the Tests tab to it with the client and the browser runner.
+- Node sandbox (§2 "both cores run in Node"): `src/workers/sandbox/node/worker.ts` is the `worker_threads` twin of `worker.ts` (same prelude, loader and harness; `data:` URLs), `node/spawn.ts` wraps it as the runner's `SandboxWorkerLike`, so `createSandboxRunner` runs unchanged in Node with its real deadline (a spinning test is killed at `timeoutMs`). The thread starts with exactly `--import tsx` (the parent's `execArgv` is not inherited: under Vitest it holds a `--require` path that happens to contain "tsx", under the tsx CLI `--eval`). A worker-level `error` event now fails the run at once instead of waiting for the deadline (runner.ts; the F4 test updated).
+- Lint (§3): structural problems (1, 4, 5, 7) stop the lint before any compiler work; then every `ts run` fence must check clean and every `ts twoslash` fence must render (6); then every editor exercise's solution must pass its verdict (2) and its starter must fail it, a `fix` starter with at least one diagnostic (3). Ids narrow the run (`pnpm content:lint m99-fixtures/01-fix`). The shipped tree: 3 lessons and 5 editor exercises in 1.4 s. The Vitest fixtures copy `content/` to a temp dir and mutate one thing per §3 bullet (26 tests, about 5 s). With an index model a `predict` question cannot have more than one correct option; the lint reports an `answer` outside the options as "none is correct". `pnpm content:lint` runs in CI before the build; ESLint ignores `content/**` (the lint checks those files with the app's compiler).
+- Fixture content (§12 F6): a fixture tier `t9` with `m99-fixtures` (`01-fix`, `02-implement`, `03-type-challenge`; two exercises each, so six in all: fix + predict, implement + fix, type-challenge + implement), each lesson with the §1 sections, a `ts twoslash`, a `ts run`, a `ts run errors` block and one `<Predict>`, adapted from the lesson skill's reference lesson. F11 replaces the tier with the §8 tiers; no progress exists before then, so no `renames.yaml` entry.
+- Open in REPL (§12 F5 criterion 3): the block's button calls `useAppActions().openInRepl` with the snippet and the lesson folder as the buffer name (`/01-fix.ts`); proven by `e2e/content.spec.ts` (focus the button, `Enter`, `/repl` with the fence as the document, `.cm-content` focused, mode normal), which closes the F5 box.
+- Reviewed PASS by the acceptance-reviewer on 20 October 2026, every criterion and F5's criterion 3 MET, every check run by the reviewer itself (typecheck, lint, format:check, 294 unit tests, content lint, 211 Playwright tests in Chrome in 45 s). Its two optional remarks were applied afterwards: a test that spawns the CLI and asserts the exit codes (`--root=<dir>` added to `scripts/content-lint.ts` for it; 295 unit tests now) and a stray no-op in a fixture removed. No F6 criterion is by hand or droplet, so nothing joins "For Kim".
+- Tests: 295 unit tests (`pnpm test --run`; new: `src/content/{schema,build-registry}.test.ts`, `src/content/node/mdx.test.ts`, `src/verify/exercise.test.ts`, `src/workers/sandbox/harness.test.ts`, `src/workers/sandbox/node/spawn.test.ts`, `src/workers/ts-ls/ambient.test.ts`, `scripts/content-lint.test.ts`); 211 Playwright tests (`pnpm test:e2e`, Chrome, about 45 s after the build): `e2e/content.spec.ts` (12 tests, one `describe` per criterion plus F5's) and `e2e/scaffold.spec.ts`'s lesson rows moved to the fixture lesson (the F1 placeholder stays for an unknown id).
+- Left for later features: `:test`, the Tests tab and the hang fixture in Chrome over `verifyExercise` (F7); the practice pane, the exercise strip, `Predict` answering with `j`/`k`/`Enter`, `Enter` on a focused block, `:done` (F8); lesson state in `<Lesson>` and the roadmap over `roadmap.yaml` (F9); lessons and exercises in the palette (F8); the real tiers in place of `t9` (F11).
+- Dependencies: dev `@mdx-js/rollup` 3.1.1, `@mdx-js/mdx` 3.1.1, `remark-frontmatter` 5.0.0, `unist-util-visit` 5.1.0, `mdast-util-mdx-jsx` 3.2.0, `@types/mdast` 4.0.4, `@types/mdx` 2.0.14, `@types/estree` 1.0.9, `shiki` 4.5.0, `@shikijs/twoslash` 4.5.0, `twoslash` 0.3.9, `tsx` 4.23.15 (Kim's convention in job-search-automation and poke-project; `content:lint` and the Node sandbox thread run under it); runtime `zod` 4.6.7. pnpm 12 reports `ERR_PNPM_IGNORED_BUILDS` for esbuild's install script (a tsx dependency); the platform binary is installed anyway and tsx runs, so no `approve-builds` was needed.
+- Measured (`vite build`, 20 October 2026): `index-*.js` 1,359,860 bytes raw, 436,823 gzip (F5: 1,236,826 raw; zod, the registry with the exercise texts and the lesson page joined the main chunk), CSS 74,004 raw, three lesson chunks 15,961 / 24,775 / 30,435 bytes (the html and the emitted JavaScript of their fences), the sandbox worker 13,519 (F4: 8,346; the harness), the ts-ls worker unchanged at 3,559,663; build about 2 s with the three lessons (the twoslash and snippet work is under a second). §9 is measured at F15.
+
+## F7. Exercise verification
+
+- [x] For a `type-challenge` fixture, each `cases` element is its own case with pass or fail, and an unused `@ts-expect-error` fails its case.
+- [x] For an `implement` fixture, every runtime test reports pass or fail with expected and actual; a 1 s hang reports `timeout`.
+- [x] `forbid: [explicit-any]` fails a solution with `any` and names the line; without the rule the same solution passes.
+- [x] A `@ts-ignore`, `@ts-nocheck` or `@ts-expect-error` in a non-test user file always fails, and so does `eval`.
+- [x] A `fix` exercise passes only when every file has zero diagnostics.
+- [x] Compiles failing stops the other groups, with the reason shown.
+- [x] The Tests tab shows the four groups; `j`/`k` move, `Enter` expands or jumps to the source.
+
+**Notes (20 October 2026)**
+
+- Scope (§11, Spec questions "§11 order against §3 and §5"): F6 shipped the verification core (the §5 verdict, the harness, the case grouping, the rules), so F7 is `:test`, the Tests tab and the proofs in Chrome. The verdict gained one hook, `onProgress` (`src/verify/exercise.ts`: the phase that runs next and the groups known so far; the runtime phase is reported only when the exercise has runtime tests), and the four group names moved there as `VERDICT_GROUPS` (the lint imports them).
+- Layout (§2): `src/verify/verifier.ts` the page's verification store (idle, running with its phase, done with the verdict, error; a newer `:test` supersedes an older one; `dispose` is not final because StrictMode remounts once in development); `src/verify/client-core.ts` the `VerifyCore` over the browser's ts-ls client, whose `openProject` sends nothing because the editor already opened this project with the same options, libs and `.d.ts` files and streams every edit (opening it again would reject the editor's own requests in flight); `src/verify/tests-view.ts` the Tests tab as rows (group statuses, summaries, the "not run: fix the compile errors first" reason, default expansion, `Enter` targets, the verdict line, `currentTestRun`); `src/app/tests-tab.tsx` renders them; `src/app/output-pane.tsx` owns the selection and the keys on that tab too; `src/pages/practice.tsx` the practice host for an editor exercise; `src/pages/not-here.ts` the notices for rows other features own (moved out of `repl.tsx`).
+- Lesson page (§6): `/l/<lesson>/<exercise>` for an editor exercise opens the practice pane beside the theory (40/60 at `lg`): the exercise header, the prompt as preformatted text, the editor over the starter files, `tests.ts` (a user file, §5; editable) and the lesson's `types/*.d.ts` (read-only), and the output pane. `:w` runs the entry file; `:test`/`:t` switches to the Tests tab and verifies the editor's live texts (`text(path)` was added to the editor handle). `:w` and `:test` have one sandbox runner each, so a run never ends the other's worker and the verdict reads only test runs; `:kill` ends either. A `predict` exercise and the theory pane's focus answer with F8. Without an exercise in the URL the page is the F6 page (no editor, no extra worker).
+- Tests tab (§5 Verdict): the verdict line first ("Passed. :next opens the next exercise.", "Failed: Compiles failed, so the other groups did not run.", "Failed: Type cases, Rules.", "checking: Runtime tests"), then the four groups with a check or a cross and a summary; a failed group starts expanded, Runtime tests too while its results stream in; the children are the diagnostics, the cases (each with its own diagnostics), the tests (status, message, `expected:`, `actual:`, ms) and the rule hits. `j`/`k` move, `Enter` on a group expands or collapses it, on a diagnostic, a rule hit, a failed case or a failed or timed-out test moves the cursor there; a test has no position, so its target is its `test('name'` line in `tests.ts` (Spec questions). While the Tests tab is shown, the status line follows the test run. A pass plays no sound and shows no confetti.
+- Two glitches the first Playwright pass found and fixed, each with a regression test that fails without the fix: a second `:test` listed the previous run's runtime results as live until its own run started (`currentTestRun` hides them until the runner's run count passes the one recorded at `:test`), and an exercise without runtime tests showed Runtime tests as `running` for a moment.
+- A synchronous endless loop in a test cannot be stopped at 1 s inside the worker (one thread); it ends at the run deadline (`timeoutMs`, 5 s by default) and shows as a `(run)` row with `timeout`. The 1 s `timeout` of the criterion is a test that never settles, which is what the proof uses.
+- Fixture: the type-challenge exercise's `cases` tuple gained a second element ("narrowing by type finds the keydown"), so the F7 test itself shows one tuple with one element failing and the other passing; the prompt says so.
+- Reviewed PASS by the acceptance-reviewer on 20 October 2026, every criterion MET, every check run by the reviewer itself (typecheck, lint, format:check, 325 unit tests, content lint, 227 Playwright tests in Chrome). Its optional remarks were applied afterwards: the second `cases` element above, a spy-core unit test that nothing is linted, emitted or run after Compiles fails, and `:t` exercised on the lesson page (326 unit tests, 227 Playwright tests, all green). Criterion 3's "without the rule the same solution passes" half is proven in Vitest (every fixture that uses the rule lists it, and the browser runs the same `verifyExercise`); the reviewer judged that adequate. No F7 criterion is by hand or droplet, so nothing joins "For Kim".
+- Tests: 326 unit tests (`pnpm test --run`; new: `src/verify/{verifier,client-core,tests-view}.test.ts`, the F7 criteria 3 to 6 in `src/verify/exercise.test.ts`); 227 Playwright tests (`pnpm test:e2e`, Chrome, about 55 s after the build): `e2e/verify.spec.ts` (16 tests, one `describe` per criterion plus the two regressions), helpers in `e2e/helpers/verify.ts` (a MutationObserver records every verdict the tab showed, so a wait can never be satisfied by the previous run).
+- Measured (`vite build`, 20 October 2026): `index-*.js` 1,375,099 bytes raw, 440,699 gzip (F6: 1,359,860 raw), CSS 74,907; the workers unchanged (sandbox 13,519, ts-ls 3,559,663). §9 is measured at F15.
+- Left for later features: recording an attempt on every `:run` and `:test` (§1, §7 `attempts`; F8 with the store), the exercise strip, hints, `:sol`, `:reset`, autosave, the pane keys and `Ctrl-h/j/k/l` to the theory pane, the prompt rendered as Markdown and `:prompt`, `predict` answering (F8).
+
+## F8. Lesson page
+
+- [x] Theory and practice side by side; `Ctrl-h/j/k/l`, `1`/`2`/`3` and `Esc` move focus as §4 and §6 say.
+- [x] With the editor focused in normal mode, `g r`, `g n`, `] e` and `?` do nothing app-level (Playwright).
+- [x] `:done` with Check yourself questions unanswered jumps to the first one and says how many remain; once all are answered correctly, `:done` marks theory read; passing every required exercise then completes the lesson, and the module page and the roadmap show it.
+- [x] `:hint` reveals hints in order and records the count; `:sol` opens the solution read-only and records it; `:reset` restores the starter after confirmation.
+- [x] `:next` and `:prev` move between exercises and across lesson boundaries; the URL reflects the current exercise; a direct link to `/l/<lesson>/<exercise>` opens it.
+- [x] Files are autosaved per exercise and restored on return, including after a reload mid-edit.
+- [x] A `predict` exercise answers with `j`/`k`/`Enter`, shows the explanation and records the answer.
+
+**Notes (20 October 2026)**
+
+- Plan decisions (Kim, 20 October 2026): a minimal real module page and roadmap from the store so criterion 3 closes now (F9 adds rings, edges, Continue, "Recommended first" and the keys); prompts compiled at build time; ex commands on a page without an editor through the palette, no new key; `tests.ts` stays editable.
+- Layout (§2): `src/pages/lesson.tsx` the page (route, the §7 rows through `useLiveQuery`, the 40/60 split with a draggable `role=separator`, the theory pane as a focusable scroll region with the §6 reading keys and the `:done` button, the exercise strip, the notice line under both panes, the controller for focus, moves, `:done`, `:layout`, and the page actions for the global keys and the palette); `src/pages/practice.tsx` the editor exercise (header, compiled prompt, hints, editor, the `:sol` split, the output pane; autosave and the unsaved journal; attempts; `:hint`, `:sol`, `:reset`, `:prompt`, `:w`, `:test`, `:kill`); `src/pages/lesson/` the pure parts and small pieces (`navigation.ts` course order and `:next`/`:prev`; `panes.ts` the direction table; `controller.ts` the contract; `page-action.ts` the page-level commands; `exercise-header.tsx`, `exercise-prompt.tsx`, `predict-panel.tsx`, `separator.tsx`); `src/store/progress.ts` the lesson, exercise and attempt writes; `src/store/completion.ts` §1 completion and `:done`'s outcome; `src/store/use-live-query.ts` Dexie's own `liveQuery` (no extra package); `src/store/unsaved.ts` the journal; `src/content/components/question.tsx` one keyboard question for Check yourself and `predict`; `src/app/page-actions.ts`, `palette-filter.ts`, `reading-keys.ts`; `src/pages/module.tsx`, `roadmap.tsx`.
+- Focus (§4, §6): theory, editor (or a `predict` question) and output carry `data-pane`; `Ctrl-h/j/k/l` move by position (theory left; editor above output on the right) from the editor through the vimrc's `:focus` and elsewhere through the global keys, which now include `1 2 3`, `Esc` and `Ctrl-h/j/k/l`; keys pressed inside a dialog stay with it. A pane hidden by `:layout` comes back with the split when asked for by name (`1/2/3`, `Esc`, `:theory/:practice/:output`); `Ctrl-h/j/k/l` skip it. After a move (`:next`, `] e`, `:lesson`, `g n`) the pane it came from has the focus again: the theory pane, or the new exercise's editor or question. A palette command acts from the pane that had the focus when the palette opened.
+- `/l/<lesson>` replaces itself with `/l/<lesson>/<first unfinished>` once the rows are read (§6 "the URL always reflects the selection"); `e2e/scaffold.spec.ts` lost its bare-lesson row and `e2e/content.spec.ts` expects the exercise URL. Opening a lesson writes `state` in progress, `lastOpenedAt`, `lastExerciseId` and `meta.lastLessonId` for F9's Continue.
+- `:done` (§1): the first question not answered correctly is focused and scrolled into view, with "N question(s) remain"; when none is left, `theoryReadAt` and "Theory read." (or "Lesson complete."). Completion is re-checked after `:done`, a passing `:test` and a correct `predict` answer; a `challenge: true` exercise never blocks it. `:hint` counts up to the hints the exercise has and shows them in order; `:sol` opens the solution files as read-only `<pre>` beside the editor (§2 allows one CodeMirror per page) and records `solutionViewed`; `:reset` asks in the Vim panel, then clears the stored files and remounts the editor on the starter, keeping the attempts. `:layout` is stored per lesson (`lessons.layout`) and as the default (settings `layout`, a §7 key).
+- Attempts (§1, §7, §9): every `:w` and `:test` writes its row before the sandbox starts and completes it afterwards; the newest 20 per exercise are kept (Spec questions: `kind`, `attemptsToPass`).
+- Palette (§6): one list of the ex commands by name, the lessons by title and tags and the exercises by title, scored by `src/app/palette-filter.ts` (a name beats a word in a description, so `next` selects `:next`, not `:hint`); one cmdk group because cmdk sorts items within a group but did not reorder groups.
+- Found and fixed through the Playwright pass: `:layout theory` from the editor left the focus on the body (the editor area had no `data-pane`); the palette ranked a description word above a command name; `g g n` in the theory pane opened the next lesson (a handled key now ends a pending global sequence); a reload inside the 500 ms autosave window lost the edit (the journal); a move left the focus on the body; `:focus` from the palette acted as if typed in the editor; a notice was hidden with the practice side under `:layout theory`. Each has a test.
+- Reviewed PASS by the acceptance-reviewer on 20 October 2026 (third pass), every criterion MET, every check run by the reviewer itself (typecheck, lint, format:check, 369 unit tests, content lint, two full Playwright runs of 275 tests each in Chrome, and 265 repeats of the completion and lesson-file specs). It judged the completion wait sound (CodeMirror's 75 ms window is set once per list and the tests still prove every key). F3 criterion 8 stays ticked; F3 criterion 3 is open only for `:export` (F9). No F8 criterion is by hand or droplet, so nothing joins "For Kim".
+- The review's first verdict was FAIL on criterion 3 (WEAK TEST: one question per fixture lesson, no challenge exercise): `doneOutcome`/`remainingMessage` are now the tested functions `:done` runs (three questions, the first open one and the open count), and `lessonShape` is tested with a challenge exercise. The fixture `02-implement/02-literal-discriminant` gained `types/geometry.d.ts` (the `SquareUnits` its `area` returns), which re-proves F3 criterion 8's read-only `.d.ts` on the lesson page.
+- Two completion tests from F3 (`e2e/editor-ex.spec.ts` "in insert mode Ctrl-p is completion, not the palette", `e2e/editor-types.spec.ts` "Ctrl-j, Ctrl-k, Tab and Shift-Tab move the selection", and once "Ctrl-y accepts the selected item") failed now and then under the larger suite: CodeMirror ignores the completion keys for `interactionDelay` (75 ms) after a list opens, and a busy machine pressed `Ctrl-j` inside it. The app now names the delay (`COMPLETION_INTERACTION_DELAY_MS`, the default, unchanged) and `waitForCompletionKeys` in `e2e/helpers/editor.ts` waits it out; F8's own Open-in-REPL test read the seam before `/repl`'s editor replaced the lesson's and now waits for it. Two full runs and `--repeat-each=5` of those three files (265 tests) passed.
+- Tests: 369 unit tests (`pnpm test --run`; new: `src/store/{progress,completion,unsaved}.test.ts`, `src/pages/lesson/{navigation,panes}.test.ts`, `src/app/{reading-keys,palette-filter}.test.ts`, `src/content/node/vite-plugin.test.ts`, plus cases in `keys`, `settings`, `autosave` and `ex-commands`); 275 Playwright tests (`pnpm test:e2e`, Chrome, about 65 s after the build): `e2e/lesson-{focus,done,practice,nav,ex,files}.spec.ts` with `e2e/helpers/lesson.ts`, and the updated `scaffold`, `content` and `editor-ex` specs.
+- Measured (`vite build`, 20 October 2026): `index-*.js` 1,400,895 bytes raw, 449,671 gzip (F7: 1,375,099 raw), CSS 76,566; six prompt chunks (`exercise.yaml.prompt-*.js`), the workers unchanged. §9 is measured at F15.
+- Left for later features: the module page's prerequisites, objectives and keys, and the roadmap's rings, edges, Continue bar, "Recommended first" and keys (F9); `:export` (F9); the Settings page's `layout` and vimrc editors (F10).
+
+> **Gate (§11):** one lesson works end to end.
+
+## F9. Roadmap, modules and progress
+
+- [x] The roadmap renders every tier and module from `roadmap.yaml` with prerequisite edges and progress rings; `j`/`k`/`h`/`l`/`Enter`/`c` work without a mouse.
+- [x] Continue opens the last touched exercise.
+- [x] A module with unmet prerequisites shows "Recommended first" and still opens.
+- [x] `/progress` shows per-module counts, hints used and solutions viewed; `:export` downloads the JSON in §7; import previews and merges as §7 says; each reset scope works with its confirmation.
+- [x] Progress survives a reload and a content deploy; a `renames.yaml` entry migrates an id (fixture rename).
+
+**Notes (21 October 2026)**
+
+- Plan decisions (Kim, 21 October 2026, with the F9 plan): two predict-only fixture modules for the roadmap; `renames.yaml` as §7 writes it; the lesson-row merge rule; "Start" when nothing was opened; the focused lesson row expands; "Reset everything" keeps the settings; settings in the export and the import now (F10 proves its own criterion).
+- Fixture content (§12 F9 needs edges, a band to move in with `h`/`l` and a module with unmet prerequisites): `m98-fixture-sequel` (prerequisite m99, beside it in `t9`: the implied edge that is not drawn) and `m97-fixture-capstone` (prerequisites m99 and m98, alone in the new tier `t10` "Fixtures, second band": the two drawn edges), three lessons each with two `predict` exercises, the cheapest lessons the §3 lint accepts; every answer checked with `tsc` 6.0.3. The course now ends at m97, so the F8 end-of-course tests moved there. **F11** replaces every fixture tier and must keep the fixtures reachable for e2e (a test-only content root, or the fixture tiers kept out of the shipped roadmap).
+- `renames.yaml` (§3, §7): F6 had shipped `renames: [{ from, to }]` with lesson ids only, an unlogged difference from §7's `old: new`. F9 reads the spec's mapping (`renamesSchema` keeps the mapping; `buildRegistry` turns it into a list in file order), accepts lesson and exercise ids (§7 "lesson and exercise ids are stable"), each pair of one kind, and condition 7 checks the target against the lessons or the exercises. The shipped file has the two fixture renames (`m99-fixtures/00-first-fix` → `01-fix`, `…/02-implement/00-biggest-shape` → `…/01-largest-shape`); neither old id ever shipped.
+- Content version (§7): `src/content/node/content-version.ts` hashes the content tree (SHA-256 over the sorted relative paths and bytes, each framed with its length); the content plugin serves it as `virtual:ts-dojo/content-version` and `registry.ts` exports `CONTENT_VERSION`; the e2e tests compute the same hash in Node and compare it with `meta.contentVersion`.
+- Store (§7): `src/store/content-update.ts` runs on Dexie's `ready` event (sticky, installed in `main.tsx`), which holds every other query until it is done: each rename in file order (a lesson rename moves the lesson row, the exercise rows under it, their attempts, `lastExerciseId`, `meta.lastLessonId` and the unsaved journal; an exercise rename moves one exercise; a rename onto rows that exist merges them), then `schemaVersion` and `contentVersion`; nothing is deleted, so a removed lesson's rows stay and `/progress` lists them under "Orphaned". `merge.ts` is the §7 rule set shared with the import; `continue.ts` the Continue target; `summary.ts` the `/progress` counts and orphans; `export.ts`, `import.ts`, `reset.ts` the §7 export, import and reset scopes; `settings.ts` gained `parseSettings` so an imported file's settings go through the same validation.
+- Roadmap (§6): `src/pages/roadmap/model.ts` (cards, "Recommended first", reading order, `moveCard`), `edges.ts` (which edges, the curve between two boxes), `progress-ring.tsx`; the edges are measured from the cards' boxes and redrawn on `ResizeObserver`, behind the cards. The ring's accent and the edge colour are new tokens (`--progress`, `--progress-track`, `--roadmap-edge`, light and dark) because the Nova palette is greyscale. `src/app/use-page-keys.ts` is the window listener for a page's own single keys (`j k h l c` on the roadmap, `j k` on the module page) with the global map's guards; `Enter` stays the links' own activation; nothing is focused on load.
+- Module page (§6): summary, prerequisites with their state, "Recommended first", lessons with state, title and minutes; the focused row expands (`:focus-within`) to its objectives and its §1 lesson-level "Recommended first". An unknown id reads "Module not found".
+- `/progress` (§6, §7): totals, a table with one row per module and per lesson (lessons complete, exercises passed, hints used, solutions viewed, Reset), Export, Import (file → preview dialog with one line per category and a note for other content → Apply), Reset everything (the word `reset` typed), "Orphaned", the content version. `:export` works from every editor (`/repl` and the lesson page answer the host action), from the palette on a page without an editor, and from the button; `exportProgress` is an `AppActions` entry; the F9 rows left `src/pages/not-here.ts`.
+- Reviewed PASS by the acceptance-reviewer on 21 October 2026, every F9 criterion MET and F3 criterion 3 re-graded MET, every check run by the reviewer itself (typecheck, lint, format:check, 429 unit tests, content lint, 304 Playwright tests in Chrome). Its optional remark, that nothing pressed `Enter` on "Import progress…" itself, was applied afterwards: `e2e/progress.spec.ts` "Enter on "Import progress…" opens the file chooser…" (the listener is registered before the page loads, since Playwright turns file-chooser interception on asynchronously; 48 of 48 under `--repeat-each=6`). No F9 criterion is by hand or droplet, so nothing joins "For Kim".
+- Found and fixed on the way: the plugin's JSON module for each YAML file is parsed by the same schema again in the browser (`buildRegistry`), so a schema's output must be its own valid input; a first `renamesSchema` that turned the mapping into a list broke the app at load. The schema now keeps the mapping and the registry makes the list; `src/content/node/vite-plugin.test.ts` round-trips every shipped YAML file through its module and schema. `applyContentUpdate` runs the renames and the version write in one transaction, and a failure is logged without blocking the store's open (its test forces one).
+- Tests: 429 unit tests (`pnpm test --run`; new: `src/store/{merge,content-update,continue,summary,export,import,reset}.test.ts`, `src/pages/roadmap/{model,edges}.test.ts`, `src/pages/progress/preview.test.ts`, `src/app/use-page-keys.test.ts`, `src/content/node/content-version.test.ts`, plus cases in `schema`, `build-registry`, `vite-plugin`, `settings` and `content-lint`); 305 Playwright tests (`pnpm test:e2e`, Chrome, about 80 s after the build), written through the e2e-writer: `e2e/{roadmap,module,progress,progress-persist}.spec.ts` with `e2e/helpers/{course,progress}.ts` (the course read from `content/` at test time, raw IndexedDB seeding followed by a reload, downloads checked against the local date in a time zone away from UTC), the `:export` test in `editor-ex`, and the end-of-course tests in `lesson-nav` and `lesson-ex` moved to m97's last lesson.
+- Measured (`vite build`, 21 October 2026): `index-*.js` 1,448,049 bytes raw, 469,230 gzip (F8: 1,400,895 raw; the import schema, the store modules and the three pages), CSS 78,226 raw; nine lesson chunks; the workers unchanged. §9 is measured at F15.
+- Left for later features: F10 widens `Settings` and `parseSettings` with `fontSize`, `defaultTimeoutMs` and `compilerDefaults`, which the export and the import then carry with no further change, and proves its own criterion 2; F11 replaces the fixture tiers (see above) and its e2e must keep a course with edges, a same-band neighbour and unmet prerequisites; F15's CSP check covers the Blob download behind `:export`.
+
+## F10. Settings
+
+- [x] vimrc, relative numbers, font size, theme, default timeout and compiler defaults are editable and apply without a reload.
+- [x] Settings are included in export and restored by import.
+
+**Notes (21 October 2026)**
+
+- Plan decisions (Kim, 21 October 2026). Compiler defaults apply to `/repl` only. The default timeout applies wherever content names none. Compiler defaults are JSON checked by TypeScript in the worker, with five run-machinery options refused. All three are under Spec questions, with the ranges, the font-size scope and the missing way to reach `/settings`.
+- `/settings` (`src/pages/settings.tsx`, `src/pages/settings/{model,vimrc-field,compiler-field}.tsx`). Native labelled controls in Tab order:
+  - the theme radios and the relative-numbers box write on change;
+  - font size (10–24 px) and the default timeout (500–60,000 ms) write as soon as the text is valid, and invalid text is explained and not stored;
+  - the vimrc lists its bad lines live with their numbers (the editor's parser) and saves with bad lines, as §4 says; saving the shipped text stores no key;
+  - the compiler defaults save only after the shape check and TypeScript's check, with the §2 defaults shown beside them.
+  The page applies nothing itself. Each piece follows every settings write, this tab's or another's: the theme (`theme.ts`), the code font size (`src/app/font-size.ts`, `--code-font-size` on `<html>`, read by the editor theme and `.shiki`), every open editor (`controller.ts`: a changed vimrc re-applies from the engine defaults, otherwise the stored `:set` choices over what the vimrc alone sets) and `/repl`'s project (`useSettings` → the Editor's `compilerOptions` prop → `setCompilerOptions`). `subscribeSettings` now installs the cross-tab `storage` listener itself.
+- Protocol (§2, Spec questions): `checkCompilerOptions { compilerOptions }` → `compilerOptionsChecked { errors }`. Conversion errors come first, then the options and global diagnostics of an empty program over `createVirtualCompilerHost`; no project is touched and no lib is fetched. The ts-worker skill has the rows.
+- Diagnostics without an edit: `forceLinting` only hurries a cycle that is already scheduled, so an idle `/repl` kept stale squiggles after a compiler-defaults change; the e2e-writer found this. `refreshDiagnostics` (a state effect) and the linter's `needsRefresh` now start a cycle (`src/editor/diagnostics.ts`).
+- Deadlines (§4, Spec questions): `timeoutFor` resolves the deadline in this order: the exercise's own, the setting, 5 s. It is used by `/repl` `:w`, theory Run, the lesson page's `:run` (which never passed the exercise's `timeoutMs` before F10) and `:test`, through `VerifyOptions.defaultTimeoutMs`. The content lint keeps 5 s. `exercise.yaml` `timeoutMs` is optional; the fixture `02-literal-discriminant` omits it.
+- Export and import (§7, Kim's decision after the first review). The export carries every stored key, as F9 built it. The import now makes the settings exactly the file's (`replaceSettings`): a key the file lacks returns to its default, and the preview names every key that changes. A file's compiler defaults pass TypeScript's check before the preview (`src/pages/progress/check-settings.ts`). Refused ones are left out with the reason, and the local ones stay.
+- Review:
+  - First acceptance review, 21 October 2026: FAIL. A removed vimrc `set` line stayed in force in an open editor; theory Run's deadline had no test; the import did not restore defaults and skipped the TypeScript check. All four were fixed, the last two with Kim's decision.
+  - Re-review: PASS, both criteria MET, every check run by the reviewer itself (typecheck, lint, format:check, 465 unit tests, content lint, 317 Playwright tests in Chrome).
+  - Its optional remark was applied afterwards: an import that removes a stored `:set` choice now reaches an editor already open in another tab, which falls back to the vimrc's own value. `e2e/settings.spec.ts` "an import that drops a stored relativeNumbers reaches a /repl already open in another tab…" fails without the fix and passes with it.
+  - No F10 criterion is by hand or droplet, so nothing joins "For Kim".
+- Tests:
+  - 465 unit tests (`pnpm test --run`). New: `src/app/font-size.test.ts`, `src/pages/settings/model.test.ts`, `src/pages/progress/check-settings.test.ts`, plus cases in `settings`, `import`, `export`, `core`, `adapter`, `exercise`, `verifier`, `feedback` and `schema`.
+  - 318 Playwright tests (`pnpm test:e2e`, Chrome, about 85 s after the build), including 13 in `e2e/settings.spec.ts` with `e2e/helpers/settings.ts`, written through the e2e-writer. The live tests use two tabs of one context and a `window` marker to prove there was no reload; theory Run's deadline is read from the recorded sandbox `run` message. `--repeat-each=3` on the file: 39 of 39.
+- Measured (`vite build`, 21 October 2026): `index-*.js` 1,462,567 bytes raw (F9: 1,448,049), CSS 78,526 raw; the workers unchanged. §9 is measured at F15.
+- Left for later features: a way to reach `/settings`, `/progress` and `/repl` without typing the URL (Spec questions; §6 names none). F11 must keep a fixture exercise without `timeoutMs` reachable for `e2e/settings.spec.ts`, alongside the fixture tiers F9 noted.
+
+## F15. Offline, performance and deploy
+
+- [x] After one online load, with the network off: the app opens, a lesson loads, diagnostics and a run work (Playwright with `offline: true`).
+- [x] Every budget in §9 is measured and recorded in `docs/progress.md`; any miss has a note.
+- [x] `deploy/deploy.sh` ships `dist/` to `/var/www/ts-dojo`; HTTPS answers with a valid certificate; HTTP redirects. (droplet)
+- [x] `/l/<lesson>` loads directly; `/ts/6.0.3/lib.es2025.d.ts` is served precompressed as `text/plain`; `/assets/*` is immutable; `index.html` and `sw.js` are `no-cache`. (droplet)
+- [x] The CSP in §10 is present and nothing in the app is blocked by it (no CSP errors in the Playwright console).
+- [x] `deploy/README.md` exists with the §10 table and the Deploying, Rollback, Caching, DNS/TLS and nginx sections.
+
+> **Gate (§11):** deployed at dojo.kimnejudne.dev; offline works.
+
+**Kim's checks (21 October 2026).** Kim deployed with `deploy/deploy.sh`, and every "Confirm through nginx" line passed: 200 over a verified certificate, a 301 from `http://`, `/l/<lesson>` as `text/html`, the lib file precompressed (`Content-Length` 533, the `.gz` file's size, with a strong ETag), immutable assets, `no-cache` on `/`, `/index.html` and `/sw.js`, `sw.js` identical to the build, and the CSP as in the conf. The certificate is Let's Encrypt's for `dojo.kimnejudne.dev`, valid until 19 January 2027. Kim then confirmed the rest:
+
+- the browser checks: the padlock, the lesson theory at `/l/m99-fixtures/01-fix`, and offline after one visit (the app, a lesson, a diagnostic, `:run`);
+- the F3 clipboard over HTTPS;
+- the budgets project on the laptop and against the deployed site, every budget met.
+
+Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the §11 gate is met. The first run also exposed an order problem: no vhost for dojo was installed (port 80 answered with nginx's default site) and this machine's only ssh key was refused. Both were fixed by hand, following deploy/README.md DNS/TLS.
+
+**Notes (21 October 2026)**
+
+- Current feature. The SessionStart hook named F3, whose open box (`"+y`/`"+p` over HTTPS) is the "For Kim" check that needs this feature's deploy; F15 is next in §11 order after F10.
+- Service worker (§9 Offline), `vite-plugin-pwa` 2.0.0 in `vite.config.ts`, plus `workbox-window` 7.4.1, the plugin's peer that its register code imports:
+  - `generateSW` precaches the app, both worker chunks and all 107 files of `public/ts/6.0.3/` (153 entries).
+  - `maximumFileSizeToCacheInBytes` is 8 MiB, because workbox skips larger files with only a warning (the ts-ls chunk is 3.6 MB, `lib.dom.d.ts` 2.4 MB). `e2e/offline.spec.ts` asserts the list against `dist/`.
+  - The navigation fallback is `index.html`, never for `/assets/` or `/ts/`.
+- Updates (§9: "Reload for the new version", never by itself).
+  - Prompt mode: `src/app/update.ts` is the pure flow with its unit test, `service-worker.ts` registers through `virtual:pwa-register`, and `update-prompt.tsx` puts the line and its Reload button in the header.
+  - Found in the plugin's `register.js`: once a new worker waits, the plugin reloads the page when that worker takes control, which also happens when *another* tab pressed Reload. `onNeedReload` stops that. Only a Reload pressed in this tab reloads it, and after an update from elsewhere Reload reloads at once.
+  - Registration waits for the compiler's first `ready` (or its failure, or 10 s), so the 9 MB precache never competes with the §9 cold start. A page whose compiler failed still picks up a fixed deploy.
+- CSP (§10). `deploy/nginx/ts-dojo.conf` is the one source: `vite.config.ts` reads it (`deploy/nginx-conf.ts`) into `preview.headers`, so all 324 Playwright tests run under the shipped policy. `pnpm dev` stays without it, because Vite's HMR needs an inline script. Two fixes were needed, both found by the review agent and proven by `e2e/csp.spec.ts`:
+  - zod 4 probes `new Function('')` when `src/store/import.ts` builds its schemas, which was a violation on every page. `src/app/zod-config.ts` (`z.config({ jitless: true })`) is now `main.tsx`'s first import. Sabotage check: without it, the walk fails on 92 `eval` events from `index-*.js`.
+  - Vite inlined JetBrains Mono's cyrillic-ext woff2 (under 4 KB) as a `data:` font, which `font-src 'self'` blocks. `build.assetsInlineLimit` now never inlines `.woff2`.
+- The CSP walk (`e2e/csp.spec.ts`). It runs on a private `vite preview` that also sends the policy as Report-Only with a `report-uri`, because Playwright's console drops the browser's own messages from workers, and a report does arrive from inside a worker. It covers:
+  - roadmap and module page;
+  - lesson theory (twoslash) and theory Run;
+  - an exercise's `:run` and `:test`;
+  - `/repl` `:w`, and the DOM lib through the compiler defaults;
+  - `/settings`, and `/progress` export and import;
+  - the palette, `?`, and the service-worker install.
+
+  Two canaries prove the listeners hear: a cross-origin fetch from the page, and the sandbox's `new Function`, which the CSP also blocks for user code. A last canary flushes the reports before the empty-list assertions.
+- Offline (`e2e/offline.spec.ts`).
+  1. A real Chrome profile on disk loads one lesson online.
+  2. The server is **stopped**, then Chrome is relaunched with `offline: true`. Playwright's offline mode does not reach dedicated workers, and the private server sends everything `no-cache`, so only the precache can answer.
+  3. The app opens. The document, the ts-ls chunk and `lib.es2025.d.ts` come back `fromServiceWorker()`.
+  4. A lesson never opened online loads by URL, and its theory Run works.
+  5. An exercise shows the squiggle for a typed error, then `:run` and `:test` work.
+  6. `/repl` with `dom` in the compiler defaults reads `lib.dom.d.ts` from the precache and lists its diagnostic.
+
+  Sabotage check: with `ts/6.0.3/**` left out of the precache, the offline launch stays at "compiler loading". The update test changes a served copy's `sw.js`: the line appears, a window marker survives, and keyboard Reload takes the new worker.
+- Playwright. `use.serviceWorkers: 'block'` is the default, and the three F15 specs allow them. The suite's own network assertions are about the page's requests, and the precache would otherwise download 9 MB in each context. The §9 measurements are the `budgets` project (`default: false`, serial), run alone with `pnpm test:e2e --project budgets`.
+- Budgets (§9, table below). Method:
+  - User Timing marks (`src/app/marks.ts`): `ts-dojo:shell-interactive` when the layout's global keys listen, and `ts-dojo:compiler-ready` at the first `ready`, both from navigation start.
+  - Interactions are timed inside the page, from `performance.now()` in a key listener to `performance.now()` in a MutationObserver. The diagnostics clock starts at the last keyup, the `<Esc>` that ends the typed line. Where §9 says p95 (diagnostics) the p95 is asserted; quick info, the run and the loads assert the worst sample or run.
+  - Cold loads go through `e2e/helpers/link-server.ts`. It sends nginx's headers and gzip -9 files precompressed once, as `gzip_static` will, over one shared emulated link of **50 Mbit/s with 30 ms per response**. §9 says "broadband" without a number (Spec questions).
+  - Worker heap: CDP `HeapProfiler.collectGarbage`, then `Runtime.getHeapUsage` on the ts-ls worker. `performance.memory` is not exposed in workers, so the page session auto-attaches without flattening. A Node cross-check of the same core gave about 23 MB of heap growth.
+  - `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` measures the deployed site the same way.
+  - Machine: AMD Ryzen 7 3700X (16 threads), Linux, Google Chrome 155.0.8059.39, headless.
+- Deploy kit (§10), from Kim's plinth and hub files:
+  - `deploy/deploy.sh` follows §10 First deploy step 4. It adds a two-pass rsync: `assets/` and `ts/` go first, without delete, so a new `index.html` or `sw.js` never lands before the files it names. Its curl checks are §12 F15's two droplet criteria, run on the real host, and it prints the rollback command.
+  - `deploy/nginx/ts-dojo.conf` is §10's nginx differences plus the hub's certonly TLS and port-80 blocks.
+  - `deploy/nginx/ts-dojo-bootstrap.conf` is the HTTP-only vhost for §10 step 2.
+  - `deploy/README.md` has the §10 table, Deploying, Rollback, Caching, DNS/TLS (the first deploy in order, with the ACME probe) and nginx.
+  - `deploy/deploy.test.ts` (Vitest):
+    - resolves URIs to the location nginx picks and checks the cache rules, the types and the CSP in every location;
+    - runs shellcheck and `bash -n` on the script and checks its step order;
+    - finds §10's table rows, read from `docs/spec.md`, verbatim in the README.
+
+  Claude never ran `deploy.sh`, ssh or certbot.
+- Tests:
+  - 490 unit tests (`pnpm test --run`). New: `deploy/deploy.test.ts`, `src/app/update.test.ts`, `src/app/marks.test.ts`.
+  - 325 Playwright tests in the main suite (new: `e2e/csp.spec.ts`, 3 tests; `e2e/offline.spec.ts`, 4), plus the 3 budget tests.
+  - `pnpm content:lint` ok.
+- Measured (`vite build`, 21 October 2026): precache 153 entries, 9,164,201 bytes. `index-*.js` 1,464,550 bytes raw, 474 KB gzip. The ts-ls chunk is unchanged.
+- Found on the way, not F15's and not changed: `pnpm install --frozen-lockfile` exits 1 on HEAD too ("Ignored build scripts: esbuild@0.28.2", pnpm 12). CI runs exactly that, and its last run (17 October, green) predates the lockfile changes of F5 and F6. The next push will likely fail at install until esbuild's build script is allowed or ignored in pnpm's config. Kim's call (For Kim).
+- Review:
+  - Acceptance review, 21 October 2026: PASS, with every check run by the reviewer itself (typecheck, lint, format:check, 489 unit tests, content lint, 324 Playwright tests, the budgets project).
+    - Criteria 1, 5 and 6 MET.
+    - A second pass after the fixes below: PASS again, with every check rerun (490 unit tests, 325 Playwright tests, the budgets project). Its one remark, the console record cleared at the canaries, is fixed: the record stays whole.
+    - 3 and 4 NEEDS KIM (droplet).
+    - 2 NEEDS KIM: §9 names Kim's laptop, and these numbers come from a desktop (MSI MS-7C56, Ryzen 7 3700X).
+  - The spec-checker found no blockers (3 warnings, 7 notes). Applied after both reports:
+    - `deploy.sh`'s precompressed check could not fail: the lib file is over `gzip_min_length`, and gzip on the fly also says gzip. It now compares `Content-Length` with the `.gz` file and refuses a weak ETag.
+    - Its CSP check compares the whole string with the conf's on `/`, an asset and a lib file, and it checks that the served `sw.js` is byte for byte the one built.
+    - The quick-info and run budgets assert the worst sample, since §9 gives no percentile there.
+    - A two-tab e2e test proves `onNeedReload` with the real plugin: Reload in tab A, while tab B is mid-exercise, leaves B unreloaded with its edit and its line. B's own Reload then reloads at once. Sabotage check: without `onNeedReload`, B is reloaded and the test fails.
+    - The CSP walk keeps its console record whole. It asserts that the console heard the page canary, whose lines name the canary host and are the only ones left out. Chrome's message about the sandbox's eval stays in the worker; the report covers it.
+    - plinth's day cache for brand assets is restored for `/favicon.svg`.
+    - The bootstrap conf's host variable is `$TS_DOJO_HOST`.
+    - The certbot command is §10's, with no extra flag.
+    - For Kim gained the copy-back step and the reviewer's exact checks.
+    - Two Spec questions were added: worker memory, and cross-tab updates.
+    - The two-pass rsync went under Deviations, as approved with the plan.
+- Left for later features: re-measure the precache and the budgets after each content wave (F11–F14 add lesson chunks). The F3 HTTPS clipboard check waits for the deploy.
+
+## F11. Content wave 1 (Tier 0 and 1)
+
+- [x] M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two exercises (one in M00), at least one `predict`, hints on every editor exercise, and at least one `ts twoslash` block.
+- [x] `pnpm content:lint` passes for the whole tree.
+- [x] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate). Met under D1 and D4: `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site; the five tests "§11 v1 gate (D1): Tier 0 and Tier 1 completed at https://dojo.kimnejudne.dev without a mouse › m00-orientation / m01-types / m02-functions / m03-unions / m04-objects: every lesson completes from the keyboard" (every Check yourself question through `:done`, `:test` on every editor exercise's solution, every predict with `2`, `j`/`k` and `Enter`, each lesson's §7 row `complete`) and "the roadmap shows every M00–M04 ring full, and still does after a reload". No blocking bug was found: the walk's two failures on the way were in the test itself (a wait satisfied by the previous `:done`'s notice, and a global key pressed while the editor had focus, which §6 says does nothing), and the same run passed first against a local `pnpm preview` of this tree's `dist/`. Kim's own run-through is optional (For Kim).
+
+> **Gate (§11):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
+
+**Notes (21 October 2026)**
+
+- Plan decision (Kim, 21 October 2026): the fixture course moves to a test-only content root rather than staying unlisted in `content/`. Under Deviations, since §12 F6 criterion 5 says the fixture lessons live under `content/`.
+- The course (`content/`): `roadmap.yaml` has `t0` Orientation `[m00-orientation]` and `t1` Foundations `[m01-types, m02-functions, m03-unions, m04-objects]`. `renames.yaml` is empty, since no shipped id has been renamed.
+  - 20 lessons with the ids fixed in the plan. Titles are the §8 text with code backticks dropped, as the lesson skill's reference does; 3.2's parenthetical is a teaching note, so it is not in the title. Minutes are as §8 gives them, 345 in all.
+  - 71 exercises: 51 editor exercises (27 fix, 19 implement, 5 type-challenge) and 20 `predict`.
+    - M00 lessons have one editor exercise and one `predict` each.
+    - Every other lesson has four exercises, except 2.3, 4.3 and 4.4, which have three.
+  - 57 `ts twoslash` blocks. 3.2 turns `strictNullChecks` off with twoslash's `// @strictNullChecks: false` (the rendered block hides the comment) and in one exercise's `compilerOptions`.
+  - Course exercises omit `timeoutMs`, so Kim's Settings default applies (F10's rule).
+- Authoring followed the module skill:
+  - one `content-author` per lesson, in §8 order within a module, the five modules in parallel;
+  - a `content-reviewer` pass per module;
+  - every FIX finding sent back to its author and re-reviewed until every lesson was OK.
+  - The reviewers wrote trick solutions and linted them in scratch copies of the tree. The fixes were mostly tests: range and generated-input tests against lookup tables, named `@ts-expect-error` cases, and tests that stop casts or deleted checks. There were also accuracy fixes (all claims are checked with tsc 6.0.3) and §8 boundary fixes:
+    - 2.2 left callable types to 8.2;
+    - 4.2's fewer-parameters section now points back to 2.2;
+    - 3.5 leaves `assertNever` to 7.3, which §8 names, and teaches the inline `never` check.
+  - Accepted leftovers: no test can stop them, and none skips the lesson's point.
+    - A plain `as T` cast with correct runtime behaviour (3.1/03, 3.3/03, 3.4/04, 4.2/01). Logged under Spec questions.
+    - A deleted `never` line behind a throwing `default` (3.5/01 and 04, 4.4/03).
+    - `Ebook` written as an alias rather than an interface (4.1/01).
+- Fixture root (`src/content/node/roots.ts`): `fixtures/content/` holds m97–m99 with their own `roadmap.yaml` and `renames.yaml`.
+  - `vite build --mode e2e` builds it into `dist-e2e/`. Any other mode builds `content/` into `dist/`, which is what `pnpm build`, `pnpm preview` and `deploy.sh` use.
+  - The content plugin takes `contentDir` and resolves the registry's `@content/…` globs. `virtual:ts-dojo/content-root` lets `src/content/glob-keys.ts` map the keys back to `content/…`.
+  - Playwright's webServer runs `pnpm build && pnpm build --mode e2e && pnpm preview --mode e2e`, one build after the other, so the two copy-ts-libs runs never race.
+  - The suite reads `fixtures/content`, and `e2e/course.spec.ts` serves `dist/` itself. The offline, CSP and update specs serve `dist-e2e/`, and the budgets use `dist/`.
+  - Unit tests read `FIXTURE_CONTENT`.
+- Scoped lint (`src/content/node/lint.ts`): with ids, a structural problem outside the scoped folders no longer stops the run, so a lesson can be proven while its module, which lists every lesson from the start, is still being written. The whole-tree run is unchanged (`scripts/content-lint.test.ts`, "a scoped run while a module is still being written").
+- Code spans: hints, and the question, options and explanation of a question, render paired backticks as code (`src/content/inline-code.ts`, `components/inline-text.tsx`). §3's own hint example writes them, and the shipped skill's reference lesson uses them in questions. Text without a pair renders as before. An option is already in code type, so it drops the backticks. e2e compares through `shown()`.
+- `analyze.ts` now also records headings, Markdown links and `<Lesson id>` links (`analyze.test.ts`). Nothing checked `<Lesson>` targets before; the curriculum test now does for the course.
+- Measured 21 October 2026:
+  - `pnpm content:lint`: 20 lessons, 51 editor exercises, in 7.5 s.
+  - `pnpm build`: about 6 s. 217 precache entries, 10,596,245 bytes for the committed tree (the budget run below measured 10,592,898, before 0.3's last snippet; F15: 153 entries, 9,164,201). `index-*.js` is 1,729,818 bytes raw (F10: 1,462,567), because the exercise files are eager in the registry.
+  - The §9 budgets are re-measured below.
+- Review: the acceptance-reviewer's first pass on 21 October 2026 gave PASS.
+  - Criteria 1 and 2 MET, criterion 3 NEEDS KIM (the v1 gate, under "For Kim").
+  - The reviewer ran every check itself: typecheck, lint, format:check, 655 unit tests, the content lint (20 lessons, 51 editor exercises, in 7.7 s), and 416 Playwright tests in Chrome in 2.2 min.
+  - It also checked the F1–F10 and F15 specs against `dist-e2e/`, and that `pnpm build`, `pnpm preview`, deploy.sh and the budgets still use `content/` → `dist/`.
+  - Its remarks are recorded here. 3.2's title drops §8's parenthetical. F15's ticked "For Kim" step 6 named a fixture URL, which is now annotated.
+  - The `/verify` pass before the commit graded criterion 1 NOT MET. §1 says Pitfalls are "the two or three mistakes people make, each with a failing snippet", and 0.3's first pitfall, a key pressed where it means something else, had no snippet. It now shows a `:w` typed in insert mode landing in the file (`Declaration or statement expected.` at the `:`, `Cannot find name 'w'.` at the `w`).
+  - The curriculum test now checks what that pass found it couldn't: two or three Pitfalls mistakes (paragraphs that open with their bold name, recorded by `analyze.ts`), each with a snippet before the next, and a `ts run` block under Examples. Put back on 0.3's old text, it fails on that pitfall.
+  - Re-verified on 21 October 2026: PASS. Criteria 1 and 2 MET, criterion 3 NEEDS KIM. The reviewer ran every check itself: 656 unit tests, the content lint, and 416 Playwright tests in 2.0 min. It found docs/progress.md consistent with the code.
+  - The same pass saw `e2e/csp.spec.ts` "every page and flow … raises no violation" fail once under the full suite's load: the sandbox's report took longer than the 10 s poll. It passed 12 of 12 alone and in the next full run. The poll now waits 30 s, inside the walk's 120 s.
+- Tests:
+  - 656 unit tests (`pnpm test --run`). New files: `src/content/node/curriculum.test.ts`, `src/content/node/analyze.test.ts`, `src/content/glob-keys.test.ts`, `src/content/inline-code.test.ts`. New cases in `scripts/content-lint.test.ts` (the shipped course; scoped runs) and `src/content/node/vite-plugin.test.ts` (the content root and the mode).
+  - 416 Playwright tests (`pnpm test:e2e`, Chrome, 2.2 min including both builds). That is 325 on the fixture course and 91 in `e2e/course.spec.ts` on the course, written by the e2e-writer: 20 lessons render, 51 editor exercises pass `:test` with their solutions, and 20 predicts pass.
+- Left for later features:
+  - F12–F14 extend the §8 table in `src/content/node/curriculum.test.ts` and the lesson count in `scripts/content-lint.test.ts` ("the shipped course"), whose assertions name exactly this wave's tiers and 20 lessons.
+  - The curriculum test could also check that objectives start with a verb (§1), which was checked by hand for this wave.
+  - 7.4 builds on 3.4, which already covers how callbacks, mutation and other functions affect narrowing.
+  - The lesson skill's reference lesson (3.5) has drifted from the shipped 3.5:
+    - it still teaches `assertNever`;
+    - it names `@ts-expect-error` cases on the directive line;
+    - its exercise minutes leave no time for theory.
+    Refresh it from `content/modules/m03-unions/05-discriminated-unions` before F12.
+
+## F12. Content wave 2 (Tier 2)
+
+- [x] F12: M05 to M09, 19 core lessons and the two optional ones, to the same rules as F11, lint passing.
+
+Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
+
+**Notes (22–23 October 2026)**
+
+- Before F12, the uncommitted `/repl` module change from 22 October went in as its own commit, `fix: /repl buffers are separate modules` (Kim's choice with the plan).
+- Plan decision (Kim, 22 October 2026): the two `(opt)` lessons, 5.5 and 8.4, are ordinary lessons, as the module skill says. There is no app change; the proposal for an `optional` flag is under Spec questions.
+- The course: `roadmap.yaml` adds `t2` Intermediate `[m05-generics, m06-type-operators, m07-guards, m08-functions-classes, m09-modules-async]`.
+  - 21 lessons with the ids fixed in the plan. Titles are the §8 text with code backticks dropped; "(opt)" is a mark, not part of a title. Minutes are as §8 gives them: 375 core and 30 optional.
+  - 83 exercises: 62 editor exercises (27 fix, 28 implement, 7 type-challenge) and 21 `predict`.
+    - Every lesson has four exercises, except 8.4 (three). None is `challenge: true`.
+  - 88 `ts twoslash` blocks.
+  - Exercises that teach a flag set it in their own `compilerOptions`: `verbatimModuleSyntax` in 9.1, `noImplicitOverride` in 8.3. 9.2/04 has a read-only `types/analytics-lite.d.ts`. 9.1, 9.2 and 9.4 have multi-file exercises.
+- Authoring followed the module skill:
+  - one `content-author` per lesson, in §8 order within a module, the five modules in parallel, from a shared brief (ids, lesson boundaries across the tier, F11's trick-proofing lessons);
+  - a `content-reviewer` pass per module, with trick solutions linted against scratch copies;
+  - every FIX sent back to its author (or, for a one-line change, applied directly) and re-reviewed until every lesson was OK.
+- What the reviews fixed:
+  - Accuracy:
+    - 6.2 quoted a TS2353 message with the wrong type name;
+    - 7.3 claimed the inline `never` check didn't name the missed member;
+    - 7.4 said "inside the `if`" for code after an early return;
+    - 8.3 said 5.3 never constrained a generic class.
+  - Overlap from writing in parallel: 8.3 repeated 5.3's static-member pitfall, Predict and repository exercise. It now builds on 5.3's `Repository` and checks static blocks instead.
+  - Tricks now stopped by a test or a type case:
+    - 5.2/04, overloads in place of a default;
+    - 5.5/04, a `parseJson` that ignores its decoder;
+    - 7.3/04, `assertNever` left unimplemented, and `as const` without `satisfies`;
+    - 7.4/04, `?? 0` in place of element-access narrowing;
+    - 8.1/03, an overload list in place of a generic;
+    - 8.2/04, `Function & { prototype: T }` in place of a construct signature;
+    - 9.2/01, `globalThis as object as {…}` in place of `declare` (the declarations now live in a script `globals.ts` with type cases on them).
+  - Accepted leftovers, which no rule or test can stop and none of which skips the lesson's point:
+    - a plain `as T` with correct runtime behaviour;
+    - a derived type written out by hand (6.1, 6.2, 6.3);
+    - plain fields in place of parameter properties (8.3/03);
+    - an `any` from `JSON.parse` (9.4/04).
+
+    Logged under Spec questions.
+- Links: authors could link only lessons that already existed, so later lessons were named in plain text, then turned into `<Lesson>` links (and prerequisites) once the wave was complete. The only plain mentions left are inside `<Predict>` attributes or next to a link to the same lesson.
+- The lesson skill:
+  - its reference lesson is refreshed from the shipped 3.5, as F11's notes asked;
+  - it says how `@ts-expect-error` cases are named;
+  - it records the directive behaviour as built;
+  - it gains "Traps found while writing F11 and F12": braces in MDX, links at lint time, one-file `ts run` fences, Prettier and `@ts-expect-error`, `ExpectValidArgs` for union callers, editable `.d.ts`, `rejects.toThrow`, and what no rule catches.
+- Tests:
+  - `src/content/node/curriculum.test.ts` adds the five t2 modules with their §8 rows and checks 41 lessons; its per-lesson §1 checks now cover Tier 2. `scripts/content-lint.test.ts` "the shipped course" expects 41 lessons.
+  - `e2e/course.spec.ts` is generated from the tree, so it covers Tier 2 without new logic. Its test names now carry the wave's criterion (`criterion()`: M00–M04 F11, M05–M09 F12), so 104 tests are named "§12 F12".
+- Measured 22–23 October 2026:
+  - `pnpm content:lint`: 41 lessons, 113 editor exercises, in 16.5 s.
+  - 810 unit tests (`pnpm test --run`).
+  - 522 Playwright tests in Chrome (`pnpm test:e2e --project chrome`, 2.8 min including both builds), 195 of them on the course (F11: 91).
+  - Precache: 13,097,374 bytes, 321 entries (F11: 10,592,898, 217). `index-*.js` is 2,197,116 bytes raw (F11: 1,729,818), because exercise files are eager in the registry. The 41 lesson chunks total 3,105,475 bytes. Shiki's inline `style="…"` attributes are about 40% of a Tier 2 chunk (57 KB of 131 KB in the largest).
+  - The §9 budgets are re-measured below; every one is met.
+- Review: the acceptance-reviewer's first pass on 23 October 2026 gave PASS, with the criterion MET.
+  - It ran every check itself: typecheck, lint, format:check, 810 unit tests, the content lint (41 lessons, 113 editor exercises, in 16.6 s), and 522 Playwright tests in Chrome in 2.7 min.
+  - It checked the t2 rows in `curriculum.test.ts` against §8, and the counts in these notes against the tree.
+  - It also checked by hand that every Tier 2 objective starts with a verb, which no test checks.
+  - Its one finding, the "§1 Further reading" Spec question misdescribing which lessons link what, is corrected.
+  - The `/verify` pass before the commit (23 October 2026) also gave PASS. It ran the checks again (810 unit tests, the content lint in 16.3 s, 522 Playwright tests in 2.6 min) and read lessons across all five modules against §1 by hand. It found every count in these notes consistent with the tree.
+- Left for later features:
+  - **Decided by Kim on 23 October 2026, to build before F13** (Spec questions, F12 entries). All five were built on 23 October 2026; see "Pre-F13 fixes" below:
+    - the `optional` lesson flag, with 5.5 and 8.4 setting it (done);
+    - `rejects.toThrow` on a rejection reason (done);
+    - the DOM-shaped `setTimeout` declaration (done);
+    - the widened `as-unknown-as`, plus the new `type-assertion` and `any`-expression rules (done);
+    - the neutral "tests.ts does not compile" note (done).
+  - **The precache budget.** Option 1 below was built with the pre-F13 fixes; the precache is now 12,275,097 bytes. F12 added 2.5 MB. At that rate, F13's 21 lessons pass the 15 MB budget (§9) and F14 ends near 18 MB. Options for F13's plan:
+    - render twoslash and shiki with CSS variables or classes instead of inline styles (dual-theme output);
+    - load exercise files per lesson instead of eagerly;
+    - leave `lib.dom.d.ts` and `lib.webworker.d.ts` (3.1 MB) out of the precache, if no offline lesson needs them.
+  - The curriculum test could check three things F12's `/verify` pass checked by hand: that Concept has a code example, that objectives start with a verb, and that a plain `ts run` pitfall snippet really fails at run time. Best added before F13.
+  - F13 and F14 extend the §8 table in `curriculum.test.ts`, the lesson count in `content-lint.test.ts`, and `criterion()` in `e2e/course.spec.ts` (already maps M10–M14 to F13 and M15–M18 to F14).
+  - For F13's authors, from the M06 review: 10.1 builds on 6.4's mapped-type modifiers, 11.3 on 6.4's `EachOmit` and `[T] extends [unknown]`, and 10.2's key remapping points back to 6.4/04's `KeysOfType`/`PickByValue` rather than reusing it.
+
+**Pre-F13 fixes (23 October 2026)**
+
+One session and one commit, `fix: pre-F13 decisions (optional lessons, rules, harness, verdict note)`. It builds Kim's five decisions of 23 October 2026 from F12's Spec questions, plus the precache option Kim chose in the plan. It isn't a §11 feature, so there is no §12 box: Kim's decisions were the criteria.
+
+1. **`optional: true` lessons.**
+   - The frontmatter field is in the schema and the registry.
+   - A module's state rests on its core lessons (`moduleState(core, optional)` in `src/store/completion.ts`).
+   - The roadmap card counts core lessons and adds "1 optional lesson". The module page and `/progress` tag the lesson "optional".
+   - 5.5 and 8.4 set the field, as does the fixture `m97-fixture-capstone/03-indexed-access`.
+   - The e2e helpers count core lessons (`coreLessons`, `courseCoreLessons` in `e2e/helpers/course.ts`).
+2. **`rejects.toThrow(message?)`** checks the rejection reason directly (`toThrowOnRejection` in `src/workers/sandbox/harness.ts`). The failure text puts the reason's message last, so the `.not` form negates the right words even when the message itself says " to ".
+3. **Timers.** `/dojo/runtime.d.ts` declares `setTimeout` and `setInterval` with DOM's handler, `Function`. Kim chose it over the `(...args: any[]) => void` first written in the answer, after the spec-checker found that one gives an unannotated callback parameter a silent `any`. The Node sandbox runs a `resolve` handler and extra arguments as declared, so the declaration still matches the shim.
+4. **Rules.**
+   - `as-unknown-as` catches every double assertion. `type-assertion` and `any-expression` are new and opt-in (Deviations has what each flags).
+   - A read-only probe over all 113 solutions and the content lint both find no hit in any solution.
+   - The first content-lint run found one bug: string literals inside literal types (`'light' | 'dark'`) were taken for `any` expressions. The walk now skips everything inside a type, and `core.test.ts` has the case.
+   - Kim approved the `forbid` additions listed under Deviations.
+   - Four known F12 tricks were run once through the real verdict. Each compiles and passes its runtime tests, and each now fails only on these rules: `as Rgb` in 7.3/02, `admin as Member` in 7.4/02, an untyped `let data` holding `JSON.parse` in 9.4/04, and `globalThis as object as {…}` in 9.2/01.
+5. **The verdict note** reads "tests.ts does not compile against your code; see its first diagnostic".
+6. **The precache** (Kim's choice with the plan: option 1).
+   - Shiki's inline `style="--shiki-light:…;--shiki-dark:…"` became a class per colour pair, `sk-` plus a hash of the pair, so builds are reproducible. The transformer is `transformerStyleClasses` in `src/content/node/mdx.ts`.
+   - Each lesson carries one `<CodeStyles>` stylesheet with the rules for its classes (`src/content/components/code-styles.tsx`), and `globals.css` reads the same variables as before.
+   - Lesson chunks went from 3,105,475 to 2,279,850 bytes, with 18,144 bytes of stylesheets across 41 lessons. The precache went from 13,097,374 to 12,275,097 bytes (321 entries), 82% of the budget.
+   - That is less than the plan's 1.02 MB estimate, because a `class="sk-…"` attribute costs about 18 bytes, not the 11 assumed.
+   - Proven by `src/content/node/mdx.test.ts` and `e2e/content.spec.ts` "pre-F13: theory tokens are coloured by class, in both themes" (a keyword's computed colour in light and dark mode).
+   - At F12's rate F13 should land near 14.2 MB. F14, with Zod's and React's types, will likely need another step; the next cheapest is leaving `lib.webworker.d.ts` (787 KB, used by no lesson) out of the precache.
+- Skills: the lesson skill (frontmatter `optional`, the rule table, the note, the async-test and timer traps, what no rule catches), the module skill (`(opt)` lessons) and the ts-worker skill (rules, timers, note) match the code.
+- Measured 23 October 2026:
+  - 830 unit tests;
+  - `pnpm content:lint`: 41 lessons, 113 editor exercises, in 16.8 s;
+  - 527 Playwright tests in Chrome in 2.7 min;
+  - the budgets project, re-measured below.
+
+## F13. Content wave 3 (Tier 3)
+
+- [x] F13: M10 to M14, 18 core lessons and three optional, with the type-challenges sets crediting their source.
+
+Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
+
+**Notes (23 October 2026)**
+
+- Plan decisions (Kim, 23 October 2026, with the F13 plan):
+  - M13 has one exercise per challenge (under Deviations).
+  - The credit lives in the content, with no app change.
+  - If the precache passed 15 MB, the session would stop and ask. It didn't pass it (below).
+- The course: `roadmap.yaml` adds `t3` "Advanced type system" (§8's heading, as t0–t2 took theirs) with five modules:
+  - `m10-mapped-types`
+  - `m11-conditional-types`
+  - `m12-template-tuples`
+  - `m13-type-challenges`
+  - `m14-type-system-edges`
+  - 21 lessons with the ids fixed in the plan. Titles are §8's text with code backticks dropped. "(13 challenges)" and "(opt)" are notes, so they are not in the titles. Minutes are as §8 gives them: 500 core and 140 optional.
+  - 13.4, 13.5 and 14.5 set `optional: true`.
+  - 115 exercises: 94 editor exercises (13 fix, 18 implement, 63 type-challenge) and 21 `predict`. None is `challenge: true`.
+    - Outside M13, every lesson has four exercises, except 11.4, which has five.
+    - M13 has 14, 11, 11, 8 and 6 exercises.
+  - 81 `ts twoslash` blocks.
+- **The type-challenges sets** (§12: "crediting their source").
+  - 45 challenges from type-challenges (MIT, "Copyright (c) 2020 Anthony Fu"): all 13 easy, ten medium in each of 13.2 and 13.3, seven hard and five extreme. The selection is in the plan and in `CHALLENGES` in `curriculum.test.ts`, in exercise order.
+  - Each challenge's `README.md`, `template.ts`, `test-cases.ts` and `info.yml` were fetched from the repository on 23 October 2026. All 45 pass under 6.0.3, so none was swapped.
+  - Each `tests.ts` is the challenge's `test-cases.ts`, adapted. It imports `@dojo/type-utils`, names every case and uses a bare `@ts-expect-error`. Every original case is kept, and each addition is marked "Added in the dojo".
+    - Adaptations are commented where they occur: `unknown` for an `any`, `type errors` renamed to `casesErrors`, a method chain split so its `@ts-expect-error` is a statement, and `ReturnType<typeof JSON.parse>` where a case really needs an `any` (`explicit-any` covers `tests.ts` too).
+  - Prompts are in the dojo's own words.
+  - The credit, checked by `curriculum.test.ts` "§12 F13: the type-challenges sets credit their source":
+    - each prompt ends `From type-challenges [#00004 Pick](…/questions/00004-easy-pick/README.md) by Anthony Fu (@antfu) (MIT).`, or `by @handle` where `info.yml` has no name;
+    - each `tests.ts` opens with the challenge's link and the copyright line;
+    - each M13 lesson's Further reading links the repository and carries the full MIT notice in a `text` fence.
+  - The M13 reviewer checked every credit line against `info.yml` by script, diffed each `tests.ts` against upstream, and confirmed each notice is the license verbatim.
+- Authoring followed the module skill:
+  - one `content-author` per lesson, in §8 order within a module, the five modules in parallel, from a shared brief. The brief set ids, lesson boundaries across Tier 3, what 6.4 already taught, the M13 shape and credit format, and Tier 4's topics, which no Tier 3 exercise may take;
+  - a `content-reviewer` per module, with trick solutions linted against scratch copies (`--root=`);
+  - every FIX sent back to its author (or applied directly, for one line) and re-reviewed until every lesson was OK;
+  - plain-text mentions of Tier 3 lessons were turned into `<Lesson>` links and prerequisites once the wave was complete. Plain mentions left are in hints, prompts and `<Predict>` attributes, next to a link to the same lesson, or of Tier 4 lessons.
+- What the reviews fixed:
+  - Accuracy:
+    - 10.1 said a key alias always loses the modifiers (a generic `keyof T` alias keeps them);
+    - 11.4 said self-references are deferred "only" in three places (type arguments of generic interfaces are too);
+    - 12.4 said `Flip` "never" gets through 50 levels (only levels not yet computed count);
+    - 13.2 said a `keyof T extends never` check stops at primitives (it stops at functions);
+    - 14.2 said `keyof T` offers no inference candidate (it offers a weak one), and that any literal is joined to the other candidates (only literals of the same primitive);
+    - 14.5 said every `addInitializer` callback runs before the fields (only a method's, getter's or setter's does);
+    - plus a misdescribed release-notes section (10.3) and a broken 4.2 anchor (12.2, 12.3).
+  - Boundaries: two exercises took Tier 4 topics and were replaced: 12.1's typed routes (15.4, 18.1) and 12.2's typed emitter (15.2). 11.1/04 was reworded off environment variables (17.3). 10.3/01 repeated 6.4/01.
+  - Tricks now stopped:
+    - a library `any` (`JSON.parse`, `Object.create`, `Reflect.apply`, a property descriptor's `value`) letting one generic signature skip the overload in 11.1–11.4's last exercises. **Every Tier 3 `implement` and `fix` exercise forbids `any-expression`**, and every solution passes it;
+    - lookup tables of the case inputs (12.1/01);
+    - an overload in place of a generic rest parameter (12.2/01) or of `NoInfer` (14.2/02, 14.2/04);
+    - 6.4/04's two-step filter (10.2/02);
+    - a mutable tuple pattern (13.1 Includes);
+    - property syntax in place of `in` on a method (14.1/02);
+    - `private` plus `instanceof` in place of a `#` check (14.3/04).
+  - Theory that handed over an answer: 13.2's Promise.all sentence, 13.3's `Count` (now a substring count). Answer-like hints in 12.1, 12.3, 12.4 and 13.1.
+  - Pitfalls with no visible failure (14.1, 14.3) now show one.
+  - Accepted leftovers, which no rule or test can stop:
+    - aliasing the built-in a challenge rebuilds (`MyPick = Pick`);
+    - importing a helper such as `IsAny` or `UnionToIntersection` from `@dojo/type-utils` into a solution;
+    - deleting 14.1/02's wrong `Source`/`Target` annotations instead of correcting them (no type can tell);
+    - editing a file a prompt says to leave alone (14.4);
+    - `Parameters`/`ReturnType` in place of `infer` (11.2/04);
+    - a lookup table for 13.3's Length of String.
+
+    Logged under Spec questions.
+- Measured by the authors under 6.0.3, and written into 12.4: non-tail recursion gets through 48 new levels in a fresh file, or 49 once the type has been used; tail recursion gets through 999 steps.
+- The lesson skill's "Traps found while writing F11 to F13" gains these:
+  - quoting YAML that holds type syntax;
+  - which `@ts-expect-error` placements are cases;
+  - `explicit-any` in `tests.ts`;
+  - the library-`any` trick;
+  - lookup tables;
+  - recursion depth.
+
+  Its "what no rule catches" adds the built-in alias and the `@dojo/type-utils` import.
+- Tests:
+  - `src/content/node/curriculum.test.ts` adds the t3 rows from §8 and checks 62 lessons. It also checks:
+    - the five optional lessons;
+    - one type-challenge exercise per selected challenge in M13 (more than five exercises allowed there only);
+    - that Concept has a code fence (F12's "best before F13" item), across all 62 lessons;
+    - the credit block above.
+  - `scripts/content-lint.test.ts` "the shipped course" expects 62 lessons.
+  - `e2e/course.spec.ts` is generated from the tree and already mapped M10–M14 to F13.
+- Measured 23 October 2026:
+  - `pnpm content:lint`: 62 lessons, 207 editor exercises, in 23.8 s.
+  - 997 unit tests (`pnpm test --run`).
+  - 663 Playwright tests in Chrome (`pnpm test:e2e --project chrome`, 3.4 min including both builds). 136 lessons and exercises of the course are named "§12 F13": 21 lessons render, 94 editor exercises pass `:test` with their solutions, and 21 predicts pass.
+  - Precache: 14,199,957 bytes, 457 entries (pre-F13: 12,275,097, 321), 94.7% of the 15 MB budget. `index-*.js` is 2,702,980 bytes raw (F12: 2,197,116). F14 will not fit as things stand. Its plan needs a step, the cheapest being to leave `lib.webworker.d.ts` (787 KB, used by no lesson) out of the precache.
+  - The §9 budgets are re-measured below. Every one is met.
+- Review: the acceptance-reviewer's first pass on 23 October 2026 gave PASS, with the criterion MET.
+  - It ran every check itself: typecheck, lint, format:check, 997 unit tests, the content lint (62 lessons, 207 editor exercises, in 23.6 s), and 663 Playwright tests in Chrome in 3.3 min.
+  - It checked the t3 rows in `curriculum.test.ts` against §8.
+  - It compared all 45 credit lines with each challenge's `info.yml`, diffed the five notices against the license, and counted every `tests.ts`'s cases against upstream: none is dropped.
+  - It also read every Tier 3 objective (each starts with a verb), and checked the counts in these notes against the tree.
+  - Its findings, all fixed:
+    - `index-*.js` was measured from an earlier build (now 2,702,980);
+    - `e2e/course.spec.ts`'s header didn't name F13;
+    - the credit test checked five lines of the notice. It now compares the whole notice, and changing one word in a lesson's notice fails it.
+  - The `/verify` pass before the commit (23 October 2026) also gave PASS. It ran the checks again: 997 unit tests, the content lint in 24.0 s, and 663 Playwright tests in 3.4 min. It read 10.2, 11.3, 12.4, 13.1 and 14.3 in full against §1, plus 14.5's Pitfalls, and found every figure in these notes consistent with the tree.
+- Left for later features:
+  - F14 extends the §8 table in `curriculum.test.ts`, the lesson count in `content-lint.test.ts`, and `criterion()` in `e2e/course.spec.ts` (already maps M15–M18 to F14).
+  - F14's plan needs a precache step (above).
+  - **Decided by Kim on 23 October 2026, to build before F14** (Spec questions, F13 entries): the always-on `@dojo/type-utils` import rule, and code-block styling for non-`ts` fences, in one small fix commit (done; see "Post-F13 fixes" below). Kim edits §1 and §5's wording in the spec.
+  - Tier 4 lessons named in plain text in Tier 3 (module 16 in 10.1, 16.3 in 14.4, 17.1 in 14.3, 18.5 in 12.4) can become `<Lesson>` links once F14 writes them.
+
+**Post-F13 fixes (23 October 2026)**
+
+One small commit after F13, `fix: post-F13 decisions (type-utils import rule, plain fences)`. It builds Kim's answers to F13's Spec questions. It isn't a §11 feature, so there is no §12 box: Kim's decisions were the criteria. The commit also carries docs/progress.md's record of those answers.
+
+1. **`type-utils-import`**, always on. It flags `@dojo/type-utils` named as a module in any user file other than `tests.ts` (under Deviations).
+   - It is proven by `src/workers/ts-ls/core.test.ts` "lintAst, type-utils-import". That test covers an import, `import * as`, `export … from`, `import x = require`, an `import(…)` type, a dynamic `import()`, and a `declare module` block in a script file. `tests.ts` and a plain string are not flagged.
+   - `src/verify/rules.test.ts` covers the id, the always-on set and the message.
+   - No shipped solution or starter trips it: `pnpm content:lint` passes over 62 lessons and 207 editor exercises in 23.6 s.
+2. **Plain fences.** A fence in any language other than `ts`, or none, is a new fence kind, `plain` (`src/content/fences.ts`). It renders as a `<CodeBlock>` with shiki's highlighting in that language when shiki bundles one (`js`, `vim`), else as text (`text`). It uses the same colour classes and lesson stylesheet. It has no Run, no Open in REPL and no focus of its own (`src/content/components/code-block.tsx`).
+   - That covers the five M13 licences, 0.3's vimrc and the `js` emit blocks in 0.1 and 4.4.
+   - A `ts` fence with an unknown meta string is still `other`, MDX's bare `<pre>`.
+   - The fixture lesson `m99-fixtures/01-fix` gains a `text` fence.
+   - Proven by `src/content/node/mdx.test.ts` "a plain block is highlighted in its own language, with colour classes" and "a plain block in a language shiki lacks, or none, is plain text, escaped", and by "a compiled lesson" (`kind: "plain"`).
+   - No focus and no Open in REPL go beyond Kim's answer, which named only the Run button. Kim confirmed it after the spec-checker's question (under Deviations). A mistyped `ts` fence becoming plain is noted under Spec questions.
+   - Also proven by `e2e/content.spec.ts` "after F13: other fences render as plain code blocks", in light and dark mode. The block shows its text verbatim, `<` and `&` included, and no bare `<pre>` is left. It has no tabindex and no button, and its background matches a `ts run` block's.
+3. Skills: the lesson skill (rule table, fence table, what no rule catches) and the ts-worker skill (`lintAst`, Rules) match the code.
+4. A `spec-checker` pass over the diff found five things:
+   - the plain blocks' focus, now under Deviations;
+   - a `declare module '@dojo/type-utils'` block in a script file, which compiles and hands a helper to the global scope. The rule now flags it, and the test has the case;
+   - mistyped `ts` fences, under Spec questions;
+   - two wording slips: the lesson skill implied the always-on rule could go in `forbid`, and two comments still said "every `ts` fence".
+
+   All are fixed or recorded.
+- Measured 23 October 2026:
+  - 1,001 unit tests;
+  - 665 Playwright tests in Chrome in 3.3 min. The first full run had one failure: `e2e/content.spec.ts` "the run errors block's button makes a second buffer", whose first Enter on Open in REPL didn't navigate. It passed three of three repeats of that spec alone, and the next full run passed 665 of 665;
+  - the budgets project, 3 passed. The precache is 14,218,078 bytes, 457 entries (F13: 14,199,957).
+
+## F14. Content wave 4 (Tier 4)
+
+- [x] F14: M15 to M18, 17 core lessons and one optional; Zod and React's types pre-bundled for 17.2 and 17.4.
+
+Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
+
+**Notes (24 October 2026)**
+
+- **Plan decisions (Kim, 23 October 2026, with the F14 plan; under Deviations):**
+  - React ships its types only;
+  - the webworker libs leave the precache, and the rest of the §9 miss is noted;
+  - `zod` and `react` resolve in every project, `/repl` included;
+  - valibot is a build-time devDependency for twoslash.
+- **The course:** `roadmap.yaml` adds `t4` "Expert" (§8's heading) with four modules:
+  - `m15-api-design`
+  - `m16-tooling`
+  - `m17-boundaries`
+  - `m18-capstones`
+  - 18 lessons with the ids fixed in the plan. Titles are §8's text with code backticks and the parenthesised notes dropped ("(theory, ts7)", "(Zod pre-bundled)", "(React's types pre-bundled)", "(opt)"). Minutes are as §8 gives them: 470 core and 60 optional, 530 in all. 18.4 sets `optional: true`.
+  - 73 exercises: 53 editor exercises (17 fix, 22 implement, 14 type-challenge) and 20 `predict`. None is `challenge: true`. Every lesson has two to five exercises; 16.4 has three predicts and no editor exercise.
+  - 79 `ts twoslash` blocks.
+- **Pre-bundled packages, the criterion's second half:**
+  - Built test-first: `src/protocol/packages.ts`, `src/workers/ts-ls/node/package-types.ts`, `scripts/copy-packages.ts` and the core's `loadPackageTypes`.
+  - The sandbox's package resolution: `resolvePackage`, `packageUrl`, and the types-only message.
+  - `.tsx` entries: schema, glob and Node loader.
+  - Twoslash mounts the packages, valibot and (new) the DOM lib for `// @lib:`.
+  - Under Deviations.
+- **17.2 runs Zod:**
+  - three `ts run` examples;
+  - exercises 01, 03 and 04 import `zod` and have runtime tests;
+  - Valibot appears in one twoslash block only.
+- **17.4 checks React's types:**
+  - four `type-challenge` exercises, each with an `index.tsx` entry and `jsx: react-jsx`, none with runtime tests;
+  - JSX theory in twoslash with `// @jsx: react-jsx`.
+- **Bugs found on the way, all fixed and proven:**
+  1. **A `zod` import typed before the packages mounted kept its TS2307 until the next edit.** `init` now waits for the package load before answering `ready`, and the adapter's request queue holds every edit behind it. A failed load doesn't block `ready`. Proven by `core.test.ts` "ready waits for the package files…" and `e2e/packages.spec.ts` "a zod import typed before the compiler is ready resolves without another edit" (it reproduced 6 of 6 before the fix).
+  2. **A theory block's Run handed the sandbox `imports: []`, so a `zod` import never resolved** ("Failed to resolve module specifier"). The build now emits the import spans with the block's JavaScript (`imports` prop, `src/content/node/mdx.ts`, `code-block.tsx`). Proven by `mdx.test.ts` and `e2e/packages.spec.ts` "a Zod example in 17.2 runs in the browser". TypeScript stays out of the main bundle.
+  3. **`any-expression` flagged every dynamic `import()`**, because the checker types the `import` keyword `any` (`src/workers/ts-ls/rules.ts`; `core.test.ts` "any-expression doesn't flag a dynamic import()"). 16.2/03 forbids it now.
+  4. **Build-time twoslash couldn't load the DOM lib for `// @lib: es2025,dom`** (17.3). The twoslasher now holds `lib.dom*.d.ts` too; the default stays es2025 (`mdx.test.ts`).
+- **Authoring followed the module skill:**
+  - one `content-author` per lesson from a shared brief, the four modules in parallel, and M18 after M15 and M17;
+  - a `content-reviewer` per module, with trick solutions linted against scratch copies;
+  - every FIX sent back to its author and applied;
+  - the plain Tier 4 mentions in 10.1, 12.4, 14.3, 14.4 and 15.4 are now `<Lesson>` links.
+- **What the reviews fixed:**
+  - Accuracy:
+    - 17.2's `ZodObject` type parameter (the shape, not the output);
+    - 16.2's TS5107 text for `classic`;
+    - 16.3's TS6306 path;
+    - 16.4's TS2880/`ignoreDeprecations` claim, which depends on `module`;
+    - 15.1's and 18.2's "needs one assertion" (an overload over a looser implementation signature works);
+    - 15.3's higher-order inference causality and a second pitfall diagnostic;
+    - 15.4's `const` claim (the constraint keeps the literals);
+    - 18.5's `NoInfer` advice (dropped, unmeasurable), its "after" numbers and the trace-event claim.
+  - Tricks now stopped:
+    - lookup tables in 15.4/04, 16.5/03, 18.4/04 and 18.5/04 (generated or pattern inputs);
+    - an overload hiding a cast in 17.1/01 (an `Equal` case on the predicate);
+    - untyped storage plus casts in 15.1/04 (`type-assertion` forbidden).
+  - Accepted leftovers, which no rule or test can stop:
+    - 16.2/01's extensionless import, now named in the prompt;
+    - 16.2/03's static import;
+    - 15.2/03's `Set<Function>`;
+    - 17.2/01 and 18.5/03's hand-written types;
+    - 17.3/04's non-exhaustive `describe`;
+    - 17.4/05's reducer body;
+    - 18.3/05's unused `Reflect.apply` (under Spec questions).
+- **Tests:**
+  - `src/content/node/curriculum.test.ts` adds the t4 rows from §8 (80 lessons, 6 optional), plus "§12 F14: Zod and React's types pre-bundled for 17.2 and 17.4": 17.2 runs Zod in a `ts run` block and in an exercise with runtime tests, Valibot is twoslash only, and 17.4's exercises are `.tsx` under `jsx: react-jsx` with no runtime tests and import `react`.
+  - `scripts/content-lint.test.ts` expects 80 lessons.
+  - `e2e/course.spec.ts` names F14.
+  - `e2e/packages.spec.ts` (new): a zod buffer type-checks and runs, `K` shows `z.infer`, react's types-only message, offline, an edit before ready, the precache manifest, and 17.2's theory Run.
+  - `e2e/offline.spec.ts`'s precache list now leaves out the webworker libs and lists `packages/`.
+- **Measured 24 October 2026:**
+  - `pnpm content:lint`: 80 lessons, 260 editor exercises, in 38.4 s.
+  - 1,165 unit tests (the last added after the `/verify` pass: the package table's versions are the installed ones).
+  - 763 Playwright tests in Chrome (`pnpm test:e2e --project chrome`, 4.2 min including both builds).
+  - The budgets project: 3 passed (figures under Measured budgets).
+  - Precache: 17,439,897 bytes, 546 entries (F13: 14,218,078, 457). Of the growth, 1.89 MB is the packages (types.json 1,403,607 bytes, the zod bundle 485,588 bytes) and the rest is Tier 4; 0.79 MB came back from the webworker libs.
+- **Review:** the acceptance-reviewer's first pass on 24 October 2026 gave PASS, with the criterion MET.
+  - It ran every check itself: typecheck, lint, format:check, 1,164 unit tests, the content lint (80 lessons, 260 editor exercises), 763 Playwright tests in Chrome, and the budgets project (3 passed).
+  - It graded both halves MET (Zod's runtime and types ship and are precached; React ships types only), and checked `dist/` for valibot code (none; only lesson text and pre-rendered twoslash hovers name it).
+  - Its findings, all fixed: the core minutes (470, not 530), the package sizes' units, and a missing For Kim item for the links.
+- **The `/verify` pass before the commit** (24 October 2026) also gave PASS.
+  - It ran every check again: 1,164 unit tests, the content lint in 38.2 s, 763 Playwright tests in Chrome in 4.2 min, and the budgets project (3 passed).
+  - It recounted the tree against these notes.
+  - Its findings, all fixed: the precache figure (19 bytes more after 16.2's anchor fix), two stale comments in `e2e/packages.spec.ts`, and no test tying `ZOD_VERSION` and `REACT_TYPES_VERSION` to the installed packages (`package-types.test.ts`).
+- **Spec-checker** over the app diff found no unlogged contradiction. Its points, all fixed or recorded:
+  - `deploy.sh`'s first rsync pass now ships `packages/` and checks for it after the build (`deploy/deploy.test.ts`);
+  - the README's Caching table and service-worker paragraph, the vite comment and the ts-worker skill are current;
+  - an nginx `location /packages/` and `ready` waiting for the packages are under Spec questions.
+
+## v1 gate
+
+- [x] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand) Met under D1 and D4 on 25 October 2026: `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site; the five tests "§11 v1 gate (D1): Tier 0 and Tier 1 completed at https://dojo.kimnejudne.dev without a mouse › m00-orientation / m01-types / m02-functions / m03-unions / m04-objects: every lesson completes from the keyboard" (every Check yourself question through `:done`, `:test` on every editor exercise's solution, every predict with `2`, `j`/`k` and `Enter`, each lesson's §7 row `complete`) and "the roadmap shows every M00–M04 ring full, and still does after a reload". No blocking bug was found: the walk's two failures on the way were in the test itself (a wait satisfied by the previous `:done`'s notice, and a global key pressed while the editor had focus, which §6 says does nothing), and the same run passed first against a local `pnpm preview` of this tree's `dist/`.
+
+> **Gate (§11, v1):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
+
+**Notes (25 October 2026)**
+
+- The live site at https://dojo.kimnejudne.dev serves this tree's build: its `/sw.js` is byte for byte `dist/sw.js` from `pnpm build` of HEAD (sha256 `094ab97b…ccc3`), so no deploy was needed for the gate; the F14 deploy of 24 October 2026 is the one live.
+- The `deployed` Playwright project (playwright.config.ts; off by default, like `budgets`) runs `e2e/deployed.spec.ts` against `DEPLOYED_URL` from fresh Chrome profiles with service workers allowed: the Tier 0–1 walk (D1) and the F14 Tier 4 checks (D2). It passed against a local `pnpm preview` of `dist/` first (10 of 10, 1.2 min), then against the live site (10 of 10, 5.4 min; the first Tier 4 step waits for the whole 17 MB precache over the network, 3.3 min of that).
+- §12 passes: every automatable criterion is ticked with its test; the by-hand and droplet criteria are ticked on Kim's recorded confirmations (F3, F15) or, under D4, on runs against the live site (F11, F14, this gate). The three Prep spike items are deferred, non-blocking (D3).
+- The §9 budgets were run against the live site the same day (`BUDGETS_URL`), see Measured budgets.
+- Review: the acceptance-reviewer's one pass on 25 October 2026 gave PASS under D1–D5. Every criterion MET with evidence (`e2e/deployed.spec.ts` by line, the recorded live run, `dist/sw.js`'s hash); it ran typecheck, lint, format:check and 1,165 unit tests itself, and found docs/progress.md consistent with the code. Its two remarks, both applied: Tier 4 step 1 now asserts the For Kim step's four output lines (re-run against a local preview), and the `[x ]` on the esbuild item is a plain tick.
+
+## Deviations
+
+Anything built differently from what the spec names (library, version, flag, key, limit), with the reason and the date Kim accepted it. Empty means the code follows the spec as written.
+
+- **§2 lib set (F2, accepted by Kim with the F2 plan on 17 October 2026).** §2 says the worker fetches "exactly the set `knownLibFilesForCompilerOptions(options, ts)` returns". Prep proved that function cannot return the ES-only set (it is a prefix slice of a fixed list: 101 names with DOM, webworker and scripthost for the defaults, only `lib.d.ts` after option conversion). The worker instead resolves the set the way the compiler does, by following the `/// <reference lib="…" />` directives from each `lib` entry (`src/workers/ts-ls/libs.ts`): 76 files for `es2025`, `lib.dom.d.ts` only when a lesson adds `libs: [dom]`. Proven by `src/workers/ts-ls/libs.test.ts` and `core.test.ts`; the §12 F2 criterion ("fetches only ES lib files; with `libs: ["dom"]` it also fetches `lib.dom.d.ts`, once") is met as written.
+- **§2 project contents: an app-added declaration file (F2, accepted by Kim with the F2 plan on 17 October 2026).** §2 and §5 describe a project as the exercise's files, `tests.ts` and the lesson's `.d.ts` files. The worker adds one more root file, `/dojo/runtime.d.ts`, to every project whose lib set has neither `dom` nor `webworker`, because the §2 defaults (`lib: ["es2025"]`, no DOM) leave `console` and the timers undeclared and every `ts run` example uses them (the "Spec questions" entry below has the detail). It is not a user file: never editable, never a tab, outside the §5 Compiles rule and the rules walk. F4 sets its final contents to exactly what the sandbox shim provides. Since the pre-F13 fixes (Kim's decisions on 23 October 2026), `setTimeout` and `setInterval` take DOM's handler, `(handler: Function, timeout?: number, ...args: any[]): number`. So `new Promise<void>((resolve) => setTimeout(resolve, ms))` compiles, and an unannotated callback parameter is TS7006, as with `libs: [dom]`. DOM's `TimerHandler` is `string | Function`; the string is left out, because the shim calls the handler. Kim's answer first gave `(handler: (...args: any[]) => void, …)`. The spec-checker found that this gives an unannotated callback parameter a silent `any`, unlike DOM, and Kim chose `Function` the same day. Proven by `src/workers/ts-ls/ambient.test.ts` "/dojo/runtime.d.ts timers" and, in the Node sandbox, by `src/workers/sandbox/node/spawn.test.ts` "runs the DOM-shaped timers".
+- **§2 default options, `/repl` compiles every buffer as a module (after F11, Kim's decision on 22 October 2026).** §2 gives one set of defaults for "every exercise and REPL buffer". `/repl` now adds `moduleDetection: "force"`, with the Settings compiler defaults on top, so an explicit choice there wins (`src/pages/repl-options.ts`). Before this, two snippets opened from theory that declared the same name, most of them scripts, reported TS2451 or TS2393 in each other. Imports between buffers work as before, and exercises are unchanged. Proven by `src/pages/repl-options.test.ts` and by `e2e/repl-buffers.spec.ts` "/repl buffers are separate modules". With the option removed, that spec sees the two clash errors.
+- **§12 F6 criterion 5, where the fixture lessons live (F11, Kim's decision with the F11 plan on 21 October 2026).** The criterion says the three fixture lessons "exist under `content/` and render". Since F11 they live under `fixtures/content/`, with the two F9 fixture modules, and are built with `vite build --mode e2e` for the Playwright suite. `content/` holds only the course, so the deployed site ships no fixture lessons. The criterion's tests (`e2e/content.spec.ts`, `src/content/build-registry.test.ts`) prove the same things against the fixture root.
+- **§1 Completion and §3 frontmatter, `optional` lessons (pre-F13 fixes, Kim's decision on 23 October 2026).** §1 says "a module is complete when its lessons are", and §1/§3 name no field for §8's `(opt)` lessons. The lesson frontmatter has `optional: true` (default false, `src/content/schema.ts`). A module's state rests on its core lessons: complete when every core lesson is, not started while no lesson at all is, in progress otherwise. A module with only optional lessons falls back to all of them (`moduleState` in `src/store/completion.ts`). An optional lesson still completes as §1 says, but it never blocks its module. The roadmap card's "N of M lessons complete", ring and "min left" count core lessons and add a line, "1 optional lesson". The module page and `/progress` tag the lesson "optional". `/progress` counts its modules the same way, so its course totals ("N of M lessons complete") leave optional lessons out too (§6 card counts). 5.5 and 8.4 set it, as does the fixture `m97-fixture-capstone/03-indexed-access`. Proven by `src/store/completion.test.ts`, `src/pages/roadmap/model.test.ts`, `src/store/summary.test.ts`, `src/content/schema.test.ts`, `src/content/build-registry.test.ts`, `src/content/node/curriculum.test.ts`, and `e2e/module.spec.ts` "pre-F13: an optional lesson is tagged and never blocks its module".
+- **§5 Rules, a widened `as-unknown-as` and two new rule ids (pre-F13 fixes, Kim's decision on 23 October 2026).** §5 lists eight rules, and `as-unknown-as` "an `as` expression whose operand is an `as unknown` expression". As built (`src/workers/ts-ls/rules.ts`, ids and messages in `src/verify/rules.ts`):
+  - `as-unknown-as` catches every double assertion: an `as` or `<T>` whose unparenthesised operand is another `as` or `<T>`, so `x as object as T`, `x as {} as T`, `x as any as T` and `<T><unknown>x` too. An inner `as const` doesn't count, because the outer assertion is still checked.
+  - `type-assertion` (opt-in) flags a plain `as T` or `<T>x` outside `tests.ts`. `as const` and `<const>x` are fine.
+  - `any-expression` (opt-in) flags, outside `tests.ts`, a used expression of type `any` where the `any` first appears: one whose operands aren't `any`. That catches `JSON.parse(text)` used directly, `Object(x)`, `Reflect.get`, a `.catch((err) => err.message)` reason, an `Array.isArray(u)` element, `x as any`, and each later read of a variable holding an `any`. It isn't flagged when its contextual type is `unknown` (`const data: unknown = JSON.parse(text)`, an argument to `console.log`, `JSON.parse(text) as unknown`). Type positions, declaration and property names, module specifiers, the target of a plain `=` and a discarded expression-statement value are never flagged.
+  - `lintAst` hands the walk the program's checker.
+
+  Proven by `src/workers/ts-ls/core.test.ts` "lintAst, the pre-F13 rules" and `src/verify/rules.test.ts`. The known F12 tricks now fail only on these rules: `as Rgb` in 7.3/02, `admin as Member` in 7.4/02, an untyped `let data` holding `JSON.parse` in 9.4/04, and `globalThis as object as {…}` in 9.2/01. Each was checked once through the real verdict on 23 October 2026, and each compiles and passes its runtime tests. Kim approved these `forbid` additions:
+  - `type-assertion` on 7.3/02, 7.4/02, 3.1/03, 3.3/03, 3.4/04, 4.2/01 and 7.4/04;
+  - both rules on 1.4/01, 1.4/04, 5.5/01, 5.5/04, 7.1/02, 7.1/04, 7.2/01, 7.2/02, 7.2/04, 9.4/01, 9.4/03 and 9.4/04.
+
+  Every solution in the course passes all three rules, and `pnpm content:lint` passes.
+- **§5 Rules, an always-on `type-utils-import` (after F13, Kim's decision on 23 October 2026).** §5's rule table has eight ids, three of them always on. The pre-F13 fixes added two opt-in rules, and `type-utils-import` is a third id, always on like `ts-directive`. It flags `@dojo/type-utils` named as a module in any user file other than `tests.ts`: an import or export declaration, `import x = require(…)`, an `import(…)` type, a dynamic `import()`, or a `declare module '@dojo/type-utils'` block. In a script file, that block merges into the ambient module and can hand a helper to the global scope (`global { type MyIsAny<T> = IsAny<T> }`), which the spec-checker's question showed compiles. A plain string is fine. The hit is at the specifier (`src/workers/ts-ls/rules.ts`, `isTypeUtilsSpecifier`; id and message in `src/verify/rules.ts`). Without it, a solution could import `IsAny` or `UnionToIntersection` instead of writing it (13.4, 11.4/05). No shipped solution or starter imports it, and `pnpm content:lint` passes with the rule on. Proven by `src/workers/ts-ls/core.test.ts` "lintAst, type-utils-import" and `src/verify/rules.test.ts`.
+- **§6 Lesson page, `Enter` on a plain block (after F13, Kim's decision on 23 October 2026).** §6 says "`Enter` on a code block runs Open in REPL". A `plain` block, a fence in another language (the M13 licences, 0.3's vimrc, the `js` emit blocks), takes no focus and has no Open in REPL and no Run. A licence or a vimrc opened as a `.ts` buffer would only show errors, and an emit block shows output, not code to edit. `ts` blocks are unchanged. Proven by `e2e/content.spec.ts` "after F13: other fences render as plain code blocks" (no tabindex, no button).
+- **§5 Type cases, the note's wording (pre-F13 fixes, Kim's decision on 23 October 2026).** §5 quotes the note as "test file does not compile" and says it "usually means the solution exports the wrong name". Several Tier 2 implement starters land there because they aren't generic yet, so the note now reads "tests.ts does not compile against your code; see its first diagnostic" (`TEST_FILE_NOTE` in `src/verify/exercise.ts`). It is followed, as before, by `: ` and the diagnostic. Proven by `src/verify/exercise.test.ts` "a wrong export name fails Compiles with the test-file note" and `e2e/verify.spec.ts`. Kim's answer also asks that §1's kinds table say an implement starter may fail Compiles when its prompt names the diagnostic; that is spec text, left to Kim.
+- **§1 Practice, one exercise per challenge in M13 (F13, Kim's decision with the F13 plan on 23 October 2026).** §1 says practice is "two to five exercises", and §8 gives 13.1 thirteen challenges. Each M13 lesson has one `type-challenge` exercise per type-challenges challenge it sets, plus one `predict`, so 13.1 has 14 exercises. Every other module keeps two to five. The exercise strip wraps, so every chip shows. `src/content/node/curriculum.test.ts` allows more than five exercises in `m13-type-challenges` only.
+- **§10 First deploy step 4, a first rsync pass (F15, in the F15 plan Kim approved on 21 October 2026).** §10 lists one `rsync -az --delete`. `deploy/deploy.sh` first ships `assets/` and `ts/` without delete, then runs the listed `rsync -az --delete` of all of `dist/`. A new `index.html` or `sw.js` therefore never goes live before the files it names, and the listed step is unchanged. The wording proposal is under Spec questions.
+
+- **Pre-bundled packages: `zod` and `react` resolve in every project (F14, Kim's decisions with the F14 plan on 23 October 2026).** The Summary says "the two lessons that need a library ship it pre-bundled", and §8 says "Zod pre-bundled" for 17.2 and "React's types pre-bundled" for 17.4. Neither §2 nor §3 says how. As built (`src/protocol/packages.ts`):
+  - `scripts/copy-packages.ts` (run by `pnpm dev` and `pnpm build` after `copy-ts-libs`) writes `public/packages/types.json` and `public/packages/zod-4.6.7.js`.
+    - `types.json` holds every declaration file TypeScript reads for `zod` 4.6.7 and for `@types/react` 19.3.0 with `csstype` 3.2.3 (`src/workers/ts-ls/node/package-types.ts`).
+    - `zod-4.6.7.js` is the installed zod as one minified ES module, bundled by a nested `vite build`.
+  - The ts-ls worker fetches the declarations once `init` is done and mounts them under `/node_modules/`, a root now reserved for them (`validatePath`). So `import { z } from 'zod'`, and React under `jsx: react-jsx`, resolve in every exercise and in `/repl`, with no exercise.yaml field. A project that names a package waits for the load; one that doesn't never waits.
+  - The sandbox rewrites `import … from 'zod'` to the bundle's URL. In Node, the content lint imports the installed zod, the same version.
+  - React has **types only**: a run that imports `react` or `react/jsx-runtime` stops with "React has types only in the dojo; its runtime isn't bundled". So 17.4's exercises are verified by types (type cases, `@ts-expect-error` cases, zero diagnostics), with no runtime tests.
+  - `valibot` 1.5.0 is a devDependency used only by the build-time twoslash renderer, so 17.2 can compare it in `ts twoslash` blocks. It never ships.
+  - An exercise's `entry` may be a `.tsx` file (17.4). `tests` stays `tests.ts`.
+  - §5 says `tests.ts` imports from the solution's files and `@dojo/type-utils`. It may also import the pre-bundled packages: `zod` (17.2, 17.3) and React's types (17.4).
+- **§9 precache budget (F14, Kim's decision with the F14 plan on 23 October 2026).** Tier 4 doesn't fit in 15 MB raw: before its lessons, the packages alone took the precache to 15.32 MB. `lib.webworker*.d.ts` (0.79 MB, used by no lesson) is left out of the precache (`globIgnores` in `vite.config.ts`); the files still ship and are fetched online if the Settings name them. Everything else stays complete (the real csstype, all of Zod). The measured total, 17,439,897 bytes in 546 entries on 24 October 2026, is recorded as a noted miss under Measured budgets. `e2e/budgets.spec.ts`'s threshold is 18,000,000. The plan said the next 0.5 MB, but 17.5 MB would have left 60 KB for content edits. The §9 figure is under Spec questions.
+
+- **Ship-prompt deviations D1–D5 (approved by Kim in the ship prompt, 25 October 2026).**
+  - **D1, the §11 v1 gate.** "Kim completes Tier 0 and Tier 1 on the deployed site without a mouse" is met by a keyboard-only Playwright walk against https://dojo.kimnejudne.dev (`e2e/deployed.spec.ts`, the `deployed` project) that completes every M00–M04 lesson end to end from a fresh Chrome profile, with every blocking bug it finds fixed. Kim's own run-through is optional and non-blocking (For Kim).
+  - **D2, the F14 by-hand checks.** The "single-page site" link check and the "Tier 4 in the browser" check are done by Claude with Playwright in headless Chrome and ticked with the evidence written in.
+  - **D3, the Prep spike items.** Browser-reserved keys in a tab, in an installed window, and the terminal clipboard round trip do not block v1: marked deferred, non-blocking under For Kim and left unticked. The HTTPS clipboard was confirmed by Kim under F3/F15.
+  - **D4, ticking by-hand and droplet boxes.** For the ship session only, Claude may tick a by-hand or droplet box when its evidence is a test run against the deployed site, a Kim confirmation already recorded in this file, or `dig`, and writes that evidence next to the box. Nothing else in the rules changes.
+  - **D5, pushing.** Pushing to origin main (kim-nejudne/ts-dojo, private) is approved for every commit of the ship session.
+
+- **§6 Theme and type, the terminal restyle (Kim's request, 25 October 2026).** §6 says "one monospace face for the editor and code, one sans face for prose" and "light and dark, following the system by default". Kim asked for the app to look and feel like a terminal: JetBrains Mono everywhere (the Geist dependency is gone), square corners, 1px borders, no shadows, pane title bars, bracketed buttons, prompt-style headings, and a vim-style status bar under every page with two pickers, `theme:` (nine colour schemes, each in a light and a dark variant: Catppuccin, Gruvbox, Solarized, Tokyo Night, One, Rosé Pine, GitHub, Everforest, Dracula) and `mode:` (system, light, dark). The mode is still §7's `theme` and `:set bg=` still writes it; the scheme is a new `scheme` key in the same settings object (the Spec question below), so it is exported and imported with the rest. Both go on `<html>` as `data-scheme` and `data-mode`, beside the `.dark` class. The theory blocks moved from shiki's `github-light`/`github-dark` pair to shiki's CSS-variables theme, so they follow the scheme like the editor. `public/theme-init.js`, a classic script in `index.html`'s head, sets the attributes before the first paint; it is external because the §10 CSP allows no inline script. Proven by `src/theme/schemes.test.ts`, `src/theme/contrast.test.ts` (every palette's body text, muted text and accent reach WCAG AA against its background), `src/app/theme.test.ts`, `src/store/settings.test.ts` and `src/content/node/mdx.test.ts`.
+
+## Spec questions
+
+Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or in the spec.
+
+- **§2 Stack, react-router.** The table says react-router 7 ("current"). On 17 October 2026 the registry's `latest` is 8.4.0, with 7.x still published. F1 pinned 7.18.4, the newest 7.x, as the spec says; the spec names 7 in the Stack table and the Components list. Say so if 8 is wanted.
+- **§5 Runtime tests, types for `test` and `expect`.** The prelude defines `test`, `test.skip` and `expect` at runtime, and `tests.ts` must compile with zero diagnostics outside case ranges, but §5 does not say how `tests.ts` sees their types. Proposal: F7 ships an ambient `.d.ts` (the harness types) added to every exercise project, so lesson authors use `test` and `expect` as globals with no import. The `lesson` skill and its reference exercises assume this.
+- **§2 default options leave `console` and timers undeclared.** With `lib: ["es2025"]` and `types: []`, `console.log` is TS2584 ("Cannot find name 'console'") and `setTimeout` is undeclared, because both live in `lib.dom.d.ts` and `@types/node`, not in the ES lib. Every `ts run` example and most exercises use them, and §12 F4 needs `setTimeout`. Proposal: the app adds one ambient `.d.ts` to every project (not a lesson file) declaring the sandbox's `console` shim and its timers, alongside the test harness types above. Decide at F2 (names and location) and F4 (what the shim really provides). Confirmed with `typescript@6.0.3` on 17 October 2026 while compiling the lesson skill's reference. **Decided at F2 (17 October 2026, accepted by Kim with the F2 plan; also under Deviations):** the worker adds `/dojo/runtime.d.ts` to every project whose lib set has neither `dom` nor `webworker` (those declare console and the timers themselves, and a second declaration would clash): `console.log/info/warn/error/debug`, `setTimeout`, `clearTimeout`, `setInterval`, `clearInterval` and `queueMicrotask` (`src/workers/ts-ls/ambient.ts`). Paths under `/dojo/` are reserved and never a tab. F4 widens the file to exactly what the shim provides; F7 adds `/dojo/test-harness.d.ts` for `test`, `test.skip` and `expect`.
+- **§13 open question** ("write docs/progress.md and CLAUDE.md now, as job-search has, or at F1?"): written now, in the Claude Code setup session on 17 October 2026.
+- **§2 `knownLibFilesForCompilerOptions` (Prep, 17 October 2026).** It is not a dependency walk but a prefix slice of a hardcoded name list. With the §2 defaults written as JSON (`lib: ["es2025"]`) it returns 101 names, among them `lib.d.ts`, every DOM, webworker and scripthost file, and five files 6.0.3 does not ship; after `ts.convertCompilerOptionsFromJson` (lib entries become file names and `ScriptTarget[12]` reads back as `"LatestStandard"`) it returns only `lib.d.ts`. It can never return "only ES files", so §2's "exactly the set it returns" cannot be built. Proposal: F2 resolves the set by following the `/// <reference lib="…" />` directives from `lib.<name>.d.ts` for each `lib` entry (76 files for `es2025`, the two decorators files included, 573,813 bytes), and the §2 sentence is reworded to say so. Pinned by `scripts/copy-ts-libs.test.ts`; the ts-worker skill carries the note. **Answered at F2 (17 October 2026):** Kim accepted the proposal with the F2 plan; the worker follows the reference directives and the entry is under Deviations. The §2 sentence still awaits its rewording.
+- **§4 Undo, `U` (Prep).** The engine has no normal-mode `U`. The proposed mapping `nmap U u` makes `U` a plain undo rather than Vim's "undo all changes on the last changed line". Accept the mapping, or drop `U` from the checklist and list it in the `?` overlay? **F3 ships the mapping** (`lineUndo` in `src/editor/vim-defaults.ts`) and the overlay line; the same applies to `it`/`at` (W), which ship as a documented gap with no definition (docs/prep-vim.md: the adapter finds HTML and XML tag nodes only). Both go under Deviations once Kim accepts them, so criterion 1 of F3 reads as met without a caveat.
+- **§4 P items that need a definition (Prep).** `"*`, `"+p`, `U` and `:set rnu/nu/wrap` are P ("must pass as shipped") but need the definitions recorded in docs/prep-vim.md, and visual block needs `EditorState.allowMultipleSelections.of(true)` in the editor; the §11 gate accepts a working mapping, so Prep passes either way. Re-level them to W, or leave the table and keep the record? Related: W allows a default vimrc mapping, so insert-mode `Ctrl-h` can be `imap <C-h> <BS>` in the shipped vimrc text, or applied in code so the Settings vimrc matches §4 exactly; F3 applies it in code unless Kim prefers the vimrc line.
+- **§6 `/l/:lesson` with lesson ids that contain a slash (F1).** Lesson ids are `<module>/<lesson>` (`m03-unions/05-discriminated-unions`, §3), so `/l/:lesson` cannot be one react-router segment. F1 matches `l/*` and `parseLessonPath` (`src/app/lesson-path.ts`) splits `<module>/<lesson>[/<exercise>]`; the URLs in the browser are the §6 shapes unchanged. Proposal: a note on the two §6 rows that the lesson id spans two path segments; nothing else changes.
+- **§2 ESLint 9 (F1).** Built with ESLint 9.39.5 as the spec says. On 17 October 2026 npm marks every 9.x release deprecated in favour of 10.x (10.12.0); `eslint-plugin-jsx-a11y` 6.10.2 declares `eslint ^9` at most, while `typescript-eslint` 8.71.2 and `eslint-plugin-react-hooks` 7.1.1 accept 10. Move to 10 when jsx-a11y does, or now if Kim prefers a peer warning over a deprecated major.
+- **§4 `:set` persistence against the §7 settings keys (F3).** §4 says `:set rnu / nornu / nu / wrap / nowrap / bg=dark / bg=light` are "editor and theme options; persisted", but §7 names only `relativeNumbers` and `theme` among the settings keys. F3 persists all four: `relativeNumbers` and `theme` as §7 names them, plus `lineNumbers` and `wrap` as two new keys in the `ts-dojo:settings` object (`src/store/settings.ts`). Proposal: add `lineNumbers` and `wrap` to the §7 key list.
+- **§4 `Ctrl-h/j/k/l` in visual mode (F3).** §4 says the pane keys work "in normal and visual mode only", but the shipped vimrc in the same section maps them with `nmap` alone. F3 keeps the vimrc text verbatim and adds the four `vmap` equivalents in code (`visualPaneKeys` in `src/editor/vim-defaults.ts`), re-applied with the other defaults. Proposal: add the four `vmap` lines to the §4 vimrc, or drop "and visual" from the prose.
+- **§12 F3, ex commands whose targets are later features (F3, agreed with Kim in the F3 plan on 17 October 2026).** The criterion "Every ex command in §4 does what its row says, including `:w` running the code" names rows that F4 (`:w` running, `:kill`), F5 (`:e`, `:bd`), F7 (`:test`), F8 (`:hint`, `:sol`, `:reset`, `:done`, `:next`, `:prev`, `:lesson`, `:theory`, `:layout`, `:prompt`, pane focus to the theory pane) and F9 (`:export`) build. F3 registers every command and alias with `Vim.defineEx`, lists them in the palette and the overlay, parses their arguments and dispatches each to the page's host; `:w` transpiles through `emit` and hands the modules to the host; the rows with F3 targets are proven in Chrome and the others answer with the feature that owns them. The box stays unticked until those features close it. Proposal: split the criterion, or move the later rows to their features' §12 blocks.
+  **F4 (18 October 2026)** closed the `:w` running and `:kill` rows (`e2e/sandbox.spec.ts`, `e2e/editor-ex.spec.ts`). **F5 (20 October 2026)** closed the `:e` and `:bd` rows (`e2e/repl-buffers.spec.ts`). **F7 (20 October 2026)** closed the `:test` row and its alias `:t` on the lesson page (`e2e/verify.spec.ts`); on `/repl`, `:test` still says it needs a lesson page. **F8 (20 October 2026)** closed every row the lesson page owns (`e2e/lesson-ex.spec.ts`); only `:export` (F9) is left. **F9 (21 October 2026)** closed `:export` (`e2e/editor-ex.spec.ts`); every row is proven and the box is ticked; the proposal to split the criterion stands for the spec text.
+- **§2 `emit { paths }` and `emitResult` (F4).** The sandbox loader needs the span of every surviving import to rewrite it to a blob URL, and a cyclic graph needs CommonJS output (§2 Decisions). F4 widened the request to `emit { paths, module?: "commonjs" }` and `EmittedFile` to `{ path, js, imports: { specifier, start, end }[] }`. Proposal: add both to the §2 protocol lines.
+- **§2 sandbox → UI messages (F4).** §4 asks for one "output truncated" line and for "still running (N timers)" after the entry settles. F4 added `truncated { entries, bytes }` (the worker stops posting at the cap, so a logging loop cannot flood the main thread) and sends `done` a second time with `pendingTimers: 0` when the last timer drains, so the status can end in "done in N ms" without `:kill`. Proposal: list `truncated` and note the second `done` in §2.
+- **§4 output pane keys and statuses (F4).** §4 names `j`/`k` and `Enter` for the pane but no key to switch its tabs; F4 uses `h`/`l`. §4 says "killed after N ms" and §12 "killed after 5 s": the deadline reports the configured time (`5 s`), `:kill` the elapsed time (`412 ms`); the deadline also ends a run that is "still running". Proposal: add `h`/`l` to the pane's keys and the two wordings to §4.
+
+- **§7 `meta` keys, `lastBuffer` (F5).** §12 F5 says "`/repl` opens the last buffer" but §7's `meta` table lists only `schemaVersion`, `contentVersion`, `lastLessonId` and `importedAt`, and `buffers.updatedAt` cannot carry it (the import merge rule "the newer `updatedAt` wins" would make a merely viewed buffer beat an edited one). F5 stores the name under `meta.lastBuffer`, written on mount and on every switch. Proposal: add `lastBuffer` to the §7 `meta` key list.
+- **§4 `:w` on `/repl` (F5).** §4 says `:w` "runs the entry file"; a scratch-buffer REPL has no fixed entry, so F5 runs the buffer being edited (imports between buffers still work: every buffer is a file of one project). Proposal: a note on the `:w` row that on `/repl` the entry is the current buffer.
+- **§11 order against §3 and §5: the harness and the verdict at F6 (F6).** §3's lint fails on "a failing runtime test" and verifies every solution, and §5's `tests.ts` uses `test`, `expect` and `@dojo/type-utils`; none of that can be checked before the harness, its declarations and the verdict assembly exist, which §11 places at F7. F6 ships them as pure modules (`src/workers/sandbox/harness.ts`, `src/verify/exercise.ts`, `src/verify/type-utils.ts`, the ambient files) and F7 keeps the UI (`:test`, the Tests tab, the hang fixture in Chrome). Proposal: a note under §11 Weekend 3 that the verification core lands with the content pipeline.
+- **§12 F6 criterion 3, "the browser loads no worker for theory" (F6).** §2 starts the ts-ls worker on every page load, so the lesson page always has exactly one worker. The criterion is proven as "no worker besides that one, and no twoslash or shiki request" (`e2e/content.spec.ts`), with the `^?` results present in the lesson's static chunk. Proposal: reword to "no worker beyond the app's ts-ls worker".
+- **§3 `ts run` and `ts run errors` snippets are emitted at build time (F6).** §1 says each example has Run; the protocol has no request to transpile a snippet outside the open project, and swapping the project under the editor for a theory run would disturb the exercise. F6 emits the snippet's JavaScript at build time (`js` prop) and runs it in the sandbox as `/snippet.ts`; `run errors` diagnostics are computed at build time with the app's core. Proposal: a sentence in §3 lesson.mdx saying the block's JavaScript and diagnostics are build products.
+- **§2 config loading (F6).** The content plugin lives in `src/` and uses the `@/` alias, which Vite's config bundler cannot resolve; `vite.config.ts` loads it with tsx's `tsImport`. Proposal: none; noted for the next person who touches the config.
+- **§12 F5 criterion 3, "from a theory block" (F5).** No theory block exists before F6 (the content pipeline renders `ts run` fences). F5 ships `openInRepl` on `AppActions` and proves the flow through the app seam `window.__tsDojoApp.openInRepl`; F6's block button calls the same function and its §12 criterion ("`ts run` blocks have Run and Open in REPL") proves the button. Proposal: none; noted so the F5 tick reads with that context.
+- **§5 and §1, `tests.ts` is editable (F7).** §5 makes `tests.ts` a user file (its diagnostics outside case ranges fail Compiles, and the always-on rules skip it by name), and §1 says a `fix` exercise is solved "without changing the tests". F7 shows `tests.ts` as an ordinary editable tab, so "without changing the tests" is an instruction to Kim, not enforced. Proposal: keep it editable (it is where Kim reads the cases and can add a probe), or make it read-only and say so in §4 Multi-file exercises. **Answered in the F8 plan (20 October 2026):** Kim keeps it editable.
+- **§5 Verdict, `Enter` on a failed runtime test (F7).** §5 says `Enter` on a failed test moves the cursor to it, but the harness's `testResult` carries no position. F7 jumps to the first `test('name'` (any quote style, `test.skip` too) line in `tests.ts` found by text. Proposal: accept the text search, or add a `loc` to `testResult` in §2 (the harness would have to read it from a stack at `test()` time).
+- **§1 and §6, the exercise prompt (F7).** The prompt is Markdown (§1), but the app has no Markdown renderer at runtime and §2 names none; F7 shows it as preformatted text. Proposal: F8 compiles the prompt at build time through the MDX pipeline the lessons use (the content plugin already reads every `exercise.yaml`), so no renderer ships; or name a renderer in §2. **Answered in the F8 plan (20 October 2026):** compiled at build time. The content plugin answers `exercise.yaml?prompt` with a virtual `…/exercise.yaml.prompt.md` module and a second `@mdx-js/rollup` instance compiles it as plain Markdown (`format: 'md'` from the extension, so `<` and `{` in prose are text); one small chunk per exercise. A sentence in §3 `exercise.yaml` saying so would close it.
+- **§7 attempts, a `kind` field (F8).** §7's `attempts` row has `at`, `passed`, `groups`, `ms` and `files`, but a `:run` and a `:test` attempt are different things (§1: "Every `:run` and `:test` records an attempt ... verdict per group"): a run checks no group. F8 adds `kind: 'run' | 'test'` (`src/store/db.ts`; Dexie indexes only keys, so no version bump); a `:run` attempt records Compiles from the diagnostics the editor shows and the other three groups as not checked (`passed: false, count: 0`). It changes F9's export shape. Proposal: add `kind` to the §7 `attempts` fields.
+- **§7 `attemptsToPass` and the 20 kept attempts (F8).** `attemptsToPass` is the number of attempt rows for the exercise when it first passes, and §7 prunes rows beyond the newest 20, so it reads at most 20. Proposal: accept the cap, or add a counter field to the exercise row.
+- **§7 a second localStorage key, `ts-dojo:unsaved` (F8).** §12 F8 says files are "restored on return, including after a reload mid-edit", but autosave writes 500 ms after the last keystroke (§7) into IndexedDB, and an IndexedDB write does not finish during an unload (Dexie's read-modify-write is two steps; the page is gone before the put; measured by the e2e-writer, 3 of 3). So on `pagehide` the lesson page also writes the texts still waiting, synchronously, to localStorage under `ts-dojo:unsaved` (exercise id → path → text); the exercise takes them back over its stored files on its next mount, writes them to IndexedDB and drops them (`src/store/unsaved.ts`; `e2e/lesson-practice.spec.ts` "text typed just before a reload, before the autosave fired, is restored too"). It never holds more than what one unload interrupted. Proposal: name it in §7 next to `ts-dojo:settings`.
+- **§1 `predict` exercises and retries (F8).** §1 allows retries for Check yourself questions; for a `predict` exercise it says only "The chosen option is the right one. The explanation shows either way." With one try, a wrong answer would leave a required exercise unpassable and the lesson never complete. F8 allows retries: every answer is recorded (`predictAnswer`, the latest), a correct one passes the exercise for good, and a later wrong answer never unpasses it. The cost: trying every option passes it. Proposal: accept retries, or keep the first answer and let a wrong one count as attempted but not block completion.
+- **§6 `:done` "from either pane" (F8).** §4 says `:done` works "from either pane" and §6 lists `:done` among the theory pane's keys, but the theory pane has no `:` line (only the editor does) and §6 lists no `:` global key. F8 reaches `:done` from the theory pane through the button at the end of the theory (`Enter` on it) and through `Ctrl-p` → `:done` (the palette sends page-level commands to the page from the pane that had the focus); in the editor it is the ex command. Proposal: say so in §6, or add `:` as a global key that opens a command line outside the editor.
+- **§7 merging lesson rows (F9, decided with the plan).** §7 says rows merge by id "and the newer `updatedAt` wins", but `lessons` has no `updatedAt`. F9 dates a lesson row by the latest timestamp it carries (`lastOpenedAt`, `theoryReadAt`, `completedAt`, a question's `at`), takes the newer row as the base, keeps the further state (a complete lesson never becomes incomplete, read theory never unread, mirroring "a passed exercise never becomes unpassed"), the earliest `theoryReadAt` and `completedAt`, the later opening's `lastExerciseId`, and merges the answers per question by `at` (`src/store/merge.ts`). Proposal: say so in §7, or add `updatedAt` to the lesson row.
+- **§7 export details (F9).** `exportedAt` is an ISO 8601 string (the rows keep their millisecond timestamps); attempts are exported without their local `++id` key. On import an attempt the store already has (same exercise, `at` and `kind`) is skipped, so importing one file twice adds nothing, and each exercise is then pruned to its newest 20 by `at`. Proposal: a sentence in §7 Export and import.
+- **§6 Continue with nothing opened (F9, decided with the plan).** §6 names "the last touched exercise"; on a fresh store the bar reads "Start" with the course's first exercise, and `c` opens it. "Last touched" is read as last opened (`meta.lastLessonId` and that lesson's `lastExerciseId`), with fallbacks to the lesson when its exercise is gone and to the newest opened lesson the content still has. Proposal: say so in §6 Roadmap.
+- **§1 lesson `prerequisites` (F9).** §1 says lesson prerequisites are "used for the recommended first note", but §6 shows the note only for modules. F9 shows a lesson's own note on the module page, in the focused lesson's expanded row. Proposal: name the place in §6 Module page.
+- **§7 "Reset everything" (F9, decided with the plan).** It clears `lessons`, `exercises`, `attempts`, `buffers`, the `meta` progress keys and the unsaved journal, and keeps the settings and `meta.schemaVersion`/`contentVersion`. Proposal: say what "everything" covers in §7.
+
+- **§2 protocol, `checkCompilerOptions` (F10, decided with the plan on 21 October 2026).** The Settings page saves compiler defaults only when TypeScript accepts them, and the main thread has no compiler. F10 adds `checkCompilerOptions { compilerOptions }` (UI → ts-ls) and `compilerOptionsChecked { errors }` (ts-ls → UI). The options are merged over the §2 defaults as `openProject` merges them. The errors come from `convertCompilerOptionsFromJson`, then from the options and global diagnostics of an empty program. The open project is not touched (`src/workers/ts-ls/core.ts`). Proposal: add both to the §2 protocol lines.
+- **§2 and §7, where `compilerDefaults` applies (F10, Kim's decision with the plan on 21 October 2026).** §2 says its defaults cover "every exercise and REPL buffer", but the content lint proves each exercise solvable, with its tricks blocked, under exactly §2's options plus the exercise's own. The Settings compiler defaults therefore merge over §2 for `/repl` buffers only, and exercises keep §2 plus their `compilerOptions`, so a verdict never depends on a local setting. Proposal: a sentence in §7 saying so.
+- **§3 `exercise.yaml` `timeoutMs` is optional (F10, Kim's decision with the plan on 21 October 2026).** The schema used to fill in 5000, so the app could not tell an omitted deadline from an explicit one. It now leaves `timeoutMs` out when the file does. The deadline is the exercise's own value, else the Settings `defaultTimeoutMs`, else 5 s (`timeoutFor` in `src/store/settings.ts`). The same rule covers `/repl` runs and theory Run, and the content lint keeps 5 s. The fixture `m99-fixtures/02-implement/02-literal-discriminant` dropped its `timeoutMs: 5000` to exercise the rule; the lesson skill says the field is optional. Found on the way: the lesson page's `:run` never passed the exercise's `timeoutMs` (every run had 5 s); it does now. Proposal: mark the field optional in §3 and point §4's "default 5 s" at the setting.
+- **§7 ranges and the meaning of "font size" (F10).** §7 names `fontSize` and `defaultTimeoutMs` without ranges. F10 accepts whole numbers: font size 10–24 px (default 14) and timeout 500–60,000 ms (default 5,000). Anything else is explained on the page and not stored, and `parseSettings` drops it. "Font size" is the size of code: the editor and the theory code blocks (`--code-font-size`), with prose left to the browser. Proposal: write the ranges and the scope into §7.
+- **Compiler options the Settings page refuses (F10, Kim's decision with the plan on 21 October 2026, the option that named them).** `module`, `moduleResolution`, `isolatedModules`, `importHelpers` and `noEmitHelpers`. The sandbox loads the emitted ES modules as they are (§2 Decisions) and has no `tslib`, so `module: commonjs` or `importHelpers` would break every run while TypeScript itself raises no error. Proposal: list them in §7 next to `compilerDefaults`.
+- **§7 import, settings restored as a whole (F10, Kim's decision on 21 October 2026, after the acceptance review).** F9's import wrote only the keys the file carried. A default is stored as a missing key, so a file exported with the shipped vimrc never put the shipped vimrc back. The import now makes the settings exactly the file's (`replaceSettings`): a key the file lacks returns to its default. The preview names every key that changes, resets included, and the dialog says "The settings become the file's". An imported `compilerDefaults` also passes TypeScript's check, as a Save on `/settings` does. Options TypeScript refuses are left out of the import, and the preview says why (`src/pages/progress/check-settings.ts`). Proposal: a sentence in §7 Export and import.
+- **§6, reaching `/settings`, `/progress` and `/repl` (F10).** §6 names no global key, palette entry or header link for these three pages, so today they are reached by typing the URL (`/repl` also through Open in REPL). Proposal: palette entries ("Settings", "Progress", "REPL") or three header links; not built in F10, since §6 lists neither.
+
+- **§9 "broadband" (F15).** The cold-load budget says "on broadband" without a figure. F15 measured over an emulated 50 Mbit/s link with 30 ms per response (`e2e/helpers/link-server.ts`), with the deployed site measurable the same way (`BUDGETS_URL`). Proposal: name the profile in §9, or name the deployed site as the place the cold numbers are taken.
+- **§2 and §10 sizes (F15).** §2 says about 12 MB in Cache Storage after precache, and §10 says the worker chunk is about 9 MB raw. Measured on 21 October 2026, the precache is 9.16 MB and the ts-ls chunk 3.56 MB raw (minified; the 9 MB is the unminified `typescript.js`). Proposal: update the two estimates.
+- **§10 `deploy.sh` steps (F15).** §10 step 4 lists one `rsync -az --delete`. F15 ships `assets/` and `ts/` first, without delete, then the whole of `dist/` with `--delete`, so a new `index.html` or `sw.js` never lands before the files it names (`deploy/README.md`, Caching). Proposal: add the first pass to the step list.
+- **§9 worker memory (F15).** "ts-ls worker memory, steady: under 250 MB" doesn't say which memory. F15 measured the worker's V8 JS heap (`Runtime.getHeapUsage` after a garbage collection), which is 20 MB. That excludes the renderer process the worker shares with the page. Proposal: name the JS heap in §9, or the measure to use.
+- **§9 Offline, an update taken in another tab (F15).** §9 says both "every page, lesson, diagnostic and run works offline" and "it never reloads by itself mid-exercise". When Kim presses Reload in one tab, the new worker also takes over the other open tabs (`clientsClaim`) and drops the old version's precache entries. `deploy.sh`'s `--delete` has already removed the old hashed files from the server. F15 keeps such a tab as it is: no reload, the line stays, and its Reload reloads at once (proven in `e2e/offline.spec.ts`). Until then, that tab can't load a lesson chunk it hasn't loaded yet. Proposal: accept that; or reload such a tab at its next in-app navigation, which the plugin's docs suggest, since that is not mid-exercise.
+- **§9 Offline, when the service worker registers (F15).** §9 doesn't say. F15 registers once the compiler is first ready (or failed, or after 10 s), so the precache never shares the first visit's connection with the compiler's own downloads. Proposal: a sentence in §9 Warm-up.
+
+- **§5 Compiles and the directive comments (F11).** §5 Compiles says `@ts-ignore`, `@ts-nocheck` and `@ts-expect-error` in a user file other than `tests.ts` "always fail". As built at F7, the comment silences its diagnostic, so Compiles passes, and the always-on `ts-directive` rule fails the Rules group (`src/verify/exercise.ts`, `src/workers/ts-ls/rules.ts`). The exercise can't pass either way. Lesson 0.2 teaches the built behaviour. Proposal: §5 Compiles says the Rules group catches them.
+- **§2 and §4, `/repl` buffers are one project (F11).** A snippet opened in `/repl`, by Open in REPL or by Enter on any focused `ts` block, becomes a buffer of one project. Two script snippets (no import or export) that declare the same name then clash (TS2451, TS2393) and can hide each other's errors. On 21 October 2026, 182 of the course's 196 snippets were scripts, and 78 names were declared by more than one. The lessons are not bent around this; 0.2 and 0.3 happen to export their runnable snippets, which is harmless. Proposal: `/repl` projects set `moduleDetection: "force"`, so every buffer is a module and imports between buffers still work. Alternatively, Open in REPL appends `export {}`. It is a §2 options decision. **Answered by Kim on 22 October 2026: every `/repl` buffer is its own module** (`moduleDetection: "force"`, `src/pages/repl-options.ts`; under Deviations).
+- **§3, non-`ts` fences (F11).** Only `ts` fences go through `CodeBlock`. Lesson 0.3's `vim` fences (the shipped vimrc) and the `js` emit blocks in 0.1 and 4.4 render as bare `<pre>` with no code-block styling. Proposal: style other fences as static blocks.
+- **§7, `/repl` and an unload (F11, found by a reviewer).** The lesson page journals unsaved text to localStorage on `pagehide` (F8). `/repl` only flushes to IndexedDB, which F8 measured does not finish during an unload, so the last 500 ms of `/repl` typing can be lost to `Ctrl-w` or a close. Proposal: `/repl` uses the same journal.
+- **§5 Rules, `non-null-assertion` and definite assignment (F11).** The rule catches `x!` (`ts.isNonNullExpression`), not the definite-assignment `field!: T`, so no rule can forbid that escape; 4.5's exercises stop it with runtime tests. Proposal: say in §5 that the rule covers non-null assertions only, or add a rule for definite assignment.
+- **§5 Rules, a plain `as T` (F11, optional).** No rule forbids a plain cast, and a cast whose runtime behaviour is right can't be caught by a test. It passes in 3.1/03, 3.3/03, 3.4/04 and 4.2/01, without skipping the lesson's point. Likewise, the inline `never` line leaves no runtime trace. Worth a rule id only if Kim wants exercises to forbid casts outright.
+
+- **§1 and §8, optional lessons (F12, Kim's decision with the F12 plan on 22 October 2026).** §8 marks 5.5 and 8.4 `(opt)`, but no field in §1, §3 or the schema marks a lesson as optional. Both are written as ordinary lessons: listed in `module.yaml`, the full §1 structure, and module completion waits on them. Proposal: an `optional: true` lesson frontmatter field that keeps a lesson out of module completion and shows "optional" on the roadmap and module page. It is app work, so a later feature. **Answered by Kim on 23 October 2026:** an `optional: true` lesson frontmatter field. The roadmap and module page tag the lesson "optional", and module completion ignores it. To build before F13, which ships three more `(opt)` lessons; 5.5 and 8.4 then set the flag. It goes under Deviations when built.
+- **§3, `ts run` fences are one file under the §2 defaults (F12).** A lesson that teaches a flag or several files (9.1 `verbatimModuleSyntax`, 8.3 `noImplicitOverride`, 9.2 declarations) can show it only in `ts twoslash` blocks, with `// @filename:` and `// @<flag>:`. 9.1's one `ts run errors` pitfall reuses 4.4's ambient `const enum` (TS2748) for that reason. Proposal: a fence meta for compiler options and extra files, or accept twoslash for these. **Answered by Kim on 23 October 2026:** accept twoslash. `ts run` stays one file under the §2 defaults; theory that needs a flag or several files uses `ts twoslash` (`// @filename:`, `// @<flag>:`). No app change.
+- **§1 Pitfalls, "each with a failing snippet" (F12).** Some pitfalls are a `ts run` block that compiles and goes wrong at run time: the point is that the compiler stays silent (7.1, 7.2, 8.4's `instanceof`, 9.4's `.catch` annotation; F11 has eleven). Others fail in a twoslash block because they need several files (9.1). The curriculum test asks for one `ts run errors` block in Pitfalls and a snippet per pitfall. Proposal: say in §1 that a failing snippet may be a compile error or a run-time failure. **Answered by Kim on 23 October 2026:** yes, any failure counts: a compile error (`ts run errors`, or twoslash `@errors`) or a visible run-time failure in a `ts run` block. The curriculum test keeps its rule of at least one `ts run errors` block per Pitfalls section.
+- **§5 Runtime tests, `rejects.toThrow` (F12).** Under `.rejects`, `toThrow(message?)` still requires the received value to be a function (`src/workers/sandbox/harness.ts`), so `await expect(p).rejects.toThrow('timeout')` fails when `p` rejects with `Error('timeout')`. Jest accepts that form. 9.3 and 9.4 test with `rejects.toBeInstanceOf(Error)` and a helper. Proposal: under `.rejects`, `toThrow` checks the reason's message. **Answered by Kim on 23 October 2026:** fix the harness. Under `.rejects`, `toThrow(message?)` checks the rejection reason directly, as Jest does (`src/workers/sandbox/harness.ts`, with a test). A small fix commit before F13.
+- **§2 `/dojo/runtime.d.ts`, the timer callback type (F12).** `setTimeout`'s callback is declared `(...args: unknown[]) => void`, so `new Promise<void>((resolve) => setTimeout(resolve, ms))` is TS2345 here, though it compiles with the DOM lib. 9.3 writes `setTimeout(() => resolve(), ms)`. Proposal: declare the callback as DOM does, or keep it and accept the extra arrow. **Answered by Kim on 23 October 2026:** match the DOM lib's shape, `(handler: (...args: any[]) => void, timeout?: number, ...args: any[])`, so `setTimeout(resolve, ms)` compiles as it does elsewhere. The `any` is in an app-owned declaration file, outside every forbid rule (`src/workers/ts-ls/ambient.ts` and its test). A small fix commit before F13. **Built with the pre-F13 fixes as `handler: Function`** (Kim's choice later on 23 October 2026, after the spec-checker found that `(...args: any[]) => void` gives an unannotated callback parameter a silent `any`; see Deviations).
+- **§5 Rules, casts and `any` that no rule sees (F12, from the reviews).** The F11 plain-`as T` entry above applies again: 7.3/02 can pass with `as Rgb` instead of `satisfies`, the exact mistake the lesson warns about, and 7.4/02 with `(admin as Member)`. Two related gaps: `x as object as T` and `x as {} as T` do what `as-unknown-as` forbids but pass it (9.2/01 needed a test to stop it), and an `any` that comes from a call (`JSON.parse`, `Object()`, `Reflect.get`) passes `explicit-any`. Proposal: a `type-assertion` rule for a plain `as T` that allows `as const`; widen `as-unknown-as` to any `as` whose operand is an `as` expression; and an `any`-typed-expression rule for user files. All optional. **Answered by Kim on 23 October 2026:** all three. Widen `as-unknown-as` to every double assertion (an `as` or `<T>` whose operand is an `as` or `<T>` expression). Add an opt-in `type-assertion` rule for a plain `as T` or `<T>x` that allows `as const`. Add an opt-in rule for an expression of type `any` in a user file, which needs the type checker. To build before F13; then 7.3/02 and 7.4/02 can forbid `type-assertion`. The new ids go under Deviations when built.
+- **§5 Type cases, derived or hand-written (F12).** `Equal` can't tell a type derived from a value or a utility (`keyof typeof LEVELS`, `Partial<SignUp>`) from the same type written out by hand, so "derive it" in 6.1, 6.2 and 6.3 rests on the prompt. No rule can require a construct either: 8.3/03's parameter properties and 8.2/03's call signature (now a type case) are prompts. Proposal: record it as a known limit, like the plain cast. **Answered by Kim on 23 October 2026:** a known limit, like the plain cast. Exercises keep stopping what they can; "derive it" and "use a parameter property" stay in the prompt. No app change.
+- **§5 Compiles, "test file does not compile" (F12).** §5 says this note "usually means the solution exports the wrong name". Several Tier 2 implement starters (5.1/04, 5.2/04, 5.3/04, 5.4/04, 5.5/04, 8.2/03, 8.3/03, 8.3/04, 8.4/03) fail there because the starter isn't generic yet or lacks a member, and each prompt names that diagnostic. Proposal: word the note neutrally ("tests.ts does not compile against your code; see its first diagnostic"), and state in §1's kinds table that an implement starter may fail Compiles when the prompt names the diagnostic. Today that rule is in the lesson skill only. **Answered by Kim on 23 October 2026:** word the verdict note neutrally, "tests.ts does not compile against your code; see its first diagnostic" (`src/verify/`, its tests and any e2e that matches the text). §1's kinds table should say that an implement starter may fail Compiles when its prompt names the diagnostic. A small fix commit before F13.
+- **§1 Further reading, "Handbook links" (F12).** Every Tier 2 lesson has at least two handbook links, and most also link other sources: release notes in all but 5.3, 5.5, 6.4, 8.1 and 8.2; the tsconfig reference in some; and four sources outside the TypeScript docs: typescript-eslint (5.5), MDN (9.3, 9.4), the DefinitelyTyped repository (9.2) and GitHub issue #9998, "Trade-offs in Control Flow Analysis" (7.4). Proposal: §1 allows links beyond the handbook, to official TypeScript sources and to well-known references such as MDN. **Answered by Kim on 23 October 2026:** handbook first, more allowed. At least one handbook link, plus any official TypeScript source (release notes, tsconfig reference, the TypeScript repository) and well-known references (MDN, typescript-eslint, DefinitelyTyped). No content change.
+
+- **§1 Practice, "two to five exercises" (F13).** Kim decided with the F13 plan that each M13 lesson has one exercise per challenge plus a `predict` (13.1 has 14), under Deviations. Proposal: §1 names the exception for the type-challenges track, or §8's 13.1 row says how its 13 challenges are split. **Answered by Kim on 23 October 2026:** a sentence in §1 Practice, "The type-challenges track (M13) has one exercise per challenge, plus a `predict`." Spec text, left to Kim. No code change.
+- **§5 Type cases, "every statement" (F13).** §5 says a case is "every statement whose leading comment is `@ts-expect-error`". As built at F7 (`src/workers/ts-ls/type-tests.ts`), it is every *top-level* statement of `tests.ts`. A directive inside an arrow body, a class body or a method chain is not a case, and its TS2578 then fails Compiles with the tests.ts note. F13's authors put each one on its own top-level statement, and the lesson skill says so. Proposal: §5 says "top-level statement". **Answered by Kim on 23 October 2026:** reword §5 to "every top-level statement". The finder stays as built. Spec text, left to Kim. No code change.
+- **§5 Rules, what no rule catches in type-challenges (F13).** A type-challenge that rebuilds a built-in can be passed by aliasing it (`type MyPick<T, K extends keyof T> = Pick<T, K>`). A solution file can also import a helper from `@dojo/type-utils`, such as `IsAny` (13.4) or `UnionToIntersection` (11.4/05). Equal can't tell either from the real work, as with a type written out by hand (F12). Proposals, all optional:
+  - resolve `@dojo/type-utils` only from `tests.ts`, an app change in the ts-ls worker;
+  - a rule id that forbids naming given lib utilities in a user file (`forbid: [builtin:Pick]`, say);
+  - or record both as known limits, as F12's "derived or hand-written" was.
+
+  **Answered by Kim on 23 October 2026:**
+  - Add an always-on rule that flags an import of `@dojo/type-utils` in any user file other than `tests.ts`. On 23 October 2026 no shipped solution or starter imported it; the only mentions were in comments and prompts. It goes under Deviations when built, since §5 lists the rule ids.
+  - Aliasing the built-in a challenge rebuilds stays a known limit, like F12's "derived or hand-written". A blanket ban would break six M13 solutions that use built-ins legitimately (`Omit`, `Awaited`, `Exclude`, `Pick`), and the prompts say "without the built-in".
+  - To build in a small fix commit before F14. **Built with the post-F13 fixes** (under Deviations).
+- **§3, a mistyped `ts` fence (post-F13 fixes, Kim's decision on 23 October 2026: note it only).** Since every fence in another language is `plain`, a ```` ```typescript ````, ```` ```tsx ```` or ```` ```mts ```` fence would become a plain block, with TypeScript highlighting but no lint, no Run and no Open in REPL, and no error. No lesson uses one, and the lesson skill names the four `ts` fences. A known gap; a §3 lint condition could close it later.
+- **§3 non-`ts` fences (F13, again).** Each M13 lesson's Further reading carries type-challenges' MIT notice in a ```` ```text ```` fence, which renders as a bare `<pre>` (the F11 entry above). It reads fine, but styling other fences would help here too. **Answered by Kim on 23 October 2026:** style every non-`ts` fence as a static code block, with the code-block look and no Run button. That covers the `text` licences, 0.3's `vim` fences and the `js` emit blocks in 0.1 and 4.4, with an e2e check. To build in the same small fix commit before F14, with the import rule. **Built with the post-F13 fixes** (see F13's notes).
+
+- **§9 precache budget (F14).** Tier 4 and the pre-bundled packages bring the precache to 17,439,897 bytes; Kim accepted a noted miss with the F14 plan. Proposal: §9 says "under 18 MB raw" (the test's threshold now), or measures the transfer size instead, about a quarter of the raw bytes, since Cache Storage quota isn't the constraint.
+- **§2 and §3, the pre-bundled packages (F14).** Neither section says how "the two lessons that need a library ship it pre-bundled". As built (under Deviations): `/packages/types.json` and `/packages/zod-4.6.7.js`, mounted under `/node_modules/` in every project; `tests.ts` may import them; an exercise `entry` may be `.tsx`. Proposal: a paragraph in §2 Compiler assets and a line in §3 `exercise.yaml`.
+- **§5 Rules, an `any` call whose result is unused (F14, 18.3/05).** `any-expression` skips a discarded expression-statement value, so `Reflect.apply(listener, undefined, [action])` as a statement skips a type guard and passes. Proposal: flag a call that resolves to an `any`-returning library signature even when its result is unused, or accept it under "what no rule catches".
+- **§3 `exercise.yaml`, `compilerOptions` values (F14, 16.2).** The schema takes booleans, numbers, strings and string arrays, so `paths` (an object) can't be set and 16.2 teaches it in theory and a predict only. Proposal: allow record values, or accept.
+- **§3, ESM mode under `nodenext` (F14, 16.2).** An exercise can't ship a `package.json` with `"type": "module"`, and the sandbox runs only ES modules emitted under `module: esnext`. So 16.2 shows `nodenext` ESM in twoslash, and exercises that override `module` have no runtime tests. Proposal: accept, or allow a `package.json` among exercise files.
+- **§10 nginx, a `location /packages/` (F14, from the spec-checker).** `/packages/*` is served by `location /`: the MIME types, gzip_static, the CSP and `no-cache` are right, but a missing package file answers `index.html` with 200 instead of 404, which is what `=404` prevents for `/assets/` and `/ts/`. Proposal: `location /packages/ { try_files $uri =404; … }`, with the CSP repeated, and a `deploy.sh` curl check. It's a server change Kim installs, so it isn't built. Since F14, `deploy.sh`'s first rsync pass ships `packages/`, so a new `sw.js` never names a package file before it is on the server.
+- **§9 Warm-up, `ready` waits for the package declarations (F14).** §9 says the worker opens an empty project and loads the es2025 libs on start; it doesn't say what `ready` waits for. Since F14 `ready` also waits for `/packages/types.json` (1.3 MB raw, precached), to close the race in F14's bug 1. The warm `ready` median went from 331 to 380 ms, and every budget is still met. Proposal: a sentence in §9 Warm-up.
+- **The inline-code check and double backticks (F14, 18.1).** `src/content/inline-code.ts` doesn't accept a ``` `` `x` `` ``` span in Predict text, so 18.1 reworded one explanation. Proposal: none unless a lesson needs one.
+- **§1 Further reading links (F14).** The authors couldn't fetch their links while writing. Before the commit, every one of the 91 Further reading URLs in M15–M18 was fetched: each answered 200. Each `#anchor` was looked up in the page, and one was wrong: 16.2's `modules/reference.html#module-resolution`, now `#the-moduleresolution-compiler-option`. A 200 from a single-page site doesn't prove the page exists, so those few links are on the For Kim list.
+
+- **§9 budgets over a real link (v1 gate session, 25 October 2026).** From Kim's desktop the path to the droplet ran at 22–34 KB/s for stretches that day, and the cold budgets missed by an order of magnitude (Measured budgets); cdnjs and npm were normal, and Kim's 21 October run from the laptop met every budget. Two things for the spec: (1) §9's cold figures over a real link depend on the day's path to the droplet, so the record should name the link they were taken on (the F15 question above asks the same), and a bad day is not a build regression; (2) since F14 the cold `ready` also waits for `/packages/types.json` (168 KB gzip, 1.4 MB raw), which on a slow link is the last and longest fetch after the 76 libs. Not waiting when no file names a package would reopen the stale-TS2307 race F14 closed, so a change there needs its own design (for instance, answering `ready` and re-checking the open project once the packages land). Nothing changed in the app.
+
+- **§7 settings object, a `scheme` key (the terminal restyle, 25 October 2026).** §7 lists `vimrc`, `relativeNumbers`, `fontSize`, `theme`, `defaultTimeoutMs`, `compilerDefaults`, `layout`. The colour scheme picker Kim asked for stores its choice as `scheme`, one of the ids in `src/theme/schemes` (`catppuccin` when absent), in the same object, so §7's export and import carry it. `theme` keeps its meaning (the mode). Proposal: add `scheme` to the §7 list, and reword §6 "one sans face for prose" to the one monospace face. Kim asked for both on 25 October 2026; the entry under Deviations has the detail.
+
+## Measured budgets (§9)
+
+§9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
+
+| What | Budget | Measured | Note |
+| --- | --- | --- | --- |
+| Cold load, app shell interactive | under 2 s on broadband | median 382 ms, max 882 ms (5 cold runs) | Emulated link, 50 Mbit/s and 30 ms per response (§9 names no figure); the first run of a fresh browser is the max |
+| Cold load, compiler `ready` | under 5 s; the editor is usable before that, with the "compiler loading" chip | median 1,147 ms, max 1,590 ms (5 cold runs) | Same link; the chunk and the 76 libs arrive gzip -9 as nginx will send them |
+| Warm load (service worker), compiler `ready` | under 1.5 s | median 304 ms, max 343 ms (5 reloads) | Document and ts-ls chunk asserted `fromServiceWorker()` |
+| Diagnostics for a 200-line file, `es2025` lib, warm | under 300 ms p95 after typing stops | p95 210 ms, median 207 ms (30 samples) | The 200 ms lint delay included: the worker's share is about 10 ms |
+| Quick info | under 100 ms | p95 6.5 ms, max 17 ms (20 samples) | `K` keydown to the tooltip in the DOM |
+| Run of a trivial file, worker spawn included | under 150 ms | p95 19.7 ms, max 20 ms (20 samples) | `:w` Enter to "done in", the emit and a fresh sandbox worker included |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.5 MB total JS heap | After 30 diagnostic cycles, quick info and runs, garbage collected first; CDP `Runtime.getHeapUsage` on the worker; es2025 libs only |
+| Total precache | under 15 MB raw | 9,164,201 bytes, 153 entries | Summed from Cache Storage, equal to the files `dist/sw.js` lists; grows with F11–F14 |
+
+Measured 21 October 2026 with `pnpm test:e2e --project budgets` (e2e/budgets.spec.ts) against a local build, Chrome 155 headless, AMD Ryzen 7 3700X. No budget is missed. The cold loads are against an emulated link; the deployed site can be measured the same way with `BUDGETS_URL` (For Kim).
+
+F11 re-measured the budgets against the course build on 21 October 2026: the same project, machine and link, with the 20 lessons of Tier 0 and Tier 1 in `dist/`. Every budget is still met:
+
+| What | Budget | Measured (F11) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 406 ms, max 856 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,158 ms, max 1,571 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 311 ms, max 355 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 211 ms, median 205 ms (30 samples) |
+| Quick info | under 100 ms | p95 16 ms, max 16 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.2 MB total JS heap |
+| Total precache | under 15 MB raw | 10,592,898 bytes, 217 entries |
+
+F12 re-measured the budgets against the course build on 23 October 2026: the same project, machine and link, with the 41 lessons of Tiers 0–2 in `dist/`. Every budget is still met, but the precache is at 87% of its budget (see F12's notes):
+
+| What | Budget | Measured (F12) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 432 ms, max 612 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,187 ms, max 1,534 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 315 ms, max 371 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 212 ms, median 206 ms (30 samples) |
+| Quick info | under 100 ms | p95 6.8 ms, max 16 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.0 MB total JS heap |
+| Total precache | under 15 MB raw | 13,097,374 bytes, 321 entries |
+
+Re-measured after the pre-F13 fixes on 23 October 2026: the same project, machine and link, the same 41 lessons, with shiki's colours as classes. Every budget is met. The cold-load figures are from a second run straight after the first, whose output had scrolled past them. After Kim's switch of the timer handler to `Function` the same day, a third run passed all three tests and measured the precache at 12,275,097 bytes; the other figures are from the earlier runs.
+
+| What | Budget | Measured (pre-F13) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 427 ms, max 877 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,188 ms, max 1,581 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 318 ms, max 367 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 212 ms, median 206 ms (30 samples) |
+| Quick info | under 100 ms | p95 7.1 ms, max 12.5 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 20 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 19.7 MB total JS heap |
+| Total precache | under 15 MB raw | 12,275,097 bytes, 321 entries |
+
+F13 re-measured the budgets against the course build on 23 October 2026: the same project, machine and link, with the 62 lessons of Tiers 0–3 in `dist/`. Every budget is met; the precache is at 94.7% of its budget (see F13's notes):
+
+| What | Budget | Measured (F13) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 478 ms, max 982 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,227 ms, max 1,684 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 331 ms, max 395 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 210 ms, median 205 ms (30 samples) |
+| Quick info | under 100 ms | p95 13.2 ms, max 15.8 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 19.2 ms, max 19.5 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 18.3 MB used, 20.0 MB total JS heap |
+| Total precache | under 15 MB raw | 14,199,957 bytes, 457 entries |
+
+F14 re-measured the budgets against the course build on 24 October 2026: the same project, machine and link, with the 80 lessons of Tiers 0–4 and the pre-bundled packages in `dist/`. The precache misses §9's 15 MB, as Kim accepted with the F14 plan; the test's threshold is now 18 MB (Deviations). Every other budget is met. The warm compiler `ready` rose by about 50 ms because `ready` now includes the package declarations (F14's notes):
+
+| What | Budget | Measured (F14) |
+| --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 520 ms, max 943 ms (5 cold runs) |
+| Cold load, compiler `ready` | under 5 s | median 1,337 ms, max 1,731 ms |
+| Warm load, compiler `ready` | under 1.5 s | median 380 ms, max 444 ms |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 211 ms, median 206 ms (30 samples) |
+| Quick info | under 100 ms | p95 14.7 ms, max 17.9 ms (20 samples) |
+| Run of a trivial file | under 150 ms | p95 19.7 ms, max 20 ms (20 samples) |
+| ts-ls worker memory, steady | under 250 MB | 20.9 MB used, 23.9 MB total JS heap |
+| Total precache | under 15 MB raw | **17,439,897 bytes, 546 entries: a noted miss** (Kim, F14 plan). The webworker libs are out; the packages add 1.89 MB. Gzip transfer is about a quarter of that |
+
+**Live site, 25 October 2026 (the v1 gate session):** `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` from Kim's desktop, Chrome 155 headless, over a real connection. The path from the desktop to the droplet was degraded that day: `curl` of the same files ran at 22–34 KB/s for long stretches (the 858 KB gzip shell chunk took 1.4 s on one run and 38–50 s on the next; a 1.4 MB identity download took 42–80 s; `/packages/types.json`, 168 KB gzip, took 0.4 s one moment and 5.5 s the next), while cdnjs and the npm registry answered at normal speed from the same machine. The cold figures below are that link's, not the build's: the ts-ls worker loads the 76 libs in parallel (all done by 5 s even on this link) and the cold `ready` then waits on one 168 KB file. Kim's run of the same project against the live site on 21 October 2026 (laptop) met every budget.
+
+| What | Budget | Measured (live, 25 October 2026) | Note |
+| --- | --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 24,400 ms, max 50,445 ms, min 1,392 ms (5 cold runs) | **Miss on this link**: the same 858 KB chunk in 1.4 s on the fastest run |
+| Cold load, compiler `ready` | under 5 s | median 71,617 ms, max 107,930 ms, min 8,928 ms | **Miss on this link**: the libs were in by 5 s; `types.json` and the chunk took the rest |
+| Warm load (service worker), compiler `ready` | under 1.5 s | median 389 ms, max 446 ms (5 reloads) | Met; the whole precache came in first |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 211 ms, median 207 ms (30 samples) | Met |
+| Quick info | under 100 ms | p95 11 ms, max 13.8 ms (20 samples) | Met |
+| Run of a trivial file | under 150 ms | p95 19.8 ms, max 20.2 ms (20 samples) | Met |
+| ts-ls worker memory, steady | under 250 MB | 20.8 MB used, 22.6 MB total JS heap | Met |
+| Total precache | under 15 MB raw | 17,439,897 bytes, 546 entries, read from the live site's Cache Storage | The F14 noted miss, byte for byte the local figure |
+
+The cold-load test was run on its own, then the warm-load test, then the /repl test (serial mode skips what follows a failed test, and the cold test fails on this link). Six of eight budgets are met over the real link; the two cold ones are the link's.
+
+`e2e/budgets.spec.ts` changed for a real-link target in this session: the wait for the two load marks is 120 s instead of 30 s when `BUDGETS_URL` is set (a slow link then records its miss instead of aborting the measurement), the warm-load and /repl tests allow that wait for their own first load (the warm test 15 min in all, for the 17 MB precache) and wait for the compiler-ready mark the way the cold test does. The budgets themselves are unchanged.
+
+## For Kim
+
+Checks only Kim can do. Feature sessions add their items here with exact steps; Kim ticks them here and in the feature's section above.
+
+- [x] Prep: add the Namecheap A record `dojo` → the droplet, then confirm `dojo.kimnejudne.dev` resolves (`dig +short dojo.kimnejudne.dev`).
+- [ ] Prep (by hand; deferred, non-blocking for v1 under D3, 25 October 2026): browser-reserved keys in a tab. `pnpm spike:vim`, open http://localhost:5179 in Chrome, tick "preventDefault on every Ctrl key", click into the editor and press every key in the table "Ctrl keys the page can intercept" in docs/prep-vim.md. A key that reaches the page appears in the key log as "page prevented default"; a key the browser keeps never appears. Fill the "Tab" column.
+- [ ] Prep (by hand; deferred, non-blocking for v1 under D3): the same in an installed window. Chrome menu → Cast, save and share → Install page as app (or the install icon in the address bar), repeat the key presses there and fill the "Installed window" column.
+- [ ] Prep (by hand; deferred, non-blocking for v1 under D3; the HTTPS clipboard round trip on the deployed site is already Kim's ticked F3 item below): clipboard round trip. In the spike editor in normal mode type `"+yy`, then paste in a terminal; copy a line in a terminal, then type `"+p` in the editor. Both directions should carry the text; note whether Chrome asked for clipboard permission. Record the answer in docs/prep-vim.md.
+- [x] F1: push the `F1: Scaffold` commit, then open the repository's Actions tab on GitHub and confirm the "CI" run for it is green (Typecheck, Lint, Format check, Unit tests, Build all pass on the `ubuntu-latest` runner with Node 24). Done 17 October 2026 at Kim's request: repository `kim-nejudne/ts-dojo` (private), run 39016881255 for `f0dbd4d` green in 48 s; Kim confirmed the tick.
+- [x] F3 (droplet, after F15): clipboard over HTTPS. On https://dojo.kimnejudne.dev/repl in normal mode type `"+yy`, paste in a terminal; copy a line in a terminal, type `"+p` in the editor. Both directions carry the text (Playwright proved localhost; §12 F3 names HTTPS too).
+- [x] F15 (droplet): the first deploy, in the order of `deploy/README.md` DNS/TLS.
+  1. The Namecheap A record `dojo` (the Prep item above), confirmed with `dig +short @pdns1.registrar-servers.com dojo.kimnejudne.dev A`.
+  2. Install `deploy/nginx/ts-dojo-bootstrap.conf` as `/etc/nginx/sites-available/ts-dojo`, symlink it into `sites-enabled`, then `nginx -t && systemctl reload nginx`.
+  3. Probe the ACME path with a token (README step 2). It prints the token.
+  4. `certbot certonly --webroot -w /var/www/certbot -d dojo.kimnejudne.dev`.
+  5. Install `deploy/nginx/ts-dojo.conf` over the bootstrap, then `nginx -t && systemctl reload nginx`.
+     Then copy the installed file back: `scp $TS_DOJO_HOST:/etc/nginx/sites-available/ts-dojo deploy/nginx/ts-dojo.conf`. `git diff` should show nothing.
+  6. From the repository root: `TS_DOJO_HOST=user@host ./deploy/deploy.sh`.
+
+  Expected: every "Confirm through nginx" line passes. `https://dojo.kimnejudne.dev/` answers 200 (curl verified the certificate), and `http://` answers 301 to `https://dojo.kimnejudne.dev/`. Open the site in Chrome and check the padlock.
+- [x] F15 (droplet): the headers and the served files. `deploy.sh` checks all of these itself. To see them by hand, run this right after `deploy.sh`, from the repository root, before any `pnpm build` or `pnpm test:e2e`: those rebuild `dist/`, and steps 1 and 3 compare with the files just shipped.
+  1. `curl -sI -H 'Accept-Encoding: gzip' https://dojo.kimnejudne.dev/ts/6.0.3/lib.es2025.d.ts`. Expected:
+     - `Content-Type: text/plain`, `Content-Encoding: gzip`, `Cache-Control: public, max-age=31536000, immutable`;
+     - a strong ETag (no `W/`);
+     - `Content-Length` equal to `stat -c %s dist/ts/6.0.3/lib.es2025.d.ts.gz`.
+
+     Gzip on the fly would have no Content-Length and a weak ETag.
+  2. `curl -sI https://dojo.kimnejudne.dev/assets/$(ls dist/assets | head -1)`: `immutable`.
+  3. `curl -sI` on `/index.html` and on `/sw.js`: `Cache-Control: no-cache` on both. Then `curl -s https://dojo.kimnejudne.dev/sw.js | cmp - dist/sw.js` prints nothing.
+  4. `ssh $TS_DOJO_HOST 'stat -c "%U %n" /var/www/ts-dojo/index.html'` prints `www-data …`.
+  5. Every response carries the `Content-Security-Policy` line from `deploy/nginx/ts-dojo.conf`.
+  6. In a fresh Chrome tab, open https://dojo.kimnejudne.dev/l/m99-fixtures/01-fix. Expected: the lesson's theory, not "not found". (Since F11 the fixture lessons don't ship; use a course lesson such as `/l/m00-orientation/01-why-typescript` when repeating this.)
+  7. Then DevTools → Network → Offline, and reload. Expected: the app, a lesson, a diagnostic and `:run` all work.
+- [x] F15 (criterion 2, by hand): the §9 budgets on the laptop, since §9 names it and the table's figures come from the desktop.
+  1. On the laptop, from the repository root, check that nothing is listening on 4173 (`ss -ltnp | grep ':4173 '` prints nothing).
+  2. Run `pnpm test:e2e --project budgets`. Expected: 3 passed, and every soft assertion under budget.
+  3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
+  4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
+- [x] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
+- [x] F14 (by hand; done by Claude under D2 and D4 on 25 October 2026): the Further reading links on single-page sites, which answer 200 for any path. Open each in Chrome; expected, the named page and not a "not found" view. Checked with a Playwright script in headless Chrome (each URL loaded until the network went idle; a failure is a status of 400 or more, a not-found text in the title or first heading, or a title and heading without the page's topic). Every link is live; no content change was needed:
+
+  | Lesson | URL | Status | Title |
+  | --- | --- | --- | --- |
+  | 17.2 | https://zod.dev/basics | 200 | Basic usage \| Zod |
+  | 17.2 | https://zod.dev/api | 200 | Defining schemas \| Zod (the lesson's link text) |
+  | 17.2 | https://zod.dev/error-formatting | 200 | Formatting errors \| Zod |
+  | 17.2 | https://valibot.dev/guides/introduction/ | 200 | Introduction \| Valibot |
+  | 17.2 | https://valibot.dev/guides/comparison/ | 200 | Comparison with Zod and others \| Valibot |
+  | 17.2 | https://standardschema.dev/ | 200 | Standard Schema |
+  | 17.3 | https://vite.dev/guide/env-and-mode | 200 | Env Variables and Modes \| Vite |
+  | 17.4 | https://react-typescript-cheatsheet.netlify.app/ | 200 | React TypeScript Cheatsheet |
+  | 18.2 | https://kysely.dev | 200 | Kysely — Type-safe SQL query builder for TypeScript |
+  | 18.5 | https://github.com/microsoft/TypeScript/wiki/Performance | 200 | Performance · microsoft/TypeScript Wiki |
+  | 18.5 | https://github.com/microsoft/TypeScript/wiki/Performance-Tracing | 200 | Performance Tracing · microsoft/TypeScript Wiki |
+
+  The item's original steps:
+  1. 17.2 `/l/m17-boundaries/02-zod-and-valibot`: https://zod.dev/basics, https://zod.dev/api, https://zod.dev/error-formatting, https://valibot.dev/guides/introduction/, https://valibot.dev/guides/comparison/, https://standardschema.dev/.
+  2. 17.3 `/l/m17-boundaries/03-fetch-json-env`: https://vite.dev/guide/env-and-mode.
+  3. 17.4 `/l/m17-boundaries/04-react`: https://react-typescript-cheatsheet.netlify.app/.
+  4. 18.2 and 18.5: https://kysely.dev, and the TypeScript wiki's Performance and Performance-Tracing pages linked from 18.5.
+
+  Note any dead link for a fix.
+- [x] F14 (by hand; done by Claude under D2 and D4 on 25 October 2026): Tier 4 in the browser. `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site: the four tests "§12 F14 (D2): Tier 4 in the browser at https://dojo.kimnejudne.dev › step 1: on 17.2, Run on the first example prints its output and \"done in\"", "step 2: a 17.4 exercise with JSX gets React's types in quick info and no \"Cannot find module 'react'\"" (a `ReactNode` probe line reported, the clean starter with no squiggle, the Problems tab without a "Cannot find module", `K` on `ReactNode`), "step 3: /repl runs `import { z } from 'zod'` with :w" ("Kim false", "done in"), and "step 4: offline, 17.2 reopens from the precache and its example runs again" (the document and the Zod bundle `fromServiceWorker()`). The original steps:
+  1. On `/l/m17-boundaries/02-zod-and-valibot`, press Run on the first example. Expected: the four lines of output, "done in".
+  2. Open an exercise of `/l/m17-boundaries/04-react` and type JSX. Expected: React's types in quick info (`K`) and no "Cannot find module 'react'".
+  3. In `/repl`, type `import { z } from 'zod'` and `:w`. Expected: it runs.
+  4. DevTools → Network → Offline, reload, and repeat step 1. Expected: it still runs.
+- [x] F11 (by hand; done by Claude under D1 and D4 on 25 October 2026): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug. `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site: the five tests "§11 v1 gate (D1): Tier 0 and Tier 1 completed at https://dojo.kimnejudne.dev without a mouse › m00-orientation / m01-types / m02-functions / m03-unions / m04-objects: every lesson completes from the keyboard" (every Check yourself question through `:done`, `:test` on every editor exercise's solution, every predict with `2`, `j`/`k` and `Enter`, each lesson's §7 row `complete`) and "the roadmap shows every M00–M04 ring full, and still does after a reload". No blocking bug was found: the walk's two failures on the way were in the test itself (a wait satisfied by the previous `:done`'s notice, and a global key pressed while the editor had focus, which §6 says does nothing), and the same run passed first against a local `pnpm preview` of this tree's `dist/`. The original steps, which Kim's optional run-through below follows:
+  1. Deploy the F11 commit: from the repository root, `TS_DOJO_HOST=user@host ./deploy/deploy.sh`. It runs the content lint and the build itself, and every "Confirm through nginx" line should pass.
+  2. Open https://dojo.kimnejudne.dev in Chrome and take the new version (Reload on the update line, or a fresh tab). The roadmap shows two bands: Orientation (M00) and Foundations (M01–M04).
+  3. Any progress from the old fixture lessons now shows under "Orphaned" on `/progress`. "Reset everything" there clears it. That's optional and keeps your settings.
+  4. With the keyboard only, work through M00, then M01 to M04 in order. For each lesson:
+     - answer its Check yourself questions;
+     - run `:done`;
+     - pass every editor exercise with `:test`, using `:hint` when stuck and `:sol` only as a last resort;
+     - answer every `predict` exercise with `j`/`k` and `Enter`.
+     Expected: every lesson reaches complete and every module card fills its ring.
+  5. Note every blocking bug: what you did, what you expected, what happened. Note anything that reads wrong too.
+- [x] v1 gate: Tier 0 and Tier 1 completed at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way fixed. Met under D1 and D4 on 25 October 2026 by the F11 run above (`DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site); see the v1 gate section.
+- [ ] v1 gate (optional, non-blocking under D1): Kim's own Tier 0 and Tier 1 run-through at https://dojo.kimnejudne.dev without a mouse, following the F11 steps 2–5 above. Anything that reads wrong or feels wrong in the hand goes to a fix; nothing here blocks v1.

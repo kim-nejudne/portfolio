@@ -1,0 +1,41 @@
+id: m10-mapped-types/03-mapping-unions-tuples-arrays/04-format-a-row
+kind: implement
+title: Format a row
+minutes: 5
+challenge: false
+prompt: |
+  A table prints each row through a list of formatters, one per column. Write two things in
+  `index.ts`:
+
+  - `Formatters<T>`: one function per element of `T`, at the same position, which takes that
+    element's type and returns a `string`. For `[name: string, age: number]` that is
+    `[name: (value: string) => string, age: (value: number) => string]`. A readonly tuple
+    gives a readonly tuple, an array an array, a union is mapped member by member, and an
+    object type gets one function per property.
+  - `formatRow(row, formatters)`: calls the formatter at each position with the cell at the
+    same position, and returns the strings in order.
+
+  Until `Formatters` is a mapped type, the formatters in the tests have no types for their
+  parameters, and Compiles fails with "tests.ts does not compile against your code". The type
+  cases check `Formatters`, the `@ts-expect-error` lines check that a call with too few
+  formatters, with formatters in the wrong order or with an object row is rejected, and the
+  tests run `formatRow` on tuples, an `as const` row, an array and an empty row.
+
+  This combines the lesson with generic constraints (5.2), callback types (2.2), readonly
+  tuples (1.3) and `as const` (4.4).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - Formatters is a mapped type over the elements of T. Which form keeps a tuple a tuple?
+  - Inside formatRow, a formatter and its cell share an index, and indexing both with it keeps them matched.

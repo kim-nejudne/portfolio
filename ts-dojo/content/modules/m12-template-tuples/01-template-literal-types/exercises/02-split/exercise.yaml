@@ -1,0 +1,26 @@
+id: m12-template-tuples/01-template-literal-types/02-split
+kind: type-challenge
+title: Split a string type
+minutes: 4
+challenge: false
+prompt: |
+  Write `Split<S, D>` in `index.ts`: the type-level `S.split(D)`. It cuts the string type `S`
+  at every occurrence of the delimiter `D` and gives the pieces as a tuple, in order:
+
+  - `Split<'a,b,c', ','>` is `['a', 'b', 'c']`, and `Split<'a', ','>` is `['a']`.
+  - Like `split`, it keeps empty pieces: `Split<'', ','>` is `['']`, and `Split<',a,', ','>`
+    is `['', 'a', '']`.
+  - The delimiter may be longer than one character. It is never the empty string.
+  - When `S` is `string` itself, the pieces can't be known: the result is `string[]`.
+
+  A union of strings gives a union of tuples. The type cases try delimiters of one and of
+  several characters, on strings with and without them.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - One step takes off the first piece, up to the first delimiter, and leaves the rest. Which rule of the theory stops an infer at the first occurrence?
+  - Each step yields one piece and a shorter string. How does a tuple type hold one element followed by a whole tuple?
+  - Handle plain `string` the way the theory does, before matching.

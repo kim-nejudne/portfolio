@@ -1,0 +1,22 @@
+id: m04-objects/01-type-vs-interface/03-make-room-for-admins
+kind: fix
+title: Make room for admins
+minutes: 3
+challenge: false
+prompt: |
+  An `Admin` is a `User` whose `role` is always `'admin'`, with a list of permissions. The file
+  doesn't compile: `Admin` incorrectly extends `User`, and the comparison in `canEdit` "appears
+  to be unintentional". Make it compile so that members and admins can edit and guests can't.
+
+  An admin must still fit wherever a `User` is expected, its `role` must stay exactly `'admin'`,
+  and a user's `role` must still accept only the known roles, not any string. The tests stay
+  as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as]
+hints:
+  - Both errors have one cause. Read which type `'admin'` is not assignable to.
+  - An interface that extends may narrow a property only to a type the base already allows.
+  - "Turning `Admin` into an intersection with `User` doesn't help: think about what `&` does with two `role` types that share no value."

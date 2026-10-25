@@ -1,0 +1,315 @@
+---
+id: m16-tooling/03-project-references
+title: "Project references, isolatedDeclarations, erasableSyntaxOnly and Node's type stripping"
+minutes: 20
+objectives:
+  - Split a repository into composite projects with references, and build them in order with tsc -b
+  - Annotate exports so that isolatedDeclarations can write each file's .d.ts without the checker
+  - Replace enums, value namespaces and parameter properties with syntax that erasableSyntaxOnly accepts
+  - Say what Node's type stripping does with a .ts file, and why it still needs tsc to check it
+prerequisites:
+  - m04-objects/04-enums-vs-as-const
+  - m08-functions-classes/03-classes-2
+  - m09-modules-async/01-esm
+  - m09-modules-async/02-declaration-files
+  - m14-type-system-edges/04-declaration-merging
+tags:
+  - tsconfig
+  - project references
+  - composite
+  - references
+  - tsc -b
+  - tsc --build
+  - tsbuildinfo
+  - isolatedDeclarations
+  - erasableSyntaxOnly
+  - type stripping
+  - node
+  - TS1294
+  - TS6305
+  - TS9007
+  - TS9010
+---
+
+## Concept
+
+<Lesson id="m09-modules-async/01-esm" /> showed `isolatedModules`: every file
+must be one that a tool can turn into JavaScript on its own, without the type
+checker and without reading other files. This lesson is the same idea three more
+times.
+
+- **Project references** split a repository into projects. A project is checked against the `.d.ts` files of the projects it references, not their source, and `tsc -b` builds them in order.
+- **`isolatedDeclarations`** asks every export to carry its type in the source, so a file's `.d.ts` can be written from that file alone, without the checker.
+- **`erasableSyntaxOnly`** allows only TypeScript syntax that disappears when the types are deleted, so that a file runs once its types are stripped. Node does exactly that with a `.ts` file.
+
+Each is a line in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "isolatedDeclarations": true,
+    "erasableSyntaxOnly": true
+  },
+  "references": [{ "path": "../core" }]
+}
+```
+
+None of them changes what a correct program does. They restrict how it is written, so that tools faster and simpler than the checker can do part of the work.
+
+## Examples
+
+**Project references.** A repository with a library and an app that uses it:
+
+```text
+tsconfig.json
+packages/core/tsconfig.json
+packages/core/src/index.ts
+packages/app/tsconfig.json
+packages/app/src/main.ts
+```
+
+The library is a composite project. `composite: true` turns on `declaration` and `incremental` (so the build writes `.d.ts` files and a `.tsbuildinfo`), and it requires `include` or `files` to list every file in the project:
+
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+```
+
+The app references it, and imports it by its source path, `import { slugify } from '../../core/src/index'`. The compiler redirects that import to `packages/core/dist/index.d.ts`, the declaration file the library's build wrote. How a specifier like that one is resolved is <Lesson id="m16-tooling/02-module-resolution" />'s subject:
+
+```json
+{
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "references": [{ "path": "../core" }]
+}
+```
+
+The root `tsconfig.json` has no files of its own (`"files": []`) and references both. `tsc -b` (`--build`) reads the references, sorts the projects so that each comes after what it references, and builds only what is out of date. With `--verbose` it says why. Here is the output of three runs with TypeScript 6.0.3, shortened, with timestamps removed and the repository at `/repo`: the first build, a second one after a change to the body of `slugify`, and a third after a new parameter for `slugify`:
+
+```text
+$ tsc -b --verbose
+Projects in this build:
+    * packages/core/tsconfig.json
+    * packages/app/tsconfig.json
+    * tsconfig.json
+Project 'packages/core/tsconfig.json' is out of date because output file 'packages/core/tsconfig.tsbuildinfo' does not exist
+Building project '/repo/packages/core/tsconfig.json'...
+Project 'packages/app/tsconfig.json' is out of date because output file 'packages/app/tsconfig.tsbuildinfo' does not exist
+Building project '/repo/packages/app/tsconfig.json'...
+
+$ tsc -b --verbose     # after changing the body of slugify
+Project 'packages/core/tsconfig.json' is out of date because output 'packages/core/tsconfig.tsbuildinfo' is older than input 'packages/core/src/index.ts'
+Building project '/repo/packages/core/tsconfig.json'...
+Project 'packages/app/tsconfig.json' is up to date with .d.ts files from its dependencies
+Updating output timestamps of project '/repo/packages/app/tsconfig.json'...
+
+$ tsc -b --verbose     # after adding a parameter to slugify
+Building project '/repo/packages/core/tsconfig.json'...
+Building project '/repo/packages/app/tsconfig.json'...
+packages/app/src/main.ts(2,29): error TS2554: Expected 2 arguments, but got 1.
+```
+
+The second run is the point of the whole setup. The body changed, the `.d.ts` didn't, so the app isn't checked again. Other `--build` flags: `--watch`, `--force` (build everything), `--clean` (delete the outputs) and `--dry` (show what would be built).
+
+**`isolatedDeclarations`.** <Lesson id="m09-modules-async/02-declaration-files" /> showed that a `.d.ts` keeps the types and drops the bodies. To write one, the compiler needs every export's type, and most of those are inferred: `sizeOf` returns `'small' | 'large'` because the checker combined its two `return`s, and `DEFAULT_SIZE` has whatever type `sizeOf` returns. With the flag on, each export whose type would need the checker is an error:
+
+```ts twoslash
+// @declaration: true
+// @isolatedDeclarations: true
+// @allowJs: false
+// @errors: 9007 9010
+export function sizeOf(count: number) {
+  if (count < 10) return 'small';
+  return 'large';
+}
+
+export const DEFAULT_SIZE = sizeOf(0);
+export const RETRIES = 3;
+export const LEVELS = ['low', 'high'] as const;
+```
+
+`RETRIES` and `LEVELS` are fine: a literal, an object of literals or an `as const` array has a type that can be read off the syntax. A call (`sizeOf(0)`), an operator (`RETRIES * 1000`), a reference to another variable and a plain array (`[1, 2, 3]`, _Only const arrays can be inferred with --isolatedDeclarations._) all need an annotation. A function or method is read through its `return`: `return 1` alone passes. Several returns that must be combined, as in `sizeOf`, or no `return` at all, need a return type. For a single `return { total: sum }` the compiler points at the part it can't read, `sum`, with _Expression type can't be inferred with --isolatedDeclarations._, and a return type fixes that too. Code that isn't exported needs none. With the annotations, the file runs as before:
+
+```ts run
+export type Size = 'small' | 'large';
+
+export function sizeOf(count: number): Size {
+  if (count < 10) return 'small';
+  return 'large';
+}
+
+export const DEFAULT_SIZE: Size = sizeOf(0);
+export const RETRIES = 3;
+export const LEVELS = ['low', 'high'] as const;
+
+console.log(DEFAULT_SIZE, RETRIES, LEVELS);
+```
+
+and its `.d.ts` is the annotations with the bodies cut out:
+
+```text
+export type Size = 'small' | 'large';
+export declare function sizeOf(count: number): Size;
+export declare const DEFAULT_SIZE: Size;
+export declare const RETRIES = 3;
+export declare const LEVELS: readonly ["low", "high"];
+```
+
+`tsc --help --all` describes the flag as _Require sufficient annotation on exports so other tools can trivially generate declaration files._ In a repository with project references that matters: a project can't be checked until the `.d.ts` files of its references exist, and with the flag another tool can write them without checking anything first. It needs `declaration` or `composite`; on its own it reports _Option 'isolatedDeclarations' cannot be specified without specifying option 'declaration' or option 'composite'._
+
+**`erasableSyntaxOnly`.** Most of TypeScript is erased: delete the annotations, the `type` and `interface` declarations, `as` and `satisfies`, and JavaScript is left. A few constructs instead emit code, and the flag reports each of them with _This syntax is not allowed when 'erasableSyntaxOnly' is enabled._
+
+```ts twoslash
+// @erasableSyntaxOnly: true
+// @errors: 1294
+export enum Level {
+  Info,
+  Warn,
+}
+
+export namespace Format {
+  export const separator = ': ';
+}
+
+export class Point {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
+```
+
+An `enum` becomes an object (<Lesson id="m04-objects/04-enums-vs-as-const" />), a namespace with values becomes a function that fills one (<Lesson id="m14-type-system-edges/04-declaration-merging" />), and a parameter property becomes an assignment at the start of the constructor (<Lesson id="m08-functions-classes/03-classes-2" />). The flag also rejects `import x = require('…')`, `export =`, and the angle-bracket assertion `<number>value` (`value as number` is fine). What only describes types passes: `declare enum`, `declare namespace`, a namespace that holds only types, `abstract`, and `private` or `readonly` on a declared field. The erasable version of the file above:
+
+```ts run
+export const Level = { Info: 'info', Warn: 'warn' } as const;
+export type Level = (typeof Level)[keyof typeof Level];
+
+export const separator = ': ';
+
+export class Point {
+  readonly x: number;
+  readonly y: number;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+console.log(Level.Warn + separator + JSON.stringify(new Point(1, 2)));
+```
+
+The namespace became the module's own exports: a caller that wants `Format.separator` writes `import * as Format from './format'`.
+
+**Node's type stripping.** The dojo is built with Node 24, and its `node --help` lists these two options:
+
+```text
+$ node --version
+v24.21.0
+$ node --help
+  --experimental-strip-types, --no-strip-types
+                              Type-stripping for TypeScript files.
+  --experimental-transform-types
+                              enable transformation of
+                              TypeScript-onlysyntax into JavaScript
+                              code
+```
+
+Stripping is on unless you pass `--no-strip-types`, so `node main.ts` runs a TypeScript file: Node deletes the type syntax and runs what is left. Deleting can't turn an `enum` into an object or a parameter property into an assignment. Rewriting that syntax is what the separate `--experimental-transform-types` is for. `erasableSyntaxOnly` makes `tsc` report that syntax, so code that compiles under the flag runs with plain stripping. `verbatimModuleSyntax`, from <Lesson id="m09-modules-async/01-esm" />, goes with it: an import is erased only when it says `type`, which a tool that never runs the checker can see.
+
+## Pitfalls
+
+**Expecting Node to check the types.** Stripping deletes types; it never checks them. `tsc` rejects this file:
+
+```ts run errors
+const port: number = '8080';
+console.log(port + 1);
+```
+
+_Type 'string' is not assignable to type 'number'._ Node deletes `: number`, runs the rest and prints `80801`. A project that runs its `.ts` files with `node` still runs `tsc --noEmit` (or `tsc -b`) as its check, in the editor and before every commit.
+
+**Annotating an export with a wider type than it had.** `isolatedDeclarations` asks for an annotation, and the quickest one to write is often wider than what the checker inferred. Every caller then gets the wider type:
+
+```ts twoslash
+// @declaration: true
+// @isolatedDeclarations: true
+// @allowJs: false
+// @errors: 2322
+export function sizeOf(count: number): string {
+  return count < 10 ? 'small' : 'large';
+}
+
+const size: 'small' | 'large' = sizeOf(3);
+```
+
+Write the type the checker inferred (quick info on the name, before you turn the flag on, shows it), and give it a name when it is a union or an object type so the next annotation can reuse it.
+
+**Running `tsc -p` on one project before its references are built.** The app is checked against the library's `.d.ts`, and on a fresh checkout there isn't one:
+
+```text
+$ tsc -p packages/app
+packages/app/src/main.ts(1,25): error TS6305: Output file '/repo/packages/core/dist/index.d.ts' has not been built from source file '/repo/packages/core/src/index.ts'.
+```
+
+`tsc -b packages/app` builds `core` first, and then the app. A referenced project without `composite: true` is an error too: `tsc -b` from the root then reports _Referenced project '/repo/packages/core' must have setting "composite": true._
+
+## Check yourself
+
+<Predict
+  id="which-needs-a-type"
+  code={
+    "// compiled with declaration: true and isolatedDeclarations: true\nexport const RETRIES = 3;\nexport const NAMES = ['ada', 'grace'] as const;\nexport const TIMEOUT = RETRIES * 1000;\nexport const SETTINGS = { retries: 3, verbose: false };"
+  }
+  question="Which export does `isolatedDeclarations` report as needing a type annotation?"
+  options={['`RETRIES`', '`NAMES`', '`TIMEOUT`', '`SETTINGS`']}
+  answer={2}
+  explanation="The type of `TIMEOUT` comes from an operator applied to another variable, and working it out takes the checker, so it needs `: number`. A literal, an `as const` array of literals and an object of literals all have types that can be read off the syntax, so the other three need nothing."
+/>
+
+<Predict
+  id="node-runs-it"
+  code={
+    "// main.ts, run with node main.ts on Node 24\nconst port: number = '8080';\nconsole.log(port + 1);"
+  }
+  question="What happens?"
+  options={[
+    'Node stops with the type error before running anything',
+    'It prints `80801`',
+    'It prints `8081`',
+    'Node refuses to run a `.ts` file without a flag',
+  ]}
+  answer={1}
+  explanation="Node 24 strips types by default and never checks them. It deletes `: number` and runs `const port = '8080'`, so `port + 1` concatenates. Only `tsc` reports the error."
+/>
+
+<Predict
+  id="body-only-change"
+  question="`app` references the composite project `core`. You change the body of a function in `core` without changing its signature, and run `tsc -b`. What happens to `app`?"
+  options={[
+    '`core` is rebuilt and `app` is checked again',
+    '`core` is rebuilt, and `app` is left as it is because the `.d.ts` files it depends on did not change',
+    'Nothing is rebuilt, because the `.d.ts` files did not change',
+    '`tsc -b` reports TS6305 until you build `app` on its own',
+  ]}
+  answer={1}
+  explanation="`core` has a changed input, so it is rebuilt. Its `.d.ts` comes out the same, and `app` is checked against that, not against the source: `--verbose` says the project is up to date with .d.ts files from its dependencies and only updates its timestamps."
+/>
+
+## Further reading
+
+- [Handbook: Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
+- [TSConfig reference: `composite`](https://www.typescriptlang.org/tsconfig/#composite)
+- [TSConfig reference: `isolatedDeclarations`](https://www.typescriptlang.org/tsconfig/#isolatedDeclarations)
+- [TSConfig reference: `erasableSyntaxOnly`](https://www.typescriptlang.org/tsconfig/#erasableSyntaxOnly)
+- [TypeScript 5.5 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html): isolated declarations
+- [TypeScript 5.8 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-8.html): `erasableSyntaxOnly`
+- [Node.js: Modules: TypeScript](https://nodejs.org/api/typescript.html)

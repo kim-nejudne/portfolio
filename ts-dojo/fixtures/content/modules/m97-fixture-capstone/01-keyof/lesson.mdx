@@ -1,0 +1,29 @@
+---
+id: m97-fixture-capstone/01-keyof
+title: keyof
+minutes: 5
+objectives:
+  - Predict the keys keyof gives for an object type
+  - Predict keyof for a string index signature
+prerequisites: [m98-fixture-sequel/03-readonly-arrays]
+tags: [fixture, keyof]
+---
+
+## Concept
+
+`keyof T` is the union of the property names of `T`.
+
+```ts
+type Point = { x: number; y: number };
+type Axis = keyof Point;
+//   ^ 'x' | 'y'
+```
+
+## Examples
+
+The two exercises of this fixture lesson are `predict` questions about the example above. The
+lesson exists so the roadmap has more than one module: it is replaced at F11.
+
+## Further reading
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

@@ -1,0 +1,27 @@
+id: m18-capstones/02-query-builder/02-a-union-of-columns
+kind: predict
+title: A union of columns
+minutes: 2
+challenge: false
+code: |
+  type User = { id: number; name: string; age: number; email: string | null };
+
+  // Query and from as in the lesson's Concept:
+  // where<K extends keyof Row>(column: K, op: Op, value: Row[K]): Query<Row, Out>
+
+  function search(field: 'name' | 'age', text: string) {
+    return from('users').where(field, '=', text);
+  }
+question: What does the compiler report for the call to `where`?
+options:
+  - 'Nothing: the call compiles'
+  - 'An error: `string` is not assignable to `number`, because `age` is a number'
+  - 'An error: `K` has to be a single column, not a union'
+answer: 0
+explanation: |
+  `K` is inferred from `field`, so it is the whole union `'name' | 'age'`, and `Row[K]` is
+  `User['name' | 'age']`, which is `string | number`. A `string` fits. `Row[K]` ties the value to
+  the column only when the column is one literal; a union of columns gives the union of their
+  types, and which type belongs to which column is lost, so `search('age', '36')` compiles and
+  matches nothing. Narrow `field` first and call `where` once per branch, with
+  `where('age', '=', Number(text))` in one and `where('name', '=', text)` in the other.

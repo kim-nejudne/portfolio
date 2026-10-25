@@ -1,0 +1,21 @@
+id: m03-unions/03-narrowing/01-pad-left
+kind: fix
+title: Pad on the left
+minutes: 2
+challenge: false
+prompt: |
+  `padLeft` puts padding in front of `input`. The padding is either a number of spaces, or a
+  string that goes in front as it is. `index.ts` has one error:
+
+  - `Argument of type 'string | number' is not assignable to parameter of type 'number'.`
+
+  Fix it without changing the parameter types. The tests call `padLeft` with numbers and with
+  strings, including a string of digits, which is still a string.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as]
+hints:
+  - '`repeat` needs a number, and `padding` may be a string. Find out which member you hold before you use it.'
+  - Inside a branch that checks what `typeof` says about `padding`, the compiler gives `padding` the matching member, and the `else` gets the other one.

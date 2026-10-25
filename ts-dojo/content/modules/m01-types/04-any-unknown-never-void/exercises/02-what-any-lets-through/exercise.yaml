@@ -1,0 +1,27 @@
+id: m01-types/04-any-unknown-never-void/02-what-any-lets-through
+kind: predict
+title: What any lets through
+minutes: 2
+challenge: false
+code: |
+  const settings = JSON.parse('{"theme": "dark"}');
+  const theme: number = settings.theme; // A
+  settings.save(); // B
+
+  const input: unknown = JSON.parse('{"theme": "dark"}');
+  console.log(input); // C
+  const mode: string = input; // D
+question: Which of the lines A to D does the compiler reject?
+options:
+  - 'D only'
+  - 'A and D'
+  - 'B and D'
+  - 'A, B and D'
+  - 'None of them'
+answer: 0
+explanation: |
+  `JSON.parse` returns `any`, so `settings` is `any` and nothing about it is checked: A and B
+  compile. When the code runs, `theme` holds the string `'dark'`, and B throws a `TypeError`,
+  since the object has no `save`. The annotation makes `input` an `unknown`. Passing it to
+  `console.log`, which accepts any value, is safe, so C compiles; D reports
+  `Type 'unknown' is not assignable to type 'string'.`

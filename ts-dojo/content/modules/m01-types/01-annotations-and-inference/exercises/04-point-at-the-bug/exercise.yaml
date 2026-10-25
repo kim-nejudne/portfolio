@@ -1,0 +1,23 @@
+id: m01-types/01-annotations-and-inference/04-point-at-the-bug
+kind: fix
+title: Point the error at the bug
+minutes: 3
+challenge: false
+prompt: |
+  `needsAdmin` doesn't compile: `Operator '<' cannot be applied to types 'string' and 'number'.`
+  The bug isn't in `needsAdmin`, though. `parsePort` is meant to return a number, but nothing
+  says so, so its return type is whatever its code happens to return.
+
+  1. Write the return type `parsePort` promises. The error moves to the line that is wrong.
+  2. Fix that line. Types are erased before the code runs (lesson 0.1, *Why TypeScript*), so the
+     annotation alone changes nothing at runtime: the code has to turn the text into a number.
+
+  This combines the lesson with erasure from 0.1. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Start in `parsePort`, not on the line with the error. What is it supposed to return? That goes after its parameter list.
+  - Once the error sits on the `return`, remember the annotation is erased. Converting the text has to happen in code that runs.

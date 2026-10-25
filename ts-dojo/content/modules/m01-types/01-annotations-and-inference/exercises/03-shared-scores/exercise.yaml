@@ -1,0 +1,20 @@
+id: m01-types/01-annotations-and-inference/03-shared-scores
+kind: fix
+title: Scores shared by three functions
+minutes: 2
+challenge: false
+prompt: |
+  Three functions share the `scores` list, and the file doesn't compile: the declaration reports
+  `Variable 'scores' implicitly has type 'any[]' in some locations where its type cannot be
+  determined.`, and the functions that read it report `Variable 'scores' implicitly has an
+  'any[]' type.`
+
+  Make the file compile without changing what the functions do. The tests stay as they are.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any]
+hints:
+  - Fix the declaration and the other errors go with it. An empty `[]` gives the compiler nothing to infer from, and `best` and `average` can't see what `record` pushes.
+  - Say what the list holds. The parameter of `record` tells you what goes in.

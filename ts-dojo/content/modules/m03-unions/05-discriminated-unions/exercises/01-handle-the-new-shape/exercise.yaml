@@ -1,0 +1,23 @@
+id: m03-unions/05-discriminated-unions/01-handle-the-new-shape
+kind: fix
+title: Handle the new shape
+minutes: 2
+challenge: false
+prompt: |
+  A `triangle` was added to `Shape`, and `index.ts` no longer compiles. The `never` check in
+  each function reports the same error:
+
+  - `Type '{ kind: "triangle"; base: number; height: number; }' is not assignable to type 'never'.`
+
+  Handle the triangle in both functions and keep both `never` checks. A triangle's area is half
+  its base times its height, and `label` gives `'triangle, base 4, height 3'` for a triangle
+  with base `4` and height `3`. The tests call both functions with every kind of shape, and
+  with a shape read from JSON whose `kind` no member has: both must still throw for it.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, non-null-assertion]
+hints:
+  - Each error names the member that reaches `default` with nothing to handle it. The other two members already have a `case` in both functions.
+  - Give that member a `case` of its own in each `switch`, above the `default`. Inside it, `shape` has that member's properties.

@@ -1,0 +1,35 @@
+id: m09-modules-async/04-errors/03-wrap-in-a-result
+kind: implement
+title: Wrap it in a Result
+minutes: 3
+challenge: false
+prompt: |
+  The lesson wrapped `JSON.parse` into a `Result` by hand. Write the generic versions in
+  `index.ts`, so any call that throws, and any promise that rejects, can be turned into a
+  `Result<T, Error>`:
+
+  - `toError(thrown)` returns `thrown` itself when it is an `Error` (of any class), and
+    otherwise a new `Error` whose message is `String(thrown)` and whose `cause` is `thrown`.
+  - `attempt(fn)` calls `fn` once. It returns `{ ok: true, value }` with what `fn` returned,
+    or `{ ok: false, error }` with what `fn` threw, as an `Error`.
+  - `settle(promise)` waits for `promise` and resolves the same way: with its value, or with
+    its rejection reason as an `Error`. It never rejects.
+
+  Keep the signatures. This builds on generic functions (5.1) and async code (9.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    angle-cast,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - The original value goes in the `cause` option, the Error constructor's second argument.
+  - attempt and settle both have a caught value of type unknown to turn into an Error, and toError does exactly that.
+  - In an async function, a rejected promise that you await lands in catch, like a throw.

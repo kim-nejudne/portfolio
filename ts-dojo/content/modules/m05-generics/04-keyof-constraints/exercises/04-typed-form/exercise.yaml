@@ -1,0 +1,37 @@
+id: m05-generics/04-keyof-constraints/04-typed-form
+kind: implement
+title: A typed form
+minutes: 5
+challenge: false
+prompt: |
+  Implement `Form` in `index.ts`: a class that holds the values of a form's fields, starting
+  from the initial values passed to its constructor. Its type argument is the shape of those
+  values, inferred from them, and only objects can be forms.
+
+  - `get(key)` returns the current value of the field `key`.
+  - `set(key, value)` sets it.
+  - `update(key, fn)` calls `fn` with the current value and sets the field to what it returns.
+  - `reset(key)` sets the field back to its initial value.
+  - `isDirty(key)` is `true` when the field's value is not `===` its initial value.
+
+  Every method takes only the names of the fields, and the values have the field's type:
+  for a `Signup` form, `get('age')` is a `number`, `set('age', '36')` is an error, and the
+  callback of `update('age', …)` takes and returns a `number`. The form keeps its own copy of the
+  initial values, so changing the object passed in doesn't change the form, and `set` doesn't
+  change that object.
+
+  The starter types the names as `string` and the values as `unknown`, so `tests.ts` reports
+  `'age' is of type 'unknown'.` until `Form` is generic. The type cases and the
+  `@ts-expect-error` lines check the types; the tests check the form.
+
+  This combines the lesson with generic classes and methods (5.3), constraints (5.2) and the
+  contextual typing of callbacks (2.2).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - The class takes one type parameter for the shape of the values, constrained so that only objects fit. Each method that reads or writes one field declares a type parameter of its own for the field's name.
+  - The value of the field K of the shape T has a type the lesson used for get and setProperty. A method whose result doesn't depend on which field it was given needs no type parameter for the name.
+  - Keep two copies, the initial values and the current ones. A spread copies an object and keeps its type.

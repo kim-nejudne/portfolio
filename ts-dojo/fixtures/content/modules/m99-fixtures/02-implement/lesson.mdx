@@ -1,0 +1,91 @@
+---
+id: m99-fixtures/02-implement
+title: Implementing over a union
+minutes: 10
+objectives:
+  - Write a function that handles every member of a discriminated union
+  - Keep a best-so-far value typed with undefined and narrow it before comparing
+prerequisites: [m99-fixtures/01-fix]
+tags: [fixture, implement, union, undefined, readonly]
+---
+
+## Concept
+
+A function over a union handles one member per branch. Inside each branch the parameter has that member's type, so its properties are available without a cast.
+
+```ts twoslash
+type Command = { type: 'move'; dx: number } | { type: 'say'; text: string };
+
+function run(command: Command): string {
+  if (command.type === 'say') {
+    return command.text;
+    //             ^?
+  }
+  return `moved by ${command.dx}`;
+}
+```
+
+## Examples
+
+The same elimination works for `undefined`. A variable typed `Shape | undefined` starts empty; checking it against `undefined` narrows it to `Shape` for the rest of the branch:
+
+```ts run
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+function area(shape: Shape): number {
+  return shape.kind === 'circle'
+    ? Math.PI * shape.radius ** 2
+    : shape.side ** 2;
+}
+
+function largest(shapes: readonly Shape[]): Shape | undefined {
+  let best: Shape | undefined;
+  for (const shape of shapes) {
+    if (best === undefined || area(shape) > area(best)) {
+      best = shape;
+    }
+  }
+  return best;
+}
+
+console.log(
+  largest([
+    { kind: 'circle', radius: 1 },
+    { kind: 'square', side: 3 },
+  ]),
+);
+console.log(largest([]));
+```
+
+## Pitfalls
+
+**Using the value before narrowing it.** `best` may still be `undefined` when the loop starts, and the compiler says so:
+
+```ts run errors
+type Shape =
+  { kind: 'circle'; radius: number } | { kind: 'square'; side: number };
+
+function first(shapes: readonly Shape[]): string {
+  let best: Shape | undefined;
+  for (const shape of shapes) {
+    best = shape;
+    break;
+  }
+  return best.kind;
+}
+```
+
+## Check yourself
+
+<Predict
+  id="best-after-check"
+  question="Inside `if (best === undefined || area(shape) > area(best))`, what is the type of `best` in the second operand?"
+  options={['Shape | undefined', 'Shape', 'undefined', 'never']}
+  answer={1}
+  explanation="The second operand of || only runs when the first is false, so best is not undefined there. Control-flow analysis narrows it to Shape."
+/>
+
+## Further reading
+
+- [Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)

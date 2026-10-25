@@ -1,0 +1,146 @@
+---
+id: m02-functions/03-void-returns
+title: void returns, undefined vs void, and the callback return rule
+minutes: 15
+objectives:
+  - Write void on a function to have its body checked
+  - Choose between void and undefined as a return type
+  - Explain why a function that returns a value fits a function type that returns void
+  - Tell the void of a function type, which ignores the result, from a function's own void, which forbids one
+  - Type a callback by what the caller does with its result, void when it is ignored and the real type when it is used
+prerequisites:
+  - m01-types/04-any-unknown-never-void
+  - m02-functions/01-parameters-and-returns
+  - m02-functions/02-function-types-and-callbacks
+tags:
+  - functions
+  - void
+  - undefined
+  - return type
+  - callback
+  - callback return rule
+  - forEach
+---
+
+## Concept
+
+You saw in <Lesson id="m01-types/04-any-unknown-never-void" /> that a function without a `return` value is inferred to return `void`, and that a caller can't assign the result to a `string` or test it in an `if`. This lesson is about what `void` as a return type promises. It doesn't say the result is `undefined`. It says the caller won't use the result, whatever it is:
+
+```ts twoslash
+type Task = () => void;
+
+const answer: Task = () => 42;
+const result = answer();
+//         ^?
+```
+
+`answer` returns 42, and it is still a `Task`, because whoever calls a `Task` has promised to ignore the result. So `result` holds 42 at runtime and is `void` to the compiler, which won't let you treat it as any particular type: not as a number, and not as a condition. This one idea explains the rest of the lesson: why `void` and `undefined` are different return types, why a callback typed `() => void` may return a value, and why a function annotated `: void` may not.
+
+## Examples
+
+**`void` or `undefined`.** `undefined` is a value, and as a return type it promises that value, which callers may use. A `void` result is not an `undefined` the caller can count on:
+
+```ts run errors
+let count = 0;
+
+function reset(): undefined {
+  count = 0;
+}
+
+function clear() {
+  count = 0;
+}
+
+const afterReset: undefined = reset();
+const afterClear: undefined = clear();
+```
+
+Only the last line is an error: `Type 'void' is not assignable to type 'undefined'.` `reset` has no `return` and compiles anyway: a function declared to return `undefined` may end without one, because ending returns `undefined`. Use `void` when the result means nothing, which is most of the time. `undefined` belongs where the caller checks for it, usually in a union such as `number | undefined` (<Lesson id="m02-functions/01-parameters-and-returns" />).
+
+**The callback return rule.** `forEach` types its callback as `(value: string, index: number, array: string[]) => void`, and `push` returns the new length, a `number`. This compiles:
+
+```ts run
+const names: string[] = [];
+['Ada', 'Grace', 'Linus'].forEach((name) => names.push(name));
+console.log(names);
+```
+
+A function that returns a value fits a function type that returns `void`. The reason is the one behind fewer parameters in <Lesson id="m02-functions/02-function-types-and-callbacks" />: a function fits a function type when it can be used wherever the type is called. A caller holding a `() => void` has promised to ignore the result, so a function that returns a number, a string or nothing at all is equally safe to call there. Without the rule, `(name) => names.push(name)` would need braces just to throw a number away.
+
+The value is ignored, not erased. `answer()` in the Concept still returns 42: its type, `void`, keeps you from using `result` as a number, but `result` holds 42 at runtime all the same. The rule changes what the types let you do with the result, not what the function returns.
+
+**`: void` on the function itself.** The rule is about function types. A return type written on the function is a different thing:
+
+```ts run errors
+type Task = () => void;
+
+const viaType: Task = () => 42;
+const ownReturnType = (): void => 42;
+
+function save(list: string[], item: string): void {
+  return list.push(item);
+}
+```
+
+`viaType` compiles by the rule above. The other two report `Type 'number' is not assignable to type 'void'.` A return type written on a function describes that function, and its body is checked against it like any other return type. The exception covers only a function type that a function is checked against, `Task` here. So write `: void` on a function to make sure it returns nothing (`return;` and `return undefined;` are still allowed), and `=> void` in a function type to say the caller ignores whatever comes back.
+
+## Pitfalls
+
+**Using the result of a void callback.** A callback typed `void` may return anything, so its result tells you nothing, and TypeScript won't let you test it for truthiness or treat it as any particular type. It is the error <Lesson id="m01-types/04-any-unknown-never-void" /> showed for a function's own `void` result:
+
+```ts run errors
+type Validate = (value: string) => void;
+
+function check(value: string, validate: Validate) {
+  return validate(value) ? 'valid' : 'invalid';
+}
+```
+
+`An expression of type 'void' cannot be tested for truthiness.` When your code uses a callback's result, the callback type must say what the result is: `(value: string) => boolean`. Then a validator with no `return` is the one reported, where it is passed in.
+
+**`undefined` in a callback type.** It looks like a stricter `void`, and it rejects the callbacks people write:
+
+```ts run errors
+type Listener = (event: string) => undefined;
+
+function on(listener: Listener) {
+  listener('ready');
+}
+
+const seen: string[] = [];
+on((event) => seen.push(event));
+on((event) => console.log(event));
+```
+
+`Type 'number' is not assignable to type 'undefined'.`, then `Type 'void' is not assignable to type 'undefined'.` The exception for ignored results belongs to `void` alone, so not even `console.log`, which returns `void`, fits. Only a function that returns `undefined` does, such as a block body with no `return`: `(event) => { seen.push(event); }`. When the caller ignores the result, write `void`.
+
+## Check yourself
+
+<Predict
+  id="ignored-not-erased"
+  question="What does this print?"
+  code={
+    "type Task = () => void;\nconst task: Task = () => 'done';\nconsole.log(task());"
+  }
+  options={['done', 'undefined', 'Nothing: it is a compile error']}
+  answer={0}
+  explanation="A function that returns a string fits the type `() => void`, so it compiles. `task()` has the type `void`, which stops you using it as a string, but nothing removes the value: the function returns 'done', and `console.log` takes any argument, so it prints done."
+/>
+
+<Predict
+  id="undefined-listener"
+  question="With `type Listener = (event: string) => undefined` and `seen` a `string[]`, which of these is a Listener?"
+  options={[
+    '(event) => seen.push(event)',
+    '(event) => console.log(event)',
+    '(event) => { seen.push(event); }',
+  ]}
+  answer={2}
+  explanation="The exception for ignored results belongs to `void`. `push` returns a `number` and `console.log` returns `void`, and neither is `undefined`. A block body with no `return` returns `undefined`, so it fits. With `=> void` in the type, all three would."
+/>
+
+## Further reading
+
+- [More on Functions: return type void](https://www.typescriptlang.org/docs/handbook/2/functions.html#return-type-void)
+- [More on Functions: void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+- [Type Compatibility: comparing two functions](https://www.typescriptlang.org/docs/handbook/type-compatibility.html#comparing-two-functions)

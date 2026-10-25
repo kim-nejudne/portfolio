@@ -1,0 +1,27 @@
+id: m05-generics/04-keyof-constraints/03-group-by-property
+kind: implement
+title: Group by a property
+minutes: 4
+challenge: false
+prompt: |
+  The `groupBy` of 5.1 took a callback that returned a `string`. This one takes the name of a
+  property instead. Implement `groupBy` in `index.ts`: it takes a `readonly` list and a property
+  name, and returns a new `Map` with one entry per distinct value of that property. Each entry
+  holds the items with that value, in the order of the list, and the entries are in the order in
+  which their values first appear.
+
+  The map's keys keep the property's type: grouping `Player`s by `team` gives a
+  `Map<string, Player[]>`, by `level` a `Map<number, Player[]>`, by `active` a
+  `Map<boolean, Player[]>`. The type cases check the three, the `@ts-expect-error` lines check
+  that a name `Player` doesn't have is rejected, and the tests check the groups.
+
+  This combines the lesson with `Map<K, V>` (5.3).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast, non-null-assertion]
+hints:
+  - The type of the map's keys depends on which property name was passed, so the name needs a type parameter of its own.
+  - The keys of the map are the values of that property, and the lesson has a type for the value of property K of T.
+  - Create the map with explicit type arguments, since it starts empty, then add each item to its group, creating the group the first time a value appears.

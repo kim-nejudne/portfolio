@@ -1,0 +1,35 @@
+id: m18-capstones/05-type-performance/01-check-the-address
+kind: fix
+title: Check the address
+minutes: 5
+challenge: false
+prompt: |
+  `index.ts` describes an IPv4 address as the union of every address, and the compiler refuses:
+
+  - `Expression produces a union type that is too complex to represent.`
+
+  Keep `Byte` as it is, and replace the union with a check, as the theory did for dates:
+
+  - `IPv4<S>` is `S` when `S` is four `Byte`s joined by dots, and `never` otherwise. A union is
+    checked member by member and keeps its valid members; a plain `string` gives `never`.
+  - `octets(address)` accepts exactly the addresses `IPv4` keeps, so `octets('192.168.0.1')`
+    compiles and `octets('192.168.0.256')` doesn't. `parts` stays as it is.
+
+  The type cases try addresses with too few and too many parts, a part above 255, a leading zero,
+  and 256 addresses in one union.
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid:
+  [
+    explicit-any,
+    as-unknown-as,
+    non-null-assertion,
+    type-assertion,
+    any-expression,
+  ]
+hints:
+  - The union of all addresses is what costs too much. What if the type looked only at the one string the caller wrote?
+  - A template literal type with `infer` in it splits a string at its dots. Each part can then be compared with `Byte`, which is small.
+  - For `octets` to see the caller's string, its parameter needs a type parameter that the argument decides.

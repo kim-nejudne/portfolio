@@ -1,0 +1,25 @@
+id: m13-type-challenges/04-hard-set/05-is-any
+kind: type-challenge
+title: IsAny
+minutes: 6
+challenge: false
+prompt: |
+  Write `IsAny<T>` in `index.ts`: `true` when `T` is `any`, `false` for every other type,
+  `unknown` and `never` included. A library that exports `any` values is where a check like
+  this helps.
+
+  The original's first case is `IsAny<any>`. Explicit `any` is forbidden in every file of a
+  type-challenge here, so `tests.ts` takes its `any` from `ReturnType<typeof JSON.parse>`, as
+  13.3's IsUnion did. Cases added in the dojo check `object`, an array of `any` (which is not
+  `any`) and a union with `any` in it (which is). `@dojo/type-utils` has an `IsAny` of its own;
+  write yours without it.
+
+  From type-challenges [#00223 IsAny](https://github.com/type-challenges/type-challenges/blob/main/questions/00223-hard-isany/README.md) by Pavel Glushkov (@pashutk) (MIT).
+entry: index.ts
+tests: tests.ts
+compilerOptions: {}
+libs: [es2025]
+forbid: [explicit-any, as-unknown-as, angle-cast]
+hints:
+  - Checking `T` itself in a conditional won't do it. `any` takes both branches, and `unknown` passes the same assignability tests (the lesson's Examples and second pitfall).
+  - Put `T` where only `any` changes the outcome. The lesson's Examples show what `any` does to an intersection.
