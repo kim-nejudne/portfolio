@@ -192,8 +192,8 @@ That last one is not a formality — see *Caching and the SPA fallback* below.
 Worth also confirming the spokes still answer, since a reload is box-wide:
 
 ```sh
-for s in poketrack; do
-  curl -sS -o /dev/null -w "$s %{http_code}\n" "https://$s.kimnejudne.dev/"
+for h in poketrack dojo; do
+  curl -sS -o /dev/null -w "$h %{http_code}\n" "https://$h.kimnejudne.dev/"
 done
 ```
 
@@ -349,5 +349,6 @@ They are served from their own `location` block, with the artwork's week rather
 than `/assets/`'s year or `location /`'s `no-cache`. A year would pin the first
 card any platform ever scraped; `no-cache` would make every scrape and every tab
 revalidate a file that changes about never.
-- **`poketrack` is the only crop**, and it is a chosen capture with its
-  source in `art/crops/`. See `../README.md`.
+- **`ts-dojo`'s crop is a headless screenshot**, not a chosen crop.
+  `poketrack` is a chosen capture with its source in `art/crops/`. See
+  `../README.md`.

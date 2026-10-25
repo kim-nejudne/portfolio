@@ -12,4 +12,8 @@
     <loc>https://kimnejudne.dev/work/poketrack/</loc>
     <changefreq>monthly</changefreq>
   </url>
+  <url>
+    <loc>https://kimnejudne.dev/work/ts-dojo/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
 </urlset>

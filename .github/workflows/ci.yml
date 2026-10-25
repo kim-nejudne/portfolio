@@ -1,4 +1,4 @@
-# Typecheck and build both projects, then run the hub's assertion suite.
+# Typecheck and build every project, then run the hub's assertion suite.
 #
 # Two reasons this exists, and the second is the bigger one.
 #
@@ -19,6 +19,10 @@
 # yarn-classic `resolutions` using `**/` globs npm cannot express. Hoisting is
 # where every risk lives. Independent installs and one lockfile each is the shape the
 # repository already has, and the matrix follows it rather than fighting it.
+#
+# `ts-dojo` is further out still: TypeScript 6 on Node 24 and pnpm 12, with a
+# content lint that proves every exercise solvable. It gets its own job rather
+# than a matrix row, because none of the matrix's steps would be the right ones.
 #
 # `poketrack/frontend` carries **both** a `package-lock.json` and a `yarn.lock`,
 # and the yarn one is authoritative: `resolutions` is a yarn field that npm
@@ -99,6 +103,52 @@ jobs:
         env:
           CI: false # CRA turns warnings into errors under CI=true. poketrack has warnings.
         run: npm run build
+
+  # ts-dojo's own checks, as its standalone repository ran them before the
+  # import: typecheck, lint, format, unit tests, the content lint, then the
+  # build. Playwright stays on Kim's machine, where Google Chrome is
+  # (ts-dojo/playwright.config.ts).
+  ts-dojo:
+    name: build ts-dojo
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ts-dojo
+
+    # The Node 24 majors of each action, as the standalone repository had them.
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: ts-dojo/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ts-dojo/pnpm-lock.yaml
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        run: pnpm typecheck
+
+      - name: lint
+        run: pnpm lint
+
+      - name: format check
+        run: pnpm format:check
+
+      - name: unit tests
+        run: pnpm test --run
+
+      - name: content lint
+        run: pnpm content:lint
+
+      - name: build
+        run: pnpm build
 
   # The hub gets its own job: it builds, serves the build, and runs the whole
   # assertion suite against it over CDP.

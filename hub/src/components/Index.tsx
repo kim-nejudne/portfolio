@@ -21,7 +21,7 @@ export default function Index() {
   return (
     <section className="index" id="work" aria-labelledby="work-heading">
       <h2 className="index-heading mono" id="work-heading">
-        The work — one standalone product
+        The work — two standalone products
       </h2>
       <ol className="index-list">
         {SPOKES.map((s, i) => (

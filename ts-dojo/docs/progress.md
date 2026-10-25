@@ -16,7 +16,7 @@ The v1 checklist for ts-dojo: Prep from §11, then every acceptance criterion fr
 
 - [x] The §4 Vim checklist has a recorded result for every item: pass, workaround (with the mapping), or gap.
 - [x] `public/ts/6.0.3/` holds every `lib.*.d.ts` from `typescript@6.0.3`, and §2's sizes are confirmed or corrected.
-- [x] `dojo.kimnejudne.dev` resolves to the droplet. (by hand) Ticked 25 October 2026 under D4: `dig +short dojo.kimnejudne.dev` answers `165.245.189.5`, the droplet, and Kim ticked the Prep A-record item under For Kim.
+- [x] `dojo.kimnejudne.dev` resolves to the droplet. (by hand) Ticked 25 October 2026 under D4: `dig +short dojo.kimnejudne.dev` answers the droplet's address, and Kim ticked the Prep A-record item under For Kim.
 
 > **Gate (§11):** every P item passes or has a working mapping, and the W list is written down.
 
