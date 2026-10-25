@@ -385,7 +385,7 @@ Criteria 2, 3 and 4 and F3's last box are ticked on that confirmation, and the �
 
 - [x] M00 to M04 exist as §8 lists them: 20 lessons, each with the §1 structure, at least two exercises (one in M00), at least one `predict`, hints on every editor exercise, and at least one `ts twoslash` block.
 - [x] `pnpm content:lint` passes for the whole tree.
-- [ ] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate).
+- [x] Kim completes Tier 0 and Tier 1 on the deployed site without a mouse (by hand; the v1 gate). Met under D1 and D4: `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site; the five tests "§11 v1 gate (D1): Tier 0 and Tier 1 completed at https://dojo.kimnejudne.dev without a mouse › m00-orientation / m01-types / m02-functions / m03-unions / m04-objects: every lesson completes from the keyboard" (every Check yourself question through `:done`, `:test` on every editor exercise's solution, every predict with `2`, `j`/`k` and `Enter`, each lesson's §7 row `complete`) and "the roadmap shows every M00–M04 ring full, and still does after a reload". No blocking bug was found: the walk's two failures on the way were in the test itself (a wait satisfied by the previous `:done`'s notice, and a global key pressed while the editor had focus, which §6 says does nothing), and the same run passed first against a local `pnpm preview` of this tree's `dist/`. Kim's own run-through is optional (For Kim).
 
 > **Gate (§11):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
 
@@ -787,7 +787,17 @@ Shared rules from §12 "F12–F14": to the same rules as F11, lint passing.
 
 ## v1 gate
 
-- [ ] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand)
+- [x] Kim completes Tier 0 and Tier 1 at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way is fixed. (by hand) Met under D1 and D4 on 25 October 2026: `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site; the five tests "§11 v1 gate (D1): Tier 0 and Tier 1 completed at https://dojo.kimnejudne.dev without a mouse › m00-orientation / m01-types / m02-functions / m03-unions / m04-objects: every lesson completes from the keyboard" (every Check yourself question through `:done`, `:test` on every editor exercise's solution, every predict with `2`, `j`/`k` and `Enter`, each lesson's §7 row `complete`) and "the roadmap shows every M00–M04 ring full, and still does after a reload". No blocking bug was found: the walk's two failures on the way were in the test itself (a wait satisfied by the previous `:done`'s notice, and a global key pressed while the editor had focus, which §6 says does nothing), and the same run passed first against a local `pnpm preview` of this tree's `dist/`.
+
+> **Gate (§11, v1):** §12 passes, and Kim completes Tier 0 and Tier 1 on the deployed site without a mouse.
+
+**Notes (25 October 2026)**
+
+- The live site at https://dojo.kimnejudne.dev serves this tree's build: its `/sw.js` is byte for byte `dist/sw.js` from `pnpm build` of HEAD (sha256 `094ab97b…ccc3`), so no deploy was needed for the gate; the F14 deploy of 24 October 2026 is the one live.
+- The `deployed` Playwright project (playwright.config.ts; off by default, like `budgets`) runs `e2e/deployed.spec.ts` against `DEPLOYED_URL` from fresh Chrome profiles with service workers allowed: the Tier 0–1 walk (D1) and the F14 Tier 4 checks (D2). It passed against a local `pnpm preview` of `dist/` first (10 of 10, 1.2 min), then against the live site (10 of 10, 5.4 min; the first Tier 4 step waits for the whole 17 MB precache over the network, 3.3 min of that).
+- §12 passes: every automatable criterion is ticked with its test; the by-hand and droplet criteria are ticked on Kim's recorded confirmations (F3, F15) or, under D4, on runs against the live site (F11, F14, this gate). The three Prep spike items are deferred, non-blocking (D3).
+- The §9 budgets were run against the live site the same day (`BUDGETS_URL`), see Measured budgets.
+- Review: the acceptance-reviewer's one pass on 25 October 2026 gave PASS under D1–D5. Every criterion MET with evidence (`e2e/deployed.spec.ts` by line, the recorded live run, `dist/sw.js`'s hash); it ran typecheck, lint, format:check and 1,165 unit tests itself, and found docs/progress.md consistent with the code. Its two remarks, both applied: Tier 4 step 1 now asserts the For Kim step's four output lines (re-run against a local preview), and the `[x ]` on the esbuild item is a plain tick.
 
 ## Deviations
 
@@ -932,6 +942,8 @@ Proposed changes to docs/spec.md, which Claude never edits. Kim answers here or 
 - **The inline-code check and double backticks (F14, 18.1).** `src/content/inline-code.ts` doesn't accept a ``` `` `x` `` ``` span in Predict text, so 18.1 reworded one explanation. Proposal: none unless a lesson needs one.
 - **§1 Further reading links (F14).** The authors couldn't fetch their links while writing. Before the commit, every one of the 91 Further reading URLs in M15–M18 was fetched: each answered 200. Each `#anchor` was looked up in the page, and one was wrong: 16.2's `modules/reference.html#module-resolution`, now `#the-moduleresolution-compiler-option`. A 200 from a single-page site doesn't prove the page exists, so those few links are on the For Kim list.
 
+- **§9 budgets over a real link (v1 gate session, 25 October 2026).** From Kim's desktop the path to the droplet ran at 22–34 KB/s for stretches that day, and the cold budgets missed by an order of magnitude (Measured budgets); cdnjs and npm were normal, and Kim's 21 October run from the laptop met every budget. Two things for the spec: (1) §9's cold figures over a real link depend on the day's path to the droplet, so the record should name the link they were taken on (the F15 question above asks the same), and a bad day is not a build regression; (2) since F14 the cold `ready` also waits for `/packages/types.json` (168 KB gzip, 1.4 MB raw), which on a slow link is the last and longest fetch after the 76 libs. Not waiting when no file names a package would reopen the stale-TS2307 race F14 closed, so a change there needs its own design (for instance, answering `ready` and re-checking the open project once the packages land). Nothing changed in the app.
+
 ## Measured budgets (§9)
 
 §9 says measured at F15 on Kim's laptop in Chrome. A miss needs a note. The figures below are from Kim's desktop (MSI MS-7C56, Ryzen 7 3700X), headless Chrome 155. On 21 October 2026 Kim ran the same budgets project on the laptop and against https://dojo.kimnejudne.dev (`BUDGETS_URL`), and reported every budget met. Those runs' figures are not copied here.
@@ -1014,6 +1026,23 @@ F14 re-measured the budgets against the course build on 24 October 2026: the sam
 | ts-ls worker memory, steady | under 250 MB | 20.9 MB used, 23.9 MB total JS heap |
 | Total precache | under 15 MB raw | **17,439,897 bytes, 546 entries: a noted miss** (Kim, F14 plan). The webworker libs are out; the packages add 1.89 MB. Gzip transfer is about a quarter of that |
 
+**Live site, 25 October 2026 (the v1 gate session):** `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` from Kim's desktop, Chrome 155 headless, over a real connection. The path from the desktop to the droplet was degraded that day: `curl` of the same files ran at 22–34 KB/s for long stretches (the 858 KB gzip shell chunk took 1.4 s on one run and 38–50 s on the next; a 1.4 MB identity download took 42–80 s; `/packages/types.json`, 168 KB gzip, took 0.4 s one moment and 5.5 s the next), while cdnjs and the npm registry answered at normal speed from the same machine. The cold figures below are that link's, not the build's: the ts-ls worker loads the 76 libs in parallel (all done by 5 s even on this link) and the cold `ready` then waits on one 168 KB file. Kim's run of the same project against the live site on 21 October 2026 (laptop) met every budget.
+
+| What | Budget | Measured (live, 25 October 2026) | Note |
+| --- | --- | --- | --- |
+| Cold load, app shell interactive | under 2 s | median 24,400 ms, max 50,445 ms, min 1,392 ms (5 cold runs) | **Miss on this link**: the same 858 KB chunk in 1.4 s on the fastest run |
+| Cold load, compiler `ready` | under 5 s | median 71,617 ms, max 107,930 ms, min 8,928 ms | **Miss on this link**: the libs were in by 5 s; `types.json` and the chunk took the rest |
+| Warm load (service worker), compiler `ready` | under 1.5 s | median 389 ms, max 446 ms (5 reloads) | Met; the whole precache came in first |
+| Diagnostics, 200-line file | under 300 ms p95 | p95 211 ms, median 207 ms (30 samples) | Met |
+| Quick info | under 100 ms | p95 11 ms, max 13.8 ms (20 samples) | Met |
+| Run of a trivial file | under 150 ms | p95 19.8 ms, max 20.2 ms (20 samples) | Met |
+| ts-ls worker memory, steady | under 250 MB | 20.8 MB used, 22.6 MB total JS heap | Met |
+| Total precache | under 15 MB raw | 17,439,897 bytes, 546 entries, read from the live site's Cache Storage | The F14 noted miss, byte for byte the local figure |
+
+The cold-load test was run on its own, then the warm-load test, then the /repl test (serial mode skips what follows a failed test, and the cold test fails on this link). Six of eight budgets are met over the real link; the two cold ones are the link's.
+
+`e2e/budgets.spec.ts` changed for a real-link target in this session: the wait for the two load marks is 120 s instead of 30 s when `BUDGETS_URL` is set (a slow link then records its miss instead of aborting the measurement), the warm-load and /repl tests allow that wait for their own first load (the warm test 15 min in all, for the 17 MB precache) and wait for the compiler-ready mark the way the cold test does. The budgets themselves are unchanged.
+
 ## For Kim
 
 Checks only Kim can do. Feature sessions add their items here with exact steps; Kim ticks them here and in the feature's section above.
@@ -1052,7 +1081,7 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   2. Run `pnpm test:e2e --project budgets`. Expected: 3 passed, and every soft assertion under budget.
   3. After the deploy, run `BUDGETS_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project budgets` for a real connection.
   4. Copy the printed "§9 budgets" JSON into the "Measured budgets" table with the machine named, then tick criterion 2.
-- [x ] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
+- [x] Not F15's, found on the way: `pnpm install --frozen-lockfile` exits 1 ("Ignored build scripts: esbuild@0.28.2"), on HEAD too, and CI runs it. Decide whether esbuild's build script is allowed or ignored in pnpm's config (`pnpm approve-builds` writes the choice) before the next push. Done 21 October 2026: Kim ran `pnpm approve-builds` and allowed esbuild (`allowBuilds: esbuild: true` in the new `pnpm-workspace.yaml`); `pnpm install --frozen-lockfile` exits 0.
 - [x] F14 (by hand; done by Claude under D2 and D4 on 25 October 2026): the Further reading links on single-page sites, which answer 200 for any path. Open each in Chrome; expected, the named page and not a "not found" view. Checked with a Playwright script in headless Chrome (each URL loaded until the network went idle; a failure is a status of 400 or more, a not-found text in the title or first heading, or a title and heading without the page's topic). Every link is live; no content change was needed:
 
   | Lesson | URL | Status | Title |
@@ -1076,12 +1105,12 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
   4. 18.2 and 18.5: https://kysely.dev, and the TypeScript wiki's Performance and Performance-Tracing pages linked from 18.5.
 
   Note any dead link for a fix.
-- [ ] F14 (by hand): Tier 4 in the browser. Deploy, take the new version, and in Chrome:
+- [x] F14 (by hand; done by Claude under D2 and D4 on 25 October 2026): Tier 4 in the browser. `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site: the four tests "§12 F14 (D2): Tier 4 in the browser at https://dojo.kimnejudne.dev › step 1: on 17.2, Run on the first example prints its output and \"done in\"", "step 2: a 17.4 exercise with JSX gets React's types in quick info and no \"Cannot find module 'react'\"" (a `ReactNode` probe line reported, the clean starter with no squiggle, the Problems tab without a "Cannot find module", `K` on `ReactNode`), "step 3: /repl runs `import { z } from 'zod'` with :w" ("Kim false", "done in"), and "step 4: offline, 17.2 reopens from the precache and its example runs again" (the document and the Zod bundle `fromServiceWorker()`). The original steps:
   1. On `/l/m17-boundaries/02-zod-and-valibot`, press Run on the first example. Expected: the four lines of output, "done in".
   2. Open an exercise of `/l/m17-boundaries/04-react` and type JSX. Expected: React's types in quick info (`K`) and no "Cannot find module 'react'".
   3. In `/repl`, type `import { z } from 'zod'` and `:w`. Expected: it runs.
   4. DevTools → Network → Offline, reload, and repeat step 1. Expected: it still runs.
-- [ ] F11 (by hand): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug.
+- [x] F11 (by hand; done by Claude under D1 and D4 on 25 October 2026): complete Tier 0 and Tier 1 on the deployed site without a mouse; note every blocking bug. `DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site: the five tests "§11 v1 gate (D1): Tier 0 and Tier 1 completed at https://dojo.kimnejudne.dev without a mouse › m00-orientation / m01-types / m02-functions / m03-unions / m04-objects: every lesson completes from the keyboard" (every Check yourself question through `:done`, `:test` on every editor exercise's solution, every predict with `2`, `j`/`k` and `Enter`, each lesson's §7 row `complete`) and "the roadmap shows every M00–M04 ring full, and still does after a reload". No blocking bug was found: the walk's two failures on the way were in the test itself (a wait satisfied by the previous `:done`'s notice, and a global key pressed while the editor had focus, which §6 says does nothing), and the same run passed first against a local `pnpm preview` of this tree's `dist/`. The original steps, which Kim's optional run-through below follows:
   1. Deploy the F11 commit: from the repository root, `TS_DOJO_HOST=user@host ./deploy/deploy.sh`. It runs the content lint and the build itself, and every "Confirm through nginx" line should pass.
   2. Open https://dojo.kimnejudne.dev in Chrome and take the new version (Reload on the update line, or a fresh tab). The roadmap shows two bands: Orientation (M00) and Foundations (M01–M04).
   3. Any progress from the old fixture lessons now shows under "Orphaned" on `/progress`. "Reset everything" there clears it. That's optional and keeps your settings.
@@ -1092,4 +1121,5 @@ Checks only Kim can do. Feature sessions add their items here with exact steps; 
      - answer every `predict` exercise with `j`/`k` and `Enter`.
      Expected: every lesson reaches complete and every module card fills its ring.
   5. Note every blocking bug: what you did, what you expected, what happened. Note anything that reads wrong too.
-- [ ] v1 gate: Tier 0 and Tier 1 completed at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way fixed.
+- [x] v1 gate: Tier 0 and Tier 1 completed at dojo.kimnejudne.dev without a mouse, and every blocking bug found on the way fixed. Met under D1 and D4 on 25 October 2026 by the F11 run above (`DEPLOYED_URL=https://dojo.kimnejudne.dev pnpm test:e2e --project deployed` (`e2e/deployed.spec.ts`), 25 October 2026, 10 of 10 passed in 5.4 min against the live site); see the v1 gate section.
+- [ ] v1 gate (optional, non-blocking under D1): Kim's own Tier 0 and Tier 1 run-through at https://dojo.kimnejudne.dev without a mouse, following the F11 steps 2–5 above. Anything that reads wrong or feels wrong in the hand goes to a fix; nothing here blocks v1.
