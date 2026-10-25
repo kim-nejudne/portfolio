@@ -28,6 +28,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
  * edits one of them.
  */
 import { SPOKES, repoLabel } from '../src/spokes.ts';
+import { chromiumPath } from './chromium.mjs';
 import { CV } from '../src/cv.ts';
 import { CONTACT } from '../src/contact.ts';
 import {
@@ -222,7 +223,7 @@ async function fetchPublic(url, attempts = 3) {
 
 async function main() {
   const chrome = spawn(
-    'chromium',
+    chromiumPath(),
     [
       '--headless',
       '--disable-gpu',

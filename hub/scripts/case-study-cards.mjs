@@ -30,9 +30,9 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFile, statSync } from 'node:fs';
 import { readFile as read, unlink, writeFile } from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromiumPath } from './chromium.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
@@ -246,17 +246,16 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const PORT = server.address().port;
 
-const CHROME = ['chromium', 'chromium-browser', 'google-chrome-stable'].find((c) => {
-  try {
-    execSync(`command -v ${c}`, { stdio: ['ignore', 'pipe', 'ignore'] });
-    return true;
-  } catch {
-    return false;
-  }
-});
-if (!CHROME) {
+// Resolved by `scripts/chromium.mjs`, which this file used to do for itself.
+// The same list lived here, in `brand.sh` and in `cv/build.sh`, while
+// `verify.mjs` and `axe.mjs` hardcoded `chromium` and so were the two scripts
+// that could not run on a CI runner, which is the one place they most need to.
+let CHROME;
+try {
+  CHROME = chromiumPath();
+} catch (e) {
   server.close();
-  throw new Error('no chromium on PATH');
+  throw e;
 }
 
 mkdirSync(join(ROOT, 'public/cards'), { recursive: true });
