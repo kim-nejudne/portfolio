@@ -1,0 +1,317 @@
+# Push-to-deploy for poketrack.kimnejudne.dev.
+#
+# This is the runbook in `poketrack/deploy/README.md`, run by a machine instead
+# of a person: the API image is built here and shipped with
+# `docker save | ssh docker load`, the CRA bundle is built here and rsynced to
+# the box, then one script on the droplet re-points IMAGE_TAG, restarts the API
+# and waits for it to answer before it touches the SPA. The droplet still builds
+# nothing — it has no memory headroom next to its co-tenants.
+#
+# ## What it deliberately keeps from the runbook
+#
+# Tags stay `poketrack:<short sha of the last commit that changed poketrack/>`,
+# so `docker images poketrack` on the box and every rollback command in the
+# README keep meaning what they meant. No registry: the repository is public but
+# the image carries nothing worth publishing, and a registry would be one more
+# thing whose visibility and credentials have to be right.
+#
+# ## What it adds
+#
+# - A gate the runbook never had. The API must serve `/api/health` AND
+#   `/api/auth/demo-accounts` on loopback before the SPA is swapped in.
+#   `health()` returns ok unconditionally; demo-accounts actually reads Mongo.
+# - Rollback for both halves. If the gate fails, IMAGE_TAG goes back to the
+#   previous value and the SPA was never touched. On success the outgoing bundle
+#   is kept in /var/www/poketrack.prev, which the README used to say had no
+#   equivalent.
+# - A push-button re-point. `workflow_dispatch` with `tag=<known-good>` skips
+#   the build and just moves IMAGE_TAG through the same gate.
+# - The route-guard sweep as a post-deploy smoke test, against the real URL —
+#   which is exactly what `test_api_guards.py` was written for.
+#
+# ## Access
+#
+# SSH as `deploy`, never root, no sudo. The box was prepared so that user owns
+# `/opt/poketrack/.env`, `compose.yaml` and `/var/www/poketrack`, while
+# `/opt/poketrack` itself is root-owned with the sticky bit: `deploy` can
+# rename its own files into it (which `sed -i` needs) but cannot unlink root's
+# `scripts/` or `backups/`. The host key is pinned through a secret rather than
+# accepted on first use.
+#
+# Not shipped here, on purpose: `deploy/nginx/*` and `deploy/scripts/*`. Both
+# are root-owned on the box and change rarely enough that a person should be
+# the one moving them.
+
+name: Deploy PokéTrack
+
+on:
+  push:
+    branches: [main]
+    # `paths` and `paths-ignore` cannot share one event; the negation does the
+    # ignoring. Case-study and brief edits do not redeploy.
+    paths:
+      - "poketrack/**"
+      - "!poketrack/**/*.md"
+      - ".github/workflows/deploy-poketrack.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Existing poketrack:<tag> on the box to re-point IMAGE_TAG to (a
+          rollback). Leave empty to build and deploy HEAD.
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-poketrack
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # `bash` here means `bash --noprofile --norc -eo pipefail`, so a broken
+    # `docker save | ssh docker load` pipe fails the step instead of loading
+    # half an image.
+    shell: bash
+
+env:
+  SITE: https://poketrack.kimnejudne.dev
+  # Pinned because poc/test_core.py::test_data_availability returns a value,
+  # which pytest has announced will become an error. 9.1.1 verified 2026-10-25
+  # (19 passed, 1 warning).
+  PYTEST: pytest==9.1.1
+
+jobs:
+  # The two offline suites: the engine's branching/choice tests and the
+  # original proof against cached PokéAPI data. test_api_guards.py is excluded
+  # here because it targets the live deployment — it runs after the deploy.
+  #
+  # requirements-prod.txt, not requirements.txt: the dev superset pins
+  # `emergentintegrations`, which is not on public PyPI.
+  test:
+    name: backend tests
+    if: ${{ github.event.inputs.tag == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: poketrack/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: poketrack/backend/requirements-prod.txt
+      - name: install
+        run: pip install -r requirements-prod.txt "$PYTEST"
+      - name: pytest (offline suites)
+        run: pytest --ignore=test_api_guards.py
+
+  # Same shape as the poketrack row of ci.yml: yarn, not npm, because
+  # `resolutions` is a yarn field and npm would install a graph nobody has run.
+  # REACT_APP_BACKEND_URL is empty on purpose — same-origin, relative /api.
+  spa:
+    name: frontend bundle
+    if: ${{ github.event.inputs.tag == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: poketrack/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: poketrack/frontend/yarn.lock
+      - name: install
+        run: yarn install --frozen-lockfile
+      - name: build
+        env:
+          CI: "false" # CRA turns warnings into errors under CI=true; poketrack has warnings.
+          REACT_APP_BACKEND_URL: ""
+          GENERATE_SOURCEMAP: "false"
+        run: yarn build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poketrack-spa
+          path: poketrack/frontend/build
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    name: droplet
+    needs: [test, spa]
+    # On a re-point dispatch both upstream jobs are skipped; a skip must not
+    # block the deploy, a failure must.
+    if: ${{ !cancelled() && needs.test.result != 'failure' && needs.spa.result != 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tag is a `git log -- poketrack`, which needs history
+
+      # The tag names the last commit that changed shipped code under
+      # poketrack/, not the repository HEAD: six spokes share this repository
+      # and HEAD moves when any of them does. Docs-only commits are excluded so
+      # a tag always points at a commit the image was really built from.
+      - name: resolve tag
+        id: tag
+        env:
+          TAG_INPUT: ${{ github.event.inputs.tag }}
+        run: |
+          if [ -n "$TAG_INPUT" ]; then
+            [[ "$TAG_INPUT" =~ ^[0-9a-f]{7,12}$ ]] || { echo "tag must be a short sha, got '$TAG_INPUT'"; exit 1; }
+            tag="$TAG_INPUT"; mode=repoint
+          else
+            tag="$(git log -1 --format=%h -- poketrack ':!poketrack/**/*.md')"; mode=build
+          fi
+          echo "tag=$tag  mode=$mode"
+          { echo "tag=$tag"; echo "mode=$mode"; } >> "$GITHUB_OUTPUT"
+
+      - name: ssh
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host droplet
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh droplet 'echo "connected as $(id -un)@$(hostname)"'
+
+      - name: build and ship the API image
+        if: steps.tag.outputs.mode == 'build'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker build -t "poketrack:$TAG" poketrack/
+          docker save "poketrack:$TAG" | gzip -1 | ssh droplet 'gunzip | docker load'
+          ssh droplet "docker image inspect poketrack:$TAG --format 'on the box: {{.RepoTags}} {{.Size}} bytes'"
+
+      - uses: actions/download-artifact@v4
+        if: steps.tag.outputs.mode == 'build'
+        with:
+          name: poketrack-spa
+          path: spa
+
+      # Staged into poketrack.next, never straight into the live directory: a
+      # dropped connection mid-rsync would otherwise leave a half-written
+      # bundle serving with nothing to roll back to.
+      - name: stage the SPA and the compose file
+        if: steps.tag.outputs.mode == 'build'
+        run: |
+          test -f spa/index.html
+          rsync -rltz --delete --chmod=D755,F644 spa/ droplet:/var/www/poketrack.next/
+          scp -q poketrack/deploy/compose.deploy.yaml droplet:/opt/poketrack/compose.yaml
+
+      # Everything that mutates the box happens in this one script, API first,
+      # SPA last, so a failed gate never changes what visitors see.
+      - name: swap, gate, roll back if needed
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          SHIP_SPA: ${{ steps.tag.outputs.mode == 'build' && '1' || '0' }}
+        run: |
+          ssh droplet "TAG=$TAG SHIP_SPA=$SHIP_SPA bash -s" <<'EOF'
+          set -euo pipefail
+          cd /opt/poketrack
+
+          docker image inspect "poketrack:$TAG" >/dev/null 2>&1 || {
+            echo "ABORT: poketrack:$TAG is not on the box. Known tags:"
+            docker images poketrack --format '  {{.Tag}}  {{.CreatedSince}}'
+            exit 1
+          }
+          if [ "$SHIP_SPA" = 1 ] && [ ! -f /var/www/poketrack.next/index.html ]; then
+            echo "ABORT: no staged bundle in /var/www/poketrack.next"; exit 1
+          fi
+
+          PREV="$(sed -n 's/^IMAGE_TAG=//p' .env)"
+          echo "IMAGE_TAG: ${PREV:-<none>} -> $TAG"
+
+          set_tag() {
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$1/" .env
+            else
+              printf 'IMAGE_TAG=%s\n' "$1" >> .env
+            fi
+            # sed -i rewrites the file; make sure nothing else was lost with it.
+            grep -q '^MONGO_PASSWORD=' .env && grep -q '^JWT_SECRET=' .env || {
+              echo "ABORT: .env lost its secrets during rewrite"; exit 1
+            }
+          }
+
+          # Both must answer: health() is unconditional, demo-accounts reads Mongo.
+          wait_healthy() {
+            local i h d
+            for i in $(seq 1 30); do
+              h=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3004/api/health || true)
+              d=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3004/api/auth/demo-accounts || true)
+              if [ "$h" = 200 ] && [ "$d" = 200 ]; then echo "  healthy after $i attempt(s)"; return 0; fi
+              sleep 2
+            done
+            echo "  not healthy (health=${h:-none} demo-accounts=${d:-none})"
+            return 1
+          }
+
+          set_tag "$TAG"
+          docker compose up -d
+          echo "waiting for poketrack:$TAG ..."
+          if wait_healthy; then
+            if [ "$SHIP_SPA" = 1 ]; then
+              rsync -a --delete /var/www/poketrack/ /var/www/poketrack.prev/
+              rsync -a --delete /var/www/poketrack.next/ /var/www/poketrack/
+              echo "SPA swapped; outgoing bundle kept in /var/www/poketrack.prev"
+            else
+              echo "re-point only; SPA untouched"
+            fi
+            docker image prune -f >/dev/null
+            docker ps --filter name=poketrack --format '  {{.Names}}  {{.Image}}  {{.Status}}'
+          else
+            echo "poketrack:$TAG never became healthy. Recent logs:"
+            docker compose logs --tail 50 app || true
+            if [ -n "$PREV" ] && [ "$PREV" != "$TAG" ]; then
+              echo "rolling IMAGE_TAG back to $PREV"
+              set_tag "$PREV"
+              docker compose up -d app
+              wait_healthy || echo "WARNING: rollback did not report healthy — inspect the box."
+            else
+              echo "no prior tag to roll back to (first deploy or same tag)"
+            fi
+            exit 1
+          fi
+          EOF
+
+      # Through nginx and TLS, from outside. The curls come first because
+      # test_api_guards.py *skips* when the host is unreachable, and a skip
+      # must not be the only thing between a dead site and a green check.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: smoke
+        run: |
+          curl -fsS "$SITE/api/health"; echo
+          curl -fsS -o /dev/null -w 'GET / -> %{http_code}\n' "$SITE/"
+          pip install -q "$PYTEST" requests
+          cd poketrack/backend
+          POKETRACK_API="$SITE/api" pytest test_api_guards.py -q
