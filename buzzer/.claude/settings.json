@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)", "Bash(npm test)", "Bash(npm test *)",
+      "Bash(npx vitest *)", "Bash(npx tsc *)", "Bash(npx prettier *)", "Bash(npx eslint *)",
+      "Bash(git status)", "Bash(git status *)", "Bash(git diff)", "Bash(git diff *)",
+      "Bash(git log *)", "Bash(git add *)", "Bash(git commit *)", "Bash(git mv *)",
+      "Bash(node .claude/hooks/*)"
+    ],
+    "ask": [
+      "Bash(npm install *)", "Bash(git push *)", "Bash(git reset *)",
+      "Bash(git checkout *)", "Bash(git clean *)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.env.*)"]
+  },
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-context.mjs\"" } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.mjs\"" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/format-file.mjs\"" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-typecheck.mjs\"", "timeout": 120 } ] }
+    ]
+  }
+}
