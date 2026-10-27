@@ -44,6 +44,17 @@ describe('question set database', () => {
     expect(sets).toEqual([{ ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT }]);
   });
 
+  it("seeds the sample's 2 pictures as PNG blobs under the ids its questions use", async () => {
+    const used = SAMPLE_SET.questions.flatMap((q) => (q.imageId ? [q.imageId] : []));
+    const images = await db.images.toArray();
+    expect(images.map((i) => i.id).sort()).toEqual([...used].sort());
+    for (const { blob } of images) {
+      expect(blob.type).toBe('image/png');
+      const signature = new Uint8Array(await blob.arrayBuffer()).slice(0, 8);
+      expect([...signature]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    }
+  });
+
   it('does not seed the sample again once it was deleted', async () => {
     await deleteSet(SAMPLE_SET.id);
     db.close();
@@ -71,7 +82,12 @@ describe('question set database', () => {
       createdAt: 99,
       updatedAt: 99,
     });
-    expect(copy.questions).toEqual(SAMPLE_SET.questions);
+    // Same questions, but each picture is copied under a new id (DECISIONS F25).
+    expect(copy.questions).toEqual(
+      SAMPLE_SET.questions.map((q) =>
+        q.imageId === undefined ? q : { ...q, imageId: expect.not.stringMatching(q.imageId) },
+      ),
+    );
     expect(await getSet(copy.id)).toEqual(copy);
     expect(await listSets()).toHaveLength(2);
   });

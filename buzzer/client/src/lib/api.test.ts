@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
-import { createRoom, roomExists } from './api.js';
+import { createRoom, roomExists, uploadImage } from './api.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -61,5 +61,23 @@ describe('roomExists', () => {
   it('throws a readable message when the server cannot be reached', async () => {
     stubFetch(new TypeError('Failed to fetch'));
     await expect(roomExists('WXYZ')).rejects.toThrow('Could not reach the server');
+  });
+});
+
+describe('uploadImage', () => {
+  const blob = new Blob(['x'], { type: 'image/gif' });
+
+  it('throws a readable message when the error body is not JSON', async () => {
+    stubFetch(new Response('Bad Gateway', { status: 502 }));
+    await expect(uploadImage('WXYZ', 't', 'img1', blob)).rejects.toThrow(
+      'Could not upload an image (502).',
+    );
+  });
+
+  it('throws a readable message when the server cannot be reached', async () => {
+    stubFetch(new TypeError('Failed to fetch'));
+    await expect(uploadImage('WXYZ', 't', 'img1', blob)).rejects.toThrow(
+      'Could not reach the server',
+    );
   });
 });

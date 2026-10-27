@@ -336,6 +336,43 @@ describe('Host remote', () => {
       expect(within(card).getByLabelText('Answer').textContent).toBe('AnswerAnswer 3Notes 3');
     });
 
+    it("shows the current question's image thumbnail from the room's image route", () => {
+      remote(
+        hostView({
+          phase: 'QUESTION',
+          questionIndex: 0,
+          question: question(1, { text: '', imageId: 'img1' }),
+          nextQuestion: question(2),
+        }),
+      );
+      const card = screen.getByRole('region', { name: 'Question' });
+      const image = within(card).getByRole('img', { name: 'Picture question' });
+      expect(image.getAttribute('src')).toBe('/api/rooms/WXYZ/images/img1');
+    });
+
+    it("preloads the next question's image", () => {
+      const loaded: string[] = [];
+      vi.stubGlobal(
+        'Image',
+        class {
+          set src(url: string) {
+            loaded.push(url);
+          }
+        },
+      );
+      remote(
+        hostView({
+          phase: 'REVEAL',
+          questionIndex: 0,
+          question: question(1),
+          nextQuestion: question(2, { imageId: 'img2' }),
+        }),
+      );
+      expect(loaded).toEqual(['/api/rooms/WXYZ/images/img2']);
+      expect(screen.queryByRole('img')).toBeNull();
+      vi.unstubAllGlobals();
+    });
+
     it('omits the notes line when the question has none', () => {
       remote(hostView({ nextQuestion: question(1, { hostNotes: undefined }) }));
       expect(screen.getByLabelText('Answer').textContent).toBe('AnswerAnswer 1');

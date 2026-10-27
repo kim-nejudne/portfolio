@@ -9,6 +9,7 @@ import { AUTOSAVE_DELAY_MS } from '../lib/autosave.js';
 import { db, getSet } from '../lib/db.js';
 import { IMAGE_TOO_LARGE, shrinkImage } from '../lib/imagePipeline.js';
 import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
+import { NodeBlob } from '../test/nodeBlob.js';
 import { SetEditor } from './SetEditor.js';
 
 // jsdom has no canvas to shrink with; the pipeline's own rules are in imagePipeline.test.ts.
@@ -343,14 +344,6 @@ describe('Set editor /sets/:setId', () => {
 
 describe('Set editor images', () => {
   const SHRUNK = 'shrunk webp bytes';
-  // fake-indexeddb clones with Node's structuredClone, which keeps a Node Blob but not a jsdom one.
-  // The client tsconfig has no Node types, so the module is typed here.
-  const { Blob: NodeBlob } = (
-    globalThis as unknown as {
-      process: { getBuiltinModule(id: 'node:buffer'): { Blob: typeof Blob } };
-    }
-  ).process.getBuiltinModule('node:buffer');
-
   beforeEach(() => {
     vi.mocked(shrinkImage).mockImplementation(async (file) =>
       file.type === 'image/png'
@@ -419,12 +412,13 @@ describe('Set editor images', () => {
   it('a refused image shows the reason and changes nothing', async () => {
     await seed([q('a')]);
     await renderEditor();
+    const imagesBefore = await db.images.count();
     fireEvent.change(card(1).getByLabelText('Choose an image for question 1'), {
       target: { files: [new File(['x'], 'huge.gif', { type: 'image/gif' })] },
     });
     expect((await card(1).findByRole('alert')).textContent).toBe(IMAGE_TOO_LARGE);
     expect(await savedQuestion()).not.toHaveProperty('imageId');
-    expect(await db.images.count()).toBe(0);
+    expect(await db.images.count()).toBe(imagesBefore);
   });
 
   it('a question with only an image needs no text', async () => {

@@ -102,6 +102,7 @@ describe('Export JSON', () => {
 
 describe('Import JSON', () => {
   it('round-trips a set with its images through a file', async () => {
+    const imagesBefore = await db.images.count();
     const parsed = parseSetFile(await exportSetFile(SET, loadImage));
     if (!parsed.ok) throw new Error(parsed.errors.join('\n'));
 
@@ -130,7 +131,7 @@ describe('Import JSON', () => {
     expect(await bytes(png)).toEqual(PNG_BYTES);
     expect(gif.type).toBe('image/gif');
     expect(await bytes(gif)).toEqual(GIF_BYTES);
-    expect(await db.images.count()).toBe(2);
+    expect(await db.images.count()).toBe(imagesBefore + 2);
   });
 
   it('accepts a text-only file without an images field', () => {

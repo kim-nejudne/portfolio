@@ -14,6 +14,7 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useSendHost } from '../lib/useHostCommand.js';
+import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 
 interface ScreenProps {
@@ -59,6 +60,7 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
+  usePreloadImage(code, view?.role === 'screen' ? view.nextImageId : null);
   // SPEC-QUESTION: the join URL uses the Screen page's own origin; there is no configured public URL (DECISIONS, F08).
   const url = joinUrl(window.location.origin, code);
 

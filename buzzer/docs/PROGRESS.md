@@ -10,6 +10,55 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F30 — Image upload, serving and preload (2026-10-28)
+**What changed:**
+- Server:
+  - New `server/imageStore.ts` keeps images in memory per room and image id. It holds up to 50 MB per room and 500 MB in total (`GLOBAL_IMAGES_MAX_BYTES`, DECISIONS #12, now enforced).
+  - The sweeper's new `onExpired` callback frees a deleted room's images (wired in `index.ts`).
+  - `POST /api/rooms/:code/images/:imageId`, in this order:
+    - The room, the Bearer hostToken, an `imageId` the room's set uses, and the content type are all checked before the body is read.
+    - `express.raw` then reads the body, up to 1.5 MB.
+    - Errors: 404, 401, 404, 415, 400 (empty), 413 (image too big or room over 50 MB), 507 (global cap).
+  - `GET` serves an image with its type, `Cache-Control: public, max-age=31536000, immutable` and `nosniff`.
+- Client:
+  - `hostSet` loads each referenced blob once and refuses a missing image or a total over 50 MB before it creates the room. Then it uploads each image with `uploadImage` (`api.ts`).
+  - `ScreenView.nextImageId` is new. `usePreloadImage` preloads the next image on the Screen and, from `nextQuestion`, on the Host.
+  - The Host's question card shows the image thumbnail (this resolves the F10 TODO).
+  - `IMAGE_TYPES` moved to `shared/constants.ts`.
+- Sample set: question 4 has a hexagon picture, and question 7 is image-only (the flag of Japan, which replaces the diamond question). The PNGs are made with ImageMagick and embedded in `client/src/lib/sampleImages.ts`. They are seeded in Dexie's `populate` hook.
+- Tests:
+  - New `http.images.test.ts` (10): auth, 404s, 415, exactly 1.5 MB vs 1 byte more, empty body, 50 MB then the 51st MB, 507, and GET headers, bytes and 404s.
+  - New `imageStore.test.ts` (5) and `usePreloadImage.test.ts` (2).
+  - Existing files gained tests: `hostRoom.test.ts` 5, `api.test.ts` 2, `Host.test.tsx` 2, `Screen.test.tsx` 1, `views.test.ts` 1, `roomStore.test.ts` 1 (sweep frees images) and `db.test.ts` 1 (seeded PNGs).
+  - New helper `client/src/test/nodeBlob.ts` (from SetEditor.test). It lets jsdom tests store blobs in fake-indexeddb.
+  - 884 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-10-28 for F30 cover:
+- the image store and cleanup
+- the upload checks, their order and status codes
+- the GET cache header
+- `hostSet`'s pre-checks and what happens to the room after a failed upload
+- preload, `nextImageId` and the Host thumbnail
+- the sample pictures, and why an already-seeded browser keeps the old sample
+
+**Notes for next session:**
+- Playtest (Playwright; Screen at 1920×1080; Host and one Player at 390×844), all passed:
+  - Create room sent `POST /api/rooms`, then both sample image uploads with `Bearer <hostToken>`, each 201.
+  - No token or a bad token gets 401. On :3000, 1.6 MB gets 413 and 1.4 MB gets 201.
+  - GET returned `public, max-age=31536000, immutable` and `image/png`.
+  - At question 3, Screen and Host had already fetched `sample-img-hexagon`. Moving to question 4 made no new image request, and the image was already loaded.
+  - Question 7 shows only the flag (1728×568) with no text, and "Japan" appears nowhere on the Screen. The Player shows no image.
+  - Only the favicon 404 showed in the console (pre-existing).
+- Not checked live: the 50 MB room cap, because the sample room has 2 image ids. `http.images.test.ts` covers it.
+- An oversized upload through the Vite dev proxy (:5173) shows as 502 with `write EPIPE` in the dev log. The server answers 413 before it has read the whole body, and the proxy is still writing. The server on :3000 returns the right 413. The editor never stores an image over 1.5 MB, so the app itself doesn't hit this.
+- A browser that seeded the sample before F30 keeps the text-only sample. Delete the `buzzr` IndexedDB in DevTools (Application › IndexedDB) to reseed it.
+
+**How to try it:** `npm run dev`.
+1. If this browser already had Buzzr, delete the `buzzr` IndexedDB first.
+2. On the laptop, open `http://localhost:5173/sets` and tap **Host this set** on the sample. Open the Screen at 1920×1080. Pair a phone as Host and join from another phone.
+3. Play to question 4: the hexagon appears at once beside the text. On the Host phone, the card shows the thumbnail.
+4. Question 7 is the flag alone, filling the Screen.
+
 ## F29 — Image pipeline in the editor (2026-10-28)
 **What changed:**
 - `client/src/lib/imagePipeline.ts`:

@@ -8,11 +8,13 @@ import { PairHostPhone } from '../components/PairHostPhone.js';
 import { PrimaryAction } from '../components/PrimaryAction.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
 import { Toast, useToast } from '../components/Toast.js';
+import { imageUrl } from '../lib/api.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
+import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 
 interface HostProps {
@@ -132,6 +134,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   const { toast, show } = useToast();
   const [tab, setTab] = useState<Tab>('Game');
   const command = useHostCommand(view, send, show);
+  usePreloadImage(view.code, view.nextQuestion?.imageId);
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
       <header className="flex items-baseline justify-between gap-4">
@@ -187,7 +190,10 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   );
 }
 
-/** The top of the remote: question number, text, and the answer and notes box (UI spec, Host remote). */
+/**
+ * The top of the remote: question number, text, the answer and notes box, and the image thumbnail
+ * (UI spec, Host remote).
+ */
 function QuestionCard({ view }: { view: HostView }) {
   // In the lobby there is no current question yet, so show the first one the host will read out.
   const question = view.question ?? view.nextQuestion;
@@ -205,8 +211,14 @@ function QuestionCard({ view }: { view: HostView }) {
         <span>{label}</span>
         <span>{question.points} pts</span>
       </p>
-      <p className="text-xl">{question.text}</p>
-      {/* TODO(F30): the image thumbnail, once images are served. */}
+      {question.text && <p className="text-xl">{question.text}</p>}
+      {question.imageId && (
+        <img
+          src={imageUrl(view.code, question.imageId)}
+          alt={question.text ? 'Question image' : 'Picture question'}
+          className="max-h-48 self-center rounded-xl object-contain"
+        />
+      )}
       <div aria-label="Answer" className="rounded-2xl bg-accent p-3 text-accent-ink">
         <p className="text-sm font-bold tracking-wide uppercase">Answer</p>
         <p className="font-display text-2xl">{question.answer}</p>

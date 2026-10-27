@@ -1,7 +1,12 @@
 // The built-in sample set, so the app can be tried before anyone writes questions.
-// Text only for now: the spec's two image questions arrive with images in F30.
+// Two questions use pictures; their bytes live in client/src/lib/sampleImages.ts.
 
 import type { QuestionSet } from './types.js';
+
+/** A picture of a hexagon, for question 4. */
+export const SAMPLE_HEXAGON_ID = 'sample-img-hexagon';
+/** The flag of Japan, for question 7, which has no text. */
+export const SAMPLE_FLAG_ID = 'sample-img-flag';
 
 export const SAMPLE_SET: QuestionSet = {
   id: 'sample-general-knowledge',
@@ -27,8 +32,10 @@ export const SAMPLE_SET: QuestionSet = {
     },
     {
       id: 'sample-q4',
-      text: 'How many sides does a hexagon have?',
+      text: 'How many sides does this shape have?',
+      imageId: SAMPLE_HEXAGON_ID,
       answer: 'Six',
+      hostNotes: 'A hexagon.',
       points: 100,
     },
     {
@@ -46,8 +53,10 @@ export const SAMPLE_SET: QuestionSet = {
     },
     {
       id: 'sample-q7',
-      text: 'What is the hardest natural substance on Earth?',
-      answer: 'Diamond',
+      text: '',
+      imageId: SAMPLE_FLAG_ID,
+      answer: 'Japan',
+      hostNotes: 'Ask: "Which country\'s flag is this?"',
       points: 100,
     },
     {

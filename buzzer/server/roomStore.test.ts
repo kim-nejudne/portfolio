@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, ROOM_IDLE_TTL_MS, ROOM_SWEEP_INTERVAL_MS } from '../shared/constants.js';
 import type { Room } from '../shared/types.js';
+import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
 
 const T0 = 1_800_000_000_000;
@@ -117,5 +118,29 @@ describe('startRoomSweeper', () => {
     store.set(makeRoom('EFGH'));
     vi.advanceTimersByTime(ROOM_SWEEP_INTERVAL_MS);
     expect(store.has('EFGH')).toBe(true);
+  });
+
+  it("frees a swept room's images through onExpired", () => {
+    vi.useFakeTimers();
+    const store = new InMemoryRoomStore();
+    const images = new InMemoryImageStore();
+    store.set(makeRoom('ABCD'));
+    store.set(makeRoom('EFGH', T0 + ROOM_IDLE_TTL_MS));
+    images.put('ABCD', 'img1', { type: 'image/png', data: Buffer.alloc(10) });
+    images.put('EFGH', 'img1', { type: 'image/png', data: Buffer.alloc(20) });
+    const stop = startRoomSweeper(
+      store,
+      () => T0 + ROOM_IDLE_TTL_MS,
+      ROOM_SWEEP_INTERVAL_MS,
+      (codes) => {
+        for (const code of codes) images.deleteRoom(code);
+      },
+    );
+
+    vi.advanceTimersByTime(ROOM_SWEEP_INTERVAL_MS);
+    expect(images.get('ABCD', 'img1')).toBeUndefined();
+    expect(images.get('EFGH', 'img1')).toBeDefined();
+    expect(images.totalBytes).toBe(20);
+    stop();
   });
 });

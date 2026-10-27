@@ -51,15 +51,20 @@ export class InMemoryRoomStore implements RoomStore {
 }
 
 /**
- * Sweeps `store` every `intervalMs` using `clock` for the time. The timer is unref'd so it
- * never keeps the process alive. Returns a function that stops it.
+ * Sweeps `store` every `intervalMs` using `clock` for the time, and passes the deleted codes to
+ * `onExpired` (to free their images). The timer is unref'd so it never keeps the process alive.
+ * Returns a function that stops it.
  */
 export function startRoomSweeper(
   store: RoomStore,
   clock: () => number,
   intervalMs = ROOM_SWEEP_INTERVAL_MS,
+  onExpired: (codes: string[]) => void = () => {},
 ): () => void {
-  const timer = setInterval(() => store.sweep(clock()), intervalMs);
+  const timer = setInterval(() => {
+    const expired = store.sweep(clock());
+    if (expired.length > 0) onExpired(expired);
+  }, intervalMs);
   timer.unref();
   return () => clearInterval(timer);
 }

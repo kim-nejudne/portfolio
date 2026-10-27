@@ -122,6 +122,16 @@ describe('toView: screen', () => {
     expect(toView(makeRoom(), 'screen').question).toBeNull();
   });
 
+  it("carries the next question's image id for preloading, the first question's in LOBBY", () => {
+    const set = makeSet();
+    set.questions[0] = makeQuestion(1, { imageId: 'img1' });
+    set.questions[2] = makeQuestion(3, { text: '', imageId: 'img3' });
+    expect(toView(makeRoom({ set }), 'screen').nextImageId).toBe('img1');
+    expect(toView(midGame('REVEAL', { set }), 'screen').nextImageId).toBe('img3');
+    expect(toView(midGame('OPEN', { set, questionIndex: 0 }), 'screen').nextImageId).toBeNull();
+    expect(toView(midGame('OPEN', { set, questionIndex: 2 }), 'screen').nextImageId).toBeNull();
+  });
+
   it('carries the room state the Screen renders', () => {
     const view = toView(midGame('BUZZED', { lockedOut: ['p3'], showScoreboard: true }), 'screen');
     expect(view).toMatchObject({

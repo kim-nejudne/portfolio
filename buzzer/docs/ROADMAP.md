@@ -72,14 +72,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F29 Image pipeline in the editor
 
-- [ ] F30 Image upload, serving and preload
-  - Spec: Question editor and images (Images: upload, serve, preload, 50 MB); Realtime events and HTTP API (HTTP image routes)
-  - Depends: F06, F29
-  - Done when:
-    - Room creation uploads each image to `POST /api/rooms/:code/images/:imageId` with the Bearer token; 1.5 MB per image, 50 MB per room
-    - `GET` serves images with a long cache header; Screen and Host preload the next question's image
-    - The sample set gains its 2 images; image-only questions render large with no text block
-  - Tests: `http.images.test.ts` — auth required, size limits, 51st MB rejected; playtest — images appear instantly on next
+- [x] F30 Image upload, serving and preload
 
 ## M6 — Polish
 

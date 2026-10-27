@@ -2,10 +2,15 @@
 // side of 1600 px and re-encoded as WebP (JPEG where the browser cannot write WebP) at quality 0.8.
 // A result still above 1.5 MB is refused. A GIF keeps only its first frame.
 
-import { IMAGE_MAX_BYTES, IMAGE_MAX_SIDE_PX, IMAGE_QUALITY } from '../../../shared/constants.js';
+import {
+  IMAGE_MAX_BYTES,
+  IMAGE_MAX_SIDE_PX,
+  IMAGE_QUALITY,
+  IMAGE_TYPES,
+} from '../../../shared/constants.js';
 
 /** The types the editor accepts, for the file picker's `accept`. */
-export const IMAGE_INPUT_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+export const IMAGE_INPUT_TYPES = IMAGE_TYPES;
 
 export const IMAGE_WRONG_TYPE = 'Use a PNG, JPEG, WebP or GIF image.';
 export const IMAGE_UNREADABLE = "Couldn't read that image. Try another file.";

@@ -20,7 +20,7 @@ export async function roomExists(code: string): Promise<boolean> {
   return data.exists;
 }
 
-/** `GET /api/rooms/:code/images/:imageId`, the URL of a question's image. The server route comes with F30. */
+/** `GET /api/rooms/:code/images/:imageId`, the URL of a question's image. */
 export function imageUrl(code: string, imageId: string): string {
   return `/api/rooms/${encodeURIComponent(code)}/images/${encodeURIComponent(imageId)}`;
 }
@@ -45,4 +45,29 @@ export async function createRoom(body: CreateRoomBody): Promise<CreateRoomRespon
     );
   }
   return data;
+}
+
+/**
+ * `POST /api/rooms/:code/images/:imageId` with the room's hostToken. Sends the blob as is, with its
+ * own type. Throws an Error carrying the server's message when the image is not stored.
+ */
+export async function uploadImage(
+  code: string,
+  hostToken: string,
+  imageId: string,
+  blob: Blob,
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(imageUrl(code, imageId), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${hostToken}`, 'content-type': blob.type },
+      body: blob,
+    });
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  if (response.ok) return;
+  const data = (await response.json().catch(() => null)) as HttpErrorBody | null;
+  throw new Error(data?.error ?? `Could not upload an image (${response.status}).`);
 }

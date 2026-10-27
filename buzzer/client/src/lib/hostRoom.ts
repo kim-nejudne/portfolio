@@ -1,10 +1,10 @@
 // Creating a room from a saved set (Creating and joining a room, step 1). Shared by **Host a game**
 // on the landing page and **Host this set** on the set list.
 
-import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
+import { DEFAULT_SETTINGS, ROOM_IMAGES_MAX_BYTES } from '../../../shared/constants.js';
 import { questionSetSchema } from '../../../shared/schemas.js';
 import type { QuestionSet } from '../../../shared/types.js';
-import { createRoom } from './api.js';
+import { createRoom, uploadImage } from './api.js';
 import { saveHostToken } from './hostTokens.js';
 
 type Checked = { ok: true; set: QuestionSet } | { ok: false; error: string };
@@ -35,16 +35,47 @@ export function checkPlayable(set: QuestionSet): Checked {
   return { ok: false, error: `This set can't be played yet: ${issue.message}` };
 }
 
+/** Reads one stored image blob, or undefined when it is gone from this browser. */
+export type LoadImage = (imageId: string) => Promise<Blob | undefined>;
+
+// Dexie loads only when a host creates a room, not on every player's phone (as in HostGame).
+const loadStoredImage: LoadImage = async (imageId) =>
+  (await (await import('./db.js')).getImage(imageId))?.blob;
+
+const MB = 1024 * 1024;
+
 /**
- * Creates a room for `set` with the default settings and keeps its hostToken on this device.
- * Returns the room code. Throws a readable Error when the set is not playable or the server refuses.
+ * Creates a room for `set` with the default settings, keeps its hostToken on this device, then
+ * uploads each image its questions use, once. Returns the room code. Throws a readable Error when
+ * the set is not playable, an image is missing or over the room's 50 MB, or the server refuses.
+ * The image checks run before the room is created, so a set that cannot be uploaded makes no room.
  */
-export async function hostSet(set: QuestionSet): Promise<string> {
+export async function hostSet(set: QuestionSet, loadImage = loadStoredImage): Promise<string> {
   const checked = checkPlayable(set);
   if (!checked.ok) throw new Error(checked.error);
-  // SPEC-QUESTION: the set's images are not uploaded yet (POST /api/rooms/:code/images/:imageId is
-  // F30), so a set with `imageId` questions shows broken images until then. The F29 editor adds them.
+
+  const images = new Map<string, Blob>();
+  for (const [index, question] of checked.set.questions.entries()) {
+    if (question.imageId === undefined || images.has(question.imageId)) continue;
+    const blob = await loadImage(question.imageId);
+    if (!blob) throw new Error(`Question ${index + 1}'s image is missing from this browser.`);
+    images.set(question.imageId, blob);
+  }
+  const total = [...images.values()].reduce((sum, blob) => sum + blob.size, 0);
+  if (total > ROOM_IMAGES_MAX_BYTES) {
+    throw new Error(
+      `This set's images add up to ${(total / MB).toFixed(1)} MB. A game holds up to ${ROOM_IMAGES_MAX_BYTES / MB} MB.`,
+    );
+  }
+
   const { code, hostToken } = await createRoom({ set: checked.set, settings: DEFAULT_SETTINGS });
   saveHostToken(code, hostToken);
+  for (const [imageId, blob] of images) {
+    try {
+      await uploadImage(code, hostToken, imageId, blob);
+    } catch (caught) {
+      throw new Error(`Couldn't upload an image: ${(caught as Error).message}`, { cause: caught });
+    }
+  }
   return code;
 }

@@ -1,7 +1,8 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_PORT } from '../shared/constants.js';
+import { DEFAULT_PORT, ROOM_SWEEP_INTERVAL_MS } from '../shared/constants.js';
 import { createApp } from './http.js';
+import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
 import { attachSockets } from './sockets.js';
 
@@ -21,9 +22,14 @@ const trustProxy =
       : trustProxyEnv;
 
 const rooms = new InMemoryRoomStore();
-startRoomSweeper(rooms, Date.now);
+const images = new InMemoryImageStore();
+startRoomSweeper(rooms, Date.now, ROOM_SWEEP_INTERVAL_MS, (codes) => {
+  for (const code of codes) images.deleteRoom(code);
+});
 
-const httpServer = createServer(createApp({ clientDir, rooms, clock: Date.now, trustProxy }));
+const httpServer = createServer(
+  createApp({ clientDir, rooms, images, clock: Date.now, trustProxy }),
+);
 attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });
 
 httpServer.listen(port, () => {

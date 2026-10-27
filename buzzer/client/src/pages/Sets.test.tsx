@@ -10,6 +10,7 @@ import { db, deleteSet, getSet, listSets, NEW_SET_TITLE } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
 import { formatEdited } from '../lib/setLabels.js';
+import { NodeBlob } from '../test/nodeBlob.js';
 import { Sets } from './Sets.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
@@ -17,6 +18,8 @@ const hostToken = 'h'.repeat(43);
 
 beforeEach(async () => {
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
+  // The seeded sample's pictures must survive fake-indexeddb's clone (see nodeBlob.ts).
+  vi.stubGlobal('Blob', NodeBlob);
   await db.delete();
   await db.open();
 });
@@ -210,7 +213,11 @@ describe('Set list /sets', () => {
       const file = JSON.parse(await downloads[0]!.text) as QuestionSet & { images: object };
       expect(file.title).toBe(SAMPLE_SET.title);
       expect(file.questions).toEqual(SAMPLE_SET.questions);
-      expect(file.images).toEqual({});
+      expect(Object.keys(file.images).sort()).toEqual(['sample-img-flag', 'sample-img-hexagon']);
+      expect(Object.values(file.images)).toEqual([
+        expect.stringMatching(/^data:image\/png;base64,iVBORw0KGgo/),
+        expect.stringMatching(/^data:image\/png;base64,iVBORw0KGgo/),
+      ]);
     });
 
     it('Export JSON on an unfinished draft says what to fix and downloads nothing', async () => {
@@ -225,7 +232,8 @@ describe('Set list /sets', () => {
     it('Import JSON adds the set from a valid file', async () => {
       renderSets();
       await card(SAMPLE_SET.title);
-      chooseFile(JSON.stringify({ ...SAMPLE_SET, title: 'Imported quiz' }));
+      const textOnly = SAMPLE_SET.questions.filter((q) => q.imageId === undefined);
+      chooseFile(JSON.stringify({ ...SAMPLE_SET, title: 'Imported quiz', questions: textOnly }));
 
       expect(await screen.findByRole('listitem', { name: 'Imported quiz' })).toBeTruthy();
       expect(screen.getByRole('status').textContent).toBe('Imported “Imported quiz”.');

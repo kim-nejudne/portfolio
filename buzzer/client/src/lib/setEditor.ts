@@ -92,6 +92,7 @@ export function previewView(set: QuestionSet, index: number): ScreenView {
     canJudge: false,
     canUndo: false,
     scorerId: null,
+    nextImageId: null,
     question: source
       ? {
           id: source.id,

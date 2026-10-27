@@ -149,6 +149,8 @@ interface SharedRoomView {
 export interface ScreenView extends SharedRoomView {
   role: 'screen';
   question: ScreenQuestion | null; // null in LOBBY
+  /** The next question's image (in LOBBY, the first's), so the Screen can preload it. */
+  nextImageId: string | null;
 }
 
 /** Everything, including the current and next question's answer and notes. */
@@ -248,6 +250,11 @@ export interface CreateRoomResponse {
 export interface RoomExistsResponse {
   exists: boolean;
   phase: Phase | null;
+}
+
+/** `POST /api/rooms/:code/images/:imageId`, on success (201). */
+export interface UploadImageResponse {
+  ok: true;
 }
 
 /** Body of every HTTP error response, shaped like a failed `Ack`. */

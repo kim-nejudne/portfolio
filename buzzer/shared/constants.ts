@@ -87,6 +87,8 @@ export const SCOREBOARD_EVERY_MAX = MAX_QUESTIONS_PER_SET;
 
 export const IMAGE_MAX_SIDE_PX = 1600;
 export const IMAGE_QUALITY = 0.8;
+/** Image types the editor accepts and the server stores and serves. */
+export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
 export const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
 export const ROOM_IMAGES_MAX_BYTES = 50 * 1024 * 1024;
 /** Cap on image bytes held across all rooms. */

@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
+import { sampleImages } from './sampleImages.js';
 
 /** One image, referenced from a question by `imageId`. The editor stores it already shrunk (F29). */
 export interface StoredImage {
@@ -27,12 +28,18 @@ class BuzzrDb extends Dexie {
     super('buzzr');
     this.version(1).stores({ sets: 'id, updatedAt', images: 'id' });
     // `populate` runs once, when this browser first creates the database. A deleted sample stays
-    // deleted. The add runs inside the creating transaction, so a failed seed fails `open()`.
+    // deleted. The adds run inside the creating transaction, so a failed seed fails `open()`.
+    // Chained on Dexie's own promises: a native `await` here can let the transaction close.
     this.on('populate', (tx) => {
       const now = Date.now();
       return tx
-        .table<QuestionSet, string>('sets')
-        .add({ ...SAMPLE_SET, createdAt: now, updatedAt: now });
+        .table<StoredImage, string>('images')
+        .bulkAdd(sampleImages())
+        .then(() =>
+          tx
+            .table<QuestionSet, string>('sets')
+            .add({ ...SAMPLE_SET, createdAt: now, updatedAt: now }),
+        );
     });
   }
 }

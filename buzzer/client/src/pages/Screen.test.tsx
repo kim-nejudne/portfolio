@@ -57,6 +57,7 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     canUndo: false,
     scorerId: null,
     question: null,
+    nextImageId: null,
     ...overrides,
   };
 }
@@ -298,6 +299,27 @@ describe('Screen', () => {
       show(questionView({ question: { id: 'q3', text: '', imageId: 'img-1', points: 100 } }));
       expect(screen.getByRole('img', { name: 'Question 3' })).toBeTruthy();
       expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    });
+
+    it("preloads the next question's image, without showing it", () => {
+      const loaded: string[] = [];
+      vi.stubGlobal(
+        'Image',
+        class {
+          set src(url: string) {
+            loaded.push(url);
+          }
+        },
+      );
+      const socket = show(questionView({ nextImageId: 'img-4' }));
+      expect(loaded).toEqual(['/api/rooms/WXYZ/images/img-4']);
+      expect(screen.queryByRole('img')).toBeNull();
+      socket.fire(
+        'state',
+        questionView({ phase: 'OPEN', openingCounter: 1, nextImageId: 'img-4' }),
+      );
+      expect(loaded).toHaveLength(1);
+      vi.unstubAllGlobals();
     });
 
     it('shrinks long question text', () => {
