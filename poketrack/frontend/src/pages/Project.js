@@ -242,6 +242,8 @@ export default function ProjectPage() {
     try {
       const { data } = await api.post(`/projects/${projectId}/prestige`, { species_id });
       pushToast(data.is_shiny ? "A SHINY partner! Fortune favors the bold." : "New partner acquired — lifetime XP preserved.");
+      // Leave the prestige screen, or load() re-renders the picker on top of the new partner.
+      setTab("board");
       await load();
     } catch (err) { pushToast(err.response?.data?.detail || "Could not prestige"); } finally { setBusy(false); }
   };
