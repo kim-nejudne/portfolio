@@ -15,6 +15,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// A token the API no longer honours — expired, or a demo session whose sandbox
+// is gone — would otherwise leave every page failing toast by toast.
+api.interceptors.response.use(undefined, (error) => {
+  const url = error.config?.url || "";
+  if (error.response?.status === 401 && !url.startsWith("/auth/") && getToken()) {
+    setToken(null);
+    setUser(null);
+    window.location.assign("/sign-in?ended=1");
+  }
+  return Promise.reject(error);
+});
+
 export function setToken(token) {
   if (token) localStorage.setItem("poketrack_token", token);
   else localStorage.removeItem("poketrack_token");

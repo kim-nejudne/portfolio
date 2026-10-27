@@ -213,10 +213,35 @@ carries a seeded world — three teams, eight projects, ~420 tickets, 34 partner
 | `new@poketrack.dev` | June Castellanos, new joiner | no partner on the flagship board — lands on the starter picker |
 
 All three share the password **`pokedemo`**, which is printed on the page. They
-are ordinary accounts with ordinary write access: a visitor can finish tickets,
-evolve a partner and drag things back out of Done, because watching a Charizard
-cutscene fire *is* the demo. There is no read-only role and nothing here is
-guarded — treat every byte of the demo world as public and disposable.
+have full write access: a visitor can finish tickets, evolve a partner, drag
+things back out of Done or delete a whole team, because watching a Charizard
+cutscene fire *is* the demo. None of it is permanent, and none of it is seen by
+anyone else.
+
+### Sandboxes
+
+The seeded world is a **template** that visitors never write to. Signing in as a
+demo trainer copies it into a Mongo database of that session's own,
+`pt_demo_<16 hex>`, and the bearer token carries that id in an `sbx` claim.
+Every request on the token is routed into the copy (`backend/demo_sandbox.py`,
+`get_db()` in `backend/database.py`). The copy keeps every id, so nothing else
+in the app knows it is there.
+
+- **A session lasts two hours** from sign-in, not extended by activity. The token
+  expires with it; the app then drops back to the sign-in page.
+- **Signing out drops the copy** at once (`POST /api/auth/sign-out`).
+- **Expired copies are swept** every ten minutes by the API itself, along with
+  any `pt_demo_*` database that has no row in the `demo_sandboxes` registry.
+- **At most 100 live copies.** The next sign-in evicts the oldest, which bounds
+  the disk a script hammering the demo button can take.
+- A demo token **without** an `sbx` claim — any minted before sandboxes existed —
+  is refused, so nothing can write into the template.
+
+Count the live ones:
+
+```bash
+ssh $DEPLOY_HOST "docker exec poketrack-db-1 sh -c 'mongosh --quiet -u \"\$MONGO_INITDB_ROOT_USERNAME\" -p \"\$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin poketrack --eval \"db.demo_sandboxes.countDocuments()\"'"
+```
 
 `backend/seed_demo.py` builds it. Levels are not written as numbers: the seed
 asks the real PokéAPI growth table what level 35 costs, converts that to story
@@ -261,14 +286,13 @@ ssh $DEPLOY_HOST /opt/poketrack/scripts/reset-demo.sh
 Two properties make that safe on a live box:
 
 - **It only touches demo data.** The wipe walks out from users marked `is_demo`
-  and takes their teams, projects, tickets, partners and ledger with them —
-  including anything a visitor created while clicking around, which carries no
-  demo marker of its own. A team a demo user merely *joined* is left alone; only
+  and takes their teams, projects, tickets, partners and ledger with them. A
+  team a demo user merely *joined* is left alone; only
   teams a demo user **owns** are deleted. A real account is never in scope.
 - **Ids are derived, not random** — a uuid5 of a fixed namespace. A reset hands
-  every user, team and project the same id it had before, so bearer tokens
-  (which carry the user id in `sub`) stay valid and bookmarked project URLs keep
-  resolving. Nobody is signed out at 04:15.
+  every user, team and project the same id it had before, so bookmarked project
+  URLs keep resolving. Visitors mid-session are in their own copies and are not
+  touched at all; the next sign-in copies the fresh template.
 
 Check it is running, and read what it wrote:
 

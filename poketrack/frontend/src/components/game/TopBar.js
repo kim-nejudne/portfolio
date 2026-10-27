@@ -1,13 +1,18 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getUser, setToken, setUser } from "@/lib/api";
+import { api, getToken, getUser, setToken, setUser } from "@/lib/api";
 import GameButton from "./GameButton";
 import PokeBall from "./PokeBall";
 
 export function TopBar() {
   const user = getUser();
   const nav = useNavigate();
-  const signOut = () => { setToken(null); setUser(null); nav("/"); };
+  const signOut = () => {
+    // Lets the API drop a demo session's sandbox now rather than at expiry. The
+    // header is explicit because the token is cleared before the request leaves.
+    api.post("/auth/sign-out", null, { headers: { Authorization: `Bearer ${getToken()}` } }).catch(() => {});
+    setToken(null); setUser(null); nav("/");
+  };
   return (
     <header className="sticky top-0 z-40 bg-bg px-6 py-3 shadow-hard" data-testid="top-bar">
       <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-3">
