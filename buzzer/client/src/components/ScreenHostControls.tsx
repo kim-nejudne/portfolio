@@ -9,6 +9,7 @@ import {
   UNREVEALED,
   type HostCommandCall,
 } from '../lib/hostControls.js';
+import { toggleFullscreen } from '../lib/fullscreen.js';
 import { useHostCommand, type HostCommand, type SendHost } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
 import { Toast, useToast } from './Toast.js';
@@ -291,12 +292,6 @@ function useRecentPointer(ms: number): { moved: boolean; poke: () => void } {
   }, [ms, poke]);
 
   return { moved, poke };
-}
-
-function toggleFullscreen(): void {
-  // The browser may refuse, for example outside a user gesture; there is nothing more to do then.
-  if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-  else void document.documentElement.requestFullscreen().catch(() => {});
 }
 
 function isTyping(target: EventTarget | null): boolean {

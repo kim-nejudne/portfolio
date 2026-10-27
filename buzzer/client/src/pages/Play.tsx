@@ -238,7 +238,7 @@ const attachPing: AttachSocket = (socket) => keepPinging(socket);
 
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: 'border-edge bg-surface text-muted',
-  live: 'animate-buzz-pulse border-buzz-edge bg-buzz text-white',
+  live: 'motion-safe:animate-buzz-pulse border-buzz-edge bg-buzz text-white',
   pressed: 'scale-90 border-buzz-edge bg-buzz text-white brightness-75',
   won: 'border-win-edge bg-win text-bg',
   lost: 'border-edge bg-surface text-muted opacity-50',

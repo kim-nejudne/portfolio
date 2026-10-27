@@ -76,14 +76,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M6 — Polish
 
-- [ ] F31 Sounds and animations
-  - Spec: Tech stack and architecture (Sound); UI spec by view (Screen view: Click to start, Judged, chips pop in)
-  - Depends: F24
-  - Done when:
-    - Howler plays buzz, correct, wrong, join and final fanfare from `client/public/sounds/` (royalty-free or self-made; sources listed)
-    - Screen's **Click to start** overlay unlocks audio and enters fullscreen
-    - Chip pop-in, +points float and scoreboard reordering animate; `prefers-reduced-motion` respected
-  - Tests: playtest — sounds fire on fx events (console log hook); reduced-motion check
+- [x] F31 Sounds and animations
 
 - [ ] F32 Reconnects and room lifecycle
   - Spec: Reconnects, security and edge cases (Reconnects; phone backgrounded)

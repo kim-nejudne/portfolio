@@ -1,15 +1,24 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
+import { playSound, startSounds } from '../lib/sounds.js';
 import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
 import { FX_MS } from '../lib/useRecentFx.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen } from './Screen.js';
+
+// Records the sounds instead of loading Howler.
+vi.mock('../lib/sounds.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/sounds.js')>()),
+  preloadSounds: vi.fn(),
+  startSounds: vi.fn(() => Promise.resolve()),
+  playSound: vi.fn(),
+}));
 
 // Renders the QR's encoded value, so tests can check where it points.
 vi.mock('qrcode.react', () => ({
@@ -62,7 +71,8 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
   };
 }
 
-function renderScreen(path = '/screen/WXYZ') {
+/** Renders the Screen and, unless `start` is false, presses Click to start as a host would. */
+function renderScreen(path = '/screen/WXYZ', { start = true } = {}) {
   const socket = new FakeSocket();
   const makeSocket = vi.fn(() => socket as unknown as GameSocket);
   const view = render(
@@ -72,6 +82,7 @@ function renderScreen(path = '/screen/WXYZ') {
       </Routes>
     </MemoryRouter>,
   );
+  if (start) fireEvent.click(screen.getByRole('button', { name: /Click to start/ }));
   return { socket, makeSocket, unmount: view.unmount };
 }
 
@@ -161,7 +172,7 @@ describe('Screen', () => {
   });
 
   it('a malformed code shows Room not found without connecting', () => {
-    const { makeSocket } = renderScreen('/screen/AB1');
+    const { makeSocket } = renderScreen('/screen/AB1', { start: false });
     expect(makeSocket).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Room not found');
   });
@@ -572,6 +583,8 @@ describe('Screen', () => {
       document.documentElement.requestFullscreen = request;
       document.exitFullscreen = exit;
       hostScreen(inPhase('OPEN'));
+      // Click to start already entered fullscreen once.
+      request.mockClear();
       press('f');
       expect(request).toHaveBeenCalledOnce();
 
@@ -870,5 +883,104 @@ describe('Screen result states', () => {
       show(finalView([]));
       expect(screen.getByRole('heading', { name: 'Game over' })).toBeTruthy();
     });
+  });
+});
+
+describe('Click to start and sounds', () => {
+  beforeEach(() => {
+    vi.mocked(playSound).mockClear();
+    vi.mocked(startSounds).mockClear();
+  });
+
+  const overlay = () => screen.queryByRole('dialog', { name: 'Click to start' });
+  const startButton = () => screen.getByRole('button', { name: /Click to start/ });
+  const played = () => vi.mocked(playSound).mock.calls.map(([name]) => name);
+  const view = (phase: ScreenView['phase']) =>
+    lobbyView([player(1)], {
+      phase,
+      questionIndex: phase === 'LOBBY' ? -1 : 2,
+      question:
+        phase === 'LOBBY' || phase === 'FINAL' ? null : { id: 'q3', text: 'Q?', points: 100 },
+    });
+
+  it('first load covers the Screen; the click unlocks audio, enters fullscreen and removes it', () => {
+    const request = vi.fn(() => Promise.resolve());
+    document.documentElement.requestFullscreen = request;
+    const { socket } = renderScreen(undefined, { start: false });
+    socket.fire('state', view('LOBBY'));
+    expect(overlay()).toBeTruthy();
+    expect(document.activeElement).toBe(startButton());
+
+    fireEvent.click(startButton());
+    expect(startSounds).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledOnce();
+    expect(overlay()).toBeNull();
+  });
+
+  it('keys pressed on the overlay never reach the host shortcuts behind it', () => {
+    saveHostToken('WXYZ', 'h'.repeat(43));
+    const { socket } = renderScreen(undefined, { start: false });
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', view('LOBBY'));
+    for (const key of [' ', 'Enter', 's']) fireEvent.keyDown(startButton(), { key });
+    expect(socket.emitted.filter((e) => e.event.startsWith('host:'))).toEqual([]);
+  });
+
+  it('is not shown over an error', () => {
+    const { socket } = renderScreen(undefined, { start: false });
+    act(() => socket.emitted[0]!.ack({ ok: false, error: 'Room not found' }));
+    expect(screen.getByRole('heading', { name: 'Room not found' })).toBeTruthy();
+    expect(overlay()).toBeNull();
+  });
+
+  it('plays the sound of each fx event: buzz, correct, wrong and join', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', view('BUZZED'));
+    socket.fire('fx', { kind: 'buzz', playerId: 'p1', gaps: [] });
+    socket.fire('fx', { kind: 'correct', playerId: 'p1', points: 100 });
+    socket.fire('fx', { kind: 'wrong', playerId: 'p1' });
+    socket.fire('fx', { kind: 'join', playerId: 'p2' });
+    expect(played()).toEqual(['buzz', 'correct', 'wrong', 'join']);
+  });
+
+  it('plays nothing before Click to start, and never replays an fx from before the click', () => {
+    const { socket } = renderScreen(undefined, { start: false });
+    socket.fire('state', view('LOBBY'));
+    socket.fire('fx', { kind: 'join', playerId: 'p1' });
+    expect(played()).toEqual([]);
+
+    fireEvent.click(startButton());
+    expect(played()).toEqual([]);
+    socket.fire('fx', { kind: 'join', playerId: 'p2' });
+    expect(played()).toEqual(['join']);
+  });
+
+  it('a Screen started while connecting plays an fx that arrives with the first state', () => {
+    const { socket } = renderScreen();
+    act(() => {
+      socket.fire('state', view('BUZZED'));
+      socket.fire('fx', { kind: 'buzz', playerId: 'p1', gaps: [] });
+    });
+    expect(played()).toEqual(['buzz']);
+  });
+
+  it('a Screen whose first state after the click is FINAL plays no fanfare', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', view('FINAL'));
+    expect(played()).toEqual([]);
+  });
+
+  it('plays the fanfare once when the game reaches FINAL', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', view('REVEAL'));
+    socket.fire('state', view('FINAL'));
+    socket.fire('state', view('FINAL'));
+    expect(played()).toEqual(['fanfare']);
+  });
+
+  it('a Screen that loads straight into FINAL plays no fanfare', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', view('FINAL'));
+    expect(played()).toEqual([]);
   });
 });

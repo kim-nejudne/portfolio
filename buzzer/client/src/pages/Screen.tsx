@@ -1,21 +1,25 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
-import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
+import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
 import { FinalResults, Scoreboard } from '../components/ScreenResults.js';
+import { StartOverlay } from '../components/StartOverlay.js';
+import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { preloadSounds, startSounds } from '../lib/sounds.js';
 import { useSendHost } from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+import { useScreenSounds } from '../lib/useScreenSounds.js';
 
 interface ScreenProps {
   /** Tests pass a fake socket. */
@@ -26,10 +30,41 @@ interface ScreenProps {
 export function Screen({ makeSocket = createSocket }: ScreenProps) {
   const code = (useParams().code ?? '').toUpperCase();
   if (!isCompleteRoomCode(code)) return <ScreenMessage title="Room not found" />;
-  return <ScreenRoom code={code} makeSocket={makeSocket} />;
+  return <StartedScreenRoom code={code} makeSocket={makeSocket} />;
 }
 
-function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSocket }) {
+interface RoomProps {
+  code: string;
+  makeSocket: () => GameSocket;
+}
+
+/** The room behind the Click to start overlay, which unlocks audio and enters fullscreen. */
+function StartedScreenRoom(props: RoomProps) {
+  const [started, setStarted] = useState(false);
+  useEffect(preloadSounds, []);
+  const error = useRoomStore((state) => state.error);
+  const phase = useRoomStore((state) => (state.view?.role === 'screen' ? state.view.phase : null));
+  const start = () => {
+    // Fullscreen first: it needs the gesture, and loading the sounds may wait on the network.
+    enterFullscreen();
+    void startSounds();
+    setStarted(true);
+  };
+  return (
+    <>
+      <ScreenRoom {...props} />
+      {started && <ScreenSounds phase={phase} />}
+      {!started && !error && <StartOverlay onStart={start} />}
+    </>
+  );
+}
+
+function ScreenSounds({ phase }: { phase: Phase | null }) {
+  useScreenSounds(phase);
+  return null;
+}
+
+function ScreenRoom({ code, makeSocket }: RoomProps) {
   // True once the server accepted this device's hostToken: only then does it get host controls.
   const [canHost, setCanHost] = useState(false);
   const join = useCallback<JoinRoom>(

@@ -10,6 +10,69 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+<!-- entries below, newest first -->
+
+## F31 — Sounds and animations (2026-10-28)
+**What changed:**
+- Sounds:
+  - Five self-made WAVs in `client/public/sounds/`: buzz, correct, wrong, join and fanfare.
+  - They come from the new `scripts/make-sounds.mjs`, which synthesises them from plain waveforms. Run `node scripts/make-sounds.mjs` to remake them.
+  - `client/public/sounds/README.md` lists each file, what plays it and its source.
+  - `eslint.config.js` now gives `scripts/**` Node globals.
+- `client/src/lib/sounds.ts`:
+  - Howler loads through a dynamic import, as its own 36 KB chunk. `preloadSounds` warms it when the Screen mounts.
+  - `startSounds` creates the Howls and resumes a suspended AudioContext.
+  - `playSound` is silent before start and logs `[sound] <name>` in DEV.
+  - `soundForFx` maps each fx kind to a sound.
+- Screen:
+  - **Click to start** (`components/StartOverlay.tsx`) covers every page load except an error page.
+  - The click enters fullscreen (new `lib/fullscreen.ts`, now shared with the F key) and starts the sounds.
+  - Keys pressed on the overlay never reach the host shortcuts.
+  - After the click, `useScreenSounds` plays each new fx sound, and the fanfare on the change into FINAL.
+- Reduced motion: the Player's open-buzzer pulse is now `motion-safe:`. F24 already handled the chip pop-in, the +points float, the flash and the scoreboard FLIP.
+- Tests:
+  - New `sounds.test.ts` (6, with Howler mocked): the fx-to-sound map, a file for every sound, silence before start, load once and resume, play only the named sound plus the log line, and a Howler failure.
+  - `Screen.test.tsx` gains 9:
+    - the overlay's click, focus and fullscreen
+    - keys swallowed behind it
+    - no overlay over an error
+    - each fx sound
+    - silence before the click and no replay
+    - an fx arriving with the first state
+    - the fanfare once
+    - no fanfare on a load into FINAL, before or after the click
+  - `renderScreen` now presses Click to start by default (`{ start: false }` opts out).
+  - The `Play.test.tsx` pulse assertion now checks the `motion-safe:` guard.
+  - 899 tests in total.
+- New dependencies:
+  - `howler`: the spec names Howler.js for sound.
+  - `@types/howler` (dev): its types.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-28 for F31 cover:
+- the self-made WAVs and the script that makes them
+- wrong.wav as the "buzz sound" for Wrong
+- Screen-only, lazy Howler, the fanfare trigger and the DEV log
+- the overlay: on every load, fullscreen first, keys swallowed, no replay
+- the reduced-motion scope
+
+**Notes for next session:**
+- Playtest (Playwright; a Screen with the token, a Host remote, Ann and 2 bots), all passed:
+  - All five `/sounds/*.wav` returned 200.
+  - The Screen logged `[sound]` join ×3, buzz, correct, buzz, wrong, then fanfare after End game.
+  - Click to start closed and set `document.fullscreenElement`.
+  - A lobby chip had `animation-name: pop-in`. With `reducedMotion: reduce` emulated, it had `none`.
+- Not checked live: the +points float and the scoreboard FLIP under reduced motion. Their guards are in place and are unit-tested from F24.
+- Nobody listened to the sounds. The playtest checked that the right ones fired. Their levels were balanced by measurement (ffmpeg `volumedetect`), not by ear. Remake them with the script if one sounds wrong on a TV.
+- The playtest saw a dev-only warning on first load: "WebSocket is closed before the connection is established" (StrictMode remount). Only the favicon 404 showed as an error (pre-existing).
+- The F29 and F30 entries sat above the `<!-- entries below, newest first -->` marker, so `roadmap.mjs next` showed F28 as the newest. The marker now sits right under the template. Add new entries directly below it.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and tap **Host this set** on the sample. Use the laptop as the Screen.
+2. The Screen shows **Click to start**. Click it: the window goes fullscreen.
+3. Join from phones at `http://<LAN-IP>:5173`. Each new chip pops in with a blip.
+4. Run a question: a buzz rings in, C plays the correct arpeggio, and X plays the wrong buzzer. End the game: the fanfare plays.
+5. Turn on reduced motion in the OS: chips and the phone's BUZZ! button stop animating.
+
 ## F30 — Image upload, serving and preload (2026-10-28)
 **What changed:**
 - Server:
@@ -104,9 +167,6 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 3. Drag an image file onto another card.
 4. Clear a card's question text. With an image, the card shows no error. Tap Preview to see it as the Screen would.
 5. Tap Remove. The upload area returns.
-
-<!-- entries below, newest first -->
-
 ## F28 — Import and export JSON (2026-10-28)
 **What changed:**
 - `client/src/lib/importExport.ts`:

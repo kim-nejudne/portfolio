@@ -312,7 +312,8 @@ describe('Play buzzer', () => {
     socket.fire('state', open());
     expect(buzzer().textContent).toBe('BUZZ!');
     expect(buzzer().disabled).toBe(false);
-    expect(buzzer().className).toContain('animate-buzz-pulse');
+    // Guarded, so reduced motion keeps the button still.
+    expect(buzzer().className).toContain('motion-safe:animate-buzz-pulse');
   });
 
   it('a press shows "Buzzed…" and vibrates for 30 ms before the server replies', async () => {
