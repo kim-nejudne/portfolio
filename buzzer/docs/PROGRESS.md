@@ -12,6 +12,50 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F08 — Host a game and the Screen lobby (2026-10-27)
+**What changed:**
+- `client/src/components/HostGame.tsx`, shown on the landing page:
+  - **Host a game** posts `SAMPLE_SET` with `DEFAULT_SETTINGS` through `createRoom` (`client/src/lib/api.ts`) and stores the token with `saveHostToken`.
+  - It then shows the code, **Use this device as the Screen** (which goes to `/screen/CODE`) and **Open the Screen on another device** (which shows the Screen URL and the code).
+- `client/src/pages/Screen.tsx` at `/screen/:code`:
+  - It joins with the stored token, if this device has one. A stale token is dropped and the Screen rejoins without it.
+  - Lobby: the set title, "Join at <url>", the huge code, the QR to `/play/CODE` (`qrcode.react`) and colour chips that pop in. Chips shrink above 20 players. Running on localhost shows a note.
+  - A bottom strip always shows the code and "Join at <url>".
+  - Errors show their message with a link home. Phases other than LOBBY show "Game in progress".
+- Client plumbing:
+  - `lib/roomStore.ts`: a Zustand store `{view, error}`.
+  - `lib/useRoomSocket.ts`: `useRoomSocket(code, join, makeSocket?)` joins on every `connect`, so a reconnect rejoins, and resets the store on unmount.
+  - `lib/hostTokens.ts`: save, load and clear.
+  - `lib/joinUrl.ts`: `joinUrl`, `displayUrl` and `isLoopbackHost`.
+- There are 27 new tests, 196 in total.
+  - `Screen.test.tsx` uses a fake socket: the join payload with and without a token, the stale-token rejoin, the reconnect rejoin, the lobby code, URL and QR, live chips, the strip in the lobby and in a game, errors, a malformed code and the disconnect on unmount.
+  - Landing gains 5 Host a game tests.
+  - The new lib tests cover api, hostTokens and joinUrl.
+- `.gitignore` now ignores `graphify-out/`.
+
+**Dependencies:**
+- `zustand`: the spec's client-state store. It holds the latest snapshot, which pages render.
+- `qrcode.react`: the spec's QR library, used for the join QR now and the pairing QR in F10.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F08 cover:
+- The sample set until F25.
+- The Screen choice shown on the landing page.
+- The localStorage key.
+- The join URL from the page origin, with the localhost note. A `PUBLIC_URL` item is in the Backlog.
+- The stale-token rejoin.
+- The store and hook shape.
+- Pair and Start deferred.
+- The chip scaling.
+
+**Notes for next session:**
+- F09 and F10 should reuse `useRoomSocket` with their own `join`. A component reads `useRoomStore` and narrows on `view.role`.
+- F10 adds **Pair host phone** to the Screen lobby, shown only when `loadHostToken(code)` is set (DECISIONS #14). It also adds Start (F16/F23).
+- In dev, open the app at the laptop's LAN address, not `localhost`, or the QR points phones at `localhost`.
+- In dev, StrictMode mounts twice, so the browser logs one "WebSocket is closed before the connection is established" warning per Screen load. It is harmless.
+- The playtest joined players by socket script, because `/play` is still a stub (F09). Node `socket.io-client` needed `transports: ['websocket']` against `127.0.0.1:5173`.
+
+**How to try it:** Run `npm run dev`. On the laptop, open `http://<LAN-IP>:5173`, click **Host a game**, then **Use this device as the Screen**. The lobby shows the code, the QR and the URL. Join players with a `socket.io-client` script (`player:join {code, playerId, name}`) or, after F09, from phones. Chips appear live. Screenshots: `.playtest/F08/`.
+
 ## F07 — Socket gateway: joins and state broadcast (2026-10-27)
 **What changed:**
 - `server/sockets.ts`: `attachSockets(httpServer, {rooms, clock, trustProxy, playerJoinLimit})` is WebSocket only, with `maxHttpBufferSize` set to 100 KB.

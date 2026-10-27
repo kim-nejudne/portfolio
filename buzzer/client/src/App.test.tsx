@@ -19,7 +19,6 @@ describe('AppRoutes', () => {
   it.each([
     ['/', 'Buzzr'],
     ['/play/ABCD', 'Player'],
-    ['/screen/ABCD', 'Screen'],
     ['/host/ABCD', 'Host'],
     ['/sets', 'My question sets'],
     ['/sets/set-1', 'Edit set'],

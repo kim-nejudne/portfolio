@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { APP_NAME, ROOM_CODE_LENGTH } from '../../../shared/constants.js';
+import { HostGame } from '../components/HostGame.js';
 import { isCompleteRoomCode, normalizeRoomCode } from '../lib/roomCode.js';
 
 export function Landing() {
@@ -51,13 +52,7 @@ export function Landing() {
         </button>
       </form>
 
-      {/* TODO(F08): wire this to room creation and the Screen choice. */}
-      <button
-        type="button"
-        className="rounded-3xl border-2 border-accent px-6 py-6 font-display text-3xl text-accent transition active:scale-95"
-      >
-        Host a game
-      </button>
+      <HostGame />
 
       <Link
         to="/sets"

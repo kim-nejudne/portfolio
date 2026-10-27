@@ -22,14 +22,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F07 Socket gateway: joins and state broadcast
 
-- [ ] F08 Host a game and the Screen lobby
-  - Spec: Creating and joining a room (steps 1–2); UI spec by view (Screen view: Lobby, bottom strip)
-  - Depends: F03, F07
-  - Done when:
-    - **Host a game** creates a room with the sample set, stores `hostToken` in `localStorage` per code, and offers **Use this device as the Screen** / **Open the Screen on another device**
-    - `/screen/:code` lobby shows the huge code, a QR to `/play/:code`, the join URL, and player chips that appear live
-    - The bottom strip always shows the code and "Join at <url>"
-  - Tests: playtest — create room, open Screen, chips appear as players join (via F09 or a socket script); legible at 1920×1080
+- [x] F08 Host a game and the Screen lobby
 
 - [ ] F09 Player join flow
   - Spec: Creating and joining a room (step 4); UI spec by view (Player view: join form, Lobby state); Edge cases (duplicate name)
@@ -285,4 +278,5 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 ## Backlog (not scheduled)
 
 - Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
+- Optional `PUBLIC_URL` setting for the join QR and URL, so a Screen opened at `localhost` still shows an address phones can reach. F08 only shows a note (F08 decision).
 - Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).

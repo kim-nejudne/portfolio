@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
+import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { loadHostToken } from '../lib/hostTokens.js';
 import { Landing } from './Landing.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  localStorage.clear();
+});
 
 function CurrentPath() {
   return <p data-testid="path">{useLocation().pathname}</p>;
@@ -66,5 +73,66 @@ describe('Landing', () => {
     expect(screen.getByRole('link', { name: 'My question sets' }).getAttribute('href')).toBe(
       '/sets',
     );
+  });
+});
+
+describe('Host a game', () => {
+  const hostToken = 'h'.repeat(43);
+
+  function stubCreateRoom(response: Response) {
+    const fetch = vi.fn(() => Promise.resolve(response));
+    vi.stubGlobal('fetch', fetch);
+    return fetch;
+  }
+
+  async function hostAGame() {
+    renderLanding();
+    fireEvent.click(screen.getByRole('button', { name: 'Host a game' }));
+    return screen.findByRole('heading', { name: 'Room created' });
+  }
+
+  it('creates a room with the sample set and default settings', async () => {
+    const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/rooms');
+    expect(JSON.parse(init.body as string)).toEqual({
+      set: SAMPLE_SET,
+      settings: DEFAULT_SETTINGS,
+    });
+  });
+
+  it('stores the hostToken in localStorage under the room code', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    expect(loadHostToken('WXYZ')).toBe(hostToken);
+  });
+
+  it('Use this device as the Screen opens /screen/<CODE>', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    fireEvent.click(screen.getByRole('button', { name: 'Use this device as the Screen' }));
+    expect(screen.getByTestId('path').textContent).toBe('/screen/WXYZ');
+  });
+
+  it('Open the Screen on another device shows the Screen URL and the code', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    const other = screen.getByRole('button', { name: 'Open the Screen on another device' });
+    expect(screen.queryByText(`${window.location.host}/screen/WXYZ`)).toBeNull();
+    fireEvent.click(other);
+    expect(screen.getByText(`${window.location.host}/screen/WXYZ`)).toBeTruthy();
+    expect(screen.getAllByText('WXYZ').length).toBeGreaterThan(1);
+  });
+
+  it('shows the server error and lets the host try again', async () => {
+    stubCreateRoom(Response.json({ ok: false, error: 'Too many rooms' }, { status: 429 }));
+    renderLanding();
+    fireEvent.click(screen.getByRole('button', { name: 'Host a game' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Too many rooms');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Host a game' }).disabled).toBe(
+      false,
+    );
+    expect(localStorage.length).toBe(0);
   });
 });
