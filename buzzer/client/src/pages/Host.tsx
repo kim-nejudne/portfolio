@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
-import type { HostView } from '../../../shared/types.js';
+import type { Ack, HostView } from '../../../shared/types.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
+import { PrimaryAction, type PrimaryEvent } from '../components/PrimaryAction.js';
+import { Toast, useToast } from '../components/Toast.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+
+const NOT_CONNECTED_ERROR = 'Not connected';
 
 interface HostProps {
   /** Tests pass a fake socket. */
@@ -102,17 +106,32 @@ function HostConnected({
     },
     [code, hostToken, onAccepted, onRejected],
   );
-  useRoomSocket(code, join, makeSocket);
+  const socketRef = useRoomSocket(code, join, makeSocket);
+  const send = useCallback(
+    (event: PrimaryEvent, ack: (res: Ack) => void) => {
+      const socket = socketRef.current;
+      if (socket) socket.emit(event, {}, ack);
+      else ack({ ok: false, error: NOT_CONNECTED_ERROR });
+    },
+    [socketRef],
+  );
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
 
   if (error) return <HostMessage title={error} />;
   if (view?.role !== 'host') return <HostMessage title="Connecting…" link={false} />;
-  return <HostRemote view={view} hostToken={hostToken} />;
+  return <HostRemote view={view} hostToken={hostToken} send={send} />;
 }
 
-function HostRemote({ view, hostToken }: { view: HostView; hostToken: string }) {
+interface HostRemoteProps {
+  view: HostView;
+  hostToken: string;
+  send: (event: PrimaryEvent, ack: (res: Ack) => void) => void;
+}
+
+function HostRemote({ view, hostToken, send }: HostRemoteProps) {
+  const { toast, show } = useToast();
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
       <header className="flex items-baseline justify-between gap-4">
@@ -120,11 +139,12 @@ function HostRemote({ view, hostToken }: { view: HostView; hostToken: string }) 
         <p className="truncate text-muted">{view.title}</p>
       </header>
       <QuestionCard view={view} />
-      {/* TODO(F16): the primary action button. */}
+      <PrimaryAction view={view} send={send} onRejected={show} />
       {view.phase === 'LOBBY' && (
         <PairHostPhone code={view.code} hostToken={hostToken} className="text-lg" qrSize="200px" />
       )}
       <PlayerList players={view.players} />
+      <Toast toast={toast} />
     </main>
   );
 }

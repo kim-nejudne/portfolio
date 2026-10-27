@@ -353,6 +353,28 @@ describe('socket gateway: host flow events', () => {
     expect(phase().phase).toBe('FINAL');
   });
 
+  it('two host devices pressing Next at once: one advances, the stale one is rejected', async () => {
+    const { h, host, screen } = await openTable();
+    const second = await h.connect();
+    await second.emitWithAck('host:join', { code: 'ABCD', hostToken: TOKEN });
+    expect(await host.emitWithAck('host:reveal', {})).toEqual({ ok: true });
+    await Promise.all([host, second, screen].map(flush));
+    const views = [host, second, screen].map((c) => record<View>(c, 'state'));
+
+    const acks = await Promise.all([
+      host.emitWithAck('host:next', {}),
+      second.emitWithAck('host:next', {}),
+    ]);
+    expect(acks).toContainEqual({ ok: true });
+    expect(acks).toContainEqual({ ok: false, error: 'Not allowed in this phase' });
+    expect(h.rooms.get('ABCD')).toMatchObject({ phase: 'QUESTION', questionIndex: 1 });
+
+    // Every device ends on the same snapshot: question 2, not question 3.
+    await Promise.all([host, second, screen].map(flush));
+    for (const seen of views)
+      expect(seen.at(-1)).toMatchObject({ phase: 'QUESTION', questionIndex: 1 });
+  });
+
   it('passes a wrong-phase rejection through the ack', async () => {
     const { host } = await openTable();
     expect(await host.emitWithAck('host:next', {})).toEqual({

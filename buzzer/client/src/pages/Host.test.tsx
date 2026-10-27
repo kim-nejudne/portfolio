@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
+import { TOAST_MS } from '../components/Toast.js';
 import type { HostView, Question, RankedPlayer } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -308,6 +309,96 @@ describe('Host remote', () => {
     it('Pair host phone is only in the lobby', () => {
       remote(hostView({ phase: 'QUESTION', questionIndex: 0, question: question(1) }));
       expect(screen.queryByRole('button', { name: 'Pair host phone' })).toBeNull();
+    });
+  });
+
+  describe('primary action', () => {
+    function remote(view: HostView) {
+      const { socket } = renderHost(`/host/WXYZ#t=${TOKEN}`);
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', view);
+      return socket;
+    }
+
+    const PRIMARY_LABELS =
+      /^(Start game|Open buzzers|Reveal answer|Next question|Show final results)$/;
+    const primary = () => screen.getByRole('button', { name: PRIMARY_LABELS });
+    const inPhase = (phase: HostView['phase'], questionIndex = 0) =>
+      hostView({ phase, questionIndex, question: question(questionIndex + 1) });
+
+    it.each([
+      ['LOBBY', 'Start game', 'host:start', hostView({ players: [player(1)] })],
+      ['QUESTION', 'Open buzzers', 'host:open', inPhase('QUESTION')],
+      ['OPEN', 'Reveal answer', 'host:reveal', inPhase('OPEN')],
+      ['COLLECTING', 'Reveal answer', 'host:reveal', inPhase('COLLECTING')],
+      ['BUZZED', 'Reveal answer', 'host:reveal', inPhase('BUZZED')],
+      ['REVEAL', 'Next question', 'host:next', inPhase('REVEAL', 3)],
+      ['REVEAL of the last question', 'Show final results', 'host:next', inPhase('REVEAL', 9)],
+    ])('in %s it reads %s and sends %s', (_phase, label, event, view) => {
+      const socket = remote(view);
+      expect(primary().textContent).toBe(label);
+      fireEvent.click(primary());
+      expect(socket.emitted.at(-1)).toMatchObject({ event, payload: {} });
+    });
+
+    it('is absent in FINAL', () => {
+      remote(inPhase('FINAL'));
+      expect(screen.queryByRole('button', { name: PRIMARY_LABELS })).toBeNull();
+    });
+
+    it('cycles through the game as each new state arrives', () => {
+      const socket = remote(hostView({ players: [player(1)] }));
+      const labels = [primary().textContent];
+      for (const view of [inPhase('QUESTION'), inPhase('OPEN'), inPhase('REVEAL')]) {
+        socket.fire('state', view);
+        labels.push(primary().textContent);
+      }
+      expect(labels).toEqual(['Start game', 'Open buzzers', 'Reveal answer', 'Next question']);
+    });
+
+    it('sends once on a double tap, and is enabled again by the next state', () => {
+      const socket = remote(inPhase('QUESTION'));
+      fireEvent.click(primary());
+      fireEvent.click(primary());
+      expect(socket.emitted.filter((e) => e.event === 'host:open')).toHaveLength(1);
+      expect((primary() as HTMLButtonElement).disabled).toBe(true);
+      socket.fire('state', inPhase('OPEN'));
+      expect((primary() as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('stays disabled after an ok ack until the new state arrives', () => {
+      const socket = remote(inPhase('REVEAL'));
+      fireEvent.click(primary());
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+      fireEvent.click(primary());
+      expect(socket.emitted.filter((e) => e.event === 'host:next')).toHaveLength(1);
+      socket.fire('state', inPhase('QUESTION', 1));
+      expect((primary() as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('a rejected ack shows a brief toast and enables the button again', () => {
+      vi.useFakeTimers();
+      const socket = remote(inPhase('REVEAL'));
+      fireEvent.click(primary());
+      act(() => socket.emitted.at(-1)!.ack({ ok: false, error: 'Not allowed in this phase' }));
+      expect(screen.getByRole('alert').textContent).toBe('Not allowed in this phase');
+      expect((primary() as HTMLButtonElement).disabled).toBe(false);
+      act(() => vi.advanceTimersByTime(TOAST_MS));
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('a second rejection while a toast shows restarts its timer', () => {
+      vi.useFakeTimers();
+      const socket = remote(hostView());
+      fireEvent.click(primary());
+      act(() => socket.emitted.at(-1)!.ack({ ok: false, error: 'Wait' }));
+      act(() => vi.advanceTimersByTime(TOAST_MS - 1000));
+      fireEvent.click(primary());
+      act(() => socket.emitted.at(-1)!.ack({ ok: false, error: 'Wait' }));
+      act(() => vi.advanceTimersByTime(TOAST_MS - 1000));
+      expect(screen.getByRole('alert').textContent).toBe('Wait');
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.queryByRole('alert')).toBeNull();
     });
   });
 });

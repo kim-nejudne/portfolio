@@ -12,6 +12,32 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F16 — Host remote primary action (2026-10-27)
+**What changed:**
+- New `client/src/components/PrimaryAction.tsx` is the remote's full-width primary button. Its label and event follow the phase:
+  - LOBBY: Start game.
+  - QUESTION: Open buzzers.
+  - OPEN, COLLECTING and BUZZED: Reveal answer.
+  - REVEAL: Next question, or Show final results on the last question.
+  - FINAL: no button.
+- After a press, the button stays disabled until a new `state` arrives or the ack is a rejection.
+- New `client/src/components/Toast.tsx` (`useToast`, `Toast`, `TOAST_MS` = 3 s). A rejected ack shows the server's error as a toast.
+- `useRoomSocket` now returns a ref to the open socket. `Host.tsx` sends through it, and a null socket is rejected locally as "Not connected".
+- Tests: 10 new ones in `Host.test.tsx` cover labels and events per phase, the cycle, a double tap, and the toast and its timer. 1 new one in `sockets.buzz.test.ts`: two host sockets send `host:next` at once, one is ok, the other gets "Not allowed in this phase", and every device ends on question 2. 434 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F16 cover:
+- The label map, with BUZZED on Reveal answer until F22.
+- Start game stays enabled with no players, so the server's error comes back as a toast.
+- The disable-until-snapshot rule, which needs no timer.
+- The toast's length and the offline buffering.
+
+**Notes for next session:**
+- F22 replaces the BUZZED entry in `BY_PHASE` (`TODO(F22)`) with Correct / Wrong. Reuse `useToast` and the `send` pattern for the secondary actions, and widen `PrimaryEvent`/`send` to take a payload (`host:judge {result}`).
+- Playtest result (2026-10-27): start, open, reveal and next across all 10 questions passed. Show final results passed. Two host tabs pressing Reveal at once passed: the loser got the toast and both tabs matched. The Screen only shows "Game in progress" until F18, so "Screen follows" could not be seen there.
+- In FINAL, the remote keeps showing the last question. A game-over state for the remote is in the Backlog.
+
+**How to try it:** `npm run dev`, then Host a game on `http://localhost:5173`. Use **Pair host phone** (or a phone on `http://<LAN-IP>:5173`) to open the remote. Join one player from `/play/<CODE>` or `/dev/bots/<CODE>`, then drive the game from the remote. For the toast, open the remote in two tabs: once one tab has pressed Reveal answer, press it in the other before that tab updates. Alternatively, press Start game with no players.
+
 ## F15 — Gateway: effects runner, ping and buzz (2026-10-27)
 **What changed:**
 - `server/sockets.ts` runs the reducer's new effects:

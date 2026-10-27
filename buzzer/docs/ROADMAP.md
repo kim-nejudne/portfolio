@@ -40,14 +40,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F15 Gateway: effects runner, ping and buzz
 
-- [ ] F16 Host remote primary action
-  - Spec: UI spec by view (Host remote: primary action button)
-  - Depends: F10, F15
-  - Done when:
-    - Full-width primary button cycles Start game → Open buzzers → Reveal answer → Next question → Show final results by phase
-    - A rejected ack shows a brief toast
-    - Two host tabs acting at once: the stale one gets a toast, state stays consistent
-  - Tests: playtest — drive start/open/reveal/next from the remote while a Screen tab follows
+- [x] F16 Host remote primary action
 
 - [ ] F17 Player buzzer screen
   - Spec: UI spec by view (Player view: buzzer screen and states up to "Someone else won"); Buzzer fairness and timing (Client-side speed)
@@ -227,4 +220,5 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
 - Optional `PUBLIC_URL` setting for the join QR and URL, so a Screen opened at `localhost` still shows an address phones can reach. F08 only shows a note (F08 decision).
 - Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).
+- Host remote game-over state in FINAL: the remote keeps showing the last question with no primary button (F16 playtest). No feature names a host final view; the Players list still shows the scores.
 - Measure the 150 ms collection window in monotonic time (from the first buzz's `receivedAt`), so a late-firing timer cannot stretch it. Today the window lasts until `windowClosed` arrives (F14 decision).
