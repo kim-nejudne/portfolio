@@ -20,12 +20,11 @@ const trustProxy =
       ? Number(trustProxyEnv)
       : trustProxyEnv;
 
-// TODO(F07): pass the store to the socket layer when joining lands.
 const rooms = new InMemoryRoomStore();
 startRoomSweeper(rooms, Date.now);
 
 const httpServer = createServer(createApp({ clientDir, rooms, clock: Date.now, trustProxy }));
-attachSockets(httpServer);
+attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });
 
 httpServer.listen(port, () => {
   console.log(`Buzzr server listening on http://localhost:${port}`);

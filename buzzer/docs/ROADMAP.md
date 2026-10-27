@@ -20,16 +20,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F06 Room creation over HTTP
 
-- [ ] F07 Socket gateway: joins and state broadcast
-  - Spec: Realtime events and HTTP API (intro, Client → server, Server → client); Security (rate limits, limits)
-  - Depends: F06
-  - Done when:
-    - `screen:join`, `host:join`, `player:join` work with `{ok, error}` acks and join `room:<code>:screen|host|player:<id>`
-    - After every reducer call each socket receives its role-filtered `state`
-    - Every inbound payload is zod-validated; socket message size capped at 100 KB; `player:join` rate-limited
-    - Screen sockets never receive HostView, even when the Screen device holds the hostToken
-    - Client `src/lib/socket.ts` connects with the WebSocket transport only
-  - Tests: `sockets.test.ts` with real socket.io clients on an ephemeral port — bad token rejected, Screen gets no answer, player reconnect keeps the same id
+- [x] F07 Socket gateway: joins and state broadcast
 
 - [ ] F08 Host a game and the Screen lobby
   - Spec: Creating and joining a room (steps 1–2); UI spec by view (Screen view: Lobby, bottom strip)

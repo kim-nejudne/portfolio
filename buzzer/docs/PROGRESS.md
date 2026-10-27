@@ -12,6 +12,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F07 — Socket gateway: joins and state broadcast (2026-10-27)
+**What changed:**
+- `server/sockets.ts`: `attachSockets(httpServer, {rooms, clock, trustProxy, playerJoinLimit})` is WebSocket only, with `maxHttpBufferSize` set to 100 KB.
+  - `handle(socket, event, fn)` parses with `clientPayloadSchemas[event]`, tolerates a missing ack and turns a throw into "Server error".
+  - `dispatch(code, action)` runs `reduce`, stores the result, broadcasts and then runs the effects. `broadcast(room)` sends `toView` per role to `room:<code>:screen`, `room:<code>:host` and each `room:<code>:player:<id>`. `fx` goes to all of them.
+  - `screen:join` (optional token, which sets `socket.data.canHost`), `host:join` (`verifyHostToken`) and `player:join` (per-IP limit for new ids only) are handled. A disconnect marks the player disconnected unless another socket holds the same id.
+- `server/index.ts` passes `rooms`, `Date.now` and `trustProxy` to the gateway.
+- `client/src/lib/socket.ts`: `createSocket(url?)` is typed, uses `transports: ['websocket']` and sets `autoConnect: false`. Nothing calls it yet.
+- There are 16 new tests, 169 in total. `server/sockets.test.ts` uses real socket.io clients on an ephemeral port: bad tokens, Screen with a token gets no answers, notes or hash, the fresh state per role, reconnect, the reconnect race, validation, the 100 KB close, the join limit and `lastActivityAt`. `client/src/lib/socket.test.ts` covers the transport. Two mutations of the gateway were each caught.
+
+**Dependencies:**
+- `socket.io-client`: the official client for the Socket.IO server, used by the browser and by the real-client gateway tests.
+- `proxy-addr` and `@types/proxy-addr`: Express already ships `proxy-addr` for `req.ip`. Importing it directly lets the socket join limit resolve the client IP with the same `TRUST_PROXY` rule.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F07 cover:
+- Open questions 2 and 3, now resolved.
+- `proxy-addr` for the IP.
+- One join per socket.
+- Joins bumping `lastActivityAt`.
+- The disconnect race.
+- State going out before the ack, and the error messages.
+
+**Notes for next session:**
+- F08 and later host events: check `socket.data.canHost` (true for host sockets and for a Screen that sent a valid token). Send them through `dispatch`.
+- Extend the Screen-with-token leak test once host actions change state. Add an `fx` leak check when `fx buzz` and `fx correct` land (F12 and later).
+- `player:*` events must use `socket.data.playerId`, never a playerId from the payload.
+- `ping`, `player:buzz` and scheduled effects are F15. `runEffects` switches on `effect.type`, so add the cases there.
+- `room:closed` and `kicked` are not emitted yet. The sweeper deletes rooms silently.
+
+**How to try it:** Run `npx vitest run server/sockets.test.ts`. Or run `npm run build && PORT=3917 npm start`, `POST /api/rooms` with `SAMPLE_SET`, and connect a `socket.io-client` with `transports: ['websocket']`. `host:join {code, hostToken}` acks `{ok: true}` and delivers a HostView.
+
 ## F06 — Room creation over HTTP (2026-10-27)
 **What changed:**
 - `server/http.ts`: `createApp({clientDir, rooms, clock, rng, trustProxy})`.
