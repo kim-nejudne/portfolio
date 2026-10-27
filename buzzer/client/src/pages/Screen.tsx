@@ -5,7 +5,9 @@ import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
+import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
+import { FinalResults, Scoreboard } from '../components/ScreenResults.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
@@ -52,6 +54,8 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
   );
   const socketRef = useRoomSocket(code, join, makeSocket);
   const send = useSendHost(socketRef);
+  // The order the scoreboard last showed, so the next showing can replay the climb.
+  const [scoreboardOrder, setScoreboardOrder] = useState<string[]>([]);
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
@@ -64,16 +68,26 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
       <div className="relative flex min-h-0 flex-1 flex-col">
-        {view.phase === 'LOBBY' ? (
-          <Lobby view={view} url={url} hostToken={loadHostToken(code)} />
-        ) : view.phase === 'FINAL' ? (
-          // TODO(F24): podium and full ranking.
-          <div className="flex flex-1 items-center justify-center">
-            <h1 className="font-display text-[5vw] text-muted">Game over</h1>
-          </div>
-        ) : (
-          <ScreenQuestion view={view} />
-        )}
+        {/* With host controls, the content stops above the bar, so it never hides the reveal or the podium. */}
+        <div className={`relative flex min-h-0 flex-1 flex-col ${canHost ? 'mb-[8vh]' : ''}`}>
+          {view.phase === 'LOBBY' ? (
+            <Lobby view={view} url={url} hostToken={loadHostToken(code)} />
+          ) : view.phase === 'FINAL' ? (
+            <FinalResults players={view.players} />
+          ) : (
+            <ScreenQuestion view={view} />
+          )}
+          {/* SPEC-QUESTION: the Final screen already ranks everyone, so the overlay never covers it (DECISIONS, F24). */}
+          {view.showScoreboard && view.phase !== 'FINAL' && (
+            <Scoreboard
+              players={view.players}
+              lastOrder={scoreboardOrder}
+              onShown={setScoreboardOrder}
+            />
+          )}
+        </div>
+        <ScreenFlash />
+        {/* Last, so the bar stays above the scoreboard and the flash. */}
         {canHost && <ScreenHostControls view={view} send={send} />}
       </div>
       <BottomStrip code={code} url={url} />

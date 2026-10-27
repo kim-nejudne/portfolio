@@ -1,18 +1,19 @@
 import type { BuzzGap, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
+import { signedPoints } from '../lib/results.js';
 import { buzzersOpen, formatGap, questionTextClass } from '../lib/screenQuestion.js';
+import { useRecentFx } from '../lib/useRecentFx.js';
 
 /**
  * The Screen during a question: its number, text and image, then the buzzer status or, once
  * someone has won the buzz, their banner and the "also buzzed" gaps (UI spec, Screen view).
- * Renders no answer: the Screen never shows one before REVEAL, and F24 adds it at REVEAL.
+ * The answer shows only when the view carries it, which the server allows at REVEAL alone.
  */
 export function ScreenQuestion({ view }: { view: ScreenView }) {
   const { question } = view;
   if (!question) return null;
   const text = question.text.trim();
-  const winner =
-    view.phase === 'BUZZED' ? view.players.find((p) => p.id === view.winnerId) : undefined;
+  const winner = view.players.find((p) => p.id === view.winnerId);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-[3vh] px-[5vw] pt-[4vh] pb-[3vh]">
@@ -35,10 +36,23 @@ export function ScreenQuestion({ view }: { view: ScreenView }) {
           />
         )}
       </div>
-      {winner ? (
-        <BuzzResult winner={winner} alsoBuzzed={view.alsoBuzzed} players={view.players} />
+      {view.phase === 'REVEAL' ? (
+        <Reveal
+          answer={question.answer}
+          scorer={view.players.find((p) => p.id === view.scorerId)}
+        />
+      ) : view.phase === 'BUZZED' && winner ? (
+        <BuzzResult
+          winner={winner}
+          judgedWrong={view.lockedOut.includes(winner.id)}
+          alsoBuzzed={view.alsoBuzzed}
+          players={view.players}
+        />
       ) : (
-        <BuzzerStatus open={buzzersOpen(view.phase)} />
+        <>
+          <BuzzerStatus open={buzzersOpen(view.phase)} />
+          <LockedOut ids={view.lockedOut} players={view.players} />
+        </>
       )}
     </div>
   );
@@ -57,13 +71,70 @@ function BuzzerStatus({ open }: { open: boolean }) {
   );
 }
 
+/** Players judged wrong on this question, greyed out while the others may still buzz. */
+function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
+  const out = players.filter((p) => ids.includes(p.id));
+  if (out.length === 0) return null;
+  return (
+    <div className="flex max-w-full shrink-0 items-baseline justify-center gap-[1.2vw]">
+      <p className="shrink-0 text-[2vw] text-muted">locked out</p>
+      <ul aria-label="Locked out" className="flex flex-wrap gap-[1vw] overflow-hidden">
+        {out.map((player) => (
+          <li
+            key={player.id}
+            className="rounded-full bg-edge px-[1.4vw] py-[0.6vh] font-display text-[2vw] text-muted line-through"
+          >
+            {player.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The answer in large type under the question, and the player who got it right (UI spec, Screen
+ * view: Reveal). "+100" floats up beside their name when the correct judgement's `fx` arrives.
+ */
+function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: RankedPlayer }) {
+  const recent = useRecentFx();
+  const scored =
+    recent?.fx.kind === 'correct' && recent.fx.playerId === scorer?.id ? recent : undefined;
+  return (
+    <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
+      <p className="text-[2vw] text-muted">Answer</p>
+      <p className="max-w-full rounded-[3vh] bg-surface px-[4vw] py-[2vh] text-center font-display text-[min(5vw,10vh)] leading-tight break-words text-accent">
+        {answer}
+      </p>
+      {scorer && (
+        <p
+          style={{ backgroundColor: scorer.color }}
+          className="relative rounded-full px-[2.4vw] py-[1vh] font-display text-[min(3vw,6vh)] text-bg"
+        >
+          {scorer.name} ✓
+          {scored?.fx.kind === 'correct' && (
+            <span
+              key={scored.seq}
+              className="absolute top-1/2 left-full ml-[1.5vw] -translate-y-1/2 font-display text-[min(3.2vw,6vh)] leading-none whitespace-nowrap text-win motion-safe:animate-float-up"
+            >
+              {signedPoints(scored.fx.points)}
+            </span>
+          )}
+        </p>
+      )}
+    </section>
+  );
+}
+
 interface BuzzResultProps {
   winner: RankedPlayer;
+  /** Judged wrong and waiting for the reopen: the banner goes grey. */
+  judgedWrong: boolean;
   alsoBuzzed: BuzzGap[];
   players: RankedPlayer[];
 }
 
-function BuzzResult({ winner, alsoBuzzed, players }: BuzzResultProps) {
+function BuzzResult({ winner, judgedWrong, alsoBuzzed, players }: BuzzResultProps) {
   const others = alsoBuzzed.flatMap((gap) => {
     const player = players.find((p) => p.id === gap.playerId);
     return player ? [{ player, gapMs: gap.gapMs }] : [];
@@ -71,8 +142,11 @@ function BuzzResult({ winner, alsoBuzzed, players }: BuzzResultProps) {
   return (
     <section aria-label="Buzz result" className="flex shrink-0 flex-col items-center gap-[2vh]">
       <h2
-        style={{ backgroundColor: winner.color }}
-        className="w-full truncate rounded-[3vh] px-[3vw] py-[2vh] text-center font-display text-[min(8vw,16vh)] leading-none text-bg"
+        style={judgedWrong ? undefined : { backgroundColor: winner.color }}
+        data-judged={judgedWrong ? 'wrong' : undefined}
+        className={`w-full truncate rounded-[3vh] px-[3vw] py-[2vh] text-center font-display text-[min(8vw,16vh)] leading-none transition-colors ${
+          judgedWrong ? 'bg-edge text-muted line-through' : 'text-bg'
+        }`}
       >
         {winner.name}
       </h2>

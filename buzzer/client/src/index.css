@@ -28,6 +28,38 @@
   /* The open buzzer, inviting a press. */
   --animate-buzz-pulse: buzz-pulse 900ms ease-in-out infinite;
 
+  /* A judgement's full-screen flash on the Screen, fading out. */
+  --animate-flash: flash 900ms ease-out both;
+
+  /* "+100" rising from the name of the player who scored. */
+  --animate-float-up: float-up 1500ms ease-out both;
+
+  @keyframes flash {
+    from {
+      opacity: 0.55;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes float-up {
+    0% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+    15% {
+      opacity: 1;
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-5vh);
+    }
+  }
+
   @keyframes buzz-pulse {
     0%,
     100% {

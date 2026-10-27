@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef, type RefObject } from 'react';
+import { PLAYER_KICKED_ERROR } from '../../../shared/constants.js';
 import type { Ack } from '../../../shared/types.js';
 import { resetRoomStore, useRoomStore } from './roomStore.js';
 import { createSocket, type GameSocket } from './socket.js';
@@ -11,7 +12,10 @@ export type AttachSocket = (socket: GameSocket) => () => void;
 
 /**
  * Keeps one socket to `code` open while the page is mounted. It joins on every connect, so an
- * automatic reconnect rejoins, and writes each `state` snapshot into the room store. The returned
+ * automatic reconnect rejoins, and writes each `state` snapshot and `fx` event into the room
+ * store. A `kicked` event becomes the `PLAYER_KICKED_ERROR` error, the same one a rejoin after a
+ * kick gets; the server disconnects the socket
+ * right after, and Socket.IO does not reconnect after that (DECISIONS F21). The returned
  * ref holds the open socket, for event handlers that send actions; it is null while unmounted.
  * `attach` must be stable: a new one opens a new socket.
  */
@@ -32,6 +36,10 @@ export function useRoomSocket(
     const socket = makeSocket();
     socketRef.current = socket;
     socket.on('state', (view) => useRoomStore.setState({ view, error: null }));
+    socket.on('fx', (fx) =>
+      useRoomStore.setState((state) => ({ fx: { fx, seq: (state.fx?.seq ?? 0) + 1 } })),
+    );
+    socket.on('kicked', () => useRoomStore.setState({ error: PLAYER_KICKED_ERROR }));
     socket.on('connect', () => sendJoin(socket));
     const detach = attach?.(socket);
     socket.connect();

@@ -236,6 +236,55 @@ describe('toView: canJudge and canUndo match what the reducer accepts', () => {
   });
 });
 
+describe('toView: scorerId', () => {
+  const NOW = T0 + 10_000;
+  const after = (room: Room, ...actions: Action[]) =>
+    actions.reduce((r, action) => {
+      const result = reduce(r, action, NOW);
+      if (!result.ok) throw new Error(result.error);
+      return result.room;
+    }, room);
+  const scorer = (room: Room) => [toView(room, 'screen').scorerId, toView(room, 'host').scorerId];
+
+  it('names the player judged correct, at the reveal, for the Screen and the host', () => {
+    expect(scorer(after(midGame('BUZZED'), { type: 'host:judge', result: 'correct' }))).toEqual([
+      'p1',
+      'p1',
+    ]);
+  });
+
+  it('is null before anyone is judged correct, after a wrong answer, and after a skip', () => {
+    const buzzed = midGame('BUZZED');
+    expect(scorer(buzzed)).toEqual([null, null]);
+    expect(scorer(after(buzzed, { type: 'host:judge', result: 'wrong' }))).toEqual([null, null]);
+    expect(scorer(after(buzzed, { type: 'host:reveal' }))).toEqual([null, null]);
+  });
+
+  it('names the player who answered after someone else was wrong', () => {
+    const wrong = after(midGame('BUZZED'), { type: 'host:judge', result: 'wrong' });
+    const second = after(wrong, {
+      type: 'reopen',
+      questionIndex: 1,
+      openingCounter: 1,
+      at: wrong.reopenAt!,
+    });
+    // p2 wins the reopened buzz; the window closes with them alone.
+    const room = { ...second, phase: 'BUZZED' as const, buzzes: [buzz('p2', 50)], winnerId: 'p2' };
+    expect(scorer(after(room, { type: 'host:judge', result: 'correct' }))).toEqual(['p2', 'p2']);
+  });
+
+  it('is null again after the correct judgement is undone, and on the next question', () => {
+    const correct = after(midGame('BUZZED'), { type: 'host:judge', result: 'correct' });
+    expect(scorer(after(correct, { type: 'host:undo' }))).toEqual([null, null]);
+    expect(scorer(after(correct, { type: 'host:next' }))).toEqual([null, null]);
+  });
+
+  it('is null when the scorer has been kicked', () => {
+    const correct = after(midGame('BUZZED'), { type: 'host:judge', result: 'correct' });
+    expect(scorer(after(correct, { type: 'host:kick', playerId: 'p1' }))).toEqual([null, null]);
+  });
+});
+
 describe('toView: player', () => {
   it('carries the player’s own name, colour, score and rank', () => {
     const view = toView(midGame('OPEN'), 'player', 'p3');

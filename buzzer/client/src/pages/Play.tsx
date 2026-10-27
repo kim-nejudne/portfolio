@@ -224,6 +224,10 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
 
+  // Kicked now, or refused on a rejoin after a kick: the same page either way (UI spec, Player view).
+  if (error === PLAYER_KICKED_ERROR) {
+    return <PlayMessage title="Removed by host" detail={PLAYER_KICKED_ERROR} />;
+  }
   if (error) return <PlayMessage title={error} />;
   if (view?.role !== 'player') return <PlayMessage title="Joining…" link={false} />;
   return <Buzzer view={view} buzz={buzz} />;
@@ -238,6 +242,9 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
   pressed: 'scale-90 border-buzz-edge bg-buzz text-white brightness-75',
   won: 'border-win-edge bg-win text-bg',
   lost: 'border-edge bg-surface text-muted opacity-50',
+  out: 'border-buzz/60 bg-bg text-muted',
+  revealed: 'border-edge bg-surface text-ink',
+  final: '',
 };
 
 interface BuzzerProps {
@@ -290,18 +297,41 @@ function Buzzer({ view, buzz }: BuzzerProps) {
         <span className="truncate">{view.me.name}</span>
         <span aria-label="Score">{view.me.score}</span>
       </header>
-      <div className="flex flex-1 items-center justify-center p-6">
-        <button
-          type="button"
-          disabled={!state.live}
-          data-look={state.kind}
-          onPointerDown={onPointerDown}
-          onContextMenu={(event) => event.preventDefault()}
-          className={`flex aspect-square w-[min(85vw,70dvh)] touch-none items-center justify-center rounded-full border-8 p-[12%] text-center font-display text-3xl transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
+      {state.kind === 'final' ? (
+        <section
+          aria-label="Final result"
+          className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center"
         >
-          {state.label}
-        </button>
-      </div>
+          <p className="text-2xl text-muted">Game over</p>
+          <p className="font-display text-6xl">{state.label}</p>
+          <p className="font-display text-3xl text-accent">{state.detail}</p>
+        </section>
+      ) : (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <button
+            type="button"
+            disabled={!state.live}
+            data-look={state.kind}
+            onPointerDown={onPointerDown}
+            onContextMenu={(event) => event.preventDefault()}
+            className={`flex aspect-square w-[min(85vw,70dvh)] touch-none flex-col items-center justify-center gap-2 rounded-full border-8 p-[12%] text-center font-display break-words transition-transform duration-75 select-none [-webkit-touch-callout:none] ${state.label.length > 40 ? 'text-xl' : 'text-3xl'} ${BUZZER_LOOK[state.kind]}`}
+          >
+            {state.kind === 'out' && (
+              <span aria-hidden className="text-7xl leading-none text-buzz">
+                ✕
+              </span>
+            )}
+            <span className="max-w-full">{state.label}</span>
+            {state.detail && (
+              <span
+                className={`text-4xl ${state.detail.startsWith('+') ? 'text-win' : 'text-buzz'}`}
+              >
+                {state.detail}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
     </main>
   );
 }

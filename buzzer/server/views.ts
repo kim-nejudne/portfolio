@@ -101,7 +101,19 @@ function shared(room: Room) {
     // Not secret, so a Screen holding the hostToken can show the same controls (F23).
     canJudge: canJudge(room),
     canUndo: canUndo(room),
+    scorerId: scorerId(room),
   };
+}
+
+/**
+ * Who answered the current question correctly: the latest correct judgement on it, if that player
+ * is still in the room. A question visited again with Previous keeps its earlier scorer.
+ */
+function scorerId(room: Room): string | null {
+  const correct = room.judgements.findLast(
+    (j) => j.questionIndex === room.questionIndex && j.result === 'correct',
+  );
+  return correct && room.players[correct.playerId] ? correct.playerId : null;
 }
 
 /**

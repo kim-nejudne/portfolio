@@ -141,6 +141,8 @@ interface SharedRoomView {
   canJudge: boolean;
   /** `host:undo` would be accepted (DECISIONS F02: the client never derives this). */
   canUndo: boolean;
+  /** The player judged correct on the current question, for the reveal; null if nobody was. */
+  scorerId: string | null;
 }
 
 /** Everything except answers, host notes and token data. */

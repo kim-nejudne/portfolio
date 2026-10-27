@@ -12,6 +12,50 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F24 — Screen and player result states (2026-10-28)
+**What changed:**
+- Screen judged states:
+  - `fx` events now reach the room store (`fx: {fx, seq}`), and `useRecentFx` holds each one for 1.5 s.
+  - `ScreenFlash` flashes the Screen green or red.
+  - At REVEAL, `ScreenQuestion` shows the answer under the question and "<name> ✓", and "+100" floats up beside the name.
+  - While a wrong winner waits for the reopen, their banner is grey and struck through. A grey "locked out" row then stays for the rest of the question.
+- `ScreenResults.tsx`:
+  - The `Scoreboard` overlay opens in the order it last showed, then slides into the current ranking after 800 ms. The slide is a FLIP animation from `lib/useFlip.ts` and is skipped under `prefers-reduced-motion`.
+  - `FinalResults` shows a podium (ties share a step) and the full ranking beside it.
+  - `lib/results.ts` holds `ordinal`, `signedPoints`, `podiumSteps` and `replayOrder`.
+- Server: `ScreenView` and `HostView` gain `scorerId`, the player judged correct on the current question (`server/views.ts`).
+- Player: `buzzerState` adds three states:
+  - `out`: ✕, "Locked out this round".
+  - `revealed`: the answer, plus "+100" or "−100".
+  - `final`: "2nd of 5" and the score, in place of the button.
+  - The `kicked` event and a refused rejoin both show "Removed by host".
+- Tests: new `results.test.ts` (11) and `useFlip.test.tsx` (4). `buzzerState.test.ts` gains 7, `Screen.test.tsx` 20 (judged, reveal, scoreboard, final, ties) and `Play.test.tsx` 5. `views.test.ts` gains 5 for `scorerId`. 736 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-28 for F24 cover:
+- `scorerId`, and what the flash, float and greyed chip show
+- the answer shown only when the view carries it
+- the scoreboard replay order
+- no overlay over FINAL
+- the podium for ties
+- the 8 vh reserved for the host bar
+- the Player result states, the penalty display and the kick page
+
+**Notes for next session:**
+- Playtest (Playwright; Screen with the token at 1920×1080).
+  - Run 1, with bots: wrong answer (red flash, greyed banner), correct answer (green flash, "+100", answer, "Bot 2 ✓"), scoreboard (S) with tied ranks, a player locked out, a player's reveal "+100", and FINAL via End game. The podium showed ties at 1st and at 3rd, and the phone showed "1st of 4 / 100 points".
+  - Run 2, with 2 players and a paired Host remote: all 10 questions to FINAL with N/R, with the podium and the full ranking above the bar. Kick from the Players tab showed "Removed by host" on the kicked phone.
+  - Fixed after the playtests: content under the host bar, "+100" over the answer, and the scoreboard covering FINAL.
+  - The scoreboard's reorder animation was checked only in unit tests (DOM order with fake timers, FLIP transforms with mocked rects), not by eye.
+- F31 (sounds and animations) can hang sounds off `useRoomStore((s) => s.fx)`. The flash, float, FLIP and reduced-motion handling are already in place, so F31 needs the Howler sounds and the Click to start overlay.
+- The penalty "−100" sits in red under the answer on the phone. The Screen shows no float for a penalty.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, Host a game, then Use this device as the Screen.
+2. Join 2–3 players from phones at `http://<LAN-IP>:5173`, or open `/dev/bots`.
+3. Run a question with Space, then judge with X (wrong) and C (correct).
+4. Press S for the scoreboard, then play on to FINAL (or End game).
+5. Kick a player from a paired host phone's Players tab.
+
 ## F23 — Screen host controls and shortcuts (2026-10-27)
 **What changed:**
 - A Screen whose `screen:join` with the hostToken was acked gets `ScreenHostControls` (`client/src/components/ScreenHostControls.tsx`).

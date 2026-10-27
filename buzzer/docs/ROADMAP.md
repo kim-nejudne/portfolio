@@ -58,14 +58,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F23 Screen host controls and shortcuts
 
-- [ ] F24 Screen and player result states
-  - Spec: UI spec by view (Screen view: Judged, Reveal, Scoreboard, Final; Player view: locked out, revealed, game over)
-  - Depends: F18, F21
-  - Done when:
-    - Screen: green/red flash, "+100" float, greyed chip on wrong, answer under the question at REVEAL
-    - Scoreboard overlay with animated reordering; Final shows a top-3 podium then full ranking
-    - Player: Locked out, answer + "+100" at reveal, final rank and score, "Removed by host" when kicked
-  - Tests: playtest with bots — full game to FINAL; ties share a podium rank
+- [x] F24 Screen and player result states
 
 ## M5 — Question editor and images
 

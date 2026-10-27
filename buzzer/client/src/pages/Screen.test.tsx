@@ -6,6 +6,8 @@ import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
+import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
+import { FX_MS } from '../lib/useRecentFx.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen } from './Screen.js';
 
@@ -53,6 +55,7 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     settings: DEFAULT_SETTINGS,
     canJudge: false,
     canUndo: false,
+    scorerId: null,
     question: null,
     ...overrides,
   };
@@ -575,6 +578,275 @@ describe('Screen', () => {
         cleanup();
         localStorage.clear();
       }
+    });
+  });
+});
+
+describe('Screen result states', () => {
+  const ANSWER = 'Canberra';
+  const ana = player(1, { name: 'Ana' });
+  const ben = player(2, { name: 'Ben' });
+  const cy = player(3, { name: 'Cy' });
+
+  function questionView(overrides: Partial<ScreenView> = {}): ScreenView {
+    return lobbyView([ana, ben, cy], {
+      phase: 'QUESTION',
+      questionIndex: 2,
+      question: { id: 'q3', text: 'What is the capital of Australia?', points: 100 },
+      ...overrides,
+    });
+  }
+
+  /** REVEAL after Ben's correct answer: the view carries the answer. */
+  function revealView(overrides: Partial<ScreenView> = {}): ScreenView {
+    return questionView({
+      phase: 'REVEAL',
+      openingCounter: 1,
+      winnerId: 'p2',
+      scorerId: 'p2',
+      question: {
+        id: 'q3',
+        text: 'What is the capital of Australia?',
+        points: 100,
+        answer: ANSWER,
+      },
+      ...overrides,
+    });
+  }
+
+  function show(view: ScreenView) {
+    const { socket } = renderScreen();
+    socket.fire('state', view);
+    return socket;
+  }
+
+  const flash = () => document.querySelector<HTMLElement>('[data-flash]');
+  const rows = (name: string) =>
+    within(screen.getByRole('region', { name }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+
+  describe('judged', () => {
+    it('a correct answer flashes green and floats "+100" up from the name, then both clear', () => {
+      vi.useFakeTimers();
+      const socket = show(revealView());
+      expect(flash()).toBeNull();
+
+      socket.fire('fx', { kind: 'correct', playerId: 'p2', points: 100 });
+      expect(flash()?.dataset.flash).toBe('correct');
+      expect(flash()?.className).toContain('bg-win');
+      const name = screen.getByText('Ben ✓', { exact: false });
+      expect(within(name).getByText('+100').className).toContain('animate-float-up');
+
+      act(() => vi.advanceTimersByTime(FX_MS));
+      expect(flash()).toBeNull();
+      expect(screen.queryByText('+100')).toBeNull();
+    });
+
+    it('a wrong answer flashes red and greys out the winner’s banner until the reopen', () => {
+      vi.useFakeTimers();
+      const socket = show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
+      const coloured = screen.getByRole('heading', { level: 2, name: 'Ben' });
+      expect(coloured.style.backgroundColor).not.toBe('');
+
+      socket.fire(
+        'state',
+        questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2', lockedOut: ['p2'] }),
+      );
+      socket.fire('fx', { kind: 'wrong', playerId: 'p2' });
+      expect(flash()?.dataset.flash).toBe('wrong');
+      expect(flash()?.className).toContain('bg-buzz');
+      const greyed = screen.getByRole('heading', { level: 2, name: 'Ben' });
+      expect(greyed.style.backgroundColor).toBe('');
+      expect(greyed.className).toContain('text-muted');
+      expect(greyed.className).toContain('line-through');
+
+      act(() => vi.advanceTimersByTime(FX_MS));
+      expect(flash()).toBeNull();
+    });
+
+    it('back to Buzzers open after a wrong answer, the player’s chip stays greyed out', () => {
+      show(questionView({ phase: 'OPEN', openingCounter: 2, lockedOut: ['p2'] }));
+      expect(screen.getByRole('status').textContent).toBe('Buzzers OPEN');
+      const chips = within(screen.getByRole('list', { name: 'Locked out' })).getAllByRole(
+        'listitem',
+      );
+      expect(chips.map((li) => li.textContent)).toEqual(['Ben']);
+      expect(chips[0]!.className).toContain('line-through');
+      expect(chips[0]!.style.backgroundColor).toBe('');
+    });
+
+    it('shows no locked-out row when nobody was judged wrong', () => {
+      show(questionView({ phase: 'OPEN', openingCounter: 1 }));
+      expect(screen.queryByRole('list', { name: 'Locked out' })).toBeNull();
+    });
+
+    it('a buzz or join fx does not flash the Screen', () => {
+      const socket = show(questionView({ phase: 'OPEN', openingCounter: 1 }));
+      socket.fire('fx', { kind: 'buzz', playerId: 'p2', gaps: [] });
+      socket.fire('fx', { kind: 'join', playerId: 'p3' });
+      expect(flash()).toBeNull();
+    });
+  });
+
+  describe('reveal', () => {
+    it('shows the answer in large type under the question', () => {
+      show(revealView());
+      const question = screen.getByRole('heading', { level: 1 });
+      const answer = within(screen.getByRole('region', { name: 'Answer' })).getByText(ANSWER);
+      expect(answer.className).toContain('font-display');
+      // DOCUMENT_POSITION_FOLLOWING: the answer comes after the question.
+      expect(question.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(4);
+    });
+
+    it('names the player who answered correctly', () => {
+      show(revealView());
+      expect(screen.getByText('Ben ✓')).toBeTruthy();
+    });
+
+    it('names nobody when the last eligible player answered wrong', () => {
+      show(revealView({ lockedOut: ['p2'], scorerId: null }));
+      expect(screen.getByText(ANSWER)).toBeTruthy();
+      expect(screen.queryByText('Ben ✓', { exact: false })).toBeNull();
+    });
+
+    it('names nobody after a skipped question', () => {
+      show(revealView({ winnerId: null, scorerId: null }));
+      expect(screen.getByText(ANSWER)).toBeTruthy();
+      expect(screen.queryByText(/✓/)).toBeNull();
+    });
+  });
+
+  describe('scoreboard overlay', () => {
+    const standings = (scores: Record<string, number>, overrides: Partial<ScreenView> = {}) => {
+      const players = [ana, ben, cy]
+        .map((p) => ({ ...p, score: scores[p.id] ?? 0 }))
+        .sort((a, b) => b.score - a.score)
+        .map((p, i) => ({ ...p, rank: i + 1 }));
+      return questionView({ phase: 'REVEAL', players, ...overrides });
+    };
+    const names = () => rows('Scoreboard').map((text) => text?.replace(/\d+/g, ''));
+
+    it('shows a ranked list of names and scores over the question while showScoreboard is set', () => {
+      const socket = show(standings({ p1: 300, p2: 200, p3: 100 }, { showScoreboard: true }));
+      expect(rows('Scoreboard')).toEqual(['1Ana300', '2Ben200', '3Cy100']);
+
+      socket.fire('state', standings({ p1: 300, p2: 200, p3: 100 }));
+      expect(screen.queryByRole('region', { name: 'Scoreboard' })).toBeNull();
+    });
+
+    it('opens in the order it last showed, then reorders to the current ranking', () => {
+      vi.useFakeTimers();
+      const socket = show(standings({ p1: 300, p2: 200, p3: 100 }, { showScoreboard: true }));
+      expect(names()).toEqual(['Ana', 'Ben', 'Cy']);
+      socket.fire('state', standings({ p1: 300, p2: 200, p3: 100 }));
+
+      // Cy scores twice while the scoreboard is hidden.
+      socket.fire('state', standings({ p1: 300, p2: 200, p3: 400 }, { showScoreboard: true }));
+      expect(names()).toEqual(['Ana', 'Ben', 'Cy']);
+      expect(rows('Scoreboard')[2]).toBe('1Cy400');
+
+      act(() => vi.advanceTimersByTime(REORDER_DELAY_MS));
+      expect(names()).toEqual(['Cy', 'Ana', 'Ben']);
+    });
+
+    it('moves rows when a score changes while it is showing', () => {
+      const socket = show(standings({ p1: 300, p2: 200, p3: 100 }, { showScoreboard: true }));
+      socket.fire('state', standings({ p1: 300, p2: 400, p3: 100 }, { showScoreboard: true }));
+      expect(names()).toEqual(['Ben', 'Ana', 'Cy']);
+    });
+
+    it('sits under the host control bar, so the host can still hide it, and ends above it', () => {
+      saveHostToken('WXYZ', 'h'.repeat(43));
+      const { socket } = renderScreen();
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', standings({ p1: 100 }, { showScoreboard: true }));
+      const overlay = screen.getByRole('region', { name: 'Scoreboard' });
+      const bar = screen.getByRole('toolbar', { name: 'Host controls' });
+      // The bar comes later in the document, so it paints above the overlay.
+      expect(overlay.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(4);
+      // The overlay and the question stop above the bar's 8vh.
+      expect(overlay.parentElement!.className).toContain('mb-[8vh]');
+    });
+
+    it('a Screen without the host token keeps the full height', () => {
+      show(standings({ p1: 100 }, { showScoreboard: true }));
+      const overlay = screen.getByRole('region', { name: 'Scoreboard' });
+      expect(overlay.parentElement!.className).not.toContain('mb-[8vh]');
+    });
+
+    it('carries no answer before reveal', () => {
+      show(
+        questionView({
+          phase: 'BUZZED',
+          winnerId: 'p2',
+          showScoreboard: true,
+          question: { id: 'q3', text: 'Capital?', points: 100, answer: 'Secret-answer-xyz' },
+        }),
+      );
+      expect(screen.getByRole('region', { name: 'Scoreboard' })).toBeTruthy();
+      expect(document.body.innerHTML).not.toContain('Secret-answer-xyz');
+    });
+  });
+
+  describe('final', () => {
+    function finalView(players: RankedPlayer[]): ScreenView {
+      return lobbyView(players, { phase: 'FINAL', questionIndex: 9, question: null });
+    }
+
+    it('shows a top-3 podium, then the full ranking', () => {
+      show(
+        finalView([
+          player(1, { name: 'Ana', score: 400, rank: 1 }),
+          player(2, { name: 'Ben', score: 300, rank: 2 }),
+          player(3, { name: 'Cy', score: 200, rank: 3 }),
+          player(4, { name: 'Di', score: 100, rank: 4 }),
+        ]),
+      );
+      const podium = screen.getByRole('region', { name: 'Podium' });
+      const step = (place: string) =>
+        within(podium).getByRole('listitem', { name: `${place} place` }).textContent;
+      expect(step('1st')).toBe('Ana1st400');
+      expect(step('2nd')).toBe('Ben2nd300');
+      expect(step('3rd')).toBe('Cy3rd200');
+      expect(podium.textContent).not.toContain('Di');
+      expect(rows('Full ranking')).toEqual(['1Ana400', '2Ben300', '3Cy200', '4Di100']);
+      // The podium comes first.
+      const ranking = screen.getByRole('region', { name: 'Full ranking' });
+      expect(podium.compareDocumentPosition(ranking) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(4);
+    });
+
+    it('ties share a podium rank', () => {
+      show(
+        finalView([
+          player(1, { name: 'Ana', score: 300, rank: 1 }),
+          player(2, { name: 'Ben', score: 300, rank: 1 }),
+          player(3, { name: 'Cy', score: 100, rank: 3 }),
+        ]),
+      );
+      const podium = screen.getByRole('region', { name: 'Podium' });
+      const first = within(podium).getByRole('listitem', { name: '1st place' });
+      expect(within(first).getByText('Ana')).toBeTruthy();
+      expect(within(first).getByText('Ben')).toBeTruthy();
+      expect(within(podium).getByRole('listitem', { name: '3rd place' }).textContent).toContain(
+        'Cy',
+      );
+      expect(within(podium).queryByRole('listitem', { name: '2nd place' })).toBeNull();
+      expect(rows('Full ranking')).toEqual(['1Ana300', '1Ben300', '3Cy100']);
+    });
+
+    it('shows the podium, not the scoreboard overlay, when the game ends on a scoreboard question', () => {
+      show({
+        ...finalView([player(1, { name: 'Ana', score: 100, rank: 1 })]),
+        showScoreboard: true,
+      });
+      expect(screen.getByRole('region', { name: 'Podium' })).toBeTruthy();
+      expect(screen.queryByRole('region', { name: 'Scoreboard' })).toBeNull();
+    });
+
+    it('says "Game over" when nobody played', () => {
+      show(finalView([]));
+      expect(screen.getByRole('heading', { name: 'Game over' })).toBeTruthy();
     });
   });
 });

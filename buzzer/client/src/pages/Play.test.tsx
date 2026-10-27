@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -201,13 +201,14 @@ describe('Play', () => {
     expect(joins.map((e) => e.payload)).toEqual([joins[0]!.payload, joins[0]!.payload]);
   });
 
-  it('a kicked player sees the message with a link home and stays refused', async () => {
+  it('a kicked player sees "Removed by host" with a link home and stays refused', async () => {
     stubExists(true);
     savePlayer('WXYZ', { playerId: 'stored-id', name: 'Ana' });
     const { sockets } = renderPlay();
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     act(() => lastJoin(sockets[0]!).ack({ ok: false, error: PLAYER_KICKED_ERROR }));
-    expect(screen.getByRole('heading').textContent).toBe(PLAYER_KICKED_ERROR);
+    expect(screen.getByRole('heading').textContent).toBe('Removed by host');
+    expect(screen.getByText(PLAYER_KICKED_ERROR)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to start' })).toBeTruthy();
     expect(loadPlayer('WXYZ')).toEqual({ playerId: 'stored-id', name: 'Ana' });
   });
@@ -427,3 +428,81 @@ function hexToRgb(hex: string): string {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return `rgb(${r}, ${g}, ${b})`;
 }
+
+describe('Play result states', () => {
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    return sockets[0]!;
+  }
+
+  it('a locked-out player sees a dark, disabled button with an X and "Locked out this round"', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 2, lockedOut: true }),
+    );
+    const button = screen.getByRole('button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.dataset.look).toBe('out');
+    expect(button.className).toContain('bg-bg');
+    expect(button.textContent).toBe('✕Locked out this round');
+  });
+
+  it('shows the answer and "+100" at reveal when this player scored', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'REVEAL',
+        questionIndex: 0,
+        answer: 'Canberra',
+        pointsThisQuestion: 100,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 100, rank: 1 },
+      }),
+    );
+    const button = screen.getByRole('button') as HTMLButtonElement;
+    expect(button.dataset.look).toBe('revealed');
+    expect(within(button).getByText('Canberra')).toBeTruthy();
+    expect(within(button).getByText('+100').className).toContain('text-win');
+    expect(screen.getByLabelText('Score').textContent).toBe('100');
+  });
+
+  it('shows the answer without points at reveal when this player did not score', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'REVEAL', questionIndex: 0, answer: 'Canberra' }));
+    expect(screen.getByRole('button').textContent).toBe('Canberra');
+  });
+
+  it('shows the final rank and score when the game is over, with no buzzer', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'FINAL',
+        questionIndex: 9,
+        playerCount: 4,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 300, rank: 2 },
+      }),
+    );
+    const result = screen.getByRole('region', { name: 'Final result' });
+    expect(within(result).getByText('2nd of 4')).toBeTruthy();
+    expect(within(result).getByText('300 points')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('shows "Removed by host" with a link home when kicked, and does not join again', async () => {
+    const socket = await joined();
+    act(() => lastJoin(socket).ack({ ok: true }));
+    socket.fire('state', playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1 }));
+
+    socket.fire('kicked', {});
+    expect(screen.getByRole('heading').textContent).toBe('Removed by host');
+    expect(screen.getByText(PLAYER_KICKED_ERROR)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to start' })).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(socket.emitted.filter((e) => e.event === 'player:join')).toHaveLength(1);
+  });
+});

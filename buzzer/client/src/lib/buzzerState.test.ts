@@ -89,3 +89,85 @@ describe('buzzerState', () => {
     ).toBe(false);
   });
 });
+
+describe('buzzerState results', () => {
+  it('shows "Locked out this round" with buzzers open after a wrong answer', () => {
+    for (const phase of ['OPEN', 'COLLECTING'] as const) {
+      expect(buzzerState(view({ phase, questionIndex: 0, lockedOut: true }), false)).toEqual({
+        kind: 'out',
+        label: 'Locked out this round',
+        live: false,
+      });
+    }
+  });
+
+  it('a winner judged wrong is locked out during the wait before the reopen', () => {
+    const waiting = view({
+      phase: 'BUZZED',
+      questionIndex: 0,
+      winnerId: 'p1',
+      winnerName: 'Ana',
+      lockedOut: true,
+    });
+    expect(buzzerState(waiting, true)).toMatchObject({
+      kind: 'out',
+      label: 'Locked out this round',
+    });
+  });
+
+  it('a locked-out player stays locked out when someone else wins the next buzz', () => {
+    const lost = view({
+      phase: 'BUZZED',
+      questionIndex: 0,
+      winnerId: 'p2',
+      winnerName: 'Ben',
+      lockedOut: true,
+    });
+    expect(buzzerState(lost, false).kind).toBe('out');
+  });
+
+  it('shows the answer and "+100" at reveal when this player scored', () => {
+    const revealed = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Paris',
+      pointsThisQuestion: 100,
+    });
+    expect(buzzerState(revealed, false)).toEqual({
+      kind: 'revealed',
+      label: 'Paris',
+      detail: '+100',
+      live: false,
+    });
+  });
+
+  it('shows only the answer at reveal when this player did not score', () => {
+    const revealed = view({ phase: 'REVEAL', questionIndex: 0, answer: 'Paris' });
+    expect(buzzerState(revealed, false)).toEqual({ kind: 'revealed', label: 'Paris', live: false });
+  });
+
+  it('shows a penalty at reveal as "−100"', () => {
+    const revealed = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Paris',
+      pointsThisQuestion: -100,
+    });
+    expect(buzzerState(revealed, false).detail).toBe('−100');
+  });
+
+  it('shows the final rank out of all players and the final score when the game is over', () => {
+    const final = view({
+      phase: 'FINAL',
+      questionIndex: 9,
+      me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[0], score: 300, rank: 2 },
+      playerCount: 5,
+    });
+    expect(buzzerState(final, false)).toEqual({
+      kind: 'final',
+      label: '2nd of 5',
+      detail: '300 points',
+      live: false,
+    });
+  });
+});
