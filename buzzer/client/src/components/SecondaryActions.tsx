@@ -1,4 +1,5 @@
-import type { HostView, Phase } from '../../../shared/types.js';
+import type { HostView } from '../../../shared/types.js';
+import { inGame, UNREVEALED } from '../lib/hostControls.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
 
@@ -6,9 +7,6 @@ interface SecondaryActionsProps {
   view: HostView;
   command: HostCommand;
 }
-
-/** Phases with a question on screen and its answer still hidden, where Skip applies. */
-const UNREVEALED: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'];
 
 const small =
   'rounded-2xl border-2 border-edge bg-surface px-4 py-3 text-lg transition active:scale-95 disabled:opacity-40';
@@ -20,7 +18,7 @@ const small =
  */
 export function SecondaryActions({ view, command }: SecondaryActionsProps) {
   const { busy, run } = command;
-  const inGame = view.phase !== 'LOBBY' && view.phase !== 'FINAL';
+  const playing = inGame(view);
 
   return (
     <section aria-label="More actions" className="grid grid-cols-2 gap-2">
@@ -35,7 +33,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           Skip question
         </button>
       )}
-      {inGame && (
+      {playing && (
         <button
           type="button"
           onClick={() => run('host:undo', {})}
@@ -45,7 +43,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           Undo last judgement
         </button>
       )}
-      {inGame && (
+      {playing && (
         <button
           type="button"
           onClick={() => run('host:prev', {})}

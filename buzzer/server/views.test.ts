@@ -186,7 +186,7 @@ describe('toView: host', () => {
   });
 });
 
-describe('toView: host canJudge and canUndo match what the reducer accepts', () => {
+describe('toView: canJudge and canUndo match what the reducer accepts', () => {
   const NOW = T0 + 10_000;
   const JUDGE_WRONG: Action = { type: 'host:judge', result: 'wrong' };
   const after = (room: Room, ...actions: Action[]) =>
@@ -222,10 +222,11 @@ describe('toView: host canJudge and canUndo match what the reducer accepts', () 
     ];
   }
 
-  it.each(rooms())('in %s', (_name, room) => {
-    const view = toView(room, 'host');
-    expect(view.canJudge).toBe(reduce(room, JUDGE_WRONG, NOW).ok);
-    expect(view.canUndo).toBe(reduce(room, { type: 'host:undo' }, NOW).ok);
+  it.each(rooms())('in %s, for the host and the Screen', (_name, room) => {
+    for (const view of [toView(room, 'host'), toView(room, 'screen')]) {
+      expect(view.canJudge).toBe(reduce(room, JUDGE_WRONG, NOW).ok);
+      expect(view.canUndo).toBe(reduce(room, { type: 'host:undo' }, NOW).ok);
+    }
   });
 
   it('covers both answers of each flag', () => {

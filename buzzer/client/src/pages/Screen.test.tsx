@@ -51,6 +51,8 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     lockedOut: [],
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
+    canJudge: false,
+    canUndo: false,
     question: null,
     ...overrides,
   };
@@ -344,6 +346,234 @@ describe('Screen', () => {
         show(questionView({ phase, question, winnerId: phase === 'BUZZED' ? 'p2' : null }));
         expect(document.body.innerHTML).not.toContain(ANSWER);
         cleanup();
+      }
+    });
+  });
+
+  describe('host controls', () => {
+    const hostToken = 'h'.repeat(43);
+    const ANSWER = 'Canberra-secret-answer';
+    const question = { id: 'q3', text: 'Capital?', points: 100 };
+
+    function inPhase(phase: ScreenView['phase'], overrides: Partial<ScreenView> = {}) {
+      return lobbyView([player(1)], {
+        phase,
+        questionIndex: phase === 'LOBBY' ? -1 : 2,
+        question: phase === 'LOBBY' || phase === 'FINAL' ? null : question,
+        ...overrides,
+      });
+    }
+
+    /** A Screen whose hostToken the server accepted, showing `view`. */
+    function hostScreen(view: ScreenView = inPhase('LOBBY')) {
+      saveHostToken('WXYZ', hostToken);
+      const { socket } = renderScreen();
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', view);
+      return socket;
+    }
+
+    const bar = () => screen.queryByRole('toolbar', { name: 'Host controls' });
+    const press = (key: string, init: KeyboardEventInit = {}) =>
+      fireEvent.keyDown(window, { key, ...init });
+    const sent = (socket: FakeSocket) =>
+      socket.emitted.filter((e) => e.event.startsWith('host:')).map((e) => [e.event, e.payload]);
+
+    it('the bar appears only when the server accepted this device’s hostToken', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', inPhase('OPEN'));
+      expect(bar()).toBeNull();
+      cleanup();
+
+      saveHostToken('WXYZ', 's'.repeat(43));
+      const stale = renderScreen().socket;
+      act(() => stale.emitted[0]!.ack({ ok: false, error: 'Invalid host token' }));
+      act(() => stale.emitted[1]!.ack({ ok: true }));
+      stale.fire('state', inPhase('OPEN'));
+      expect(bar()).toBeNull();
+      cleanup();
+
+      hostScreen(inPhase('OPEN'));
+      expect(bar()).toBeTruthy();
+    });
+
+    it('a Screen without the hostToken ignores the shortcuts', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', inPhase('LOBBY'));
+      for (const key of [' ', 's', '?']) press(key);
+      expect(sent(socket)).toEqual([]);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('the bar hides after 3 s without mouse movement and comes back when the mouse moves', () => {
+      vi.useFakeTimers();
+      hostScreen(inPhase('OPEN'));
+      act(() => vi.advanceTimersByTime(2_999));
+      expect(bar()).toBeTruthy();
+      act(() => vi.advanceTimersByTime(1));
+      expect(bar()).toBeNull();
+
+      fireEvent.pointerMove(window);
+      expect(bar()).toBeTruthy();
+      act(() => vi.advanceTimersByTime(2_000));
+      fireEvent.pointerMove(window);
+      act(() => vi.advanceTimersByTime(2_000));
+      expect(bar()).toBeTruthy();
+    });
+
+    it('the bar stays up while the mouse rests on it', () => {
+      vi.useFakeTimers();
+      hostScreen(inPhase('OPEN'));
+      fireEvent.pointerEnter(bar()!);
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(bar()).toBeTruthy();
+      fireEvent.pointerLeave(bar()!);
+      expect(bar()).toBeNull();
+    });
+
+    it('H hides the bar, mouse movement then offers it back, and H shows it again', () => {
+      vi.useFakeTimers();
+      hostScreen(inPhase('OPEN'));
+      press('h');
+      expect(bar()).toBeNull();
+      fireEvent.pointerMove(window);
+      expect(bar()).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Show controls' }));
+      expect(bar()).toBeTruthy();
+
+      act(() => vi.advanceTimersByTime(3_000));
+      expect(bar()).toBeNull();
+      press('H');
+      expect(bar()).toBeTruthy();
+    });
+
+    it('Hide controls collapses the bar even while the mouse is on it', () => {
+      hostScreen(inPhase('OPEN'));
+      fireEvent.pointerEnter(bar()!);
+      fireEvent.click(screen.getByRole('button', { name: 'Hide controls' }));
+      expect(bar()).toBeNull();
+      press('h');
+      fireEvent.pointerMove(window);
+      expect(bar()).toBeTruthy();
+    });
+
+    it('? shows the shortcut help and Escape closes it', () => {
+      hostScreen(inPhase('OPEN'));
+      press('?', { shiftKey: true });
+      const help = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+      expect(within(help).getByText('Toggle fullscreen')).toBeTruthy();
+      expect(within(help).getByText('N or →')).toBeTruthy();
+      press('Escape');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it.each([
+      ['Space in the lobby', ' ', inPhase('LOBBY'), ['host:start', {}]],
+      ['Space on a question', ' ', inPhase('QUESTION'), ['host:open', {}]],
+      ['Space with the buzzers open', ' ', inPhase('OPEN'), ['host:reveal', {}]],
+      ['Space after reveal', ' ', inPhase('REVEAL'), ['host:next', {}]],
+      [
+        'C',
+        'c',
+        inPhase('BUZZED', { winnerId: 'p1', canJudge: true }),
+        ['host:judge', { result: 'correct' }],
+      ],
+      [
+        'X',
+        'x',
+        inPhase('BUZZED', { winnerId: 'p1', canJudge: true }),
+        ['host:judge', { result: 'wrong' }],
+      ],
+      ['R', 'r', inPhase('BUZZED', { winnerId: 'p1', canJudge: true }), ['host:reveal', {}]],
+      ['N', 'n', inPhase('REVEAL'), ['host:next', {}]],
+      ['→', 'ArrowRight', inPhase('REVEAL'), ['host:next', {}]],
+      ['←', 'ArrowLeft', inPhase('OPEN'), ['host:prev', {}]],
+      ['S', 's', inPhase('REVEAL'), ['host:scoreboard', { show: true }]],
+      ['U', 'u', inPhase('REVEAL', { canUndo: true }), ['host:undo', {}]],
+    ] as const)('%s sends the matching host event', (_name, key, view, expected) => {
+      const socket = hostScreen(view);
+      press(key);
+      expect(sent(socket)).toEqual([expected]);
+    });
+
+    it('ignores shortcuts with Ctrl, Cmd or Alt held, and key repeats', () => {
+      const socket = hostScreen(inPhase('REVEAL'));
+      press('s', { ctrlKey: true });
+      press('s', { metaKey: true });
+      press('ArrowRight', { altKey: true });
+      press('s', { repeat: true });
+      expect(sent(socket)).toEqual([]);
+    });
+
+    it('a second key press waits for the next snapshot, like the remote', () => {
+      const socket = hostScreen(inPhase('QUESTION'));
+      press(' ');
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+      press(' ');
+      expect(sent(socket)).toEqual([['host:open', {}]]);
+      socket.fire('state', inPhase('OPEN', { openingCounter: 1 }));
+      press(' ');
+      expect(sent(socket).at(-1)).toEqual(['host:reveal', {}]);
+    });
+
+    it('a rejected action shows the server’s message', () => {
+      const socket = hostScreen(inPhase('LOBBY', { players: [] }));
+      press(' ');
+      act(() =>
+        socket.emitted.at(-1)!.ack({ ok: false, error: 'Wait for at least one player to join' }),
+      );
+      expect(screen.getByRole('alert').textContent).toBe('Wait for at least one player to join');
+    });
+
+    it('the bar’s buttons send the same actions, and judging replaces the primary action', () => {
+      const socket = hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+      const controls = within(bar()!);
+      expect(controls.queryByRole('button', { name: 'Reveal answer' })).toBeNull();
+      fireEvent.click(controls.getByRole('button', { name: 'Wrong' }));
+      expect(sent(socket)).toEqual([['host:judge', { result: 'wrong' }]]);
+    });
+
+    it('End game needs a second click', () => {
+      const socket = hostScreen(inPhase('OPEN'));
+      fireEvent.click(screen.getByRole('button', { name: 'End game' }));
+      expect(sent(socket)).toEqual([]);
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm end' }));
+      expect(sent(socket)).toEqual([['host:end', {}]]);
+    });
+
+    it('F enters fullscreen, and leaves it when already fullscreen', () => {
+      const request = vi.fn(() => Promise.resolve());
+      const exit = vi.fn(() => Promise.resolve());
+      document.documentElement.requestFullscreen = request;
+      document.exitFullscreen = exit;
+      hostScreen(inPhase('OPEN'));
+      press('f');
+      expect(request).toHaveBeenCalledOnce();
+
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        get: () => document.documentElement,
+      });
+      press('F');
+      expect(exit).toHaveBeenCalledOnce();
+      Reflect.deleteProperty(document, 'fullscreenElement');
+    });
+
+    it('never puts the answer in the DOM before REVEAL, with the bar and help open', () => {
+      const leaky = { ...question, answer: ANSWER };
+      for (const phase of ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'] as const) {
+        hostScreen(
+          inPhase(phase, {
+            question: leaky,
+            winnerId: phase === 'BUZZED' ? 'p1' : null,
+            canJudge: phase === 'BUZZED',
+          }),
+        );
+        press('?', { shiftKey: true });
+        expect(bar()).toBeTruthy();
+        expect(document.body.innerHTML).not.toContain(ANSWER);
+        cleanup();
+        localStorage.clear();
       }
     });
   });

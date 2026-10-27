@@ -12,6 +12,25 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F23 — Screen host controls and shortcuts (2026-10-27)
+**What changed:**
+- A Screen whose `screen:join` with the hostToken was acked gets `ScreenHostControls` (`client/src/components/ScreenHostControls.tsx`).
+  - A bar along the bottom edge with Primary (or Correct / Wrong / "Reopening buzzers…"), Skip, Previous, Undo, Scoreboard, End game (click twice), Fullscreen, Shortcuts and Hide controls. Each button shows its key.
+  - The bar hides 3 s after the last pointer move and stays up while hovered. H collapses it; while collapsed, mouse movement shows a small "Show controls" button.
+  - The keys Space, C, X, R, N/→, ←, S, U, F, H and `?` work, and the `?` help overlay closes with Esc.
+- `client/src/lib/hostControls.ts` holds `primaryFor`, `UNREVEALED`, `inGame`, the `SHORTCUTS` table and the pure `shortcutFor(key, view)`. The remote's `PrimaryAction` and `SecondaryActions` now import the same rules.
+- `canJudge` and `canUndo` moved into the shared view fields, so `ScreenView` has them. `useHostCommand` accepts either view, and `useSendHost` moved out of `Host.tsx` into `client/src/lib/useHostCommand.ts`.
+- Tests: new `client/src/lib/hostControls.test.ts` (23). `Screen.test.tsx` gains 26 host-control tests: token gating, auto-hide with fake timers, hover, H, help, every key, modifier keys, the lock, the toast, End game, fullscreen, and an answer search with the bar and help open. `views.test.ts` now checks both flags on host and Screen views. 685 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F23 cover the flags on `ScreenView`, gating on an acked token, keys following the button rules (Space does nothing in BUZZED; N/→ from REVEAL only), the hover and collapse behaviour, End game without a key, and the shared lock.
+
+**Notes for next session:**
+- Playtest (Playwright; Screen with the token at 1920×1080, 1 Player): the bar shows, auto-hides at 3 s and returns on mouse move. Space, C, X, U, R, →, ←, N, H, F and `?`/Esc all acted. The answers never appeared in the Screen's text after any key. A full game to FINAL was not finished on screen, because S and R change state the Screen does not draw yet (the scoreboard overlay and the answer at REVEAL are F24). After ←, N does nothing until reveal, by design.
+- F24 should check that its reveal answer and scoreboard overlay sit above the bar's `absolute bottom-0` position, or move the bar.
+- A dropped socket leaves the bar up; a press then toasts "Not connected".
+
+**How to try it:** `npm run dev`. On the laptop, Host a game, then Use this device as the Screen. Join a player at `http://<LAN-IP>:5173` from a phone or second tab. On the Screen, press `?` for the keys, then run the game with Space, C/X, R, N, ←, U and S. Leave the mouse still for 3 s to see the bar hide; press H to toggle it.
+
 ## F22 — Host remote: judging, secondary actions, tabs (2026-10-27)
 **What changed:**
 - `HostView` gains `canJudge` and `canUndo`. Both come from predicates exported by `server/reducer.ts`, which `hostJudge` and `hostUndo` also use. `views.test.ts` checks the flags against `reduce()` in 11 room states.

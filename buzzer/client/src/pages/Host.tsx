@@ -12,10 +12,8 @@ import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { useHostCommand, type SendHost } from '../lib/useHostCommand.js';
+import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
-
-const NOT_CONNECTED_ERROR = 'Not connected';
 
 interface HostProps {
   /** Tests pass a fake socket. */
@@ -111,17 +109,7 @@ function HostConnected({
     [code, hostToken, onAccepted, onRejected],
   );
   const socketRef = useRoomSocket(code, join, makeSocket);
-  const send = useCallback<SendHost>(
-    (event, payload, ack) => {
-      const socket = socketRef.current;
-      // Socket.IO's emit can't narrow a generic event name, so widen it to the one event's shape.
-      const emit = socket?.emit.bind(socket) as
-        ((e: typeof event, p: typeof payload, a: typeof ack) => void) | undefined;
-      if (emit) emit(event, payload, ack);
-      else ack({ ok: false, error: NOT_CONNECTED_ERROR });
-    },
-    [socketRef],
-  );
+  const send = useSendHost(socketRef);
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);

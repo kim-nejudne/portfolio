@@ -56,14 +56,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F22 Host remote: judging, secondary actions, tabs
 
-- [ ] F23 Screen host controls and shortcuts
-  - Spec: UI spec by view (Screen host controls)
-  - Depends: F22
-  - Done when:
-    - Bottom control bar appears only when this device holds the hostToken; auto-hides after 3 s idle
-    - All keys in the shortcut table work; `?` shows the help overlay; F toggles fullscreen; H toggles the bar
-    - The answer is never rendered on the Screen before reveal, even with host controls
-  - Tests: playtest — run a full game from the keyboard only; DOM search for answer text before each reveal
+- [x] F23 Screen host controls and shortcuts
 
 - [ ] F24 Screen and player result states
   - Spec: UI spec by view (Screen view: Judged, Reveal, Scoreboard, Final; Player view: locked out, revealed, game over)

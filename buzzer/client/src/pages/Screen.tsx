@@ -1,15 +1,17 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
+import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { useSendHost } from '../lib/useHostCommand.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 
 interface ScreenProps {
@@ -25,23 +27,31 @@ export function Screen({ makeSocket = createSocket }: ScreenProps) {
 }
 
 function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSocket }) {
+  // True once the server accepted this device's hostToken: only then does it get host controls.
+  const [canHost, setCanHost] = useState(false);
   const join = useCallback<JoinRoom>(
     (socket, ack) => {
       // A device that created the room joins with its token, so it may send host actions (DECISIONS #2).
       const hostToken = loadHostToken(code);
-      if (!hostToken) return socket.emit('screen:join', { code }, ack);
+      if (!hostToken) {
+        setCanHost(false);
+        return socket.emit('screen:join', { code }, ack);
+      }
       socket.emit('screen:join', { code, hostToken }, (res) => {
         // SPEC-QUESTION: a rejected token can only be stale (a reused code), so join as a plain Screen (DECISIONS, F08).
         if (!res.ok && res.error === INVALID_HOST_TOKEN_ERROR) {
           clearHostToken(code);
+          setCanHost(false);
           return socket.emit('screen:join', { code }, ack);
         }
+        setCanHost(res.ok);
         ack(res);
       });
     },
     [code],
   );
-  useRoomSocket(code, join, makeSocket);
+  const socketRef = useRoomSocket(code, join, makeSocket);
+  const send = useSendHost(socketRef);
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
@@ -53,7 +63,7 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         {view.phase === 'LOBBY' ? (
           <Lobby view={view} url={url} hostToken={loadHostToken(code)} />
         ) : view.phase === 'FINAL' ? (
@@ -64,6 +74,7 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
         ) : (
           <ScreenQuestion view={view} />
         )}
+        {canHost && <ScreenHostControls view={view} send={send} />}
       </div>
       <BottomStrip code={code} url={url} />
     </main>

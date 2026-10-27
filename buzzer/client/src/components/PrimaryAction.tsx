@@ -1,8 +1,6 @@
-import type { HostView, Phase } from '../../../shared/types.js';
+import type { HostView } from '../../../shared/types.js';
+import { primaryFor } from '../lib/hostControls.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
-
-/** The host events the primary button sends without a payload. */
-export type PrimaryEvent = 'host:start' | 'host:open' | 'host:reveal' | 'host:next';
 
 interface PrimaryActionProps {
   view: HostView;
@@ -62,20 +60,4 @@ export function PrimaryAction({ view, command }: PrimaryActionProps) {
       {action.label}
     </button>
   );
-}
-
-const BY_PHASE: Partial<Record<Phase, { label: string; event: PrimaryEvent }>> = {
-  LOBBY: { label: 'Start game', event: 'host:start' },
-  QUESTION: { label: 'Open buzzers', event: 'host:open' },
-  OPEN: { label: 'Reveal answer', event: 'host:reveal' },
-  COLLECTING: { label: 'Reveal answer', event: 'host:reveal' },
-};
-
-function primaryFor(view: HostView): { label: string; event: PrimaryEvent } | null {
-  if (view.phase === 'REVEAL') {
-    // `host:next` after the last question shows the final results instead of another question.
-    const last = view.questionIndex >= view.questionCount - 1;
-    return { label: last ? 'Show final results' : 'Next question', event: 'host:next' };
-  }
-  return BY_PHASE[view.phase] ?? null;
 }

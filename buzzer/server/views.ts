@@ -56,8 +56,6 @@ function hostView(room: Room): HostView {
     nextQuestion: room.set.questions[room.questionIndex + 1] ?? null,
     buzzes: room.buzzes,
     judgements: room.judgements,
-    canJudge: canJudge(room),
-    canUndo: canUndo(room),
   };
 }
 
@@ -100,6 +98,9 @@ function shared(room: Room) {
     lockedOut: room.lockedOut,
     showScoreboard: room.showScoreboard,
     settings: room.settings,
+    // Not secret, so a Screen holding the hostToken can show the same controls (F23).
+    canJudge: canJudge(room),
+    canUndo: canUndo(room),
   };
 }
 
