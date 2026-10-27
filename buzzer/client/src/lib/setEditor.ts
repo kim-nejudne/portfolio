@@ -107,6 +107,34 @@ export function removeQuestion(questions: readonly Question[], index: number): Q
   return questions.filter((_, i) => i !== index);
 }
 
+/** Sets, replaces or (with no `imageId`) clears the image of question `id`. */
+export function setQuestionImage(
+  questions: readonly Question[],
+  id: string,
+  imageId?: string,
+): Question[] {
+  return questions.map((question) => {
+    if (question.id !== id) return question;
+    if (imageId !== undefined) return { ...question, imageId };
+    const next = { ...question };
+    delete next.imageId;
+    return next;
+  });
+}
+
+/**
+ * The images `before` referenced that no question in `after` does: a removed or replaced image, or
+ * one whose question was deleted. A duplicated question shares its original's image, so that image
+ * stays while either still uses it.
+ */
+export function unusedImageIds(before: readonly Question[], after: readonly Question[]): string[] {
+  const kept = new Set(after.flatMap((q) => (q.imageId === undefined ? [] : [q.imageId])));
+  const dropped = before.flatMap((q) =>
+    q.imageId === undefined || kept.has(q.imageId) ? [] : [q.imageId],
+  );
+  return [...new Set(dropped)];
+}
+
 function tooLong(value: string, max: number): string | undefined {
   return value.length > max ? `Up to ${max} characters.` : undefined;
 }

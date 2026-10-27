@@ -7,7 +7,7 @@ import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
 
-/** One image, referenced from a question by `imageId`. The editor's image pipeline comes with F29. */
+/** One image, referenced from a question by `imageId`. The editor stores it already shrunk (F29). */
 export interface StoredImage {
   id: string;
   blob: Blob;
@@ -54,6 +54,18 @@ export async function getSet(id: string): Promise<QuestionSet | undefined> {
 /** One stored image blob, or undefined when it is gone. */
 export async function getImage(id: string): Promise<StoredImage | undefined> {
   return db.images.get(id);
+}
+
+/** Stores an image the editor has shrunk, under a fresh id for the question to reference. */
+export async function addImage(blob: Blob): Promise<string> {
+  const id = nanoid();
+  await db.images.add({ id, blob });
+  return id;
+}
+
+/** Removes images no question uses any more. Unknown ids are ignored. */
+export async function deleteImages(ids: readonly string[]): Promise<void> {
+  await db.images.bulkDelete([...ids]);
 }
 
 /** **New set**: an empty draft with a fresh id. */

@@ -20,7 +20,9 @@ import {
   questionErrors,
   removeQuestion,
   reorderQuestions,
+  setQuestionImage,
   titleError,
+  unusedImageIds,
 } from './setEditor.js';
 
 function q(id: string, overrides: Partial<Question> = {}): Question {
@@ -71,6 +73,29 @@ describe('set editor edits', () => {
     expect(ids(reorderQuestions(list, 'd', 'b'))).toEqual(['a', 'd', 'b', 'c']);
     expect(ids(reorderQuestions(list, 'b', 'b'))).toEqual(['a', 'b', 'c', 'd']);
     expect(ids(reorderQuestions(list, 'gone', 'b'))).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('sets, replaces and clears the image of one question only', () => {
+    const list = [q('a'), q('b', { imageId: 'img-b' })];
+    expect(setQuestionImage(list, 'a', 'img-a')[0]).toEqual(q('a', { imageId: 'img-a' }));
+    expect(setQuestionImage(list, 'b', 'img-new')[1]!.imageId).toBe('img-new');
+    expect(setQuestionImage(list, 'b')[1]).toEqual(q('b'));
+    expect(setQuestionImage(list, 'b')[1]).not.toHaveProperty('imageId');
+    expect(setQuestionImage(list, 'gone', 'img-x')).toEqual(list);
+  });
+
+  it('an image no question uses any more is unused: removed, replaced or its question deleted', () => {
+    const before = [q('a', { imageId: 'img-a' }), q('b', { imageId: 'img-b' }), q('c')];
+    expect(unusedImageIds(before, before)).toEqual([]);
+    expect(unusedImageIds(before, [q('a'), before[1]!, before[2]!])).toEqual(['img-a']);
+    expect(unusedImageIds(before, [q('a', { imageId: 'img-new' }), before[1]!])).toEqual(['img-a']);
+    expect(unusedImageIds(before, removeQuestion(before, 1))).toEqual(['img-b']);
+  });
+
+  it('an image a duplicated question still shares stays in use until both let go of it', () => {
+    const before = duplicateQuestion([q('a', { imageId: 'img-a' })], 0, 'copy');
+    expect(unusedImageIds(before, removeQuestion(before, 0))).toEqual([]);
+    expect(unusedImageIds(before, [])).toEqual(['img-a']);
   });
 });
 

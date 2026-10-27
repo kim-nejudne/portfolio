@@ -10,6 +10,52 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F29 — Image pipeline in the editor (2026-10-28)
+**What changed:**
+- `client/src/lib/imagePipeline.ts`:
+  - `fitWithin` holds the size maths: longest side 1600 px, aspect kept, never enlarged, at least 1 px.
+  - `shrinkImage(file, codec)` refuses types other than PNG, JPEG, WebP and GIF, and then decodes the file. It draws the image at the fitted size and writes WebP at 0.8, or JPEG over white when the browser cannot write WebP. A result over 1.5 MB is refused, and the decoded frame is freed afterwards.
+  - The browser codec uses `createImageBitmap` (which gives a GIF's first frame) and a canvas. It is injected so tests run without a canvas.
+- Set editor: each card has an **Image (optional)** block under the question text.
+  - Empty: an **Add image** picker. Full: a thumbnail with **Remove**.
+  - A file dropped on the card, or an image pasted while focus is in it, becomes the card's image and replaces any image already there.
+  - "Shrinking image…" shows while it works, and a refusal shows its reason.
+  - An image no question uses any more is deleted after the next save without it. A shared image (from Duplicate) is kept while either question uses it.
+- Other changes:
+  - `db.ts` gains `addImage` and `deleteImages`.
+  - `lib/setEditor.ts` gains the pure `setQuestionImage` and `unusedImageIds`.
+  - `useStoredImageUrl` moved out of `QuestionPreview` into `lib/useStoredImageUrl.ts`, and the thumbnail uses it too.
+- Tests:
+  - New `imagePipeline.test.ts` (11): the size maths, WebP at 0.8, the JPEG fallback, the four types, refused types, the 1.5 MB limit and its edge, undecodable files, and the frame being freed.
+  - New `useStoredImageUrl.test.tsx` (2).
+  - `setEditor.test.ts` gains 3. `db.test.ts` gains 1.
+  - `SetEditor.test.tsx` gains 7: pick, drop, paste (and text paste left alone), refusal, image-only question, Remove after save, and delete with a shared duplicate.
+  - 854 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-28 for F29 cover:
+- the pipeline: always redraw, JPEG over white, and checking only the result against 1.5 MB
+- the editor block: card-wide drop and paste, replacing an image, and a text paste winning
+- when an unused blob is deleted
+
+**Notes for next session:**
+- Playtest (Playwright, `/sets/:id` only), all passed:
+  - A pasted 3200×2000 noise PNG (22.0 MB) showed a 1600×1000 thumbnail. It was stored as one `image/webp` blob of 782,226 bytes.
+  - Remove cleared the thumbnail and its button.
+  - A dropped GIF was accepted as a still.
+  - A text file was refused ("Use a PNG, JPEG, WebP or GIF image.").
+  - A 1600×1600 noise PNG was refused with the 1.5 MB message, and nothing was stored.
+  - An image-only question survived a reload, and Preview showed its image.
+- Not checked: the file-picker button in a real browser, an animated GIF, and the JPEG fallback in Safari. The last two rely on `createImageBitmap` and `toBlob`.
+- `SetEditor.test.tsx`: fake-indexeddb clones with Node's `structuredClone`, which drops a jsdom Blob. The test's mocked `shrinkImage` therefore returns a Node Blob (`process.getBuiltinModule('node:buffer')`).
+- F30: hosting must upload each `imageId` blob. The stored blobs are already at most 1.5 MB, in WebP or JPEG.
+
+**How to try it:** `npm run dev`. On the laptop, open `http://localhost:5173/sets` and open a set.
+1. Tap Add image on a card and choose a photo. A thumbnail appears.
+2. Copy an image (in a browser, use "Copy image"). Click in a card and paste.
+3. Drag an image file onto another card.
+4. Clear a card's question text. With an image, the card shows no error. Tap Preview to see it as the Screen would.
+5. Tap Remove. The upload area returns.
+
 <!-- entries below, newest first -->
 
 ## F28 — Import and export JSON (2026-10-28)

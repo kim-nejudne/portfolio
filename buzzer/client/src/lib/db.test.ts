@@ -4,9 +4,11 @@ import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import {
+  addImage,
   copyTitle,
   createSet,
   db,
+  deleteImages,
   deleteSet,
   duplicateSet,
   getSet,
@@ -93,6 +95,19 @@ describe('question set database', () => {
     const image = await db.images.get(copiedId);
     expect(await image!.blob.text()).toBe('png bytes');
     expect(image!.blob.type).toBe('image/png');
+  });
+
+  it('stores an added image under a fresh id and deletes it again by id', async () => {
+    const first = await addImage(new Blob(['webp bytes'], { type: 'image/webp' }));
+    const second = await addImage(new Blob(['other'], { type: 'image/webp' }));
+    expect(first).not.toBe(second);
+    const stored = await db.images.get(first);
+    expect(await stored!.blob.text()).toBe('webp bytes');
+    expect(stored!.blob.type).toBe('image/webp');
+
+    await deleteImages([first, 'never-stored']);
+    expect(await db.images.get(first)).toBeUndefined();
+    expect(await db.images.get(second)).toBeDefined();
   });
 
   it('Duplicate of a missing set fails with a readable error', async () => {

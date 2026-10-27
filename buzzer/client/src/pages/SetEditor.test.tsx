@@ -7,8 +7,15 @@ import { MAX_QUESTIONS_PER_SET, QUESTION_TEXT_MAX } from '../../../shared/consta
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { AUTOSAVE_DELAY_MS } from '../lib/autosave.js';
 import { db, getSet } from '../lib/db.js';
+import { IMAGE_TOO_LARGE, shrinkImage } from '../lib/imagePipeline.js';
 import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
 import { SetEditor } from './SetEditor.js';
+
+// jsdom has no canvas to shrink with; the pipeline's own rules are in imagePipeline.test.ts.
+vi.mock('../lib/imagePipeline.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/imagePipeline.js')>()),
+  shrinkImage: vi.fn(),
+}));
 
 const NOW = 1_700_000_000_000;
 
@@ -331,5 +338,133 @@ describe('Set editor /sets/:setId', () => {
   it('says so when the set no longer exists', async () => {
     await renderEditor('gone');
     expect((await screen.findByRole('alert')).textContent).toBe('This set no longer exists.');
+  });
+});
+
+describe('Set editor images', () => {
+  const SHRUNK = 'shrunk webp bytes';
+  // fake-indexeddb clones with Node's structuredClone, which keeps a Node Blob but not a jsdom one.
+  // The client tsconfig has no Node types, so the module is typed here.
+  const { Blob: NodeBlob } = (
+    globalThis as unknown as {
+      process: { getBuiltinModule(id: 'node:buffer'): { Blob: typeof Blob } };
+    }
+  ).process.getBuiltinModule('node:buffer');
+
+  beforeEach(() => {
+    vi.mocked(shrinkImage).mockImplementation(async (file) =>
+      file.type === 'image/png'
+        ? { ok: true, blob: new NodeBlob([SHRUNK], { type: 'image/webp' }) }
+        : { ok: false, error: IMAGE_TOO_LARGE },
+    );
+    // jsdom has no object URLs; the thumbnail only needs one to exist.
+    Object.assign(URL, { createObjectURL: () => 'blob:thumbnail', revokeObjectURL: () => {} });
+  });
+
+  const png = () => new File(['big png bytes'], 'photo.png', { type: 'image/png' });
+
+  async function savedQuestion(index = 0) {
+    await settle();
+    return (await getSet('set-1'))!.questions[index]!;
+  }
+
+  async function expectStoredImage(imageId: string | undefined) {
+    const stored = await db.images.get(imageId!);
+    expect(await stored!.blob.text()).toBe(SHRUNK);
+    expect(stored!.blob.type).toBe('image/webp');
+  }
+
+  it('Add image picks a file: the shrunk image is stored and the card shows its thumbnail', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    fireEvent.change(card(1).getByLabelText('Choose an image for question 1'), {
+      target: { files: [png()] },
+    });
+    const thumbnail = await card(1).findByRole('img', { name: 'Image for question 1' });
+    expect(thumbnail.getAttribute('src')).toBe('blob:thumbnail');
+    expect(card(1).getByRole('button', { name: 'Remove image from question 1' })).toBeTruthy();
+    await expectStoredImage((await savedQuestion()).imageId);
+  });
+
+  it('an image file dropped on the card becomes its image', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const dataTransfer = { files: [png()], types: ['Files'], dropEffect: 'none' };
+    const target = screen.getByRole('listitem', { name: 'Question 1' });
+    fireEvent.dragOver(target, { dataTransfer });
+    fireEvent.drop(target, { dataTransfer });
+    await card(1).findByRole('img', { name: 'Image for question 1' });
+    await expectStoredImage((await savedQuestion()).imageId);
+  });
+
+  it('an image pasted into the card becomes its image; text pasted into a field stays text', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const answer = card(1).getByLabelText('Answer');
+    // An office app puts text and a picture of it on the clipboard: the field gets the text.
+    const officeCopy = fireEvent.paste(answer, {
+      clipboardData: { files: [png()], types: ['text/plain', 'Files'] },
+    });
+    expect(officeCopy).toBe(true);
+    expect(shrinkImage).not.toHaveBeenCalled();
+
+    const imagePaste = fireEvent.paste(answer, {
+      clipboardData: { files: [png()], types: ['Files'] },
+    });
+    expect(imagePaste).toBe(false);
+    await card(1).findByRole('img', { name: 'Image for question 1' });
+    await expectStoredImage((await savedQuestion()).imageId);
+  });
+
+  it('a refused image shows the reason and changes nothing', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    fireEvent.change(card(1).getByLabelText('Choose an image for question 1'), {
+      target: { files: [new File(['x'], 'huge.gif', { type: 'image/gif' })] },
+    });
+    expect((await card(1).findByRole('alert')).textContent).toBe(IMAGE_TOO_LARGE);
+    expect(await savedQuestion()).not.toHaveProperty('imageId');
+    expect(await db.images.count()).toBe(0);
+  });
+
+  it('a question with only an image needs no text', async () => {
+    await seed([q('a', { text: '' })]);
+    await renderEditor();
+    fireEvent.blur(card(1).getByLabelText('Question'));
+    expect(card(1).getByText('Write the question, or add an image.')).toBeTruthy();
+    fireEvent.change(card(1).getByLabelText('Choose an image for question 1'), {
+      target: { files: [png()] },
+    });
+    await card(1).findByRole('img', { name: 'Image for question 1' });
+    expect(card(1).queryByText('Write the question, or add an image.')).toBeNull();
+  });
+
+  it('Remove clears the image from the question and deletes it from this browser once saved', async () => {
+    await db.images.add({ id: 'img-a', blob: new Blob(['old']) });
+    await seed([q('a', { imageId: 'img-a' })]);
+    await renderEditor();
+    fireEvent.click(card(1).getByRole('button', { name: 'Remove image from question 1' }));
+    expect(card(1).getByRole('button', { name: 'Add image' })).toBeTruthy();
+    // Until the set without it is saved, the stored set still points at the image.
+    expect(await db.images.get('img-a')).toBeDefined();
+    expect(await savedQuestion()).not.toHaveProperty('imageId');
+    expect(await db.images.get('img-a')).toBeUndefined();
+  });
+
+  it('deleting a question deletes its image, but not while a duplicate still shows it', async () => {
+    await db.images.add({ id: 'img-a', blob: new Blob(['old']) });
+    await seed([q('a', { imageId: 'img-a' })]);
+    await renderEditor();
+    fireEvent.click(card(1).getByRole('button', { name: 'Duplicate question 1' }));
+    fireEvent.click(card(1).getByRole('button', { name: 'Delete question 1' }));
+    fireEvent.click(card(1).getByRole('button', { name: 'Confirm delete' }));
+    expect((await savedQuestion()).imageId).toBe('img-a');
+    expect(await db.images.get('img-a')).toBeDefined();
+
+    fireEvent.click(card(1).getByRole('button', { name: 'Delete question 1' }));
+    fireEvent.click(card(1).getByRole('button', { name: 'Confirm delete' }));
+    await settle();
+    expect((await getSet('set-1'))!.questions).toEqual([]);
+    expect(await db.images.get('img-a')).toBeUndefined();
   });
 });

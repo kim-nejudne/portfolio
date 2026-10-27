@@ -43,7 +43,7 @@ export async function hostSet(set: QuestionSet): Promise<string> {
   const checked = checkPlayable(set);
   if (!checked.ok) throw new Error(checked.error);
   // SPEC-QUESTION: the set's images are not uploaded yet (POST /api/rooms/:code/images/:imageId is
-  // F30), so a set with `imageId` questions would show broken images. No editor adds one before F29.
+  // F30), so a set with `imageId` questions shows broken images until then. The F29 editor adds them.
   const { code, hostToken } = await createRoom({ set: checked.set, settings: DEFAULT_SETTINGS });
   saveHostToken(code, hostToken);
   return code;

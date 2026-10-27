@@ -70,14 +70,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F28 Import and export JSON
 
-- [ ] F29 Image pipeline in the editor
-  - Spec: Question editor and images (Images); Edge cases (question with only an image)
-  - Depends: F26
-  - Done when:
-    - Pick, drag-and-drop and clipboard paste; PNG/JPEG/WebP/GIF accepted (GIF → first frame)
-    - Resized to longest side 1600 px, WebP (JPEG fallback) at 0.8; files still >1.5 MB rejected with a message
-    - Thumbnail with Remove; image-only questions allowed
-  - Tests: unit test for the size maths; playtest — paste a large PNG, it stores under 1.5 MB
+- [x] F29 Image pipeline in the editor
 
 - [ ] F30 Image upload, serving and preload
   - Spec: Question editor and images (Images: upload, serve, preload, 50 MB); Realtime events and HTTP API (HTTP image routes)

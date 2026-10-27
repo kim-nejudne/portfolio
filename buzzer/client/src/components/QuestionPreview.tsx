@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { QuestionSet, ScreenView } from '../../../shared/types.js';
-import { getImage } from '../lib/db.js';
 import { previewView } from '../lib/setEditor.js';
+import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
 const barButton =
@@ -96,29 +96,4 @@ function withoutMissingImage(view: ScreenView, imageSrc: string | undefined): Sc
   const question = { ...view.question };
   delete question.imageId;
   return { ...view, question };
-}
-
-/** An object URL for a blob in this browser's image table, revoked when no longer shown. */
-function useStoredImageUrl(imageId: string | undefined): string | undefined {
-  const [loaded, setLoaded] = useState<{ id: string; url: string } | null>(null);
-
-  useEffect(() => {
-    if (imageId === undefined) return;
-    let url: string | undefined;
-    let live = true;
-    getImage(imageId).then(
-      (image) => {
-        if (!live || !image) return;
-        url = URL.createObjectURL(image.blob);
-        setLoaded({ id: imageId, url });
-      },
-      () => {},
-    );
-    return () => {
-      live = false;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [imageId]);
-
-  return loaded && loaded.id === imageId ? loaded.url : undefined;
 }
