@@ -46,5 +46,9 @@ Each has a recommended answer. Until the owner says otherwise, a feature that hi
 | 2026-10-27 | F02 | Empty-payload events use `z.object({})`, which strips unknown keys; `host:settings` is strict and rejects unknown keys | Stripped keys carry nothing; a mistyped setting should fail loudly |
 | 2026-10-27 | F02 | View shapes are a first cut: `ScreenView`, `HostView` and `PlayerView` tagged by `role`, with ranked players (`rank`, equal scores share). `PlayerView` adds `hasBuzzed` and `pointsThisQuestion` for the reconnect and reveal states. Later features may add fields (for example undo availability) | The spec lists view contents in prose only; clients must not derive game rules, so the server supplies rank and flags |
 | 2026-10-27 | F02 | Byte sizes use binary units: 100 KB = 102400, 1.5 MB = 1572864, 50 MB = 52428800 | One convention for every size limit |
+| 2026-10-27 | F03 | Theme colours and fonts are Tailwind `@theme` tokens in `client/src/index.css` (`bg`, `surface`, `edge`, `ink`, `muted`, one `accent` #ffc400, `accent-ink`, `font-display`). Player colours stay in `PLAYER_PALETTE` | The UI theme is CSS-only; `shared/constants.ts` holds what the server also needs |
+| 2026-10-27 | F03 | **Host a game** renders on the landing page but does nothing until F08 | F08 owns room creation and the Screen choice; the spec names no route for the create step |
+| 2026-10-27 | F03 | The code input drops any character outside `ROOM_CODE_ALPHABET` as it is typed or pasted, and Join stays disabled until 4 letters are in | Silent filtering covers pastes and stray spaces; a code that cannot exist is never submitted |
+| 2026-10-27 | F03 | Unknown paths render a "Page not found" placeholder with a link home | The server's SPA fallback sends every path to the client |
 
 ## Proposed spec changes

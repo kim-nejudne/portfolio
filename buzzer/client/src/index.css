@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+/*
+ * Game-show theme: dark background, one bright accent, very large type.
+ * Player colours are separate and come from PLAYER_PALETTE in shared/constants.
+ */
+@theme {
+  --color-bg: #0b0b14;
+  --color-surface: #171726;
+  --color-edge: #2c2c44;
+  --color-ink: #f5f5fa;
+  --color-muted: #a3a3bd;
+  --color-accent: #ffc400;
+  --color-accent-ink: #1a1300;
+
+  --font-display: 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+}

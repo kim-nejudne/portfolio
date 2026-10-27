@@ -5,6 +5,7 @@ docs/
 dist/
 coverage/
 .playtest/
+.playwright-mcp/
 package-lock.json
 # Claude Code workflow tooling and the archived setup prompt keep their own formatting.
 .claude/

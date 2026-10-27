@@ -1,10 +1,26 @@
-import { APP_NAME } from '../../shared/constants.js';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { Landing } from './pages/Landing.js';
+import { Placeholder } from './pages/Placeholder.js';
 
-// Placeholder shell. F03 replaces it with the router and the Landing page.
+/** The route table, without a router, so tests can mount it in a MemoryRouter. */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/play/:code" element={<Placeholder title="Player" />} />
+      <Route path="/screen/:code" element={<Placeholder title="Screen" />} />
+      <Route path="/host/:code" element={<Placeholder title="Host" />} />
+      <Route path="/sets" element={<Placeholder title="My question sets" />} />
+      <Route path="/sets/:setId" element={<Placeholder title="Edit set" />} />
+      <Route path="*" element={<Placeholder title="Page not found" />} />
+    </Routes>
+  );
+}
+
 export function App() {
   return (
-    <main>
-      <h1>{APP_NAME}</h1>
-    </main>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }

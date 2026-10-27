@@ -10,15 +10,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F02 Shared types, schemas and constants
 
-- [ ] F03 Landing page and route shell
-  - Spec: UI spec by view (intro, Landing page); Roles and devices
-  - Depends: F01
-  - Done when:
-    - Tailwind set up with the dark, one-accent game-show theme
-    - React Router routes `/`, `/play/:code`, `/screen/:code`, `/host/:code`, `/sets`, `/sets/:setId` exist (placeholders allowed)
-    - Landing shows **Join a game** (4-letter input, auto-uppercase, only the room-code alphabet) and **Host a game**, plus a **My question sets** link
-    - Submitting a code navigates to `/play/<CODE>`
-  - Tests: component test for code input normalisation; manual check on a phone-width viewport
+- [x] F03 Landing page and route shell
 
 ## M2 — Rooms and joining
 
@@ -321,3 +313,5 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 ## Bugs
 
 ## Backlog (not scheduled)
+
+- Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
