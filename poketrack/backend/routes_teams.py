@@ -76,6 +76,29 @@ async def update_team(team_id: str, body: TeamUpdate, uid: str = Depends(current
     return TeamOut(id=team["id"], name=team["name"], owner_id=team["owner_id"], my_role="owner").model_dump()
 
 
+@router.delete("/{team_id}")
+async def delete_team(team_id: str, confirm_name: str, uid: str = Depends(current_user_id)):
+    # Imported here: routes_projects imports assert_member from this module.
+    from routes_projects import purge_project
+
+    db = get_db()
+    await assert_member(team_id, uid, require_owner=True)
+    team = await db.teams.find_one({"id": team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if confirm_name.strip() != team["name"]:
+        raise HTTPException(status_code=400, detail="Team name confirmation does not match")
+    # Cascade cleanup: projects (and everything under them), invites, then memberships —
+    # last, so a request that fails partway leaves the owner able to retry.
+    projects = await db.projects.find({"team_id": team_id}).to_list(1000)
+    for p in projects:
+        await purge_project(db, p["id"])
+    await db.invites.delete_many({"team_id": team_id})
+    await db.memberships.delete_many({"team_id": team_id})
+    await db.teams.delete_one({"id": team_id})
+    return {"ok": True}
+
+
 @router.get("/{team_id}/members")
 async def list_members(team_id: str, uid: str = Depends(current_user_id)) -> List[dict]:
     db = get_db()
