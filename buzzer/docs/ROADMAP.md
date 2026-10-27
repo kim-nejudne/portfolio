@@ -16,14 +16,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F04 Room codes and RoomStore
 
-- [ ] F05 Reducer foundation: lobby, players, toView
-  - Spec: Game flow and state machine (Transitions intro); Data model; Reconnects; Edge cases (duplicate name, kicked player, joins mid-game); Security (limits)
-  - Depends: F02, F04
-  - Done when:
-    - `server/reducer.ts` exports pure `reduce(room, action, now) → {room, effects}`; unknown or wrong-phase actions return an error
-    - `player:join` adds a player with the next palette colour, reconnects an existing `playerId` with score intact, rejects case-insensitive duplicate names, kicked ids and the 51st player
-    - `server/views.ts` `toView(room, role, playerId?)` builds all three views
-  - Tests: `reducer.lobby.test.ts`; `views.test.ts` with the leak test (serialise every Screen and Player view for an unrevealed question; answer and host notes absent)
+- [x] F05 Reducer foundation: lobby, players, toView
 
 - [ ] F06 Room creation over HTTP
   - Spec: Realtime events and HTTP API (HTTP); Security (hostToken, rate limits); Question editor and images (Set list: built-in sample set)

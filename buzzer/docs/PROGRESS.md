@@ -12,6 +12,45 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F05 — Reducer foundation: lobby, players, toView (2026-10-27)
+**What changed:**
+- `server/reducer.ts` holds:
+  - `reduce(room, action, now)`, which returns `{ok: true, room, effects}` or `{ok: false, error}`. It never mutates its input and sets `lastActivityAt = now` on every successful action.
+  - The `Action` union, which so far has `player:join {playerId, name}` and the internal `player:disconnect {playerId}`. `Effect` is `{type: 'fx', fx}` for now.
+  - `player:join`, which checks in this order: kicked id, known id (reconnect: `connected: true`, with name, score and colour kept), FINAL, 50 players, then a case-insensitive name match. A new player gets the least-used palette colour and triggers `fx join`.
+- `server/room.ts` holds `createRoom({code, hostTokenHash, set, settings, now})`, which builds a fresh LOBBY room. F06 should use it.
+- `server/ranking.ts` holds `rankPlayers`. It sorts by score, highest first, then by join order. Ties share a rank (1, 1, 3).
+- `server/views.ts` holds `toView(room, role, playerId?)`, with an overload per role.
+  - The Screen view builds the question field by field. The answer is included in REVEAL only.
+  - The host view gets the full current and next question, the buzzes, the judgements and each player's RTT.
+  - The player view gets `me`, rank, `hasBuzzed`, `lockedOut`, the winner's name and `pointsThisQuestion`. It never gets question text.
+- Test fixtures live in `server/test/rooms.ts`: `makeRoom`, `makePlayer`, `makeSet`, `makeQuestion` and `withPlayers`. `tsconfig.build.json` excludes `server/test`.
+- There are 50 new tests, 125 in total, across `reducer.lobby.test.ts`, `views.test.ts` (the leak test) and `ranking.test.ts`. The leak test fails if `screenQuestion` spreads the question; I checked this by mutating it.
+
+**Dependencies:** none.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F05 cover:
+- `now` is wall-clock time.
+- The result shape.
+- The order of the join checks.
+- A reconnect ignores the name it sends.
+- The duplicate-name rule.
+- Colour reuse.
+- Competition ranking.
+- No answer in FINAL. This departs from the spec's literal wording, because `host:end` can reach FINAL from an unrevealed question.
+- The view defaults.
+
+**Notes for next session:**
+- `alsoBuzzed` is `[]`, marked `TODO(F12, F14)`.
+- F14 needs a way to know that a player "joined during the current opening". `Player` has only `joinedAt`, so F14 may need to record the opening a player joined in.
+- No action is phase-gated yet; only the unknown-action rejection is tested. F13 adds the table-driven wrong-phase tests.
+- `player:disconnect` also bumps `lastActivityAt`.
+- The reducer expects the name to be trimmed and parsed by zod already.
+- `toView(room, 'player', id)` throws for an unknown id. The gateway must only build views for joined players.
+- Under `noUncheckedIndexedAccess`, `room.players[id]` and `PLAYER_PALETTE[i]` can be `undefined`. Use `?.` in tests.
+
+**How to try it:** Run `npm test` (`server/reducer.lobby.test.ts`, `server/views.test.ts` and `server/ranking.test.ts`). There is no UI or socket yet.
+
 ## F04 — Room codes and RoomStore (2026-10-27)
 **What changed:**
 - `server/codes.ts` holds:

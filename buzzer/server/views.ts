@@ -1,0 +1,133 @@
+// Role-filtered views. The only way room state leaves the server: never emit `room` itself.
+// Screen and Player views never carry host notes, token data or an answer before reveal
+// (DECISIONS #2: this holds even for a Screen that holds the hostToken).
+
+import type {
+  BuzzGap,
+  HostView,
+  Player,
+  PlayerView,
+  Question,
+  RankedPlayer,
+  Role,
+  Room,
+  ScreenQuestion,
+  ScreenView,
+  View,
+} from '../shared/types.js';
+import { rankPlayers, type Ranked } from './ranking.js';
+
+export function toView(room: Room, role: 'screen'): ScreenView;
+export function toView(room: Room, role: 'host'): HostView;
+export function toView(room: Room, role: 'player', playerId: string): PlayerView;
+export function toView(room: Room, role: Role, playerId?: string): View;
+export function toView(room: Room, role: Role, playerId?: string): View {
+  switch (role) {
+    case 'screen':
+      return screenView(room);
+    case 'host':
+      return hostView(room);
+    case 'player':
+      if (playerId === undefined) throw new Error('A player view needs a playerId');
+      return playerView(room, playerId);
+  }
+}
+
+function screenView(room: Room): ScreenView {
+  const ranked = rankPlayers(Object.values(room.players));
+  const current = currentQuestion(room);
+  return {
+    role: 'screen',
+    ...shared(room),
+    players: ranked.map(publicPlayer),
+    question: current ? screenQuestion(current, isRevealed(room)) : null,
+  };
+}
+
+function hostView(room: Room): HostView {
+  const ranked = rankPlayers(Object.values(room.players));
+  return {
+    role: 'host',
+    ...shared(room),
+    players: ranked.map((p) => ({ ...publicPlayer(p), rttMs: p.rttMs })),
+    question: currentQuestion(room),
+    nextQuestion: room.set.questions[room.questionIndex + 1] ?? null,
+    buzzes: room.buzzes,
+    judgements: room.judgements,
+  };
+}
+
+function playerView(room: Room, playerId: string): PlayerView {
+  const ranked = rankPlayers(Object.values(room.players));
+  const me = ranked.find((p) => p.id === playerId);
+  if (!me) throw new Error(`No player ${playerId} in room ${room.code}`);
+  const answer = isRevealed(room) ? currentQuestion(room)?.answer : undefined;
+  return {
+    role: 'player',
+    code: room.code,
+    phase: room.phase,
+    questionIndex: room.questionIndex,
+    questionCount: room.set.questions.length,
+    openingCounter: room.openingCounter,
+    me: { id: me.id, name: me.name, color: me.color, score: me.score, rank: me.rank },
+    playerCount: ranked.length,
+    hasBuzzed: room.buzzes.some((b) => b.playerId === playerId),
+    lockedOut: room.lockedOut.includes(playerId),
+    winnerId: room.winnerId,
+    winnerName: room.winnerId ? (room.players[room.winnerId]?.name ?? null) : null,
+    pointsThisQuestion: room.judgements
+      .filter((j) => j.questionIndex === room.questionIndex && j.playerId === playerId)
+      .reduce((sum, j) => sum + j.pointsDelta, 0),
+    ...(answer !== undefined && { answer }),
+  };
+}
+
+/** Fields the Screen and the host remote both get. Built field by field so nothing extra slips in. */
+function shared(room: Room) {
+  return {
+    code: room.code,
+    title: room.set.title,
+    phase: room.phase,
+    questionIndex: room.questionIndex,
+    questionCount: room.set.questions.length,
+    openingCounter: room.openingCounter,
+    winnerId: room.winnerId,
+    // TODO(F12, F14): rank the opening's buzzes and list the losers' gaps to the winner.
+    alsoBuzzed: [] as BuzzGap[],
+    lockedOut: room.lockedOut,
+    showScoreboard: room.showScoreboard,
+    settings: room.settings,
+  };
+}
+
+function publicPlayer(p: Ranked<Player>): RankedPlayer {
+  return {
+    id: p.id,
+    name: p.name,
+    color: p.color,
+    score: p.score,
+    connected: p.connected,
+    rank: p.rank,
+  };
+}
+
+/** Never spreads the question: `answer` and `hostNotes` must be opted in, not filtered out. */
+function screenQuestion(q: Question, revealed: boolean): ScreenQuestion {
+  return {
+    id: q.id,
+    text: q.text,
+    ...(q.imageId !== undefined && { imageId: q.imageId }),
+    points: q.points,
+    ...(revealed && { answer: q.answer }),
+  };
+}
+
+function currentQuestion(room: Room): Question | null {
+  return room.set.questions[room.questionIndex] ?? null;
+}
+
+// SPEC-QUESTION: the spec also shows it in FINAL, but `host:end` can reach FINAL from an unrevealed
+// question, so only REVEAL counts; see DECISIONS (F05).
+function isRevealed(room: Room): boolean {
+  return room.phase === 'REVEAL';
+}
