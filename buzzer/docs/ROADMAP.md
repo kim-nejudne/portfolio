@@ -62,15 +62,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M5 — Question editor and images
 
-- [ ] F25 Saved sets and the set list
-  - Spec: Question editor and images (intro, Set list); Tech stack and architecture (Browser storage)
-  - Depends: F08
-  - Done when:
-    - Dexie DB `src/lib/db.ts` stores sets and image blobs; the sample set is seeded on first visit
-    - `/sets` cards show title, question count, last edited; Open, Duplicate, Delete (confirm), **Host this set**; **New set**
-    - **Host a game** lets the host pick any saved set
-    - Empty state when no sets exist
-  - Tests: `db.test.ts` with `fake-indexeddb`; playtest — duplicate and host a set
+- [x] F25 Saved sets and the set list
 
 - [ ] F26 Set editor
   - Spec: Question editor and images (Set editor)

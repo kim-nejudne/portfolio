@@ -12,6 +12,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F25 — Saved sets and the set list (2026-10-28)
+**What changed:**
+- `client/src/lib/db.ts`: a Dexie database `buzzr` with `sets` and `images` (blob) tables.
+  - The sample set is seeded once, on first visit, in `populate`.
+  - Helpers: `listSets` (last edited first), `getSet`, `createSet`, `duplicateSet` (copies image blobs under new ids), `deleteSet` (removes the set's images) and `copyTitle`.
+- `/sets` (`pages/Sets.tsx`, a lazy route chunk):
+  - Cards show title, "N questions" and "Last edited <date>".
+  - Card actions: Open (to `/sets/:id`, still a placeholder until F26), Duplicate, Delete (tap twice) and Host this set.
+  - **New set** saves an "Untitled set" draft and opens it. The page also has an empty state and a load-error state.
+- **Host a game** on `/` opens a set picker (newest preselected), then **Create room**. Both paths use `hostSet` in `lib/hostRoom.ts`. Its `checkPlayable` refuses a draft with a readable reason before any request.
+  - The "Room created" panel moved to `components/RoomCreated.tsx`, shared by `/` and `/sets`.
+  - Label helpers are in `lib/setLabels.ts`.
+- Tests:
+  - New: `db.test.ts` (10, `fake-indexeddb`), `Sets.test.tsx` (11), `hostRoom.test.ts` (6).
+  - `Landing.test.tsx` now covers the picker: list order, pick, the no-sets state, draft refusal and Cancel.
+  - `App.test.tsx` checks `/sets` without IndexedDB.
+  - 767 tests in total.
+- New dependencies:
+  - `dexie`: the spec's stack table names it for sets and image blobs.
+  - `fake-indexeddb` (dev): the roadmap names it for `db.test.ts`.
+
+**Decisions:** the DECISIONS rows dated 2026-10-28 for F25 cover:
+- the DB layout and seed-once
+- Duplicate, Delete and New set
+- the picker, `hostSet` and draft refusal (this supersedes the F08 sample-set row)
+- the image-upload gap (F30), with Import and Export left to F28
+- the code split that keeps Dexie off the players' bundle
+
+**Notes for next session:**
+- Playtest (Playwright, one 390×844 tab), all passed:
+  - First visit seeds the sample.
+  - Duplicate adds "(copy)", and Host this set on the copy gives "Room created" with a code.
+  - The Host a game picker lists both sets.
+  - Delete confirms, then removes the set. With every set gone the page shows the empty state, and it stays empty after a reload (no re-seed).
+- Only the favicon 404 showed in the console (pre-existing).
+- F26 replaces the `/sets/:setId` placeholder. Read and write through `db.ts`, and bump `updatedAt` on save so the list order follows edits. Drafts may stay unplayable: `checkPlayable` guards hosting.
+- F30 must upload images in `hostSet` (see the `SPEC-QUESTION` there). The DB layout is fixed; any change needs a Dexie `version(2)`.
+- Dexie is in its own chunk (`db-*.js`, 100 kB). Keep `lib/db.ts` out of static imports on Play and Screen paths.
+
+**How to try it:** `npm run dev`. On the laptop, open `http://localhost:5173/sets`. Duplicate the sample, then tap Host this set and choose Use this device as the Screen. Or, on `/`, tap Host a game, pick a set and tap Create room. To see the empty state, delete every set.
+
 ## F24 — Screen and player result states (2026-10-28)
 **What changed:**
 - Screen judged states:

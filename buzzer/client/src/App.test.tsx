@@ -22,11 +22,23 @@ function headingAt(path: string) {
 describe('AppRoutes', () => {
   it.each([
     ['/', 'Buzzr'],
-    ['/sets', 'My question sets'],
     ['/sets/set-1', 'Edit set'],
     ['/nowhere', 'Page not found'],
   ])('%s renders the %s page', (path, heading) => {
     expect(headingAt(path)).toBe(heading);
+  });
+
+  it('/sets loads the My question sets page, which reports a browser without IndexedDB', async () => {
+    // jsdom has no IndexedDB, like some private browsing modes.
+    render(
+      <MemoryRouter initialEntries={['/sets']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('My question sets');
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Could not load the saved sets in this browser.',
+    );
   });
 
   it('/play/:code renders the Player page, which first checks the room', () => {

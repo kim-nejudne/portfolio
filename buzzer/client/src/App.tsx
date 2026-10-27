@@ -10,6 +10,9 @@ import { Screen } from './pages/Screen.js';
 // neither this route nor the bots chunk (Dev tool: fake players).
 const DevBots = import.meta.env.DEV ? lazy(() => import('./dev/DevBots.js')) : null;
 
+// The set list carries Dexie. Players' phones never open it, so it loads on its own.
+const Sets = lazy(() => import('./pages/Sets.js').then((m) => ({ default: m.Sets })));
+
 /** The route table, without a router, so tests can mount it in a MemoryRouter. */
 export function AppRoutes() {
   return (
@@ -18,7 +21,14 @@ export function AppRoutes() {
       <Route path="/play/:code" element={<Play />} />
       <Route path="/screen/:code" element={<Screen />} />
       <Route path="/host/:code" element={<Host />} />
-      <Route path="/sets" element={<Placeholder title="My question sets" />} />
+      <Route
+        path="/sets"
+        element={
+          <Suspense>
+            <Sets />
+          </Suspense>
+        }
+      />
       <Route path="/sets/:setId" element={<Placeholder title="Edit set" />} />
       {DevBots && (
         <Route

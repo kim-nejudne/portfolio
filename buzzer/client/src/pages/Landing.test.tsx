@@ -1,14 +1,25 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { db, deleteSet } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { Landing } from './Landing.js';
 
+const FIRST_VISIT = 1_700_000_000_000;
+
+beforeEach(async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
+  await db.delete();
+  await db.open();
+});
+
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   localStorage.clear();
 });
@@ -85,21 +96,78 @@ describe('Host a game', () => {
     return fetch;
   }
 
+  const seededSample = { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT };
+  const quiz = { ...seededSample, id: 'quiz', title: 'Pub quiz', updatedAt: FIRST_VISIT + 1 };
+
+  async function openPicker() {
+    fireEvent.click(screen.getByRole('button', { name: 'Host a game' }));
+    return screen.findByRole('heading', { name: 'Pick a question set' });
+  }
+
   async function hostAGame() {
     renderLanding();
-    fireEvent.click(screen.getByRole('button', { name: 'Host a game' }));
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
     return screen.findByRole('heading', { name: 'Room created' });
   }
 
-  it('creates a room with the sample set and default settings', async () => {
+  it('Host a game lists every saved set, the last edited one picked', async () => {
+    await db.sets.add(quiz);
+    renderLanding();
+    await openPicker();
+    const radios = screen.getAllByRole<HTMLInputElement>('radio');
+    expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
+      'Pub quiz10 questions',
+      `${SAMPLE_SET.title}10 questions`,
+    ]);
+    expect(radios.map((r) => r.checked)).toEqual([true, false]);
+  });
+
+  it('creates a room with the picked set and default settings', async () => {
+    await db.sets.add(quiz);
     const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
-    await hostAGame();
+    renderLanding();
+    await openPicker();
+    fireEvent.click(screen.getByRole('radio', { name: /^Sample: General Knowledge/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await screen.findByRole('heading', { name: 'Room created' });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('/api/rooms');
     expect(JSON.parse(init.body as string)).toEqual({
-      set: SAMPLE_SET,
+      set: seededSample,
       settings: DEFAULT_SETTINGS,
     });
+  });
+
+  it('with no saved sets, the picker links to My question sets and cannot create', async () => {
+    await deleteSet(SAMPLE_SET.id);
+    renderLanding();
+    await openPicker();
+    expect(screen.getByText(/No saved sets yet/)).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: 'Make one in My question sets' }).getAttribute('href'),
+    ).toBe('/sets');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create room' }).disabled).toBe(
+      true,
+    );
+  });
+
+  it('an unfinished draft is refused with what to fix, before any request', async () => {
+    await db.sets.add({ ...quiz, questions: [] });
+    const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    renderLanding();
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('This set has no questions yet.');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('Cancel closes the picker', async () => {
+    renderLanding();
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('heading', { name: 'Pick a question set' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Host a game' })).toBeTruthy();
   });
 
   it('stores the hostToken in localStorage under the room code', async () => {
@@ -128,9 +196,10 @@ describe('Host a game', () => {
   it('shows the server error and lets the host try again', async () => {
     stubCreateRoom(Response.json({ ok: false, error: 'Too many rooms' }, { status: 429 }));
     renderLanding();
-    fireEvent.click(screen.getByRole('button', { name: 'Host a game' }));
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Too many rooms');
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Host a game' }).disabled).toBe(
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create room' }).disabled).toBe(
       false,
     );
     expect(localStorage.length).toBe(0);
