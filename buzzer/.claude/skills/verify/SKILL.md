@@ -13,8 +13,12 @@ Run these stages in order:
 1. `npm run format:check`
 2. `npm run lint`
 3. `npm run typecheck`
-4. `npm test`
+4. `npm test -- --reporter=dot`
 5. `npm run build`
+
+Keep output small:
+- A passing stage needs one line in your report, not its log.
+- When a stage fails, read only the failing part. For tests, re-run just the failing file: `npx vitest run <file>`.
 
 If a stage fails, report the shortest decisive error lines, fix the cause, and re-run from that stage. Fix the code, never the check: do not skip, disable or loosen a test or a lint rule to get green. For a format failure, run `npm run format`, then re-check.
 

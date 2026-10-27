@@ -2,6 +2,8 @@
 
 Status: [ ] todo · [~] in progress · [x] done · [!] blocked (see note)
 
+Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collapses to one line; its details are in PROGRESS.md and git history.
+
 ## M1 — Skeleton
 
 - [ ] F01 Project skeleton and tooling

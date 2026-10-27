@@ -11,15 +11,15 @@ background: false
 You cannot see the conversation that built this feature. Work only from the files. The project is `buzzer/`, a directory inside the `portfolio` git repository, so scope every git command with `-- .` from `buzzer/`.
 
 ## 1. Find the feature
-- Find the line marked `[~]` in `docs/ROADMAP.md` (a feature `F..` or a bug `B..`). Read its whole entry: Spec, Depends, Done when, Tests.
-- Read the `docs/SPEC.md` sections it cites under `Spec:`, and the related entries in `docs/DECISIONS.md`.
+- Run `node .claude/scripts/roadmap.mjs next`. Its "In progress" line names the `[~]` item (a feature `F..` or a bug `B..`), and its entry follows: Spec, Depends, Done when, Tests. Do not read `docs/ROADMAP.md` whole.
+- Run `node .claude/scripts/spec.mjs <ID>` for the cited `docs/SPEC.md` sections (never read SPEC.md whole), and grep `docs/DECISIONS.md` for related entries.
 - If no item is `[~]`, say so and stop.
 
 ## 2. Read the changes
 - `git diff HEAD -- .` for tracked changes.
 - `git status --short -- .` and read every untracked file in full.
 - Read surrounding code where you need context to judge a change.
-- Run `npm test` to see the tests pass or fail yourself.
+- Run `npm test -- --reporter=dot` to see the tests pass or fail yourself.
 
 ## 3. Check four areas
 - **Done when:** every bullet is met. Name the evidence: a test name, a code path, or a command output.

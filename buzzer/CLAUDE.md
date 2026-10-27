@@ -2,7 +2,13 @@
 
 A browser game-show buzzer. A big **Screen** (laptop on a TV) shows questions; **Players** buzz from their phones; the **Host** judges from a paired phone or from the Screen's keyboard. One Node process runs Express and Socket.IO and serves the React client. Rooms live in memory. There are no accounts and no database. Question sets live in the host's browser (IndexedDB).
 
-Read in this order: `docs/ROADMAP.md`, then the newest `docs/PROGRESS.md` entry, then only the `docs/SPEC.md` sections the feature cites, then `docs/DECISIONS.md`.
+Read in this order, through the scripts. Never read ROADMAP.md, PROGRESS.md or SPEC.md whole:
+
+1. `node .claude/scripts/roadmap.mjs next [ID]`: roadmap status, the feature's entry, and the newest 3 PROGRESS entries.
+2. `node .claude/scripts/spec.mjs <ID>`: only the spec sections that feature cites. Use `--toc` to find others.
+3. `docs/DECISIONS.md`: grep for the topic.
+
+Change roadmap markers with `roadmap.mjs mark <ID> <todo|~|x|!> [note]`. Marking `x` collapses the entry to one line.
 
 ## Repository
 
