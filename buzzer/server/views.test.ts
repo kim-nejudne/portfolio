@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Buzz, Phase, Room } from '../shared/types.js';
 import { T0, makePlayer, makeQuestion, makeRoom, makeSet, withPlayers } from './test/rooms.js';
+import { reduce, type Action } from './reducer.js';
 import { toView } from './views.js';
 
 const buzz = (playerId: string, at: number): Buzz => ({
@@ -182,6 +183,55 @@ describe('toView: host', () => {
     expect(view.buzzes).toEqual([buzz('p1', 10), buzz('p2', 30)]);
     expect(view.judgements).toEqual(judgements);
     expect(view.players.find((p) => p.id === 'p2')).toMatchObject({ rttMs: 40, rank: 1 });
+  });
+});
+
+describe('toView: host canJudge and canUndo match what the reducer accepts', () => {
+  const NOW = T0 + 10_000;
+  const JUDGE_WRONG: Action = { type: 'host:judge', result: 'wrong' };
+  const after = (room: Room, ...actions: Action[]) =>
+    actions.reduce((r, action) => {
+      const result = reduce(r, action, NOW);
+      if (!result.ok) throw new Error(result.error);
+      return result.room;
+    }, room);
+
+  /** Rooms across a question: before a buzz, buzzed, judged, waiting, reopened, revealed, moved on. */
+  function rooms(): [string, Room][] {
+    const buzzed = midGame('BUZZED');
+    const wrong = after(buzzed, JUDGE_WRONG);
+    const reopened = after(wrong, {
+      type: 'reopen',
+      questionIndex: wrong.questionIndex,
+      openingCounter: wrong.openingCounter,
+      at: wrong.reopenAt!,
+    });
+    const correct = after(buzzed, { type: 'host:judge', result: 'correct' });
+    return [
+      ['LOBBY', makeRoom()],
+      ['QUESTION', midGame('QUESTION')],
+      ['OPEN', midGame('OPEN')],
+      ['BUZZED, unjudged', buzzed],
+      ['BUZZED, waiting for the reopen', wrong],
+      ['OPEN after a reopen', reopened],
+      ['REVEAL after a correct answer', correct],
+      ['REVEAL by host:reveal', after(buzzed, { type: 'host:reveal' })],
+      ['the next question', after(correct, { type: 'host:next' })],
+      ['FINAL', after(correct, { type: 'host:end' })],
+      ['BUZZED after an undo', after(wrong, { type: 'host:undo' })],
+    ];
+  }
+
+  it.each(rooms())('in %s', (_name, room) => {
+    const view = toView(room, 'host');
+    expect(view.canJudge).toBe(reduce(room, JUDGE_WRONG, NOW).ok);
+    expect(view.canUndo).toBe(reduce(room, { type: 'host:undo' }, NOW).ok);
+  });
+
+  it('covers both answers of each flag', () => {
+    const views = rooms().map(([, room]) => toView(room, 'host'));
+    expect(new Set(views.map((v) => v.canJudge))).toEqual(new Set([true, false]));
+    expect(new Set(views.map((v) => v.canUndo))).toEqual(new Set([true, false]));
   });
 });
 

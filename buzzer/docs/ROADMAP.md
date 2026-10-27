@@ -54,14 +54,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F21 Gateway: remaining host events
 
-- [ ] F22 Host remote: judging, secondary actions, tabs
-  - Spec: UI spec by view (Host remote)
-  - Depends: F16, F21
-  - Done when:
-    - Correct / Wrong side by side in BUZZED; secondary actions Skip, scoreboard toggle, Undo, Previous, End game
-    - Players tab with scores, connection status, ± by question value, Kick
-    - Settings tab: penalty, auto-open, scoreboard every N
-  - Tests: playtest — run a 3-question game from the remote only, with one wrong answer, one undo and one kick
+- [x] F22 Host remote: judging, secondary actions, tabs
 
 - [ ] F23 Screen host controls and shortcuts
   - Spec: UI spec by view (Screen host controls)
@@ -188,3 +181,6 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Measure the 150 ms collection window in monotonic time (from the first buzz's `receivedAt`), so a late-firing timer cannot stretch it. Today the window lasts until `windowClosed` arrives (F14 decision).
 - Tell the player when a buzz was ignored. A player who joined during the current opening can press BUZZ!, but the server ignores the buzz silently and the phone stays on "Buzzed…" (F17 decision). A `canBuzz` field in `PlayerView` would let the phone show "Get ready…" instead.
 - Move the socket test harness (`start`, `connect`, `record`, `flush`, `openTable`) into `server/test/`. `sockets.test.ts`, `sockets.buzz.test.ts` and `sockets.host.test.ts` each have their own copy (F21).
+- Keep the host's Players list in a stable order. It is ranked by score, so the row under the thumb moves after a ± tap (F22 playtest). Needs join order or a stable index in `HostView`.
+- Arrow-key navigation between the host remote's tabs (WAI-ARIA tabs pattern). Tapping works; the keyboard can only Tab through them (F22 review).
+- Replace the `emit` cast in `client/src/pages/Host.tsx` `send` with a typed helper. Socket.IO's typed `emit` cannot take a generic event name (F22 review).

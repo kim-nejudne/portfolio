@@ -227,7 +227,7 @@ function hostJudge(
 ): ReduceResult {
   if (room.phase !== 'BUZZED' || !room.winnerId) return fail(WRONG_PHASE_ERROR);
   // SPEC-QUESTION: the wait before a reopen is BUZZED with reopenAt set; see DECISIONS #5.
-  if (room.reopenAt !== null) return fail('Already judged');
+  if (!canJudge(room)) return fail('Already judged');
 
   const playerId = room.winnerId;
   const points = room.set.questions[room.questionIndex]?.points ?? 0;
@@ -313,6 +313,23 @@ function reopen(
   return done(openBuzzers({ ...room, winnerId: null }));
 }
 
+/** Whether `host:judge` would be accepted: a winner in BUZZED, not already judged (DECISIONS #5). */
+export function canJudge(room: Room): boolean {
+  return room.phase === 'BUZZED' && room.winnerId !== null && room.reopenAt === null;
+}
+
+/** Whether `host:undo` would be accepted: this question's last judgement, with its undo point. */
+export function canUndo(room: Room): boolean {
+  const last = room.judgements.at(-1);
+  const { undo } = room;
+  return (
+    UNDO_PHASES.includes(room.phase) &&
+    undo !== null &&
+    last?.questionIndex === room.questionIndex &&
+    last.playerId === undo.winnerId
+  );
+}
+
 /**
  * Reverses the last judgement of this question and returns to BUZZED with that buzz, as it was
  * when judged. Newer buzzes of the question are discarded. `openingCounter` keeps its value, so
@@ -322,9 +339,7 @@ function hostUndo(room: Room): ReduceResult {
   if (!UNDO_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
   const last = room.judgements.at(-1);
   const { undo } = room;
-  if (!undo || last?.questionIndex !== room.questionIndex || last.playerId !== undo.winnerId) {
-    return fail('Nothing to undo');
-  }
+  if (!canUndo(room) || !undo || !last) return fail('Nothing to undo');
 
   const reversed = applyJudgement(room, last.playerId, 'adjust', -last.pointsDelta);
   return done({

@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
 import { TOAST_MS } from '../components/Toast.js';
-import type { HostView, Question, RankedPlayer } from '../../../shared/types.js';
+import type { HostView, Question } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
@@ -38,7 +38,7 @@ function question(n: number, overrides: Partial<Question> = {}): Question {
   };
 }
 
-function player(n: number, overrides: Partial<RankedPlayer> = {}) {
+function player(n: number, overrides: Partial<HostView['players'][number]> = {}) {
   return {
     id: `p${n}`,
     name: `Player ${n}`,
@@ -70,6 +70,8 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     nextQuestion: question(1),
     buzzes: [],
     judgements: [],
+    canJudge: false,
+    canUndo: false,
     ...overrides,
   };
 }
@@ -244,25 +246,68 @@ describe('Host remote', () => {
       return socket;
     }
 
+    const openTab = (name: RegExp) => fireEvent.click(screen.getByRole('tab', { name }));
+
+    it('opens on the Game tab and switches between Game, Players and Settings', () => {
+      remote(hostView({ players: [player(1)] }));
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs.map((t) => t.textContent)).toEqual(['Game', 'Players (1)', 'Settings']);
+      expect(screen.getByRole('tab', { selected: true }).textContent).toBe('Game');
+      expect(screen.getByRole('region', { name: 'Question' })).toBeTruthy();
+      openTab(/^Players/);
+      expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('tab-Players');
+      expect(screen.queryByRole('region', { name: 'Question' })).toBeNull();
+      expect(screen.getByRole('region', { name: 'Players (1)' })).toBeTruthy();
+      openTab(/^Settings$/);
+      expect(screen.getByRole('region', { name: 'Settings' })).toBeTruthy();
+    });
+
     it('lobby lists the players with colour, score and connection status', () => {
       remote(
         hostView({
-          players: [player(1), player(2, { connected: false, score: 300 })],
+          players: [player(1, { rttMs: 42 }), player(2, { connected: false, score: 300 })],
         }),
       );
+      openTab(/^Players/);
       const list = screen.getByRole('region', { name: 'Players (2)' });
       const rows = within(list).getAllByRole('listitem');
-      expect(rows.map((row) => row.textContent)).toEqual(['Player 10', 'Player 2offline300']);
-      const dots = rows.map((row) => (row.firstElementChild as HTMLElement).style.backgroundColor);
+      const lines = rows.map((row) => row.firstElementChild as HTMLElement);
+      expect(lines.map((line) => line.textContent)).toEqual([
+        'Player 1online · 42 ms0',
+        'Player 2offline300',
+      ]);
+      const dots = lines.map(
+        (line) => (line.firstElementChild as HTMLElement).style.backgroundColor,
+      );
       expect(dots[0]).not.toBe('');
       expect(dots[0]).not.toBe(dots[1]);
     });
 
     it('players appear live as they join', () => {
       const socket = remote(hostView());
+      openTab(/^Players/);
       expect(screen.getByText('No one has joined yet.')).toBeTruthy();
       socket.fire('state', hostView({ players: [player(1)] }));
       expect(screen.getByRole('region', { name: 'Players (1)' })).toBeTruthy();
+    });
+
+    it('a rejected action from another tab shows the same toast', () => {
+      const socket = remote(
+        hostView({
+          phase: 'QUESTION',
+          questionIndex: 0,
+          question: question(1),
+          players: [player(1)],
+        }),
+      );
+      openTab(/^Players/);
+      fireEvent.click(screen.getByRole('button', { name: 'Add 100 to Player 1' }));
+      expect(socket.emitted.at(-1)).toMatchObject({
+        event: 'host:adjustScore',
+        payload: { playerId: 'p1', delta: 100 },
+      });
+      act(() => socket.emitted.at(-1)!.ack({ ok: false, error: 'Unknown player' }));
+      expect(screen.getByRole('alert').textContent).toBe('Unknown player');
     });
 
     it('lobby shows the first question with its answer and notes box', () => {
@@ -331,7 +376,6 @@ describe('Host remote', () => {
       ['QUESTION', 'Open buzzers', 'host:open', inPhase('QUESTION')],
       ['OPEN', 'Reveal answer', 'host:reveal', inPhase('OPEN')],
       ['COLLECTING', 'Reveal answer', 'host:reveal', inPhase('COLLECTING')],
-      ['BUZZED', 'Reveal answer', 'host:reveal', inPhase('BUZZED')],
       ['REVEAL', 'Next question', 'host:next', inPhase('REVEAL', 3)],
       ['REVEAL of the last question', 'Show final results', 'host:next', inPhase('REVEAL', 9)],
     ])('in %s it reads %s and sends %s', (_phase, label, event, view) => {
@@ -339,6 +383,51 @@ describe('Host remote', () => {
       expect(primary().textContent).toBe(label);
       fireEvent.click(primary());
       expect(socket.emitted.at(-1)).toMatchObject({ event, payload: {} });
+    });
+
+    describe('BUZZED', () => {
+      const buzzed = (canJudge: boolean) =>
+        hostView({ ...inPhase('BUZZED'), winnerId: 'p1', players: [player(1)], canJudge });
+
+      it.each([
+        ['Correct', 'correct'],
+        ['Wrong', 'wrong'],
+      ])('shows Correct and Wrong side by side; %s sends host:judge %s', (label, result) => {
+        const socket = remote(buzzed(true));
+        expect(screen.queryByRole('button', { name: PRIMARY_LABELS })).toBeNull();
+        const correct = screen.getByRole('button', { name: 'Correct' });
+        const wrong = screen.getByRole('button', { name: 'Wrong' });
+        expect(correct.parentElement).toBe(wrong.parentElement);
+        fireEvent.click(screen.getByRole('button', { name: label }));
+        expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:judge', payload: { result } });
+      });
+
+      it('a double tap judges once', () => {
+        const socket = remote(buzzed(true));
+        fireEvent.click(screen.getByRole('button', { name: 'Wrong' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Correct' }));
+        expect(socket.emitted.filter((e) => e.event === 'host:judge')).toHaveLength(1);
+      });
+
+      it('one press locks every button on the remote until the next snapshot', () => {
+        const socket = remote(buzzed(true));
+        fireEvent.click(screen.getByRole('button', { name: 'Wrong' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Skip question' }));
+        expect(
+          socket.emitted.filter((e) => e.event.startsWith('host:') && e.event !== 'host:join'),
+        ).toHaveLength(1);
+        socket.fire('state', { ...buzzed(false) });
+        expect(
+          (screen.getByRole('button', { name: 'Skip question' }) as HTMLButtonElement).disabled,
+        ).toBe(false);
+      });
+
+      it('while the buzzers wait to reopen it says so and cannot judge', () => {
+        remote(buzzed(false));
+        expect(screen.queryByRole('button', { name: 'Correct' })).toBeNull();
+        const waiting = screen.getByRole('button', { name: 'Reopening buzzers…' });
+        expect((waiting as HTMLButtonElement).disabled).toBe(true);
+      });
     });
 
     it('is absent in FINAL', () => {

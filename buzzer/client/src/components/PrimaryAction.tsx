@@ -1,44 +1,63 @@
-import { useState } from 'react';
-import type { Ack, HostView, Phase } from '../../../shared/types.js';
+import type { HostView, Phase } from '../../../shared/types.js';
+import type { HostCommand } from '../lib/useHostCommand.js';
 
-/** The host events the primary button sends. None of them carries a payload. */
+/** The host events the primary button sends without a payload. */
 export type PrimaryEvent = 'host:start' | 'host:open' | 'host:reveal' | 'host:next';
 
 interface PrimaryActionProps {
   view: HostView;
-  /** Sends the event and calls back with the server's ack. */
-  send: (event: PrimaryEvent, ack: (res: Ack) => void) => void;
-  /** Shows why the server refused, for example a stale action from a second host tab. */
-  onRejected: (error: string) => void;
+  command: HostCommand;
 }
 
-/**
- * The remote's full-width primary button (UI spec, Host remote). Its label and event follow the
- * phase; the server decides whether the action is allowed.
- */
-export function PrimaryAction({ view, send, onRejected }: PrimaryActionProps) {
-  // The snapshot the last press was sent from. A new snapshot or a rejection re-enables the button,
-  // so a double tap sends once and a lost ack never leaves it stuck after a reconnect. An ok ack
-  // keeps it disabled: the new snapshot is what moves the button on.
-  const [sentFrom, setSentFrom] = useState<HostView | null>(null);
-  const action = primaryFor(view);
-  if (!action) return null;
+const big =
+  'w-full rounded-3xl px-6 py-6 font-display text-3xl transition active:scale-95 disabled:opacity-40';
 
-  function press(event: PrimaryEvent) {
-    setSentFrom(view);
-    send(event, (res) => {
-      if (res.ok) return;
-      setSentFrom(null);
-      onRejected(res.error);
-    });
+/**
+ * The remote's full-width primary action (UI spec, Host remote). Its label and event follow the
+ * phase; after a buzz it splits into Correct / Wrong. The server decides whether it is allowed.
+ */
+export function PrimaryAction({ view, command }: PrimaryActionProps) {
+  const { busy, run } = command;
+
+  if (view.phase === 'BUZZED') {
+    // After a wrong answer the room waits in BUZZED before the buzzers reopen (DECISIONS #5).
+    if (!view.canJudge) {
+      return (
+        <button type="button" disabled className={`${big} bg-surface text-muted`}>
+          Reopening buzzers…
+        </button>
+      );
+    }
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => run('host:judge', { result: 'correct' })}
+          disabled={busy}
+          className={`${big} bg-win text-bg`}
+        >
+          Correct
+        </button>
+        <button
+          type="button"
+          onClick={() => run('host:judge', { result: 'wrong' })}
+          disabled={busy}
+          className={`${big} bg-buzz text-ink`}
+        >
+          Wrong
+        </button>
+      </div>
+    );
   }
 
+  const action = primaryFor(view);
+  if (!action) return null;
   return (
     <button
       type="button"
-      onClick={() => press(action.event)}
-      disabled={sentFrom === view}
-      className="w-full rounded-3xl bg-accent px-6 py-6 font-display text-3xl text-accent-ink transition active:scale-95 disabled:opacity-40"
+      onClick={() => run(action.event, {})}
+      disabled={busy}
+      className={`${big} bg-accent text-accent-ink`}
     >
       {action.label}
     </button>
@@ -50,8 +69,6 @@ const BY_PHASE: Partial<Record<Phase, { label: string; event: PrimaryEvent }>> =
   QUESTION: { label: 'Open buzzers', event: 'host:open' },
   OPEN: { label: 'Reveal answer', event: 'host:reveal' },
   COLLECTING: { label: 'Reveal answer', event: 'host:reveal' },
-  // TODO(F22): Correct / Wrong side by side once judging is wired (F21). Until then the host reveals.
-  BUZZED: { label: 'Reveal answer', event: 'host:reveal' },
 };
 
 function primaryFor(view: HostView): { label: string; event: PrimaryEvent } | null {

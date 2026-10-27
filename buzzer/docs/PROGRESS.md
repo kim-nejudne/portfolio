@@ -12,6 +12,25 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F22 — Host remote: judging, secondary actions, tabs (2026-10-27)
+**What changed:**
+- `HostView` gains `canJudge` and `canUndo`. Both come from predicates exported by `server/reducer.ts`, which `hostJudge` and `hostUndo` also use. `views.test.ts` checks the flags against `reduce()` in 11 room states.
+- The host remote has three tabs: Game, Players (n) and Settings (`client/src/pages/Host.tsx`).
+  - Game: the question card, then `PrimaryAction`. In BUZZED it shows Correct / Wrong side by side, or a disabled "Reopening buzzers…" during the 1.5 s wait. Below it, `SecondaryActions`: Skip question (`host:reveal`), Undo last judgement (enabled by `canUndo`), Previous question, Show/Hide scoreboard, and End game (tap twice to confirm).
+  - Players (`HostPlayers.tsx`): score, "online · N ms" or "offline", −/+ the current question's points (`host:adjustScore`), and Kick (tap twice to confirm).
+  - Settings (`HostSettings.tsx`): penalty and auto-open switches, and a stepper for scoreboard every N (0 = Never, up to `SCOREBOARD_EVERY_MAX`). Each sends only its own key.
+- `client/src/lib/useHostCommand.ts` holds one lock for the whole remote. A press disables every button until the next snapshot or a rejection; a rejection shows the toast. `ConfirmButton.tsx` is the tap-twice button.
+- Tests: new `client/src/components/HostControls.test.tsx` (29). `Host.test.tsx` covers tabs, Correct / Wrong, the shared lock and the reopen wait. `views.test.ts` gains 12. 636 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F22 cover the two view flags, Skip = `host:reveal`, which actions show in which phase, tap-twice confirmation for Kick and End game, the ± step and when it hides, the shared lock, and the RTT display.
+
+**Notes for next session:**
+- Playtest (Playwright; 1 Screen, Host and 3 Players): a 3-question game run from the remote alone. It covered a wrong answer with the penalty off and on, then a correct answer, an undo back to BUZZED, ±100, a kick (3 players to 2), all three settings (kept across a host reload; auto-open worked on Q2 and Q3), Previous, and End game. The answer never appeared on the Screen or the phones. The playtest found raw float RTT values; they are now rounded.
+- Left for F24: the Screen does not render the scoreboard overlay yet. The Show scoreboard toggle and `scoreboardEvery` only flip `showScoreboard`. The Player FINAL and "Removed by host" states are also F24. The host FINAL view is still in Backlog.
+- Backlog additions: a stable host Players order, arrow keys for the tabs, and a typed replacement for the `emit` cast in `Host.tsx`.
+
+**How to try it:** `npm run dev`. On the laptop, Host a game, then Use this device as the Screen. Scan Pair host phone with a phone (or open the `/host/<code>#t=…` link). Join 2–3 players at `http://<LAN-IP>:5173`, then run the game from the phone using the Game, Players and Settings tabs.
+
 ## F21 — Gateway: remaining host events (2026-10-27)
 **What changed:**
 - `server/sockets.ts` wires `host:judge`, `host:undo`, `host:adjustScore`, `host:settings` and `host:kick`. They go through `asHost`, so they need `canHost`: a host socket, or a Screen holding the token. They also get the zod parse and guarded ack from `handle`. Every host event in the spec is now wired.

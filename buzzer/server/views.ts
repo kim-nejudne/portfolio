@@ -16,6 +16,7 @@ import type {
   View,
 } from '../shared/types.js';
 import { buzzGaps, rankBuzzes } from './fairness.js';
+import { canJudge, canUndo } from './reducer.js';
 import { rankPlayers, type Ranked } from './ranking.js';
 
 export function toView(room: Room, role: 'screen'): ScreenView;
@@ -55,6 +56,8 @@ function hostView(room: Room): HostView {
     nextQuestion: room.set.questions[room.questionIndex + 1] ?? null,
     buzzes: room.buzzes,
     judgements: room.judgements,
+    canJudge: canJudge(room),
+    canUndo: canUndo(room),
   };
 }
 

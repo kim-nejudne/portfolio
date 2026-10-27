@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
-import type { Ack, HostView } from '../../../shared/types.js';
+import type { HostView } from '../../../shared/types.js';
+import { HostPlayers } from '../components/HostPlayers.js';
+import { HostSettings } from '../components/HostSettings.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
-import { PrimaryAction, type PrimaryEvent } from '../components/PrimaryAction.js';
+import { PrimaryAction } from '../components/PrimaryAction.js';
+import { SecondaryActions } from '../components/SecondaryActions.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { useHostCommand, type SendHost } from '../lib/useHostCommand.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 
 const NOT_CONNECTED_ERROR = 'Not connected';
@@ -107,10 +111,13 @@ function HostConnected({
     [code, hostToken, onAccepted, onRejected],
   );
   const socketRef = useRoomSocket(code, join, makeSocket);
-  const send = useCallback(
-    (event: PrimaryEvent, ack: (res: Ack) => void) => {
+  const send = useCallback<SendHost>(
+    (event, payload, ack) => {
       const socket = socketRef.current;
-      if (socket) socket.emit(event, {}, ack);
+      // Socket.IO's emit can't narrow a generic event name, so widen it to the one event's shape.
+      const emit = socket?.emit.bind(socket) as
+        ((e: typeof event, p: typeof payload, a: typeof ack) => void) | undefined;
+      if (emit) emit(event, payload, ack);
       else ack({ ok: false, error: NOT_CONNECTED_ERROR });
     },
     [socketRef],
@@ -127,23 +134,66 @@ function HostConnected({
 interface HostRemoteProps {
   view: HostView;
   hostToken: string;
-  send: (event: PrimaryEvent, ack: (res: Ack) => void) => void;
+  send: SendHost;
 }
+
+const TABS = ['Game', 'Players', 'Settings'] as const;
+type Tab = (typeof TABS)[number];
 
 function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   const { toast, show } = useToast();
+  const [tab, setTab] = useState<Tab>('Game');
+  const command = useHostCommand(view, send, show);
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
       <header className="flex items-baseline justify-between gap-4">
         <h1 className="font-display text-3xl tracking-[0.15em] text-accent">{view.code}</h1>
         <p className="truncate text-muted">{view.title}</p>
       </header>
-      <QuestionCard view={view} />
-      <PrimaryAction view={view} send={send} onRejected={show} />
-      {view.phase === 'LOBBY' && (
-        <PairHostPhone code={view.code} hostToken={hostToken} className="text-lg" qrSize="200px" />
-      )}
-      <PlayerList players={view.players} />
+      <div
+        role="tablist"
+        aria-label="Remote"
+        className="grid grid-cols-3 gap-1 rounded-2xl bg-surface p-1"
+      >
+        {TABS.map((name) => (
+          <button
+            key={name}
+            type="button"
+            role="tab"
+            id={`tab-${name}`}
+            aria-selected={tab === name}
+            aria-controls={`panel-${name}`}
+            onClick={() => setTab(name)}
+            className={`rounded-xl px-2 py-2 text-lg ${tab === name ? 'bg-edge text-ink' : 'text-muted'}`}
+          >
+            {name === 'Players' ? `Players (${view.players.length})` : name}
+          </button>
+        ))}
+      </div>
+      <div
+        role="tabpanel"
+        id={`panel-${tab}`}
+        aria-labelledby={`tab-${tab}`}
+        className="flex flex-col gap-5"
+      >
+        {tab === 'Game' && (
+          <>
+            <QuestionCard view={view} />
+            <PrimaryAction view={view} command={command} />
+            <SecondaryActions view={view} command={command} />
+            {view.phase === 'LOBBY' && (
+              <PairHostPhone
+                code={view.code}
+                hostToken={hostToken}
+                className="text-lg"
+                qrSize="200px"
+              />
+            )}
+          </>
+        )}
+        {tab === 'Players' && <HostPlayers view={view} command={command} />}
+        {tab === 'Settings' && <HostSettings view={view} command={command} />}
+      </div>
       <Toast toast={toast} />
     </main>
   );
@@ -174,37 +224,6 @@ function QuestionCard({ view }: { view: HostView }) {
         <p className="font-display text-2xl">{question.answer}</p>
         {question.hostNotes && <p className="mt-2 text-base">{question.hostNotes}</p>}
       </div>
-    </section>
-  );
-}
-
-function PlayerList({ players }: { players: HostView['players'] }) {
-  return (
-    <section aria-labelledby="players-heading" className="flex flex-col gap-2">
-      <h2 id="players-heading" className="font-display text-xl">
-        Players ({players.length})
-      </h2>
-      {players.length === 0 ? (
-        <p className="text-muted">No one has joined yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {players.map((player) => (
-            <li
-              key={player.id}
-              className="flex items-center gap-3 rounded-2xl border-2 border-edge bg-surface px-3 py-2"
-            >
-              <span
-                aria-hidden
-                style={{ backgroundColor: player.color }}
-                className="size-4 shrink-0 rounded-full"
-              />
-              <span className="min-w-0 flex-1 truncate">{player.name}</span>
-              {!player.connected && <span className="text-sm text-muted">offline</span>}
-              <span className="font-display">{player.score}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 }

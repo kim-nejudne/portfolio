@@ -153,6 +153,10 @@ export interface HostView extends SharedRoomView {
   players: (RankedPlayer & { rttMs: number })[];
   buzzes: Buzz[];
   judgements: Judgement[];
+  /** `host:judge` would be accepted: false during the wait before a reopen. */
+  canJudge: boolean;
+  /** `host:undo` would be accepted (DECISIONS F02: the client never derives this). */
+  canUndo: boolean;
 }
 
 /** Only what the phone needs. No question text in v1; the answer only after reveal. */
