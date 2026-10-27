@@ -18,15 +18,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F05 Reducer foundation: lobby, players, toView
 
-- [ ] F06 Room creation over HTTP
-  - Spec: Realtime events and HTTP API (HTTP); Security (hostToken, rate limits); Question editor and images (Set list: built-in sample set)
-  - Depends: F05
-  - Done when:
-    - `POST /api/rooms` validates `{set, settings}` with zod and returns `{code, hostToken}`; the store keeps only the SHA-256 hash
-    - Room creation is limited to 10 per IP per hour (429 after)
-    - `GET /api/rooms/:code/exists` returns `{exists, phase}`
-    - The built-in 10-question sample set lives in `shared/` (text only; images arrive in F30)
-  - Tests: `http.test.ts` — create, hash-only storage, constant-time compare helper, 11th create gets 429, bad body gets 400 with readable error
+- [x] F06 Room creation over HTTP
 
 - [ ] F07 Socket gateway: joins and state broadcast
   - Spec: Realtime events and HTTP API (intro, Client → server, Server → client); Security (rate limits, limits)
@@ -293,6 +285,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
   - Done when:
     - Multi-stage Dockerfile builds and runs the single Node process serving client and sockets
     - README gives step-by-step deploy instructions for the chosen host (see DECISIONS: deploy target), including WebSocket proxying
+    - The deploy sets `TRUST_PROXY` for the reverse proxy, so per-IP rate limits see client IPs (DECISIONS F06)
     - `docker build` and `docker run` work locally and `/healthz` returns 200 from the container
   - Tests: container smoke check; the full manual acceptance checklist run on real devices
 
@@ -301,3 +294,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 ## Backlog (not scheduled)
 
 - Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
+- Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).

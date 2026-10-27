@@ -12,6 +12,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F06 — Room creation over HTTP (2026-10-27)
+**What changed:**
+- `server/http.ts`: `createApp({clientDir, rooms, clock, rng, trustProxy})`.
+  - `POST /api/rooms` checks the per-IP limit (10/h, 429), parses JSON up to 1 MB (413), validates with `createRoomBodySchema` (400 with a `z.prettifyError` message naming the field) and draws a code with `createRoomCode` (503 if none is free). It stores `createRoom(...)` with only the token hash and answers 201 `{code, hostToken}`.
+  - `GET /api/rooms/:code/exists` answers `{exists, phase}` in any case, with `phase: null` for unknown or malformed codes.
+  - Every error body is `{ok: false, error}`. An error handler maps body-parser failures to 400 and 413.
+- `server/hostToken.ts` holds `generateHostToken` (32 CSPRNG bytes, base64url), `hashHostToken` (SHA-256 hex) and `verifyHostToken` (constant-time digest compare). `server/rateLimit.ts` holds `createRateLimiter({max, windowMs}, clock)`, a sliding window per key.
+- `shared/sampleSet.ts` holds `SAMPLE_SET`: 10 text-only general-knowledge questions with ids `sample-q1`…`sample-q10`.
+- `server/index.ts` passes the store, `Date.now` and `TRUST_PROXY` to `createApp`. `shared/types.ts` gains `RoomExistsResponse` and `HttpErrorBody`.
+- There are 28 new tests, 153 in total, in `http.test.ts`, `hostToken.test.ts`, `rateLimit.test.ts` and `sampleSet.test.ts`.
+
+**Dependencies:** none.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F06 cover:
+- The status codes and the error shape.
+- Every create attempt counting against the limit.
+- `trust proxy` off unless `TRUST_PROXY` is set.
+- `exists` always answering 200.
+- The hash format and the compare.
+- The text-only sample set.
+
+**Notes for next session:**
+- F07 must authorise `host:join` and `screen:join` with `verifyHostToken(token, room.hostTokenHash)`, not a string compare.
+- Reuse `createRateLimiter` for `player:buzz` (per socket) and `player:join` (per IP, DECISIONS #3).
+- `server/index.ts` still has `TODO(F07)`: pass `rooms` to `attachSockets`.
+- F34 must set `TRUST_PROXY` behind a proxy; I added that to its Done-when. Rate-limiting `exists` is in the Backlog.
+- Nothing in the client calls these endpoints yet. **Host a game** (F08) will post `SAMPLE_SET` or a saved set.
+
+**How to try it:** Run `npm test` (`server/http.test.ts` and the others above). Or run `npm run dev` and then:
+`curl -s -XPOST localhost:3000/api/rooms -H 'content-type: application/json' -d '{"set":{},"settings":{}}'`, which gives a 400 listing the bad fields. Then `curl -s localhost:3000/api/rooms/ABCD/exists`.
+
 ## F05 — Reducer foundation: lobby, players, toView (2026-10-27)
 **What changed:**
 - `server/reducer.ts` holds:

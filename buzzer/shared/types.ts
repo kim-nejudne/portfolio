@@ -222,3 +222,15 @@ export interface CreateRoomResponse {
   code: string;
   hostToken: string;
 }
+
+/** `GET /api/rooms/:code/exists`, for the join form. `phase` is null when there is no such room. */
+export interface RoomExistsResponse {
+  exists: boolean;
+  phase: Phase | null;
+}
+
+/** Body of every HTTP error response, shaped like a failed `Ack`. */
+export interface HttpErrorBody {
+  ok: false;
+  error: string;
+}

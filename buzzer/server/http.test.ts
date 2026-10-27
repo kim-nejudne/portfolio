@@ -4,7 +4,13 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS, ROOM_CREATE_RATE_LIMIT } from '../shared/constants.js';
+import { hostTokenSchema } from '../shared/schemas.js';
+import type { CreateRoomResponse, HttpErrorBody, RoomExistsResponse } from '../shared/types.js';
+import { hashHostToken, verifyHostToken } from './hostToken.js';
 import { createApp, type AppOptions } from './http.js';
+import { InMemoryRoomStore } from './roomStore.js';
+import { makeRoom, makeSet, T0 } from './test/rooms.js';
 
 let server: Server | undefined;
 
@@ -46,5 +52,179 @@ describe('HTTP app', () => {
     } finally {
       await rm(clientDir, { recursive: true, force: true });
     }
+  });
+});
+
+function postRoom(
+  base: string,
+  body: unknown,
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  return fetch(`${base}/api/rooms`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
+    body: typeof body === 'string' ? body : JSON.stringify(body),
+  });
+}
+
+const validBody = { set: makeSet(), settings: DEFAULT_SETTINGS };
+
+describe('POST /api/rooms', () => {
+  it('creates a LOBBY room and returns 201 with {code, hostToken}', async () => {
+    const rooms = new InMemoryRoomStore();
+    const base = await listen({ rooms, clock: () => T0 });
+    const res = await postRoom(base, validBody);
+    expect(res.status).toBe(201);
+    const { code, hostToken } = (await res.json()) as CreateRoomResponse;
+    expect(code).toMatch(/^[A-Z]{4}$/);
+    expect(hostTokenSchema.safeParse(hostToken).success).toBe(true);
+
+    const room = rooms.get(code);
+    expect(room?.phase).toBe('LOBBY');
+    expect(room?.set).toEqual(validBody.set);
+    expect(room?.settings).toEqual(DEFAULT_SETTINGS);
+    expect(room?.createdAt).toBe(T0);
+    expect(room?.lastActivityAt).toBe(T0);
+  });
+
+  it('stores only the SHA-256 hash of the hostToken, never the token', async () => {
+    const rooms = new InMemoryRoomStore();
+    const base = await listen({ rooms });
+    const { code, hostToken } = (await (
+      await postRoom(base, validBody)
+    ).json()) as CreateRoomResponse;
+    const room = rooms.get(code)!;
+    expect(room.hostTokenHash).toBe(hashHostToken(hostToken));
+    expect(verifyHostToken(hostToken, room.hostTokenHash)).toBe(true);
+    expect(JSON.stringify(room)).not.toContain(hostToken);
+  });
+
+  it('gives each room its own code and token', async () => {
+    const rooms = new InMemoryRoomStore();
+    const base = await listen({ rooms });
+    const a = (await (await postRoom(base, validBody)).json()) as CreateRoomResponse;
+    const b = (await (await postRoom(base, validBody)).json()) as CreateRoomResponse;
+    expect(a.code).not.toBe(b.code);
+    expect(a.hostToken).not.toBe(b.hostToken);
+    expect(rooms.size).toBe(2);
+  });
+
+  it(`refuses the ${ROOM_CREATE_RATE_LIMIT.max + 1}th create from one IP within an hour with 429`, async () => {
+    const rooms = new InMemoryRoomStore();
+    let now = T0;
+    const base = await listen({ rooms, clock: () => now });
+    for (let i = 0; i < ROOM_CREATE_RATE_LIMIT.max; i++) {
+      expect((await postRoom(base, validBody)).status).toBe(201);
+    }
+    const refused = await postRoom(base, validBody);
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as HttpErrorBody).error).toMatch(/too many/i);
+    expect(rooms.size).toBe(ROOM_CREATE_RATE_LIMIT.max);
+
+    now += ROOM_CREATE_RATE_LIMIT.windowMs;
+    expect((await postRoom(base, validBody)).status).toBe(201);
+  });
+
+  it('ignores X-Forwarded-For unless trust proxy is on', async () => {
+    const base = await listen();
+    for (let i = 0; i < ROOM_CREATE_RATE_LIMIT.max; i++) {
+      await postRoom(base, validBody, { 'x-forwarded-for': `10.0.0.${i}` });
+    }
+    expect((await postRoom(base, validBody, { 'x-forwarded-for': '10.0.1.1' })).status).toBe(429);
+  });
+
+  it('limits by the forwarded client IP when trust proxy is on', async () => {
+    const base = await listen({ trustProxy: 1 });
+    for (let i = 0; i < ROOM_CREATE_RATE_LIMIT.max; i++) {
+      await postRoom(base, validBody, { 'x-forwarded-for': '10.0.0.1' });
+    }
+    expect((await postRoom(base, validBody, { 'x-forwarded-for': '10.0.0.1' })).status).toBe(429);
+    expect((await postRoom(base, validBody, { 'x-forwarded-for': '10.0.0.2' })).status).toBe(201);
+  });
+
+  it('rejects a bad body with 400 and an error naming the field', async () => {
+    const rooms = new InMemoryRoomStore();
+    const base = await listen({ rooms });
+    const res = await postRoom(base, {
+      set: { ...makeSet(), title: '' },
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as HttpErrorBody;
+    expect(body.ok).toBe(false);
+    expect(body.error).toContain('set.title');
+    expect(rooms.size).toBe(0);
+  });
+
+  it('rejects missing settings and an empty question list with 400', async () => {
+    const base = await listen();
+    const noSettings = await postRoom(base, { set: makeSet() });
+    expect(noSettings.status).toBe(400);
+    expect(((await noSettings.json()) as HttpErrorBody).error).toContain('settings');
+
+    const empty = await postRoom(base, { set: makeSet(0), settings: DEFAULT_SETTINGS });
+    expect(empty.status).toBe(400);
+    expect(((await empty.json()) as HttpErrorBody).error).toContain('set.questions');
+  });
+
+  it('rejects malformed JSON with 400 and a readable error', async () => {
+    const base = await listen();
+    const res = await postRoom(base, '{"set":');
+    expect(res.status).toBe(400);
+    expect((await res.json()) as HttpErrorBody).toEqual({
+      ok: false,
+      error: 'The request body is not valid JSON.',
+    });
+  });
+
+  it('rejects a body over 1 MB with 413', async () => {
+    const base = await listen();
+    const res = await postRoom(base, {
+      set: makeSet(),
+      settings: DEFAULT_SETTINGS,
+      pad: 'x'.repeat(1024 * 1024),
+    });
+    expect(res.status).toBe(413);
+    expect(((await res.json()) as HttpErrorBody).ok).toBe(false);
+  });
+
+  it('answers 503 when no room code is free', async () => {
+    const rooms = new InMemoryRoomStore();
+    rooms.set(makeRoom({ code: 'AAAA' }));
+    const base = await listen({ rooms, rng: () => 0 });
+    const res = await postRoom(base, validBody);
+    expect(res.status).toBe(503);
+    expect(rooms.size).toBe(1);
+  });
+});
+
+describe('GET /api/rooms/:code/exists', () => {
+  it('returns {exists: true, phase} for a live room, in any case', async () => {
+    const rooms = new InMemoryRoomStore();
+    rooms.set(makeRoom({ code: 'ABCD', phase: 'OPEN' }));
+    const base = await listen({ rooms });
+    for (const code of ['ABCD', 'abcd']) {
+      const res = await fetch(`${base}/api/rooms/${code}/exists`);
+      expect(res.status).toBe(200);
+      expect((await res.json()) as RoomExistsResponse).toEqual({ exists: true, phase: 'OPEN' });
+    }
+  });
+
+  it('returns {exists: false, phase: null} for an unknown or malformed code', async () => {
+    const base = await listen({ rooms: new InMemoryRoomStore() });
+    for (const code of ['WXYZ', 'AB', 'AAAAAA', '1234']) {
+      const res = await fetch(`${base}/api/rooms/${code}/exists`);
+      expect(res.status).toBe(200);
+      expect((await res.json()) as RoomExistsResponse).toEqual({ exists: false, phase: null });
+    }
+  });
+
+  it('never exposes the hostToken hash or the set', async () => {
+    const rooms = new InMemoryRoomStore();
+    rooms.set(makeRoom({ code: 'ABCD' }));
+    const base = await listen({ rooms });
+    const text = await (await fetch(`${base}/api/rooms/ABCD/exists`)).text();
+    expect(JSON.parse(text)).toEqual({ exists: true, phase: 'LOBBY' });
+    expect(text).not.toContain('secret');
   });
 });

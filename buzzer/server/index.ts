@@ -11,11 +11,20 @@ const port = Number(process.env.PORT) || DEFAULT_PORT;
 // In development Vite serves the client; in production the compiled server sits in dist/server.
 const clientDir = production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
 
-// TODO(F06, F07): pass the store to the HTTP and socket layers when room creation and joining land.
+// Behind a reverse proxy, set TRUST_PROXY (e.g. `1` for one hop) so rate limits see the client's IP.
+const trustProxyEnv = process.env.TRUST_PROXY;
+const trustProxy =
+  trustProxyEnv === undefined || trustProxyEnv === ''
+    ? false
+    : /^\d+$/.test(trustProxyEnv)
+      ? Number(trustProxyEnv)
+      : trustProxyEnv;
+
+// TODO(F07): pass the store to the socket layer when joining lands.
 const rooms = new InMemoryRoomStore();
 startRoomSweeper(rooms, Date.now);
 
-const httpServer = createServer(createApp({ clientDir }));
+const httpServer = createServer(createApp({ clientDir, rooms, clock: Date.now, trustProxy }));
 attachSockets(httpServer);
 
 httpServer.listen(port, () => {
