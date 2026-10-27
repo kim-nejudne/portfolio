@@ -86,6 +86,11 @@ async def delete_project(project_id: str, confirm_name: str, uid: str = Depends(
     project, _ = await assert_project_access(project_id, uid, require_owner=True)
     if confirm_name.strip() != project["name"]:
         raise HTTPException(status_code=400, detail="Project name confirmation does not match")
+    await purge_project(db, project_id)
+    return {"ok": True}
+
+
+async def purge_project(db, project_id: str) -> None:
     await db.projects.delete_one({"id": project_id})
     # Cascade cleanup: tickets, player_pokemon, xp_events (via player ids), evolutions
     player_ids = [p["id"] async for p in db.player_pokemon.find({"project_id": project_id})]
@@ -94,4 +99,3 @@ async def delete_project(project_id: str, confirm_name: str, uid: str = Depends(
         await db.xp_events.delete_many({"player_pokemon_id": {"$in": player_ids}})
         await db.evolutions.delete_many({"player_pokemon_id": {"$in": player_ids}})
     await db.player_pokemon.delete_many({"project_id": project_id})
-    return {"ok": True}

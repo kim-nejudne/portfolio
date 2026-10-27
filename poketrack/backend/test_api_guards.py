@@ -47,6 +47,7 @@ GUARDED = [
     ("POST", "/teams"),
     ("GET", "/teams/x"),
     ("PATCH", "/teams/x"),
+    ("DELETE", "/teams/x"),
     ("GET", "/teams/x/members"),
     ("GET", "/teams/x/invites"),
     ("POST", "/teams/x/invites"),
