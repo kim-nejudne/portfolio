@@ -42,15 +42,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F16 Host remote primary action
 
-- [ ] F17 Player buzzer screen
-  - Spec: UI spec by view (Player view: buzzer screen and states up to "Someone else won"); Buzzer fairness and timing (Client-side speed)
-  - Depends: F09, F15
-  - Done when:
-    - Whole-viewport circular button fires on `pointerdown` and Space; instant pressed state and `navigator.vibrate(30)` before the server replies
-    - States: Lobby, Get ready, BUZZ!, Buzzed…, You're first!, "<Name> buzzed first"
-    - No zoom, text selection or long-press menu on the button
-    - Sends `ping {t}` every `PING_INTERVAL_MS` from page load and acks every `pong`, so the server gets RTT samples (DECISIONS F15)
-  - Tests: playtest — 3 players, open buzzers, one presses; that phone shows green, others show the winner's name
+- [x] F17 Player buzzer screen
 
 - [ ] F18 Screen question and buzz views
   - Spec: UI spec by view (Screen view: Question, Buzzed); Buzzer fairness and timing (gap to second place)
@@ -222,3 +214,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).
 - Host remote game-over state in FINAL: the remote keeps showing the last question with no primary button (F16 playtest). No feature names a host final view; the Players list still shows the scores.
 - Measure the 150 ms collection window in monotonic time (from the first buzz's `receivedAt`), so a late-firing timer cannot stretch it. Today the window lasts until `windowClosed` arrives (F14 decision).
+- Tell the player when a buzz was ignored. A player who joined during the current opening can press BUZZ!, but the server ignores the buzz silently and the phone stays on "Buzzed…" (F17 decision). A `canBuzz` field in `PlayerView` would let the phone show "Get ready…" instead.

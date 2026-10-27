@@ -12,6 +12,29 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F17 — Player buzzer screen (2026-10-27)
+**What changed:**
+- The Player view's `Buzzer` in `client/src/pages/Play.tsx` is now live. It is a whole-viewport circle that fires on `pointerdown` and on Space (no key repeat). A press shows "Buzzed…" and calls `navigator.vibrate(30)` before it sends `player:buzz`. A rejected ack frees the button.
+- New `client/src/lib/buzzerState.ts` maps the `PlayerView` to the look and label: Lobby, Get ready…, BUZZ! (red, pulsing), Buzzed…, You're first! Answer now (green), "<Name> buzzed first" (dim).
+- The button and page use `touch-none`, `select-none` and `[-webkit-touch-callout:none]`, and the button blocks the context menu.
+- New `client/src/lib/ping.ts` (`keepPinging`): pings every `PING_INTERVAL_MS` while connected and acks every `pong`. `useRoomSocket` takes an optional `attach(socket)` that runs before `connect()`; the Player page attaches the pinger. `dev/bots.ts` now reuses `keepPinging`, with its tests unchanged.
+- `index.css`: theme tokens `buzz`, `buzz-edge`, `win`, `win-edge` and the `animate-buzz-pulse` animation.
+- Tests: 8 in `buzzerState.test.ts`, 5 in `ping.test.ts`, 13 new in `Play.test.tsx`. 460 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F17 cover:
+- Pings start on the socket's connect, not on page load.
+- The optimistic press lasts the whole opening; only a rejected ack frees it.
+- Locked out, REVEAL and FINAL stay "Game in progress" until F24.
+
+**Notes for next session:**
+- Playtest (2026-10-27, `PORT=3100 npm start` because a PokéTrack dev server held :3000): 3 players at 375 px. Lobby, Get ready, BUZZ! and pointerdown all passed. The winner's tab went green and the other two showed "Ben buzzed first". A Space buzz on the next question passed. Computed `touch-action` and `user-select` were `none`. The client sent `ping` every 2 s and acked every `pong`. "Buzzed…" was too brief to see on localhost; the unit test covers it.
+- `vite.config.ts` proxies to `DEFAULT_PORT` only, so `npm run dev` cannot move off :3000.
+- The host remote shows no RTT, so a phone's `rttMs` is only visible in tests and `/dev/bots`.
+- F24 replaces the `TODO(F24)` branches in `buzzerState.ts`.
+- A buzz the server ignores silently leaves "Buzzed…" up for the opening (Backlog: `canBuzz`).
+
+**How to try it:** `npm run dev`, Host a game on `http://localhost:5173`, then join two or three phones at `http://<LAN-IP>:5173/play/<CODE>`. From the host remote, Start game, then Open buzzers. Tap one phone: it turns green, and the others show its name. On a desktop tab, Space buzzes.
+
 ## F16 — Host remote primary action (2026-10-27)
 **What changed:**
 - New `client/src/components/PrimaryAction.tsx` is the remote's full-width primary button. Its label and event follow the phase:

@@ -1,7 +1,8 @@
 // Simulated players for `/dev/bots/:code` (Dev tool: fake players). Development builds only.
 
-import { MAX_PLAYERS_PER_ROOM, PING_INTERVAL_MS } from '../../../shared/constants.js';
+import { MAX_PLAYERS_PER_ROOM } from '../../../shared/constants.js';
 import type { Ack } from '../../../shared/types.js';
+import { keepPinging } from '../lib/ping.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 
 /** Bots buzz after a random delay up to this, so the collection window sees a spread. */
@@ -71,11 +72,6 @@ export function createBot({
     rttMs: null,
   };
   let closed = false;
-  let ping: ReturnType<typeof setInterval> | undefined;
-  const stopPing = () => {
-    clearInterval(ping);
-    ping = undefined;
-  };
 
   const update = (patch: Partial<BotState>) => {
     if (closed) return;
@@ -106,25 +102,16 @@ export function createBot({
     };
   };
 
+  // Pings only while connected; a reconnect restarts them.
+  const stopPing = keepPinging(socket, { clock, onRtt: (rttMs) => update({ rttMs }) });
   socket.on('connect', () => {
-    // Pings only while connected; a reconnect restarts them.
-    stopPing();
-    ping = setInterval(() => socket.emit('ping', { t: clock() }, () => {}), PING_INTERVAL_MS);
     socket.emit('player:join', { code, playerId: state.id, name: state.name }, (res) =>
       update(
         res.ok ? { status: 'joined', message: null } : { status: 'error', message: res.error },
       ),
     );
   });
-  socket.on('disconnect', () => {
-    stopPing();
-    update({ status: 'offline' });
-  });
-  socket.on('pong', ({ t }, ack) => {
-    // The server times its own RTT sample from the pong to this ack (DECISIONS F15).
-    ack();
-    update({ rttMs: Math.round(clock() - t) });
-  });
+  socket.on('disconnect', () => update({ status: 'offline' }));
 
   socket.connect();
 

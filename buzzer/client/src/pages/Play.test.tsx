@@ -2,7 +2,11 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PLAYER_KICKED_ERROR, PLAYER_PALETTE } from '../../../shared/constants.js';
+import {
+  PING_INTERVAL_MS,
+  PLAYER_KICKED_ERROR,
+  PLAYER_PALETTE,
+} from '../../../shared/constants.js';
 import type { PlayerView } from '../../../shared/types.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -265,6 +269,156 @@ describe('Play', () => {
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     unmount();
     expect(sockets[0]!.disconnected).toBe(true);
+  });
+});
+
+describe('Play buzzer', () => {
+  /** A stored identity rejoins without the form; returns the page's socket. */
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    return sockets[0]!;
+  }
+
+  const open = (overrides: Partial<PlayerView> = {}) =>
+    playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, ...overrides });
+  const buzzer = () => screen.getByRole('button') as HTMLButtonElement;
+  const buzzes = (socket: FakeSocket) => socket.emitted.filter((e) => e.event === 'player:buzz');
+
+  function stubVibrate() {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+    return vibrate;
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+    vi.useRealTimers();
+  });
+
+  it('says "Get ready…" on a grey, disabled button while buzzers are locked', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'QUESTION', questionIndex: 0 }));
+    expect(buzzer().textContent).toBe('Get ready…');
+    expect(buzzer().disabled).toBe(true);
+    expect(buzzer().dataset.look).toBe('idle');
+  });
+
+  it('shows a bright, pulsing "BUZZ!" while buzzers are open', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    expect(buzzer().textContent).toBe('BUZZ!');
+    expect(buzzer().disabled).toBe(false);
+    expect(buzzer().className).toContain('animate-buzz-pulse');
+  });
+
+  it('a press shows "Buzzed…" and vibrates for 30 ms before the server replies', async () => {
+    const vibrate = stubVibrate();
+    const socket = await joined();
+    socket.fire('state', open());
+
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+
+    expect(buzzes(socket)).toHaveLength(1);
+    expect(buzzer().textContent).toBe('Buzzed…');
+    expect(buzzer().dataset.look).toBe('pressed');
+    expect(vibrate).toHaveBeenCalledWith(30);
+  });
+
+  it('buzzes on pointerdown, not on click', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    fireEvent.click(buzzer());
+    expect(buzzes(socket)).toHaveLength(0);
+  });
+
+  it('a second press in the same opening sends nothing more', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    fireEvent.keyDown(window, { code: 'Space' });
+    expect(buzzes(socket)).toHaveLength(1);
+  });
+
+  it('Space buzzes once; holding it down does not send again', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    fireEvent.keyDown(window, { code: 'Space' });
+    fireEvent.keyDown(window, { code: 'Space', repeat: true });
+    expect(buzzes(socket)).toHaveLength(1);
+    expect(buzzer().textContent).toBe('Buzzed…');
+  });
+
+  it('Space does nothing while buzzers are locked', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'QUESTION', questionIndex: 0 }));
+    fireEvent.keyDown(window, { code: 'Space' });
+    expect(buzzes(socket)).toHaveLength(0);
+  });
+
+  it('a refused buzz frees the button to try again', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    act(() => buzzes(socket)[0]!.ack({ ok: false, error: 'Too many buzzes' }));
+    expect(buzzer().textContent).toBe('BUZZ!');
+  });
+
+  it('stays "Buzzed…" through the window, and a new opening brings "BUZZ!" back', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    act(() => buzzes(socket)[0]!.ack({ ok: true }));
+    socket.fire('state', open({ phase: 'COLLECTING', hasBuzzed: true }));
+    expect(buzzer().textContent).toBe('Buzzed…');
+
+    socket.fire('state', open({ openingCounter: 2 }));
+    expect(buzzer().textContent).toBe('BUZZ!');
+  });
+
+  it('the winner sees a green "You\'re first! Answer now"', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      open({ phase: 'BUZZED', hasBuzzed: true, winnerId: 'p1', winnerName: 'Ana' }),
+    );
+    expect(buzzer().textContent).toBe('You’re first! Answer now');
+    expect(buzzer().dataset.look).toBe('won');
+    expect(buzzer().className).toContain('bg-win');
+  });
+
+  it("everyone else sees the winner's name on a dim button", async () => {
+    const socket = await joined();
+    socket.fire('state', open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' }));
+    expect(buzzer().textContent).toBe('Ben buzzed first');
+    expect(buzzer().dataset.look).toBe('lost');
+    expect(buzzer().disabled).toBe(true);
+  });
+
+  it('blocks zoom, text selection and the long-press menu on the button', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    // fireEvent returns false when a handler called preventDefault.
+    expect(fireEvent.contextMenu(buzzer())).toBe(false);
+    expect(buzzer().className).toMatch(/\btouch-none\b/);
+    expect(buzzer().className).toMatch(/\bselect-none\b/);
+    expect(buzzer().className).toContain('[-webkit-touch-callout:none]');
+  });
+
+  it('pings every PING_INTERVAL_MS from connect and acks every pong', async () => {
+    vi.useFakeTimers();
+    const socket = await joined();
+    const pings = () => socket.emitted.filter((e) => e.event === 'ping');
+
+    vi.advanceTimersByTime(PING_INTERVAL_MS * 3);
+    expect(pings()).toHaveLength(3);
+
+    const ack = vi.fn();
+    socket.fire('pong', pings()[2]!.payload, ack);
+    expect(ack).toHaveBeenCalledOnce();
   });
 });
 

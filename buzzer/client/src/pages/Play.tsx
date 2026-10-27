@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useState,
+  type FormEvent,
+  type PointerEvent,
+} from 'react';
 import { Link, useParams } from 'react-router';
 import { PLAYER_KICKED_ERROR, PLAYER_NAME_MAX } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
-import type { PlayerView } from '../../../shared/types.js';
+import type { Ack, PlayerView } from '../../../shared/types.js';
 import { roomExists } from '../lib/api.js';
+import { buzzerState, type BuzzerKind } from '../lib/buzzerState.js';
+import { keepPinging } from '../lib/ping.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -14,7 +23,7 @@ import {
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+import { useRoomSocket, type AttachSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 
 interface PlayProps {
   /** Tests pass a fake socket. */
@@ -202,22 +211,78 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
     },
     [code, identity, saved, onJoined, onRejected],
   );
-  useRoomSocket(code, join, makeSocket);
+  const socketRef = useRoomSocket(code, join, makeSocket, attachPing);
+  const buzz = useCallback(
+    (ack: (res: Ack) => void) => {
+      const socket = socketRef.current;
+      if (!socket) return ack({ ok: false, error: 'Not connected' });
+      socket.emit('player:buzz', {}, ack);
+    },
+    [socketRef],
+  );
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
 
   if (error) return <PlayMessage title={error} />;
   if (view?.role !== 'player') return <PlayMessage title="Joining…" link={false} />;
-  return <Buzzer view={view} />;
+  return <Buzzer view={view} buzz={buzz} />;
+}
+
+/** RTT samples for latency correction, from the moment the socket connects (DECISIONS F17). */
+const attachPing: AttachSocket = (socket) => keepPinging(socket);
+
+const BUZZER_LOOK: Record<BuzzerKind, string> = {
+  idle: 'border-edge bg-surface text-muted',
+  live: 'animate-buzz-pulse border-buzz-edge bg-buzz text-white',
+  pressed: 'scale-90 border-buzz-edge bg-buzz text-white brightness-75',
+  won: 'border-win-edge bg-win text-bg',
+  lost: 'border-edge bg-surface text-muted opacity-50',
+};
+
+interface BuzzerProps {
+  view: PlayerView;
+  /** Sends `player:buzz`. */
+  buzz: (ack: (res: Ack) => void) => void;
 }
 
 /** The whole-viewport buzzer with the player's colour bar on top (UI spec, Player view). */
-function Buzzer({ view }: { view: PlayerView }) {
-  // TODO(F17): the buzzer states for questions, buzzes and reveals.
-  const label = view.phase === 'LOBBY' ? 'You’re in! Waiting for the host' : 'Game in progress';
+function Buzzer({ view, buzz }: BuzzerProps) {
+  // The local press belongs to one opening; a new question or reopening clears it.
+  const opening = `${view.questionIndex}:${view.openingCounter}`;
+  const [pressedAt, setPressedAt] = useState<string | null>(null);
+  const state = buzzerState(view, pressedAt === opening);
+
+  function press() {
+    if (!state.live) return;
+    // Feedback first, before the server replies (Buzzer fairness and timing, Client-side speed).
+    setPressedAt(opening);
+    if ('vibrate' in navigator) navigator.vibrate(30);
+    buzz((res) => {
+      // A refused buzz (rate limit, not joined, offline) frees the button to try again.
+      if (!res.ok) setPressedAt((at) => (at === opening ? null : at));
+    });
+  }
+  const pressFromKey = useEffectEvent(press);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return;
+      event.preventDefault();
+      if (!event.repeat) pressFromKey();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  function onPointerDown(event: PointerEvent) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    press();
+  }
+
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-bg select-none">
+    <main className="flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none]">
       <header
         style={{ backgroundColor: view.me.color }}
         className="flex shrink-0 items-center justify-between gap-4 px-4 py-2 font-display text-xl text-bg"
@@ -228,10 +293,13 @@ function Buzzer({ view }: { view: PlayerView }) {
       <div className="flex flex-1 items-center justify-center p-6">
         <button
           type="button"
-          disabled
-          className="flex aspect-square w-[min(85vw,70dvh)] touch-manipulation items-center justify-center rounded-full border-8 border-edge bg-surface p-[12%] text-center font-display text-3xl text-muted"
+          disabled={!state.live}
+          data-look={state.kind}
+          onPointerDown={onPointerDown}
+          onContextMenu={(event) => event.preventDefault()}
+          className={`flex aspect-square w-[min(85vw,70dvh)] touch-none items-center justify-center rounded-full border-8 p-[12%] text-center font-display text-3xl transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
         >
-          {label}
+          {state.label}
         </button>
       </div>
     </main>
