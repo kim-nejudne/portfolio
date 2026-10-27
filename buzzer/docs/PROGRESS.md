@@ -12,6 +12,33 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F13 — Reducer: question flow (2026-10-27)
+**What changed:**
+- `server/reducer.ts` accepts seven new actions. They are named like their socket events, and `host:scoreboard` carries `show`.
+  - `host:start`: LOBBY with at least 1 player, to QUESTION 0.
+  - `host:open`: QUESTION to OPEN. It clears `buzzes` and adds 1 to `openingCounter`.
+  - `host:reveal`: QUESTION, OPEN, COLLECTING or BUZZED to REVEAL. It drops the buzzes and the winner, and keeps the lockouts.
+  - `host:next`: REVEAL to the next QUESTION, or to FINAL after the last question.
+  - `host:prev`: any question phase or REVEAL to QUESTION index − 1. It is rejected at index 0.
+  - `host:end`: any phase to FINAL.
+  - `host:scoreboard`: any phase. It sets the overlay.
+- `enterQuestion` resets `buzzes`, `winnerId` and `lockedOut`. With `autoOpenBuzzers` on, it goes straight to OPEN (start, next and prev). `host:next` sets `showScoreboard` when the finished question number is a multiple of `scoreboardEvery`.
+- A wrong phase fails with the exported `WRONG_PHASE_ERROR` ("Not allowed in this phase"). No effects are emitted, and there is no socket wiring yet.
+- There are 64 new tests in `reducer.flow.test.ts`, 365 in total. They cover each transition row, plus a table-driven test that every unlisted phase rejects each action and leaves the room unchanged.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F13 cover:
+- Open questions 7 (when the overlay hides) and 8 (prev onto an answered question), now resolved.
+- Auto-open on every entry to QUESTION. The start rule counts disconnected players.
+- FINAL clears the per-question state. Reveal keeps lockouts. End and scoreboard work in every phase.
+- One wrong-phase error. Stale timers are guarded by phase + index + counter.
+
+**Notes for next session:**
+- F14's `windowClosed` must check that the phase is COLLECTING, as well as `questionIndex` and `openingCounter`. F19's `reopen` must check BUZZED with a pending reopen. Only an opening bumps the counter, so after `prev`/`next` back to the same question the counter alone does not prove an effect is fresh.
+- F15/F21 wire these through `sockets.ts` `dispatch` (host token check, zod parse, ack).
+- F19 adds the reopen wait (open question 5). `host:reveal` and `host:prev` from BUZZED with a pending reopen then need to clear it.
+
+**How to try it:** `npx vitest run server/reducer.flow.test.ts`. Nothing is visible in the app until F15/F16.
+
 ## F12 — Fairness: latency and ranking (2026-10-27)
 **What changed:**
 - `server/fairness.ts`, pure functions with no clock or socket:

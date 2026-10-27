@@ -34,14 +34,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F12 Fairness: latency and ranking
 
-- [ ] F13 Reducer: question flow
-  - Spec: Game flow and state machine (Transitions: start, open, reveal, next, prev, end; scoreboard overlay); Data model (RoomSettings)
-  - Depends: F05
-  - Done when:
-    - `host:start` (≥1 player), `host:open`, `host:reveal`, `host:next`, `host:prev`, `host:end`, `host:scoreboard` follow the transitions table
-    - `autoOpenBuzzers` opens buzzers on entering QUESTION; `scoreboardEvery` sets `showScoreboard` on `host:next`
-    - Every action not listed for the current phase is rejected
-  - Tests: `reducer.flow.test.ts` — one test per transition row, plus a table-driven test that every other phase rejects each action
+- [x] F13 Reducer: question flow
 
 - [ ] F14 Reducer: buzz collection and window close
   - Spec: Game flow and state machine (OPEN → COLLECTING → BUZZED; scheduled effects); Buzzer fairness and timing (Rules)
