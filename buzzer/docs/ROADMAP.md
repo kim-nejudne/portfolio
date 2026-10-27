@@ -64,13 +64,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F25 Saved sets and the set list
 
-- [ ] F26 Set editor
-  - Spec: Question editor and images (Set editor)
-  - Depends: F25
-  - Done when:
-    - Title and question cards (text, answer, host notes, points) with spec limits and inline errors
-    - Autosave debounced 500 ms with a "Saved" indicator; up/down, duplicate and delete per question; 100-question cap
-  - Tests: unit test for the debounce with fake timers; playtest — edit, reload, changes persist
+- [x] F26 Set editor
 
 - [ ] F27 Reorder, preview and print sheet
   - Spec: Question editor and images (Set editor: reorder, Preview, Print answer sheet)

@@ -22,7 +22,6 @@ function headingAt(path: string) {
 describe('AppRoutes', () => {
   it.each([
     ['/', 'Buzzr'],
-    ['/sets/set-1', 'Edit set'],
     ['/nowhere', 'Page not found'],
   ])('%s renders the %s page', (path, heading) => {
     expect(headingAt(path)).toBe(heading);
@@ -53,9 +52,16 @@ describe('AppRoutes', () => {
     expect(headingAt('/host/ABCD')).toBe('Not authorised');
   });
 
-  it('passes the route parameter from the URL to the page', () => {
-    headingAt('/sets/set-1');
-    expect(screen.getByText('set-1')).toBeTruthy();
+  it('/sets/:setId loads the set editor, which reports a browser without IndexedDB', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sets/set-1']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Edit set');
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Could not load this set in this browser.',
+    );
   });
 
   it('/dev/bots/:code renders the bots page in development', async () => {

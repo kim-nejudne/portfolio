@@ -12,6 +12,40 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F26 — Set editor (2026-10-28)
+**What changed:**
+- `/sets/:setId` is now the editor (`pages/SetEditor.tsx`, a lazy route chunk, keyed by `setId`). It replaces the placeholder.
+  - Title field, then a card per question: Question, Answer, Host notes (optional) and Points.
+  - Text fields have `maxLength` and an `n/max` counter. Inline errors show after a field is left: title, answer and question text required, the length limits, and the points range.
+  - Per card: ↑/↓, Duplicate (copy below) and Delete (tap twice). **Add question** appends and focuses a new card; at 100 questions Add and Duplicate are disabled with a message.
+  - Status line: Saving… / Saved / Couldn't save.
+- `lib/autosave.ts`: `Autosaver` (500 ms debounce, no overlapping writes, a failed value kept for retry) and `useAutosave`, which also flushes on unmount and `pagehide`.
+- `lib/setEditor.ts`: pure edits (`addQuestion`, `moveQuestion`, `duplicateQuestion`, `removeQuestion`) and checks (`questionErrors`, `titleError`, `parsePoints`).
+- `lib/db.ts`: `saveSet` writes the set and stamps `updatedAt`.
+- `Placeholder` now serves only unknown routes, without route params.
+- Tests: new `autosave.test.ts` (7, fake timers), `setEditor.test.ts` (12) and `SetEditor.test.tsx` (13). `db.test.ts` gains 1 (`saveSet`). `App.test.tsx` checks `/sets/:setId` without IndexedDB. 799 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-28 for F26 cover:
+- autosave: whole-set writes, flushing on leave, and failure and retry
+- errors shown after blur, `maxLength`, and empty notes removed
+- points: only a valid number is saved
+- the question actions, the cap, a missing set, and what F27 and F29 own
+
+**Notes for next session:**
+- Playtest (Playwright, one 390×844 tab), all passed:
+  - New set opens the editor with "Saved".
+  - The fields, counters and the blank-question error work.
+  - "Saving…" turns to "Saved" within 750 ms.
+  - Move up, Duplicate, and Delete (with Cancel and Confirm) work.
+  - After a reload, the title, both questions, answer, notes and points were all still there.
+  - At 100 questions, Add question is disabled and the cap message shows.
+- Only the favicon 404 showed in the console (pre-existing).
+- `SetEditor.test.tsx` uses `vi.useFakeTimers({ shouldAdvanceTime: true })`, because Dexie and fake-indexeddb also schedule with `setTimeout`. Tests that jump past the debounce use `advanceTimersByTimeAsync`.
+- F27: add the `@dnd-kit` handle beside the ↑/↓ buttons in `QuestionCard`, and feed `moveQuestion` (or an `arrayMove`) through the same `changeQuestions`. Preview and Print can read the editor's `set` state.
+- F29: the image goes in `QuestionCard`. `questionErrors` already accepts an image-only question. Deleting a question should also delete its blob.
+
+**How to try it:** `npm run dev`. On the laptop, open `http://localhost:5173/sets` and tap New set (or Open on the sample). Edit the title and questions, watch the status go from Saving… to Saved, then reload the page: the edits stay. Use ↑/↓, Duplicate and Delete on the cards.
+
 ## F25 — Saved sets and the set list (2026-10-28)
 **What changed:**
 - `client/src/lib/db.ts`: a Dexie database `buzzr` with `sets` and `images` (blob) tables.

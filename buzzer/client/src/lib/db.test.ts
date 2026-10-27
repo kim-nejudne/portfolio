@@ -12,6 +12,7 @@ import {
   getSet,
   listSets,
   NEW_SET_TITLE,
+  saveSet,
 } from './db.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
@@ -119,5 +120,18 @@ describe('question set database', () => {
     const long = copyTitle('x'.repeat(SET_TITLE_MAX));
     expect(long).toHaveLength(SET_TITLE_MAX);
     expect(long.endsWith(' (copy)')).toBe(true);
+  });
+
+  it('saving an edited set stamps updatedAt, so it moves to the top of the list', async () => {
+    await db.sets.add(set('other', FIRST_VISIT + 5));
+    const sample = (await getSet(SAMPLE_SET.id))!;
+    await saveSet({ ...sample, title: 'Renamed' }, FIRST_VISIT + 10);
+    expect(await getSet(SAMPLE_SET.id)).toEqual({
+      ...sample,
+      title: 'Renamed',
+      createdAt: FIRST_VISIT,
+      updatedAt: FIRST_VISIT + 10,
+    });
+    expect((await listSets()).map((s) => s.id)).toEqual([SAMPLE_SET.id, 'other']);
   });
 });

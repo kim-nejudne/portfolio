@@ -116,3 +116,11 @@ export async function deleteSet(id: string): Promise<void> {
     await db.sets.delete(id);
   });
 }
+
+/**
+ * The editor's autosave: writes the whole set and stamps `updatedAt`, so the set list's "last
+ * edited first" order follows edits. `createdAt` stays as stored.
+ */
+export async function saveSet(set: QuestionSet, now = Date.now()): Promise<void> {
+  await db.sets.put({ ...set, updatedAt: now });
+}
