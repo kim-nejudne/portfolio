@@ -33,6 +33,15 @@ export const PLAYER_KICKED_ERROR = 'You were removed from this game';
 export const INVALID_HOST_TOKEN_ERROR = 'Invalid host token';
 /** The error for a `host:*` event from a socket that did not join with the hostToken. */
 export const NOT_HOST_ERROR = 'Only the host can do that';
+/** The `*:join` error for a code with no room: never created, expired, or lost in a server restart. */
+export const ROOM_NOT_FOUND_ERROR = 'Room not found';
+/**
+ * The page shown once a game is over for good: a `room:closed` event, or "Room not found" for a
+ * room this device was in. Also the `player:join` error for a new player in FINAL.
+ */
+export const GAME_ENDED_ERROR = 'This game has ended';
+/** The `room:closed` reason when the sweeper deletes an idle room. */
+export const ROOM_EXPIRED_REASON = 'expired';
 /** The `player:buzz` error past `BUZZ_RATE_LIMIT`. */
 export const BUZZ_RATE_LIMITED_ERROR = 'Too many buzzes';
 /** The `ping` error past `PING_RATE_LIMIT`. */

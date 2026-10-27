@@ -2,7 +2,12 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
+import {
+  DEFAULT_SETTINGS,
+  GAME_ENDED_ERROR,
+  PLAYER_PALETTE,
+  ROOM_NOT_FOUND_ERROR,
+} from '../../../shared/constants.js';
 import { TOAST_MS } from '../components/Toast.js';
 import type { HostView, Question } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
@@ -219,12 +224,45 @@ describe('Host remote', () => {
     });
   });
 
-  it('shows other join errors, such as an unknown room, with a link home', () => {
+  it('shows other join errors with a link home', () => {
     saveHostToken('WXYZ', TOKEN);
     const { socket } = renderHost();
-    act(() => socket.emitted[0]!.ack({ ok: false, error: 'Room not found' }));
-    expect(heading()).toBe('Room not found');
+    act(() => socket.emitted[0]!.ack({ ok: false, error: 'Already joined' }));
+    expect(heading()).toBe('Already joined');
     expect(screen.getByRole('link', { name: 'Back to start' }).getAttribute('href')).toBe('/');
+  });
+
+  it('a room the server no longer has (expiry or restart) shows "This game has ended" with a link home', () => {
+    saveHostToken('WXYZ', TOKEN);
+    const { socket } = renderHost();
+    act(() => socket.emitted[0]!.ack({ ok: false, error: ROOM_NOT_FOUND_ERROR }));
+    expect(heading()).toBe(GAME_ENDED_ERROR);
+    expect(screen.getByRole('link', { name: 'Back to start' }).getAttribute('href')).toBe('/');
+  });
+
+  it('room:closed mid-game shows "This game has ended"', () => {
+    saveHostToken('WXYZ', TOKEN);
+    const { socket } = renderHost();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', hostView());
+    socket.fire('room:closed', { reason: 'expired' });
+    expect(heading()).toBe(GAME_ENDED_ERROR);
+  });
+
+  it('a reconnect rejoins silently with the stored token and renders the new snapshot', () => {
+    saveHostToken('WXYZ', TOKEN);
+    const { socket } = renderHost();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', hostView());
+    socket.fire('connect');
+    const joins = socket.emitted.filter((e) => e.event === 'host:join');
+    expect(joins.map((e) => e.payload)).toEqual([
+      { code: 'WXYZ', hostToken: TOKEN },
+      { code: 'WXYZ', hostToken: TOKEN },
+    ]);
+    act(() => joins[1]!.ack({ ok: true }));
+    socket.fire('state', hostView({ players: [player(1)] }));
+    expect(screen.getByRole('tab', { name: 'Players (1)' })).toBeTruthy();
   });
 
   it('a malformed code shows Room not found without connecting', () => {

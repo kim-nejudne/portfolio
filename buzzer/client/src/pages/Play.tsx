@@ -7,7 +7,12 @@ import {
   type PointerEvent,
 } from 'react';
 import { Link, useParams } from 'react-router';
-import { PLAYER_KICKED_ERROR, PLAYER_NAME_MAX } from '../../../shared/constants.js';
+import {
+  GAME_ENDED_ERROR,
+  PLAYER_KICKED_ERROR,
+  PLAYER_NAME_MAX,
+  ROOM_NOT_FOUND_ERROR,
+} from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
 import type { Ack, PlayerView } from '../../../shared/types.js';
 import { roomExists } from '../lib/api.js';
@@ -39,7 +44,7 @@ export function Play({ makeSocket = createSocket }: PlayProps) {
 
 type Step =
   | { kind: 'checking' }
-  | { kind: 'missing' }
+  | { kind: 'missing'; ended: boolean }
   | { kind: 'unreachable'; error: string }
   | { kind: 'form' }
   | { kind: 'joining'; identity: PlayerIdentity; saved: boolean };
@@ -57,9 +62,11 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
       (exists) => {
         if (cancelled) return;
         if (!exists) {
+          // A stored identity means this device played here, so the game ended (expiry or restart).
+          const ended = loadPlayer(code) !== null;
           // The room is gone, so any identity for it is stale (a later room may reuse the code).
           clearPlayer(code);
-          return setStep({ kind: 'missing' });
+          return setStep({ kind: 'missing', ended });
         }
         // A stored identity means this device already joined: rejoin without the form.
         const stored = loadPlayer(code);
@@ -109,7 +116,11 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
     case 'checking':
       return <PlayMessage title="Checking the room…" link={false} />;
     case 'missing':
-      return <PlayMessage title="Room not found" detail={`There is no game with code ${code}.`} />;
+      return step.ended ? (
+        <PlayMessage title={GAME_ENDED_ERROR} />
+      ) : (
+        <PlayMessage title="Room not found" detail={`There is no game with code ${code}.`} />
+      );
     case 'unreachable':
       return <PlayMessage title="Can’t reach the game" detail={step.error} />;
     case 'form':
@@ -204,6 +215,12 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
         }
         // A kicked id stays stored, so every refresh is refused again (Edge cases: kicked player).
         if (saved && res.error === PLAYER_KICKED_ERROR) return ack(res);
+        if (res.error === ROOM_NOT_FOUND_ERROR) {
+          // The room went away after the page checked it. Joined before: the game ended (restart).
+          if (!saved) return ack(res);
+          clearPlayer(code);
+          return ack({ ok: false, error: GAME_ENDED_ERROR });
+        }
         // Any other refusal means the room does not know this identity: a first join with a taken
         // name, or a stored id from an expired room whose code was reused. Back to the form.
         onRejected(res.error);

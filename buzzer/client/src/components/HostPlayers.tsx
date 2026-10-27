@@ -35,7 +35,8 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
               aria-label={player.name}
               className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2"
             >
-              <p className="flex items-center gap-3">
+              {/* Greyed while offline; the buttons below stay full strength, since they still work. */}
+              <p className={`flex items-center gap-3 ${player.connected ? '' : 'opacity-40'}`}>
                 <span
                   aria-hidden
                   style={{ backgroundColor: player.color }}

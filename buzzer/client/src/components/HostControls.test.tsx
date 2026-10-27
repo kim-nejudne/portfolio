@@ -182,6 +182,15 @@ describe('HostPlayers', () => {
     expect(row('Player 2').textContent).toContain('offline');
   });
 
+  it('greys out a disconnected player, who stays in the list, while their buttons stay usable', () => {
+    setup(HostPlayers, hostView({ players: [player(1), player(2, { connected: false })] }));
+    const nameLine = (name: string) => within(row(name)).getByText(name).parentElement!;
+    expect(nameLine('Player 1').className).not.toContain('opacity-40');
+    expect(nameLine('Player 2').className).toContain('opacity-40');
+    const kick = within(row('Player 2')).getByRole('button', { name: /Kick/ });
+    expect(kick.closest('.opacity-40')).toBeNull();
+  });
+
   it.each([
     ['Add 200 to Player 2', 200],
     ['Subtract 200 from Player 2', -200],

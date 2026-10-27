@@ -12,6 +12,55 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F32 — Reconnects and room lifecycle (2026-10-28)
+**What changed:**
+- Server:
+  - Every successful `*:join` also joins the Socket.IO room `room:<code>` (`anyRoom`).
+  - New `closeRooms(io, codes, reason)` in `server/sockets.ts` sends `room:closed {reason}` to that room, then disconnects its sockets.
+  - `index.ts` now attaches the gateway before the sweeper. `onExpired` frees images, then calls `closeRooms(…, 'expired')`.
+  - New shared constants: `ROOM_NOT_FOUND_ERROR`, `GAME_ENDED_ERROR` and `ROOM_EXPIRED_REASON`. The gateway and the reducer use them in place of string literals.
+- Client:
+  - `useRoomSocket` turns `room:closed` into "This game has ended". It does the same for a "Room not found" rejoin once the page has had a `state` (a server restart mid-game).
+  - On a first load, "Room not found" also becomes "This game has ended" when the device was in the room: a Screen with a stored token, any Host page, or a Player with a stored identity.
+  - Play no longer sends a saved player back to the name form on "Room not found". A new player whose room vanished between the check and the join sees "Room not found".
+  - The Host's Players tab greys the name line of an offline player (`opacity-40`). The ± and Kick buttons stay at full strength. The Screen's chips and ranking already greyed offline players.
+- Tests:
+  - New `server/sockets.reconnect.test.ts` (6):
+    - a player rejoins with their score and lockout
+    - an offline player stays listed on Screen and Host
+    - a refreshed Screen and Host get the latest snapshot, and the token Screen can send host actions again
+    - the host can judge a buzz winner who has disconnected
+    - expiry sends `room:closed` to all three roles and disconnects them, but not a stranger
+    - after a restart, every role is told "Room not found"
+  - `Play.test.tsx` +3 (one test replaced): a refresh into an ended room, a rejoin after a restart, `room:closed`, and a new player whose room vanished.
+  - `Host.test.tsx` +3: ended on "Room not found", `room:closed`, and a silent rejoin with the stored token. The "other join errors" test now uses "Already joined".
+  - `Screen.test.tsx` +5: ended with a stored token, after a snapshot, and on `room:closed`; greyed chips and scoreboard rows.
+  - `HostControls.test.tsx` +1: the greyed name line.
+  - 917 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-28 for F32 cover:
+- `closeRooms`, `anyRoom` and the 'expired' reason
+- when "Room not found" reads as "This game has ended", and when it stays "Room not found"
+- clearing the Player identity but keeping the hostToken
+- leaving the backgrounded-phone case to Socket.IO's reconnection, with no indicator
+- the shared error constants
+
+**Notes for next session:**
+- Playtest (Playwright; room TFMM; Screen, Host remote from the stored token, Pia and 2 bots):
+  - Refreshing the Screen, the Host and Pia mid-game each came back on the same question and score.
+  - Closing Pia's tab greyed her row on the Host as "offline". Reopening `/play/TFMM` rejoined her with 100.
+  - Killing and restarting the server showed "This game has ended" with Back to start on all three devices within 8 s.
+- The playtest flagged `/play/ZZZZ` and `/screen/ZZZZ`, which show "Room not found". That is intended (see DECISIONS). `/host/ZZZZ` with no token shows "Not authorised", as before.
+- Not checked live: expiry by the 3-hour timeout. `closeRooms` is covered by the server test, and `room:closed` by each page's test.
+- While the server is down, every device shows its last snapshot with no hint. A "Reconnecting…" indicator is in Backlog.
+- The playtest saw "Another connection wants to delete database 'buzzr'". Its source was not traced. It is probably the playtest's own IndexedDB reset across shared-context tabs.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and tap **Host this set**. Use the laptop as the Screen. Pair a phone as Host, and join from another phone.
+2. Start the game, buzz, and judge. Then refresh the Screen, the Host phone and the Player phone. Each returns to the same question and score with no prompt.
+3. Lock the player's phone. The Screen and the Host show them greyed or "offline". Unlock it: they come back.
+4. Stop the server (Ctrl-C) and start `npm run dev` again. All three devices show "This game has ended" with **Back to start**.
+
 ## F31 — Sounds and animations (2026-10-28)
 **What changed:**
 - Sounds:

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
+import {
+  GAME_ENDED_ERROR,
+  INVALID_HOST_TOKEN_ERROR,
+  ROOM_NOT_FOUND_ERROR,
+} from '../../../shared/constants.js';
 import type { HostView } from '../../../shared/types.js';
 import { HostPlayers } from '../components/HostPlayers.js';
 import { HostSettings } from '../components/HostSettings.js';
@@ -105,6 +109,10 @@ function HostConnected({
       socket.emit('host:join', { code, hostToken }, (res) => {
         if (res.ok) onAccepted(hostToken);
         else if (res.error === INVALID_HOST_TOKEN_ERROR) return onRejected(hostToken);
+        // A host holds a token for this room, so the room existed: it has ended (server restart).
+        else if (res.error === ROOM_NOT_FOUND_ERROR) {
+          return ack({ ok: false, error: GAME_ENDED_ERROR });
+        }
         ack(res);
       });
     },

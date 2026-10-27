@@ -78,14 +78,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F31 Sounds and animations
 
-- [ ] F32 Reconnects and room lifecycle
-  - Spec: Reconnects, security and edge cases (Reconnects; phone backgrounded)
-  - Depends: F24
-  - Done when:
-    - Every role auto-reconnects and re-renders the latest snapshot; Host and Screen rejoin silently from `localStorage`
-    - Disconnected players stay greyed out in lists
-    - Room expiry and server restart show "This game has ended" with a link home (`room:closed` or unknown room)
-  - Tests: `sockets.reconnect.test.ts`; playtest — refresh Screen, host and player mid-game; each returns to the right state and score
+- [x] F32 Reconnects and room lifecycle
 
 - [ ] F33 Device polish and feedback
   - Spec: UI spec by view (Player view: Wake Lock, connection dot); Milestones and acceptance criteria (6. Polish)
@@ -123,3 +116,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Arrow-key navigation between the host remote's tabs (WAI-ARIA tabs pattern). Tapping works; the keyboard can only Tab through them (F22 review).
 - Replace the `emit` cast in `client/src/pages/Host.tsx` `send` with a typed helper. Socket.IO's typed `emit` cannot take a generic event name (F22 review).
 - Preview: a "Show answer" toggle that previews the REVEAL layout too. F27 previews only the question as first shown.
+- "Reconnecting…" indicator on Screen, Host and Player while the socket is down. Today each keeps showing its last snapshot, and the Host still lists players as online (F32 playtest).

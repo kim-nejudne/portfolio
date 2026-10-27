@@ -3,9 +3,11 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  GAME_ENDED_ERROR,
   PING_INTERVAL_MS,
   PLAYER_KICKED_ERROR,
   PLAYER_PALETTE,
+  ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { PlayerView } from '../../../shared/types.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
@@ -238,12 +240,50 @@ describe('Play', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
-  it('forgets the stored identity when the room no longer exists', async () => {
+  it('a refresh into a room that expired or was lost in a restart shows "This game has ended" with a link home', async () => {
     stubExists(false);
     savePlayer('WXYZ', { playerId: 'stored-id', name: 'Ana' });
-    renderPlay();
-    await screen.findByText('Room not found');
+    const { makeSocket } = renderPlay();
+    expect(await screen.findByRole('heading', { name: GAME_ENDED_ERROR })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to start' }).getAttribute('href')).toBe('/');
+    expect(makeSocket).not.toHaveBeenCalled();
+    // The identity is stale: a later room may reuse the code.
     expect(loadPlayer('WXYZ')).toBeNull();
+  });
+
+  it('mid-game, a rejoin refused with "Room not found" (server restart) shows "This game has ended", not the form', async () => {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    act(() => lastJoin(sockets[0]!).ack({ ok: true }));
+    sockets[0]!.fire('state', playerView({ phase: 'OPEN', questionIndex: 2 }));
+
+    sockets[0]!.fire('connect');
+    act(() => lastJoin(sockets[0]!).ack({ ok: false, error: ROOM_NOT_FOUND_ERROR }));
+    expect(screen.getByRole('heading').textContent).toBe(GAME_ENDED_ERROR);
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(loadPlayer('WXYZ')).toBeNull();
+  });
+
+  it('room:closed (the room expired) shows "This game has ended" with a link home', async () => {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    sockets[0]!.fire('state', playerView());
+    sockets[0]!.fire('room:closed', { reason: 'expired' });
+    expect(screen.getByRole('heading').textContent).toBe(GAME_ENDED_ERROR);
+    expect(screen.getByRole('link', { name: 'Back to start' })).toBeTruthy();
+  });
+
+  it('a new player whose room vanished before the join sees "Room not found", not the form', async () => {
+    stubExists(true);
+    const { sockets } = renderPlay();
+    await submitName('Ana');
+    act(() => lastJoin(sockets[0]!).ack({ ok: false, error: ROOM_NOT_FOUND_ERROR }));
+    expect(screen.getByRole('heading').textContent).toBe(ROOM_NOT_FOUND_ERROR);
+    expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
   it('lobby shows the grey "You\'re in! Waiting for the host" button under a bar in the player\'s colour', async () => {

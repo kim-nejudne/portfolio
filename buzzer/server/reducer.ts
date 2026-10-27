@@ -4,6 +4,7 @@
 
 import {
   COLLECTION_WINDOW_MS,
+  GAME_ENDED_ERROR,
   MAX_PLAYERS_PER_ROOM,
   PLAYER_KICKED_ERROR,
   PLAYER_PALETTE,
@@ -135,7 +136,7 @@ function playerJoin(
   }
 
   // SPEC-QUESTION: the spec allows mid-game joins but says nothing about FINAL; see DECISIONS (F05).
-  if (room.phase === 'FINAL') return fail('This game has ended');
+  if (room.phase === 'FINAL') return fail(GAME_ENDED_ERROR);
 
   const players = Object.values(room.players);
   if (players.length >= MAX_PLAYERS_PER_ROOM) return fail('This game is full');

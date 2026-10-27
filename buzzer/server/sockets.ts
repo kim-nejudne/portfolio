@@ -15,6 +15,7 @@ import {
   PING_RATE_LIMITED_ERROR,
   PLAYER_JOIN_RATE_LIMIT,
   PONG_ACK_TIMEOUT_MS,
+  ROOM_NOT_FOUND_ERROR,
   SOCKET_MESSAGE_MAX_BYTES,
 } from '../shared/constants.js';
 import { clientPayloadSchemas } from '../shared/schemas.js';
@@ -69,6 +70,8 @@ export interface GatewayOptions {
   playerJoinLimit?: RateLimit;
 }
 
+/** Every joined socket of a room, whatever its role: `room:closed` goes here. */
+export const anyRoom = (code: string) => `room:${code}`;
 export const screenRoom = (code: string) => `room:${code}:screen`;
 export const hostRoom = (code: string) => `room:${code}:host`;
 export const playerRoom = (code: string, playerId: string) => `room:${code}:player:${playerId}`;
@@ -167,7 +170,7 @@ export function attachSockets(
   /** Reduces, stores and broadcasts. Every game action goes through here. */
   function dispatch(code: string, action: Action): Ack {
     const room = rooms.get(code);
-    if (!room) return fail('Room not found');
+    if (!room) return fail(ROOM_NOT_FOUND_ERROR);
     const now = clock();
     const result = reduce(room, action, now);
     if (!result.ok) return fail(result.error);
@@ -216,13 +219,13 @@ export function attachSockets(
     handle(socket, 'screen:join', ({ code, hostToken }) => {
       if (socket.data.role) return fail('Already joined');
       const room = rooms.get(code);
-      if (!room) return fail('Room not found');
+      if (!room) return fail(ROOM_NOT_FOUND_ERROR);
       if (hostToken !== undefined && !verifyHostToken(hostToken, room.hostTokenHash)) {
         return fail(INVALID_HOST_TOKEN_ERROR);
       }
       // SPEC-QUESTION: a token authorises host actions only; the Screen still gets ScreenView (DECISIONS #2, F07).
       socket.data = { ...socket.data, code, role: 'screen', canHost: hostToken !== undefined };
-      void socket.join(screenRoom(code));
+      void socket.join([anyRoom(code), screenRoom(code)]);
       socket.emit('state', toView(touch(room), 'screen'));
       return { ok: true };
     });
@@ -230,10 +233,10 @@ export function attachSockets(
     handle(socket, 'host:join', ({ code, hostToken }) => {
       if (socket.data.role) return fail('Already joined');
       const room = rooms.get(code);
-      if (!room) return fail('Room not found');
+      if (!room) return fail(ROOM_NOT_FOUND_ERROR);
       if (!verifyHostToken(hostToken, room.hostTokenHash)) return fail(INVALID_HOST_TOKEN_ERROR);
       socket.data = { ...socket.data, code, role: 'host', canHost: true };
-      void socket.join(hostRoom(code));
+      void socket.join([anyRoom(code), hostRoom(code)]);
       socket.emit('state', toView(touch(room), 'host'));
       return { ok: true };
     });
@@ -241,7 +244,7 @@ export function attachSockets(
     handle(socket, 'player:join', ({ code, playerId, name }) => {
       if (socket.data.role) return fail('Already joined');
       const room = rooms.get(code);
-      if (!room) return fail('Room not found');
+      if (!room) return fail(ROOM_NOT_FOUND_ERROR);
       // SPEC-QUESTION: only joins that would add a player count; a known id always gets through (DECISIONS #3, F07).
       if (!room.players[playerId] && !joinLimiter.hit(clientIp(socket.request))) {
         return fail('Too many joins from this network. Try again in a minute.');
@@ -253,6 +256,7 @@ export function attachSockets(
         void socket.leave(playerRoom(code, playerId));
         return ack;
       }
+      void socket.join(anyRoom(code));
       socket.data = { ...socket.data, code, role: 'player', playerId, canHost: false };
       return ack;
     });
@@ -314,6 +318,19 @@ export function attachSockets(
   });
 
   return io;
+}
+
+/**
+ * Tells every socket still in each of `codes` that its room is gone, then disconnects them. Call it
+ * after the rooms have left the store. Socket.IO clients do not reconnect after a server
+ * disconnect, so nobody retries a join into a room that no longer exists.
+ */
+// SPEC-QUESTION: `room:closed` goes out on expiry, with reason 'expired', then a server disconnect (DECISIONS, F32).
+export function closeRooms(io: GatewayServer, codes: string[], reason: string): void {
+  for (const code of codes) {
+    io.to(anyRoom(code)).emit('room:closed', { reason });
+    io.in(anyRoom(code)).disconnectSockets();
+  }
 }
 
 /**

@@ -1,7 +1,11 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
+import {
+  GAME_ENDED_ERROR,
+  INVALID_HOST_TOKEN_ERROR,
+  ROOM_NOT_FOUND_ERROR,
+} from '../../../shared/constants.js';
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
@@ -83,6 +87,10 @@ function ScreenRoom({ code, makeSocket }: RoomProps) {
           return socket.emit('screen:join', { code }, ack);
         }
         setCanHost(res.ok);
+        // A stored token means this device created the room, so a missing room has ended (server restart).
+        if (!res.ok && res.error === ROOM_NOT_FOUND_ERROR) {
+          return ack({ ok: false, error: GAME_ENDED_ERROR });
+        }
         ack(res);
       });
     },

@@ -1,5 +1,9 @@
 import { useEffect, useEffectEvent, useRef, type RefObject } from 'react';
-import { PLAYER_KICKED_ERROR } from '../../../shared/constants.js';
+import {
+  GAME_ENDED_ERROR,
+  PLAYER_KICKED_ERROR,
+  ROOM_NOT_FOUND_ERROR,
+} from '../../../shared/constants.js';
 import type { Ack } from '../../../shared/types.js';
 import { resetRoomStore, useRoomStore } from './roomStore.js';
 import { createSocket, type GameSocket } from './socket.js';
@@ -18,6 +22,10 @@ export type AttachSocket = (socket: GameSocket) => () => void;
  * right after, and Socket.IO does not reconnect after that (DECISIONS F21). The returned
  * ref holds the open socket, for event handlers that send actions; it is null while unmounted.
  * `attach` must be stable: a new one opens a new socket.
+ *
+ * The game is over for good on `room:closed` (the room expired), or when a rejoin after a
+ * `state` is refused with "Room not found" (the server restarted and lost the room). Both become
+ * `GAME_ENDED_ERROR`. The server disconnects after `room:closed`, so nothing reconnects.
  */
 export function useRoomSocket(
   code: string,
@@ -28,7 +36,11 @@ export function useRoomSocket(
   const socketRef = useRef<GameSocket | null>(null);
   const sendJoin = useEffectEvent((socket: GameSocket) => {
     join(socket, (res) => {
-      if (!res.ok) useRoomStore.setState({ error: res.error });
+      if (res.ok) return;
+      // SPEC-QUESTION: "Room not found" reads as ended only for a device that was in the room (DECISIONS, F32).
+      // This page was in the room a moment ago, so it has not vanished: it ended.
+      const lost = res.error === ROOM_NOT_FOUND_ERROR && useRoomStore.getState().view !== null;
+      useRoomStore.setState({ error: lost ? GAME_ENDED_ERROR : res.error });
     });
   });
 
@@ -40,6 +52,7 @@ export function useRoomSocket(
       useRoomStore.setState((state) => ({ fx: { fx, seq: (state.fx?.seq ?? 0) + 1 } })),
     );
     socket.on('kicked', () => useRoomStore.setState({ error: PLAYER_KICKED_ERROR }));
+    socket.on('room:closed', () => useRoomStore.setState({ error: GAME_ENDED_ERROR }));
     socket.on('connect', () => sendJoin(socket));
     const detach = attach?.(socket);
     socket.connect();

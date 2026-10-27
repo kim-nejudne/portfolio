@@ -2,7 +2,12 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
+import {
+  DEFAULT_SETTINGS,
+  GAME_ENDED_ERROR,
+  PLAYER_PALETTE,
+  ROOM_NOT_FOUND_ERROR,
+} from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -153,6 +158,35 @@ describe('Screen', () => {
     expect(screen.getByText('2 players')).toBeTruthy();
   });
 
+  it('a disconnected player keeps their chip, greyed out, and it returns to full strength on reconnect', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([player(1), player(2, { connected: false })]));
+    let chips = screen.getAllByRole('listitem');
+    expect(chips.map((li) => li.textContent)).toEqual(['Player 1', 'Player 2']);
+    expect(chips[0]!.className).not.toContain('opacity-40');
+    expect(chips[1]!.className).toContain('opacity-40');
+
+    socket.fire('state', lobbyView([player(1), player(2)]));
+    chips = screen.getAllByRole('listitem');
+    expect(chips[1]!.className).not.toContain('opacity-40');
+  });
+
+  it('the scoreboard keeps a disconnected player, greyed out', () => {
+    const { socket } = renderScreen();
+    socket.fire(
+      'state',
+      lobbyView([player(1), player(2, { connected: false })], {
+        phase: 'REVEAL',
+        questionIndex: 0,
+        showScoreboard: true,
+      }),
+    );
+    const rows = within(screen.getByRole('region', { name: 'Scoreboard' })).getAllByRole(
+      'listitem',
+    );
+    expect(rows.map((row) => row.className.includes('opacity-40'))).toEqual([false, true]);
+  });
+
   it('bottom strip shows the code and "Join at <url>" in the lobby and in a game', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView());
@@ -168,6 +202,32 @@ describe('Screen', () => {
     const { socket } = renderScreen();
     act(() => socket.emitted[0]!.ack({ ok: false, error: 'Room not found' }));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Room not found');
+    expect(screen.getByRole('link', { name: 'Back to start' }).getAttribute('href')).toBe('/');
+  });
+
+  it('with a stored hostToken, a room the server no longer has shows "This game has ended"', () => {
+    saveHostToken('WXYZ', 'h'.repeat(43));
+    const { socket } = renderScreen();
+    act(() => socket.emitted[0]!.ack({ ok: false, error: ROOM_NOT_FOUND_ERROR }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(GAME_ENDED_ERROR);
+    expect(screen.getByRole('link', { name: 'Back to start' }).getAttribute('href')).toBe('/');
+  });
+
+  it('a reconnect refused with "Room not found" after a snapshot (server restart) shows "This game has ended"', () => {
+    const { socket } = renderScreen();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', lobbyView([], { phase: 'QUESTION', questionIndex: 0 }));
+    socket.fire('connect');
+    act(() => socket.emitted.at(-1)!.ack({ ok: false, error: ROOM_NOT_FOUND_ERROR }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(GAME_ENDED_ERROR);
+  });
+
+  it('room:closed (the room expired) shows "This game has ended" with a link home', () => {
+    const { socket } = renderScreen();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', lobbyView());
+    socket.fire('room:closed', { reason: 'expired' });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(GAME_ENDED_ERROR);
     expect(screen.getByRole('link', { name: 'Back to start' }).getAttribute('href')).toBe('/');
   });
 
