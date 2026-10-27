@@ -120,7 +120,11 @@ export function createBot({
     stopPing();
     update({ status: 'offline' });
   });
-  socket.on('pong', ({ t }) => update({ rttMs: Math.round(clock() - t) }));
+  socket.on('pong', ({ t }, ack) => {
+    // The server times its own RTT sample from the pong to this ack (DECISIONS F15).
+    ack();
+    update({ rttMs: Math.round(clock() - t) });
+  });
 
   socket.connect();
 

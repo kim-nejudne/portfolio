@@ -38,15 +38,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F14 Reducer: buzz collection and window close
 
-- [ ] F15 Gateway: effects runner, ping and buzz
-  - Spec: Buzzer fairness and timing; Realtime events and HTTP API (ping, player:buzz, host:start/open/reveal/next/prev/end, fx); Security (rate limits)
-  - Depends: F07, F14
-  - Done when:
-    - Scheduled effects run on server timers using a monotonic clock (`performance.now()`), and feed back through `reduce`
-    - `ping {t}` → `pong {t}` updates the player's RTT
-    - `player:buzz` limited to 5 per second per socket; host flow events wired with token checks
-    - `fx` events reach Screen, Host and Players
-  - Tests: `sockets.buzz.test.ts` — two clients buzz 20 ms apart, winner announced once; 6th buzz in a second rejected; fake timers for the window
+- [x] F15 Gateway: effects runner, ping and buzz
 
 - [ ] F16 Host remote primary action
   - Spec: UI spec by view (Host remote: primary action button)
@@ -64,6 +56,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
     - Whole-viewport circular button fires on `pointerdown` and Space; instant pressed state and `navigator.vibrate(30)` before the server replies
     - States: Lobby, Get ready, BUZZ!, Buzzed…, You're first!, "<Name> buzzed first"
     - No zoom, text selection or long-press menu on the button
+    - Sends `ping {t}` every `PING_INTERVAL_MS` from page load and acks every `pong`, so the server gets RTT samples (DECISIONS F15)
   - Tests: playtest — 3 players, open buzzers, one presses; that phone shows green, others show the winner's name
 
 - [ ] F18 Screen question and buzz views

@@ -12,6 +12,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F15 — Gateway: effects runner, ping and buzz (2026-10-27)
+**What changed:**
+- `server/sockets.ts` runs the reducer's new effects:
+  - `schedule` runs `setTimeout(() => dispatch(code, action), at − now)`. Pending timers are cleared when the HTTP server closes.
+  - `log` prints one `[buzz] {…}` JSON line per counted buzz.
+  - `dispatch` skips the store and the broadcast when `reduce` returns the same room.
+- New gateway option `monotonic` (default `performance.now()`). It supplies the buzz `receivedAt` and times RTT.
+- New handlers:
+  - `player:buzz`: joined players only, 5/s per socket (`BUZZ_RATE_LIMIT`, "Too many buzzes").
+  - `ping`: 5/s per socket (`PING_RATE_LIMIT`). It answers `pong {t}` with an ack. The server times emit → ack, keeps the samples on `socket.data`, and writes the median into the player's `rttMs`. That write sends no broadcast and stamps no activity.
+  - `host:start/open/reveal/next/prev/end/scoreboard`, gated by `canHost` ("Only the host can do that").
+- `shared/types.ts`: `pong` now has an ack. `client/src/dev/bots.ts` acks it.
+- New constants: `NOT_HOST_ERROR`, `BUZZ_RATE_LIMITED_ERROR`, `PING_RATE_LIMIT`, `PING_RATE_LIMITED_ERROR` and `PONG_ACK_TIMEOUT_MS`.
+- 15 new tests in `server/sockets.buzz.test.ts` (fake `setTimeout`, injected monotonic clock) and 1 in `bots.test.ts`, 420 in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F15 cover:
+- How the server times RTT (the `pong` ack, resolving the F12 note). This is also a proposed spec change.
+- Where the RTT samples live, with no broadcast and no activity stamp.
+- How timers are scheduled and cleared.
+- Skipping the broadcast for ignored actions, and the log format.
+- The auth errors for host and buzz events.
+- The ping rate limit, a spec gap.
+
+**Notes for next session:**
+- F17's player client must ping every `PING_INTERVAL_MS` and **ack every `pong`**. Without the ack the server gets no sample and `rttMs` stays 0, which means no latency correction. This is now a Done-when bullet on F17.
+- `HostView.players[].rttMs` is a raw median in fractional ms, so clients should round it.
+- `host:judge/undo/adjustScore/kick/settings` are still unwired (F19–F21). F19's `reopen` effect goes through the same `schedule` path, so no gateway change is needed.
+- `sockets.buzz.test.ts` has its own harness. `flush(c)` sends `screen:join` ("Already joined") as a side-effect-free round trip. Use it before recording, because a broadcast to other sockets can land after the sender's ack.
+
+**How to try it:** `npx vitest run server/sockets.buzz.test.ts`. In the app, `npm run dev`: create a room, open `http://localhost:5173/dev/bots/<CODE>` (F11), spawn bots, then use the host remote to start and open. The bots' buzzes now get a winner `fx` and the server prints `[buzz]` lines. Player buzz UI arrives in F17/F18.
+
 ## F14 — Reducer: buzz collection and window close (2026-10-27)
 **What changed:**
 - `server/reducer.ts` adds two actions:

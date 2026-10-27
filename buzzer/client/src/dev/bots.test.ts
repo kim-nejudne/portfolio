@@ -85,8 +85,17 @@ describe('createBot', () => {
 
     const { t } = emits('ping')[2]!.payload as { t: number };
     tick(42);
-    socket.fire('pong', { t });
+    socket.fire('pong', { t }, () => {});
     expect(last()!.rttMs).toBe(42);
+  });
+
+  it('acks each pong, so the server can time its own RTT sample', () => {
+    const { socket, emits } = spawn();
+    vi.advanceTimersByTime(PING_INTERVAL_MS);
+    const { t } = emits('ping')[0]!.payload as { t: number };
+    let acked = 0;
+    socket.fire('pong', { t }, () => acked++);
+    expect(acked).toBe(1);
   });
 
   it('sends player:buzz only after the given delay and shows the ack', () => {

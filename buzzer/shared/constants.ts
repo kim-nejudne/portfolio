@@ -31,6 +31,12 @@ export const MAX_PLAYERS_PER_ROOM = 50;
 export const PLAYER_KICKED_ERROR = 'You were removed from this game';
 /** The `screen:join` and `host:join` error for a wrong or stale hostToken. Clients drop the stored token on it. */
 export const INVALID_HOST_TOKEN_ERROR = 'Invalid host token';
+/** The error for a `host:*` event from a socket that did not join with the hostToken. */
+export const NOT_HOST_ERROR = 'Only the host can do that';
+/** The `player:buzz` error past `BUZZ_RATE_LIMIT`. */
+export const BUZZ_RATE_LIMITED_ERROR = 'Too many buzzes';
+/** The `ping` error past `PING_RATE_LIMIT`. */
+export const PING_RATE_LIMITED_ERROR = 'Too many pings';
 /** Player names are trimmed, then must be 1 to 16 characters. */
 export const PLAYER_NAME_MIN = 1;
 export const PLAYER_NAME_MAX = 16;
@@ -95,6 +101,8 @@ export const CREATE_ROOM_BODY_MAX_BYTES = 1024 * 1024; // DECISIONS #11
 // ---------- Buzzer timing ----------
 
 export const PING_INTERVAL_MS = 2000;
+/** The server times RTT from `pong` to the client's ack of it, and drops the sample after this (DECISIONS F15). */
+export const PONG_ACK_TIMEOUT_MS = 5000;
 /** The rolling median RTT uses the last N samples. */
 export const RTT_SAMPLES = 10;
 /** After the first buzz, other buzzes are collected for this long. */
@@ -108,6 +116,8 @@ export const BUZZ_VIBRATE_MS = 30;
 // ---------- Rate limits ----------
 
 export const BUZZ_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
+/** Per socket. A client pings every 2 s; each ping holds a pong timer on the server (DECISIONS F15). */
+export const PING_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 export const PLAYER_JOIN_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const; // DECISIONS #3
 export const ROOM_CREATE_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 

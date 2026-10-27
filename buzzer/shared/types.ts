@@ -208,7 +208,8 @@ export type ClientToServerEvents = {
 
 export interface ServerToClientEvents {
   state: (view: View) => void;
-  pong: (payload: { t: number }) => void;
+  /** The client acks at once; the server times RTT from emit to ack (DECISIONS F15). */
+  pong: (payload: { t: number }, ack: () => void) => void;
   fx: (fx: Fx) => void;
   kicked: (payload: Record<string, never>) => void;
   'room:closed': (payload: { reason: string }) => void;
