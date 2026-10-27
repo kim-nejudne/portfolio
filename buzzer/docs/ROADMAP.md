@@ -36,15 +36,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F13 Reducer: question flow
 
-- [ ] F14 Reducer: buzz collection and window close
-  - Spec: Game flow and state machine (OPEN → COLLECTING → BUZZED; scheduled effects); Buzzer fairness and timing (Rules)
-  - Depends: F12, F13
-  - Done when:
-    - First valid `player:buzz` in OPEN moves to COLLECTING and returns a `windowClosed` effect for `now + 150` carrying question index and opening counter
-    - Buzzes count only in OPEN/COLLECTING, once per player per opening, never from locked-out players or players who joined during the current opening
-    - `windowClosed` ranks buzzes, sets `winnerId`, moves to BUZZED and emits `fx buzz` with gaps; a stale `windowClosed` is a no-op
-    - Every buzz is logged with receive time, one-way latency and adjusted time
-  - Tests: `reducer.buzz.test.ts` — window timing, duplicate press, early press ignored, stale effect ignored after `host:reveal`
+- [x] F14 Reducer: buzz collection and window close
 
 - [ ] F15 Gateway: effects runner, ping and buzz
   - Spec: Buzzer fairness and timing; Realtime events and HTTP API (ping, player:buzz, host:start/open/reveal/next/prev/end, fx); Security (rate limits)
@@ -242,3 +234,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
 - Optional `PUBLIC_URL` setting for the join QR and URL, so a Screen opened at `localhost` still shows an address phones can reach. F08 only shows a note (F08 decision).
 - Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).
+- Measure the 150 ms collection window in monotonic time (from the first buzz's `receivedAt`), so a late-firing timer cannot stretch it. Today the window lasts until `windowClosed` arrives (F14 decision).

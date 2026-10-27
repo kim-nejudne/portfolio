@@ -50,6 +50,7 @@ export function makePlayer(id: string, overrides: Partial<Player> = {}): Player 
     connected: true,
     rttMs: 0,
     joinedAt: T0,
+    joinedAtOpening: 0,
     ...overrides,
   };
 }

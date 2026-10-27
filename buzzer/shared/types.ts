@@ -40,6 +40,8 @@ export interface Player {
   connected: boolean;
   rttMs: number; // rolling median
   joinedAt: number;
+  /** `openingCounter` at join. A player can buzz from the next opening (Edge cases; DECISIONS F14). */
+  joinedAtOpening: number;
 }
 
 export interface Buzz {

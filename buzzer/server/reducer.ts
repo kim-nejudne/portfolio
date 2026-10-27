@@ -2,8 +2,14 @@
 // machine" in docs/SPEC.md. No I/O, timers, clocks or randomness: the gateway supplies `now` and
 // runs the returned effects.
 
-import { MAX_PLAYERS_PER_ROOM, PLAYER_KICKED_ERROR, PLAYER_PALETTE } from '../shared/constants.js';
-import type { Fx, Phase, Player, Room } from '../shared/types.js';
+import {
+  COLLECTION_WINDOW_MS,
+  MAX_PLAYERS_PER_ROOM,
+  PLAYER_KICKED_ERROR,
+  PLAYER_PALETTE,
+} from '../shared/constants.js';
+import type { Buzz, Fx, Phase, Player, Room } from '../shared/types.js';
+import { buzzGaps, makeBuzz, rankBuzzes } from './fairness.js';
 
 /** The error for an action the transitions table does not list for the current phase. */
 export const WRONG_PHASE_ERROR = 'Not allowed in this phase';
@@ -11,13 +17,25 @@ export const WRONG_PHASE_ERROR = 'Not allowed in this phase';
 /** Phases before the answer is shown. `host:reveal` accepts these; `host:prev` also accepts REVEAL. */
 const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'];
 
+/** Phases that take a buzz: OPEN and COLLECTING count, BUZZED records a late one (DECISIONS #4). */
+const BUZZ_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED'];
+
+/**
+ * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
+ * index and opening counter so the reducer can ignore it once the room has moved on.
+ */
+export type TimerAction = { type: 'windowClosed'; questionIndex: number; openingCounter: number };
+
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
- * and parsed the payload with zod; `player:disconnect` comes from the gateway itself.
+ * and parsed the payload with zod; `player:disconnect` and timer actions come from the gateway
+ * itself. `receivedAt` is the gateway's monotonic `performance.now()` at arrival (DECISIONS F05).
  */
 export type Action =
   | { type: 'player:join'; playerId: string; name: string }
   | { type: 'player:disconnect'; playerId: string }
+  | { type: 'player:buzz'; playerId: string; receivedAt: number }
+  | TimerAction
   | { type: 'host:start' }
   | { type: 'host:open' }
   | { type: 'host:reveal' }
@@ -26,19 +44,26 @@ export type Action =
   | { type: 'host:end' }
   | { type: 'host:scoreboard'; show: boolean };
 
-/** Work for the gateway: `fx` is broadcast to the room's sockets. */
-export type Effect = { type: 'fx'; fx: Fx };
+/**
+ * Work for the gateway: `fx` is broadcast to the room's sockets; `schedule` dispatches `action`
+ * at wall-clock `at` ms; `log` writes a counted buzz to the server log (fairness rules).
+ */
+export type Effect =
+  | { type: 'fx'; fx: Fx }
+  | { type: 'schedule'; at: number; action: TimerAction }
+  | { type: 'log'; questionIndex: number; openingCounter: number; buzz: Buzz };
 
 export type ReduceResult =
   { ok: true; room: Room; effects: Effect[] } | { ok: false; error: string };
 
 /**
  * Applies `action` to `room` at `now` (wall-clock ms, as `Date.now` gives; DECISIONS F05).
- * Never mutates `room`. A rejected action returns an error and no room.
+ * Never mutates `room`. A rejected action returns an error and no room. An ignored action (a
+ * buzz that does not count, a stale timer) returns the same `room` object, unstamped.
  */
 export function reduce(room: Room, action: Action, now: number): ReduceResult {
   const result = apply(room, action, now);
-  if (!result.ok) return result;
+  if (!result.ok || result.room === room) return result;
   return { ...result, room: { ...result.room, lastActivityAt: now } };
 }
 
@@ -48,6 +73,10 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return playerJoin(room, action, now);
     case 'player:disconnect':
       return playerDisconnect(room, action);
+    case 'player:buzz':
+      return playerBuzz(room, action, now);
+    case 'windowClosed':
+      return windowClosed(room, action);
     case 'host:start':
       return hostStart(room);
     case 'host:open':
@@ -97,6 +126,8 @@ function playerJoin(
     connected: true,
     rttMs: 0,
     joinedAt: now,
+    // SPEC-QUESTION: "can buzz from the next opening"; see DECISIONS (F14).
+    joinedAtOpening: room.openingCounter,
   };
   return done(withPlayer(room, player), [{ type: 'fx', fx: { kind: 'join', playerId } }]);
 }
@@ -108,6 +139,63 @@ function playerDisconnect(
   const player = room.players[playerId];
   if (!player) return fail('Unknown player');
   return done(withPlayer(room, { ...player, connected: false }));
+}
+
+function playerBuzz(
+  room: Room,
+  { playerId, receivedAt }: Extract<Action, { type: 'player:buzz' }>,
+  now: number,
+): ReduceResult {
+  const player = room.players[playerId];
+  if (!player) return fail('Unknown player');
+  // Anything that does not count is ignored silently: no error, no penalty (fairness rules).
+  if (!canBuzz(room, player)) return done(room);
+
+  const buzz = makeBuzz(playerId, receivedAt, player.rttMs);
+  const { questionIndex, openingCounter } = room;
+  const log: Effect = { type: 'log', questionIndex, openingCounter, buzz };
+  const buzzes = [...room.buzzes, buzz];
+
+  if (room.phase === 'OPEN') {
+    const action: TimerAction = { type: 'windowClosed', questionIndex, openingCounter };
+    return done({ ...room, phase: 'COLLECTING', buzzes }, [
+      { type: 'schedule', at: now + COLLECTION_WINDOW_MS, action },
+      log,
+    ]);
+  }
+  // COLLECTING joins the window. BUZZED records a late buzz for the also-buzzed list only; it can
+  // never win, because the winner is fixed (DECISIONS #4).
+  return done({ ...room, buzzes }, [log]);
+}
+
+/**
+ * Buzzers are open (or the window just closed, for a late buzz), the player is not locked out,
+ * has not buzzed this opening, and joined before it.
+ */
+function canBuzz(room: Room, player: Player): boolean {
+  return (
+    BUZZ_PHASES.includes(room.phase) &&
+    !room.lockedOut.includes(player.id) &&
+    !room.buzzes.some((b) => b.playerId === player.id) &&
+    player.joinedAtOpening !== room.openingCounter
+  );
+}
+
+function windowClosed(
+  room: Room,
+  { questionIndex, openingCounter }: Extract<Action, { type: 'windowClosed' }>,
+): ReduceResult {
+  // Phase + index + counter rejects every stale timer (DECISIONS F13).
+  const fresh =
+    room.phase === 'COLLECTING' &&
+    room.questionIndex === questionIndex &&
+    room.openingCounter === openingCounter;
+  const ranked = rankBuzzes(room.buzzes, room.players);
+  const winner = ranked[0];
+  if (!fresh || !winner) return done(room);
+
+  const fx: Fx = { kind: 'buzz', playerId: winner.playerId, gaps: buzzGaps(ranked) };
+  return done({ ...room, phase: 'BUZZED', winnerId: winner.playerId }, [{ type: 'fx', fx }]);
 }
 
 function hostStart(room: Room): ReduceResult {

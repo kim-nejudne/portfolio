@@ -137,6 +137,24 @@ describe('toView: screen', () => {
       settings: { wrongPenalty: false, autoOpenBuzzers: false, scoreboardEvery: 5 },
     });
   });
+
+  it('lists the other buzzes in rank order with their gap to the winner', () => {
+    const room = midGame('BUZZED', { buzzes: [buzz('p2', 60), buzz('p1', 10), buzz('p3', 30)] });
+    expect(toView(room, 'screen').alsoBuzzed).toEqual([
+      { playerId: 'p3', gapMs: 20 },
+      { playerId: 'p2', gapMs: 50 },
+    ]);
+  });
+
+  it('keeps the announced winner first even if a late buzz has a lower adjusted time', () => {
+    const room = midGame('BUZZED', { winnerId: 'p2', buzzes: [buzz('p1', 10), buzz('p2', 30)] });
+    expect(toView(room, 'screen').alsoBuzzed).toEqual([{ playerId: 'p1', gapMs: -20 }]);
+  });
+
+  it('has no also-buzzed list before a winner is picked', () => {
+    expect(toView(midGame('COLLECTING'), 'screen').alsoBuzzed).toEqual([]);
+    expect(toView(midGame('OPEN'), 'host').alsoBuzzed).toEqual([]);
+  });
 });
 
 describe('toView: host', () => {

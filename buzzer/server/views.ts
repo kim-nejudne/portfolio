@@ -15,6 +15,7 @@ import type {
   ScreenView,
   View,
 } from '../shared/types.js';
+import { buzzGaps, rankBuzzes } from './fairness.js';
 import { rankPlayers, type Ranked } from './ranking.js';
 
 export function toView(room: Room, role: 'screen'): ScreenView;
@@ -92,12 +93,22 @@ function shared(room: Room) {
     questionCount: room.set.questions.length,
     openingCounter: room.openingCounter,
     winnerId: room.winnerId,
-    // TODO(F12, F14): rank the opening's buzzes and list the losers' gaps to the winner.
-    alsoBuzzed: [] as BuzzGap[],
+    alsoBuzzed: alsoBuzzed(room),
     lockedOut: room.lockedOut,
     showScoreboard: room.showScoreboard,
     settings: room.settings,
   };
+}
+
+/**
+ * Every buzz but the winner's, ranked, with its gap to the winner. The winner stays fixed, so a
+ * late buzz from BUZZED is listed but never outranks it (DECISIONS #4, F12).
+ */
+function alsoBuzzed(room: Room): BuzzGap[] {
+  const winner = room.buzzes.find((b) => b.playerId === room.winnerId);
+  if (!winner) return [];
+  const others = room.buzzes.filter((b) => b !== winner);
+  return buzzGaps([winner, ...rankBuzzes(others, room.players)]);
 }
 
 function publicPlayer(p: Ranked<Player>): RankedPlayer {

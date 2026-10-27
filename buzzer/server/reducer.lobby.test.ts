@@ -56,6 +56,7 @@ describe('reduce: player:join', () => {
       connected: true,
       rttMs: 0,
       joinedAt: T0 + 42,
+      joinedAtOpening: 0,
     });
   });
 

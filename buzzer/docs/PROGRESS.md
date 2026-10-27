@@ -12,6 +12,42 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F14 — Reducer: buzz collection and window close (2026-10-27)
+**What changed:**
+- `server/reducer.ts` adds two actions:
+  - `player:buzz {playerId, receivedAt}`. `receivedAt` is the gateway's monotonic time.
+  - `windowClosed {questionIndex, openingCounter}`, a new `TimerAction`.
+- `Effect` gains `schedule {at, action}` and `log {questionIndex, openingCounter, buzz}`.
+- Buzz behaviour by phase:
+  - The first counted buzz in OPEN goes to COLLECTING and schedules `windowClosed` at `now + 150`.
+  - COLLECTING adds the buzz to the window.
+  - BUZZED records a late buzz for the also-buzzed list. It never changes the winner.
+  - Every counted buzz emits a `log` effect.
+  - `windowClosed` checks COLLECTING, the index and the counter. It ranks with `rankBuzzes`, sets `winnerId`, moves to BUZZED and emits `fx buzz` with `buzzGaps`.
+- Ignored buzzes and stale timers return ok with the same `room` object and no effects. `reduce` leaves `lastActivityAt` unstamped for them. Ignored buzzes are: wrong phase, locked out, already buzzed this opening, or joined this opening.
+- New `Player.joinedAtOpening` field: the `openingCounter` at join, kept on reconnect. It implements "can buzz from the next opening".
+- `toView`'s `alsoBuzzed` is now filled in. The winner stays first, and every other buzz is ranked with its gap to the winner.
+- 36 new tests in `reducer.buzz.test.ts` and 3 in `views.test.ts`, 404 in total.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F14 cover:
+- Open question 4 (late buzzes in BUZZED), now resolved.
+- `joinedAtOpening`.
+- Silent ignores that return the same room. An unknown player id fails with "Unknown player".
+- The `schedule` and `log` effects.
+- The window lasts until the timer fires. Measuring it in monotonic time is in the Backlog.
+
+**Notes for next session:**
+- F15 wires `player:buzz` in `sockets.ts`:
+  - Dispatch `{type: 'player:buzz', playerId, receivedAt: performance.now()}`.
+  - In `runEffects`, `schedule` should run `setTimeout(() => dispatch(code, effect.action), effect.at - clock())`, and `log` should print the buzz.
+  - `runEffects` currently has no case for either, so both are silently dropped.
+  - `dispatch` can skip `broadcast` when `result.room === room`, which is an ignored action.
+  - Clear pending timers when a room closes.
+- F19's `reopen` joins `TimerAction`. While BUZZED has a pending reopen, decide whether late buzzes still record for the old opening. They currently would.
+- Kicking a player (F21) during COLLECTING: `rankBuzzes` sorts a departed player last, but a lone departed buzzer would still become `winnerId`.
+
+**How to try it:** `npx vitest run server/reducer.buzz.test.ts server/views.test.ts`. Nothing is visible in the app until F15/F18.
+
 ## F13 — Reducer: question flow (2026-10-27)
 **What changed:**
 - `server/reducer.ts` accepts seven new actions. They are named like their socket events, and `host:scoreboard` carries `show`.
