@@ -45,7 +45,7 @@ export default function Teams() {
               button sharing this row or the page padding, so it overflowed on a
               360px screen. */}
           <label className="flex-1 min-w-0">
-            <span className="field-label">New team name</span>
+            <span className="field-label block">New team name</span>
             <input value={name} onChange={(e) => setName(e.target.value)}
               data-testid="teams-create-name"
               className="field w-64 max-w-full" />
