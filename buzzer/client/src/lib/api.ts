@@ -1,4 +1,24 @@
-import type { CreateRoomBody, CreateRoomResponse, HttpErrorBody } from '../../../shared/types.js';
+import type {
+  CreateRoomBody,
+  CreateRoomResponse,
+  HttpErrorBody,
+  RoomExistsResponse,
+} from '../../../shared/types.js';
+
+/** `GET /api/rooms/:code/exists`. Throws a readable Error when the server cannot answer. */
+export async function roomExists(code: string): Promise<boolean> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/rooms/${encodeURIComponent(code)}/exists`);
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  const data = (await response.json().catch(() => null)) as RoomExistsResponse | null;
+  if (!response.ok || data === null || typeof data.exists !== 'boolean') {
+    throw new Error(`Could not check the room (${response.status}).`);
+  }
+  return data.exists;
+}
 
 /** `POST /api/rooms`. Throws an Error carrying the server's message when the room is not created. */
 export async function createRoom(body: CreateRoomBody): Promise<CreateRoomResponse> {

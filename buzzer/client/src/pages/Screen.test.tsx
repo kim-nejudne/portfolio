@@ -3,48 +3,16 @@ import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
-import type { Ack, RankedPlayer, ScreenView } from '../../../shared/types.js';
+import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
+import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen } from './Screen.js';
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
 });
-
-/** Just enough of a Socket.IO client: records emits and lets the test fire server events. */
-class FakeSocket {
-  private handlers = new Map<string, ((...args: unknown[]) => void)[]>();
-  emitted: { event: string; payload: unknown; ack: (res: Ack) => void }[] = [];
-  disconnected = false;
-
-  on(event: string, handler: (...args: unknown[]) => void) {
-    this.handlers.set(event, [...(this.handlers.get(event) ?? []), handler]);
-    return this;
-  }
-
-  emit(event: string, payload: unknown, ack: (res: Ack) => void) {
-    this.emitted.push({ event, payload, ack });
-    return this;
-  }
-
-  connect() {
-    this.fire('connect');
-    return this;
-  }
-
-  disconnect() {
-    this.disconnected = true;
-    return this;
-  }
-
-  fire(event: string, ...args: unknown[]) {
-    act(() => {
-      for (const handler of this.handlers.get(event) ?? []) handler(...args);
-    });
-  }
-}
 
 function player(n: number, overrides: Partial<RankedPlayer> = {}): RankedPlayer {
   return {

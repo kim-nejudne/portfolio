@@ -27,6 +27,8 @@ export const PLAYER_PALETTE = [
 ] as const;
 
 export const MAX_PLAYERS_PER_ROOM = 50;
+/** The `player:join` error for a kicked playerId. The phone keeps that id, so it stays refused. */
+export const PLAYER_KICKED_ERROR = 'You were removed from this game';
 /** Player names are trimmed, then must be 1 to 16 characters. */
 export const PLAYER_NAME_MIN = 1;
 export const PLAYER_NAME_MAX = 16;

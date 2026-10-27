@@ -24,15 +24,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F08 Host a game and the Screen lobby
 
-- [ ] F09 Player join flow
-  - Spec: Creating and joining a room (step 4); UI spec by view (Player view: join form, Lobby state); Edge cases (duplicate name)
-  - Depends: F08
-  - Done when:
-    - `/play/:code` checks `exists`, shows a name form (1–16 chars, trimmed), and shows "That name is taken" on a duplicate
-    - `playerId` (nanoid) and name are stored per room code; a refresh rejoins automatically
-    - Lobby state shows the grey "You're in! Waiting for the host" button in the player's colour bar
-    - Unknown code shows a clear message with a link home
-  - Tests: playtest — 3 player tabs join, Screen shows 3 chips; refresh a player tab and it stays the same player
+- [x] F09 Player join flow
 
 - [ ] F10 Host pairing and host remote shell
   - Spec: Creating and joining a room (step 3); Roles and devices; UI spec by view (Host remote: top)

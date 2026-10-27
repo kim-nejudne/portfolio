@@ -2,7 +2,7 @@
 // machine" in docs/SPEC.md. No I/O, timers, clocks or randomness: the gateway supplies `now` and
 // runs the returned effects.
 
-import { MAX_PLAYERS_PER_ROOM, PLAYER_PALETTE } from '../shared/constants.js';
+import { MAX_PLAYERS_PER_ROOM, PLAYER_KICKED_ERROR, PLAYER_PALETTE } from '../shared/constants.js';
 import type { Fx, Player, Room } from '../shared/types.js';
 
 /**
@@ -45,7 +45,7 @@ function playerJoin(
   { playerId, name }: Extract<Action, { type: 'player:join' }>,
   now: number,
 ): ReduceResult {
-  if (room.kickedIds.includes(playerId)) return fail('You were removed from this game');
+  if (room.kickedIds.includes(playerId)) return fail(PLAYER_KICKED_ERROR);
 
   const existing = room.players[playerId];
   if (existing) {

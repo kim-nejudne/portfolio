@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from './App.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function headingAt(path: string) {
   render(
@@ -18,7 +21,6 @@ function headingAt(path: string) {
 describe('AppRoutes', () => {
   it.each([
     ['/', 'Buzzr'],
-    ['/play/ABCD', 'Player'],
     ['/host/ABCD', 'Host'],
     ['/sets', 'My question sets'],
     ['/sets/set-1', 'Edit set'],
@@ -27,8 +29,16 @@ describe('AppRoutes', () => {
     expect(headingAt(path)).toBe(heading);
   });
 
+  it('/play/:code renders the Player page, which first checks the room', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    );
+    expect(headingAt('/play/ABCD')).toBe('Checking the room…');
+  });
+
   it('passes the room code from the URL to the page', () => {
-    headingAt('/play/WXYZ');
+    headingAt('/host/WXYZ');
     expect(screen.getByText('WXYZ')).toBeTruthy();
   });
 });

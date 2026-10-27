@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
-import { createRoom } from './api.js';
+import { createRoom, roomExists } from './api.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -38,5 +38,28 @@ describe('createRoom', () => {
   it('throws a readable message when the server cannot be reached', async () => {
     stubFetch(new TypeError('Failed to fetch'));
     await expect(createRoom(body)).rejects.toThrow('Could not reach the server');
+  });
+});
+
+describe('roomExists', () => {
+  it('asks the exists endpoint for the code', async () => {
+    const fetch = stubFetch(Response.json({ exists: true, phase: 'LOBBY' }));
+    await expect(roomExists('WXYZ')).resolves.toBe(true);
+    expect(fetch).toHaveBeenCalledWith('/api/rooms/WXYZ/exists');
+  });
+
+  it('answers false for an unknown room', async () => {
+    stubFetch(Response.json({ exists: false, phase: null }));
+    await expect(roomExists('WXYZ')).resolves.toBe(false);
+  });
+
+  it('throws a readable message on a server error', async () => {
+    stubFetch(new Response('Bad Gateway', { status: 502 }));
+    await expect(roomExists('WXYZ')).rejects.toThrow('Could not check the room (502).');
+  });
+
+  it('throws a readable message when the server cannot be reached', async () => {
+    stubFetch(new TypeError('Failed to fetch'));
+    await expect(roomExists('WXYZ')).rejects.toThrow('Could not reach the server');
   });
 });
