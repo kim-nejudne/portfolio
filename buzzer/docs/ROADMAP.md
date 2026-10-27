@@ -8,14 +8,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F01 Project skeleton and tooling
 
-- [ ] F02 Shared types, schemas and constants
-  - Spec: Data model; Realtime events and HTTP API; Reconnects, security and edge cases (Security); UI spec by view (intro)
-  - Depends: F01
-  - Done when:
-    - `shared/types.ts` has every type in the Data model section, plus `ScreenView`, `HostView`, `PlayerView`, `Ack` and the `fx` payload union
-    - `shared/schemas.ts` has a zod schema for `QuestionSet` and every client→server event payload
-    - `shared/constants.ts` has the 12-colour palette, the room-code alphabet and every numeric limit from the spec
-  - Tests: `shared/schemas.test.ts` — valid payloads parse; over-long names, 101-question sets, 301-char text, missing answer, non-integer points are rejected
+- [x] F02 Shared types, schemas and constants
 
 - [ ] F03 Landing page and route shell
   - Spec: UI spec by view (intro, Landing page); Roles and devices
