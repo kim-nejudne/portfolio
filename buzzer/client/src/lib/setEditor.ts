@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import {
   ANSWER_MAX,
   DEFAULT_POINTS,
+  DEFAULT_SETTINGS,
   HOST_NOTES_MAX,
   MAX_QUESTIONS_PER_SET,
   POINTS_MAX,
@@ -12,7 +13,7 @@ import {
   QUESTION_TEXT_MAX,
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
-import type { Question } from '../../../shared/types.js';
+import type { Question, QuestionSet, ScreenView } from '../../../shared/types.js';
 
 export type QuestionField = 'text' | 'answer' | 'hostNotes';
 export type QuestionErrors = Partial<Record<QuestionField, string>>;
@@ -52,6 +53,54 @@ export function duplicateQuestion(
   if (!source || !canAddQuestion(questions)) return next;
   next.splice(index + 1, 0, { ...source, id });
   return next;
+}
+
+/** A drag drop: moves the question `activeId` to where `overId` is. Unknown ids change nothing. */
+export function reorderQuestions(
+  questions: readonly Question[],
+  activeId: string,
+  overId: string,
+): Question[] {
+  const from = questions.findIndex((q) => q.id === activeId);
+  const to = questions.findIndex((q) => q.id === overId);
+  const next = [...questions];
+  if (from === -1 || to === -1 || from === to) return next;
+  next.splice(to, 0, ...next.splice(from, 1));
+  return next;
+}
+
+/**
+ * **Preview**: the Screen's view of question `index` just after it is shown, with buzzers locked
+ * and nobody in the room. It carries no answer or host notes, as the Screen gets none before reveal.
+ */
+export function previewView(set: QuestionSet, index: number): ScreenView {
+  const source = set.questions[index];
+  return {
+    role: 'screen',
+    code: '',
+    title: set.title,
+    phase: 'QUESTION',
+    questionIndex: index,
+    questionCount: set.questions.length,
+    openingCounter: 0,
+    players: [],
+    winnerId: null,
+    alsoBuzzed: [],
+    lockedOut: [],
+    showScoreboard: false,
+    settings: DEFAULT_SETTINGS,
+    canJudge: false,
+    canUndo: false,
+    scorerId: null,
+    question: source
+      ? {
+          id: source.id,
+          text: source.text,
+          points: source.points,
+          ...(source.imageId === undefined ? {} : { imageId: source.imageId }),
+        }
+      : null,
+  };
 }
 
 export function removeQuestion(questions: readonly Question[], index: number): Question[] {

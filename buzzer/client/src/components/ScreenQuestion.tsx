@@ -8,8 +8,9 @@ import { useRecentFx } from '../lib/useRecentFx.js';
  * The Screen during a question: its number, text and image, then the buzzer status or, once
  * someone has won the buzz, their banner and the "also buzzed" gaps (UI spec, Screen view).
  * The answer shows only when the view carries it, which the server allows at REVEAL alone.
+ * `imageSrc` replaces the room's image URL, for the set editor's preview of a stored blob.
  */
-export function ScreenQuestion({ view }: { view: ScreenView }) {
+export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?: string }) {
   const { question } = view;
   if (!question) return null;
   const text = question.text.trim();
@@ -30,7 +31,7 @@ export function ScreenQuestion({ view }: { view: ScreenView }) {
         )}
         {question.imageId && (
           <img
-            src={imageUrl(view.code, question.imageId)}
+            src={imageSrc ?? imageUrl(view.code, question.imageId)}
             alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
             className="h-full min-h-0 min-w-0 flex-1 object-contain"
           />

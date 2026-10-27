@@ -8,7 +8,7 @@ import {
   QUESTION_TEXT_MAX,
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
-import type { Question } from '../../../shared/types.js';
+import type { Question, QuestionSet } from '../../../shared/types.js';
 import {
   addQuestion,
   canAddQuestion,
@@ -16,8 +16,10 @@ import {
   moveQuestion,
   newQuestion,
   parsePoints,
+  previewView,
   questionErrors,
   removeQuestion,
+  reorderQuestions,
   titleError,
 } from './setEditor.js';
 
@@ -61,6 +63,38 @@ describe('set editor edits', () => {
 
   it('deletes only the question at the index', () => {
     expect(ids(removeQuestion([q('a'), q('b'), q('c')], 1))).toEqual(['a', 'c']);
+  });
+
+  it('a drag drop moves the dragged question to the place of the one it was dropped on', () => {
+    const list = [q('a'), q('b'), q('c'), q('d')];
+    expect(ids(reorderQuestions(list, 'a', 'c'))).toEqual(['b', 'c', 'a', 'd']);
+    expect(ids(reorderQuestions(list, 'd', 'b'))).toEqual(['a', 'd', 'b', 'c']);
+    expect(ids(reorderQuestions(list, 'b', 'b'))).toEqual(['a', 'b', 'c', 'd']);
+    expect(ids(reorderQuestions(list, 'gone', 'b'))).toEqual(['a', 'b', 'c', 'd']);
+  });
+});
+
+describe('set editor preview', () => {
+  const set: QuestionSet = {
+    id: 's',
+    title: 'Quiz',
+    questions: [q('a', { hostNotes: 'Secret notes' }), q('b', { imageId: 'img', points: 300 })],
+    createdAt: 1,
+    updatedAt: 2,
+    schemaVersion: 1,
+  };
+
+  it('shows the question as the Screen gets it when shown: number, count and buzzers locked', () => {
+    const view = previewView(set, 1);
+    expect(view).toMatchObject({ role: 'screen', phase: 'QUESTION', questionIndex: 1 });
+    expect(view.questionCount).toBe(2);
+    expect(view.question).toEqual({ id: 'b', text: 'Q b', imageId: 'img', points: 300 });
+  });
+
+  it('never carries the answer or host notes', () => {
+    const json = JSON.stringify(previewView(set, 0));
+    expect(json).not.toContain('A a');
+    expect(json).not.toContain('Secret notes');
   });
 });
 

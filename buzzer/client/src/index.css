@@ -97,4 +97,11 @@
     font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* The answer sheet is the only printed page: paper stays white even with background graphics on. */
+  @media print {
+    body {
+      background-color: white;
+    }
+  }
 }

@@ -51,6 +51,11 @@ export async function getSet(id: string): Promise<QuestionSet | undefined> {
   return db.sets.get(id);
 }
 
+/** One stored image blob, or undefined when it is gone. */
+export async function getImage(id: string): Promise<StoredImage | undefined> {
+  return db.images.get(id);
+}
+
 /** **New set**: an empty draft with a fresh id. */
 export async function createSet(now = Date.now()): Promise<QuestionSet> {
   const set: QuestionSet = {

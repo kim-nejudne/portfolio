@@ -58,7 +58,9 @@ async function renderEditor(id = 'set-1') {
 
 async function settle() {
   await act(() => vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS));
-  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Saved'));
+  await waitFor(() =>
+    expect(screen.getByRole('status', { name: 'Save status' }).textContent).toBe('Saved'),
+  );
 }
 
 const card = (number: number) =>
@@ -82,9 +84,9 @@ describe('Set editor /sets/:setId', () => {
     await seed([q('a')]);
     await renderEditor();
     type(screen.getByLabelText('Set title'), 'Capitals');
-    expect(screen.getByRole('status').textContent).toBe('Saving…');
+    expect(screen.getByRole('status', { name: 'Save status' }).textContent).toBe('Saving…');
     await act(() => vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS - 100));
-    expect(screen.getByRole('status').textContent).toBe('Saving…');
+    expect(screen.getByRole('status', { name: 'Save status' }).textContent).toBe('Saving…');
     await settle();
     expect(await getSet('set-1')).toMatchObject({ title: 'Capitals', updatedAt: NOW });
   });
@@ -122,7 +124,7 @@ describe('Set editor /sets/:setId', () => {
     await waitFor(async () => expect((await getSet('set-1'))!.title).toBe('Closing tab'), {
       timeout: 200,
     });
-    expect(screen.getByRole('status').textContent).toBe('Saved');
+    expect(screen.getByRole('status', { name: 'Save status' }).textContent).toBe('Saved');
   });
 
   it('clearing host notes removes them from the saved question', async () => {
@@ -239,6 +241,91 @@ describe('Set editor /sets/:setId', () => {
     expect(
       (card(1).getByRole('button', { name: 'Duplicate question 1' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  it('each card has a drag handle that the keyboard can pick up', async () => {
+    await seed([q('a'), q('b')]);
+    await renderEditor();
+    const handle = card(2).getByRole('button', { name: 'Drag to reorder question 2' });
+    expect(handle.getAttribute('aria-roledescription')).toBe('sortable');
+    expect(handle.tabIndex).toBe(0);
+    // dnd-kit mounts its hidden instructions after the first render.
+    await waitFor(() =>
+      expect(
+        document.getElementById(handle.getAttribute('aria-describedby')!)?.textContent,
+      ).toMatch(/press Space or Enter on its handle/),
+    );
+  });
+
+  it('dragging with the keyboard (Space, ↓, Space) moves the question and saves the order', async () => {
+    await seed([q('a'), q('b'), q('c')]);
+    await renderEditor();
+    // jsdom has no layout: give each card a 200 px tall row so the sensor can find its neighbours.
+    screen.getAllByRole('listitem').forEach((item, i) => {
+      vi.spyOn(item, 'getBoundingClientRect').mockReturnValue(
+        DOMRect.fromRect({ x: 0, y: i * 220, width: 600, height: 200 }),
+      );
+    });
+    const handle = card(1).getByRole('button', { name: 'Drag to reorder question 1' });
+    handle.focus();
+    fireEvent.keyDown(handle, { code: 'Space' });
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    fireEvent.keyDown(handle, { code: 'ArrowDown' });
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    fireEvent.keyDown(handle, { code: 'Space' });
+    await act(() => vi.advanceTimersByTimeAsync(50));
+
+    expect(card(1).getByRole('heading').textContent).toBe('Question 1');
+    expect((card(1).getByLabelText('Question') as HTMLTextAreaElement).value).toBe('Question b');
+    expect((card(2).getByLabelText('Question') as HTMLTextAreaElement).value).toBe('Question a');
+    await settle();
+    expect((await getSet('set-1'))!.questions.map((x) => x.id)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('Preview shows the question full screen as the Screen does, without the answer or notes', async () => {
+    await seed([q('a', { hostNotes: 'Secret notes' }), q('b')]);
+    await renderEditor();
+    fireEvent.click(card(1).getByRole('button', { name: 'Preview question 1' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Preview of question 1' }));
+    expect(dialog.getByRole('heading', { level: 1 }).textContent).toBe('Question a');
+    expect(dialog.getByText('Question 1 of 2')).toBeTruthy();
+    expect(dialog.getByRole('status').textContent).toBe('Buzzers locked');
+    const text = screen.getByRole('dialog').textContent!;
+    expect(text).not.toContain('Answer a');
+    expect(text).not.toContain('Secret notes');
+    expect(document.activeElement).toBe(dialog.getByRole('button', { name: 'Close' }));
+  });
+
+  it('Preview steps with Next and the arrow keys, and Escape closes it back to the card and page scroll', async () => {
+    await seed([q('a'), q('b')]);
+    await renderEditor();
+    const open = card(1).getByRole('button', { name: 'Preview question 1' });
+    open.focus();
+    fireEvent.click(open);
+    const dialog = () => within(screen.getByRole('dialog'));
+    expect(
+      (dialog().getByRole('button', { name: '← Previous' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(dialog().getByRole('button', { name: 'Next →' }));
+    expect(dialog().getByRole('heading', { level: 1 }).textContent).toBe('Question b');
+    expect((dialog().getByRole('button', { name: 'Next →' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(dialog().getByRole('heading', { level: 1 }).textContent).toBe('Question a');
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(open);
+    expect(document.documentElement.style.overflow).toBe('');
+  });
+
+  it('links to the print answer sheet for this set', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    expect(screen.getByRole('link', { name: 'Print answer sheet' }).getAttribute('href')).toBe(
+      '/sets/set-1/print',
+    );
   });
 
   it('says so when the set no longer exists', async () => {

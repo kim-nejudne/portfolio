@@ -16,6 +16,10 @@ const SetEditor = lazy(() =>
   import('./pages/SetEditor.js').then((m) => ({ default: m.SetEditor })),
 );
 
+const AnswerSheet = lazy(() =>
+  import('./pages/AnswerSheet.js').then((m) => ({ default: m.AnswerSheet })),
+);
+
 /** The route table, without a router, so tests can mount it in a MemoryRouter. */
 export function AppRoutes() {
   return (
@@ -37,6 +41,14 @@ export function AppRoutes() {
         element={
           <Suspense>
             <SetEditor />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/sets/:setId/print"
+        element={
+          <Suspense>
+            <AnswerSheet />
           </Suspense>
         }
       />

@@ -64,6 +64,17 @@ describe('AppRoutes', () => {
     );
   });
 
+  it('/sets/:setId/print loads the answer sheet, which reports a browser without IndexedDB', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sets/set-1/print']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Could not load this set in this browser.',
+    );
+  });
+
   it('/dev/bots/:code renders the bots page in development', async () => {
     render(
       <MemoryRouter initialEntries={['/dev/bots/ABCD']}>

@@ -12,6 +12,45 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F27 — Reorder, preview and print sheet (2026-10-28)
+**What changed:**
+- Drag reorder in the set editor. Each card has a ⠿ handle (`useSortable`) that drags by pointer or by keyboard: Space or Enter, then ↑/↓, then Space or Enter (Escape cancels). Screen-reader announcements name the question positions. A drop goes through the new pure `reorderQuestions` and the same autosave path as ↑/↓, which stay.
+- **Preview** on each card opens `components/QuestionPreview.tsx`, a full-window dialog.
+  - It renders the Screen's own `ScreenQuestion` from `previewView(set, index)`: QUESTION phase, buzzers locked, with no answer or notes in the view.
+  - It has Previous/Next, ←/→, Escape and Close.
+  - Focus moves in and is restored on close. The editor behind is `inert` and stops scrolling.
+  - `ScreenQuestion` gains an optional `imageSrc`, and `db.getImage` feeds it a stored blob.
+- **Print answer sheet** (link at the top of the editor) opens `/sets/:setId/print` (`pages/AnswerSheet.tsx`, a lazy chunk).
+  - A black-on-white table of #, Question, Answer and Notes.
+  - The Print button calls `window.print()`. Controls are `print:hidden`, rows avoid page breaks, and `body` prints white.
+  - The tab title names the printout.
+- Tests:
+  - `setEditor.test.ts` gains 3 (reorder, the preview view, a leak check).
+  - `SetEditor.test.tsx` gains 5: the handle's role and instructions, a keyboard drag with mocked rects that saves `b,a,c`, the preview's content, its keys and focus, and the print link. The save indicator is now queried by the name "Save status".
+  - New `AnswerSheet.test.tsx` (5). `App.test.tsx` gains the print route.
+  - 813 tests in total.
+- New dependencies: `@dnd-kit/core` and `@dnd-kit/sortable`. The spec names `@dnd-kit` for the drag handle. They load only in the editor chunk.
+
+**Decisions:** the DECISIONS rows dated 2026-10-28 for F27 cover:
+- the dnd-kit setup: handle only, the keyboard sensor, and the "Save status" name
+- Preview as a full-window dialog built on `ScreenQuestion`
+- the print page, its route and styling, and points left off
+
+**Notes for next session:**
+- Playtest (Playwright, one 1280×900 tab, a 3-question set), all passed:
+  - A mouse drag of Q3's handle above Q1 reordered the list.
+  - Keyboard Space, ↓, Space moved Q1 down one place. The order survived a reload.
+  - Preview showed "Question 1 of 3", the text and "Buzzers locked", and not the answer. The screenshot matches the Screen's layout.
+  - Under print media, the print page showed no links or buttons, a white background and black text, with rows in the new order.
+- Not checked: a touch drag on a real phone (the handle has `touch-none`), and page breaks on a long set.
+- Two quick clicks on Add question gave one card in the playtest. The first card pushes the button down, so the second click lands on the new card. This is layout, not a lost click.
+- F29: the image picker goes in `QuestionCard`. Preview already shows a stored blob through `getImage` and `imageSrc`. The print sheet marks image-only questions "(picture question)".
+
+**How to try it:** `npm run dev`. On the laptop, open `http://localhost:5173/sets` and open a set.
+1. Drag a card by its ⠿ handle. Or focus the handle and press Space, ↓, Space. Reload: the order stays.
+2. Tap Preview on a card. Step with ←/→ and close with Escape.
+3. Tap Print answer sheet, then Print. The browser's print preview shows only the table.
+
 ## F26 — Set editor (2026-10-28)
 **What changed:**
 - `/sets/:setId` is now the editor (`pages/SetEditor.tsx`, a lazy route chunk, keyed by `setId`). It replaces the placeholder.

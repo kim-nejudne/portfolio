@@ -66,14 +66,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F26 Set editor
 
-- [ ] F27 Reorder, preview and print sheet
-  - Spec: Question editor and images (Set editor: reorder, Preview, Print answer sheet)
-  - Depends: F26
-  - Done when:
-    - Drag handle reorder with `@dnd-kit`, keyboard accessible
-    - **Preview** shows a question as the Screen renders it
-    - **Print answer sheet** page lists number, question, answer, notes and prints cleanly
-  - Tests: playtest — drag reorder persists; print preview check
+- [x] F27 Reorder, preview and print sheet
 
 - [ ] F28 Import and export JSON
   - Spec: Question editor and images (Set list: Import/Export; Images: export embeds base64)
@@ -156,3 +149,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Keep the host's Players list in a stable order. It is ranked by score, so the row under the thumb moves after a ± tap (F22 playtest). Needs join order or a stable index in `HostView`.
 - Arrow-key navigation between the host remote's tabs (WAI-ARIA tabs pattern). Tapping works; the keyboard can only Tab through them (F22 review).
 - Replace the `emit` cast in `client/src/pages/Host.tsx` `send` with a typed helper. Socket.IO's typed `emit` cannot take a generic event name (F22 review).
+- Preview: a "Show answer" toggle that previews the REVEAL layout too. F27 previews only the question as first shown.
