@@ -44,6 +44,13 @@ export const ArrowRight = (props) => (
   </Icon>
 );
 
+export const ArrowUp = (props) => (
+  <Icon {...props}>
+    <path d="M12 19V5" />
+    <path d="m5 12 7-7 7 7" />
+  </Icon>
+);
+
 export const Plus = (props) => (
   <Icon {...props}>
     <path d="M5 12h14" />
