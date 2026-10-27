@@ -12,6 +12,33 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F10 — Host pairing and host remote shell (2026-10-27)
+**What changed:**
+- `client/src/components/PairHostPhone.tsx`: a **Pair host phone** button. It shows a QR to `/host/:code#t=<hostToken>` (`pairUrl` in `lib/joinUrl.ts`) with "Hides in N s", hides at a 60 s deadline (`PAIRING_QR_TTL_MS`), and has a **Hide** button. The token is never printed as text.
+- `Screen.tsx` lobby: shows the button only when `loadHostToken(code)` is set (DECISIONS #14).
+- `client/src/pages/Host.tsx` at `/host/:code`, replacing the placeholder:
+  - The token comes from the hash (`tokenFromHash` in `lib/hostTokens.ts`) or from storage. The hash is stripped at once, and the token is stored only after `host:join` succeeds.
+  - With no token: "Not authorised", and no socket is opened. A rejected token is cleared (only if it is the stored one; a different stored token is tried next) and ends at "Not authorised".
+  - Remote: code and title, a question card (in the lobby, "Up first: question 1 of N" from `nextQuestion`) with the answer and notes in an accent box, **Pair host phone** in the lobby, and a live player list with colour dot, score and "offline".
+- `INVALID_HOST_TOKEN_ERROR` in `shared/constants.ts` replaces the string in the server and the Screen.
+- There are 28 new tests, 253 in total: `Host.test.tsx` (20), Screen pairing (5), `tokenFromHash` (2) and `pairUrl` (1). `App.test.tsx` now expects "Not authorised" at `/host/ABCD`.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F10 cover:
+- Open question 14, now resolved.
+- The deadline-based QR expiry and the Hide button.
+- Hash over stored token, storing only after acceptance, and the fallback on rejection.
+- "Not authorised" without a socket, and the shared error constant.
+- Hash-only navigation in an open tab.
+- `nextQuestion` in the lobby card; the image (F30) and the primary action (F16) wait.
+
+**Notes for next session:**
+- F16 adds the primary action where `Host.tsx` has `TODO(F16)`, below the question card. F22 adds the tabs and secondary actions.
+- `HostConnected` is keyed by token, so a token change opens a fresh socket.
+- Tests that start on a `#t=` URL must `await flushNavigation()` (an `act` flush) before acking a join that remounts. Otherwise React Router's pending transition hangs the test until it times out.
+- Pairing tests mock `qrcode.react` to expose the QR value as `data-value`.
+
+**How to try it:** Run `npm run dev`. On the laptop, open `http://<LAN-IP>:5173`, click **Host a game**, then **Use this device as the Screen**, then **Pair host phone**. Scan the QR with a phone: it opens the remote with the first question's answer, and players appear there as they join. The QR hides after 60 s. `/host/CODE` on a device with no token shows "Not authorised". Screenshot: `.playtest/F10/4-host.png`.
+
 ## F09 — Player join flow (2026-10-27)
 **What changed:**
 - `client/src/pages/Play.tsx` at `/play/:code`:

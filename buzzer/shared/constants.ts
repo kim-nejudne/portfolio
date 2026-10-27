@@ -29,6 +29,8 @@ export const PLAYER_PALETTE = [
 export const MAX_PLAYERS_PER_ROOM = 50;
 /** The `player:join` error for a kicked playerId. The phone keeps that id, so it stays refused. */
 export const PLAYER_KICKED_ERROR = 'You were removed from this game';
+/** The `screen:join` and `host:join` error for a wrong or stale hostToken. Clients drop the stored token on it. */
+export const INVALID_HOST_TOKEN_ERROR = 'Invalid host token';
 /** Player names are trimmed, then must be 1 to 16 characters. */
 export const PLAYER_NAME_MIN = 1;
 export const PLAYER_NAME_MAX = 16;

@@ -21,7 +21,6 @@ function headingAt(path: string) {
 describe('AppRoutes', () => {
   it.each([
     ['/', 'Buzzr'],
-    ['/host/ABCD', 'Host'],
     ['/sets', 'My question sets'],
     ['/sets/set-1', 'Edit set'],
     ['/nowhere', 'Page not found'],
@@ -37,8 +36,12 @@ describe('AppRoutes', () => {
     expect(headingAt('/play/ABCD')).toBe('Checking the room…');
   });
 
-  it('passes the room code from the URL to the page', () => {
-    headingAt('/host/WXYZ');
-    expect(screen.getByText('WXYZ')).toBeTruthy();
+  it('/host/:code renders the Host remote, which refuses a device without a token', () => {
+    expect(headingAt('/host/ABCD')).toBe('Not authorised');
+  });
+
+  it('passes the route parameter from the URL to the page', () => {
+    headingAt('/sets/set-1');
+    expect(screen.getByText('set-1')).toBeTruthy();
   });
 });

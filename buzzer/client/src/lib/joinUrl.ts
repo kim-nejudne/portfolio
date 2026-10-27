@@ -3,6 +3,14 @@ export function joinUrl(origin: string, code: string): string {
   return `${origin}/play/${code}`;
 }
 
+/**
+ * The pairing link for a host phone. The token rides in the hash, so it is never sent to the
+ * server or written to request logs (Creating and joining a room, step 3).
+ */
+export function pairUrl(origin: string, code: string, hostToken: string): string {
+  return `${origin}/host/${code}#t=${hostToken}`;
+}
+
 /** The same URL without the protocol, for reading off the TV and typing on a phone. */
 export function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, '');

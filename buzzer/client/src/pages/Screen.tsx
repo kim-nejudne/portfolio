@@ -1,7 +1,9 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback } from 'react';
 import { Link, useParams } from 'react-router';
+import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
+import { PairHostPhone } from '../components/PairHostPhone.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
@@ -29,7 +31,7 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
       if (!hostToken) return socket.emit('screen:join', { code }, ack);
       socket.emit('screen:join', { code, hostToken }, (res) => {
         // SPEC-QUESTION: a rejected token can only be stale (a reused code), so join as a plain Screen (DECISIONS, F08).
-        if (!res.ok && res.error === 'Invalid host token') {
+        if (!res.ok && res.error === INVALID_HOST_TOKEN_ERROR) {
           clearHostToken(code);
           return socket.emit('screen:join', { code }, ack);
         }
@@ -52,7 +54,7 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
       <div className="flex min-h-0 flex-1 flex-col">
         {view.phase === 'LOBBY' ? (
-          <Lobby view={view} url={url} />
+          <Lobby view={view} url={url} hostToken={loadHostToken(code)} />
         ) : (
           // TODO(F18): question, buzz and reveal views.
           <div className="flex flex-1 items-center justify-center">
@@ -65,7 +67,14 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
   );
 }
 
-function Lobby({ view, url }: { view: ScreenView; url: string }) {
+interface LobbyProps {
+  view: ScreenView;
+  url: string;
+  /** Set when this device created the room, so it may pair host phones (DECISIONS #14). */
+  hostToken: string | null;
+}
+
+function Lobby({ view, url, hostToken }: LobbyProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-[3vh] px-[5vw] pt-[5vh]">
       <div className="flex items-center justify-between gap-[4vw]">
@@ -82,6 +91,14 @@ function Lobby({ view, url }: { view: ScreenView; url: string }) {
               Phones can’t open localhost. Open this page at this computer’s network address
               instead.
             </p>
+          )}
+          {hostToken && (
+            <PairHostPhone
+              code={view.code}
+              hostToken={hostToken}
+              className="mt-[2vh] text-[1.6vw]"
+              qrSize="22vh"
+            />
           )}
         </div>
         <div className="shrink-0 rounded-[2vh] bg-white p-[2vh]">

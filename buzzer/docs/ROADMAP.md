@@ -26,15 +26,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F09 Player join flow
 
-- [ ] F10 Host pairing and host remote shell
-  - Spec: Creating and joining a room (step 3); Roles and devices; UI spec by view (Host remote: top)
-  - Depends: F08
-  - Done when:
-    - **Pair host phone** on a host-holding Screen shows a QR to `/host/:code#t=<hostToken>` for 60 s, then hides it
-    - `/host/:code` reads the token from the hash, stores it, strips the hash from the URL, and sends `host:join`
-    - The remote shows the lobby player list and the current question, answer and notes box
-    - Opening `/host/:code` without a valid token shows "Not authorised" and nothing secret
-  - Tests: playtest — pair a second tab via the QR URL; it receives HostView; a tab with a wrong token gets no answer text
+- [x] F10 Host pairing and host remote shell
 
 - [ ] F11 Dev tool: fake players
   - Spec: Milestones and acceptance criteria (Dev tool: fake players)

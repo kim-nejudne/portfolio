@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_PALETTE } from '../../../shared/constants.js';
@@ -9,8 +9,18 @@ import type { GameSocket } from '../lib/socket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen } from './Screen.js';
 
+// Renders the QR's encoded value, so tests can check where it points.
+vi.mock('qrcode.react', () => ({
+  QRCodeSVG: ({ value, title }: { value: string; title: string }) => (
+    <svg data-testid="qr" data-value={value}>
+      <title>{title}</title>
+    </svg>
+  ),
+}));
+
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   localStorage.clear();
 });
 
@@ -154,5 +164,70 @@ describe('Screen', () => {
     const { socket, unmount } = renderScreen();
     unmount();
     expect(socket.disconnected).toBe(true);
+  });
+
+  describe('Pair host phone', () => {
+    const hostToken = 'h'.repeat(43);
+
+    function lobbyWithToken() {
+      saveHostToken('WXYZ', hostToken);
+      const { socket } = renderScreen();
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', lobbyView());
+    }
+
+    it('is offered only on a Screen that holds the hostToken', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView());
+      expect(screen.queryByRole('button', { name: 'Pair host phone' })).toBeNull();
+      cleanup();
+
+      lobbyWithToken();
+      expect(screen.getByRole('button', { name: 'Pair host phone' })).toBeTruthy();
+    });
+
+    it('shows a QR to /host/<CODE>#t=<hostToken>', () => {
+      lobbyWithToken();
+      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
+      const pairing = screen.getByRole('region', { name: 'Pair host phone' });
+      expect(within(pairing).getByTestId('qr').dataset.value).toBe(
+        `${window.location.origin}/host/WXYZ#t=${hostToken}`,
+      );
+      // The token is only inside the QR, never printed as text.
+      expect(pairing.textContent).not.toContain(hostToken);
+    });
+
+    it('hides the QR after 60 seconds', () => {
+      vi.useFakeTimers();
+      lobbyWithToken();
+      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
+      expect(screen.getByText('Hides in 60 s')).toBeTruthy();
+
+      act(() => vi.advanceTimersByTime(59_000));
+      expect(screen.getByRole('region', { name: 'Pair host phone' })).toBeTruthy();
+      expect(screen.getByText('Hides in 1 s')).toBeTruthy();
+
+      act(() => vi.advanceTimersByTime(1_000));
+      expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
+      for (const qr of screen.getAllByTestId('qr')) expect(qr.dataset.value).not.toContain('#t=');
+      expect(screen.getByRole('button', { name: 'Pair host phone' })).toBeTruthy();
+    });
+
+    it('hides the QR on time even when the browser throttles its timer', () => {
+      vi.useFakeTimers();
+      lobbyWithToken();
+      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
+      // A background tab: 60 s pass on the clock, but the timer fires only once.
+      vi.setSystemTime(Date.now() + 60_000);
+      act(() => vi.advanceTimersByTime(1_000));
+      expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
+    });
+
+    it('Hide removes the QR early', () => {
+      lobbyWithToken();
+      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+      expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
+    });
   });
 });

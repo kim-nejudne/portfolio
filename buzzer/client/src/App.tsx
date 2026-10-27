@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
+import { Host } from './pages/Host.js';
 import { Landing } from './pages/Landing.js';
 import { Placeholder } from './pages/Placeholder.js';
 import { Play } from './pages/Play.js';
@@ -11,7 +12,7 @@ export function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/play/:code" element={<Play />} />
       <Route path="/screen/:code" element={<Screen />} />
-      <Route path="/host/:code" element={<Placeholder title="Host" />} />
+      <Route path="/host/:code" element={<Host />} />
       <Route path="/sets" element={<Placeholder title="My question sets" />} />
       <Route path="/sets/:setId" element={<Placeholder title="Edit set" />} />
       <Route path="*" element={<Placeholder title="Page not found" />} />

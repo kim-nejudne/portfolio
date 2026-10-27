@@ -6,7 +6,11 @@ import express from 'express';
 import proxyaddr from 'proxy-addr';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
-import { PLAYER_JOIN_RATE_LIMIT, SOCKET_MESSAGE_MAX_BYTES } from '../shared/constants.js';
+import {
+  INVALID_HOST_TOKEN_ERROR,
+  PLAYER_JOIN_RATE_LIMIT,
+  SOCKET_MESSAGE_MAX_BYTES,
+} from '../shared/constants.js';
 import { clientPayloadSchemas } from '../shared/schemas.js';
 import type {
   Ack,
@@ -132,7 +136,7 @@ export function attachSockets(
       const room = rooms.get(code);
       if (!room) return fail('Room not found');
       if (hostToken !== undefined && !verifyHostToken(hostToken, room.hostTokenHash)) {
-        return fail('Invalid host token');
+        return fail(INVALID_HOST_TOKEN_ERROR);
       }
       // SPEC-QUESTION: a token authorises host actions only; the Screen still gets ScreenView (DECISIONS #2, F07).
       socket.data = { code, role: 'screen', canHost: hostToken !== undefined };
@@ -145,7 +149,7 @@ export function attachSockets(
       if (socket.data.role) return fail('Already joined');
       const room = rooms.get(code);
       if (!room) return fail('Room not found');
-      if (!verifyHostToken(hostToken, room.hostTokenHash)) return fail('Invalid host token');
+      if (!verifyHostToken(hostToken, room.hostTokenHash)) return fail(INVALID_HOST_TOKEN_ERROR);
       socket.data = { code, role: 'host', canHost: true };
       void socket.join(hostRoom(code));
       socket.emit('state', toView(touch(room), 'host'));

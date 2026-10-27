@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { displayUrl, isLoopbackHost, joinUrl } from './joinUrl.js';
+import { displayUrl, isLoopbackHost, joinUrl, pairUrl } from './joinUrl.js';
 
 describe('join URL', () => {
   it('points at the player page for the room', () => {
     expect(joinUrl('https://buzzr.example', 'ABCD')).toBe('https://buzzr.example/play/ABCD');
+  });
+
+  it('pairing link points at the host page with the token in the hash', () => {
+    expect(pairUrl('https://buzzr.example', 'ABCD', 'tok_en-1')).toBe(
+      'https://buzzr.example/host/ABCD#t=tok_en-1',
+    );
   });
 
   it('drops the protocol for display', () => {

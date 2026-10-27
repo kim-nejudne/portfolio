@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router';
 
-// Stand-in for views that later features build (Player, Screen, Host, set list and editor).
+// Stand-in for views that later features build (set list and editor).
 export function Placeholder({ title }: { title: string }) {
   const { code, setId } = useParams();
   const detail = code ?? setId;

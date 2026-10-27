@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clearHostToken, loadHostToken, saveHostToken } from './hostTokens.js';
+import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from './hostTokens.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -40,5 +40,17 @@ describe('host tokens', () => {
     expect(() => saveHostToken('ABCD', 'token')).not.toThrow();
     expect(() => clearHostToken('ABCD')).not.toThrow();
     expect(loadHostToken('ABCD')).toBeNull();
+  });
+
+  it('reads a well-formed token from a pairing link hash', () => {
+    const token = 'a1_-'.repeat(10) + 'xyz';
+    expect(tokenFromHash(`#t=${token}`)).toBe(token);
+  });
+
+  it('ignores a missing or malformed hash token', () => {
+    expect(tokenFromHash('')).toBeNull();
+    expect(tokenFromHash('#x=1')).toBeNull();
+    expect(tokenFromHash('#t=short')).toBeNull();
+    expect(tokenFromHash(`#t=${'a'.repeat(42)}!`)).toBeNull();
   });
 });

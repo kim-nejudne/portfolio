@@ -1,6 +1,8 @@
 // The hostToken for each room this device created, kept in localStorage (Creating and joining a room, step 1).
 // Storage can be unavailable (private mode, blocked site data), so every access is guarded.
 
+import { hostTokenSchema } from '../../../shared/schemas.js';
+
 const KEY_PREFIX = 'buzzr:hostToken:';
 
 export function saveHostToken(code: string, hostToken: string): void {
@@ -27,4 +29,10 @@ export function clearHostToken(code: string): void {
   } catch {
     // Nothing stored that we can reach.
   }
+}
+
+/** The token from a pairing link's hash (`#t=<hostToken>`), or null when it is missing or malformed. */
+export function tokenFromHash(hash: string): string | null {
+  const token = new URLSearchParams(hash.replace(/^#/, '')).get('t');
+  return hostTokenSchema.safeParse(token).success ? token : null;
 }
