@@ -109,7 +109,9 @@ jobs:
       - name: install
         run: pip install -r requirements-prod.txt "$PYTEST"
       - name: pytest (offline suites)
-        run: pytest --ignore=test_api_guards.py
+        # Both URL-driven suites run post-deploy instead: with no URL set they
+        # default to the live site, which here is still the previous release.
+        run: pytest --ignore=test_api_guards.py --ignore=test_demo_sandbox.py
 
   # Same shape as the poketrack row of ci.yml: yarn, not npm, because
   # `resolutions` is a yarn field and npm would install a graph nobody has run.
@@ -314,4 +316,4 @@ jobs:
           curl -fsS -o /dev/null -w 'GET / -> %{http_code}\n' "$SITE/"
           pip install -q "$PYTEST" requests
           cd poketrack/backend
-          POKETRACK_API="$SITE/api" pytest test_api_guards.py -q
+          POKETRACK_API="$SITE/api" pytest test_api_guards.py test_demo_sandbox.py -q

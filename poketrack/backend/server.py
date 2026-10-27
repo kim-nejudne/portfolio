@@ -13,6 +13,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 from database import get_db, setup_indexes  # noqa: E402
+from demo_sandbox import sweep_expired  # noqa: E402
 from pokeapi_service import PokeApi  # noqa: E402
 from routes_auth import router as auth_router  # noqa: E402
 from routes_teams import router as teams_router, invite_router  # noqa: E402
@@ -79,6 +80,17 @@ async def _startup() -> None:
             logger.warning("Prewarm errored (non-fatal): %s", e)
 
     asyncio.create_task(_bg())
+
+    async def _sweep():
+        # Demo sessions expire on their own; their databases do not.
+        while True:
+            try:
+                await sweep_expired()
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Demo sandbox sweep errored (non-fatal): %s", e)
+            await asyncio.sleep(600)
+
+    asyncio.create_task(_sweep())
     logger.info("PokéTrack backend ready.")
 
 

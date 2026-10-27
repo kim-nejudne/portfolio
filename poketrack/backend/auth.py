@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import bcrypt
 import jwt
 from fastapi import Depends, Header, HTTPException
+
+from database import use_request_db
+from demo_sandbox import demo_user_ids, live_sandbox
 
 def _require_jwt_secret() -> str:
     """
@@ -45,21 +48,31 @@ def verify_password(pw: str, hashed: str) -> bool:
         return False
 
 
-def create_token(user_id: str) -> str:
-    payload = {
+def create_token(user_id: str, sandbox: Optional[str] = None, ttl: Optional[timedelta] = None) -> str:
+    now = datetime.now(timezone.utc)
+    payload: Dict[str, Any] = {
         "sub": user_id,
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_TTL_HOURS),
+        "iat": now,
+        "exp": now + (ttl or timedelta(hours=JWT_TTL_HOURS)),
     }
+    if sandbox:
+        payload["sbx"] = sandbox
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
-def decode_token(token: str) -> Optional[str]:
+def decode_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
-        return payload.get("sub")
     except Exception:
         return None
+    return payload if payload.get("sub") else None
+
+
+def bearer_payload(authorization: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    token = authorization.split(" ", 1)[1].strip()
+    return decode_token(token) if token else None
 
 
 async def current_user_id(authorization: Optional[str] = Header(default=None)) -> str:
@@ -68,7 +81,20 @@ async def current_user_id(authorization: Optional[str] = Header(default=None)) -
     token = authorization.split(" ", 1)[1].strip()
     if not token:
         raise HTTPException(status_code=401, detail="Missing bearer token")
-    uid = decode_token(token)
-    if not uid:
+    payload = decode_token(token)
+    if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    uid = payload["sub"]
+    sid = payload.get("sbx")
+    if sid:
+        # Route the rest of this request into the visitor's own copy of the
+        # demo world; see demo_sandbox.py.
+        db = await live_sandbox(sid)
+        if db is None:
+            raise HTTPException(status_code=401, detail="Demo session ended — sign in again")
+        use_request_db(db)
+    elif uid in await demo_user_ids():
+        # A demo token minted before sandboxes existed would write straight
+        # into the template every visitor is copied from.
+        raise HTTPException(status_code=401, detail="Demo session ended — sign in again")
     return uid

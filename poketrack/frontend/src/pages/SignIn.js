@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, setToken, setUser } from "@/lib/api";
 import GameFrame from "@/components/game/GameFrame";
 import GameButton from "@/components/game/GameButton";
@@ -36,6 +36,9 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [demos, setDemos] = useState([]);
+  // Set by the API client when a session stops being honoured mid-visit.
+  const [params] = useSearchParams();
+  const ended = params.has("ended");
   // Which demo card is mid-flight, so only that one shows a busy label.
   const [demoBusy, setDemoBusy] = useState(null);
   // Which credential most recently went to the clipboard, as "<email>:<field>".
@@ -104,6 +107,9 @@ export default function SignIn() {
     <div className="max-w-md mx-auto py-10">
       <GameFrame className="p-6 sm:p-7">
         <h1 className="font-display text-[32px] font-bold leading-tight text-fg" data-testid="sign-in-title">Trainer sign-in</h1>
+        {ended && (
+          <p className="mt-2 font-body text-[15px] text-muted" data-testid="sign-in-ended">Your session has ended. Sign in again to keep going.</p>
+        )}
         <form onSubmit={submit} className="mt-5 space-y-4" data-testid="sign-in-form">
           <label className="block">
             <span className="field-label">Email</span>
@@ -129,7 +135,8 @@ export default function SignIn() {
           <p className="mt-2 font-body text-[15px] text-muted">
             Use one of these accounts — no sign-up needed. Sign in with a single button,
             or type the credentials into the form above. Each trainer drops you at a
-            different point in the progression.
+            different point in the progression. Anything you change stays in your own
+            copy and is discarded when you sign out, or after two hours.
           </p>
           <ul className="mt-4 space-y-4">
             {demos.map((d) => {

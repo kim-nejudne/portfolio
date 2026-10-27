@@ -1,15 +1,19 @@
 """Auth routes: sign up, sign in, me."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from auth import (
+    bearer_payload,
     create_token,
     current_user_id,
     hash_password,
     verify_password,
 )
 from database import get_db
+from demo_sandbox import SANDBOX_TTL, create_sandbox, drop_sandbox
 from models import UserCreate, UserLogin, UserOut, new_id, now_iso
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -46,13 +50,29 @@ async def sign_in(body: UserLogin):
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not verify_password(body.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_token(user["id"])
+    if user.get("is_demo_login"):
+        # A private copy of the demo world for this session alone.
+        token = create_token(user["id"], sandbox=await create_sandbox(), ttl=SANDBOX_TTL)
+    else:
+        token = create_token(user["id"])
     return {
         "token": token,
         "user": UserOut(
             id=user["id"], email=user["email"], name=user["name"], avatar_url=user.get("avatar_url")
         ).model_dump(),
     }
+
+
+@router.post("/sign-out")
+async def sign_out(authorization: Optional[str] = Header(default=None)):
+    """Discard a demo session's sandbox. A no-op for every other caller.
+
+    Unauthenticated, so an expired or garbled token still signs out cleanly.
+    """
+    payload = bearer_payload(authorization)
+    if payload and payload.get("sbx"):
+        await drop_sandbox(payload["sbx"])
+    return {"ok": True}
 
 
 @router.get("/demo-accounts")
@@ -62,7 +82,8 @@ async def demo_accounts():
     Unauthenticated on purpose — a recruiter has nothing to sign in with yet,
     which is the whole problem this solves. The passwords are real but they are
     only ever attached to seeded accounts inside a world `seed_demo.py` rebuilds
-    on a schedule; there is nothing here to protect.
+    on a schedule, and signing in with them lands in a throwaway copy of it
+    (demo_sandbox.py); there is nothing here to protect.
 
     Read straight out of the database rather than a constant, so an unseeded
     instance returns an empty list and the sign-in page renders as it always

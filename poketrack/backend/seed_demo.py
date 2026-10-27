@@ -5,18 +5,20 @@ and rebuilds from scratch:
 
     MONGO_URL=... DB_NAME=poketrack python seed_demo.py
 
+What it builds is a template. Visitors never write to it: signing in as a demo
+trainer copies it into a sandbox database of that session's own
+(demo_sandbox.py), so a reseed never touches anyone mid-session.
+
 Two things make it safe to re-run on a live box.
 
 **Ids are derived, not random.** Every id is a uuid5 of a stable key, so a
-reseed hands the same user, team and project the same id it had before. Bearer
-tokens carry the user id in `sub`, so a recruiter mid-session is not signed out
-by the nightly reset, and bookmarked project URLs keep resolving.
+reseed hands the same user, team and project the same id it had before, and
+bookmarked project URLs keep resolving.
 
 **Only demo data is touched.** The wipe walks out from users marked `is_demo`
-and takes their teams, projects, tickets, partners and ledger with them —
-including anything a visitor created while clicking around, which carries no
-demo marker of its own. A team a demo user merely *joined* is left alone; only
-teams a demo user owns are deleted.
+and takes their teams, projects, tickets, partners and ledger with them. A team
+a demo user merely *joined* is left alone; only teams a demo user owns are
+deleted.
 
 XP is not written as a number anywhere. Levels here are derived the same way
 they are in the app — `SUM(xp_events.xp_awarded)` fed through the real PokéAPI
@@ -38,11 +40,12 @@ from typing import Any, Dict, List, Tuple
 import bcrypt
 from motor.motor_asyncio import AsyncIOMotorClient
 
+from demo_sandbox import demo_world_queries
 from engine import build_growth_table, level_from_xp
 from pokeapi_service import PokeApi
 
 # Fixed namespace so ids survive a reseed. Do not change it — doing so orphans
-# every bookmarked URL and invalidates every outstanding demo token.
+# every bookmarked URL.
 DEMO_NS = uuid.UUID("6f1d2a7e-3c48-5b90-a1e2-7d4c0b8f9a31")
 
 # One seed for the whole world, so two runs produce byte-identical filler.
@@ -719,49 +722,15 @@ async def growth_tables(
 
 
 async def wipe(db) -> Dict[str, int]:
-    """Delete every trace of the demo world, including visitor-made drift.
+    """Delete every trace of the demo world, including any drift in it.
 
-    Walks out from the demo users rather than matching a `demo` marker, because
-    a team or ticket a visitor created while signed in as a demo account has no
-    marker of its own and would otherwise accumulate forever.
+    What counts as the demo world is `demo_world_queries` — the same walk a
+    demo sign-in copies into its sandbox.
     """
-    demo_users = await db.users.find({"is_demo": True}, {"id": 1}).to_list(1000)
-    user_ids = [u["id"] for u in demo_users]
-    if not user_ids:
-        return {}
-
-    # Only teams a demo user *owns*. One a demo user merely joined belongs to
-    # somebody real; drop the membership, leave the team standing.
-    teams = await db.teams.find({"owner_id": {"$in": user_ids}}, {"id": 1}).to_list(1000)
-    team_ids = [t["id"] for t in teams]
-
-    projects = await db.projects.find({"team_id": {"$in": team_ids}}, {"id": 1}).to_list(1000)
-    project_ids = [p["id"] for p in projects]
-
-    mons = await db.player_pokemon.find(
-        {"$or": [{"project_id": {"$in": project_ids}}, {"user_id": {"$in": user_ids}}]},
-        {"id": 1},
-    ).to_list(10000)
-    mon_ids = [m["id"] for m in mons]
-
     counts: Dict[str, int] = {}
-
-    async def drop(collection: str, query: Dict[str, Any]) -> None:
+    for collection, query in (await demo_world_queries(db)).items():
         result = await db[collection].delete_many(query)
-        counts[collection] = counts.get(collection, 0) + result.deleted_count
-
-    await drop("xp_events", {"player_pokemon_id": {"$in": mon_ids}})
-    await drop("evolutions", {"player_pokemon_id": {"$in": mon_ids}})
-    await drop("player_pokemon", {"id": {"$in": mon_ids}})
-    await drop("tickets", {"project_id": {"$in": project_ids}})
-    await drop("projects", {"id": {"$in": project_ids}})
-    await drop("invites", {"team_id": {"$in": team_ids}})
-    # Both halves matter: memberships of any demo team, and demo users'
-    # memberships of teams that survive.
-    await drop("memberships", {"$or": [{"team_id": {"$in": team_ids}},
-                                       {"user_id": {"$in": user_ids}}]})
-    await drop("teams", {"id": {"$in": team_ids}})
-    await drop("users", {"id": {"$in": user_ids}})
+        counts[collection] = result.deleted_count
     return counts
 
 
