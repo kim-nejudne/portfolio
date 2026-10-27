@@ -9,7 +9,7 @@ import {
   PLAYER_PALETTE,
   REOPEN_DELAY_MS,
 } from '../shared/constants.js';
-import type { Buzz, Fx, JudgeResult, Phase, Player, Room } from '../shared/types.js';
+import type { Buzz, Fx, JudgeResult, Phase, Player, Room, RoomSettings } from '../shared/types.js';
 import { buzzGaps, makeBuzz, rankBuzzes } from './fairness.js';
 
 /** The error for an action the transitions table does not list for the current phase. */
@@ -21,15 +21,18 @@ const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BU
 /** Phases that take a buzz: OPEN and COLLECTING count, BUZZED records a late one (DECISIONS #4). */
 const BUZZ_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED'];
 
+/** Phases a judged question can be in, so `host:undo` accepts them (DECISIONS #6). */
+const UNDO_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'];
+
 /**
  * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
- * index and opening counter so the reducer can ignore it once the room has moved on.
+ * index and opening counter so the reducer can ignore it once the room has moved on. `reopen`
+ * also carries its `at`, which must still equal `room.reopenAt`: an undo and a second wrong
+ * judgement reuse the index and counter (DECISIONS F20).
  */
-export type TimerAction = {
-  type: 'windowClosed' | 'reopen';
-  questionIndex: number;
-  openingCounter: number;
-};
+export type TimerAction =
+  | { type: 'windowClosed'; questionIndex: number; openingCounter: number }
+  | { type: 'reopen'; questionIndex: number; openingCounter: number; at: number };
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
@@ -48,7 +51,11 @@ export type Action =
   | { type: 'host:next' }
   | { type: 'host:prev' }
   | { type: 'host:end' }
-  | { type: 'host:scoreboard'; show: boolean };
+  | { type: 'host:scoreboard'; show: boolean }
+  | { type: 'host:undo' }
+  | { type: 'host:adjustScore'; playerId: string; delta: number }
+  | { type: 'host:kick'; playerId: string }
+  | { type: 'host:settings'; settings: Partial<RoomSettings> };
 
 /**
  * Work for the gateway: `fx` is broadcast to the room's sockets; `schedule` dispatches `action`
@@ -101,6 +108,14 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return done({ ...room, phase: 'FINAL' });
     case 'host:scoreboard':
       return done({ ...room, showScoreboard: action.show });
+    case 'host:undo':
+      return hostUndo(room);
+    case 'host:adjustScore':
+      return hostAdjustScore(room, action);
+    case 'host:kick':
+      return hostKick(room, action);
+    case 'host:settings':
+      return hostSettings(room, action);
     default:
       return fail('Unknown action');
   }
@@ -216,8 +231,10 @@ function hostJudge(
 
   const playerId = room.winnerId;
   const points = room.set.questions[room.questionIndex]?.points ?? 0;
+  // SPEC-QUESTION: undo after a reopen restores this snapshot; see DECISIONS #6.
+  const marked: Room = { ...room, undo: { buzzes: room.buzzes, winnerId: playerId } };
   if (result === 'correct') {
-    const judged = applyJudgement(room, playerId, 'correct', points);
+    const judged = applyJudgement(marked, playerId, 'correct', points);
     // The judged buzz stays, so the reveal can show who answered (DECISIONS F19).
     return done({ ...judged, phase: 'REVEAL' }, [
       { type: 'fx', fx: { kind: 'correct', playerId, points } },
@@ -225,7 +242,7 @@ function hostJudge(
   }
 
   const judged = applyJudgement(
-    room,
+    marked,
     playerId,
     'wrong',
     room.settings.wrongPenalty && points ? -points : 0,
@@ -237,25 +254,34 @@ function hostJudge(
   const { questionIndex, openingCounter } = room;
   return done({ ...judged, reopenAt: at }, [
     fx,
-    { type: 'schedule', at, action: { type: 'reopen', questionIndex, openingCounter } },
+    { type: 'schedule', at, action: { type: 'reopen', questionIndex, openingCounter, at } },
   ]);
 }
 
 /**
- * Records a judgement of `playerId` on the current question: adds `pointsDelta` to their score
- * and, on a wrong answer, locks them out. Every score change goes through here, so teams can
- * later redirect the points in one place (spec, "Out of scope").
+ * How a score changes: a judgement of the buzz winner, or the host's manual `'adjust'`, which
+ * records no judgement and locks nobody out.
+ */
+export type ScoreChange = JudgeResult | 'adjust';
+
+/**
+ * Adds `pointsDelta` to `playerId`'s score. A judgement (`correct` or `wrong`) is also recorded
+ * on the current question, and a wrong one locks the player out. Every score change goes through
+ * here, judging, adjusting and undoing alike, so teams can later redirect the points in one place
+ * (spec, "Out of scope").
  */
 export function applyJudgement(
   room: Room,
   playerId: string,
-  result: JudgeResult,
+  result: ScoreChange,
   pointsDelta: number,
 ): Room {
   const player = room.players[playerId];
   const players = player
     ? { ...room.players, [playerId]: { ...player, score: player.score + pointsDelta } }
     : room.players;
+  if (result === 'adjust') return { ...room, players };
+
   const lockedOut =
     result === 'wrong' && !room.lockedOut.includes(playerId)
       ? [...room.lockedOut, playerId]
@@ -272,15 +298,113 @@ function anyoneEligible(room: Room): boolean {
   return Object.values(room.players).some((p) => p.connected && !room.lockedOut.includes(p.id));
 }
 
-function reopen(room: Room, { questionIndex, openingCounter }: TimerAction): ReduceResult {
-  // Phase + index + counter + a pending reopen rejects every stale timer (DECISIONS F13).
+function reopen(
+  room: Room,
+  { questionIndex, openingCounter, at }: Extract<TimerAction, { type: 'reopen' }>,
+): ReduceResult {
+  // Phase + index + counter + the pending reopen's own time rejects every stale timer, including
+  // one from a wrong judgement that was undone and made again (DECISIONS F13, F20).
   const fresh =
     room.phase === 'BUZZED' &&
-    room.reopenAt !== null &&
+    room.reopenAt === at &&
     room.questionIndex === questionIndex &&
     room.openingCounter === openingCounter;
   if (!fresh) return done(room);
   return done(openBuzzers({ ...room, winnerId: null }));
+}
+
+/**
+ * Reverses the last judgement of this question and returns to BUZZED with that buzz, as it was
+ * when judged. Newer buzzes of the question are discarded. `openingCounter` keeps its value, so
+ * the timers of a discarded opening stay stale (DECISIONS #6, F20).
+ */
+function hostUndo(room: Room): ReduceResult {
+  if (!UNDO_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
+  const last = room.judgements.at(-1);
+  const { undo } = room;
+  if (!undo || last?.questionIndex !== room.questionIndex || last.playerId !== undo.winnerId) {
+    return fail('Nothing to undo');
+  }
+
+  const reversed = applyJudgement(room, last.playerId, 'adjust', -last.pointsDelta);
+  return done({
+    ...reversed,
+    phase: 'BUZZED',
+    buzzes: undo.buzzes,
+    winnerId: undo.winnerId,
+    lockedOut: room.lockedOut.filter((id) => id !== last.playerId),
+    judgements: room.judgements.slice(0, -1),
+    reopenAt: null,
+    undo: null,
+  });
+}
+
+/** Any phase: the Players tab's ± buttons. The delta is already range-checked by zod. */
+function hostAdjustScore(
+  room: Room,
+  { playerId, delta }: Extract<Action, { type: 'host:adjustScore' }>,
+): ReduceResult {
+  if (!room.players[playerId]) return fail('Unknown player');
+  return done(applyJudgement(room, playerId, 'adjust', delta));
+}
+
+/**
+ * Any phase. Removes the player for good and drops every live reference to them; their past
+ * judgements stay in the history. An unjudged winning buzz is discarded and the buzzers reopen
+ * at once, or the room moves to REVEAL if nobody else is eligible, as after a last wrong answer.
+ * A window the kick leaves empty reopens too (DECISIONS #10, F20).
+ */
+function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' }>): ReduceResult {
+  if (!room.players[playerId]) return fail('Unknown player');
+
+  const players = Object.fromEntries(
+    Object.entries(room.players).filter(([id]) => id !== playerId),
+  );
+  const keep = (b: Buzz) => b.playerId !== playerId;
+  const undo =
+    room.undo && room.undo.winnerId !== playerId
+      ? { ...room.undo, buzzes: room.undo.buzzes.filter(keep) }
+      : null;
+  const kicked: Room = {
+    ...room,
+    players,
+    kickedIds: [...room.kickedIds, playerId],
+    buzzes: room.buzzes.filter(keep),
+    lockedOut: room.lockedOut.filter((id) => id !== playerId),
+    undo,
+  };
+
+  const wasWinner = room.winnerId === playerId;
+  const unjudged = room.phase === 'BUZZED' && wasWinner && room.reopenAt === null;
+  if (unjudged && !anyoneEligible(kicked)) {
+    return done({ ...kicked, phase: 'REVEAL', buzzes: [], winnerId: null });
+  }
+  if (
+    (room.phase === 'BUZZED' && wasWinner) ||
+    (room.phase === 'COLLECTING' && room.buzzes.length > 0 && !kicked.buzzes.length)
+  ) {
+    return done(openBuzzers({ ...kicked, winnerId: null }));
+  }
+  return done(wasWinner ? { ...kicked, winnerId: null } : kicked);
+}
+
+/**
+ * Any phase. Merges the keys that are set; each takes effect the next time it is consulted (the
+ * next judgement, question entry or `host:next`), never on the current question (DECISIONS F20).
+ */
+function hostSettings(
+  room: Room,
+  { settings }: Extract<Action, { type: 'host:settings' }>,
+): ReduceResult {
+  const { wrongPenalty, autoOpenBuzzers, scoreboardEvery } = room.settings;
+  return done({
+    ...room,
+    settings: {
+      wrongPenalty: settings.wrongPenalty ?? wrongPenalty,
+      autoOpenBuzzers: settings.autoOpenBuzzers ?? autoOpenBuzzers,
+      scoreboardEvery: settings.scoreboardEvery ?? scoreboardEvery,
+    },
+  });
 }
 
 function hostStart(room: Room): ReduceResult {
@@ -335,6 +459,7 @@ const clearedQuestion = {
   winnerId: null,
   lockedOut: [],
   reopenAt: null,
+  undo: null,
 } satisfies Partial<Room>;
 
 /**

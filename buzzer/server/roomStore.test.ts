@@ -28,6 +28,7 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     lockedOut: [],
     judgements: [],
     reopenAt: null,
+    undo: null,
     showScoreboard: false,
     createdAt: T0,
     lastActivityAt,

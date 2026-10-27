@@ -58,6 +58,16 @@ export interface Judgement {
   pointsDelta: number;
 }
 
+/**
+ * What `host:undo` restores: the opening's buzzes and winner as they were when the host judged.
+ * Set by every judgement and cleared when the question changes or the undo is used, so there is
+ * one level of undo per question (DECISIONS #6).
+ */
+export interface UndoPoint {
+  buzzes: Buzz[];
+  winnerId: string;
+}
+
 export interface RoomSettings {
   wrongPenalty: boolean; // default false
   autoOpenBuzzers: boolean; // default false
@@ -79,6 +89,7 @@ export interface Room {
   lockedOut: string[]; // playerIds wrong this question
   judgements: Judgement[]; // whole game, enables undo
   reopenAt: number | null; // wall-clock ms; set in BUZZED while a wrong answer waits to reopen
+  undo: UndoPoint | null; // the last judgement of this question can be undone
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;

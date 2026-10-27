@@ -25,6 +25,45 @@ describe('rankPlayers', () => {
     expect(ranked.map((p) => p.rank)).toEqual([1, 1, 3]);
   });
 
+  it('handles several tie groups in one ranking', () => {
+    const ranked = rankPlayers([
+      makePlayer('a', { score: 300 }),
+      makePlayer('b', { score: 100 }),
+      makePlayer('c', { score: 300 }),
+      makePlayer('d', { score: 0 }),
+      makePlayer('e', { score: 100 }),
+    ]);
+    expect(ranked.map((p) => [p.id, p.rank])).toEqual([
+      ['a', 1],
+      ['c', 1],
+      ['b', 3],
+      ['e', 3],
+      ['d', 5],
+    ]);
+  });
+
+  it('ranks tied negative scores below zero and together', () => {
+    const ranked = rankPlayers([
+      makePlayer('a', { score: -100 }),
+      makePlayer('b', { score: 0 }),
+      makePlayer('c', { score: -100 }),
+    ]);
+    expect(ranked.map((p) => [p.id, p.rank])).toEqual([
+      ['b', 1],
+      ['a', 2],
+      ['c', 2],
+    ]);
+  });
+
+  it('gives everyone rank 1 when all scores are equal', () => {
+    const ranked = rankPlayers(['a', 'b', 'c'].map((id) => makePlayer(id, { score: 50 })));
+    expect(ranked.map((p) => p.rank)).toEqual([1, 1, 1]);
+  });
+
+  it('returns an empty ranking for no players', () => {
+    expect(rankPlayers([])).toEqual([]);
+  });
+
   it('lists tied players in join order', () => {
     const ranked = rankPlayers([
       makePlayer('late', { score: 0, joinedAt: T0 + 2 }),

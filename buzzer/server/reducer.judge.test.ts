@@ -20,11 +20,12 @@ const NOW = T0 + 10_000;
 
 const judge = (result: JudgeResult): Action => ({ type: 'host:judge', result });
 
-/** The `reopen` timer action for `room`'s current question and opening. */
+/** The `reopen` timer action for `room`'s current question, opening and pending reopen time. */
 const reopen = (room: Room): Action => ({
   type: 'reopen',
   questionIndex: room.questionIndex,
   openingCounter: room.openingCounter,
+  at: room.reopenAt ?? NOW + REOPEN_DELAY_MS,
 });
 
 /**
@@ -154,7 +155,7 @@ describe('reduce: host:judge wrong with others still eligible', () => {
       {
         type: 'schedule',
         at: NOW + 1500,
-        action: { type: 'reopen', questionIndex: 1, openingCounter: 2 },
+        action: { type: 'reopen', questionIndex: 1, openingCounter: 2, at: NOW + 1500 },
       },
     ]);
   });
@@ -265,11 +266,12 @@ describe('reduce: reopen', () => {
     expect(ok(reduce(ended, reopen(room), NOW + REOPEN_DELAY_MS)).room).toBe(ended);
   });
 
-  it('is a no-op for another question index or opening', () => {
+  it('is a no-op for another question index, opening or reopen time', () => {
     const room = pending();
     for (const stale of [
-      { type: 'reopen', questionIndex: 0, openingCounter: 2 },
-      { type: 'reopen', questionIndex: 1, openingCounter: 1 },
+      { type: 'reopen', questionIndex: 0, openingCounter: 2, at: NOW + REOPEN_DELAY_MS },
+      { type: 'reopen', questionIndex: 1, openingCounter: 1, at: NOW + REOPEN_DELAY_MS },
+      { type: 'reopen', questionIndex: 1, openingCounter: 2, at: NOW + 1 },
     ] as const) {
       expect(ok(reduce(room, stale, NOW + REOPEN_DELAY_MS)).room).toBe(room);
     }

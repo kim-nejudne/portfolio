@@ -12,6 +12,36 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F20 — Reducer: undo, score adjust, kick, settings, final ranking (2026-10-27)
+**What changed:**
+- `server/reducer.ts` gains four host actions. The zod schemas existed since F02.
+  - `host:undo` works in OPEN, COLLECTING, BUZZED or REVEAL. It reverses the last judgement of the current question: the score delta, the lockout and the judgement record. It returns to BUZZED with the buzzes and winner as judged, and newer buzzes are discarded. There is one level per question; otherwise it fails with "Nothing to undo".
+  - `host:adjustScore {playerId, delta}` works in any phase.
+  - `host:kick {playerId}` works in any phase. It removes the player, adds the id to `kickedIds`, and drops their buzzes, lockout and undo point. An unjudged winner's buzz is discarded and the buzzers reopen, or the room goes to REVEAL if nobody else is eligible. A kick that empties the COLLECTING window also reopens.
+  - `host:settings` works in any phase and merges the keys that are set.
+- `Room.undo: UndoPoint | null` (`shared/types.ts`). `host:judge` sets it; entering a question, FINAL via next, and the undo itself clear it.
+- The `reopen` timer action now carries `at` and is ignored unless `at === room.reopenAt`. This fixes the F19 note: after undo and a second wrong judgement, the first timer no longer reopens early. `openingCounter` never moves backwards.
+- `applyJudgement` takes `'adjust'`: score only, with no judgement and no lockout. It stays the only score writer, now used by judge, adjust and undo.
+- Tests:
+  - New `server/reducer.undo.test.ts` (19): exact restore after a correct answer, after a wrong answer during the wait, after wrong then reopen, and after the last wrong one. Also one level only, stale timers after undo, and the phase guard.
+  - New `server/reducer.admin.test.ts` (42).
+  - `server/ranking.test.ts` gains 4 tie cases.
+  - The judge tests' `reopen` helper now carries `at`.
+  - 577 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F20 cover the following:
+- They resolve open questions 6 (an undo snapshot) and 10 (kicking the winner).
+- They record the `at` match on `reopen` and the monotonic counter.
+- They record the `'adjust'` score change, and that adjust, kick and settings work in every phase.
+- They record that a settings change applies the next time the setting is read.
+
+**Notes for next session:**
+- F21 must wire `host:undo`, `host:adjustScore`, `host:kick` and `host:settings` in `server/sockets.ts`, as well as `host:judge`, with `canHost` and the zod schemas. On kick, the gateway emits `kicked` to the player's socket(s) and disconnects them. The reducer emits no effect for this; the gateway reads it from the action.
+- No view shows whether undo is available yet. F22's Undo button needs it, for example `HostView.canUndo = room.undo !== null && phase in OPEN…REVEAL`, so the client does not derive the rule (DECISIONS F02).
+- The ± buttons send the question's `points` as `delta`; the server accepts any integer within ±100000.
+
+**How to try it:** `npx vitest run server/reducer.undo.test.ts server/reducer.admin.test.ts server/ranking.test.ts`. There is no socket path or UI until F21 and F22.
+
 ## F19 — Reducer: judging, lockout and reopen (2026-10-27)
 **What changed:**
 - `server/reducer.ts` handles `host:judge {result}`, accepted only in BUZZED:

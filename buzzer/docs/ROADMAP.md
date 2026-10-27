@@ -50,14 +50,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F19 Reducer: judging, lockout and reopen
 
-- [ ] F20 Reducer: undo, score adjust, kick, settings, final ranking
-  - Spec: Game flow and state machine (undo, end); Scoring rules (final ranking); Edge cases (undo, kicked player); Host remote (Players tab, Settings tab)
-  - Depends: F19
-  - Done when:
-    - `host:undo` reverses the last judgement of the current question exactly (score and lockout) and returns to BUZZED with that winner; one level per question
-    - `host:adjustScore`, `host:kick` (id added to `kickedIds`), `host:settings` with zod-validated partials
-    - Final ranking sorts by score with shared ranks for ties
-  - Tests: `reducer.undo.test.ts` (restores exactly after correct and after wrong-then-reopen), `reducer.admin.test.ts`, `ranking.test.ts`
+- [x] F20 Reducer: undo, score adjust, kick, settings, final ranking
 
 - [ ] F21 Gateway: remaining host events
   - Spec: Realtime events and HTTP API (host:judge, undo, adjustScore, kick, settings, scoreboard; kicked; fx)
