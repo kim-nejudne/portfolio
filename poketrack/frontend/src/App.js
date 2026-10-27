@@ -12,6 +12,7 @@ import Project from "@/pages/Project";
 import ProjectSettings from "@/pages/ProjectSettings";
 import InviteAccept from "@/pages/InviteAccept";
 import TopBar from "@/components/game/TopBar";
+import BackToTop from "@/components/game/BackToTop";
 
 function Protected({ children }) {
   const token = getToken();
@@ -23,7 +24,9 @@ function Shell({ children }) {
   return (
     <div className="min-h-screen relative bg-bg">
       <TopBar />
-      <main className="px-6 py-7">{children}</main>
+      {/* tabIndex lets BackToTop park focus here before the page scrolls. */}
+      <main tabIndex={-1} className="px-6 py-7 outline-none">{children}</main>
+      <BackToTop />
       <Toaster />
     </div>
   );
