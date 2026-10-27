@@ -41,6 +41,10 @@ export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 export const ROOM_CODE_LENGTH = 4;
 /** Rooms are deleted after this long without activity. */
 export const ROOM_IDLE_TTL_MS = 3 * 60 * 60 * 1000;
+/** How often the server looks for idle rooms to delete. */
+export const ROOM_SWEEP_INTERVAL_MS = 60 * 1000;
+/** Random draws before room creation gives up (23^4 ≈ 280k codes, so this only trips when nearly full). */
+export const ROOM_CODE_MAX_ATTEMPTS = 100;
 /** hostToken: random bytes, sent as base64url (43 characters). */
 export const HOST_TOKEN_BYTES = 32;
 export const HOST_TOKEN_LENGTH = 43;

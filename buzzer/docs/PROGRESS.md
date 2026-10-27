@@ -12,6 +12,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F04 — Room codes and RoomStore (2026-10-27)
+**What changed:**
+- `server/codes.ts` holds:
+  - `generateRoomCode(rng)`, which makes one 4-letter draw from `ROOM_CODE_ALPHABET`.
+  - `isBlockedCode(code)`, a substring match against `BLOCKED_WORDS`.
+  - `createRoomCode(isTaken, rng = Math.random)`, which retries collisions and blocked words. It throws after `ROOM_CODE_MAX_ATTEMPTS` (100) draws.
+  - The `Rng` type, `() => number` in [0, 1).
+- `server/roomStore.ts` holds:
+  - A synchronous `RoomStore` interface: `get`, `has`, `set` (keyed by `room.code`), `delete` (returns a boolean), `size` and `sweep(now)`. `sweep` deletes rooms with `now - lastActivityAt >= ROOM_IDLE_TTL_MS` and returns their codes.
+  - `InMemoryRoomStore`, the Map-backed implementation.
+  - `startRoomSweeper(store, clock, intervalMs = ROOM_SWEEP_INTERVAL_MS)`, an unref'd interval that returns a stop function.
+- `shared/constants.ts` gains `ROOM_SWEEP_INTERVAL_MS` (60 s) and `ROOM_CODE_MAX_ATTEMPTS` (100).
+- `server/index.ts` creates the store and starts the sweeper with `Date.now`. The store is not yet passed to the HTTP or socket layers (`TODO(F06, F07)`).
+- There are 19 new tests, 75 in total. `codes.test.ts` covers the alphabet, seeded collision retry, the blocklist and exhaustion. `roomStore.test.ts` covers get/set/delete, 3 h − 1 ms against exactly 3 h, idleness measured from last activity, and the sweeper on fake timers.
+
+**Dependencies:** none.
+
+**Decisions:** DECISIONS rows dated 2026-10-27 for F04 cover:
+- The blocklist contents and substring matching.
+- `Math.random` for codes and the 100-draw cap.
+- Expiry at exactly 3 h, on wall-clock time, with a 60 s sweep.
+- The synchronous `RoomStore`.
+
+**Notes for next session:**
+- Write `createdAt` and `lastActivityAt` with `Date.now` (wall clock), not `performance.now`. The sweeper compares them against `Date.now`. Buzz times are the only values on the monotonic clock.
+- F06 calls `createRoomCode((code) => rooms.has(code))` and turns the exhaustion error into an error response.
+- Whatever handles an event must bump `lastActivityAt`, or rooms expire mid-game after 3 h.
+- The store keeps nothing but rooms. Images are still to come.
+
+**How to try it:** Run `npm test` (`server/codes.test.ts` and `server/roomStore.test.ts`). There is no UI or endpoint yet.
+
 ## F03 — Landing page and route shell (2026-10-27)
 **What changed:**
 - Tailwind v4 through `@tailwindcss/vite`. `client/src/index.css` holds the theme in `@theme`: `bg`, `surface`, `edge`, `ink`, `muted`, one `accent` (#ffc400) with `accent-ink`, and a `font-display` stack. Use them as `bg-surface`, `text-accent`, `font-display` and so on.

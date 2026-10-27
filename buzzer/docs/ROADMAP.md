@@ -14,14 +14,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M2 — Rooms and joining
 
-- [ ] F04 Room codes and RoomStore
-  - Spec: Creating and joining a room (room codes); Tech stack and architecture (RoomStore); Reconnects (room expiry); Out of scope (Surviving server restarts)
-  - Depends: F02
-  - Done when:
-    - `server/codes.ts` generates 4-letter codes from the alphabet, retries on collision and rejects a blocklist
-    - `server/roomStore.ts` exposes a `RoomStore` interface with an in-memory implementation
-    - Rooms idle for 3 h are swept; the sweep takes `now` as input
-  - Tests: `codes.test.ts` (alphabet only, collision retry with a seeded RNG, blocklist), `roomStore.test.ts` (get/set/delete, expiry at exactly 3 h)
+- [x] F04 Room codes and RoomStore
 
 - [ ] F05 Reducer foundation: lobby, players, toView
   - Spec: Game flow and state machine (Transitions intro); Data model; Reconnects; Edge cases (duplicate name, kicked player, joins mid-game); Security (limits)
