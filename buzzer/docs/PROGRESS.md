@@ -12,6 +12,26 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F19 — Reducer: judging, lockout and reopen (2026-10-27)
+**What changed:**
+- `server/reducer.ts` handles `host:judge {result}`, accepted only in BUZZED:
+  - Correct: the winner gets the question's points, the room moves to REVEAL, and the reducer emits `fx correct {playerId, points}`.
+  - Wrong: the winner is locked out, loses the points if `wrongPenalty` is on, and the reducer emits `fx wrong`.
+  - If anyone is still eligible, the room stays in BUZZED with `reopenAt = now + 1500` and schedules `reopen`. Otherwise it moves to REVEAL.
+  - A second judge of the same buzz is rejected: "Not allowed in this phase" after a correct answer, "Already judged" while a reopen is pending.
+- New timer action `reopen {questionIndex, openingCounter}` (part of `TimerAction`). It opens a new opening and keeps `lockedOut`. It is a no-op unless the room is in BUZZED with a reopen pending, on the same question and opening.
+- New exported `applyJudgement(room, playerId, result, pointsDelta)` is the only score writer. `Room` gains `reopenAt: number | null`, which `host:reveal`, `host:next` and `host:prev` clear.
+- Tests: `server/reducer.judge.test.ts` (34 tests). They cover phase rejection, double judging, correct, wrong with the penalty on and off, negative scores, last eligible → REVEAL, a disconnected winner, and the reopen with stale cases after reveal, next, prev and end. 512 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F19 resolve open questions 5 (the wait stays in BUZZED with `reopenAt`) and 9 (eligible means connected and not locked out, checked at judge time). They also record that a judged buzz keeps `winnerId` and `buzzes` into REVEAL, and the `applyJudgement` signature.
+
+**Notes for next session:**
+- `host:judge` is not wired in `server/sockets.ts` yet; that is F21. The gateway's `schedule` already runs `reopen` through the generic `TimerAction`, so F21 needs the handler (`canHost`, zod `host:judge`) and the `sockets.host.test.ts` reopen-after-1.5 s test.
+- F20 undo: undoing a wrong answer during the wait must clear `reopenAt`. If the host then judges wrong again, the first `reopen` timer still matches index and counter and would reopen early. Guard it, for example by comparing `now >= room.reopenAt` or by putting `at` on the action.
+- No view exposes `reopenAt` yet. During the wait, Screen and players still see BUZZED with the winner, and `lockedOut` includes them.
+
+**How to try it:** `npx vitest run server/reducer.judge.test.ts`. There is no UI or socket path until F21 and F22.
+
 ## F18 — Screen question and buzz views (2026-10-27)
 **What changed:**
 - New `client/src/components/ScreenQuestion.tsx` renders the Screen from QUESTION to REVEAL:

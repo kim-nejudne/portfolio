@@ -48,14 +48,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M4 — Host controls and scoring
 
-- [ ] F19 Reducer: judging, lockout and reopen
-  - Spec: Game flow and state machine (BUZZED rows); Scoring rules; Edge cases (everyone locked out, host judges twice, winner disconnects); Out of scope (Teams: `applyJudgement()`)
-  - Depends: F14
-  - Done when:
-    - `host:judge` accepted only in BUZZED and only once per buzz
-    - Correct: winner + points, REVEAL, `fx correct`. Wrong: lockout, penalty if on, `fx wrong`, `reopen` effect at `now + 1500`, or REVEAL when nobody is eligible
-    - All score changes go through one `applyJudgement()`; stale `reopen` is a no-op
-  - Tests: `reducer.judge.test.ts` — lockout, penalty on/off and negative scores, last eligible wrong → REVEAL, double judge rejected, disconnected winner can be judged
+- [x] F19 Reducer: judging, lockout and reopen
 
 - [ ] F20 Reducer: undo, score adjust, kick, settings, final ranking
   - Spec: Game flow and state machine (undo, end); Scoring rules (final ranking); Edge cases (undo, kicked player); Host remote (Players tab, Settings tab)

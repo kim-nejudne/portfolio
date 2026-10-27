@@ -25,6 +25,7 @@ export function createRoom({ code, hostTokenHash, set, settings, now }: NewRoom)
     winnerId: null,
     lockedOut: [],
     judgements: [],
+    reopenAt: null,
     showScoreboard: false,
     createdAt: now,
     lastActivityAt: now,

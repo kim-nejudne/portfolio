@@ -78,6 +78,7 @@ export interface Room {
   winnerId: string | null;
   lockedOut: string[]; // playerIds wrong this question
   judgements: Judgement[]; // whole game, enables undo
+  reopenAt: number | null; // wall-clock ms; set in BUZZED while a wrong answer waits to reopen
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;

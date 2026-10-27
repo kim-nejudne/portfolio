@@ -27,6 +27,7 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     winnerId: null,
     lockedOut: [],
     judgements: [],
+    reopenAt: null,
     showScoreboard: false,
     createdAt: T0,
     lastActivityAt,

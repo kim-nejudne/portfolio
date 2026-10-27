@@ -7,8 +7,9 @@ import {
   MAX_PLAYERS_PER_ROOM,
   PLAYER_KICKED_ERROR,
   PLAYER_PALETTE,
+  REOPEN_DELAY_MS,
 } from '../shared/constants.js';
-import type { Buzz, Fx, Phase, Player, Room } from '../shared/types.js';
+import type { Buzz, Fx, JudgeResult, Phase, Player, Room } from '../shared/types.js';
 import { buzzGaps, makeBuzz, rankBuzzes } from './fairness.js';
 
 /** The error for an action the transitions table does not list for the current phase. */
@@ -24,7 +25,11 @@ const BUZZ_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED'];
  * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
  * index and opening counter so the reducer can ignore it once the room has moved on.
  */
-export type TimerAction = { type: 'windowClosed'; questionIndex: number; openingCounter: number };
+export type TimerAction = {
+  type: 'windowClosed' | 'reopen';
+  questionIndex: number;
+  openingCounter: number;
+};
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
@@ -38,6 +43,7 @@ export type Action =
   | TimerAction
   | { type: 'host:start' }
   | { type: 'host:open' }
+  | { type: 'host:judge'; result: JudgeResult }
   | { type: 'host:reveal' }
   | { type: 'host:next' }
   | { type: 'host:prev' }
@@ -77,10 +83,14 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return playerBuzz(room, action, now);
     case 'windowClosed':
       return windowClosed(room, action);
+    case 'reopen':
+      return reopen(room, action);
     case 'host:start':
       return hostStart(room);
     case 'host:open':
       return hostOpen(room);
+    case 'host:judge':
+      return hostJudge(room, action, now);
     case 'host:reveal':
       return hostReveal(room);
     case 'host:next':
@@ -181,10 +191,7 @@ function canBuzz(room: Room, player: Player): boolean {
   );
 }
 
-function windowClosed(
-  room: Room,
-  { questionIndex, openingCounter }: Extract<Action, { type: 'windowClosed' }>,
-): ReduceResult {
+function windowClosed(room: Room, { questionIndex, openingCounter }: TimerAction): ReduceResult {
   // Phase + index + counter rejects every stale timer (DECISIONS F13).
   const fresh =
     room.phase === 'COLLECTING' &&
@@ -196,6 +203,84 @@ function windowClosed(
 
   const fx: Fx = { kind: 'buzz', playerId: winner.playerId, gaps: buzzGaps(ranked) };
   return done({ ...room, phase: 'BUZZED', winnerId: winner.playerId }, [{ type: 'fx', fx }]);
+}
+
+function hostJudge(
+  room: Room,
+  { result }: Extract<Action, { type: 'host:judge' }>,
+  now: number,
+): ReduceResult {
+  if (room.phase !== 'BUZZED' || !room.winnerId) return fail(WRONG_PHASE_ERROR);
+  // SPEC-QUESTION: the wait before a reopen is BUZZED with reopenAt set; see DECISIONS #5.
+  if (room.reopenAt !== null) return fail('Already judged');
+
+  const playerId = room.winnerId;
+  const points = room.set.questions[room.questionIndex]?.points ?? 0;
+  if (result === 'correct') {
+    const judged = applyJudgement(room, playerId, 'correct', points);
+    // The judged buzz stays, so the reveal can show who answered (DECISIONS F19).
+    return done({ ...judged, phase: 'REVEAL' }, [
+      { type: 'fx', fx: { kind: 'correct', playerId, points } },
+    ]);
+  }
+
+  const judged = applyJudgement(
+    room,
+    playerId,
+    'wrong',
+    room.settings.wrongPenalty && points ? -points : 0,
+  );
+  const fx: Effect = { type: 'fx', fx: { kind: 'wrong', playerId } };
+  if (!anyoneEligible(judged)) return done({ ...judged, phase: 'REVEAL' }, [fx]);
+
+  const at = now + REOPEN_DELAY_MS;
+  const { questionIndex, openingCounter } = room;
+  return done({ ...judged, reopenAt: at }, [
+    fx,
+    { type: 'schedule', at, action: { type: 'reopen', questionIndex, openingCounter } },
+  ]);
+}
+
+/**
+ * Records a judgement of `playerId` on the current question: adds `pointsDelta` to their score
+ * and, on a wrong answer, locks them out. Every score change goes through here, so teams can
+ * later redirect the points in one place (spec, "Out of scope").
+ */
+export function applyJudgement(
+  room: Room,
+  playerId: string,
+  result: JudgeResult,
+  pointsDelta: number,
+): Room {
+  const player = room.players[playerId];
+  const players = player
+    ? { ...room.players, [playerId]: { ...player, score: player.score + pointsDelta } }
+    : room.players;
+  const lockedOut =
+    result === 'wrong' && !room.lockedOut.includes(playerId)
+      ? [...room.lockedOut, playerId]
+      : room.lockedOut;
+  const judgement = { questionIndex: room.questionIndex, playerId, result, pointsDelta };
+  return { ...room, players, lockedOut, judgements: [...room.judgements, judgement] };
+}
+
+/**
+ * Someone can still buzz on this question: connected and not locked out (DECISIONS #9, F19). A player
+ * who joined during this opening counts, because the reopen is a new opening.
+ */
+function anyoneEligible(room: Room): boolean {
+  return Object.values(room.players).some((p) => p.connected && !room.lockedOut.includes(p.id));
+}
+
+function reopen(room: Room, { questionIndex, openingCounter }: TimerAction): ReduceResult {
+  // Phase + index + counter + a pending reopen rejects every stale timer (DECISIONS F13).
+  const fresh =
+    room.phase === 'BUZZED' &&
+    room.reopenAt !== null &&
+    room.questionIndex === questionIndex &&
+    room.openingCounter === openingCounter;
+  if (!fresh) return done(room);
+  return done(openBuzzers({ ...room, winnerId: null }));
 }
 
 function hostStart(room: Room): ReduceResult {
@@ -214,7 +299,14 @@ function hostOpen(room: Room): ReduceResult {
 function hostReveal(room: Room): ReduceResult {
   if (!QUESTION_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
   // No points; an unjudged buzz is discarded. Lockouts stay until the question changes.
-  return done({ ...room, phase: 'REVEAL', buzzes: [], winnerId: null, showScoreboard: false });
+  return done({
+    ...room,
+    phase: 'REVEAL',
+    buzzes: [],
+    winnerId: null,
+    reopenAt: null,
+    showScoreboard: false,
+  });
 }
 
 function hostNext(room: Room): ReduceResult {
@@ -238,7 +330,12 @@ function hostPrev(room: Room): ReduceResult {
 }
 
 /** Per-question state that starts empty on every question. */
-const clearedQuestion = { buzzes: [], winnerId: null, lockedOut: [] } satisfies Partial<Room>;
+const clearedQuestion = {
+  buzzes: [],
+  winnerId: null,
+  lockedOut: [],
+  reopenAt: null,
+} satisfies Partial<Room>;
 
 /**
  * Shows question `index` with a clean slate. With `autoOpenBuzzers` on, the buzzers open at once,
@@ -249,9 +346,15 @@ function enterQuestion(room: Room, index: number): Room {
   return room.settings.autoOpenBuzzers ? openBuzzers(shown) : shown;
 }
 
-/** QUESTION → OPEN: a new opening with no buzzes yet. */
+/** QUESTION (or BUZZED after a wrong answer) → OPEN: a new opening with no buzzes yet. */
 function openBuzzers(room: Room): Room {
-  return { ...room, phase: 'OPEN', buzzes: [], openingCounter: room.openingCounter + 1 };
+  return {
+    ...room,
+    phase: 'OPEN',
+    buzzes: [],
+    reopenAt: null,
+    openingCounter: room.openingCounter + 1,
+  };
 }
 
 /**
