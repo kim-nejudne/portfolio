@@ -20,7 +20,7 @@ Each has a recommended answer. Until the owner says otherwise, a feature that hi
 12. **Server memory.** Images live in memory at up to 50 MB per room, and room creation allows 10 rooms per IP per hour. A small always-on host can run out. *Recommend:* add a global image cap (for example 500 MB). Over the cap, refuse new uploads with a clear error.
 13. **`fx buzz` payload `gaps`.** The shape is unspecified. *Recommend:* `gaps: {playerId: string, gapMs: number}[]`, in rank order, excluding the winner.
 14. **Pairing from a Screen without the token.** With "Open the Screen on another device", the TV holds no token, so it cannot show the pairing QR. *Recommend:* show **Pair host phone** only where the token is held, and add it to the host remote too. Note that the pairing QR shows a usable token on a public screen for 60 s. That is accepted as v1 risk.
-15. **"Monorepo layout" vs "one TypeScript project".** *Recommend:* one `package.json` in `buzzer/` with `shared/`, `server/` and `client/` folders, no npm workspaces. This is separate from the portfolio repository, which has no root `package.json` by design.
+15. **"Monorepo layout" vs "one TypeScript project".** Resolved in F01 as recommended; see "Decisions made".
 16. **RTT before the first ping.** *Recommend:* one-way latency 0 until the first sample, so a new player gets no correction rather than the full 150 ms.
 
 ## Decisions made
@@ -31,5 +31,11 @@ Each has a recommended answer. Until the owner says otherwise, a feature that hi
 | 2026-10-27 | setup | `buzzer/` lives in the `portfolio` monorepo: no nested `git init`; git commands and staging are scoped to `buzzer/`; commits use the repo's `type(buzzer):` scope | Matches the other projects' history; unscoped status would show other projects' files |
 | 2026-10-27 | setup | npm, not pnpm | The spec and the workflow scripts use npm; each portfolio project picks its own package manager |
 | 2026-10-27 | setup | Dexie, not idb-keyval | The stack table names Dexie; the editor section offers either |
+| 2026-10-27 | F01 | Open question 15: one `package.json` in `buzzer/` with `shared/`, `server/` and `client/` folders, no npm workspaces | This is separate from the portfolio repository, which has no root `package.json` by design |
+| 2026-10-27 | F01 | Three tsconfigs: `tsconfig.json` (client + shared, bundler resolution), `tsconfig.node.json` (server, shared, configs; NodeNext), `tsconfig.build.json` (emits `dist/server` and `dist/shared` beside Vite's `dist/client`). Relative imports use `.js` extensions everywhere | Node runs the compiled server without a bundler; Vite resolves `.js` to `.ts`, so shared files import the same way from both sides |
+| 2026-10-27 | F01 | The server serves `dist/client` only when `NODE_ENV=production` (`npm start` sets it). Paths other than `/api/*` and `/socket.io/*` fall back to `index.html` | In development Vite serves the client; client routes like `/play/:code` must load the SPA |
+| 2026-10-27 | F01 | The Socket.IO server accepts the `websocket` transport only, matching the client | Spec, Buzzer fairness and timing: "use the WebSocket transport only"; `.claude/rules/client.md` |
+| 2026-10-27 | F01 | Prettier ignores `docs/` and `.claude/` as well as `docs/SPEC.md` | They are hand-formatted workflow files; the format hook would otherwise rewrite them on every edit |
+| 2026-10-27 | F01 | No supertest: HTTP tests use `app.listen(0)` and Node's `fetch`. `@types/node` is pinned to 24 to match the runtime | One dependency fewer; Node 26 types would allow APIs Node 24 lacks |
 
 ## Proposed spec changes

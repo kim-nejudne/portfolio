@@ -1,0 +1,11 @@
+{
+  // Compiles the server for production: dist/server and dist/shared, next to dist/client.
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "noEmit": false
+  },
+  "include": ["server", "shared"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}

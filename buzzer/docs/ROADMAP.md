@@ -6,17 +6,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M1 — Skeleton
 
-- [ ] F01 Project skeleton and tooling
-  - Spec: Tech stack and architecture; Milestones and acceptance criteria (1)
-  - Depends: none
-  - Done when:
-    - Single `package.json` at `buzzer/` (no npm workspaces), with `shared/`, `server/`, `client/` folders as in the spec's folder layout
-    - `npm run dev` starts the Express + Socket.IO server on :3000 and Vite on :5173; Vite proxies `/api`, `/socket.io` and `/healthz`
-    - `GET http://localhost:5173/healthz` returns 200 through the proxy
-    - Scripts `dev`, `typecheck`, `lint`, `format`, `format:check`, `test` (`vitest run`), `build` all exist and pass
-    - TypeScript `strict: true`; ESLint and Prettier installed; `.prettierignore` excludes `docs/SPEC.md`
-    - `npm run build` emits the client bundle and a compiled server that serves it
-  - Tests: one smoke test each for `server/` (`/healthz` via supertest or `fetch`), `client/` (renders App) and `shared/`
+- [x] F01 Project skeleton and tooling
 
 - [ ] F02 Shared types, schemas and constants
   - Spec: Data model; Realtime events and HTTP API; Reconnects, security and edge cases (Security); UI spec by view (intro)
