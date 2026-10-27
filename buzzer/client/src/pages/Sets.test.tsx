@@ -8,6 +8,7 @@ import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { db, deleteSet, getSet, listSets, NEW_SET_TITLE } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
+import { IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
 import { formatEdited } from '../lib/setLabels.js';
 import { Sets } from './Sets.js';
 
@@ -169,5 +170,101 @@ describe('Set list /sets', () => {
       expect(screen.getByRole('button', { name: 'New set' })).toHaveProperty('disabled', false),
     );
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  describe('Import and export JSON', () => {
+    /** Captures what Export JSON downloads: the file name and its text. */
+    function captureDownloads() {
+      const downloads: { name: string; text: Promise<string> }[] = [];
+      const blobs = new Map<string, Blob>();
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL: (blob: Blob) => {
+          const url = `blob:test/${blobs.size}`;
+          blobs.set(url, blob);
+          return url;
+        },
+        revokeObjectURL: vi.fn(),
+      });
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        downloads.push({ name: this.download, text: blobs.get(this.href)!.text() });
+      });
+      return downloads;
+    }
+
+    function chooseFile(text: string, name = 'quiz.json', size?: number) {
+      const file = new File([text], name, { type: 'application/json' });
+      if (size !== undefined) Object.defineProperty(file, 'size', { value: size });
+      fireEvent.change(screen.getByTestId('import-file'), { target: { files: [file] } });
+    }
+
+    it('Export JSON downloads the set as one named file', async () => {
+      const downloads = captureDownloads();
+      renderSets();
+      fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Export JSON' }));
+      await waitFor(() => expect(downloads).toHaveLength(1));
+
+      expect(downloads[0]!.name).toBe('sample-general-knowledge.json');
+      const file = JSON.parse(await downloads[0]!.text) as QuestionSet & { images: object };
+      expect(file.title).toBe(SAMPLE_SET.title);
+      expect(file.questions).toEqual(SAMPLE_SET.questions);
+      expect(file.images).toEqual({});
+    });
+
+    it('Export JSON on an unfinished draft says what to fix and downloads nothing', async () => {
+      const downloads = captureDownloads();
+      await db.sets.add(draft('d', 'Draft', []));
+      renderSets();
+      fireEvent.click((await card('Draft')).getByRole('button', { name: 'Export JSON' }));
+      expect((await screen.findByRole('alert')).textContent).toBe('This set has no questions yet.');
+      expect(downloads).toEqual([]);
+    });
+
+    it('Import JSON adds the set from a valid file', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      chooseFile(JSON.stringify({ ...SAMPLE_SET, title: 'Imported quiz' }));
+
+      expect(await screen.findByRole('listitem', { name: 'Imported quiz' })).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toBe('Imported “Imported quiz”.');
+      expect(await listSets()).toHaveLength(2);
+    });
+
+    it('Import JSON lists the readable errors of a bad file and adds nothing', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const broken = {
+        ...SAMPLE_SET,
+        title: '',
+        questions: [{ ...SAMPLE_SET.questions[0], points: -1 }],
+      };
+      chooseFile(JSON.stringify(broken), 'broken.json');
+
+      const alert = await screen.findByRole('alert');
+      expect(within(alert).getByText("Couldn't import broken.json:")).toBeTruthy();
+      expect(
+        within(alert)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual([
+        'Title: Too small: expected string to have >=1 characters',
+        'Question 1 › points: Too small: expected number to be >=0',
+      ]);
+      expect(await listSets()).toHaveLength(1);
+    });
+
+    it('Import JSON refuses a file too large to be a set, without reading it', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      chooseFile(JSON.stringify(SAMPLE_SET), 'huge.json', IMPORT_FILE_MAX_BYTES + 1);
+
+      const alert = await screen.findByRole('alert');
+      expect(within(alert).getByRole('listitem').textContent).toBe(
+        'The file is larger than 201 MB.',
+      );
+      expect(await listSets()).toHaveLength(1);
+    });
   });
 });

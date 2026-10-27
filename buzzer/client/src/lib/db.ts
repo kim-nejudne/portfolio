@@ -129,3 +129,32 @@ export async function deleteSet(id: string): Promise<void> {
 export async function saveSet(set: QuestionSet, now = Date.now()): Promise<void> {
   await db.sets.put({ ...set, updatedAt: now });
 }
+
+/**
+ * **Import JSON**: stores a parsed file as a new set, under fresh set and image ids, so importing a
+ * file twice or next to its original never overwrites anything.
+ */
+export async function importSet(
+  set: QuestionSet,
+  images: StoredImage[],
+  now = Date.now(),
+): Promise<QuestionSet> {
+  return db.transaction('rw', db.sets, db.images, async () => {
+    const newImageIds = new Map(images.map((image) => [image.id, nanoid()]));
+    await db.images.bulkAdd(images.map((image) => ({ ...image, id: newImageIds.get(image.id)! })));
+
+    const imported: QuestionSet = {
+      ...set,
+      id: nanoid(),
+      questions: set.questions.map((question) =>
+        question.imageId === undefined
+          ? { ...question }
+          : { ...question, imageId: newImageIds.get(question.imageId) ?? question.imageId },
+      ),
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.sets.add(imported);
+    return imported;
+  });
+}

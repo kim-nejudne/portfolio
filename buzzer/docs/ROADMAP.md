@@ -68,13 +68,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F27 Reorder, preview and print sheet
 
-- [ ] F28 Import and export JSON
-  - Spec: Question editor and images (Set list: Import/Export; Images: export embeds base64)
-  - Depends: F26
-  - Done when:
-    - **Export JSON** downloads one file with images as base64 data URLs
-    - **Import JSON** validates with zod and lists readable errors (path + message)
-  - Tests: `importExport.test.ts` — round-trip equality including images; three malformed files give readable errors
+- [x] F28 Import and export JSON
 
 - [ ] F29 Image pipeline in the editor
   - Spec: Question editor and images (Images); Edge cases (question with only an image)

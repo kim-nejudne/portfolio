@@ -12,6 +12,35 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F28 — Import and export JSON (2026-10-28)
+**What changed:**
+- `client/src/lib/importExport.ts`:
+  - `exportSetFile` builds one JSON file: the set's fields plus `images`, each referenced image once as a base64 data URL. It refuses a draft (`checkPlayable`'s reason), a missing image, or an image type import would refuse.
+  - `parseSetFile` never throws. It reports invalid JSON, then validates with zod (`setFileSchema`), then checks each `imageId` is in the file. Errors read "<path>: <message>" ("Question 3 › answer: …"), capped at 10 plus "…and N more."
+  - Also `exportFileName` (title slug), `blobToDataUrl`, `dataUrlToBlob` and `IMPORT_FILE_MAX_BYTES` (201 MB).
+- `db.ts`: `importSet` stores the parsed set and its blobs in one transaction under fresh set and image ids, stamped now.
+- `/sets`:
+  - **Import JSON** sits beside New set and opens a hidden file input. Success shows "Imported “<title>”." and the new card. A bad file shows "Couldn't import <file>:" and a list of errors. A file over the size cap is refused before it is read.
+  - Each card gains **Export JSON**, which downloads `<slug>.json` through an object URL.
+- Tests: new `importExport.test.ts` (12). It covers the round trip with PNG and GIF bytes (every byte value) and the shared image id, plus the malformed files: not JSON, not an object, schema errors with paths, and missing, unsupported and oversized images. It also covers the error cap, the draft and type refusals, and the file name. `Sets.test.tsx` gains 5: export download, draft export, import success, the import error list and the size cap. 830 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-28 for F28 cover:
+- the file format
+- export refusing drafts
+- the import checks, the error format and the size cap
+- fresh ids on import
+
+**Notes for next session:**
+- Playtest (Playwright, `/sets` only). Pass: export of a 3-question set, re-importing that file, and the errors for invalid JSON (`{not json`), `{"title":5}` and a file with one empty question.
+- Not checked in a browser: a set with images, because the editor cannot add one before F29. `importExport.test.ts` covers the image round trip.
+- F29: the stored blob must keep a PNG, JPEG, WebP or GIF `type`, or Export JSON refuses it.
+- F30: an imported set's images are ordinary stored blobs, so uploading them at hosting needs nothing special.
+
+**How to try it:** `npm run dev`. On the laptop, open `http://localhost:5173/sets`.
+1. Tap Export JSON on the sample. `sample-general-knowledge.json` downloads.
+2. Tap Import JSON and choose that file. A second "Sample: General Knowledge" card appears.
+3. Edit the file so `"title": ""`, then import it again. The page lists "Title: Too small: …".
+
 ## F27 — Reorder, preview and print sheet (2026-10-28)
 **What changed:**
 - Drag reorder in the set editor. Each card has a ⠿ handle (`useSortable`) that drags by pointer or by keyboard: Space or Enter, then ↑/↓, then Space or Enter (Escape cancels). Screen-reader announcements name the question positions. A drop goes through the new pure `reorderQuestions` and the same autosave path as ↑/↓, which stay.
