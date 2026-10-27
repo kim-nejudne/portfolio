@@ -15,6 +15,8 @@ import {
 } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
 import type { Ack, PlayerView } from '../../../shared/types.js';
+import { ConnectionDot } from '../components/ConnectionDot.js';
+import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
 import { buzzerState, type BuzzerKind } from '../lib/buzzerState.js';
 import { keepPinging } from '../lib/ping.js';
@@ -29,6 +31,7 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type AttachSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
   /** Tests pass a fake socket. */
@@ -276,6 +279,8 @@ function Buzzer({ view, buzz }: BuzzerProps) {
   const opening = `${view.questionIndex}:${view.openingCounter}`;
   const [pressedAt, setPressedAt] = useState<string | null>(null);
   const state = buzzerState(view, pressedAt === opening);
+  const { toast, show } = useToast();
+  useWakeLock();
 
   function press() {
     if (!state.live) return;
@@ -284,7 +289,9 @@ function Buzzer({ view, buzz }: BuzzerProps) {
     if ('vibrate' in navigator) navigator.vibrate(30);
     buzz((res) => {
       // A refused buzz (rate limit, not joined, offline) frees the button to try again.
-      if (!res.ok) setPressedAt((at) => (at === opening ? null : at));
+      if (res.ok) return;
+      setPressedAt((at) => (at === opening ? null : at));
+      show(res.error);
     });
   }
   const pressFromKey = useEffectEvent(press);
@@ -311,7 +318,10 @@ function Buzzer({ view, buzz }: BuzzerProps) {
         style={{ backgroundColor: view.me.color }}
         className="flex shrink-0 items-center justify-between gap-4 px-4 py-2 font-display text-xl text-bg"
       >
-        <span className="truncate">{view.me.name}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <ConnectionDot />
+          <span className="truncate">{view.me.name}</span>
+        </span>
         <span aria-label="Score">{view.me.score}</span>
       </header>
       {state.kind === 'final' ? (
@@ -349,6 +359,7 @@ function Buzzer({ view, buzz }: BuzzerProps) {
           </button>
         </div>
       )}
+      <Toast toast={toast} />
     </main>
   );
 }

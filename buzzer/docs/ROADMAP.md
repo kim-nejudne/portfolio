@@ -80,14 +80,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F32 Reconnects and room lifecycle
 
-- [ ] F33 Device polish and feedback
-  - Spec: UI spec by view (Player view: Wake Lock, connection dot); Milestones and acceptance criteria (6. Polish)
-  - Depends: F32
-  - Done when:
-    - Screen Wake Lock on the Player view (re-acquired on visibility change)
-    - Green/amber/red connection dot on Player and Host
-    - Error toasts for every failed ack; empty states everywhere a list can be empty
-  - Tests: playtest on a phone viewport; manual check on a real phone
+- [x] F33 Device polish and feedback
 
 ## M7 — Deploy
 
@@ -116,4 +109,5 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Arrow-key navigation between the host remote's tabs (WAI-ARIA tabs pattern). Tapping works; the keyboard can only Tab through them (F22 review).
 - Replace the `emit` cast in `client/src/pages/Host.tsx` `send` with a typed helper. Socket.IO's typed `emit` cannot take a generic event name (F22 review).
 - Preview: a "Show answer" toggle that previews the REVEAL layout too. F27 previews only the question as first shown.
-- "Reconnecting…" indicator on Screen, Host and Player while the socket is down. Today each keeps showing its last snapshot, and the Host still lists players as online (F32 playtest).
+- "Reconnecting…" indicator on the Screen while the socket is down. F33's connection dot covers Player and Host; the Screen still shows its last snapshot, and the Host still lists players as online while its own socket is down (F32 playtest).
+- Faster connection-dot reaction to a silent drop (airplane mode): the dot waits for Socket.IO's heartbeat, up to about 45 s with the defaults. Options: a shorter `pingInterval`/`pingTimeout`, or the browser's `offline` event (F33).

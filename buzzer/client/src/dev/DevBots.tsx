@@ -130,6 +130,7 @@ function BotPanel({ code, makeSocket, random = Math.random }: DevBotsProps & { c
         </button>
       </form>
 
+      {states.length === 0 && <p className="text-muted">No bots yet. Spawn some above.</p>}
       <ul aria-label="Bots" className="flex flex-col gap-1">
         {states.map((bot) => (
           <li key={bot.id} className="flex gap-3 rounded-lg bg-surface px-3 py-2">

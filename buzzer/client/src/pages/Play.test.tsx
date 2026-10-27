@@ -10,8 +10,10 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { PlayerView } from '../../../shared/types.js';
+import { TOAST_MS } from '../components/Toast.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import type { GameSocket } from '../lib/socket.js';
+import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Play } from './Play.js';
 
@@ -407,6 +409,72 @@ describe('Play buzzer', () => {
     fireEvent.pointerDown(buzzer(), { button: 0 });
     act(() => buzzes(socket)[0]!.ack({ ok: false, error: 'Too many buzzes' }));
     expect(buzzer().textContent).toBe('BUZZ!');
+  });
+
+  it('a refused buzz shows the reason in a toast that hides itself', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    vi.useFakeTimers();
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    act(() => buzzes(socket)[0]!.ack({ ok: false, error: 'Too many buzzes' }));
+    expect(screen.getByRole('alert').textContent).toBe('Too many buzzes');
+    act(() => vi.advanceTimersByTime(TOAST_MS));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('an accepted buzz shows no toast', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    act(() => buzzes(socket)[0]!.ack({ ok: true }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('the connection dot is green, amber while reconnecting, red after 5 s down, then green again', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    const dot = () => within(screen.getByRole('banner')).getByRole('status');
+    expect(dot().getAttribute('aria-label')).toBe('Connected');
+    expect(dot().className).toContain('bg-win');
+
+    vi.useFakeTimers();
+    socket.fire('disconnect', 'transport close');
+    expect(dot().getAttribute('aria-label')).toBe('Reconnecting…');
+    expect(dot().className).toContain('bg-warn');
+    act(() => vi.advanceTimersByTime(OFFLINE_AFTER_MS - 1));
+    expect(dot().className).toContain('bg-warn');
+    act(() => vi.advanceTimersByTime(1));
+    expect(dot().getAttribute('aria-label')).toBe('Offline');
+    expect(dot().className).toContain('bg-buzz');
+
+    socket.fire('connect');
+    expect(dot().getAttribute('aria-label')).toBe('Connected');
+    // The reconnect stopped the clock: the dot stays green.
+    act(() => vi.advanceTimersByTime(OFFLINE_AFTER_MS));
+    expect(dot().getAttribute('aria-label')).toBe('Connected');
+  });
+
+  it('holds a screen wake lock while the buzzer shows, and lets it go on leaving', async () => {
+    const held: string[] = [];
+    const request = vi.fn((type: string) => {
+      held.push(type);
+      return Promise.resolve({
+        released: false,
+        release: () => (held.pop(), Promise.resolve()),
+      });
+    });
+    Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true });
+    try {
+      const socket = await joined();
+      socket.fire('state', playerView());
+      await act(() => Promise.resolve());
+      expect(held).toEqual(['screen']);
+
+      cleanup();
+      expect(held).toEqual([]);
+    } finally {
+      Reflect.deleteProperty(navigator, 'wakeLock');
+    }
   });
 
   it('stays "Buzzed…" through the window, and a new opening brings "BUZZ!" back', async () => {

@@ -12,6 +12,48 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F33 — Device polish and feedback (2026-10-28)
+**What changed:**
+- Wake Lock: new `client/src/lib/useWakeLock.ts`, used by the Player's buzzer screen.
+  - It requests `navigator.wakeLock.request('screen')` on mount and again on each return to the page.
+  - It skips a request while it still holds a lock or one is pending, and releases on unmount.
+  - Where the API is missing or refuses, it does nothing.
+- Connection dot: new `components/ConnectionDot.tsx`, in the Player's colour bar and beside the code on the Host remote.
+  - `roomStore` gains `connection` (`connected` / `connecting` / `offline`).
+  - `useRoomSocket` sets it on `connect` and `disconnect`. It turns `offline` after `OFFLINE_AFTER_MS` (5 s) down.
+  - Green, amber and red come from `win`, the new `--color-warn` token and `buzz`. Each state has an aria-label: Connected, Reconnecting… or Offline.
+- Toasts: a refused `player:buzz` now shows its reason in the shared toast. Host and Screen controls already toasted.
+- Empty states: "No players yet" on the Scoreboard overlay, and "No bots yet" on `/dev/bots`. Every other list already had one (see DECISIONS).
+- Tests:
+  - New `useWakeLock.test.ts` (7): hold and release, re-acquire on visible, no double lock while holding or pending, a lock granted after unmount is released, no API, and retry after a refusal.
+  - `Play.test.tsx` +4: the buzz-refusal toast, no toast on ok, the dot's green, amber, red and green again, and the wake lock on the buzzer screen.
+  - `Host.test.tsx` +1 (the dot), `Screen.test.tsx` +1 (empty scoreboard) and `DevBots.test.tsx` +1.
+  - 931 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-28 for F33 cover:
+- what each dot colour means, and the 5 s threshold
+- where the dot sits, and the warn token
+- the wake lock's lifetime, and why it needs HTTPS
+- which failed acks toast and which keep their page
+- the empty-state audit
+
+**Notes for next session:**
+- Playtest (Playwright; Screen, Host and Players at 390×844):
+  - `navigator.wakeLock.request` ran on the Player's buzzer screen.
+  - Host and Player dots were green ("Connected"). After the server was killed, the Host's dot was red ("Offline").
+  - "Start game" with no players toasted "Wait for at least one player to join". A taken name showed "That name is taken" on the form.
+  - The Host Players tab and the Screen lobby showed their empty states.
+- Not seen live: amber (the sampling every 1.5 s did not land in the 5 s window), green again after a reconnect, and the wake lock re-acquired after a real tab switch. Unit tests cover all three.
+- **Not done: the manual check on a real phone.** Wake Lock needs HTTPS, so on `http://<LAN-IP>:5173` the phone can still sleep. Check it on the F34 deploy: the screen should stay on while the buzzer shows.
+- A silent drop (airplane mode, Wi-Fi out of range) is noticed only by Socket.IO's heartbeat, which is up to about 45 s with the defaults (`pingInterval` 25 s, `pingTimeout` 20 s). Until then the dot stays green. A closed connection (server down, page reloaded) turns it amber at once. Shorter heartbeat or the browser's `offline` event: Backlog.
+- After a server restart, the dot does go green on reconnect, but the rejoin is refused and the page shows "This game has ended" (F32). Green-again only shows after a network blip.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and tap **Host this set**. Pair a phone as Host and join from another phone.
+2. Both phones show a green dot: in the Player's top bar, and beside the room code on the Host.
+3. Stop the server (Ctrl-C): both dots turn amber, then red after 5 s. (A restart ends the game, as in F32.)
+4. On the deployed HTTPS URL, leave the Player phone idle on the buzzer: the screen stays on.
+
 ## F32 — Reconnects and room lifecycle (2026-10-28)
 **What changed:**
 - Server:

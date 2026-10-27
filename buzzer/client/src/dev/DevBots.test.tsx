@@ -48,6 +48,13 @@ const joinIds = (s: FakeSocket) =>
     .map((e) => (e.payload as { playerId: string }).playerId);
 
 describe('DevBots', () => {
+  it('says there are no bots yet until some are spawned', () => {
+    renderAt('/dev/bots/abcd');
+    expect(screen.getByText('No bots yet. Spawn some above.')).toBeTruthy();
+    spawn(2);
+    expect(screen.queryByText('No bots yet. Spawn some above.')).toBeNull();
+  });
+
   it('spawns the requested number of bots, each its own socket joining the room', () => {
     renderAt('/dev/bots/abcd');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Bots for ABCD');

@@ -7,6 +7,13 @@ export interface FxEvent {
   seq: number;
 }
 
+/**
+ * The socket's link to the server, for the connection dot: `connecting` while it is down and
+ * Socket.IO is retrying (or on the first connect), `offline` once it has been down for
+ * `OFFLINE_AFTER_MS`.
+ */
+export type Connection = 'connected' | 'connecting' | 'offline';
+
 /** The latest role-filtered snapshot from the server. Pages render from this and hold no game logic. */
 export interface RoomState {
   view: View | null;
@@ -14,10 +21,16 @@ export interface RoomState {
   error: string | null;
   /** The latest `fx`, for sounds and animations. Null until one arrives. */
   fx: FxEvent | null;
+  connection: Connection;
 }
 
-export const useRoomStore = create<RoomState>()(() => ({ view: null, error: null, fx: null }));
+export const useRoomStore = create<RoomState>()(() => ({
+  view: null,
+  error: null,
+  fx: null,
+  connection: 'connecting',
+}));
 
 export function resetRoomStore(): void {
-  useRoomStore.setState({ view: null, error: null, fx: null });
+  useRoomStore.setState({ view: null, error: null, fx: null, connection: 'connecting' });
 }

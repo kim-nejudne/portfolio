@@ -11,6 +11,7 @@ import {
 import { TOAST_MS } from '../components/Toast.js';
 import type { HostView, Question } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
+import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import type { GameSocket } from '../lib/socket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Host } from './Host.js';
@@ -564,6 +565,28 @@ describe('Host remote', () => {
       expect(screen.getByRole('alert').textContent).toBe('Wait');
       act(() => vi.advanceTimersByTime(1000));
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('connection dot', () => {
+    it('is green while connected, amber while reconnecting and red after 5 s down', () => {
+      const { socket } = renderHost(`/host/WXYZ#t=${TOKEN}`);
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', hostView());
+      const dot = () => within(screen.getByRole('banner')).getByRole('status');
+      expect(dot().getAttribute('aria-label')).toBe('Connected');
+
+      vi.useFakeTimers();
+      try {
+        socket.fire('disconnect', 'transport close');
+        expect(dot().getAttribute('aria-label')).toBe('Reconnecting…');
+        act(() => vi.advanceTimersByTime(OFFLINE_AFTER_MS));
+        expect(dot().getAttribute('aria-label')).toBe('Offline');
+        socket.fire('connect');
+        expect(dot().getAttribute('aria-label')).toBe('Connected');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

@@ -40,7 +40,12 @@ export function Scoreboard({ players, lastOrder, onShown }: ScoreboardProps) {
       className="absolute inset-0 flex flex-col gap-[3vh] bg-bg px-[5vw] pt-[4vh] pb-[3vh]"
     >
       <h2 className="shrink-0 font-display text-[min(4vw,8vh)] text-accent">Scoreboard</h2>
-      <RankingList players={shown} />
+      {/* The host can show it in the lobby, or after kicking everyone. */}
+      {shown.length === 0 ? (
+        <p className="text-[min(3vw,5.5vh)] text-muted">No players yet</p>
+      ) : (
+        <RankingList players={shown} />
+      )}
     </section>
   );
 }

@@ -19,6 +19,9 @@
   --color-win: #22c55e;
   --color-win-edge: #86efac;
 
+  /* The connection dot's amber (Player and Host). Green is win, red is buzz. */
+  --color-warn: #f59e0b;
+
   --font-display: 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 

@@ -6,6 +6,7 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { HostView } from '../../../shared/types.js';
+import { ConnectionDot } from '../components/ConnectionDot.js';
 import { HostPlayers } from '../components/HostPlayers.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
@@ -146,7 +147,10 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
       <header className="flex items-baseline justify-between gap-4">
-        <h1 className="font-display text-3xl tracking-[0.15em] text-accent">{view.code}</h1>
+        <span className="flex items-center gap-3">
+          <h1 className="font-display text-3xl tracking-[0.15em] text-accent">{view.code}</h1>
+          <ConnectionDot />
+        </span>
         <p className="truncate text-muted">{view.title}</p>
       </header>
       <div

@@ -8,6 +8,9 @@ import type { Ack } from '../../../shared/types.js';
 import { resetRoomStore, useRoomStore } from './roomStore.js';
 import { createSocket, type GameSocket } from './socket.js';
 
+/** How long the socket may be down, retrying, before the connection dot turns from amber to red. */
+export const OFFLINE_AFTER_MS = 5000;
+
 /** Sends this page's join event (`screen:join`, `host:join` or `player:join`) and passes the ack on. */
 export type JoinRoom = (socket: GameSocket, ack: (res: Ack) => void) => void;
 
@@ -26,6 +29,9 @@ export type AttachSocket = (socket: GameSocket) => () => void;
  * The game is over for good on `room:closed` (the room expired), or when a rejoin after a
  * `state` is refused with "Room not found" (the server restarted and lost the room). Both become
  * `GAME_ENDED_ERROR`. The server disconnects after `room:closed`, so nothing reconnects.
+ *
+ * It also keeps the store's `connection` up to date for the connection dot: `connected` on each
+ * connect, `connecting` while the socket is down, and `offline` after `OFFLINE_AFTER_MS` down.
  */
 export function useRoomSocket(
   code: string,
@@ -47,18 +53,37 @@ export function useRoomSocket(
   useEffect(() => {
     const socket = makeSocket();
     socketRef.current = socket;
+    let offlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const goingOffline = () => {
+      clearTimeout(offlineTimer);
+      offlineTimer = setTimeout(
+        () => useRoomStore.setState({ connection: 'offline' }),
+        OFFLINE_AFTER_MS,
+      );
+    };
     socket.on('state', (view) => useRoomStore.setState({ view, error: null }));
     socket.on('fx', (fx) =>
       useRoomStore.setState((state) => ({ fx: { fx, seq: (state.fx?.seq ?? 0) + 1 } })),
     );
     socket.on('kicked', () => useRoomStore.setState({ error: PLAYER_KICKED_ERROR }));
     socket.on('room:closed', () => useRoomStore.setState({ error: GAME_ENDED_ERROR }));
-    socket.on('connect', () => sendJoin(socket));
+    socket.on('connect', () => {
+      clearTimeout(offlineTimer);
+      useRoomStore.setState({ connection: 'connected' });
+      sendJoin(socket);
+    });
+    socket.on('disconnect', () => {
+      useRoomStore.setState({ connection: 'connecting' });
+      goingOffline();
+    });
     const detach = attach?.(socket);
+    // The first connect can fail too (server down): the same clock runs until it succeeds.
+    goingOffline();
     socket.connect();
     return () => {
       detach?.();
       socket.disconnect();
+      clearTimeout(offlineTimer);
       socketRef.current = null;
       resetRoomStore();
     };

@@ -830,6 +830,13 @@ describe('Screen result states', () => {
       expect(screen.queryByRole('region', { name: 'Scoreboard' })).toBeNull();
     });
 
+    it('says "No players yet" when shown with nobody in the room', () => {
+      show(lobbyView([], { showScoreboard: true }));
+      const board = screen.getByRole('region', { name: 'Scoreboard' });
+      expect(board.textContent).toContain('No players yet');
+      expect(within(board).queryAllByRole('listitem')).toHaveLength(0);
+    });
+
     it('opens in the order it last showed, then reorders to the current ranking', () => {
       vi.useFakeTimers();
       const socket = show(standings({ p1: 300, p2: 200, p3: 100 }, { showScoreboard: true }));
