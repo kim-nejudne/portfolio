@@ -12,6 +12,26 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F11 — Dev tool: fake players (2026-10-27)
+**What changed:**
+- `client/src/dev/bots.ts`: `createBot({code, index, onChange})`. Each bot is its own `createSocket()` that joins as `bot-<n>` / "Bot <n>" on every connect, pings every `PING_INTERVAL_MS` while connected, and has `buzz(delayMs)`. A buzz shows its ack, or "No reply in 2 s". Also `buzzDelay` (0–300 ms) and `clampBotCount` (1–50).
+- `client/src/dev/DevBots.tsx` at `/dev/bots/:code`: a count input (default 8), **Spawn** (grows or shrinks the set to N), **Remove all**, **Buzz all (random 0–300 ms)**, and one row per bot with status, RTT and the last message.
+- `App.tsx` registers the route only when `import.meta.env.DEV` and lazy-loads the page. After `npm run build`, `grep -rE "dev/bots|Buzz all|Bots for|bot-" dist/client` finds nothing.
+- There are 27 new tests, 280 in total: `bots.test.ts` (17), `DevBots.test.tsx` (7), `App.test.tsx` (2: the route in dev, "Page not found" with `DEV=false`) and `sockets.test.ts` (1: 20 joins from one IP at once under the default limit).
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F11 cover:
+- The client-only route gated on `import.meta.env.DEV`.
+- Fixed bot ids, so a re-spawn reconnects. No dev-specific join limit.
+- The 2 s buzz-ack timeout, and pinging only while connected.
+
+**Notes for next session:**
+- F15 adds the `ping`→`pong` handler and `player:buzz`. The bots' RTT column then fills in, and their buzz rows show real acks instead of "No reply in 2 s".
+- One `/dev/bots` tab per room. Two tabs would drive the same `bot-<n>` players.
+- `vi.stubEnv('DEV', false)` plus `vi.resetModules()` and a dynamic `import('./App.js')` is how the production-route test sees the build flag.
+- The playtest saved no screenshot, because no step failed. Its evidence: 8 bots joined and the Screen showed "8 players" with chips Bot 1–8; 20 bots joined with no limit error; Buzz all gave "No reply in 2 s" on every row.
+
+**How to try it:** Run `npm run dev`. On the laptop, open `http://<LAN-IP>:5173`, click **Host a game**, then **Use this device as the Screen**. In another tab, open `http://<LAN-IP>:5173/dev/bots/CODE`, set the count and click **Spawn**. Chips appear on the Screen. **Buzz all** sends a buzz from every bot (the server ignores it until F15). `npm run build && npm start`, then `/dev/bots/CODE` shows "Page not found".
+
 ## F10 — Host pairing and host remote shell (2026-10-27)
 **What changed:**
 - `client/src/components/PairHostPhone.tsx`: a **Pair host phone** button. It shows a QR to `/host/:code#t=<hostToken>` (`pairUrl` in `lib/joinUrl.ts`) with "Hides in N s", hides at a 60 s deadline (`PAIRING_QR_TTL_MS`), and has a **Hide** button. The token is never printed as text.

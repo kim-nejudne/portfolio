@@ -230,6 +230,13 @@ describe('socket gateway: validation and limits', () => {
     h.advance(60_000);
     expect(await playerJoin(await h.connect(), 'p3')).toEqual({ ok: true });
   });
+  it('lets 20 bots from one IP join at once under the default limit (Dev tool: fake players)', async () => {
+    const h = await start();
+    const bots = await Promise.all(Array.from({ length: 20 }, () => h.connect()));
+    const acks = await Promise.all(bots.map((c, i) => playerJoin(c, `bot-${i + 1}`)));
+    expect(acks.every((ack) => ack.ok)).toBe(true);
+    expect(Object.keys(h.rooms.get('ABCD')!.players)).toHaveLength(20);
+  });
 });
 
 describe('socket gateway: state broadcast', () => {

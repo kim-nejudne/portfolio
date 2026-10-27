@@ -7,6 +7,7 @@ import { AppRoutes } from './App.js';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 function headingAt(path: string) {
@@ -43,5 +44,26 @@ describe('AppRoutes', () => {
   it('passes the route parameter from the URL to the page', () => {
     headingAt('/sets/set-1');
     expect(screen.getByText('set-1')).toBeTruthy();
+  });
+
+  it('/dev/bots/:code renders the bots page in development', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dev/bots/ABCD']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Bots for ABCD');
+  });
+
+  it('has no /dev/bots route in a production build', async () => {
+    vi.stubEnv('DEV', false);
+    vi.resetModules();
+    const { AppRoutes: ProdRoutes } = await import('./App.js');
+    render(
+      <MemoryRouter initialEntries={['/dev/bots/ABCD']}>
+        <ProdRoutes />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Page not found');
   });
 });

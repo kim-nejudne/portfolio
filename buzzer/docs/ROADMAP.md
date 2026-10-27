@@ -28,15 +28,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F10 Host pairing and host remote shell
 
-- [ ] F11 Dev tool: fake players
-  - Spec: Milestones and acceptance criteria (Dev tool: fake players)
-  - Depends: F07
-  - Done when:
-    - `/dev/bots/:code` exists only when `NODE_ENV !== 'production'` (route not registered and code tree-shaken in the production build)
-    - Spawns N bot players (each a real socket, with ping) with a count input
-    - A "buzz all with random 0–300 ms delays" button sends `player:buzz` from every bot (acks show errors until F15)
-    - Dev rate limits do not block 20 bots joining at once
-  - Tests: playtest — 8 bots join, Screen shows 8 chips; production build has no `/dev` route
+- [x] F11 Dev tool: fake players
 
 ## M3 — Buzzer core
 
