@@ -283,6 +283,25 @@ export function attachSockets(
     handle(socket, 'host:prev', () => asHost({ type: 'host:prev' }));
     handle(socket, 'host:end', () => asHost({ type: 'host:end' }));
     handle(socket, 'host:scoreboard', ({ show }) => asHost({ type: 'host:scoreboard', show }));
+    handle(socket, 'host:judge', ({ result }) => asHost({ type: 'host:judge', result }));
+    handle(socket, 'host:undo', () => asHost({ type: 'host:undo' }));
+    handle(socket, 'host:adjustScore', ({ playerId, delta }) =>
+      asHost({ type: 'host:adjustScore', playerId, delta }),
+    );
+    handle(socket, 'host:settings', (settings) => asHost({ type: 'host:settings', settings }));
+
+    handle(socket, 'host:kick', ({ playerId }) => {
+      const { code } = socket.data;
+      const ack = asHost({ type: 'host:kick', playerId });
+      if (!ack.ok || !code) return ack;
+      // The reducer has removed the player, so the broadcast skipped them. `kicked` goes out first;
+      // the disconnect packet follows on the same connection, and Socket.IO clients do not
+      // reconnect after a server disconnect (DECISIONS F21).
+      const own = playerRoom(code, playerId);
+      io.to(own).emit('kicked', {});
+      io.in(own).disconnectSockets();
+      return ack;
+    });
 
     socket.on('disconnect', () => {
       const { code, role, playerId } = socket.data;

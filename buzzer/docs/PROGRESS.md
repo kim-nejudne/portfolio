@@ -12,6 +12,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F21 — Gateway: remaining host events (2026-10-27)
+**What changed:**
+- `server/sockets.ts` wires `host:judge`, `host:undo`, `host:adjustScore`, `host:settings` and `host:kick`. They go through `asHost`, so they need `canHost`: a host socket, or a Screen holding the token. They also get the zod parse and guarded ack from `handle`. Every host event in the spec is now wired.
+- `host:kick` works like this after the reducer accepts it:
+  - The gateway emits `kicked {}` to every socket in `room:<code>:player:<id>`.
+  - Then it calls `disconnectSockets()` without closing the transport. The client sees `io server disconnect` and does not reconnect.
+  - The kicked player gets no final `state` and no `fx`. A rejoin with the same id fails with `PLAYER_KICKED_ERROR` (F05).
+- `fx correct` and `fx wrong` come from the reducer's effects (F19) through the existing `runEffects`. `fx join` was already emitted and tested (`sockets.test.ts`).
+- Tests: new `server/sockets.host.test.ts` (12):
+  - Rejection from a player and from a plain Screen.
+  - A Screen holding the token can judge, adjust and kick, and still gets only ScreenView.
+  - An invalid payload and an unknown settings key are rejected.
+  - `fx correct` reaches all 4 sockets.
+  - Judge wrong, then reopen at exactly 1.5 s with fake timers. The locked-out player's buzz is ignored.
+  - Undo cancels the pending reopen.
+  - Adjust and settings.
+  - The kick flow: `kicked`, disconnect, no state, and the rejoin refused. Also two sockets for one player, an unknown player, and kicking the unjudged winner, which reopens the buzzers.
+  - 589 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-27 for F21 covers the order of `kicked` and the disconnect, and why the transport stays open until the disconnect packet.
+
+**Notes for next session:**
+- F22 (host remote) can now send every host event. As noted in F20, no view says whether undo is available yet. Add `HostView.canUndo` server-side rather than deriving it in the client.
+- The Player client must handle `kicked` by showing "Removed by host" and must not retry the join. The socket closes right after.
+- `sockets.test.ts`, `sockets.buzz.test.ts` and `sockets.host.test.ts` each have a copy of the start/connect harness (see Backlog).
+
+**How to try it:** `npx vitest run server/sockets.host.test.ts`. There are no Host remote buttons until F22.
+
 ## F20 — Reducer: undo, score adjust, kick, settings, final ranking (2026-10-27)
 **What changed:**
 - `server/reducer.ts` gains four host actions. The zod schemas existed since F02.

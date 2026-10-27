@@ -52,14 +52,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F20 Reducer: undo, score adjust, kick, settings, final ranking
 
-- [ ] F21 Gateway: remaining host events
-  - Spec: Realtime events and HTTP API (host:judge, undo, adjustScore, kick, settings, scoreboard; kicked; fx)
-  - Depends: F15, F20
-  - Done when:
-    - All remaining host events are wired with token checks and acks
-    - A kicked player's socket receives `kicked` and is disconnected; rejoining with the same id fails
-    - `fx correct`, `fx wrong` and `fx join` are emitted
-  - Tests: `sockets.host.test.ts` — kick flow, judge wrong then reopen after 1.5 s (fake timers)
+- [x] F21 Gateway: remaining host events
 
 - [ ] F22 Host remote: judging, secondary actions, tabs
   - Spec: UI spec by view (Host remote)
@@ -194,3 +187,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Host remote game-over state in FINAL: the remote keeps showing the last question with no primary button (F16 playtest). No feature names a host final view; the Players list still shows the scores.
 - Measure the 150 ms collection window in monotonic time (from the first buzz's `receivedAt`), so a late-firing timer cannot stretch it. Today the window lasts until `windowClosed` arrives (F14 decision).
 - Tell the player when a buzz was ignored. A player who joined during the current opening can press BUZZ!, but the server ignores the buzz silently and the phone stays on "Buzzed…" (F17 decision). A `canBuzz` field in `PlayerView` would let the phone show "Get ready…" instead.
+- Move the socket test harness (`start`, `connect`, `record`, `flush`, `openTable`) into `server/test/`. `sockets.test.ts`, `sockets.buzz.test.ts` and `sockets.host.test.ts` each have their own copy (F21).
