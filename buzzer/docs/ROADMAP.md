@@ -32,14 +32,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M3 — Buzzer core
 
-- [ ] F12 Fairness: latency and ranking
-  - Spec: Buzzer fairness and timing; Edge cases (two buzzes inside the window)
-  - Depends: F02
-  - Done when:
-    - `server/fairness.ts` keeps a rolling median RTT of the last 10 samples and one-way = RTT / 2
-    - `adjustedAt = receivedAt − min(oneWay, 150)`; ranking by `adjustedAt`, then `receivedAt`, then `joinedAt`
-    - Computes per-buzz gaps to the winner for the "also buzzed" list
-  - Tests: `fairness.test.ts` — median with <10 and >10 samples, cap at 150 ms, slow player beats fast player when corrected, all three tie-breaks
+- [x] F12 Fairness: latency and ranking
 
 - [ ] F13 Reducer: question flow
   - Spec: Game flow and state machine (Transitions: start, open, reveal, next, prev, end; scoreboard overlay); Data model (RoomSettings)

@@ -21,7 +21,7 @@ Each has a recommended answer. Until the owner says otherwise, a feature that hi
 13. **`fx buzz` payload `gaps`.** Resolved in F02 as recommended; see "Decisions made".
 14. **Pairing from a Screen without the token.** Resolved in F10 as recommended; see "Decisions made".
 15. **"Monorepo layout" vs "one TypeScript project".** Resolved in F01 as recommended; see "Decisions made".
-16. **RTT before the first ping.** *Recommend:* one-way latency 0 until the first sample, so a new player gets no correction rather than the full 150 ms.
+16. **RTT before the first ping.** Resolved in F12 as recommended; see "Decisions made".
 
 ## Decisions made
 
@@ -99,5 +99,8 @@ Each has a recommended answer. Until the owner says otherwise, a feature that hi
 | 2026-10-27 | F11 | `/dev/bots/:code` is a client route, registered in `App.tsx` only when `import.meta.env.DEV`, with the page lazy-loaded from `client/src/dev/`. `vite build` folds the flag to `false`, so the production bundle has neither the route nor the chunk, and the server's SPA fallback lands on "Page not found" | The spec says the bots run "in the browser"; Vite's `DEV` is its build-time form of `NODE_ENV !== 'production'` |
 | 2026-10-27 | F11 | Bot k always has id `bot-k` and name "Bot k". Spawn grows or shrinks the set to N, keeping the bots it already has. No dev-specific join limit: 20 new bots fit in `PLAYER_JOIN_RATE_LIMIT` (60/min per IP), and a re-spawn reconnects known ids, which never count (DECISIONS #3) | Re-spawning never fails on "name taken" or the limit, and the server's limits stay the same in dev and production |
 | 2026-10-27 | F11 | A bot treats a buzz with no ack within 2 s (`BOT_ACK_TIMEOUT_MS`) as the error "No reply in 2 s". Bots ping every `PING_INTERVAL_MS` only while connected; the RTT column stays "—" until F15 answers `pong` | Socket.IO acks never time out by themselves, and `player:buzz` has no handler until F15 |
+| 2026-10-27 | F12 | Open question 16: `medianRtt([])` is 0, so a player with no samples gets no correction. An even sample count takes the mean of the two middle samples | As recommended; the mean is the usual median for an even count |
+| 2026-10-27 | F12 | `server/fairness.ts` is pure functions only: `addRttSample` returns the newest `RTT_SAMPLES` samples and `medianRtt` reduces them. F15 decides where the samples live and writes the median into `Player.rttMs`. Negative and non-finite samples are dropped | Keeps fairness testable without sockets or clocks; the ping handler does not exist until F15 |
+| 2026-10-27 | F12 | `rankBuzzes` sorts a buzz whose player has left the room after the rest of its full tie. `buzzGaps` measures `adjustedAt − winner.adjustedAt` in raw ms; clients format it ("+0.12 s") | Ranking is by `adjustedAt`, so the shown gap matches the decision; a kicked player's buzz never crashes the sort |
 
 ## Proposed spec changes

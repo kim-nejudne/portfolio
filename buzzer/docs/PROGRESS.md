@@ -12,6 +12,28 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F12 — Fairness: latency and ranking (2026-10-27)
+**What changed:**
+- `server/fairness.ts`, pure functions with no clock or socket:
+  - `addRttSample(samples, rttMs)` keeps the newest `RTT_SAMPLES` (10) and drops negative or non-finite samples.
+  - `medianRtt(samples)` returns 0 with no samples. With an even count, it takes the mean of the two middle samples.
+  - `oneWayMs(rtt) = rtt / 2`.
+- `makeBuzz(playerId, receivedAt, rttMs)` → `Buzz` with `adjustedAt = receivedAt − min(oneWay, MAX_LATENCY_CORRECTION_MS)`. A negative or non-finite RTT counts as 0.
+- `rankBuzzes(buzzes, players)` puts the winner first. It sorts by `adjustedAt`, then `receivedAt`, then `joinedAt`. A buzz from a player who has left sorts after the rest of its tie. `buzzGaps(ranked)` returns `BuzzGap[]` (`adjustedAt` gap to the winner, in rank order, winner excluded).
+- There are 21 new tests in `fairness.test.ts`, 301 in total.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F12 cover:
+- Open question 16 (no correction before the first sample), now resolved, and the even-count median.
+- Pure functions only. F15 picks where the samples live.
+- Departed players in ties, and raw-ms gaps that clients format.
+
+**Notes for next session:**
+- F15 wires this up. On each RTT sample: `samples = addRttSample(samples, rtt)`, then `player.rttMs = medianRtt(samples)`. The samples need a home: a `Player.rttSamples` field that views never copy, or a gateway map cleared when a player or room goes. The reducer then builds buzzes with `makeBuzz(id, receivedAt, player.rttMs)`, where `receivedAt` comes from `performance.now()` in the gateway.
+- The spec's ping shape is `ping {t}` → `pong {t}`. That pair lets the client measure RTT, but not the server. F15 has to decide how the server gets a sample, for example from the client's measured RTT or from a server-initiated ping.
+- Late buzzes in BUZZED (DECISIONS #4) still go through `rankBuzzes`/`buzzGaps`. They can never outrank the announced winner only because the reducer keeps `winnerId` fixed, so F14/F15 must not re-pick the winner from a re-rank.
+
+**How to try it:** `npx vitest run server/fairness.test.ts`. Nothing is visible in the app until F15.
+
 ## F11 — Dev tool: fake players (2026-10-27)
 **What changed:**
 - `client/src/dev/bots.ts`: `createBot({code, index, onChange})`. Each bot is its own `createSocket()` that joins as `bot-<n>` / "Bot <n>" on every connect, pings every `PING_INTERVAL_MS` while connected, and has `buzz(delayMs)`. A buzz shows its ack, or "No reply in 2 s". Also `buzzDelay` (0–300 ms) and `clampBotCount` (1–50).
