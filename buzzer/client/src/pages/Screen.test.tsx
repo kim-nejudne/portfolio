@@ -230,4 +230,121 @@ describe('Screen', () => {
       expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
     });
   });
+
+  describe('question and buzz views', () => {
+    const ANSWER = 'Canberra-secret-answer';
+    const ana = player(1, { name: 'Ana' });
+    const ben = player(2, { name: 'Ben' });
+    const cy = player(3, { name: 'Cy' });
+
+    function questionView(overrides: Partial<ScreenView> = {}): ScreenView {
+      return lobbyView([ana, ben, cy], {
+        phase: 'QUESTION',
+        questionIndex: 2,
+        question: { id: 'q3', text: 'What is the capital of Australia?', points: 100 },
+        ...overrides,
+      });
+    }
+
+    function show(view: ScreenView) {
+      const { socket } = renderScreen();
+      socket.fire('state', view);
+      return socket;
+    }
+
+    it('shows "Question N of M" and the question text', () => {
+      show(questionView());
+      expect(screen.getByText('Question 3 of 10')).toBeTruthy();
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'What is the capital of Australia?' }),
+      ).toBeTruthy();
+    });
+
+    it('shows "Buzzers locked" until the buzzers open, then "Buzzers OPEN" in another colour', () => {
+      const socket = show(questionView());
+      const locked = screen.getByRole('status');
+      expect(locked.textContent).toBe('Buzzers locked');
+      const lockedClass = locked.className;
+
+      socket.fire('state', questionView({ phase: 'OPEN', openingCounter: 1 }));
+      const open = screen.getByRole('status');
+      expect(open.textContent).toBe('Buzzers OPEN');
+      expect(open.className).toContain('bg-buzz');
+      expect(lockedClass).not.toContain('bg-buzz');
+    });
+
+    it('keeps "Buzzers OPEN" through the collection window', () => {
+      show(questionView({ phase: 'COLLECTING', openingCounter: 1 }));
+      expect(screen.getByRole('status').textContent).toBe('Buzzers OPEN');
+    });
+
+    it('shows the question image, contained and never cropped', () => {
+      show(
+        questionView({
+          question: { id: 'q3', text: 'Who is this?', imageId: 'img-1', points: 100 },
+        }),
+      );
+      const img = screen.getByRole('img', { name: 'Question image' });
+      expect(img.getAttribute('src')).toBe('/api/rooms/WXYZ/images/img-1');
+      expect(img.className).toContain('object-contain');
+    });
+
+    it('shows an image-only question without a text block', () => {
+      show(questionView({ question: { id: 'q3', text: '', imageId: 'img-1', points: 100 } }));
+      expect(screen.getByRole('img', { name: 'Question 3' })).toBeTruthy();
+      expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    });
+
+    it('shrinks long question text', () => {
+      const socket = show(questionView());
+      const shortClass = screen.getByRole('heading', { level: 1 }).className;
+      socket.fire(
+        'state',
+        questionView({ question: { id: 'q3', text: 'Why '.repeat(60).trim() + '?', points: 100 } }),
+      );
+      expect(screen.getByRole('heading', { level: 1 }).className).not.toBe(shortClass);
+    });
+
+    it('shows the winner in a banner in their colour, in place of the status', () => {
+      show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
+      const banner = screen.getByRole('heading', { level: 2, name: 'Ben' });
+      expect(banner.style.backgroundColor).not.toBe('');
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = ben.color;
+      expect(banner.style.backgroundColor).toBe(probe.style.backgroundColor);
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('lists the other buzzes in rank order with their gaps', () => {
+      show(
+        questionView({
+          phase: 'BUZZED',
+          openingCounter: 1,
+          winnerId: 'p2',
+          alsoBuzzed: [
+            { playerId: 'p3', gapMs: 120 },
+            { playerId: 'p1', gapMs: 1_480.6 },
+          ],
+        }),
+      );
+      const items = within(screen.getByRole('list', { name: 'Also buzzed' })).getAllByRole(
+        'listitem',
+      );
+      expect(items.map((li) => li.textContent)).toEqual(['Cy+0.12 s', 'Ana+1.48 s']);
+    });
+
+    it('shows no "also buzzed" line when only the winner buzzed', () => {
+      show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
+      expect(screen.queryByText('also buzzed')).toBeNull();
+    });
+
+    it('never puts the answer in the DOM before REVEAL, even if a view carries it', () => {
+      const question = { id: 'q3', text: 'Capital?', points: 100, answer: ANSWER };
+      for (const phase of ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'] as const) {
+        show(questionView({ phase, question, winnerId: phase === 'BUZZED' ? 'p2' : null }));
+        expect(document.body.innerHTML).not.toContain(ANSWER);
+        cleanup();
+      }
+    });
+  });
 });

@@ -12,6 +12,33 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F18 — Screen question and buzz views (2026-10-27)
+**What changed:**
+- New `client/src/components/ScreenQuestion.tsx` renders the Screen from QUESTION to REVEAL:
+  - "Question N of M", the question text, and the image (`object-contain`, beside the text or alone).
+  - A status pill: "Buzzers locked" (grey) or "Buzzers OPEN" (red, pulsing, through COLLECTING too).
+  - In BUZZED, the pill is replaced by the winner's name in a giant banner in their colour, with "also buzzed" names in their colours and gaps such as "+0.12 s".
+- New `client/src/lib/screenQuestion.ts`: `formatGap`, `questionTextClass` (5 length steps in `min(vw, vh)`, one step down with an image) and `buzzersOpen`. `client/src/lib/api.ts` gains `imageUrl(code, imageId)`.
+- `Screen.tsx`: FINAL shows "Game over" until F24. No Screen component renders an answer.
+- Tests: 8 in `screenQuestion.test.ts`, 10 new in `Screen.test.tsx`. These include a DOM test that feeds an answer in QUESTION, OPEN, COLLECTING and BUZZED views and checks `innerHTML`. 478 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS rows dated 2026-10-27 for F18 cover:
+- Length-step shrinking instead of measuring the box.
+- In BUZZED, the banner replaces the status line and the question stays.
+- REVEAL and FINAL placeholders until F24.
+- The image URL ahead of F30.
+
+**Notes for next session:**
+- Playtest (2026-10-27, `PORT=3100 npm start`, because PokéTrack held :3000). All bullets passed at 1920×1080:
+  - Q1 showed locked, then OPEN with the colour change.
+  - On Q2, three players buzzed at once. The banner showed "Ann" in her colour, and below it "also buzzed Bob +0.00 s, Cy +0.00 s".
+  - The answers ("Jupiter", "Oxygen") were absent from the Screen's `innerText` and `outerHTML` before reveal.
+  - The players were 3 browser contexts, not `/dev/bots`, which the production build doesn't serve. The near-simultaneous clicks gave 0.00 s gaps. Non-zero gaps are covered by unit tests only.
+- The sample set has no long question and no image, so shrinking and the image area were checked in unit tests only. F30 adds the sample images. Check the layout then.
+- F24: add the answer under the question at REVEAL in `ScreenQuestion`, replace the `TODO(F24)` FINAL placeholder in `Screen.tsx`, and grey out locked-out players.
+
+**How to try it:** `npm run dev`, then Host a game on `http://localhost:5173`; the Screen opens at `/screen/<CODE>`. Join 2–3 players from `/play/<CODE>` (phones on `http://<LAN-IP>:5173`) or spawn bots at `/dev/bots/<CODE>`. Pair the host remote, then Start game ("Buzzers locked") and Open buzzers ("Buzzers OPEN"). Buzz from several players: the Screen shows the winner's banner and the "also buzzed" gaps.
+
 ## F17 — Player buzzer screen (2026-10-27)
 **What changed:**
 - The Player view's `Buzzer` in `client/src/pages/Play.tsx` is now live. It is a whole-viewport circle that fires on `pointerdown` and on Space (no key repeat). A press shows "Buzzed…" and calls `navigator.vibrate(30)` before it sends `player:buzz`. A rejected ack frees the button.

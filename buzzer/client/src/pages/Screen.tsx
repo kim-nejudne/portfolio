@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router';
 import { INVALID_HOST_TOKEN_ERROR } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
+import { ScreenQuestion } from '../components/ScreenQuestion.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
@@ -55,11 +56,13 @@ function ScreenRoom({ code, makeSocket }: { code: string; makeSocket: () => Game
       <div className="flex min-h-0 flex-1 flex-col">
         {view.phase === 'LOBBY' ? (
           <Lobby view={view} url={url} hostToken={loadHostToken(code)} />
-        ) : (
-          // TODO(F18): question, buzz and reveal views.
+        ) : view.phase === 'FINAL' ? (
+          // TODO(F24): podium and full ranking.
           <div className="flex flex-1 items-center justify-center">
-            <h1 className="font-display text-[5vw] text-muted">Game in progress</h1>
+            <h1 className="font-display text-[5vw] text-muted">Game over</h1>
           </div>
+        ) : (
+          <ScreenQuestion view={view} />
         )}
       </div>
       <BottomStrip code={code} url={url} />

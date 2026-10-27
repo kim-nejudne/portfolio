@@ -20,6 +20,11 @@ export async function roomExists(code: string): Promise<boolean> {
   return data.exists;
 }
 
+/** `GET /api/rooms/:code/images/:imageId`, the URL of a question's image. The server route comes with F30. */
+export function imageUrl(code: string, imageId: string): string {
+  return `/api/rooms/${encodeURIComponent(code)}/images/${encodeURIComponent(imageId)}`;
+}
+
 /** `POST /api/rooms`. Throws an Error carrying the server's message when the room is not created. */
 export async function createRoom(body: CreateRoomBody): Promise<CreateRoomResponse> {
   let response: Response;

@@ -44,14 +44,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 - [x] F17 Player buzzer screen
 
-- [ ] F18 Screen question and buzz views
-  - Spec: UI spec by view (Screen view: Question, Buzzed); Buzzer fairness and timing (gap to second place)
-  - Depends: F08, F15
-  - Done when:
-    - "Question N of M", auto-shrinking question text, image area (contained), "Buzzers locked" / "Buzzers OPEN" with a colour change
-    - Winner banner in the player's colour; "also buzzed" names with "+0.12 s" gaps
-    - The Screen DOM never contains the answer before REVEAL
-  - Tests: playtest with bots — "buzz all" shows a winner and gaps; DOM text search for the answer before reveal finds nothing
+- [x] F18 Screen question and buzz views
 
 ## M4 — Host controls and scoring
 
