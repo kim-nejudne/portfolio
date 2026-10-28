@@ -41,7 +41,7 @@ export function Landing() {
           spellCheck={false}
           enterKeyHint="go"
           maxLength={ROOM_CODE_LENGTH}
-          className="w-full rounded-2xl border-2 border-edge bg-bg px-4 py-3 text-center font-display text-5xl tracking-[0.3em] uppercase placeholder:text-edge focus:border-accent focus:outline-none"
+          className="w-full rounded-2xl border-2 border-edge bg-bg px-4 py-3 text-center font-display text-5xl tracking-[0.3em] uppercase placeholder:text-edge focus:border-accent"
         />
         <button
           type="submit"

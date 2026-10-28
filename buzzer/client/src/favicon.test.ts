@@ -19,10 +19,10 @@ describe('Favicon', () => {
     expect(link).toContain('type="image/svg+xml"');
   });
 
-  it('is a round buzz-red button on the dark base, in the theme colours', () => {
+  it('is a round buzz-red button with a gold rim on the dark base, in the theme colours', () => {
     expect(svg).toContain('<circle');
     expect(svg).toContain(`fill="${token(css, 'buzz')}"`);
-    expect(svg).toContain(`stroke="${token(css, 'buzz-edge')}"`);
+    expect(svg).toContain(`stroke="${token(css, 'accent')}"`);
     expect(svg).toContain(`<rect width="64" height="64" rx="14" fill="${token(css, 'bg')}"`);
   });
 });

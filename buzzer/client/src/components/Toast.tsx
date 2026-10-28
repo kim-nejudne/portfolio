@@ -33,7 +33,7 @@ export function Toast({ toast }: { toast: ToastMessage | null }) {
     <p
       key={toast.id}
       role="alert"
-      className="fixed inset-x-4 bottom-6 mx-auto max-w-md rounded-2xl border-2 border-red-400 bg-surface px-4 py-3 text-center text-lg shadow-lg"
+      className="fixed inset-x-4 bottom-6 mx-auto max-w-md rounded-2xl border-2 border-buzz bg-surface px-4 py-3 text-center text-lg shadow-lg"
     >
       {toast.text}
     </p>

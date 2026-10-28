@@ -1,35 +1,49 @@
 @import 'tailwindcss';
 
 /*
- * Game-show theme: dark background, one bright accent, very large type.
+ * "Prime Time": a TV game-show studio. Deep indigo, marquee gold, stage red.
  * Player colours are separate and come from PLAYER_PALETTE in shared/constants.
  */
 @theme {
-  --color-bg: #0b0b14;
-  --color-surface: #171726;
-  --color-edge: #2c2c44;
-  --color-ink: #f5f5fa;
-  --color-muted: #a3a3bd;
-  --color-accent: #ffc400;
-  --color-accent-ink: #1a1300;
+  --color-bg: #0e0b2e;
+  /* Bulb rails and recessed areas. */
+  --color-bg-deep: #08061f;
+  --color-surface: #1b1748;
+  /* 2px borders on cards and pills. Never put muted text on it (contrast). */
+  --color-edge: #2e2970;
+  --color-ink: #ffffff;
+  --color-muted: #b7b3e6;
+  /* Gold: the logo, primary buttons, bulbs, focus rings. Text on gold is the base indigo. */
+  --color-accent: #ffc83d;
+  --color-accent-hover: #ffe08a;
+  --color-accent-ink: #0e0b2e;
 
-  /* Buzzer states (Player view). Not player colours. */
-  --color-buzz: #e11d2e;
-  --color-buzz-edge: #ff5a66;
-  --color-win: #22c55e;
-  --color-win-edge: #86efac;
+  /*
+   * Stage red: the buzzer, the first-to-buzz panel, wrong and danger. White on red is only
+   * 3.2:1, so only large display text is white on it; smaller text on red uses buzz-ink.
+   */
+  --color-buzz: #ff4d5e;
+  --color-buzz-pressed: #c42d3e;
+  --color-buzz-ink: #2a0610;
+  /* Secondary text on buzz-ink chips. */
+  --color-buzz-ink-soft: #ffb3bb;
+  --color-win: #2bd99f;
+  --color-win-ink: #052b1f;
 
   /* The connection dot's amber (Player and Host) and the Screen's Reconnecting banner. Green is win, red is buzz. */
   --color-warn: #f59e0b;
 
-  --font-display: 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Bungee', 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* Player chips popping in on the Screen lobby. */
   --animate-pop-in: pop-in 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
   /* The open buzzer, inviting a press. */
   --animate-buzz-pulse: buzz-pulse 900ms ease-in-out infinite;
+
+  /* The marquee chase: each bulb gets its own animation-delay (BulbRail). */
+  --animate-bulb-chase: bulb-chase 1.6s ease-in-out infinite;
 
   /* A judgement's full-screen flash on the Screen, fading out. */
   --animate-flash: flash 900ms ease-out both;
@@ -63,15 +77,28 @@
     }
   }
 
+  /* Scale and glow only: a box-shadow here would replace the buzzer's rings and bevel. */
   @keyframes buzz-pulse {
     0%,
     100% {
       transform: scale(1);
-      box-shadow: 0 0 0 0 rgb(225 29 46 / 0.6);
+      filter: drop-shadow(0 0 0 color-mix(in oklab, var(--color-buzz) 60%, transparent));
     }
     50% {
       transform: scale(1.04);
-      box-shadow: 0 0 0 1.5rem rgb(225 29 46 / 0);
+      filter: drop-shadow(0 0 1.5rem color-mix(in oklab, var(--color-buzz) 60%, transparent));
+    }
+  }
+
+  /* One marquee bulb dimming as the chase passes it. */
+  @keyframes bulb-chase {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+      box-shadow: none;
     }
   }
 
@@ -87,6 +114,24 @@
   }
 }
 
+/* The brief's names for the theme tokens, for hand-written CSS. Classes use the Tailwind names. */
+:root {
+  --bg: var(--color-bg);
+  --bg-deep: var(--color-bg-deep);
+  --surface: var(--color-surface);
+  --border: var(--color-edge);
+  --text: var(--color-ink);
+  --text-muted: var(--color-muted);
+  --gold: var(--color-accent);
+  --gold-hover: var(--color-accent-hover);
+  --red: var(--color-buzz);
+  --red-pressed: var(--color-buzz-pressed);
+  --red-ink: var(--color-buzz-ink);
+  --red-ink-soft: var(--color-buzz-ink-soft);
+  --green: var(--color-win);
+  --green-ink: var(--color-win-ink);
+}
+
 @layer base {
   html,
   body,
@@ -99,6 +144,12 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* One focus ring everywhere: 3px gold, 2px off the element. */
+  :focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   /* Tailwind v4 Preflight gives buttons the default cursor; restore the pointer on live ones. */

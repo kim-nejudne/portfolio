@@ -174,13 +174,13 @@ export function Sets() {
       </p>
 
       {error && (
-        <p role="alert" className="text-lg text-red-400">
+        <p role="alert" className="text-lg text-buzz">
           {error}
         </p>
       )}
 
       {importErrors && (
-        <div role="alert" className="flex flex-col gap-2 text-lg text-red-400">
+        <div role="alert" className="flex flex-col gap-2 text-lg text-buzz">
           <p>Couldn't import {importErrors.file}:</p>
           <ul className="list-disc pl-6">
             {importErrors.errors.map((message, i) => (

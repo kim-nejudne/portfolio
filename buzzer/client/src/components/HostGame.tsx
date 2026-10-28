@@ -65,7 +65,7 @@ export function HostGame() {
           Host a game
         </button>
         {error && (
-          <p role="alert" className="text-center text-lg text-red-400">
+          <p role="alert" className="text-center text-lg text-buzz">
             {error}
           </p>
         )}
@@ -124,7 +124,7 @@ export function HostGame() {
         {creating ? 'Creating room…' : 'Create room'}
       </button>
       {error && (
-        <p role="alert" className="text-center text-lg text-red-400">
+        <p role="alert" className="text-center text-lg text-buzz">
           {error}
         </p>
       )}

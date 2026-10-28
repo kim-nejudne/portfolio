@@ -185,10 +185,10 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
           maxLength={PLAYER_NAME_MAX}
           aria-invalid={error !== null}
           aria-describedby={error ? 'name-error' : undefined}
-          className="w-full rounded-2xl border-2 border-edge bg-bg px-4 py-3 font-display text-3xl focus:border-accent focus:outline-none"
+          className="w-full rounded-2xl border-2 border-edge bg-bg px-4 py-3 font-display text-3xl focus:border-accent"
         />
         {error && (
-          <p id="name-error" role="alert" className="text-lg text-red-400">
+          <p id="name-error" role="alert" className="text-lg text-buzz">
             {error}
           </p>
         )}

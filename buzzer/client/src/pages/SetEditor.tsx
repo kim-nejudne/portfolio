@@ -59,7 +59,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
 
 const smallButton = `rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 const field =
-  'w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink aria-invalid:border-red-400';
+  'w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink aria-invalid:border-buzz';
 
 const DRAG_INSTRUCTIONS: ScreenReaderInstructions = {
   draggable:
@@ -126,7 +126,7 @@ function Editor({ setId }: { setId: string }) {
         {load.state === 'loading' && <p className="text-muted">Loading…</p>}
         {load.state === 'missing' && <p role="alert">This set no longer exists.</p>}
         {load.state === 'error' && (
-          <p role="alert" className="text-lg text-red-400">
+          <p role="alert" className="text-lg text-buzz">
             {LOAD_ERROR}
           </p>
         )}
@@ -195,7 +195,7 @@ function Editor({ setId }: { setId: string }) {
           <p
             role="status"
             aria-label="Save status"
-            className={status === 'error' ? 'text-red-400' : 'text-muted'}
+            className={status === 'error' ? 'text-buzz' : 'text-muted'}
           >
             {STATUS_TEXT[status]}
           </p>
@@ -301,7 +301,7 @@ function BackLink() {
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-red-400">
+    <p id={id} className="text-buzz">
       {message}
     </p>
   );
@@ -646,7 +646,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
         </p>
       )}
       {error && (
-        <p role="alert" className="text-red-400">
+        <p role="alert" className="text-buzz">
           {error}
         </p>
       )}
