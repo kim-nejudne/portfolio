@@ -10,6 +10,32 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F46 — Slim runtime image and CI job (2026-10-28)
+**What changed:**
+- `package.json`: `dependencies` is now only what `dist/server` imports: express, proxy-addr, socket.io and zod.
+  - react, react-dom, react-router, dexie, howler, `@dnd-kit/core`, `@dnd-kit/sortable`, qrcode.react, zustand, socket.io-client and nanoid moved to `devDependencies`. Versions are unchanged; the lockfile only gained `dev: true` flags.
+  - The Dockerfile is unchanged apart from a comment: its prod-deps stage already ran `npm ci --omit=dev`.
+- **Image: 266 MB to 245 MB.** `node_modules` inside it went from 41 MB to 18 MB. The `node:24-slim` base is 230 MB, so that is most of what is left. The README's Docker section records this.
+- Root `.github/workflows/ci.yml` (outside `buzzer/`):
+  - New `buzzer-changes` job: diffs `buzzer/` and `ci.yml` against the PR base or the push's `before`.
+  - New `buzzer` job, run only when that says changed: Node 24, `npm ci`, format:check, lint, typecheck, test, build.
+- Tests: new `server/dependencies.test.ts` (3). It scans the non-test sources under `server/` and `shared/`, and fails if `dependencies` misses a server import or lists a package the server does not import. A probe file in `server/` that imported nanoid turned it red. 1138 tests in total. No new dependency.
+
+**Decisions:** two DECISIONS rows dated 2026-10-28 for F46:
+- what `dependencies` holds, nanoid's move, and the reversed F34 row
+- the change gate in `ci.yml`, and why there is no `paths` filter or smoke test there
+
+**Notes for next session:**
+- `npm run smoke:docker` printed PASS on the new image (`buzzr:smoke`, 245 MB).
+- **The CI job has not run on GitHub yet**: nothing was pushed. `actionlint` (Docker `rhysd/actionlint`) passes the new jobs. Its only finding is an existing SC2086 in the hub `axe` step. The gate script was run locally against four cases: a change, no change, an all-zero base, and a manual run. The job's steps were run locally from a clean `npm ci`.
+- On the first push that touches `buzzer/`, check the Actions tab: "buzzer changed?" should print `changed=true`, and "build buzzer" should be green.
+- `deploy-buzzer.yml` still runs its own checks job on pushes to main. It has no build step, but its Docker build covers one.
+
+**How to try it:**
+1. `npm run smoke:docker` prints `PASS`. `docker images buzzr` shows `smoke` at 245 MB.
+2. `npm test -- server/dependencies.test.ts`. Add `import 'react';` to any server file and it fails.
+3. After a push or a PR touching `buzzer/`, the CI workflow shows "build buzzer".
+
 ## F45 — Socket test harness and typed host emit (2026-10-28)
 **What changed:**
 - New `server/test/sockets.ts`, the gateway harness shared by the four `server/sockets*.test.ts` files.

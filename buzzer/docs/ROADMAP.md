@@ -116,14 +116,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F45 Socket test harness and typed host emit
 
-- [ ] F46 Slim runtime image and CI job
-  - Spec: Tech stack and architecture (deploy)
-  - Depends: F37
-  - Done when:
-    - Client-only libraries (react, react-dom, react-router, dexie, howler, @dnd-kit/*, qrcode.react, zustand, socket.io-client) are in `devDependencies`; `dependencies` holds only what `dist/server` imports
-    - `npm run smoke:docker` passes and the new image size is recorded in PROGRESS and the README
-    - The root `.github/workflows/ci.yml` has a `buzzer` job (format:check, lint, typecheck, test, build) on pull requests and pushes touching `buzzer/**`. This file is outside `buzzer/`: ask Kim before staging it
-  - Tests: `npm run smoke:docker`; `npm run build`; CI job run on a push
+- [x] F46 Slim runtime image and CI job
 
 ## Bugs
 

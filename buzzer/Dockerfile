@@ -19,7 +19,8 @@ FROM deps AS build
 COPY . .
 RUN npm run build
 
-# ---- prod-deps: runtime dependencies only
+# ---- prod-deps: runtime dependencies only. `dependencies` is what dist/server imports;
+# the client libraries are devDependencies, bundled into dist/client by the build stage.
 FROM node:24-slim AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./

@@ -29,6 +29,8 @@ Open `http://localhost:5173`. Phones on the same Wi-Fi open `http://<laptop-LAN-
 
 The `Dockerfile` is multi-stage. It installs, builds, then copies `dist/` and the runtime dependencies into a slim Node 24 image. The image runs as the unprivileged `node` user and has a `HEALTHCHECK` on `/healthz`.
 
+The image is 245 MB, and 230 MB of that is the `node:24-slim` base. Only `dependencies` reach it (`npm ci --omit=dev`), so that list holds just what the server imports: express, proxy-addr, socket.io and zod (18 MB of `node_modules`). The client libraries are `devDependencies`, because Vite bundles them into `dist/client` at build time. `server/dependencies.test.ts` fails if a server import is missing from `dependencies`, or if `dependencies` lists anything the server does not import.
+
 ```sh
 docker build -t buzzr .
 docker run --rm -p 3000:3000 buzzr
