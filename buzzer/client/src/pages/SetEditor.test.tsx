@@ -297,7 +297,7 @@ describe('Set editor /sets/:setId', () => {
     fireEvent.click(card(1).getByRole('button', { name: 'Preview question 1' }));
     const dialog = within(screen.getByRole('dialog', { name: 'Preview of question 1' }));
     expect(dialog.getByRole('heading', { level: 1 }).textContent).toBe('Question a');
-    expect(dialog.getByText('Question 1 of 2')).toBeTruthy();
+    expect(dialog.getByText('Question 1 / 2')).toBeTruthy();
     expect(dialog.getByRole('status').textContent).toBe('Buzzers locked');
     const text = screen.getByRole('dialog').textContent!;
     expect(text).not.toContain('Answer a');

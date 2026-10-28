@@ -75,7 +75,7 @@ export function ScreenHostControls({ view, command }: ScreenHostControlsProps) {
           aria-label="Host controls"
           onPointerEnter={() => setHovering(true)}
           onPointerLeave={() => setHovering(false)}
-          className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-[0.8vw] border-t-2 border-edge bg-surface/95 px-[2vw] py-[1.2vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
+          className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-[0.8vw] border-t-2 border-edge bg-bg-deep/95 px-[2vw] py-[1.2vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
         >
           <GameButtons view={view} command={command} />
           <span className="ml-auto flex gap-[0.8vw]">
@@ -123,7 +123,7 @@ function GameButtons({ view, command }: { view: ScreenView; command: HostCommand
               keyHint="C"
               onClick={act({ event: 'host:judge', payload: { result: 'correct' } })}
               disabled={busy}
-              tone="bg-win text-bg border-win"
+              tone="bg-win text-win-ink border-win font-display"
             >
               Correct
             </BarButton>
@@ -131,7 +131,7 @@ function GameButtons({ view, command }: { view: ScreenView; command: HostCommand
               keyHint="X"
               onClick={act({ event: 'host:judge', payload: { result: 'wrong' } })}
               disabled={busy}
-              tone="bg-buzz text-ink border-buzz"
+              tone="bg-buzz-ink text-ink border-buzz font-display"
             >
               Wrong
             </BarButton>
@@ -144,7 +144,7 @@ function GameButtons({ view, command }: { view: ScreenView; command: HostCommand
           keyHint="Space"
           onClick={act({ event: primary.event, payload: {} })}
           disabled={busy}
-          tone="bg-accent text-accent-ink border-accent"
+          tone="bg-accent text-accent-ink border-accent font-display"
         >
           {primary.label}
         </BarButton>
@@ -195,7 +195,7 @@ function GameButtons({ view, command }: { view: ScreenView; command: HostCommand
   );
 }
 
-const barButton = `rounded-[0.8vh] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40 ${HOVER}`;
+const barButton = `rounded-[min(1.1vw,2vh)] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40 ${HOVER}`;
 
 interface BarButtonProps {
   children: ReactNode;

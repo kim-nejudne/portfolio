@@ -95,6 +95,12 @@ function renderScreen(path = '/screen/WXYZ', { start = true } = {}) {
 }
 
 const joinUrl = `${window.location.host}/play/WXYZ`;
+/** The header's "Join at <url>" and room lines. */
+const joinInfo = () => screen.getByRole('group', { name: 'How to join' });
+/** The reveal's pill naming the player judged correct. */
+const scorer = () => document.querySelector<HTMLElement>('[data-scorer]');
+/** The palette-colour dot beside a player's name. */
+const colourDot = (name: HTMLElement) => name.querySelector<HTMLElement>('[data-player-color]')!;
 
 describe('Screen', () => {
   it('joins the room from the URL as a Screen', () => {
@@ -171,14 +177,14 @@ describe('Screen', () => {
       expect(screen.queryByRole('note')).toBeNull();
     });
 
-    it("uses the server's LAN address with the page's port for the QR, the URL and the strip", async () => {
+    it("uses the server's LAN address with the page's port for the QR, the URL and the header", async () => {
       stubConfig('http://192.168.1.20');
       const { socket } = renderScreen();
       socket.fire('state', lobbyView());
       const lan = `192.168.1.20:${window.location.port}/play/WXYZ`;
       expect(await screen.findByTitle(`Join at http://${lan}`)).toBeTruthy();
       expect(within(screen.getByRole('main')).getAllByText(lan).length).toBeGreaterThan(0);
-      expect(screen.getByRole('contentinfo').textContent).toBe(`Room WXYZJoin at ${lan}`);
+      expect(joinInfo().textContent).toBe(`Join at ${lan}Room WXYZ`);
       expect(screen.queryByRole('note')).toBeNull();
     });
 
@@ -187,9 +193,7 @@ describe('Screen', () => {
       const { socket } = renderScreen();
       socket.fire('state', lobbyView());
       expect(await screen.findByTitle('Join at https://buzzr.example/play/WXYZ')).toBeTruthy();
-      expect(screen.getByRole('contentinfo').textContent).toBe(
-        'Room WXYZJoin at buzzr.example/play/WXYZ',
-      );
+      expect(joinInfo().textContent).toBe('Join at buzzr.example/play/WXYZRoom WXYZ');
       expect(screen.queryByRole('note')).toBeNull();
     });
   });
@@ -236,15 +240,25 @@ describe('Screen', () => {
     expect(rows.map((row) => row.className.includes('opacity-40'))).toEqual([false, true]);
   });
 
-  it('bottom strip shows the code and "Join at <url>" in the lobby and in a game', () => {
+  it('the header always shows "Join at <url>" and the room code, in the lobby and in a game', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView());
-    let strip = screen.getByRole('contentinfo');
-    expect(strip.textContent).toBe(`Room WXYZJoin at ${joinUrl}`);
+    expect(within(screen.getByRole('banner')).getByRole('group').textContent).toBe(
+      `Join at ${joinUrl}Room WXYZ`,
+    );
 
     socket.fire('state', lobbyView([], { phase: 'QUESTION', questionIndex: 0 }));
-    strip = screen.getByRole('contentinfo');
-    expect(strip.textContent).toBe(`Room WXYZJoin at ${joinUrl}`);
+    expect(joinInfo().textContent).toBe(`Join at ${joinUrl}Room WXYZ`);
+  });
+
+  it('frames every state with a marquee bulb rail at the top and the bottom', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView());
+    const main = screen.getByRole('main');
+    const rails = main.querySelectorAll(':scope > [data-bulbs="rail"]');
+    expect(rails).toHaveLength(2);
+    expect(main.firstElementChild).toBe(rails[0]);
+    expect(main.querySelector(':scope > header')?.previousElementSibling).toBe(rails[0]);
   });
 
   it('shows the join error, such as an unknown room, with a link home', () => {
@@ -441,9 +455,9 @@ describe('Screen', () => {
       return socket;
     }
 
-    it('shows "Question N of M" and the question text', () => {
+    it('shows "Question N / M" in the header pill and the question text', () => {
       show(questionView());
-      expect(screen.getByText('Question 3 of 10')).toBeTruthy();
+      expect(within(screen.getByRole('banner')).getByText('Question 3 / 10')).toBeTruthy();
       expect(
         screen.getByRole('heading', { level: 1, name: 'What is the capital of Australia?' }),
       ).toBeTruthy();
@@ -515,13 +529,15 @@ describe('Screen', () => {
       expect(screen.getByRole('heading', { level: 1 }).className).not.toBe(shortClass);
     });
 
-    it('shows the winner in a banner in their colour, in place of the status', () => {
+    it('shows the winner on the red first-to-buzz panel with their colour dot, in place of the status', () => {
       show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
-      const banner = screen.getByRole('heading', { level: 2, name: 'Ben' });
-      expect(banner.style.backgroundColor).not.toBe('');
+      const panel = screen.getByRole('region', { name: 'Buzz result' });
+      expect(panel.className).toContain('bg-buzz');
+      expect(within(panel).getByText('First to buzz')).toBeTruthy();
+      const banner = within(panel).getByRole('heading', { level: 2, name: 'Ben' });
       const probe = document.createElement('div');
       probe.style.backgroundColor = ben.color;
-      expect(banner.style.backgroundColor).toBe(probe.style.backgroundColor);
+      expect(colourDot(banner).style.backgroundColor).toBe(probe.style.backgroundColor);
       expect(screen.queryByRole('status')).toBeNull();
     });
 
@@ -937,8 +953,7 @@ describe('Screen result states', () => {
       socket.fire('fx', { kind: 'correct', playerId: 'p2', points: 100 });
       expect(flash()?.dataset.flash).toBe('correct');
       expect(flash()?.className).toContain('bg-win');
-      const name = screen.getByText('Ben ✓', { exact: false });
-      expect(within(name).getByText('+100').className).toContain('animate-float-up');
+      expect(within(scorer()!).getByText('+100').className).toContain('animate-float-up');
 
       act(() => vi.advanceTimersByTime(FX_MS));
       expect(flash()).toBeNull();
@@ -948,8 +963,8 @@ describe('Screen result states', () => {
     it('a wrong answer flashes red and greys out the winner’s banner until the reopen', () => {
       vi.useFakeTimers();
       const socket = show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
-      const coloured = screen.getByRole('heading', { level: 2, name: 'Ben' });
-      expect(coloured.style.backgroundColor).not.toBe('');
+      const panel = () => screen.getByRole('region', { name: 'Buzz result' });
+      expect(panel().className).toContain('bg-buzz');
 
       socket.fire(
         'state',
@@ -958,8 +973,9 @@ describe('Screen result states', () => {
       socket.fire('fx', { kind: 'wrong', playerId: 'p2' });
       expect(flash()?.dataset.flash).toBe('wrong');
       expect(flash()?.className).toContain('bg-buzz');
+      expect(panel().dataset.judged).toBe('wrong');
+      expect(panel().className).not.toContain('bg-buzz');
       const greyed = screen.getByRole('heading', { level: 2, name: 'Ben' });
-      expect(greyed.style.backgroundColor).toBe('');
       expect(greyed.className).toContain('text-muted');
       expect(greyed.className).toContain('line-through');
 
@@ -996,11 +1012,12 @@ describe('Screen result states', () => {
       questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2', ...overrides });
     const timer = () => screen.queryByRole('timer', { name: 'Answer time' });
 
-    it('shows a large countdown beside the winner’s banner, counting down', () => {
+    it('shows a large countdown on the winner’s panel, counting down', () => {
       vi.useFakeTimers();
       show(buzzed({ answerTimer: { seconds: 5, up: false } }));
-      const banner = screen.getByRole('heading', { level: 2, name: 'Ben' });
-      expect(timer()?.parentElement).toBe(banner.parentElement);
+      const panel = screen.getByRole('region', { name: 'Buzz result' });
+      expect(within(panel).getByRole('timer', { name: 'Answer time' })).toBe(timer());
+      expect(timer()?.className).toContain('font-display');
       expect(timer()?.textContent).toBe('5');
       act(() => vi.advanceTimersByTime(2000));
       expect(timer()?.textContent).toBe('3');
@@ -1015,7 +1032,7 @@ describe('Screen result states', () => {
       socket.fire('state', buzzed({ answerTimer: { seconds: 3, up: true } }));
       socket.fire('fx', { kind: 'timeUp', playerId: 'p2' });
       expect(timer()?.textContent).toBe('Time’s up!');
-      expect(timer()?.className).toContain('bg-buzz');
+      expect(timer()?.className).toContain('bg-buzz-ink');
       expect(flash()?.dataset.flash).toBe('timeUp');
       expect(flash()?.className).toContain('bg-buzz');
       expect(screen.getByRole('heading', { level: 2, name: 'Ben' })).toBeTruthy();
@@ -1057,13 +1074,13 @@ describe('Screen result states', () => {
 
     it('names the player who answered correctly', () => {
       show(revealView());
-      expect(screen.getByText('Ben ✓')).toBeTruthy();
+      expect(scorer()?.textContent).toBe('Ben ✓');
     });
 
     it('names nobody when the last eligible player answered wrong', () => {
       show(revealView({ lockedOut: ['p2'], scorerId: null }));
       expect(screen.getByText(ANSWER)).toBeTruthy();
-      expect(screen.queryByText('Ben ✓', { exact: false })).toBeNull();
+      expect(scorer()).toBeNull();
     });
 
     it('names nobody after a skipped question', () => {

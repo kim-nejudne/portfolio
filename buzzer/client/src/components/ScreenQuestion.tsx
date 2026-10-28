@@ -8,9 +8,17 @@ import {
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useRecentFx } from '../lib/useRecentFx.js';
+import { Icon } from './Icon.js';
+
+/** The gold stage ring round the hero panel: 6px of base, then 4px of gold, at 1280 wide. */
+const STAGE_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]';
+
+/** A small uppercase label on the Screen (13–16px at 1280 wide). */
+const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] uppercase';
 
 /**
- * The Screen during a question: its number, text and image, then the buzzer status or, once
+ * The Screen during a question: its text and image in a card (the number is in the header), then
+ * the buzzer status or, once
  * someone has won the buzz, their banner and the "also buzzed" gaps (UI spec, Screen view).
  * The answer shows only when the view carries it, which the server allows at REVEAL alone.
  * `imageSrc` replaces the room's image URL, for the set editor's preview of a stored blob.
@@ -23,26 +31,29 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const winner = view.players.find((p) => p.id === view.winnerId);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-[3vh] px-[5vw] pt-[4vh] pb-[3vh]">
-      <p className="shrink-0 text-[2.4vw] text-muted">
-        Question {view.questionIndex + 1} of {view.questionCount}
-      </p>
-      <div className="flex min-h-0 flex-1 items-center gap-[4vw]">
-        {text && (
-          <h1
-            className={`min-w-0 flex-1 overflow-hidden font-display leading-tight break-words ${questionTextClass(text, question.imageId !== undefined)}`}
-          >
-            {text}
-          </h1>
-        )}
-        {question.imageId && (
-          <img
-            src={imageSrc ?? imageUrl(view.code, question.imageId)}
-            alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
-            className="h-full min-h-0 min-w-0 flex-1 object-contain"
-          />
-        )}
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-[4vh] px-[3.75vw] pt-[1vh] pb-[3vh]">
+      <section
+        aria-label="Question"
+        className="flex min-h-0 flex-1 flex-col gap-[2vh] rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
+      >
+        <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
+        <div className="flex min-h-0 flex-1 items-center gap-[4vw]">
+          {text && (
+            <h1
+              className={`min-w-0 flex-1 overflow-hidden leading-tight font-bold break-words ${questionTextClass(text, question.imageId !== undefined)}`}
+            >
+              {text}
+            </h1>
+          )}
+          {question.imageId && (
+            <img
+              src={imageSrc ?? imageUrl(view.code, question.imageId)}
+              alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
+              className="h-full min-h-0 min-w-0 flex-1 rounded-[min(0.94vw,1.67vh)] object-contain"
+            />
+          )}
+        </div>
+      </section>
       {view.phase === 'REVEAL' ? (
         <Reveal
           answer={question.answer}
@@ -70,8 +81,10 @@ function BuzzerStatus({ open }: { open: boolean }) {
   return (
     <p
       role="status"
-      className={`shrink-0 self-center rounded-full px-[4vw] py-[1.6vh] font-display text-[3.4vw] ${
-        open ? 'bg-buzz text-ink motion-safe:animate-buzz-pulse' : 'bg-surface text-muted'
+      className={`shrink-0 self-center rounded-full border-2 px-[4vw] py-[1.6vh] font-display text-[min(3.4vw,6vh)] ${
+        open
+          ? `border-buzz bg-buzz text-ink [text-shadow:0.25vw_0.25vw_0_var(--color-buzz-ink)] motion-safe:animate-buzz-pulse ${STAGE_RING}`
+          : 'border-edge bg-surface text-muted'
       }`}
     >
       {open ? 'Buzzers OPEN' : 'Buzzers locked'}
@@ -85,12 +98,12 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
   if (out.length === 0) return null;
   return (
     <div className="flex max-w-full shrink-0 items-baseline justify-center gap-[1.2vw]">
-      <p className="shrink-0 text-[2vw] text-muted">locked out</p>
+      <p className={`shrink-0 text-muted ${SCREEN_LABEL}`}>locked out</p>
       <ul aria-label="Locked out" className="flex flex-wrap gap-[1vw] overflow-hidden">
         {out.map((player) => (
           <li
             key={player.id}
-            className="rounded-full bg-edge px-[1.4vw] py-[0.6vh] font-display text-[2vw] text-muted line-through"
+            className="rounded-full border-2 border-edge bg-surface px-[1.4vw] py-[0.6vh] font-display text-[min(2vw,3.6vh)] text-muted line-through"
           >
             {player.name}
           </li>
@@ -110,16 +123,21 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
     recent?.fx.kind === 'correct' && recent.fx.playerId === scorer?.id ? recent : undefined;
   return (
     <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
-      <p className="text-[2vw] text-muted">Answer</p>
-      <p className="max-w-full rounded-[3vh] bg-surface px-[4vw] py-[2vh] text-center font-display text-[min(5vw,10vh)] leading-tight break-words text-accent">
+      <p className={`text-muted ${SCREEN_LABEL}`}>Answer</p>
+      <p
+        className={`max-w-full rounded-[min(1.88vw,3.3vh)] bg-surface px-[4vw] py-[2vh] text-center font-display text-[min(5vw,10vh)] leading-tight break-words text-accent ${STAGE_RING}`}
+      >
         {answer}
       </p>
       {scorer && (
         <p
+          data-scorer
           style={{ backgroundColor: scorer.color }}
-          className="relative rounded-full px-[2.4vw] py-[1vh] font-display text-[min(3vw,6vh)] text-bg"
+          className="relative flex items-center gap-[0.6vw] rounded-full px-[2.4vw] py-[1vh] font-display text-[min(3vw,6vh)] text-bg"
         >
-          {scorer.name} ✓
+          {scorer.name}
+          <span className="sr-only"> ✓</span>
+          <Icon name="check" className="size-[1em]" />
           {scored?.fx.kind === 'correct' && (
             <span
               key={scored.seq}
@@ -141,10 +159,10 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
       role="timer"
       aria-label="Answer time"
       data-up={countdown.up || undefined}
-      className={`flex min-w-[14vw] shrink-0 items-center justify-center rounded-[3vh] px-[2vw] font-display leading-none whitespace-nowrap tabular-nums ${
+      className={`shrink-0 self-end font-display leading-none whitespace-nowrap tabular-nums ${
         countdown.up
-          ? 'bg-buzz text-[min(4vw,8vh)] text-ink'
-          : 'bg-surface text-[min(8vw,16vh)] text-accent'
+          ? 'rounded-full bg-buzz-ink px-[1.6vw] py-[1vh] text-[min(2.6vw,4.6vh)] text-ink'
+          : 'text-[min(5.6vw,10vh)] text-buzz-ink'
       }`}
     >
       {countdownText(countdown)}
@@ -167,36 +185,66 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     const player = players.find((p) => p.id === gap.playerId);
     return player ? [{ player, gapMs: gap.gapMs }] : [];
   });
+  // Bungee is wide: a long name steps down so more of it fits before the ellipsis.
+  const nameSize = winner.name.length > 9 ? 'text-[min(5.6vw,10vh)]' : 'text-[min(8.1vw,14.4vh)]';
   return (
-    <section aria-label="Buzz result" className="flex shrink-0 flex-col items-center gap-[2vh]">
-      <div className="flex w-full items-stretch gap-[2vw]">
+    <section
+      aria-label="Buzz result"
+      data-judged={judgedWrong ? 'wrong' : undefined}
+      className={`mx-[0.8vw] mb-[0.8vw] flex shrink-0 items-center gap-[3vw] rounded-[min(1.88vw,3.3vh)] px-[3vw] py-[3vh] transition-colors ${STAGE_RING} ${
+        judgedWrong ? 'bg-surface' : 'bg-buzz'
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-[1vh]">
+        <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-muted' : 'text-buzz-ink'}`}>
+          First to buzz
+        </p>
         <h2
-          style={judgedWrong ? undefined : { backgroundColor: winner.color }}
-          data-judged={judgedWrong ? 'wrong' : undefined}
-          className={`min-w-0 flex-1 truncate rounded-[3vh] px-[3vw] py-[2vh] text-center font-display text-[min(8vw,16vh)] leading-none transition-colors ${
-            judgedWrong ? 'bg-edge text-muted line-through' : 'text-bg'
+          className={`flex min-w-0 items-center gap-[1.4vw] font-display leading-none ${nameSize} ${
+            judgedWrong
+              ? 'text-muted line-through'
+              : 'text-ink [text-shadow:0.39vw_0.39vw_0_var(--color-buzz-ink)]'
           }`}
         >
-          {winner.name}
+          {/* Their palette colour, so the player can tell it is them (DECISIONS, Prime Time). */}
+          <span
+            aria-hidden="true"
+            data-player-color
+            style={{ backgroundColor: winner.color }}
+            className="size-[0.4em] shrink-0 rounded-full border-[0.05em] border-buzz-ink"
+          />
+          <span className="min-w-0 truncate pb-[0.08em]">{winner.name}</span>
         </h2>
-        {countdown && <Countdown countdown={countdown} />}
       </div>
-      {others.length > 0 && (
-        <div className="flex max-w-full items-baseline gap-[1.6vw]">
-          <p className="shrink-0 text-[2vw] text-muted">also buzzed</p>
-          <ol aria-label="Also buzzed" className="flex flex-wrap gap-[1.2vw] overflow-hidden">
-            {others.map(({ player, gapMs }) => (
-              <li
-                key={player.id}
-                className="flex items-baseline gap-[0.6vw] text-[2.2vw] whitespace-nowrap"
+      {(countdown || others.length > 0) && (
+        <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-[1.4vh]">
+          {countdown && <Countdown countdown={countdown} />}
+          {others.length > 0 && (
+            <>
+              <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-muted' : 'text-buzz-ink'}`}>
+                also buzzed
+              </p>
+              <ol
+                aria-label="Also buzzed"
+                className="flex flex-wrap justify-end gap-[0.8vw] overflow-hidden"
               >
-                <span style={{ color: player.color }} className="font-display">
-                  {player.name}
-                </span>
-                <span className="text-muted tabular-nums">{formatGap(gapMs)}</span>
-              </li>
-            ))}
-          </ol>
+                {others.map(({ player, gapMs }) => (
+                  <li
+                    key={player.id}
+                    className="flex items-center gap-[0.6vw] rounded-full bg-buzz-ink px-[1.1vw] py-[0.8vh] text-[min(1.6vw,2.8vh)] whitespace-nowrap"
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{ backgroundColor: player.color }}
+                      className="size-[0.6em] shrink-0 rounded-full"
+                    />
+                    <span className="font-bold text-ink">{player.name}</span>
+                    <span className="text-buzz-ink-soft tabular-nums">{formatGap(gapMs)}</span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
         </div>
       )}
     </section>

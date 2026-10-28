@@ -8,8 +8,10 @@ import {
 } from '../../../shared/constants.js';
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
+import { Icon } from '../components/Icon.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ReconnectingBanner } from '../components/ReconnectingBanner.js';
+import { ScreenHeader, ScreenRail } from '../components/ScreenChrome.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
@@ -33,6 +35,7 @@ import { useJoinOrigin } from '../lib/useJoinOrigin.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
+import { BUTTON_PRIMARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 
 interface ScreenProps {
@@ -139,6 +142,14 @@ function ScreenStage({ view, canHost, send }: StageProps) {
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
+      <ScreenRail />
+      <ScreenHeader
+        code={code}
+        questionIndex={view.questionIndex}
+        questionCount={view.questionCount}
+        numbered={view.question !== null && view.phase !== 'FINAL'}
+        url={url}
+      />
       <div className="relative flex min-h-0 flex-1 flex-col">
         {/* With host controls, the content stops above the bar, so it never hides the reveal or the podium. */}
         <div className={`relative flex min-h-0 flex-1 flex-col ${canHost ? 'mb-[8vh]' : ''}`}>
@@ -168,7 +179,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
         {/* Last, so the bar stays above the scoreboard and the flash. */}
         {canHost && <ScreenHostControls view={view} command={command} />}
       </div>
-      <BottomStrip code={code} url={url} />
+      <ScreenRail />
       <Toast toast={toast} />
       <ReconnectingBanner />
     </main>
@@ -199,18 +210,22 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
   const many = view.players.length > MANY_PLAYERS;
   const qrSize = many ? 'min(30vh, 22cqw)' : 'min(36vh, 28cqw)';
   return (
-    <div className="flex min-h-0 flex-1 gap-[3vw] px-[5vw] pt-[5vh] pb-[2vh]">
+    <div className="flex min-h-0 flex-1 gap-[3vw] px-[3.75vw] pt-[2vh] pb-[3vh]">
       {/* A size container: without the panel it is 90vw wide, so N vw is written N / 0.9 cqw and
           nothing changes; beside the panel everything shrinks with it instead of wrapping. */}
       <div className="@container flex min-w-0 flex-1 flex-col gap-[3vh]">
         <div className="flex items-center justify-between gap-[4.44cqw]">
           <div className="flex min-w-0 flex-col gap-[1vh]">
-            <p className="text-[2.44cqw] text-muted">{view.title}</p>
+            <p className="text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
+              {view.title}
+            </p>
             <p className="text-[2.89cqw]">Join at</p>
             <p className="font-display text-[3.56cqw] break-all text-accent">{displayUrl(url)}</p>
-            <p className="mt-[2vh] text-[2.44cqw] text-muted">Room code</p>
+            <p className="mt-[2vh] text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
+              Room code
+            </p>
             <h1
-              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)]'} leading-none tracking-[0.12em]`}
+              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)]'} leading-none tracking-[0.12em] text-accent [text-shadow:0.4cqw_0.4cqw_0_var(--color-bg-deep)]`}
             >
               {view.code}
             </h1>
@@ -223,7 +238,8 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
           </div>
           {/* Pair host phone sits under the join QR, where the column has height to spare (F38). */}
           <div className="flex shrink-0 flex-col items-center gap-[2vh]">
-            <div className="rounded-[2vh] bg-white p-[2vh]">
+            {/* White behind the QR, so every phone camera reads it, inside the gold stage ring. */}
+            <div className="rounded-[2vh] bg-white p-[2vh] shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]">
               <QRCodeSVG
                 value={url}
                 title={`Join at ${url}`}
@@ -261,9 +277,9 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
         onClick={() => command.run('host:start', {})}
         disabled={command.busy}
         aria-keyshortcuts="Space"
-        className="rounded-2xl bg-accent px-6 py-4 font-display text-2xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
+        className={`${BUTTON_PRIMARY} flex items-center justify-center gap-3 text-2xl`}
       >
-        Start game{' '}
+        Start game <Icon name="arrow-right" className="size-7" />
         <kbd aria-hidden className="ml-2 font-mono text-base opacity-70">
           Space
         </kbd>
@@ -288,7 +304,7 @@ function PlayerChips({ players }: { players: RankedPlayer[] }) {
   }
   return (
     <section aria-label="Players" className="flex min-h-0 flex-1 flex-col gap-[2vh]">
-      <p className="text-[2.44cqw] text-muted">
+      <p className="text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
         {players.length} {players.length === 1 ? 'player' : 'players'}
       </p>
       <ul
@@ -309,29 +325,22 @@ function PlayerChips({ players }: { players: RankedPlayer[] }) {
   );
 }
 
-/** Always on screen, so late joiners can get in (UI spec, Screen view). */
-function BottomStrip({ code, url }: { code: string; url: string }) {
-  return (
-    <footer className="flex shrink-0 items-center justify-between gap-[2vw] border-t-2 border-edge bg-surface px-[3vw] py-[1.4vh] text-[1.8vw]">
-      <p>
-        Room <span className="font-display tracking-[0.15em] text-accent">{code}</span>
-      </p>
-      <p>
-        Join at <span className="font-display text-accent">{displayUrl(url)}</span>
-      </p>
-    </footer>
-  );
-}
-
 function ScreenMessage({ title, link = true }: { title: string; link?: boolean }) {
   return (
-    <main className="flex h-dvh flex-col items-center justify-center gap-[4vh] bg-bg px-4 text-center">
-      <h1 className="font-display text-[clamp(2rem,5vw,10vh)]">{title}</h1>
-      {link && (
-        <Link to="/" className="text-[clamp(1rem,2vw,4vh)] underline underline-offset-4">
-          Back to start
-        </Link>
-      )}
+    <main className="flex h-dvh flex-col bg-bg text-center">
+      <ScreenRail />
+      <div className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-4">
+        <h1 className="font-display text-[clamp(2rem,5vw,10vh)]">{title}</h1>
+        {link && (
+          <Link
+            to="/"
+            className="text-[clamp(1rem,2vw,4vh)] text-muted underline underline-offset-4 hover:text-ink"
+          >
+            Back to start
+          </Link>
+        )}
+      </div>
+      <ScreenRail />
     </main>
   );
 }

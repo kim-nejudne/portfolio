@@ -3,6 +3,7 @@ import type { QuestionSet, ScreenView } from '../../../shared/types.js';
 import { HOVER } from '../lib/hover.js';
 import { previewView } from '../lib/setEditor.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
+import { ScreenHeader, ScreenRail } from './ScreenChrome.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
 const barButtonShape = `rounded-xl border-2 px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
@@ -71,7 +72,15 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
       aria-label={`Preview of question ${index + 1}`}
       className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg"
     >
+      <ScreenRail />
+      <ScreenHeader
+        code={view.code}
+        questionIndex={view.questionIndex}
+        questionCount={view.questionCount}
+        numbered
+      />
       <ScreenQuestion view={withoutMissingImage(view, imageSrc)} imageSrc={imageSrc} />
+      <ScreenRail />
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t-2 border-edge bg-surface px-4 py-3">
         <p className="text-muted">Preview: how the Screen shows this question</p>
         <div className="flex flex-wrap gap-2">
