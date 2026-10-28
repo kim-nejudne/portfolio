@@ -16,3 +16,6 @@
 *.key
 
 .DS_Store
+
+# graphify's knowledge-graph output, in whichever project it was run.
+graphify-out/
