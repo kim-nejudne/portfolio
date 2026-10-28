@@ -6,7 +6,9 @@
 // - "The CSP in §10 is present": every location that sends headers sends the §10 policy verbatim
 //   (nginx drops inherited add_header lines in a location that has its own).
 // - "`deploy/deploy.sh` ships `dist/` to `/var/www/ts-dojo`": shellcheck and `bash -n` pass, and
-//   the steps §10 First deploy lists are there, in order.
+//   the steps §10 First deploy lists are there, in order, less the deviation recorded in
+//   docs/progress.md: as `deploy`, the backup is /var/www/ts-dojo.prev and there is no chown or
+//   reload. The curl checks live in deploy/confirm.sh, which push-to-deploy runs too.
 // - "`deploy/README.md` exists with the §10 table and the Deploying, Rollback, Caching, DNS/TLS
 //   and nginx sections": the table rows are read from docs/spec.md §10 and found verbatim.
 import { spawnSync } from 'node:child_process';
@@ -137,24 +139,28 @@ describe('deploy/nginx/ts-dojo.conf', () => {
 
 describe('deploy/deploy.sh', () => {
   const script = read('./deploy.sh');
-  const path = file('./deploy.sh');
+  const confirm = read('./confirm.sh');
 
-  test('passes shellcheck and bash -n', () => {
-    const lint = spawnSync('shellcheck', [path], { encoding: 'utf8' });
-    expect(lint.error, 'shellcheck is installed').toBeUndefined();
-    expect(lint.stdout + lint.stderr).toBe('');
-    expect(lint.status).toBe(0);
-    // -n parses without executing anything.
-    const parse = spawnSync('bash', ['-n', path], { encoding: 'utf8' });
-    expect(parse.stderr).toBe('');
-    expect(parse.status).toBe(0);
-  });
+  test.each(['./deploy.sh', './confirm.sh'])(
+    '%s passes shellcheck and bash -n',
+    (name) => {
+      const path = file(name);
+      const lint = spawnSync('shellcheck', [path], { encoding: 'utf8' });
+      expect(lint.error, 'shellcheck is installed').toBeUndefined();
+      expect(lint.stdout + lint.stderr).toBe('');
+      expect(lint.status).toBe(0);
+      // -n parses without executing anything.
+      const parse = spawnSync('bash', ['-n', path], { encoding: 'utf8' });
+      expect(parse.stderr).toBe('');
+      expect(parse.status).toBe(0);
+    },
+  );
 
   test('requires TS_DOJO_HOST and ships to /var/www/ts-dojo', () => {
     expect(script).toMatch(/^set -euo pipefail$/m);
     expect(script).toContain('HOST="${TS_DOJO_HOST:?');
     expect(script).toMatch(/^REMOTE="\/var\/www\/ts-dojo"$/m);
-    expect(script).toContain('BACKUP="/var/backups/ts-dojo-${STAMP}.tar.gz"');
+    expect(script).not.toContain('/var/backups');
   });
 
   test('precompresses js, css, html, svg, json and d.ts with gzip -9', () => {
@@ -177,15 +183,15 @@ describe('deploy/deploy.sh', () => {
       // F14: the pre-bundled packages the new sw.js and workers name
       '${DIST}/packages/types.json',
       'gzip -9 -k -f',
-      'tar -czf ${BACKUP}',
+      // staged, never straight into the live directory
+      'rsync -rltz --delete --chmod=D755,F644 "${DIST}/" "${HOST}:${REMOTE}.next/"',
+      // the backup: the outgoing build, before anything --deletes it
+      'rsync -a --delete ${REMOTE}/ ${REMOTE}.prev/',
       // assets, libs and (F14) packages first, so the new index.html and sw.js never land
       // before their files
-      'rsync -az "${DIST}/assets" "${DIST}/ts" "${DIST}/packages"',
-      'rsync -az --delete "${DIST}/" "${HOST}:${REMOTE}/"',
-      'chown -R www-data:www-data ${REMOTE}',
-      'nginx -t',
-      'systemctl reload nginx',
-      'curl ',
+      'rsync -a ${REMOTE}.next/assets ${REMOTE}.next/ts ${REMOTE}.next/packages ${REMOTE}/',
+      'rsync -a --delete ${REMOTE}.next/ ${REMOTE}/',
+      './deploy/confirm.sh "$DIST"',
       'Rollback',
     ];
     let from = 0;
@@ -196,8 +202,16 @@ describe('deploy/deploy.sh', () => {
     }
   });
 
+  test('runs as deploy: no chown, no nginx reload', () => {
+    const code = script
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('#'))
+      .join('\n');
+    expect(code).not.toMatch(/chown|systemctl|nginx -t/);
+  });
+
   test('checks the deployed site the way §12 F15 asks', () => {
-    expect(script).toContain(`SITE="${HOST}"`);
+    expect(confirm).toContain(`SITE="${HOST}"`);
     for (const check of [
       'https://${SITE}/',
       'http://${SITE}/',
@@ -217,7 +231,7 @@ describe('deploy/deploy.sh', () => {
       // this build is the one served
       'cmp -s - "${DIST}/sw.js"',
     ]) {
-      expect(script).toContain(check);
+      expect(confirm).toContain(check);
     }
   });
 });

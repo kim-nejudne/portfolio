@@ -1,0 +1,179 @@
+# Push-to-deploy for kimnejudne.dev.
+#
+# This is `hub/deploy/deploy.sh` run by a machine instead of a person, in the
+# shape of deploy-poketrack.yml: the build and the whole assertion suite run on
+# the runner, the verified `dist/` is staged into /var/www/hub.next, one swap on
+# the box keeps the outgoing build in /var/www/hub.prev, and the nginx checks in
+# `hub/deploy/confirm.sh` run against the real URL afterwards.
+#
+# The hub is static: no image, no container, no nginx reload. /var/www/hub is
+# deploy:www-data and nginx only reads it, as with /var/www/poketrack.
+#
+# Rollback, one release back:
+#   ssh $DEPLOY_HOST 'rsync -a --delete /var/www/hub.prev/ /var/www/hub/'
+# Further back, check out the old sha and run deploy.sh by hand from there.
+
+name: Deploy hub
+
+on:
+  push:
+    branches: [main]
+    # The hub's `prebuild` renders every spoke's CASE-STUDY.md into /work, so a
+    # case-study edit is a hub release even though it lives in a sibling.
+    # cv/content.md is content, so only the READMEs are ignored.
+    paths:
+      - "hub/**"
+      - "!hub/**/README.md"
+      - "poketrack/CASE-STUDY.md"
+      - "ts-dojo/CASE-STUDY.md"
+      - ".github/actions/hub-browser-tools/**"
+      - ".github/workflows/deploy-hub.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-hub
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Everything deploy.sh does before it touches the box: the CV guard, the
+  # build (whose prebuild runs identity-check and the case studies), the
+  # output guards, the 85 assertions against `vite preview`, the precompress.
+  build:
+    name: build and verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: hub
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hub/package-lock.json
+
+      - uses: ./.github/actions/hub-browser-tools
+        id: chrome
+
+      # See deploy.sh: no override, and checked before two minutes of build.
+      - name: CV is not the placeholder
+        run: |
+          if [ -f cv/PLACEHOLDER ]; then
+            echo "public/cv.pdf is still the placeholder — replace it, then rm cv/PLACEHOLDER (see cv/README.md)" >&2
+            exit 1
+          fi
+
+      - name: install
+        run: npm ci
+
+      - name: build
+        env:
+          CHROMIUM: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run build
+
+      # The rsync below runs with --delete, so a build that skipped prebuild
+      # would remove live case-study URLs while the homepage still links them.
+      # The spoke ids mirror deploy.sh's list; verify.mjs asserts the same set.
+      - name: output guards
+        run: |
+          test -f dist/index.html
+          for spoke in poketrack ts-dojo; do
+            test -f "dist/work/$spoke/index.html" || { echo "missing dist/work/$spoke/index.html" >&2; exit 1; }
+          done
+          test -f dist/work/index.html || { echo "missing dist/work/index.html (it 403s, not 404s)" >&2; exit 1; }
+          test -f dist/cv.pdf || { echo "missing dist/cv.pdf — it belongs in public/" >&2; exit 1; }
+
+      - name: verify
+        env:
+          CHROMIUM: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          npx vite preview --port 4173 &
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:4173/ >/dev/null && break
+            sleep 0.5
+          done
+          npm run verify -- http://localhost:4173/
+
+      # After verify, so the assertions ran against exactly what ships minus
+      # the .gz siblings. Images excluded for the reason deploy.sh gives.
+      - name: precompress
+        run: |
+          find dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \) \
+            -exec gzip -9 -k -f {} +
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hub-dist
+          path: hub/dist
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    name: droplet
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ssh
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host droplet
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh droplet 'echo "connected as $(id -un)@$(hostname)"'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hub-dist
+          path: dist
+
+      # Staged, never straight into the live directory: a dropped connection
+      # mid-rsync would otherwise leave a half-written site serving.
+      - name: stage
+        run: |
+          test -f dist/index.html
+          rsync -rltz --delete --chmod=D755,F644 dist/ droplet:/var/www/hub.next/
+
+      - name: swap, keeping the outgoing build in hub.prev
+        run: |
+          ssh droplet 'bash -s' <<'EOF'
+          set -euo pipefail
+          test -f /var/www/hub.next/index.html || { echo "ABORT: no staged build in /var/www/hub.next"; exit 1; }
+          rsync -a --delete /var/www/hub/ /var/www/hub.prev/
+          rsync -a --delete /var/www/hub.next/ /var/www/hub/
+          echo "swapped; outgoing build kept in /var/www/hub.prev"
+          EOF
+
+      - name: smoke
+        run: |
+          curl -fsS -o /dev/null -w 'GET / -> %{http_code}\n' https://kimnejudne.dev/
+          hub/deploy/confirm.sh

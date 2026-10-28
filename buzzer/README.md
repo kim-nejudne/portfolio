@@ -57,18 +57,35 @@ curl -i http://localhost:3000/healthz     # 200 {"ok":true}
 
 Buzzr runs on Kim's DigitalOcean droplet at **https://buzzr.kimnejudne.dev**. It follows the same pattern as the other apps on that box.
 
-|         |                                                                                                                                          |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Image   | `buzzr:<tag>`, built on the workstation and shipped with `docker save \| ssh docker load`                                                |
-| Process | one container, Node on **loopback `127.0.0.1:3005`**, from `deploy/compose.deploy.yaml`                                                  |
-| Stack   | `/opt/buzzr/compose.yaml` and `/opt/buzzr/.env` (mode 600, one key: `IMAGE_TAG`)                                                         |
-| nginx   | `/etc/nginx/sites-available/buzzr`, from `deploy/nginx/buzzr.conf`. Proxies everything, including the WebSocket upgrade on `/socket.io/` |
-| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                       |
-| Memory  | `mem_limit: 384m`, `IMAGES_MAX_MB=200`. The box has about 700 MB free next to its other apps                                             |
+|         |                                                                                                                                              |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image   | `buzzr:<tag>`, built on the workstation and shipped with `docker save \| ssh docker load`                                                    |
+| Process | one container, Node on **loopback `127.0.0.1:3005`**, from `deploy/compose.deploy.yaml`                                                      |
+| Stack   | `/opt/buzzr/compose.yaml` and `/opt/buzzr/.env` (mode 600, one key: `IMAGE_TAG`), both owned by `deploy`; `/opt/buzzr` is `root:deploy` 1775 |
+| nginx   | `/etc/nginx/sites-available/buzzr`, from `deploy/nginx/buzzr.conf`. Proxies everything, including the WebSocket upgrade on `/socket.io/`     |
+| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                           |
+| Memory  | `mem_limit: 384m`, `IMAGES_MAX_MB=200`. The box has about 700 MB free next to its other apps                                                 |
 
 Two placeholders run through these steps, and neither is recorded in this repository. `$DEPLOY_HOST` is the droplet as `user@host`, for ssh and scp. `$DROPLET_IP` is its IPv4 address, for DNS. Run every command from `buzzer/`.
 
-> **A deploy ends every live game.** Rooms live in memory, so a restart drops them, and every connected device shows "This game has ended". Deploy when no game is running.
+> **A deploy ends every live game.** Rooms live in memory, so a restart drops them, and every connected device shows "This game has ended". Deploy when no game is running. The push-to-deploy workflow waits for this (below).
+
+**A push to `main` that touches `buzzer/` deploys it.** Markdown, `docs/` and `.claude/` changes don't count. The workflow is `.github/workflows/deploy-buzzer.yml` in the portfolio:
+
+1. typecheck, lint, format check and tests run on the runner.
+2. `scripts/docker-smoke.sh buzzr:<tag>` builds the image and smoke-tests it there.
+3. The image is shipped with `docker save | ssh docker load`, and `deploy/compose.deploy.yaml` is copied to `/opt/buzzr/compose.yaml`.
+4. On the box, as `deploy`, it counts established connections to `127.0.0.1:3005`. nginx keeps no upstream keepalive, so each one is a live WebSocket. It waits up to 10 minutes for the count to reach zero, and fails without changing anything if it doesn't.
+5. It re-points `IMAGE_TAG`, restarts, and waits for `/healthz`. If that never answers, it rolls `IMAGE_TAG` back.
+6. It checks `https://buzzr.kimnejudne.dev/healthz` from outside.
+
+A Screen left open on a TV keeps its socket, so the wait can fail with no game running. In that case:
+
+```sh
+gh workflow run deploy-buzzer.yml -f force=true   # ends any live games
+```
+
+The steps below are the same release done by hand, the break-glass path for when Actions is what's broken.
 
 ### First deploy
 
@@ -154,9 +171,9 @@ The vhost does three things that Buzzr needs:
 
 **8. Check it.** See [Health checks](#health-checks), then run the manual acceptance checklist in `docs/SPEC.md` on real devices. At least one phone should be on mobile data.
 
-### Routine deploy
+### Routine deploy (break-glass)
 
-Steps 5 and 6, without the scp:
+A push does this. By hand, steps 5 and 6 without the scp, as `deploy`:
 
 ```sh
 TAG=$(git log -1 --format=%h -- .)
@@ -170,10 +187,16 @@ When `deploy/compose.deploy.yaml` or `deploy/nginx/buzzr.conf` changes, copy it 
 
 ### Rolling back
 
-Earlier images stay on the box:
+Earlier images stay on the box. The push-button way re-points `IMAGE_TAG` through the same live-game wait and health gate, with no build:
 
 ```sh
 ssh $DEPLOY_HOST 'docker images buzzr'                       # known tags
+gh workflow run deploy-buzzer.yml -f tag=<good-tag>
+```
+
+Or by hand:
+
+```sh
 ssh $DEPLOY_HOST "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<good-tag>/' /opt/buzzr/.env \
   && cd /opt/buzzr && docker compose up -d"
 ```

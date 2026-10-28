@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 #
-# Ships a fresh build to the droplet. Run from the hub directory:
+# Ships a fresh build to the droplet. A push to `main` that touches hub/ does
+# this already (`.github/workflows/deploy-hub.yml`); this script is the same
+# release done by hand, the break-glass path when Actions is the thing that is
+# broken. Run from the hub directory, as `deploy`, never root:
 #
-#   HUB_HOST=user@host ./deploy/deploy.sh
+#   HUB_HOST=deploy@host ./deploy/deploy.sh
 #
 # The target is required rather than defaulted. It used to default to the
 # production droplet, which is convenient exactly once and wrong every other
@@ -11,8 +14,13 @@
 # has no safe way to be tried out. Export it once in your shell profile.
 #
 # The hub is static, so there is no image to build and no container to restart —
-# this is a verify, a build, a precompress, a backup, and an rsync. Adapted from
-# PLINTH's, which is the same shape.
+# this is a verify, a build, a precompress, a staged rsync and a swap that keeps
+# the outgoing build in /var/www/hub.prev. Adapted from PLINTH's, which is the
+# same shape.
+#
+# No chown and no nginx reload: /var/www/hub is deploy:www-data and nginx only
+# reads it, the same arrangement as /var/www/poketrack. nginx's own config is
+# root's and a person moves it.
 #
 # Two differences from PLINTH's, both because this is the apex domain:
 #   1. `npm run verify` is a gate rather than a habit. The hub is the page a
@@ -24,10 +32,8 @@
 #      301 rather than a second copy.
 set -euo pipefail
 
-HOST="${HUB_HOST:?set HUB_HOST to the droplet, as user@host}"
+HOST="${HUB_HOST:?set HUB_HOST to the droplet, as deploy@host}"
 REMOTE="/var/www/hub"
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BACKUP="/var/backups/hub-${STAMP}.tar.gz"
 
 cd "$(dirname "$0")/.."
 
@@ -125,61 +131,26 @@ echo "==> Precompress"
 find "$DIST" -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \) \
   -exec gzip -9 -k -f {} +
 
-echo "==> Back up current ${REMOTE} -> ${BACKUP}"
+# Staged into hub.next, never straight into the live directory: a dropped
+# connection mid-rsync would otherwise leave a half-written site serving.
+# --delete so removed asset hashes don't accumulate in the stage.
+echo "==> Stage to ${HOST}:${REMOTE}.next"
+rsync -rltz --delete --chmod=D755,F644 "${DIST}/" "${HOST}:${REMOTE}.next/"
+
+echo "==> Swap, keeping the outgoing build in ${REMOTE}.prev"
+# shellcheck disable=SC2029 # REMOTE is meant to expand here, on the workstation.
 ssh "$HOST" "
   set -e
-  mkdir -p /var/backups ${REMOTE}
-  if [ -n \"\$(ls -A ${REMOTE} 2>/dev/null)\" ]; then
-    tar -czf ${BACKUP} -C ${REMOTE} .
-    echo \"    backed up \$(du -h ${BACKUP} | cut -f1)\"
-  else
-    echo '    nothing to back up (empty)'
-  fi
+  test -f ${REMOTE}.next/index.html
+  rsync -a --delete ${REMOTE}/ ${REMOTE}.prev/
+  rsync -a --delete ${REMOTE}.next/ ${REMOTE}/
 "
 
-echo "==> Ship to ${HOST}:${REMOTE}"
-# --delete so removed asset hashes don't accumulate. Safe because this directory
-# holds nothing but build output, and the previous contents are in ${BACKUP}.
-rsync -az --delete "${DIST}/" "${HOST}:${REMOTE}/"
-
-echo "==> Reload nginx"
-ssh "$HOST" "chown -R www-data:www-data ${REMOTE} && nginx -t && systemctl reload nginx"
-
-# The two things `vite preview` cannot answer, because they are nginx's rather
-# than the build's: that `try_files $uri $uri/` resolves a directory to its
-# index, and that the slashless form 301s to the canonical one. Neither is a
-# code change — `hub.conf` is untouched by the case studies — so this is
-# confirmation rather than a test, but it is the only place it can happen.
-#
-# The index at `/work/` goes through the same two checks and is listed first,
-# because it is the one path here that failed differently — 403, not 404, since
-# `$uri/` resolved the directory and autoindex is off — and the only one that
-# is printed on the CV.
-echo "==> Confirm the case studies through nginx"
-for path in work work/poketrack work/ts-dojo; do
-  slash="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/${path}/")"
-  bare="$(curl -s -o /dev/null -w '%{http_code}' "https://kimnejudne.dev/${path}")"
-  printf '    /%-15s %s (bare: %s)\n' "${path}/" "$slash" "$bare"
-  [ "$slash" = "200" ] || { echo "    ^ expected 200" >&2; exit 1; }
-  [ "$bare" = "301" ] || { echo "    ^ expected 301 to the trailing-slash form" >&2; exit 1; }
-done
-
-# And the CV through nginx, where `/cv.pdf` falls past the root-asset regex into
-# `location /`. The content type is the assertion, not the status: `try_files`
-# ends in `=404` here so a missing file is honest, but the type is what proves
-# nginx is serving the PDF as a PDF rather than as a download of last resort.
-echo "==> Confirm the CV through nginx"
-cvtype="$(curl -sI "https://kimnejudne.dev/cv.pdf" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}')"
-printf '    /cv.pdf  %s\n' "${cvtype:-<none>}"
-case "$cvtype" in
-  application/pdf*) ;;
-  *) echo "    ^ expected application/pdf" >&2; exit 1 ;;
-esac
+./deploy/confirm.sh
 
 cat <<EOF
 ==> Done: https://kimnejudne.dev
 
-Rollback if this was wrong:
-  ssh ${HOST} 'rm -rf ${REMOTE}/* && tar -xzf ${BACKUP} -C ${REMOTE} \\
-    && chown -R www-data:www-data ${REMOTE} && systemctl reload nginx'
+Rollback if this was wrong (one release back):
+  ssh ${HOST} 'rsync -a --delete ${REMOTE}.prev/ ${REMOTE}/'
 EOF

@@ -90,11 +90,19 @@ branch here that is meant to move.
 Everything runs on one DigitalOcean droplet behind nginx, with TLS per
 subdomain. There is no Vercel, no Netlify and no serverless anything —
 containers for the projects with a server, static files for the ones without.
-Images are built on a workstation and shipped over ssh, because the box has not
-the memory headroom to build them next to its co-tenants.
+The box builds nothing, because it does not have the memory headroom to build
+next to its co-tenants.
 
-Each project's `deploy/` directory carries its own runbook, and that runbook is
-the authority on ports, environment and exact commands.
+**A push to `main` deploys whichever project it touches.** Each project has its
+own workflow in `.github/workflows/deploy-*.yml`. Its checks run on the runner
+first, and the build or image they verified is shipped over ssh as an
+unprivileged `deploy` user. The swap keeps the previous release for rollback,
+and smoke checks run against the live URL afterwards. Buzzr also waits until no
+game is running, because its rooms live in memory.
+
+Each project's `deploy/` directory (`buzzer/README.md` for Buzzr) carries its
+own runbook. That runbook is the authority on ports, environment and exact
+commands, and its manual steps are the break-glass path.
 
 ## Provenance
 

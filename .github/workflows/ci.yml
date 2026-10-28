@@ -165,39 +165,10 @@ jobs:
           cache: npm
           cache-dependency-path: hub/package-lock.json
 
-      # `verify.mjs` and `axe.mjs` drive a real headless browser over the
-      # DevTools protocol. `ubuntu-latest` ships Chrome as `google-chrome` and
-      # has no `chromium`, which is exactly why `scripts/chromium.mjs` exists and
-      # why $CHROMIUM is set below rather than left to the search order.
-      - uses: browser-actions/setup-chrome@v1
+      # Chrome, poppler and the pinned ImageMagick 7. Shared with
+      # deploy-hub.yml, which runs the same suite before it ships.
+      - uses: ./.github/actions/hub-browser-tools
         id: chrome
-        with:
-          chrome-version: stable
-
-      # The share cards are rendered by headless chromium at `prebuild`, and
-      # `cv.pdf` is a render too. pdftotext is what `identity-check.mjs` uses to
-      # read the PDF, and without it the tenth surface goes unchecked.
-      - name: poppler for the PDF check
-        run: sudo apt-get update && sudo apt-get install -y poppler-utils
-
-      # `verify.mjs` measures pixels with ImageMagick 7's `magick`. Ubuntu
-      # 24.04 packages ImageMagick 6, which has no `magick` and whose `-fx` and
-      # compose behaviour is not guaranteed to match, so this is the official
-      # IM7 AppImage, pinned to the workstation's version and checked against
-      # its hash. Extracted rather than run, so it needs no FUSE.
-      - name: imagemagick 7 for the pixel assertions
-        env:
-          IM_VERSION: 7.1.2-32
-          IM_SHA256: d456cab221b5fc1c396768a026d0a33ee8665f7119c7fea7151b960c69058b21
-        run: |
-          cd "$RUNNER_TEMP"
-          curl -fsSLo magick.AppImage "https://github.com/ImageMagick/ImageMagick/releases/download/$IM_VERSION/ImageMagick-$IM_VERSION-gcc-x86_64.AppImage"
-          echo "$IM_SHA256  magick.AppImage" | sha256sum -c -
-          chmod +x magick.AppImage
-          ./magick.AppImage --appimage-extract >/dev/null
-          mkdir -p bin && ln -s "$RUNNER_TEMP/squashfs-root/AppRun" bin/magick
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-          bin/magick -version | head -1
 
       - name: install
         working-directory: hub

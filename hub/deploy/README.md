@@ -10,7 +10,8 @@ alongside `n8n`, `netint-vpuaas`, and the five spokes. 1.9GB of RAM total.
 
 | | |
 |---|---|
-| Host path | `/var/www/hub` (static files, owned by `www-data`) |
+| Host path | `/var/www/hub` (static files, `deploy:www-data`; nginx only reads them) |
+| Deploy | a push to `main` (`.github/workflows/deploy-hub.yml`); `deploy.sh` by hand as break-glass |
 | Process | **none** — nginx serves from disk |
 | nginx | `/etc/nginx/sites-available/hub` → `kimnejudne.dev`, `www.kimnejudne.dev` |
 | Auth | none; the site is public |
@@ -36,7 +37,7 @@ https://kimnejudne.dev/work/*    301 -> trailing slash
 **The case studies needed no change to `hub.conf`.** `try_files $uri $uri/ =404`
 already resolves `/work/poketrack/` to `/var/www/hub/work/poketrack/index.html`, and
 nginx 301s the slashless form itself. The last two lines above are checked by
-`deploy.sh` after every reload, because they are the only part of this that
+`deploy/confirm.sh` after every deploy, because they are the only part of this that
 `vite preview` reaches by a different code path and so cannot answer.
 
 Certificate expires **2026-11-02**; certbot's timer renews it, webroot against
@@ -199,17 +200,25 @@ done
 
 ## Deploying
 
+**A push to `main` that touches `hub/` deploys it.** So does a change to either spoke's
+`CASE-STUDY.md`, because `prebuild` renders both into `/work`. The workflow is
+`.github/workflows/deploy-hub.yml`. On the runner it checks that the CV is not the
+placeholder, builds, checks that the output is complete, **runs the 85 browser assertions**
+against `vite preview`, and precompresses (`gzip -9`, served by `gzip_static` so the shared
+vCPU isn't recompressing per request). It then stages `dist/` in `/var/www/hub.next` and
+swaps it live, keeping the outgoing build in `/var/www/hub.prev`. Last, it runs
+`deploy/confirm.sh` against the real site. README edits do not redeploy. Watch a run with
+`gh run watch`, or start one with `gh workflow run deploy-hub.yml`.
+
+`deploy.sh` is the same release done by hand, the break-glass path for when Actions is what's
+broken. Run it as `deploy`, never as root. `HUB_HOST` is required and has no default:
+
 ```sh
-./deploy/deploy.sh
+HUB_HOST=deploy@host ./deploy/deploy.sh
 ```
 
-Typechecks, builds, **runs the 85 browser assertions**, precompresses
-(`gzip -9`, served by `gzip_static` so the shared vCPU isn't recompressing per
-request), tars the current `/var/www/hub` to
-`/var/backups/hub-<UTC-stamp>.tar.gz`, rsyncs with `--delete` so stale asset
-hashes don't accumulate, then reloads nginx.
-
-`HUB_HOST` is required and has no default — `HUB_HOST=user@host ./deploy/deploy.sh`.
+There is no `chown` and no nginx reload in either path. `/var/www/hub` is `deploy:www-data`
+and nginx only reads it, the same arrangement as `/var/www/poketrack`.
 
 **`npm run verify` is a gate here, not a habit.** `HUB_SKIP_VERIFY=1` exists and
 should feel uncomfortable to type. This is the page a recruiter sees first and
@@ -218,16 +227,15 @@ where a broken spoke loses one of five.
 
 ## Rollback
 
-Every run prints the exact restore command for the backup it just took:
+Each deploy, by push or by hand, keeps exactly one previous build in `/var/www/hub.prev`:
 
 ```sh
-ssh $DEPLOY_HOST 'rm -rf /var/www/hub/* \
-  && tar -xzf /var/backups/hub-<STAMP>.tar.gz -C /var/www/hub \
-  && chown -R www-data:www-data /var/www/hub && systemctl reload nginx'
+ssh $DEPLOY_HOST 'rsync -a --delete /var/www/hub.prev/ /var/www/hub/'
 ```
 
-The first deploy had nothing to back up, so there is no pre-hub state to return
-to — the apex served a Namecheap redirect, not files.
+To go back further, check out the old sha and run `deploy.sh` from there. Older tarballs from
+before push-to-deploy may still be in `/var/backups/hub-*.tar.gz`. They are root's, so
+restoring one is a root job.
 
 ## Why this isn't containerised
 
@@ -286,7 +294,7 @@ made unnecessary. See `scripts/verify.mjs`.
 
 `nginx/hub.conf` is the shipped configuration and is a copy of what is installed.
 Pull it back from the droplet after any change so the two cannot drift.
-`deploy.sh` does not touch it — it only reloads.
+Neither deploy path touches or reloads it. A person installs it as root.
 
 `nginx/hub-bootstrap.conf` is the HTTP-only vhost used to break the
 certificate/nginx chicken-and-egg. **No longer installed** — `hub.conf` was

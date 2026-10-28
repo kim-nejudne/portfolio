@@ -1,0 +1,266 @@
+# Push-to-deploy for buzzr.kimnejudne.dev.
+#
+# This is the routine deploy in `buzzer/README.md` run by a machine instead of a
+# person, in the shape of deploy-poketrack.yml: the image is built and
+# smoke-tested on the runner (`scripts/docker-smoke.sh`), shipped with
+# `docker save | ssh docker load`, and one script on the box re-points
+# IMAGE_TAG, restarts the container and waits for /healthz, rolling back if it
+# never answers. The droplet builds nothing.
+#
+# ## Live games
+#
+# Rooms live in memory, so a restart ends every game in progress. Before the
+# restart the box counts established connections to 127.0.0.1:3005. nginx
+# keeps no upstream keepalive (deploy/nginx/buzzr.conf), so every one of them
+# is a live Socket.IO WebSocket. The deploy waits up to ten minutes for that
+# count to reach zero and fails, touching nothing, if it does not. A Screen left
+# open on a TV keeps its socket, so `workflow_dispatch` with `force=true`
+# deploys anyway. The image is already on the box by then; a re-run or a
+# re-point picks it up.
+#
+# ## Access
+#
+# SSH as `deploy`, never root. /opt/buzzr is root:deploy with the sticky bit,
+# and `deploy` owns `.env` and `compose.yaml`, the same arrangement as
+# /opt/poketrack. nginx's config is root's and a person moves it.
+
+name: Deploy Buzzr
+
+on:
+  push:
+    branches: [main]
+    # Docs, the roadmap and the Claude Code setup do not ship in the image.
+    paths:
+      - "buzzer/**"
+      - "!buzzer/**/*.md"
+      - "!buzzer/docs/**"
+      - "!buzzer/.claude/**"
+      - ".github/workflows/deploy-buzzer.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Existing buzzr:<tag> on the box to re-point IMAGE_TAG to (a
+          rollback). Leave empty to build and deploy HEAD.
+        required: false
+        default: ""
+      force:
+        description: Restart even if games are live (ends them).
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-buzzer
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # The checks the README's /verify runs, before anything is built.
+  test:
+    name: checks
+    if: ${{ github.event.inputs.tag == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: buzzer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: buzzer/package-lock.json
+      - name: install
+        run: npm ci
+      - name: typecheck
+        run: npm run typecheck
+      - name: lint
+        run: npm run lint
+      - name: format check
+        run: npm run format:check
+      - name: tests
+        run: npm test
+
+  deploy:
+    name: droplet
+    needs: test
+    # On a re-point dispatch the checks are skipped; a skip must not block the
+    # deploy, a failure must.
+    if: ${{ !cancelled() && needs.test.result != 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tag is a `git log -- buzzer`, which needs history
+
+      # The tag names the last commit that changed shipped code under buzzer/,
+      # not the repository HEAD, as the README's routine deploy does. The
+      # exclusions match the paths filter above, so a tag always points at a
+      # commit the image was really built from. (`*` crosses `/` in a pathspec.)
+      - name: resolve tag
+        id: tag
+        env:
+          TAG_INPUT: ${{ github.event.inputs.tag }}
+        run: |
+          if [ -n "$TAG_INPUT" ]; then
+            [[ "$TAG_INPUT" =~ ^[0-9a-f]{7,12}$ ]] || { echo "tag must be a short sha, got '$TAG_INPUT'"; exit 1; }
+            tag="$TAG_INPUT"; mode=repoint
+          else
+            tag="$(git log -1 --format=%h -- buzzer ':!buzzer/*.md' ':!buzzer/docs' ':!buzzer/.claude')"; mode=build
+          fi
+          echo "tag=$tag  mode=$mode"
+          { echo "tag=$tag"; echo "mode=$mode"; } >> "$GITHUB_OUTPUT"
+
+      - name: ssh
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host droplet
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh droplet 'echo "connected as $(id -un)@$(hostname)"'
+
+      # docker-smoke.sh opens a real WebSocket with the project's own client
+      # and builds a room body with tsx, so it needs the dependencies.
+      - uses: actions/setup-node@v4
+        if: steps.tag.outputs.mode == 'build'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: buzzer/package-lock.json
+      - name: install
+        if: steps.tag.outputs.mode == 'build'
+        working-directory: buzzer
+        run: npm ci
+
+      # Builds buzzr:<tag> and runs it with the droplet's own settings, read
+      # from compose.deploy.yaml: /healthz, the client, the WebSocket, the
+      # forwarded-IP rate limit, the node user, SIGTERM. The image it tested is
+      # the image that ships.
+      - name: build and smoke-test the image
+        if: steps.tag.outputs.mode == 'build'
+        working-directory: buzzer
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: scripts/docker-smoke.sh "buzzr:$TAG"
+
+      - name: ship the image and the compose file
+        if: steps.tag.outputs.mode == 'build'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker save "buzzr:$TAG" | gzip -1 | ssh droplet 'gunzip | docker load'
+          ssh droplet "docker image inspect buzzr:$TAG --format 'on the box: {{.RepoTags}} {{.Size}} bytes'"
+          scp -q buzzer/deploy/compose.deploy.yaml droplet:/opt/buzzr/compose.yaml
+
+      # Everything that mutates the box happens in this one script: wait for
+      # the room to empty, re-point, restart, gate, roll back if needed.
+      - name: wait for live games, swap, gate, roll back if needed
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
+        run: |
+          ssh droplet "TAG=$TAG FORCE=$FORCE bash -s" <<'EOF'
+          set -euo pipefail
+          cd /opt/buzzr
+
+          docker image inspect "buzzr:$TAG" >/dev/null 2>&1 || {
+            echo "ABORT: buzzr:$TAG is not on the box. Known tags:"
+            docker images buzzr --format '  {{.Tag}}  {{.CreatedSince}}'
+            exit 1
+          }
+
+          # Every established connection to the app's port is nginx holding a
+          # player's, a Screen's or a Host's WebSocket open.
+          live() { ss -Htn state established '( sport = :3005 )' | wc -l; }
+          if [ "$FORCE" = 1 ]; then
+            echo "force: restarting with $(live) live connection(s)"
+          else
+            for i in $(seq 1 20); do
+              n=$(live)
+              [ "$n" -eq 0 ] && { echo "no live games"; break; }
+              [ "$i" -eq 20 ] && {
+                echo "ABORT: $n live connection(s) after 10 min; nothing changed."
+                echo "Deploy when no game is running, or dispatch with force=true."
+                exit 1
+              }
+              echo "  $n live connection(s); waiting ($i/20)"
+              sleep 30
+            done
+          fi
+
+          PREV="$(sed -n 's/^IMAGE_TAG=//p' .env)"
+          echo "IMAGE_TAG: ${PREV:-<none>} -> $TAG"
+
+          set_tag() {
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$1/" .env
+            else
+              printf 'IMAGE_TAG=%s\n' "$1" >> .env
+            fi
+            chmod 600 .env
+          }
+
+          wait_healthy() {
+            local i h
+            for i in $(seq 1 30); do
+              h=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3005/healthz || true)
+              if [ "$h" = 200 ]; then echo "  healthy after $i attempt(s)"; return 0; fi
+              sleep 2
+            done
+            echo "  not healthy (healthz=${h:-none})"
+            return 1
+          }
+
+          set_tag "$TAG"
+          docker compose up -d
+          echo "waiting for buzzr:$TAG ..."
+          if wait_healthy; then
+            docker image prune -f >/dev/null
+            docker ps --filter name=buzzr --format '  {{.Names}}  {{.Image}}  {{.Status}}'
+          else
+            echo "buzzr:$TAG never became healthy. Recent logs:"
+            docker compose logs --tail 50 app || true
+            if [ -n "$PREV" ] && [ "$PREV" != "$TAG" ]; then
+              echo "rolling IMAGE_TAG back to $PREV"
+              set_tag "$PREV"
+              docker compose up -d app
+              wait_healthy || echo "WARNING: rollback did not report healthy — inspect the box."
+            else
+              echo "no prior tag to roll back to (first deploy or same tag)"
+            fi
+            exit 1
+          fi
+          EOF
+
+      # Through nginx and TLS, from outside.
+      - name: smoke
+        run: |
+          curl -fsS https://buzzr.kimnejudne.dev/healthz; echo
+          curl -fsS -o /dev/null -w 'GET / -> %{http_code}\n' https://buzzr.kimnejudne.dev/

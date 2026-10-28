@@ -1,0 +1,53 @@
+# The tools the hub's build and assertion suite need on a runner: Chrome for
+# the headless renders and the CDP assertions, poppler for the PDF check, and
+# ImageMagick 7 for the pixel assertions.
+#
+# Shared by `ci.yml` (hub job) and `deploy-hub.yml`, so the pinned AppImage
+# hash lives in one place and the deploy runs the same suite CI does.
+
+name: hub browser tools
+description: Chrome, poppler-utils and the pinned ImageMagick 7 for hub/scripts
+
+outputs:
+  chrome-path:
+    description: Path to the Chrome binary; pass it to the scripts as $CHROMIUM.
+    value: ${{ steps.chrome.outputs.chrome-path }}
+
+runs:
+  using: composite
+  steps:
+    # `verify.mjs` and `axe.mjs` drive a real headless browser over the
+    # DevTools protocol. `ubuntu-latest` ships Chrome as `google-chrome` and
+    # has no `chromium`, which is exactly why `scripts/chromium.mjs` exists and
+    # why callers set $CHROMIUM rather than leave it to the search order.
+    - uses: browser-actions/setup-chrome@v1
+      id: chrome
+      with:
+        chrome-version: stable
+
+    # The share cards are rendered by headless chromium at `prebuild`, and
+    # `cv.pdf` is a render too. pdftotext is what `identity-check.mjs` uses to
+    # read the PDF, and without it the tenth surface goes unchecked.
+    - name: poppler for the PDF check
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+    # `verify.mjs` measures pixels with ImageMagick 7's `magick`. Ubuntu
+    # 24.04 packages ImageMagick 6, which has no `magick` and whose `-fx` and
+    # compose behaviour is not guaranteed to match, so this is the official
+    # IM7 AppImage, pinned to the workstation's version and checked against
+    # its hash. Extracted rather than run, so it needs no FUSE.
+    - name: imagemagick 7 for the pixel assertions
+      shell: bash
+      env:
+        IM_VERSION: 7.1.2-32
+        IM_SHA256: d456cab221b5fc1c396768a026d0a33ee8665f7119c7fea7151b960c69058b21
+      run: |
+        cd "$RUNNER_TEMP"
+        curl -fsSLo magick.AppImage "https://github.com/ImageMagick/ImageMagick/releases/download/$IM_VERSION/ImageMagick-$IM_VERSION-gcc-x86_64.AppImage"
+        echo "$IM_SHA256  magick.AppImage" | sha256sum -c -
+        chmod +x magick.AppImage
+        ./magick.AppImage --appimage-extract >/dev/null
+        mkdir -p bin && ln -s "$RUNNER_TEMP/squashfs-root/AppRun" bin/magick
+        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+        bin/magick -version | head -1

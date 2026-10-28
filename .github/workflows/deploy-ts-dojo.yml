@@ -1,0 +1,170 @@
+# Push-to-deploy for dojo.kimnejudne.dev.
+#
+# This is `ts-dojo/deploy/deploy.sh` run by a machine instead of a person, in
+# the shape of deploy-poketrack.yml: every check and the build run on the
+# runner, the precompressed `dist/` is staged into /var/www/ts-dojo.next, one
+# swap on the box keeps the outgoing build in /var/www/ts-dojo.prev, and §12
+# F15's droplet criteria (`ts-dojo/deploy/confirm.sh`) run against the real
+# URL afterwards, compared with the very `dist/` that shipped.
+#
+# ts-dojo is static: no image, no process, no nginx reload. /var/www/ts-dojo is
+# deploy:www-data and nginx only reads it, as with /var/www/poketrack.
+#
+# Rollback, one release back:
+#   ssh $DEPLOY_HOST 'rsync -a --delete /var/www/ts-dojo.prev/ /var/www/ts-dojo/'
+
+name: Deploy ts-dojo
+
+on:
+  push:
+    branches: [main]
+    # Lessons are .mdx, so ignoring .md drops only docs, the README and the
+    # case study (which is a hub release, not this one).
+    paths:
+      - "ts-dojo/**"
+      - "!ts-dojo/**/*.md"
+      - ".github/workflows/deploy-ts-dojo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-ts-dojo
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Everything deploy.sh does before it touches the box, plus the unit tests
+  # the pre-commit hook would have run.
+  build:
+    name: check and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: ts-dojo
+    # The Node 24 majors of each action, as ci.yml's ts-dojo job has them.
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: ts-dojo/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ts-dojo/pnpm-lock.yaml
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        run: pnpm typecheck
+
+      - name: lint
+        run: pnpm lint
+
+      - name: unit tests
+        run: pnpm test --run
+
+      # Proves every exercise solvable and its tricks blocked (spec §3).
+      - name: content lint
+        run: pnpm content:lint
+
+      # Also copies TypeScript's lib files into public/ts/6.0.3/ and writes the
+      # service worker.
+      - name: build
+        run: pnpm build
+
+      - name: output guards
+        run: |
+          test -f dist/index.html || { echo "no build output at dist" >&2; exit 1; }
+          test -f dist/sw.js || { echo "no service worker at dist/sw.js" >&2; exit 1; }
+          test -f dist/ts/6.0.3/lib.es2025.d.ts || { echo "no lib files under dist/ts/6.0.3" >&2; exit 1; }
+          test -f dist/packages/types.json || { echo "no pre-bundled packages under dist/packages" >&2; exit 1; }
+
+      # The same set deploy.sh precompresses; confirm.sh checks nginx serves
+      # the .gz rather than gzipping on the fly.
+      - name: precompress
+        run: |
+          find dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \
+            -o -name '*.json' -o -name '*.d.ts' \) -exec gzip -9 -k -f {} +
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ts-dojo-dist
+          path: ts-dojo/dist
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    name: droplet
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ssh
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host droplet
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh droplet 'echo "connected as $(id -un)@$(hostname)"'
+
+      # Into ts-dojo/dist, where confirm.sh compares the live site against it.
+      - uses: actions/download-artifact@v4
+        with:
+          name: ts-dojo-dist
+          path: ts-dojo/dist
+
+      # Staged, never straight into the live directory: a dropped connection
+      # mid-rsync would otherwise leave a half-written site serving.
+      - name: stage
+        run: |
+          test -f ts-dojo/dist/index.html
+          rsync -rltz --delete --chmod=D755,F644 ts-dojo/dist/ droplet:/var/www/ts-dojo.next/
+
+      # Two passes, as deploy.sh: assets, libs and packages first without
+      # --delete, so the new index.html and sw.js never land before the files
+      # they name. A visitor still on the old version is served from their
+      # service worker's precache.
+      - name: swap, keeping the outgoing build in ts-dojo.prev
+        run: |
+          ssh droplet 'bash -s' <<'EOF'
+          set -euo pipefail
+          cd /var/www
+          test -f ts-dojo.next/index.html || { echo "ABORT: no staged build in /var/www/ts-dojo.next"; exit 1; }
+          rsync -a --delete ts-dojo/ ts-dojo.prev/
+          rsync -a ts-dojo.next/assets ts-dojo.next/ts ts-dojo.next/packages ts-dojo/
+          rsync -a --delete ts-dojo.next/ ts-dojo/
+          echo "swapped; outgoing build kept in /var/www/ts-dojo.prev"
+          EOF
+
+      - name: smoke
+        run: ts-dojo/deploy/confirm.sh dist

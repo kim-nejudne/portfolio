@@ -3,7 +3,7 @@
 `dojo.kimnejudne.dev`, on Kim's DigitalOcean droplet. The plinth pattern (spec §10): a static
 build, no process on the droplet, nginx from disk.
 
-> **Two placeholders run through this file.** `$TS_DOJO_HOST` is the droplet as `user@host`, for
+> **Two placeholders run through this file.** `$TS_DOJO_HOST` is the droplet as `deploy@host`, for
 > ssh, scp and rsync (the same variable `deploy.sh` requires); `$DROPLET_IP` is its IPv4, for the
 > DNS record and `dig`. Neither is recorded in this repository: export both in your shell profile
 > before following anything below.
@@ -17,18 +17,33 @@ build, no process on the droplet, nginx from disk.
 | DNS | Namecheap, A record `dojo` pointing at the droplet |
 | Deploy | `deploy/deploy.sh`, by hand from the workstation, `TS_DOJO_HOST` required |
 
+The table is §10 as written. Two rows have changed since, as recorded under Deviations in
+`docs/progress.md`. The host path is now `deploy:www-data`, as `/var/www/poketrack` is, and nginx
+only reads it. Deploys normally come from a push (below), and `deploy.sh` is the break-glass path.
+
 ## Status
 
-Not deployed yet. The first deploy is the DNS/TLS section below, in order, then Deploying.
+Live at https://dojo.kimnejudne.dev since 25 October 2026.
 
 ## Deploying
 
+**A push to `main` that touches `ts-dojo/` deploys it.** The workflow is
+`.github/workflows/deploy-ts-dojo.yml` in the portfolio. It runs typecheck, lint, the unit tests,
+the content lint and the build on the runner, and precompresses the output. It stages `dist/` in
+`/var/www/ts-dojo.next` and swaps it live in two passes. The outgoing build is kept in
+`/var/www/ts-dojo.prev`. Then it runs `deploy/confirm.sh` against the real host. Markdown-only
+commits do not redeploy. Watch a run with `gh run watch`, or start one with
+`gh workflow run deploy-ts-dojo.yml`.
+
+`deploy.sh` is the same release done by hand, the break-glass path for when Actions is what's
+broken:
+
 ```sh
-TS_DOJO_HOST=user@host ./deploy/deploy.sh
+TS_DOJO_HOST=deploy@host ./deploy/deploy.sh
 ```
 
-From `ts-dojo/` in the portfolio repository, on the workstation. `TS_DOJO_HOST` is required and has no default. In
-order, the script:
+Run it from `ts-dojo/` in the portfolio repository, on the workstation, as `deploy` and never
+as root. `TS_DOJO_HOST` is required and has no default. In order, the script:
 
 1. runs `pnpm typecheck`, `pnpm lint` and `pnpm content:lint` (every exercise proven solvable,
    spec §3);
@@ -36,11 +51,12 @@ order, the script:
    worker written) and checks `dist/index.html`, `dist/sw.js` and the lib files exist;
 3. precompresses `js`, `css`, `html`, `svg`, `json` and `d.ts` with `gzip -9`, served by
    `gzip_static` so the droplet's vCPU never recompresses per request;
-4. tars the current `/var/www/ts-dojo` to `/var/backups/ts-dojo-<UTC-stamp>.tar.gz`;
-5. rsyncs in two passes: `assets/` and `ts/` first, then everything with `--delete` (see
-   Caching for why);
-6. `chown -R www-data:www-data`, `nginx -t`, reload;
-7. confirms through nginx with curl, and stops at the first failure:
+4. rsyncs `dist/` into `/var/www/ts-dojo.next`, never straight into the live directory;
+5. on the box, copies the live site to `/var/www/ts-dojo.prev`, then swaps in two passes:
+   `assets/`, `ts/` and `packages/` first, then everything with `--delete` (see Caching for
+   why). There is no `chown` and no reload, because nginx only reads static files;
+6. runs `deploy/confirm.sh`, which checks the site through nginx with curl and stops at the
+   first failure:
    - `https://dojo.kimnejudne.dev/` answers 200 (curl verifies the certificate);
    - `http://` answers 301 to `https://`;
    - `/l/<first lesson>` answers 200 `text/html` (the client-side router's fallback);
@@ -49,21 +65,19 @@ order, the script:
    - an `/assets/` file is `immutable`;
    - `/`, `/index.html` and `/sw.js` are `no-cache`, and the served `sw.js` is the one built;
    - the CSP on `/`, an asset and a lib file is exactly the one in `ts-dojo.conf`;
-8. prints the rollback command for the backup it just took.
+7. prints the rollback command.
 
 Claude never runs it; Kim does.
 
 ## Rollback
 
-Every run prints the exact restore command for the backup it took:
+Each deploy, by push or by hand, keeps exactly one previous build in `/var/www/ts-dojo.prev`:
 
 ```sh
-ssh $TS_DOJO_HOST 'rm -rf /var/www/ts-dojo/* \
-  && tar -xzf /var/backups/ts-dojo-<STAMP>.tar.gz -C /var/www/ts-dojo \
-  && chown -R www-data:www-data /var/www/ts-dojo && systemctl reload nginx'
+ssh $TS_DOJO_HOST 'rsync -a --delete /var/www/ts-dojo.prev/ /var/www/ts-dojo/'
 ```
 
-The first deploy has nothing to back up, so there is no earlier state to return to.
+To go back further, check out the old sha and run `deploy.sh` from there.
 
 A rollback also reaches visitors who already have the newer version: their service worker
 checks `sw.js` (never cached), finds the restored one, and the app offers "Reload for the new
@@ -125,10 +139,12 @@ dig +short dojo.kimnejudne.dev A                                # $DROPLET_IP, o
 ### 2. Bootstrap vhost, then prove the ACME path
 
 `ts-dojo.conf` names the certificate files, so `nginx -t` fails until they exist. Install the
-HTTP-only `deploy/nginx/ts-dojo-bootstrap.conf` first:
+HTTP-only `deploy/nginx/ts-dojo-bootstrap.conf` first. This step and everything else under nginx and
+certbot run as root, not as `deploy`:
 
 ```sh
-ssh $TS_DOJO_HOST 'mkdir -p /var/www/ts-dojo /var/www/certbot && chown -R www-data:www-data /var/www/ts-dojo'
+ssh $TS_DOJO_HOST 'mkdir -p /var/www/certbot \
+  && install -d -o deploy -g www-data -m 755 /var/www/ts-dojo /var/www/ts-dojo.next /var/www/ts-dojo.prev'
 scp deploy/nginx/ts-dojo-bootstrap.conf $TS_DOJO_HOST:/etc/nginx/sites-available/ts-dojo
 ssh $TS_DOJO_HOST 'ln -sf /etc/nginx/sites-available/ts-dojo /etc/nginx/sites-enabled/ts-dojo \
   && nginx -t && systemctl reload nginx'
