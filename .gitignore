@@ -19,3 +19,10 @@
 
 # graphify's knowledge-graph output, in whichever project it was run.
 graphify-out/
+
+# Claude Code setup stays on this machine only: every .claude/, CLAUDE.md and the
+# Buzzr setup prompt were purged from history on 2026-10-28. A backup of the
+# tracked copies is at ~/Documents/archive/portfolio-agent-files-2026-10-28/.
+.claude/
+CLAUDE.md
+claude-code-setup-prompt.md
