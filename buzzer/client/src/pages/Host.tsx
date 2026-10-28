@@ -288,7 +288,7 @@ function QuestionCard({ view }: { view: HostView }) {
     >
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>{label}</span>
-        <span>{question.points} pts</span>
+        <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
       </p>
       {question.text && <p className="text-base font-bold">{question.text}</p>}
       {question.imageId && (

@@ -12,6 +12,8 @@ import { Icon } from './Icon.js';
 
 /** The gold stage ring round the hero panel: 6px of base, then 4px of gold, at 1280 wide. */
 const STAGE_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]';
+/** The same ring in the border colour, for a banner judged wrong. */
+const DIM_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-edge)]';
 
 /** A small uppercase label on the Screen (13–16px at 1280 wide). */
 const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] uppercase';
@@ -34,13 +36,15 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
     <div className="flex min-h-0 flex-1 flex-col gap-[4vh] px-[3.75vw] pt-[1vh] pb-[3vh]">
       <section
         aria-label="Question"
-        className="flex min-h-0 flex-1 flex-col gap-[2vh] rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
+        className="flex min-h-0 flex-1 flex-col gap-[2vh] overflow-hidden rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
       >
         <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
-        <div className="flex min-h-0 flex-1 items-center gap-[4vw]">
+        {/* Safe centring: text taller than a squeezed card starts at the top and clips at the
+            bottom, instead of spilling over the label. */}
+        <div className="flex min-h-0 flex-1 items-center-safe gap-[4vw]">
           {text && (
             <h1
-              className={`min-w-0 flex-1 overflow-hidden leading-tight font-bold break-words ${questionTextClass(text, question.imageId !== undefined)}`}
+              className={`max-h-full min-w-0 flex-1 overflow-hidden leading-tight font-bold break-words ${questionTextClass(text, question.imageId !== undefined)}`}
             >
               {text}
             </h1>
@@ -191,8 +195,8 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     <section
       aria-label="Buzz result"
       data-judged={judgedWrong ? 'wrong' : undefined}
-      className={`mx-[0.8vw] mb-[0.8vw] flex shrink-0 items-center gap-[3vw] rounded-[min(1.88vw,3.3vh)] px-[3vw] py-[3vh] transition-colors ${STAGE_RING} ${
-        judgedWrong ? 'bg-surface' : 'bg-buzz'
+      className={`mx-[0.8vw] mb-[0.8vw] flex shrink-0 items-center gap-[3vw] rounded-[min(1.88vw,3.3vh)] px-[3vw] py-[2.4vh] transition-colors ${
+        judgedWrong ? `bg-surface ${DIM_RING}` : `bg-buzz ${STAGE_RING}`
       }`}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-[1vh]">
@@ -217,7 +221,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
         </h2>
       </div>
       {(countdown || others.length > 0) && (
-        <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-[1.4vh]">
+        <div className="flex max-w-[58%] shrink-0 flex-col items-end gap-[1.2vh]">
           {countdown && <Countdown countdown={countdown} />}
           {others.length > 0 && (
             <>
@@ -231,7 +235,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
                 {others.map(({ player, gapMs }) => (
                   <li
                     key={player.id}
-                    className="flex items-center gap-[0.6vw] rounded-full bg-buzz-ink px-[1.1vw] py-[0.8vh] text-[min(1.6vw,2.8vh)] whitespace-nowrap"
+                    className="flex items-center gap-[0.5vw] rounded-full bg-buzz-ink px-[1vw] py-[0.6vh] text-[min(1.4vw,2.5vh)] whitespace-nowrap"
                   >
                     <span
                       aria-hidden="true"

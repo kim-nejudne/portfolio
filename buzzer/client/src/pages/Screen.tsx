@@ -270,7 +270,8 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
   return (
     <aside
       aria-label="Game setup"
-      className="flex w-[min(28rem,30vw)] shrink-0 flex-col gap-3 overflow-y-auto"
+      // Sized in rem for a laptop Screen; doubled on a 4K-wide viewport so it stays readable.
+      className="flex w-[min(28rem,30vw)] shrink-0 flex-col gap-3 overflow-y-auto min-[2560px]:[zoom:2]"
     >
       <button
         type="button"

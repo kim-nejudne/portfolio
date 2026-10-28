@@ -397,7 +397,8 @@ function Buzzer({ view, buzz }: BuzzerProps) {
       ) : (
         <>
           <div className="flex min-h-0 flex-1 flex-col items-center justify-evenly gap-4 px-4 py-2">
-            <div className="flex w-full flex-col items-center gap-3">
+            {/* Room for the winner's panel's 10px ring under the bulbs. */}
+            <div className="flex w-full flex-col items-center gap-5">
               <BulbRail count={9} variant="row" />
               <BuzzerStatus state={state} progress={progress} />
             </div>
