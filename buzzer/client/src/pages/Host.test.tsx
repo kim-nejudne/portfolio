@@ -303,6 +303,125 @@ describe('Host remote', () => {
       expect(screen.getByRole('region', { name: 'Settings' })).toBeTruthy();
     });
 
+    describe('tab keys', () => {
+      const selected = () => screen.getByRole('tab', { selected: true });
+      const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key });
+
+      function focusGame() {
+        remote(hostView({ players: [player(1)] }));
+        act(() => screen.getByRole('tab', { name: 'Game' }).focus());
+      }
+
+      it('only the selected tab is in the tab order', () => {
+        focusGame();
+        expect(screen.getAllByRole('tab').map((t) => t.tabIndex)).toEqual([0, -1, -1]);
+        press('ArrowRight');
+        expect(screen.getAllByRole('tab').map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
+      });
+
+      it('→ and ← select, show and focus the next and previous tab', () => {
+        focusGame();
+        press('ArrowRight');
+        expect(selected().id).toBe('tab-Players');
+        expect(document.activeElement).toBe(selected());
+        expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('tab-Players');
+        press('ArrowRight');
+        expect(selected().id).toBe('tab-Settings');
+        press('ArrowLeft');
+        expect(selected().id).toBe('tab-Players');
+        expect(document.activeElement).toBe(selected());
+      });
+
+      it('wraps at both ends', () => {
+        focusGame();
+        press('ArrowLeft');
+        expect(selected().id).toBe('tab-Settings');
+        expect(document.activeElement).toBe(selected());
+        press('ArrowRight');
+        expect(selected().id).toBe('tab-Game');
+        expect(document.activeElement).toBe(selected());
+      });
+
+      it('Home and End jump to the first and last tab', () => {
+        focusGame();
+        press('End');
+        expect(selected().id).toBe('tab-Settings');
+        expect(document.activeElement).toBe(selected());
+        press('Home');
+        expect(selected().id).toBe('tab-Game');
+        expect(document.activeElement).toBe(selected());
+      });
+
+      it('other keys leave the selection alone', () => {
+        focusGame();
+        press('ArrowDown');
+        press('a');
+        expect(selected().id).toBe('tab-Game');
+      });
+    });
+
+    describe('game over', () => {
+      const final = (players: HostView['players']) =>
+        hostView({ phase: 'FINAL', questionIndex: 9, question: question(10), players });
+
+      it('the Game tab shows Game over and the ranking instead of the last question', () => {
+        // Join order, as the server sends it; the card orders by rank.
+        remote(
+          final([
+            player(1, { score: 100, rank: 3 }),
+            player(2, { score: 400, rank: 1 }),
+            player(3, { score: 200, rank: 2 }),
+          ]),
+        );
+        expect(screen.queryByRole('region', { name: 'Question' })).toBeNull();
+        expect(screen.queryByText('Answer 10')).toBeNull();
+        const card = screen.getByRole('region', { name: 'Game over' });
+        const rows = within(card).getAllByRole('listitem');
+        expect(rows.map((row) => row.textContent)).toEqual([
+          '1stPlayer 2400',
+          '2ndPlayer 3200',
+          '3rdPlayer 1100',
+        ]);
+      });
+
+      it('tied players share a rank and keep join order between them', () => {
+        remote(
+          final([
+            player(1, { score: 0, rank: 3 }),
+            player(2, { score: 200, rank: 1 }),
+            player(3, { score: 200, rank: 1 }),
+          ]),
+        );
+        const card = screen.getByRole('region', { name: 'Game over' });
+        expect(
+          within(card)
+            .getAllByRole('listitem')
+            .map((row) => row.textContent),
+        ).toEqual(['1stPlayer 2200', '1stPlayer 3200', '3rdPlayer 10']);
+      });
+
+      it('with no players it says so', () => {
+        remote(final([]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        expect(within(card).getByText('No players')).toBeTruthy();
+      });
+
+      it('Show / Hide scoreboard stays', () => {
+        const socket = remote(final([player(1)]));
+        fireEvent.click(screen.getByRole('button', { name: 'Show scoreboard' }));
+        expect(socket.emitted.at(-1)).toMatchObject({
+          event: 'host:scoreboard',
+          payload: { show: true },
+        });
+      });
+
+      it('before FINAL the Game tab shows the question, not the card', () => {
+        remote(hostView({ phase: 'REVEAL', questionIndex: 0, question: question(1) }));
+        expect(screen.getByRole('region', { name: 'Question' })).toBeTruthy();
+        expect(screen.queryByRole('region', { name: 'Game over' })).toBeNull();
+      });
+    });
+
     it('lobby lists the players with colour, score and connection status', () => {
       remote(
         hostView({

@@ -104,14 +104,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F39 Buzz eligibility and monotonic window
 
-- [ ] F40 Host remote: game over, stable order, tab keys
-  - Spec: UI spec by view (Host remote); Data model (`HostView`); see DECISIONS, Proposed spec changes (backlog: host remote)
-  - Depends: F37
-  - Done when:
-    - In FINAL the Game tab shows a "Game over" card and the final ranking (rank, name, score, ties share a rank) instead of the last question; Show/Hide scoreboard stays
-    - `HostView.players` comes in join order (`joinedAt`, then id) with each row's `rank` still set; a ± tap or judgement never moves a row. Screen views and the Player view keep ranked order
-    - The tabs follow the WAI-ARIA tabs pattern: roving `tabIndex`, ←/→ move and activate (wrapping), Home/End jump to the first and last tab
-  - Tests: `views.test.ts` (host order is join order after score changes, Screen order still ranked); `Host.test.tsx` / `HostControls.test.tsx` (FINAL card and ranking, arrow keys, Home/End, wrap)
+- [x] F40 Host remote: game over, stable order, tab keys
 
 - [ ] F41 Connection awareness
   - Spec: Reconnects, security and edge cases (Reconnects); UI spec by view (Screen view, Host remote, Player view); see DECISIONS, Proposed spec changes (backlog: connection)

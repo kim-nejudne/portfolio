@@ -199,6 +199,40 @@ describe('toView: host', () => {
     expect(view.judgements).toEqual(judgements);
     expect(view.players.find((p) => p.id === 'p2')).toMatchObject({ rttMs: 40, rank: 1 });
   });
+
+  it('lists players in join order, each still carrying its rank', () => {
+    const view = toView(midGame('OPEN'), 'host');
+    expect(view.players.map((p) => [p.name, p.rank])).toEqual([
+      ['Ana', 2],
+      ['Bob', 1],
+      ['Cy', 2],
+    ]);
+  });
+
+  it('keeps join order after score changes, while the Screen re-ranks', () => {
+    let room = midGame('OPEN');
+    for (const delta of [500, -200]) {
+      const result = reduce(room, { type: 'host:adjustScore', playerId: 'p3', delta }, T0 + 10);
+      if (!result.ok) throw new Error(result.error);
+      room = result.room;
+    }
+    expect(room.players.p3!.score).toBe(400);
+    expect(toView(room, 'host').players.map((p) => [p.id, p.rank])).toEqual([
+      ['p1', 3],
+      ['p2', 2],
+      ['p3', 1],
+    ]);
+    expect(toView(room, 'screen').players.map((p) => p.id)).toEqual(['p3', 'p2', 'p1']);
+    expect(toView(room, 'player', 'p1').me.rank).toBe(3);
+  });
+
+  it('breaks a join-time tie by id', () => {
+    const room = withPlayers(makeRoom({ phase: 'QUESTION', questionIndex: 0 }), [
+      makePlayer('pb', { name: 'B', score: 0, joinedAt: T0 + 1 }),
+      makePlayer('pa', { name: 'A', score: 300, joinedAt: T0 + 1 }),
+    ]);
+    expect(toView(room, 'host').players.map((p) => p.id)).toEqual(['pa', 'pb']);
+  });
 });
 
 describe('toView: canJudge and canUndo match what the reducer accepts', () => {

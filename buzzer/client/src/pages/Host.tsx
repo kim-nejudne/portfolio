@@ -17,6 +17,7 @@ import { imageUrl } from '../lib/api.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
+import { ordinal } from '../lib/results.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
@@ -142,6 +143,7 @@ type Tab = (typeof TABS)[number];
 function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   const { toast, show } = useToast();
   const [tab, setTab] = useState<Tab>('Game');
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
   const command = useHostCommand(view, send, show);
   usePreloadImage(view.code, view.nextQuestion?.imageId);
   useVibrateOnTimeUp();
@@ -157,15 +159,26 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       <div
         role="tablist"
         aria-label="Remote"
+        onKeyDown={(event) => {
+          const next = tabForKey(tab, event.key);
+          if (!next) return;
+          event.preventDefault();
+          setTab(next);
+          tabRefs.current[next]?.focus();
+        }}
         className="grid grid-cols-3 gap-1 rounded-2xl bg-surface p-1"
       >
         {TABS.map((name) => (
           <button
             key={name}
+            ref={(button) => {
+              tabRefs.current[name] = button;
+            }}
             type="button"
             role="tab"
             id={`tab-${name}`}
             aria-selected={tab === name}
+            tabIndex={tab === name ? 0 : -1}
             aria-controls={`panel-${name}`}
             onClick={() => setTab(name)}
             className={`rounded-xl px-2 py-2 text-lg ${tab === name ? 'bg-edge text-ink' : 'text-muted'}`}
@@ -182,7 +195,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       >
         {tab === 'Game' && (
           <>
-            <QuestionCard view={view} />
+            {view.phase === 'FINAL' ? <GameOverCard view={view} /> : <QuestionCard view={view} />}
             <PrimaryAction view={view} command={command} />
             <SecondaryActions view={view} command={command} />
             {view.phase === 'LOBBY' && (
@@ -202,6 +215,26 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       <Toast toast={toast} />
     </main>
   );
+}
+
+/**
+ * The WAI-ARIA tabs keys, with automatic activation (DECISIONS F40): ←/→ step and wrap, Home and
+ * End jump to the ends. Null for any other key.
+ */
+function tabForKey(current: Tab, key: string): Tab | null {
+  const i = TABS.indexOf(current);
+  switch (key) {
+    case 'ArrowRight':
+      return TABS[(i + 1) % TABS.length]!;
+    case 'ArrowLeft':
+      return TABS[(i - 1 + TABS.length) % TABS.length]!;
+    case 'Home':
+      return TABS[0];
+    case 'End':
+      return TABS[TABS.length - 1]!;
+    default:
+      return null;
+  }
 }
 
 /** How the host's phone buzzes when the answer time runs out: two pulses. */
@@ -255,6 +288,42 @@ function QuestionCard({ view }: { view: HostView }) {
         <p className="font-display text-2xl">{question.answer}</p>
         {question.hostNotes && <p className="mt-2 text-base">{question.hostNotes}</p>}
       </div>
+    </section>
+  );
+}
+
+/**
+ * The Game tab in FINAL: "Game over" and the final ranking. The view lists players in join order
+ * with each one's rank, so this orders by rank; tied players share it and keep join order.
+ */
+function GameOverCard({ view }: { view: HostView }) {
+  const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
+  return (
+    <section
+      aria-labelledby="game-over-heading"
+      className="flex flex-col gap-3 rounded-3xl border-2 border-edge bg-surface p-4"
+    >
+      <h2 id="game-over-heading" className="font-display text-3xl">
+        Game over
+      </h2>
+      {ranked.length === 0 ? (
+        <p className="text-muted">No players</p>
+      ) : (
+        <ol className="flex flex-col gap-2">
+          {ranked.map((player) => (
+            <li key={player.id} className="flex items-center gap-3 text-lg">
+              <span className="w-12 shrink-0 font-display text-muted">{ordinal(player.rank)}</span>
+              <span
+                aria-hidden
+                style={{ backgroundColor: player.color }}
+                className="size-4 shrink-0 rounded-full"
+              />
+              <span className="min-w-0 flex-1 truncate">{player.name}</span>
+              <span className="font-display text-xl">{player.score}</span>
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }

@@ -49,11 +49,14 @@ function screenView(room: Room): ScreenView {
 }
 
 function hostView(room: Room): HostView {
-  const ranked = rankPlayers(Object.values(room.players));
+  // Join order, so a ± tap or a judgement never moves the row under the host's thumb (DECISIONS F40).
+  const joined = rankPlayers(Object.values(room.players)).sort(
+    (a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
   return {
     role: 'host',
     ...shared(room),
-    players: ranked.map((p) => ({ ...publicPlayer(p), rttMs: p.rttMs })),
+    players: joined.map((p) => ({ ...publicPlayer(p), rttMs: p.rttMs })),
     question: currentQuestion(room),
     nextQuestion: room.set.questions[room.questionIndex + 1] ?? null,
     buzzes: room.buzzes,

@@ -10,6 +10,30 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F40 — Host remote: game over, stable order, tab keys (2026-10-28)
+**What changed:**
+- Server: `hostView` ranks the players, then sends them in join order (`joinedAt`, then id). Each row keeps its `rank`. Screen and Player views stay ranked. `HostView.players` has a comment saying so.
+- Host remote (`Host.tsx`):
+  - In FINAL the Game tab shows a new `GameOverCard` in place of the question card: "Game over", then each player's ordinal rank, colour dot, name and score, sorted by `rank` with ties in join order. "No players" when empty. Show/Hide scoreboard stays in the secondary actions.
+  - Tabs follow the WAI-ARIA pattern: roving `tabIndex`, and the tablist's `onKeyDown` (`tabForKey`) handles ←/→ (wrapping), Home and End. Each key selects the tab, shows its panel and focuses it.
+- Tests: `views.test.ts` +3 (join order with rank; order kept after two score changes while the Screen re-ranks and the Player's rank updates; id tie-break). `Host.test.tsx` +10 (tab order, ←/→, wrap, Home/End, other keys; FINAL card, shared rank, no players, scoreboard toggle, no card before FINAL). 1083 tests in total. No new dependency.
+
+**Decisions:** one DECISIONS row dated 2026-10-28 for F40 covers the card layout, the tie order, the id tie-break and where the keys are handled. The three "backlog plan (F40)" rows were Kim's choices.
+
+**Notes for next session:**
+- Playtest (Playwright; Screen at 1920×1080, Host and two Players at 390×844), every step passed:
+  - Tab keys: roving `tabIndex`, → / ← with wrap both ways, Home / End.
+  - After Correct for Bob and ± on both players, the Host list stayed Ann, Bob while the Screen scoreboard showed Bob 300, Ann 200.
+  - FINAL: "Game over" with "1st Ann 300" and "1st Bob 300" (shared rank). Show/Hide scoreboard toggled.
+- The Players tab still shows no rank, only the order. The roadmap asked for `rank` in the view, not on the row.
+- The ± buttons still work in FINAL (F22), so a correction after the game re-ranks the card live.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, host a set, and pair a phone as Host. Join from two phones.
+2. On the Host, open Players, then tap +100 on the second player a few times: the rows never move. The Screen scoreboard re-ranks.
+3. End the game: the Game tab shows "Game over" and the ranking.
+4. With a keyboard (laptop browser), focus the Game tab and press →, ←, Home and End.
+
 ## F39 — Buzz eligibility and monotonic window (2026-10-28)
 **What changed:**
 - Shared:

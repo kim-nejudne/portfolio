@@ -176,6 +176,7 @@ export interface HostView extends SharedRoomView {
   role: 'host';
   question: Question | null;
   nextQuestion: Question | null;
+  /** Join order (`joinedAt`, then id), not ranked, so rows never move under the host's thumb. */
   players: (RankedPlayer & { rttMs: number })[];
   buzzes: Buzz[];
   judgements: Judgement[];
