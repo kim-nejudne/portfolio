@@ -50,7 +50,7 @@ describe('buzzerState', () => {
     for (const phase of ['OPEN', 'COLLECTING'] as const) {
       expect(buzzerState(view({ phase, questionIndex: 0 }), false)).toEqual({
         kind: 'live',
-        label: 'BUZZ!',
+        label: 'Buzzers open!',
         live: true,
       });
     }

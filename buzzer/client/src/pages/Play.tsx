@@ -16,10 +16,12 @@ import {
 } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
 import type { Ack, PlayerView } from '../../../shared/types.js';
+import { BulbRail } from '../components/BulbRail.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
+import { Icon } from '../components/Icon.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
-import { buzzerState, type BuzzerKind } from '../lib/buzzerState.js';
+import { buzzerState, type BuzzerKind, type BuzzerState } from '../lib/buzzerState.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -27,11 +29,13 @@ import {
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
+import { ordinal } from '../lib/results.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useAnswerCountdown } from '../lib/useAnswerCountdown.js';
+import { BUTTON_PRIMARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
@@ -167,12 +171,12 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
       <form
         onSubmit={onSubmit}
         aria-labelledby="name-heading"
-        className="flex flex-col gap-4 rounded-3xl border-2 border-edge bg-surface p-6"
+        className={`flex flex-col gap-4 ${CARD}`}
       >
         <h1 id="name-heading" className="font-display text-3xl">
           Join room <span className="tracking-[0.15em] text-accent">{code}</span>
         </h1>
-        <label htmlFor="player-name" className="text-lg text-muted">
+        <label htmlFor="player-name" className={LABEL}>
           Your name
         </label>
         <input
@@ -185,7 +189,7 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
           maxLength={PLAYER_NAME_MAX}
           aria-invalid={error !== null}
           aria-describedby={error ? 'name-error' : undefined}
-          className="w-full rounded-2xl border-2 border-edge bg-bg px-4 py-3 font-display text-3xl focus:border-accent"
+          className={`${INPUT} text-3xl`}
         />
         {error && (
           <p id="name-error" role="alert" className="text-lg text-buzz">
@@ -195,12 +199,15 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
         <button
           type="submit"
           disabled={name.trim() === ''}
-          className="rounded-2xl bg-accent px-6 py-4 font-display text-2xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
+          className={`${BUTTON_PRIMARY} text-2xl`}
         >
           Join
         </button>
       </form>
-      <Link to="/" className="text-center text-lg text-muted underline underline-offset-4">
+      <Link
+        to="/"
+        className="self-center py-2 text-center text-lg text-muted underline underline-offset-4"
+      >
         Back to start
       </Link>
     </main>
@@ -262,14 +269,35 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
   return <Buzzer view={view} buzz={buzz} />;
 }
 
+/*
+ * The BUZZ button: a 10px gold rim, then 10px of base and 6px of border colour as rings, and an
+ * 18px bottom bevel that shrinks to 8px when pressed. Full class strings, so Tailwind sees them.
+ */
+const RED_BUTTON = 'border-accent bg-buzz text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)]';
+/** Desaturated, not just faded: surface fill, border-colour rim, muted label. */
+const DEAD_BUTTON =
+  'border-edge bg-surface text-muted shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-bg-deep)]';
+
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
-  idle: 'border-edge bg-surface text-muted',
-  live: 'motion-safe:animate-buzz-pulse border-buzz-edge bg-buzz text-white',
-  pressed: 'scale-90 border-buzz-edge bg-buzz text-white brightness-75',
-  won: 'border-win-edge bg-win text-bg',
-  lost: 'border-edge bg-surface text-muted opacity-50',
-  out: 'border-buzz/60 bg-bg text-muted',
-  revealed: 'border-edge bg-surface text-ink',
+  idle: DEAD_BUTTON,
+  live: `${RED_BUTTON} shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)] motion-safe:animate-buzz-pulse`,
+  pressed: `${RED_BUTTON} translate-y-1 shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)]`,
+  won: DEAD_BUTTON,
+  lost: DEAD_BUTTON,
+  out: DEAD_BUTTON,
+  revealed: DEAD_BUTTON,
+  final: '',
+};
+
+/** The status line's colour above the button. */
+const STATUS_LOOK: Record<BuzzerKind, string> = {
+  idle: 'text-accent',
+  live: 'text-accent',
+  pressed: 'text-accent',
+  won: 'text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]',
+  lost: 'text-muted',
+  out: 'text-muted',
+  revealed: 'text-accent',
   final: '',
 };
 
@@ -279,7 +307,10 @@ interface BuzzerProps {
   buzz: (ack: (res: Ack) => void) => void;
 }
 
-/** The whole-viewport buzzer with the player's colour bar on top (UI spec, Player view). */
+/**
+ * The buzzer screen (UI spec, Player view): the player's avatar, name, room and score on top, a
+ * row of marquee bulbs, the state as a status line, the round BUZZ button, and their rank.
+ */
 function Buzzer({ view, buzz }: BuzzerProps) {
   // The local press belongs to one opening; a new question or reopening clears it.
   const opening = `${view.questionIndex}:${view.openingCounter}`;
@@ -319,60 +350,144 @@ function Buzzer({ view, buzz }: BuzzerProps) {
     press();
   }
 
+  const inGame = view.questionIndex >= 0;
+  const progress = inGame
+    ? `Question ${view.questionIndex + 1} of ${view.questionCount}${state.live ? ' · tap to buzz in' : ''}`
+    : null;
+
   return (
     <main className="flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none]">
-      <header
-        style={{ backgroundColor: view.me.color }}
-        className="flex shrink-0 items-center justify-between gap-4 px-4 py-2 font-display text-xl text-bg"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <ConnectionDot />
-          <span className="truncate">{view.me.name}</span>
+      <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2">
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-accent font-display text-xl text-accent-ink">
+            <span aria-hidden="true">{[...view.me.name][0]?.toUpperCase()}</span>
+            {/* Their palette colour, as on the Screen's chips and banner (DECISIONS, Prime Time). */}
+            <span
+              aria-hidden="true"
+              data-player-color
+              style={{ backgroundColor: view.me.color }}
+              className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full ring-2 ring-bg"
+            />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-lg leading-tight font-bold">{view.me.name}</span>
+            <span className="flex items-center gap-1.5 text-[13px] text-muted">
+              <ConnectionDot />
+              Room {view.code}
+            </span>
+          </span>
         </span>
-        <span aria-label="Score">{view.me.score}</span>
+        <span
+          aria-label="Score"
+          className={`${PILL} shrink-0 px-4 py-1.5 font-display text-xl tabular-nums`}
+        >
+          {view.me.score}
+        </span>
       </header>
       {state.kind === 'final' ? (
         <section
           aria-label="Final result"
           className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center"
         >
-          <p className="text-2xl text-muted">Game over</p>
-          <p className="font-display text-6xl">{state.label}</p>
-          <p className="font-display text-3xl text-accent">{state.detail}</p>
+          <BulbRail count={9} variant="row" />
+          <p className={LABEL}>Game over</p>
+          <p className="font-display text-6xl text-accent">{state.label}</p>
+          <p className="font-display text-3xl">{state.detail}</p>
         </section>
       ) : (
-        <div className="flex flex-1 items-center justify-center p-6">
-          <button
-            type="button"
-            disabled={!state.live}
-            data-look={state.kind}
-            onPointerDown={onPointerDown}
-            onContextMenu={(event) => event.preventDefault()}
-            className={`flex aspect-square w-[min(85vw,70dvh)] touch-none flex-col items-center justify-center gap-2 rounded-full border-8 p-[12%] text-center font-display break-words transition-transform duration-75 select-none [-webkit-touch-callout:none] ${state.label.length > 40 ? 'text-xl' : 'text-3xl'} ${BUZZER_LOOK[state.kind]}`}
-          >
-            {state.kind === 'out' && (
-              <span aria-hidden className="text-7xl leading-none text-buzz">
-                ✕
+        <>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-evenly gap-4 px-4 py-2">
+            <div className="flex w-full flex-col items-center gap-3">
+              <BulbRail count={9} variant="row" />
+              <BuzzerStatus state={state} progress={progress} />
+            </div>
+            <button
+              type="button"
+              disabled={!state.live}
+              data-look={state.kind}
+              aria-describedby="buzzer-status"
+              onPointerDown={onPointerDown}
+              onContextMenu={(event) => event.preventDefault()}
+              className={`grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
+            >
+              BUZZ
+            </button>
+          </div>
+          {inGame && (
+            <footer className="mx-4 mb-4 flex shrink-0 items-center justify-between rounded-[20px] border-2 border-edge bg-surface px-5 py-3">
+              <span className="font-bold text-muted">Your rank</span>
+              <span className="font-display text-2xl text-accent">
+                {ordinal(view.me.rank)}
+                <span className="ml-1.5 font-sans text-base font-bold text-muted">
+                  of {view.playerCount}
+                </span>
               </span>
-            )}
-            <span className="max-w-full">{state.label}</span>
-            {state.secondsLeft !== undefined && (
-              <span aria-label="Seconds left" className="text-7xl leading-none tabular-nums">
-                {state.secondsLeft}
-              </span>
-            )}
-            {state.detail && (
-              <span
-                className={`text-4xl ${state.detail.startsWith('+') ? 'text-win' : 'text-buzz'}`}
-              >
-                {state.detail}
-              </span>
-            )}
-          </button>
-        </div>
+            </footer>
+          )}
+        </>
       )}
       <Toast toast={toast} />
     </main>
+  );
+}
+
+/**
+ * The state above the button: a gold line, a muted one with a red X when locked out, the winner's
+ * red panel in the stage ring, or the revealed answer in a card.
+ */
+function BuzzerStatus({ state, progress }: { state: BuzzerState; progress: string | null }) {
+  const heading = (
+    <h1
+      id="buzzer-status"
+      className={`flex items-center justify-center gap-2 text-center font-display break-words ${
+        state.label.length > 40 ? 'text-xl' : 'text-[30px] leading-tight'
+      } ${STATUS_LOOK[state.kind]}`}
+    >
+      {state.kind === 'out' && <Icon name="x" className="size-8 text-buzz" />}
+      <span className="min-w-0">{state.label}</span>
+    </h1>
+  );
+  if (state.kind === 'won') {
+    return (
+      <section
+        aria-label="Your turn"
+        className="flex w-full max-w-sm flex-col items-center gap-1 rounded-[20px] bg-buzz px-5 py-4 shadow-[0_0_0_6px_var(--color-bg),0_0_0_10px_var(--color-accent)]"
+      >
+        {heading}
+        {state.secondsLeft !== undefined && (
+          <span
+            aria-label="Seconds left"
+            className="font-display text-6xl leading-none text-buzz-ink tabular-nums"
+          >
+            {state.secondsLeft}
+          </span>
+        )}
+      </section>
+    );
+  }
+  if (state.kind === 'revealed') {
+    return (
+      <section
+        aria-label="Answer"
+        className={`flex w-full max-w-sm flex-col items-center gap-1 ${CARD} py-4`}
+      >
+        <p className={LABEL}>Answer</p>
+        {heading}
+        {state.detail && (
+          <span
+            className={`font-display text-3xl ${state.detail.startsWith('+') ? 'text-win' : 'text-buzz'}`}
+          >
+            {state.detail}
+          </span>
+        )}
+      </section>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {heading}
+      {progress && <p className="text-center text-muted">{progress}</p>}
+    </div>
   );
 }
 
@@ -387,10 +502,11 @@ function PlayMessage({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
+      <BulbRail count={9} variant="row" />
       <h1 className="font-display text-4xl">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (
-        <Link to="/" className="text-lg underline underline-offset-4">
+        <Link to="/" className="py-2 text-lg text-muted underline underline-offset-4">
           Back to start
         </Link>
       )}

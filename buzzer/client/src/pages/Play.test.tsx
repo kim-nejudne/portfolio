@@ -312,20 +312,25 @@ describe('Play', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
-  it('lobby shows the grey "You\'re in! Waiting for the host" button under a bar in the player\'s colour', async () => {
+  it('lobby shows "You\'re in! Waiting for the host" over a grey BUZZ button, with the player\'s name and colour on top', async () => {
     stubExists(true);
     savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
     const { sockets } = renderPlay();
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     sockets[0]!.fire('state', playerView());
 
-    const button = screen.getByRole('button', {
-      name: 'You’re in! Waiting for the host',
-    }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
+    expect(button.dataset.look).toBe('idle');
+    // The state line describes the button, so a screen reader hears it with "BUZZ".
+    const status = screen.getByRole('heading', { level: 1 });
+    expect(status.textContent).toBe('You’re in! Waiting for the host');
+    expect(button.getAttribute('aria-describedby')).toBe(status.id);
     const bar = screen.getByRole('banner');
     expect(bar.textContent).toContain('Ana');
-    expect(bar.style.backgroundColor).toBe(hexToRgb(PLAYER_PALETTE[3]));
+    expect(bar.textContent).toContain('Room WXYZ');
+    const dot = bar.querySelector<HTMLElement>('[data-player-color]')!;
+    expect(dot.style.backgroundColor).toBe(hexToRgb(PLAYER_PALETTE[3]));
     expect(screen.getByLabelText('Score').textContent).toBe('0');
   });
 
@@ -352,6 +357,8 @@ describe('Play buzzer', () => {
   const open = (overrides: Partial<PlayerView> = {}) =>
     playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, ...overrides });
   const buzzer = () => screen.getByRole('button') as HTMLButtonElement;
+  /** The state line above the button. */
+  const status = () => screen.getByRole('heading', { level: 1 });
   const buzzes = (socket: FakeSocket) => socket.emitted.filter((e) => e.event === 'player:buzz');
 
   function stubVibrate() {
@@ -368,15 +375,18 @@ describe('Play buzzer', () => {
   it('says "Get ready…" on a grey, disabled button while buzzers are locked', async () => {
     const socket = await joined();
     socket.fire('state', playerView({ phase: 'QUESTION', questionIndex: 0 }));
-    expect(buzzer().textContent).toBe('Get ready…');
+    expect(status().textContent).toBe('Get ready…');
     expect(buzzer().disabled).toBe(true);
     expect(buzzer().dataset.look).toBe('idle');
   });
 
-  it('shows a bright, pulsing "BUZZ!" while buzzers are open', async () => {
+  it('shows "Buzzers open!" over a bright, pulsing BUZZ button while buzzers are open', async () => {
     const socket = await joined();
     socket.fire('state', open());
-    expect(buzzer().textContent).toBe('BUZZ!');
+    expect(status().textContent).toBe('Buzzers open!');
+    expect(screen.getByText('Question 1 of 10 · tap to buzz in')).toBeTruthy();
+    expect(buzzer().textContent).toBe('BUZZ');
+    expect(buzzer().className).toContain('bg-buzz');
     expect(buzzer().disabled).toBe(false);
     // Guarded, so reduced motion keeps the button still.
     expect(buzzer().className).toContain('motion-safe:animate-buzz-pulse');
@@ -386,7 +396,7 @@ describe('Play buzzer', () => {
     const socket = await joined();
     for (const phase of ['OPEN', 'COLLECTING'] as const) {
       socket.fire('state', open({ phase, canBuzz: false }));
-      expect(buzzer().textContent).toBe('Get ready… you can buzz from the next question');
+      expect(status().textContent).toBe('Get ready… you can buzz from the next question');
       expect(buzzer().disabled).toBe(true);
       expect(buzzer().dataset.look).toBe('idle');
 
@@ -404,7 +414,7 @@ describe('Play buzzer', () => {
     fireEvent.pointerDown(buzzer(), { button: 0 });
 
     expect(buzzes(socket)).toHaveLength(1);
-    expect(buzzer().textContent).toBe('Buzzed…');
+    expect(status().textContent).toBe('Buzzed…');
     expect(buzzer().dataset.look).toBe('pressed');
     expect(vibrate).toHaveBeenCalledWith(30);
   });
@@ -431,7 +441,7 @@ describe('Play buzzer', () => {
     fireEvent.keyDown(window, { code: 'Space' });
     fireEvent.keyDown(window, { code: 'Space', repeat: true });
     expect(buzzes(socket)).toHaveLength(1);
-    expect(buzzer().textContent).toBe('Buzzed…');
+    expect(status().textContent).toBe('Buzzed…');
   });
 
   it('Space does nothing while buzzers are locked', async () => {
@@ -446,7 +456,7 @@ describe('Play buzzer', () => {
     socket.fire('state', open());
     fireEvent.pointerDown(buzzer(), { button: 0 });
     act(() => buzzes(socket)[0]!.ack({ ok: false, error: 'Too many buzzes' }));
-    expect(buzzer().textContent).toBe('BUZZ!');
+    expect(status().textContent).toBe('Buzzers open!');
   });
 
   it('a refused buzz shows the reason in a toast that hides itself', async () => {
@@ -515,27 +525,28 @@ describe('Play buzzer', () => {
     }
   });
 
-  it('stays "Buzzed…" through the window, and a new opening brings "BUZZ!" back', async () => {
+  it('stays "Buzzed…" through the window, and a new opening brings "Buzzers open!" back', async () => {
     const socket = await joined();
     socket.fire('state', open());
     fireEvent.pointerDown(buzzer(), { button: 0 });
     act(() => buzzes(socket)[0]!.ack({ ok: true }));
     socket.fire('state', open({ phase: 'COLLECTING', hasBuzzed: true }));
-    expect(buzzer().textContent).toBe('Buzzed…');
+    expect(status().textContent).toBe('Buzzed…');
 
     socket.fire('state', open({ openingCounter: 2 }));
-    expect(buzzer().textContent).toBe('BUZZ!');
+    expect(status().textContent).toBe('Buzzers open!');
   });
 
-  it('the winner sees a green "You\'re first! Answer now"', async () => {
+  it('the winner sees "You\'re first! Answer now" on a red panel', async () => {
     const socket = await joined();
     socket.fire(
       'state',
       open({ phase: 'BUZZED', hasBuzzed: true, winnerId: 'p1', winnerName: 'Ana' }),
     );
-    expect(buzzer().textContent).toBe('You’re first! Answer now');
+    expect(status().textContent).toBe('You’re first! Answer now');
     expect(buzzer().dataset.look).toBe('won');
-    expect(buzzer().className).toContain('bg-win');
+    expect(screen.getByRole('region', { name: 'Your turn' }).className).toContain('bg-buzz');
+    expect(buzzer().disabled).toBe(true);
   });
 
   it('with an answer time, the winner sees the seconds count down, then "Time\'s up!"', async () => {
@@ -549,14 +560,16 @@ describe('Play buzzer', () => {
       answerTimer: { seconds: 3, up: false },
     });
     socket.fire('state', won);
-    const secondsLeft = () => within(buzzer()).getByLabelText('Seconds left').textContent;
-    expect(buzzer().textContent).toContain('You’re first! Answer now');
+    const secondsLeft = () =>
+      within(screen.getByRole('region', { name: 'Your turn' })).getByLabelText('Seconds left')
+        .textContent;
+    expect(status().textContent).toContain('You’re first! Answer now');
     expect(secondsLeft()).toBe('3');
     act(() => vi.advanceTimersByTime(1000));
     expect(secondsLeft()).toBe('2');
 
     socket.fire('state', { ...won, answerTimer: { seconds: 3, up: true } });
-    expect(buzzer().textContent).toBe('Time’s up!');
+    expect(status().textContent).toBe('Time’s up!');
     expect(buzzer().dataset.look).toBe('won');
   });
 
@@ -564,15 +577,15 @@ describe('Play buzzer', () => {
     const socket = await joined();
     const lost = open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' });
     socket.fire('state', { ...lost, answerTimer: { seconds: 3, up: false } });
-    expect(buzzer().textContent).toBe('Ben buzzed first');
+    expect(status().textContent).toBe('Ben buzzed first');
     socket.fire('state', { ...lost, answerTimer: { seconds: 3, up: true } });
-    expect(buzzer().textContent).toBe('Ben buzzed first');
+    expect(status().textContent).toBe('Ben buzzed first');
   });
 
   it("everyone else sees the winner's name on a dim button", async () => {
     const socket = await joined();
     socket.fire('state', open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' }));
-    expect(buzzer().textContent).toBe('Ben buzzed first');
+    expect(status().textContent).toBe('Ben buzzed first');
     expect(buzzer().dataset.look).toBe('lost');
     expect(buzzer().disabled).toBe(true);
   });
@@ -616,7 +629,7 @@ describe('Play result states', () => {
     return sockets[0]!;
   }
 
-  it('a locked-out player sees a dark, disabled button with an X and "Locked out this round"', async () => {
+  it('a locked-out player sees a red X, "Locked out this round" and a desaturated, disabled button', async () => {
     const socket = await joined();
     socket.fire(
       'state',
@@ -625,8 +638,11 @@ describe('Play result states', () => {
     const button = screen.getByRole('button') as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.dataset.look).toBe('out');
-    expect(button.className).toContain('bg-bg');
-    expect(button.textContent).toBe('✕Locked out this round');
+    expect(button.className).toContain('bg-surface');
+    expect(button.className).not.toContain('bg-buzz');
+    const status = screen.getByRole('heading', { level: 1 });
+    expect(status.textContent).toBe('Locked out this round');
+    expect(status.querySelector('svg')?.getAttribute('class')).toContain('text-buzz');
   });
 
   it('shows the answer and "+100" at reveal when this player scored', async () => {
@@ -643,15 +659,17 @@ describe('Play result states', () => {
     );
     const button = screen.getByRole('button') as HTMLButtonElement;
     expect(button.dataset.look).toBe('revealed');
-    expect(within(button).getByText('Canberra')).toBeTruthy();
-    expect(within(button).getByText('+100').className).toContain('text-win');
+    const card = screen.getByRole('region', { name: 'Answer' });
+    expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Canberra');
+    expect(within(card).getByText('+100').className).toContain('text-win');
     expect(screen.getByLabelText('Score').textContent).toBe('100');
   });
 
   it('shows the answer without points at reveal when this player did not score', async () => {
     const socket = await joined();
     socket.fire('state', playerView({ phase: 'REVEAL', questionIndex: 0, answer: 'Canberra' }));
-    expect(screen.getByRole('button').textContent).toBe('Canberra');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Canberra');
+    expect(screen.queryByText(/^[+−]/)).toBeNull();
   });
 
   it('shows the final rank and score when the game is over, with no buzzer', async () => {

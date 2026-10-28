@@ -3,8 +3,9 @@ import { ordinal, signedPoints } from './results.js';
 import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
 
 /**
- * How the buzzer looks: grey, bright and pulsing, pressed in, green, dim, dark with an X, grey
- * with the answer, or the final result in place of the button.
+ * How the buzzer looks: grey, bright and pulsing, pressed in, the winner's red panel, dim, muted
+ * with a red X, the answer in a card, or the final result in place of the button. The label is
+ * the status line above the button; the button itself always reads BUZZ.
  */
 /** A player who joined while the buzzers were open waits for the next opening (UI spec, Player view). */
 export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next question';
@@ -44,7 +45,7 @@ export function buzzerState(
       if (pressed || view.hasBuzzed) return { kind: 'pressed', label: 'Buzzed…', live: false };
       // Joined during this opening: a press could not count, so none is sent (DECISIONS F39).
       if (!view.canBuzz) return idle(LATE_JOINER_LABEL);
-      return { kind: 'live', label: 'BUZZ!', live: true };
+      return { kind: 'live', label: 'Buzzers open!', live: true };
     case 'BUZZED':
       // A wrong answer stays BUZZED until the buzzers reopen (DECISIONS #5): the judged winner is
       // already locked out then, and so is anyone judged wrong earlier in the question.
