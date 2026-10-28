@@ -143,7 +143,8 @@ Implement these in `server/reducer.ts` as a pure function `reduce(room, action, 
 | LOBBY | `host:start` (at least 1 player) | QUESTION, index 0 | |
 | QUESTION | `host:open`, or automatically when `autoOpenBuzzers` is on | OPEN | Clear `buzzes` |
 | OPEN | First valid `player:buzz` | COLLECTING | Schedule `windowClosed` in 150 ms |
-| COLLECTING | `windowClosed` | BUZZED | Rank buzzes, set `winnerId`, emit `fx buzz` |
+| COLLECTING | `windowClosed` | BUZZED | Rank buzzes, set `winnerId`, emit `fx buzz`; when `answerSeconds` > 0, start the answer timer and schedule `answerTimeUp` |
+| BUZZED | `answerTimeUp` (fresh) | BUZZED | Mark the timer up, emit `fx timeUp`. The host still judges |
 | BUZZED | `host:judge correct` | REVEAL | Winner + question points, emit `fx correct` |
 | BUZZED | `host:judge wrong`, others still eligible | OPEN after 1.5 s | Add winner to `lockedOut`, apply penalty if on, emit `fx wrong`, schedule `reopen` |
 | BUZZED | `host:judge wrong`, nobody eligible | REVEAL | Same as above, no reopen |
@@ -153,7 +154,7 @@ Implement these in `server/reducer.ts` as a pure function `reduce(room, action, 
 | BUZZED, OPEN or REVEAL of the same question | `host:undo` | BUZZED with the undone player as winner | Reverse the last judgement's points and lockout |
 | Any | `host:end` | FINAL | |
 
-Scheduled effects (`windowClosed`, `reopen`) carry the question index and an opening counter; the server ignores them if the room has moved on, so a host clicking fast never causes a stale transition.
+Scheduled effects (`windowClosed`, `reopen`, `answerTimeUp`) carry the question index and an opening counter; the server ignores them if the room has moved on, so a host clicking fast never causes a stale transition.
 
 ### Scoring rules
 
@@ -205,7 +206,7 @@ The look is bold and game-show-like: dark background, one bright accent, very la
 | Question shown, buzzers locked | Grey, disabled | "Get ready…" |
 | Buzzers open | Bright red, pulsing | "BUZZ!" |
 | Pressed, waiting for result | Pressed-in red | "Buzzed…" |
-| This player won the buzz | Green | "You're first! Answer now" |
+| This player won the buzz | Green | "You're first! Answer now", with the seconds left when an answer time is set, then "Time's up!" |
 | Someone else won | Dim | "&lt;Name&gt; buzzed first" |
 | Locked out after a wrong answer | Dark with an X | "Locked out this round" |
 | Answer revealed | Grey | The answer text, and "+100" if they scored |
@@ -218,9 +219,9 @@ The look is bold and game-show-like: dark background, one bright accent, very la
 
 Designed for 1920×1080, legible from 5 metres; scale with viewport units. First load shows a **Click to start** overlay, needed to unlock audio and enter fullscreen.
 
-- **Lobby:** huge room code, QR code to `/play/:code`, the join URL in text, and joined players as coloured name chips that pop in. Buttons: **Pair host phone**, **Start game** (Start only when this device is a Host).
+- **Lobby:** huge room code, QR code to `/play/:code`, the join URL in text, and joined players as coloured name chips that pop in. Buttons: **Pair host phone**, **Start game** (Start only when this device is a Host). When this device is a Host, the lobby also shows the room settings (the remote's Settings tab) beside Start game.
 - **Question:** "Question 3 of 20", the question text (auto-shrinks to fit), and the image if present (contained, never cropped). Status line: "Buzzers locked" or "Buzzers OPEN" with a visible change of colour.
-- **Buzzed:** the winner's name in a giant banner in their colour, with a buzz sound. Below: "also buzzed" names with time gaps ("+0.12 s").
+- **Buzzed:** the winner's name in a giant banner in their colour, with a buzz sound. Below: "also buzzed" names with time gaps ("+0.12 s"). With an answer time set, a large countdown beside the winner's banner. At zero: "Time's up!", a red flash and the time's-up sound. The host still judges.
 - **Judged:** Correct = green flash, sound, "+100" floating up from the name. Wrong = red flash, buzz sound, the player's chip greyed out, then back to Buzzers open after 1.5 s.
 - **Reveal:** the answer in large type under the question.
 - **Scoreboard:** shown between questions on demand, and automatically every 5 questions **[default]**. Ranked list, animated reordering.
@@ -232,10 +233,10 @@ Designed for 1920×1080, legible from 5 metres; scale with viewport units. First
 Phone-first layout. Never shown on the Screen.
 
 - **Top:** question number, the question text, the **answer** and host notes in a highlighted box, and the image thumbnail.
-- **Primary action button** (full width, changes with state): Start game → Open buzzers → (after a buzz) **Correct** / **Wrong** side by side → Reveal answer → Next question → Show final results.
+- **Primary action button** (full width, changes with state): Start game → Open buzzers → (after a buzz) **Correct** / **Wrong** side by side, with the answer countdown beside them when one is set → Reveal answer → Next question → Show final results.
 - **Secondary actions:** Skip question (reveals answer), Show/hide scoreboard on the Screen, Undo last judgement, Previous question, End game.
 - **Players tab:** list with scores, connection status, +/− buttons to adjust a score by the question's value, and Kick.
-- **Settings tab:** wrong-answer penalty on/off, auto-open buzzers when a question appears on/off **[default: off]**, scoreboard every N questions.
+- **Settings tab:** wrong-answer penalty on/off, auto-open buzzers when a question appears on/off **[default: off]**, answer time Off / 3 / 5 / 7 / 10 s **[default: off]**, scoreboard every N questions.
 
 ### Screen host controls (when the Screen device holds the hostToken)
 
@@ -352,6 +353,7 @@ export interface RoomSettings {
   wrongPenalty: boolean;           // default false
   autoOpenBuzzers: boolean;        // default false
   scoreboardEvery: number;         // default 5, 0 = never auto
+  answerSeconds: 0 | 3 | 5 | 7 | 10; // default 0 = off
 }
 
 export interface Room {
@@ -368,6 +370,7 @@ export interface Room {
   winnerId: string | null;
   lockedOut: string[];             // playerIds wrong this question
   judgements: Judgement[];         // whole game, enables undo
+  answerTimer: { seconds: number; endsAt: number; up: boolean } | null; // set in BUZZED while the winner's answer time runs
   showScoreboard: boolean;         // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -468,7 +471,6 @@ Do not build these yet, but avoid choices that make them hard later.
 | Idea | Why later | What keeps the door open |
 | --- | --- | --- |
 | Teams with shared scores | Adds a team-setup flow | Keep scoring in one `applyJudgement()` function |
-| Countdown timer per question | Not needed for host-paced games | Phase machine already has OPEN → REVEAL |
 | Multiple choice / players type answers | Different game mode | `Question` has `schemaVersion` for new fields |
 | Accounts and cloud-saved sets | Needs a database and auth | Sets already serialise to one JSON file |
 | Surviving server restarts | Needs Redis or a database | All room state goes through one `RoomStore` interface |
