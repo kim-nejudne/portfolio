@@ -1,3 +1,4 @@
+import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import express, {
   type ErrorRequestHandler,
@@ -11,16 +12,20 @@ import {
   CREATE_ROOM_BODY_MAX_BYTES,
   IMAGE_MAX_BYTES,
   IMAGE_TYPES,
+  ROOM_CHECK_RATE_LIMIT,
+  ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_CREATE_RATE_LIMIT,
 } from '../shared/constants.js';
 import { createRoomBodySchema, idSchema, roomCodeSchema } from '../shared/schemas.js';
 import type {
+  ConfigResponse,
   CreateRoomResponse,
   HttpErrorBody,
   RoomExistsResponse,
   UploadImageResponse,
 } from '../shared/types.js';
 import { createRoomCode, type Rng } from './codes.js';
+import { lanAddress } from './env.js';
 import { generateHostToken, hashHostToken, verifyHostToken } from './hostToken.js';
 import { InMemoryImageStore, type ImageStore } from './imageStore.js';
 import { createRateLimiter } from './rateLimit.js';
@@ -42,6 +47,10 @@ export interface AppOptions {
    * Off by default: trusting `X-Forwarded-For` without a proxy lets anyone dodge the rate limit.
    */
   trustProxy?: boolean | number | string;
+  /** `PUBLIC_URL`, already parsed to an origin. When set, it is always the join origin. */
+  publicUrl?: string | null;
+  /** The server's network interfaces, read on each config request. Faked in tests. */
+  interfaces?: () => ReturnType<typeof networkInterfaces>;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -57,6 +66,11 @@ function bearerToken(req: Request): string | undefined {
   return match?.[1];
 }
 
+/** True when the page was opened at an address only this computer can reach (client `isLoopbackHost`). */
+function isLoopbackHostname(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '[::1]' || /^127\.\d+\.\d+\.\d+$/.test(hostname);
+}
+
 export function createApp({
   clientDir,
   rooms = new InMemoryRoomStore(),
@@ -64,15 +78,29 @@ export function createApp({
   clock = Date.now,
   rng = Math.random,
   trustProxy = false,
+  publicUrl = null,
+  interfaces = networkInterfaces,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
 
   const createLimiter = createRateLimiter(ROOM_CREATE_RATE_LIMIT, clock);
+  const checkLimiter = createRateLimiter(ROOM_CHECK_RATE_LIMIT, clock);
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  // Where phones should join. A Screen on localhost cannot hand out its own origin, so without
+  // PUBLIC_URL it gets this machine's LAN address; the client adds its page's port (DECISIONS F42).
+  app.get('/api/config', (req, res) => {
+    let joinOrigin = publicUrl;
+    if (joinOrigin === null && isLoopbackHostname(req.hostname)) {
+      const address = lanAddress(interfaces());
+      joinOrigin = address === null ? null : `http://${address}`;
+    }
+    res.json({ joinOrigin } satisfies ConfigResponse);
   });
 
   // Every attempt counts against the limit, valid or not, so bad bodies cannot be used to probe for free.
@@ -112,7 +140,11 @@ export function createApp({
     },
   );
 
+  // Limited so one address cannot walk the code space looking for live rooms.
   app.get('/api/rooms/:code/exists', (req, res) => {
+    if (!checkLimiter.hit(req.ip ?? 'unknown')) {
+      return sendError(res, 429, ROOM_CHECK_RATE_LIMITED_ERROR);
+    }
     const code = roomCodeSchema.safeParse(req.params.code);
     const room = code.success ? rooms.get(code.data) : undefined;
     res.json({

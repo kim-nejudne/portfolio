@@ -141,10 +141,56 @@ describe('Screen', () => {
     expect(screen.getByText('Waiting for players…')).toBeTruthy();
   });
 
-  it('warns that phones cannot open a localhost join URL', () => {
-    const { socket } = renderScreen();
-    socket.fire('state', lobbyView());
-    expect(screen.getByRole('note').textContent).toContain('Phones can’t open localhost');
+  describe('join address', () => {
+    function stubConfig(joinOrigin: string | null) {
+      const fetch = vi.fn(() => Promise.resolve(Response.json({ joinOrigin })));
+      vi.stubGlobal('fetch', fetch);
+      return fetch;
+    }
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('warns that phones cannot open a localhost join URL when the server has no address', async () => {
+      const fetch = stubConfig(null);
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView());
+      expect((await screen.findByRole('note')).textContent).toContain(
+        'Phones can’t open localhost',
+      );
+      expect(fetch).toHaveBeenCalledWith('/api/config');
+    });
+
+    it('shows no warning before the server has answered', () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => new Promise(() => {})),
+      );
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView());
+      expect(screen.queryByRole('note')).toBeNull();
+    });
+
+    it("uses the server's LAN address with the page's port for the QR, the URL and the strip", async () => {
+      stubConfig('http://192.168.1.20');
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView());
+      const lan = `192.168.1.20:${window.location.port}/play/WXYZ`;
+      expect(await screen.findByTitle(`Join at http://${lan}`)).toBeTruthy();
+      expect(within(screen.getByRole('main')).getAllByText(lan).length).toBeGreaterThan(0);
+      expect(screen.getByRole('contentinfo').textContent).toBe(`Room WXYZJoin at ${lan}`);
+      expect(screen.queryByRole('note')).toBeNull();
+    });
+
+    it('uses PUBLIC_URL as it is', async () => {
+      stubConfig('https://buzzr.example');
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView());
+      expect(await screen.findByTitle('Join at https://buzzr.example/play/WXYZ')).toBeTruthy();
+      expect(screen.getByRole('contentinfo').textContent).toBe(
+        'Room WXYZJoin at buzzr.example/play/WXYZ',
+      );
+      expect(screen.queryByRole('note')).toBeNull();
+    });
   });
 
   it('player chips appear live, in each player’s colour', () => {

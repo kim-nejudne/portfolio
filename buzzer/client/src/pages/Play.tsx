@@ -11,6 +11,7 @@ import {
   GAME_ENDED_ERROR,
   PLAYER_KICKED_ERROR,
   PLAYER_NAME_MAX,
+  ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
@@ -125,7 +126,15 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
         <PlayMessage title="Room not found" detail={`There is no game with code ${code}.`} />
       );
     case 'unreachable':
-      return <PlayMessage title="Can’t reach the game" detail={step.error} />;
+      // Past the room-check limit (F42) the server answered, so "can't reach" would mislead.
+      return (
+        <PlayMessage
+          title={
+            step.error === ROOM_CHECK_RATE_LIMITED_ERROR ? 'Slow down' : 'Can’t reach the game'
+          }
+          detail={step.error}
+        />
+      );
     case 'form':
       return (
         <NameForm code={code} name={name} error={formError} onName={setName} onSubmit={submit} />

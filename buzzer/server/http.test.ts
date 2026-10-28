@@ -1,12 +1,22 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import type { Server } from 'node:http';
+import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, ROOM_CREATE_RATE_LIMIT } from '../shared/constants.js';
+import {
+  DEFAULT_SETTINGS,
+  ROOM_CHECK_RATE_LIMIT,
+  ROOM_CHECK_RATE_LIMITED_ERROR,
+  ROOM_CREATE_RATE_LIMIT,
+} from '../shared/constants.js';
 import { hostTokenSchema } from '../shared/schemas.js';
-import type { CreateRoomResponse, HttpErrorBody, RoomExistsResponse } from '../shared/types.js';
+import type {
+  ConfigResponse,
+  CreateRoomResponse,
+  HttpErrorBody,
+  RoomExistsResponse,
+} from '../shared/types.js';
 import { hashHostToken, verifyHostToken } from './hostToken.js';
 import { createApp, type AppOptions } from './http.js';
 import { InMemoryRoomStore } from './roomStore.js';
@@ -219,6 +229,38 @@ describe('GET /api/rooms/:code/exists', () => {
     }
   });
 
+  it(`refuses the ${ROOM_CHECK_RATE_LIMIT.max + 1}st check from one IP within a minute with 429`, async () => {
+    let now = T0;
+    const base = await listen({ clock: () => now });
+    // The first check at T0, the other 29 a second later.
+    for (let i = 0; i < ROOM_CHECK_RATE_LIMIT.max; i++) {
+      if (i === 1) now += 1000;
+      expect((await fetch(`${base}/api/rooms/WXYZ/exists`)).status).toBe(200);
+    }
+    const refused = await fetch(`${base}/api/rooms/WXYZ/exists`);
+    expect(refused.status).toBe(429);
+    expect((await refused.json()) as HttpErrorBody).toEqual({
+      ok: false,
+      error: ROOM_CHECK_RATE_LIMITED_ERROR,
+    });
+
+    // The window slides: one slot frees exactly a window after the first check, not before.
+    now = T0 + ROOM_CHECK_RATE_LIMIT.windowMs - 1;
+    expect((await fetch(`${base}/api/rooms/WXYZ/exists`)).status).toBe(429);
+    now += 1;
+    expect((await fetch(`${base}/api/rooms/WXYZ/exists`)).status).toBe(200);
+    expect((await fetch(`${base}/api/rooms/WXYZ/exists`)).status).toBe(429);
+  });
+
+  it('limits checks by the forwarded client IP when trust proxy is on', async () => {
+    const base = await listen({ trustProxy: 1 });
+    const check = (ip: string) =>
+      fetch(`${base}/api/rooms/WXYZ/exists`, { headers: { 'x-forwarded-for': ip } });
+    for (let i = 0; i < ROOM_CHECK_RATE_LIMIT.max; i++) await check('10.0.0.1');
+    expect((await check('10.0.0.1')).status).toBe(429);
+    expect((await check('10.0.0.2')).status).toBe(200);
+  });
+
   it('never exposes the hostToken hash or the set', async () => {
     const rooms = new InMemoryRoomStore();
     rooms.set(makeRoom({ code: 'ABCD' }));
@@ -226,5 +268,67 @@ describe('GET /api/rooms/:code/exists', () => {
     const text = await (await fetch(`${base}/api/rooms/ABCD/exists`)).text();
     expect(JSON.parse(text)).toEqual({ exists: true, phase: 'LOBBY' });
     expect(text).not.toContain('secret');
+  });
+});
+
+/** GET with a chosen Host header, which `fetch` will not send. */
+function getWithHost(base: string, path: string, host: string): Promise<ConfigResponse> {
+  return new Promise((resolve, reject) => {
+    request(`${base}${path}`, { headers: { host } }, (res) => {
+      let body = '';
+      res.on('data', (chunk: Buffer) => (body += chunk.toString()));
+      res.on('end', () => resolve(JSON.parse(body) as ConfigResponse));
+    })
+      .on('error', reject)
+      .end();
+  });
+}
+
+const iface = (address: string, internal = false) => ({
+  address,
+  netmask: '255.255.255.0',
+  family: 'IPv4' as const,
+  mac: '00:00:00:00:00:00',
+  internal,
+  cidr: `${address}/24`,
+});
+
+describe('GET /api/config', () => {
+  const interfaces = () => ({
+    lo: [iface('127.0.0.1', true)],
+    docker0: [iface('172.17.0.1')],
+    wlan0: [iface('192.168.1.20')],
+  });
+
+  it('returns PUBLIC_URL for any Host when it is set', async () => {
+    const base = await listen({ publicUrl: 'https://buzzr.example', interfaces });
+    for (const host of ['localhost:5173', '192.168.1.20:5173', 'buzzr.example']) {
+      expect(await getWithHost(base, '/api/config', host)).toEqual({
+        joinOrigin: 'https://buzzr.example',
+      });
+    }
+  });
+
+  it('returns the LAN address with no port when the Host is loopback', async () => {
+    const base = await listen({ interfaces });
+    for (const host of ['localhost:5173', 'localhost', '127.0.0.1:3000', '[::1]:5173']) {
+      expect(await getWithHost(base, '/api/config', host)).toEqual({
+        joinOrigin: 'http://192.168.1.20',
+      });
+    }
+  });
+
+  it('returns null for a non-loopback Host, which phones can already reach', async () => {
+    const base = await listen({ interfaces });
+    for (const host of ['192.168.1.20:5173', 'buzzr.example', 'localhost.evil.example']) {
+      expect(await getWithHost(base, '/api/config', host)).toEqual({ joinOrigin: null });
+    }
+  });
+
+  it('returns null on loopback when the machine has no LAN address', async () => {
+    const base = await listen({ interfaces: () => ({ lo: [iface('127.0.0.1', true)] }) });
+    expect(await getWithHost(base, '/api/config', 'localhost:5173')).toEqual({
+      joinOrigin: null,
+    });
   });
 });

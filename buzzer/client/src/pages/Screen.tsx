@@ -18,7 +18,7 @@ import { StartOverlay } from '../components/StartOverlay.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
-import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
+import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
@@ -29,6 +29,7 @@ import {
   type HostCommand,
   type SendHost,
 } from '../lib/useHostCommand.js';
+import { useJoinOrigin } from '../lib/useJoinOrigin.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
@@ -130,8 +131,11 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   const command = useHostCommand(view, send, show);
   // The order the scoreboard last showed, so the next showing can replay the climb.
   const [scoreboardOrder, setScoreboardOrder] = useState<string[]>([]);
-  // SPEC-QUESTION: the join URL uses the Screen page's own origin; there is no configured public URL (DECISIONS, F08).
-  const url = joinUrl(window.location.origin, code);
+  // PUBLIC_URL, or this machine's LAN address on localhost, else the page's own origin (DECISIONS F42).
+  const joinOrigin = useJoinOrigin();
+  const url = joinUrl(joinPageOrigin(joinOrigin ?? null, window.location), code);
+  // Only once the server has answered that it has no address phones can reach.
+  const unreachable = joinOrigin === null && isLoopbackHost(window.location.hostname);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
@@ -142,6 +146,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
             <Lobby
               view={view}
               url={url}
+              unreachable={unreachable}
               hostToken={loadHostToken(code)}
               command={canHost ? command : null}
             />
@@ -181,13 +186,15 @@ const CHIP_MIN_PX = 8;
 interface LobbyProps {
   view: ScreenView;
   url: string;
+  /** True when phones cannot open `url`: the page is on localhost and the server knows no LAN address. */
+  unreachable: boolean;
   /** Set when this device created the room, so it may pair host phones (DECISIONS #14). */
   hostToken: string | null;
   /** Set when the server accepted this device's hostToken: the lobby then offers Start and the settings. */
   command: HostCommand | null;
 }
 
-function Lobby({ view, url, hostToken, command }: LobbyProps) {
+function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
   // A full room gives the chips more height: a smaller (still huge) code and join QR.
   const many = view.players.length > MANY_PLAYERS;
   const qrSize = many ? 'min(30vh, 22cqw)' : 'min(36vh, 28cqw)';
@@ -207,7 +214,7 @@ function Lobby({ view, url, hostToken, command }: LobbyProps) {
             >
               {view.code}
             </h1>
-            {isLoopbackHost(window.location.hostname) && (
+            {unreachable && (
               <p role="note" className="text-[1.78cqw] text-muted">
                 Phones can’t open localhost. Open this page at this computer’s network address
                 instead.

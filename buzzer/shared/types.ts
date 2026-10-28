@@ -277,6 +277,14 @@ export interface RoomExistsResponse {
   phase: Phase | null;
 }
 
+/**
+ * `GET /api/config`. `joinOrigin` is where phones should open the join URL: `PUBLIC_URL`, or the
+ * server's LAN address (no port) when the Screen is on loopback, or null to use the page's own origin.
+ */
+export interface ConfigResponse {
+  joinOrigin: string | null;
+}
+
 /** `POST /api/rooms/:code/images/:imageId`, on success (201). */
 export interface UploadImageResponse {
   ok: true;

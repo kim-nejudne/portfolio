@@ -1,3 +1,17 @@
+/**
+ * The origin phones should join at, from the server's `joinOrigin` (F42). Null means the page's own
+ * origin. A `joinOrigin` without a port (the server's LAN address) takes the page's port when the
+ * protocols match, so the Vite dev server on :5173 still works.
+ */
+export function joinPageOrigin(joinOrigin: string | null, page: Location | URL): string {
+  if (joinOrigin === null) return page.origin;
+  const join = new URL(joinOrigin);
+  if (join.port === '' && page.port !== '' && join.protocol === page.protocol) {
+    join.port = page.port;
+  }
+  return join.origin;
+}
+
 /** Full URL of the player page, for the join QR. */
 export function joinUrl(origin: string, code: string): string {
   return `${origin}/play/${code}`;

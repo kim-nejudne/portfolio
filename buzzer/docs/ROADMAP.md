@@ -108,15 +108,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F41 Connection awareness
 
-- [ ] F42 Join address and room-check limit
-  - Spec: Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security); UI spec by view (Screen view: Lobby); see DECISIONS, Proposed spec changes (backlog: join address, room-check limit)
-  - Depends: F37
-  - Done when:
-    - New `GET /api/config` returns `{joinOrigin: string | null}`: the `PUBLIC_URL` env var (validated as an http(s) origin at start-up) when set; else, only when the request's Host is loopback, `http://<first private IPv4>` (skipping `docker*`, `br-*` and `veth*` interfaces) with no port; else null
-    - The Screen uses `joinOrigin` for the QR, the join URL and the bottom strip; with a host-only origin it keeps its own page port (so dev on :5173 works). The loopback note shows only when `joinOrigin` is null
-    - `PUBLIC_URL` is listed in `server/env.ts` and the README env table
-    - `GET /api/rooms/:code/exists` allows 30 requests per minute per `req.ip` (`server/rateLimit.ts`, constant in `shared/constants.ts`) and answers 429 with the standard error shape after that; the join form shows "Too many tries. Wait a minute and try again."
-  - Tests: `http.test.ts` (config with and without `PUBLIC_URL`, loopback vs non-loopback Host, 31st exists call is 429, window slides); `env` parse tests; Screen join URL tests; join form 429 test
+- [x] F42 Join address and room-check limit
 
 - [ ] F43 Preview: show answer
   - Spec: Question editor and images (Set editor); see DECISIONS, Proposed spec changes (backlog: preview answer)
@@ -156,3 +148,5 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 ## Bugs
 
 ## Backlog (not scheduled)
+
+- Pairing QR uses `joinOrigin` too: a Screen on localhost hands a phone an unreachable `/host/:code` link (F42). Pass the join origin to `PairHostPhone`.

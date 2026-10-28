@@ -46,6 +46,8 @@ export const ROOM_EXPIRED_REASON = 'expired';
 export const BUZZ_RATE_LIMITED_ERROR = 'Too many buzzes';
 /** The `ping` error past `PING_RATE_LIMIT`. */
 export const PING_RATE_LIMITED_ERROR = 'Too many pings';
+/** The room check's 429 error past `ROOM_CHECK_RATE_LIMIT`, shown on the join page. */
+export const ROOM_CHECK_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
 /** Player names are trimmed, then must be 1 to 16 characters. */
 export const PLAYER_NAME_MIN = 1;
 export const PLAYER_NAME_MAX = 16;
@@ -135,6 +137,8 @@ export const BUZZ_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 export const PING_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 export const PLAYER_JOIN_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const; // DECISIONS #3
 export const ROOM_CREATE_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+/** `GET /api/rooms/:code/exists`, per IP: enough for a room of phones behind one NAT (DECISIONS F42). */
+export const ROOM_CHECK_RATE_LIMIT = { max: 30, windowMs: 60 * 1000 } as const;
 
 // ---------- Client UI ----------
 

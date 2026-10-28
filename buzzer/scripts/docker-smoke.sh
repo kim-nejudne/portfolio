@@ -27,12 +27,15 @@ compose_env() {
 }
 TRUST_PROXY=$(compose_env TRUST_PROXY)
 IMAGES_MAX_MB=$(compose_env IMAGES_MAX_MB)
+PUBLIC_URL=$(compose_env PUBLIC_URL)
 [ -n "$TRUST_PROXY" ] || fail "deploy/compose.deploy.yaml does not set TRUST_PROXY"
 [ -n "$IMAGES_MAX_MB" ] || fail "deploy/compose.deploy.yaml does not set IMAGES_MAX_MB"
+[ -n "$PUBLIC_URL" ] || fail "deploy/compose.deploy.yaml does not set PUBLIC_URL"
 
-echo "== run on :$PORT (TRUST_PROXY=$TRUST_PROXY, IMAGES_MAX_MB=$IMAGES_MAX_MB)"
+echo "== run on :$PORT (TRUST_PROXY=$TRUST_PROXY, IMAGES_MAX_MB=$IMAGES_MAX_MB, PUBLIC_URL=$PUBLIC_URL)"
 docker run -d --name "$NAME" -p "127.0.0.1:$PORT:3000" \
-  -e TRUST_PROXY="$TRUST_PROXY" -e IMAGES_MAX_MB="$IMAGES_MAX_MB" "$TAG" >/dev/null
+  -e TRUST_PROXY="$TRUST_PROXY" -e IMAGES_MAX_MB="$IMAGES_MAX_MB" -e PUBLIC_URL="$PUBLIC_URL" \
+  "$TAG" >/dev/null
 
 for _ in $(seq 1 30); do
   curl -fsS "$BASE/healthz" >/dev/null 2>&1 && break
@@ -48,6 +51,10 @@ echo "ok   / serves the client"
 
 curl -fsS "$BASE/play/ABCD" | grep -q '<div id="root"' || fail "/play/ABCD did not fall back to the client"
 echo "ok   /play/ABCD falls back to the client"
+
+config=$(curl -fsS "$BASE/api/config")
+[ "$config" = "{\"joinOrigin\":\"$PUBLIC_URL\"}" ] || fail "/api/config answered $config"
+echo "ok   /api/config returns PUBLIC_URL"
 
 # The gateway accepts the WebSocket transport only, so open a real one with the project's client.
 node --input-type=module -e "

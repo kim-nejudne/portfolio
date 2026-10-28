@@ -7,6 +7,7 @@ import {
   PING_INTERVAL_MS,
   PLAYER_KICKED_ERROR,
   PLAYER_PALETTE,
+  ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { PlayerView } from '../../../shared/types.js';
@@ -118,6 +119,21 @@ describe('Play', () => {
     stubExists(new TypeError('Failed to fetch'));
     renderPlay();
     expect(await screen.findByText(/Could not reach the server/)).toBeTruthy();
+  });
+
+  it('past the room-check limit, says to wait a minute instead of showing the form', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({ ok: false, error: ROOM_CHECK_RATE_LIMITED_ERROR }, { status: 429 }),
+        ),
+      ),
+    );
+    renderPlay();
+    expect(await screen.findByText('Too many tries. Wait a minute and try again.')).toBeTruthy();
+    expect(screen.getByRole('heading').textContent).toBe('Slow down');
+    expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
   it('the name input allows at most 16 characters', async () => {

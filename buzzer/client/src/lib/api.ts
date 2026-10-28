@@ -1,4 +1,5 @@
 import type {
+  ConfigResponse,
   CreateRoomBody,
   CreateRoomResponse,
   HttpErrorBody,
@@ -13,11 +14,27 @@ export async function roomExists(code: string): Promise<boolean> {
   } catch {
     throw new Error('Could not reach the server. Check your connection and try again.');
   }
-  const data = (await response.json().catch(() => null)) as RoomExistsResponse | null;
-  if (!response.ok || data === null || typeof data.exists !== 'boolean') {
-    throw new Error(`Could not check the room (${response.status}).`);
+  const data = (await response.json().catch(() => null)) as
+    RoomExistsResponse | HttpErrorBody | null;
+  if (!response.ok || data === null || !('exists' in data) || typeof data.exists !== 'boolean') {
+    throw new Error(
+      data && 'error' in data ? data.error : `Could not check the room (${response.status}).`,
+    );
   }
   return data.exists;
+}
+
+/** `GET /api/config`. Null when the server cannot answer: the Screen then uses its own origin. */
+export async function fetchConfig(): Promise<ConfigResponse | null> {
+  try {
+    const response = await fetch('/api/config');
+    const data = (await response.json()) as ConfigResponse;
+    return response.ok && (typeof data.joinOrigin === 'string' || data.joinOrigin === null)
+      ? data
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /** `GET /api/rooms/:code/images/:imageId`, the URL of a question's image. */

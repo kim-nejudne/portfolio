@@ -10,6 +10,54 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F42 — Join address and room-check limit (2026-10-28)
+**What changed:**
+- Server:
+  - New `GET /api/config` → `{joinOrigin}`. It returns `PUBLIC_URL` when set. Otherwise, when `req.hostname` is loopback, it returns `http://<first private IPv4>` (no port). Otherwise null.
+  - `server/env.ts`: `parsePublicUrl` (a bare http(s) origin, or start-up throws) and `lanAddress(interfaces)` (10/8, 172.16/12, 192.168/16; skips `docker*`, `br-*`, `veth*`). `createApp` takes `publicUrl` and an injectable `interfaces`.
+  - `GET /api/rooms/:code/exists` is limited by `ROOM_CHECK_RATE_LIMIT` (30/min per `req.ip`). Past the limit it answers 429 `{ok: false, error: ROOM_CHECK_RATE_LIMITED_ERROR}`.
+- Client:
+  - `useJoinOrigin` fetches the config once per Screen mount.
+  - `joinPageOrigin` gives a port-less origin the page's port when the protocols match. The QR, the join URL and the bottom strip all use it.
+  - The localhost note shows only once the server has answered null.
+  - `roomExists` throws the server's error message. On the 429, `/play/:code` shows "Slow down" with "Too many tries. Wait a minute and try again."
+- Deploy:
+  - `compose.deploy.yaml` sets `PUBLIC_URL=https://buzzr.kimnejudne.dev`.
+  - `docker-smoke.sh` passes it and checks `/api/config`.
+  - The README env table has a `PUBLIC_URL` row.
+- Tests:
+  - `http.test.ts` +6: config for PUBLIC_URL, loopback, non-loopback and no LAN; the 31st check gets 429 and the window slides; forwarded IP.
+  - `env.test.ts` +6.
+  - `joinUrl.test.ts` +3.
+  - `Screen.test.tsx` +3 (the old note test is replaced by 4 in "join address").
+  - `api.test.ts` +3 and `Play.test.tsx` +1.
+  - 1122 tests in total. No new dependency.
+
+**Decisions:** the seven DECISIONS rows dated 2026-10-28 for F42 cover:
+- `PUBLIC_URL` validation
+- what counts as a loopback Host, the LAN pick, and a spoofed Host
+- the port rule's protocol match
+- the fetch-once behaviour and no note while loading (supersedes the F08 join-QR row)
+- Docker needing `PUBLIC_URL` for a LAN
+- the room check counting every request, and the "Slow down" title
+- the pairing QR going to Backlog
+
+**Notes for next session:**
+- Playtest (Playwright, dev server):
+  - `/api/config` gave `http://192.168.1.235` for loopback, null for `example.com` and for the LAN host, and `PUBLIC_URL` when set. A bad `PUBLIC_URL` stops the server.
+  - Calls 1–30 of `/exists` answered 200, then 429 with the message. The join flow from `/` reached `/play/ABCD`, which showed "Slow down…".
+  - The Screen lobby at `localhost:5173` read "Join at 192.168.1.235:5173/play/TEDN", in the strip too, with no localhost note.
+- The 429 shows on `/play/:code`, not on the Landing code form: Landing only navigates, and the check runs on `/play`.
+- Before the config answers, the QR briefly encodes the page origin. That is a few ms on localhost; review flagged it as a Should-fix, and it was not changed.
+- Backlog: the pairing QR (`PairHostPhone`) still uses the page origin.
+- `npm run smoke:docker` prints PASS, including the new `/api/config` check.
+- The spec's proposed text for F42 is in DECISIONS → Proposed spec changes; SPEC.md is unchanged.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and host a set. The Screen lobby shows `Join at <LAN-IP>:5173/play/<CODE>` and no localhost note. Scan the QR with a phone on the same Wi-Fi: it opens the join page.
+2. `curl -s localhost:3000/api/config` returns the LAN origin. `curl -s -H 'Host: example.com' localhost:3000/api/config` returns null.
+3. `for i in $(seq 31); do curl -s -o /dev/null -w '%{http_code} ' localhost:3000/api/rooms/ABCD/exists; done` ends in 429. A phone opening `/play/ABCD` within that minute shows "Slow down".
+
 ## F41 — Connection awareness (2026-10-28)
 **What changed:**
 - `lib/ping.ts`: `keepPinging` takes `onAck` and `onLost`. `onLost` fires once when a ping is due and the previous `PINGS_LOST` (2) are unanswered. Any ack resets the count and calls `onAck`. A reconnect starts afresh.

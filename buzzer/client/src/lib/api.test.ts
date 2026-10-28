@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
+import { DEFAULT_SETTINGS, ROOM_CHECK_RATE_LIMITED_ERROR } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
-import { createRoom, roomExists, uploadImage } from './api.js';
+import { createRoom, fetchConfig, roomExists, uploadImage } from './api.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -61,6 +61,30 @@ describe('roomExists', () => {
   it('throws a readable message when the server cannot be reached', async () => {
     stubFetch(new TypeError('Failed to fetch'));
     await expect(roomExists('WXYZ')).rejects.toThrow('Could not reach the server');
+  });
+
+  it("throws the server's message past the room-check limit", async () => {
+    stubFetch(Response.json({ ok: false, error: ROOM_CHECK_RATE_LIMITED_ERROR }, { status: 429 }));
+    await expect(roomExists('WXYZ')).rejects.toThrow(ROOM_CHECK_RATE_LIMITED_ERROR);
+  });
+});
+
+describe('fetchConfig', () => {
+  it('returns the join origin, or null when there is none', async () => {
+    const fetch = stubFetch(Response.json({ joinOrigin: 'http://192.168.1.20' }));
+    await expect(fetchConfig()).resolves.toEqual({ joinOrigin: 'http://192.168.1.20' });
+    expect(fetch).toHaveBeenCalledWith('/api/config');
+    stubFetch(Response.json({ joinOrigin: null }));
+    await expect(fetchConfig()).resolves.toEqual({ joinOrigin: null });
+  });
+
+  it('is null when the server cannot answer', async () => {
+    stubFetch(new TypeError('Failed to fetch'));
+    await expect(fetchConfig()).resolves.toBeNull();
+    stubFetch(new Response('Bad Gateway', { status: 502 }));
+    await expect(fetchConfig()).resolves.toBeNull();
+    stubFetch(Response.json({ joinOrigin: 42 }));
+    await expect(fetchConfig()).resolves.toBeNull();
   });
 });
 

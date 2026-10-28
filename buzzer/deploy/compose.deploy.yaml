@@ -19,6 +19,9 @@ services:
       # Images live in memory. The shared box has about 700 MB free, so cap them at
       # 200 MB instead of the 500 MB default (DECISIONS #12) and keep mem_limit above it.
       IMAGES_MAX_MB: '200'
+      # The join QR and URL on the Screen (F42). nginx passes the real Host, so this
+      # only guards against a vhost that stops doing so.
+      PUBLIC_URL: 'https://buzzr.kimnejudne.dev'
     # Loopback only: nginx terminates TLS in front and is the sole way in.
     ports:
       - '127.0.0.1:3005:3000'

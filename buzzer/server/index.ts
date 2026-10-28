@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PORT, ROOM_EXPIRED_REASON, ROOM_SWEEP_INTERVAL_MS } from '../shared/constants.js';
-import { parseImagesMaxBytes, parseTrustProxy } from './env.js';
+import { parseImagesMaxBytes, parsePublicUrl, parseTrustProxy } from './env.js';
 import { createApp } from './http.js';
 import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
@@ -17,12 +17,14 @@ const clientDir = production ? fileURLToPath(new URL('../client', import.meta.ur
 const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 // A small host lowers the in-memory image cap with IMAGES_MAX_MB.
 const imagesMaxBytes = parseImagesMaxBytes(process.env.IMAGES_MAX_MB);
+// The origin for the join QR and URL, such as https://buzzr.example. Unset, a Screen on localhost gets the LAN address.
+const publicUrl = parsePublicUrl(process.env.PUBLIC_URL);
 
 const rooms = new InMemoryRoomStore();
 const images = new InMemoryImageStore(undefined, imagesMaxBytes);
 
 const httpServer = createServer(
-  createApp({ clientDir, rooms, images, clock: Date.now, trustProxy }),
+  createApp({ clientDir, rooms, images, clock: Date.now, trustProxy, publicUrl }),
 );
 const io = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });
 
