@@ -1,7 +1,10 @@
 import type { HostView } from '../../../shared/types.js';
-import { primaryFor } from '../lib/hostControls.js';
+import { primaryFor, type PrimaryEvent } from '../lib/hostControls.js';
+import { formatGap } from '../lib/screenQuestion.js';
+import { LABEL } from '../lib/ui.js';
 import { useAnswerCountdown, type AnswerCountdown } from '../lib/useAnswerCountdown.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
+import { Icon, type IconName } from './Icon.js';
 
 interface PrimaryActionProps {
   view: HostView;
@@ -9,12 +12,24 @@ interface PrimaryActionProps {
 }
 
 const big =
-  'w-full rounded-3xl px-6 py-6 font-display text-3xl transition not-disabled:active:scale-95 disabled:opacity-40';
+  'flex min-h-[60px] w-full items-center justify-center gap-3 rounded-2xl px-6 py-3 font-display text-xl transition not-disabled:active:scale-95 disabled:opacity-40';
+
+const JUDGE =
+  'flex h-14 items-center justify-center gap-2 rounded-[14px] font-display text-[17px] transition not-disabled:active:scale-95 disabled:opacity-40';
+
+/** The icon beside each primary label. */
+const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
+  'host:start': 'arrow-right',
+  'host:open': 'arrow-right',
+  'host:reveal': 'eye',
+  'host:next': 'arrow-right',
+};
 
 /**
  * The remote's full-width primary action (UI spec, Host remote). Its label and event follow the
- * phase; after a buzz it splits into Correct / Wrong, with the answer countdown right above them
- * when an answer time is set. The server decides whether it is allowed.
+ * phase; after a buzz it becomes the red judging panel: who buzzed first, the answer countdown
+ * right above Correct / Wrong when an answer time is set, then the other buzzes. The server
+ * decides whether it is allowed.
  */
 export function PrimaryAction({ view, command }: PrimaryActionProps) {
   const { busy, run } = command;
@@ -29,27 +44,47 @@ export function PrimaryAction({ view, command }: PrimaryActionProps) {
         </button>
       );
     }
+    const winner = view.players.find((p) => p.id === view.winnerId);
     return (
       <div className="flex flex-col gap-3">
-        {countdown && <JudgeCountdown countdown={countdown} />}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => run('host:judge', { result: 'correct' })}
-            disabled={busy}
-            className={`${big} bg-win text-bg`}
-          >
-            Correct
-          </button>
-          <button
-            type="button"
-            onClick={() => run('host:judge', { result: 'wrong' })}
-            disabled={busy}
-            className={`${big} bg-buzz text-ink`}
-          >
-            Wrong
-          </button>
-        </div>
+        <section
+          aria-label="Judging"
+          className="flex flex-col gap-3 rounded-[18px] bg-buzz p-4 shadow-[0_0_0_4px_var(--color-bg),0_0_0_7px_var(--color-accent)]"
+        >
+          <p className={`${LABEL} text-buzz-ink!`}>Buzzed first</p>
+          {winner && (
+            <p className="flex min-w-0 items-center gap-3 font-display text-[44px] leading-none text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]">
+              <span
+                aria-hidden="true"
+                style={{ backgroundColor: winner.color }}
+                className="size-4 shrink-0 rounded-full ring-2 ring-buzz-ink"
+              />
+              <span className="min-w-0 truncate pb-1">{winner.name}</span>
+            </p>
+          )}
+          {countdown && <JudgeCountdown countdown={countdown} />}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => run('host:judge', { result: 'correct' })}
+              disabled={busy}
+              className={`${JUDGE} bg-win text-win-ink`}
+            >
+              <Icon name="check" className="size-5" />
+              Correct
+            </button>
+            <button
+              type="button"
+              onClick={() => run('host:judge', { result: 'wrong' })}
+              disabled={busy}
+              className={`${JUDGE} bg-buzz-ink text-ink`}
+            >
+              <Icon name="x" className="size-5" />
+              Wrong
+            </button>
+          </div>
+        </section>
+        <AlsoBuzzed view={view} />
       </div>
     );
   }
@@ -61,10 +96,43 @@ export function PrimaryAction({ view, command }: PrimaryActionProps) {
       type="button"
       onClick={() => run(action.event, {})}
       disabled={busy}
-      className={`${big} bg-accent text-accent-ink`}
+      className={`${big} bg-accent text-accent-ink not-disabled:hover:bg-accent-hover`}
     >
       {action.label}
+      <Icon name={PRIMARY_ICON[action.event]} className="size-6" />
     </button>
+  );
+}
+
+/** The other buzzes of this opening, slowest last, with their gap to the winner. */
+function AlsoBuzzed({ view }: { view: HostView }) {
+  const others = view.alsoBuzzed.flatMap((gap) => {
+    const player = view.players.find((p) => p.id === gap.playerId);
+    return player ? [{ player, gapMs: gap.gapMs }] : [];
+  });
+  if (others.length === 0) return null;
+  return (
+    <section aria-labelledby="also-buzzed" className="flex flex-col gap-2">
+      <h2 id="also-buzzed" className={LABEL}>
+        also buzzed
+      </h2>
+      <ol className="flex flex-col gap-1.5">
+        {others.map(({ player, gapMs }) => (
+          <li
+            key={player.id}
+            className="flex items-center gap-3 rounded-xl border-2 border-edge bg-surface px-3.5 py-2.5"
+          >
+            <span
+              aria-hidden="true"
+              style={{ backgroundColor: player.color }}
+              className="size-3 shrink-0 rounded-full"
+            />
+            <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
+            <span className="text-muted tabular-nums">{formatGap(gapMs)}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -77,15 +145,15 @@ function JudgeCountdown({ countdown }: { countdown: AnswerCountdown }) {
     <div
       role="timer"
       aria-label="Answer time"
-      className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2"
+      className="flex items-center justify-between rounded-xl bg-buzz-ink/15 px-3 py-1.5"
     >
-      <span className="text-lg text-muted">Answer time</span>
+      <span className="font-bold text-buzz-ink">Answer time</span>
       {countdown.up ? (
-        <span className="rounded-full bg-buzz px-4 py-1 font-display text-2xl text-ink">
+        <span className="rounded-full bg-buzz-ink px-4 py-1 font-display text-xl text-ink">
           Time’s up
         </span>
       ) : (
-        <span className="font-display text-4xl leading-none text-accent tabular-nums">
+        <span className="font-display text-4xl leading-none text-buzz-ink tabular-nums">
           {countdown.secondsLeft}
         </span>
       )}

@@ -36,7 +36,7 @@ type Sizes = (typeof SIZES)['regular'];
 
 const row = 'flex items-center rounded-2xl border-2 border-edge bg-surface';
 const stepper =
-  'rounded-xl border-2 border-edge font-display transition not-disabled:active:scale-95 disabled:opacity-40';
+  'rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40';
 
 /**
  * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
@@ -73,7 +73,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
       />
       <div className={`${row} ${size.row}`}>
         <p className="flex-1">
-          <span id="answer-time-label" className={`block ${size.label}`}>
+          <span id="answer-time-label" className={`block font-bold ${size.label}`}>
             Answer time
           </span>
           <span className={`${size.detail} text-muted`}>
@@ -107,7 +107,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
       </div>
       <div className={`${row} ${size.row}`}>
         <p className="flex-1">
-          <span id="scoreboard-every-label" className={`block ${size.label}`}>
+          <span id="scoreboard-every-label" className={`block font-bold ${size.label}`}>
             Scoreboard every
           </span>
           <span className={`${size.detail} text-muted`}>
@@ -163,16 +163,16 @@ function Switch({ label, detail, checked, disabled, onChange, size }: SwitchProp
       className={`${row} ${size.row} text-left transition disabled:opacity-40`}
     >
       <span className="flex-1">
-        <span className={`block ${size.label}`}>{label}</span>
+        <span className={`block font-bold ${size.label}`}>{label}</span>
         <span className={`${size.detail} text-muted`}>{detail}</span>
       </span>
       <span
         aria-hidden
-        className={`flex ${size.track} shrink-0 items-center rounded-full p-1 transition ${
-          checked ? 'justify-end bg-accent' : 'justify-start bg-edge'
+        className={`flex ${size.track} shrink-0 items-center rounded-full border-2 px-0.5 transition ${
+          checked ? 'justify-end border-accent bg-accent' : 'justify-start border-edge bg-bg'
         }`}
       >
-        <span className={`${size.knob} rounded-full bg-ink`} />
+        <span className={`${size.knob} rounded-full ${checked ? 'bg-accent-ink' : 'bg-muted'}`} />
       </span>
     </button>
   );

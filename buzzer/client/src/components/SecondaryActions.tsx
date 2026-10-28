@@ -2,14 +2,16 @@ import type { HostView } from '../../../shared/types.js';
 import { inGame, UNREVEALED } from '../lib/hostControls.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
+import { Icon } from './Icon.js';
 
 interface SecondaryActionsProps {
   view: HostView;
   command: HostCommand;
 }
 
+/** A grid tile: icon above a 13px bold label, at least 64px tall. */
 const small =
-  'rounded-2xl border-2 border-edge bg-surface px-4 py-3 text-lg transition not-disabled:active:scale-95 disabled:opacity-40';
+  'flex min-h-16 flex-col items-center justify-center gap-1 rounded-[14px] border-2 border-edge bg-surface px-1.5 py-2 text-[13px] leading-tight font-bold transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * The remote's secondary actions (UI spec, Host remote): Skip question, Show/hide scoreboard,
@@ -21,7 +23,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
   const playing = inGame(view);
 
   return (
-    <section aria-label="More actions" className="grid grid-cols-2 gap-2">
+    <section aria-label="More actions" className="grid grid-cols-3 gap-2">
       {UNREVEALED.includes(view.phase) && (
         // SPEC-QUESTION: Skip question is `host:reveal`; see DECISIONS (F22).
         <button
@@ -30,6 +32,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           disabled={busy}
           className={small}
         >
+          <Icon name="skip" className="size-5" />
           Skip question
         </button>
       )}
@@ -40,6 +43,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           disabled={busy || !view.canUndo}
           className={small}
         >
+          <Icon name="undo" className="size-5" />
           Undo last judgement
         </button>
       )}
@@ -50,6 +54,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           disabled={busy || view.questionIndex <= 0}
           className={small}
         >
+          <Icon name="arrow-left" className="size-5" />
           Previous question
         </button>
       )}
@@ -58,8 +63,9 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
         aria-pressed={view.showScoreboard}
         onClick={() => run('host:scoreboard', { show: !view.showScoreboard })}
         disabled={busy}
-        className={small}
+        className={`${small} ${view.showScoreboard ? 'border-accent text-accent' : ''}`}
       >
+        <Icon name="trophy" className="size-5" />
         {view.showScoreboard ? 'Hide scoreboard' : 'Show scoreboard'}
       </button>
       {view.phase !== 'FINAL' && (
@@ -71,6 +77,8 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           onConfirm={() => run('host:end', {})}
           disabled={busy}
           className={small}
+          icon={<Icon name="flag" className="size-5" />}
+          armedClassName="col-span-2 grid grid-cols-2 gap-2"
         />
       )}
     </section>

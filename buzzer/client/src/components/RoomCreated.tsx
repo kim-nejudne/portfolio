@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HOVER } from '../lib/hover.js';
 import { displayUrl } from '../lib/joinUrl.js';
-
-const bigButton = `rounded-3xl px-6 py-6 font-display text-2xl transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD } from '../lib/ui.js';
 
 /** Creating and joining a room, step 2: once the room exists, ask where the Screen is. */
 export function RoomCreated({ code }: { code: string }) {
@@ -14,7 +13,7 @@ export function RoomCreated({ code }: { code: string }) {
   return (
     <section
       aria-labelledby="host-heading"
-      className="flex flex-col gap-4 rounded-3xl border-2 border-accent bg-surface p-6"
+      className={`flex flex-col gap-4 ${CARD} shadow-[0_0_0_6px_var(--color-bg),0_0_0_10px_var(--color-accent)]`}
     >
       <h2 id="host-heading" className="font-display text-3xl">
         Room created
@@ -23,7 +22,7 @@ export function RoomCreated({ code }: { code: string }) {
       <button
         type="button"
         onClick={() => void navigate(`/screen/${code}`)}
-        className={`${bigButton} bg-accent text-accent-ink`}
+        className={`${BUTTON_PRIMARY} py-5 text-2xl ${HOVER}`}
       >
         Use this device as the Screen
       </button>
@@ -31,7 +30,7 @@ export function RoomCreated({ code }: { code: string }) {
         type="button"
         aria-expanded={showScreenUrl}
         onClick={() => setShowScreenUrl((shown) => !shown)}
-        className={`${bigButton} border-2 border-edge`}
+        className={`${BUTTON_SECONDARY} py-5 font-display text-2xl ${HOVER}`}
       >
         Open the Screen on another device
       </button>

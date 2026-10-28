@@ -6,6 +6,7 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { HostView } from '../../../shared/types.js';
+import { BulbRail } from '../components/BulbRail.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { HostPlayers } from '../components/HostPlayers.js';
 import { HostSettings } from '../components/HostSettings.js';
@@ -19,6 +20,7 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { ordinal } from '../lib/results.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { CARD, LABEL, PILL } from '../lib/ui.js';
 import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
@@ -149,12 +151,25 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   useVibrateOnTimeUp();
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
-      <header className="flex items-baseline justify-between gap-4">
-        <span className="flex items-center gap-3">
-          <h1 className="font-display text-3xl tracking-[0.15em] text-accent">{view.code}</h1>
-          <ConnectionDot />
-        </span>
-        <p className="truncate text-muted">{view.title}</p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="font-display text-[22px] leading-tight text-accent">Host controls</h1>
+          <p className="flex items-center gap-2 text-muted">
+            <ConnectionDot />
+            Room {view.code} · {view.players.length}{' '}
+            {view.players.length === 1 ? 'player' : 'players'}
+          </p>
+          <p className="truncate text-sm text-muted">{view.title}</p>
+        </div>
+        {view.question && view.phase !== 'FINAL' && (
+          <p
+            aria-label={`Question ${view.questionIndex + 1} of ${view.questionCount}`}
+            className={`${PILL} shrink-0 px-3 py-1 font-display text-lg tabular-nums`}
+          >
+            Q{view.questionIndex + 1}
+            <span className="text-muted">/{view.questionCount}</span>
+          </p>
+        )}
       </header>
       <div
         role="tablist"
@@ -166,7 +181,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
           setTab(next);
           tabRefs.current[next]?.focus();
         }}
-        className="grid grid-cols-3 gap-1 rounded-2xl bg-surface p-1"
+        className="grid grid-cols-3 gap-1 rounded-2xl border-2 border-edge bg-surface p-1"
       >
         {TABS.map((name) => (
           <button
@@ -181,7 +196,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
             tabIndex={tab === name ? 0 : -1}
             aria-controls={`panel-${name}`}
             onClick={() => setTab(name)}
-            className={`rounded-xl px-2 py-2 text-lg ${tab === name ? 'bg-edge text-ink' : 'text-muted'}`}
+            className={`min-h-11 rounded-xl px-2 py-2 text-lg ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
           >
             {name === 'Players' ? `Players (${view.players.length})` : name}
           </button>
@@ -269,13 +284,13 @@ function QuestionCard({ view }: { view: HostView }) {
   return (
     <section
       aria-label="Question"
-      className="flex flex-col gap-3 rounded-3xl border-2 border-edge bg-surface p-4"
+      className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
     >
-      <p className="flex justify-between text-sm text-muted">
+      <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>{label}</span>
         <span>{question.points} pts</span>
       </p>
-      {question.text && <p className="text-xl">{question.text}</p>}
+      {question.text && <p className="text-base font-bold">{question.text}</p>}
       {question.imageId && (
         <img
           src={imageUrl(view.code, question.imageId)}
@@ -283,10 +298,12 @@ function QuestionCard({ view }: { view: HostView }) {
           className="max-h-48 self-center rounded-xl object-contain"
         />
       )}
-      <div aria-label="Answer" className="rounded-2xl bg-accent p-3 text-accent-ink">
-        <p className="text-sm font-bold tracking-wide uppercase">Answer</p>
-        <p className="font-display text-2xl">{question.answer}</p>
-        {question.hostNotes && <p className="mt-2 text-base">{question.hostNotes}</p>}
+      <div aria-label="Answer" className="rounded-xl bg-bg px-3.5 py-3">
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className={LABEL}>Answer</span>
+          <span className="font-display text-xl break-words text-accent">{question.answer}</span>
+        </p>
+        {question.hostNotes && <p className="mt-1.5 text-muted">{question.hostNotes}</p>}
       </div>
     </section>
   );
@@ -299,11 +316,8 @@ function QuestionCard({ view }: { view: HostView }) {
 function GameOverCard({ view }: { view: HostView }) {
   const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
   return (
-    <section
-      aria-labelledby="game-over-heading"
-      className="flex flex-col gap-3 rounded-3xl border-2 border-edge bg-surface p-4"
-    >
-      <h2 id="game-over-heading" className="font-display text-3xl">
+    <section aria-labelledby="game-over-heading" className={`flex flex-col gap-3 ${CARD}`}>
+      <h2 id="game-over-heading" className="font-display text-3xl text-accent">
         Game over
       </h2>
       {ranked.length === 0 ? (
@@ -311,14 +325,23 @@ function GameOverCard({ view }: { view: HostView }) {
       ) : (
         <ol className="flex flex-col gap-2">
           {ranked.map((player) => (
-            <li key={player.id} className="flex items-center gap-3 text-lg">
-              <span className="w-12 shrink-0 font-display text-muted">{ordinal(player.rank)}</span>
+            <li
+              key={player.id}
+              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-lg ${
+                player.rank === 1 ? 'bg-accent text-accent-ink' : 'bg-bg'
+              }`}
+            >
+              <span
+                className={`w-12 shrink-0 font-display ${player.rank === 1 ? '' : 'text-muted'}`}
+              >
+                {ordinal(player.rank)}
+              </span>
               <span
                 aria-hidden
                 style={{ backgroundColor: player.color }}
                 className="size-4 shrink-0 rounded-full"
               />
-              <span className="min-w-0 flex-1 truncate">{player.name}</span>
+              <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
               <span className="font-display text-xl">{player.score}</span>
             </li>
           ))}
@@ -339,10 +362,11 @@ function HostMessage({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
+      <BulbRail count={9} variant="row" />
       <h1 className="font-display text-4xl">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (
-        <Link to="/" className="text-lg underline underline-offset-4">
+        <Link to="/" className="py-2 text-lg text-muted underline underline-offset-4">
           Back to start
         </Link>
       )}

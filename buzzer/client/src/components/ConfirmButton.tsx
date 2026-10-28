@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 interface ConfirmButtonProps {
   label: string;
@@ -9,6 +9,10 @@ interface ConfirmButtonProps {
   onConfirm: () => void;
   disabled?: boolean;
   className: string;
+  /** Shown before `label` on the unarmed button, such as an icon. */
+  icon?: ReactNode;
+  /** The box round the armed Confirm and Cancel pair. */
+  armedClassName?: string;
 }
 
 /**
@@ -22,6 +26,8 @@ export function ConfirmButton({
   onConfirm,
   disabled,
   className,
+  icon,
+  armedClassName = 'flex gap-2',
 }: ConfirmButtonProps) {
   const [armed, setArmed] = useState(false);
 
@@ -34,12 +40,13 @@ export function ConfirmButton({
         disabled={disabled}
         className={className}
       >
+        {icon}
         {label}
       </button>
     );
   }
   return (
-    <span className="flex gap-2">
+    <span className={armedClassName}>
       <button
         type="button"
         onClick={() => {

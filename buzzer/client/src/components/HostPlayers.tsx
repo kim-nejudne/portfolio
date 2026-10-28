@@ -9,7 +9,7 @@ interface HostPlayersProps {
 }
 
 const small =
-  'rounded-xl border-2 border-edge px-3 py-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40';
+  'min-h-11 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons
@@ -27,7 +27,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
 
   return (
     <section aria-labelledby="players-heading" className="flex flex-col gap-2">
-      <h2 id="players-heading" className="font-display text-xl">
+      <h2 id="players-heading" className="font-display text-xl text-accent">
         Players ({players.length})
       </h2>
       {players.length === 0 ? (
@@ -49,7 +49,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
                   style={{ backgroundColor: player.color }}
                   className="size-4 shrink-0 rounded-full"
                 />
-                <span className="min-w-0 flex-1 truncate">{player.name}</span>
+                <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
                 <span className="text-sm text-muted">
                   {unknown
                     ? 'status unknown'

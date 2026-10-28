@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { questionCount } from '../lib/setLabels.js';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, CARD } from '../lib/ui.js';
 import { RoomCreated } from './RoomCreated.js';
 
 type Status =
@@ -10,9 +11,6 @@ type Status =
   | { kind: 'loading' }
   | { kind: 'picking'; sets: QuestionSet[]; creating: boolean }
   | { kind: 'created'; code: string };
-
-const bigButton =
-  'rounded-3xl px-6 py-6 font-display text-3xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets,
@@ -60,7 +58,7 @@ export function HostGame() {
           type="button"
           onClick={() => void openPicker()}
           disabled={status.kind === 'loading'}
-          className={`${bigButton} border-2 border-accent text-accent`}
+          className={`${BUTTON_OUTLINE} py-5 text-2xl`}
         >
           Host a game
         </button>
@@ -76,10 +74,7 @@ export function HostGame() {
   const { sets, creating } = status;
 
   return (
-    <section
-      aria-labelledby="pick-heading"
-      className="flex flex-col gap-4 rounded-3xl border-2 border-accent bg-surface p-6"
-    >
+    <section aria-labelledby="pick-heading" className={`flex flex-col gap-4 ${CARD}`}>
       <h2 id="pick-heading" className="font-display text-3xl">
         Pick a question set
       </h2>
@@ -97,7 +92,7 @@ export function HostGame() {
           {sets.map((set) => (
             <label
               key={set.id}
-              className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent"
+              className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent"
             >
               <input
                 type="radio"
@@ -119,7 +114,7 @@ export function HostGame() {
         type="button"
         onClick={() => void create(sets)}
         disabled={creating || selectedId === null}
-        className={`${bigButton} bg-accent text-2xl text-accent-ink`}
+        className={`${BUTTON_PRIMARY} py-5 text-2xl`}
       >
         {creating ? 'Creating room…' : 'Create room'}
       </button>
