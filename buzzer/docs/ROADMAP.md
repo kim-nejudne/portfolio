@@ -96,25 +96,95 @@ Kim's request of 2026-10-28: the host can let players buzz as soon as a question
 
 - [x] F37 Settings in the Screen lobby
 
+## M9 — Backlog
+
+Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by area. The choices are in DECISIONS rows dated 2026-10-28 marked "backlog plan". Proposed spec wording is in DECISIONS, Proposed spec changes (backlog). The old "deploy workflow" item was already done (`deploy-buzzer.yml`) and became the CI job in F46.
+
+- [ ] F38 Screen lobby fit
+  - Spec: UI spec by view (Screen view: Lobby; Screen host controls)
+  - Depends: F37
+  - Done when:
+    - **Pair host phone** opens a dialog over the lobby (`role="dialog"`, `aria-modal`) with a large QR, the "Hides in N s" countdown and Hide. It closes on Hide, Esc, the 60 s TTL, or when a host joins. The lobby column no longer shrinks when pairing
+    - With 50 players, every chip is visible above the bottom strip at 1920×1080, 1366×768 and 1280×720, with and without the Game setup panel; the ~5 px chip/footer overlap at 1920×1080 is gone
+    - `HostSettings` takes a `compact` prop. The Screen lobby uses it, and every settings row plus Start game fits without scrolling at 1280×720. The remote's Settings tab is unchanged
+    - Space still starts the game; Esc closes the dialog without starting it
+  - Tests: `PairHostPhone` and `Screen.test.tsx` (dialog opens, closes on Esc and Hide, closes on host join); `HostSettings` compact render; `/playtest` at the three sizes with 50 fake players
+
+- [ ] F39 Buzz eligibility and monotonic window
+  - Spec: Buzzer fairness and timing; UI spec by view (Player view); Data model (`PlayerView`, `Room`); see DECISIONS, Proposed spec changes (backlog: late joiner)
+  - Depends: F37
+  - Done when:
+    - `PlayerView.canBuzz` is true exactly when the reducer's `canBuzz` would accept a buzz from this player (OPEN or COLLECTING, not locked out, not buzzed this opening, not joined this opening)
+    - A player who joined during the current opening sees a disabled grey button "Get ready… you can buzz from the next question" in OPEN and COLLECTING, and cannot send a buzz
+    - The first buzz of an opening stores its monotonic `receivedAt` on the room (`windowStartedAt`, cleared with `buzzes`). `windowClosed` ranks only buzzes with raw `receivedAt ≤ windowStartedAt + COLLECTION_WINDOW_MS`; a buzz received later while still COLLECTING (late timer) is kept for "also buzzed" and cannot win
+    - The DECISIONS F14 row "window stays open until `windowClosed` arrives" is marked superseded
+  - Tests: `reducer` tests (late-timer buzz cannot win even with a lower `adjustedTime`, buzz exactly at +150 ms counts, `windowStartedAt` cleared on every route that clears `buzzes`); `views.test.ts` `canBuzz` in each case; `buzzerState` and `Play` tests for the late-joiner label
+
+- [ ] F40 Host remote: game over, stable order, tab keys
+  - Spec: UI spec by view (Host remote); Data model (`HostView`); see DECISIONS, Proposed spec changes (backlog: host remote)
+  - Depends: F37
+  - Done when:
+    - In FINAL the Game tab shows a "Game over" card and the final ranking (rank, name, score, ties share a rank) instead of the last question; Show/Hide scoreboard stays
+    - `HostView.players` comes in join order (`joinedAt`, then id) with each row's `rank` still set; a ± tap or judgement never moves a row. Screen views and the Player view keep ranked order
+    - The tabs follow the WAI-ARIA tabs pattern: roving `tabIndex`, ←/→ move and activate (wrapping), Home/End jump to the first and last tab
+  - Tests: `views.test.ts` (host order is join order after score changes, Screen order still ranked); `Host.test.tsx` / `HostControls.test.tsx` (FINAL card and ranking, arrow keys, Home/End, wrap)
+
+- [ ] F41 Connection awareness
+  - Spec: Reconnects, security and edge cases (Reconnects); UI spec by view (Screen view, Host remote, Player view); see DECISIONS, Proposed spec changes (backlog: connection)
+  - Depends: F37
+  - Done when:
+    - The Screen shows a TV-sized "Reconnecting…" banner across the top once its own socket has been down for the existing 5 s threshold; the last snapshot stays underneath; the banner goes when the socket reconnects
+    - While the host's own socket is not connected, the Players tab shows "status unknown" (dimmed) instead of "online · N ms" / "offline"
+    - Two consecutive app pings without an ack set `connection` to `connecting`; the existing 5 s timer then turns it `offline`. An ack sets it back to `connected`
+    - The browser `offline` event sets `connecting` at once; `online` changes nothing by itself (Socket.IO's reconnect and the next ack decide)
+    - No server change and no Socket.IO ping options
+  - Tests: `useRoomSocket` / `ping` tests with fake timers (two missed acks, ack recovers, `offline` event); `Screen.test.tsx` banner; `HostPlayers` status unknown; `/playtest`: stop the server, check the Screen banner and the phone dot
+
+- [ ] F42 Join address and room-check limit
+  - Spec: Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security); UI spec by view (Screen view: Lobby); see DECISIONS, Proposed spec changes (backlog: join address, room-check limit)
+  - Depends: F37
+  - Done when:
+    - New `GET /api/config` returns `{joinOrigin: string | null}`: the `PUBLIC_URL` env var (validated as an http(s) origin at start-up) when set; else, only when the request's Host is loopback, `http://<first private IPv4>` (skipping `docker*`, `br-*` and `veth*` interfaces) with no port; else null
+    - The Screen uses `joinOrigin` for the QR, the join URL and the bottom strip; with a host-only origin it keeps its own page port (so dev on :5173 works). The loopback note shows only when `joinOrigin` is null
+    - `PUBLIC_URL` is listed in `server/env.ts` and the README env table
+    - `GET /api/rooms/:code/exists` allows 30 requests per minute per `req.ip` (`server/rateLimit.ts`, constant in `shared/constants.ts`) and answers 429 with the standard error shape after that; the join form shows "Too many tries. Wait a minute and try again."
+  - Tests: `http.test.ts` (config with and without `PUBLIC_URL`, loopback vs non-loopback Host, 31st exists call is 429, window slides); `env` parse tests; Screen join URL tests; join form 429 test
+
+- [ ] F43 Preview: show answer
+  - Spec: Question editor and images (Set editor); see DECISIONS, Proposed spec changes (backlog: preview answer)
+  - Depends: F37
+  - Done when:
+    - The preview's bottom bar has a "Show answer" toggle (`aria-pressed`), also on the `A` key
+    - On, the preview renders the Screen's REVEAL layout for that question with its answer and no scorer chip
+    - Previous, Next and closing turn it off; a question with no answer shows the toggle disabled
+  - Tests: `QuestionPreview` tests (toggle, `A` key, reset on Previous/Next); `setEditor` `previewView` reveal variant
+
+- [ ] F44 Favicon and hover states
+  - Spec: none (polish)
+  - Depends: F37
+  - Done when:
+    - `client/public/favicon.svg` (a round BUZZ-red button on a dark base, colours from `shared/constants.ts`) is linked from `client/index.html`; no `/favicon.ico` 404 in the browser console on any page
+    - Every enabled button on the Screen host bar, Sets and SetEditor has a hover style (`not-disabled:hover:border-ink` plus a faint background tint); disabled buttons have none; touch devices are unaffected
+  - Tests: an `index.html` check that the icon link exists; `/playtest`: console has no 404, hover screenshot of the host bar and Sets
+
+- [ ] F45 Socket test harness and typed host emit
+  - Spec: none (code health)
+  - Depends: F37
+  - Done when:
+    - `server/test/sockets.ts` holds the shared harness (`start` with options for the clock, the monotonic clock and limits; `connect`, `record`, `flush`, `openTable`, `recordStates`, `nextState`, `screenJoin`, `playerJoin`, `hostJoin`, `serverDisconnect`); the four `server/sockets*.test.ts` files import it and keep no copies
+    - The `emit` cast in `client/src/lib/useHostCommand.ts` is replaced by a typed helper with no `as`
+    - The test count is unchanged and every test still passes; no behaviour change
+  - Tests: the existing suite (same count before and after); typecheck
+
+- [ ] F46 Slim runtime image and CI job
+  - Spec: Tech stack and architecture (deploy)
+  - Depends: F37
+  - Done when:
+    - Client-only libraries (react, react-dom, react-router, dexie, howler, @dnd-kit/*, qrcode.react, zustand, socket.io-client) are in `devDependencies`; `dependencies` holds only what `dist/server` imports
+    - `npm run smoke:docker` passes and the new image size is recorded in PROGRESS and the README
+    - The root `.github/workflows/ci.yml` has a `buzzer` job (format:check, lint, typecheck, test, build) on pull requests and pushes touching `buzzer/**`. This file is outside `buzzer/`: ask Kim before staging it
+  - Tests: `npm run smoke:docker`; `npm run build`; CI job run on a push
+
 ## Bugs
 
 ## Backlog (not scheduled)
-
-- Screen lobby height on a hosting Screen: with **Pair host phone** open (its 22vh QR sits in the left column), the player chips are pushed below the footer at 1920×1080, 1366×768 and 1280×720, and they cannot be scrolled to. This was there before F37. The panel only made the column shorter. On a plain Screen at 1920×1080 the chips overlap the footer by about 5 px. Options: put the Pair QR in a dialog, or let the chips area scroll (seen in the F37 playtest).
-- The F37 lobby "Game setup" panel is sized in rem, like the remote. At 1280×720 it scrolls (about 67 px), and "Scoreboard every" is cut off until you scroll. A compact Screen variant of `HostSettings` would fix that.
-- Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
-- Optional `PUBLIC_URL` setting for the join QR and URL, so a Screen opened at `localhost` still shows an address phones can reach. F08 only shows a note (F08 decision).
-- Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).
-- Host remote game-over state in FINAL: the remote keeps showing the last question with no primary button (F16 playtest). No feature names a host final view; the Players list still shows the scores.
-- Measure the 150 ms collection window in monotonic time (from the first buzz's `receivedAt`), so a late-firing timer cannot stretch it. Today the window lasts until `windowClosed` arrives (F14 decision).
-- Tell the player when a buzz was ignored. A player who joined during the current opening can press BUZZ!, but the server ignores the buzz silently and the phone stays on "Buzzed…" (F17 decision). A `canBuzz` field in `PlayerView` would let the phone show "Get ready…" instead.
-- Move the socket test harness (`start`, `connect`, `record`, `flush`, `openTable`) into `server/test/`. `sockets.test.ts`, `sockets.buzz.test.ts` and `sockets.host.test.ts` each have their own copy (F21).
-- Keep the host's Players list in a stable order. It is ranked by score, so the row under the thumb moves after a ± tap (F22 playtest). Needs join order or a stable index in `HostView`.
-- Arrow-key navigation between the host remote's tabs (WAI-ARIA tabs pattern). Tapping works; the keyboard can only Tab through them (F22 review).
-- Replace the `emit` cast in `client/src/pages/Host.tsx` `send` with a typed helper. Socket.IO's typed `emit` cannot take a generic event name (F22 review).
-- Preview: a "Show answer" toggle that previews the REVEAL layout too. F27 previews only the question as first shown.
-- "Reconnecting…" indicator on the Screen while the socket is down. F33's connection dot covers Player and Host; the Screen still shows its last snapshot, and the Host still lists players as online while its own socket is down (F32 playtest).
-- Faster connection-dot reaction to a silent drop (airplane mode): the dot waits for Socket.IO's heartbeat, up to about 45 s with the defaults. Options: a shorter `pingInterval`/`pingTimeout`, or the browser's `offline` event (F33).
-- Slimmer runtime image: client-only libraries (React, Dexie, Howler, dnd-kit, qrcode.react…) are in `dependencies`, so `npm ci --omit=dev` ships them in the 266 MB image although the server never loads them (F34).
-- A deploy workflow for buzzr like `deploy-poketrack.yml` (build on the runner, ship, health-gate, roll back). F34 deploys by hand from the README (F34).
-- Hover states for the mouse-driven views (the Screen host bar, Sets, SetEditor). Buttons have no `hover:` style today; only the "Back" links do (pointer-cursor fix).
