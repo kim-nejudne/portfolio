@@ -43,7 +43,7 @@ export function PairHostPhone({ code, hostToken, className, qrSize }: PairHostPh
       <button
         type="button"
         onClick={show}
-        className={`self-start rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display transition active:scale-95 ${className}`}
+        className={`self-start rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display transition not-disabled:active:scale-95 ${className}`}
       >
         Pair host phone
       </button>

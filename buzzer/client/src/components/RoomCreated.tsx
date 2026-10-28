@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { displayUrl } from '../lib/joinUrl.js';
 
 const bigButton =
-  'rounded-3xl px-6 py-6 font-display text-2xl transition active:scale-95 disabled:opacity-40';
+  'rounded-3xl px-6 py-6 font-display text-2xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /** Creating and joining a room, step 2: once the room exists, ask where the Screen is. */
 export function RoomCreated({ code }: { code: string }) {

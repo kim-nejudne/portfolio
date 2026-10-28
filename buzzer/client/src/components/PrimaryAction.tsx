@@ -8,7 +8,7 @@ interface PrimaryActionProps {
 }
 
 const big =
-  'w-full rounded-3xl px-6 py-6 font-display text-3xl transition active:scale-95 disabled:opacity-40';
+  'w-full rounded-3xl px-6 py-6 font-display text-3xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * The remote's full-width primary action (UI spec, Host remote). Its label and event follow the

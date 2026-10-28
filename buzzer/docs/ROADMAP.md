@@ -105,3 +105,4 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Faster connection-dot reaction to a silent drop (airplane mode): the dot waits for Socket.IO's heartbeat, up to about 45 s with the defaults. Options: a shorter `pingInterval`/`pingTimeout`, or the browser's `offline` event (F33).
 - Slimmer runtime image: client-only libraries (React, Dexie, Howler, dnd-kit, qrcode.react…) are in `dependencies`, so `npm ci --omit=dev` ships them in the 266 MB image although the server never loads them (F34).
 - A deploy workflow for buzzr like `deploy-poketrack.yml` (build on the runner, ship, health-gate, roll back). F34 deploys by hand from the README (F34).
+- Hover states for the mouse-driven views (the Screen host bar, Sets, SetEditor). Buttons have no `hover:` style today; only the "Back" links do (pointer-cursor fix).

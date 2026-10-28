@@ -8,7 +8,7 @@ interface HostSettingsProps {
 }
 
 const stepper =
-  'size-12 rounded-xl border-2 border-edge font-display text-2xl transition active:scale-95 disabled:opacity-40';
+  'size-12 rounded-xl border-2 border-edge font-display text-2xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * The remote's Settings tab (UI spec, Host remote). Each control sends only the key it changes;

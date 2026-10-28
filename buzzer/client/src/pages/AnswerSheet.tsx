@@ -56,7 +56,7 @@ export function AnswerSheet() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded-2xl bg-black px-5 py-3 font-display text-xl text-white transition active:scale-95"
+              className="rounded-2xl bg-black px-5 py-3 font-display text-xl text-white transition not-disabled:active:scale-95"
             >
               Print
             </button>

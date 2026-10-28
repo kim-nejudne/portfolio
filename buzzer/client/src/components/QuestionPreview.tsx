@@ -5,7 +5,7 @@ import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
 const barButton =
-  'rounded-xl border-2 border-edge px-4 py-2 text-lg transition active:scale-95 disabled:opacity-40';
+  'rounded-xl border-2 border-edge px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40';
 
 interface QuestionPreviewProps {
   set: QuestionSet;
@@ -80,7 +80,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-accent px-4 py-2 text-lg text-accent-ink transition active:scale-95"
+            className="rounded-xl bg-accent px-4 py-2 text-lg text-accent-ink transition not-disabled:active:scale-95"
           >
             Close
           </button>

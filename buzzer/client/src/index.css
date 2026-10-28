@@ -101,6 +101,12 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Tailwind v4 Preflight gives buttons the default cursor; restore the pointer on live ones. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
   /* The answer sheet is the only printed page: paper stays white even with background graphics on. */
   @media print {
     body {

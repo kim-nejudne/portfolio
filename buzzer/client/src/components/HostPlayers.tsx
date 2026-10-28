@@ -8,7 +8,7 @@ interface HostPlayersProps {
 }
 
 const small =
-  'rounded-xl border-2 border-edge px-3 py-2 font-display transition active:scale-95 disabled:opacity-40';
+  'rounded-xl border-2 border-edge px-3 py-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons

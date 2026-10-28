@@ -29,7 +29,7 @@ function download(text: string, fileName: string) {
 }
 
 const smallButton =
-  'rounded-xl border-2 border-edge px-3 py-2 text-base transition active:scale-95 disabled:opacity-40';
+  'rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /** Set list `/sets`: this browser's saved question sets, last edited first. */
 export function Sets() {
@@ -146,7 +146,7 @@ export function Sets() {
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={busy || sets === null}
-            className="rounded-2xl border-2 border-accent px-5 py-3 font-display text-xl text-accent transition active:scale-95 disabled:opacity-40"
+            className="rounded-2xl border-2 border-accent px-5 py-3 font-display text-xl text-accent transition not-disabled:active:scale-95 disabled:opacity-40"
           >
             Import JSON
           </button>
@@ -162,7 +162,7 @@ export function Sets() {
             type="button"
             onClick={() => void newSet()}
             disabled={busy || sets === null}
-            className="rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition active:scale-95 disabled:opacity-40"
+            className="rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
           >
             New set
           </button>

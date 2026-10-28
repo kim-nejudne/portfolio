@@ -12,7 +12,7 @@ type Status =
   | { kind: 'created'; code: string };
 
 const bigButton =
-  'rounded-3xl px-6 py-6 font-display text-3xl transition active:scale-95 disabled:opacity-40';
+  'rounded-3xl px-6 py-6 font-display text-3xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets,

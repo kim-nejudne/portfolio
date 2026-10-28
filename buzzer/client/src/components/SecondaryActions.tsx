@@ -9,7 +9,7 @@ interface SecondaryActionsProps {
 }
 
 const small =
-  'rounded-2xl border-2 border-edge bg-surface px-4 py-3 text-lg transition active:scale-95 disabled:opacity-40';
+  'rounded-2xl border-2 border-edge bg-surface px-4 py-3 text-lg transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
  * The remote's secondary actions (UI spec, Host remote): Skip question, Show/hide scoreboard,

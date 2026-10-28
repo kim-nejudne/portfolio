@@ -186,7 +186,7 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
         <button
           type="submit"
           disabled={name.trim() === ''}
-          className="rounded-2xl bg-accent px-6 py-4 font-display text-2xl text-accent-ink transition active:scale-95 disabled:opacity-40"
+          className="rounded-2xl bg-accent px-6 py-4 font-display text-2xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
         >
           Join
         </button>
