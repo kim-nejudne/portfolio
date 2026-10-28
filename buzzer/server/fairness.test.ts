@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_LATENCY_CORRECTION_MS, RTT_SAMPLES } from '../shared/constants.js';
+import {
+  COLLECTION_WINDOW_MS,
+  MAX_LATENCY_CORRECTION_MS,
+  RTT_SAMPLES,
+} from '../shared/constants.js';
 import type { Buzz } from '../shared/types.js';
-import { addRttSample, buzzGaps, makeBuzz, medianRtt, oneWayMs, rankBuzzes } from './fairness.js';
+import {
+  addRttSample,
+  buzzGaps,
+  inWindow,
+  makeBuzz,
+  medianRtt,
+  oneWayMs,
+  rankBuzzes,
+  rankOpening,
+} from './fairness.js';
 import { T0, makePlayer } from './test/rooms.js';
 
 function samplesOf(values: number[]): number[] {
@@ -165,5 +178,35 @@ describe('buzzGaps', () => {
   it('is empty with one buzz or none', () => {
     expect(buzzGaps([makeBuzz('w', 1000, 0)])).toEqual([]);
     expect(buzzGaps([])).toEqual([]);
+  });
+});
+
+describe('collection window (monotonic, from the first buzz)', () => {
+  const start = 1000;
+
+  it('includes a buzz received exactly 150 ms after the first, and not 1 ms later', () => {
+    expect(inWindow(makeBuzz('a', start + COLLECTION_WINDOW_MS, 0), start)).toBe(true);
+    expect(inWindow(makeBuzz('a', start + COLLECTION_WINDOW_MS + 1, 0), start)).toBe(false);
+  });
+
+  it('cuts on raw arrival, so latency correction cannot pull a late buzz in', () => {
+    const late = makeBuzz('a', start + COLLECTION_WINDOW_MS + 1, 1000);
+    expect(late.adjustedAt).toBeLessThan(start + COLLECTION_WINDOW_MS);
+    expect(inWindow(late, start)).toBe(false);
+  });
+
+  it('includes every buzz when no window start is recorded', () => {
+    expect(inWindow(makeBuzz('a', start + 10_000, 0), null)).toBe(true);
+  });
+
+  it('ranks the window first, then the late buzzes, each by adjusted time', () => {
+    const players = { a: makePlayer('a'), b: makePlayer('b'), c: makePlayer('c') };
+    const buzzes = [
+      makeBuzz('a', start + 100, 0),
+      makeBuzz('b', start + 200, 300), // adjusted start + 50, but late
+      makeBuzz('c', start + 20, 0),
+    ];
+    expect(rankOpening(buzzes, players, start).map((b) => b.playerId)).toEqual(['c', 'a', 'b']);
+    expect(rankOpening(buzzes, players, null).map((b) => b.playerId)).toEqual(['c', 'b', 'a']);
   });
 });

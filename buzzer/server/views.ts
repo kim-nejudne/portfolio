@@ -16,8 +16,8 @@ import type {
   ScreenView,
   View,
 } from '../shared/types.js';
-import { buzzGaps, rankBuzzes } from './fairness.js';
-import { canJudge, canUndo } from './reducer.js';
+import { buzzGaps, rankOpening } from './fairness.js';
+import { canBuzz, canJudge, canUndo } from './reducer.js';
 import { rankPlayers, type Ranked } from './ranking.js';
 
 export function toView(room: Room, role: 'screen'): ScreenView;
@@ -76,6 +76,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     me: { id: me.id, name: me.name, color: me.color, score: me.score, rank: me.rank },
     playerCount: ranked.length,
     hasBuzzed: room.buzzes.some((b) => b.playerId === playerId),
+    canBuzz: canBuzz(room, playerId),
     lockedOut: room.lockedOut.includes(playerId),
     winnerId: room.winnerId,
     winnerName: room.winnerId ? (room.players[room.winnerId]?.name ?? null) : null,
@@ -127,13 +128,14 @@ function scorerId(room: Room): string | null {
 
 /**
  * Every buzz but the winner's, ranked, with its gap to the winner. The winner stays fixed, so a
- * late buzz from BUZZED is listed but never outranks it (DECISIONS #4, F12).
+ * late buzz from BUZZED is listed but never outranks it, and one that missed the window is listed
+ * after those that made it (DECISIONS #4, F12, F39).
  */
 function alsoBuzzed(room: Room): BuzzGap[] {
   const winner = room.buzzes.find((b) => b.playerId === room.winnerId);
   if (!winner) return [];
   const others = room.buzzes.filter((b) => b !== winner);
-  return buzzGaps([winner, ...rankBuzzes(others, room.players)]);
+  return buzzGaps([winner, ...rankOpening(others, room.players, room.windowStartedAt)]);
 }
 
 function publicPlayer(p: Ranked<Player>): RankedPlayer {

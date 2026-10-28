@@ -4,7 +4,7 @@ import type { PlayerView } from '../../../shared/types.js';
 import { buzzerState } from './buzzerState.js';
 
 function view(overrides: Partial<PlayerView> = {}): PlayerView {
-  return {
+  const base: Omit<PlayerView, 'canBuzz'> = {
     role: 'player',
     code: 'WXYZ',
     phase: 'LOBBY',
@@ -21,6 +21,12 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     answerTimer: null,
     ...overrides,
   };
+  // As the server sets it, unless a test says otherwise.
+  return { canBuzz: canBuzzFor(base), ...base };
+}
+
+function canBuzzFor({ phase, lockedOut, hasBuzzed }: Omit<PlayerView, 'canBuzz'>): boolean {
+  return (phase === 'OPEN' || phase === 'COLLECTING') && !lockedOut && !hasBuzzed;
 }
 
 describe('buzzerState', () => {
@@ -122,6 +128,29 @@ describe('buzzerState', () => {
     expect(
       buzzerState(view({ phase: 'OPEN', questionIndex: 0, lockedOut: true }), false).live,
     ).toBe(false);
+  });
+
+  it('greys out a player who joined during this opening, in OPEN and in COLLECTING', () => {
+    for (const phase of ['OPEN', 'COLLECTING'] as const) {
+      expect(buzzerState(view({ phase, questionIndex: 0, canBuzz: false }), false)).toEqual({
+        kind: 'idle',
+        label: 'Get ready… you can buzz from the next question',
+        live: false,
+      });
+    }
+  });
+
+  it('is live again for the late joiner once the next opening lets them buzz', () => {
+    expect(buzzerState(view({ phase: 'OPEN', questionIndex: 1, canBuzz: true }), false).live).toBe(
+      true,
+    );
+  });
+
+  it('keeps the locked-out and pressed looks ahead of the late-joiner label', () => {
+    const out = view({ phase: 'OPEN', questionIndex: 0, lockedOut: true, canBuzz: false });
+    const buzzed = view({ phase: 'COLLECTING', questionIndex: 0, hasBuzzed: true, canBuzz: false });
+    expect(buzzerState(out, false).kind).toBe('out');
+    expect(buzzerState(buzzed, false).kind).toBe('pressed');
   });
 });
 

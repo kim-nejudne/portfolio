@@ -6,6 +6,9 @@ import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
  * How the buzzer looks: grey, bright and pulsing, pressed in, green, dim, dark with an X, grey
  * with the answer, or the final result in place of the button.
  */
+/** A player who joined while the buzzers were open waits for the next opening (UI spec, Player view). */
+export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next question';
+
 export type BuzzerKind =
   'idle' | 'live' | 'pressed' | 'won' | 'lost' | 'out' | 'revealed' | 'final';
 
@@ -39,6 +42,8 @@ export function buzzerState(
     case 'COLLECTING':
       if (view.lockedOut) return lockedOut();
       if (pressed || view.hasBuzzed) return { kind: 'pressed', label: 'Buzzed…', live: false };
+      // Joined during this opening: a press could not count, so none is sent (DECISIONS F39).
+      if (!view.canBuzz) return idle(LATE_JOINER_LABEL);
       return { kind: 'live', label: 'BUZZ!', live: true };
     case 'BUZZED':
       // A wrong answer stays BUZZED until the buzzers reopen (DECISIONS #5): the judged winner is

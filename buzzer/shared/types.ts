@@ -65,6 +65,7 @@ export interface Judgement {
  */
 export interface UndoPoint {
   buzzes: Buzz[];
+  windowStartedAt: number | null;
   winnerId: string;
 }
 
@@ -96,6 +97,7 @@ export interface Room {
   questionIndex: number; // -1 in lobby
   openingCounter: number; // increments each time buzzers open
   buzzes: Buzz[]; // for the current opening
+  windowStartedAt: number | null; // monotonic receivedAt of the opening's first buzz
   winnerId: string | null;
   lockedOut: string[]; // playerIds wrong this question
   judgements: Judgement[]; // whole game, enables undo
@@ -190,6 +192,8 @@ export interface PlayerView {
   me: { id: string; name: string; color: string; score: number; rank: number };
   playerCount: number;
   hasBuzzed: boolean; // this opening
+  /** A press now would count: OPEN or COLLECTING, not locked out, not buzzed or joined this opening. */
+  canBuzz: boolean;
   lockedOut: boolean;
   winnerId: string | null;
   winnerName: string | null;

@@ -35,7 +35,7 @@ function stubExists(exists: boolean | Error) {
 }
 
 function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
-  return {
+  const base: Omit<PlayerView, 'canBuzz'> = {
     role: 'player',
     code: 'WXYZ',
     phase: 'LOBBY',
@@ -52,6 +52,12 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     answerTimer: null,
     ...overrides,
   };
+  // As the server sets it, unless a test says otherwise.
+  return { canBuzz: canBuzzFor(base), ...base };
+}
+
+function canBuzzFor({ phase, lockedOut, hasBuzzed }: Omit<PlayerView, 'canBuzz'>): boolean {
+  return (phase === 'OPEN' || phase === 'COLLECTING') && !lockedOut && !hasBuzzed;
 }
 
 /** Renders `/play/<code>`. Each call to `makeSocket` gets a fresh fake, as a page reload would. */
@@ -358,6 +364,20 @@ describe('Play buzzer', () => {
     expect(buzzer().disabled).toBe(false);
     // Guarded, so reduced motion keeps the button still.
     expect(buzzer().className).toContain('motion-safe:animate-buzz-pulse');
+  });
+
+  it('a player who joined this opening gets a grey, disabled button and cannot buzz', async () => {
+    const socket = await joined();
+    for (const phase of ['OPEN', 'COLLECTING'] as const) {
+      socket.fire('state', open({ phase, canBuzz: false }));
+      expect(buzzer().textContent).toBe('Get ready… you can buzz from the next question');
+      expect(buzzer().disabled).toBe(true);
+      expect(buzzer().dataset.look).toBe('idle');
+
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      fireEvent.keyDown(window, { code: 'Space' });
+      expect(buzzes(socket)).toHaveLength(0);
+    }
   });
 
   it('a press shows "Buzzed…" and vibrates for 30 ms before the server replies', async () => {

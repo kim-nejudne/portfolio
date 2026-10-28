@@ -102,15 +102,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F38 Screen lobby fit
 
-- [ ] F39 Buzz eligibility and monotonic window
-  - Spec: Buzzer fairness and timing; UI spec by view (Player view); Data model (`PlayerView`, `Room`); see DECISIONS, Proposed spec changes (backlog: late joiner)
-  - Depends: F37
-  - Done when:
-    - `PlayerView.canBuzz` is true exactly when the reducer's `canBuzz` would accept a buzz from this player (OPEN or COLLECTING, not locked out, not buzzed this opening, not joined this opening)
-    - A player who joined during the current opening sees a disabled grey button "Get ready… you can buzz from the next question" in OPEN and COLLECTING, and cannot send a buzz
-    - The first buzz of an opening stores its monotonic `receivedAt` on the room (`windowStartedAt`, cleared with `buzzes`). `windowClosed` ranks only buzzes with raw `receivedAt ≤ windowStartedAt + COLLECTION_WINDOW_MS`; a buzz received later while still COLLECTING (late timer) is kept for "also buzzed" and cannot win
-    - The DECISIONS F14 row "window stays open until `windowClosed` arrives" is marked superseded
-  - Tests: `reducer` tests (late-timer buzz cannot win even with a lower `adjustedTime`, buzz exactly at +150 ms counts, `windowStartedAt` cleared on every route that clears `buzzes`); `views.test.ts` `canBuzz` in each case; `buzzerState` and `Play` tests for the late-joiner label
+- [x] F39 Buzz eligibility and monotonic window
 
 - [ ] F40 Host remote: game over, stable order, tab keys
   - Spec: UI spec by view (Host remote); Data model (`HostView`); see DECISIONS, Proposed spec changes (backlog: host remote)

@@ -1,4 +1,8 @@
-import { MAX_LATENCY_CORRECTION_MS, RTT_SAMPLES } from '../shared/constants.js';
+import {
+  COLLECTION_WINDOW_MS,
+  MAX_LATENCY_CORRECTION_MS,
+  RTT_SAMPLES,
+} from '../shared/constants.js';
 import type { Buzz, BuzzGap, Player } from '../shared/types.js';
 
 /**
@@ -50,6 +54,34 @@ export function rankBuzzes(
     (a, b) =>
       a.adjustedAt - b.adjustedAt || a.receivedAt - b.receivedAt || joinedAt(a) - joinedAt(b),
   );
+}
+
+/**
+ * Whether `buzz` arrived inside the collection window that opened at `windowStartedAt` (monotonic
+ * ms), inclusive. The cut uses the raw `receivedAt`, so latency correction cannot pull a late
+ * arrival in. With no window start recorded, every buzz counts (DECISIONS F39).
+ */
+export function inWindow(buzz: Buzz, windowStartedAt: number | null): boolean {
+  return windowStartedAt === null || buzz.receivedAt <= windowStartedAt + COLLECTION_WINDOW_MS;
+}
+
+/**
+ * An opening's buzzes in rank order: those inside the window first, then the late ones. Only the
+ * first can win, so a late buzz never outranks one that made the window (fairness rule 4).
+ */
+export function rankOpening(
+  buzzes: readonly Buzz[],
+  players: Readonly<Record<string, Player>>,
+  windowStartedAt: number | null,
+): Buzz[] {
+  const late = (b: Buzz) => !inWindow(b, windowStartedAt);
+  return [
+    ...rankBuzzes(
+      buzzes.filter((b) => !late(b)),
+      players,
+    ),
+    ...rankBuzzes(buzzes.filter(late), players),
+  ];
 }
 
 /** Each buzz after the winner, with its `adjustedAt` gap to the winner. Rank order (DECISIONS #13). */

@@ -10,6 +10,57 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F39 — Buzz eligibility and monotonic window (2026-10-28)
+**What changed:**
+- Shared:
+  - `Room.windowStartedAt: number | null` holds the monotonic `receivedAt` of the opening's first buzz. `UndoPoint` stores it alongside the buzzes.
+  - `PlayerView.canBuzz: boolean`.
+- Server:
+  - `fairness.ts` gains two helpers:
+    - `inWindow(buzz, start)` uses raw `receivedAt ≤ start + 150`, inclusive. With a null start, every buzz counts.
+    - `rankOpening` ranks the in-window buzzes, then the late ones.
+  - Reducer:
+    - New exported `canBuzz(room, playerId)`: OPEN or COLLECTING, and the player is eligible. A BUZZED press from an eligible player is still recorded as a late "also buzzed".
+    - The first buzz sets `windowStartedAt`. Every route that empties `buzzes` clears it. Judge snapshots it and undo restores it.
+    - `windowClosed` picks its winner from in-window buzzes only. If a kick leaves only late buzzes, it reopens the buzzers.
+  - `views.ts`: `canBuzz` comes from the reducer. The `alsoBuzzed` list and the `fx buzz` gaps use `rankOpening`.
+- Client: in OPEN and COLLECTING, `buzzerState` shows a grey, disabled button reading "Get ready… you can buzz from the next question" when `canBuzz` is false and the player is neither locked out nor already buzzed. While it shows, the phone sends no buzz (`live: false`).
+- The DECISIONS F14 row "window stays open until `windowClosed` arrives" is marked superseded.
+- Tests:
+  - New `server/reducer.window.test.ts` (17):
+    - the start is set and kept
+    - a buzz at exactly +150 ms counts, and the next millisecond does not
+    - a late-timer buzz with a lower `adjustedTime` loses
+    - a kick that leaves only late buzzes reopens the buzzers
+    - a null start counts every buzz
+    - the start is cleared on reveal, next, auto-open next, FINAL, prev, reopen and three kick routes, and restored on undo
+  - `views.test.ts` +12: a `canBuzz` table checked against what the reducer counts.
+  - `fairness.test.ts` +4, `buzzerState.test.ts` +3 and `Play.test.tsx` +1 (grey button, and no buzz from pointerdown or Space).
+  - Client fixtures derive `canBuzz` from phase, lockout and hasBuzzed unless a test overrides it.
+  - 1070 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-28 for F39 cover:
+- one `canBuzz` for both the view and the reducer, with BUZZED false
+- when the late-joiner label shows
+- where `windowStartedAt` is cleared, `host:end` keeping it, and undo restoring it
+- the inclusive window, and the in-window-then-late order
+- why only a kick lets the cut change the winner, the anchor staying on the first buzz after a kick, and the reopen
+
+**Notes for next session:**
+- Without a kick, a late buzz can never beat the first buzz: its adjusted time is always above `windowStartedAt`. The cut matters for the also-buzzed order and when the first buzzer is kicked mid-window. That is how the tests show it.
+- Playtest (Playwright; Screen, Host remote, 4 Players at 390×844):
+  - A player who joined during OPEN got the grey label, and a forced click sent no buzz.
+  - Players who joined late got a normal BUZZ! on the reopen after Wrong.
+  - The answer did not leak.
+  - The COLLECTING frame (150 ms) was too short to catch in the UI. Unit tests cover the label in COLLECTING.
+  - `favicon.ico` 404 (F44).
+- No gateway-level late-timer test. The gateway's `receivedAt` source is unchanged, and the reducer tests cover the rule.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, host a set, and pair a phone as Host. Join from one phone and start.
+2. Open the buzzers. Join from a second phone now: it shows "Get ready… you can buzz from the next question" on a grey button, and tapping it does nothing.
+3. Buzz from the first phone and mark it Wrong. After the reopen, the second phone shows BUZZ!.
+
 ## F38 — Screen lobby fit (2026-10-28)
 **What changed:**
 - **Pair host phone** opens a dialog instead of growing the lobby:

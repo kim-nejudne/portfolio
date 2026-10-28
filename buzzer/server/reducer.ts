@@ -11,7 +11,7 @@ import {
   REOPEN_DELAY_MS,
 } from '../shared/constants.js';
 import type { Buzz, Fx, JudgeResult, Phase, Player, Room, RoomSettings } from '../shared/types.js';
-import { buzzGaps, makeBuzz, rankBuzzes } from './fairness.js';
+import { buzzGaps, inWindow, makeBuzz, rankOpening } from './fairness.js';
 
 /** The error for an action the transitions table does not list for the current phase. */
 export const WRONG_PHASE_ERROR = 'Not allowed in this phase';
@@ -19,8 +19,11 @@ export const WRONG_PHASE_ERROR = 'Not allowed in this phase';
 /** Phases before the answer is shown. `host:reveal` accepts these; `host:prev` also accepts REVEAL. */
 const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'];
 
+/** Phases where a buzz counts towards the winner. */
+const OPEN_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING'];
+
 /** Phases that take a buzz: OPEN and COLLECTING count, BUZZED records a late one (DECISIONS #4). */
-const BUZZ_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED'];
+const BUZZ_PHASES: readonly Phase[] = [...OPEN_PHASES, 'BUZZED'];
 
 /** Phases a judged question can be in, so `host:undo` accepts them (DECISIONS #6). */
 const UNDO_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'];
@@ -179,7 +182,7 @@ function playerBuzz(
   const player = room.players[playerId];
   if (!player) return fail('Unknown player');
   // Anything that does not count is ignored silently: no error, no penalty (fairness rules).
-  if (!canBuzz(room, player)) return done(room);
+  if (!BUZZ_PHASES.includes(room.phase) || !eligible(room, player)) return done(room);
 
   const buzz = makeBuzz(playerId, receivedAt, player.rttMs);
   const { questionIndex, openingCounter } = room;
@@ -188,23 +191,30 @@ function playerBuzz(
 
   if (room.phase === 'OPEN') {
     const action: TimerAction = { type: 'windowClosed', questionIndex, openingCounter };
-    return done({ ...room, phase: 'COLLECTING', buzzes }, [
+    // The window is measured from this buzz's monotonic arrival (DECISIONS F39).
+    return done({ ...room, phase: 'COLLECTING', buzzes, windowStartedAt: receivedAt }, [
       { type: 'schedule', at: now + COLLECTION_WINDOW_MS, action },
       log,
     ]);
   }
-  // COLLECTING joins the window. BUZZED records a late buzz for the also-buzzed list only; it can
-  // never win, because the winner is fixed (DECISIONS #4).
+  // COLLECTING joins the window, unless a late timer let it arrive after 150 ms. BUZZED records a
+  // late buzz for the also-buzzed list only; it can never win, because the winner is fixed
+  // (DECISIONS #4).
   return done({ ...room, buzzes }, [log]);
 }
 
 /**
- * Buzzers are open (or the window just closed, for a late buzz), the player is not locked out,
- * has not buzzed this opening, and joined before it.
+ * Whether a press from `playerId` now would count towards the winner: buzzers open and the player
+ * eligible. Drives the Player's buzzer (`PlayerView.canBuzz`).
  */
-function canBuzz(room: Room, player: Player): boolean {
+export function canBuzz(room: Room, playerId: string): boolean {
+  const player = room.players[playerId];
+  return OPEN_PHASES.includes(room.phase) && player !== undefined && eligible(room, player);
+}
+
+/** The player is not locked out, has not buzzed this opening, and joined before it. */
+function eligible(room: Room, player: Player): boolean {
   return (
-    BUZZ_PHASES.includes(room.phase) &&
     !room.lockedOut.includes(player.id) &&
     !room.buzzes.some((b) => b.playerId === player.id) &&
     player.joinedAtOpening !== room.openingCounter
@@ -221,9 +231,14 @@ function windowClosed(
     room.phase === 'COLLECTING' &&
     room.questionIndex === questionIndex &&
     room.openingCounter === openingCounter;
-  const ranked = rankBuzzes(room.buzzes, room.players);
+  if (!fresh) return done(room);
+  // Only a buzz inside the window can win; a later one is ranked after it (DECISIONS F39).
+  const ranked = rankOpening(room.buzzes, room.players, room.windowStartedAt);
   const winner = ranked[0];
-  if (!fresh || !winner) return done(room);
+  // A kick can leave only late buzzes: the window is empty, so it reopens, as after an emptying kick.
+  if (!winner || !inWindow(winner, room.windowStartedAt)) {
+    return done(openBuzzers({ ...room, winnerId: null }));
+  }
 
   const fx: Fx = { kind: 'buzz', playerId: winner.playerId, gaps: buzzGaps(ranked) };
   const buzzed: Room = { ...room, phase: 'BUZZED', winnerId: winner.playerId };
@@ -277,7 +292,7 @@ function hostJudge(
   // SPEC-QUESTION: undo after a reopen restores this snapshot; see DECISIONS #6.
   const marked: Room = {
     ...room,
-    undo: { buzzes: room.buzzes, winnerId: playerId },
+    undo: { buzzes: room.buzzes, windowStartedAt: room.windowStartedAt, winnerId: playerId },
     answerTimer: null,
   };
   if (result === 'correct') {
@@ -393,6 +408,7 @@ function hostUndo(room: Room): ReduceResult {
     ...reversed,
     phase: 'BUZZED',
     buzzes: undo.buzzes,
+    windowStartedAt: undo.windowStartedAt,
     winnerId: undo.winnerId,
     lockedOut: room.lockedOut.filter((id) => id !== last.playerId),
     judgements: room.judgements.slice(0, -1),
@@ -440,7 +456,14 @@ function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' 
   const wasWinner = room.winnerId === playerId;
   const unjudged = room.phase === 'BUZZED' && wasWinner && room.reopenAt === null;
   if (unjudged && !anyoneEligible(kicked)) {
-    return done({ ...kicked, phase: 'REVEAL', buzzes: [], winnerId: null, answerTimer: null });
+    return done({
+      ...kicked,
+      phase: 'REVEAL',
+      buzzes: [],
+      windowStartedAt: null,
+      winnerId: null,
+      answerTimer: null,
+    });
   }
   if (
     (room.phase === 'BUZZED' && wasWinner) ||
@@ -491,6 +514,7 @@ function hostReveal(room: Room): ReduceResult {
     ...room,
     phase: 'REVEAL',
     buzzes: [],
+    windowStartedAt: null,
     winnerId: null,
     reopenAt: null,
     answerTimer: null,
@@ -521,6 +545,7 @@ function hostPrev(room: Room): ReduceResult {
 /** Per-question state that starts empty on every question. */
 const clearedQuestion = {
   buzzes: [],
+  windowStartedAt: null,
   winnerId: null,
   lockedOut: [],
   reopenAt: null,
@@ -543,6 +568,7 @@ function openBuzzers(room: Room): Room {
     ...room,
     phase: 'OPEN',
     buzzes: [],
+    windowStartedAt: null,
     reopenAt: null,
     answerTimer: null,
     openingCounter: room.openingCounter + 1,

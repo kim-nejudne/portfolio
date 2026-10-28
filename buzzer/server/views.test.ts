@@ -300,6 +300,43 @@ describe('toView: scorerId', () => {
   });
 });
 
+describe('toView: player canBuzz matches what the reducer counts', () => {
+  const NOW = T0 + 10_000;
+  /** p3 joined during opening 1; the room is on opening 1 unless `overrides` move it on. */
+  function late(overrides: Partial<Room> = {}): Room {
+    const room = midGame('OPEN', overrides);
+    const p3 = makePlayer('p3', { name: 'Cy', joinedAt: T0 + 3, joinedAtOpening: 1 });
+    return { ...room, players: { ...room.players, p3 } };
+  }
+
+  /** [case, room, player, expected canBuzz]. */
+  const cases: [string, Room, string, boolean][] = [
+    ['LOBBY', makeRoom({ players: midGame('LOBBY').players }), 'p1', false],
+    ['QUESTION', midGame('QUESTION'), 'p1', false],
+    ['OPEN', midGame('OPEN'), 'p1', true],
+    ['OPEN, locked out', midGame('OPEN', { lockedOut: ['p1'] }), 'p1', false],
+    ['COLLECTING, not buzzed yet', midGame('COLLECTING'), 'p3', true],
+    ['COLLECTING, already buzzed', midGame('COLLECTING'), 'p2', false],
+    ['OPEN, joined this opening', late(), 'p3', false],
+    ['COLLECTING, joined this opening', late({ phase: 'COLLECTING' }), 'p3', false],
+    ['OPEN, joined during the previous opening', late({ openingCounter: 2 }), 'p3', true],
+    ['BUZZED, a late press', midGame('BUZZED'), 'p3', false],
+    ['REVEAL', midGame('REVEAL'), 'p1', false],
+    ['FINAL', midGame('FINAL'), 'p1', false],
+  ];
+
+  it.each(cases)('in %s', (_name, room, playerId, expected) => {
+    expect(toView(room, 'player', playerId).canBuzz).toBe(expected);
+    // Counts: the buzz joins this opening's window. A late BUZZED press is only recorded.
+    const result = reduce(room, { type: 'player:buzz', playerId, receivedAt: 1_000 }, NOW);
+    if (!result.ok) throw new Error(result.error);
+    const counted =
+      (room.phase === 'OPEN' || room.phase === 'COLLECTING') &&
+      result.room.buzzes.length > room.buzzes.length;
+    expect(counted).toBe(expected);
+  });
+});
+
 describe('toView: player', () => {
   it('carries the player’s own name, colour, score and rank', () => {
     const view = toView(midGame('OPEN'), 'player', 'p3');
