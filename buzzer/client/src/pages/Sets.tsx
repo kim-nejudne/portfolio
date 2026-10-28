@@ -29,7 +29,7 @@ function download(text: string, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-const smallButton = `rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+const smallButton = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /** Set list `/sets`: this browser's saved question sets, last edited first. */
 export function Sets() {
@@ -193,7 +193,7 @@ export function Sets() {
       {sets === null ? (
         error === null && <p className="text-muted">Loading…</p>
       ) : sets.length === 0 ? (
-        <p className="rounded-3xl border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
+        <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
           No question sets yet. Tap <strong className="text-ink">New set</strong> to write one.
         </p>
       ) : (
@@ -202,7 +202,7 @@ export function Sets() {
             <li
               key={set.id}
               aria-labelledby={`set-${set.id}`}
-              className="flex flex-col gap-3 rounded-3xl border-2 border-edge bg-surface p-5"
+              className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
             >
               <div className="min-w-0">
                 <h2 id={`set-${set.id}`} className="truncate font-display text-2xl">

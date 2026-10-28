@@ -57,7 +57,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   error: "Couldn't save. Your next change will try again.",
 };
 
-const smallButton = `rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+const smallButton = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 const field =
   'w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink aria-invalid:border-buzz';
 
@@ -227,7 +227,7 @@ function Editor({ setId }: { setId: string }) {
         </Link>
 
         {set.questions.length === 0 ? (
-          <p className="rounded-3xl border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
+          <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
             No questions yet. Tap <strong className="text-ink">Add question</strong> to write the
             first.
           </p>
@@ -432,7 +432,7 @@ function QuestionCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       onPaste={onPaste}
-      className={`flex flex-col gap-4 rounded-3xl border-2 bg-surface p-5 ${
+      className={`flex flex-col gap-4 rounded-[20px] border-2 bg-surface p-5 ${
         isDragging
           ? 'relative z-10 border-accent shadow-2xl'
           : dropping

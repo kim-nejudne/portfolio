@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { APP_NAME, ROOM_CODE_LENGTH } from '../../../shared/constants.js';
+import { BulbRail } from '../components/BulbRail.js';
 import { HostGame } from '../components/HostGame.js';
 import { isCompleteRoomCode, normalizeRoomCode } from '../lib/roomCode.js';
+import { BUTTON_PRIMARY, CARD, INPUT, LABEL } from '../lib/ui.js';
 
 export function Landing() {
   const navigate = useNavigate();
@@ -16,17 +18,22 @@ export function Landing() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-8 px-4 py-10">
-      <h1 className="text-center font-display text-6xl tracking-tight text-accent">{APP_NAME}</h1>
+      <div className="flex flex-col items-center gap-4">
+        <BulbRail count={9} variant="row" />
+        <h1 className="text-center font-display text-6xl text-accent [text-shadow:4px_4px_0_var(--color-bg-deep)]">
+          {APP_NAME}
+        </h1>
+      </div>
 
       <form
         onSubmit={join}
         aria-labelledby="join-heading"
-        className="flex flex-col gap-4 rounded-3xl border-2 border-edge bg-surface p-6"
+        className={`flex flex-col gap-4 ${CARD}`}
       >
         <h2 id="join-heading" className="font-display text-3xl">
           Join a game
         </h2>
-        <label htmlFor="room-code" className="text-lg text-muted">
+        <label htmlFor="room-code" className={LABEL}>
           Room code
         </label>
         <input
@@ -41,13 +48,9 @@ export function Landing() {
           spellCheck={false}
           enterKeyHint="go"
           maxLength={ROOM_CODE_LENGTH}
-          className="w-full rounded-2xl border-2 border-edge bg-bg px-4 py-3 text-center font-display text-5xl tracking-[0.3em] uppercase placeholder:text-edge focus:border-accent"
+          className={`${INPUT} text-center text-5xl tracking-[0.3em] uppercase placeholder:text-edge`}
         />
-        <button
-          type="submit"
-          disabled={!ready}
-          className="rounded-2xl bg-accent px-6 py-4 font-display text-2xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
-        >
+        <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
           Join
         </button>
       </form>
@@ -56,7 +59,7 @@ export function Landing() {
 
       <Link
         to="/sets"
-        className="text-center text-lg text-muted underline underline-offset-4 hover:text-ink"
+        className="self-center py-2 text-center text-lg text-muted underline underline-offset-4 hover:text-ink"
       >
         My question sets
       </Link>
