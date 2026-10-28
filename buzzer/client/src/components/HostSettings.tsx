@@ -1,9 +1,10 @@
 import { ANSWER_SECONDS_CHOICES, SCOREBOARD_EVERY_MAX } from '../../../shared/constants.js';
-import type { HostView, RoomSettings } from '../../../shared/types.js';
+import type { HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 
 interface HostSettingsProps {
-  view: HostView;
+  /** The remote's view, or the lobby of a Screen that holds the hostToken (F37). */
+  view: HostView | ScreenView;
   command: HostCommand;
 }
 
@@ -11,8 +12,9 @@ const stepper =
   'size-12 rounded-xl border-2 border-edge font-display text-2xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /**
- * The remote's Settings tab (UI spec, Host remote). Each control sends only the key it changes;
- * the values shown are always the room's, from the latest snapshot.
+ * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
+ * control sends only the key it changes; the values shown are always the room's, from the latest
+ * snapshot.
  */
 export function HostSettings({ view, command }: HostSettingsProps) {
   const { busy, run } = command;

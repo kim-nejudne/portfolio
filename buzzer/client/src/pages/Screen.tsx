@@ -7,12 +7,14 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
+import { HostSettings } from '../components/HostSettings.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
 import { FinalResults, Scoreboard } from '../components/ScreenResults.js';
 import { StartOverlay } from '../components/StartOverlay.js';
+import { Toast, useToast } from '../components/Toast.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { displayUrl, isLoopbackHost, joinUrl } from '../lib/joinUrl.js';
@@ -20,7 +22,12 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { preloadSounds, startSounds } from '../lib/sounds.js';
-import { useSendHost } from '../lib/useHostCommand.js';
+import {
+  useHostCommand,
+  useSendHost,
+  type HostCommand,
+  type SendHost,
+} from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
@@ -98,17 +105,31 @@ function ScreenRoom({ code, makeSocket }: RoomProps) {
   );
   const socketRef = useRoomSocket(code, join, makeSocket);
   const send = useSendHost(socketRef);
-  // The order the scoreboard last showed, so the next showing can replay the climb.
-  const [scoreboardOrder, setScoreboardOrder] = useState<string[]>([]);
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
   usePreloadImage(code, view?.role === 'screen' ? view.nextImageId : null);
-  // SPEC-QUESTION: the join URL uses the Screen page's own origin; there is no configured public URL (DECISIONS, F08).
-  const url = joinUrl(window.location.origin, code);
 
   if (error) return <ScreenMessage title={error} />;
   if (view?.role !== 'screen') return <ScreenMessage title="Connecting…" link={false} />;
+  return <ScreenStage view={view} canHost={canHost} send={send} />;
+}
+
+interface StageProps {
+  view: ScreenView;
+  canHost: boolean;
+  send: SendHost;
+}
+
+function ScreenStage({ view, canHost, send }: StageProps) {
+  const { code } = view;
+  // One lock and one toast for the bar, the shortcuts and the lobby's settings (F37).
+  const { toast, show } = useToast();
+  const command = useHostCommand(view, send, show);
+  // The order the scoreboard last showed, so the next showing can replay the climb.
+  const [scoreboardOrder, setScoreboardOrder] = useState<string[]>([]);
+  // SPEC-QUESTION: the join URL uses the Screen page's own origin; there is no configured public URL (DECISIONS, F08).
+  const url = joinUrl(window.location.origin, code);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
@@ -116,7 +137,12 @@ function ScreenRoom({ code, makeSocket }: RoomProps) {
         {/* With host controls, the content stops above the bar, so it never hides the reveal or the podium. */}
         <div className={`relative flex min-h-0 flex-1 flex-col ${canHost ? 'mb-[8vh]' : ''}`}>
           {view.phase === 'LOBBY' ? (
-            <Lobby view={view} url={url} hostToken={loadHostToken(code)} />
+            <Lobby
+              view={view}
+              url={url}
+              hostToken={loadHostToken(code)}
+              command={canHost ? command : null}
+            />
           ) : view.phase === 'FINAL' ? (
             <FinalResults players={view.players} />
           ) : (
@@ -133,9 +159,10 @@ function ScreenRoom({ code, makeSocket }: RoomProps) {
         </div>
         <ScreenFlash />
         {/* Last, so the bar stays above the scoreboard and the flash. */}
-        {canHost && <ScreenHostControls view={view} send={send} />}
+        {canHost && <ScreenHostControls view={view} command={command} />}
       </div>
       <BottomStrip code={code} url={url} />
+      <Toast toast={toast} />
     </main>
   );
 }
@@ -145,66 +172,97 @@ interface LobbyProps {
   url: string;
   /** Set when this device created the room, so it may pair host phones (DECISIONS #14). */
   hostToken: string | null;
+  /** Set when the server accepted this device's hostToken: the lobby then offers Start and the settings. */
+  command: HostCommand | null;
 }
 
-function Lobby({ view, url, hostToken }: LobbyProps) {
+function Lobby({ view, url, hostToken, command }: LobbyProps) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-[3vh] px-[5vw] pt-[5vh]">
-      <div className="flex items-center justify-between gap-[4vw]">
-        <div className="flex min-w-0 flex-col gap-[1vh]">
-          <p className="text-[2.2vw] text-muted">{view.title}</p>
-          <p className="text-[2.6vw]">Join at</p>
-          <p className="font-display text-[3.2vw] break-all text-accent">{displayUrl(url)}</p>
-          <p className="mt-[2vh] text-[2.2vw] text-muted">Room code</p>
-          <h1 className="font-display text-[clamp(4rem,15vw,32vh)] leading-none tracking-[0.12em]">
-            {view.code}
-          </h1>
-          {isLoopbackHost(window.location.hostname) && (
-            <p role="note" className="text-[1.6vw] text-muted">
-              Phones can’t open localhost. Open this page at this computer’s network address
-              instead.
-            </p>
-          )}
-          {hostToken && (
-            <PairHostPhone
-              code={view.code}
-              hostToken={hostToken}
-              className="mt-[2vh] text-[1.6vw]"
-              qrSize="22vh"
+    <div className="flex min-h-0 flex-1 gap-[3vw] px-[5vw] pt-[5vh]">
+      {/* A size container: without the panel it is 90vw wide, so N vw is written N / 0.9 cqw and
+          nothing changes; beside the panel everything shrinks with it instead of wrapping. */}
+      <div className="@container flex min-w-0 flex-1 flex-col gap-[3vh]">
+        <div className="flex items-center justify-between gap-[4.44cqw]">
+          <div className="flex min-w-0 flex-col gap-[1vh]">
+            <p className="text-[2.44cqw] text-muted">{view.title}</p>
+            <p className="text-[2.89cqw]">Join at</p>
+            <p className="font-display text-[3.56cqw] break-all text-accent">{displayUrl(url)}</p>
+            <p className="mt-[2vh] text-[2.44cqw] text-muted">Room code</p>
+            <h1 className="font-display text-[clamp(4rem,16.67cqw,32vh)] leading-none tracking-[0.12em]">
+              {view.code}
+            </h1>
+            {isLoopbackHost(window.location.hostname) && (
+              <p role="note" className="text-[1.78cqw] text-muted">
+                Phones can’t open localhost. Open this page at this computer’s network address
+                instead.
+              </p>
+            )}
+            {hostToken && (
+              <PairHostPhone
+                code={view.code}
+                hostToken={hostToken}
+                className="mt-[2vh] text-[1.78cqw]"
+                qrSize="22vh"
+              />
+            )}
+          </div>
+          <div className="shrink-0 rounded-[2vh] bg-white p-[2vh]">
+            <QRCodeSVG
+              value={url}
+              title={`Join at ${url}`}
+              marginSize={0}
+              style={{ width: 'min(36vh, 28cqw)', height: 'min(36vh, 28cqw)' }}
             />
-          )}
+          </div>
         </div>
-        <div className="shrink-0 rounded-[2vh] bg-white p-[2vh]">
-          <QRCodeSVG
-            value={url}
-            title={`Join at ${url}`}
-            marginSize={0}
-            style={{ width: '36vh', height: '36vh' }}
-          />
-        </div>
+        <PlayerChips players={view.players} />
       </div>
-      <PlayerChips players={view.players} />
+      {command && <LobbyHostPanel view={view} command={command} />}
     </div>
+  );
+}
+
+/** Start game beside the room settings, for a host with no paired phone (F37). */
+function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostCommand }) {
+  return (
+    <aside
+      aria-label="Game setup"
+      className="flex w-[min(28rem,30vw)] shrink-0 flex-col gap-3 overflow-y-auto"
+    >
+      <button
+        type="button"
+        onClick={() => command.run('host:start', {})}
+        disabled={command.busy}
+        aria-keyshortcuts="Space"
+        className="rounded-2xl bg-accent px-6 py-4 font-display text-2xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
+      >
+        Start game{' '}
+        <kbd aria-hidden className="ml-2 font-mono text-base opacity-70">
+          Space
+        </kbd>
+      </button>
+      <HostSettings view={view} command={command} />
+    </aside>
   );
 }
 
 function PlayerChips({ players }: { players: RankedPlayer[] }) {
   if (players.length === 0) {
-    return <p className="text-[2.4vw] text-muted">Waiting for players…</p>;
+    return <p className="text-[2.67cqw] text-muted">Waiting for players…</p>;
   }
   // Smaller chips past 20 players, so a full room of 50 still fits above the bottom strip.
-  const chipText = players.length > 20 ? 'text-[1.4vw]' : 'text-[2.2vw]';
+  const chipText = players.length > 20 ? 'text-[1.56cqw]' : 'text-[2.44cqw]';
   return (
     <section aria-label="Players" className="flex min-h-0 flex-col gap-[2vh]">
-      <p className="text-[2.2vw] text-muted">
+      <p className="text-[2.44cqw] text-muted">
         {players.length} {players.length === 1 ? 'player' : 'players'}
       </p>
-      <ul className="flex flex-wrap content-start gap-[1.2vw] overflow-hidden">
+      <ul className="flex flex-wrap content-start gap-[1.33cqw] overflow-hidden">
         {players.map((player) => (
           <li
             key={player.id}
             style={{ backgroundColor: player.color }}
-            className={`rounded-full px-[1.6vw] py-[0.8vh] font-display text-bg motion-safe:animate-pop-in ${chipText} ${player.connected ? '' : 'opacity-40'}`}
+            className={`rounded-full px-[1.78cqw] py-[0.8vh] font-display text-bg motion-safe:animate-pop-in ${chipText} ${player.connected ? '' : 'opacity-40'}`}
           >
             {player.name}
           </li>

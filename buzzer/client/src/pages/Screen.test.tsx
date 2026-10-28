@@ -658,6 +658,86 @@ describe('Screen', () => {
       Reflect.deleteProperty(document, 'fullscreenElement');
     });
 
+    describe('lobby settings', () => {
+      const setup = () => screen.queryByRole('complementary', { name: 'Game setup' });
+
+      it('show beside Start game only on a Screen whose hostToken the server accepted', () => {
+        const { socket } = renderScreen();
+        socket.fire('state', inPhase('LOBBY'));
+        expect(setup()).toBeNull();
+        expect(screen.queryByRole('switch')).toBeNull();
+        cleanup();
+
+        saveHostToken('WXYZ', 's'.repeat(43));
+        const stale = renderScreen().socket;
+        act(() => stale.emitted[0]!.ack({ ok: false, error: 'Invalid host token' }));
+        act(() => stale.emitted[1]!.ack({ ok: true }));
+        stale.fire('state', inPhase('LOBBY'));
+        expect(setup()).toBeNull();
+        cleanup();
+
+        hostScreen();
+        const panel = within(setup()!);
+        expect(panel.getByRole('button', { name: /Start game/ })).toBeTruthy();
+        for (const name of ['Auto-open buzzers', 'Wrong-answer penalty']) {
+          expect(panel.getByRole('switch', { name: new RegExp(name) })).toBeTruthy();
+        }
+        expect(panel.getByRole('status', { name: 'Answer time' }).textContent).toBe('Off');
+        expect(panel.getByRole('status', { name: 'Scoreboard every' }).textContent).toBe('5');
+      });
+
+      it('leave the Screen once the game starts', () => {
+        const socket = hostScreen();
+        socket.fire('state', inPhase('QUESTION'));
+        expect(setup()).toBeNull();
+      });
+
+      it('a toggle and the answer-time stepper send host:settings with only that key', () => {
+        const socket = hostScreen();
+        fireEvent.click(screen.getByRole('switch', { name: /Auto-open buzzers/ }));
+        expect(sent(socket)).toEqual([['host:settings', { autoOpenBuzzers: true }]]);
+
+        act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+        socket.fire(
+          'state',
+          inPhase('LOBBY', { settings: { ...DEFAULT_SETTINGS, autoOpenBuzzers: true } }),
+        );
+        expect(
+          screen.getByRole('switch', { name: /Auto-open buzzers/ }).getAttribute('aria-checked'),
+        ).toBe('true');
+        fireEvent.click(screen.getByRole('button', { name: 'More answer time' }));
+        expect(sent(socket).at(-1)).toEqual(['host:settings', { answerSeconds: 3 }]);
+      });
+
+      it('a refused change shows the Screen’s toast', () => {
+        const socket = hostScreen();
+        fireEvent.click(screen.getByRole('switch', { name: /Wrong-answer penalty/ }));
+        act(() => socket.emitted.at(-1)!.ack({ ok: false, error: 'Not connected' }));
+        expect(screen.getByRole('alert').textContent).toBe('Not connected');
+        // The lock is released, so the host can try again.
+        expect(
+          (screen.getByRole('switch', { name: /Wrong-answer penalty/ }) as HTMLButtonElement)
+            .disabled,
+        ).toBe(false);
+      });
+
+      it('Start game in the lobby sends host:start', () => {
+        const socket = hostScreen();
+        fireEvent.click(within(setup()!).getByRole('button', { name: /Start game/ }));
+        expect(sent(socket)).toEqual([['host:start', {}]]);
+      });
+
+      it('Space still starts the game while a settings control has focus', () => {
+        const socket = hostScreen();
+        const toggle = screen.getByRole('switch', { name: /Auto-open buzzers/ });
+        toggle.focus();
+        fireEvent.keyDown(toggle, { key: ' ' });
+        expect(sent(socket)).toEqual([['host:start', {}]]);
+        // Blurred, so the keyup cannot press the toggle as well.
+        expect(document.activeElement).not.toBe(toggle);
+      });
+    });
+
     it('never puts the answer in the DOM before REVEAL, with the bar and help open', () => {
       const leaky = { ...question, answer: ANSWER };
       for (const phase of ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'] as const) {

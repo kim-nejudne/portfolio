@@ -94,20 +94,14 @@ Kim's request of 2026-10-28: the host can let players buzz as soon as a question
 
 - [x] F36 Answer countdown and time's-up on the devices
 
-- [ ] F37 Settings in the Screen lobby
-  - Spec: UI spec by view (Screen view: Lobby; Screen host controls); see DECISIONS, Proposed spec changes (lobby settings)
-  - Depends: F35
-  - Done when:
-    - On a Screen that holds the hostToken, the lobby shows the room settings beside Start: auto-open buzzers, answer time, wrong-answer penalty, scoreboard every N
-    - The panel reuses the remote's `HostSettings` controls and sends `host:settings`; a failed ack shows the Screen's toast
-    - A Screen without the hostToken shows no settings
-    - Space still starts the game while a settings control has focus
-  - Tests: `Screen.test.tsx` (panel only with the hostToken, a toggle sends `host:settings`); `/playtest`: set auto-open and a 3 s answer time in the lobby, start, and check the buzzers open with no host action
+- [x] F37 Settings in the Screen lobby
 
 ## Bugs
 
 ## Backlog (not scheduled)
 
+- Screen lobby height on a hosting Screen: with **Pair host phone** open (its 22vh QR sits in the left column), the player chips are pushed below the footer at 1920×1080, 1366×768 and 1280×720, and they cannot be scrolled to. This was there before F37. The panel only made the column shorter. On a plain Screen at 1920×1080 the chips overlap the footer by about 5 px. Options: put the Pair QR in a dialog, or let the chips area scroll (seen in the F37 playtest).
+- The F37 lobby "Game setup" panel is sized in rem, like the remote. At 1280×720 it scrolls (about 67 px), and "Scoreboard every" is cut off until you scroll. A compact Screen variant of `HostSettings` would fix that.
 - Add a favicon. The browser requests `/favicon.ico` and gets a 404 (seen in the F03 playtest).
 - Optional `PUBLIC_URL` setting for the join QR and URL, so a Screen opened at `localhost` still shows an address phones can reach. F08 only shows a note (F08 decision).
 - Rate-limit `GET /api/rooms/:code/exists`. Without a limit, the 23⁴ room codes can be enumerated cheaply, and the answer shows each room's phase. The spec sets no limit (F06 review).

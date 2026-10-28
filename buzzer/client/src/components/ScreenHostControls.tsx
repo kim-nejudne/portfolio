@@ -10,16 +10,16 @@ import {
   type HostCommandCall,
 } from '../lib/hostControls.js';
 import { toggleFullscreen } from '../lib/fullscreen.js';
-import { useHostCommand, type HostCommand, type SendHost } from '../lib/useHostCommand.js';
+import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
-import { Toast, useToast } from './Toast.js';
 
 /** The bar hides after this long without mouse movement (UI spec, Screen host controls). */
 export const BAR_IDLE_MS = 3000;
 
 interface ScreenHostControlsProps {
   view: ScreenView;
-  send: SendHost;
+  /** Shared with the lobby's settings, so one press anywhere waits for the next snapshot. */
+  command: HostCommand;
 }
 
 /**
@@ -27,9 +27,7 @@ interface ScreenHostControlsProps {
  * shortcuts, with a `?` help overlay. They act on the ScreenView, which never carries the answer
  * before reveal, so nothing here can show it (DECISIONS #2).
  */
-export function ScreenHostControls({ view, send }: ScreenHostControlsProps) {
-  const { toast, show } = useToast();
-  const command = useHostCommand(view, send, show);
+export function ScreenHostControls({ view, command }: ScreenHostControlsProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [help, setHelp] = useState(false);
@@ -104,7 +102,6 @@ export function ScreenHostControls({ view, send }: ScreenHostControlsProps) {
         )
       )}
       {help && <HelpOverlay onClose={() => setHelp(false)} />}
-      <Toast toast={toast} />
     </>
   );
 }

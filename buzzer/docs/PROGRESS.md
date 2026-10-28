@@ -10,6 +10,49 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F37 — Settings in the Screen lobby (2026-10-28)
+**What changed:**
+- On a Screen whose hostToken the server accepted, the lobby has a "Game setup" panel on the right:
+  - a **Start game** button (Space)
+  - the remote's `HostSettings`, unchanged: wrong-answer penalty, auto-open buzzers, answer time, scoreboard every N
+- It is not on a plain Screen, or on one whose stale token fell back to a plain join. It goes away when the game starts.
+- `HostSettings` takes `HostView | ScreenView`. It reads only `settings`, which the ScreenView already carried.
+- The Screen page owns one `useHostCommand` and one `Toast` in the new `ScreenStage`. The bar, the shortcuts and the panel share them. `ScreenHostControls` now takes `command`, not `send`.
+- Lobby sizing: the main column is an `@container`, with sizes in `cqw` (N vw ÷ 0.9). A plain Screen looks exactly as before. Beside the panel, the code, URL, QR and chips shrink instead of wrapping.
+- Tests: `Screen.test.tsx` +6 (`lobby settings`):
+  - the panel shows only with an accepted token
+  - it leaves at start
+  - a toggle and the stepper send `host:settings` with one key
+  - a refusal toasts and releases the lock
+  - the lobby Start sends `host:start`
+  - Space on a focused switch sends only `host:start` and blurs it
+- 1016 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-28 for F37 cover:
+- the panel with its own Start game, and showing it only with `canHost`
+- the shared lock and toast
+- Space while a control has focus (the existing blur)
+- the `cqw` sizing, and the panel staying in rem
+
+**Notes for next session:**
+- Playtest (Playwright; a Screen that created the room, plus one Player): 4 of 4 flow steps passed.
+  - I turned on auto-open and set 3 s in the lobby.
+  - With "More answer time" focused, Space started the game without changing the value.
+  - The buzzers opened with no host action. The Player saw 3, 2, then "Time's up!".
+  - The no-token case and the failed-ack toast are covered by unit tests only.
+- Layout, measured at 1920×1080, 1366×768 and 1280×720:
+  - The first version wrapped the join URL and hid the room code's 4th letter. With `cqw`, the code and URL stay on one line at all three sizes, and a plain Screen is unchanged.
+  - Backlog: at 1280×720 the panel scrolls about 67 px, and "Scoreboard every" is below the fold.
+  - Backlog, not caused by F37: with **Pair host phone** open, the player chips are pushed below the footer.
+- The Start game button now appears twice in the lobby, in the panel and on the auto-hiding bar. This is intended.
+- The DECISIONS "Proposed spec changes" entry for lobby settings is already in SPEC.md and can be pruned.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and host a set. Choose **Use this device as the Screen**, then Click to start. Join from a phone at `http://<LAN-IP>:5173/play/<CODE>`.
+2. In the lobby's right panel, turn on **Auto-open buzzers** and set **Answer time** to 3 s.
+3. Press Space (or **Start game**). The buzzers open by themselves. Buzz from the phone: the 3 s countdown runs on the Screen and the phone.
+4. Open `/screen/<CODE>` in a private window: there is no panel.
+
 ## F36 — Answer countdown and time's-up on the devices (2026-10-28)
 **What changed:**
 - New `client/src/lib/useAnswerCountdown.ts`:
