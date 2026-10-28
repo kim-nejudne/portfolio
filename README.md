@@ -2,11 +2,12 @@
 
 [![CI](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml)
 
-Two independent web applications and the homepage that links them, by
-[Kim Nejudne](https://kimnejudne.dev). Both are live, self-hosted, and have a
-written case study.
+Three independent web applications and the homepage that links them, by
+[Kim Nejudne](https://kimnejudne.dev). All three are live and self-hosted.
+PokéTrack and ts-dojo have a written case study; Buzzr's is still to come.
 
-That badge builds all three from their own lockfiles, then runs the hub's
+That badge builds every project from its own lockfile (Buzzr only when
+`buzzer/` changed, and with its format check, lint and unit tests), then runs the hub's
 browser assertions against the built site over the DevTools protocol and an
 axe-core sweep of every hub page. The assertions are tested too: they are
 deliberately broken to confirm they fail, because a check that has never
@@ -17,9 +18,11 @@ failed is a check nobody has verified.
 | **[hub](hub/)** | The homepage. A pen-and-ink portrait that hinges open on scroll and shows the work | Vite · React · GSAP | [kimnejudne.dev](https://kimnejudne.dev) |
 | **[poketrack](poketrack/)** | Project tracking that levels up. A partner's whole state is derived from the sum of its XP events and never stored | React · FastAPI · MongoDB | [poketrack.kimnejudne.dev](https://poketrack.kimnejudne.dev) |
 | **[ts-dojo](ts-dojo/)** | A TypeScript course graded by the real compiler, running in a Web Worker, with a Vim-keyed REPL and no backend | Vite · React · TypeScript 6 · CodeMirror | [dojo.kimnejudne.dev](https://dojo.kimnejudne.dev) |
+| **[buzzer](buzzer/)** | Buzzr, a game-show buzzer. The TV shows the questions, players buzz from their phones, and one server decides who was first, with rooms held in memory | React · Express · Socket.IO · TypeScript 6 | [buzzr.kimnejudne.dev](https://buzzr.kimnejudne.dev) |
 
-Case studies for every spoke are published at
-[kimnejudne.dev/work](https://kimnejudne.dev/work).
+Case studies are published at
+[kimnejudne.dev/work](https://kimnejudne.dev/work). Buzzr joins them once its
+case study is written.
 
 ## Why the art directions do not match
 
@@ -42,8 +45,10 @@ own lockfile and its own `node_modules`.
 **There is deliberately no root `package.json` and no workspace.** The projects
 do not share dependencies and should not: poketrack is on Tailwind 3 and
 TypeScript 4.9 behind Create React App, the hub is on Tailwind 4 and
-TypeScript 5.9, and ts-dojo is on TypeScript 6 under pnpm and Node 24, with
-the compiler version pinned because it also runs inside the app. Hoisting them into one dependency
+TypeScript 5.9, ts-dojo is on TypeScript 6 under pnpm and Node 24, with
+the compiler version pinned because it also runs inside the app, and Buzzr is
+on Tailwind 4 and TypeScript 6 under npm and Node 24, with its Express and
+Socket.IO server in the same package as its client. Hoisting them into one dependency
 graph would buy a smaller `node_modules` at the cost of breaking builds that
 currently work. They are colocated, not merged.
 
@@ -53,37 +58,13 @@ Each project builds from its own directory:
 cd hub && npm ci && npm run build
 cd poketrack/frontend && npm ci && npm run build   # Python API under backend/
 cd ts-dojo && pnpm install --frozen-lockfile && pnpm build
+cd buzzer && npm ci && npm run build                # client and server
 ```
 
 `hub` is the exception worth knowing about: its build reads each spoke's
 `CASE-STUDY.md` from the sibling directory and **fails naming the path** if one
 is missing, because silently publishing fewer case studies than there are
 spokes is the worst outcome available.
-
-## `spoke-plinth-recovered-craft-pass` is an archive, not a feature branch
-
-> [!WARNING]
-> **Do not merge this branch.** GitHub will offer a "Compare & pull request"
-> button for it after any push, and the name reads like ordinary
-> work-in-progress. It is not.
-
-It holds the **retired PLINTH gym marketing site**, replaced on 2026-08-02 by
-a sixteen-week strength program that was itself taken down on 2026-10-25; that
-one is in `main`'s history before the commit that removed `plinth/`. Twelve commits
-and ninety-four files that exist nowhere else in this graph, on a **disjoint
-root** — it shares no merge base with `main` at all, so merging it would need
-`--allow-unrelated-histories` and would graft a dead site into the live tree.
-
-It survives because `plinth-brief.md` records it as the preservation copy of
-that site, and because it was the one ref in the six-repository merge that
-genuinely had nowhere else to live. The tag `recovery/plinth-2026-07-31` points
-at the same commit.
-
-Three other `spoke-*` branches were carried across in the merge and have since
-been deleted: they held zero commits that were not already in `main`, so they
-duplicated refs already preserved on the archived source repositories while
-adding three more chances to misread the warning above. `main` is the only
-branch here that is meant to move.
 
 ## Deployment
 
@@ -111,6 +92,11 @@ studies say so plainly, and the check is mechanical rather than editorial:
 `hub/scripts/case-study/policy.mjs` refuses to build a case study that does not
 disclose it. The scaffold is the starting line; what the case studies are about
 is the distance from there to what is running now.
+
+Buzzr differs in method rather than in kind: it was not scaffolded but written
+feature by feature by an AI coding agent against a written spec
+(`buzzer/docs/SPEC.md`), with every decision the spec left open recorded in
+`buzzer/docs/DECISIONS.md`.
 
 The commit history reflects this too. `emergent-agent-e1` is the scaffolding
 tool and its commits are left under its own name.
