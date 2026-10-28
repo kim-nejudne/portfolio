@@ -10,6 +10,26 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F41 — Connection awareness (2026-10-28)
+**What changed:**
+- `lib/ping.ts`: `keepPinging` takes `onAck` and `onLost`. `onLost` fires once when a ping is due and the previous `PINGS_LOST` (2) are unanswered. Any ack resets the count and calls `onAck`. A reconnect starts afresh.
+- `lib/useRoomSocket.ts`: pings for every role (Screen, Host, Player); `attach`/`AttachSocket` removed and `Play.tsx` no longer attaches its own ping. One `linkDown` (disconnect, lost pings, window `offline`) sets `connecting` (red stays red) and starts the 5 s offline clock if not running; `linkUp` (connect, any ack) sets `connected`. `online` does nothing.
+- Screen: new `components/ReconnectingBanner.tsx`, a 3.2vw amber "Reconnecting…" bar fixed across the top while `connection === 'offline'`; the stage stays underneath.
+- Host Players tab: "status unknown", dimmed, on every row while the remote's own `connection` is not `connected`.
+- Tests: new `useRoomSocket.test.tsx` (10: pings on every page, two misses then 5 s, one miss is nothing, late ack, ack from offline, `offline` event, `online` no-op, disconnect keeps the clock, red stays red, unmount). `ping.test.ts` +3, `Screen.test.tsx` +1 (banner at 4999/5000 ms, snapshot kept, gone on connect), `HostControls.test.tsx` +3. 1100 tests in total. No new dependency, no server change.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-28 for F41 cover: every role pinging (Kim's choice), when a silence counts as lost and what counts as an ack, the shared `linkDown` clock, the banner's placement, and "status unknown".
+
+**Notes for next session:**
+- Playtest (Playwright; Screen 1920×1080, Host, two Players): server killed, no banner at ~2 s, banner by ~8 s with the lobby underneath; Host Players tab "status unknown" for both players; restart cleared the banner (then "This game has ended", as F32). Host context set offline: "status unknown" within 300 ms, back to "online · 0 ms" within 4 s of going online.
+- Not seen live: the two-missed-acks path (a killed server closes the socket at once). Unit tests cover it. Check on a real phone by walking out of Wi-Fi range.
+- The banner covers the top of the lobby title and QR while it shows. Intended (DECISIONS F41); revisit if it bothers on the TV.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, host a set, pair a phone as Host, join from another phone.
+2. Stop the server (Ctrl-C). After 5 s the Screen shows "Reconnecting…" across the top; the Host's Players tab says "status unknown"; the phone dots go amber then red.
+3. On a phone, toggle airplane mode: its dot turns amber at once (browser `offline`).
+
 ## F40 — Host remote: game over, stable order, tab keys (2026-10-28)
 **What changed:**
 - Server: `hostView` ranks the players, then sends them in join order (`joinedAt`, then id). Each row keeps its `rank`. Screen and Player views stay ranked. `HostView.players` has a comment saying so.

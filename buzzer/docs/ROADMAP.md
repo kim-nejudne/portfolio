@@ -106,16 +106,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F40 Host remote: game over, stable order, tab keys
 
-- [ ] F41 Connection awareness
-  - Spec: Reconnects, security and edge cases (Reconnects); UI spec by view (Screen view, Host remote, Player view); see DECISIONS, Proposed spec changes (backlog: connection)
-  - Depends: F37
-  - Done when:
-    - The Screen shows a TV-sized "Reconnecting…" banner across the top once its own socket has been down for the existing 5 s threshold; the last snapshot stays underneath; the banner goes when the socket reconnects
-    - While the host's own socket is not connected, the Players tab shows "status unknown" (dimmed) instead of "online · N ms" / "offline"
-    - Two consecutive app pings without an ack set `connection` to `connecting`; the existing 5 s timer then turns it `offline`. An ack sets it back to `connected`
-    - The browser `offline` event sets `connecting` at once; `online` changes nothing by itself (Socket.IO's reconnect and the next ack decide)
-    - No server change and no Socket.IO ping options
-  - Tests: `useRoomSocket` / `ping` tests with fake timers (two missed acks, ack recovers, `offline` event); `Screen.test.tsx` banner; `HostPlayers` status unknown; `/playtest`: stop the server, check the Screen banner and the phone dot
+- [x] F41 Connection awareness
 
 - [ ] F42 Join address and room-check limit
   - Spec: Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security); UI spec by view (Screen view: Lobby); see DECISIONS, Proposed spec changes (backlog: join address, room-check limit)

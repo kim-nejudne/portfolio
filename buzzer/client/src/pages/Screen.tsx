@@ -9,6 +9,7 @@ import {
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
+import { ReconnectingBanner } from '../components/ReconnectingBanner.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
@@ -164,6 +165,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
       </div>
       <BottomStrip code={code} url={url} />
       <Toast toast={toast} />
+      <ReconnectingBanner />
     </main>
   );
 }

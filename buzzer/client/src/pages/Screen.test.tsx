@@ -14,6 +14,7 @@ import type { GameSocket } from '../lib/socket.js';
 import { playSound, startSounds } from '../lib/sounds.js';
 import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
 import { FX_MS } from '../lib/useRecentFx.js';
+import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen } from './Screen.js';
 
@@ -236,6 +237,30 @@ describe('Screen', () => {
     const { makeSocket } = renderScreen('/screen/AB1', { start: false });
     expect(makeSocket).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Room not found');
+  });
+
+  it('shows a Reconnecting banner over the last snapshot after 5 s down, and drops it on reconnect', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([player(1)]));
+    const banner = () => screen.queryByText('Reconnecting…');
+    expect(banner()).toBeNull();
+
+    vi.useFakeTimers();
+    try {
+      socket.fire('disconnect', 'transport close');
+      act(() => vi.advanceTimersByTime(OFFLINE_AFTER_MS - 1));
+      expect(banner()).toBeNull();
+      act(() => vi.advanceTimersByTime(1));
+      expect(banner()!.getAttribute('role')).toBe('status');
+      // The last snapshot stays underneath.
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('WXYZ');
+      expect(screen.getByText('Player 1')).toBeTruthy();
+
+      socket.fire('connect');
+      expect(banner()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('disconnects when the page closes', () => {

@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_SETTINGS,
   PLAYER_PALETTE,
   SCOREBOARD_EVERY_MAX,
 } from '../../../shared/constants.js';
 import type { Ack, HostView, Phase } from '../../../shared/types.js';
+import { resetRoomStore, useRoomStore } from '../lib/roomStore.js';
 import { useHostCommand, type SendHost } from '../lib/useHostCommand.js';
 import { HostPlayers } from './HostPlayers.js';
 import { HostSettings } from './HostSettings.js';
@@ -170,6 +171,11 @@ describe('SecondaryActions', () => {
 
 describe('HostPlayers', () => {
   const row = (name: string) => screen.getByRole('listitem', { name });
+  const nameLine = (name: string) => within(row(name)).getByText(name).parentElement!;
+
+  // The remote's own socket is up unless a test says otherwise.
+  beforeEach(() => useRoomStore.setState({ connection: 'connected' }));
+  afterEach(resetRoomStore);
 
   it('shows each score and connection: online with a rounded round trip, or offline', () => {
     setup(
@@ -185,11 +191,31 @@ describe('HostPlayers', () => {
 
   it('greys out a disconnected player, who stays in the list, while their buttons stay usable', () => {
     setup(HostPlayers, hostView({ players: [player(1), player(2, { connected: false })] }));
-    const nameLine = (name: string) => within(row(name)).getByText(name).parentElement!;
     expect(nameLine('Player 1').className).not.toContain('opacity-40');
     expect(nameLine('Player 2').className).toContain('opacity-40');
     const kick = within(row('Player 2')).getByRole('button', { name: /Kick/ });
     expect(kick.closest('.opacity-40')).toBeNull();
+  });
+
+  it.each(['connecting', 'offline'] as const)(
+    'while the remote itself is %s, every row says "status unknown", dimmed',
+    (connection) => {
+      useRoomStore.setState({ connection });
+      setup(HostPlayers, hostView({ players: [player(1), player(2, { connected: false })] }));
+      for (const name of ['Player 1', 'Player 2']) {
+        expect(row(name).textContent).toContain('status unknown');
+        expect(row(name).textContent).not.toMatch(/online|offline/);
+        expect(nameLine(name).className).toContain('opacity-40');
+      }
+    },
+  );
+
+  it('shows the statuses again once the remote reconnects', () => {
+    useRoomStore.setState({ connection: 'offline' });
+    setup(HostPlayers, hostView({ players: [player(1, { rttMs: 12 })] }));
+    act(() => useRoomStore.setState({ connection: 'connected' }));
+    expect(row('Player 1').textContent).toContain('online · 12 ms');
+    expect(nameLine('Player 1').className).not.toContain('opacity-40');
   });
 
   it.each([

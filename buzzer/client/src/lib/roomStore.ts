@@ -8,9 +8,10 @@ export interface FxEvent {
 }
 
 /**
- * The socket's link to the server, for the connection dot: `connecting` while it is down and
- * Socket.IO is retrying (or on the first connect), `offline` once it has been down for
- * `OFFLINE_AFTER_MS`.
+ * The socket's link to the server, for the connection dot, the Screen's banner and the Host's
+ * Players tab: `connecting` while it is down and Socket.IO is retrying (or on the first connect),
+ * or while it has gone silent (unanswered pings, the browser's `offline` event); `offline` once
+ * that has lasted `OFFLINE_AFTER_MS` (F33, F41).
  */
 export type Connection = 'connected' | 'connecting' | 'offline';
 

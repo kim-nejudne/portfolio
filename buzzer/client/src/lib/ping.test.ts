@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PING_INTERVAL_MS } from '../../../shared/constants.js';
 import { FakeSocket } from '../test/fakeSocket.js';
-import { keepPinging } from './ping.js';
+import { keepPinging, PINGS_LOST } from './ping.js';
 import type { GameSocket } from './socket.js';
 
 beforeEach(() => {
@@ -17,12 +17,16 @@ function setup() {
   const socket = new FakeSocket();
   let now = 500;
   const rtts: number[] = [];
+  const onAck = vi.fn();
+  const onLost = vi.fn();
   const stop = keepPinging(socket as unknown as GameSocket, {
     clock: () => now,
     onRtt: (rtt) => rtts.push(rtt),
+    onAck,
+    onLost,
   });
   const pings = () => socket.emitted.filter((e) => e.event === 'ping');
-  return { socket, stop, pings, rtts, tick: (ms: number) => (now += ms) };
+  return { socket, stop, pings, rtts, onAck, onLost, tick: (ms: number) => (now += ms) };
 }
 
 describe('keepPinging', () => {
@@ -69,5 +73,39 @@ describe('keepPinging', () => {
     socket.fire('pong', { t: 520 }, ack);
     expect(ack).toHaveBeenCalledTimes(2);
     expect(rtts).toEqual([40, 20]);
+  });
+
+  it('reports a loss when the next ping is due and the last two are unanswered, once', () => {
+    const { socket, onLost } = setup();
+    socket.connect();
+    vi.advanceTimersByTime(PING_INTERVAL_MS * PINGS_LOST);
+    expect(onLost).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(PING_INTERVAL_MS);
+    expect(onLost).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(PING_INTERVAL_MS * 3);
+    expect(onLost).toHaveBeenCalledTimes(1);
+  });
+
+  it('any ack, a refusal too, reports onAck and starts the count again', () => {
+    const { socket, pings, onAck, onLost } = setup();
+    socket.connect();
+    vi.advanceTimersByTime(PING_INTERVAL_MS * 2);
+    pings()[0]!.ack({ ok: false, error: 'Too many pings' });
+    expect(onAck).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(PING_INTERVAL_MS);
+    expect(onLost).not.toHaveBeenCalled();
+    // A new silence after an ack is reported again.
+    vi.advanceTimersByTime(PING_INTERVAL_MS * 2);
+    expect(onLost).toHaveBeenCalledTimes(1);
+  });
+
+  it('a reconnect starts the count afresh', () => {
+    const { socket, onLost } = setup();
+    socket.connect();
+    vi.advanceTimersByTime(PING_INTERVAL_MS * PINGS_LOST);
+    socket.fire('disconnect');
+    socket.fire('connect');
+    vi.advanceTimersByTime(PING_INTERVAL_MS * PINGS_LOST);
+    expect(onLost).not.toHaveBeenCalled();
   });
 });

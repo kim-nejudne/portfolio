@@ -19,7 +19,6 @@ import { ConnectionDot } from '../components/ConnectionDot.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
 import { buzzerState, type BuzzerKind } from '../lib/buzzerState.js';
-import { keepPinging } from '../lib/ping.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -30,7 +29,7 @@ import {
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { useRoomSocket, type AttachSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useAnswerCountdown } from '../lib/useAnswerCountdown.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
@@ -232,7 +231,7 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
     },
     [code, identity, saved, onJoined, onRejected],
   );
-  const socketRef = useRoomSocket(code, join, makeSocket, attachPing);
+  const socketRef = useRoomSocket(code, join, makeSocket);
   const buzz = useCallback(
     (ack: (res: Ack) => void) => {
       const socket = socketRef.current;
@@ -253,9 +252,6 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
   if (view?.role !== 'player') return <PlayMessage title="Joining…" link={false} />;
   return <Buzzer view={view} buzz={buzz} />;
 }
-
-/** RTT samples for latency correction, from the moment the socket connects (DECISIONS F17). */
-const attachPing: AttachSocket = (socket) => keepPinging(socket);
 
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: 'border-edge bg-surface text-muted',
