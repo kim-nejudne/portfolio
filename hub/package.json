@@ -2,6 +2,9 @@
   "name": "hub",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": {
     "predev": "node scripts/identity-check.mjs && node scripts/case-studies.mjs && node scripts/seo.mjs",

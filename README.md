@@ -45,10 +45,11 @@ own lockfile and its own `node_modules`.
 **There is deliberately no root `package.json` and no workspace.** The projects
 do not share dependencies and should not: poketrack is on Tailwind 3 and
 TypeScript 4.9 behind Create React App, the hub is on Tailwind 4 and
-TypeScript 5.9, ts-dojo is on TypeScript 6 under pnpm and Node 24, with
-the compiler version pinned because it also runs inside the app, and Buzzr is
-on Tailwind 4 and TypeScript 6 under npm and Node 24, with its Express and
-Socket.IO server in the same package as its client. Hoisting them into one dependency
+TypeScript 5.9, ts-dojo is on TypeScript 6 under pnpm, with the compiler
+version pinned because it also runs inside the app, and Buzzr is on Tailwind 4
+and TypeScript 6 under npm, with its Express and Socket.IO server in the same
+package as its client. The one thing they share is the runtime: every project
+builds on the Node version in the root `.node-version`, which CI reads. Hoisting them into one dependency
 graph would buy a smaller `node_modules` at the cost of breaking builds that
 currently work. They are colocated, not merged.
 

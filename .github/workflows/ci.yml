@@ -71,7 +71,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: ${{ matrix.manager }}
           cache-dependency-path: ${{ matrix.dir }}/yarn.lock
 
@@ -150,7 +150,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: buzzer/package-lock.json
 
@@ -193,7 +193,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: ts-dojo/pnpm-lock.yaml
 
@@ -229,7 +229,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: hub/package-lock.json
 
