@@ -1,0 +1,16 @@
+# Keep the build context to what `npm run build` needs.
+node_modules/
+dist/
+coverage/
+.git
+.env
+.env.*
+*.log
+.claude/
+.playtest/
+.playwright-mcp/
+graphify-out/
+docs/
+deploy/
+Dockerfile
+.dockerignore

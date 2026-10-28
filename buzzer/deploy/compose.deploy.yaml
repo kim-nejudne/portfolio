@@ -1,0 +1,27 @@
+# Droplet stack for buzzr.kimnejudne.dev. Lives at /opt/buzzr/compose.yaml beside a
+# .env that holds one key, IMAGE_TAG (README, Deploy).
+#
+# The image is built on a workstation and shipped with `docker save | docker load`,
+# so there is no build context here.
+#
+#   docker compose up -d
+
+name: buzzr
+
+services:
+  app:
+    image: buzzr:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      # nginx on the host is the one proxy hop. Without this every player shares
+      # nginx's address in the per-IP rate limits (DECISIONS F06, F07).
+      TRUST_PROXY: '1'
+      # Images live in memory. The shared box has about 700 MB free, so cap them at
+      # 200 MB instead of the 500 MB default (DECISIONS #12) and keep mem_limit above it.
+      IMAGES_MAX_MB: '200'
+    # Loopback only: nginx terminates TLS in front and is the sole way in.
+    ports:
+      - '127.0.0.1:3005:3000'
+    # 200 MB of images plus about 70 MB for Node at rest. A kill here ends every
+    # live room, so leave headroom rather than trim it.
+    mem_limit: 384m

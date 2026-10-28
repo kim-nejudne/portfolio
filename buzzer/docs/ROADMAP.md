@@ -84,15 +84,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 ## M7 — Deploy
 
-- [ ] F34 Dockerfile and deploy guide
-  - Spec: Tech stack and architecture (Deploy); Milestones and acceptance criteria (7. Deploy; Manual acceptance checklist)
-  - Depends: F33
-  - Done when:
-    - Multi-stage Dockerfile builds and runs the single Node process serving client and sockets
-    - README gives step-by-step deploy instructions for the chosen host (see DECISIONS: deploy target), including WebSocket proxying
-    - The deploy sets `TRUST_PROXY` for the reverse proxy, so per-IP rate limits see client IPs (DECISIONS F06)
-    - `docker build` and `docker run` work locally and `/healthz` returns 200 from the container
-  - Tests: container smoke check; the full manual acceptance checklist run on real devices
+- [x] F34 Dockerfile and deploy guide
 
 ## Bugs
 
@@ -111,3 +103,5 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 - Preview: a "Show answer" toggle that previews the REVEAL layout too. F27 previews only the question as first shown.
 - "Reconnecting…" indicator on the Screen while the socket is down. F33's connection dot covers Player and Host; the Screen still shows its last snapshot, and the Host still lists players as online while its own socket is down (F32 playtest).
 - Faster connection-dot reaction to a silent drop (airplane mode): the dot waits for Socket.IO's heartbeat, up to about 45 s with the defaults. Options: a shorter `pingInterval`/`pingTimeout`, or the browser's `offline` event (F33).
+- Slimmer runtime image: client-only libraries (React, Dexie, Howler, dnd-kit, qrcode.react…) are in `dependencies`, so `npm ci --omit=dev` ships them in the 266 MB image although the server never loads them (F34).
+- A deploy workflow for buzzr like `deploy-poketrack.yml` (build on the runner, ship, health-gate, roll back). F34 deploys by hand from the README (F34).

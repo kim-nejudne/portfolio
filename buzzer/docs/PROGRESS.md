@@ -12,6 +12,57 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F34 — Dockerfile and deploy guide (2026-10-28)
+**What changed:**
+- `Dockerfile` with four stages on `node:24-slim`: deps, build, prod-deps and runtime.
+  - It runs `node dist/server/index.js` as the `node` user, with `NODE_ENV=production`, on `PORT` 3000.
+  - It has a `HEALTHCHECK` on `/healthz`.
+  - The image is 266 MB. `.dockerignore` keeps the context small.
+- Deploy target, chosen by Kim: the droplet at `buzzr.kimnejudne.dev`.
+  - `deploy/compose.deploy.yaml` runs the container on `127.0.0.1:3005` with `TRUST_PROXY=1`, `IMAGES_MAX_MB=200` and `mem_limit: 384m`.
+  - `deploy/nginx/buzzr.conf` sends everything to Node. `/socket.io/` gets the WebSocket upgrade, a 120 s read timeout and no buffering. `client_max_body_size` is 2m.
+  - `deploy/nginx/buzzr-bootstrap.conf` is the HTTP-only vhost used for the first certbot run.
+- New `README.md`: dev commands, Docker, env vars, and the droplet runbook (DNS, bootstrap, ACME probe, cert, ship image, compose, vhost, routine deploy, rollback, health checks).
+- Server:
+  - New `server/env.ts`: `parseTrustProxy` (moved from `index.ts`, unchanged) and `parseImagesMaxBytes` for the new `IMAGES_MAX_MB` env var.
+  - `index.ts` exits on SIGTERM and SIGINT, so `docker stop` is immediate.
+- Tests:
+  - New `server/env.test.ts` (7).
+  - New `scripts/docker-smoke.sh` (`npm run smoke:docker`). It builds and runs the image with the compose file's env, then checks:
+    - `/healthz` 200
+    - `/` and `/play/ABCD` serve the client
+    - a Socket.IO WebSocket connects
+    - the 11th room from one forwarded IP gets 429 and another IP gets 201
+    - the process runs as `node`
+    - `docker stop` takes under 5 s
+  - 938 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-10-28 for F34 cover:
+- the droplet target, port 3005, and shipping the image (this resolves open question #1)
+- nginx proxying everything, the WebSocket headers, the body size, and `http2` on nginx 1.24
+- `TRUST_PROXY=1` and the right-most-XFF reasoning
+- `IMAGES_MAX_MB`, and its 200 MB value on the droplet
+- the SIGTERM exit
+- the image keeping client libraries (Backlog if size matters)
+
+**Notes for next session:**
+- **Not deployed yet.** Step 1 (the Namecheap A record `buzzr`) is Kim's. Then follow README → Deploy → First deploy. Nothing was changed on the droplet; I only made a read-only check of its memory, ports and vhosts.
+- **Not done: the spec's manual acceptance checklist on real devices**, including mobile data, and the F33 Wake Lock check over HTTPS. Both need the deploy.
+- Checked locally with `nginx:1.24` (the droplet's version) in front of the image, using a dummy cert:
+  - `nginx -t` passes for both vhosts.
+  - `/healthz` answers 200 over HTTP/2, and HTTP gets a 301 to HTTPS.
+  - The WebSocket upgrade answers 101.
+  - A 1.4 MB image upload gets 201.
+  - Rate limit: 10 rooms, then 429, even with a different spoofed XFF each time. A second source address (127.0.0.2) still got 201.
+- The droplet had about 730 MB available, with swap in use (656 MB). Watch `docker stats` after the first real game with photos.
+- A deploy ends every live game (rooms are in memory). The README says to deploy only between games.
+- The local Docker uses the legacy builder (no buildx), so the `# syntax=` line is ignored. It does no harm.
+
+**How to try it:**
+1. `npm run smoke:docker` prints `PASS`.
+2. Or by hand: `docker build -t buzzr . && docker run --rm -p 3000:3000 buzzr`, then open `http://localhost:3000` (Screen) and `curl -i http://localhost:3000/healthz`.
+3. Deploy: README.md → Deploy → First deploy, steps 1–8. Then run the SPEC manual checklist with the laptop on the TV, a Host phone, and players on Wi-Fi and on mobile data.
+
 ## F33 — Device polish and feedback (2026-10-28)
 **What changed:**
 - Wake Lock: new `client/src/lib/useWakeLock.ts`, used by the Player's buzzer screen.
