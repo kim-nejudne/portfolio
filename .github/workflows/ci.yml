@@ -104,6 +104,76 @@ jobs:
           CI: false # CRA turns warnings into errors under CI=true. poketrack has warnings.
         run: npm run build
 
+  # Whether this push or pull request touches buzzer/. The workflow triggers on
+  # every change, and a `paths` filter there would gate the other jobs too, so
+  # the buzzer job asks this one instead. When the base commit is unknown (a
+  # manual run, a force-push) it says yes rather than skip.
+  buzzer-changes:
+    name: buzzer changed?
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base commit, to diff against
+
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            changed=true
+          elif git diff --quiet "$BASE" HEAD -- buzzer .github/workflows/ci.yml; then
+            changed=false
+          else
+            changed=true
+          fi
+          echo "changed=$changed"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+  # Buzzr's /verify: format, lint, typecheck, unit tests, then the build.
+  # deploy-buzzer.yml runs the same checks before it ships, but only on pushes
+  # to main; this is the one pull requests see. The Docker smoke test stays in
+  # the deploy, where the image is built anyway.
+  buzzer:
+    name: build buzzer
+    needs: buzzer-changes
+    if: ${{ needs.buzzer-changes.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: buzzer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: buzzer/package-lock.json
+
+      - name: install
+        run: npm ci
+
+      - name: format check
+        run: npm run format:check
+
+      - name: lint
+        run: npm run lint
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: unit tests
+        run: npm test
+
+      - name: build
+        run: npm run build
+
   # ts-dojo's own checks, as its standalone repository ran them before the
   # import: typecheck, lint, format, unit tests, the content lint, then the
   # build. Playwright stays on Kim's machine, where Google Chrome is
