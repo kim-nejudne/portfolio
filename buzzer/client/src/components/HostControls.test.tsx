@@ -52,6 +52,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     canJudge: false,
     canUndo: false,
     scorerId: null,
+    answerTimer: null,
     ...overrides,
   };
 }
@@ -275,6 +276,40 @@ describe('HostSettings', () => {
       hostView({ settings: { ...DEFAULT_SETTINGS, scoreboardEvery: SCOREBOARD_EVERY_MAX } }),
     );
     expect(isDisabled('More questions between scoreboards')).toBe(true);
+  });
+
+  const answerTime = () => screen.getByRole('status', { name: 'Answer time' });
+
+  it('shows the answer time Off by default', () => {
+    setup(HostSettings, hostView());
+    expect(answerTime().textContent).toBe('Off');
+    expect(isDisabled('Less answer time')).toBe(true);
+  });
+
+  it.each([
+    [0, 'More answer time', 3],
+    [3, 'More answer time', 5],
+    [5, 'More answer time', 7],
+    [7, 'More answer time', 10],
+    [10, 'Less answer time', 7],
+    [5, 'Less answer time', 3],
+    [3, 'Less answer time', 0],
+  ] as const)('from %i s, %s sends answerSeconds %i only', (from, label, to) => {
+    const { sent } = setup(
+      HostSettings,
+      hostView({ settings: { ...DEFAULT_SETTINGS, answerSeconds: from } }),
+    );
+    fireEvent.click(button(label));
+    expect(sent).toEqual([
+      expect.objectContaining({ event: 'host:settings', payload: { answerSeconds: to } }),
+    ]);
+  });
+
+  it('reads the seconds and stops the + button at 10 s', () => {
+    setup(HostSettings, hostView({ settings: { ...DEFAULT_SETTINGS, answerSeconds: 10 } }));
+    expect(answerTime().textContent).toBe('10 s');
+    expect(isDisabled('More answer time')).toBe(true);
+    expect(isDisabled('Less answer time')).toBe(false);
   });
 
   it('shows the new value only once the snapshot carries it', () => {

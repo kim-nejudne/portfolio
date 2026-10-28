@@ -234,6 +234,37 @@ describe('socket gateway: buzz window', () => {
   });
 });
 
+describe('socket gateway: answer timer', () => {
+  it('a host:settings answer time runs out after the window and tells every device; nothing is judged', async () => {
+    const { h, screen, host, a, b } = await openTable();
+    expect(await host.emitWithAck('host:settings', { answerSeconds: 3 })).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    const fxs = [screen, host, a, b].map((c) => record<Fx>(c, 'fx'));
+    const states = record<View>(a, 'state');
+
+    await buzz(a);
+    vi.advanceTimersByTime(COLLECTION_WINDOW_MS);
+    await flush(a);
+    expect(states.at(-1)?.answerTimer).toEqual({ seconds: 3, up: false });
+
+    vi.advanceTimersByTime(3000 - 1);
+    expect(h.rooms.get('ABCD')!.answerTimer?.up).toBe(false);
+    vi.advanceTimersByTime(1);
+    await Promise.all([screen, host, a, b].map(flush));
+
+    for (const seen of fxs) expect(seen.at(-1)).toEqual({ kind: 'timeUp', playerId: 'a' });
+    expect(states.at(-1)).toMatchObject({ phase: 'BUZZED', answerTimer: { seconds: 3, up: true } });
+    expect(h.rooms.get('ABCD')!.judgements).toEqual([]);
+    expect(await host.emitWithAck('host:judge', { result: 'correct' })).toEqual({ ok: true });
+  });
+
+  it('rejects an answer time that is not one of the choices', async () => {
+    const { host } = await openTable();
+    const ack = await host.emitWithAck('host:settings', { answerSeconds: 4 as never });
+    expect(ack.ok).toBe(false);
+  });
+});
+
 describe('socket gateway: buzz rate limit', () => {
   it('rejects the 6th buzz in a second from one socket, and allows it again after the second', async () => {
     const { h, a, b } = await openTable();

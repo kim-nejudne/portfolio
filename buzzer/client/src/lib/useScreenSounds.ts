@@ -16,7 +16,8 @@ export function useScreenSounds(phase: Phase | null): void {
   useEffect(() => {
     if (!event || event.seq <= playedSeq.current) return;
     playedSeq.current = event.seq;
-    playSound(soundForFx(event.fx));
+    const sound = soundForFx(event.fx);
+    if (sound) playSound(sound);
   }, [event]);
 
   useEffect(() => {

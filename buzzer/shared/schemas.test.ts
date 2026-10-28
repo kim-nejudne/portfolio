@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANSWER_MAX,
+  ANSWER_SECONDS_CHOICES,
   DEFAULT_SETTINGS,
   HOST_NOTES_MAX,
   ID_MAX,
@@ -18,7 +19,7 @@ import {
   playerNameSchema,
   questionSetSchema,
 } from './schemas.js';
-import type { Question, QuestionSet } from './types.js';
+import type { Question, QuestionSet, RoomSettings } from './types.js';
 
 const TOKEN = 'a'.repeat(43);
 
@@ -143,6 +144,24 @@ describe('createRoomBodySchema', () => {
   it('rejects a body without settings', () => {
     expect(createRoomBodySchema.safeParse({ set: set() }).success).toBe(false);
   });
+
+  it('accepts every answer time choice and rejects any other or a missing one', () => {
+    const body = (answerSeconds: unknown) => ({
+      set: set(),
+      settings: { ...DEFAULT_SETTINGS, answerSeconds },
+    });
+    for (const seconds of ANSWER_SECONDS_CHOICES) {
+      expect(createRoomBodySchema.safeParse(body(seconds)).success, String(seconds)).toBe(true);
+    }
+    for (const seconds of [1, 4, 15, -3, 3.5, '5', null]) {
+      expect(createRoomBodySchema.safeParse(body(seconds)).success, String(seconds)).toBe(false);
+    }
+    const withoutTimer: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete withoutTimer.answerSeconds;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: withoutTimer }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('player names', () => {
@@ -260,6 +279,16 @@ describe('client event payloads', () => {
         clientPayloadSchemas['host:settings'].safeParse({ scoreboardEvery }).success,
         String(scoreboardEvery),
       ).toBe(false);
+    }
+  });
+
+  it('accepts an answer time from the choices only', () => {
+    const settings = clientPayloadSchemas['host:settings'];
+    for (const answerSeconds of ANSWER_SECONDS_CHOICES) {
+      expect(settings.safeParse({ answerSeconds }).success, String(answerSeconds)).toBe(true);
+    }
+    for (const answerSeconds of [2, 6, 11, 30, 5.5, '3']) {
+      expect(settings.safeParse({ answerSeconds }).success, String(answerSeconds)).toBe(false);
     }
   });
 

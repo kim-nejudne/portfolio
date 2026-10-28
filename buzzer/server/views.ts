@@ -3,6 +3,7 @@
 // (DECISIONS #2: this holds even for a Screen that holds the hostToken).
 
 import type {
+  AnswerTimerView,
   BuzzGap,
   HostView,
   Player,
@@ -81,6 +82,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     pointsThisQuestion: room.judgements
       .filter((j) => j.questionIndex === room.questionIndex && j.playerId === playerId)
       .reduce((sum, j) => sum + j.pointsDelta, 0),
+    answerTimer: answerTimerView(room),
     ...(answer !== undefined && { answer }),
   };
 }
@@ -103,7 +105,13 @@ function shared(room: Room) {
     canJudge: canJudge(room),
     canUndo: canUndo(room),
     scorerId: scorerId(room),
+    answerTimer: answerTimerView(room),
   };
+}
+
+/** Seconds and whether time is up, never `endsAt`: each device counts down from the snapshot. */
+function answerTimerView({ answerTimer }: Room): AnswerTimerView | null {
+  return answerTimer && { seconds: answerTimer.seconds, up: answerTimer.up };
 }
 
 /**

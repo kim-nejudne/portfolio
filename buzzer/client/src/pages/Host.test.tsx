@@ -79,6 +79,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     canJudge: false,
     canUndo: false,
     scorerId: null,
+    answerTimer: null,
     ...overrides,
   };
 }

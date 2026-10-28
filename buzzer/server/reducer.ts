@@ -28,12 +28,14 @@ const UNDO_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED', 'REVEAL']
 /**
  * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
  * index and opening counter so the reducer can ignore it once the room has moved on. `reopen`
- * also carries its `at`, which must still equal `room.reopenAt`: an undo and a second wrong
- * judgement reuse the index and counter (DECISIONS F20).
+ * and `answerTimeUp` also carry their `at`, which must still equal `room.reopenAt` or
+ * `room.answerTimer.endsAt`: an undo and a second judgement reuse the index and counter
+ * (DECISIONS F20).
  */
 export type TimerAction =
   | { type: 'windowClosed'; questionIndex: number; openingCounter: number }
-  | { type: 'reopen'; questionIndex: number; openingCounter: number; at: number };
+  | { type: 'reopen'; questionIndex: number; openingCounter: number; at: number }
+  | { type: 'answerTimeUp'; questionIndex: number; openingCounter: number; at: number };
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
@@ -90,7 +92,9 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
     case 'player:buzz':
       return playerBuzz(room, action, now);
     case 'windowClosed':
-      return windowClosed(room, action);
+      return windowClosed(room, action, now);
+    case 'answerTimeUp':
+      return answerTimeUp(room, action);
     case 'reopen':
       return reopen(room, action);
     case 'host:start':
@@ -106,7 +110,7 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
     case 'host:prev':
       return hostPrev(room);
     case 'host:end':
-      return done({ ...room, phase: 'FINAL' });
+      return done({ ...room, phase: 'FINAL', answerTimer: null });
     case 'host:scoreboard':
       return done({ ...room, showScoreboard: action.show });
     case 'host:undo':
@@ -207,7 +211,11 @@ function canBuzz(room: Room, player: Player): boolean {
   );
 }
 
-function windowClosed(room: Room, { questionIndex, openingCounter }: TimerAction): ReduceResult {
+function windowClosed(
+  room: Room,
+  { questionIndex, openingCounter }: TimerAction,
+  now: number,
+): ReduceResult {
   // Phase + index + counter rejects every stale timer (DECISIONS F13).
   const fresh =
     room.phase === 'COLLECTING' &&
@@ -218,7 +226,41 @@ function windowClosed(room: Room, { questionIndex, openingCounter }: TimerAction
   if (!fresh || !winner) return done(room);
 
   const fx: Fx = { kind: 'buzz', playerId: winner.playerId, gaps: buzzGaps(ranked) };
-  return done({ ...room, phase: 'BUZZED', winnerId: winner.playerId }, [{ type: 'fx', fx }]);
+  const buzzed: Room = { ...room, phase: 'BUZZED', winnerId: winner.playerId };
+  const seconds = room.settings.answerSeconds;
+  if (seconds === 0) return done(buzzed, [{ type: 'fx', fx }]);
+
+  // The winner's answer time starts now; the setting is read here, so a change mid-countdown
+  // waits for the next buzz.
+  const at = now + seconds * 1000;
+  return done({ ...buzzed, answerTimer: { seconds, endsAt: at, up: false } }, [
+    { type: 'fx', fx },
+    { type: 'schedule', at, action: { type: 'answerTimeUp', questionIndex, openingCounter, at } },
+  ]);
+}
+
+/**
+ * The winner's answer time ran out: mark it up and tell the devices. Nothing is judged; the host
+ * still decides. Stale unless the room is still waiting on that same timer (DECISIONS F35).
+ */
+function answerTimeUp(
+  room: Room,
+  { questionIndex, openingCounter, at }: Extract<TimerAction, { type: 'answerTimeUp' }>,
+): ReduceResult {
+  const { winnerId, answerTimer: timer } = room;
+  const fresh =
+    room.phase === 'BUZZED' &&
+    room.reopenAt === null &&
+    winnerId !== null &&
+    timer !== null &&
+    !timer.up &&
+    timer.endsAt === at &&
+    room.questionIndex === questionIndex &&
+    room.openingCounter === openingCounter;
+  if (!fresh) return done(room);
+  return done({ ...room, answerTimer: { ...timer, up: true } }, [
+    { type: 'fx', fx: { kind: 'timeUp', playerId: winnerId } },
+  ]);
 }
 
 function hostJudge(
@@ -233,7 +275,11 @@ function hostJudge(
   const playerId = room.winnerId;
   const points = room.set.questions[room.questionIndex]?.points ?? 0;
   // SPEC-QUESTION: undo after a reopen restores this snapshot; see DECISIONS #6.
-  const marked: Room = { ...room, undo: { buzzes: room.buzzes, winnerId: playerId } };
+  const marked: Room = {
+    ...room,
+    undo: { buzzes: room.buzzes, winnerId: playerId },
+    answerTimer: null,
+  };
   if (result === 'correct') {
     const judged = applyJudgement(marked, playerId, 'correct', points);
     // The judged buzz stays, so the reveal can show who answered (DECISIONS F19).
@@ -352,6 +398,7 @@ function hostUndo(room: Room): ReduceResult {
     judgements: room.judgements.slice(0, -1),
     reopenAt: null,
     undo: null,
+    answerTimer: null,
   });
 }
 
@@ -393,7 +440,7 @@ function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' 
   const wasWinner = room.winnerId === playerId;
   const unjudged = room.phase === 'BUZZED' && wasWinner && room.reopenAt === null;
   if (unjudged && !anyoneEligible(kicked)) {
-    return done({ ...kicked, phase: 'REVEAL', buzzes: [], winnerId: null });
+    return done({ ...kicked, phase: 'REVEAL', buzzes: [], winnerId: null, answerTimer: null });
   }
   if (
     (room.phase === 'BUZZED' && wasWinner) ||
@@ -401,7 +448,7 @@ function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' 
   ) {
     return done(openBuzzers({ ...kicked, winnerId: null }));
   }
-  return done(wasWinner ? { ...kicked, winnerId: null } : kicked);
+  return done(wasWinner ? { ...kicked, winnerId: null, answerTimer: null } : kicked);
 }
 
 /**
@@ -412,13 +459,14 @@ function hostSettings(
   room: Room,
   { settings }: Extract<Action, { type: 'host:settings' }>,
 ): ReduceResult {
-  const { wrongPenalty, autoOpenBuzzers, scoreboardEvery } = room.settings;
+  const { wrongPenalty, autoOpenBuzzers, scoreboardEvery, answerSeconds } = room.settings;
   return done({
     ...room,
     settings: {
       wrongPenalty: settings.wrongPenalty ?? wrongPenalty,
       autoOpenBuzzers: settings.autoOpenBuzzers ?? autoOpenBuzzers,
       scoreboardEvery: settings.scoreboardEvery ?? scoreboardEvery,
+      answerSeconds: settings.answerSeconds ?? answerSeconds,
     },
   });
 }
@@ -445,6 +493,7 @@ function hostReveal(room: Room): ReduceResult {
     buzzes: [],
     winnerId: null,
     reopenAt: null,
+    answerTimer: null,
     showScoreboard: false,
   });
 }
@@ -476,6 +525,7 @@ const clearedQuestion = {
   lockedOut: [],
   reopenAt: null,
   undo: null,
+  answerTimer: null,
 } satisfies Partial<Room>;
 
 /**
@@ -494,6 +544,7 @@ function openBuzzers(room: Room): Room {
     phase: 'OPEN',
     buzzes: [],
     reopenAt: null,
+    answerTimer: null,
     openingCounter: room.openingCounter + 1,
   };
 }

@@ -12,6 +12,53 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F35 — Answer timer: server and phone setting (2026-10-28)
+**What changed:**
+- Shared:
+  - `RoomSettings.answerSeconds` (`AnswerSeconds`: 0, 3, 5, 7 or 10; default 0 = off).
+  - `ANSWER_SECONDS_CHOICES` in `constants.ts`.
+  - `roomSettingsSchema` takes `z.literal(ANSWER_SECONDS_CHOICES)`, so room creation and `host:settings` both validate it. It is required in the create body.
+  - `Room.answerTimer {seconds, endsAt, up}`.
+  - `answerTimer {seconds, up} | null` on Screen, Host and Player views. `endsAt` never leaves the server.
+  - New `fx {kind: 'timeUp', playerId}`.
+- Reducer:
+  - `windowClosed` starts the timer when `answerSeconds > 0`, and schedules `answerTimeUp {questionIndex, openingCounter, at}`.
+  - A fresh `answerTimeUp` sets `up: true` and emits `fx timeUp`. Fresh means BUZZED, no pending reopen, not already up, `endsAt === at`, and the same index and counter. Nothing is judged.
+  - The timer is cleared by both judgements, reveal, reopen (`openBuzzers`), kick of the winner, next, prev (`clearedQuestion`), end and undo.
+  - The settings merge takes the new key. A running timer is untouched.
+- Client:
+  - The Settings tab has an "Answer time" stepper: Off, 3, 5, 7, 10 s.
+  - `soundForFx` returns null for `timeUp`, and `useScreenSounds` skips it. The sound comes in F36.
+- `scripts/docker-smoke.sh` builds its room body from `DEFAULT_SETTINGS`, so a new settings key cannot 400 it again.
+- Tests:
+  - New `server/reducer.timer.test.ts` (31): start, off, each choice, time up, judging after time up, every clear, every stale case (including undo then wrong again, a mismatched `at`, and a repeat), and a settings change mid-countdown in both directions.
+  - `sockets.buzz.test.ts` +2: the timer fires through the gateway to all four sockets, and an invalid `answerSeconds` is refused.
+  - `views.test.ts` +3, `schemas.test.ts` +2, `constants.test.ts` +1, `HostControls.test.tsx` +9 and `sounds.test.ts` +1. Settings expectations were extended with the new key.
+  - 987 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-28 for F35 cover:
+- what makes `answerTimeUp` fresh, and undo returning without a timer
+- a disconnecting winner, or a kick of another player, leaving the timer running
+- settings applying from the next buzz
+- views without `endsAt`, with devices counting down locally
+- the required create key, and the silent `timeUp` until F36
+
+**Notes for next session:**
+- Playtest (Playwright; Screen, Host remote, one Player), 7 of 7 steps passed:
+  - The stepper runs Off → 10 s and stops at both ends.
+  - `answerTimer` reaches all three roles, then `up: true` and `fx timeUp`. The Player still shows "You're first! Answer now".
+  - A change from 5 s to 3 s mid-countdown applied from the next buzz.
+  - Wrong, Correct and Undo cleared the timer.
+  - No websocket frame carried `endsAt`.
+- No device shows the countdown yet. That is F36.
+- `npm run smoke:docker` prints PASS. It had failed with 400s until the smoke body included the new key.
+- The DECISIONS "Proposed spec changes" entry for the answer timer is already in SPEC.md (commit 7d45855). It can be pruned when convenient.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, host a set, and pair a phone as Host. Join from another phone.
+2. On the Host phone, open Settings and set **Answer time** to 3 s.
+3. Start, open the buzzers and buzz. In devtools, the Socket.IO frames show `answerTimer {seconds: 3, up: false}`, then after 3 s `up: true` and an `fx timeUp`. Correct / Wrong still work.
+
 ## F34 — Dockerfile and deploy guide (2026-10-28)
 **What changed:**
 - `Dockerfile` with four stages on `node:24-slim`: deps, build, prod-deps and runtime.

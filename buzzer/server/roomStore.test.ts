@@ -30,6 +30,7 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     judgements: [],
     reopenAt: null,
     undo: null,
+    answerTimer: null,
     showScoreboard: false,
     createdAt: T0,
     lastActivityAt,

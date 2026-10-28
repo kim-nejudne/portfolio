@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ANSWER_SECONDS_CHOICES,
   APP_NAME,
   DEFAULT_PORT,
   DEFAULT_SETTINGS,
@@ -27,11 +28,17 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening and a scoreboard every 5 questions', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions and no answer timer', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
       scoreboardEvery: 5,
+      answerSeconds: 0,
     });
+  });
+
+  it('offers answer times Off, 3, 5, 7 and 10 s in stepper order', () => {
+    expect(ANSWER_SECONDS_CHOICES).toEqual([0, 3, 5, 7, 10]);
+    expect(ANSWER_SECONDS_CHOICES).toContain(DEFAULT_SETTINGS.answerSeconds);
   });
 });

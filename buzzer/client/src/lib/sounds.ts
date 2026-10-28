@@ -11,12 +11,13 @@ export function soundUrl(name: SoundName): string {
 }
 
 /**
- * The sound an `fx` event plays. Every kind has one; FINAL's fanfare is not an `fx`.
+ * The sound an `fx` event plays, or null for a silent one. FINAL's fanfare is not an `fx`.
  * SPEC-QUESTION: the spec gives Wrong "buzz sound" but lists a separate wrong sound; `wrong.wav`
  * is the low game-show buzzer, `buzz.wav` the ring-in (DECISIONS, F31).
  */
-export function soundForFx(fx: Fx): SoundName {
-  return fx.kind;
+export function soundForFx(fx: Fx): SoundName | null {
+  // The time's-up sound arrives with the Screen's countdown (F36).
+  return fx.kind === 'timeUp' ? null : fx.kind;
 }
 
 // Howler loads on demand, so only a Screen downloads it.

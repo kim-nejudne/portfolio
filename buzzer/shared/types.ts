@@ -68,10 +68,21 @@ export interface UndoPoint {
   winnerId: string;
 }
 
+/** Seconds the buzz winner has to answer; 0 turns the answer timer off. */
+export type AnswerSeconds = 0 | 3 | 5 | 7 | 10;
+
 export interface RoomSettings {
   wrongPenalty: boolean; // default false
   autoOpenBuzzers: boolean; // default false
   scoreboardEvery: number; // default 5, 0 = never auto
+  answerSeconds: AnswerSeconds; // default 0 = off
+}
+
+/** The buzz winner's answer time. `endsAt` is wall-clock ms and never leaves the server. */
+export interface AnswerTimer {
+  seconds: number;
+  endsAt: number;
+  up: boolean;
 }
 
 export interface Room {
@@ -90,6 +101,7 @@ export interface Room {
   judgements: Judgement[]; // whole game, enables undo
   reopenAt: number | null; // wall-clock ms; set in BUZZED while a wrong answer waits to reopen
   undo: UndoPoint | null; // the last judgement of this question can be undone
+  answerTimer: AnswerTimer | null; // set in BUZZED while the winner's answer time runs
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -124,6 +136,9 @@ export interface ScreenQuestion {
   answer?: string;
 }
 
+/** The answer timer as clients see it: the clients count down `seconds` themselves. */
+export type AnswerTimerView = Pick<AnswerTimer, 'seconds' | 'up'>;
+
 interface SharedRoomView {
   code: string;
   title: string;
@@ -143,6 +158,7 @@ interface SharedRoomView {
   canUndo: boolean;
   /** The player judged correct on the current question, for the reveal; null if nobody was. */
   scorerId: string | null;
+  answerTimer: AnswerTimerView | null;
 }
 
 /** Everything except answers, host notes and token data. */
@@ -179,6 +195,7 @@ export interface PlayerView {
   winnerName: string | null;
   /** Points this player gained or lost on the current question. */
   pointsThisQuestion: number;
+  answerTimer: AnswerTimerView | null;
   answer?: string;
 }
 
@@ -194,6 +211,7 @@ export type Fx =
   | { kind: 'buzz'; playerId: string; gaps: BuzzGap[] }
   | { kind: 'correct'; playerId: string; points: number }
   | { kind: 'wrong'; playerId: string }
+  | { kind: 'timeUp'; playerId: string }
   | { kind: 'join'; playerId: string };
 
 export type JudgeResult = Judgement['result'];

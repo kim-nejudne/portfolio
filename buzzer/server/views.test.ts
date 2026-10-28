@@ -145,7 +145,12 @@ describe('toView: screen', () => {
       winnerId: 'p1',
       lockedOut: ['p3'],
       showScoreboard: true,
-      settings: { wrongPenalty: false, autoOpenBuzzers: false, scoreboardEvery: 5 },
+      settings: {
+        wrongPenalty: false,
+        autoOpenBuzzers: false,
+        scoreboardEvery: 5,
+        answerSeconds: 0,
+      },
     });
   });
 
@@ -338,5 +343,33 @@ describe('toView: player', () => {
 
   it('throws for a player who is not in the room', () => {
     expect(() => toView(midGame('OPEN'), 'player', 'nobody')).toThrow();
+  });
+});
+
+describe('toView: answerTimer', () => {
+  const ENDS_AT = T0 + 987_654;
+  const timed = (up: boolean) =>
+    midGame('BUZZED', { answerTimer: { seconds: 7, endsAt: ENDS_AT, up } });
+
+  it.each([false, true])('gives every role seconds and up (%s), never endsAt', (up) => {
+    const room = timed(up);
+    const views = [
+      toView(room, 'screen'),
+      toView(room, 'host'),
+      ...Object.keys(room.players).map((id) => toView(room, 'player', id)),
+    ];
+    for (const view of views) {
+      expect(view.answerTimer).toEqual({ seconds: 7, up });
+      const json = JSON.stringify(view);
+      expect(json).not.toContain('endsAt');
+      expect(json).not.toContain(String(ENDS_AT));
+    }
+  });
+
+  it('is null in every view when no timer runs', () => {
+    const room = midGame('BUZZED');
+    expect(toView(room, 'screen').answerTimer).toBeNull();
+    expect(toView(room, 'host').answerTimer).toBeNull();
+    expect(toView(room, 'player', 'p2').answerTimer).toBeNull();
   });
 });

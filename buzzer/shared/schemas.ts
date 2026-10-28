@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import {
   ANSWER_MAX,
+  ANSWER_SECONDS_CHOICES,
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
   ID_MAX,
@@ -95,6 +96,7 @@ export const roomSettingsSchema = z.object({
   wrongPenalty: z.boolean(),
   autoOpenBuzzers: z.boolean(),
   scoreboardEvery: z.int().min(0).max(SCOREBOARD_EVERY_MAX),
+  answerSeconds: z.literal(ANSWER_SECONDS_CHOICES),
 });
 
 export const createRoomBodySchema = z.object({

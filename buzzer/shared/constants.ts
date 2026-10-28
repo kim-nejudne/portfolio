@@ -1,7 +1,7 @@
 // Values shared by the server and the client: app identity, palette and limits.
 // Sizes use binary units (1 KB = 1024 bytes). Times are in milliseconds.
 
-import type { RoomSettings } from './types.js';
+import type { AnswerSeconds, RoomSettings } from './types.js';
 
 export const APP_NAME = 'Buzzr';
 
@@ -70,10 +70,14 @@ export const HOST_TOKEN_LENGTH = 43;
 /** The Screen's pairing QR hides itself after this long. */
 export const PAIRING_QR_TTL_MS = 60 * 1000;
 
+/** The answer times the host can pick, in seconds, in stepper order. 0 is off. */
+export const ANSWER_SECONDS_CHOICES = [0, 3, 5, 7, 10] as const satisfies readonly AnswerSeconds[];
+
 export const DEFAULT_SETTINGS: RoomSettings = {
   wrongPenalty: false,
   autoOpenBuzzers: false,
   scoreboardEvery: 5,
+  answerSeconds: 0,
 };
 
 // ---------- Question sets ----------

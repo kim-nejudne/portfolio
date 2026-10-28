@@ -209,13 +209,14 @@ describe('reduce: host:settings', () => {
       wrongPenalty: true,
       autoOpenBuzzers: false,
       scoreboardEvery: 5,
+      answerSeconds: 0,
     });
     expect(room.phase).toBe(phase);
     expect(effects).toEqual([]);
   });
 
   it('sets several keys at once and leaves an empty update unchanged', () => {
-    const settings = { autoOpenBuzzers: true, scoreboardEvery: 0 };
+    const settings = { autoOpenBuzzers: true, scoreboardEvery: 0, answerSeconds: 7 } as const;
     const room = step(inPhase('LOBBY'), { type: 'host:settings', settings });
     expect(room.settings).toEqual({ wrongPenalty: false, ...settings });
     expect(step(room, { type: 'host:settings', settings: {} }).settings).toEqual(room.settings);
@@ -230,6 +231,7 @@ describe('reduce: host:settings', () => {
       wrongPenalty: false,
       autoOpenBuzzers: false,
       scoreboardEvery: 3,
+      answerSeconds: 0,
     });
   });
 

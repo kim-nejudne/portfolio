@@ -90,18 +90,7 @@ Change markers with `node .claude/scripts/roadmap.mjs mark`. A done item collaps
 
 Kim's request of 2026-10-28: the host can let players buzz as soon as a question appears, and can give the buzz winner a fixed time to answer. Proposed spec wording is in DECISIONS, Proposed spec changes (answer timer, lobby settings). Auto-open buzzers already exists (F13); F37 makes it reachable without a paired phone.
 
-- [ ] F35 Answer timer: server and phone setting
-  - Spec: Game flow and state machine (Transitions); Data model (`RoomSettings`, `Room`); Host remote (Settings tab); see DECISIONS, Proposed spec changes (answer timer)
-  - Depends: F34
-  - Done when:
-    - `RoomSettings.answerSeconds` is one of `ANSWER_SECONDS_CHOICES` (0, 3, 5, 7, 10; 0 = off, the default), zod-validated in room creation and `host:settings`
-    - Entering BUZZED with `answerSeconds > 0` sets `Room.answerTimer {seconds, endsAt, up: false}` and schedules an `answerTimeUp` timer action carrying `questionIndex`, `openingCounter` and `at`
-    - A fresh `answerTimeUp` (BUZZED, no pending reopen, `answerTimer.endsAt === at`, same index and counter) sets `up: true` and emits `fx {kind: 'timeUp', playerId}` for the winner; the host still judges, nothing is judged automatically
-    - `answerTimer` is cleared by a judgement (both results), reveal, reopen, kick of the winner, next, prev, end and undo; a stale `answerTimeUp` returns the same room object
-    - A settings change during a countdown applies from the next buzz, not to the running timer
-    - Screen, Host and Player views carry `answerTimer {seconds, up}` or null; `endsAt` never leaves the server
-    - The host remote's Settings tab has an "Answer time" stepper (Off, 3, 5, 7, 10 s)
-  - Tests: new `server/reducer.timer.test.ts` (start, off, time up, every stale case including undo then wrong again, mid-countdown settings change); schema, views, settings-merge and constants tests; `HostControls.test.tsx` for the stepper; `npm run smoke:docker`
+- [x] F35 Answer timer: server and phone setting
 
 - [ ] F36 Answer countdown and time's-up on the devices
   - Spec: UI spec by view (Player view, Screen view, Host remote); Tech stack and architecture (sounds); see DECISIONS, Proposed spec changes (answer timer)

@@ -61,8 +61,9 @@ echo "ok   Socket.IO WebSocket connects"
 # With TRUST_PROXY set, the room-creation limit (10 per hour) keys on X-Forwarded-For,
 # as it does behind nginx: one client is refused on its 11th room, another still gets one.
 body=$(npx --no-install tsx --eval "
+import { DEFAULT_SETTINGS } from './shared/constants.ts';
 import { SAMPLE_SET } from './shared/sampleSet.ts';
-const settings = { wrongPenalty: false, autoOpenBuzzers: false, scoreboardEvery: 0 };
+const settings = { ...DEFAULT_SETTINGS, scoreboardEvery: 0 };
 process.stdout.write(JSON.stringify({ set: SAMPLE_SET, settings }));
 ")
 create_room() {

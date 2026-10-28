@@ -18,6 +18,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,
+    answerTimer: null,
     ...overrides,
   };
 }

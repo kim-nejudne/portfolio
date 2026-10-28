@@ -70,6 +70,7 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     canJudge: false,
     canUndo: false,
     scorerId: null,
+    answerTimer: null,
     question: null,
     nextImageId: null,
     ...overrides,
