@@ -855,6 +855,7 @@ Anything built differently from what the spec names (library, version, flag, key
   - `deploy.sh` stays as the break-glass path, run as `deploy@`, and does the same steps. The curl checks moved to `deploy/confirm.sh`, which both paths call.
 
   Proven by `deploy/deploy.test.ts`: the step order, "runs as deploy: no chown, no nginx reload", and shellcheck on both scripts.
+- **§12 F1, Node 24 from the portfolio's root `.node-version` (Kim's monorepo review, 28 October 2026).** The root `ci.yml` job and `deploy-ts-dojo.yml` now take Node from `node-version-file: .node-version`, shared by every project, instead of `node-version: 24`. `scripts/scaffold.test.ts` checks that the job reads that file and that it holds `24`, so the criterion's "on Node 24" is still proven and fails if the file changes.
 
 ## Spec questions
 

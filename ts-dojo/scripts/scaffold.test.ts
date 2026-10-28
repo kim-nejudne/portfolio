@@ -127,7 +127,9 @@ describe('the portfolio .github/workflows/ci.yml, job ts-dojo (§12 F1)', () => 
     const node = job.steps.find((step) =>
       step.uses?.startsWith('actions/setup-node@'),
     );
-    expect(node?.with?.['node-version']).toBe(24);
+    // The version comes from the portfolio's root .node-version, shared by every project.
+    expect(node?.with?.['node-version-file']).toBe('.node-version');
+    expect(read('../.node-version').trim()).toBe('24');
     expect(node?.with?.['cache']).toBe('pnpm');
   });
 });
