@@ -45,18 +45,15 @@ afterEach(() => {
 const howlFor = (name: SoundName) => howler.created.find((h) => h.src[0] === soundUrl(name))!;
 
 describe('sounds', () => {
-  it('every fx kind but timeUp has its own sound', () => {
+  it('every fx kind has its own sound, including a new one for time up', () => {
     const fxs: Fx[] = [
       { kind: 'buzz', playerId: 'p1', gaps: [] },
       { kind: 'correct', playerId: 'p1', points: 100 },
       { kind: 'wrong', playerId: 'p1' },
+      { kind: 'timeUp', playerId: 'p1' },
       { kind: 'join', playerId: 'p1' },
     ];
-    expect(fxs.map(soundForFx)).toEqual(['buzz', 'correct', 'wrong', 'join']);
-  });
-
-  it('timeUp is silent until its sound arrives (F36)', () => {
-    expect(soundForFx({ kind: 'timeUp', playerId: 'p1' })).toBeNull();
+    expect(fxs.map(soundForFx)).toEqual(['buzz', 'correct', 'wrong', 'timeUp', 'join']);
   });
 
   it('every sound has a file in client/public/sounds', () => {

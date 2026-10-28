@@ -2,6 +2,11 @@ import type { BuzzGap, RankedPlayer, ScreenView } from '../../../shared/types.js
 import { imageUrl } from '../lib/api.js';
 import { signedPoints } from '../lib/results.js';
 import { buzzersOpen, formatGap, questionTextClass } from '../lib/screenQuestion.js';
+import {
+  countdownText,
+  useAnswerCountdown,
+  type AnswerCountdown,
+} from '../lib/useAnswerCountdown.js';
 import { useRecentFx } from '../lib/useRecentFx.js';
 
 /**
@@ -12,6 +17,7 @@ import { useRecentFx } from '../lib/useRecentFx.js';
  */
 export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?: string }) {
   const { question } = view;
+  const countdown = useAnswerCountdown(view);
   if (!question) return null;
   const text = question.text.trim();
   const winner = view.players.find((p) => p.id === view.winnerId);
@@ -46,6 +52,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
         <BuzzResult
           winner={winner}
           judgedWrong={view.lockedOut.includes(winner.id)}
+          countdown={countdown}
           alsoBuzzed={view.alsoBuzzed}
           players={view.players}
         />
@@ -127,30 +134,53 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
   );
 }
 
+/** The answer countdown beside the winner's banner (UI spec, Screen view: Buzzed), then "Time's up!". */
+function Countdown({ countdown }: { countdown: AnswerCountdown }) {
+  return (
+    <p
+      role="timer"
+      aria-label="Answer time"
+      data-up={countdown.up || undefined}
+      className={`flex min-w-[14vw] shrink-0 items-center justify-center rounded-[3vh] px-[2vw] font-display leading-none whitespace-nowrap tabular-nums ${
+        countdown.up
+          ? 'bg-buzz text-[min(4vw,8vh)] text-ink'
+          : 'bg-surface text-[min(8vw,16vh)] text-accent'
+      }`}
+    >
+      {countdownText(countdown)}
+    </p>
+  );
+}
+
 interface BuzzResultProps {
   winner: RankedPlayer;
   /** Judged wrong and waiting for the reopen: the banner goes grey. */
   judgedWrong: boolean;
+  /** The winner's answer countdown, shown beside the banner; null with no answer time. */
+  countdown: AnswerCountdown | null;
   alsoBuzzed: BuzzGap[];
   players: RankedPlayer[];
 }
 
-function BuzzResult({ winner, judgedWrong, alsoBuzzed, players }: BuzzResultProps) {
+function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: BuzzResultProps) {
   const others = alsoBuzzed.flatMap((gap) => {
     const player = players.find((p) => p.id === gap.playerId);
     return player ? [{ player, gapMs: gap.gapMs }] : [];
   });
   return (
     <section aria-label="Buzz result" className="flex shrink-0 flex-col items-center gap-[2vh]">
-      <h2
-        style={judgedWrong ? undefined : { backgroundColor: winner.color }}
-        data-judged={judgedWrong ? 'wrong' : undefined}
-        className={`w-full truncate rounded-[3vh] px-[3vw] py-[2vh] text-center font-display text-[min(8vw,16vh)] leading-none transition-colors ${
-          judgedWrong ? 'bg-edge text-muted line-through' : 'text-bg'
-        }`}
-      >
-        {winner.name}
-      </h2>
+      <div className="flex w-full items-stretch gap-[2vw]">
+        <h2
+          style={judgedWrong ? undefined : { backgroundColor: winner.color }}
+          data-judged={judgedWrong ? 'wrong' : undefined}
+          className={`min-w-0 flex-1 truncate rounded-[3vh] px-[3vw] py-[2vh] text-center font-display text-[min(8vw,16vh)] leading-none transition-colors ${
+            judgedWrong ? 'bg-edge text-muted line-through' : 'text-bg'
+          }`}
+        >
+          {winner.name}
+        </h2>
+        {countdown && <Countdown countdown={countdown} />}
+      </div>
       {others.length > 0 && (
         <div className="flex max-w-full items-baseline gap-[1.6vw]">
           <p className="shrink-0 text-[2vw] text-muted">also buzzed</p>

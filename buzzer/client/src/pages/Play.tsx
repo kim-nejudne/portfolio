@@ -31,6 +31,7 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type AttachSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+import { useAnswerCountdown } from '../lib/useAnswerCountdown.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
@@ -278,7 +279,8 @@ function Buzzer({ view, buzz }: BuzzerProps) {
   // The local press belongs to one opening; a new question or reopening clears it.
   const opening = `${view.questionIndex}:${view.openingCounter}`;
   const [pressedAt, setPressedAt] = useState<string | null>(null);
-  const state = buzzerState(view, pressedAt === opening);
+  const countdown = useAnswerCountdown(view);
+  const state = buzzerState(view, pressedAt === opening, countdown);
   const { toast, show } = useToast();
   useWakeLock();
 
@@ -349,6 +351,11 @@ function Buzzer({ view, buzz }: BuzzerProps) {
               </span>
             )}
             <span className="max-w-full">{state.label}</span>
+            {state.secondsLeft !== undefined && (
+              <span aria-label="Seconds left" className="text-7xl leading-none tabular-nums">
+                {state.secondsLeft}
+              </span>
+            )}
             {state.detail && (
               <span
                 className={`text-4xl ${state.detail.startsWith('+') ? 'text-win' : 'text-buzz'}`}

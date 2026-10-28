@@ -785,6 +785,60 @@ describe('Screen result states', () => {
     });
   });
 
+  describe('answer time', () => {
+    const buzzed = (overrides: Partial<ScreenView> = {}) =>
+      questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2', ...overrides });
+    const timer = () => screen.queryByRole('timer', { name: 'Answer time' });
+
+    it('shows a large countdown beside the winner’s banner, counting down', () => {
+      vi.useFakeTimers();
+      show(buzzed({ answerTimer: { seconds: 5, up: false } }));
+      const banner = screen.getByRole('heading', { level: 2, name: 'Ben' });
+      expect(timer()?.parentElement).toBe(banner.parentElement);
+      expect(timer()?.textContent).toBe('5');
+      act(() => vi.advanceTimersByTime(2000));
+      expect(timer()?.textContent).toBe('3');
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(timer()?.textContent).toBe('0');
+    });
+
+    it('at time up shows "Time’s up!" and flashes red; the banner stays for the host to judge', () => {
+      vi.useFakeTimers();
+      const socket = show(buzzed({ answerTimer: { seconds: 3, up: false } }));
+      act(() => vi.advanceTimersByTime(3000));
+      socket.fire('state', buzzed({ answerTimer: { seconds: 3, up: true } }));
+      socket.fire('fx', { kind: 'timeUp', playerId: 'p2' });
+      expect(timer()?.textContent).toBe('Time’s up!');
+      expect(timer()?.className).toContain('bg-buzz');
+      expect(flash()?.dataset.flash).toBe('timeUp');
+      expect(flash()?.className).toContain('bg-buzz');
+      expect(screen.getByRole('heading', { level: 2, name: 'Ben' })).toBeTruthy();
+
+      act(() => vi.advanceTimersByTime(FX_MS));
+      expect(flash()).toBeNull();
+      expect(timer()?.textContent).toBe('Time’s up!');
+    });
+
+    it('restarts for the next winner after a wrong answer reopens the buzzers', () => {
+      vi.useFakeTimers();
+      const socket = show(buzzed({ answerTimer: { seconds: 5, up: false } }));
+      act(() => vi.advanceTimersByTime(4000));
+      socket.fire('state', buzzed({ lockedOut: ['p2'] }));
+      expect(timer()).toBeNull();
+      socket.fire(
+        'state',
+        buzzed({ openingCounter: 2, winnerId: 'p3', answerTimer: { seconds: 5, up: false } }),
+      );
+      expect(timer()?.textContent).toBe('5');
+    });
+
+    it('with the timer off, the buzz looks as before: no countdown', () => {
+      show(buzzed());
+      expect(screen.getByRole('heading', { level: 2, name: 'Ben' })).toBeTruthy();
+      expect(timer()).toBeNull();
+    });
+  });
+
   describe('reveal', () => {
     it('shows the answer in large type under the question', () => {
       show(revealView());
@@ -1001,14 +1055,15 @@ describe('Click to start and sounds', () => {
     expect(overlay()).toBeNull();
   });
 
-  it('plays the sound of each fx event: buzz, correct, wrong and join', () => {
+  it('plays the sound of each fx event: buzz, time up, correct, wrong and join', () => {
     const { socket } = renderScreen();
     socket.fire('state', view('BUZZED'));
     socket.fire('fx', { kind: 'buzz', playerId: 'p1', gaps: [] });
+    socket.fire('fx', { kind: 'timeUp', playerId: 'p1' });
     socket.fire('fx', { kind: 'correct', playerId: 'p1', points: 100 });
     socket.fire('fx', { kind: 'wrong', playerId: 'p1' });
     socket.fire('fx', { kind: 'join', playerId: 'p2' });
-    expect(played()).toEqual(['buzz', 'correct', 'wrong', 'join']);
+    expect(played()).toEqual(['buzz', 'timeUp', 'correct', 'wrong', 'join']);
   });
 
   it('plays nothing before Click to start, and never replays an fx from before the click', () => {

@@ -92,16 +92,7 @@ Kim's request of 2026-10-28: the host can let players buzz as soon as a question
 
 - [x] F35 Answer timer: server and phone setting
 
-- [ ] F36 Answer countdown and time's-up on the devices
-  - Spec: UI spec by view (Player view, Screen view, Host remote); Tech stack and architecture (sounds); see DECISIONS, Proposed spec changes (answer timer)
-  - Depends: F35
-  - Done when:
-    - A shared countdown hook counts whole seconds down from `answerTimer.seconds`, restarts on a new question or opening, stops at 0, and shows "Time's up!" once the view says `up`
-    - Screen: a large countdown beside the winner banner, then "Time's up!", a red flash and a new `timeUp` sound
-    - Winner's phone: "You're first! Answer now" with the seconds left, then "Time's up!"; other phones unchanged
-    - Host remote: a countdown beside Correct / Wrong, then a "Time's up" badge and a vibration
-    - With the timer off, every view looks as before
-  - Tests: countdown hook tests with fake timers; `buzzerState`, `sounds`, `Screen`, `Host` and `Play` tests; `/playtest` with a 3 s timer
+- [x] F36 Answer countdown and time's-up on the devices
 
 - [ ] F37 Settings in the Screen lobby
   - Spec: UI spec by view (Screen view: Lobby; Screen host controls); see DECISIONS, Proposed spec changes (lobby settings)

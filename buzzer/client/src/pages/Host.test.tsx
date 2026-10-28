@@ -500,6 +500,77 @@ describe('Host remote', () => {
         ).toBe(false);
       });
 
+      describe('with an answer time', () => {
+        const timed = (up: boolean) => ({
+          ...buzzed(true),
+          openingCounter: 1,
+          answerTimer: { seconds: 3, up },
+        });
+        const timer = () => screen.queryByRole('timer', { name: 'Answer time' });
+
+        function stubVibrate() {
+          const vibrate = vi.fn(() => true);
+          Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+          return vibrate;
+        }
+
+        afterEach(() => {
+          Reflect.deleteProperty(navigator, 'vibrate');
+        });
+
+        it('shows the countdown right above Correct / Wrong, counting down', () => {
+          vi.useFakeTimers();
+          remote(timed(false));
+          const buttons = screen.getByRole('button', { name: 'Correct' }).parentElement!;
+          expect(timer()?.nextElementSibling).toBe(buttons);
+          expect(timer()?.textContent).toBe('Answer time3');
+          act(() => vi.advanceTimersByTime(1000));
+          expect(timer()?.textContent).toBe('Answer time2');
+        });
+
+        it('at time up shows a "Time’s up" badge and vibrates; Correct / Wrong still judge', () => {
+          const vibrate = stubVibrate();
+          const socket = remote(timed(false));
+          socket.fire('state', timed(true));
+          socket.fire('fx', { kind: 'timeUp', playerId: 'p1' });
+          expect(within(timer()!).getByText('Time’s up').className).toContain('bg-buzz');
+          expect(vibrate).toHaveBeenCalledExactlyOnceWith([200, 100, 200]);
+          fireEvent.click(screen.getByRole('button', { name: 'Wrong' }));
+          expect(socket.emitted.at(-1)).toMatchObject({
+            event: 'host:judge',
+            payload: { result: 'wrong' },
+          });
+        });
+
+        it('vibrates only for time up', () => {
+          const vibrate = stubVibrate();
+          const socket = remote(timed(false));
+          socket.fire('fx', { kind: 'buzz', playerId: 'p1', gaps: [] });
+          socket.fire('fx', { kind: 'wrong', playerId: 'p1' });
+          expect(vibrate).not.toHaveBeenCalled();
+          socket.fire('fx', { kind: 'timeUp', playerId: 'p1' });
+          expect(vibrate).toHaveBeenCalledOnce();
+        });
+
+        it('never vibrates for a time up that arrived before the remote showed', () => {
+          const vibrate = stubVibrate();
+          const { socket } = renderHost(`/host/WXYZ#t=${TOKEN}`);
+          act(() => socket.emitted[0]!.ack({ ok: true }));
+          socket.fire('fx', { kind: 'timeUp', playerId: 'p1' });
+          socket.fire('state', timed(true));
+          expect(timer()).toBeTruthy();
+          expect(vibrate).not.toHaveBeenCalled();
+          socket.fire('fx', { kind: 'timeUp', playerId: 'p1' });
+          expect(vibrate).toHaveBeenCalledOnce();
+        });
+
+        it('with the timer off, Correct / Wrong look as before: no countdown', () => {
+          remote(buzzed(true));
+          expect(screen.getByRole('button', { name: 'Correct' })).toBeTruthy();
+          expect(timer()).toBeNull();
+        });
+      });
+
       it('while the buzzers wait to reopen it says so and cannot judge', () => {
         remote(buzzed(false));
         expect(screen.queryByRole('button', { name: 'Correct' })).toBeNull();

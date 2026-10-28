@@ -1,5 +1,6 @@
 import type { PlayerView } from '../../../shared/types.js';
 import { ordinal, signedPoints } from './results.js';
+import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
 
 /**
  * How the buzzer looks: grey, bright and pulsing, pressed in, green, dim, dark with an X, grey
@@ -13,15 +14,22 @@ export interface BuzzerState {
   label: string;
   /** A second line: the points scored at reveal, or the final score. */
   detail?: string;
+  /** The winner's seconds left to answer, while an answer time runs. */
+  secondsLeft?: number;
   /** True when a press sends `player:buzz`. */
   live: boolean;
 }
 
 /**
  * The buzzer's look and label for this player (UI spec, Player view). `pressed` is the local
- * press for the current opening, shown before the server's next snapshot arrives.
+ * press for the current opening, shown before the server's next snapshot arrives. `countdown` is
+ * the answer countdown from `useAnswerCountdown`; only the winner's phone shows it.
  */
-export function buzzerState(view: PlayerView, pressed: boolean): BuzzerState {
+export function buzzerState(
+  view: PlayerView,
+  pressed: boolean,
+  countdown: AnswerCountdown | null = null,
+): BuzzerState {
   switch (view.phase) {
     case 'LOBBY':
       return idle('You’re in! Waiting for the host');
@@ -37,7 +45,13 @@ export function buzzerState(view: PlayerView, pressed: boolean): BuzzerState {
       // already locked out then, and so is anyone judged wrong earlier in the question.
       if (view.lockedOut) return lockedOut();
       if (view.winnerId === view.me.id) {
-        return { kind: 'won', label: 'You’re first! Answer now', live: false };
+        if (countdown?.up) return { kind: 'won', label: TIME_UP_LABEL, live: false };
+        return {
+          kind: 'won',
+          label: 'You’re first! Answer now',
+          ...(countdown && { secondsLeft: countdown.secondsLeft }),
+          live: false,
+        };
       }
       return { kind: 'lost', label: `${view.winnerName ?? 'Someone'} buzzed first`, live: false };
     case 'REVEAL':

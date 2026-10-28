@@ -10,6 +10,50 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F36 — Answer countdown and time's-up on the devices (2026-10-28)
+**What changed:**
+- New `client/src/lib/useAnswerCountdown.ts`:
+  - `useAnswerCountdown(view)` returns `{secondsLeft, up}` or null.
+  - It is keyed by question index and opening counter, so it restarts on a new question or opening. It reads `Date.now()` every 250 ms and stops at 0. `up` comes from the view.
+  - `countdownText` and `TIME_UP_LABEL` ("Time's up!") come from the same file.
+- Winner's phone: `buzzerState` takes the countdown. The winner gets "You're first! Answer now" with a big `secondsLeft` number, then "Time's up!". Other phones are unchanged.
+- Screen:
+  - A `Countdown` box sits beside the winner's banner. At time up it turns red and reads "Time's up!".
+  - `ScreenFlash` flashes red on `fx timeUp`.
+  - New `timeUp` sound: `client/public/sounds/timeUp.wav`, made by `scripts/make-sounds.mjs`. The other WAVs regenerate byte-identical. `soundForFx` now always returns a sound.
+- Host remote:
+  - An "Answer time" row directly above Correct / Wrong, then a red "Time's up" badge.
+  - `useVibrateOnTimeUp` in `Host.tsx` calls `navigator.vibrate([200, 100, 200])` on each fresh `fx timeUp`.
+- Tests:
+  - New `useAnswerCountdown.test.ts` (10, fake timers).
+  - `buzzerState` +3, `sounds` (timeUp mapped), `Screen` +4 (+ timeUp in the sound test), `Host` +5 and `Play` +2.
+  - `Play.test.tsx` now restores real timers after each test.
+  - 1010 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-28 for F36 cover:
+- how the countdown starts, ticks, stops at 0, and defers to the server's `up`; a late joiner counts from the full time
+- the Host countdown in its own row above Correct / Wrong (too narrow for a middle column at 375 px)
+- the vibration pattern, only for events after mount, Host only
+- the sound's design, and reusing the red flash
+
+**Notes for next session:**
+- Playtest (Playwright; Screen, Host remote, two Players in separate contexts; answer time 3 s), 6 of 6 steps passed:
+  - The winner's phone counted 3, 2, 1, then "Time's up!". The other phone stayed "Ann buzzed first".
+  - The Screen counted beside the banner, then showed a red "Time's up!" box. The `timeUp` flash fired once, and `/sounds/timeUp.wav` served 200 (not heard).
+  - The Host counted 3, 2, 1, then the badge. A stubbed `navigator.vibrate` got `[200,100,200]` once.
+  - The next question restarted at 3 on all three devices.
+  - With the timer set back to Off, every view looked as before.
+  - No answer text before reveal.
+- Not checked: the reduced-motion tint, the sound by ear, and a real phone's vibration.
+- The F35 DECISIONS row saying `timeUp` is silent "until F36" is now history; the F36 sound row supersedes it.
+- With the timer on, F37 (settings in the Screen lobby) is the last roadmap feature.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, host a set, and click **Click to start** on the Screen. Pair a phone as Host, and join from one or two more phones.
+2. On the Host phone, open Settings and set **Answer time** to 3 s.
+3. Start, open the buzzers and buzz. The Screen shows 3, 2, 1 beside the winner's name, then "Time's up!" with a red flash and the new sound. The winner's phone counts down too; the Host phone counts above Correct / Wrong, then shows "Time's up" and vibrates (Android Chrome; iOS has no vibration).
+4. Judge as usual. Set Answer time back to Off: no countdown anywhere.
+
 <!-- entries below, newest first -->
 
 ## F35 — Answer timer: server and phone setting (2026-10-28)

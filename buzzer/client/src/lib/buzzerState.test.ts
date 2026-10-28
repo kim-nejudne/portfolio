@@ -75,6 +75,40 @@ describe('buzzerState', () => {
     });
   });
 
+  describe('with an answer time set', () => {
+    const timer = { seconds: 5, up: false };
+    const won = view({ phase: 'BUZZED', questionIndex: 0, winnerId: 'p1', answerTimer: timer });
+    const lost = view({ phase: 'BUZZED', questionIndex: 0, winnerId: 'p2', winnerName: 'Ben' });
+
+    it('tells the winner to answer, with the seconds left', () => {
+      expect(buzzerState(won, true, { secondsLeft: 4, up: false })).toEqual({
+        kind: 'won',
+        label: 'You’re first! Answer now',
+        secondsLeft: 4,
+        live: false,
+      });
+    });
+
+    it('tells the winner the time is up once the server says so', () => {
+      expect(buzzerState(won, true, { secondsLeft: 0, up: true })).toEqual({
+        kind: 'won',
+        label: 'Time’s up!',
+        live: false,
+      });
+    });
+
+    it('leaves everyone else’s phone unchanged', () => {
+      for (const countdown of [
+        { secondsLeft: 3, up: false },
+        { secondsLeft: 0, up: true },
+      ]) {
+        expect(buzzerState({ ...lost, answerTimer: timer }, false, countdown)).toEqual(
+          buzzerState(lost, false),
+        );
+      }
+    });
+  });
+
   it('names the winner to everyone else', () => {
     const lost = view({ phase: 'BUZZED', questionIndex: 0, winnerId: 'p2', winnerName: 'Ben' });
     expect(buzzerState(lost, false)).toEqual({

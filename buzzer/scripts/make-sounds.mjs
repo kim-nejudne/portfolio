@@ -111,6 +111,30 @@ const sounds = {
     ],
     0.55,
   ),
+  // Time's up: three quick high beeps, then a longer falling tone.
+  timeUp: render(
+    0.95,
+    [
+      ...[0, 0.14, 0.28].map((start) => ({
+        start,
+        length: 0.09,
+        freq: hz('A5'),
+        wave: 'square',
+        gain: 0.5,
+        release: 0.02,
+      })),
+      { start: 0.42, length: 0.5, freq: (t) => hz('E5') - 300 * t, wave: 'triangle', decay: 0.2 },
+      {
+        start: 0.42,
+        length: 0.5,
+        freq: (t) => hz('E4') - 150 * t,
+        wave: 'square',
+        gain: 0.25,
+        decay: 0.2,
+      },
+    ],
+    0.6,
+  ),
   // A player joined: a short upward blip.
   join: render(
     0.18,

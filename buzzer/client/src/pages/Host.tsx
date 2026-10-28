@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   GAME_ENDED_ERROR,
@@ -144,6 +144,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   const [tab, setTab] = useState<Tab>('Game');
   const command = useHostCommand(view, send, show);
   usePreloadImage(view.code, view.nextQuestion?.imageId);
+  useVibrateOnTimeUp();
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
       <header className="flex items-baseline justify-between gap-4">
@@ -200,6 +201,23 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       <Toast toast={toast} />
     </main>
   );
+}
+
+/** How the host's phone buzzes when the answer time runs out: two pulses. */
+const TIME_UP_VIBRATION = [200, 100, 200];
+
+/**
+ * Vibrates the remote on each `fx timeUp` (UI spec, Host remote). Only events after mount count,
+ * so reconnecting or reopening the page never replays one. Where vibration is missing, nothing.
+ */
+function useVibrateOnTimeUp(): void {
+  const event = useRoomStore((state) => state.fx);
+  const handledSeq = useRef(event?.seq ?? 0);
+  useEffect(() => {
+    if (!event || event.seq <= handledSeq.current) return;
+    handledSeq.current = event.seq;
+    if (event.fx.kind === 'timeUp' && 'vibrate' in navigator) navigator.vibrate(TIME_UP_VIBRATION);
+  }, [event]);
 }
 
 /**

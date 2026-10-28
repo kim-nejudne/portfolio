@@ -1,0 +1,115 @@
+// @vitest-environment jsdom
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AnswerTimerView } from '../../../shared/types.js';
+import { countdownText, TIME_UP_LABEL, useAnswerCountdown } from './useAnswerCountdown.js';
+
+interface Props {
+  answerTimer: AnswerTimerView | null;
+  questionIndex: number;
+  openingCounter: number;
+}
+
+const running = (seconds: number, overrides: Partial<Props> = {}): Props => ({
+  answerTimer: { seconds, up: false },
+  questionIndex: 2,
+  openingCounter: 1,
+  ...overrides,
+});
+
+function setup(initial: Props) {
+  return renderHook((props: Props) => useAnswerCountdown(props), { initialProps: initial });
+}
+
+const tick = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('useAnswerCountdown', () => {
+  it('is null with the timer off', () => {
+    const { result } = setup({ answerTimer: null, questionIndex: 2, openingCounter: 1 });
+    expect(result.current).toBeNull();
+  });
+
+  it('counts whole seconds down from the timer’s seconds', () => {
+    const { result } = setup(running(3));
+    expect(result.current).toEqual({ secondsLeft: 3, up: false });
+    tick(999);
+    expect(result.current?.secondsLeft).toBe(3);
+    tick(1);
+    expect(result.current?.secondsLeft).toBe(2);
+    tick(1000);
+    expect(result.current?.secondsLeft).toBe(1);
+  });
+
+  it('stops at 0 and stays there until the server says up', () => {
+    const { result } = setup(running(3));
+    tick(3000);
+    expect(result.current).toEqual({ secondsLeft: 0, up: false });
+    tick(5000);
+    expect(result.current).toEqual({ secondsLeft: 0, up: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('reports up once the view says so, even before the local count reaches 0', () => {
+    const { result, rerender } = setup(running(5));
+    tick(4000);
+    rerender({ ...running(5), answerTimer: { seconds: 5, up: true } });
+    expect(result.current).toEqual({ secondsLeft: 0, up: true });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('counts from the clock, so a late tick (a throttled tab) skips ahead', () => {
+    const { result } = setup(running(10));
+    // Timers fire late, but the clock has moved on: the next tick shows the real time left.
+    vi.setSystemTime(Date.now() + 4500);
+    tick(250);
+    expect(result.current?.secondsLeft).toBe(6);
+  });
+
+  it('restarts on a new opening of the same question', () => {
+    const { result, rerender } = setup(running(3));
+    tick(2000);
+    rerender(running(3, { openingCounter: 2 }));
+    expect(result.current?.secondsLeft).toBe(3);
+    tick(1000);
+    expect(result.current?.secondsLeft).toBe(2);
+  });
+
+  it('restarts on a new question', () => {
+    const { result, rerender } = setup(running(3));
+    tick(3000);
+    rerender(running(3, { questionIndex: 3, openingCounter: 2 }));
+    expect(result.current).toEqual({ secondsLeft: 3, up: false });
+  });
+
+  it('becomes null when the timer is cleared, and stops ticking', () => {
+    const { result, rerender } = setup(running(7));
+    tick(1000);
+    rerender({ ...running(7), answerTimer: null });
+    expect(result.current).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('a later state of the same opening does not restart it', () => {
+    const { result, rerender } = setup(running(5));
+    tick(2000);
+    rerender(running(5));
+    expect(result.current?.secondsLeft).toBe(3);
+  });
+});
+
+describe('countdownText', () => {
+  it('shows the seconds left, then the time’s-up label', () => {
+    expect(countdownText({ secondsLeft: 4, up: false })).toBe('4');
+    expect(countdownText({ secondsLeft: 0, up: false })).toBe('0');
+    expect(countdownText({ secondsLeft: 0, up: true })).toBe(TIME_UP_LABEL);
+    expect(TIME_UP_LABEL).toBe('Time’s up!');
+  });
+});

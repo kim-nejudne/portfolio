@@ -21,6 +21,7 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 function stubExists(exists: boolean | Error) {
@@ -499,6 +500,37 @@ describe('Play buzzer', () => {
     expect(buzzer().textContent).toBe('You’re first! Answer now');
     expect(buzzer().dataset.look).toBe('won');
     expect(buzzer().className).toContain('bg-win');
+  });
+
+  it('with an answer time, the winner sees the seconds count down, then "Time\'s up!"', async () => {
+    const socket = await joined();
+    vi.useFakeTimers();
+    const won = open({
+      phase: 'BUZZED',
+      hasBuzzed: true,
+      winnerId: 'p1',
+      winnerName: 'Ana',
+      answerTimer: { seconds: 3, up: false },
+    });
+    socket.fire('state', won);
+    const secondsLeft = () => within(buzzer()).getByLabelText('Seconds left').textContent;
+    expect(buzzer().textContent).toContain('You’re first! Answer now');
+    expect(secondsLeft()).toBe('3');
+    act(() => vi.advanceTimersByTime(1000));
+    expect(secondsLeft()).toBe('2');
+
+    socket.fire('state', { ...won, answerTimer: { seconds: 3, up: true } });
+    expect(buzzer().textContent).toBe('Time’s up!');
+    expect(buzzer().dataset.look).toBe('won');
+  });
+
+  it('with an answer time, everyone else still sees only the winner’s name', async () => {
+    const socket = await joined();
+    const lost = open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' });
+    socket.fire('state', { ...lost, answerTimer: { seconds: 3, up: false } });
+    expect(buzzer().textContent).toBe('Ben buzzed first');
+    socket.fire('state', { ...lost, answerTimer: { seconds: 3, up: true } });
+    expect(buzzer().textContent).toBe('Ben buzzed first');
   });
 
   it("everyone else sees the winner's name on a dim button", async () => {

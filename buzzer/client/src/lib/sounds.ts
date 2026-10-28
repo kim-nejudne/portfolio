@@ -1,9 +1,16 @@
 import type { Howl } from 'howler';
 import type { Fx } from '../../../shared/types.js';
 
-export type SoundName = 'buzz' | 'correct' | 'wrong' | 'join' | 'fanfare';
+export type SoundName = 'buzz' | 'correct' | 'wrong' | 'timeUp' | 'join' | 'fanfare';
 
-export const SOUND_NAMES: readonly SoundName[] = ['buzz', 'correct', 'wrong', 'join', 'fanfare'];
+export const SOUND_NAMES: readonly SoundName[] = [
+  'buzz',
+  'correct',
+  'wrong',
+  'timeUp',
+  'join',
+  'fanfare',
+];
 
 /** Where each sound is served from (`client/public/sounds`, made by `scripts/make-sounds.mjs`). */
 export function soundUrl(name: SoundName): string {
@@ -11,13 +18,12 @@ export function soundUrl(name: SoundName): string {
 }
 
 /**
- * The sound an `fx` event plays, or null for a silent one. FINAL's fanfare is not an `fx`.
+ * The sound an `fx` event plays. FINAL's fanfare is not an `fx`.
  * SPEC-QUESTION: the spec gives Wrong "buzz sound" but lists a separate wrong sound; `wrong.wav`
  * is the low game-show buzzer, `buzz.wav` the ring-in (DECISIONS, F31).
  */
-export function soundForFx(fx: Fx): SoundName | null {
-  // The time's-up sound arrives with the Screen's countdown (F36).
-  return fx.kind === 'timeUp' ? null : fx.kind;
+export function soundForFx(fx: Fx): SoundName {
+  return fx.kind;
 }
 
 // Howler loads on demand, so only a Screen downloads it.
