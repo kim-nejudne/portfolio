@@ -213,4 +213,13 @@ Each has a recommended answer. Until the owner says otherwise, a feature that hi
 
 ## Proposed spec changes
 
+- **Answer timer (2026-10-28, F35–F36).** Kim asked for a fixed time to answer after buzzing. Proposed text:
+  - *Out of scope for v1*: remove the row "Countdown timer per question". The answer timer below replaces it. A countdown for the buzzers being open stays out of scope.
+  - *Data model*, `RoomSettings`: add `answerSeconds: 0 | 3 | 5 | 7 | 10; // default 0 = off`. `Room`: add `answerTimer: { seconds: number; endsAt: number; up: boolean } | null; // set in BUZZED while the winner's answer time runs`.
+  - *Transitions*, COLLECTING → BUZZED, side effects: "…; when `answerSeconds` > 0, start the answer timer and schedule `answerTimeUp`". Add a row: BUZZED | `answerTimeUp` (fresh) | BUZZED | "Mark the timer up, emit `fx timeUp`. The host still judges." Add `answerTimeUp` to the scheduled effects that carry the question index and opening counter.
+  - *Screen view*, Buzzed: "With an answer time set, a large countdown beside the winner's banner. At zero: 'Time's up!', a red flash and the time's-up sound. The host still judges."
+  - *Player view* table: the "This player won the buzz" label gets the seconds left, then "Time's up!".
+  - *Host remote*, Settings tab: add "answer time Off / 3 / 5 / 7 / 10 s **[default: off]**". The primary action area shows the countdown beside Correct / Wrong.
+- **Settings in the Screen lobby (2026-10-28, F37).** *Screen view*, Lobby: "When this device is a Host, the lobby also shows the room settings (the remote's Settings tab) beside Start Game." Without it, a host with no paired phone cannot turn on auto-open buzzers or the answer timer.
+
 - **`pong` carries an ack (F15).** The Realtime events table could read: `pong` (Player) `{t}`, acked at once by the client so the server can time RTT. See the F15 rows above.
