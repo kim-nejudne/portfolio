@@ -1,96 +1,28 @@
-import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SOCKET_MESSAGE_MAX_BYTES } from '../shared/constants.js';
-import type { Ack, ClientToServerEvents, Fx, ServerToClientEvents, View } from '../shared/types.js';
+import type { Ack, Fx } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
-import type { RateLimit } from './rateLimit.js';
-import { InMemoryRoomStore } from './roomStore.js';
-import { attachSockets, type GatewayServer } from './sockets.js';
-import { makeRoom, makeSet, T0 } from './test/rooms.js';
+import { makeSet, T0 } from './test/rooms.js';
+import {
+  hostJoin,
+  nextState,
+  playerJoin,
+  recordStates,
+  screenJoin,
+  serverDisconnect,
+  start,
+  stopAll,
+  TOKEN,
+  type TestClient,
+} from './test/sockets.js';
 
-type TestClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
-
-const TOKEN = generateHostToken();
 const TOKEN_HASH = hashHostToken(TOKEN);
 const SECRETS = makeSet().questions.flatMap((q) => [q.answer, q.hostNotes!]);
 
-let io: GatewayServer | undefined;
-let clients: TestClient[] = [];
-
-afterEach(async () => {
-  for (const c of clients) c.disconnect();
-  clients = [];
-  await new Promise((resolve) => (io ? io.close(resolve) : resolve(undefined)));
-  io = undefined;
-});
-
-interface Harness {
-  rooms: InMemoryRoomStore;
-  connect(): Promise<TestClient>;
-  advance(ms: number): void;
-}
-
-async function start(options: { playerJoinLimit?: RateLimit } = {}): Promise<Harness> {
-  let now = T0;
-  const rooms = new InMemoryRoomStore();
-  rooms.set(makeRoom({ hostTokenHash: TOKEN_HASH }));
-  const httpServer = createServer();
-  io = attachSockets(httpServer, { rooms, clock: () => now, ...options });
-  await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
-  const { port } = httpServer.address() as AddressInfo;
-
-  return {
-    rooms,
-    advance: (ms) => (now += ms),
-    async connect() {
-      const client: TestClient = connectClient(`http://127.0.0.1:${port}`, {
-        transports: ['websocket'],
-        forceNew: true,
-        reconnection: false,
-      });
-      clients.push(client);
-      await new Promise<void>((resolve, reject) => {
-        client.once('connect', resolve);
-        client.once('connect_error', reject);
-      });
-      return client;
-    },
-  };
-}
-
-/** Every `state` the client receives, newest last. Attach before the event that triggers them. */
-function recordStates(client: TestClient): View[] {
-  const states: View[] = [];
-  client.on('state', (view) => states.push(view));
-  return states;
-}
-
-function nextState(client: TestClient): Promise<View> {
-  return new Promise((resolve) => client.once('state', resolve));
-}
+afterEach(stopAll);
 
 function nextFx(client: TestClient): Promise<Fx> {
   return new Promise((resolve) => client.once('fx', resolve));
-}
-
-// The gateway sends `state` before the ack, so a client's own state has arrived by the time the ack does.
-const screenJoin = (c: TestClient, hostToken?: string): Promise<Ack> =>
-  c.emitWithAck('screen:join', hostToken ? { code: 'ABCD', hostToken } : { code: 'ABCD' });
-const hostJoin = (c: TestClient, hostToken = TOKEN): Promise<Ack> =>
-  c.emitWithAck('host:join', { code: 'ABCD', hostToken });
-const playerJoin = (c: TestClient, playerId: string, name = playerId): Promise<Ack> =>
-  c.emitWithAck('player:join', { code: 'ABCD', playerId, name });
-
-/** Resolves once the server has handled `client`'s disconnect, gateway listener included. */
-function serverDisconnect(client: TestClient): Promise<void> {
-  const serverSocket = io!.sockets.sockets.get(client.id!)!;
-  const done = new Promise<void>((resolve) =>
-    serverSocket.once('disconnect', () => setImmediate(resolve)),
-  );
-  client.disconnect();
-  return done;
 }
 
 describe('socket gateway: joins', () => {
@@ -258,7 +190,7 @@ describe('socket gateway: validation and limits', () => {
       error: 'Too many joins from this network. Try again in a minute.',
     });
 
-    await serverDisconnect(first);
+    await serverDisconnect(h, first);
     expect(await playerJoin(await h.connect(), 'p1')).toEqual({ ok: true });
 
     h.advance(60_000);
@@ -315,7 +247,7 @@ describe('socket gateway: state broadcast', () => {
     h.rooms.set({ ...room, players: { p1: { ...room.players.p1!, score: 300 } } });
 
     const dropped = nextState(host);
-    await serverDisconnect(phone);
+    await serverDisconnect(h, phone);
     const afterDrop = await dropped;
     expect(afterDrop.role === 'host' && afterDrop.players).toMatchObject([
       { id: 'p1', connected: false },
@@ -346,7 +278,7 @@ describe('socket gateway: state broadcast', () => {
     const newPhone = await h.connect();
     await playerJoin(newPhone, 'p1', 'Ana');
 
-    await serverDisconnect(oldPhone);
+    await serverDisconnect(h, oldPhone);
     expect(h.rooms.get('ABCD')!.players.p1!.connected).toBe(true);
   });
 

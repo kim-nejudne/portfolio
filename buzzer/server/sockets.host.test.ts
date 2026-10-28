@@ -1,6 +1,3 @@
-import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   COLLECTION_WINDOW_MS,
@@ -8,25 +5,8 @@ import {
   PLAYER_KICKED_ERROR,
   REOPEN_DELAY_MS,
 } from '../shared/constants.js';
-import type {
-  Ack,
-  ClientToServerEvents,
-  Fx,
-  HostView,
-  ServerToClientEvents,
-  View,
-} from '../shared/types.js';
-import { generateHostToken, hashHostToken } from './hostToken.js';
-import { InMemoryRoomStore } from './roomStore.js';
-import { attachSockets, type GatewayServer } from './sockets.js';
-import { makeRoom, T0 } from './test/rooms.js';
-
-type TestClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
-
-const TOKEN = generateHostToken();
-
-let io: GatewayServer | undefined;
-let clients: TestClient[] = [];
+import type { Fx, HostView, View } from '../shared/types.js';
+import { flush, openTable, record, stopAll, TOKEN } from './test/sockets.js';
 
 beforeEach(() => {
   // Only the gateway's window and reopen timers are faked; socket I/O stays real.
@@ -38,77 +18,8 @@ beforeEach(() => {
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  for (const c of clients) c.disconnect();
-  clients = [];
-  await new Promise((resolve) => (io ? io.close(resolve) : resolve(undefined)));
-  io = undefined;
+  await stopAll();
 });
-
-interface Harness {
-  rooms: InMemoryRoomStore;
-  connect(): Promise<TestClient>;
-  /** Moves the monotonic clock (buzz arrival). */
-  advanceMono(ms: number): void;
-}
-
-async function start(): Promise<Harness> {
-  let mono = 1000;
-  const rooms = new InMemoryRoomStore();
-  rooms.set(makeRoom({ hostTokenHash: hashHostToken(TOKEN) }));
-  const httpServer = createServer();
-  io = attachSockets(httpServer, { rooms, clock: () => T0, monotonic: () => mono });
-  await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
-  const { port } = httpServer.address() as AddressInfo;
-
-  return {
-    rooms,
-    advanceMono: (ms) => (mono += ms),
-    async connect() {
-      const client: TestClient = connectClient(`http://127.0.0.1:${port}`, {
-        transports: ['websocket'],
-        forceNew: true,
-        reconnection: false,
-      });
-      clients.push(client);
-      await new Promise<void>((resolve, reject) => {
-        client.once('connect', resolve);
-        client.once('connect_error', reject);
-      });
-      return client;
-    },
-  };
-}
-
-function record<T>(client: TestClient, event: 'fx' | 'state'): T[] {
-  const seen: T[] = [];
-  client.on(event, (payload: unknown) => seen.push(payload as T));
-  return seen;
-}
-
-/**
- * An acked round trip with no side effects on a joined socket ("Already joined"). Everything the
- * server sent this socket before it has arrived.
- */
-const flush = (c: TestClient): Promise<Ack> => c.emitWithAck('screen:join', { code: 'ABCD' });
-
-/** Screen, host and players a and b, joined, with question 1 open. */
-async function openTable() {
-  const h = await start();
-  const [screen, host, a, b] = await Promise.all([
-    h.connect(),
-    h.connect(),
-    h.connect(),
-    h.connect(),
-  ]);
-  await screen.emitWithAck('screen:join', { code: 'ABCD' });
-  await host.emitWithAck('host:join', { code: 'ABCD', hostToken: TOKEN });
-  await a.emitWithAck('player:join', { code: 'ABCD', playerId: 'a', name: 'Ann' });
-  await b.emitWithAck('player:join', { code: 'ABCD', playerId: 'b', name: 'Bob' });
-  expect(await host.emitWithAck('host:start', {})).toEqual({ ok: true });
-  expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
-  await Promise.all([screen, host, a, b].map(flush));
-  return { h, screen, host, a, b };
-}
 
 /** `openTable`, then a buzzes alone and the window closes: BUZZED with a as the winner. */
 async function buzzedTable() {

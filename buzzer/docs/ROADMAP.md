@@ -114,14 +114,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F44 Favicon and hover states
 
-- [ ] F45 Socket test harness and typed host emit
-  - Spec: none (code health)
-  - Depends: F37
-  - Done when:
-    - `server/test/sockets.ts` holds the shared harness (`start` with options for the clock, the monotonic clock and limits; `connect`, `record`, `flush`, `openTable`, `recordStates`, `nextState`, `screenJoin`, `playerJoin`, `hostJoin`, `serverDisconnect`); the four `server/sockets*.test.ts` files import it and keep no copies
-    - The `emit` cast in `client/src/lib/useHostCommand.ts` is replaced by a typed helper with no `as`
-    - The test count is unchanged and every test still passes; no behaviour change
-  - Tests: the existing suite (same count before and after); typecheck
+- [x] F45 Socket test harness and typed host emit
 
 - [ ] F46 Slim runtime image and CI job
   - Spec: Tech stack and architecture (deploy)

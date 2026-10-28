@@ -10,6 +10,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F45 — Socket test harness and typed host emit (2026-10-28)
+**What changed:**
+- New `server/test/sockets.ts`, the gateway harness shared by the four `server/sockets*.test.ts` files.
+  - It exports `TestClient`, `TOKEN`, `start`, `stopAll`, `record`, `recordStates`, `nextState`, `flush`, `screenJoin`, `hostJoin`, `playerJoin`, `openTable` and `serverDisconnect(h, client)`.
+  - `start({room, fakeMonotonic, playerJoinLimit})`: `room: null` starts with no rooms, as after a restart. The harness exposes `io`, `rooms`, `connect`, `advance` and `advanceMono`. `advanceMono` throws unless the monotonic clock is fake.
+  - `stopAll` closes every gateway and client. Each file calls it from `afterEach`.
+- The four test files keep only what is theirs:
+  - fake timers and the console spy (buzz, host)
+  - `buzz` and `sampleRtt` (buzz)
+  - `buzzedTable` (host)
+  - `midGame` and a `start` wrapper (reconnect)
+  - `nextFx`, `TOKEN_HASH` and `SECRETS` (sockets)
+- `client/src/lib/useHostCommand.ts`: the `emit.bind(...) as` cast is gone. `emitHost` takes a `HostEmitter` interface, and the `GameSocket` is assigned to it structurally.
+- Tests: 1135 before and after (54 socket tests before and after). No test was changed, and there is no new dependency.
+
+**Decisions:** two DECISIONS rows for F45:
+- which clocks and limits `start` fakes or exposes, and why
+- how `HostEmitter` stays type-checked with no cast
+
+**Notes for next session:**
+- No behaviour change, so no playtest.
+- The review raised two should-fix points. Neither was changed:
+  - `start` has no option for the clock's start time, and no test needs one.
+  - `record<T>` keeps its `as T`, which the old copies already had.
+- `sockets.test.ts` still has a deliberate `as` cast on `emitWithAck` for its unknown-event test.
+
+**How to try it:** `npm test`. Typecheck with `npm run typecheck`.
+
 ## F44 — Favicon and hover states (2026-10-28)
 **What changed:**
 - `client/public/favicon.svg`: a round buzz-red button (`--color-buzz` fill, `--color-buzz-edge` rim, a soft highlight) on a rounded `--color-bg` square. `client/index.html` links it with `rel="icon" type="image/svg+xml"`.

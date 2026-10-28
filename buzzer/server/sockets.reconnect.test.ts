@@ -1,68 +1,30 @@
 // Reconnects and room lifecycle (Reconnects, security and edge cases › Reconnects): every role
 // gets the latest snapshot back on a new socket, and a room that goes away tells everyone in it.
-import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   ROOM_EXPIRED_REASON,
   ROOM_IDLE_TTL_MS,
   ROOM_NOT_FOUND_ERROR,
 } from '../shared/constants.js';
-import type { Ack, ClientToServerEvents, ServerToClientEvents, View } from '../shared/types.js';
-import { generateHostToken, hashHostToken } from './hostToken.js';
-import { InMemoryRoomStore } from './roomStore.js';
-import { attachSockets, closeRooms, type GatewayServer } from './sockets.js';
+import { hashHostToken } from './hostToken.js';
+import { closeRooms } from './sockets.js';
 import { makePlayer, makeRoom, T0, withPlayers } from './test/rooms.js';
+import {
+  hostJoin,
+  nextState,
+  playerJoin,
+  recordStates,
+  screenJoin,
+  serverDisconnect,
+  start as startGateway,
+  stopAll,
+  TOKEN,
+} from './test/sockets.js';
 
-type TestClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
+afterEach(stopAll);
 
-const TOKEN = generateHostToken();
-
-let servers: GatewayServer[] = [];
-let clients: TestClient[] = [];
-
-afterEach(async () => {
-  for (const c of clients) c.disconnect();
-  clients = [];
-  await Promise.all(servers.map((io) => new Promise((resolve) => io.close(resolve))));
-  servers = [];
-});
-
-interface Harness {
-  io: GatewayServer;
-  rooms: InMemoryRoomStore;
-  connect(): Promise<TestClient>;
-}
-
-/** A gateway on its own port. `empty` starts with no rooms, as after a server restart. */
-async function start({ empty = false } = {}): Promise<Harness> {
-  const rooms = new InMemoryRoomStore();
-  if (!empty) rooms.set(midGame());
-  const httpServer = createServer();
-  const io = attachSockets(httpServer, { rooms, clock: () => T0 });
-  servers.push(io);
-  await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
-  const { port } = httpServer.address() as AddressInfo;
-
-  return {
-    io,
-    rooms,
-    async connect() {
-      const client: TestClient = connectClient(`http://127.0.0.1:${port}`, {
-        transports: ['websocket'],
-        forceNew: true,
-        reconnection: false,
-      });
-      clients.push(client);
-      await new Promise<void>((resolve, reject) => {
-        client.once('connect', resolve);
-        client.once('connect_error', reject);
-      });
-      return client;
-    },
-  };
-}
+/** A gateway mid-game. `empty` starts with no rooms, as after a server restart. */
+const start = ({ empty = false } = {}) => startGateway({ room: empty ? null : midGame() });
 
 /** Question 2 is open; Ana has 300 points and is locked out after a wrong answer. */
 function midGame() {
@@ -76,33 +38,6 @@ function midGame() {
     }),
     [makePlayer('p1', { name: 'Ana', score: 300 }), makePlayer('p2', { name: 'Ben', score: 100 })],
   );
-}
-
-const screenJoin = (c: TestClient, hostToken?: string): Promise<Ack> =>
-  c.emitWithAck('screen:join', hostToken ? { code: 'ABCD', hostToken } : { code: 'ABCD' });
-const hostJoin = (c: TestClient): Promise<Ack> =>
-  c.emitWithAck('host:join', { code: 'ABCD', hostToken: TOKEN });
-const playerJoin = (c: TestClient, playerId: string, name = playerId): Promise<Ack> =>
-  c.emitWithAck('player:join', { code: 'ABCD', playerId, name });
-
-function recordStates(client: TestClient): View[] {
-  const states: View[] = [];
-  client.on('state', (view) => states.push(view));
-  return states;
-}
-
-function nextState(client: TestClient): Promise<View> {
-  return new Promise((resolve) => client.once('state', resolve));
-}
-
-/** Resolves once the server has handled `client`'s disconnect, gateway listener included. */
-function serverDisconnect(h: Harness, client: TestClient): Promise<void> {
-  const serverSocket = h.io.sockets.sockets.get(client.id!)!;
-  const done = new Promise<void>((resolve) =>
-    serverSocket.once('disconnect', () => setImmediate(resolve)),
-  );
-  client.disconnect();
-  return done;
 }
 
 describe('reconnects', () => {

@@ -20,15 +20,30 @@ export type SendHost = <E extends HostEvent>(
   ack: (res: Ack) => void,
 ) => void;
 
+/**
+ * `GameSocket.emit` seen with a generic host event. Socket.IO types the arguments as
+ * `Parameters<…[E]>`, which TypeScript can't resolve for a generic `E`. A `GameSocket` is still
+ * checked against this shape when assigned to it.
+ */
+interface HostEmitter {
+  emit<E extends HostEvent>(event: E, payload: ClientPayloads[E], ack: (res: Ack) => void): unknown;
+}
+
+function emitHost<E extends HostEvent>(
+  socket: HostEmitter,
+  event: E,
+  payload: ClientPayloads[E],
+  ack: (res: Ack) => void,
+): void {
+  socket.emit(event, payload, ack);
+}
+
 /** A `SendHost` over the page's open socket. With no socket it acks "Not connected". */
 export function useSendHost(socketRef: RefObject<GameSocket | null>): SendHost {
   return useCallback<SendHost>(
     (event, payload, ack) => {
       const socket = socketRef.current;
-      // Socket.IO's emit can't narrow a generic event name, so widen it to the one event's shape.
-      const emit = socket?.emit.bind(socket) as
-        ((e: typeof event, p: typeof payload, a: typeof ack) => void) | undefined;
-      if (emit) emit(event, payload, ack);
+      if (socket) emitHost(socket, event, payload, ack);
       else ack({ ok: false, error: NOT_CONNECTED_ERROR });
     },
     [socketRef],
