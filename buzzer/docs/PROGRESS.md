@@ -10,6 +10,58 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F38 — Screen lobby fit (2026-10-28)
+**What changed:**
+- **Pair host phone** opens a dialog instead of growing the lobby:
+  - It is a portal on `body` with `role="dialog"` and `aria-modal`. It holds a large QR (`min(58vh, 45vw)` on the Screen), "Hides in N s" and Hide (with an Esc hint on fine pointers).
+  - It closes on Hide, Esc, the 60 s deadline, or a host joining. Hide takes focus and Tab stays on it. Focus returns on close. Esc is caught in the capture phase, so the page behind it never sees that press.
+  - The remote uses the same dialog (qr `min(70vw, 20rem)`).
+- Host joined, end to end:
+  - New server→client event `host:paired` (empty payload). `host:join` sends it to the Screen and host rooms with `socket.to(...)`, so the joiner never gets it, and a refused token sends nothing.
+  - `roomStore.hostJoins` counts it. `PairHostPhone` records the count when it opens and closes when the count moves.
+- Lobby fit:
+  - New `client/src/lib/useShrinkToFit.ts`. The chip list (`flex-1 min-h-0`) takes the column's leftover height. The hook binary-searches the list's font size, from the old 2.44 / 1.56 cqw down to a floor of 8 px, until the chips fit. It refits on resize (ResizeObserver), on `document.fonts.ready` and on a change of names. Chip padding and gap are now in `em`.
+  - Past 20 players: room code `clamp(3rem, 12cqw, 24vh)`, join QR `min(30vh, 22cqw)`.
+  - **Pair host phone** moved under the join QR. The lobby has `pb-[2vh]` above the strip.
+- `HostSettings` takes `compact`, and the Screen's Game setup panel uses it. The remote's rows are unchanged.
+- Tests:
+  - New `PairHostPhone.test.tsx` (6): the dialog, focus and Tab, Esc not reaching the page, a host join, a join while closed, and the deadline.
+  - New `useShrinkToFit.test.tsx` (5): full size, shrink to half a pixel, the floor, refit on content change and on resize. Layout is faked, because jsdom has none.
+  - `Screen.test.tsx`: the pairing block was rewritten for the dialog (8 tests). It adds a dialog over the lobby, Esc not starting the game, a `host:paired` close, and Space starting the game with the dialog open.
+  - `sockets.test.ts` +2: who gets `host:paired`, and none on a wrong token.
+  - `HostControls.test.tsx` +1: compact and regular sizes.
+  - 1033 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-10-28 for F38 cover:
+- the `host:paired` event and who receives it
+- a reconnecting remote also closing the QR
+- the remote getting the dialog
+- the dialog's focus, Esc and shortcuts behind it
+- how the chips are fitted, and the many-player header
+- the compact sizes
+
+**Notes for next session:**
+- Measured with Playwright, 50 players (my own script plus `/playtest`). Every chip's bottom was at or above the list bottom and the strip top:
+  - Plain Screen, short names, with the localhost note: chip font 19.0 / 13.2 / 12.7 px at 1920×1080 / 1366×768 / 1280×720. 0 hidden.
+  - Hosting Screen, short names: 17.3 / 12.2 / 11.4 px. 0 hidden.
+  - Long names (`Bartholomew 01`…) on the LAN URL: 0 hidden at all six combinations. The tightest was the hosting Screen at 1280×720, with the last chip at 590 against the list bottom at 591.
+  - The ~5 px chip/footer overlap is gone. The list now ends 22 px (1920×1080) above the strip.
+  - Game setup at 1280×720: `scrollHeight` 555 = `clientHeight` 555, so all four rows and Start game show without scrolling.
+- `/playtest` F38: 7 of 7 steps passed.
+  - The dialog closed when a second tab opened the pairing URL.
+  - Esc left the room in LOBBY, and Space went to "Question 1 of 10".
+  - The chip-list box was identical before and during the dialog.
+  - The remote's Settings tab at 375 px looked normal.
+  - The 60 s close was checked only by unit tests.
+- At 1280×720 with long names and the panel, the chips are about 10 px. They fit, but they are hard to read from 5 m. Only a full room on a 720p Screen gets that small.
+- The other Screen shortcuts (C, X, N…) still act behind the dialog. In LOBBY that only matters for S, F, H and ?.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://<LAN-IP>:5173/sets` → **Host this set** → **Use this device as the Screen**. Add bots from `/dev/bots/<CODE>` (up to 50).
+2. Resize the window to 1280×720: every chip stays above the bottom strip, and Game setup shows all its rows and Start game.
+3. Click **Pair host phone**: a dialog with a big QR. Esc or Hide closes it. Open it again and scan it with a phone: it closes as the phone joins.
+4. Press Space: the game starts.
+
 ## F37 — Settings in the Screen lobby (2026-10-28)
 **What changed:**
 - On a Screen whose hostToken the server accepted, the lobby has a "Game setup" panel on the right:

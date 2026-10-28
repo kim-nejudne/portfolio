@@ -100,15 +100,7 @@ Kim's request of 2026-10-28: the host can let players buzz as soon as a question
 
 Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by area. The choices are in DECISIONS rows dated 2026-10-28 marked "backlog plan". Proposed spec wording is in DECISIONS, Proposed spec changes (backlog). The old "deploy workflow" item was already done (`deploy-buzzer.yml`) and became the CI job in F46.
 
-- [ ] F38 Screen lobby fit
-  - Spec: UI spec by view (Screen view: Lobby; Screen host controls)
-  - Depends: F37
-  - Done when:
-    - **Pair host phone** opens a dialog over the lobby (`role="dialog"`, `aria-modal`) with a large QR, the "Hides in N s" countdown and Hide. It closes on Hide, Esc, the 60 s TTL, or when a host joins. The lobby column no longer shrinks when pairing
-    - With 50 players, every chip is visible above the bottom strip at 1920×1080, 1366×768 and 1280×720, with and without the Game setup panel; the ~5 px chip/footer overlap at 1920×1080 is gone
-    - `HostSettings` takes a `compact` prop. The Screen lobby uses it, and every settings row plus Start game fits without scrolling at 1280×720. The remote's Settings tab is unchanged
-    - Space still starts the game; Esc closes the dialog without starting it
-  - Tests: `PairHostPhone` and `Screen.test.tsx` (dialog opens, closes on Esc and Hide, closes on host join); `HostSettings` compact render; `/playtest` at the three sizes with 50 fake players
+- [x] F38 Screen lobby fit
 
 - [ ] F39 Buzz eligibility and monotonic window
   - Spec: Buzzer fairness and timing; UI spec by view (Player view); Data model (`PlayerView`, `Room`); see DECISIONS, Proposed spec changes (backlog: late joiner)

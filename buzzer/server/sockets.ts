@@ -238,6 +238,8 @@ export function attachSockets(
       socket.data = { ...socket.data, code, role: 'host', canHost: true };
       void socket.join([anyRoom(code), hostRoom(code)]);
       socket.emit('state', toView(touch(room), 'host'));
+      // The pairing QR has done its job: every other device showing it closes it (F38).
+      socket.to([screenRoom(code), hostRoom(code)]).emit('host:paired', {});
       return { ok: true };
     });
 

@@ -250,6 +250,8 @@ export interface ServerToClientEvents {
   pong: (payload: { t: number }, ack: () => void) => void;
   fx: (fx: Fx) => void;
   kicked: (payload: Record<string, never>) => void;
+  /** A host device joined: the Screen and the other remotes close their pairing QR (F38). */
+  'host:paired': (payload: Record<string, never>) => void;
   'room:closed': (payload: { reason: string }) => void;
 }
 

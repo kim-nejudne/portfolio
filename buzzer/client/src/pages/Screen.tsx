@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   GAME_ENDED_ERROR,
@@ -31,6 +31,7 @@ import {
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
+import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 
 interface ScreenProps {
   /** Tests pass a fake socket. */
@@ -167,6 +168,14 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   );
 }
 
+/** Past this many players, the lobby makes room for more chips. */
+const MANY_PLAYERS = 20;
+/** Chip text as a share of the lobby column's width: 2.44 cqw and 1.56 cqw before F38. */
+const CHIP_MAX_FEW = 0.0244;
+const CHIP_MAX_MANY = 0.0156;
+/** Only long names in a full room at 1280×720 beside Game setup come near it (F38). */
+const CHIP_MIN_PX = 8;
+
 interface LobbyProps {
   view: ScreenView;
   url: string;
@@ -177,8 +186,11 @@ interface LobbyProps {
 }
 
 function Lobby({ view, url, hostToken, command }: LobbyProps) {
+  // A full room gives the chips more height: a smaller (still huge) code and join QR.
+  const many = view.players.length > MANY_PLAYERS;
+  const qrSize = many ? 'min(30vh, 22cqw)' : 'min(36vh, 28cqw)';
   return (
-    <div className="flex min-h-0 flex-1 gap-[3vw] px-[5vw] pt-[5vh]">
+    <div className="flex min-h-0 flex-1 gap-[3vw] px-[5vw] pt-[5vh] pb-[2vh]">
       {/* A size container: without the panel it is 90vw wide, so N vw is written N / 0.9 cqw and
           nothing changes; beside the panel everything shrinks with it instead of wrapping. */}
       <div className="@container flex min-w-0 flex-1 flex-col gap-[3vh]">
@@ -188,7 +200,9 @@ function Lobby({ view, url, hostToken, command }: LobbyProps) {
             <p className="text-[2.89cqw]">Join at</p>
             <p className="font-display text-[3.56cqw] break-all text-accent">{displayUrl(url)}</p>
             <p className="mt-[2vh] text-[2.44cqw] text-muted">Room code</p>
-            <h1 className="font-display text-[clamp(4rem,16.67cqw,32vh)] leading-none tracking-[0.12em]">
+            <h1
+              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)]'} leading-none tracking-[0.12em]`}
+            >
               {view.code}
             </h1>
             {isLoopbackHost(window.location.hostname) && (
@@ -197,22 +211,26 @@ function Lobby({ view, url, hostToken, command }: LobbyProps) {
                 instead.
               </p>
             )}
+          </div>
+          {/* Pair host phone sits under the join QR, where the column has height to spare (F38). */}
+          <div className="flex shrink-0 flex-col items-center gap-[2vh]">
+            <div className="rounded-[2vh] bg-white p-[2vh]">
+              <QRCodeSVG
+                value={url}
+                title={`Join at ${url}`}
+                marginSize={0}
+                style={{ width: qrSize, height: qrSize }}
+              />
+            </div>
             {hostToken && (
               <PairHostPhone
                 code={view.code}
                 hostToken={hostToken}
-                className="mt-[2vh] text-[1.78cqw]"
-                qrSize="22vh"
+                className="text-[1.78cqw]"
+                dialogClassName="text-[clamp(1rem,1.8vw,3.2vh)]"
+                qrSize="min(58vh, 45vw)"
               />
             )}
-          </div>
-          <div className="shrink-0 rounded-[2vh] bg-white p-[2vh]">
-            <QRCodeSVG
-              value={url}
-              title={`Join at ${url}`}
-              marginSize={0}
-              style={{ width: 'min(36vh, 28cqw)', height: 'min(36vh, 28cqw)' }}
-            />
           </div>
         </div>
         <PlayerChips players={view.players} />
@@ -241,28 +259,38 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
           Space
         </kbd>
       </button>
-      <HostSettings view={view} command={command} />
+      <HostSettings view={view} command={command} compact />
     </aside>
   );
 }
 
 function PlayerChips({ players }: { players: RankedPlayer[] }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  // Smaller chips past 20 players, and smaller still if the room's names would not fit: nobody can
+  // scroll a TV, so every chip must stay above the bottom strip (F38).
+  useShrinkToFit(
+    listRef,
+    players.length > MANY_PLAYERS ? CHIP_MAX_MANY : CHIP_MAX_FEW,
+    CHIP_MIN_PX,
+    players.map((player) => player.name).join('\n'),
+  );
   if (players.length === 0) {
     return <p className="text-[2.67cqw] text-muted">Waiting for players…</p>;
   }
-  // Smaller chips past 20 players, so a full room of 50 still fits above the bottom strip.
-  const chipText = players.length > 20 ? 'text-[1.56cqw]' : 'text-[2.44cqw]';
   return (
-    <section aria-label="Players" className="flex min-h-0 flex-col gap-[2vh]">
+    <section aria-label="Players" className="flex min-h-0 flex-1 flex-col gap-[2vh]">
       <p className="text-[2.44cqw] text-muted">
         {players.length} {players.length === 1 ? 'player' : 'players'}
       </p>
-      <ul className="flex flex-wrap content-start gap-[1.33cqw] overflow-hidden">
+      <ul
+        ref={listRef}
+        className="flex min-h-0 flex-1 flex-wrap content-start gap-[0.45em] overflow-hidden"
+      >
         {players.map((player) => (
           <li
             key={player.id}
             style={{ backgroundColor: player.color }}
-            className={`rounded-full px-[1.78cqw] py-[0.8vh] font-display text-bg motion-safe:animate-pop-in ${chipText} ${player.connected ? '' : 'opacity-40'}`}
+            className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg motion-safe:animate-pop-in ${player.connected ? '' : 'opacity-40'}`}
           >
             {player.name}
           </li>

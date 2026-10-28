@@ -319,4 +319,23 @@ describe('HostSettings', () => {
     rerender(hostView({ settings: { ...DEFAULT_SETTINGS, scoreboardEvery: 6 } }));
     expect(every().textContent).toBe('6');
   });
+  it('compact (the Screen lobby) keeps every control and value in tighter rows; the remote keeps its size', () => {
+    const send = vi.fn<SendHost>();
+    const view = hostView({ settings: { ...DEFAULT_SETTINGS, answerSeconds: 5 } });
+    function Compact() {
+      return <HostSettings view={view} command={useHostCommand(view, send, vi.fn())} compact />;
+    }
+    render(<Compact />);
+    expect(toggle(/^Wrong-answer penalty/)).toBeTruthy();
+    expect(toggle(/^Auto-open buzzers/)).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Answer time' }).textContent).toBe('5 s');
+    expect(every().textContent).toBe('5');
+    expect(button('More answer time').className).toContain('size-9');
+    expect(toggle(/^Auto-open buzzers/).className).toContain('py-2');
+    cleanup();
+
+    setup(HostSettings, view);
+    expect(button('More answer time').className).toContain('size-12');
+    expect(toggle(/^Auto-open buzzers/).className).toContain('p-4');
+  });
 });

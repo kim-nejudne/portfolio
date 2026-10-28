@@ -19,10 +19,10 @@ export type AttachSocket = (socket: GameSocket) => () => void;
 
 /**
  * Keeps one socket to `code` open while the page is mounted. It joins on every connect, so an
- * automatic reconnect rejoins, and writes each `state` snapshot and `fx` event into the room
- * store. A `kicked` event becomes the `PLAYER_KICKED_ERROR` error, the same one a rejoin after a
- * kick gets; the server disconnects the socket
- * right after, and Socket.IO does not reconnect after that (DECISIONS F21). The returned
+ * automatic reconnect rejoins, writes each `state` snapshot and `fx` event into the room store,
+ * and counts `host:paired` events in `hostJoins` (F38). A `kicked` event becomes the
+ * `PLAYER_KICKED_ERROR` error, the same one a rejoin after a kick gets; the server disconnects the
+ * socket right after, and Socket.IO does not reconnect after that (DECISIONS F21). The returned
  * ref holds the open socket, for event handlers that send actions; it is null while unmounted.
  * `attach` must be stable: a new one opens a new socket.
  *
@@ -66,6 +66,9 @@ export function useRoomSocket(
       useRoomStore.setState((state) => ({ fx: { fx, seq: (state.fx?.seq ?? 0) + 1 } })),
     );
     socket.on('kicked', () => useRoomStore.setState({ error: PLAYER_KICKED_ERROR }));
+    socket.on('host:paired', () =>
+      useRoomStore.setState((state) => ({ hostJoins: state.hostJoins + 1 })),
+    );
     socket.on('room:closed', () => useRoomStore.setState({ error: GAME_ENDED_ERROR }));
     socket.on('connect', () => {
       clearTimeout(offlineTimer);

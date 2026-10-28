@@ -173,6 +173,40 @@ describe('socket gateway: joins', () => {
     });
     expect(states).toEqual([]);
   });
+
+  it('tells the Screen and the other remotes, not players or the joiner, that a host joined', async () => {
+    const h = await start();
+    const screen = await h.connect();
+    const remote = await h.connect();
+    const player = await h.connect();
+    const joiner = await h.connect();
+    await screenJoin(screen, TOKEN);
+    await hostJoin(remote);
+    await playerJoin(player, 'p1');
+    const paired: string[] = [];
+    for (const [name, c] of Object.entries({ screen, remote, player, joiner })) {
+      c.on('host:paired', () => paired.push(name));
+    }
+    const screenPaired = new Promise((resolve) => screen.once('host:paired', resolve));
+    const remotePaired = new Promise((resolve) => remote.once('host:paired', resolve));
+
+    expect(await hostJoin(joiner)).toEqual({ ok: true });
+    await Promise.all([screenPaired, remotePaired]);
+    // The server sends to everyone before it acks, so a round trip flushes anything still on its way.
+    await player.emitWithAck('ping', { t: 0 });
+    expect(paired.sort()).toEqual(['remote', 'screen']);
+  });
+
+  it('sends no host:paired for a host:join with a wrong token', async () => {
+    const h = await start();
+    const screen = await h.connect();
+    await screenJoin(screen);
+    let paired = 0;
+    screen.on('host:paired', () => paired++);
+    await hostJoin(await h.connect(), generateHostToken());
+    await screen.emitWithAck('ping', { t: 0 });
+    expect(paired).toBe(0);
+  });
 });
 
 describe('socket gateway: validation and limits', () => {

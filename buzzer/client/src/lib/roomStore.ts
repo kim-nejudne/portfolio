@@ -22,6 +22,8 @@ export interface RoomState {
   /** The latest `fx`, for sounds and animations. Null until one arrives. */
   fx: FxEvent | null;
   connection: Connection;
+  /** Counts `host:paired` events: a change means another host device just joined (F38). */
+  hostJoins: number;
 }
 
 export const useRoomStore = create<RoomState>()(() => ({
@@ -29,8 +31,15 @@ export const useRoomStore = create<RoomState>()(() => ({
   error: null,
   fx: null,
   connection: 'connecting',
+  hostJoins: 0,
 }));
 
 export function resetRoomStore(): void {
-  useRoomStore.setState({ view: null, error: null, fx: null, connection: 'connecting' });
+  useRoomStore.setState({
+    view: null,
+    error: null,
+    fx: null,
+    connection: 'connecting',
+    hostJoins: 0,
+  });
 }

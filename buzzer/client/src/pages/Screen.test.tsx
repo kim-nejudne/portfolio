@@ -246,12 +246,18 @@ describe('Screen', () => {
 
   describe('Pair host phone', () => {
     const hostToken = 'h'.repeat(43);
+    const dialog = () => screen.queryByRole('dialog', { name: 'Pair host phone' });
+    const openPairing = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
+    const hostEvents = (socket: FakeSocket) =>
+      socket.emitted.filter((e) => e.event.startsWith('host:')).map((e) => e.event);
 
-    function lobbyWithToken() {
+    function lobbyWithToken(players: RankedPlayer[] = []) {
       saveHostToken('WXYZ', hostToken);
       const { socket } = renderScreen();
       act(() => socket.emitted[0]!.ack({ ok: true }));
-      socket.fire('state', lobbyView());
+      socket.fire('state', lobbyView(players));
+      return socket;
     }
 
     it('is offered only on a Screen that holds the hostToken', () => {
@@ -264,29 +270,35 @@ describe('Screen', () => {
       expect(screen.getByRole('button', { name: 'Pair host phone' })).toBeTruthy();
     });
 
-    it('shows a QR to /host/<CODE>#t=<hostToken>', () => {
-      lobbyWithToken();
-      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
-      const pairing = screen.getByRole('region', { name: 'Pair host phone' });
+    it('opens a modal dialog over the lobby with a QR to /host/<CODE>#t=<hostToken>', () => {
+      lobbyWithToken([player(1), player(2)]);
+      openPairing();
+      const pairing = dialog()!;
+      expect(pairing.getAttribute('aria-modal')).toBe('true');
       expect(within(pairing).getByTestId('qr').dataset.value).toBe(
         `${window.location.origin}/host/WXYZ#t=${hostToken}`,
       );
+      expect(within(pairing).getByText('Hides in 60 s')).toBeTruthy();
       // The token is only inside the QR, never printed as text.
       expect(pairing.textContent).not.toContain(hostToken);
+      // Over the lobby, not inside it: the code, the join QR and the chips are all still there.
+      expect(within(screen.getByRole('main')).queryByRole('dialog')).toBeNull();
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('WXYZ');
+      expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+        'Player 1',
+        'Player 2',
+      ]);
     });
 
     it('hides the QR after 60 seconds', () => {
       vi.useFakeTimers();
       lobbyWithToken();
-      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
-      expect(screen.getByText('Hides in 60 s')).toBeTruthy();
-
+      openPairing();
       act(() => vi.advanceTimersByTime(59_000));
-      expect(screen.getByRole('region', { name: 'Pair host phone' })).toBeTruthy();
-      expect(screen.getByText('Hides in 1 s')).toBeTruthy();
+      expect(within(dialog()!).getByText('Hides in 1 s')).toBeTruthy();
 
       act(() => vi.advanceTimersByTime(1_000));
-      expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
+      expect(dialog()).toBeNull();
       for (const qr of screen.getAllByTestId('qr')) expect(qr.dataset.value).not.toContain('#t=');
       expect(screen.getByRole('button', { name: 'Pair host phone' })).toBeTruthy();
     });
@@ -294,18 +306,45 @@ describe('Screen', () => {
     it('hides the QR on time even when the browser throttles its timer', () => {
       vi.useFakeTimers();
       lobbyWithToken();
-      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
+      openPairing();
       // A background tab: 60 s pass on the clock, but the timer fires only once.
       vi.setSystemTime(Date.now() + 60_000);
       act(() => vi.advanceTimersByTime(1_000));
-      expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
+      expect(dialog()).toBeNull();
     });
 
-    it('Hide removes the QR early', () => {
+    it('Hide closes the dialog early', () => {
       lobbyWithToken();
-      fireEvent.click(screen.getByRole('button', { name: 'Pair host phone' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
-      expect(screen.queryByRole('region', { name: 'Pair host phone' })).toBeNull();
+      openPairing();
+      fireEvent.click(within(dialog()!).getByRole('button', { name: 'Hide' }));
+      expect(dialog()).toBeNull();
+    });
+
+    it('Esc closes the dialog without starting the game', () => {
+      const socket = lobbyWithToken([player(1)]);
+      openPairing();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(dialog()).toBeNull();
+      expect(hostEvents(socket)).toEqual([]);
+    });
+
+    it('closes as soon as a host phone joins', () => {
+      const socket = lobbyWithToken();
+      openPairing();
+      socket.fire('host:paired', {});
+      expect(dialog()).toBeNull();
+      // Opening it again works, and the next join closes it again.
+      openPairing();
+      expect(dialog()).not.toBeNull();
+      socket.fire('host:paired', {});
+      expect(dialog()).toBeNull();
+    });
+
+    it('Space still starts the game with the dialog open', () => {
+      const socket = lobbyWithToken([player(1)]);
+      openPairing();
+      fireEvent.keyDown(window, { key: ' ' });
+      expect(hostEvents(socket)).toEqual(['host:start']);
     });
   });
 

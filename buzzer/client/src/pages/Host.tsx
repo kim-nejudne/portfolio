@@ -189,8 +189,9 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
               <PairHostPhone
                 code={view.code}
                 hostToken={hostToken}
-                className="text-lg"
-                qrSize="200px"
+                className="self-start text-lg"
+                dialogClassName="text-lg"
+                qrSize="min(70vw, 20rem)"
               />
             )}
           </>
