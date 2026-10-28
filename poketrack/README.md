@@ -23,7 +23,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 JWT_SECRET=$(openssl rand -base64 48) .venv/bin/uvicorn server:app --port 8001
 
 # frontend
-cd frontend && npm install && npm start
+cd frontend && npx yarn@1.22.22 install --frozen-lockfile && npx yarn@1.22.22 start
 ```
 
 The API refuses to start without a `JWT_SECRET` of at least 32 characters. That

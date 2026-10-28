@@ -24,11 +24,11 @@
 # content lint that proves every exercise solvable. It gets its own job rather
 # than a matrix row, because none of the matrix's steps would be the right ones.
 #
-# `poketrack/frontend` carries **both** a `package-lock.json` and a `yarn.lock`,
-# and the yarn one is authoritative: `resolutions` is a yarn field that npm
-# ignores outright, so `npm ci` there installs a different dependency graph than
-# anybody has ever run. That is why one row of the matrix uses a different
-# package manager, and it is not an inconsistency to tidy up.
+# `poketrack/frontend` is Yarn 1 (`packageManager: yarn@1.22.22`) and has only a
+# `yarn.lock`: `resolutions` is a yarn field that npm ignores outright, so an npm
+# install there would build a different dependency graph than anybody has ever
+# run. Its stray `package-lock.json` was deleted for that reason. That is why one
+# row of the matrix uses a different package manager.
 #
 # ## What is deliberately not here
 #
@@ -73,9 +73,7 @@ jobs:
         with:
           node-version: 22
           cache: ${{ matrix.manager }}
-          cache-dependency-path: |
-            ${{ matrix.dir }}/package-lock.json
-            ${{ matrix.dir }}/yarn.lock
+          cache-dependency-path: ${{ matrix.dir }}/yarn.lock
 
       - name: install
         working-directory: ${{ matrix.dir }}

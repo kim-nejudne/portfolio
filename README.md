@@ -56,7 +56,7 @@ Each project builds from its own directory:
 
 ```
 cd hub && npm ci && npm run build
-cd poketrack/frontend && npm ci && npm run build   # Python API under backend/
+cd poketrack/frontend && npx yarn@1.22.22 install --frozen-lockfile && npx yarn@1.22.22 build   # Python API under backend/
 cd ts-dojo && pnpm install --frozen-lockfile && pnpm build
 cd buzzer && npm ci && npm run build                # client and server
 ```
