@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { QuestionSet, ScreenView } from '../../../shared/types.js';
 import { previewView } from '../lib/setEditor.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
-const barButton =
-  'rounded-xl border-2 border-edge px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40';
+const barButtonShape =
+  'rounded-xl border-2 px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40';
+const barButton = `${barButtonShape} border-edge`;
 
 interface QuestionPreviewProps {
   set: QuestionSet;
@@ -17,14 +18,23 @@ interface QuestionPreviewProps {
 /**
  * **Preview** (Set editor): question `index` over the whole window, drawn by the Screen's own
  * `ScreenQuestion` from a view without the answer. On a laptop it looks as it will on the TV.
- * Escape closes it; ← and → step through the set.
+ * **Show answer** (or `A`) switches to the Screen's reveal; stepping to another question or
+ * closing turns it off. Escape closes it; ← and → step through the set.
  */
 export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPreviewProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
-  const view = previewView(set, index);
+  const [answerOn, setAnswerOn] = useState(false);
+  const hasAnswer = (set.questions[index]?.answer.trim() ?? '') !== '';
+  const showAnswer = answerOn && hasAnswer;
+  const view = previewView(set, index, showAnswer);
   const imageSrc = useStoredImageUrl(view.question?.imageId);
   const isFirst = index === 0;
   const isLast = index === set.questions.length - 1;
+
+  const step = (to: number) => {
+    setAnswerOn(false);
+    onIndex(to);
+  };
 
   // Focus moves into the preview, and back to whatever opened it on close. The editor behind stops
   // scrolling, so its scrollbar does not narrow the preview's viewport units.
@@ -39,15 +49,20 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
     };
   }, []);
 
+  const onKey = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === 'Escape') onClose();
+    else if (event.key === 'ArrowLeft' && !isFirst) step(index - 1);
+    else if (event.key === 'ArrowRight' && !isLast) step(index + 1);
+    else if (event.key.toLowerCase() === 'a' && hasAnswer) {
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      setAnswerOn((on) => !on);
+    }
+  });
+
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-      else if (event.key === 'ArrowLeft' && !isFirst) onIndex(index - 1);
-      else if (event.key === 'ArrowRight' && !isLast) onIndex(index + 1);
-    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index, isFirst, isLast, onClose, onIndex]);
+  }, []);
 
   return (
     <div
@@ -62,7 +77,18 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => onIndex(index - 1)}
+            aria-pressed={showAnswer}
+            onClick={() => setAnswerOn((on) => !on)}
+            disabled={!hasAnswer}
+            className={
+              showAnswer ? `${barButtonShape} border-accent bg-accent/15 text-accent` : barButton
+            }
+          >
+            Show answer
+          </button>
+          <button
+            type="button"
+            onClick={() => step(index - 1)}
             disabled={isFirst}
             className={barButton}
           >
@@ -70,7 +96,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
           </button>
           <button
             type="button"
-            onClick={() => onIndex(index + 1)}
+            onClick={() => step(index + 1)}
             disabled={isLast}
             className={barButton}
           >

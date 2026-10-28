@@ -10,6 +10,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F43 — Preview: show answer (2026-10-28)
+**What changed:**
+- `previewView(set, index, reveal = false)` in `client/src/lib/setEditor.ts`. With `reveal`, the view is phase REVEAL with `question.answer`, `scorerId: null` and no players. Host notes are never copied.
+- `QuestionPreview`: a **Show answer** toggle (`aria-pressed`) first in the bottom bar, also on the `A` key.
+  - On, the preview draws the Screen's own reveal layout (answer card, no scorer chip).
+  - Previous and Next (buttons and ←/→) turn it off. Closing unmounts it, so it is off on the next opening.
+  - A blank answer (after trimming) disables the button, and `A` does nothing.
+  - `A` is ignored on key repeat and with Ctrl, Meta or Alt.
+  - Pressed style: accent border, text and a faint accent tint. The bar's base button class is split so the border colours do not conflict.
+  - The key listener now goes through `useEffectEvent` and subscribes once.
+- Tests:
+  - New `client/src/components/QuestionPreview.test.tsx` (7): starts off, the button shows the reveal (answer, no notes, no scorer) and hides it, the `A` key with case, modifiers and repeat, reset on Previous/Next by button and arrow, arrows at the ends leave it on, reset after close and reopen, and the disabled toggle for a blank answer.
+  - `setEditor.test.ts` +1: the reveal variant.
+  - 1130 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-28 for F43 covers the blank-answer rule, the key filtering, arrows at the ends, and the no-scorer reveal view.
+
+**Notes for next session:**
+- Playtest (Playwright, set editor at 390×844 and 1920×1080), 8 of 8 steps passed: toggle present and `false`, click on, `A` both ways, the reveal layout with "Jupiter" and no scorer chip, reset on Next, reset on Previous, reset on close and reopen, and disabled with `A` inert on a blank answer.
+- The playtest noted the pressed state was clear only from its yellow text: the accent border lost to `border-edge`. Fixed after the playtest (accent border and tint). Not re-screenshotted.
+- The DECISIONS "Proposed spec changes" backlog entry already carries the F43 spec text.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, open a set and tap **Preview** on a question.
+2. Tap **Show answer** or press `A`: the answer appears as at reveal. Press `A` again to hide it.
+3. Turn it on, then press → or **Next →**: the next question opens with the answer hidden. Close and reopen: also hidden.
+4. Clear a question's answer and preview it: **Show answer** is disabled.
+
 ## F42 — Join address and room-check limit (2026-10-28)
 **What changed:**
 - Server:

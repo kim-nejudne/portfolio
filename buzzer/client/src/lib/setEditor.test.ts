@@ -121,6 +121,13 @@ describe('set editor preview', () => {
     expect(json).not.toContain('A a');
     expect(json).not.toContain('Secret notes');
   });
+
+  it('the reveal variant is the Screen at REVEAL: the answer, no notes and no scorer', () => {
+    const view = previewView(set, 0, true);
+    expect(view).toMatchObject({ phase: 'REVEAL', questionIndex: 0, scorerId: null, players: [] });
+    expect(view.question).toEqual({ id: 'a', text: 'Q a', points: 100, answer: 'A a' });
+    expect(JSON.stringify(view)).not.toContain('Secret notes');
+  });
 });
 
 describe('set editor field checks', () => {

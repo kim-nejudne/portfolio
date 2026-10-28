@@ -110,14 +110,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F42 Join address and room-check limit
 
-- [ ] F43 Preview: show answer
-  - Spec: Question editor and images (Set editor); see DECISIONS, Proposed spec changes (backlog: preview answer)
-  - Depends: F37
-  - Done when:
-    - The preview's bottom bar has a "Show answer" toggle (`aria-pressed`), also on the `A` key
-    - On, the preview renders the Screen's REVEAL layout for that question with its answer and no scorer chip
-    - Previous, Next and closing turn it off; a question with no answer shows the toggle disabled
-  - Tests: `QuestionPreview` tests (toggle, `A` key, reset on Previous/Next); `setEditor` `previewView` reveal variant
+- [x] F43 Preview: show answer
 
 - [ ] F44 Favicon and hover states
   - Spec: none (polish)

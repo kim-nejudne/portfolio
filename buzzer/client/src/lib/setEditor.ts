@@ -72,14 +72,15 @@ export function reorderQuestions(
 /**
  * **Preview**: the Screen's view of question `index` just after it is shown, with buzzers locked
  * and nobody in the room. It carries no answer or host notes, as the Screen gets none before reveal.
+ * With `reveal`, it is the Screen's REVEAL view instead: the answer, still no notes, and no scorer.
  */
-export function previewView(set: QuestionSet, index: number): ScreenView {
+export function previewView(set: QuestionSet, index: number, reveal = false): ScreenView {
   const source = set.questions[index];
   return {
     role: 'screen',
     code: '',
     title: set.title,
-    phase: 'QUESTION',
+    phase: reveal ? 'REVEAL' : 'QUESTION',
     questionIndex: index,
     questionCount: set.questions.length,
     openingCounter: 0,
@@ -100,6 +101,7 @@ export function previewView(set: QuestionSet, index: number): ScreenView {
           text: source.text,
           points: source.points,
           ...(source.imageId === undefined ? {} : { imageId: source.imageId }),
+          ...(reveal ? { answer: source.answer } : {}),
         }
       : null,
   };
