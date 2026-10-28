@@ -16,6 +16,7 @@ import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
 import { FX_MS } from '../lib/useRecentFx.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
+import { buttonsWithoutHover } from '../test/hover.js';
 import { Screen } from './Screen.js';
 
 // Records the sounds instead of loading Howler.
@@ -652,6 +653,21 @@ describe('Screen', () => {
       expect(bar()).toBeNull();
       press('H');
       expect(bar()).toBeTruthy();
+    });
+
+    it('every bar button, the shortcuts sheet and Show controls have the hover style', () => {
+      hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+      expect(screen.getByRole('button', { name: 'Undo' })).toHaveProperty('disabled', true);
+      expect(buttonsWithoutHover(bar()!)).toEqual([]);
+      fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' }));
+      expect(
+        buttonsWithoutHover(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })),
+      ).toEqual([]);
+      press('Escape');
+      press('h');
+      fireEvent.pointerMove(window);
+      expect(buttonsWithoutHover()).toEqual([]);
+      expect(screen.getByRole('button', { name: 'Show controls' })).toBeTruthy();
     });
 
     it('Hide controls collapses the bar even while the mouse is on it', () => {

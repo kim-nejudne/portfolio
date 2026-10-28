@@ -10,6 +10,7 @@ import { db, getSet } from '../lib/db.js';
 import { IMAGE_TOO_LARGE, shrinkImage } from '../lib/imagePipeline.js';
 import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
 import { NodeBlob } from '../test/nodeBlob.js';
+import { buttonsWithoutHover } from '../test/hover.js';
 import { SetEditor } from './SetEditor.js';
 
 // jsdom has no canvas to shrink with; the pipeline's own rules are in imagePipeline.test.ts.
@@ -334,6 +335,14 @@ describe('Set editor /sets/:setId', () => {
     expect(screen.getByRole('link', { name: 'Print answer sheet' }).getAttribute('href')).toBe(
       '/sets/set-1/print',
     );
+  });
+
+  it('every editor button and every Preview button has the hover style', async () => {
+    await seed([q('a'), q('b')]);
+    await renderEditor();
+    expect(buttonsWithoutHover()).toEqual([]);
+    fireEvent.click(card(1).getByRole('button', { name: 'Preview question 1' }));
+    expect(buttonsWithoutHover(screen.getByRole('dialog'))).toEqual([]);
   });
 
   it('says so when the set no longer exists', async () => {

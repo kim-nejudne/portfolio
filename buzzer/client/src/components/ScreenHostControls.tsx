@@ -10,6 +10,7 @@ import {
   type HostCommandCall,
 } from '../lib/hostControls.js';
 import { toggleFullscreen } from '../lib/fullscreen.js';
+import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
 
@@ -95,7 +96,7 @@ export function ScreenHostControls({ view, command }: ScreenHostControlsProps) {
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className="absolute right-[2vw] bottom-[1.2vh] rounded-full border-2 border-edge bg-surface px-[1.2vw] py-[0.6vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
+            className={`absolute right-[2vw] bottom-[1.2vh] rounded-full border-2 border-edge bg-surface px-[1.2vw] py-[0.6vh] text-[clamp(0.875rem,1.1vw,1.75rem)] ${HOVER}`}
           >
             Show controls <Kbd>H</Kbd>
           </button>
@@ -194,7 +195,7 @@ function GameButtons({ view, command }: { view: ScreenView; command: HostCommand
   );
 }
 
-const barButton = 'rounded-[0.8vh] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40';
+const barButton = `rounded-[0.8vh] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40 ${HOVER}`;
 
 interface BarButtonProps {
   children: ReactNode;

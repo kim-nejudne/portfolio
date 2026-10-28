@@ -29,6 +29,7 @@ import { ConfirmButton } from '../components/ConfirmButton.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
 import { type SaveStatus, useAutosave } from '../lib/autosave.js';
 import { addImage, deleteImages, getSet, saveSet } from '../lib/db.js';
+import { HOVER } from '../lib/hover.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
 import {
   addQuestion,
@@ -56,8 +57,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   error: "Couldn't save. Your next change will try again.",
 };
 
-const smallButton =
-  'rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40';
+const smallButton = `rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 const field =
   'w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink aria-invalid:border-red-400';
 
@@ -271,7 +271,7 @@ function Editor({ setId }: { setId: string }) {
             type="button"
             onClick={add}
             disabled={!canAdd}
-            className="rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
+            className={`rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
           >
             Add question
           </button>

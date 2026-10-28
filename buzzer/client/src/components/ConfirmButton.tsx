@@ -47,7 +47,8 @@ export function ConfirmButton({
           onConfirm();
         }}
         disabled={disabled}
-        className={`${className} border-red-400 text-red-400`}
+        // `!` keeps the danger red under the hover style's ink border.
+        className={`${className} border-red-400 text-red-400 not-disabled:hover:border-red-400!`}
       >
         {confirmLabel}
       </button>

@@ -4,6 +4,7 @@ import type { QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { RoomCreated } from '../components/RoomCreated.js';
 import { createSet, deleteSet, duplicateSet, getImage, importSet, listSets } from '../lib/db.js';
+import { HOVER } from '../lib/hover.js';
 import { hostSet } from '../lib/hostRoom.js';
 import {
   exportFileName,
@@ -28,8 +29,7 @@ function download(text: string, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-const smallButton =
-  'rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40';
+const smallButton = `rounded-xl border-2 border-edge px-3 py-2 text-base transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /** Set list `/sets`: this browser's saved question sets, last edited first. */
 export function Sets() {
@@ -146,7 +146,7 @@ export function Sets() {
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={busy || sets === null}
-            className="rounded-2xl border-2 border-accent px-5 py-3 font-display text-xl text-accent transition not-disabled:active:scale-95 disabled:opacity-40"
+            className={`rounded-2xl border-2 border-accent px-5 py-3 font-display text-xl text-accent transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
           >
             Import JSON
           </button>
@@ -162,7 +162,7 @@ export function Sets() {
             type="button"
             onClick={() => void newSet()}
             disabled={busy || sets === null}
-            className="rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40"
+            className={`rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
           >
             New set
           </button>

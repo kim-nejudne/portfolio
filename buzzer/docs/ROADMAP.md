@@ -112,13 +112,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F43 Preview: show answer
 
-- [ ] F44 Favicon and hover states
-  - Spec: none (polish)
-  - Depends: F37
-  - Done when:
-    - `client/public/favicon.svg` (a round BUZZ-red button on a dark base, colours from `shared/constants.ts`) is linked from `client/index.html`; no `/favicon.ico` 404 in the browser console on any page
-    - Every enabled button on the Screen host bar, Sets and SetEditor has a hover style (`not-disabled:hover:border-ink` plus a faint background tint); disabled buttons have none; touch devices are unaffected
-  - Tests: an `index.html` check that the icon link exists; `/playtest`: console has no 404, hover screenshot of the host bar and Sets
+- [x] F44 Favicon and hover states
 
 - [ ] F45 Socket test harness and typed host emit
   - Spec: none (code health)
@@ -142,4 +136,5 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 ## Backlog (not scheduled)
 
+- Hover on the Screen lobby controls: Pair host phone, the side-panel Start game, the settings switches and steppers have no hover style (F44 covered the host bar only). Add `HOVER` from `client/src/lib/hover.ts`.
 - Pairing QR uses `joinOrigin` too: a Screen on localhost hands a phone an unreachable `/host/:code` link (F42). Pass the join origin to `PairHostPhone`.

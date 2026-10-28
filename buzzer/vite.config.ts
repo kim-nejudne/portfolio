@@ -27,5 +27,7 @@ export default defineConfig({
     root: fileURLToPath(new URL('.', import.meta.url)),
     include: ['{client,server,shared}/**/*.test.{ts,tsx}'],
     environment: 'node',
+    // Vitest blanks CSS by default; let `?raw` imports through (the favicon test reads the theme tokens).
+    css: { include: [/\.css\?raw$/] },
   },
 });

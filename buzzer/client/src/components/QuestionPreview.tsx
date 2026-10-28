@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { QuestionSet, ScreenView } from '../../../shared/types.js';
+import { HOVER } from '../lib/hover.js';
 import { previewView } from '../lib/setEditor.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
-const barButtonShape =
-  'rounded-xl border-2 px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40';
+const barButtonShape = `rounded-xl border-2 px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 const barButton = `${barButtonShape} border-edge`;
 
 interface QuestionPreviewProps {
@@ -106,7 +106,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-accent px-4 py-2 text-lg text-accent-ink transition not-disabled:active:scale-95"
+            className={`rounded-xl bg-accent px-4 py-2 text-lg text-accent-ink transition not-disabled:active:scale-95 ${HOVER}`}
           >
             Close
           </button>

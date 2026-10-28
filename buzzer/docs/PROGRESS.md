@@ -10,6 +10,40 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F44 — Favicon and hover states (2026-10-28)
+**What changed:**
+- `client/public/favicon.svg`: a round buzz-red button (`--color-buzz` fill, `--color-buzz-edge` rim, a soft highlight) on a rounded `--color-bg` square. `client/index.html` links it with `rel="icon" type="image/svg+xml"`.
+- Hover:
+  - `@utility hover-tint` in `index.css`: an 8% ink wash as `background-image`, so solid buttons keep their colour.
+  - New `client/src/lib/hover.ts`: `HOVER = 'not-disabled:hover:border-ink not-disabled:hover:hover-tint'`.
+  - Added to the Screen host bar (`barButton`, the shortcuts sheet's Close, the Show controls pill), Sets (`smallButton`, Import JSON, New set, Room created's two buttons) and SetEditor (`smallButton`, Add question, the Preview bar).
+  - `ConfirmButton`'s armed button keeps its red border under hover (`not-disabled:hover:border-red-400!`).
+- `vite.config.ts`: `test.css.include` lets `*.css?raw` imports through (Vitest blanked them).
+- Tests:
+  - New `client/src/favicon.test.ts` (2): the icon link, and the SVG colours equal the `index.css` tokens.
+  - New `client/src/test/hover.ts`: `buttonsWithoutHover(root)`.
+  - `Screen.test.tsx` +1 (bar with Correct/Wrong and a disabled Undo, the shortcuts sheet, Show controls), `Sets.test.tsx` +1 (list and Room created), `SetEditor.test.tsx` +1 (editor and Preview). Removing `HOVER` from `barButton` fails the Screen test.
+  - 1135 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-28 for F44 cover:
+- favicon colours from the `index.css` theme tokens, not `shared/constants.ts` (which has only the player palette)
+- the tint as an image layer
+- the extra buttons covered (Room created, Preview, shortcuts sheet, Show controls) and the armed Confirm's red
+- the Vitest `?raw` CSS setting
+
+**Notes for next session:**
+- The tests check class strings only. That the classes compile was checked by hand in `dist/client/assets/*.css`: both rules are `:not(:disabled):hover` inside `@media (hover:hover)`, and `favicon.svg` is copied into `dist/client`.
+- Playtest (Playwright, Screen at 1920×1080, 7 of 7 steps passed):
+  - `/favicon.svg` 200. No console errors on `/`, `/screen/:code`, `/sets` and the SetEditor, and no `/favicon.ico` request (headless Chromium may not fetch icons at all, so that part is weak).
+  - Hover turned the border from `edge` to `ink` and added the tint on every enabled host-bar, Sets and SetEditor button. Start game stayed yellow under the tint. Disabled ↑/↓ and the stepper's "−" did not change.
+  - Touch was not emulated; the `@media (hover:hover)` wrapper is in the built CSS.
+- The Screen lobby's own controls (Pair host phone, side-panel Start game, settings switches and steppers) have no hover yet: Backlog.
+
+**How to try it:** `npm run dev`, then on the laptop with a mouse:
+1. Open `http://localhost:5173/sets`: the tab shows the red buzzer icon. Hover New set, a card's Open or Delete: ink border and a faint tint. Tap Delete, then hover Confirm: the border stays red.
+2. Open a set: hover Add question, Preview, and the Preview bar's buttons. The disabled ↑ on question 1 does not change.
+3. Host the set, use this device as the Screen: hover the host bar's buttons. On a phone, nothing changes on tap.
+
 ## F43 — Preview: show answer (2026-10-28)
 **What changed:**
 - `previewView(set, index, reveal = false)` in `client/src/lib/setEditor.ts`. With `reveal`, the view is phase REVEAL with `question.answer`, `scorerId: null` and no players. Host notes are never copied.

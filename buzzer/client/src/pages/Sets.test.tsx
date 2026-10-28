@@ -11,6 +11,7 @@ import { loadHostToken } from '../lib/hostTokens.js';
 import { IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
 import { formatEdited } from '../lib/setLabels.js';
 import { NodeBlob } from '../test/nodeBlob.js';
+import { buttonsWithoutHover } from '../test/hover.js';
 import { Sets } from './Sets.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
@@ -137,6 +138,18 @@ describe('Set list /sets', () => {
       set: { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT },
       settings: DEFAULT_SETTINGS,
     });
+  });
+
+  it('every button on the list and on Room created has the hover style', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 })),
+    );
+    renderSets();
+    const sample = await card(SAMPLE_SET.title);
+    expect(buttonsWithoutHover()).toEqual([]);
+    fireEvent.click(sample.getByRole('button', { name: 'Host this set' }));
+    await screen.findByRole('heading', { name: 'Room created' });
+    expect(buttonsWithoutHover()).toEqual([]);
   });
 
   it('Host this set shows the server refusal and keeps the list', async () => {

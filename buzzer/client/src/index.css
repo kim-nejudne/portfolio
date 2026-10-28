@@ -114,3 +114,14 @@
     }
   }
 }
+
+/*
+ * A faint ink wash over whatever background a button has, for mouse hover (F44). It is an image
+ * layer, so the solid Correct, Wrong and accent buttons keep their colour under it.
+ */
+@utility hover-tint {
+  background-image: linear-gradient(
+    color-mix(in oklab, var(--color-ink) 8%, transparent),
+    color-mix(in oklab, var(--color-ink) 8%, transparent)
+  );
+}
