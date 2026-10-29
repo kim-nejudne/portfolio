@@ -74,6 +74,23 @@ export interface UndoPoint {
   winnerId: string;
 }
 
+/** Who a session total belongs to, as last tallied, so a player who left still has a name. */
+export interface SessionPlayer {
+  name: string;
+  color: string;
+  avatar?: string;
+  joinedAt: number;
+}
+
+/** The night's games in this room (F76). Totals add each game's points at FINAL. */
+export interface Session {
+  gameNumber: number; // 1 for the room's first game; `host:newGame` adds 1
+  totals: Record<string, number>; // playerId → points over every finished game
+  // SPEC-QUESTION: players and carried are not in the spec's session; see DECISIONS (F76).
+  players: Record<string, SessionPlayer>; // playerId → identity at their last tally
+  carried: Record<string, number>; // playerId → score brought into this game by Keep scores
+}
+
 /** Seconds the buzz winner has to answer; 0 turns the answer timer off. */
 export type AnswerSeconds = 0 | 3 | 5 | 7 | 10;
 
@@ -130,6 +147,7 @@ export interface Room {
   buzzTimer: BuzzTimer | null; // set in OPEN while the buzz time runs
   autoOpenAt: number | null; // wall-clock ms; set in QUESTION while question 1's title card holds auto-open
   hostDevices: number; // connected host remotes (not a Screen holding the token)
+  session: Session; // the night's games in this room
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -154,6 +172,22 @@ export interface RankedPlayer {
   score: number;
   connected: boolean;
   rank: number;
+}
+
+/** A session total as the Screen and the host remote list it. Equal totals share a rank. */
+export interface RankedTotal {
+  id: string;
+  name: string;
+  color: string;
+  avatar?: string;
+  total: number;
+  rank: number;
+}
+
+/** The night so far: totals of every finished game, players who left included. */
+export interface SessionView {
+  gameNumber: number;
+  totals: RankedTotal[];
 }
 
 /** A question as the Screen sees it. `answer` is present only once that question is revealed. */
@@ -195,6 +229,8 @@ interface SharedRoomView {
   scorerId: string | null;
   answerTimer: AnswerTimerView | null;
   buzzTimer: BuzzTimerView | null;
+  /** Ranked session totals from game 2 on; null during the room's first game (F76). */
+  session: SessionView | null;
 }
 
 /** Everything except answers, host notes and token data. */

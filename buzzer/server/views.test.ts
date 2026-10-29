@@ -617,3 +617,91 @@ describe('toView: answerTimer', () => {
     expect(toView(room, 'player', 'p2').answerTimer).toBeNull();
   });
 });
+
+describe('toView: session', () => {
+  /** Game 2's lobby after Ana 100, Bob 300 and Dee 300 (who left since) finished game 1. */
+  function secondGame(overrides: Partial<Room> = {}): Room {
+    return midGame('LOBBY', {
+      questionIndex: -1,
+      session: {
+        gameNumber: 2,
+        totals: { p1: 100, p2: 300, p4: 300 },
+        players: {
+          p1: { name: 'Ana', color: '#EF4444', avatar: '🦊', joinedAt: T0 + 1 },
+          p2: { name: 'Bob', color: '#EF4444', joinedAt: T0 + 2 },
+          p4: { name: 'Dee', color: '#22C55E', joinedAt: T0 + 4 },
+        },
+        carried: {},
+      },
+      ...overrides,
+    });
+  }
+
+  it('is null on the Screen and the host remote during the first game', () => {
+    const room = midGame('OPEN');
+    expect(toView(room, 'screen').session).toBeNull();
+    expect(toView(room, 'host').session).toBeNull();
+  });
+
+  it('ranks the totals from game 2 on, ties in join order, players who left included', () => {
+    const expected = {
+      gameNumber: 2,
+      totals: [
+        { id: 'p2', name: 'Bob', color: '#EF4444', total: 300, rank: 1 },
+        { id: 'p4', name: 'Dee', color: '#22C55E', total: 300, rank: 1 },
+        { id: 'p1', name: 'Ana', color: '#EF4444', avatar: '🦊', total: 100, rank: 3 },
+      ],
+    };
+    expect(toView(secondGame(), 'screen').session).toEqual(expected);
+    expect(toView(secondGame(), 'host').session).toEqual(expected);
+  });
+
+  it('lists nobody before a game has been tallied', () => {
+    const room = secondGame({ session: { gameNumber: 2, totals: {}, players: {}, carried: {} } });
+    expect(toView(room, 'screen').session).toEqual({ gameNumber: 2, totals: [] });
+  });
+
+  it('leaves out a total with no recorded player rather than failing the view', () => {
+    const room = secondGame();
+    const orphan = {
+      ...room,
+      session: { ...room.session, totals: { ...room.session.totals, p9: 50 } },
+    };
+    expect(toView(orphan, 'screen').session?.totals.map((t) => t.id)).toEqual(['p2', 'p4', 'p1']);
+  });
+
+  it('never reaches the phone, nor sends carried scores anywhere', () => {
+    const room = secondGame();
+    expect(toView(room, 'player', 'p1')).not.toHaveProperty('session');
+    expect(JSON.stringify(toView(room, 'screen'))).not.toContain('carried');
+    expect(JSON.stringify(toView(room, 'host'))).not.toContain('carried');
+  });
+
+  it('shows the night so far at the FINAL of game 3, Keep scores on then off', () => {
+    const act = (room: Room, action: Action): Room => {
+      const result = reduce(room, action, T0);
+      if (!result.ok) throw new Error(result.error);
+      return result.room;
+    };
+    let room = midGame('LOBBY', { questionIndex: -1 });
+    for (const keepScores of [true, false]) {
+      room = act(
+        act(act(room, { type: 'host:start' }), {
+          type: 'host:adjustScore',
+          playerId: 'p3',
+          delta: 50,
+        }),
+        { type: 'host:end' },
+      );
+      room = act(room, { type: 'host:newGame', set: makeSet(), keepScores });
+    }
+    room = act(act(room, { type: 'host:start' }), { type: 'host:end' });
+    const totals = toView(room, 'screen').session?.totals.map((t) => [t.name, t.total, t.rank]);
+    // Game 1: Ana 100, Bob 300, Cy 150. Game 2 adds Cy's 50 only, not what was carried. Game 3: 0.
+    expect(totals).toEqual([
+      ['Bob', 300, 1],
+      ['Cy', 200, 2],
+      ['Ana', 100, 3],
+    ]);
+  });
+});

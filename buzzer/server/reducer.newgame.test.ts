@@ -97,6 +97,7 @@ describe('reduce: host:newGame', () => {
       answerTimer: null,
       buzzTimer: null,
       showScoreboard: false,
+      session: { ...room.session, gameNumber: 2 },
       players: {
         p1: { ...room.players.p1, score: 0 },
         p2: { ...room.players.p2, score: 0 },
@@ -218,5 +219,146 @@ describe('reduce: host:newGame', () => {
       const fresh = ok(act(room, { type: 'windowClosed', questionIndex: 0, openingCounter: 8 }));
       expect(fresh.room.phase).toBe('BUZZED');
     });
+  });
+});
+
+describe('reduce: session totals', () => {
+  /** Applies each step in turn, failing the test on the first rejected one. */
+  function run(room: Room, ...actions: Action[]): Room {
+    return actions.reduce((r, a) => ok(act(r, a)).room, room);
+  }
+
+  const adjust = (playerId: string, delta: number): Action => ({
+    type: 'host:adjustScore',
+    playerId,
+    delta,
+  });
+  const end: Action = { type: 'host:end' };
+
+  /** A first game in its lobby: Ann joined before Ben. */
+  function lobby(): Room {
+    return withPlayers(makeRoom(), [
+      makePlayer('p1', { name: 'Ann', avatar: '🦊', joinedAt: T0 }),
+      makePlayer('p2', { name: 'Ben', color: '#3B82F6', joinedAt: T0 + 1 }),
+    ]);
+  }
+
+  /** Plays a game: the host gives each player `points` during it, then ends it (FINAL). */
+  function game(room: Room, points: Record<string, number>): Room {
+    const started = run(room, { type: 'host:start' });
+    const scored = Object.entries(points).map(([id, delta]) => adjust(id, delta));
+    return run(started, ...scored, end);
+  }
+
+  /** Three games with the same points, Keep scores on or off between them. */
+  function threeGames(keepScores: boolean): Room {
+    let room = game(lobby(), { p1: 300, p2: 100 });
+    room = game(run(room, newGame(keepScores)), { p1: 100, p2: 200 });
+    return game(run(room, newGame(keepScores)), { p1: -50, p2: 0 });
+  }
+
+  it('starts at game 1 with no totals', () => {
+    expect(makeRoom().session).toEqual({ gameNumber: 1, totals: {}, players: {}, carried: {} });
+  });
+
+  it('adds each score once on reaching FINAL after the last question', () => {
+    let room = run(lobby(), { type: 'host:start' }, adjust('p1', 100), adjust('p2', 50));
+    room = run(room, { type: 'host:reveal' }, { type: 'host:next' });
+    room = run(room, { type: 'host:reveal' }, { type: 'host:next' });
+    expect(room.session.totals).toEqual({});
+    room = run(room, { type: 'host:reveal' }, { type: 'host:next' });
+    expect(room.phase).toBe('FINAL');
+    expect(room.session.totals).toEqual({ p1: 100, p2: 50 });
+  });
+
+  it('counts host:end as FINAL, and a second end adds nothing', () => {
+    const room = game(lobby(), { p1: 300, p2: 100 });
+    expect(room.session.totals).toEqual({ p1: 300, p2: 100 });
+    expect(run(room, end).session.totals).toEqual({ p1: 300, p2: 100 });
+  });
+
+  it('records who each total belongs to', () => {
+    expect(game(lobby(), {}).session.players).toEqual({
+      p1: { name: 'Ann', color: '#EF4444', avatar: '🦊', joinedAt: T0 },
+      p2: { name: 'Ben', color: '#3B82F6', joinedAt: T0 + 1 },
+    });
+  });
+
+  it('cannot be undone after FINAL', () => {
+    expect(act(game(lobby(), { p1: 300 }), { type: 'host:undo' })).toEqual({
+      ok: false,
+      error: WRONG_PHASE_ERROR,
+    });
+  });
+
+  it('adds up two games without Keep scores, and numbers the games', () => {
+    const first = game(lobby(), { p1: 300, p2: 100 });
+    const second = run(first, newGame());
+    expect(second.session.gameNumber).toBe(2);
+    expect(second.session.totals).toEqual({ p1: 300, p2: 100 });
+    expect(game(second, { p1: 100, p2: 200 }).session.totals).toEqual({ p1: 400, p2: 300 });
+  });
+
+  it('gives the same totals over three games with Keep scores on and off', () => {
+    const kept = threeGames(true);
+    const reset = threeGames(false);
+    expect(reset.session.gameNumber).toBe(3);
+    expect(reset.session.totals).toEqual({ p1: 350, p2: 300 });
+    expect(kept.session.totals).toEqual(reset.session.totals);
+    // Keep scores still carries the score itself; only the totals ignore what was carried.
+    expect(kept.players.p1!.score).toBe(350);
+    expect(reset.players.p1!.score).toBe(-50);
+  });
+
+  it('leaves the totals as they were when a new game starts, Keep scores on or off', () => {
+    const first = game(lobby(), { p1: 300, p2: 100 });
+    expect(run(first, newGame(true)).session.totals).toEqual(first.session.totals);
+    expect(run(first, newGame(false)).session.totals).toEqual(first.session.totals);
+  });
+
+  it('gives a late joiner the points of the games they played', () => {
+    let room = run(game(lobby(), { p1: 300 }), newGame(true));
+    room = run(room, { type: 'player:join', playerId: 'p3', name: 'Cal' });
+    room = game(room, { p1: 100, p3: 200 });
+    expect(room.session.totals).toEqual({ p1: 400, p2: 0, p3: 200 });
+    expect(room.session.players.p3?.name).toBe('Cal');
+  });
+
+  it('keeps the total and name of a player who leaves or is kicked', () => {
+    let room = run(game(lobby(), { p1: 300, p2: 100 }), newGame());
+    room = run(room, { type: 'player:leave', playerId: 'p1' });
+    room = run(room, { type: 'host:kick', playerId: 'p2' });
+    room = run(room, { type: 'player:join', playerId: 'p3', name: 'Cal' });
+    room = game(room, { p3: 50 });
+    expect(room.session.totals).toEqual({ p1: 300, p2: 100, p3: 50 });
+    expect(room.session.players.p1?.name).toBe('Ann');
+  });
+
+  it('drops the points of a game a player left before its end', () => {
+    let room = run(game(lobby(), { p1: 300 }), newGame());
+    room = run(room, { type: 'host:start' }, adjust('p1', 500));
+    room = run(room, { type: 'player:leave', playerId: 'p1' }, end);
+    expect(room.session.totals.p1).toBe(300);
+  });
+
+  it('takes a new name at the next tally', () => {
+    let room = run(game(lobby(), {}), newGame());
+    room = run(room, { type: 'player:rename', playerId: 'p1', name: 'Annie' });
+    expect(room.session.players.p1?.name).toBe('Ann');
+    expect(game(room, {}).session.players.p1?.name).toBe('Annie');
+  });
+
+  it('keeps totals right when a score corrected in FINAL is carried into the next game', () => {
+    const first = run(game(lobby(), { p1: 300 }), adjust('p1', -100));
+    const second = game(run(first, newGame(true)), { p1: 50 });
+    expect(second.players.p1!.score).toBe(250);
+    expect(second.session.totals.p1).toBe(250);
+  });
+
+  it('follows a score corrected in FINAL, but not one changed before it', () => {
+    const first = game(lobby(), { p1: 300 });
+    expect(run(first, adjust('p1', -100)).session.totals.p1).toBe(200);
+    const lobby2 = run(first, newGame());
+    expect(run(lobby2, adjust('p1', 50)).session.totals.p1).toBe(300);
   });
 });

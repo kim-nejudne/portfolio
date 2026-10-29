@@ -47,6 +47,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     alsoBuzzed: [],
     lockedOut: [],
     falseStarts: [],
+    session: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     question: { id: 'q2', text: 'Q2', answer: 'A2', points: 200 },

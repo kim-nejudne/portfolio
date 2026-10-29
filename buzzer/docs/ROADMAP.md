@@ -202,13 +202,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F75 Avatars: devices
 
-- [ ] F76 Session totals: server
-  - Spec: Data model (`Room`); Game flow and state machine (Transitions: new game); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F61
-  - Done when:
-    - `Room.session {gameNumber, totals: Record<playerId, number>}`: `gameNumber` starts at 1 and `host:newGame` adds 1; on reaching FINAL each player's game score is added to `totals` once (an undo after FINAL is impossible; `host:end` counts as FINAL)
-    - `keepScores` does not change totals; a player who leaves keeps their total; Screen and Host views carry `session` with ranked totals from game 2 on
-  - Tests: `reducer.newgame.test.ts` (two and three games, keepScores on and off, late joiner), `views.test.ts`
+- [x] F76 Session totals: server
 
 - [ ] F77 Session totals: devices
   - Spec: UI spec by view (Screen view Final, Host remote, Player view); see DECISIONS, Proposed spec changes (audit)

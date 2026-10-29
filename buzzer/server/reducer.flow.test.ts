@@ -216,14 +216,32 @@ describe('reduce: host:prev', () => {
 });
 
 describe('reduce: host:end', () => {
-  it.each<Phase>(['LOBBY', 'QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL', 'FINAL'])(
-    'moves %s to FINAL and changes nothing else',
+  it.each<Phase>(['LOBBY', 'QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'])(
+    'moves %s to FINAL and changes nothing else but the session totals',
     (phase) => {
       const before = inPhase(phase, 1, { ...dirty, showScoreboard: true });
       const { room } = ok(act(before, { type: 'host:end' }));
-      expect(room).toEqual({ ...before, phase: 'FINAL', lastActivityAt: NOW });
+      expect(room).toEqual({
+        ...before,
+        phase: 'FINAL',
+        lastActivityAt: NOW,
+        session: {
+          ...before.session,
+          totals: { p1: 300, p2: -100 },
+          players: {
+            p1: { name: 'p1', color: '#EF4444', joinedAt: T0 },
+            p2: { name: 'p2', color: '#EF4444', joinedAt: T0 },
+          },
+        },
+      });
     },
   );
+
+  it('keeps FINAL and changes nothing else, without counting the game again', () => {
+    const before = inPhase('FINAL', 1, { ...dirty, showScoreboard: true });
+    const { room } = ok(act(before, { type: 'host:end' }));
+    expect(room).toEqual({ ...before, lastActivityAt: NOW });
+  });
 });
 
 describe('reduce: host:scoreboard', () => {

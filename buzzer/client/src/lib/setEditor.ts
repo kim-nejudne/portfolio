@@ -89,6 +89,7 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     alsoBuzzed: [],
     lockedOut: [],
     falseStarts: [],
+    session: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     canJudge: false,

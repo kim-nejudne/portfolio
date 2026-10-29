@@ -187,8 +187,7 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
     case 'host:prev':
       return hostPrev(room);
     case 'host:end':
-      // Buzzes stay for the record; the undo stack goes, as on every question change (F68).
-      return done({ ...room, phase: 'FINAL', answerTimer: null, undo: [] });
+      return hostEnd(room);
     case 'host:scoreboard':
       return done({ ...room, showScoreboard: action.show });
     case 'host:undo':
@@ -614,7 +613,15 @@ function hostAdjustScore(
   { playerId, delta }: Extract<Action, { type: 'host:adjustScore' }>,
 ): ReduceResult {
   if (!room.players[playerId]) return fail('Unknown player');
-  return done(applyJudgement(room, playerId, 'adjust', delta));
+  const adjusted = applyJudgement(room, playerId, 'adjust', delta);
+  // Once the game is tallied, a correction to a final score corrects the night's total too (F76).
+  if (room.phase !== 'FINAL') return done(adjusted);
+  const { session } = adjusted;
+  const total = (session.totals[playerId] ?? 0) + delta;
+  return done({
+    ...adjusted,
+    session: { ...session, totals: { ...session.totals, [playerId]: total } },
+  });
 }
 
 /** Any phase. Removes the player for good: the id joins `kickedIds`, so it cannot rejoin. */
@@ -715,15 +722,48 @@ function hostNewGame(
         (r, p) => applyJudgement(r, p.id, 'adjust', -p.score),
         room,
       );
+  // Carried points were counted in the last game's totals, so the next tally leaves them out.
+  const carried = keepScores
+    ? Object.fromEntries(Object.values(room.players).map((p) => [p.id, p.score]))
+    : {};
   return done({
     ...scored,
     ...clearedQuestion,
+    session: { ...room.session, gameNumber: room.session.gameNumber + 1, carried },
     set,
     phase: 'LOBBY',
     questionIndex: -1,
     judgements: [],
     showScoreboard: false,
   });
+}
+
+/** Any phase → FINAL. An end in FINAL does not tally again, so each game counts once (F76). */
+function hostEnd(room: Room): ReduceResult {
+  // Buzzes stay for the record; the undo stack goes, as on every question change (F68).
+  const ended: Room = { ...room, phase: 'FINAL', answerTimer: null, undo: [] };
+  return done(room.phase === 'FINAL' ? ended : tallied(ended));
+}
+
+/**
+ * Adds each player's points of this game, their score less what Keep scores carried in, to the
+ * session totals as the room reaches FINAL, and records who they are. A player who left before
+ * FINAL is not in `players`, so their earlier total stays as it was (DECISIONS F76).
+ */
+function tallied(room: Room): Room {
+  const { session } = room;
+  const totals = { ...session.totals };
+  const players = { ...session.players };
+  for (const p of Object.values(room.players)) {
+    totals[p.id] = (totals[p.id] ?? 0) + p.score - (session.carried[p.id] ?? 0);
+    players[p.id] = {
+      name: p.name,
+      color: p.color,
+      ...(p.avatar !== undefined && { avatar: p.avatar }),
+      joinedAt: p.joinedAt,
+    };
+  }
+  return { ...room, session: { ...session, totals, players } };
 }
 
 function hostStart(room: Room, now: number): ReduceResult {
@@ -772,7 +812,7 @@ function hostNext(room: Room): ReduceResult {
   const every = room.settings.scoreboardEvery;
   const showScoreboard = every > 0 && finished % every === 0;
   if (finished >= room.set.questions.length) {
-    return done({ ...room, ...clearedQuestion, phase: 'FINAL', showScoreboard });
+    return done(tallied({ ...room, ...clearedQuestion, phase: 'FINAL', showScoreboard }));
   }
   return done(enterQuestion({ ...room, showScoreboard }, finished));
 }

@@ -73,6 +73,7 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     alsoBuzzed: [],
     lockedOut: [],
     falseStarts: [],
+    session: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     canJudge: false,

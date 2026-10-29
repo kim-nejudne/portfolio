@@ -12,10 +12,12 @@ import type {
   PlayerView,
   Question,
   RankedPlayer,
+  RankedTotal,
   Role,
   Room,
   ScreenQuestion,
   ScreenView,
+  SessionView,
   View,
 } from '../shared/types.js';
 import { buzzGaps, rankOpening } from './fairness.js';
@@ -119,7 +121,7 @@ function lobbyPlayer(p: Player): LobbyPlayer {
 }
 
 /** The player's avatar as an optional key: absent, not undefined, when they picked none (F74). */
-function avatarOf({ avatar }: Player): { avatar?: string } {
+function avatarOf({ avatar }: { avatar?: string }): { avatar?: string } {
   return avatar !== undefined ? { avatar } : {};
 }
 
@@ -144,7 +146,30 @@ function shared(room: Room) {
     scorerId: scorerId(room),
     answerTimer: answerTimerView(room),
     buzzTimer: buzzTimerView(room),
+    session: sessionView(room),
   };
+}
+
+/**
+ * The night's totals, ranked like scores, players who left included. Null in the room's first
+ * game: before a second game there is nothing beyond the scoreboard to show (F76).
+ */
+function sessionView({ session }: Room): SessionView | null {
+  if (session.gameNumber < 2) return null;
+  // Every tally records both; an entry without an identity would have no name to show.
+  const entries = Object.entries(session.totals).flatMap(([id, total]) => {
+    const who = session.players[id];
+    return who ? [{ ...who, id, score: total }] : [];
+  });
+  const totals = rankPlayers(entries).map((t): RankedTotal => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+    ...avatarOf(t),
+    total: t.score,
+    rank: t.rank,
+  }));
+  return { gameNumber: session.gameNumber, totals };
 }
 
 /** Seconds and whether time is up, never `endsAt`: each device counts down from the snapshot. */

@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F76 — Session totals: server (2026-10-29)
+**What changed:**
+- Shared: `Room.session: Session` = `{gameNumber, totals, players, carried}`. `gameNumber` starts at 1; `totals` is playerId → points over every finished game; `players` is name, colour, avatar and `joinedAt` at each player's latest tally; `carried` is the scores Keep scores brought into the current game. New view types `RankedTotal` and `SessionView`; `SharedRoomView.session` (Screen and host) is `null` in game 1 and ranked totals from game 2 on. Phone views do not get it.
+- Reducer: `tallied()` runs on entering FINAL, from the last `host:next` or from `host:end` in any other phase (not again from `host:end` in FINAL). It adds score − carried for every present player and refreshes their identity. `host:newGame` adds 1 to `gameNumber` and sets `carried` (scores with Keep scores, `{}` without), so totals come out the same either way. `host:adjustScore` in FINAL moves the total by the same delta. Leave and kick don't touch the session, so a departed player keeps their earlier total and name.
+- Views: `sessionView()` ranks with `rankPlayers` (now generic over `{score, joinedAt}`), so ties share a rank and list in join order. A total with no recorded identity is skipped rather than throwing.
+- Tests: `reducer.newgame.test.ts` +14 (game 1 empty, last `host:next`, `host:end` once, identities, no undo after FINAL, two games, three games with Keep scores on and off giving equal totals, new game leaves totals, late joiner, leaver and kicked keep totals, mid-game leaver loses that game, rename at next tally, FINAL correction carried, FINAL vs earlier adjust); `reducer.flow.test.ts` `host:end` expectations now include the tally, plus FINAL → FINAL does not count again; `views.test.ts` +6 (null in game 1, ranked with ties and leavers on Screen and host, empty, orphan skipped, not on the phone and `carried` never sent, reducer-driven three-game totals). Client view fixtures and `setEditor.ts` gain `session: null`. 1828 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F76 (score less carried, `players` and `carried` beyond the spec; when the tally runs, FINAL corrections, totals not live; `session` null in game 1, ranked, not on the phone).
+
+**Notes for next session:**
+- F77 (devices) reads `view.session` on the Screen's Final (Tonight panel) and the remote. During game 2's lobby and play it holds game 1 only; at game 2's FINAL it includes game 2.
+- A total can belong to someone no longer in `players`. If the panel marks present vs left, compare `session.totals[].id` with `view.players`.
+- Mutation-checked: without the carried subtraction, 3 tests fail; with `host:end` tallying in FINAL, 2 fail.
+- No playtest: no UI changed. Main `index` chunk unchanged at 487.42 kB (146.70 kB gzip).
+
+**How to try it:** server only; nothing renders it until F77. Run `npx vitest run server/reducer.newgame.test.ts server/reducer.flow.test.ts server/views.test.ts`.
+
 ## F75 — Avatars: devices (2026-10-29)
 **What changed:**
 - Phone: the join form has an **Avatar (optional)** grid of the 24 emoji under the name, as toggle buttons (`aria-pressed`); tapping the chosen one clears it. `player:join` carries `avatar` only when one is picked. `playerIdentity` stores it per room with the name (`z.enum(AVATARS).optional().catch(undefined)`: an unknown stored avatar is dropped, the identity kept), so a refresh rejoins with it; Leave game refills name and avatar; a taken name keeps the pick. The top bar's gold circle shows the avatar in place of the initial, the initial without one. "Who's here" shows avatars too.
