@@ -184,13 +184,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F67 Half points and custom score adjust
 
-- [ ] F68 Undo every judgement of the question
-  - Spec: Reconnects, security and edge cases (Edge cases: Undo); Game flow and state machine (Transitions); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F67
-  - Done when:
-    - `Room.undo` becomes a stack of the current question's `UndoPoint`s; each `host:undo` reverses the newest judgement (points, lockout) and returns to BUZZED with that winner, until the stack is empty
-    - The stack clears on next, prev, end and new game, as the single point does today; `canUndo` is true while the stack has entries
-  - Tests: `reducer.undo.test.ts` (three wrong then correct, undo four times, each state exact; stale reopen after undo ignored)
+- [x] F68 Undo every judgement of the question
 
 - [ ] F69 Read-aloud mode (no TV)
   - Spec: UI spec by view (Host remote); Roles and devices; see DECISIONS, Proposed spec changes (audit)

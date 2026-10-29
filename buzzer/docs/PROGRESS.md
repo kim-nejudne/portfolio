@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F68 — Undo every judgement of the question (2026-10-29)
+**What changed:**
+- Shared/server: `Room.undo` is now `UndoPoint[]`, newest last (`[]` in `createRoom`, `clearedQuestion` and new game). `hostJudge` pushes a point; `hostUndo` pops one, reverses `judgements.at(-1)` (points, lockout) and returns to BUZZED with that point's buzzes and winner, so repeated undos walk back the whole question. `canUndo` reads the top point. `host:end` now empties the stack too.
+- Kick/leave (`withoutPlayer`): drops the departing player's newest point and every older one; newer points lose their buzzes. Their judgements stay in the history, so undo stops before them.
+- No client change: the remote's Undo button and the Screen's `U` already follow `view.canUndo`.
+- Tests: `reducer.undo.test.ts` (three wrong then correct with the penalty on, undo ×4 with each state `toEqual` the room before that judgement, fifth undo "Nothing to undo"; every undone reopen stale at each step; undo during a pending reopen; rejudge after undo then older undos; stack cleared on next, prev, end, new game; two kick cases), `views.test.ts` +3 (`canUndo` true after one of two undos, false after both), fixtures in `reducer.admin`, `reducer.newgame`, `roomStore` tests. 1644 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F68 (stack paired with the tail of `judgements`, superseding F20's one level; end clears the stack; kick truncates the stack).
+
+**Notes for next session:**
+- The kick rule is a call beyond the spec: after a kick, earlier judgements of that question (the kicked player's and older) can no longer be undone. Undo always reverses `judgements.at(-1)`, so it cannot skip a kept judgement.
+- Undo keeps `openingCounter` (F20), so after walking back four judgements the room is the first BUZZED state with the counter of the last opening.
+- No playtest: no UI changed. Not checked in a browser: Undo staying enabled through several undos (covered by `views.test.ts`).
+- Main `index` chunk unchanged at 476.24 kB (143.54 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room, open the Screen, pair a phone with **Pair host phone**, add two or three players (`http://<laptop-LAN-IP>:5173/play/<CODE>` or `/dev/bots/<CODE>`). Start, open the buzzers, judge one buzz wrong, let another player buzz after the reopen and judge them correct. Tap Undo (or `U` on the Screen) twice: first the correct answer comes back to judge, then the first wrong one, with scores and lockouts restored.
+
 ## F67 — Half points and custom score adjust (2026-10-29)
 **What changed:**
 - Server: `Judgement.result` and the `host:judge` schema gain `'half'`. `hostJudge` sends it through correct's path with `Math.round(points / 2)`: REVEAL, `fx correct` with the half points, no lockout, penalty ignored. Undo is unchanged (it reverses `pointsDelta`). `scorerId` counts half.

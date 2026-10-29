@@ -173,7 +173,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
     case 'host:prev':
       return hostPrev(room);
     case 'host:end':
-      return done({ ...room, phase: 'FINAL', answerTimer: null });
+      // Buzzes stay for the record; the undo stack goes, as on every question change (F68).
+      return done({ ...room, phase: 'FINAL', answerTimer: null, undo: [] });
     case 'host:scoreboard':
       return done({ ...room, showScoreboard: action.show });
     case 'host:undo':
@@ -433,11 +434,8 @@ function hostJudge(
   const playerId = room.winnerId;
   const points = room.set.questions[room.questionIndex]?.points ?? 0;
   // SPEC-QUESTION: undo after a reopen restores this snapshot; see DECISIONS #6.
-  const marked: Room = {
-    ...room,
-    undo: { buzzes: room.buzzes, windowStartedAt: room.windowStartedAt, winnerId: playerId },
-    answerTimer: null,
-  };
+  const point = { buzzes: room.buzzes, windowStartedAt: room.windowStartedAt, winnerId: playerId };
+  const marked: Room = { ...room, undo: [...room.undo, point], answerTimer: null };
   if (result !== 'wrong') {
     // Half ends the question as correct does, for half the points, rounded (DECISIONS F67).
     const delta = result === 'half' ? Math.round(points / 2) : points;
@@ -528,10 +526,10 @@ export function canJudge(room: Room): boolean {
 /** Whether `host:undo` would be accepted: this question's last judgement, with its undo point. */
 export function canUndo(room: Room): boolean {
   const last = room.judgements.at(-1);
-  const { undo } = room;
+  const undo = room.undo.at(-1);
   return (
     UNDO_PHASES.includes(room.phase) &&
-    undo !== null &&
+    undo !== undefined &&
     last?.questionIndex === room.questionIndex &&
     last.playerId === undo.winnerId
   );
@@ -540,12 +538,13 @@ export function canUndo(room: Room): boolean {
 /**
  * Reverses the last judgement of this question and returns to BUZZED with that buzz, as it was
  * when judged. Newer buzzes of the question are discarded. `openingCounter` keeps its value, so
- * the timers of a discarded opening stay stale (DECISIONS #6, F20).
+ * the timers of a discarded opening stay stale (DECISIONS #6, F20). Each undo pops one point, so
+ * repeated undos walk back through every judgement of the question (F68).
  */
 function hostUndo(room: Room): ReduceResult {
   if (!UNDO_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
   const last = room.judgements.at(-1);
-  const { undo } = room;
+  const undo = room.undo.at(-1);
   if (!canUndo(room) || !undo || !last) return fail('Nothing to undo');
 
   const reversed = applyJudgement(room, last.playerId, 'adjust', -last.pointsDelta);
@@ -558,7 +557,7 @@ function hostUndo(room: Room): ReduceResult {
     lockedOut: room.lockedOut.filter((id) => id !== last.playerId),
     judgements: room.judgements.slice(0, -1),
     reopenAt: null,
-    undo: null,
+    undo: room.undo.slice(0, -1),
     answerTimer: null,
   });
 }
@@ -589,10 +588,9 @@ function withoutPlayer(room: Room, playerId: string): Room {
     Object.entries(room.players).filter(([id]) => id !== playerId),
   );
   const keep = (b: Buzz) => b.playerId !== playerId;
-  const undo =
-    room.undo && room.undo.winnerId !== playerId
-      ? { ...room.undo, buzzes: room.undo.buzzes.filter(keep) }
-      : null;
+  // Their judgements stay in the history, so undo stops short of their newest one (DECISIONS F68).
+  const newest = room.undo.findLastIndex((u) => u.winnerId === playerId);
+  const undo = room.undo.slice(newest + 1).map((u) => ({ ...u, buzzes: u.buzzes.filter(keep) }));
   const kicked: Room = {
     ...room,
     players,
@@ -746,7 +744,7 @@ const clearedQuestion = {
   winnerId: null,
   lockedOut: [],
   reopenAt: null,
-  undo: null,
+  undo: [],
   answerTimer: null,
   autoOpenAt: null,
 } satisfies Partial<Room>;

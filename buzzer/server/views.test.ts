@@ -273,6 +273,13 @@ describe('toView: canJudge and canUndo match what the reducer accepts', () => {
       at: wrong.reopenAt!,
     });
     const correct = after(buzzed, { type: 'host:judge', result: 'correct' });
+    // Bob buzzes the reopened question and is judged correct: two judgements on the stack.
+    const twice = after(
+      reopened,
+      { type: 'player:buzz', playerId: 'p2', receivedAt: 5000 },
+      { type: 'windowClosed', questionIndex: 1, openingCounter: reopened.openingCounter },
+      { type: 'host:judge', result: 'correct' },
+    );
     return [
       ['LOBBY', makeRoom()],
       ['QUESTION', midGame('QUESTION')],
@@ -285,6 +292,8 @@ describe('toView: canJudge and canUndo match what the reducer accepts', () => {
       ['the next question', after(correct, { type: 'host:next' })],
       ['FINAL', after(correct, { type: 'host:end' })],
       ['BUZZED after an undo', after(wrong, { type: 'host:undo' })],
+      ['BUZZED after one undo of two judgements', after(twice, { type: 'host:undo' })],
+      ['BUZZED after both undos', after(twice, { type: 'host:undo' }, { type: 'host:undo' })],
     ];
   }
 
@@ -293,6 +302,13 @@ describe('toView: canJudge and canUndo match what the reducer accepts', () => {
       expect(view.canJudge).toBe(reduce(room, JUDGE_WRONG, NOW).ok);
       expect(view.canUndo).toBe(reduce(room, { type: 'host:undo' }, NOW).ok);
     }
+  });
+
+  it('keeps canUndo on after the first of two undos and off after the second', () => {
+    const byName = Object.fromEntries(rooms());
+    const flag = (name: string) => toView(byName[name] as Room, 'host').canUndo;
+    expect(flag('BUZZED after one undo of two judgements')).toBe(true);
+    expect(flag('BUZZED after both undos')).toBe(false);
   });
 
   it('covers both answers of each flag', () => {

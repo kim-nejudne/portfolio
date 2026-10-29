@@ -64,8 +64,8 @@ export interface Judgement {
 
 /**
  * What `host:undo` restores: the opening's buzzes and winner as they were when the host judged.
- * Set by every judgement and cleared when the question changes or the undo is used, so there is
- * one level of undo per question (DECISIONS #6).
+ * Every judgement pushes one onto `Room.undo` and each undo pops one; the stack clears when the
+ * question changes, so undo walks back through this question's judgements only (DECISIONS #6, F68).
  */
 export interface UndoPoint {
   buzzes: Buzz[];
@@ -117,7 +117,7 @@ export interface Room {
   lockedOut: string[]; // playerIds wrong this question
   judgements: Judgement[]; // whole game, enables undo
   reopenAt: number | null; // wall-clock ms; set in BUZZED while a wrong answer waits to reopen
-  undo: UndoPoint | null; // the last judgement of this question can be undone
+  undo: UndoPoint[]; // one per judgement of this question, newest last
   answerTimer: AnswerTimer | null; // set in BUZZED while the winner's answer time runs
   buzzTimer: BuzzTimer | null; // set in OPEN while the buzz time runs
   autoOpenAt: number | null; // wall-clock ms; set in QUESTION while question 1's title card holds auto-open

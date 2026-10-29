@@ -154,7 +154,7 @@ describe('reduce: host:kick', () => {
     const waiting = step(buzzed(), { type: 'host:judge', result: 'wrong' });
     expect(waiting.reopenAt).not.toBeNull();
     const room = step(waiting, kick('p1'), NOW + 100);
-    expect(room).toMatchObject({ phase: 'OPEN', openingCounter: 3, reopenAt: null, undo: null });
+    expect(room).toMatchObject({ phase: 'OPEN', openingCounter: 3, reopenAt: null, undo: [] });
     expect(room.lockedOut).toEqual([]);
   });
 
@@ -179,7 +179,7 @@ describe('reduce: host:kick', () => {
   it('clears a judged winner in REVEAL and the undo that names them', () => {
     const revealed = step(buzzed(), { type: 'host:judge', result: 'correct' });
     const room = step(revealed, kick('p1'));
-    expect(room).toMatchObject({ phase: 'REVEAL', winnerId: null, undo: null });
+    expect(room).toMatchObject({ phase: 'REVEAL', winnerId: null, undo: [] });
     expect(room.buzzes.map((b) => b.playerId)).toEqual(['p2']);
     expect(reduce(room, { type: 'host:undo' }, NOW)).toEqual({
       ok: false,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { REOPEN_DELAY_MS } from '../shared/constants.js';
 import type { JudgeResult, Phase, Room } from '../shared/types.js';
 import { makeBuzz } from './fairness.js';
-import { WRONG_PHASE_ERROR, reduce, type Action, type ReduceResult } from './reducer.js';
+import { WRONG_PHASE_ERROR, canUndo, reduce, type Action, type ReduceResult } from './reducer.js';
 import { T0, makePlayer, makeQuestion, makeRoom, makeSet, withPlayers } from './test/rooms.js';
 
 function ok(result: ReduceResult): Extract<ReduceResult, { ok: true }> {
@@ -156,27 +156,96 @@ describe('reduce: host:undo restores the state right after the judged buzz', () 
   });
 });
 
-describe('reduce: host:undo is one level per question', () => {
-  it('rejects a second undo of the same question', () => {
-    const undone = step(step(buzzed(), judge('correct')), UNDO);
-    expect(reduce(undone, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
+/** The buzz and closed window that make `playerId` the winner of the opening `room` is in. */
+function buzzIn(room: Room, playerId: string, now: number): Room {
+  const buzzing = step(room, { type: 'player:buzz', playerId, receivedAt: now - T0 }, now);
+  const { questionIndex, openingCounter } = buzzing;
+  return step(buzzing, { type: 'windowClosed', questionIndex, openingCounter }, now + 150);
+}
+
+/**
+ * Question 2 with the penalty on and a fourth player: p1, p2 and p3 are judged wrong in turn,
+ * each after their own opening, then p4 correct. `before[i]` is the room right before judgement
+ * i, `waiting[i]` right after wrong judgement i, and `revealed` the end.
+ */
+function threeWrongThenCorrect() {
+  const first = withPenalty(buzzed());
+  const start: Room = {
+    ...first,
+    players: { ...first.players, p4: makePlayer('p4', { joinedAt: T0 + 4 }) },
+  };
+  const before: Room[] = [start];
+  const waiting: Room[] = [];
+  let room = start;
+  ['p2', 'p3', 'p4'].forEach((next, i) => {
+    const at = NOW + i * 10_000;
+    const judged = step(room, judge('wrong'), at);
+    waiting.push(judged);
+    room = buzzIn(step(judged, reopen(judged), at + REOPEN_DELAY_MS), next, at + 2000);
+    before.push(room);
+  });
+  const revealed = step(room, judge('correct'), NOW + 40_000);
+  return { before, waiting, revealed };
+}
+
+describe('reduce: host:undo walks back every judgement of the question', () => {
+  it('undoes three wrong answers and a correct one, newest first, each state exact', () => {
+    const { before, revealed } = threeWrongThenCorrect();
+    expect(revealed).toMatchObject({ phase: 'REVEAL', lockedOut: ['p1', 'p2', 'p3'] });
+    expect(revealed.undo.map((u) => u.winnerId)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    expect(revealed.players.p4?.score).toBe(250);
+    // The penalty took 250 from each wrong answer.
+    expect([1, 2, 3].map((n) => revealed.players[`p${n}`]?.score)).toEqual([-150, -50, -250]);
+
+    let room = revealed;
+    for (let i = 3; i >= 0; i--) {
+      expect(canUndo(room)).toBe(true);
+      room = step(room, UNDO, NOW + 50_000 + i);
+      // The counter only grows, so the discarded openings' timers stay stale (DECISIONS F20).
+      expect(room).toEqual({ ...restorable(before[i] as Room), openingCounter: 5 });
+    }
+    expect(canUndo(room)).toBe(false);
+    expect(room.undo).toEqual([]);
+    expect(reduce(room, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
   });
 
-  it('undoes only the newest of two wrong answers', () => {
-    const first = step(buzzed(), judge('wrong'));
-    const opened = step(first, reopen(first), NOW + REOPEN_DELAY_MS);
-    const rebuzzed = step(
-      step(opened, { type: 'player:buzz', playerId: 'p2', receivedAt: 3000 }, NOW + 1600),
-      { type: 'windowClosed', questionIndex: 1, openingCounter: 3 },
-      NOW + 1750,
-    );
-    const second = step(rebuzzed, judge('wrong'), NOW + 1800);
-    expect(second.lockedOut).toEqual(['p1', 'p2']);
+  it('ignores every undone reopen while walking back', () => {
+    const { waiting, revealed } = threeWrongThenCorrect();
+    const reopens = waiting.map(reopen);
+    let room = revealed;
+    for (let i = 0; i < 4; i++) {
+      room = step(room, UNDO, NOW + 50_000 + i);
+      for (const [n, action] of reopens.entries()) {
+        expect(step(room, action, NOW + 60_000 + n)).toBe(room);
+      }
+    }
+  });
 
-    const room = step(second, UNDO, NOW + 1900);
-    expect(room).toMatchObject({ phase: 'BUZZED', winnerId: 'p2', lockedOut: ['p1'] });
-    expect(room.judgements.map((j) => j.playerId)).toEqual(['p2', 'p1']);
-    expect(reduce(room, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
+  it('walks back from the wait before a reopen, one wrong answer at a time', () => {
+    const { before, waiting } = threeWrongThenCorrect();
+    const back = step(waiting[2] as Room, UNDO, NOW + 50_000);
+    expect(back).toEqual({ ...restorable(before[2] as Room), openingCounter: 4 });
+    expect(step(back, reopen(waiting[2] as Room), NOW + 60_000)).toBe(back);
+    expect(step(back, UNDO, NOW + 50_001)).toMatchObject({
+      phase: 'BUZZED',
+      winnerId: 'p2',
+      lockedOut: ['p1'],
+    });
+  });
+
+  it('takes back a judgement made again after an undo, then the older ones', () => {
+    const { revealed } = threeWrongThenCorrect();
+    const rejudged = step(step(revealed, UNDO), judge('half'));
+    expect(rejudged.undo.map((u) => u.winnerId)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    const room = step(step(rejudged, UNDO), UNDO);
+    expect(room).toMatchObject({ phase: 'BUZZED', winnerId: 'p3', lockedOut: ['p1', 'p2'] });
+    expect(room.players.p4?.score).toBe(0);
+    expect(room.players.p3?.score).toBe(0);
+  });
+
+  it('keeps a single judgement to one undo', () => {
+    const undone = step(step(buzzed(), judge('correct')), UNDO);
+    expect(reduce(undone, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
   });
 
   it('allows a fresh undo after the host judges again', () => {
@@ -188,6 +257,26 @@ describe('reduce: host:undo is one level per question', () => {
   it('rejects an undo before any judgement of this question', () => {
     expect(reduce(buzzed(), UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
   });
+});
+
+describe('reduce: the undo stack clears when the question changes', () => {
+  it.each<[string, Action]>([
+    ['next', { type: 'host:next' }],
+    ['prev', { type: 'host:prev' }],
+    ['end', { type: 'host:end' }],
+  ])('empties a stack of four on %s', (_, action) => {
+    const { revealed } = threeWrongThenCorrect();
+    const room = step(revealed, action);
+    expect(room.undo).toEqual([]);
+    expect(canUndo(room)).toBe(false);
+  });
+
+  it('empties it on new game', () => {
+    // A FINAL room still holding the stack, so new game clears it whatever end did.
+    const final: Room = { ...threeWrongThenCorrect().revealed, phase: 'FINAL' };
+    const newGame: Action = { type: 'host:newGame', set: makeSet(), keepScores: true };
+    expect(step(final, newGame).undo).toEqual([]);
+  });
 
   it('cannot reach a judgement of an earlier question after next or prev', () => {
     const revealed = step(buzzed(), judge('correct'));
@@ -198,6 +287,30 @@ describe('reduce: host:undo is one level per question', () => {
     const back = step(opened, { type: 'host:prev' });
     const reopened = step(back, { type: 'host:open' });
     expect(reduce(reopened, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
+  });
+});
+
+describe('reduce: host:undo after a kick', () => {
+  const kick = (playerId: string): Action => ({ type: 'host:kick', playerId });
+
+  it('stops short of the kicked player’s judgement, which stays in the history', () => {
+    const { revealed } = threeWrongThenCorrect();
+    const kicked = step(revealed, kick('p2'));
+    expect(kicked.undo.map((u) => u.winnerId)).toEqual(['p3', 'p4']);
+    const room = step(step(kicked, UNDO), UNDO);
+    expect(room).toMatchObject({ phase: 'BUZZED', winnerId: 'p3', lockedOut: ['p1'] });
+    expect(room.judgements.at(-1)).toMatchObject({ playerId: 'p2', result: 'wrong' });
+    expect(reduce(room, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
+  });
+
+  it('keeps the newer points without the kicked player’s buzz', () => {
+    const { revealed } = threeWrongThenCorrect();
+    const kicked = step(revealed, kick('p1'));
+    expect(kicked.undo.map((u) => u.winnerId)).toEqual(['p2', 'p3', 'p4']);
+    const room = step(step(step(kicked, UNDO), UNDO), UNDO);
+    expect(room).toMatchObject({ phase: 'BUZZED', winnerId: 'p2', lockedOut: [] });
+    expect(room.buzzes.map((b) => b.playerId)).toEqual(['p2']);
+    expect(reduce(room, UNDO, NOW)).toEqual({ ok: false, error: 'Nothing to undo' });
   });
 });
 
