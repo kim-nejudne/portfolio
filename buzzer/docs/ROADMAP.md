@@ -126,6 +126,32 @@ Kim's request of 2026-10-29: 60 built-in sets (20 categories × Easy, Medium, Ha
 
 - [x] F48 Seed starter sets into My sets
 
+## M11 — New game
+
+Kim's request of 2026-10-29: after a game ends, the host picks another set and starts a new game in the same room. The choices are in the DECISIONS row dated 2026-10-29 marked "new game plan". Proposed spec wording is in DECISIONS, Proposed spec changes (new game).
+
+- [ ] F49 New game: server
+  - Spec: Game flow and state machine (Transitions), Realtime events and HTTP API (HTTP); see DECISIONS, Proposed spec changes (new game)
+  - Depends: F48
+  - Done when:
+    - `shared/schemas.ts` has `newGameBodySchema` `{set: questionSetSchema, keepScores: boolean}`; the body limit is `CREATE_ROOM_BODY_MAX_BYTES`
+    - The reducer takes `host:newGame {set, keepScores}` in FINAL only (any other phase is rejected with an error) and returns LOBBY with the fields reset as in the DECISIONS row (F49, "`host:newGame` keeps…"). Scores go to 0 unless `keepScores`; players, `kickedIds`, `settings` and the code stay; `openingCounter` does not go back
+    - `PUT /api/rooms/:code/set`: 404 for an unknown room, 401 for a missing or wrong token (constant-time check, as the image route), 400 for an invalid body, 409 outside FINAL, 200 `{ok: true}` otherwise. It dispatches through the gateway's `dispatch` (wired in `server/index.ts`), so Screen, Host and Player sockets all get the LOBBY state with the new set's question count
+    - On success the room's old images are freed (`images.deleteRoom(code)`), and the image upload route then accepts only the new set's `imageId`s
+    - Answers and host notes of the new set never reach Screen or Player views
+  - Tests: `server/reducer.newgame.test.ts`: FINAL → LOBBY with each field reset, scores kept and zeroed, disconnected and kicked players, rejection from every other phase, a stale `windowClosed`/`reopen`/`answerTimeUp` after a new game is ignored, start works again with the new set. `server/http.newgame.test.ts`: each status above, old images gone and new ones uploadable, a second PUT gets 409, all four socket roles receive the new state (socket test harness). `schemas.test.ts` for the body
+
+- [ ] F50 New game: picker on the Screen and the remote
+  - Spec: UI spec by view (Screen view, Host remote); see DECISIONS, Proposed spec changes (new game)
+  - Depends: F49
+  - Done when:
+    - `client/src/lib/api.ts` has `replaceSet(code, hostToken, body)`. `hostRoom.ts` shares the playable check and image gathering between `hostSet` and a new `hostNextSet(code, hostToken, set, keepScores)`, which checks the set and its images before the PUT, then uploads each image once; errors read as in `hostSet`
+    - A `NewGamePicker` component lists this browser's saved sets (newest first, drafts marked unplayable as on **Host a game**), with a **Keep scores** toggle (default off) and a **Start new game** button that shows progress while images upload and the error inline on failure
+    - Screen with the hostToken, FINAL: the control bar shows **New game**, which opens the picker over the results; never shown on a Screen without the token. Remote, FINAL: the Game over card has a **New game** button opening the same picker
+    - After it succeeds both devices show the lobby with the same code and the players, scores 0 or kept; Player phones show the lobby waiting state; **Start game** plays the new set from question 1
+    - A 409 (the other device already started one) shows "A new game has already been set up." and closes the picker
+  - Tests: `hostRoom.test.ts` (`hostNextSet`: unplayable set, missing image, over 50 MB, PUT then uploads in order, upload failure), `api.test.ts` (`replaceSet`), `NewGamePicker.test.tsx` (list, toggle, submit, error, 409), `Screen.test.tsx` and `Host.test.tsx` (button only in FINAL and only for a host). `/playtest`: finish a 1-question game, New game on the Screen with Keep scores off, then on the remote with it on, play one question each time
+
 ## Bugs
 
 ## Backlog (not scheduled)
