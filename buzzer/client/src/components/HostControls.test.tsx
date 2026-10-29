@@ -258,16 +258,18 @@ describe('HostSettings', () => {
   const toggle = (name: RegExp) => screen.getByRole('switch', { name });
   const every = () => screen.getByRole('status', { name: 'Scoreboard every' });
 
-  it('shows the room’s settings: defaults off and every 5', () => {
+  it('shows the room’s settings: defaults off, every 5 and standings on', () => {
     setup(HostSettings, hostView());
     expect(toggle(/^Wrong-answer penalty/).getAttribute('aria-checked')).toBe('false');
     expect(toggle(/^Auto-open buzzers/).getAttribute('aria-checked')).toBe('false');
     expect(every().textContent).toBe('5');
+    expect(toggle(/^Standings on the Screen/).getAttribute('aria-checked')).toBe('true');
   });
 
   it.each([
     [/^Wrong-answer penalty/, { wrongPenalty: true }],
     [/^Auto-open buzzers/, { autoOpenBuzzers: true }],
+    [/^Standings on the Screen/, { showStandings: false }],
   ])('switch %s sends only its own key', (name, payload) => {
     const { sent } = setup(HostSettings, hostView());
     fireEvent.click(toggle(name));
@@ -281,6 +283,16 @@ describe('HostSettings', () => {
     );
     fireEvent.click(toggle(/^Wrong-answer penalty/));
     expect(sent[0]?.payload).toEqual({ wrongPenalty: false });
+  });
+
+  it('standings that are off show off and send true', () => {
+    const { sent } = setup(
+      HostSettings,
+      hostView({ settings: { ...DEFAULT_SETTINGS, showStandings: false } }),
+    );
+    expect(toggle(/^Standings on the Screen/).getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(toggle(/^Standings on the Screen/));
+    expect(sent[0]?.payload).toEqual({ showStandings: true });
   });
 
   it.each([
@@ -400,5 +412,23 @@ describe('HostSettings', () => {
     setup(HostSettings, view);
     expect(button('More answer time').className).toContain('size-12');
     expect(toggle(/^Auto-open buzzers/).className).toContain('p-4');
+  });
+
+  it('compact keeps each detail for screen readers only, so every row is one line; the remote shows them', () => {
+    const detail = () => screen.getByText('The top 5 beside each question.');
+    const send = vi.fn<SendHost>();
+    const view = hostView();
+    function Compact() {
+      return <HostSettings view={view} command={useHostCommand(view, send, vi.fn())} compact />;
+    }
+    render(<Compact />);
+    expect(detail().className).toContain('sr-only');
+    expect(toggle(/^Standings on the Screen/).textContent).toContain(
+      'The top 5 beside each question.',
+    );
+    cleanup();
+
+    setup(HostSettings, view);
+    expect(detail().className).not.toContain('sr-only');
   });
 });

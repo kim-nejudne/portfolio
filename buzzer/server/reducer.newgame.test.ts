@@ -62,6 +62,7 @@ function finished(overrides: Partial<Room> = {}): Room {
         scoreboardEvery: 3,
         answerSeconds: 5,
         buzzSeconds: 10,
+        showStandings: false,
       },
       ...overrides,
     }),

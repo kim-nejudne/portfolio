@@ -176,14 +176,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F64 Buzz time limit: devices
 
-- [ ] F65 Standings: rank on the phone and a Screen rail
-  - Spec: UI spec by view (Player view, Screen view); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F64
-  - Done when:
-    - The phone's top bar shows the rank beside the score ("3rd of 8"; equal scores share a rank) from the existing `me.rank` and `playerCount`, from the first question on
-    - `RoomSettings.showStandings: boolean` (default true), toggled in the Settings tab and the lobby settings
-    - When on, the Screen shows a slim rail of the top 5 (rank, colour, name, score) along the right edge in QUESTION, OPEN, COLLECTING, BUZZED and REVEAL at 1280×720 and up, never covering the question card; it reorders with `useFlip`
-  - Tests: `Play.test.tsx` (rank label, ordinal suffixes), `reducer.admin.test.ts` (setting), `Screen.test.tsx` (rail on and off, top 5). `/playtest`: 6 bots, rail at 1920×1080 and 1280×720
+- [x] F65 Standings: rank on the phone and a Screen rail
 
 - [ ] F66 Screen polish
   - Spec: UI spec by view (Screen view); see DECISIONS, Proposed spec changes (audit)

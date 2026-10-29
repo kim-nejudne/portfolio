@@ -211,6 +211,7 @@ describe('reduce: host:settings', () => {
       scoreboardEvery: 5,
       answerSeconds: 0,
       buzzSeconds: 0,
+      showStandings: true,
     });
     expect(room.phase).toBe(phase);
     expect(effects).toEqual([]);
@@ -222,6 +223,7 @@ describe('reduce: host:settings', () => {
       scoreboardEvery: 0,
       answerSeconds: 7,
       buzzSeconds: 15,
+      showStandings: false,
     } as const;
     const room = step(inPhase('LOBBY'), { type: 'host:settings', settings });
     expect(room.settings).toEqual({ wrongPenalty: false, ...settings });
@@ -239,6 +241,7 @@ describe('reduce: host:settings', () => {
       scoreboardEvery: 3,
       answerSeconds: 0,
       buzzSeconds: 0,
+      showStandings: true,
     });
   });
 
@@ -246,6 +249,16 @@ describe('reduce: host:settings', () => {
     const room = step(buzzed(), { type: 'host:settings', settings: { wrongPenalty: true } });
     const judged = step(room, { type: 'host:judge', result: 'wrong' });
     expect(judged.players.p1?.score).toBe(0);
+  });
+
+  it('turns the standings rail off and on again, keeping the other keys', () => {
+    const off = step(inPhase('OPEN'), {
+      type: 'host:settings',
+      settings: { showStandings: false },
+    });
+    expect(off.settings).toEqual({ ...inPhase('OPEN').settings, showStandings: false });
+    const on = step(off, { type: 'host:settings', settings: { showStandings: true } });
+    expect(on.settings.showStandings).toBe(true);
   });
 
   it('does not open the buzzers on the current question when auto-open turns on', () => {

@@ -817,6 +817,72 @@ describe('Play result states', () => {
     expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
   });
 
+  it('has no rank in the top bar in the lobby', async () => {
+    await joined();
+    expect(document.querySelector('[data-rank]')).toBeNull();
+  });
+
+  it('shows the rank beside the score from the first question', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'QUESTION',
+        questionIndex: 0,
+        playerCount: 8,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 0, rank: 3 },
+      }),
+    );
+    const rank = document.querySelector('[data-rank]');
+    expect(rank?.textContent).toBe('3rd of 8');
+    // In the top bar, next to the score pill.
+    expect(rank?.closest('header')).toBe(screen.getByLabelText('Score').closest('header'));
+    expect(screen.queryByText('Your rank')).toBeNull();
+  });
+
+  it.each([
+    [1, '1st'],
+    [2, '2nd'],
+    [3, '3rd'],
+    [4, '4th'],
+    [11, '11th'],
+    [12, '12th'],
+    [13, '13th'],
+    [21, '21st'],
+    [22, '22nd'],
+    [23, '23rd'],
+    [101, '101st'],
+    [111, '111th'],
+  ])('shows rank %i as "%s of 120"', async (rank, label) => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'OPEN',
+        questionIndex: 4,
+        openingCounter: 3,
+        playerCount: 120,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 0, rank },
+      }),
+    );
+    expect(document.querySelector('[data-rank]')?.textContent).toBe(`${label} of 120`);
+  });
+
+  it('shows a shared rank as the server sends it: two tied first are both "1st"', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'REVEAL',
+        questionIndex: 2,
+        answer: 'Canberra',
+        playerCount: 3,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 200, rank: 1 },
+      }),
+    );
+    expect(document.querySelector('[data-rank]')?.textContent).toBe('1st of 3');
+  });
+
   it('shows "Removed by host" with a link home when kicked, and does not join again', async () => {
     const socket = await joined();
     act(() => lastJoin(socket).ack({ ok: true }));

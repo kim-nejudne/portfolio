@@ -601,8 +601,14 @@ function hostSettings(
   room: Room,
   { settings }: Extract<Action, { type: 'host:settings' }>,
 ): ReduceResult {
-  const { wrongPenalty, autoOpenBuzzers, scoreboardEvery, answerSeconds, buzzSeconds } =
-    room.settings;
+  const {
+    wrongPenalty,
+    autoOpenBuzzers,
+    scoreboardEvery,
+    answerSeconds,
+    buzzSeconds,
+    showStandings,
+  } = room.settings;
   return done({
     ...room,
     settings: {
@@ -611,6 +617,7 @@ function hostSettings(
       scoreboardEvery: settings.scoreboardEvery ?? scoreboardEvery,
       answerSeconds: settings.answerSeconds ?? answerSeconds,
       buzzSeconds: settings.buzzSeconds ?? buzzSeconds,
+      showStandings: settings.showStandings ?? showStandings,
     },
   });
 }

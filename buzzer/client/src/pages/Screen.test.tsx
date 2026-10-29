@@ -1114,6 +1114,102 @@ describe('Screen result states', () => {
       .getAllByRole('listitem')
       .map((li) => li.textContent);
 
+  describe('standings rail', () => {
+    const rail = () => screen.queryByRole('complementary', { name: 'Standings' });
+    const six = [
+      player(1, { name: 'Ana', score: 500, rank: 1 }),
+      player(2, { name: 'Ben', score: 400, rank: 2 }),
+      player(3, { name: 'Cy', score: 400, rank: 2 }),
+      player(4, { name: 'Dee', score: 200, rank: 4 }),
+      player(5, { name: 'Eli', score: 100, rank: 5, connected: false }),
+      player(6, { name: 'Fay', score: 0, rank: 6 }),
+    ];
+    const railRows = () =>
+      within(rail()!)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent);
+
+    it.each(['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'] as const)(
+      'lists the top 5 with rank, colour, name and score in %s',
+      (phase) => {
+        show(
+          phase === 'REVEAL'
+            ? revealView({ players: six, winnerId: 'p1', scorerId: 'p1' })
+            : questionView({ phase, players: six, winnerId: phase === 'BUZZED' ? 'p1' : null }),
+        );
+        expect(railRows()).toEqual(['1Ana500', '2Ben400', '2Cy400', '4Dee200', '5Eli100']);
+        const first = within(rail()!).getAllByRole('listitem')[0]!;
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = six[0]!.color;
+        expect(colourDot(first).style.backgroundColor).toBe(probe.style.backgroundColor);
+      },
+    );
+
+    it('sits beside the question card, not over it, and only from 1280×720', () => {
+      show(questionView({ players: six }));
+      const card = screen.getByRole('region', { name: 'Question' });
+      expect(rail()!.contains(card)).toBe(false);
+      expect(card.contains(rail())).toBe(false);
+      expect(rail()!.className).toContain('hidden');
+      expect(rail()!.className).toContain('[@media(min-width:1280px)_and_(min-height:720px)]:flex');
+    });
+
+    it('dims a disconnected player', () => {
+      show(questionView({ players: six }));
+      const eli = within(rail()!).getAllByRole('listitem')[4]!;
+      expect(eli.className).toContain('opacity-40');
+    });
+
+    it('is gone when standings are off', () => {
+      show(questionView({ players: six, settings: { ...DEFAULT_SETTINGS, showStandings: false } }));
+      expect(rail()).toBeNull();
+      expect(screen.getByRole('region', { name: 'Question' })).toBeTruthy();
+    });
+
+    it('turns off and on with the setting mid-question', () => {
+      const socket = show(questionView({ phase: 'OPEN', openingCounter: 1, players: six }));
+      expect(rail()).not.toBeNull();
+      socket.fire(
+        'state',
+        questionView({
+          phase: 'OPEN',
+          openingCounter: 1,
+          players: six,
+          settings: { ...DEFAULT_SETTINGS, showStandings: false },
+        }),
+      );
+      expect(rail()).toBeNull();
+    });
+
+    it('reorders when the scores change', () => {
+      const socket = show(questionView({ players: six }));
+      socket.fire(
+        'state',
+        revealView({
+          players: [
+            { ...six[5]!, score: 600, rank: 1 },
+            ...six.slice(0, 5).map((p) => ({ ...p, rank: p.rank + 1 })),
+          ],
+          winnerId: 'p6',
+          scorerId: 'p6',
+        }),
+      );
+      expect(railRows()).toEqual(['1Fay600', '2Ana500', '3Ben400', '3Cy400', '5Dee200']);
+    });
+
+    it('is absent in the lobby and on the Final screen', () => {
+      const socket = show(lobbyView(six));
+      expect(rail()).toBeNull();
+      socket.fire('state', lobbyView(six, { phase: 'FINAL', questionIndex: 9 }));
+      expect(rail()).toBeNull();
+    });
+
+    it('is absent with no players', () => {
+      show(questionView({ players: [] }));
+      expect(rail()).toBeNull();
+    });
+  });
+
   describe('buzz time', () => {
     const ring = () => document.querySelector<HTMLElement>('[data-buzz-ring]');
     const buzzTime = () => screen.queryByRole('timer', { name: 'Buzz time' });

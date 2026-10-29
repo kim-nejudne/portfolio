@@ -29,13 +29,14 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions and no answer or buzz timer', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, and the standings rail on', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
       scoreboardEvery: 5,
       answerSeconds: 0,
       buzzSeconds: 0,
+      showStandings: true,
     });
   });
 

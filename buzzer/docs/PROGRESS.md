@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F65 — Standings: rank on the phone and a Screen rail (2026-10-29)
+**What changed:**
+- Shared/server: `RoomSettings.showStandings` (default true in `DEFAULT_SETTINGS`), `z.boolean()` in the create body and `host:settings`, merged by `hostSettings`.
+- Phone: "3rd of 8" (`ordinal(me.rank)` of `playerCount`) in the top bar left of the score pill from the first question; the "Your rank" footer card is gone.
+- Screen: new `StandingsRail.tsx`, a `17vw` column right of the question column in `ScreenQuestion` (top 5: rank, colour dot, name, score; disconnected dimmed; `useFlip` reorder) in QUESTION, OPEN, COLLECTING, BUZZED and REVEAL, at `(min-width:1280px) and (min-height:720px)` only. Settings: a "Standings on the Screen" switch, last row of `HostSettings` (remote tab and Screen lobby); compact rows now keep their detail line `sr-only`.
+- Tests: `reducer.admin.test.ts` +1 (and fixtures), `schemas.test.ts` +2, `constants.test.ts`, `HostControls.test.tsx` +3, `Play.test.tsx` +15 (top bar, lobby absent, ordinals 1st–111th, tie), `Screen.test.tsx` +12 (top 5 in each of five phases with colour, beside the card and the breakpoint class, dimmed, off, toggled mid-question, reorder, lobby and Final, no players). 1564 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F65 (phone top bar replaces the footer; rail as its own column, phases, breakpoint; switch placement and `sr-only` details in compact).
+
+**Notes for next session:**
+- The Screen lobby's settings had already overflowed at 1280×720 since F64 (five rows with details: `scrollHeight` 576 vs `clientHeight` 454 once the sixth row came, "Scoreboard every" clipped before). With compact details `sr-only` it is 454 = 454 and the last row ends at 563 of 601. Any further lobby setting (F71 false start, F73 presets, F81 teams, F91 copy) must re-measure this at 1280×720.
+- Playtest (Playwright, room CZXS: Screen 1920×1080 and 1280×720, Zed at 390×844 and 6 bots; then room UTFD): Zed's top bar read "1st of 7"; the rail listed the top 5 of 7, ties sharing rank 2 after Zed scored, Zed moved to the top; at 1280×720 the rail spans x 1014–1232 and the card ends at 989; gone at 1100 wide; the remote switch removed and restored the rail live; in BUZZED with 6 bots and five "also buzzed" the rail and banner don't overlap; lobby toggle works. Not checked: "2nd"/"3rd" on a real phone, the rail in OPEN and COLLECTING in a browser, the FLIP animation by eye. Built CSS carries the `(width>=1280px) and (height>=720px)` rule. Screenshots: `.playtest/F65/rail-1920x1080-screen.png`, `rail-1280x720-screen.png`, `lobby-1280x720-screen.png`, `buzzed-1280x720-screen.png`.
+- With all players tied, the rail's five are the first five by join order (server ranking), so a sixth tied player is absent.
+- Main `index` chunk 471.20 → 472.67 kB (142.73 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room, open the Screen at 1280×720 or larger, Click to start. Add players (phones at `http://<laptop-LAN-IP>:5173/play/<CODE>`, or bots at `/dev/bots/<CODE>`), start: each phone's top bar shows "1st of N"; the Screen's right edge lists the top 5 and reorders as scores change. Toggle **Standings on the Screen** in the lobby settings or the remote's Settings tab.
+
 ## F64 — Buzz time limit: devices (2026-10-29)
 **What changed:**
 - `useAnswerCountdown.ts`: one private `useCountdown` behind `useAnswerCountdown` and the new `useBuzzCountdown` (`buzzTimer`, never `up`).

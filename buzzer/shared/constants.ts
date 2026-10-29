@@ -90,6 +90,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   scoreboardEvery: 5,
   answerSeconds: 0,
   buzzSeconds: 0,
+  showStandings: true,
 };
 
 // ---------- Question sets ----------

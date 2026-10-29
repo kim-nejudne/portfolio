@@ -29,7 +29,8 @@ const SIZES = {
   compact: {
     row: 'gap-2 px-3 py-2',
     label: 'text-base',
-    detail: 'text-xs',
+    // One line per row, so all six rows and Start game fit at 1280×720 with no scroll (F65).
+    detail: 'sr-only',
     stepper: 'size-9 text-xl',
     value: 'w-12',
     track: 'h-6 w-11',
@@ -129,6 +130,14 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
           +
         </button>
       </div>
+      <Switch
+        label="Standings on the Screen"
+        detail="The top 5 beside each question."
+        checked={settings.showStandings}
+        disabled={busy}
+        onChange={(showStandings) => change({ showStandings })}
+        size={size}
+      />
     </section>
   );
 }

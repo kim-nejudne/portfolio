@@ -105,6 +105,7 @@ export const roomSettingsSchema = z.object({
   scoreboardEvery: z.int().min(0).max(SCOREBOARD_EVERY_MAX),
   answerSeconds: z.literal(ANSWER_SECONDS_CHOICES),
   buzzSeconds: z.literal(BUZZ_SECONDS_CHOICES),
+  showStandings: z.boolean(),
 });
 
 export const createRoomBodySchema = z.object({

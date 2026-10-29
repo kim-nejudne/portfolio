@@ -514,6 +514,16 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
+          {/* From the first question: "3rd of 8", equal scores sharing a rank (server/ranking.ts). */}
+          {inGame && (
+            <span
+              data-rank
+              className="flex flex-col items-end text-[13px] leading-tight font-bold whitespace-nowrap text-muted"
+            >
+              <span className="font-display text-lg text-accent">{ordinal(view.me.rank)}</span> of{' '}
+              {view.playerCount}
+            </span>
+          )}
           <span
             aria-label="Score"
             className={`${PILL} px-4 py-1.5 font-display text-xl tabular-nums`}
@@ -624,17 +634,6 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
             )}
           </div>
           {view.lobby && <WhosHere players={view.lobby} meId={view.me.id} />}
-          {inGame && (
-            <footer className="mx-4 mb-4 flex shrink-0 items-center justify-between rounded-[20px] border-2 border-edge bg-surface px-5 py-3">
-              <span className="font-bold text-muted">Your rank</span>
-              <span className="font-display text-2xl text-accent">
-                {ordinal(view.me.rank)}
-                <span className="ml-1.5 font-sans text-base font-bold text-muted">
-                  of {view.playerCount}
-                </span>
-              </span>
-            </footer>
-          )}
         </>
       )}
       <Toast toast={toast} />

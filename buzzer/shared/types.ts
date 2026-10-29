@@ -85,6 +85,7 @@ export interface RoomSettings {
   scoreboardEvery: number; // default 5, 0 = never auto
   answerSeconds: AnswerSeconds; // default 0 = off
   buzzSeconds: BuzzSeconds; // default 0 = off
+  showStandings: boolean; // default true: the Screen's top-5 rail during a question
 }
 
 /** The buzz winner's answer time. `endsAt` is wall-clock ms and never leaves the server. */

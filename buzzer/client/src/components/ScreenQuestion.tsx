@@ -12,6 +12,7 @@ import {
 import { useRecentFx } from '../lib/useRecentFx.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 import { Icon } from './Icon.js';
+import { StandingsRail } from './StandingsRail.js';
 
 /** The gold stage ring round the hero panel: 6px of base, then 4px of gold, at 1280 wide. */
 const STAGE_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]';
@@ -49,52 +50,55 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const winner = view.players.find((p) => p.id === view.winnerId);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-[4vh] px-[3.75vw] pt-[1vh] pb-[3vh]">
-      <section
-        aria-label="Question"
-        className="flex min-h-0 flex-1 flex-col gap-[2vh] overflow-hidden rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
-      >
-        <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
-        {/* Safe centring: text taller than a squeezed card, even at the smallest size, starts at
+    <div className="flex min-h-0 flex-1 gap-[2vw] px-[3.75vw] pt-[1vh] pb-[3vh]">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[4vh]">
+        <section
+          aria-label="Question"
+          className="flex min-h-0 flex-1 flex-col gap-[2vh] overflow-hidden rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
+        >
+          <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
+          {/* Safe centring: text taller than a squeezed card, even at the smallest size, starts at
             the top and clips at the bottom, instead of spilling over the label. The row carries
             the text size, so the hook measures a box that its font size never changes. */}
-        <div
-          ref={rowRef}
-          className={`flex min-h-0 flex-1 items-center-safe gap-[4vw] overflow-hidden ${questionTextClass(text, question.imageId !== undefined)}`}
-        >
-          {text && <h1 className="min-w-0 flex-1 leading-tight font-bold break-words">{text}</h1>}
-          {question.imageId && (
-            <img
-              src={imageSrc ?? imageUrl(view.code, question.imageId)}
-              alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
-              className="h-full min-h-0 min-w-0 flex-1 rounded-[min(0.94vw,1.67vh)] object-contain"
-            />
-          )}
-        </div>
-      </section>
-      {view.phase === 'REVEAL' ? (
-        <Reveal
-          answer={question.answer}
-          scorer={view.players.find((p) => p.id === view.scorerId)}
-        />
-      ) : view.phase === 'BUZZED' && winner ? (
-        <BuzzResult
-          winner={winner}
-          judgedWrong={view.lockedOut.includes(winner.id)}
-          countdown={countdown}
-          alsoBuzzed={view.alsoBuzzed}
-          players={view.players}
-        />
-      ) : (
-        <>
-          {buzzCountdown && view.buzzTimer ? (
-            <BuzzTimeRing countdown={buzzCountdown} seconds={view.buzzTimer.seconds} />
-          ) : (
-            <BuzzerStatus open={buzzersOpen(view.phase)} />
-          )}
-          <LockedOut ids={view.lockedOut} players={view.players} />
-        </>
-      )}
+          <div
+            ref={rowRef}
+            className={`flex min-h-0 flex-1 items-center-safe gap-[4vw] overflow-hidden ${questionTextClass(text, question.imageId !== undefined)}`}
+          >
+            {text && <h1 className="min-w-0 flex-1 leading-tight font-bold break-words">{text}</h1>}
+            {question.imageId && (
+              <img
+                src={imageSrc ?? imageUrl(view.code, question.imageId)}
+                alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
+                className="h-full min-h-0 min-w-0 flex-1 rounded-[min(0.94vw,1.67vh)] object-contain"
+              />
+            )}
+          </div>
+        </section>
+        {view.phase === 'REVEAL' ? (
+          <Reveal
+            answer={question.answer}
+            scorer={view.players.find((p) => p.id === view.scorerId)}
+          />
+        ) : view.phase === 'BUZZED' && winner ? (
+          <BuzzResult
+            winner={winner}
+            judgedWrong={view.lockedOut.includes(winner.id)}
+            countdown={countdown}
+            alsoBuzzed={view.alsoBuzzed}
+            players={view.players}
+          />
+        ) : (
+          <>
+            {buzzCountdown && view.buzzTimer ? (
+              <BuzzTimeRing countdown={buzzCountdown} seconds={view.buzzTimer.seconds} />
+            ) : (
+              <BuzzerStatus open={buzzersOpen(view.phase)} />
+            )}
+            <LockedOut ids={view.lockedOut} players={view.players} />
+          </>
+        )}
+      </div>
+      <StandingsRail phase={view.phase} players={view.players} show={view.settings.showStandings} />
     </div>
   );
 }

@@ -217,6 +217,14 @@ describe('createRoomBodySchema', () => {
       false,
     );
   });
+
+  it('requires the standings switch in a new room', () => {
+    const withoutStandings: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete withoutStandings.showStandings;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: withoutStandings }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('newGameBodySchema', () => {
@@ -388,6 +396,16 @@ describe('client event payloads', () => {
     }
     for (const buzzSeconds of [3, 7, 25, 45, 10.5, '5']) {
       expect(settings.safeParse({ buzzSeconds }).success, String(buzzSeconds)).toBe(false);
+    }
+  });
+
+  it('accepts the standings switch as a boolean only', () => {
+    const settings = clientPayloadSchemas['host:settings'];
+    for (const showStandings of [true, false]) {
+      expect(settings.safeParse({ showStandings }).success).toBe(true);
+    }
+    for (const showStandings of [1, 'true', null]) {
+      expect(settings.safeParse({ showStandings }).success, String(showStandings)).toBe(false);
     }
   });
 
