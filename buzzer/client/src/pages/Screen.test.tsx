@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  CHOICE_COLORS,
   AVATARS,
   DEFAULT_SETTINGS,
   GAME_ENDED_ERROR,
@@ -901,6 +902,24 @@ describe('Screen', () => {
       expect(sent(socket)).toEqual([expected]);
     });
 
+    it('on a choice question the bar reads Open answers, then Close answers, and Space sends each (F86)', () => {
+      const choice = { choices: ['Sydney', 'Canberra'], answered: 0, expected: 1, timer: null };
+      const socket = hostScreen(inPhase('QUESTION', { choice }));
+      expect(within(bar()!).getByRole('button', { name: /Open answers/ })).toBeTruthy();
+      press(' ');
+      expect(sent(socket)).toEqual([['host:open', {}]]);
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+
+      socket.fire(
+        'state',
+        inPhase('ANSWERING', { openingCounter: 1, choice: { ...choice, timer: { seconds: 10 } } }),
+      );
+      expect(within(bar()!).getByRole('button', { name: /Close answers/ })).toBeTruthy();
+      expect(within(bar()!).getByRole('button', { name: /Skip question/ })).toBeTruthy();
+      press(' ');
+      expect(sent(socket).at(-1)).toEqual(['host:reveal', {}]);
+    });
+
     it('ignores shortcuts with Ctrl, Cmd or Alt held, and key repeats', () => {
       const socket = hostScreen(inPhase('REVEAL'));
       press('s', { ctrlKey: true });
@@ -1595,6 +1614,116 @@ describe('Screen result states', () => {
       show(revealView({ winnerId: null, scorerId: null }));
       expect(screen.getByText(ANSWER)).toBeTruthy();
       expect(screen.queryByText(/✓/)).toBeNull();
+    });
+  });
+
+  describe('choice questions (F86)', () => {
+    const CHOICES = ['Sydney', 'Canberra', 'Melbourne', 'Perth'];
+    const tiles = () =>
+      within(screen.getByRole('region', { name: 'Choices' })).getAllByRole('listitem');
+    const choiceTime = () => screen.queryByRole('timer', { name: 'Time to answer' });
+    const answering = (overrides: Partial<ScreenView> = {}) =>
+      questionView({
+        phase: 'ANSWERING',
+        openingCounter: 1,
+        choice: { choices: CHOICES, answered: 1, expected: 3, timer: { seconds: 10 } },
+        ...overrides,
+      });
+
+    it('shows the choices as lettered tiles A–D in their colours under the question', () => {
+      show(answering());
+      expect(tiles().map((li) => li.textContent)).toEqual([
+        'ASydney',
+        'BCanberra',
+        'CMelbourne',
+        'DPerth',
+      ]);
+      const probe = document.createElement('span');
+      CHOICE_COLORS.forEach((color, index) => {
+        probe.style.backgroundColor = color;
+        expect(tiles()[index]!.style.backgroundColor).toBe(probe.style.backgroundColor);
+      });
+      const question = screen.getByRole('heading', { level: 1 });
+      expect(question.compareDocumentPosition(tiles()[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        4,
+      );
+      expect(screen.queryByText('Buzzers OPEN')).toBeNull();
+      expect(screen.queryByText('Buzzers locked')).toBeNull();
+    });
+
+    it('shows two tiles for a two-choice question', () => {
+      show(
+        answering({
+          choice: { choices: ['True', 'False'], answered: 0, expected: 2, timer: { seconds: 10 } },
+        }),
+      );
+      expect(tiles().map((li) => li.textContent)).toEqual(['ATrue', 'BFalse']);
+    });
+
+    it('counts the answer time down and shows "N of M answered" while answers are taken', () => {
+      vi.useFakeTimers();
+      const socket = show(answering());
+      expect(choiceTime()?.textContent).toBe('10');
+      expect(screen.getByRole('status').textContent).toBe('1 of 3 answered');
+      act(() => vi.advanceTimersByTime(4000));
+      expect(choiceTime()?.textContent).toBe('6');
+      socket.fire(
+        'state',
+        answering({
+          choice: { choices: CHOICES, answered: 2, expected: 3, timer: { seconds: 10 } },
+        }),
+      );
+      expect(screen.getByRole('status').textContent).toBe('2 of 3 answered');
+      expect(choiceTime()?.textContent).toBe('6');
+    });
+
+    it('marks no tile and shows no counts before the reveal', () => {
+      show(answering());
+      expect(document.querySelector('[data-correct]')).toBeNull();
+      expect(document.querySelector('[data-count]')).toBeNull();
+      expect(screen.queryByText(/correct/i)).toBeNull();
+    });
+
+    it('shows the tiles with "Answers locked" before the answering opens', () => {
+      show(
+        answering({
+          phase: 'QUESTION',
+          openingCounter: 0,
+          choice: { choices: CHOICES, answered: 0, expected: 3, timer: null },
+        }),
+      );
+      expect(tiles()).toHaveLength(4);
+      expect(screen.getByRole('status').textContent).toBe('Answers locked');
+      expect(choiceTime()).toBeNull();
+    });
+
+    it('at the reveal lights the correct tile, dims the others and shows each count', () => {
+      show(
+        revealView({
+          winnerId: null,
+          scorerId: 'p2',
+          choice: {
+            choices: CHOICES,
+            answered: 3,
+            expected: 3,
+            timer: null,
+            correctChoice: 1,
+            counts: [1, 2, 0, 0],
+          },
+        }),
+      );
+      const [a, b, c] = tiles();
+      expect(b!.dataset.correct).toBe('true');
+      expect(b!.textContent).toBe('BCanberra, correct2 picked');
+      expect(b!.className).toContain('shadow-');
+      expect(a!.dataset.correct).toBeUndefined();
+      expect(a!.className).toContain('opacity-35');
+      expect(a!.querySelector('[data-count]')?.textContent).toBe('1 picked');
+      expect(c!.querySelector('[data-count]')?.textContent).toBe('0 picked');
+      // The tiles carry the answer: no single scorer's name, as several may be right.
+      expect(scorer()).toBeNull();
+      expect(choiceTime()).toBeNull();
+      expect(screen.queryByText(/answered$/)).toBeNull();
     });
   });
 

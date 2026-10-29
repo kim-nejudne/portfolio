@@ -1,5 +1,12 @@
 import { useRef, type CSSProperties } from 'react';
-import type { BuzzGap, RankedPlayer, ScreenView } from '../../../shared/types.js';
+import { CHOICE_COLORS, CHOICE_LETTERS } from '../../../shared/constants.js';
+import type {
+  BuzzGap,
+  ChoiceView,
+  Phase,
+  RankedPlayer,
+  ScreenView,
+} from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
 import { signedPoints } from '../lib/results.js';
 import { buzzersOpen, formatGap, questionTextClass } from '../lib/screenQuestion.js';
@@ -7,6 +14,7 @@ import {
   countdownText,
   useAnswerCountdown,
   useBuzzCountdown,
+  useChoiceCountdown,
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
@@ -37,6 +45,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const { question } = view;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
+  const choiceCountdown = useChoiceCountdown(view);
   const held = useFalseStartWait(view, view.settings.falseStartMs, view.falseStarts.length > 0);
   const rowRef = useRef<HTMLDivElement>(null);
   // The length step is the most the text gets; the answer and the banner squeeze the card, so it
@@ -76,7 +85,11 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
             )}
           </div>
         </section>
-        {view.phase === 'REVEAL' ? (
+        {view.choice ? (
+          // A choice question shows its tiles in place of the buzzer status, the lit tile in
+          // place of the answer at REVEAL, and nobody's name: several players may be right (F86).
+          <ChoiceBoard choice={view.choice} phase={view.phase} countdown={choiceCountdown} />
+        ) : view.phase === 'REVEAL' ? (
           <Reveal
             answer={question.answer}
             scorer={view.players.find((p) => p.id === view.scorerId)}
@@ -154,6 +167,91 @@ function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seco
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * A choice question's 2–4 tiles, A–D in their colours (F86). While answers are taken, the time left
+ * and "N of M answered" sit under them. At REVEAL the correct tile lights in the gold ring with a
+ * check, the others dim, and each shows how many picked it. Before REVEAL the view carries neither
+ * the correct choice nor the counts, so nothing here can give the answer away.
+ */
+function ChoiceBoard({
+  choice,
+  phase,
+  countdown,
+}: {
+  choice: ChoiceView;
+  phase: Phase;
+  countdown: AnswerCountdown | null;
+}) {
+  const revealed = choice.correctChoice !== undefined;
+  return (
+    <section aria-label="Choices" className="flex shrink-0 flex-col gap-[2.4vh]">
+      <ol className="grid grid-cols-2 gap-x-[1.6vw] gap-y-[2vh] px-[0.8vw] pt-[0.8vw]">
+        {choice.choices.map((text, index) => {
+          const correct = revealed && index === choice.correctChoice;
+          const count = choice.counts?.[index];
+          return (
+            <li
+              key={index}
+              data-choice={CHOICE_LETTERS[index]}
+              data-correct={correct || undefined}
+              style={{ backgroundColor: CHOICE_COLORS[index] }}
+              className={`flex min-w-0 items-center gap-[1.4vw] rounded-[min(1.56vw,2.8vh)] px-[1.4vw] py-[1.4vh] text-bg transition-opacity ${
+                correct ? STAGE_RING : revealed ? 'opacity-35' : ''
+              }`}
+            >
+              <span className="grid size-[min(4.4vw,7.8vh)] shrink-0 place-items-center rounded-full bg-bg font-display text-[min(2.6vw,4.6vh)] text-ink">
+                {CHOICE_LETTERS[index]}
+              </span>
+              <span className="min-w-0 flex-1 text-[min(2.4vw,4.3vh)] leading-tight font-bold break-words">
+                {text}
+              </span>
+              {correct && (
+                <>
+                  <span className="sr-only">, correct</span>
+                  <Icon name="check" className="size-[min(3.4vw,6vh)] shrink-0" />
+                </>
+              )}
+              {count !== undefined && (
+                <span
+                  data-count
+                  className="min-w-[1.8em] shrink-0 rounded-full bg-bg px-[0.8vw] py-[0.4vh] text-center font-display text-[min(2.4vw,4.3vh)] leading-tight text-ink tabular-nums"
+                >
+                  {count}
+                  <span className="sr-only"> picked</span>
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      {phase === 'ANSWERING' && (
+        <div className="flex shrink-0 items-center justify-center gap-[2vw]">
+          {countdown && (
+            <p
+              role="timer"
+              aria-label="Time to answer"
+              className={`min-w-[2.2em] rounded-full bg-buzz px-[1.4vw] py-[0.6vh] text-center font-display text-[min(3.4vw,6vh)] leading-tight text-ink tabular-nums ${STAGE_RING}`}
+            >
+              {countdown.secondsLeft}
+            </p>
+          )}
+          <p role="status" className="font-display text-[min(2.6vw,4.6vh)] text-accent">
+            {choice.answered} of {choice.expected} answered
+          </p>
+        </div>
+      )}
+      {phase === 'QUESTION' && (
+        <p
+          role="status"
+          className="shrink-0 self-center rounded-full border-2 border-edge bg-surface px-[3vw] py-[1.2vh] font-display text-[min(2.6vw,4.6vh)] text-muted"
+        >
+          Answers locked
+        </p>
+      )}
+    </section>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AnswerTimerView, BuzzTimerView } from '../../../shared/types.js';
+import type { AnswerTimerView, BuzzTimerView, ChoiceView } from '../../../shared/types.js';
 
 /** What every device shows once the server marks the answer time up. */
 export const TIME_UP_LABEL = 'Time’s up!';
@@ -54,6 +54,25 @@ export function useBuzzCountdown({
   openingCounter,
 }: BuzzCountdownSource): AnswerCountdown | null {
   return useCountdown(buzzTimer, questionIndex, openingCounter);
+}
+
+/** The parts of any role's view the choice countdown needs. */
+interface ChoiceCountdownSource {
+  choice: Pick<ChoiceView, 'timer'> | null;
+  questionIndex: number;
+  openingCounter: number;
+}
+
+/**
+ * The time left to answer a choice question (F86), or null outside ANSWERING. It counts like the
+ * buzz countdown and is never `up`: the server closes the answering at 0 and reveals (F85).
+ */
+export function useChoiceCountdown({
+  choice,
+  questionIndex,
+  openingCounter,
+}: ChoiceCountdownSource): AnswerCountdown | null {
+  return useCountdown(choice?.timer ?? null, questionIndex, openingCounter);
 }
 
 /** Counts a view's timer down on this device; keyed by question index and opening counter. */

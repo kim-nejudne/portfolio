@@ -7,6 +7,7 @@ import {
   TIME_UP_LABEL,
   useAnswerCountdown,
   useBuzzCountdown,
+  useChoiceCountdown,
 } from './useAnswerCountdown.js';
 
 interface Props {
@@ -163,6 +164,38 @@ describe('useBuzzCountdown', () => {
     tick(6000);
     rerender({ ...buzzOpen(15), buzzTimer: null, answerTimer: { seconds: 5, up: false } });
     expect(result.current).toEqual({ buzz: null, answer: { secondsLeft: 5, up: false } });
+  });
+});
+
+describe('useChoiceCountdown', () => {
+  type ChoiceProps = Parameters<typeof useChoiceCountdown>[0];
+  const answering = (seconds: number): ChoiceProps => ({
+    choice: { timer: { seconds } },
+    questionIndex: 3,
+    openingCounter: 2,
+  });
+
+  it('counts the choice time down to 0 and stops there; closing is the server’s', () => {
+    const { result } = renderHook((props: ChoiceProps) => useChoiceCountdown(props), {
+      initialProps: answering(10),
+    });
+    expect(result.current).toEqual({ secondsLeft: 10, up: false });
+    tick(3000);
+    expect(result.current?.secondsLeft).toBe(7);
+    tick(20_000);
+    expect(result.current).toEqual({ secondsLeft: 0, up: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('is null for a buzz question and once the answering closes', () => {
+    const { result, rerender } = renderHook((props: ChoiceProps) => useChoiceCountdown(props), {
+      initialProps: { ...answering(10), choice: null } as ChoiceProps,
+    });
+    expect(result.current).toBeNull();
+    rerender(answering(10));
+    expect(result.current?.secondsLeft).toBe(10);
+    rerender({ ...answering(10), choice: { timer: null } });
+    expect(result.current).toBeNull();
   });
 });
 

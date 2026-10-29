@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER_PALETTE } from '../../../shared/constants.js';
-import type { PlayerView } from '../../../shared/types.js';
+import type { PlayerChoiceView, PlayerView } from '../../../shared/types.js';
 import { buzzerState } from './buzzerState.js';
 
 function view(overrides: Partial<PlayerView> = {}): PlayerView {
@@ -37,6 +37,17 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
   return { canBuzz: canBuzzFor(base), ...base };
 }
 
+function choice(overrides: Partial<PlayerChoiceView> = {}): PlayerChoiceView {
+  return {
+    choices: ['Paris', 'Rome'],
+    answered: 0,
+    expected: 3,
+    timer: { seconds: 10 },
+    mine: null,
+    ...overrides,
+  };
+}
+
 function canBuzzFor({ phase, lockedOut, hasBuzzed }: Omit<PlayerView, 'canBuzz'>): boolean {
   return (phase === 'OPEN' || phase === 'COLLECTING') && !lockedOut && !hasBuzzed;
 }
@@ -54,12 +65,70 @@ describe('buzzerState', () => {
     expect(buzzerState(view(), true).kind).toBe('practice');
   });
 
-  it('offers no buzzer while a choice question takes answers', () => {
-    expect(buzzerState(view({ phase: 'ANSWERING' }), true)).toEqual({
-      kind: 'idle',
-      label: 'Answering…',
+  it('asks for a pick while a choice question takes answers, with no buzzer', () => {
+    const answering = view({ phase: 'ANSWERING', questionIndex: 0, choice: choice() });
+    expect(buzzerState(answering, true)).toEqual({
+      kind: 'choice',
+      label: 'Pick your answer',
       live: false,
     });
+  });
+
+  it('says "Answer sent" once this player picked, from the server or a local tap', () => {
+    const sent = view({ phase: 'ANSWERING', questionIndex: 0, choice: choice({ mine: 1 }) });
+    expect(buzzerState(sent, false).label).toBe('Answer sent');
+    const tapped = view({ phase: 'ANSWERING', questionIndex: 0, choice: choice() });
+    expect(buzzerState(tapped, false, null, false, 0).label).toBe('Answer sent');
+  });
+
+  it('never shows "Too early!" before a choice question opens, even with false starts on', () => {
+    const shown = view({
+      phase: 'QUESTION',
+      questionIndex: 0,
+      falseStartMs: 500,
+      choice: choice({ timer: null }),
+    });
+    expect(buzzerState(shown, true)).toEqual({ kind: 'idle', label: 'Get ready…', live: false });
+  });
+
+  it('says "Correct!" with the points at the reveal of a choice this player got right', () => {
+    const revealed = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Rome',
+      pointsThisQuestion: 100,
+      choice: choice({ timer: null, mine: 1, correctChoice: 1, counts: [1, 2] }),
+    });
+    expect(buzzerState(revealed, false)).toEqual({
+      kind: 'revealed',
+      caption: 'Your answer',
+      label: 'Correct!',
+      detail: '+100',
+      live: false,
+    });
+  });
+
+  it('shows the right answer at the reveal of a choice this player missed or got wrong', () => {
+    const wrong = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Rome',
+      pointsThisQuestion: -100,
+      choice: choice({ timer: null, mine: 0, correctChoice: 1, counts: [1, 2] }),
+    });
+    expect(buzzerState(wrong, false)).toEqual({
+      kind: 'revealed',
+      label: 'Rome',
+      detail: '−100',
+      live: false,
+    });
+    const none = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Rome',
+      choice: choice({ timer: null, correctChoice: 1, counts: [1, 2] }),
+    });
+    expect(buzzerState(none, false)).toEqual({ kind: 'revealed', label: 'Rome', live: false });
   });
 
   it('says get ready while the question is shown and buzzers are locked', () => {

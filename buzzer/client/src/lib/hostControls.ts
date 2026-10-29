@@ -4,24 +4,36 @@ import type { HostCommand, HostEvent } from './useHostCommand.js';
 /** What the host controls read. The host remote's HostView and the Screen's ScreenView both have it. */
 export type ControlsView = Pick<
   ScreenView,
-  'phase' | 'questionIndex' | 'questionCount' | 'showScoreboard' | 'canJudge' | 'canUndo'
+  'phase' | 'questionIndex' | 'questionCount' | 'showScoreboard' | 'canJudge' | 'canUndo' | 'choice'
 >;
 
 /** The host events the primary button sends without a payload. */
 export type PrimaryEvent = 'host:start' | 'host:open' | 'host:reveal' | 'host:next';
 
 /** Phases with a question on screen and its answer still hidden, where Skip applies. */
-export const UNREVEALED: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'];
+export const UNREVEALED: readonly Phase[] = [
+  'QUESTION',
+  'OPEN',
+  'COLLECTING',
+  'BUZZED',
+  'ANSWERING',
+];
 
 const BY_PHASE: Partial<Record<Phase, { label: string; event: PrimaryEvent }>> = {
   LOBBY: { label: 'Start game', event: 'host:start' },
   QUESTION: { label: 'Open buzzers', event: 'host:open' },
   OPEN: { label: 'Reveal answer', event: 'host:reveal' },
   COLLECTING: { label: 'Reveal answer', event: 'host:reveal' },
+  // Closing early scores the answers in and reveals, as the timer would (DECISIONS, F85).
+  ANSWERING: { label: 'Close answers', event: 'host:reveal' },
 };
 
 /** The primary action for this phase, or null in BUZZED (Correct / Wrong) and FINAL. */
 export function primaryFor(view: ControlsView): { label: string; event: PrimaryEvent } | null {
+  // A choice question has no buzzers: `host:open` starts the answering instead (F85).
+  if (view.phase === 'QUESTION' && view.choice) {
+    return { label: 'Open answers', event: 'host:open' };
+  }
   if (view.phase === 'REVEAL') {
     // `host:next` after the last question shows the final results instead of another question.
     const last = view.questionIndex >= view.questionCount - 1;
@@ -52,7 +64,10 @@ export type LocalShortcut = 'fullscreen' | 'bar' | 'sound' | 'help';
 
 /** The Screen's keyboard shortcuts (UI spec, Screen host controls), as listed on the `?` overlay. */
 export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
-  { keys: ['Space'], action: 'Primary action (Start / Open buzzers / Reveal / Next)' },
+  {
+    keys: ['Space'],
+    action: 'Primary action (Start / Open buzzers / Close answers / Reveal / Next)',
+  },
   { keys: ['C'], action: 'Correct' },
   { keys: ['V'], action: 'Half points' },
   { keys: ['X'], action: 'Wrong' },

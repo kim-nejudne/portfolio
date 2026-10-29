@@ -4,6 +4,7 @@ import {
   APP_NAME,
   AVATARS,
   BUZZ_SECONDS_CHOICES,
+  CHOICE_COLORS,
   CHOICE_LETTERS,
   CHOICE_SECONDS_DEFAULT,
   CHOICE_SECONDS_MAX,
@@ -97,5 +98,7 @@ describe('shared constants', () => {
     expect([CHOICES_MIN, CHOICES_MAX]).toEqual([2, 4]);
     expect(CHOICE_LETTERS).toEqual(['A', 'B', 'C', 'D']);
     expect(CHOICE_LETTERS).toHaveLength(CHOICES_MAX);
+    expect(CHOICE_COLORS).toHaveLength(CHOICES_MAX);
+    expect(new Set(CHOICE_COLORS).size).toBe(CHOICES_MAX);
   });
 });

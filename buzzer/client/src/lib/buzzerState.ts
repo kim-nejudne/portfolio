@@ -8,14 +8,18 @@ export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next questi
 /** The phone's label for a false start, until the wait after the opening ends (UI spec, Player view). */
 export const TOO_EARLY_LABEL = 'Too early!';
 
+/** The phone's label once its pick for a choice question is in (UI spec, Player view). */
+export const ANSWER_SENT_LABEL = 'Answer sent';
+
 /**
  * How the buzzer looks: grey, a muted test buzzer in the lobby, amber after a false start, bright and pulsing, pressed in,
  * the winner's red panel, dim, muted with a red X, the answer in a card, or the final result in
  * place of the button. The label is the status line above the button; the button itself always
- * reads BUZZ.
+ * reads BUZZ. `choice` is a choice question taking answers: the choice buttons replace the buzzer.
  */
 export type BuzzerKind =
   | 'idle'
+  | 'choice'
   | 'practice'
   | 'early'
   | 'live'
@@ -31,6 +35,8 @@ export interface BuzzerState {
   label: string;
   /** A second line: the points scored at reveal, or the final score. */
   detail?: string;
+  /** The small heading over the reveal card, when it is not "Answer". */
+  caption?: string;
   /** The winner's seconds left to answer, while an answer time runs. */
   secondsLeft?: number;
   /** True when a press sends `player:buzz`. A `practice` press sends `player:practice` instead. */
@@ -42,18 +48,22 @@ export interface BuzzerState {
  * press for the current opening, shown before the server's next snapshot arrives. `countdown` is
  * the answer countdown from `useAnswerCountdown`; only the winner's phone shows it. `held` is
  * `useFalseStartWait`: this player pressed early and the wait after the opening has not ended.
+ * `picked` is this player's choice on a choice question: the local tap before the server's `mine`.
  */
 export function buzzerState(
   view: PlayerView,
   pressed: boolean,
   countdown: AnswerCountdown | null = null,
   held = false,
+  picked: number | null = view.choice?.mine ?? null,
 ): BuzzerState {
   switch (view.phase) {
     case 'LOBBY':
       // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
       return { kind: 'practice', label: 'Tap to test your buzzer', live: false };
     case 'QUESTION':
+      // A choice question has no buzzer, so no false start either (DECISIONS, F85).
+      if (view.choice) return idle('Get ready…');
       // With false starts on, the grey button still takes a press: the server records it (F71).
       if (view.falseStartMs === 0) return idle('Get ready…');
       if (pressed || view.falseStart) return tooEarly();
@@ -82,9 +92,26 @@ export function buzzerState(
       }
       return { kind: 'lost', label: `${view.winnerName ?? 'Someone'} buzzed first`, live: false };
     case 'ANSWERING':
-      // A choice question has no buzzer; F86 puts the choice buttons here.
-      return idle('Answering…');
+      // The pick can still change until the answering closes (DECISIONS, F85).
+      return {
+        kind: 'choice',
+        label: picked === null ? 'Pick your answer' : ANSWER_SENT_LABEL,
+        live: false,
+      };
     case 'REVEAL':
+      if (
+        view.choice &&
+        view.choice.mine !== null &&
+        view.choice.mine === view.choice.correctChoice
+      ) {
+        return {
+          kind: 'revealed',
+          caption: 'Your answer',
+          label: 'Correct!',
+          ...(view.pointsThisQuestion !== 0 && { detail: signedPoints(view.pointsThisQuestion) }),
+          live: false,
+        };
+      }
       return {
         kind: 'revealed',
         // SPEC-QUESTION: a penalty shows as "−100", like "+100" for a score (DECISIONS, F24).

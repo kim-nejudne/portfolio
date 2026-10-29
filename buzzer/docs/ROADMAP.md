@@ -228,14 +228,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F85 Multiple choice: server
 
-- [ ] F86 Multiple choice: devices
-  - Spec: UI spec by view (Screen view, Player view, Host remote); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F85
-  - Done when:
-    - Screen: the choices as 2–4 coloured tiles (A–D) under the question, a countdown and "N of M answered"; at REVEAL the correct tile lights and each shows its count
-    - Phone: big lettered buttons with the choice text; the picked one stays marked; at REVEAL "Correct! +100" or the right answer
-    - Remote: answer progress and the per-choice tally; the primary action reads **Close answers** during ANSWERING
-  - Tests: `Screen.test.tsx`, `Play.test.tsx`, `Host.test.tsx`, `hostControls.test.ts`. `/playtest`: a mixed set with buzz and choice questions
+- [x] F86 Multiple choice: devices
 
 - [ ] F87 Typed answers: data, editor and server
   - Spec: Data model (`Question`); Game flow and state machine (Transitions); Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
@@ -296,3 +289,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Teams: the results card image (F78) and the remote's Game over standings could rank teams first too, and scoreboard player rows could carry a team mark beside their own colour dot (F82).
 - Bundle: the main `index` chunk passed Vite's 500 kB warning (501.6 kB, 150.7 kB gzip) with F83. Lazy-load a page that only one device opens (the editor at `/sets`, or the results card renderer) to get back under it (F83).
 - Choice questions: the Print answer sheet could list the choices with the correct one marked (F84 prints the correct choice as the answer only), and the editor could warn about two choices with the same text.
+- Choice questions: a "Choice time" stepper (5–30 s) in Settings for `choiceSeconds`, settable over `host:settings` only today; the Screen lobby's settings column is full at 1280×720, so it needs a squeeze or a fold (F85, F86). The Screen could play the correct or wrong sound at a choice reveal (no `fx` is sent then), and the remote could name who picked what from `choice.answers` (F86).

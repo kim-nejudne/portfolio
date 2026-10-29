@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AVATARS,
+  CHOICE_COLORS,
   GAME_ENDED_ERROR,
   PING_INTERVAL_MS,
   PLAYER_KICKED_ERROR,
@@ -12,7 +13,12 @@ import {
   ROOM_NOT_FOUND_ERROR,
   TEAMS,
 } from '../../../shared/constants.js';
-import type { PlayerResults, PlayerView, TeamView } from '../../../shared/types.js';
+import type {
+  PlayerChoiceView,
+  PlayerResults,
+  PlayerView,
+  TeamView,
+} from '../../../shared/types.js';
 import { TOAST_MS } from '../components/Toast.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -1433,5 +1439,213 @@ describe('Play with teams', () => {
     socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9 }));
     const result = screen.getByRole('region', { name: 'Final result' });
     expect(within(result).queryByLabelText('Team')).toBeNull();
+  });
+});
+
+describe('Play choice questions (F86)', () => {
+  const CHOICES = ['Sydney', 'Canberra', 'Melbourne', 'Perth'];
+
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    return sockets[0]!;
+  }
+
+  function choiceView(
+    choice: Partial<PlayerChoiceView> = {},
+    overrides: Partial<PlayerView> = {},
+  ): PlayerView {
+    return playerView({
+      phase: 'ANSWERING',
+      questionIndex: 0,
+      openingCounter: 1,
+      choice: {
+        choices: CHOICES,
+        answered: 0,
+        expected: 3,
+        timer: { seconds: 10 },
+        mine: null,
+        ...choice,
+      },
+      ...overrides,
+    });
+  }
+
+  const choiceButton = (text: string) =>
+    screen.getByRole('button', { name: new RegExp(text) }) as HTMLButtonElement;
+  const choiceButtons = () =>
+    within(screen.getByRole('list', { name: 'Choices' })).getAllByRole('button');
+  const status = () => screen.getByRole('heading', { level: 1 });
+  const answers = (socket: FakeSocket) => socket.emitted.filter((e) => e.event === 'player:answer');
+
+  function stubVibrate() {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+    return vibrate;
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
+  it('shows a big lettered button per choice, in its colour, in place of BUZZ', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView());
+    expect(choiceButtons().map((b) => b.textContent)).toEqual([
+      'ASydney',
+      'BCanberra',
+      'CMelbourne',
+      'DPerth',
+    ]);
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = CHOICE_COLORS[1];
+    expect(choiceButton('Canberra').style.backgroundColor).toBe(probe.style.backgroundColor);
+    expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
+    expect(status().textContent).toBe('Pick your answer');
+  });
+
+  it('a tap sends player:answer, marks the pick at once and says "Answer sent"', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView());
+    fireEvent.click(choiceButton('Canberra'));
+
+    expect(answers(socket).map((e) => e.payload)).toEqual([{ choice: 1 }]);
+    expect(choiceButton('Canberra').getAttribute('aria-pressed')).toBe('true');
+    expect(choiceButton('Canberra').textContent).toContain('Your pick');
+    expect(choiceButton('Sydney').getAttribute('aria-pressed')).toBe('false');
+    expect(status().textContent).toBe('Answer sent');
+  });
+
+  it('keeps the pick marked from the server’s snapshot, as after a refresh', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView({ mine: 2, answered: 1 }));
+    expect(choiceButton('Melbourne').getAttribute('aria-pressed')).toBe('true');
+    expect(status().textContent).toBe('Answer sent');
+  });
+
+  it('a second tap on another choice changes the pick; the same one again sends nothing', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView());
+    fireEvent.click(choiceButton('Sydney'));
+    fireEvent.click(choiceButton('Sydney'));
+    fireEvent.click(choiceButton('Perth'));
+    expect(answers(socket).map((e) => e.payload)).toEqual([{ choice: 0 }, { choice: 3 }]);
+    expect(choiceButton('Perth').getAttribute('aria-pressed')).toBe('true');
+    expect(choiceButton('Sydney').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('a refused answer drops the mark and shows why', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView());
+    fireEvent.click(choiceButton('Sydney'));
+    act(() => answers(socket)[0]!.ack({ ok: false, error: 'Answers are closed' }));
+    expect(choiceButton('Sydney').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('alert').textContent).toBe('Answers are closed');
+    expect(status().textContent).toBe('Pick your answer');
+  });
+
+  it('counts the answer time down', async () => {
+    const socket = await joined();
+    vi.useFakeTimers();
+    socket.fire('state', choiceView());
+    const timer = () => screen.getByRole('timer', { name: 'Time to answer' });
+    expect(timer().textContent).toBe('10seconds to answer');
+    act(() => vi.advanceTimersByTime(9000));
+    expect(timer().textContent).toBe('1second to answer');
+  });
+
+  it('shows the choices but takes no tap before the answering opens, and never "Too early!"', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      choiceView({ timer: null }, { phase: 'QUESTION', openingCounter: 0, falseStartMs: 500 }),
+    );
+    expect(choiceButtons()).toHaveLength(4);
+    expect(choiceButtons().every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    fireEvent.click(choiceButton('Sydney'));
+    fireEvent.keyDown(window, { code: 'Space' });
+    expect(
+      socket.emitted.filter((e) => e.event.startsWith('player:') && e.event !== 'player:join'),
+    ).toEqual([]);
+    expect(status().textContent).toBe('Get ready…');
+  });
+
+  it('at the reveal says "Correct! +100" when the pick was right, the correct choice checked', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      choiceView(
+        { timer: null, mine: 1, correctChoice: 1, counts: [1, 2, 0, 0], answered: 3 },
+        { phase: 'REVEAL', answer: 'Canberra', pointsThisQuestion: 100 },
+      ),
+    );
+    const card = screen.getByRole('region', { name: 'Answer' });
+    expect(within(card).getByText('Your answer')).toBeTruthy();
+    expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Correct!');
+    expect(within(card).getByText('+100').className).toContain('text-win');
+    expect(choiceButton('Canberra').dataset.correct).toBe('true');
+    expect(choiceButton('Canberra').textContent).toBe('BCanberra, correctYour pick');
+    expect(choiceButtons().every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+  });
+
+  it('at the reveal shows the right answer when the pick was wrong or missing', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      choiceView(
+        { timer: null, mine: 0, correctChoice: 1, counts: [1, 2, 0, 0], answered: 3 },
+        { phase: 'REVEAL', answer: 'Canberra' },
+      ),
+    );
+    const card = screen.getByRole('region', { name: 'Answer' });
+    expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Canberra');
+    expect(choiceButton('Sydney').textContent).toContain('Your pick');
+    expect(choiceButton('Sydney').className).toContain('opacity-50');
+    expect(choiceButton('Canberra').dataset.correct).toBe('true');
+  });
+
+  it('marks no choice correct before the reveal', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView({ mine: 1 }));
+    expect(document.querySelector('[data-correct]')).toBeNull();
+    expect(screen.queryByText(/correct/i)).toBeNull();
+  });
+
+  it('vibrates for a right or wrong pick when the answers close, and not for no pick', async () => {
+    const vibrate = stubVibrate();
+    const socket = await joined();
+    const reveal = (mine: number | null) =>
+      choiceView(
+        { timer: null, mine, correctChoice: 1, counts: [0, 1, 0, 0] },
+        { phase: 'REVEAL', answer: 'Canberra' },
+      );
+
+    socket.fire('state', choiceView({ mine: 1 }));
+    socket.fire('state', reveal(1));
+    expect(vibrate).toHaveBeenLastCalledWith([60, 80, 60]);
+
+    socket.fire('state', choiceView({ mine: 0 }, { questionIndex: 1 }));
+    socket.fire('state', reveal(0));
+    expect(vibrate).toHaveBeenLastCalledWith(400);
+
+    vibrate.mockClear();
+    socket.fire('state', choiceView({}, { questionIndex: 2 }));
+    socket.fire('state', reveal(null));
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('does not vibrate on joining straight into a reveal', async () => {
+    const vibrate = stubVibrate();
+    const socket = await joined();
+    socket.fire(
+      'state',
+      choiceView(
+        { timer: null, mine: 1, correctChoice: 1, counts: [0, 1, 0, 0] },
+        { phase: 'REVEAL', answer: 'Canberra' },
+      ),
+    );
+    expect(vibrate).not.toHaveBeenCalled();
   });
 });

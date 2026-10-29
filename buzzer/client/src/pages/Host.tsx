@@ -13,6 +13,7 @@ import { HostPlayers } from '../components/HostPlayers.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
+import { ChoiceTally } from '../components/ChoiceTally.js';
 import { PrimaryAction } from '../components/PrimaryAction.js';
 import { ReadAloudJoin, ReadAloudQuestion } from '../components/ReadAloud.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
@@ -248,6 +249,13 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
               <ReadAloudJoin code={view.code} />
             ) : (
               <ReadAloudQuestion view={view} />
+            )}
+            {view.choice && view.phase !== 'FINAL' && (
+              <ChoiceTally
+                choice={view.choice}
+                phase={view.phase}
+                showCorrect={!readAloud || view.phase === 'REVEAL'}
+              />
             )}
             <PrimaryAction view={view} command={command} bigWinner={readAloud} />
             <SecondaryActions view={view} command={command} />

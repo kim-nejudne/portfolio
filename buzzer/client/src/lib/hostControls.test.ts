@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Phase } from '../../../shared/types.js';
-import { shortcutFor, SHORTCUTS, type ControlsView } from './hostControls.js';
+import type { ChoiceView, Phase } from '../../../shared/types.js';
+import { primaryFor, shortcutFor, SHORTCUTS, type ControlsView } from './hostControls.js';
 
 function view(phase: Phase, overrides: Partial<ControlsView> = {}): ControlsView {
   return {
@@ -10,9 +10,41 @@ function view(phase: Phase, overrides: Partial<ControlsView> = {}): ControlsView
     showScoreboard: false,
     canJudge: false,
     canUndo: false,
+    choice: null,
     ...overrides,
   };
 }
+
+const CHOICE: ChoiceView = {
+  choices: ['Paris', 'Rome'],
+  answered: 1,
+  expected: 3,
+  timer: { seconds: 10 },
+};
+
+describe('primaryFor: choice questions (F86)', () => {
+  it('reads "Open answers" on a choice question before the answering starts', () => {
+    expect(primaryFor(view('QUESTION', { choice: CHOICE }))).toEqual({
+      label: 'Open answers',
+      event: 'host:open',
+    });
+    expect(primaryFor(view('QUESTION'))).toEqual({ label: 'Open buzzers', event: 'host:open' });
+  });
+
+  it('reads "Close answers" during ANSWERING and sends host:reveal', () => {
+    expect(primaryFor(view('ANSWERING', { choice: CHOICE }))).toEqual({
+      label: 'Close answers',
+      event: 'host:reveal',
+    });
+  });
+
+  it('moves on from a revealed choice question as from any other', () => {
+    expect(primaryFor(view('REVEAL', { choice: CHOICE }))).toEqual({
+      label: 'Next question',
+      event: 'host:next',
+    });
+  });
+});
 
 describe('shortcutFor: Space is the primary action', () => {
   it.each([
@@ -20,6 +52,7 @@ describe('shortcutFor: Space is the primary action', () => {
     ['QUESTION', 'host:open'],
     ['OPEN', 'host:reveal'],
     ['COLLECTING', 'host:reveal'],
+    ['ANSWERING', 'host:reveal'],
     ['REVEAL', 'host:next'],
   ] as const)('in %s it sends %s', (phase, event) => {
     expect(shortcutFor(' ', view(phase))).toEqual({ event, payload: {} });
@@ -56,7 +89,7 @@ describe('shortcutFor: judging', () => {
 });
 
 describe('shortcutFor: moving through questions', () => {
-  it.each(['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'] as const)(
+  it.each(['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'ANSWERING'] as const)(
     'R reveals or skips in %s',
     (phase) => {
       expect(shortcutFor('r', view(phase))).toEqual({ event: 'host:reveal', payload: {} });

@@ -84,6 +84,7 @@ export function reorderQuestions(
  * **Preview**: the Screen's view of question `index` just after it is shown, with buzzers locked
  * and nobody in the room. It carries no answer or host notes, as the Screen gets none before reveal.
  * With `reveal`, it is the Screen's REVEAL view instead: the answer, still no notes, and no scorer.
+ * A choice question carries its choices, and its correct choice only with `reveal`.
  */
 export function previewView(set: QuestionSet, index: number, reveal = false): ScreenView {
   const source = set.questions[index];
@@ -114,7 +115,20 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     category: null,
     difficulty: null,
     hostDevices: 0,
-    choice: null,
+    // A choice question's tiles, as the Screen gets them: the correct one only in the reveal (F86).
+    choice:
+      source?.mode === 'choice' && source.choices
+        ? {
+            choices: source.choices,
+            answered: 0,
+            expected: 0,
+            timer: null,
+            ...(reveal && {
+              correctChoice: source.correctChoice ?? 0,
+              counts: source.choices.map(() => 0),
+            }),
+          }
+        : null,
     question: source
       ? {
           id: source.id,

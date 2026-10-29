@@ -186,6 +186,8 @@ export const CHOICES_MAX = 4;
 export const CHOICE_TEXT_MAX = 80;
 /** How choices are labelled on every device, in order. */
 export const CHOICE_LETTERS = ['A', 'B', 'C', 'D'] as const;
+/** Each choice's tile colour on every device, in letter order; dark text reads on all four (F86). */
+export const CHOICE_COLORS = ['#EF4444', '#3B82F6', '#FACC15', '#22C55E'] as const;
 // SPEC-QUESTION: the spec gives no points range, no score-change bound and no scoreboard ceiling; see DECISIONS (F02).
 export const POINTS_MIN = 0;
 export const POINTS_MAX = 10_000;

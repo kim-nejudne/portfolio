@@ -12,6 +12,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F86 — Multiple choice: devices (2026-10-30)
+**What changed:**
+- Shared/lib: `CHOICE_COLORS` (A red, B blue, C yellow, D green). `useChoiceCountdown` (`useAnswerCountdown.ts`) counts `choice.timer` like the buzz countdown. `hostControls.ts`: `ControlsView` includes `choice`; `primaryFor` gives **Open answers** for a choice question in QUESTION and **Close answers** (`host:reveal`) in ANSWERING; ANSWERING joins `UNREVEALED` (Skip, `R`). The Screen's host bar and Space follow, as they share `primaryFor`.
+- Screen (`ScreenQuestion.tsx`): `ChoiceBoard` replaces the buzzer status for a choice question. A 2-column grid of lettered tiles, then "Answers locked" (QUESTION) or the time left in a red pill and "N of M answered" (ANSWERING). At REVEAL the correct tile gets the gold ring and a check, the others dim to 35 %, every tile shows its count, and no scorer is named.
+- Phone (`Play.tsx`, `buzzerState.ts`): `ChoiceButtons` replace the round BUZZ button. New kind `choice`: "Pick your answer", then "Answer sent". A tap marks "Your pick" before the ack and sends `player:answer`; a refusal drops it and toasts. "N seconds to answer". In QUESTION the buzzers are disabled, with "Get ready…" and never "Too early!". At REVEAL: "Your answer / Correct! / +100" (new `caption` on `BuzzerState`), or the answer text and any penalty. `useChoiceHaptics` vibrates on ANSWERING → REVEAL with a pick.
+- Remote: new `ChoiceTally.tsx` under the question card (progress, per-choice count and share bar, correct marked; in read-aloud only at REVEAL). `PrimaryAction`'s side countdown is now `SideCountdown` with a label ("Buzz time" or "Time to answer"). The editor's `previewView` fills `choice`.
+- Tests:
+  - `hostControls.test.ts` +3, plus ANSWERING in the Space and R tables
+  - `useAnswerCountdown.test.ts` +2
+  - `buzzerState.test.ts` (choice: ask, sent ×2, no Too early, Correct!, wrong/none; replaces F85's "Answering…")
+  - `Screen.test.tsx` +7 (tiles and colours, two tiles, countdown and progress, no marks or counts before REVEAL, Answers locked, REVEAL lit tile and counts, host bar Open/Close answers with Space)
+  - `Play.test.tsx` +12, `Host.test.tsx` +9, `setEditor.test.ts` +3, `constants.test.ts` (colours)
+  - 2128 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-30 for F86 (tile colours and the Screen; the phone's buttons, labels and haptics; the remote's labels, tally and read-aloud; the preview).
+
+**Notes for next session:**
+- Choice buttons send on click, not pointerdown: the client rule's pointerdown is for the buzzer race. The phone's `main` is `touch-none`, so the choices list sets `touch-auto` to scroll if it overflows.
+- The playtester saw a phone read "3 seconds to answer" on first look. That was the 10 s `choiceSeconds` count already 7 s in; the remote's **Answer time** setting is the buzz winner's time and does not touch it. Still no Choice time stepper (Backlog).
+- Main `index` chunk 502.78 → 509.77 kB (152.64 kB gzip); the bundle Backlog item still stands.
+- Playtest (Playwright, `.playtest/F86/mixed.json`: buzz, choice "Largest planet?" (B Jupiter), buzz; one real phone plus 2 bots).
+  - Checked: the remote's Open answers, then Close answers with its countdown and tally.
+  - The Screen's tiles, countdown and "1 of 3 answered", with no `data-correct` or "correct" before reveal; at reveal the lit B with counts 0/1/0/0 and Ann's score 0 → 100.
+  - The phone's "Answer sent" with "Your pick", then "Correct! +100"; the remote's tally kept at REVEAL with Next question; Previous, Skip and Next replay with no stale marks. No console errors.
+  - Screenshots: `answering-screen.png`, `reveal-screen.png` (1920×1080) and `reveal-player.png`. No remote screenshot and no 375 px phone shot of ANSWERING.
+
+**How to try it:** `npm run dev`. Make a set at `http://localhost:5173/sets` with a question whose **Mode** is **Choice** (or import `.playtest/F86/mixed.json`), then **Host a game** on the laptop. Join phones at `http://<LAN-IP>:5173/play/<code>` (or bots at `/dev/bots/<code>`), and pair a phone as remote. On the choice question press **Open answers** (or Space on the Screen). Tap a choice on each phone, then watch "N of M answered" and the tally. It reveals when all have answered, after 10 s, or on **Close answers**.
+
 ## F85 — Multiple choice: server (2026-10-30)
 **What changed:**
 - Shared: `Phase` adds `'ANSWERING'`; `RoomSettings.choiceSeconds` (int 5–30, default 10; `CHOICE_SECONDS_MIN/MAX/DEFAULT`); `Room.answers` (playerId → choice) and `Room.answeringTimer`; `player:answer {choice}` (int 0–3) in `ClientPayloads` and `clientPayloadSchemas`; view types `ChoiceView`, `HostChoiceView`, `PlayerChoiceView`, `AnsweringTimerView`.

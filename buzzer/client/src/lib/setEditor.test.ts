@@ -141,6 +141,44 @@ describe('set editor preview', () => {
   });
 });
 
+describe('set editor preview of a choice question (F86)', () => {
+  const set: QuestionSet = {
+    id: 's',
+    title: 'Quiz',
+    questions: [
+      q('a', {
+        mode: 'choice',
+        choices: ['Paris', 'Rome', 'Oslo'],
+        correctChoice: 2,
+        answer: 'Oslo',
+      }),
+      q('b'),
+    ],
+    createdAt: 1,
+    updatedAt: 2,
+    schemaVersion: 1,
+  };
+
+  it('carries the choices without the correct one when shown', () => {
+    const view = previewView(set, 0);
+    expect(view.choice).toEqual({
+      choices: ['Paris', 'Rome', 'Oslo'],
+      answered: 0,
+      expected: 0,
+      timer: null,
+    });
+    expect(JSON.stringify(view)).not.toContain('correctChoice');
+  });
+
+  it('marks the correct choice, with no picks, in the reveal variant', () => {
+    expect(previewView(set, 0, true).choice).toMatchObject({ correctChoice: 2, counts: [0, 0, 0] });
+  });
+
+  it('has no choice for a buzz question', () => {
+    expect(previewView(set, 1).choice).toBeNull();
+  });
+});
+
 describe('set editor field checks', () => {
   it('a complete question has no errors', () => {
     expect(questionErrors(q('a', { hostNotes: 'Also: B' }))).toEqual({});

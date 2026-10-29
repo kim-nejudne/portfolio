@@ -5,6 +5,7 @@ import { LABEL } from '../lib/ui.js';
 import {
   useAnswerCountdown,
   useBuzzCountdown,
+  useChoiceCountdown,
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
@@ -36,13 +37,14 @@ const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
  * The remote's full-width primary action (UI spec, Host remote). Its label and event follow the
  * phase; after a buzz it becomes the red judging panel: who buzzed first, the answer countdown
  * right above Correct / Wrong when an answer time is set, then the other buzzes. While the buzzers
- * are open with a buzz time, the seconds left sit beside it. The server decides whether it is
- * allowed.
+ * are open with a buzz time, or a choice question takes answers, the seconds left sit beside it.
+ * The server decides whether it is allowed.
  */
 export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActionProps) {
   const { busy, run } = command;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
+  const choiceCountdown = useChoiceCountdown(view);
 
   if (view.phase === 'BUZZED') {
     // After a wrong answer the room waits in BUZZED before the buzzers reopen (DECISIONS #5).
@@ -127,21 +129,27 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
       <Icon name={PRIMARY_ICON[action.event]} className="size-6" />
     </button>
   );
-  if (!buzzCountdown) return button;
+  const side = buzzCountdown
+    ? { countdown: buzzCountdown, label: 'Buzz time' }
+    : choiceCountdown && { countdown: choiceCountdown, label: 'Time to answer' };
+  if (!side) return button;
   return (
     <div className="flex items-stretch gap-3">
       {button}
-      <BuzzCountdown countdown={buzzCountdown} />
+      <SideCountdown {...side} />
     </div>
   );
 }
 
-/** The buzz time left beside Reveal answer; at 0 the server reveals by itself (DECISIONS, F63). */
-function BuzzCountdown({ countdown }: { countdown: AnswerCountdown }) {
+/**
+ * The buzz time left beside Reveal answer, or the answer time beside Close answers; at 0 the
+ * server reveals by itself (DECISIONS, F63 and F85).
+ */
+function SideCountdown({ countdown, label }: { countdown: AnswerCountdown; label: string }) {
   return (
     <div
       role="timer"
-      aria-label="Buzz time"
+      aria-label={label}
       className="flex min-w-[76px] shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-buzz bg-surface px-3"
     >
       <span className="font-display text-3xl leading-none text-buzz tabular-nums">

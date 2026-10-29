@@ -11,7 +11,7 @@ import {
   TEAMS,
 } from '../../../shared/constants.js';
 import { TOAST_MS } from '../components/Toast.js';
-import type { HostView, Question, TeamView } from '../../../shared/types.js';
+import type { HostChoiceView, HostView, Question, TeamView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -1064,6 +1064,133 @@ describe('Host remote', () => {
       expect(screen.getByRole('alert').textContent).toBe('Wait');
       act(() => vi.advanceTimersByTime(1000));
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('choice questions (F86)', () => {
+    function remote(view: HostView, path = `/host/WXYZ#t=${TOKEN}`) {
+      const { socket } = renderHost(path);
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', view);
+      return socket;
+    }
+
+    const CHOICES = ['Sydney', 'Canberra', 'Melbourne'];
+    const choiceQuestion = question(1, {
+      mode: 'choice',
+      choices: CHOICES,
+      correctChoice: 1,
+      answer: 'Canberra',
+    });
+    function choiceView(
+      phase: HostView['phase'],
+      choice: Partial<HostChoiceView> = {},
+      overrides: Partial<HostView> = {},
+    ): HostView {
+      return hostView({
+        phase,
+        questionIndex: 0,
+        openingCounter: 1,
+        question: choiceQuestion,
+        players: [player(1), player(2), player(3)],
+        choice: {
+          choices: CHOICES,
+          answered: 2,
+          expected: 3,
+          timer: phase === 'ANSWERING' ? { seconds: 10 } : null,
+          correctChoice: 1,
+          counts: [1, 1, 0],
+          answers: { p1: 0, p2: 1 },
+          ...choice,
+        },
+        ...overrides,
+      });
+    }
+    const tally = () => screen.getByRole('region', { name: 'Answers' });
+    const rows = () => within(tally()).getAllByRole('listitem');
+
+    it('shows answer progress and the tally per choice, the correct one marked', () => {
+      remote(choiceView('ANSWERING'));
+      expect(within(tally()).getByRole('status').textContent).toBe('2 of 3 answered');
+      expect(rows().map((li) => li.textContent)).toEqual([
+        'ASydney1',
+        'BCanberra, correct1',
+        'CMelbourne0',
+      ]);
+      expect(rows()[1]!.dataset.correct).toBe('true');
+      const bars = rows().map((li) => li.querySelector<HTMLElement>('[data-bar]')!.style.width);
+      expect(bars).toEqual(['50%', '50%', '0%']);
+    });
+
+    it('updates the tally as answers come in', () => {
+      const socket = remote(choiceView('ANSWERING'));
+      socket.fire(
+        'state',
+        choiceView('ANSWERING', {
+          answered: 3,
+          counts: [1, 2, 0],
+          answers: { p1: 0, p2: 1, p3: 1 },
+        }),
+      );
+      expect(within(tally()).getByRole('status').textContent).toBe('3 of 3 answered');
+      expect(rows()[1]!.querySelector('[data-count]')!.textContent).toBe('2');
+    });
+
+    it('the primary action reads Close answers in ANSWERING and sends host:reveal', () => {
+      const socket = remote(choiceView('ANSWERING'));
+      const close = screen.getByRole('button', { name: 'Close answers' });
+      fireEvent.click(close);
+      expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:reveal', payload: {} });
+    });
+
+    it('counts the answer time down beside Close answers', () => {
+      vi.useFakeTimers();
+      remote(choiceView('ANSWERING'));
+      const timer = () => screen.getByRole('timer', { name: 'Time to answer' });
+      expect(timer().textContent).toBe('10sec');
+      act(() => vi.advanceTimersByTime(3000));
+      expect(timer().textContent).toBe('7sec');
+      vi.useRealTimers();
+    });
+
+    it('reads Open answers before the answering starts, and Skip question still applies', () => {
+      const socket = remote(
+        choiceView(
+          'QUESTION',
+          { answered: 0, counts: [0, 0, 0], answers: {} },
+          { openingCounter: 0 },
+        ),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Open answers' }));
+      expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:open', payload: {} });
+      expect(within(tally()).queryByRole('status')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Skip question' })).toBeTruthy();
+    });
+
+    it('offers Skip question during ANSWERING too', () => {
+      remote(choiceView('ANSWERING'));
+      expect(screen.getByRole('button', { name: 'Skip question' })).toBeTruthy();
+    });
+
+    it('keeps the final tally at REVEAL, with Next question', () => {
+      remote(choiceView('REVEAL', { answered: 3, counts: [1, 2, 0] }));
+      expect(within(tally()).getByRole('status').textContent).toBe('3 of 3 answered');
+      expect(rows()[1]!.textContent).toBe('BCanberra, correct2');
+      expect(screen.getByRole('button', { name: 'Next question' })).toBeTruthy();
+    });
+
+    it('in the read-aloud layout, marks the correct choice only at REVEAL', () => {
+      remote(choiceView('ANSWERING'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      expect(tally().querySelector('[data-correct]')).toBeNull();
+      expect(within(tally()).queryByText(/correct/)).toBeNull();
+      cleanup();
+      remote(choiceView('REVEAL'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      expect(rows()[1]!.dataset.correct).toBe('true');
+    });
+
+    it('shows no tally for a buzz question', () => {
+      remote(hostView({ phase: 'OPEN', questionIndex: 0, question: question(1) }));
+      expect(screen.queryByRole('region', { name: 'Answers' })).toBeNull();
     });
   });
 

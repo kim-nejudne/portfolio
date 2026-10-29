@@ -10,6 +10,8 @@ import {
 import { Link, useParams } from 'react-router';
 import {
   AVATARS,
+  CHOICE_COLORS,
+  CHOICE_LETTERS,
   GAME_ENDED_ERROR,
   PLAYER_KICKED_ERROR,
   PLAYER_NAME_MAX,
@@ -17,7 +19,7 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
-import type { Ack, LobbyPlayer, PlayerView } from '../../../shared/types.js';
+import type { Ack, LobbyPlayer, PlayerChoiceView, PlayerView } from '../../../shared/types.js';
 import { BulbRail } from '../components/BulbRail.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
@@ -42,7 +44,11 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
-import { useAnswerCountdown, useBuzzCountdown } from '../lib/useAnswerCountdown.js';
+import {
+  useAnswerCountdown,
+  useBuzzCountdown,
+  useChoiceCountdown,
+} from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
@@ -356,6 +362,14 @@ function PlayerRoom({
     },
     [socketRef],
   );
+  const answer = useCallback<SendAnswer>(
+    (choice, ack) => {
+      const socket = socketRef.current;
+      if (!socket) return ack({ ok: false, error: 'Not connected' });
+      socket.emit('player:answer', { choice }, ack);
+    },
+    [socketRef],
+  );
   const rename = useCallback<SendRename>(
     (name, ack) => {
       const socket = socketRef.current;
@@ -389,11 +403,13 @@ function PlayerRoom({
   }
   if (error) return <PlayMessage title={error} />;
   if (view?.role !== 'player') return <PlayMessage title="Joining…" link={false} />;
-  return <Buzzer view={view} send={press} rename={rename} leave={leave} />;
+  return <Buzzer view={view} send={press} answer={answer} rename={rename} leave={leave} />;
 }
 
 /** Sends a press: a buzz, or a lobby test buzz. */
 type SendPress = (event: 'player:buzz' | 'player:practice', ack: (res: Ack) => void) => void;
+/** Sends `player:answer` with a choice index, for a choice question. */
+type SendAnswer = (choice: number, ack: (res: Ack) => void) => void;
 /** Sends `player:rename` with a name already checked against the join's rules. */
 type SendRename = (name: string, ack: (res: Ack) => void) => void;
 type SendLeave = (ack: (res: Ack) => void) => void;
@@ -421,6 +437,23 @@ function useOutcomeHaptics(meId: string): void {
   }, [event, meId]);
 }
 
+/**
+ * Vibrates when a choice question this player answered is revealed (UI spec, Player view: vibrate
+ * on correct and wrong). The server sends no `fx` at its close (DECISIONS, F85), so this follows the
+ * change from ANSWERING to REVEAL; a reconnect straight into REVEAL never replays it.
+ */
+function useChoiceHaptics(view: PlayerView): void {
+  const lastPhase = useRef(view.phase);
+  useEffect(() => {
+    const was = lastPhase.current;
+    lastPhase.current = view.phase;
+    const choice = view.choice;
+    if (was !== 'ANSWERING' || view.phase !== 'REVEAL' || !('vibrate' in navigator)) return;
+    if (!choice || choice.mine === null || choice.correctChoice === undefined) return;
+    navigator.vibrate(choice.mine === choice.correctChoice ? CORRECT_VIBRATION : WRONG_VIBRATION);
+  }, [view.phase, view.choice]);
+}
+
 /*
  * The BUZZ button: a 10px gold rim, then 10px of base and 6px of border colour as rings, and an
  * 18px bottom bevel that shrinks to 8px when pressed. Full class strings, so Tailwind sees them.
@@ -432,6 +465,8 @@ const DEAD_BUTTON =
 
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: DEAD_BUTTON,
+  // The choice buttons replace the buzzer then; this look is never drawn.
+  choice: DEAD_BUTTON,
   // Live but muted: no pulse, a darker red, the same press-in.
   // Amber and pressed in: the press before the opening was noted, and the wait is on (F72).
   early:
@@ -450,6 +485,7 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
 /** The status line's colour above the button. */
 const STATUS_LOOK: Record<BuzzerKind, string> = {
   idle: 'text-accent',
+  choice: 'text-accent',
   practice: 'text-accent',
   early: 'text-warn',
   live: 'text-accent',
@@ -465,6 +501,7 @@ interface BuzzerProps {
   view: PlayerView;
   /** Sends `player:buzz`, or `player:practice` in the lobby. */
   send: SendPress;
+  answer: SendAnswer;
   rename: SendRename;
   leave: SendLeave;
 }
@@ -476,14 +513,18 @@ type Panel = 'menu' | 'rename' | null;
  * The buzzer screen (UI spec, Player view): the player's avatar, name, room and score on top, a
  * row of marquee bulbs, the state as a status line, the round BUZZ button, and their rank.
  */
-function Buzzer({ view, send, rename, leave }: BuzzerProps) {
+function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   // The local press belongs to one opening; a new question or reopening clears it.
   const opening = `${view.questionIndex}:${view.openingCounter}`;
   const [pressedAt, setPressedAt] = useState<string | null>(null);
+  // The local pick on a choice question, shown before the server's `mine` arrives; per opening.
+  const [pick, setPick] = useState<{ opening: string; choice: number } | null>(null);
+  const picked = (pick?.opening === opening ? pick.choice : null) ?? view.choice?.mine ?? null;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
+  const choiceCountdown = useChoiceCountdown(view);
   const held = useFalseStartWait(view, view.falseStartMs, view.falseStart);
-  const state = buzzerState(view, pressedAt === opening, countdown, held);
+  const state = buzzerState(view, pressedAt === opening, countdown, held, picked);
   // Counts test buzzes, so each one restarts the ring animation.
   const [practices, setPractices] = useState(0);
   const { toast, show } = useToast();
@@ -491,6 +532,7 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
   const [leaving, setLeaving] = useState(false);
   useWakeLock();
   useOutcomeHaptics(view.me.id);
+  useChoiceHaptics(view);
   const inLobby = view.phase === 'LOBBY';
   const enabled = state.live || state.kind === 'practice';
   const team = teamOf(view.teams, view.me.id);
@@ -505,6 +547,21 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
       // A refused buzz (rate limit, not joined, offline) frees the button to try again.
       if (res.ok) return;
       setPressedAt((at) => (at === opening ? null : at));
+      show(res.error);
+    });
+  }
+
+  /** A tap on a choice: marked at once, and a different tap changes it until the answering closes. */
+  function choose(choice: number) {
+    if (state.kind !== 'choice' || choice === picked) return;
+    setPick({ opening, choice });
+    if ('vibrate' in navigator) navigator.vibrate(30);
+    answer(choice, (res) => {
+      if (res.ok) return;
+      // Refused (closed, rate limit, offline): back to what the server has.
+      setPick((current) =>
+        current?.opening === opening && current.choice === choice ? null : current,
+      );
       show(res.error);
     });
   }
@@ -712,27 +769,36 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
               <BulbRail count={9} variant="row" />
               <BuzzerStatus state={state} progress={progress} />
             </div>
-            <button
-              type="button"
-              disabled={!enabled}
-              data-look={state.kind}
-              data-practices={state.kind === 'practice' ? practices : undefined}
-              aria-describedby="buzzer-status"
-              onPointerDown={onPointerDown}
-              onContextMenu={(event) => event.preventDefault()}
-              className={`relative grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
-            >
-              {state.kind === 'practice' && practices > 0 && (
-                // Keyed by the count, so every test buzz replays the ring.
-                <span
-                  key={practices}
-                  aria-hidden="true"
-                  data-practice-ring
-                  className="pointer-events-none absolute -inset-[10px] rounded-full border-[6px] border-accent opacity-0 motion-safe:animate-practice-ring"
-                />
-              )}
-              BUZZ
-            </button>
+            {view.choice ? (
+              <ChoiceButtons
+                choice={view.choice}
+                picked={picked}
+                enabled={state.kind === 'choice'}
+                onPick={choose}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={!enabled}
+                data-look={state.kind}
+                data-practices={state.kind === 'practice' ? practices : undefined}
+                aria-describedby="buzzer-status"
+                onPointerDown={onPointerDown}
+                onContextMenu={(event) => event.preventDefault()}
+                className={`relative grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
+              >
+                {state.kind === 'practice' && practices > 0 && (
+                  // Keyed by the count, so every test buzz replays the ring.
+                  <span
+                    key={practices}
+                    aria-hidden="true"
+                    data-practice-ring
+                    className="pointer-events-none absolute -inset-[10px] rounded-full border-[6px] border-accent opacity-0 motion-safe:animate-practice-ring"
+                  />
+                )}
+                BUZZ
+              </button>
+            )}
             {/* The buzz time left, while the buzzers are open (DECISIONS, F64). */}
             {buzzCountdown && (
               <p
@@ -746,12 +812,87 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
                 {buzzCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to buzz
               </p>
             )}
+            {/* The time left to answer a choice question (F86). */}
+            {choiceCountdown && (
+              <p
+                role="timer"
+                aria-label="Time to answer"
+                className="flex shrink-0 items-baseline gap-2 font-bold text-muted"
+              >
+                <span className="font-display text-4xl leading-none text-ink tabular-nums">
+                  {choiceCountdown.secondsLeft}
+                </span>
+                {choiceCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to answer
+              </p>
+            )}
           </div>
           {view.lobby && <WhosHere players={view.lobby} meId={view.me.id} />}
         </>
       )}
       <Toast toast={toast} />
     </main>
+  );
+}
+
+interface ChoiceButtonsProps {
+  choice: PlayerChoiceView;
+  /** This player's pick: the local tap, else the server's `mine`. */
+  picked: number | null;
+  /** Answers are being taken (ANSWERING). Before that the buttons preview the choices. */
+  enabled: boolean;
+  onPick: (choice: number) => void;
+}
+
+/**
+ * A choice question on the phone (UI spec, Player view): one big lettered button per choice, in
+ * its tile colour, with the choice text. The pick stays marked "Your pick". At REVEAL the correct
+ * one gets a check and the others dim; the view has no correct choice before then.
+ */
+function ChoiceButtons({ choice, picked, enabled, onPick }: ChoiceButtonsProps) {
+  const revealed = choice.correctChoice !== undefined;
+  return (
+    <ol
+      aria-label="Choices"
+      className="flex min-h-0 w-full max-w-sm shrink touch-auto flex-col gap-3 overflow-y-auto p-1"
+    >
+      {choice.choices.map((text, index) => {
+        const mine = picked === index;
+        const correct = revealed && index === choice.correctChoice;
+        return (
+          <li key={index}>
+            <button
+              type="button"
+              aria-pressed={mine}
+              disabled={!enabled}
+              data-correct={correct || undefined}
+              onClick={() => onPick(index)}
+              style={{ backgroundColor: CHOICE_COLORS[index] }}
+              className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border-4 px-3 py-2.5 text-left text-lg leading-snug font-bold text-bg transition not-disabled:active:scale-[0.98] ${
+                mine ? 'border-ink shadow-[0_0_0_3px_var(--color-bg)]' : 'border-transparent'
+              } ${correct ? 'ring-4 ring-accent ring-offset-2 ring-offset-bg' : ''} ${
+                (revealed && !correct) || (!revealed && !enabled) ? 'opacity-50' : ''
+              }`}
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-bg font-display text-2xl text-ink">
+                {CHOICE_LETTERS[index]}
+              </span>
+              <span className="min-w-0 flex-1 break-words">{text}</span>
+              {correct && (
+                <>
+                  <span className="sr-only">, correct</span>
+                  <Icon name="check" className="size-7 shrink-0" />
+                </>
+              )}
+              {mine && (
+                <span className="shrink-0 rounded-full bg-bg px-2.5 py-1 text-sm whitespace-nowrap text-ink">
+                  Your pick
+                </span>
+              )}
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -918,7 +1059,7 @@ function BuzzerStatus({ state, progress }: { state: BuzzerState; progress: strin
         aria-label="Answer"
         className={`flex w-full max-w-sm flex-col items-center gap-1 ${CARD} py-4`}
       >
-        <p className={LABEL}>Answer</p>
+        <p className={LABEL}>{state.caption ?? 'Answer'}</p>
         {heading}
         {state.detail && (
           <span
