@@ -1,15 +1,7 @@
 import type { PlayerView } from '../../../shared/types.js';
-import { ordinal, pointsLabel, signedPoints } from './results.js';
-import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
-
-/** A player who joined while the buzzers were open waits for the next opening (UI spec, Player view). */
-export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next question';
-
-/** The phone's label for a false start, until the wait after the opening ends (UI spec, Player view). */
-export const TOO_EARLY_LABEL = 'Too early!';
-
-/** The phone's label once its pick or typed answer is in (UI spec, Player view). */
-export const ANSWER_SENT_LABEL = 'Answer sent';
+import { pointsText, rankText, translator, type Translate } from './copy.js';
+import { signedPoints } from './results.js';
+import type { AnswerCountdown } from './useAnswerCountdown.js';
 
 /**
  * How the buzzer looks: grey, a muted test buzzer in the lobby, amber after a false start, bright and pulsing, pressed in,
@@ -59,65 +51,71 @@ export function buzzerState(
   held = false,
   picked: number | null = view.choice?.mine ?? null,
 ): BuzzerState {
+  // The room's language (F91): every label below comes from the copy table.
+  const t = translator(view.copy);
+  const idle = (label: string): BuzzerState => ({ kind: 'idle', label, live: false });
+  const tooEarly = (): BuzzerState => ({ kind: 'early', label: t('tooEarly'), live: false });
+  const lockedOut = (): BuzzerState => ({ kind: 'out', label: t('lockedOutRound'), live: false });
   switch (view.phase) {
     case 'LOBBY':
       // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
-      return { kind: 'practice', label: 'Tap to test your buzzer', live: false };
+      return { kind: 'practice', label: t('tapToTest'), live: false };
     case 'BOARD':
       // The host is picking the next tile; the phone waits as before a question (DECISIONS F89).
-      return idle('Get ready…');
+      return idle(t('getReady'));
     case 'QUESTION':
       // A choice or typed question has no buzzer, so no false start either (DECISIONS, F85).
-      if (view.choice || view.typed) return idle('Get ready…');
+      if (view.choice || view.typed) return idle(t('getReady'));
       // With false starts on, the grey button still takes a press: the server records it (F71).
-      if (view.falseStartMs === 0) return idle('Get ready…');
+      if (view.falseStartMs === 0) return idle(t('getReady'));
       if (pressed || view.falseStart) return tooEarly();
-      return { kind: 'idle', label: 'Get ready…', live: true };
+      return { kind: 'idle', label: t('getReady'), live: true };
     case 'OPEN':
     case 'COLLECTING':
       if (view.lockedOut) return lockedOut();
       // The server ignores this player's presses until the wait ends, so none is sent (F71).
       if (view.falseStart && held) return tooEarly();
-      if (pressed || view.hasBuzzed) return { kind: 'pressed', label: 'Buzzed…', live: false };
+      if (pressed || view.hasBuzzed) return { kind: 'pressed', label: t('buzzed'), live: false };
       // Joined during this opening: a press could not count, so none is sent (DECISIONS F39).
-      if (!view.canBuzz) return idle(LATE_JOINER_LABEL);
-      return { kind: 'live', label: 'Buzzers open!', live: true };
+      if (!view.canBuzz) return idle(t('lateJoiner'));
+      return { kind: 'live', label: t('buzzersOpenPhone'), live: true };
     case 'BUZZED':
       // A wrong answer stays BUZZED until the buzzers reopen (DECISIONS #5): the judged winner is
       // already locked out then, and so is anyone judged wrong earlier in the question.
       if (view.lockedOut) return lockedOut();
       if (view.winnerId === view.me.id) {
-        if (countdown?.up) return { kind: 'won', label: TIME_UP_LABEL, live: false };
+        if (countdown?.up) return { kind: 'won', label: t('timeUp'), live: false };
         return {
           kind: 'won',
-          label: 'You’re first! Answer now',
+          label: t('youreFirst'),
           ...(countdown && { secondsLeft: countdown.secondsLeft }),
           live: false,
         };
       }
-      return { kind: 'lost', label: `${view.winnerName ?? 'Someone'} buzzed first`, live: false };
+      return { kind: 'lost', label: lostLabel(t, view.winnerName), live: false };
     case 'ANSWERING':
       // A typed answer can change until the answers lock; then the room waits for the host (F87).
       if (view.typed) {
         const { mine, closed } = view.typed;
         return {
           kind: 'typed',
-          label: mine !== null ? ANSWER_SENT_LABEL : closed ? 'Answers closed' : 'Type your answer',
+          label:
+            mine !== null ? t('answerSent') : closed ? t('answersClosed') : t('typeYourAnswer'),
           live: false,
         };
       }
       // The pick can still change until the answering closes (DECISIONS, F85).
       return {
         kind: 'choice',
-        label: picked === null ? 'Pick your answer' : ANSWER_SENT_LABEL,
+        label: picked === null ? t('pickYourAnswer') : t('answerSent'),
         live: false,
       };
     case 'REVEAL':
       if (gotItRight(view)) {
         return {
           kind: 'revealed',
-          caption: 'Your answer',
-          label: 'Correct!',
+          caption: t('yourAnswer'),
+          label: t('correct'),
           ...(view.pointsThisQuestion !== 0 && { detail: signedPoints(view.pointsThisQuestion) }),
           live: false,
         };
@@ -125,15 +123,15 @@ export function buzzerState(
       return {
         kind: 'revealed',
         // SPEC-QUESTION: a penalty shows as "−100", like "+100" for a score (DECISIONS, F24).
-        label: view.answer ?? 'Answer revealed',
+        label: view.answer ?? t('answerRevealed'),
         ...(view.pointsThisQuestion !== 0 && { detail: signedPoints(view.pointsThisQuestion) }),
         live: false,
       };
     case 'FINAL':
       return {
         kind: 'final',
-        label: `${ordinal(view.me.rank)} of ${view.playerCount}`,
-        detail: pointsLabel(view.me.score),
+        label: rankText(t, view.me.rank, view.playerCount),
+        detail: pointsText(t, view.me.score),
         live: false,
       };
   }
@@ -145,14 +143,7 @@ export function gotItRight({ choice, typed, me }: PlayerView): boolean {
   return !!typed?.groups?.some((group) => group.correct && group.playerIds.includes(me.id));
 }
 
-function idle(label: string): BuzzerState {
-  return { kind: 'idle', label, live: false };
-}
-
-function tooEarly(): BuzzerState {
-  return { kind: 'early', label: TOO_EARLY_LABEL, live: false };
-}
-
-function lockedOut(): BuzzerState {
-  return { kind: 'out', label: 'Locked out this round', live: false };
+/** "Ana buzzed first", or "Someone buzzed first" when the winner has left. */
+function lostLabel(t: Translate, winnerName: string | null): string {
+  return winnerName === null ? t('someoneBuzzedFirst') : t('buzzedFirst', { name: winnerName });
 }

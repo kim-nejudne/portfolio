@@ -32,7 +32,7 @@ import { firstUnused, tileOf, type BoardCursor } from '../lib/boardCursor.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { HOVER } from '../lib/hover.js';
-import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
+import { useCopy } from '../lib/copy.js';
 import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
@@ -324,16 +324,16 @@ function useTileZoom(phase: Phase, questionIndex: number, board: BoardView | nul
 
 /** The set's title, category and difficulty before question 1 (UI spec, Screen view: Title card). */
 function TitleCard({ view }: { view: ScreenView }) {
-  const details = [view.category, view.difficulty && DIFFICULTY_LABELS[view.difficulty]].filter(
-    Boolean,
-  );
+  const t = useCopy();
+  // The difficulty in the room's language; its keys are the difficulty ids (F91).
+  const details = [view.category, view.difficulty && t(view.difficulty)].filter(Boolean);
   return (
     <section
       aria-label="Title card"
       className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-[6vw] text-center motion-safe:animate-pop-in"
     >
       <p className="text-[min(1.8vw,3.2vh)] font-bold tracking-[0.25em] text-muted uppercase">
-        Get ready
+        {t('titleCardReady')}
       </p>
       <h1 className="font-display text-[min(6vw,12vh)] leading-tight text-balance break-words text-accent [text-shadow:0.4vw_0.4vw_0_var(--color-bg-deep)]">
         {view.title}
@@ -368,6 +368,7 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
   // A full room gives the chips more height: a smaller (still huge) code and join QR.
   const many = view.players.length > MANY_PLAYERS;
   const qrSize = many ? 'min(30vh, 22cqw)' : 'min(36vh, 28cqw)';
+  const t = useCopy();
   return (
     <div className="flex min-h-0 flex-1 gap-[3vw] px-[3.75vw] pt-[2vh] pb-[3vh]">
       {/* A size container: without the panel it is 90vw wide, so N vw is written N / 0.9 cqw and
@@ -378,10 +379,10 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
             <p className="text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
               {view.title}
             </p>
-            <p className="text-[2.89cqw]">Join at</p>
+            <p className="text-[2.89cqw]">{t('joinAt')}</p>
             <p className="font-display text-[3.56cqw] break-all text-accent">{displayUrl(url)}</p>
             <p className="mt-[2vh] text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
-              Room code
+              {t('roomCode')}
             </p>
             <h1
               className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)]'} leading-none tracking-[0.12em] text-accent [text-shadow:0.4cqw_0.4cqw_0_var(--color-bg-deep)]`}
@@ -401,7 +402,7 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
             <div className="rounded-[2vh] bg-white p-[2vh] shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]">
               <QRCodeSVG
                 value={url}
-                title={`Join at ${url}`}
+                title={`${t('joinAt')} ${url}`}
                 marginSize={0}
                 style={{ width: qrSize, height: qrSize }}
               />
@@ -483,6 +484,7 @@ function PlayerChips({ players, teams }: { players: RankedPlayer[]; teams: TeamV
   // The box the chips must fit: the one list, or every team's column.
   const listRef = useRef<HTMLDivElement>(null);
   const pops = usePracticePops();
+  const t = useCopy();
   // Smaller chips past 20 players, and smaller still if the room's names would not fit: nobody can
   // scroll a TV, so every chip must stay above the bottom strip (F38). A move between teams
   // changes the columns' heights, so the teams are part of what it fits.
@@ -494,7 +496,7 @@ function PlayerChips({ players, teams }: { players: RankedPlayer[]; teams: TeamV
       (teams ? `\n${teams.map((team) => team.memberIds.join(',')).join('|')}` : ''),
   );
   if (players.length === 0 && !teams) {
-    return <p className="text-[2.67cqw] text-muted">Waiting for players…</p>;
+    return <p className="text-[2.67cqw] text-muted">{t('waitingForPlayers')}</p>;
   }
   const chip = (player: RankedPlayer) => {
     // A test buzz remounts the chip under a new key, so its bump replays (F60).
@@ -511,7 +513,7 @@ function PlayerChips({ players, teams }: { players: RankedPlayer[]; teams: TeamV
   return (
     <section aria-label="Players" className="flex min-h-0 flex-1 flex-col gap-[2vh]">
       <p className="text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
-        {players.length} {players.length === 1 ? 'player' : 'players'}
+        {t(players.length === 1 ? 'playerCountOne' : 'playerCount', { n: players.length })}
       </p>
       <div ref={listRef} className="min-h-0 flex-1 overflow-hidden">
         {teams ? (
@@ -537,7 +539,7 @@ function PlayerChips({ players, teams }: { players: RankedPlayer[]; teams: TeamV
                     </span>
                   </h2>
                   {members.length === 0 ? (
-                    <p className="text-[0.7em] text-muted">No players yet</p>
+                    <p className="text-[0.7em] text-muted">{t('noPlayersYet')}</p>
                   ) : (
                     <ul className="flex flex-wrap content-start gap-[0.45em]">
                       {members.map(chip)}

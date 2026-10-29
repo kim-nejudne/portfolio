@@ -602,6 +602,40 @@ describe('HostSettings', () => {
     expect(pressed('Competitive')).toBe('true');
   });
 
+  const language = () => screen.getByRole('group', { name: 'Phone and Screen language' });
+  const languageButton = (name: string) => within(language()).getByRole('button', { name });
+
+  it('offers English and Taglish for the phones and the Screen, English marked by default (F91)', () => {
+    setup(HostSettings, hostView());
+    expect(
+      within(language())
+        .getAllByRole('button')
+        .map((b) => [b.textContent, b.getAttribute('aria-pressed')]),
+    ).toEqual([
+      ['English', 'true'],
+      ['Taglish', 'false'],
+    ]);
+    // The remote itself stays English whatever the room's language (F91).
+    expect(screen.getByRole('region', { name: 'Settings' }).textContent).toContain(
+      'Wrong-answer penalty',
+    );
+  });
+
+  it('Taglish sends host:settings {copy}, and the next snapshot marks it', () => {
+    const { sent, rerender } = setup(HostSettings, hostView());
+    fireEvent.click(languageButton('Taglish'));
+    expect(sent).toEqual([
+      expect.objectContaining({ event: 'host:settings', payload: { copy: 'taglish' } }),
+    ]);
+    rerender(hostView({ settings: { ...DEFAULT_SETTINGS, copy: 'taglish' } }));
+    expect(languageButton('Taglish').getAttribute('aria-pressed')).toBe('true');
+    expect(isDisabled('Taglish')).toBe(true);
+    fireEvent.click(languageButton('English'));
+    expect(sent.at(-1)).toEqual(
+      expect.objectContaining({ event: 'host:settings', payload: { copy: 'en' } }),
+    );
+  });
+
   it('shows the new value only once the snapshot carries it', () => {
     const { rerender } = setup(HostSettings, hostView());
     fireEvent.click(button('More questions between scoreboards'));
@@ -626,8 +660,9 @@ describe('HostSettings', () => {
     expect(button('More false start wait').className).toContain('size-7');
     expect(every().textContent).toBe('5');
     expect(button('More answer time').className).toContain('size-7');
-    expect(toggle(/^Auto-open buzzers/).className).toContain('py-1');
+    expect(toggle(/^Auto-open buzzers/).className).toContain('py-0.5');
     expect(preset('Competitive').className).toContain('h-7');
+    expect(languageButton('Taglish').className).toContain('h-7');
     cleanup();
 
     setup(HostSettings, view);

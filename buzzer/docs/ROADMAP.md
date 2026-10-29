@@ -242,14 +242,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M23 — Taglish
 
-- [ ] F91 Taglish copy
-  - Spec: UI spec by view (Player view, Screen view); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F88
-  - Done when:
-    - `client/src/lib/copy.ts` holds every player-phone and Screen game-state string in English and Taglish (drafted by Claude, listed in the PROGRESS entry for Kim to review)
-    - `RoomSettings.copy: 'en' | 'taglish'` (default 'en'), set in the Settings tab and lobby settings; the phone and Screen read it from their view
-    - Landing, set pages and the remote stay English
-  - Tests: `copy.test.ts` (both tables have the same keys, no empty strings), `buzzerState.test.ts`, `Play.test.tsx` and `Screen.test.tsx` in Taglish
+- [x] F91 Taglish copy
 
 ## Bugs
 
@@ -265,3 +258,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Typed questions: a group's shown spelling breaks a tie by code point, so "PARIS" beats "paris" on the remote; prefer the spelling closest to the answer, or the first typed (F87, F88). Marking from the Screen's keyboard (it shows no groups, so Reveal and score uses the pre-marks there), and the correct and wrong sounds at a typed reveal (F88).
 - Category board: the set editor keeps a set's `board`, so deleting a question that sits on a tile leaves a board the schema refuses at Host time. The editor could show the board, drop it with a warning, or refuse to delete a tile's question (F89). A `BOARD` → FINAL Next once every tile is used, if End game proves too hidden (F89).
 - Category board: the phone still reads "Question 9 of 9" (set order) on a board set, and shows nothing in BOARD; it could name the tile ("Animals · 200") as the Screen and remote do, from a board-tile field on `PlayerView` (F90). A tile-reveal sound on the pick (F90).
+- Taglish: the phone's results card image (`resultsCard.ts`) is still drawn in English; server errors in toasts stay English (they would need an error code per message); the join form and "Joining…" stay English, since the language arrives with the first snapshot — `GET /api/rooms/:code/exists` could return it (F91). Kim to review the drafted Taglish strings in `client/src/lib/copy.ts`.

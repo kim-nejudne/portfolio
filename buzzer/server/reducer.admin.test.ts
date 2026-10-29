@@ -216,6 +216,7 @@ describe('reduce: host:settings', () => {
       showStandings: true,
       teams: 0,
       choiceSeconds: 10,
+      copy: 'en',
     });
     expect(room.phase).toBe(phase);
     expect(effects).toEqual([]);
@@ -231,6 +232,7 @@ describe('reduce: host:settings', () => {
       showStandings: false,
       teams: 3,
       choiceSeconds: 20,
+      copy: 'taglish',
     } as const;
     const room = step(inPhase('LOBBY'), { type: 'host:settings', settings });
     expect(room.settings).toEqual({ wrongPenalty: false, ...settings });
@@ -252,6 +254,7 @@ describe('reduce: host:settings', () => {
       showStandings: true,
       teams: 0,
       choiceSeconds: 10,
+      copy: 'en',
     });
   });
 
@@ -269,6 +272,16 @@ describe('reduce: host:settings', () => {
     expect(off.settings).toEqual({ ...inPhase('OPEN').settings, showStandings: false });
     const on = step(off, { type: 'host:settings', settings: { showStandings: true } });
     expect(on.settings.showStandings).toBe(true);
+  });
+
+  it('switches the phone and Screen language in any phase, keeping the other keys', () => {
+    const taglish = step(inPhase('BUZZED'), {
+      type: 'host:settings',
+      settings: { copy: 'taglish' },
+    });
+    expect(taglish.settings).toEqual({ ...inPhase('BUZZED').settings, copy: 'taglish' });
+    const en = step(taglish, { type: 'host:settings', settings: { copy: 'en' } });
+    expect(en.settings.copy).toBe('en');
   });
 
   it('does not open the buzzers on the current question when auto-open turns on', () => {

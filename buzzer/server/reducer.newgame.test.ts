@@ -69,6 +69,7 @@ function finished(overrides: Partial<Room> = {}): Room {
         showStandings: false,
         teams: 2,
         choiceSeconds: 20,
+        copy: 'taglish',
       },
       ...overrides,
     }),

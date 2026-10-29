@@ -7,6 +7,7 @@ import type {
   Difficulty,
   FalseStartMs,
   QuestionMode,
+  CopyLanguage,
   RoomSettings,
   TeamCount,
 } from './types.js';
@@ -162,7 +163,11 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   showStandings: true,
   teams: 0,
   choiceSeconds: CHOICE_SECONDS_DEFAULT,
+  copy: 'en',
 };
+
+/** The phone and Screen languages, in the Settings tab's order (F91). */
+export const COPY_LANGUAGES = ['en', 'taglish'] as const satisfies readonly CopyLanguage[];
 
 // ---------- Question sets ----------
 

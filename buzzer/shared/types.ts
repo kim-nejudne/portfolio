@@ -125,6 +125,9 @@ export type FalseStartMs = 0 | 500 | 1000;
 /** How many teams play; 0 turns teams off. */
 export type TeamCount = 0 | 2 | 3 | 4;
 
+/** The language of the phone's and the Screen's game strings (F91). */
+export type CopyLanguage = 'en' | 'taglish';
+
 export interface RoomSettings {
   wrongPenalty: boolean; // default false
   autoOpenBuzzers: boolean; // default false
@@ -135,6 +138,7 @@ export interface RoomSettings {
   showStandings: boolean; // default true: the Screen's top-5 rail during a question
   teams: TeamCount; // default 0 = off
   choiceSeconds: number; // 5–30, default 10: how long a choice question takes answers (F85)
+  copy: CopyLanguage; // default 'en': the phone's and the Screen's language (F91)
 }
 
 /** The buzz winner's answer time. `endsAt` is wall-clock ms and never leaves the server. */
@@ -435,6 +439,8 @@ export interface PlayerView {
   falseStart: boolean;
   /** The room's false start wait; 0 is off, and then a press before the opening is ignored. */
   falseStartMs: FalseStartMs;
+  /** The room's phone and Screen language (F91). */
+  copy: CopyLanguage;
   winnerId: string | null;
   winnerName: string | null;
   /** Points this player gained or lost on the current question. */

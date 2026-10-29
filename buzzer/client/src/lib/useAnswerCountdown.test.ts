@@ -2,9 +2,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnswerTimerView, BuzzTimerView } from '../../../shared/types.js';
+import { translator } from './copy.js';
 import {
   countdownText,
-  TIME_UP_LABEL,
   useAnswerCountdown,
   useBuzzCountdown,
   useAnsweringCountdown,
@@ -217,10 +217,13 @@ describe('useAnsweringCountdown', () => {
 });
 
 describe('countdownText', () => {
-  it('shows the seconds left, then the time’s-up label', () => {
-    expect(countdownText({ secondsLeft: 4, up: false })).toBe('4');
-    expect(countdownText({ secondsLeft: 0, up: false })).toBe('0');
-    expect(countdownText({ secondsLeft: 0, up: true })).toBe(TIME_UP_LABEL);
-    expect(TIME_UP_LABEL).toBe('Time’s up!');
+  it('shows the seconds left, then the time’s-up label in the room’s language', () => {
+    const en = translator('en');
+    expect(countdownText({ secondsLeft: 4, up: false }, en)).toBe('4');
+    expect(countdownText({ secondsLeft: 0, up: false }, en)).toBe('0');
+    expect(countdownText({ secondsLeft: 0, up: true }, en)).toBe('Time’s up!');
+    expect(countdownText({ secondsLeft: 0, up: true }, translator('taglish'))).toBe(
+      'Ubos na ang oras!',
+    );
   });
 });

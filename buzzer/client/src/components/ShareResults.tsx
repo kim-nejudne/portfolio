@@ -5,6 +5,7 @@ import {
   shareOrDownload,
   type ResultsCardInput,
 } from '../lib/resultsCard.js';
+import { useCopy } from '../lib/copy.js';
 
 interface ShareResultsProps {
   /** The card's data, read at the tap, so the card shows the latest scores. */
@@ -18,6 +19,8 @@ interface ShareResultsProps {
 export function ShareResults({ card, mode, className }: ShareResultsProps) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  // English on the remote; the phone's and the Screen's language there (F91).
+  const t = useCopy();
 
   async function onClick() {
     const input = card();
@@ -26,9 +29,9 @@ export function ShareResults({ card, mode, className }: ShareResultsProps) {
     setStatus(null);
     try {
       const outcome = await shareOrDownload(await renderResultsCard(input), mode);
-      if (outcome === 'downloaded') setStatus(`Saved ${RESULTS_FILE}`);
+      if (outcome === 'downloaded') setStatus(t('savedFile', { file: RESULTS_FILE }));
     } catch {
-      setStatus('Couldn’t make the image');
+      setStatus(t('imageFailed'));
     } finally {
       setBusy(false);
     }
@@ -37,7 +40,7 @@ export function ShareResults({ card, mode, className }: ShareResultsProps) {
   return (
     <>
       <button type="button" onClick={() => void onClick()} disabled={busy} className={className}>
-        {mode === 'share' ? 'Share results' : 'Download results'}
+        {mode === 'share' ? t('shareResults') : t('downloadResults')}
       </button>
       {status && (
         <p role="status" className="text-center text-muted">

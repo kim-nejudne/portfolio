@@ -74,6 +74,7 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     lockedOut: false,
     falseStart: false,
     falseStartMs: 0,
+    copy: 'en',
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,
@@ -1873,5 +1874,175 @@ describe('Play typed questions (F88)', () => {
     socket.fire('state', typedView({}, { questionIndex: 2 }));
     socket.fire('state', reveal(null, false));
     expect(vibrate).not.toHaveBeenCalled();
+  });
+});
+
+describe('Play in Taglish (F91)', () => {
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    return sockets[0]!;
+  }
+  const status = () => screen.getByRole('heading', { level: 1 });
+
+  it('the lobby reads in Taglish: test buzz, waiting line, Who’s here and "(ikaw)"', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ copy: 'taglish' }));
+    expect(status().textContent).toBe('I-tap para i-test ang buzzer mo');
+    expect(screen.getByText('Pasok ka na! Hinihintay ang host')).toBeTruthy();
+    const list = screen.getByRole('region', { name: 'Nandito na · 1' });
+    expect(within(list).getByText('(ikaw)')).toBeTruthy();
+    expect(screen.getByText('Room WXYZ')).toBeTruthy();
+  });
+
+  it('a question reads "Tanong 1 sa 10", the rank "sa", and the buzz time in segundo', async () => {
+    const socket = await joined();
+    vi.useFakeTimers();
+    socket.fire(
+      'state',
+      playerView({
+        copy: 'taglish',
+        phase: 'OPEN',
+        questionIndex: 0,
+        openingCounter: 1,
+        playerCount: 4,
+        buzzTimer: { seconds: 5 },
+      }),
+    );
+    expect(status().textContent).toBe('Bukas na ang buzzers!');
+    expect(screen.getByText('Tanong 1 sa 10 · i-tap para mag-buzz')).toBeTruthy();
+    expect(screen.getByRole('banner').querySelector('[data-rank]')!.textContent).toBe('1st sa 4');
+    expect(screen.getByRole('timer', { name: 'Buzz time' }).textContent).toBe(
+      '5segundo para mag-buzz',
+    );
+  });
+
+  it('switches language on the next snapshot, mid-game', async () => {
+    const socket = await joined();
+    const question = { phase: 'QUESTION', questionIndex: 0 } as const;
+    socket.fire('state', playerView(question));
+    expect(status().textContent).toBe('Get ready…');
+    socket.fire('state', playerView({ ...question, copy: 'taglish' }));
+    expect(status().textContent).toBe('Humanda ka…');
+    socket.fire('state', playerView({ ...question, copy: 'en' }));
+    expect(status().textContent).toBe('Get ready…');
+  });
+
+  it('the menu and Change name read in Taglish', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ copy: 'taglish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('button', { name: 'Umalis sa game' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Palitan ang pangalan' }));
+    const form = screen.getByRole('form', { name: 'Palitan ang pangalan' });
+    expect(within(form).getByLabelText('Pangalan mo')).toBeTruthy();
+    expect(within(form).getByRole('button', { name: 'I-save' })).toBeTruthy();
+    fireEvent.change(within(form).getByLabelText('Pangalan mo'), { target: { value: '  ' } });
+    fireEvent.submit(form);
+    expect(within(form).getByRole('alert').textContent).toBe('Ilagay ang pangalan mo');
+  });
+
+  it('a choice marks "Pinili mo", and a typed question asks in Taglish with I-send', async () => {
+    const socket = await joined();
+    const choice: PlayerChoiceView = {
+      choices: ['Sydney', 'Canberra'],
+      answered: 1,
+      expected: 3,
+      timer: { seconds: 10 },
+      mine: 1,
+    };
+    socket.fire(
+      'state',
+      playerView({ copy: 'taglish', phase: 'ANSWERING', questionIndex: 0, choice }),
+    );
+    expect(status().textContent).toBe('Sent na ang sagot mo');
+    expect(screen.getByRole('button', { name: /Canberra/ }).textContent).toContain('Pinili mo');
+    const typed: PlayerTypedView = {
+      answered: 0,
+      expected: 3,
+      timer: { seconds: 10 },
+      closed: false,
+      mine: null,
+    };
+    socket.fire(
+      'state',
+      playerView({ copy: 'taglish', phase: 'ANSWERING', questionIndex: 1, typed }),
+    );
+    expect(status().textContent).toBe('I-type ang sagot mo');
+    expect(screen.getByPlaceholderText('I-type ang sagot mo')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'I-send' })).toBeTruthy();
+  });
+
+  it('the reveal says "Tama!" under "Sagot mo", and a miss shows the answer under "Sagot"', async () => {
+    const socket = await joined();
+    const choice: PlayerChoiceView = {
+      choices: ['Sydney', 'Canberra'],
+      answered: 3,
+      expected: 3,
+      timer: { seconds: 10 },
+      mine: 1,
+      correctChoice: 1,
+      counts: [2, 1],
+    };
+    socket.fire(
+      'state',
+      playerView({
+        copy: 'taglish',
+        phase: 'REVEAL',
+        questionIndex: 0,
+        choice,
+        pointsThisQuestion: 100,
+        answer: 'Canberra',
+      }),
+    );
+    const card = screen.getByRole('region', { name: 'Answer' });
+    expect(within(card).getByText('Sagot mo')).toBeTruthy();
+    expect(within(card).getByText('Tama!')).toBeTruthy();
+    socket.fire(
+      'state',
+      playerView({ copy: 'taglish', phase: 'REVEAL', questionIndex: 1, answer: 'Paris' }),
+    );
+    expect(within(screen.getByRole('region', { name: 'Answer' })).getByText('Sagot')).toBeTruthy();
+  });
+
+  it('the final result reads in Taglish, with the team, tonight and I-share', async () => {
+    const socket = await joined();
+    const teams: TeamView[] = [
+      { index: 0, ...TEAMS[0]!, score: 500, rank: 1, memberIds: ['p2'] },
+      { index: 1, ...TEAMS[1]!, score: 300, rank: 2, memberIds: ['p1'] },
+    ];
+    socket.fire(
+      'state',
+      playerView({
+        copy: 'taglish',
+        phase: 'FINAL',
+        questionIndex: 9,
+        playerCount: 4,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 200, rank: 3 },
+        teams,
+        tonight: { total: 1, rank: 3, count: 5 },
+        results: { title: 'Pub Quiz', ranking: { rows: [], count: 0 }, tonight: null },
+      }),
+    );
+    const result = screen.getByRole('region', { name: 'Final result' });
+    expect(within(result).getByText('Tapos na ang game')).toBeTruthy();
+    expect(within(result).getByText('3rd sa 4')).toBeTruthy();
+    expect(within(result).getByText('200 puntos')).toBeTruthy();
+    expect(within(result).getByLabelText('Team').textContent).toBe(
+      'Team Blue2nd sa 2 na team · 300 puntos',
+    );
+    expect(within(result).getByLabelText('Tonight').textContent).toBe(
+      'Ngayong gabi3rd sa 5 · 1 puntos',
+    );
+    expect(within(result).getByRole('button', { name: 'I-share ang results' })).toBeTruthy();
+  });
+
+  it('the join form stays English: the language arrives with the first snapshot', async () => {
+    stubExists(true);
+    renderPlay();
+    expect(await screen.findByLabelText('Your name')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
   });
 });

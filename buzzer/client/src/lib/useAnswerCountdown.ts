@@ -5,9 +5,7 @@ import type {
   ChoiceView,
   TypedView,
 } from '../../../shared/types.js';
-
-/** What every device shows once the server marks the answer time up. */
-export const TIME_UP_LABEL = 'Time’s up!';
+import type { Translate } from './copy.js';
 
 /** How often the countdown reads the clock. Shorter than a second, so each change shows on time. */
 const TICK_MS = 250;
@@ -118,7 +116,7 @@ function useCountdown(
   return up ? { secondsLeft: 0, up: true } : { secondsLeft: left, up: false };
 }
 
-/** The countdown as shown: the seconds left, then "Time's up!". */
-export function countdownText(countdown: AnswerCountdown): string {
-  return countdown.up ? TIME_UP_LABEL : String(countdown.secondsLeft);
+/** The countdown as shown: the seconds left, then "Time's up!" in the room's language. */
+export function countdownText(countdown: AnswerCountdown, t: Translate): string {
+  return countdown.up ? t('timeUp') : String(countdown.secondsLeft);
 }

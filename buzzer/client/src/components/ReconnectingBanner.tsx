@@ -1,3 +1,4 @@
+import { useCopy } from '../lib/copy.js';
 import { useRoomStore } from '../lib/roomStore.js';
 
 /**
@@ -7,13 +8,14 @@ import { useRoomStore } from '../lib/roomStore.js';
  */
 export function ReconnectingBanner() {
   const offline = useRoomStore((state) => state.connection) === 'offline';
+  const t = useCopy();
   if (!offline) return null;
   return (
     <p
       role="status"
       className="fixed inset-x-0 top-0 z-40 bg-warn py-[1.6vh] text-center font-display text-[3.2vw] text-accent-ink shadow-lg"
     >
-      Reconnecting…
+      {t('reconnecting')}
     </p>
   );
 }

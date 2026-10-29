@@ -1,11 +1,12 @@
 import {
   ANSWER_SECONDS_CHOICES,
   BUZZ_SECONDS_CHOICES,
+  COPY_LANGUAGES,
   FALSE_START_MS_CHOICES,
   SCOREBOARD_EVERY_MAX,
   TEAM_COUNT_CHOICES,
 } from '../../../shared/constants.js';
-import type { HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
+import type { CopyLanguage, HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
 import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 
@@ -30,10 +31,10 @@ const SIZES = {
     knob: 'size-6',
   },
   compact: {
-    row: 'gap-2 px-3 py-1',
+    row: 'gap-2 px-3 py-0.5',
     label: 'text-base',
     // One line per row, and steppers and presets a little shorter than 2rem, so the presets, all
-    // eight rows and Start game fit at 1280×720 with no scroll (F65, F73, F83).
+    // nine rows and Start game fit at 1280×720 with no scroll (F65, F73, F83, F91).
     detail: 'sr-only',
     stepper: 'size-7 text-lg',
     value: 'w-12',
@@ -83,6 +84,9 @@ function matches(settings: RoomSettings, preset: Preset) {
   return (Object.keys(preset) as (keyof Preset)[]).every((key) => settings[key] === preset[key]);
 }
 
+/** The language choices' names, each in its own language (F91). */
+const LANGUAGE_NAMES: Record<CopyLanguage, string> = { en: 'English', taglish: 'Taglish' };
+
 const row = 'flex items-center rounded-2xl border-2 border-edge bg-surface';
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
 const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
@@ -101,7 +105,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
   const every = settings.scoreboardEvery;
 
   return (
-    <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-1.5' : 'gap-3'}`}>
+    <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-1' : 'gap-3'}`}>
       <div role="group" aria-labelledby="presets-label" className={`${row} ${size.row}`}>
         <p className="flex-1">
           <span id="presets-label" className={`block font-bold ${size.label}`}>
@@ -233,6 +237,32 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         size={size}
         format={String}
       />
+      {/* Any phase: the phones and the Screen switch on the next snapshot (F91). */}
+      <div role="group" aria-labelledby="language-label" className={`${row} ${size.row}`}>
+        <p className="flex-1">
+          <span id="language-label" className={`block font-bold ${size.label}`}>
+            Phone and Screen language
+          </span>
+          <span className={`${size.detail} text-muted`}>What the players and the TV read.</span>
+        </p>
+        {COPY_LANGUAGES.map((copy) => {
+          const active = settings.copy === copy;
+          return (
+            <button
+              key={copy}
+              type="button"
+              aria-pressed={active}
+              onClick={() => change({ copy })}
+              disabled={busy || active}
+              className={`${presetButton} ${size.preset} ${
+                active ? 'border-accent bg-accent text-accent-ink' : 'border-edge bg-bg text-accent'
+              }`}
+            >
+              {LANGUAGE_NAMES[copy]}
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

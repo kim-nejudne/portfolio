@@ -605,6 +605,15 @@ describe('toView: player', () => {
     expect(toView(on, 'player', 'p1').falseStartMs).toBe(1000);
   });
 
+  it('gives the phone and the Screen the room’s language (F91)', () => {
+    expect(toView(midGame('QUESTION'), 'player', 'p1').copy).toBe('en');
+    const taglish = midGame('QUESTION', {
+      settings: { ...midGame('QUESTION').settings, copy: 'taglish' },
+    });
+    expect(toView(taglish, 'player', 'p1').copy).toBe('taglish');
+    expect(toView(taglish, 'screen').settings.copy).toBe('taglish');
+  });
+
   it('lists every false starter in press order for the Screen and the host (F72)', () => {
     const room = midGame('OPEN', { falseStarts: ['p2', 'p1'] });
     expect(toView(room, 'screen').falseStarts).toEqual(['p2', 'p1']);

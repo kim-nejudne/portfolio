@@ -1,4 +1,5 @@
 import { APP_NAME } from '../../../shared/constants.js';
+import { useCopy } from '../lib/copy.js';
 import { displayUrl } from '../lib/joinUrl.js';
 import { PILL } from '../lib/ui.js';
 import { BulbRail } from './BulbRail.js';
@@ -39,6 +40,7 @@ export function ScreenHeader({
   gameNumber,
   url,
 }: ScreenHeaderProps) {
+  const t = useCopy();
   const pill = `${PILL} px-[1.6vw] py-[min(0.5vw,0.9vh)] font-display text-[min(1.56vw,2.8vh)] whitespace-nowrap tabular-nums`;
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[2vw] px-[3.75vw] py-[min(1.72vw,3vh)]">
@@ -46,11 +48,9 @@ export function ScreenHeader({
       {numbered && tileLabel ? (
         <p className={pill}>{tileLabel}</p>
       ) : numbered ? (
-        <p className={pill}>
-          Question {questionIndex + 1} / {questionCount}
-        </p>
+        <p className={pill}>{t('questionSlash', { n: questionIndex + 1, count: questionCount })}</p>
       ) : gameNumber !== undefined && gameNumber >= 2 ? (
-        <p className={pill}>Game {gameNumber}</p>
+        <p className={pill}>{t('gameNumber', { n: gameNumber })}</p>
       ) : (
         <span />
       )}
@@ -61,10 +61,11 @@ export function ScreenHeader({
           className="min-w-0 justify-self-end text-right text-[min(1.4vw,2.5vh)] leading-snug text-muted"
         >
           <p className="break-all">
-            Join at <span className="font-bold text-ink">{displayUrl(url)}</span>
+            {t('joinAt')} <span className="font-bold text-ink">{displayUrl(url)}</span>
           </p>
           <p>
-            Room <span className="font-display tracking-[0.1em] text-accent">{code}</span>
+            {t('roomLabel')}{' '}
+            <span className="font-display tracking-[0.1em] text-accent">{code}</span>
           </p>
         </div>
       ) : (

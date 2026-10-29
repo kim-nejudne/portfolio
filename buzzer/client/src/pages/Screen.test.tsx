@@ -2530,3 +2530,151 @@ describe('category board (F90)', () => {
     expect(grid()).toBeTruthy();
   });
 });
+
+describe('Screen in Taglish (F91)', () => {
+  const TAGLISH = { ...DEFAULT_SETTINGS, copy: 'taglish' } as const;
+  const ana = player(1, { name: 'Ana' });
+  const ben = player(2, { name: 'Ben' });
+  const cy = player(3, { name: 'Cy' });
+  const q3 = { id: 'q3', text: 'What is the capital of Australia?', points: 100 };
+  const tl = (overrides: Partial<ScreenView> = {}) =>
+    lobbyView([ana, ben, cy], {
+      settings: TAGLISH,
+      phase: 'QUESTION',
+      questionIndex: 2,
+      question: q3,
+      ...overrides,
+    });
+  function show(view: ScreenView) {
+    const { socket } = renderScreen();
+    socket.fire('state', view);
+    return socket;
+  }
+
+  it('the lobby reads in Taglish: join line, room code and player count', () => {
+    show(lobbyView([ana, ben], { settings: TAGLISH }));
+    expect(screen.getByText('Sumali sa')).toBeTruthy();
+    expect(screen.getByText('Room code')).toBeTruthy();
+    expect(screen.getByText('2 na player')).toBeTruthy();
+    expect(screen.getByTitle(`Sumali sa http://${joinUrl}`)).toBeTruthy();
+  });
+
+  it('an empty lobby waits for players in Taglish', () => {
+    show(lobbyView([], { settings: TAGLISH }));
+    expect(screen.getByText('Hinihintay ang mga player…')).toBeTruthy();
+  });
+
+  it('a question reads "Tanong 3 / 10", the join line, and the buzzer status in Taglish', () => {
+    const socket = show(tl());
+    expect(screen.getByText('Tanong 3 / 10')).toBeTruthy();
+    expect(joinInfo().textContent).toBe(`Sumali sa ${joinUrl}Room WXYZ`);
+    expect(screen.getByRole('status').textContent).toBe('Sarado pa ang buzzers');
+    socket.fire('state', tl({ phase: 'OPEN', openingCounter: 1 }));
+    expect(screen.getByRole('status').textContent).toBe('BUKAS na ang buzzers');
+    const rail = screen.getByRole('complementary', { name: 'Standings' });
+    expect(within(rail).getByText('Standings')).toBeTruthy();
+  });
+
+  it('a buzz shows "Unang nag-buzz", "nag-buzz din" and "Ubos na ang oras!" at time up', () => {
+    show(
+      tl({
+        phase: 'BUZZED',
+        openingCounter: 1,
+        winnerId: 'p2',
+        alsoBuzzed: [{ playerId: 'p3', gapMs: 120 }],
+        answerTimer: { seconds: 3, up: true },
+      }),
+    );
+    const result = screen.getByRole('region', { name: 'Buzz result' });
+    expect(within(result).getByText('Unang nag-buzz')).toBeTruthy();
+    expect(within(result).getByText('nag-buzz din')).toBeTruthy();
+    expect(within(result).getByRole('timer', { name: 'Answer time' }).textContent).toBe(
+      'Ubos na ang oras!',
+    );
+  });
+
+  it('a lockout and a false start read in Taglish', () => {
+    show(
+      tl({
+        phase: 'OPEN',
+        openingCounter: 2,
+        lockedOut: ['p1'],
+        settings: { ...TAGLISH, falseStartMs: 500 },
+      }),
+    );
+    expect(screen.getByText('out na')).toBeTruthy();
+    cleanup();
+    show(tl({ falseStarts: ['p3'], settings: { ...TAGLISH, falseStartMs: 500 } }));
+    expect(within(screen.getByRole('list', { name: 'Too early' })).getByText('Maaga')).toBeTruthy();
+  });
+
+  it('the reveal heads the answer "Sagot"', () => {
+    show(
+      tl({
+        phase: 'REVEAL',
+        openingCounter: 1,
+        scorerId: 'p2',
+        question: { ...q3, answer: 'Canberra' },
+      }),
+    );
+    const answer = screen.getByRole('region', { name: 'Answer' });
+    expect(within(answer).getByText('Sagot')).toBeTruthy();
+    expect(within(answer).getByText('Canberra')).toBeTruthy();
+  });
+
+  it('a choice and a typed question count answers in Taglish, and nobody right says so', () => {
+    const choice = { choices: ['Sydney', 'Canberra'], answered: 1, expected: 3, timer: null };
+    const socket = show(tl({ choice }));
+    expect(screen.getByText('Hindi pa puwedeng sumagot')).toBeTruthy();
+    socket.fire('state', tl({ phase: 'ANSWERING', choice }));
+    expect(screen.getByText('1 sa 3 ang nakasagot')).toBeTruthy();
+    const typed = { answered: 2, expected: 3, timer: null, closed: true };
+    socket.fire('state', tl({ phase: 'ANSWERING', questionIndex: 3, typed }));
+    expect(screen.getByText('Sarado na ang sagutan')).toBeTruthy();
+    expect(screen.getByText('2 ang nakasagot')).toBeTruthy();
+    socket.fire(
+      'state',
+      tl({
+        phase: 'REVEAL',
+        questionIndex: 3,
+        typed: { ...typed, groups: [] },
+        question: { ...q3, answer: 'Canberra' },
+      }),
+    );
+    expect(screen.getByText('Walang nakakuha')).toBeTruthy();
+  });
+
+  it('the scoreboard and the Final screen read in Taglish', () => {
+    const socket = show(
+      tl({ phase: 'REVEAL', showScoreboard: true, question: { ...q3, answer: 'X' } }),
+    );
+    const board = screen.getByRole('region', { name: 'Scoreboard' });
+    expect(within(board).getByText('Scoreboard')).toBeTruthy();
+    socket.fire('state', tl({ phase: 'FINAL', question: null }));
+    expect(screen.getByText('Final na resulta')).toBeTruthy();
+    expect(screen.getByText('Buong ranking')).toBeTruthy();
+  });
+
+  it('the title card says "Humanda na" with the difficulty in Taglish', () => {
+    const socket = show(
+      lobbyView([ana], { settings: TAGLISH, category: 'Science', difficulty: 'hard' }),
+    );
+    socket.fire(
+      'state',
+      tl({ questionIndex: 0, category: 'Science', difficulty: 'hard', players: [ana] }),
+    );
+    const card = screen.getByRole('region', { name: 'Title card' });
+    expect(within(card).getByText('Humanda na')).toBeTruthy();
+    expect(within(card).getByText('Science · Mahirap')).toBeTruthy();
+  });
+
+  it('a hosting Screen keeps its host bar English', () => {
+    saveHostToken('WXYZ', 'h'.repeat(43));
+    const { socket } = renderScreen();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', tl());
+    const bar = screen.getByRole('toolbar', { name: 'Host controls' });
+    expect(within(bar).getByRole('button', { name: /Open buzzers/ })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('Sarado pa ang buzzers');
+  });
+});

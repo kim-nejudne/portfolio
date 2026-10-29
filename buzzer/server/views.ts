@@ -111,6 +111,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     lockedOut: room.lockedOut.includes(playerId),
     falseStart: room.falseStarts.includes(playerId),
     falseStartMs: room.settings.falseStartMs,
+    copy: room.settings.copy,
     winnerId: room.winnerId,
     winnerName: room.winnerId ? (room.players[room.winnerId]?.name ?? null) : null,
     pointsThisQuestion: room.judgements

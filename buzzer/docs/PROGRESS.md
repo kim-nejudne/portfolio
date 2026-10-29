@@ -10,6 +10,140 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F91 — Taglish copy (2026-10-30)
+**What changed:**
+- Shared and server: `CopyLanguage` and `RoomSettings.copy` (`'en' | 'taglish'`, default `'en'`, schema `z.enum(COPY_LANGUAGES)`), merged by `host:settings` in any phase. `PlayerView.copy` is new. The Screen reads `settings.copy`.
+- New `client/src/lib/copy.ts`:
+  - Two tables, `EN` and `TAGLISH`, with 81 strings each (`{name}` placeholders).
+  - `translator(language)`, `useCopy()` (Taglish only for a player or Screen view; host and no view are English), and `pointsText`/`rankText`.
+  - `buzzerState` reads `view.copy`. `countdownText(countdown, t)` replaces `TIME_UP_LABEL`.
+- Phone (`Play.tsx`): the in-game tree is translated: status, progress, top bar, menu, Change name, choices, typed box, countdowns, final result with team and tonight, and Who's here. `ShareResults` is translated too.
+- Screen:
+  - The lobby join text, room code, player count and waiting line.
+  - The title card, with the difficulty translated.
+  - The header pill and the join line.
+  - The buzzer status, buzz banner, time up, lockout and false-start tags.
+  - Choice and typed counts, the reveal and "nobody got it".
+  - The standings rail, scoreboard and final screen, and the Reconnecting banner.
+- Settings: a **Phone and Screen language** row (English / Taglish buttons) last in `HostSettings`, so it shows on the remote and in the Screen lobby. Compact rows are now `py-0.5` with a 4 px gap, so nine rows still fit at 1280×720.
+- Tests:
+  - New `copy.test.ts` (8): same keys, no blank strings, same placeholders, filling, points and ranks, language per role.
+  - `buzzerState.test.ts` +4, `Play.test.tsx` +8, `Screen.test.tsx` +10, `HostControls.test.tsx` +2 (plus the compact row).
+  - Also `views.test.ts` +1, `reducer.admin.test.ts` +1, `schemas.test.ts` +1, `useAnswerCountdown.test.ts` (Taglish time up).
+  - 2362 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F91: the tables and who reads them; what stays English; the settings row and compact spacing.
+
+**Taglish for Kim to review** (English → Taglish, drafted by Claude; edit `TAGLISH` in `client/src/lib/copy.ts`, and `copy.test.ts` keeps the keys and placeholders in step):
+  - Tap to test your buzzer → I-tap para i-test ang buzzer mo
+  - Get ready… → Humanda ka…
+  - Get ready… you can buzz from the next question → Humanda ka… makaka-buzz ka na sa next question
+  - Too early! → Masyadong maaga!
+  - Answer sent → Sent na ang sagot mo
+  - Buzzed… → Naka-buzz ka na…
+  - Buzzers open! → Bukas na ang buzzers!
+  - Time’s up! → Ubos na ang oras!
+  - You’re first! Answer now → Ikaw ang una! Sagot na
+  - {name} buzzed first → Si {name} ang unang nag-buzz
+  - Someone buzzed first → May naunang nag-buzz
+  - Type your answer → I-type ang sagot mo
+  - Answers closed → Sarado na ang sagutan
+  - Pick your answer → Pumili ng sagot
+  - Your answer → Sagot mo
+  - Correct! → Tama!
+  - Answer revealed → Labas na ang sagot
+  - Answer → Sagot
+  - Locked out this round → Locked out ka muna sa round na ’to
+  - {rank} of {count} → {rank} sa {count}
+  - Question {n} of {count} → Tanong {n} sa {count}
+  -  · tap to buzz in →  · i-tap para mag-buzz
+  - You’re in! Waiting for the host → Pasok ka na! Hinihintay ang host
+  - {team} team → Team {team}
+  - Room {code} → Room {code}
+  - of → sa
+  - Change name → Palitan ang pangalan
+  - Leave game → Umalis sa game
+  - Confirm leave → Sigurado, aalis na
+  - Game over → Tapos na ang game
+  - {rank} of {count} teams · {points} → {rank} sa {count} na team · {points}
+  - Tonight → Ngayong gabi
+  - second to buzz → segundo para mag-buzz
+  - seconds to buzz → segundo para mag-buzz
+  - second to answer → segundo para sumagot
+  - seconds to answer → segundo para sumagot
+  - Your pick → Pinili mo
+  - Send → I-send
+  - Your name → Pangalan mo
+  - Enter your name → Ilagay ang pangalan mo
+  - That name won’t work → Hindi puwede ang pangalang ’yan
+  - Cancel → Huwag na
+  - Save → I-save
+  - Who’s here · {n} → Nandito na · {n}
+  - (you) → (ikaw)
+  - Share results → I-share ang results
+  - Download results → I-download ang results
+  - Saved {file} → Na-save ang {file}
+  - Couldn’t make the image → Hindi nagawa ang image
+  - {n} point → {n} puntos
+  - {n} points → {n} puntos
+  - Get ready → Humanda na
+  - Easy → Madali
+  - Medium → Katamtaman
+  - Hard → Mahirap
+  - Join at → Sumali sa
+  - Room code → Room code
+  - Waiting for players… → Hinihintay ang mga player…
+  - {n} player → {n} player
+  - {n} players → {n} na player
+  - No players yet → Wala pang player
+  - Question {n} / {count} → Tanong {n} / {count}
+  - Game {n} → Game {n}
+  - Room → Room
+  - Buzzers OPEN → BUKAS na ang buzzers
+  - Buzzers locked → Sarado pa ang buzzers
+  - {answered} of {expected} answered → {answered} sa {expected} ang nakasagot
+  - {n} answered → {n} ang nakasagot
+  - Answers locked → Hindi pa puwedeng sumagot
+  - Nobody got it → Walang nakakuha
+  - locked out → out na
+  - Too early → Maaga
+  - First to buzz → Unang nag-buzz
+  - also buzzed → nag-buzz din
+  - Standings → Standings
+  - Players → Mga player
+  - Scoreboard → Scoreboard
+  - Final results → Final na resulta
+  - Full ranking → Buong ranking
+  - and {n} more → at {n} pa
+  - Reconnecting… → Kumokonekta ulit…
+
+**Notes for next session:**
+- These stay English on purpose (DECISIONS F91):
+  - Anything before the first snapshot: the room check, join form and "Joining…".
+  - Server errors and name-rule messages.
+  - Aria-labels.
+  - The Screen's host-operated controls: the host bar, Start game, Settings, Pair host phone, the sound button and Click to start.
+  - The results card image.
+  The Backlog has the follow-ups.
+- A new phone or Screen string goes into both tables. Typecheck refuses a key missing from `TAGLISH` (`Record<CopyKey, string>`), and `copy.test.ts` checks the keys, blanks and placeholders at run time.
+- Review: no Must-fix.
+  - Should-fixes done: this list in PROGRESS.
+  - Already covered: the Taglish BUZZED/REVEAL Screen tests, which the reviewer missed.
+  - Not changed: the `as never` view casts in `copy.test.ts`.
+- Playtest (Playwright; host remote, one phone and the Screen at 390×844, then the Screen at 1280×720):
+  - After the switch, the phone read "Pasok ka na! Hinihintay ang host", "Humanda ka…", "Tanong 1 sa 10", "Bukas na ang buzzers!", "Ikaw ang una! Sagot na" and "SAGOT".
+  - The Screen read "Sumali sa", "Tanong 1 / 10", "HUMANDA NA", "BUKAS na ang buzzers", "UNANG NAG-BUZZ" and "SAGOT".
+  - Switching back to English mid-game took effect at once on both. The landing page and the remote stayed English.
+  - No answer before reveal. No console errors.
+  - The first fit check found the lobby's Game setup panel overflowing by 55 px (518 / 463). After tightening the rows it measured 463 / 463, with the language row's bottom 4 px inside the panel (`.playtest/F91/lobby-1280.png`, checked).
+- Main `index` chunk 524.76 → 530.94 kB.
+
+**How to try it:**
+1. `npm run dev`.
+2. Host a set from `http://localhost:5173/sets` and join a phone at `http://<LAN-IP>:5173/play/<code>`.
+3. On the remote's Settings tab, or the Screen lobby's settings, press **Taglish** under **Phone and Screen language**.
+4. The phone and the Screen switch on the next snapshot, in any phase. The remote stays English.
+
 ## F90 — Category board: builder and devices (2026-10-30)
 **What changed:**
 - Builder (`lib/gameBuilder.ts`, `GameBuilder.tsx`):

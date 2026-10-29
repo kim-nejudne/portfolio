@@ -3,6 +3,7 @@ import type { Phase, RankedPlayer, TeamView } from '../../../shared/types.js';
 import { teamsByRank } from '../lib/teams.js';
 import { useFlip } from '../lib/useFlip.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
+import { useCopy } from '../lib/copy.js';
 
 /** How many players the rail lists. */
 export const STANDINGS_TOP = 5;
@@ -35,6 +36,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
   const ranked = teams ? teamsByRank(teams) : [];
   useFlip(list, top.map((p) => p.id).join(','));
   useFlip(teamList, ranked.map((team) => team.index).join(','));
+  const t = useCopy();
   if (!show || top.length === 0 || !STANDINGS_PHASES.includes(phase)) return null;
 
   return (
@@ -43,7 +45,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
       className="hidden w-[17vw] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1280px)_and_(min-height:720px)]:flex"
     >
       <p className="shrink-0 text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] text-muted uppercase">
-        Standings
+        {t('standings')}
       </p>
       {teams && (
         <>
@@ -74,7 +76,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
             ))}
           </ol>
           <p className="mt-[0.6vh] shrink-0 text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] text-muted uppercase">
-            Players
+            {t('players')}
           </p>
         </>
       )}

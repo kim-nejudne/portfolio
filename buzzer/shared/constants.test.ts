@@ -49,7 +49,7 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, the standings rail on, teams off and 10 s for a choice question', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, the standings rail on, teams off, 10 s for a choice question and English', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
@@ -60,6 +60,7 @@ describe('shared constants', () => {
       showStandings: true,
       teams: 0,
       choiceSeconds: 10,
+      copy: 'en',
     });
   });
 

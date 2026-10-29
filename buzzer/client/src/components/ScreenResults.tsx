@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RankedPlayer, SessionView, TeamView } from '../../../shared/types.js';
+import { useCopy } from '../lib/copy.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 import { ordinal, podiumSteps, replayOrder, type PodiumStep } from '../lib/results.js';
 import { teamsByRank } from '../lib/teams.js';
@@ -30,6 +31,7 @@ interface ScoreboardProps {
 export function Scoreboard({ players, lastOrder, onShown, teams = null }: ScoreboardProps) {
   const [replaying, setReplaying] = useState(() => lastOrder.length > 0 && !prefersReducedMotion());
   const shown = replaying ? replayOrder(lastOrder, players) : players;
+  const t = useCopy();
 
   useEffect(() => {
     if (!replaying) return;
@@ -48,11 +50,13 @@ export function Scoreboard({ players, lastOrder, onShown, teams = null }: Scoreb
       className="absolute inset-0 flex flex-col bg-bg px-[3.75vw] pt-[1vh] pb-[3vh]"
     >
       <div className={`${SCREEN_CARD} flex min-h-0 flex-1 flex-col gap-[3vh]`}>
-        <h2 className="shrink-0 font-display text-[min(3vw,5.3vh)] text-accent">Scoreboard</h2>
+        <h2 className="shrink-0 font-display text-[min(3vw,5.3vh)] text-accent">
+          {t('scoreboard')}
+        </h2>
         {teams && <TeamStandings teams={teams} />}
         {/* The host can show it in the lobby, or after kicking everyone. */}
         {shown.length === 0 ? (
-          <p className="text-[min(3vw,5.5vh)] text-muted">No players yet</p>
+          <p className="text-[min(3vw,5.5vh)] text-muted">{t('noPlayersYet')}</p>
         ) : (
           // Under the teams, the players take the smaller text, so both fit the card.
           <RankingList rows={shown} dense={teams !== null} />
@@ -76,10 +80,11 @@ export function FinalResults({
   session?: SessionView | null;
   teams?: TeamView[] | null;
 }) {
+  const t = useCopy();
   if (players.length === 0 && !session?.totals.length) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <h1 className="font-display text-[5vw] text-muted">Game over</h1>
+        <h1 className="font-display text-[5vw] text-muted">{t('gameOver')}</h1>
       </div>
     );
   }
@@ -96,7 +101,7 @@ export function FinalResults({
         className={`flex min-w-0 flex-col gap-[3vh] ${tonight ? 'flex-[2]' : 'flex-[3]'}`}
       >
         <h1 className="shrink-0 font-display text-[min(4.4vw,9vh)] text-accent [text-shadow:0.3vw_0.3vw_0_var(--color-bg-deep)]">
-          Final results
+          {t('finalResults')}
         </h1>
         <ol className="flex min-h-0 flex-1 items-end justify-center gap-[1.5vw]">
           {podiumSteps(podium).map((step) => (
@@ -115,7 +120,9 @@ export function FinalResults({
         aria-label="Full ranking"
         className={`${SCREEN_CARD} flex min-w-0 ${rankingFlex} flex-col gap-[2vh]`}
       >
-        <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">Full ranking</h2>
+        <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">
+          {t('fullRanking')}
+        </h2>
         <RankingList rows={players} dense={tonight !== null} />
       </section>
       {tonight && (
@@ -123,11 +130,13 @@ export function FinalResults({
           aria-label="Tonight"
           className={`${SCREEN_CARD} flex min-w-0 flex-[2] flex-col gap-[2vh]`}
         >
-          <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">Tonight</h2>
+          <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">
+            {t('tonight')}
+          </h2>
           <RankingList rows={tonightRows(tonight.slice(0, TONIGHT_ROWS), players)} dense />
           {tonight.length > TONIGHT_ROWS && (
             <p className="shrink-0 text-[min(1.6vw,2.9vh)] text-muted">
-              and {tonight.length - TONIGHT_ROWS} more
+              {t('andMore', { n: tonight.length - TONIGHT_ROWS })}
             </p>
           )}
         </section>

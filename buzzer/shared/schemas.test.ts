@@ -753,6 +753,21 @@ describe('client event payloads', () => {
     }
   });
 
+  it('accepts the phone and Screen language as English or Taglish only', () => {
+    const settings = clientPayloadSchemas['host:settings'];
+    for (const copy of ['en', 'taglish']) {
+      expect(settings.safeParse({ copy }).success, copy).toBe(true);
+    }
+    for (const copy of ['tl', 'EN', '', null, 1]) {
+      expect(settings.safeParse({ copy }).success, String(copy)).toBe(false);
+    }
+    const withoutCopy: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete withoutCopy.copy;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: withoutCopy }).success).toBe(
+      false,
+    );
+  });
+
   it('rejects a ping without a numeric time', () => {
     expect(clientPayloadSchemas.ping.safeParse({ t: '1' }).success).toBe(false);
     expect(clientPayloadSchemas.ping.safeParse(undefined).success).toBe(false);

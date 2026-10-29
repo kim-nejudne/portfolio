@@ -9,6 +9,7 @@ import type {
   TypedView,
 } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
+import { useCopy } from '../lib/copy.js';
 import { signedPoints } from '../lib/results.js';
 import { buzzersOpen, formatGap, questionTextClass } from '../lib/screenQuestion.js';
 import {
@@ -137,6 +138,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
 }
 
 function BuzzerStatus({ open }: { open: boolean }) {
+  const t = useCopy();
   return (
     <p
       role="status"
@@ -146,7 +148,7 @@ function BuzzerStatus({ open }: { open: boolean }) {
           : 'border-edge bg-surface text-muted'
       }`}
     >
-      {open ? 'Buzzers OPEN' : 'Buzzers locked'}
+      {open ? t('buzzersOpen') : t('buzzersLocked')}
     </p>
   );
 }
@@ -158,6 +160,7 @@ function BuzzerStatus({ open }: { open: boolean }) {
  */
 function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seconds: number }) {
   const left = seconds > 0 ? countdown.secondsLeft / seconds : 0;
+  const t = useCopy();
   return (
     <div
       data-buzz-ring
@@ -166,7 +169,7 @@ function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seco
     >
       <div className="flex items-center gap-[2.4vw] rounded-full border-2 border-buzz bg-buzz px-[4vw] py-[1.6vh] font-display text-[min(3.4vw,6vh)] shadow-[0_0_0_0.47vw_var(--color-bg)]">
         <p role="status" className="text-ink [text-shadow:0.25vw_0.25vw_0_var(--color-buzz-ink)]">
-          Buzzers OPEN
+          {t('buzzersOpen')}
         </p>
         <p
           role="timer"
@@ -196,6 +199,7 @@ function ChoiceBoard({
   countdown: AnswerCountdown | null;
 }) {
   const revealed = choice.correctChoice !== undefined;
+  const t = useCopy();
   return (
     <section aria-label="Choices" className="flex shrink-0 flex-col gap-[2.4vh]">
       <ol className="grid grid-cols-2 gap-x-[1.6vw] gap-y-[2vh] px-[0.8vw] pt-[0.8vw]">
@@ -240,10 +244,10 @@ function ChoiceBoard({
       {phase === 'ANSWERING' && (
         <AnsweringProgress
           countdown={countdown}
-          status={`${choice.answered} of ${choice.expected} answered`}
+          status={t('answeredOf', { answered: choice.answered, expected: choice.expected })}
         />
       )}
-      {phase === 'QUESTION' && <AnswersPill label="Answers locked" />}
+      {phase === 'QUESTION' && <AnswersPill label={t('answersLocked')} />}
     </section>
   );
 }
@@ -302,6 +306,7 @@ interface TypedBoardProps {
  * answers or groups before REVEAL, so nothing here can give one away.
  */
 function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProps) {
+  const t = useCopy();
   if (phase === 'REVEAL') {
     const right = new Set(
       (typed.groups ?? []).filter((group) => group.correct).flatMap((group) => group.playerIds),
@@ -309,7 +314,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     const winners = players.filter((player) => right.has(player.id));
     return (
       <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
-        <p className={`text-muted ${SCREEN_LABEL}`}>Answer</p>
+        <p className={`text-muted ${SCREEN_LABEL}`}>{t('answer')}</p>
         <AnswerText answer={answer} />
         {winners.length > 0 ? (
           <ul
@@ -330,7 +335,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
             ))}
           </ul>
         ) : (
-          <p className="font-display text-[min(2.6vw,4.6vh)] text-muted">Nobody got it</p>
+          <p className="font-display text-[min(2.6vw,4.6vh)] text-muted">{t('nobodyGotIt')}</p>
         )}
       </section>
     );
@@ -338,9 +343,9 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
   if (phase === 'ANSWERING' && typed.closed) {
     return (
       <div className="flex shrink-0 items-center justify-center gap-[2vw]">
-        <AnswersPill label="Answers closed" />
+        <AnswersPill label={t('answersClosed')} />
         <p className="font-display text-[min(2.6vw,4.6vh)] text-accent">
-          {typed.answered} answered
+          {t('answeredCount', { n: typed.answered })}
         </p>
       </div>
     );
@@ -349,20 +354,21 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     return (
       <AnsweringProgress
         countdown={countdown}
-        status={`${typed.answered} of ${typed.expected} answered`}
+        status={t('answeredOf', { answered: typed.answered, expected: typed.expected })}
       />
     );
   }
-  return <AnswersPill label="Answers locked" />;
+  return <AnswersPill label={t('answersLocked')} />;
 }
 
 /** Players judged wrong on this question, greyed out while the others may still buzz. */
 function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
   const out = players.filter((p) => ids.includes(p.id));
+  const t = useCopy();
   if (out.length === 0) return null;
   return (
     <div className="flex max-w-full shrink-0 items-baseline justify-center gap-[1.2vw]">
-      <p className={`shrink-0 text-muted ${SCREEN_LABEL}`}>locked out</p>
+      <p className={`shrink-0 text-muted ${SCREEN_LABEL}`}>{t('lockedOut')}</p>
       <ul aria-label="Locked out" className="flex flex-wrap gap-[1vw] overflow-hidden">
         {out.map((player) => (
           <li
@@ -383,6 +389,7 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
  */
 function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
   const early = ids.flatMap((id) => players.find((p) => p.id === id) ?? []);
+  const t = useCopy();
   if (early.length === 0) return null;
   return (
     <ul
@@ -399,7 +406,7 @@ function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] 
           <span
             className={`rounded-full bg-warn px-[0.8vw] py-[0.3vh] text-bg ${SCREEN_LABEL} tracking-[0.12em]`}
           >
-            Too early
+            {t('tooEarlyTag')}
           </span>
         </li>
       ))}
@@ -415,9 +422,10 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
   const recent = useRecentFx();
   const scored =
     recent?.fx.kind === 'correct' && recent.fx.playerId === scorer?.id ? recent : undefined;
+  const t = useCopy();
   return (
     <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
-      <p className={`text-muted ${SCREEN_LABEL}`}>Answer</p>
+      <p className={`text-muted ${SCREEN_LABEL}`}>{t('answer')}</p>
       <AnswerText answer={answer} />
       {scorer && (
         <p
@@ -455,6 +463,7 @@ function AnswerText({ answer }: { answer: string | undefined }) {
 
 /** The answer countdown beside the winner's banner (UI spec, Screen view: Buzzed), then "Time's up!". */
 function Countdown({ countdown }: { countdown: AnswerCountdown }) {
+  const t = useCopy();
   return (
     <p
       role="timer"
@@ -466,7 +475,7 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
           : 'text-[min(5.6vw,10vh)] text-buzz-ink'
       }`}
     >
-      {countdownText(countdown)}
+      {countdownText(countdown, t)}
     </p>
   );
 }
@@ -487,6 +496,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     return player ? [{ player, gapMs: gap.gapMs }] : [];
   });
   // Bungee is wide: a long name steps down so more of it fits before the ellipsis.
+  const t = useCopy();
   const nameSize = winner.name.length > 9 ? 'text-[min(5.6vw,10vh)]' : 'text-[min(8.1vw,14.4vh)]';
   return (
     <section
@@ -498,7 +508,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     >
       <div className="flex min-w-0 flex-1 flex-col gap-[1vh]">
         <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-muted' : 'text-buzz-ink'}`}>
-          First to buzz
+          {t('firstToBuzz')}
         </p>
         <h2
           className={`flex min-w-0 items-center gap-[1.4vw] font-display leading-none ${nameSize} ${
@@ -523,7 +533,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
           {others.length > 0 && (
             <>
               <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-muted' : 'text-buzz-ink'}`}>
-                also buzzed
+                {t('alsoBuzzed')}
               </p>
               <ol
                 aria-label="Also buzzed"

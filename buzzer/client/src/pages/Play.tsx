@@ -45,7 +45,8 @@ import {
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
-import { ordinal, pointsLabel } from '../lib/results.js';
+import { pointsText, rankText, useCopy, type Translate } from '../lib/copy.js';
+import { ordinal } from '../lib/results.js';
 import { teamOf } from '../lib/teams.js';
 import { cardFromPlayer } from '../lib/resultsCard.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
@@ -546,6 +547,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   const inLobby = view.phase === 'LOBBY';
   const enabled = state.live || state.kind === 'practice';
   const team = teamOf(view.teams, view.me.id);
+  const t = useCopy();
 
   function press() {
     if (state.kind === 'practice') return practice();
@@ -620,9 +622,9 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
 
   const inGame = view.questionIndex >= 0;
   const progress = inGame
-    ? `Question ${view.questionIndex + 1} of ${view.questionCount}${state.live ? ' · tap to buzz in' : ''}`
+    ? `${t('questionOf', { n: view.questionIndex + 1, count: view.questionCount })}${state.live ? t('tapToBuzzIn') : ''}`
     : view.phase === 'LOBBY'
-      ? 'You’re in! Waiting for the host'
+      ? t('youreIn')
       : null;
 
   return (
@@ -655,12 +657,12 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                   style={{ backgroundColor: team.color }}
                   className="size-2.5 shrink-0 rounded-sm"
                 />
-                <span className="truncate">{team.name} team</span>
+                <span className="truncate">{t('teamName', { team: team.name })}</span>
               </span>
             )}
             <span className="flex items-center gap-1.5 text-[13px] text-muted">
               <ConnectionDot />
-              Room {view.code}
+              {t('room', { code: view.code })}
             </span>
           </span>
         </span>
@@ -671,8 +673,8 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               data-rank
               className="flex flex-col items-end text-[13px] leading-tight font-bold whitespace-nowrap text-muted"
             >
-              <span className="font-display text-lg text-accent">{ordinal(view.me.rank)}</span> of{' '}
-              {view.playerCount}
+              <span className="font-display text-lg text-accent">{ordinal(view.me.rank)}</span>{' '}
+              {t('of')} {view.playerCount}
             </span>
           )}
           <span
@@ -715,12 +717,12 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 onClick={() => setPanel('rename')}
                 className={`${BUTTON_SECONDARY} text-left font-bold`}
               >
-                Change name
+                {t('changeName')}
               </button>
             )}
             <ConfirmButton
-              label="Leave game"
-              confirmLabel="Confirm leave"
+              label={t('leaveGame')}
+              confirmLabel={t('confirmLeave')}
               onConfirm={leaveGame}
               disabled={leaving}
               className={`${BUTTON_SECONDARY} flex-1 text-left font-bold`}
@@ -737,13 +739,13 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center"
         >
           <BulbRail count={9} variant="row" />
-          <p className={LABEL}>Game over</p>
+          <p className={LABEL}>{t('gameOver')}</p>
           <p className="font-display text-6xl text-accent">{state.label}</p>
           <p className="font-display text-3xl">{state.detail}</p>
           {/* With teams on, how their team finished (F82). */}
           {team && view.teams && (
             <p aria-label="Team" className="mt-2 flex flex-col gap-1 text-lg text-muted">
-              <span className={LABEL}>{team.name} team</span>
+              <span className={LABEL}>{t('teamName', { team: team.name })}</span>
               <span className="flex items-center justify-center gap-2 font-display text-2xl text-ink">
                 <span
                   aria-hidden="true"
@@ -751,17 +753,21 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                   style={{ backgroundColor: team.color }}
                   className="size-3.5 shrink-0 rounded-sm"
                 />
-                {ordinal(team.rank)} of {view.teams.length} teams · {pointsLabel(team.score)}
+                {t('teamRank', {
+                  rank: ordinal(team.rank),
+                  count: view.teams.length,
+                  points: pointsText(t, team.score),
+                })}
               </span>
             </p>
           )}
           {/* From game 2, the night so far (F77). */}
           {view.tonight && (
             <p aria-label="Tonight" className="mt-2 flex flex-col gap-1 text-lg text-muted">
-              <span className={LABEL}>Tonight</span>
+              <span className={LABEL}>{t('tonight')}</span>
               <span className="font-display text-2xl text-ink">
-                {ordinal(view.tonight.rank)} of {view.tonight.count} ·{' '}
-                {pointsLabel(view.tonight.total)}
+                {rankText(t, view.tonight.rank, view.tonight.count)} ·{' '}
+                {pointsText(t, view.tonight.total)}
               </span>
             </p>
           )}
@@ -830,7 +836,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 <span className="font-display text-4xl leading-none text-ink tabular-nums">
                   {buzzCountdown.secondsLeft}
                 </span>
-                {buzzCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to buzz
+                {t(buzzCountdown.secondsLeft === 1 ? 'secondToBuzz' : 'secondsToBuzz')}
               </p>
             )}
             {/* The time left to answer a choice or typed question (F86, F88). */}
@@ -843,7 +849,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 <span className="font-display text-4xl leading-none text-ink tabular-nums">
                   {answeringCountdown.secondsLeft}
                 </span>
-                {answeringCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to answer
+                {t(answeringCountdown.secondsLeft === 1 ? 'secondToAnswer' : 'secondsToAnswer')}
               </p>
             )}
           </div>
@@ -871,6 +877,7 @@ interface ChoiceButtonsProps {
  */
 function ChoiceButtons({ choice, picked, enabled, onPick }: ChoiceButtonsProps) {
   const revealed = choice.correctChoice !== undefined;
+  const t = useCopy();
   return (
     <ol
       aria-label="Choices"
@@ -906,7 +913,7 @@ function ChoiceButtons({ choice, picked, enabled, onPick }: ChoiceButtonsProps) 
               )}
               {mine && (
                 <span className="shrink-0 rounded-full bg-bg px-2.5 py-1 text-sm whitespace-nowrap text-ink">
-                  Your pick
+                  {t('yourPick')}
                 </span>
               )}
             </button>
@@ -935,6 +942,7 @@ function TypedAnswer({ typed, enabled, answer, onRefused }: TypedAnswerProps) {
   const [sending, setSending] = useState(false);
   const text = draft.trim();
   const canSend = enabled && !sending && text !== '' && text !== typed.mine;
+  const t = useCopy();
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -956,7 +964,7 @@ function TypedAnswer({ typed, enabled, answer, onRefused }: TypedAnswerProps) {
       className="flex w-full max-w-sm shrink-0 touch-auto flex-col gap-3"
     >
       <label htmlFor="typed-answer" className="sr-only">
-        Your answer
+        {t('yourAnswer')}
       </label>
       <input
         id="typed-answer"
@@ -965,7 +973,7 @@ function TypedAnswer({ typed, enabled, answer, onRefused }: TypedAnswerProps) {
         value={enabled ? draft : (typed.mine ?? '')}
         onChange={(event) => setDraft(event.target.value)}
         disabled={!enabled}
-        placeholder={enabled ? 'Type your answer' : ''}
+        placeholder={enabled ? t('typeYourAnswer') : ''}
         autoComplete="off"
         autoCorrect="off"
         spellCheck={false}
@@ -976,7 +984,7 @@ function TypedAnswer({ typed, enabled, answer, onRefused }: TypedAnswerProps) {
       {/* At REVEAL the box stays as a record of the answer; there is nothing left to send. */}
       {typed.groups === undefined && (
         <button type="submit" disabled={!canSend} className={`${BUTTON_PRIMARY} text-2xl`}>
-          Send
+          {t('send')}
         </button>
       )}
     </form>
@@ -997,16 +1005,13 @@ function RenameForm({ current, rename, onDone }: RenameFormProps) {
   const [name, setName] = useState(current);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const t = useCopy();
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const parsed = playerNameSchema.safeParse(name);
     if (!parsed.success) {
-      return setError(
-        name.trim() === ''
-          ? 'Enter your name'
-          : (parsed.error.issues[0]?.message ?? 'That name won’t work'),
-      );
+      return setError(nameError(t, name, parsed.error.issues[0]?.message));
     }
     if (parsed.data === current) return onDone();
     setError(null);
@@ -1026,10 +1031,10 @@ function RenameForm({ current, rename, onDone }: RenameFormProps) {
         className={`flex w-full max-w-md flex-col gap-4 ${CARD}`}
       >
         <h2 id="rename-heading" className="font-display text-3xl">
-          Change name
+          {t('changeName')}
         </h2>
         <label htmlFor="new-name" className={LABEL}>
-          Your name
+          {t('yourName')}
         </label>
         <input
           id="new-name"
@@ -1051,14 +1056,14 @@ function RenameForm({ current, rename, onDone }: RenameFormProps) {
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onDone} className={`${BUTTON_SECONDARY} flex-1 font-bold`}>
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="submit"
             disabled={name.trim() === '' || sending}
             className={`${BUTTON_PRIMARY} flex-1 text-xl`}
           >
-            Save
+            {t('save')}
           </button>
         </div>
       </form>
@@ -1075,13 +1080,14 @@ function WhosHere({ players, meId }: { players: LobbyPlayer[]; meId: string }) {
     ...players.filter((player) => player.id === meId),
     ...players.filter((player) => player.id !== meId),
   ];
+  const t = useCopy();
   return (
     <section
       aria-labelledby="whos-here"
       className="mx-4 mb-4 flex max-h-[24dvh] min-h-0 shrink-0 flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface px-5 py-3"
     >
       <h2 id="whos-here" className={LABEL}>
-        Who’s here · {players.length}
+        {t('whosHere', { n: players.length })}
       </h2>
       <ul className="flex touch-pan-y flex-wrap gap-2 overflow-y-auto">
         {ordered.map((player) => (
@@ -1098,7 +1104,7 @@ function WhosHere({ players, meId }: { players: LobbyPlayer[]; meId: string }) {
             />
             <PlayerAvatar avatar={player.avatar} />
             <span className="truncate">{player.name}</span>
-            {player.id === meId && <span className="text-sm text-muted">(you)</span>}
+            {player.id === meId && <span className="text-sm text-muted">{t('you')}</span>}
           </li>
         ))}
       </ul>
@@ -1111,6 +1117,7 @@ function WhosHere({ players, meId }: { players: LobbyPlayer[]; meId: string }) {
  * red panel in the stage ring, or the revealed answer in a card.
  */
 function BuzzerStatus({ state, progress }: { state: BuzzerState; progress: string | null }) {
+  const t = useCopy();
   const heading = (
     <h1
       id="buzzer-status"
@@ -1146,7 +1153,7 @@ function BuzzerStatus({ state, progress }: { state: BuzzerState; progress: strin
         aria-label="Answer"
         className={`flex w-full max-w-sm flex-col items-center gap-1 ${CARD} py-4`}
       >
-        <p className={LABEL}>{state.caption ?? 'Answer'}</p>
+        <p className={LABEL}>{state.caption ?? t('answer')}</p>
         {heading}
         {state.detail && (
           <span
@@ -1164,6 +1171,14 @@ function BuzzerStatus({ state, progress }: { state: BuzzerState; progress: strin
       {progress && <p className="text-center text-muted">{progress}</p>}
     </div>
   );
+}
+
+/**
+ * Change name's refusal: an empty name, else the name rule's message. The rule's messages come
+ * from the shared schema and stay English, like the server's errors (DECISIONS, F91).
+ */
+function nameError(t: Translate, name: string, ruleMessage: string | undefined): string {
+  return name.trim() === '' ? t('enterYourName') : (ruleMessage ?? t('nameWontWork'));
 }
 
 function PlayMessage({

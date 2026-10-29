@@ -17,6 +17,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     lockedOut: false,
     falseStart: false,
     falseStartMs: 0,
+    copy: 'en',
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,
@@ -488,5 +489,74 @@ describe('buzzerState false start', () => {
       winnerName: 'Ben',
     });
     expect(buzzerState(lost, false, null, true).kind).toBe('lost');
+  });
+});
+
+describe('buzzerState in Taglish (F91)', () => {
+  const tl = (overrides: Partial<PlayerView> = {}) => view({ copy: 'taglish', ...overrides });
+  const label = (
+    overrides: Partial<PlayerView>,
+    pressed = false,
+    countdown: { secondsLeft: number; up: boolean } | null = null,
+  ) => buzzerState(tl(overrides), pressed, countdown).label;
+
+  it('labels every buzzer state from the Taglish table', () => {
+    expect(label({})).toBe('I-tap para i-test ang buzzer mo');
+    expect(label({ phase: 'QUESTION', questionIndex: 0 })).toBe('Humanda ka…');
+    expect(label({ phase: 'BOARD' })).toBe('Humanda ka…');
+    expect(label({ phase: 'OPEN', questionIndex: 0 })).toBe('Bukas na ang buzzers!');
+    expect(label({ phase: 'OPEN', questionIndex: 0 }, true)).toBe('Naka-buzz ka na…');
+    expect(label({ phase: 'OPEN', questionIndex: 0, canBuzz: false })).toBe(
+      'Humanda ka… makaka-buzz ka na sa next question',
+    );
+    expect(label({ phase: 'OPEN', questionIndex: 0, lockedOut: true })).toBe(
+      'Locked out ka muna sa round na ’to',
+    );
+    const won = { phase: 'BUZZED', questionIndex: 0, winnerId: 'p1', winnerName: 'Ana' } as const;
+    expect(label(won)).toBe('Ikaw ang una! Sagot na');
+    expect(label(won, false, { secondsLeft: 0, up: true })).toBe('Ubos na ang oras!');
+    expect(label({ ...won, winnerId: 'p2', winnerName: 'Ben' })).toBe('Si Ben ang unang nag-buzz');
+    expect(label({ ...won, winnerId: 'p2', winnerName: null })).toBe('May naunang nag-buzz');
+  });
+
+  it('labels a false start, the choice and typed answers in Taglish', () => {
+    expect(label({ phase: 'QUESTION', questionIndex: 0, falseStartMs: 500 }, true)).toBe(
+      'Masyadong maaga!',
+    );
+    expect(label({ phase: 'ANSWERING', questionIndex: 0, choice: choice() })).toBe(
+      'Pumili ng sagot',
+    );
+    expect(label({ phase: 'ANSWERING', questionIndex: 0, choice: choice({ mine: 1 }) })).toBe(
+      'Sent na ang sagot mo',
+    );
+    expect(label({ phase: 'ANSWERING', questionIndex: 0, typed: typed() })).toBe(
+      'I-type ang sagot mo',
+    );
+    expect(label({ phase: 'ANSWERING', questionIndex: 0, typed: typed({ closed: true }) })).toBe(
+      'Sarado na ang sagutan',
+    );
+  });
+
+  it('says "Tama!" with "Sagot mo" at a right reveal, and the rank and puntos at the end', () => {
+    const right = buzzerState(
+      tl({
+        phase: 'REVEAL',
+        questionIndex: 0,
+        choice: choice({ mine: 0, correctChoice: 0, counts: [1, 0] }),
+        pointsThisQuestion: 100,
+      }),
+      false,
+    );
+    expect(right).toMatchObject({ caption: 'Sagot mo', label: 'Tama!', detail: '+100' });
+    expect(label({ phase: 'REVEAL', questionIndex: 0 })).toBe('Labas na ang sagot');
+    const final = buzzerState(
+      tl({ phase: 'FINAL', me: { ...view().me, rank: 2, score: 300 }, playerCount: 5 }),
+      false,
+    );
+    expect(final).toMatchObject({ label: '2nd sa 5', detail: '300 puntos' });
+  });
+
+  it('keeps the answer text itself as the host wrote it', () => {
+    expect(label({ phase: 'REVEAL', questionIndex: 0, answer: 'Paris' })).toBe('Paris');
   });
 });

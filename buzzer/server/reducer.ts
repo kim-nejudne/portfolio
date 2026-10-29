@@ -923,6 +923,7 @@ function hostSettings(
     showStandings,
     teams,
     choiceSeconds,
+    copy,
   } = room.settings;
   const merged: Room = {
     ...room,
@@ -936,6 +937,7 @@ function hostSettings(
       showStandings: settings.showStandings ?? showStandings,
       teams: settings.teams ?? teams,
       choiceSeconds: settings.choiceSeconds ?? choiceSeconds,
+      copy: settings.copy ?? copy,
     },
   };
   return done(teamsChange ? regrouped(merged) : merged);

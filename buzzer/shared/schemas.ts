@@ -11,6 +11,7 @@ import {
   BUZZ_SECONDS_CHOICES,
   CHOICE_SECONDS_MAX,
   CHOICE_SECONDS_MIN,
+  COPY_LANGUAGES,
   CHOICE_TEXT_MAX,
   CHOICES_MAX,
   CHOICES_MIN,
@@ -226,6 +227,7 @@ export const roomSettingsSchema = z.object({
   showStandings: z.boolean(),
   teams: z.literal(TEAM_COUNT_CHOICES),
   choiceSeconds: z.int().min(CHOICE_SECONDS_MIN).max(CHOICE_SECONDS_MAX),
+  copy: z.enum(COPY_LANGUAGES),
 });
 
 export const createRoomBodySchema = z.object({
