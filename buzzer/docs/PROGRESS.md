@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F73 — Settings presets (2026-10-29)
+**What changed:**
+- Client: `HostSettings` gains a **Presets** row at the top (`role="group"`, label, **Party** and **Competitive** buttons with `aria-pressed`), so in the remote's Settings tab and the Screen lobby. A press sends one `host:settings` with the preset's five keys (auto-open, penalty, answer time, buzz time, false start); it is marked while those five keys match the room's settings. Party: auto-open on, penalty off, answer, buzz and false start off. Competitive: auto-open off, penalty on, answer 5 s, buzz 10 s, false start 0.5 s. Client-only; no server or schema change.
+- Compact (Screen lobby) rows tightened: `py-2` → `py-1`, steppers `size-9` → `size-8`, presets `h-8`, so eight rows and Start game fit at 1280×720.
+- Tests: `HostControls.test.tsx` +11 (placement and order, each payload, none on defaults, each active, mark drops on one differing key, command lock until the snapshot; compact size assertions updated), `Screen.test.tsx` +1 (lobby presets above the switches, Party payload, mark), `schemas.test.ts` +1 (both five-key payloads accepted). 1772 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-29 for F73 (same five keys in both presets, Competitive turns auto-open off; scoreboard and standings not in either; row placement and the compact tightening).
+
+**Notes for next session:**
+- The Screen lobby now has 9 px spare at 1280×720 (aside scrollHeight 463 = clientHeight 463). Any further settings row (teams, language) will not fit without another layout change, such as two columns or folding the settings.
+- Clicking an already active preset sends the same values again; harmless.
+- Playtest (Playwright): room CQSE, remote 390×844 and Screen 1920×1080: both presets set every value on both views, the mark follows edits from either device. Room XBEU found the lobby aside scrolling at 1280×720 (524 vs 463); after the tightening, room SXFD fits at 1280×720 and 1920×1080 with no clipping. Screenshots: `.playtest/F73/lobby-1280-screen.png`, `lobby-1920-screen.png`, `competitive-1280-screen.png`.
+- Main `index` chunk 484.81 → 485.87 kB (146.15 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room → Use this device as the Screen: the lobby's settings start with Presets; click **Competitive**, then **Party**, and watch the switches and steppers follow. On a paired host phone (`http://<laptop-LAN-IP>:5173/host/<CODE>`), the Settings tab shows the same row.
+
 ## F72 — False start: devices (2026-10-29)
 **What changed:**
 - Shared and views: `SharedRoomView.falseStarts` (Screen and host) and `PlayerView.falseStartMs`.

@@ -1054,6 +1054,32 @@ describe('Screen', () => {
         expect(sent(socket).at(-1)).toEqual(['host:settings', { answerSeconds: 3 }]);
       });
 
+      it('the presets sit above the switches; Party sends one host:settings and is marked once the room matches', () => {
+        const socket = hostScreen();
+        const presets = within(setup()!).getByRole('group', { name: 'Presets' });
+        const party = within(presets).getByRole('button', { name: 'Party' });
+        expect(
+          presets.compareDocumentPosition(
+            screen.getByRole('switch', { name: /Wrong-answer penalty/ }),
+          ) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        fireEvent.click(party);
+        const values = {
+          autoOpenBuzzers: true,
+          wrongPenalty: false,
+          answerSeconds: 0,
+          buzzSeconds: 0,
+          falseStartMs: 0,
+        } as const;
+        expect(sent(socket)).toEqual([['host:settings', values]]);
+
+        act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+        socket.fire('state', inPhase('LOBBY', { settings: { ...DEFAULT_SETTINGS, ...values } }));
+        expect(
+          within(setup()!).getByRole('button', { name: 'Party' }).getAttribute('aria-pressed'),
+        ).toBe('true');
+      });
+
       it('a refused change shows the Screen’s toast', () => {
         const socket = hostScreen();
         fireEvent.click(screen.getByRole('switch', { name: /Wrong-answer penalty/ }));

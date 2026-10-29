@@ -24,16 +24,19 @@ const SIZES = {
     detail: 'text-sm',
     stepper: 'size-12 text-2xl',
     value: 'w-16',
+    preset: 'h-12 px-3 text-lg',
     track: 'h-8 w-14',
     knob: 'size-6',
   },
   compact: {
-    row: 'gap-2 px-3 py-2',
+    row: 'gap-2 px-3 py-1',
     label: 'text-base',
-    // One line per row, so all seven rows and Start game fit at 1280×720 with no scroll (F65).
+    // One line per row, so the presets, all seven rows and Start game fit at 1280×720 with no
+    // scroll (F65, F73).
     detail: 'sr-only',
-    stepper: 'size-9 text-xl',
+    stepper: 'size-8 text-xl',
     value: 'w-12',
+    preset: 'h-8 px-2 text-base',
     track: 'h-6 w-11',
     knob: 'size-4',
   },
@@ -41,9 +44,48 @@ const SIZES = {
 
 type Sizes = (typeof SIZES)['regular'];
 
+type Preset = Pick<
+  RoomSettings,
+  'autoOpenBuzzers' | 'wrongPenalty' | 'answerSeconds' | 'buzzSeconds' | 'falseStartMs'
+>;
+
+/**
+ * Shortcuts that each send one `host:settings` (F73). Both set the same keys, so switching between
+ * them leaves nothing behind; Competitive turns auto-open off because a false start needs a locked
+ * question. Scoreboard and standings are left as the host set them.
+ */
+const PRESETS: readonly { name: string; settings: Preset }[] = [
+  {
+    name: 'Party',
+    settings: {
+      autoOpenBuzzers: true,
+      wrongPenalty: false,
+      answerSeconds: 0,
+      buzzSeconds: 0,
+      falseStartMs: 0,
+    },
+  },
+  {
+    name: 'Competitive',
+    settings: {
+      autoOpenBuzzers: false,
+      wrongPenalty: true,
+      answerSeconds: 5,
+      buzzSeconds: 10,
+      falseStartMs: 500,
+    },
+  },
+];
+
+/** True while every key the preset sets has the preset's value. */
+function matches(settings: RoomSettings, preset: Preset) {
+  return (Object.keys(preset) as (keyof Preset)[]).every((key) => settings[key] === preset[key]);
+}
+
 const row = 'flex items-center rounded-2xl border-2 border-edge bg-surface';
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
 const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
+const presetButton = `rounded-xl border-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
@@ -59,6 +101,31 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
 
   return (
     <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-2' : 'gap-3'}`}>
+      <div role="group" aria-labelledby="presets-label" className={`${row} ${size.row}`}>
+        <p className="flex-1">
+          <span id="presets-label" className={`block font-bold ${size.label}`}>
+            Presets
+          </span>
+          <span className={`${size.detail} text-muted`}>Set several switches at once.</span>
+        </p>
+        {PRESETS.map((preset) => {
+          const active = matches(settings, preset.settings);
+          return (
+            <button
+              key={preset.name}
+              type="button"
+              aria-pressed={active}
+              onClick={() => change(preset.settings)}
+              disabled={busy}
+              className={`${presetButton} ${size.preset} ${
+                active ? 'border-accent bg-accent text-accent-ink' : 'border-edge bg-bg text-accent'
+              }`}
+            >
+              {preset.name}
+            </button>
+          );
+        })}
+      </div>
       <Switch
         label="Wrong-answer penalty"
         detail="A wrong answer loses the question's points."

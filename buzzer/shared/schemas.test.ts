@@ -241,6 +241,26 @@ describe('createRoomBodySchema', () => {
     );
   });
 
+  it('host:settings takes a preset’s five keys in one payload (F73)', () => {
+    const settings = clientPayloadSchemas['host:settings'];
+    const party = {
+      autoOpenBuzzers: true,
+      wrongPenalty: false,
+      answerSeconds: 0,
+      buzzSeconds: 0,
+      falseStartMs: 0,
+    };
+    const competitive = {
+      autoOpenBuzzers: false,
+      wrongPenalty: true,
+      answerSeconds: 5,
+      buzzSeconds: 10,
+      falseStartMs: 500,
+    };
+    expect(settings.parse(party)).toEqual(party);
+    expect(settings.parse(competitive)).toEqual(competitive);
+  });
+
   it('requires the standings switch in a new room', () => {
     const withoutStandings: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
     delete withoutStandings.showStandings;

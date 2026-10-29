@@ -194,13 +194,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F72 False start: devices
 
-- [ ] F73 Settings presets
-  - Spec: UI spec by view (Host remote, Settings tab); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F72
-  - Done when:
-    - The Settings tab and the Screen lobby settings show two presets above the switches: **Party** (auto-open on, no penalty, answer off, buzz time off, false start off) and **Competitive** (penalty on, answer 5 s, buzz time 10 s, false start 0.5 s); each sends one `host:settings`
-    - A preset is marked active while the settings match it
-  - Tests: `HostControls.test.tsx` (each preset's payload, active mark)
+- [x] F73 Settings presets
 
 ## M18 — Players and sharing
 

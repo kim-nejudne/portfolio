@@ -499,6 +499,94 @@ describe('HostSettings', () => {
     expect(isDisabled('Less false start wait')).toBe(false);
   });
 
+  const party = {
+    autoOpenBuzzers: true,
+    wrongPenalty: false,
+    answerSeconds: 0,
+    buzzSeconds: 0,
+    falseStartMs: 0,
+  } as const;
+  const competitive = {
+    autoOpenBuzzers: false,
+    wrongPenalty: true,
+    answerSeconds: 5,
+    buzzSeconds: 10,
+    falseStartMs: 500,
+  } as const;
+  const preset = (name: string) => within(presets()).getByRole('button', { name });
+  const presets = () => screen.getByRole('group', { name: 'Presets' });
+  const pressed = (name: string) => preset(name).getAttribute('aria-pressed');
+
+  it('shows the two presets above the switches', () => {
+    setup(HostSettings, hostView());
+    const section = screen.getByRole('region', { name: 'Settings' });
+    expect(section.firstElementChild).toBe(presets());
+    expect(
+      within(presets())
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Party', 'Competitive']);
+  });
+
+  it.each([
+    ['Party', party],
+    ['Competitive', competitive],
+  ] as const)('%s sends one host:settings with its values', (name, payload) => {
+    const { sent } = setup(HostSettings, hostView());
+    fireEvent.click(preset(name));
+    expect(sent).toEqual([expect.objectContaining({ event: 'host:settings', payload })]);
+  });
+
+  it('marks neither preset on the default settings', () => {
+    setup(HostSettings, hostView());
+    expect(pressed('Party')).toBe('false');
+    expect(pressed('Competitive')).toBe('false');
+  });
+
+  it.each([
+    ['Party', 'Competitive', party],
+    ['Competitive', 'Party', competitive],
+  ] as const)('marks %s active while the settings match it', (name, other, values) => {
+    // Scoreboard and standings are not part of a preset, so other values keep the mark.
+    setup(
+      HostSettings,
+      hostView({
+        settings: { ...DEFAULT_SETTINGS, ...values, scoreboardEvery: 0, showStandings: false },
+      }),
+    );
+    expect(pressed(name)).toBe('true');
+    expect(pressed(other)).toBe('false');
+  });
+
+  it.each([
+    ['Party', { ...party, autoOpenBuzzers: false }],
+    ['Party', { ...party, falseStartMs: 500 }],
+    ['Competitive', { ...competitive, answerSeconds: 7 }],
+    ['Competitive', { ...competitive, autoOpenBuzzers: true }],
+  ] as const)('drops the %s mark when one of its settings differs', (name, values) => {
+    const { rerender } = setup(
+      HostSettings,
+      hostView({ settings: { ...DEFAULT_SETTINGS, ...values } }),
+    );
+    expect(pressed(name)).toBe('false');
+    rerender(
+      hostView({ settings: { ...DEFAULT_SETTINGS, ...(name === 'Party' ? party : competitive) } }),
+    );
+    expect(pressed(name)).toBe('true');
+  });
+
+  it('a preset sends nothing more until the next snapshot, which marks it', () => {
+    const { sent, rerender } = setup(HostSettings, hostView());
+    fireEvent.click(preset('Competitive'));
+    expect(isDisabled('Party')).toBe(true);
+    fireEvent.click(preset('Party'));
+    expect(sent).toHaveLength(1);
+    expect(pressed('Competitive')).toBe('false');
+    rerender(hostView({ settings: { ...DEFAULT_SETTINGS, ...competitive } }));
+    expect(isDisabled('Party')).toBe(false);
+    expect(pressed('Competitive')).toBe('true');
+  });
+
   it('shows the new value only once the snapshot carries it', () => {
     const { rerender } = setup(HostSettings, hostView());
     fireEvent.click(button('More questions between scoreboards'));
@@ -520,10 +608,11 @@ describe('HostSettings', () => {
     expect(toggle(/^Auto-open buzzers/)).toBeTruthy();
     expect(screen.getByRole('status', { name: 'Answer time' }).textContent).toBe('5 s');
     expect(screen.getByRole('status', { name: 'False start' }).textContent).toBe('0.5 s');
-    expect(button('More false start wait').className).toContain('size-9');
+    expect(button('More false start wait').className).toContain('size-8');
     expect(every().textContent).toBe('5');
-    expect(button('More answer time').className).toContain('size-9');
-    expect(toggle(/^Auto-open buzzers/).className).toContain('py-2');
+    expect(button('More answer time').className).toContain('size-8');
+    expect(toggle(/^Auto-open buzzers/).className).toContain('py-1');
+    expect(preset('Competitive').className).toContain('h-8');
     cleanup();
 
     setup(HostSettings, view);
