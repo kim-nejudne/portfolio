@@ -31,7 +31,7 @@ Scope decisions:
 | Questions | **[decided]** Built-in question editor with saved question sets, and images in questions. |
 | Where question sets are saved | **[default]** In the browser (IndexedDB) of the device that made them, with JSON export/import to move them between devices. No database. |
 | Points | **[default]** 100 per question, editable per question. Wrong-answer penalty is off by default (toggle per game). |
-| Teams, timers, multiple choice | Not in v1 (see Out of scope). |
+| Teams, timers, multiple choice | Optional, off by default: teams, an answer timer, a buzz time limit, and choice or typed questions (see Scoring rules, Host remote and Set editor). |
 
 ## Roles and devices
 
@@ -46,10 +46,12 @@ Every room has three roles. The Screen is public, so it never receives anything 
 ### Creating and joining a room
 
 1. **Create.** On the landing page `/`, the host taps **Host a game**, picks a question set from this browser's saved sets, and taps **Create room**. The server returns a room `code` and a secret `hostToken`. The device stores the token in `localStorage` and is now a Host.
-2. **Choose where the Screen is.** The create page offers two buttons:
+2. **Choose where the Screen is.** The create page offers four buttons:
    - **Use this device as the Screen** (typical laptop + TV setup). Opens `/screen/:code` on this device. Because this device holds the `hostToken`, the Screen also shows host controls (see Screen host controls in the UI section).
    - **Open the Screen on another device**: shows the Screen URL and code to type on the TV device.
-3. **Pair a host phone (optional).** The Screen's lobby has a **Pair host phone** button. It shows a QR code linking to `/host/:code#t=<hostToken>` for 60 seconds, then hides it. The token is in the URL hash so it is never sent to the server in request logs. Any number of host devices may be paired.
+   - **Use this phone as the host remote**: opens `/host/:code` on this device.
+   - **Run from this phone (no TV)**: the remote in read-aloud layout, with the join QR in the lobby.
+3. **Pair a host phone (optional).** The Screen's lobby has a **Pair host phone** button. It shows a QR code linking to `/host/:code#t=<hostToken>` and a 6-digit PIN for 60 seconds, then hides them. The token is in the URL hash so it is never sent to the server in request logs. A phone may instead open `/host/:code` and type the PIN. Any number of host devices may be paired.
 4. **Players join** by scanning the lobby QR (`/play/:code`) or by going to the site and typing the code. They enter a display name (1 to 16 characters, unique in the room, case-insensitive) and get an automatic colour.
 
 Room codes are 4 letters from an alphabet without look-alikes (`ABCDEFGHJKMNPQRSTUVWXYZ`, no I, L or O). Generate randomly, retry on collision, and block a short list of offensive words.
@@ -126,7 +128,12 @@ stateDiagram-v2
   BUZZED --> OPEN: wrong, others still eligible (lock that player out, reopen)
   BUZZED --> REVEAL: correct, or wrong with nobody left
   QUESTION --> REVEAL: host reveals / skips
-  OPEN --> REVEAL: host reveals / skips
+  OPEN --> REVEAL: host reveals / skips, or buzz time up
+  QUESTION --> ANSWERING: open (choice or typed question)
+  ANSWERING --> REVEAL: all answered, time up, or host reveals
+  LOBBY --> BOARD: start (board set)
+  REVEAL --> BOARD: next (board set)
+  BOARD --> QUESTION: host picks a tile
   REVEAL --> QUESTION: next question
   REVEAL --> FINAL: after the last question
   FINAL --> [*]
@@ -151,10 +158,15 @@ Implement these in `server/reducer.ts` as a pure function `reduce(room, action, 
 | QUESTION, OPEN, COLLECTING, BUZZED | `host:reveal` | REVEAL | No points; an unjudged buzz is discarded |
 | REVEAL | `host:next` | QUESTION, index + 1, or FINAL after the last question | Reset `buzzes`, `winnerId`, `lockedOut`; set `showScoreboard` when the finished question number is a multiple of `scoreboardEvery` |
 | Any question phase or REVEAL | `host:prev` | QUESTION, index − 1 | Scores unchanged |
-| BUZZED, OPEN or REVEAL of the same question | `host:undo` | BUZZED with the undone player as winner | Reverse the last judgement's points and lockout |
+| BUZZED, OPEN or REVEAL of the same question | `host:undo` | BUZZED with the undone player as winner | Reverse the newest judgement of this question (points and lockout); repeatable until none are left |
+| OPEN | `buzzTimeUp` (fresh) | REVEAL | No points |
+| QUESTION | `host:open` on a choice or typed question | ANSWERING | Schedule `answeringClosed` after `choiceSeconds` |
+| ANSWERING | All connected players answered, `answeringClosed`, or `host:reveal` | REVEAL | Score choice answers; typed answers as the host marked them |
+| LOBBY or REVEAL | `host:start` / `host:next` on a board set | BOARD | |
+| BOARD | `host:pick` (an unused tile) | QUESTION | Mark the tile used |
 | Any | `host:end` | FINAL | |
 
-Scheduled effects (`windowClosed`, `reopen`, `answerTimeUp`) carry the question index and an opening counter; the server ignores them if the room has moved on, so a host clicking fast never causes a stale transition.
+Scheduled effects (`windowClosed`, `reopen`, `answerTimeUp`, `buzzTimeUp`, `answeringClosed`) carry the question index and an opening counter; the server ignores them if the room has moved on, so a host clicking fast never causes a stale transition.
 
 ### Scoring rules
 
@@ -162,6 +174,9 @@ Scheduled effects (`windowClosed`, `reopen`, `answerTimeUp`) carry the question 
 - Wrong: 0 by default; − `points` when the wrong-answer penalty setting is on. Scores may go negative.
 - Only the buzz winner is ever judged; locked-out players cannot buzz again on that question.
 - Final ranking sorts by score; equal scores share a rank.
+- Half: + half the question's points, rounded.
+- With the false-start setting on, a press before the buzzers open locks that player out for 0.5 or 1 s after they open.
+- With teams on, a team's score is the sum of its members' scores; players still buzz alone.
 
 ## Buzzer fairness and timing
 
@@ -174,7 +189,7 @@ The server decides who was first, using arrival time corrected for each player's
 
 Rules:
 
-- A buzz only counts while the phase is `OPEN` or `COLLECTING` and the player is not locked out. Anything else is ignored silently (no penalty for early presses in v1).
+- A buzz only counts while the phase is `OPEN` or `COLLECTING` and the player is not locked out. Anything else is ignored silently, except a press in QUESTION when the false-start setting is on (see Scoring rules).
 - One buzz per player per opening. Extra presses are ignored.
 - Use `performance.now()`-based monotonic timers on the server, not `Date.now()`.
 - Every buzz records `{playerId, serverReceiveTime, oneWayLatency, adjustedTime}` in the round log, so ties can be inspected while testing.
@@ -192,18 +207,21 @@ The look is bold and game-show-like: dark background, one bright accent, very la
 
 ### Landing page `/`
 
-- Two big choices: **Join a game** (code input, auto-uppercase, 4 letters) and **Host a game**.
+- A one-line explainer under the logo.
+- Two big choices: **Join a game** (code input, auto-uppercase, 4 letters) and **Host a game**, with the same weight. The **Host a game** set picker replaces the Join card while open.
 - A link to **My question sets** (`/sets`, the editor).
 
 ### Player view `/play/:code`
 
-1. **Join form:** name input, Join button. Name and `playerId` are remembered on the device, so a refresh rejoins automatically.
-2. **Buzzer screen:** the whole viewport is one circular button, with the player's name, colour and score in a slim top bar. Its states:
+1. **Join form:** name input, optional avatar, Join button. Name, avatar and `playerId` are remembered on the device, so a refresh rejoins automatically.
+2. **Buzzer screen:** the whole viewport is one circular button, with the player's avatar, name, colour, score and rank ("3rd of 8") in a slim top bar, and the team when teams are on. Its states:
 
 | Room state for this player | Button look | Label |
 | --- | --- | --- |
-| Lobby | Grey, disabled | "You're in! Waiting for the host" |
+| Lobby | Live, muted colour | "Tap to test your buzzer", with a "Who's here" list below |
 | Question shown, buzzers locked | Grey, disabled | "Get ready…" |
+| Pressed too early (false start on) | Amber | "Too early!" |
+| Choice or typed question | Choice buttons or a text box | "Answer sent" once sent |
 | Buzzers open | Bright red, pulsing | "BUZZ!" |
 | Pressed, waiting for result | Pressed-in red | "Buzzed…" |
 | This player won the buzz | Green | "You're first! Answer now", with the seconds left when an answer time is set, then "Time's up!" |
@@ -214,18 +232,23 @@ The look is bold and game-show-like: dark background, one bright accent, very la
 
 - Request a Screen Wake Lock so the phone doesn't sleep; prevent zoom, text selection and the long-press menu on the button.
 - Show a small connection dot (green / amber / red) and auto-reconnect.
+- A menu in the top bar offers **Change name** (lobby only) and **Leave game**.
+- Vibrate on correct, wrong and lockout.
 
 ### Screen view `/screen/:code`
 
 Designed for 1920×1080, legible from 5 metres; scale with viewport units. First load shows a **Click to start** overlay, needed to unlock audio and enter fullscreen.
 
-- **Lobby:** huge room code, QR code to `/play/:code`, the join URL in text, and joined players as coloured name chips that pop in. Buttons: **Pair host phone**, **Start game** (Start only when this device is a Host). When this device is a Host, the lobby also shows the room settings (the remote's Settings tab) beside Start game.
-- **Question:** "Question 3 of 20", the question text (auto-shrinks to fit), and the image if present (contained, never cropped). Status line: "Buzzers locked" or "Buzzers OPEN" with a visible change of colour.
+- **Lobby:** huge room code, QR code to `/play/:code`, the join URL in text, and joined players as coloured name chips that pop in. Buttons: **Pair host phone**, **Start game** (Start only when this device is a Host). When this device is a Host, the lobby also shows the room settings (the remote's Settings tab) beside Start game. The join address shows once; with a host phone paired, the settings fold behind a **Settings** button; test buzzes pop the player's chip.
+- **Sound:** a sound button and the `M` key cycle Sound on, Quiet and Muted.
+- **Title card:** before question 1 of each game, a title card with the set's title, category and difficulty.
+- **Question:** "Question 3 of 20", the question text (auto-shrinks to fit), and the image if present (contained, never cropped). Status line: "Buzzers locked" or "Buzzers OPEN" with a visible change of colour. With a buzz time set, a countdown around "Buzzers open". With standings on, a top-5 rail on the right.
 - **Buzzed:** the winner's name in a giant banner in their colour, with a buzz sound. Below: "also buzzed" names with time gaps ("+0.12 s"). With an answer time set, a large countdown beside the winner's banner. At zero: "Time's up!", a red flash and the time's-up sound. The host still judges.
 - **Judged:** Correct = green flash, sound, "+100" floating up from the name. Wrong = red flash, buzz sound, the player's chip greyed out, then back to Buzzers open after 1.5 s.
 - **Reveal:** the answer in large type under the question.
 - **Scoreboard:** shown between questions on demand, and automatically every 5 questions **[default]**. Ranked list, animated reordering.
-- **Final:** top-3 podium, then full ranking.
+- **Final:** top-3 podium, then full ranking. For one or two players, only their steps. From game 2, a Tonight panel with the night's totals.
+- **Board:** board sets show the category board between questions.
 - A thin bottom strip always shows the room code and "Join at &lt;url&gt;" so late joiners can get in.
 
 ### Host remote `/host/:code`
@@ -233,10 +256,12 @@ Designed for 1920×1080, legible from 5 metres; scale with viewport units. First
 Phone-first layout. Never shown on the Screen.
 
 - **Top:** question number, the question text, the **answer** and host notes in a highlighted box, and the image thumbnail.
-- **Primary action button** (full width, changes with state): Start game → Open buzzers → (after a buzz) **Correct** / **Wrong** side by side, with the answer countdown beside them when one is set → Reveal answer → Next question → Show final results.
+- **Primary action button** (full width, changes with state): Start game → Open buzzers → (after a buzz) **Correct** / **Half** / **Wrong** side by side, with the answer countdown beside them when one is set → Reveal answer → Next question → Show final results.
 - **Secondary actions:** Skip question (reveals answer), Show/hide scoreboard on the Screen, Undo last judgement, Previous question, End game.
-- **Players tab:** list with scores, connection status, +/− buttons to adjust a score by the question's value, and Kick.
-- **Settings tab:** wrong-answer penalty on/off, auto-open buzzers when a question appears on/off **[default: off]**, answer time Off / 3 / 5 / 7 / 10 s **[default: off]**, scoreboard every N questions.
+- **Players tab:** list with scores, connection status, +/− buttons to adjust a score by the question's value or a custom amount, and Kick. With teams, grouped by team with a team select.
+- **Settings tab:** wrong-answer penalty on/off, auto-open buzzers when a question appears on/off **[default: off]**, answer time Off / 3 / 5 / 7 / 10 s **[default: off]**, scoreboard every N questions, buzz time Off / 5 / 10 / 15 / 20 / 30 s, false start Off / 0.5 / 1 s, standings rail on/off, teams Off / 2 / 3 / 4, phone and Screen language English / Taglish. Two presets, Party and Competitive.
+- **Read-aloud layout:** large question, covered answer, same controls.
+- **Game over:** **Share results** (image).
 
 ### Screen host controls (when the Screen device holds the hostToken)
 
@@ -249,6 +274,7 @@ The same actions as the remote, without ever showing the answer on the Screen. H
 | --- | --- |
 | Space | Primary action (Start / Open buzzers / Reveal / Next) |
 | C | Correct |
+| V | Half points |
 | X | Wrong |
 | R | Reveal answer / skip |
 | N or → | Next question |
@@ -257,6 +283,7 @@ The same actions as the remote, without ever showing the answer on the Screen. H
 | U | Undo last judgement |
 | F | Toggle fullscreen |
 | H | Show/hide control bar |
+| M | Sound on / Quiet / Muted |
 
 ## Question editor and images
 
@@ -266,11 +293,16 @@ Question sets are created and saved in the browser (IndexedDB, via the `idb-keyv
 
 - Cards for each saved set: title, number of questions, last edited. Actions: Open, Duplicate, Delete (with confirm), **Export JSON**, **Host this set**.
 - **New set** and **Import JSON** buttons. Import validates against the schema (use `zod`) and shows clear errors.
-- Ship one built-in sample set of 10 general-knowledge questions (with 2 images) so the app can be tried immediately.
+- Two tabs: **Built-in** (the sample and 60 starter sets, read-only, from the app itself: Host this set, Duplicate to My sets) and **My sets** (this browser's sets, every action). The sample set has 10 general-knowledge questions with 2 images, so the app can be tried immediately. The starter sets cover 20 categories at Easy (100 points), Medium (200) and Hard (300), 15 questions each.
+- Every set list, here and in the pickers, has search, difficulty chips and grouping by category, and a Preview (not on the Screen).
+- **Build a game** draws questions from chosen categories and difficulties into a new set or a category board.
+- **Export all** saves every playable set in one file; Import accepts one set or many.
 
 ### Set editor `/sets/:setId`
 
-- Set title at the top. Autosave on every change (debounced 500 ms) with a "Saved" indicator.
+- Set title at the top, with Category and Difficulty (optional). Autosave on every change (debounced 500 ms) with a "Saved" indicator.
+- **Paste questions**: one per line as `Question | Answer | points` or spreadsheet cells.
+- Per question, a mode: Buzz (default), Choice (2–4 choices, one correct) or Typed (answer plus alternatives in host notes).
 - Questions in a vertical list, each a card with:
   - Question text (required unless an image is present; up to 300 characters)
   - Image (optional): pick a file, drag and drop, or paste from the clipboard. Thumbnail with Remove.
@@ -304,15 +336,21 @@ export interface QuestionSet {
   createdAt: number;
   updatedAt: number;
   schemaVersion: 1;
+  category?: string;       // 1–40 characters
+  difficulty?: 'easy' | 'medium' | 'hard';
+  board?: { columns: { title: string; questionIds: string[] }[] }; // category board: 2–6 columns of Easy, Medium, Hard
 }
 
 export interface Question {
   id: string;
   text: string;            // may be '' if imageId is set
   imageId?: string;        // key into the image store
-  answer: string;
+  answer: string;          // for a choice question, the correct choice's text
   hostNotes?: string;
   points: number;          // default 100
+  mode?: 'buzz' | 'choice' | 'typed'; // default 'buzz'
+  choices?: string[];      // choice questions: 2–4
+  correctChoice?: number;  // choice questions: index into choices
 }
 
 // ---------- Server room state (in memory) ----------
@@ -322,6 +360,8 @@ export type Phase =
   | 'OPEN'            // buzzers open
   | 'COLLECTING'      // first buzz received, 150 ms window
   | 'BUZZED'          // winner shown, waiting for host judgement
+  | 'ANSWERING'       // choice or typed question: every player answers
+  | 'BOARD'           // category board: host picks the next tile
   | 'REVEAL'          // answer shown
   | 'FINAL';
 
@@ -333,6 +373,8 @@ export interface Player {
   connected: boolean;
   rttMs: number;           // rolling median
   joinedAt: number;
+  avatar?: string;         // one of a fixed emoji list
+  team: number | null;     // null when teams are off
 }
 
 export interface Buzz {
@@ -345,7 +387,7 @@ export interface Buzz {
 export interface Judgement {
   questionIndex: number;
   playerId: string;
-  result: 'correct' | 'wrong';
+  result: 'correct' | 'half' | 'wrong';
   pointsDelta: number;
 }
 
@@ -354,6 +396,12 @@ export interface RoomSettings {
   autoOpenBuzzers: boolean;        // default false
   scoreboardEvery: number;         // default 5, 0 = never auto
   answerSeconds: 0 | 3 | 5 | 7 | 10; // default 0 = off
+  buzzSeconds: 0 | 5 | 10 | 15 | 20 | 30; // default 0 = off
+  falseStartMs: 0 | 500 | 1000;    // default 0 = off
+  showStandings: boolean;          // default true
+  teams: 0 | 2 | 3 | 4;            // default 0 = off
+  choiceSeconds: number;           // 5–30, default 10
+  copy: 'en' | 'taglish';          // phone and Screen language, default 'en'
 }
 
 export interface Room {
@@ -370,7 +418,11 @@ export interface Room {
   winnerId: string | null;
   lockedOut: string[];             // playerIds wrong this question
   judgements: Judgement[];         // whole game, enables undo
+  undo: UndoPoint[];               // this question's judgements, newest last
   answerTimer: { seconds: number; endsAt: number; up: boolean } | null; // set in BUZZED while the winner's answer time runs
+  buzzTimer: { seconds: number; endsAt: number } | null; // set in OPEN while the buzz time runs
+  session: { gameNumber: number; totals: Record<string, number> }; // the night's games in this room
+  usedQuestionIds: string[];       // category board tiles already played
   showScoreboard: boolean;         // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -382,6 +434,7 @@ Role-filtered views sent to clients (built by `toView(room, role, playerId?)`):
 - **ScreenView**: everything except `answer`, `hostNotes` and token data. `answer` is included only when phase is `REVEAL` or `FINAL` for that question.
 - **HostView**: everything, including the current and next question's answer and notes.
 - **PlayerView**: phase, the player's own name, colour, score and rank, winner name, whether they are locked out, and the answer only after reveal. No question text is needed on the phone in v1.
+- `correctChoice`, typed answers and their groups follow the answer rule: never in Screen or Player views before REVEAL.
 
 ## Realtime events and HTTP API
 
@@ -397,6 +450,8 @@ Each socket joins a Socket.IO room per role: `room:<code>:screen`, `room:<code>:
 | `POST /api/rooms/:code/images/:imageId` | `Authorization: Bearer <hostToken>` | Upload one image (binary body, max 1.5 MB). |
 | `GET /api/rooms/:code/images/:imageId` | none | Serve an image. |
 | `GET /api/rooms/:code/exists` | none | For the join form: `{exists, phase}`. |
+| `POST /api/rooms/:code/pairing` | `Authorization: Bearer <hostToken>` | Create a 6-digit pairing PIN: valid 60 s, single use. |
+| `POST /api/rooms/:code/pair` | none (rate-limited) | Body: `{pin}`. Returns `{hostToken}`. |
 | `GET /healthz` | none | Health check for the host platform. |
 
 ### Client → server (Socket.IO)
@@ -407,20 +462,27 @@ Every event has an acknowledgement callback returning `{ok: true}` or `{ok: fals
 | --- | --- | --- | --- |
 | `screen:join` | Screen | `{code}` | Subscribe to ScreenView |
 | `host:join` | Host | `{code, hostToken}` | Verify token, subscribe to HostView |
-| `player:join` | Player | `{code, playerId, name}` | Add or reconnect player; name must be unique |
+| `player:join` | Player | `{code, playerId, name, avatar?}` | Add or reconnect player; name must be unique |
 | `ping` | Player | `{t}` | Server replies `pong {t}` for RTT |
 | `player:buzz` | Player | `{}` | Buzz (see fairness rules) |
+| `player:practice` | Player | `{}` | Test buzz in the lobby; emits `fx practice` |
+| `player:rename` | Player | `{name}` | Change name in the lobby; name must be unique |
+| `player:leave` | Player | `{}` | Leave the room; the device may rejoin as a new player |
+| `player:answer` | Player | `{choice}` or `{text}` | Answer a choice or typed question in ANSWERING |
 | `host:start` | Host | `{}` | LOBBY → QUESTION (index 0) |
 | `host:open` | Host | `{}` | QUESTION → OPEN |
-| `host:judge` | Host | `{result: 'correct' or 'wrong'}` | Score the winner |
+| `host:judge` | Host | `{result: 'correct', 'half' or 'wrong'}` | Score the winner |
 | `host:reveal` | Host | `{}` | Any question phase → REVEAL |
 | `host:next` | Host | `{}` | REVEAL → next QUESTION, or FINAL after the last |
 | `host:prev` | Host | `{}` | Go back one question (scores unchanged) |
 | `host:scoreboard` | Host | `{show: boolean}` | Toggle the scoreboard overlay |
-| `host:undo` | Host | `{}` | Reverse the last judgement and its points |
+| `host:undo` | Host | `{}` | Reverse the newest judgement of this question and its points |
 | `host:adjustScore` | Host | `{playerId, delta}` | Manual score change |
 | `host:kick` | Host | `{playerId}` | Remove a player; their device shows "Removed by host" |
 | `host:settings` | Host | `Partial<RoomSettings>` | Change settings |
+| `host:setTeam` | Host | `{playerId, team}` | Move a player to another team |
+| `host:markTyped` | Host | `{groups}` | Mark which typed-answer groups are correct |
+| `host:pick` | Host | `{questionIndex}` | BOARD → QUESTION for an unused tile |
 | `host:end` | Host | `{}` | Jump to FINAL |
 
 ### Server → client
@@ -429,7 +491,7 @@ Every event has an acknowledgement callback returning `{ok: true}` or `{ok: fals
 | --- | --- | --- |
 | `state` | Each role | ScreenView, HostView or PlayerView |
 | `pong` | Player | `{t}` |
-| `fx` | Screen + Host + Players | `{kind: 'buzz', playerId, gaps}` · `{kind: 'correct', playerId, points}` · `{kind: 'wrong', playerId}` · `{kind: 'join', playerId}` |
+| `fx` | Screen + Host + Players | `{kind: 'buzz', playerId, gaps}` · `{kind: 'correct', playerId, points}` · `{kind: 'wrong', playerId}` · `{kind: 'join', playerId}` · `{kind: 'practice', playerId}` · `{kind: 'buzzTimeUp'}` · `{kind: 'falseStart', playerId}` |
 | `kicked` | Player | `{}` |
 | `room:closed` | All | `{reason}` |
 
@@ -454,10 +516,10 @@ Every event has an acknowledgement callback returning `{ok: true}` or `{ok: fals
 
 - **Two buzzes inside the window:** lowest `adjustedAt` wins; equal values → earliest `receivedAt`; still equal → the player who joined first.
 - **Everyone locked out:** after the last eligible player is judged wrong, go straight to REVEAL.
-- **Nobody buzzes:** host taps Reveal / Skip.
+- **Nobody buzzes:** host taps Reveal / Skip, or the buzz time runs out when one is set.
 - **Host judges twice quickly:** only accept `host:judge` in phase BUZZED; the second is rejected.
 - **Two host devices act at once:** server processes events in arrival order; a stale action fails its phase check and the device shows a brief toast.
-- **Undo** reverses the last judgement only (score, lockout) and returns to the state right after that buzz. One level of undo per question is enough.
+- **Undo** reverses the newest judgement of the current question (score, lockout) and returns to the state right after that buzz. Repeated undos walk back through every judgement of the question.
 - **Player joins mid-game:** allowed, starts at 0 points and can buzz from the next opening.
 - **Kicked player:** cannot rejoin with the same `playerId` in that room.
 - **Duplicate name:** join form shows "That name is taken".
@@ -470,12 +532,9 @@ Do not build these yet, but avoid choices that make them hard later.
 
 | Idea | Why later | What keeps the door open |
 | --- | --- | --- |
-| Teams with shared scores | Adds a team-setup flow | Keep scoring in one `applyJudgement()` function |
-| Multiple choice / players type answers | Different game mode | `Question` has `schemaVersion` for new fields |
 | Accounts and cloud-saved sets | Needs a database and auth | Sets already serialise to one JSON file |
 | Surviving server restarts | Needs Redis or a database | All room state goes through one `RoomStore` interface |
-| False-start penalty (pressing early locks you out briefly) | Tuning needed | Early presses are already detected and ignored |
-| Audio/video questions, categories board (Jeopardy-style) | Larger UI work | Image pipeline is generic media upload |
+| Audio/video questions | Larger UI work | Image pipeline is generic media upload |
 | Native apps | Browser is enough | n/a |
 
 ## Milestones and acceptance criteria
