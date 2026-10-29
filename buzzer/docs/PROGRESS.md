@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F78 — Results card (2026-10-29)
+**What changed:**
+- New `client/src/lib/resultsCard.ts`: `cardFromRoom` (Screen, remote) and `cardFromPlayer` (phone) build the card's data; `cardLayout` gives the podium (generic `podiumSteps`) and each ranking cut to 10 with "and N more"; `drawResultsCard` paints a 1080×1350 card (logo, set title, date, podium, Full ranking, or This game and Tonight from game 2; no room code); `renderResultsCard` loads the fonts and encodes a PNG; `shareOrDownload` uses `navigator.share` with the file where `canShare({files})` allows, else downloads `buzzr-results.png`.
+- New `components/ShareResults.tsx`: **Share results** on the remote's Game over card and the phone's final state; **Download results** in the Screen's host bar in FINAL. Inline "Saved buzzr-results.png" after a download, "Couldn’t make the image" on failure.
+- Server: `PlayerView.results` in FINAL only (title, top 10 of the game and of the night, with counts), new `RESULTS_CARD_ROWS = 10` in `shared/constants.ts`, `TopRows` and `PlayerResults` types.
+- Tests: `resultsCard.test.ts` (17: podium order and ties, top 10 cut, join-order sort, night from game 2, phone input, 1080×1350, drawn text, no code, avatar and ellipsis, crowded tie "+N" clear of the date, date format, share / download / failed share / cancel / download mode), `views.test.ts` +2 (FINAL-only results with top 10 and night; game 1 with no RTT, answer or note), `Host.test.tsx` +2, `Play.test.tsx` +3, `Screen.test.tsx` +2. New `test/share.ts` stubs. 1866 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F78 (`PlayerView.results` in FINAL, widening F77's own-line-only rule; card layout; share vs download and the fallbacks).
+
+**Notes for next session:**
+- `renderResultsCard` and font loading only run in a real browser (jsdom has no canvas); tests use a recording context and mock the render.
+- iOS Safari can reject `navigator.share` once the tap's activation has expired; that path falls back to a download. Not seen on a real phone yet.
+- Playtest (Playwright): 12 players (Ann and 11 bots), two games. Remote, phone and Screen bar each produced `buzzr-results.png`; stubbed share got an `image/png` file. Game 1 card: Full ranking 10 rows "and 2 more", no Tonight, no code; game 2: This game and Tonight side by side. Cards: `.playtest/F78/host-download.png`, `game2-host.png`. After the playtest the podium steps were shortened and name lines capped so a large tie on the top step can't reach the date (unit test, not re-rendered).
+- Main `index` chunk 489.38 → 494.67 kB (149.27 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room → Use this device as the Screen; pair a phone and join players at `http://<laptop-LAN-IP>:5173/play/<CODE>`. Play to the end: **Share results** on the remote's Game over card and on each phone opens the share sheet (or downloads `buzzr-results.png` on desktop); move the mouse on the Screen for the bar's **Download results**. Play a second game for the Tonight column.
+
 ## F77 — Session totals: devices (2026-10-29)
 **What changed:**
 - Server: `PlayerView.tonight` = `{total, rank, count}` from the ranked session totals, null in game 1 or before the player's first tally. Only the player's own line reaches the phone.

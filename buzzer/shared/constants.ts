@@ -64,6 +64,8 @@ export const AVATARS = [
 ] as const;
 
 export const MAX_PLAYERS_PER_ROOM = 50;
+/** Rows of each ranking on the results card, and so in the phone's `results` (F78). */
+export const RESULTS_CARD_ROWS = 10;
 /** The `player:join` error for a kicked playerId. The phone keeps that id, so it stays refused. */
 export const PLAYER_KICKED_ERROR = 'You were removed from this game';
 /** The `player:join` and `player:rename` error for a name another player has, ignoring case. */

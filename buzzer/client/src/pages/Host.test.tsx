@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -15,6 +15,8 @@ import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import type { GameSocket } from '../lib/socket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
+import { stubDownload, stubShare, unstubShare } from '../test/share.js';
+import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { Host } from './Host.js';
 
 // Renders the QR's encoded value, so tests can check where it points.
@@ -26,8 +28,21 @@ vi.mock('qrcode.react', () => ({
   ),
 }));
 
+// jsdom has no canvas: record the card's data and hand back a stand-in PNG.
+const cards = vi.hoisted(() => [] as ResultsCardInput[]);
+vi.mock('../lib/resultsCard.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/resultsCard.js')>()),
+  renderResultsCard: async (input: ResultsCardInput) => {
+    cards.push(input);
+    return new Blob(['png'], { type: 'image/png' });
+  },
+}));
+
 afterEach(() => {
   cleanup();
+  cards.length = 0;
+  unstubShare();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   localStorage.clear();
   sessionStorage.clear();
@@ -560,6 +575,35 @@ describe('Host remote', () => {
             .getAllByRole('listitem')
             .map((row) => row.textContent),
         ).toEqual(['1stPlayer 2400', '2ndPlayer 1100']);
+      });
+
+      it('Share results shares the results card as a PNG file, ranked, with no room code', async () => {
+        const shared = stubShare();
+        const downloads = stubDownload();
+        remote(final([player(1, { score: 100, rank: 2 }), player(2, { score: 400, rank: 1 })]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        fireEvent.click(within(card).getByRole('button', { name: 'Share results' }));
+        await waitFor(() => expect(shared).toHaveLength(1));
+        expect(shared[0]?.files?.[0]).toMatchObject({
+          name: 'buzzr-results.png',
+          type: 'image/png',
+        });
+        expect(downloads).toEqual([]);
+        expect(cards[0]?.title).toBe(hostView().title);
+        expect(cards[0]?.ranking.rows.map((r) => [r.name, r.points])).toEqual([
+          ['Player 2', 400],
+          ['Player 1', 100],
+        ]);
+        expect(cards[0]?.tonight).toBeNull();
+        expect(JSON.stringify(cards[0])).not.toContain('WXYZ');
+      });
+
+      it('Share results downloads buzzr-results.png where files can’t be shared', async () => {
+        const downloads = stubDownload();
+        remote(final([player(1)]));
+        fireEvent.click(screen.getByRole('button', { name: 'Share results' }));
+        expect(await screen.findByText('Saved buzzr-results.png')).toBeTruthy();
+        expect(downloads).toEqual(['buzzr-results.png']);
       });
 
       it('in game 1 the card has no Tonight list and no game number', () => {

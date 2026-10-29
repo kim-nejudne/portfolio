@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -11,16 +11,31 @@ import {
   ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
-import type { PlayerView } from '../../../shared/types.js';
+import type { PlayerResults, PlayerView } from '../../../shared/types.js';
 import { TOAST_MS } from '../components/Toast.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import type { GameSocket } from '../lib/socket.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
+import { stubDownload, stubShare, unstubShare } from '../test/share.js';
+import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { Play } from './Play.js';
+
+// jsdom has no canvas: record the card's data and hand back a stand-in PNG.
+const cards = vi.hoisted(() => [] as ResultsCardInput[]);
+vi.mock('../lib/resultsCard.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/resultsCard.js')>()),
+  renderResultsCard: async (input: ResultsCardInput) => {
+    cards.push(input);
+    return new Blob(['png'], { type: 'image/png' });
+  },
+}));
 
 afterEach(() => {
   cleanup();
+  cards.length = 0;
+  unstubShare();
+  vi.restoreAllMocks();
   localStorage.clear();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -56,6 +71,7 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     answerTimer: null,
     buzzTimer: null,
     tonight: null,
+    results: null,
     // As the server sets it: the list in LOBBY only.
     lobby:
       (overrides.phase ?? 'LOBBY') === 'LOBBY'
@@ -905,6 +921,50 @@ describe('Play result states', () => {
     const tonight = within(result).getByLabelText('Tonight');
     expect(tonight.textContent).toBe('Tonight3rd of 5 · 1 point');
     expect(within(result).getByText('2nd of 4')).toBeTruthy();
+  });
+
+  const RESULTS: PlayerResults = {
+    title: 'Pub Quiz',
+    ranking: {
+      rows: [
+        { id: 'p2', name: 'Bo', color: PLAYER_PALETTE[1], score: 400, connected: true, rank: 1 },
+        { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 300, connected: true, rank: 2 },
+      ],
+      count: 2,
+    },
+    tonight: null,
+  };
+
+  it('Share results on the final result shares the results card as a PNG file', async () => {
+    const shared = stubShare();
+    const downloads = stubDownload();
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9, results: RESULTS }));
+    const result = screen.getByRole('region', { name: 'Final result' });
+    fireEvent.click(within(result).getByRole('button', { name: 'Share results' }));
+    await waitFor(() => expect(shared).toHaveLength(1));
+    expect(shared[0]?.files?.[0]).toMatchObject({ name: 'buzzr-results.png', type: 'image/png' });
+    expect(downloads).toEqual([]);
+    expect(cards[0]).toMatchObject({ title: 'Pub Quiz', tonight: null });
+    expect(cards[0]?.ranking.rows.map((r) => [r.name, r.points])).toEqual([
+      ['Bo', 400],
+      ['Ana', 300],
+    ]);
+  });
+
+  it('Share results downloads buzzr-results.png where files can’t be shared', async () => {
+    const downloads = stubDownload();
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9, results: RESULTS }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share results' }));
+    expect(await screen.findByText('Saved buzzr-results.png')).toBeTruthy();
+    expect(downloads).toEqual(['buzzr-results.png']);
+  });
+
+  it('offers Share results only once the server sends the results', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9 }));
+    expect(screen.queryByRole('button', { name: 'Share results' })).toBeNull();
   });
 
   it('in game 1 the final result has no night line', async () => {

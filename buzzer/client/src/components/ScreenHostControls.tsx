@@ -11,10 +11,12 @@ import {
 } from '../lib/hostControls.js';
 import { toggleFullscreen } from '../lib/fullscreen.js';
 import { HOVER } from '../lib/hover.js';
+import { cardFromRoom } from '../lib/resultsCard.js';
 import { cycleSoundLevel, SOUND_LEVEL_LABEL } from '../lib/sounds.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { useSoundLevel } from '../lib/useSoundLevel.js';
 import { ConfirmButton } from './ConfirmButton.js';
+import { ShareResults } from './ShareResults.js';
 
 /** The bar hides after this long without mouse movement (UI spec, Screen host controls). */
 export const BAR_IDLE_MS = 3000;
@@ -182,6 +184,14 @@ function GameButtons({
         >
           New game
         </BarButton>
+      )}
+      {view.phase === 'FINAL' && (
+        // A laptop has no share sheet worth opening: the card downloads (F78).
+        <ShareResults
+          card={() => cardFromRoom(view, new Date())}
+          mode="download"
+          className={`${barButton} border-edge bg-bg`}
+        />
       )}
       {UNREVEALED.includes(view.phase) && (
         <BarButton keyHint="R" onClick={act({ event: 'host:reveal', payload: {} })} disabled={busy}>

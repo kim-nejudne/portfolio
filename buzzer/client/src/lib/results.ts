@@ -21,11 +21,11 @@ export function pointsLabel(points: number): string {
 }
 
 /** One step of the podium: every player who shares that rank stands on it. */
-export interface PodiumStep {
+export interface PodiumStep<P extends { rank: number } = RankedPlayer> {
   rank: number;
   /** 0 is the top step, 1 the second, 2 the third: it sets the step's height. */
   height: 0 | 1 | 2;
-  players: RankedPlayer[];
+  players: P[];
 }
 
 /**
@@ -33,13 +33,13 @@ export interface PodiumStep {
  * server's rank, so a tie shares a step; ranks above 3 are left off. With 1, 1, 3 the steps are
  * rank 1 and rank 3. Steps come left to right in the classic order: second, first, third.
  */
-export function podiumSteps(players: readonly RankedPlayer[]): PodiumStep[] {
+export function podiumSteps<P extends { rank: number }>(players: readonly P[]): PodiumStep<P>[] {
   const ranks = [...new Set(players.map((p) => p.rank))]
     .filter((r) => r <= 3)
     .sort((a, b) => a - b);
   const steps = ranks.map((rank, i) => ({
     rank,
-    height: i as PodiumStep['height'],
+    height: i as PodiumStep<P>['height'],
     players: players.filter((p) => p.rank === rank),
   }));
   return [steps[1], steps[0], steps[2]].filter((step) => step !== undefined);

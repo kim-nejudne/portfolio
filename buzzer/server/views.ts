@@ -9,6 +9,7 @@ import type {
   HostView,
   LobbyPlayer,
   Player,
+  PlayerResults,
   PlayerView,
   Question,
   RankedPlayer,
@@ -20,6 +21,7 @@ import type {
   SessionView,
   View,
 } from '../shared/types.js';
+import { RESULTS_CARD_ROWS } from '../shared/constants.js';
 import { buzzGaps, rankOpening } from './fairness.js';
 import { canBuzz, canJudge, canUndo } from './reducer.js';
 import { rankPlayers, type Ranked } from './ranking.js';
@@ -105,6 +107,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     lobby:
       room.phase === 'LOBBY' ? byJoinOrder(Object.values(room.players)).map(lobbyPlayer) : null,
     tonight: tonight(room, playerId),
+    results: room.phase === 'FINAL' ? playerResults(room, ranked) : null,
     ...(answer !== undefined && { answer }),
   };
 }
@@ -178,6 +181,22 @@ function tonight(room: Room, playerId: string): PlayerView['tonight'] {
   const night = sessionView(room);
   const mine = night?.totals.find((t) => t.id === playerId);
   return night && mine ? { total: mine.total, rank: mine.rank, count: night.totals.length } : null;
+}
+
+/**
+ * The results card's data for the phone (F78): top rows only, so 50 phones don't each get every
+ * name. Names and scores are already on the Screen; there is no answer or note in it.
+ */
+function playerResults(room: Room, ranked: Ranked<Player>[]): PlayerResults {
+  const night = sessionView(room);
+  return {
+    title: room.set.title,
+    ranking: { rows: ranked.slice(0, RESULTS_CARD_ROWS).map(publicPlayer), count: ranked.length },
+    tonight: night && {
+      rows: night.totals.slice(0, RESULTS_CARD_ROWS),
+      count: night.totals.length,
+    },
+  };
 }
 
 /** Seconds and whether time is up, never `endsAt`: each device counts down from the snapshot. */

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -19,6 +19,8 @@ import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
 import { FX_MS } from '../lib/useRecentFx.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
+import { stubDownload, stubShare, unstubShare } from '../test/share.js';
+import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { buttonsWithoutHover } from '../test/hover.js';
 import { Screen } from './Screen.js';
 
@@ -39,10 +41,23 @@ vi.mock('qrcode.react', () => ({
   ),
 }));
 
+// jsdom has no canvas: record the card's data and hand back a stand-in PNG.
+const cards = vi.hoisted(() => [] as ResultsCardInput[]);
+vi.mock('../lib/resultsCard.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/resultsCard.js')>()),
+  renderResultsCard: async (input: ResultsCardInput) => {
+    cards.push(input);
+    return new Blob(['png'], { type: 'image/png' });
+  },
+}));
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
   localStorage.clear();
+  cards.length = 0;
+  unstubShare();
+  vi.restoreAllMocks();
   // Forgets the in-memory sound level, so one test's Quiet never carries into the next.
   resetSounds();
 });
@@ -1009,6 +1024,32 @@ describe('Screen', () => {
         socket.fire('state', inPhase('FINAL'));
         expect(screen.getByRole('region', { name: 'Podium' })).toBeTruthy();
         expect(newGame()).toBeNull();
+      });
+    });
+
+    describe('results card', () => {
+      const download = () => screen.queryByRole('button', { name: 'Download results' });
+
+      it('in FINAL the bar downloads buzzr-results.png, never the share sheet', async () => {
+        const shared = stubShare();
+        const downloads = stubDownload();
+        hostScreen(inPhase('FINAL'));
+        fireEvent.click(download()!);
+        await waitFor(() => expect(downloads).toEqual(['buzzr-results.png']));
+        expect(shared).toEqual([]);
+        expect(cards[0]?.title).toBe('Sample quiz');
+        expect(JSON.stringify(cards[0])).not.toContain('WXYZ');
+      });
+
+      it('is offered only in FINAL, and never without the hostToken', () => {
+        hostScreen(inPhase('REVEAL'));
+        expect(bar()).toBeTruthy();
+        expect(download()).toBeNull();
+        cleanup();
+        localStorage.clear();
+        const { socket } = renderScreen();
+        socket.fire('state', inPhase('FINAL'));
+        expect(download()).toBeNull();
       });
     });
 

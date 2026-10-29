@@ -683,6 +683,53 @@ describe('toView: session', () => {
     expect(JSON.stringify(toView(secondGame(), 'player', 'p1'))).not.toContain('Dee');
   });
 
+  it('gives the phone the results card data in FINAL only: title, top 10 and the night', () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      makePlayer(`q${i}`, { name: `P${i}`, score: 10 * i, joinedAt: T0 + 10 + i }),
+    );
+    const room = withPlayers(secondGame({ phase: 'FINAL' }), many);
+    const results = toView(room, 'player', 'q0').results;
+    expect(results?.title).toBe('Pub Quiz');
+    expect(results?.ranking.count).toBe(12);
+    expect(results?.ranking.rows.map((p) => p.name)).toEqual([
+      'P11',
+      'P10',
+      'P9',
+      'P8',
+      'P7',
+      'P6',
+      'P5',
+      'P4',
+      'P3',
+      'P2',
+    ]);
+    expect(results?.ranking.rows[0]).toEqual({
+      id: 'q11',
+      name: 'P11',
+      color: expect.any(String),
+      score: 110,
+      connected: true,
+      rank: 1,
+    });
+    expect(results?.tonight).toEqual({
+      rows: toView(room, 'screen').session?.totals,
+      count: 3,
+    });
+    for (const phase of ['LOBBY', 'OPEN', 'REVEAL'] as const) {
+      expect(toView({ ...room, phase }, 'player', 'q0').results).toBeNull();
+    }
+  });
+
+  it('gives the phone no night in the results card in game 1, and never an RTT, answer or note', () => {
+    const results = toView(midGame('FINAL'), 'player', 'p1').results;
+    expect(results?.tonight).toBeNull();
+    expect(results?.ranking.rows.map((p) => p.name)).toEqual(['Bob', 'Ana', 'Cy']);
+    expect(JSON.stringify(results)).not.toContain('rttMs');
+    for (const secret of [...SECRETS(1), ...SECRETS(2), ...SECRETS(3)]) {
+      expect(JSON.stringify(results)).not.toContain(secret);
+    }
+  });
+
   it('gives the phone no night line in game 1, nor to a player not yet tallied', () => {
     expect(toView(midGame('FINAL'), 'player', 'p1').tonight).toBeNull();
     // Cy (p3) joined game 2 and has no total until its FINAL.

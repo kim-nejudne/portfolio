@@ -16,6 +16,7 @@ import { PairHostPhone } from '../components/PairHostPhone.js';
 import { PrimaryAction } from '../components/PrimaryAction.js';
 import { ReadAloudJoin, ReadAloudQuestion } from '../components/ReadAloud.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
+import { ShareResults } from '../components/ShareResults.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { imageUrl } from '../lib/api.js';
 import {
@@ -28,8 +29,9 @@ import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { ordinal } from '../lib/results.js';
+import { cardFromRoom } from '../lib/resultsCard.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { BUTTON_PRIMARY, CARD, LABEL, PILL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LABEL, PILL } from '../lib/ui.js';
 import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
@@ -359,7 +361,8 @@ function QuestionCard({ view }: { view: HostView }) {
 /**
  * The Game tab in FINAL: "Game over", the final ranking and **New game** (DECISIONS F50). The view
  * lists players in join order with each one's rank, so this orders by rank; tied players share it
- * and keep join order. From game 2, the night's totals follow under **Tonight** (F77).
+ * and keep join order. From game 2, the night's totals follow under **Tonight** (F77). **Share
+ * results** shares the results card (F78).
  */
 function GameOverCard({ view, onNewGame }: { view: HostView; onNewGame: () => void }) {
   const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
@@ -389,6 +392,11 @@ function GameOverCard({ view, onNewGame }: { view: HostView; onNewGame: () => vo
           <RankRows rows={tonight.map((t) => ({ ...t, points: t.total }))} />
         </section>
       )}
+      <ShareResults
+        card={() => cardFromRoom(view, new Date())}
+        mode="share"
+        className={`${BUTTON_SECONDARY} font-bold`}
+      />
       <button type="button" onClick={onNewGame} className={`${BUTTON_PRIMARY} text-xl`}>
         New game
       </button>

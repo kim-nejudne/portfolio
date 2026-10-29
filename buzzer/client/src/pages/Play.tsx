@@ -23,6 +23,7 @@ import { ConfirmButton } from '../components/ConfirmButton.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { Icon } from '../components/Icon.js';
 import { PlayerAvatar } from '../components/PlayerAvatar.js';
+import { ShareResults } from '../components/ShareResults.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
 import { buzzerState, type BuzzerKind, type BuzzerState } from '../lib/buzzerState.js';
@@ -35,6 +36,7 @@ import {
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
 import { ordinal, pointsLabel } from '../lib/results.js';
+import { cardFromPlayer } from '../lib/resultsCard.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
@@ -664,6 +666,13 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
                 {pointsLabel(view.tonight.total)}
               </span>
             </p>
+          )}
+          {view.results && (
+            <ShareResults
+              card={() => cardFromPlayer(view, new Date())}
+              mode="share"
+              className={`${BUTTON_SECONDARY} mt-2 w-full max-w-xs font-bold`}
+            />
           )}
         </section>
       ) : (

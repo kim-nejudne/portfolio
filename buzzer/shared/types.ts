@@ -296,7 +296,24 @@ export interface PlayerView {
    * before their first tally (F77). Not the whole list: the phone shows only its own line. */
   // SPEC-QUESTION: the spec's PlayerView has no night total; see DECISIONS (F77).
   tonight: { total: number; rank: number; count: number } | null;
+  /** What the results card draws, in FINAL only; null in every other phase (F78). */
+  // SPEC-QUESTION: the spec's PlayerView has no ranking; see DECISIONS (F78).
+  results: PlayerResults | null;
   answer?: string;
+}
+
+/** The top rows of a ranking and how many it has in all, for "and N more". */
+export interface TopRows<R> {
+  rows: R[];
+  count: number;
+}
+
+/** The results card's data on the phone: the set title, the game's and the night's top rows. */
+export interface PlayerResults {
+  title: string;
+  ranking: TopRows<RankedPlayer>;
+  /** From game 2, as `SharedRoomView.session`; null in game 1. */
+  tonight: TopRows<RankedTotal> | null;
 }
 
 export type View = ScreenView | HostView | PlayerView;

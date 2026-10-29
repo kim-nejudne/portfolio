@@ -206,13 +206,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F77 Session totals: devices
 
-- [ ] F78 Results card
-  - Spec: UI spec by view (Screen view Final, Host remote, Player view); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F77
-  - Done when:
-    - `client/src/lib/resultsCard.ts` draws a 1080×1350 PNG on a canvas: Buzzr logo, set title, date, podium and the ranking (top 10), and the night totals from game 2; no room code
-    - **Share results** on the remote's Game over card and the phone's final state uses `navigator.share` with the file where supported, otherwise downloads `buzzr-results.png`; the Screen's host bar offers the download
-  - Tests: `resultsCard.test.ts` (layout inputs, top 10 cut, no code in the drawn text), `Host.test.tsx` and `Play.test.tsx` (share and fallback)
+- [x] F78 Results card
 
 ## M19 — Editor
 
