@@ -38,7 +38,7 @@ export type Phase =
   | 'OPEN' // buzzers open
   | 'COLLECTING' // first buzz received, 150 ms window
   | 'BUZZED' // winner shown, waiting for host judgement
-  | 'ANSWERING' // choice question: every player answers (F85)
+  | 'ANSWERING' // choice or typed question: every player answers (F85, F87)
   | 'REVEAL' // answer shown
   | 'FINAL';
 
@@ -141,6 +141,18 @@ export interface AnsweringTimer {
   endsAt: number;
 }
 
+/**
+ * A typed question's answers (F87). `answers` holds each player's trimmed text. `marks` holds the
+ * host's verdict per group key (the normalised text); a group without one falls back to its
+ * pre-mark: correct when it equals the answer or an alternative. `closed` locks the answers once
+ * everyone has answered or the time is up; the host still marks, then reveals.
+ */
+export interface TypedAnswers {
+  answers: Record<string, string>;
+  marks: Record<string, boolean>;
+  closed: boolean;
+}
+
 export interface Room {
   code: string;
   hostTokenHash: string; // store a hash, never the raw token
@@ -166,6 +178,8 @@ export interface Room {
   // SPEC-QUESTION: answers and answeringTimer are not in the spec's Room; see DECISIONS (F85).
   answers: Record<string, number>; // playerId → choice index, this question's choice answers
   answeringTimer: AnsweringTimer | null; // set in ANSWERING while the answer time runs
+  // SPEC-QUESTION: typed is not in the spec's Room; see DECISIONS (F87).
+  typed: TypedAnswers | null; // set from ANSWERING on a typed question until the question changes
   autoOpenAt: number | null; // wall-clock ms; set in QUESTION while question 1's title card holds auto-open
   hostDevices: number; // connected host remotes (not a Screen holding the token)
   session: Session; // the night's games in this room
@@ -271,6 +285,37 @@ export interface PlayerChoiceView extends ChoiceView {
   mine: number | null;
 }
 
+/** Players whose typed answers normalise to the same `key`; `text` is the commonest spelling. */
+export interface TypedGroup {
+  key: string;
+  text: string;
+  playerIds: string[];
+  correct: boolean;
+}
+
+/**
+ * A typed question as a view shows it, whenever one is the current question (F87). `answered` of
+ * `expected` is as for `ChoiceView`. `closed` is true once the answers are locked. The groups reach
+ * the Screen and phones only at REVEAL; the host always has them.
+ */
+export interface TypedView {
+  answered: number;
+  expected: number;
+  timer: AnsweringTimerView | null;
+  closed: boolean;
+  groups?: TypedGroup[];
+}
+
+/** The host's typed view: every group, with whether it was pre-marked. */
+export interface HostTypedView extends TypedView {
+  groups: (TypedGroup & { preMarked: boolean })[];
+}
+
+/** The phone's typed view, with this player's own answer. */
+export interface PlayerTypedView extends TypedView {
+  mine: string | null;
+}
+
 interface SharedRoomView {
   code: string;
   title: string;
@@ -316,6 +361,8 @@ export interface ScreenView extends SharedRoomView {
   hostDevices: number;
   /** The current question's choices; null unless it is a choice question (F85). */
   choice: ChoiceView | null;
+  /** The current typed question's progress; null unless it is a typed question (F87). */
+  typed: TypedView | null;
 }
 
 /** Everything, including the current and next question's answer and notes. */
@@ -328,6 +375,7 @@ export interface HostView extends SharedRoomView {
   buzzes: Buzz[];
   judgements: Judgement[];
   choice: HostChoiceView | null;
+  typed: HostTypedView | null;
 }
 
 /** A row of the phone's "Who's here" list. */
@@ -376,6 +424,8 @@ export interface PlayerView {
   teams: TeamView[] | null;
   /** The current question's choices and this player's pick; null unless it is a choice question. */
   choice: PlayerChoiceView | null;
+  /** The current typed question and this player's answer; null unless it is a typed question. */
+  typed: PlayerTypedView | null;
   answer?: string;
 }
 
@@ -423,7 +473,7 @@ export interface ClientPayloads {
   'player:practice': Record<string, never>;
   'player:rename': { name: string };
   'player:leave': Record<string, never>;
-  'player:answer': { choice: number };
+  'player:answer': { choice: number } | { text: string };
   'host:start': Record<string, never>;
   'host:open': Record<string, never>;
   'host:judge': { result: JudgeResult };
@@ -436,6 +486,7 @@ export interface ClientPayloads {
   'host:kick': { playerId: string };
   'host:settings': Partial<RoomSettings>;
   'host:setTeam': { playerId: string; team: number };
+  'host:markTyped': { groups: string[] };
   'host:end': Record<string, never>;
 }
 

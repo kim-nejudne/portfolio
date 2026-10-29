@@ -62,8 +62,8 @@ export function buzzerState(
       // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
       return { kind: 'practice', label: 'Tap to test your buzzer', live: false };
     case 'QUESTION':
-      // A choice question has no buzzer, so no false start either (DECISIONS, F85).
-      if (view.choice) return idle('Get ready…');
+      // A choice or typed question has no buzzer, so no false start either (DECISIONS, F85).
+      if (view.choice || view.typed) return idle('Get ready…');
       // With false starts on, the grey button still takes a press: the server records it (F71).
       if (view.falseStartMs === 0) return idle('Get ready…');
       if (pressed || view.falseStart) return tooEarly();
@@ -92,6 +92,8 @@ export function buzzerState(
       }
       return { kind: 'lost', label: `${view.winnerName ?? 'Someone'} buzzed first`, live: false };
     case 'ANSWERING':
+      // F88 brings the typed answer box; until then the phone only shows that answers are open.
+      if (view.typed) return idle('Answering…');
       // The pick can still change until the answering closes (DECISIONS, F85).
       return {
         kind: 'choice',

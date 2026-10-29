@@ -26,6 +26,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     results: null,
     teams: null,
     choice: null,
+    typed: null,
     // As the server sets it: the list in LOBBY only.
     lobby:
       (overrides.phase ?? 'LOBBY') === 'LOBBY'
@@ -79,6 +80,18 @@ describe('buzzerState', () => {
     expect(buzzerState(sent, false).label).toBe('Answer sent');
     const tapped = view({ phase: 'ANSWERING', questionIndex: 0, choice: choice() });
     expect(buzzerState(tapped, false, null, false, 0).label).toBe('Answer sent');
+  });
+
+  it('a typed question shows no buzzer: no false start before it opens, then "Answering…" (F87)', () => {
+    const typed = { answered: 0, expected: 2, timer: null, closed: false, mine: null };
+    const shown = view({ phase: 'QUESTION', questionIndex: 0, falseStartMs: 500, typed });
+    expect(buzzerState(shown, true)).toEqual({ kind: 'idle', label: 'Get ready…', live: false });
+    const answering = view({ phase: 'ANSWERING', questionIndex: 0, typed });
+    expect(buzzerState(answering, true)).toEqual({
+      kind: 'idle',
+      label: 'Answering…',
+      live: false,
+    });
   });
 
   it('never shows "Too early!" before a choice question opens, even with false starts on', () => {

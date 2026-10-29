@@ -667,7 +667,7 @@ describe('Set editor choice questions', () => {
     await renderEditor();
     const mode = card(1).getByLabelText('Mode') as HTMLSelectElement;
     expect(mode.value).toBe('buzz');
-    expect([...mode.options].map((o) => o.textContent)).toEqual(['Buzz', 'Choice']);
+    expect([...mode.options].map((o) => o.textContent)).toEqual(['Buzz', 'Choice', 'Typed']);
     expect(card(1).getByLabelText('Answer')).toBeTruthy();
     expect(card(1).queryByRole('group', { name: 'Choices' })).toBeNull();
   });
@@ -779,5 +779,47 @@ describe('Set editor choice questions', () => {
     pick('choice');
     expect((choiceInput('C') as HTMLInputElement).value).toBe('Nice');
     expect(radio('B').checked).toBe(true);
+  });
+});
+
+describe('Set editor typed questions (F87)', () => {
+  const saved = async () => (await getSet('set-1'))!.questions[0]!;
+  const pick = (mode: string) =>
+    fireEvent.change(card(1).getByLabelText('Mode'), { target: { value: mode } });
+
+  it('Typed keeps the answer and turns the host notes into alternatives, one per line', async () => {
+    await seed([q('a', { answer: 'Beyoncé', hostNotes: 'Queen B' })]);
+    await renderEditor();
+    pick('typed');
+    expect((card(1).getByLabelText('Answer') as HTMLInputElement).value).toBe('Beyoncé');
+    const notes = card(1).getByLabelText('Other accepted answers (optional)');
+    expect((notes as HTMLTextAreaElement).value).toBe('Queen B');
+    expect(card(1).getByText(/One per line/)).toBeTruthy();
+    expect(card(1).queryByLabelText('Host notes (optional)')).toBeNull();
+    type(notes, 'Queen B\nSasha Fierce');
+    await settle();
+    expect(await saved()).toMatchObject({
+      mode: 'typed',
+      answer: 'Beyoncé',
+      hostNotes: 'Queen B\nSasha Fierce',
+    });
+  });
+
+  it('a typed question still needs its answer', async () => {
+    await seed([q('a', { mode: 'typed', answer: '' })]);
+    await renderEditor();
+    const answer = card(1).getByLabelText('Answer');
+    fireEvent.blur(answer);
+    expect(card(1).getByText('The answer is required.')).toBeTruthy();
+  });
+
+  it('back to Buzz labels the notes as host notes again', async () => {
+    await seed([q('a', { mode: 'typed', answer: 'Lyon', hostNotes: 'Lugdunum' })]);
+    await renderEditor();
+    expect((card(1).getByLabelText('Mode') as HTMLSelectElement).value).toBe('typed');
+    pick('buzz');
+    expect(card(1).getByLabelText('Host notes (optional)')).toBeTruthy();
+    await settle();
+    expect(await saved()).not.toHaveProperty('mode');
   });
 });

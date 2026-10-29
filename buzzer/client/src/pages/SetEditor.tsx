@@ -641,12 +641,7 @@ function QuestionCard({
         >
           <option value="buzz">Buzz</option>
           <option value="choice">Choice</option>
-          {/* Typed joins with F87. Until then an imported typed question shows its mode only. */}
-          {question.mode === 'typed' && (
-            <option value="typed" disabled>
-              Typed
-            </option>
-          )}
+          <option value="typed">Typed</option>
         </select>
       </div>
       {choices ? (
@@ -672,8 +667,7 @@ function QuestionCard({
       )}
       <TextField
         id={`${base}-notes`}
-        label="Host notes (optional)"
-        hint="Other accepted answers, pronunciation. Only the host sees these."
+        {...(question.mode === 'typed' ? TYPED_NOTES : NOTES)}
         multiline
         value={question.hostNotes ?? ''}
         max={HOST_NOTES_MAX}
@@ -891,6 +885,17 @@ interface TextFieldProps {
   onChange: (value: string) => void;
   onBlur: () => void;
 }
+
+const NOTES = {
+  label: 'Host notes (optional)',
+  hint: 'Other accepted answers, pronunciation. Only the host sees these.',
+};
+
+/** A typed question's notes are its alternatives, one per line, which pre-mark answers (F87). */
+const TYPED_NOTES = {
+  label: 'Other accepted answers (optional)',
+  hint: 'One per line. Typed answers that match the answer or a line here start marked correct. Only the host sees these.',
+};
 
 function TextField({
   id,

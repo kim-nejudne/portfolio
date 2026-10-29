@@ -37,6 +37,7 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     buzzTimer: null,
     answers: {},
     answeringTimer: null,
+    typed: null,
     autoOpenAt: null,
     hostDevices: 0,
     session: { gameNumber: 1, totals: {}, players: {}, carried: {} },

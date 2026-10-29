@@ -4,7 +4,14 @@ import type { HostCommand, HostEvent } from './useHostCommand.js';
 /** What the host controls read. The host remote's HostView and the Screen's ScreenView both have it. */
 export type ControlsView = Pick<
   ScreenView,
-  'phase' | 'questionIndex' | 'questionCount' | 'showScoreboard' | 'canJudge' | 'canUndo' | 'choice'
+  | 'phase'
+  | 'questionIndex'
+  | 'questionCount'
+  | 'showScoreboard'
+  | 'canJudge'
+  | 'canUndo'
+  | 'choice'
+  | 'typed'
 >;
 
 /** The host events the primary button sends without a payload. */
@@ -30,8 +37,8 @@ const BY_PHASE: Partial<Record<Phase, { label: string; event: PrimaryEvent }>> =
 
 /** The primary action for this phase, or null in BUZZED (Correct / Wrong) and FINAL. */
 export function primaryFor(view: ControlsView): { label: string; event: PrimaryEvent } | null {
-  // A choice question has no buzzers: `host:open` starts the answering instead (F85).
-  if (view.phase === 'QUESTION' && view.choice) {
+  // A choice or typed question has no buzzers: `host:open` starts the answering instead (F85, F87).
+  if (view.phase === 'QUESTION' && (view.choice || view.typed)) {
     return { label: 'Open answers', event: 'host:open' };
   }
   if (view.phase === 'REVEAL') {

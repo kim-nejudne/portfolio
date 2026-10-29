@@ -12,6 +12,49 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F87 — Typed answers: data, editor and server (2026-10-30)
+**What changed:**
+- Shared: `TYPED_ANSWER_MAX` (80). `Room.typed {answers, marks, closed}` (`TypedAnswers`). View types `TypedGroup`, `TypedView`, `HostTypedView`, `PlayerTypedView`. `player:answer` is now `{choice} | {text}` (a zod union; text trimmed, 1–80). New `host:markTyped {groups: string[]}` (≤ 50 keys of ≤ 80).
+- Server:
+  - New `server/typed.ts`: `normaliseAnswer` (accents, case, whitespace), `acceptedKeys` (answer + host-notes lines), `isCorrectKey` (own-key mark, else pre-mark) and `typedGroups`.
+  - Reducer:
+    - `opened()` sends typed questions to ANSWERING (`takesAnswers` replaces `isChoice`).
+    - `playerTypedAnswer` records the text.
+    - On all answered or `answeringClosed`, `closedTyped` locks the answers and the room stays in ANSWERING.
+    - `hostMarkTyped` records the host's marks, and `host:reveal` runs `scoredTyped`, then goes to REVEAL.
+    - Kick, leave and disconnect drop the player's typed answer; `clearedQuestion` resets `typed`.
+  - Views: `typed` on every view; groups reach the Screen and phones only at REVEAL, the phone gets `mine`, and the host gets every group with `preMarked`. The gateway has a `host:markTyped` handler, and `player:answer` passes text through.
+  - Ownership: `withAnswersIn` and the "answered" count now use `Object.hasOwn`.
+- Client: the editor's Mode select offers **Typed**, and the notes field then reads "Other accepted answers (optional)", one per line. `previewView` fills `typed`. Until F88: "Open answers" in QUESTION, "Answering…" on the phone, and no false start.
+- Tests:
+  - New `reducer.typed.test.ts` (36): normalising, open and timer, auto-open, answer/replace/same, refusals, grouping, pre-marks from alternatives, marks while open and after close, later groups, close by all answered, disconnect and time, stale close, scoring, penalty, no lockout or undo, next/prev, "constructor" and "__proto__".
+  - `views.test.ts` +6 and three typed rooms in the canJudge/canUndo matrix. `sockets.test.ts` +3, `schemas.test.ts` +2.
+  - `SetEditor.test.tsx` +3 (and the Typed option), `setEditor.test.ts` +1, `hostControls.test.ts` +1, `buzzerState.test.ts` +1.
+  - 2184 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-30 for F87 (lock, then host reveal; normalising and groups; markTyped's semantics; the payload, refusals and scoring; the views and editor).
+
+**Notes for next session:**
+- **F88 builds the device UI on `view.typed`.**
+  - Until then a typed question can be selected and opened, but the phone shows "Answering…" with no text box.
+  - The remote's primary action reads Close answers in ANSWERING (`host:reveal`: it scores as pre-marked and reveals), and nothing sends `host:markTyped` yet.
+  - The Screen shows the buzz status ("Buzzers locked") for a typed question.
+- F88 should rename the action to **Reveal and score**. `view.typed.closed` tells "still taking answers" from "locked, waiting for the host".
+- **Marking:** send the full ticked set as `host:markTyped {groups: keys}`. Each group's `correct` already folds in pre-mark and mark, so tick from it. `preMarked` is there to label pre-marked groups.
+- **At REVEAL:** the Screen's "names of the players who got it" are the `playerIds` of groups with `correct`, from `view.typed.groups`.
+- Typed questions share `choiceSeconds` (still no stepper; Backlog).
+- **Review fix:** a group keyed "constructor" was correct through the prototype chain. `isCorrectKey` now reads own keys only, and marks are built with `Object.fromEntries`.
+- Playtest (Playwright plus Node socket scripts in `.playtest/F87/`; one browser phone and 4 script players):
+  - Editor Typed mode, the relabelled notes and persistence. Trimmed text, with 0 and 81 characters refused.
+  - "  PARIS " and "Pâris" grouped as `paris`, pre-marked; "Pa  ris" its own group.
+  - No answers or groups in the Screen or other phones' views before REVEAL. The 10 s close locked the answers in ANSWERING ("Answers are closed").
+  - markTyped after the close, then reveal scored 100 for the marked groups. Close by all answered was covered by the unit tests only.
+  - No console errors. No screenshots.
+- Main `index` chunk 509.77 → 509.90 kB.
+- The unnamed flake again: in the final verify, one full `npm test` run failed 1 of 2184, and the dot reporter didn't name it. The next three full runs passed. See the F84/F85 notes (likely `AnswerSheet.test.tsx`'s `document.title`).
+
+**How to try it:** `npm test -- server/reducer.typed.test.ts server/views.test.ts server/sockets.test.ts`. In the app (`npm run dev`), set a question's **Mode** to **Typed** at `http://localhost:5173/sets` and add alternatives one per line. In a game, **Open answers** starts a 10 s answering; answering from a phone arrives with F88. Until then, use a socket script like `.playtest/F87/drive.mjs`.
+
 ## F86 — Multiple choice: devices (2026-10-30)
 **What changed:**
 - Shared/lib: `CHOICE_COLORS` (A red, B blue, C yellow, D green). `useChoiceCountdown` (`useAnswerCountdown.ts`) counts `choice.timer` like the buzz countdown. `hostControls.ts`: `ControlsView` includes `choice`; `primaryFor` gives **Open answers** for a choice question in QUESTION and **Close answers** (`host:reveal`) in ANSWERING; ANSWERING joins `UNREVEALED` (Skip, `R`). The Screen's host bar and Space follow, as they share `primaryFor`.

@@ -16,6 +16,7 @@ import {
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
   ID_MAX,
+  MAX_PLAYERS_PER_ROOM,
   MAX_QUESTIONS_PER_SET,
   PAIRING_PIN_LENGTH,
   PLAYER_NAME_MAX,
@@ -32,6 +33,7 @@ import {
   SET_TITLE_MAX,
   TEAM_COUNT_CHOICES,
   TEAMS,
+  TYPED_ANSWER_MAX,
 } from './constants.js';
 import type {
   ClientEvent,
@@ -214,13 +216,16 @@ export const clientPayloadSchemas = {
   'player:practice': emptySchema,
   'player:rename': z.object({ name: playerNameSchema }),
   'player:leave': emptySchema,
-  // The reducer checks the choice against the current question's choices.
-  'player:answer': z.object({
-    choice: z
-      .int()
-      .min(0)
-      .max(CHOICES_MAX - 1),
-  }),
+  // A choice for a choice question, text for a typed one; the reducer checks which applies.
+  'player:answer': z.union([
+    z.object({
+      choice: z
+        .int()
+        .min(0)
+        .max(CHOICES_MAX - 1),
+    }),
+    z.object({ text: z.string().trim().min(1).max(TYPED_ANSWER_MAX) }),
+  ]),
   'host:start': emptySchema,
   'host:open': emptySchema,
   'host:judge': z.object({ result: z.enum(['correct', 'half', 'wrong']) }),
@@ -237,6 +242,10 @@ export const clientPayloadSchemas = {
   // Strict, so a typo like `wrongPenality` fails loudly instead of being dropped.
   'host:settings': z.strictObject(roomSettingsSchema.shape).partial(),
   // The reducer checks the team against the room's `settings.teams`.
+  // Group keys as the host view gives them; the reducer normalises them again.
+  'host:markTyped': z.object({
+    groups: z.array(z.string().max(TYPED_ANSWER_MAX)).max(MAX_PLAYERS_PER_ROOM),
+  }),
   'host:setTeam': z.object({
     playerId: idSchema,
     team: z

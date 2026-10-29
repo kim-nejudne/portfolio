@@ -23,9 +23,16 @@ import type {
   RoomSettings,
 } from '../shared/types.js';
 import { buzzGaps, inWindow, makeBuzz, rankOpening } from './fairness.js';
+import { normaliseAnswer, typedGroups } from './typed.js';
 
 /** The error for an action the transitions table does not list for the current phase. */
 export const WRONG_PHASE_ERROR = 'Not allowed in this phase';
+
+/** Errors for an answer of the wrong kind, a late typed answer, and a mark off a typed question. */
+export const TYPE_ANSWER_ERROR = 'Type your answer';
+export const PICK_CHOICE_ERROR = 'Pick a choice';
+export const ANSWERS_CLOSED_ERROR = 'Answers are closed';
+export const NOT_TYPED_ERROR = 'Not a typed question';
 
 /** The error for a team move, or a change of team count, during a question or after the game. */
 export const TEAMS_PHASE_ERROR = 'Teams can change only in the lobby or between questions';
@@ -77,6 +84,7 @@ export type Action =
   | { type: 'player:rename'; playerId: string; name: string }
   | { type: 'player:leave'; playerId: string }
   | { type: 'player:answer'; playerId: string; choice: number }
+  | { type: 'player:answer'; playerId: string; text: string }
   | { type: 'hostDevices'; count: number }
   | TimerAction
   | { type: 'host:start' }
@@ -92,6 +100,7 @@ export type Action =
   | { type: 'host:kick'; playerId: string }
   | { type: 'host:settings'; settings: Partial<RoomSettings> }
   | { type: 'host:setTeam'; playerId: string; team: number }
+  | { type: 'host:markTyped'; groups: string[] }
   | { type: 'host:newGame'; set: QuestionSet; keepScores: boolean };
 
 /**
@@ -124,15 +133,17 @@ export function reduce(room: Room, action: Action, now: number, mono?: number): 
 }
 
 /**
- * Closes a choice question as soon as every connected player has answered, so every path that
- * can complete it (an answer, a disconnect, a kick or leave) does it in one place. With nobody
- * connected, it waits for the timer (DECISIONS F85).
+ * Closes a choice or typed question as soon as every connected player has answered, so every path
+ * that can complete it (an answer, a disconnect, a kick or leave) does it in one place. With nobody
+ * connected, it waits for the timer (DECISIONS F85). A choice question scores and reveals; a typed
+ * one only locks its answers, for the host to mark and reveal (F87).
  */
 function withAnswersIn(room: Room): Room {
-  if (room.phase !== 'ANSWERING') return room;
+  if (room.phase !== 'ANSWERING' || room.typed?.closed) return room;
+  const answers = room.typed ? room.typed.answers : room.answers;
   const connected = Object.values(room.players).filter((p) => p.connected);
-  if (connected.length === 0 || connected.some((p) => !(p.id in room.answers))) return room;
-  return closedAnswering(room);
+  if (connected.length === 0 || connected.some((p) => !Object.hasOwn(answers, p.id))) return room;
+  return room.typed ? closedTyped(room) : closedAnswering(room);
 }
 
 /**
@@ -216,7 +227,7 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
     case 'player:leave':
       return playerLeave(room, action);
     case 'player:answer':
-      return playerAnswer(room, action);
+      return 'text' in action ? playerTypedAnswer(room, action) : playerAnswer(room, action);
     case 'windowClosed':
       return windowClosed(room, action, now);
     case 'answerTimeUp':
@@ -260,6 +271,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return hostSettings(room, action);
     case 'host:setTeam':
       return hostSetTeam(room, action);
+    case 'host:markTyped':
+      return hostMarkTyped(room, action);
     case 'host:newGame':
       return hostNewGame(room, action);
     default:
@@ -321,8 +334,8 @@ function playerBuzz(
 ): ReduceResult {
   const player = room.players[playerId];
   if (!player) return fail('Unknown player');
-  // A choice question has no buzzer, so a press before it opens is no false start (F85).
-  if (room.phase === 'QUESTION' && room.settings.falseStartMs > 0 && !isChoice(room)) {
+  // A choice or typed question has no buzzer, so a press before it opens is no false start (F85).
+  if (room.phase === 'QUESTION' && room.settings.falseStartMs > 0 && !takesAnswers(room)) {
     return falseStart(room, playerId);
   }
   // Anything else that does not count is ignored silently: no error, no penalty (fairness rules).
@@ -422,14 +435,91 @@ function playerLeave(
  */
 function playerAnswer(
   room: Room,
-  { playerId, choice }: Extract<Action, { type: 'player:answer' }>,
+  { playerId, choice }: Extract<Action, { type: 'player:answer'; choice: number }>,
 ): ReduceResult {
   if (!room.players[playerId]) return fail('Unknown player');
   if (room.phase !== 'ANSWERING') return fail(WRONG_PHASE_ERROR);
+  if (room.typed) return fail(TYPE_ANSWER_ERROR);
   const choices = room.set.questions[room.questionIndex]?.choices ?? [];
   if (choice >= choices.length) return fail('No such choice');
   if (room.answers[playerId] === choice) return done(room);
   return done({ ...room, answers: { ...room.answers, [playerId]: choice } });
+}
+
+/**
+ * ANSWERING on a typed question only: records the player's text (trimmed by the schema), replacing
+ * any earlier one, until the answers close. The same text again changes nothing (F87).
+ */
+function playerTypedAnswer(
+  room: Room,
+  { playerId, text }: Extract<Action, { type: 'player:answer'; text: string }>,
+): ReduceResult {
+  if (!room.players[playerId]) return fail('Unknown player');
+  if (room.phase !== 'ANSWERING') return fail(WRONG_PHASE_ERROR);
+  const { typed } = room;
+  if (!typed) return fail(PICK_CHOICE_ERROR);
+  if (typed.closed) return fail(ANSWERS_CLOSED_ERROR);
+  if (typed.answers[playerId] === text) return done(room);
+  return done({ ...room, typed: { ...typed, answers: { ...typed.answers, [playerId]: text } } });
+}
+
+// SPEC-QUESTION: the Transitions table sends ANSWERING to REVEAL on all answered or time up; the
+// roadmap has the host mark typed answers "after it closes", so a typed question waits for
+// host:reveal. See DECISIONS (F87).
+/**
+ * Locks a typed question's answers: everyone answered or the time ran out. It stays in ANSWERING
+ * with no timer, so the host can still mark the groups before `host:reveal` scores them (F87).
+ */
+function closedTyped(room: Room): Room {
+  if (!room.typed) return room;
+  return { ...room, typed: { ...room.typed, closed: true }, answeringTimer: null };
+}
+
+/**
+ * Scores every typed answer and shows the answer: a player in a correct group gets the question's
+ * points, any other answer none, or loses them with the penalty on. As for choice answers: one
+ * judgement each, no undo point, no lockout, unanswered players not judged (F87).
+ */
+function scoredTyped(room: Room): Room {
+  const question = room.set.questions[room.questionIndex];
+  const points = question?.points ?? 0;
+  const penalty = room.settings.wrongPenalty && points ? -points : 0;
+  const groups = typedGroups(room);
+  const correct = new Set(groups.filter((g) => g.correct).flatMap((g) => g.playerIds));
+  // In answer order, as for choice answers; `typedGroups` already left out anyone who has gone.
+  const scored = Object.keys(room.typed?.answers ?? {})
+    .filter((playerId) => room.players[playerId])
+    .reduce(
+      (r, playerId) =>
+        correct.has(playerId)
+          ? applyJudgement(r, playerId, 'correct', points)
+          : applyJudgement(r, playerId, 'wrong', penalty),
+      room,
+    );
+  const typed = room.typed && { ...room.typed, closed: true };
+  return revealed({ ...scored, typed, lockedOut: room.lockedOut });
+}
+
+/**
+ * ANSWERING on a typed question, open or closed: `groups` are the keys the host marks correct.
+ * Every group there now gets the host's verdict, as does any listed key not (yet) answered, so a
+ * group that turns up later keeps its pre-mark unless the host listed it (F87).
+ */
+function hostMarkTyped(
+  room: Room,
+  { groups }: Extract<Action, { type: 'host:markTyped' }>,
+): ReduceResult {
+  if (room.phase !== 'ANSWERING') return fail(WRONG_PHASE_ERROR);
+  const { typed } = room;
+  if (!typed) return fail(NOT_TYPED_ERROR);
+  const correct = new Set(groups.map(normaliseAnswer));
+  // `fromEntries` defines own keys, so even "__proto__" is stored as a mark (read by `isCorrectKey`).
+  const marks = Object.fromEntries([
+    ...Object.entries(typed.marks),
+    ...typedGroups(room).map(({ key }): [string, boolean] => [key, correct.has(key)]),
+    ...[...correct].map((key): [string, boolean] => [key, true]),
+  ]);
+  return done({ ...room, typed: { ...typed, marks } });
 }
 
 /**
@@ -466,7 +556,7 @@ function answeringClosed(
     room.questionIndex === questionIndex &&
     room.openingCounter === openingCounter;
   if (!fresh) return done(room);
-  return done(closedAnswering(room));
+  return done(room.typed ? closedTyped(room) : closedAnswering(room));
 }
 
 /** Names are unique in a room, ignoring case. */
@@ -773,6 +863,12 @@ function withoutPlayer(room: Room, playerId: string): Room {
     lockedOut: room.lockedOut.filter((id) => id !== playerId),
     falseStarts: room.falseStarts.filter((id) => id !== playerId),
     answers: Object.fromEntries(Object.entries(room.answers).filter(([id]) => id !== playerId)),
+    typed: room.typed && {
+      ...room.typed,
+      answers: Object.fromEntries(
+        Object.entries(room.typed.answers).filter(([id]) => id !== playerId),
+      ),
+    },
     undo,
   };
 
@@ -955,8 +1051,10 @@ function hostOpen(room: Room): ReduceResult {
 
 function hostReveal(room: Room): ReduceResult {
   if (!QUESTION_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
-  // Closing a choice question early scores the answers in so far (F85).
-  return done(room.phase === 'ANSWERING' ? closedAnswering(room) : revealed(room));
+  // Closing a choice question early scores the answers in so far (F85); a typed question scores
+  // as the host marked it, whether or not its answers had closed (F87).
+  if (room.phase !== 'ANSWERING') return done(revealed(room));
+  return done(room.typed ? scoredTyped(room) : closedAnswering(room));
 }
 
 /** → REVEAL with no points; an unjudged buzz is discarded. Lockouts stay until the question changes. */
@@ -1008,6 +1106,7 @@ const clearedQuestion = {
   autoOpenAt: null,
   answers: {},
   answeringTimer: null,
+  typed: null,
 } satisfies Partial<Room>;
 
 /**
@@ -1019,21 +1118,25 @@ function enterQuestion(room: Room, index: number): Room {
   return room.settings.autoOpenBuzzers ? opened(shown) : shown;
 }
 
-/** The current question is a choice question. A typed one still plays as buzz until F87. */
-function isChoice(room: Room): boolean {
-  return room.set.questions[room.questionIndex]?.mode === 'choice';
+/** The current question is a choice or typed question: every player answers, nobody buzzes. */
+function takesAnswers(room: Room): boolean {
+  const mode = room.set.questions[room.questionIndex]?.mode;
+  return mode === 'choice' || mode === 'typed';
 }
 
 /**
- * QUESTION → a new opening: ANSWERING on a choice question, OPEN on any other. `host:open` and
- * auto-open both come here; the timers are started by `withBuzzTimer` and `withAnsweringTimer`.
+ * QUESTION → a new opening: ANSWERING on a choice or typed question, OPEN on any other.
+ * `host:open` and auto-open both come here; the timers are started by `withBuzzTimer` and
+ * `withAnsweringTimer`.
  */
 function opened(room: Room): Room {
-  if (!isChoice(room)) return openBuzzers(room);
+  if (!takesAnswers(room)) return openBuzzers(room);
+  const typed = room.set.questions[room.questionIndex]?.mode === 'typed';
   return {
     ...room,
     phase: 'ANSWERING',
     answers: {},
+    typed: typed ? { answers: {}, marks: {}, closed: false } : null,
     autoOpenAt: null,
     openingCounter: room.openingCounter + 1,
   };

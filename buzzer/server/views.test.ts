@@ -86,6 +86,37 @@ function choiceRevealed(): Room {
   return result.room;
 }
 
+/** `midGame`'s question 2 as a typed question: "Answer-2-secret", or the notes' alternative. */
+function typedGame(phase: Phase, overrides: Partial<Room> = {}): Room {
+  const set = makeSet();
+  set.questions[1] = makeQuestion(2, { mode: 'typed', hostNotes: 'Alt-2-secret' });
+  return midGame(phase, { set, ...overrides });
+}
+
+function run(room: Room, ...actions: Action[]): Room {
+  return actions.reduce((r, action) => {
+    const result = reduce(r, action, T0 + 10_000);
+    if (!result.ok) throw new Error(result.error);
+    return result.room;
+  }, room);
+}
+
+const typedAnswer = (playerId: string, text: string): Action => ({
+  type: 'player:answer',
+  playerId,
+  text,
+});
+
+/** The typed question answering, Ana on "Ana-typed-guess"; Bob yet to answer. */
+function typedAnswering(): Room {
+  return run(typedGame('QUESTION'), { type: 'host:open' }, typedAnswer('p1', 'Ana-typed-guess'));
+}
+
+/** `typedAnswering`, then Bob types the alternative, which locks the answers (still ANSWERING). */
+function typedClosed(): Room {
+  return run(typedAnswering(), typedAnswer('p2', 'alt-2-SECRET'));
+}
+
 describe('toView: answers and notes never leak before reveal', () => {
   it('leaves the first question’s answer and notes out of Screen and Player views in LOBBY', () => {
     const room = withPlayers(makeRoom(), [makePlayer('p1'), makePlayer('p2')]);
@@ -362,6 +393,9 @@ describe('toView: canJudge, canUndo and canChangeTeams match what the reducer ac
       ['BUZZED after both undos', after(twice, { type: 'host:undo' }, { type: 'host:undo' })],
       ['ANSWERING a choice question', answering()],
       ['REVEAL after a choice question', choiceRevealed()],
+      ['ANSWERING a typed question', typedAnswering()],
+      ['ANSWERING a typed question, closed', typedClosed()],
+      ['REVEAL after a typed question', run(typedClosed(), { type: 'host:reveal' })],
     ];
   }
 
@@ -925,5 +959,91 @@ describe('toView: choice questions', () => {
       expect(toView(room, 'host').choice).toBeNull();
     }
     expect(toView(midGame('OPEN'), 'player', 'p1').choice).toBeNull();
+  });
+});
+
+describe('toView: typed questions', () => {
+  it('Screen and Player views carry no answers, groups, answer or notes before REVEAL', () => {
+    for (const room of [typedGame('QUESTION'), typedAnswering(), typedClosed()]) {
+      expect(room.phase).not.toBe('REVEAL');
+      const others = [
+        JSON.stringify(toView(room, 'screen')),
+        JSON.stringify(toView(room, 'player', 'p2')),
+        JSON.stringify(toView(room, 'player', 'p3')),
+      ];
+      for (const json of [...others, JSON.stringify(toView(room, 'player', 'p1'))]) {
+        expect(json).not.toContain('"groups"');
+        expect(json).not.toContain('"answer"');
+        expect(json).not.toContain('"answers"');
+        expect(json).not.toContain('preMarked');
+        for (const secret of [...SECRETS(2), 'Alt-2-secret']) expect(json).not.toContain(secret);
+      }
+      // Ana's text reaches only Ana's own phone.
+      for (const json of others) expect(json).not.toContain('Ana-typed-guess');
+    }
+  });
+
+  it('a phone gets its own answer and nobody else’s', () => {
+    const room = typedClosed();
+    expect(toView(room, 'player', 'p1').typed?.mine).toBe('Ana-typed-guess');
+    expect(toView(room, 'player', 'p2').typed?.mine).toBe('alt-2-SECRET');
+    expect(toView(room, 'player', 'p3').typed?.mine).toBeNull();
+  });
+
+  it('carries N of M answered, the time while open, and closed once locked', () => {
+    expect(toView(typedAnswering(), 'screen').typed).toEqual({
+      answered: 1,
+      expected: 2,
+      timer: { seconds: 10 },
+      closed: false,
+    });
+    expect(toView(typedClosed(), 'screen').typed).toEqual({
+      answered: 2,
+      expected: 2,
+      timer: null,
+      closed: true,
+    });
+  });
+
+  it('the host view groups the answers with their pre-marks at every phase', () => {
+    expect(toView(typedClosed(), 'host').typed?.groups).toEqual([
+      {
+        key: 'alt-2-secret',
+        text: 'alt-2-SECRET',
+        playerIds: ['p2'],
+        preMarked: true,
+        correct: true,
+      },
+      {
+        key: 'ana-typed-guess',
+        text: 'Ana-typed-guess',
+        playerIds: ['p1'],
+        preMarked: false,
+        correct: false,
+      },
+    ]);
+    expect(toView(typedGame('QUESTION'), 'host').typed?.groups).toEqual([]);
+  });
+
+  it('at REVEAL the Screen and phones get the groups, without pre-marks', () => {
+    const room = run(typedClosed(), { type: 'host:reveal' });
+    expect(room.phase).toBe('REVEAL');
+    const screen = toView(room, 'screen');
+    expect(screen.typed?.groups).toEqual([
+      { key: 'alt-2-secret', text: 'alt-2-SECRET', playerIds: ['p2'], correct: true },
+      { key: 'ana-typed-guess', text: 'Ana-typed-guess', playerIds: ['p1'], correct: false },
+    ]);
+    expect(screen.question?.answer).toBe('Answer-2-secret');
+    const bob = toView(room, 'player', 'p2');
+    expect(bob.typed?.groups).toHaveLength(2);
+    expect(bob.pointsThisQuestion).toBe(100);
+  });
+
+  it('is null for buzz and choice questions', () => {
+    for (const room of [midGame('OPEN'), answering(), makeRoom()]) {
+      expect(toView(room, 'screen').typed).toBeNull();
+      expect(toView(room, 'host').typed).toBeNull();
+    }
+    expect(toView(answering(), 'player', 'p1').typed).toBeNull();
   });
 });

@@ -230,14 +230,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F86 Multiple choice: devices
 
-- [ ] F87 Typed answers: data, editor and server
-  - Spec: Data model (`Question`); Game flow and state machine (Transitions); Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F86
-  - Done when:
-    - Editor: mode **Typed** uses the existing answer and host notes (alternatives, one per line)
-    - A typed question runs ANSWERING with `player:answer {text}` (1–80 characters, trimmed); the host view groups answers by normalised text (case, accents, spaces) and pre-marks groups equal to the answer or an alternative
-    - `host:markTyped {groups}` in ANSWERING or after it closes sets which groups are correct; `host:reveal` scores them and goes to REVEAL. Players never see other players' answers before REVEAL
-  - Tests: `reducer.typed.test.ts` (grouping, pre-marks, mark, score, close by time and by all answered), `views.test.ts` (no answers or groups in Screen and Player views before REVEAL), `schemas.test.ts`
+- [x] F87 Typed answers: data, editor and server
 
 - [ ] F88 Typed answers: devices
   - Spec: UI spec by view (Screen view, Player view, Host remote); see DECISIONS, Proposed spec changes (audit)

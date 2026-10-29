@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ChoiceView, Phase } from '../../../shared/types.js';
+import type { ChoiceView, Phase, TypedView } from '../../../shared/types.js';
 import { primaryFor, shortcutFor, SHORTCUTS, type ControlsView } from './hostControls.js';
 
 function view(phase: Phase, overrides: Partial<ControlsView> = {}): ControlsView {
@@ -11,6 +11,7 @@ function view(phase: Phase, overrides: Partial<ControlsView> = {}): ControlsView
     canJudge: false,
     canUndo: false,
     choice: null,
+    typed: null,
     ...overrides,
   };
 }
@@ -42,6 +43,21 @@ describe('primaryFor: choice questions (F86)', () => {
     expect(primaryFor(view('REVEAL', { choice: CHOICE }))).toEqual({
       label: 'Next question',
       event: 'host:next',
+    });
+  });
+});
+
+describe('primaryFor: typed questions (F87)', () => {
+  const TYPED: TypedView = { answered: 0, expected: 2, timer: null, closed: false };
+
+  it('reads "Open answers" before the answering starts, and "Close answers" during it', () => {
+    expect(primaryFor(view('QUESTION', { typed: TYPED }))).toEqual({
+      label: 'Open answers',
+      event: 'host:open',
+    });
+    expect(primaryFor(view('ANSWERING', { typed: { ...TYPED, closed: true } }))).toEqual({
+      label: 'Close answers',
+      event: 'host:reveal',
     });
   });
 });

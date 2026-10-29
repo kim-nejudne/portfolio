@@ -8,10 +8,12 @@ import type {
   BuzzTimerView,
   ChoiceView,
   HostChoiceView,
+  HostTypedView,
   HostView,
   LobbyPlayer,
   Player,
   PlayerChoiceView,
+  PlayerTypedView,
   PlayerResults,
   PlayerView,
   Question,
@@ -23,12 +25,15 @@ import type {
   ScreenView,
   SessionView,
   TeamView,
+  TypedGroup,
+  TypedView,
   View,
 } from '../shared/types.js';
 import { RESULTS_CARD_ROWS, TEAMS } from '../shared/constants.js';
 import { buzzGaps, rankOpening } from './fairness.js';
 import { canBuzz, canChangeTeams, canJudge, canUndo } from './reducer.js';
 import { rankPlayers, rankTeams, type Ranked } from './ranking.js';
+import { typedGroups, type Group } from './typed.js';
 
 export function toView(room: Room, role: 'screen'): ScreenView;
 export function toView(room: Room, role: 'host'): HostView;
@@ -59,6 +64,7 @@ function screenView(room: Room): ScreenView {
     difficulty: room.set.difficulty ?? null,
     hostDevices: room.hostDevices,
     choice: choiceView(room, isRevealed(room)),
+    typed: typedView(room, isRevealed(room)),
   };
 }
 
@@ -74,6 +80,7 @@ function hostView(room: Room): HostView {
     buzzes: room.buzzes,
     judgements: room.judgements,
     choice: hostChoiceView(room),
+    typed: hostTypedView(room),
   };
 }
 
@@ -116,6 +123,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     results: room.phase === 'FINAL' ? playerResults(room, ranked) : null,
     teams: teamsView(room),
     choice: playerChoiceView(room, playerId),
+    typed: playerTypedView(room, playerId),
     ...(answer !== undefined && { answer }),
   };
 }
@@ -287,14 +295,9 @@ function publicPlayer(p: Ranked<Player>): RankedPlayer {
 function choiceView(room: Room, revealed: boolean): ChoiceView | null {
   const question = currentQuestion(room);
   if (question?.mode !== 'choice' || !question.choices) return null;
-  const answered = Object.keys(room.answers).filter((id) => room.players[id]).length;
-  const waiting = Object.values(room.players).filter((p) => p.connected && !(p.id in room.answers));
-  const { answeringTimer: timer } = room;
   return {
     choices: question.choices,
-    answered,
-    expected: answered + waiting.length,
-    timer: timer && { seconds: timer.seconds },
+    ...answerProgress(room, room.answers),
     ...(revealed && {
       ...(question.correctChoice !== undefined && { correctChoice: question.correctChoice }),
       counts: choiceCounts(room, question.choices.length),
@@ -319,6 +322,53 @@ function hostChoiceView(room: Room): HostChoiceView | null {
 function playerChoiceView(room: Room, playerId: string): PlayerChoiceView | null {
   const view = choiceView(room, isRevealed(room));
   return view && { ...view, mine: room.answers[playerId] ?? null };
+}
+
+/**
+ * "N of M answered" and the time left, for choice and typed questions alike: `expected` counts
+ * those who answered and the connected players yet to (DECISIONS F85).
+ */
+function answerProgress(room: Room, answers: Record<string, unknown>) {
+  const answered = Object.keys(answers).filter((id) => room.players[id]).length;
+  const waiting = Object.values(room.players).filter(
+    (p) => p.connected && !Object.hasOwn(answers, p.id),
+  );
+  const { answeringTimer: timer } = room;
+  return {
+    answered,
+    expected: answered + waiting.length,
+    timer: timer && { seconds: timer.seconds },
+  };
+}
+
+/**
+ * The current typed question, built field by field: the groups, and so everyone's answers, only
+ * once `revealed` (F87). Null for any other question. Before the host opens it, nobody has answered.
+ */
+function typedView(room: Room, revealed: boolean): TypedView | null {
+  if (currentQuestion(room)?.mode !== 'typed') return null;
+  return {
+    ...answerProgress(room, room.typed?.answers ?? {}),
+    closed: room.typed?.closed ?? false,
+    ...(revealed && { groups: typedGroups(room).map(publicGroup) }),
+  };
+}
+
+function publicGroup({ key, text, playerIds, correct }: Group): TypedGroup {
+  return { key, text, playerIds, correct };
+}
+
+/** The host's typed view: every group at every phase, with its pre-mark. */
+function hostTypedView(room: Room): HostTypedView | null {
+  const view = typedView(room, false);
+  return view && { ...view, groups: typedGroups(room) };
+}
+
+/** The phone's typed view, with its own answer and, before REVEAL, nobody else's. */
+function playerTypedView(room: Room, playerId: string): PlayerTypedView | null {
+  const view = typedView(room, isRevealed(room));
+  const answers = room.typed?.answers ?? {};
+  return view && { ...view, mine: Object.hasOwn(answers, playerId) ? answers[playerId]! : null };
 }
 
 /** How many players in the room picked each choice. */

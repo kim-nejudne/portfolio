@@ -177,6 +177,18 @@ describe('set editor preview of a choice question (F86)', () => {
   it('has no choice for a buzz question', () => {
     expect(previewView(set, 1).choice).toBeNull();
   });
+
+  it('a typed question has progress with nobody answering, groups only in the reveal (F87)', () => {
+    const typed: QuestionSet = {
+      ...set,
+      questions: [q('t', { mode: 'typed', answer: 'Lyon', hostNotes: 'Lugdunum' })],
+    };
+    const view = previewView(typed, 0);
+    expect(view.typed).toEqual({ answered: 0, expected: 0, timer: null, closed: false });
+    expect(JSON.stringify(view)).not.toContain('Lugdunum');
+    expect(previewView(typed, 0, true).typed?.groups).toEqual([]);
+    expect(previewView(set, 0).typed).toBeNull();
+  });
 });
 
 describe('set editor field checks', () => {

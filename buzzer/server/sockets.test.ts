@@ -595,3 +595,86 @@ describe('socket gateway: player:answer', () => {
     expect(await pick(a, 0)).toEqual({ ok: false, error: BUZZ_RATE_LIMITED_ERROR });
   });
 });
+
+describe('socket gateway: typed answers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const type = (c: TestClient, text: unknown): Promise<Ack> =>
+    c.emitWithAck('player:answer', { text } as { text: string });
+
+  /** Lobby table whose question 1 is typed ("Lyon", or "Lugdunum" in the notes), opened. */
+  async function typedTable() {
+    const set = makeSet();
+    set.questions[0] = makeQuestion(1, { mode: 'typed', answer: 'Lyon', hostNotes: 'Lugdunum' });
+    const h = await start({ room: makeRoom({ set, hostTokenHash: TOKEN_HASH }) });
+    const [screen, host, a, b] = await Promise.all([
+      h.connect(),
+      h.connect(),
+      h.connect(),
+      h.connect(),
+    ]);
+    await screenJoin(screen);
+    await hostJoin(host);
+    await playerJoin(a, 'a', 'Ann');
+    await playerJoin(b, 'b', 'Bob');
+    expect(await host.emitWithAck('host:start', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    expect(h.rooms.get('ABCD')!.phase).toBe('ANSWERING');
+    return { h, screen, host, a, b };
+  }
+
+  it('records a typed answer; only the host and the sender see its text', async () => {
+    const { h, screen, host, a, b } = await typedTable();
+    const states = [screen, a, b, host].map(recordStates);
+    expect(await type(a, '  lyon ')).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+
+    expect(h.rooms.get('ABCD')!.typed?.answers).toEqual({ a: 'lyon' });
+    const [toScreen, toA, toB, toHost] = states.map((s) => s.at(-1)!);
+    expect(toScreen).toMatchObject({ typed: { answered: 1, expected: 2, closed: false } });
+    expect(toA).toMatchObject({ typed: { mine: 'lyon' } });
+    for (const view of [toScreen, toB]) expect(JSON.stringify(view)).not.toContain('lyon');
+    expect(toHost).toMatchObject({
+      typed: { groups: [{ key: 'lyon', playerIds: ['a'], preMarked: true, correct: true }] },
+    });
+  });
+
+  it('locks the answers when the time runs out, then the host marks and reveals to score', async () => {
+    const { h, host, a, b } = await typedTable();
+    expect(await type(a, 'Lyon')).toEqual({ ok: true });
+    expect(await type(b, 'Lugdunum!')).toEqual({ ok: true });
+    h.advance(10_000);
+    vi.advanceTimersByTime(10_000);
+    expect(h.rooms.get('ABCD')!.phase).toBe('ANSWERING');
+    expect(h.rooms.get('ABCD')!.typed?.closed).toBe(true);
+    expect(await type(a, 'Paris')).toEqual({ ok: false, error: 'Answers are closed' });
+
+    expect(await host.emitWithAck('host:markTyped', { groups: ['lyon', 'lugdunum!'] })).toEqual({
+      ok: true,
+    });
+    expect(await host.emitWithAck('host:reveal', {})).toEqual({ ok: true });
+    const room = h.rooms.get('ABCD')!;
+    expect(room.phase).toBe('REVEAL');
+    expect([room.players.a!.score, room.players.b!.score]).toEqual([100, 100]);
+  });
+
+  it('refuses host:markTyped from a player, and invalid texts', async () => {
+    const { a } = await typedTable();
+    const mark = await a.emitWithAck('host:markTyped', { groups: ['lyon'] });
+    expect(mark.ok).toBe(false);
+    for (const text of ['', '   ', 'x'.repeat(81), 3]) {
+      const ack = await type(a, text);
+      expect(!ack.ok && ack.error).toContain('Invalid player:answer');
+    }
+    expect(await a.emitWithAck('player:answer', { choice: 0 })).toEqual({
+      ok: false,
+      error: 'Type your answer',
+    });
+  });
+});

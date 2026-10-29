@@ -370,6 +370,27 @@ describe('createRoomBodySchema', () => {
     expect(answer.safeParse({}).success).toBe(false);
   });
 
+  it('player:answer takes a typed text of 1–80 characters, trimmed (F87)', () => {
+    const answer = clientPayloadSchemas['player:answer'];
+    expect(answer.parse({ text: '  Beyoncé  ' })).toEqual({ text: 'Beyoncé' });
+    expect(answer.safeParse({ text: 'x'.repeat(80) }).success).toBe(true);
+    for (const text of ['', '   ', 'x'.repeat(81), 7, null]) {
+      expect(answer.safeParse({ text }).success, String(text)).toBe(false);
+    }
+  });
+
+  it('host:markTyped takes a list of group keys, up to one per player (F87)', () => {
+    const markTyped = clientPayloadSchemas['host:markTyped'];
+    expect(markTyped.safeParse({ groups: [] }).success).toBe(true);
+    expect(markTyped.safeParse({ groups: ['beyonce', 'queen b'] }).success).toBe(true);
+    expect(
+      markTyped.safeParse({ groups: Array.from({ length: 51 }, (_, i) => `g${i}`) }).success,
+    ).toBe(false);
+    expect(markTyped.safeParse({ groups: ['x'.repeat(81)] }).success).toBe(false);
+    expect(markTyped.safeParse({ groups: 'beyonce' }).success).toBe(false);
+    expect(markTyped.safeParse({}).success).toBe(false);
+  });
+
   it('host:settings takes a preset’s five keys in one payload (F73)', () => {
     const settings = clientPayloadSchemas['host:settings'];
     const party = {
@@ -465,6 +486,7 @@ describe('client event payloads', () => {
       'host:kick': { playerId: 'p1' },
       'host:settings': { scoreboardEvery: 0 },
       'host:setTeam': { playerId: 'p1', team: 3 },
+      'host:markTyped': { groups: ['paris', 'paris france'] },
       'host:end': {},
     };
     for (const [event, payload] of Object.entries(valid)) {

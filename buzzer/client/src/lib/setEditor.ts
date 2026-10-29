@@ -129,6 +129,17 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
             }),
           }
         : null,
+    // A typed question with nobody answering; no groups before the reveal (F87).
+    typed:
+      source?.mode === 'typed'
+        ? {
+            answered: 0,
+            expected: 0,
+            timer: null,
+            closed: false,
+            ...(reveal && { groups: [] }),
+          }
+        : null,
     question: source
       ? {
           id: source.id,

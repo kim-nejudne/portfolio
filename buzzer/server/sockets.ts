@@ -314,11 +314,17 @@ export function attachSockets(
     });
 
     // Shares the buzz budget too: a phone changing its answer is a press like any other (F85).
-    handle(socket, 'player:answer', ({ choice }) => {
+    // A choice or a typed text; the reducer refuses the wrong kind for the question (F87).
+    handle(socket, 'player:answer', (answer) => {
       const { code, role, playerId } = socket.data;
       if (role !== 'player' || !code || !playerId) return fail('Join the game first');
       if (!buzzLimiter.hit(socket.id)) return fail(BUZZ_RATE_LIMITED_ERROR);
-      return dispatch(code, { type: 'player:answer', playerId, choice });
+      return dispatch(
+        code,
+        'text' in answer
+          ? { type: 'player:answer', playerId, text: answer.text }
+          : { type: 'player:answer', playerId, choice: answer.choice },
+      );
     });
 
     handle(socket, 'player:rename', ({ name }) => {
@@ -361,6 +367,8 @@ export function attachSockets(
     handle(socket, 'host:setTeam', ({ playerId, team }) =>
       asHost({ type: 'host:setTeam', playerId, team }),
     );
+
+    handle(socket, 'host:markTyped', ({ groups }) => asHost({ type: 'host:markTyped', groups }));
 
     handle(socket, 'host:kick', ({ playerId }) => {
       const { code } = socket.data;
