@@ -2,16 +2,17 @@ import type { PlayerView } from '../../../shared/types.js';
 import { ordinal, signedPoints } from './results.js';
 import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
 
-/**
- * How the buzzer looks: grey, bright and pulsing, pressed in, the winner's red panel, dim, muted
- * with a red X, the answer in a card, or the final result in place of the button. The label is
- * the status line above the button; the button itself always reads BUZZ.
- */
 /** A player who joined while the buzzers were open waits for the next opening (UI spec, Player view). */
 export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next question';
 
+/**
+ * How the buzzer looks: grey, a muted test buzzer in the lobby, bright and pulsing, pressed in,
+ * the winner's red panel, dim, muted with a red X, the answer in a card, or the final result in
+ * place of the button. The label is the status line above the button; the button itself always
+ * reads BUZZ.
+ */
 export type BuzzerKind =
-  'idle' | 'live' | 'pressed' | 'won' | 'lost' | 'out' | 'revealed' | 'final';
+  'idle' | 'practice' | 'live' | 'pressed' | 'won' | 'lost' | 'out' | 'revealed' | 'final';
 
 export interface BuzzerState {
   kind: BuzzerKind;
@@ -20,7 +21,7 @@ export interface BuzzerState {
   detail?: string;
   /** The winner's seconds left to answer, while an answer time runs. */
   secondsLeft?: number;
-  /** True when a press sends `player:buzz`. */
+  /** True when a press sends `player:buzz`. A `practice` press sends `player:practice` instead. */
   live: boolean;
 }
 
@@ -36,7 +37,8 @@ export function buzzerState(
 ): BuzzerState {
   switch (view.phase) {
     case 'LOBBY':
-      return idle('You’re in! Waiting for the host');
+      // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
+      return { kind: 'practice', label: 'Tap to test your buzzer', live: false };
     case 'QUESTION':
       return idle('Get ready…');
     case 'OPEN':

@@ -35,12 +35,16 @@ function canBuzzFor({ phase, lockedOut, hasBuzzed }: Omit<PlayerView, 'canBuzz'>
 }
 
 describe('buzzerState', () => {
-  it('waits for the host in the lobby', () => {
+  it('offers a test buzz in the lobby: a practice press, not a buzz', () => {
     expect(buzzerState(view(), false)).toEqual({
-      kind: 'idle',
-      label: 'You’re in! Waiting for the host',
+      kind: 'practice',
+      label: 'Tap to test your buzzer',
       live: false,
     });
+  });
+
+  it('stays a test buzz in the lobby after a local press', () => {
+    expect(buzzerState(view(), true).kind).toBe('practice');
   });
 
   it('says get ready while the question is shown and buzzers are locked', () => {

@@ -15,7 +15,7 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
-import type { Ack, PlayerView } from '../../../shared/types.js';
+import type { Ack, LobbyPlayer, PlayerView } from '../../../shared/types.js';
 import { BulbRail } from '../components/BulbRail.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { Icon } from '../components/Icon.js';
@@ -248,11 +248,11 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
     [code, identity, saved, onJoined, onRejected],
   );
   const socketRef = useRoomSocket(code, join, makeSocket);
-  const buzz = useCallback(
-    (ack: (res: Ack) => void) => {
+  const press = useCallback<SendPress>(
+    (event, ack) => {
       const socket = socketRef.current;
       if (!socket) return ack({ ok: false, error: 'Not connected' });
-      socket.emit('player:buzz', {}, ack);
+      socket.emit(event, {}, ack);
     },
     [socketRef],
   );
@@ -266,8 +266,11 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
   }
   if (error) return <PlayMessage title={error} />;
   if (view?.role !== 'player') return <PlayMessage title="Joining…" link={false} />;
-  return <Buzzer view={view} buzz={buzz} />;
+  return <Buzzer view={view} send={press} />;
 }
+
+/** Sends a press: a buzz, or a lobby test buzz. */
+type SendPress = (event: 'player:buzz' | 'player:practice', ack: (res: Ack) => void) => void;
 
 /*
  * The BUZZ button: a 10px gold rim, then 10px of base and 6px of border colour as rings, and an
@@ -280,6 +283,9 @@ const DEAD_BUTTON =
 
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: DEAD_BUTTON,
+  // Live but muted: no pulse, a darker red, the same press-in.
+  practice:
+    'border-accent/60 bg-buzz-muted text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)] shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-muted-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-muted-pressed)]',
   live: `${RED_BUTTON} shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)] motion-safe:animate-buzz-pulse`,
   pressed: `${RED_BUTTON} translate-y-1 shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)]`,
   won: DEAD_BUTTON,
@@ -292,6 +298,7 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
 /** The status line's colour above the button. */
 const STATUS_LOOK: Record<BuzzerKind, string> = {
   idle: 'text-accent',
+  practice: 'text-accent',
   live: 'text-accent',
   pressed: 'text-accent',
   won: 'text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]',
@@ -303,33 +310,46 @@ const STATUS_LOOK: Record<BuzzerKind, string> = {
 
 interface BuzzerProps {
   view: PlayerView;
-  /** Sends `player:buzz`. */
-  buzz: (ack: (res: Ack) => void) => void;
+  /** Sends `player:buzz`, or `player:practice` in the lobby. */
+  send: SendPress;
 }
 
 /**
  * The buzzer screen (UI spec, Player view): the player's avatar, name, room and score on top, a
  * row of marquee bulbs, the state as a status line, the round BUZZ button, and their rank.
  */
-function Buzzer({ view, buzz }: BuzzerProps) {
+function Buzzer({ view, send }: BuzzerProps) {
   // The local press belongs to one opening; a new question or reopening clears it.
   const opening = `${view.questionIndex}:${view.openingCounter}`;
   const [pressedAt, setPressedAt] = useState<string | null>(null);
   const countdown = useAnswerCountdown(view);
   const state = buzzerState(view, pressedAt === opening, countdown);
+  // Counts test buzzes, so each one restarts the ring animation.
+  const [practices, setPractices] = useState(0);
   const { toast, show } = useToast();
   useWakeLock();
+  const enabled = state.live || state.kind === 'practice';
 
   function press() {
+    if (state.kind === 'practice') return practice();
     if (!state.live) return;
     // Feedback first, before the server replies (Buzzer fairness and timing, Client-side speed).
     setPressedAt(opening);
     if ('vibrate' in navigator) navigator.vibrate(30);
-    buzz((res) => {
+    send('player:buzz', (res) => {
       // A refused buzz (rate limit, not joined, offline) frees the button to try again.
       if (res.ok) return;
       setPressedAt((at) => (at === opening ? null : at));
       show(res.error);
+    });
+  }
+
+  /** A lobby test buzz: the same feedback as a buzz, but the button stays live. */
+  function practice() {
+    setPractices((count) => count + 1);
+    if ('vibrate' in navigator) navigator.vibrate(30);
+    send('player:practice', (res) => {
+      if (!res.ok) show(res.error);
     });
   }
   const pressFromKey = useEffectEvent(press);
@@ -353,7 +373,9 @@ function Buzzer({ view, buzz }: BuzzerProps) {
   const inGame = view.questionIndex >= 0;
   const progress = inGame
     ? `Question ${view.questionIndex + 1} of ${view.questionCount}${state.live ? ' · tap to buzz in' : ''}`
-    : null;
+    : view.phase === 'LOBBY'
+      ? 'You’re in! Waiting for the host'
+      : null;
 
   return (
     <main className="flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none]">
@@ -404,16 +426,27 @@ function Buzzer({ view, buzz }: BuzzerProps) {
             </div>
             <button
               type="button"
-              disabled={!state.live}
+              disabled={!enabled}
               data-look={state.kind}
+              data-practices={state.kind === 'practice' ? practices : undefined}
               aria-describedby="buzzer-status"
               onPointerDown={onPointerDown}
               onContextMenu={(event) => event.preventDefault()}
-              className={`grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
+              className={`relative grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
             >
+              {state.kind === 'practice' && practices > 0 && (
+                // Keyed by the count, so every test buzz replays the ring.
+                <span
+                  key={practices}
+                  aria-hidden="true"
+                  data-practice-ring
+                  className="pointer-events-none absolute -inset-[10px] rounded-full border-[6px] border-accent opacity-0 motion-safe:animate-practice-ring"
+                />
+              )}
               BUZZ
             </button>
           </div>
+          {view.lobby && <WhosHere players={view.lobby} meId={view.me.id} />}
           {inGame && (
             <footer className="mx-4 mb-4 flex shrink-0 items-center justify-between rounded-[20px] border-2 border-edge bg-surface px-5 py-3">
               <span className="font-bold text-muted">Your rank</span>
@@ -429,6 +462,45 @@ function Buzzer({ view, buzz }: BuzzerProps) {
       )}
       <Toast toast={toast} />
     </main>
+  );
+}
+
+/**
+ * The lobby's "Who's here" list (UI spec, Player view): this phone's own name first, then the
+ * others in join order, each in their colour. It scrolls by itself once a big room overflows it.
+ */
+function WhosHere({ players, meId }: { players: LobbyPlayer[]; meId: string }) {
+  const ordered = [
+    ...players.filter((player) => player.id === meId),
+    ...players.filter((player) => player.id !== meId),
+  ];
+  return (
+    <section
+      aria-labelledby="whos-here"
+      className="mx-4 mb-4 flex max-h-[24dvh] min-h-0 shrink-0 flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface px-5 py-3"
+    >
+      <h2 id="whos-here" className={LABEL}>
+        Who’s here · {players.length}
+      </h2>
+      <ul className="flex touch-pan-y flex-wrap gap-2 overflow-y-auto">
+        {ordered.map((player) => (
+          <li
+            key={player.id}
+            data-connected={player.connected}
+            className={`flex max-w-full items-center gap-2 rounded-full bg-bg py-1 pr-3 pl-1.5 font-bold ${player.connected ? '' : 'opacity-40'}`}
+          >
+            <span
+              aria-hidden="true"
+              data-player-color
+              style={{ backgroundColor: player.color }}
+              className="size-4 shrink-0 rounded-full"
+            />
+            <span className="truncate">{player.name}</span>
+            {player.id === meId && <span className="text-sm text-muted">(you)</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

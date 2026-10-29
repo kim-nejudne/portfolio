@@ -12,6 +12,21 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F60 — Practice buzz and who's here: devices (2026-10-29)
+**What changed:**
+- Phone (`Play.tsx`, `buzzerState.ts`): LOBBY is a new `practice` kind, "Tap to test your buzzer" over a live, muted-red button (`--color-buzz-muted`, no pulse), with "You're in! Waiting for the host" on the line below. A tap or Space vibrates 30 ms, replays a gold ring (keyed span, `data-practices`) and sends `player:practice`; the button stays live and a refused one toasts its error. "Who's here · N" sits under the button in LOBBY only: own name first with "(you)", the rest in join order, colour dots, disconnected dimmed, scrolling inside itself past 24 dvh.
+- Screen: `usePracticePops` (store subscription) keeps each player's latest practice `seq`; `PlayerChips` keys the chip by it, so every test buzz remounts it with `animate-chip-bump`. `soundForFx` now maps every `fx` (returns `SoundName`, no null); `practice` plays the new `practice.wav` (0.14 s tick, peak 0.3) from `scripts/make-sounds.mjs`. The other six WAVs regenerate byte-identical.
+- Tests: `Play.test.tsx` +5 and the lobby test updated (test press, ring replay by tap/Space not click, refused toast, list order and colours, list follows lobby and goes at start), `buzzerState.test.ts` (practice kind), `Screen.test.tsx` (chip bump and replay, practice sound), `sounds.test.ts`, new `usePracticePops.test.ts` (3). 1402 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F60 (muted buzzer and list; `practice.wav` and per-player bump keys).
+
+**Notes for next session:**
+- Playtest (Playwright): Screen 1920×1080 plus Alice and Bob phones in room CUUZ. Both phones showed the label and live button; presses called `vibrate(30)`; each phone listed itself first ("Alice (you), Bob" / "Bob (you), Alice", count 2); each press bumped that player's chip on the Screen separately (`data-practice` 3, then 4); the room stayed in LOBBY. No console errors. The sound was not checked by ear (unit-tested; `/sounds/practice.wav` served 200). The screenshot `.playtest/F60/lobby-player.png` came out at desktop width, not 375 px.
+- The list cap was lowered from 30 to 24 dvh after the fact by arithmetic (267 px button at 375×667), not re-shot.
+- Main `index` chunk 461.33 → 463.64 kB (140.51 kB gzip).
+
+**How to try it:** `npm run dev`. On the laptop, Host a game → Create room → open the Screen and Click to start. Join from two phones at `http://<laptop-LAN-IP>:5173/play/<CODE>`. Tap BUZZ on each: the phone vibrates and rings, that player's chip bumps on the Screen with a soft tick. Each phone's "Who's here" lists itself first. Start the game: the list goes and the button greys out until the buzzers open.
+
 ## F59 — Practice buzz and who's here: server (2026-10-29)
 **What changed:**
 - `player:practice {}` (types, `emptySchema`, reducer, gateway). The reducer accepts it in LOBBY only (`Not allowed in this phase` elsewhere, `Unknown player` for a stranger). It returns the same room object with one effect, `fx {kind: 'practice', playerId}`, so the gateway broadcasts no `state` and stamps no activity. The handler checks the socket joined as a player, then spends the per-socket `buzzLimiter`, the same budget as `player:buzz` (`Too many buzzes`).

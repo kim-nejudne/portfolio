@@ -141,6 +141,15 @@ const sounds = {
     [{ start: 0, length: 0.18, freq: (t) => 600 + 4000 * t, wave: 'sine', decay: 0.07 }],
     0.6,
   ),
+  // A lobby test buzz: a soft two-note tick, quieter than the join blip, since a room may tap a lot.
+  practice: render(
+    0.14,
+    [
+      { start: 0, length: 0.06, freq: hz('E6'), wave: 'triangle', decay: 0.025 },
+      { start: 0.05, length: 0.09, freq: hz('B6'), wave: 'triangle', decay: 0.03 },
+    ],
+    0.3,
+  ),
   // Game over: a brass call that lands on a held major chord.
   fanfare: render(2.4, [
     { start: 0, length: 0.14, freq: hz('G4'), wave: 'brass', release: 0.03 },

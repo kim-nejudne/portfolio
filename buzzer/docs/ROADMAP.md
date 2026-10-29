@@ -164,14 +164,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F59 Practice buzz and who's here: server
 
-- [ ] F60 Practice buzz and who's here: devices
-  - Spec: UI spec by view (Player view, Screen view); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F59
-  - Done when:
-    - In LOBBY the phone's buzzer is live in a muted colour with the label "Tap to test your buzzer": a press vibrates, animates and sends `player:practice`
-    - Below it, "Who's here" lists the players with their colours (the phone's own name first)
-    - On `fx practice` the Screen lobby chip of that player pops and a short sound plays (`join` sound at lower volume, or a new `practice` sound in `client/public/sounds`)
-  - Tests: `Play.test.tsx` (test buzz, list), `buzzerState.test.ts`, `Screen.test.tsx` (chip pop), `sounds.test.ts`. `/playtest`: two players test-buzz in the lobby
+- [x] F60 Practice buzz and who's here: devices
 
 - [ ] F61 Leave, rename and outcome haptics on the phone
   - Spec: UI spec by view (Player view); Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)

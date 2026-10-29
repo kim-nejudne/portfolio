@@ -212,6 +212,29 @@ describe('Screen', () => {
     expect(screen.getByText('2 players')).toBeTruthy();
   });
 
+  it('a test buzz pops that player’s chip, and each new test buzz replays the pop', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([player(1), player(2)]));
+    const chip = (name: string) => screen.getByText(name);
+    expect(chip('Player 1').className).toContain('motion-safe:animate-pop-in');
+
+    socket.fire('fx', { kind: 'practice', playerId: 'p2' });
+    const first = chip('Player 2');
+    expect(first.className).toContain('motion-safe:animate-chip-bump');
+    expect(chip('Player 1').className).not.toContain('animate-chip-bump');
+
+    socket.fire('fx', { kind: 'practice', playerId: 'p1' });
+    socket.fire('fx', { kind: 'practice', playerId: 'p2' });
+    // A new element, so the browser runs the bump again; Player 1's bump is not cut short.
+    expect(chip('Player 2')).not.toBe(first);
+    expect(chip('Player 2').className).toContain('motion-safe:animate-chip-bump');
+    expect(chip('Player 1').className).toContain('motion-safe:animate-chip-bump');
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Player 1',
+      'Player 2',
+    ]);
+  });
+
   it('a disconnected player keeps their chip, greyed out, and it returns to full strength on reconnect', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView([player(1), player(2, { connected: false })]));
@@ -1376,13 +1399,12 @@ describe('Click to start and sounds', () => {
     expect(played()).toEqual(['buzz', 'timeUp', 'correct', 'wrong', 'join']);
   });
 
-  it('stays silent for a lobby test buzz, then still plays the next fx', () => {
+  it('plays the practice sound for each lobby test buzz', () => {
     const { socket } = renderScreen();
     socket.fire('state', view('LOBBY'));
     socket.fire('fx', { kind: 'practice', playerId: 'p1' });
-    expect(played()).toEqual([]);
-    socket.fire('fx', { kind: 'join', playerId: 'p2' });
-    expect(played()).toEqual(['join']);
+    socket.fire('fx', { kind: 'practice', playerId: 'p1' });
+    expect(played()).toEqual(['practice', 'practice']);
   });
 
   it('plays nothing before Click to start, and never replays an fx from before the click', () => {

@@ -36,6 +36,7 @@ import {
 import { useJoinOrigin } from '../lib/useJoinOrigin.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
+import { usePracticePops } from '../lib/usePracticePops.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
 import { BUTTON_PRIMARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
@@ -316,6 +317,7 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
 
 function PlayerChips({ players }: { players: RankedPlayer[] }) {
   const listRef = useRef<HTMLUListElement>(null);
+  const pops = usePracticePops();
   // Smaller chips past 20 players, and smaller still if the room's names would not fit: nobody can
   // scroll a TV, so every chip must stay above the bottom strip (F38).
   useShrinkToFit(
@@ -336,15 +338,20 @@ function PlayerChips({ players }: { players: RankedPlayer[] }) {
         ref={listRef}
         className="flex min-h-0 flex-1 flex-wrap content-start gap-[0.45em] overflow-hidden"
       >
-        {players.map((player) => (
-          <li
-            key={player.id}
-            style={{ backgroundColor: player.color }}
-            className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg motion-safe:animate-pop-in ${player.connected ? '' : 'opacity-40'}`}
-          >
-            {player.name}
-          </li>
-        ))}
+        {players.map((player) => {
+          // A test buzz remounts the chip under a new key, so its bump replays (F60).
+          const pop = pops.get(player.id);
+          return (
+            <li
+              key={pop === undefined ? player.id : `${player.id}:${pop}`}
+              style={{ backgroundColor: player.color }}
+              data-practice={pop}
+              className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
+            >
+              {player.name}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

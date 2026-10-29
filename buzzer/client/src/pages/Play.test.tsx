@@ -317,7 +317,7 @@ describe('Play', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
-  it('lobby shows "You\'re in! Waiting for the host" over a grey BUZZ button, with the player\'s name and colour on top', async () => {
+  it('lobby shows "Tap to test your buzzer" over a live, muted BUZZ button, with the player\'s name and colour on top', async () => {
     stubExists(true);
     savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
     const { sockets } = renderPlay();
@@ -325,11 +325,15 @@ describe('Play', () => {
     sockets[0]!.fire('state', playerView());
 
     const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.dataset.look).toBe('idle');
+    expect(button.disabled).toBe(false);
+    expect(button.dataset.look).toBe('practice');
+    // Muted: its own darker red, and no pulse.
+    expect(button.className).toContain('bg-buzz-muted');
+    expect(button.className).not.toContain('animate-buzz-pulse');
     // The state line describes the button, so a screen reader hears it with "BUZZ".
     const status = screen.getByRole('heading', { level: 1 });
-    expect(status.textContent).toBe('You’re in! Waiting for the host');
+    expect(status.textContent).toBe('Tap to test your buzzer');
+    expect(screen.getByText('You’re in! Waiting for the host')).toBeTruthy();
     expect(button.getAttribute('aria-describedby')).toBe(status.id);
     const bar = screen.getByRole('banner');
     expect(bar.textContent).toContain('Ana');
@@ -365,6 +369,9 @@ describe('Play buzzer', () => {
   /** The state line above the button. */
   const status = () => screen.getByRole('heading', { level: 1 });
   const buzzes = (socket: FakeSocket) => socket.emitted.filter((e) => e.event === 'player:buzz');
+  const practices = (socket: FakeSocket) =>
+    socket.emitted.filter((e) => e.event === 'player:practice');
+  const ring = () => document.querySelector<HTMLElement>('[data-practice-ring]');
 
   function stubVibrate() {
     const vibrate = vi.fn(() => true);
@@ -375,6 +382,88 @@ describe('Play buzzer', () => {
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'vibrate');
     vi.useRealTimers();
+  });
+
+  it('a lobby press is a test buzz: it vibrates, plays the ring and sends player:practice, never a buzz', async () => {
+    const vibrate = stubVibrate();
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(ring()).toBeNull();
+
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    expect(practices(socket)).toHaveLength(1);
+    expect(practices(socket)[0]!.payload).toEqual({});
+    expect(buzzes(socket)).toHaveLength(0);
+    expect(vibrate).toHaveBeenCalledWith(30);
+    expect(ring()!.className).toContain('motion-safe:animate-practice-ring');
+    // Still a test buzzer: no "Buzzed…".
+    expect(status().textContent).toBe('Tap to test your buzzer');
+    expect(buzzer().disabled).toBe(false);
+  });
+
+  it('every test buzz replays the ring, from a tap or Space, but not from a click', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    const first = ring();
+    fireEvent.keyDown(window, { code: 'Space' });
+    fireEvent.keyDown(window, { code: 'Space', repeat: true });
+    fireEvent.click(buzzer());
+    expect(practices(socket)).toHaveLength(2);
+    // A new element, so the animation runs again.
+    expect(ring()).not.toBe(first);
+    expect(buzzer().dataset.practices).toBe('2');
+  });
+
+  it('a refused test buzz shows the reason in a toast', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    act(() => practices(socket)[0]!.ack({ ok: false, error: 'Too many buzzes' }));
+    expect(screen.getByRole('alert').textContent).toBe('Too many buzzes');
+    expect(buzzer().disabled).toBe(false);
+  });
+
+  it('"Who\'s here" lists the lobby in colour, this phone\'s own name first, the rest in join order', async () => {
+    const socket = await joined();
+    const lobby = [
+      { id: 'p2', name: 'Bo', color: PLAYER_PALETTE[0], connected: true },
+      { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], connected: true },
+      { id: 'p3', name: 'Cy', color: PLAYER_PALETTE[1], connected: false },
+    ];
+    socket.fire('state', playerView({ lobby, playerCount: 3 }));
+
+    const list = screen.getByRole('region', { name: 'Who’s here · 3' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows.map((row) => row.textContent)).toEqual(['Ana(you)', 'Bo', 'Cy']);
+    const colours = rows.map(
+      (row) => row.querySelector<HTMLElement>('[data-player-color]')!.style.backgroundColor,
+    );
+    expect(colours).toEqual(
+      [PLAYER_PALETTE[3], PLAYER_PALETTE[0], PLAYER_PALETTE[1]].map((c) => hexToRgb(c!)),
+    );
+    // A disconnected player stays listed, dimmed, as on the Screen.
+    expect(rows.map((row) => row.className.includes('opacity-40'))).toEqual([false, false, true]);
+  });
+
+  it('"Who\'s here" follows the lobby as players join, and goes once the game starts', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    const names = () =>
+      within(screen.getByRole('region', { name: /Who’s here/ }))
+        .getAllByRole('listitem')
+        .map((row) => row.textContent);
+    expect(names()).toEqual(['Ana(you)']);
+
+    const bo = { id: 'p2', name: 'Bo', color: PLAYER_PALETTE[0], connected: true };
+    socket.fire('state', playerView({ lobby: [...playerView().lobby!, bo], playerCount: 2 }));
+    expect(names()).toEqual(['Ana(you)', 'Bo']);
+
+    socket.fire('state', playerView({ phase: 'QUESTION', questionIndex: 0 }));
+    expect(screen.queryByRole('region', { name: /Who’s here/ })).toBeNull();
+    expect(buzzer().disabled).toBe(true);
+    fireEvent.pointerDown(buzzer(), { button: 0 });
+    expect(practices(socket)).toHaveLength(0);
   });
 
   it('says "Get ready…" on a grey, disabled button while buzzers are locked', async () => {

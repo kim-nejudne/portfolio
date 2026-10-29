@@ -27,6 +27,9 @@
   --color-buzz-ink: #2a0610;
   /* Secondary text on buzz-ink chips. */
   --color-buzz-ink-soft: #ffb3bb;
+  /* The lobby's test buzzer: stage red mixed into the surface, with its own darker bevel. */
+  --color-buzz-muted: #822f52;
+  --color-buzz-muted-pressed: #5c2140;
   --color-win: #2bd99f;
   --color-win-ink: #052b1f;
 
@@ -41,6 +44,12 @@
 
   /* The open buzzer, inviting a press. */
   --animate-buzz-pulse: buzz-pulse 900ms ease-in-out infinite;
+
+  /* A test buzz: a ring spreading from the phone's lobby buzzer. */
+  --animate-practice-ring: practice-ring 500ms ease-out both;
+
+  /* A test buzz on the Screen: that player's lobby chip bumps. */
+  --animate-chip-bump: chip-bump 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
   /* The marquee chase: each bulb gets its own animation-delay (BulbRail). */
   --animate-bulb-chase: bulb-chase 1.6s ease-in-out infinite;
@@ -99,6 +108,27 @@
     50% {
       opacity: 0.35;
       box-shadow: none;
+    }
+  }
+
+  @keyframes practice-ring {
+    from {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(1.25);
+    }
+  }
+
+  @keyframes chip-bump {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.3);
     }
   }
 

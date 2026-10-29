@@ -56,8 +56,8 @@ describe('sounds', () => {
     expect(fxs.map(soundForFx)).toEqual(['buzz', 'correct', 'wrong', 'timeUp', 'join']);
   });
 
-  it('plays nothing for a lobby test buzz', () => {
-    expect(soundForFx({ kind: 'practice', playerId: 'p1' })).toBeNull();
+  it('a lobby test buzz plays its own practice sound', () => {
+    expect(soundForFx({ kind: 'practice', playerId: 'p1' })).toBe('practice');
   });
 
   it('every sound has a file in client/public/sounds', () => {
