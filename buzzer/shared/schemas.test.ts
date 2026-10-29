@@ -250,6 +250,7 @@ describe('client event payloads', () => {
       'player:join': { code: 'ABCD', playerId: 'V1StGXR8_Z5jdHi6B-myT', name: 'Ada' },
       ping: { t: 1234.5 },
       'player:buzz': {},
+      'player:practice': {},
       'host:start': {},
       'host:open': {},
       'host:judge': { result: 'wrong' },

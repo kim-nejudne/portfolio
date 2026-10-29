@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F59 — Practice buzz and who's here: server (2026-10-29)
+**What changed:**
+- `player:practice {}` (types, `emptySchema`, reducer, gateway). The reducer accepts it in LOBBY only (`Not allowed in this phase` elsewhere, `Unknown player` for a stranger). It returns the same room object with one effect, `fx {kind: 'practice', playerId}`, so the gateway broadcasts no `state` and stamps no activity. The handler checks the socket joined as a player, then spends the per-socket `buzzLimiter`, the same budget as `player:buzz` (`Too many buzzes`).
+- `PlayerView.lobby: LobbyPlayer[] | null`: `{id, name, color, connected}` in join order in LOBBY, `null` in every other phase. `views.ts` now shares `byJoinOrder` between this list and the Host's players.
+- Client fallout only: `soundForFx` returns `null` for `practice` and `useScreenSounds` skips it, so the Screen stays silent until F60. The `PlayerView` fixtures in `buzzerState.test.ts` and `Play.test.tsx` carry `lobby`.
+- Tests: `reducer.lobby.test.ts` +9 (fx, same room and no stamp, six phases rejected, unknown player), `sockets.test.ts` +4 (fx to Screen, Host and both players with no `state`, shared limit with reset, rejected after start, not joined), `views.test.ts` +7 (join-order list, `null` in six phases), `schemas.test.ts` (payload row), `sounds.test.ts` +1, `Screen.test.tsx` +1 (silent practice, next fx still plays). 1392 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-29 for F59 (no state and no activity stamp, error outside LOBBY, shared limit, row fields and order, silent Screen until F60).
+
+**Notes for next session:**
+- F60 builds the devices: the phone's live muted buzzer sending `player:practice`, the "Who's here" list from `view.lobby` (own name first is F60's ordering), and the Screen chip pop and sound on `fx practice` (change `soundForFx`).
+- A lobby `player:buzz` is still ignored silently and spends the same budget, so a phone mixing the two gets 5 presses a second in total.
+- Server-only feature, so no playtest.
+
+**How to try it:** `npm test -- server/reducer.lobby.test.ts server/sockets.test.ts server/views.test.ts`. Nothing shows on a device until F60.
+
 ## F58 — Landing explainer and host-first layout (2026-10-29)
 **What changed:**
 - `Landing.tsx`: the line "A game-show buzzer: questions on the TV, buzzers on your phones" under the logo. The Join card renders only while `HostGame` is closed; the typed code stays in `Landing` state, so Cancel brings it back.

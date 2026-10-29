@@ -186,6 +186,14 @@ export interface HostView extends SharedRoomView {
   judgements: Judgement[];
 }
 
+/** A row of the phone's "Who's here" list. */
+export interface LobbyPlayer {
+  id: string;
+  name: string;
+  color: string;
+  connected: boolean;
+}
+
 /** Only what the phone needs. No question text in v1; the answer only after reveal. */
 export interface PlayerView {
   role: 'player';
@@ -205,6 +213,8 @@ export interface PlayerView {
   /** Points this player gained or lost on the current question. */
   pointsThisQuestion: number;
   answerTimer: AnswerTimerView | null;
+  /** Every player in join order, in LOBBY only; `null` in every other phase (DECISIONS F59). */
+  lobby: LobbyPlayer[] | null;
   answer?: string;
 }
 
@@ -221,7 +231,8 @@ export type Fx =
   | { kind: 'correct'; playerId: string; points: number }
   | { kind: 'wrong'; playerId: string }
   | { kind: 'timeUp'; playerId: string }
-  | { kind: 'join'; playerId: string };
+  | { kind: 'join'; playerId: string }
+  | { kind: 'practice'; playerId: string };
 
 export type JudgeResult = Judgement['result'];
 
@@ -232,6 +243,7 @@ export interface ClientPayloads {
   'player:join': { code: string; playerId: string; name: string };
   ping: { t: number };
   'player:buzz': Record<string, never>;
+  'player:practice': Record<string, never>;
   'host:start': Record<string, never>;
   'host:open': Record<string, never>;
   'host:judge': { result: JudgeResult };

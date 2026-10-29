@@ -162,13 +162,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F58 Landing explainer and host-first layout
 
-- [ ] F59 Practice buzz and who's here: server
-  - Spec: UI spec by view (Player view); Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F52
-  - Done when:
-    - `player:practice {}` is accepted in LOBBY only (any other phase is rejected), rate-limited with `player:buzz`'s limiter, changes no room state and emits `fx {kind: 'practice', playerId}` to Screen, Host and Players
-    - `PlayerView.lobby` lists every player's `{id, name, color, connected}` in LOBBY and is `null` in every other phase
-  - Tests: `reducer.lobby.test.ts` (practice in LOBBY, rejected elsewhere, no state change), `sockets.test.ts` (fx reaches all roles, rate limit), `views.test.ts` (lobby list only in LOBBY), `schemas.test.ts`
+- [x] F59 Practice buzz and who's here: server
 
 - [ ] F60 Practice buzz and who's here: devices
   - Spec: UI spec by view (Player view, Screen view); see DECISIONS, Proposed spec changes (audit)

@@ -6,6 +6,7 @@ import type {
   AnswerTimerView,
   BuzzGap,
   HostView,
+  LobbyPlayer,
   Player,
   PlayerView,
   Question,
@@ -50,9 +51,7 @@ function screenView(room: Room): ScreenView {
 
 function hostView(room: Room): HostView {
   // Join order, so a ± tap or a judgement never moves the row under the host's thumb (DECISIONS F40).
-  const joined = rankPlayers(Object.values(room.players)).sort(
-    (a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-  );
+  const joined = byJoinOrder(rankPlayers(Object.values(room.players)));
   return {
     role: 'host',
     ...shared(room),
@@ -87,8 +86,22 @@ function playerView(room: Room, playerId: string): PlayerView {
       .filter((j) => j.questionIndex === room.questionIndex && j.playerId === playerId)
       .reduce((sum, j) => sum + j.pointsDelta, 0),
     answerTimer: answerTimerView(room),
+    lobby:
+      room.phase === 'LOBBY' ? byJoinOrder(Object.values(room.players)).map(lobbyPlayer) : null,
     ...(answer !== undefined && { answer }),
   };
+}
+
+/** Sorts by `joinedAt`, then id, so equal join times still give a stable order. */
+function byJoinOrder<P extends Player>(players: P[]): P[] {
+  return [...players].sort(
+    (a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+}
+
+/** A "Who's here" row, built field by field: no score, RTT or join data. */
+function lobbyPlayer({ id, name, color, connected }: Player): LobbyPlayer {
+  return { id, name, color, connected };
 }
 
 /** Fields the Screen and the host remote both get. Built field by field so nothing extra slips in. */

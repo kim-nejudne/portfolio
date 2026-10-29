@@ -1376,6 +1376,15 @@ describe('Click to start and sounds', () => {
     expect(played()).toEqual(['buzz', 'timeUp', 'correct', 'wrong', 'join']);
   });
 
+  it('stays silent for a lobby test buzz, then still plays the next fx', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', view('LOBBY'));
+    socket.fire('fx', { kind: 'practice', playerId: 'p1' });
+    expect(played()).toEqual([]);
+    socket.fire('fx', { kind: 'join', playerId: 'p2' });
+    expect(played()).toEqual(['join']);
+  });
+
   it('plays nothing before Click to start, and never replays an fx from before the click', () => {
     const { socket } = renderScreen(undefined, { start: false });
     socket.fire('state', view('LOBBY'));

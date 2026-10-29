@@ -56,6 +56,10 @@ describe('sounds', () => {
     expect(fxs.map(soundForFx)).toEqual(['buzz', 'correct', 'wrong', 'timeUp', 'join']);
   });
 
+  it('plays nothing for a lobby test buzz', () => {
+    expect(soundForFx({ kind: 'practice', playerId: 'p1' })).toBeNull();
+  });
+
   it('every sound has a file in client/public/sounds', () => {
     // Lists the files without loading them.
     const files = Object.keys(import.meta.glob('../../public/sounds/*.wav')).sort();

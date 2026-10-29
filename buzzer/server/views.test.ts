@@ -378,6 +378,25 @@ describe('toView: player', () => {
     expect(view.playerCount).toBe(3);
   });
 
+  it("lists every player's id, name, colour and connection in join order in LOBBY", () => {
+    // Bob joined first but has the lower id: join order wins, and scores do not reorder it.
+    const room = withPlayers(makeRoom(), [
+      makePlayer('p1', { name: 'Ana', joinedAt: T0 + 2, score: 300 }),
+      makePlayer('p2', { name: 'Bob', joinedAt: T0 + 1, connected: false }),
+    ]);
+    expect(toView(room, 'player', 'p1').lobby).toEqual([
+      { id: 'p2', name: 'Bob', color: room.players.p2!.color, connected: false },
+      { id: 'p1', name: 'Ana', color: room.players.p1!.color, connected: true },
+    ]);
+  });
+
+  it.each(['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL', 'FINAL'] as const)(
+    'has no lobby list in %s',
+    (phase) => {
+      expect(toView(midGame(phase), 'player', 'p1').lobby).toBeNull();
+    },
+  );
+
   it('names the buzz winner', () => {
     const view = toView(midGame('BUZZED'), 'player', 'p2');
     expect(view).toMatchObject({ winnerId: 'p1', winnerName: 'Ana', hasBuzzed: true });

@@ -291,6 +291,14 @@ export function attachSockets(
       return dispatch(code, { type: 'player:buzz', playerId, receivedAt });
     });
 
+    // Shares the buzz budget: one limit per socket on how fast a phone can press (DECISIONS F59).
+    handle(socket, 'player:practice', () => {
+      const { code, role, playerId } = socket.data;
+      if (role !== 'player' || !code || !playerId) return fail('Join the game first');
+      if (!buzzLimiter.hit(socket.id)) return fail(BUZZ_RATE_LIMITED_ERROR);
+      return dispatch(code, { type: 'player:practice', playerId });
+    });
+
     handle(socket, 'host:start', () => asHost({ type: 'host:start' }));
     handle(socket, 'host:open', () => asHost({ type: 'host:open' }));
     handle(socket, 'host:reveal', () => asHost({ type: 'host:reveal' }));

@@ -124,6 +124,7 @@ export const clientPayloadSchemas = {
   'player:join': z.object({ code: roomCodeSchema, playerId: idSchema, name: playerNameSchema }),
   ping: z.object({ t: z.number() }),
   'player:buzz': emptySchema,
+  'player:practice': emptySchema,
   'host:start': emptySchema,
   'host:open': emptySchema,
   'host:judge': z.object({ result: z.enum(['correct', 'wrong']) }),

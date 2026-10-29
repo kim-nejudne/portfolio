@@ -18,12 +18,13 @@ export function soundUrl(name: SoundName): string {
 }
 
 /**
- * The sound an `fx` event plays. FINAL's fanfare is not an `fx`.
+ * The sound an `fx` event plays, or null for none. FINAL's fanfare is not an `fx`.
  * SPEC-QUESTION: the spec gives Wrong "buzz sound" but lists a separate wrong sound; `wrong.wav`
  * is the low game-show buzzer, `buzz.wav` the ring-in (DECISIONS, F31).
+ * A lobby test buzz stays silent until F60 gives it its sound (DECISIONS F59).
  */
-export function soundForFx(fx: Fx): SoundName {
-  return fx.kind;
+export function soundForFx(fx: Fx): SoundName | null {
+  return fx.kind === 'practice' ? null : fx.kind;
 }
 
 // Howler loads on demand, so only a Screen downloads it.

@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { SOCKET_MESSAGE_MAX_BYTES } from '../shared/constants.js';
+import {
+  BUZZ_RATE_LIMIT,
+  BUZZ_RATE_LIMITED_ERROR,
+  SOCKET_MESSAGE_MAX_BYTES,
+} from '../shared/constants.js';
 import type { Ack, Fx } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { makeSet, T0 } from './test/rooms.js';
 import {
+  flush,
   hostJoin,
   nextState,
   playerJoin,
+  record,
   recordStates,
   screenJoin,
   serverDisconnect,
@@ -293,5 +299,66 @@ describe('socket gateway: state broadcast', () => {
     h.advance(1000);
     await playerJoin(await h.connect(), 'p1');
     expect(h.rooms.get('ABCD')!.lastActivityAt).toBe(T0 + 3000);
+  });
+});
+
+describe('socket gateway: player:practice', () => {
+  /** Screen, host and players a and b, joined, still in LOBBY, every broadcast landed. */
+  async function lobbyTable() {
+    const h = await start();
+    const [screen, host, a, b] = await Promise.all([
+      h.connect(),
+      h.connect(),
+      h.connect(),
+      h.connect(),
+    ]);
+    await screenJoin(screen);
+    await hostJoin(host);
+    await playerJoin(a, 'a', 'Ann');
+    await playerJoin(b, 'b', 'Bob');
+    await Promise.all([screen, host, a, b].map(flush));
+    return { h, screen, host, a, b };
+  }
+
+  const practice = (c: TestClient): Promise<Ack> => c.emitWithAck('player:practice', {});
+
+  it('sends fx practice to Screen, Host and every player, and no new state', async () => {
+    const { h, screen, host, a, b } = await lobbyTable();
+    const clients = [screen, host, a, b];
+    const states = clients.map(recordStates);
+    const fxs = clients.map((c) => record<Fx>(c, 'fx'));
+    const before = h.rooms.get('ABCD');
+
+    expect(await practice(b)).toEqual({ ok: true });
+    await Promise.all(clients.map(flush));
+
+    expect(fxs).toEqual(Array(4).fill([{ kind: 'practice', playerId: 'b' }]));
+    expect(states).toEqual(Array(4).fill([]));
+    expect(h.rooms.get('ABCD')).toBe(before);
+  });
+
+  it("shares player:buzz's per-socket limit", async () => {
+    const { h, a, b } = await lobbyTable();
+    // A lobby buzz is ignored by the reducer but still spends the socket's budget.
+    for (let i = 0; i < BUZZ_RATE_LIMIT.max - 1; i++) {
+      expect(await a.emitWithAck('player:buzz', {})).toEqual({ ok: true });
+    }
+    expect(await practice(a)).toEqual({ ok: true });
+    expect(await practice(a)).toEqual({ ok: false, error: BUZZ_RATE_LIMITED_ERROR });
+    expect(await practice(b)).toEqual({ ok: true });
+
+    h.advance(BUZZ_RATE_LIMIT.windowMs);
+    expect(await practice(a)).toEqual({ ok: true });
+  });
+
+  it('rejects a practice buzz once the game has started', async () => {
+    const { host, a } = await lobbyTable();
+    expect(await host.emitWithAck('host:start', {})).toEqual({ ok: true });
+    expect(await practice(a)).toEqual({ ok: false, error: 'Not allowed in this phase' });
+  });
+
+  it('rejects a practice buzz from a socket that has not joined as a player', async () => {
+    const { host } = await lobbyTable();
+    expect(await practice(host)).toEqual({ ok: false, error: 'Join the game first' });
   });
 });

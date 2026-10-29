@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_PLAYERS_PER_ROOM, PLAYER_PALETTE } from '../shared/constants.js';
 import type { Room } from '../shared/types.js';
-import { reduce, type Action, type ReduceResult } from './reducer.js';
+import { reduce, WRONG_PHASE_ERROR, type Action, type ReduceResult } from './reducer.js';
 import { T0, makePlayer, makeRoom, withPlayers } from './test/rooms.js';
 
 function ok(result: ReduceResult): Extract<ReduceResult, { ok: true }> {
@@ -179,5 +179,36 @@ describe('reduce: player:disconnect', () => {
   it('rejects an unknown player', () => {
     const result = reduce(makeRoom(), { type: 'player:disconnect', playerId: 'nobody' }, T0);
     expect(result).toEqual({ ok: false, error: 'Unknown player' });
+  });
+});
+
+describe('reduce: player:practice', () => {
+  const practice = (room: Room, playerId = 'p1', now = T0 + 1000): ReduceResult =>
+    reduce(room, { type: 'player:practice', playerId }, now);
+
+  it('emits fx practice in LOBBY', () => {
+    const room = withPlayers(makeRoom(), [makePlayer('p1')]);
+    const { effects } = ok(practice(room));
+    expect(effects).toEqual([{ type: 'fx', fx: { kind: 'practice', playerId: 'p1' } }]);
+  });
+
+  it('changes no room state: the same room object, not even the last activity', () => {
+    const room = withPlayers(makeRoom(), [makePlayer('p1')]);
+    const snapshot = structuredClone(room);
+    const { room: after } = ok(practice(room, 'p1', T0 + 9000));
+    expect(after).toBe(room);
+    expect(room).toEqual(snapshot);
+  });
+
+  it.each(['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL', 'FINAL'] as const)(
+    'rejects a practice buzz in %s',
+    (phase) => {
+      const room = withPlayers(makeRoom({ phase, questionIndex: 0 }), [makePlayer('p1')]);
+      expect(practice(room)).toEqual({ ok: false, error: WRONG_PHASE_ERROR });
+    },
+  );
+
+  it('rejects an unknown player', () => {
+    expect(practice(makeRoom(), 'nobody')).toEqual({ ok: false, error: 'Unknown player' });
   });
 });

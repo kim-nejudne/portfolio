@@ -59,6 +59,7 @@ export type Action =
   | { type: 'player:join'; playerId: string; name: string }
   | { type: 'player:disconnect'; playerId: string }
   | { type: 'player:buzz'; playerId: string; receivedAt: number }
+  | { type: 'player:practice'; playerId: string }
   | TimerAction
   | { type: 'host:start' }
   | { type: 'host:open' }
@@ -105,6 +106,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return playerDisconnect(room, action);
     case 'player:buzz':
       return playerBuzz(room, action, now);
+    case 'player:practice':
+      return playerPractice(room, action);
     case 'windowClosed':
       return windowClosed(room, action, now);
     case 'answerTimeUp':
@@ -214,6 +217,19 @@ function playerBuzz(
   // late buzz for the also-buzzed list only; it can never win, because the winner is fixed
   // (DECISIONS #4).
   return done({ ...room, buzzes }, [log]);
+}
+
+/**
+ * A test buzz in the lobby. It changes nothing, so the same room object comes back: no broadcast
+ * and no activity stamp, only `fx practice` (DECISIONS F59).
+ */
+function playerPractice(
+  room: Room,
+  { playerId }: Extract<Action, { type: 'player:practice' }>,
+): ReduceResult {
+  if (!room.players[playerId]) return fail('Unknown player');
+  if (room.phase !== 'LOBBY') return fail(WRONG_PHASE_ERROR);
+  return done(room, [{ type: 'fx', fx: { kind: 'practice', playerId } }]);
 }
 
 /**
