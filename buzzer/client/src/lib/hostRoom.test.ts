@@ -50,6 +50,27 @@ describe('checkPlayable', () => {
     );
   });
 
+  it('names the choice question with a blank choice or no correct choice', () => {
+    const choice: Question = {
+      ...good,
+      mode: 'choice',
+      choices: ['Yes', 'No'],
+      correctChoice: 0,
+    };
+    expect(errorOf(withQuestions([good, { ...choice, choices: ['Yes', ' '] }]))).toBe(
+      'Question 2 needs 2 to 4 choices, each filled in.',
+    );
+    const unmarked = { ...choice, answer: '' };
+    delete unmarked.correctChoice;
+    expect(errorOf(withQuestions([unmarked]))).toBe('Question 1 needs its correct choice marked.');
+  });
+
+  it('a choice question plays with the correct choice as its answer', () => {
+    const choice: Question = { ...good, mode: 'choice', choices: ['No', 'Yes'], correctChoice: 1 };
+    const checked = checkPlayable(withQuestions([{ ...choice, answer: '' }]));
+    expect(checked.ok && checked.set.questions[0]).toEqual(choice);
+  });
+
   it('names the question and field for any other problem', () => {
     expect(errorOf(withQuestions([{ ...good, points: 1.5 }]))).toMatch(/^Question 1 \(points\): /);
   });

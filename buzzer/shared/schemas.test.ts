@@ -4,6 +4,7 @@ import {
   ANSWER_SECONDS_CHOICES,
   AVATARS,
   BUZZ_SECONDS_CHOICES,
+  CHOICE_TEXT_MAX,
   FALSE_START_MS_CHOICES,
   DEFAULT_SETTINGS,
   TEAM_COUNT_CHOICES,
@@ -171,6 +172,80 @@ describe('questionSetSchema', () => {
 
   it('rejects an unknown schema version', () => {
     expect(questionSetSchema.safeParse({ ...set(), schemaVersion: 2 }).success).toBe(false);
+  });
+});
+
+describe('questionSchema: choice questions', () => {
+  const choice = (overrides: Partial<Question> = {}) =>
+    question({
+      mode: 'choice',
+      choices: ['Lyon', 'Paris', 'Nice'],
+      correctChoice: 1,
+      answer: '',
+      ...overrides,
+    });
+  const parse = (q: Question) => questionSetSchema.safeParse(set({ questions: [q] }));
+  const paths = (q: Question) => {
+    const result = parse(q);
+    return result.success ? [] : result.error.issues.map((i) => i.path.slice(2).join('.'));
+  };
+
+  it('accepts 2 to 4 choices with a correct one, and sets the answer to its trimmed text', () => {
+    const parsed = parse(choice({ choices: [' Lyon ', ' Paris ', 'Nice'], answer: 'stale' }));
+    expect(parsed.success && parsed.data.questions[0]).toMatchObject({
+      mode: 'choice',
+      choices: ['Lyon', 'Paris', 'Nice'],
+      correctChoice: 1,
+      answer: 'Paris',
+    });
+    expect(parse(choice({ choices: ['Yes', 'No'], correctChoice: 0 })).success).toBe(true);
+    expect(parse(choice({ choices: ['A', 'B', 'C', 'D'], correctChoice: 3 })).success).toBe(true);
+  });
+
+  it('rejects a choice question without choices or without a correct choice', () => {
+    const noChoices = choice();
+    delete noChoices.choices;
+    const noCorrect = choice();
+    delete noCorrect.correctChoice;
+    expect(paths(noChoices)).toEqual(['choices']);
+    expect(paths(noCorrect)).toEqual(['correctChoice']);
+  });
+
+  it('rejects a correct choice out of range', () => {
+    expect(paths(choice({ correctChoice: 3 }))).toEqual(['correctChoice']);
+    expect(paths(choice({ choices: ['A', 'B', 'C', 'D'], correctChoice: 4 }))).toEqual([
+      'correctChoice',
+    ]);
+    expect(paths(choice({ correctChoice: -1 }))).toEqual(['correctChoice']);
+    expect(paths(choice({ correctChoice: 0.5 }))).toEqual(['correctChoice']);
+  });
+
+  it('rejects fewer than 2 or more than 4 choices, and blank or over-long ones', () => {
+    expect(paths(choice({ choices: ['Paris'], correctChoice: 0 }))).toEqual(['choices']);
+    expect(paths(choice({ choices: ['A', 'B', 'C', 'D', 'E'], correctChoice: 0 }))).toEqual([
+      'choices',
+    ]);
+    expect(paths(choice({ choices: ['Lyon', '  ', 'Nice'] }))).toEqual(['choices.1']);
+    expect(
+      parse(choice({ choices: ['x'.repeat(CHOICE_TEXT_MAX), 'y'], correctChoice: 0 })).success,
+    ).toBe(true);
+    expect(
+      paths(choice({ choices: ['x'.repeat(CHOICE_TEXT_MAX + 1), 'y'], correctChoice: 0 })),
+    ).toEqual(['choices.0']);
+  });
+
+  it('accepts buzz and typed modes, which still need an answer', () => {
+    expect(parse(question({ mode: 'buzz' })).success).toBe(true);
+    expect(parse(question({ mode: 'typed' })).success).toBe(true);
+    expect(paths(question({ mode: 'typed', answer: ' ' }))).toEqual(['answer']);
+    expect(paths(question({ mode: 'quiz' as Question['mode'] }))).toEqual(['mode']);
+  });
+
+  it('drops choices left on a question that is not a choice question', () => {
+    const parsed = questionSetSchema.parse(
+      set({ questions: [question({ choices: ['Lyon', 'Paris'], correctChoice: 1 })] }),
+    );
+    expect(parsed.questions[0]).toEqual(question());
   });
 });
 

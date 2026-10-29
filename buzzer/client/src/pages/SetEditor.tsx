@@ -21,13 +21,15 @@ import { Link, useParams } from 'react-router';
 import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import {
   ANSWER_MAX,
+  CHOICE_LETTERS,
+  CHOICE_TEXT_MAX,
   DIFFICULTIES,
   HOST_NOTES_MAX,
   QUESTION_TEXT_MAX,
   SET_CATEGORY_MAX,
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
-import type { Question, QuestionSet } from '../../../shared/types.js';
+import type { Question, QuestionMode, QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { PasteQuestions } from '../components/PasteQuestions.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
@@ -37,8 +39,11 @@ import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js'
 import { HOVER } from '../lib/hover.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
 import {
+  addChoice,
   addQuestion,
+  canAddChoice,
   canAddQuestion,
+  canRemoveChoice,
   categoriesInUse,
   duplicateQuestion,
   moveQuestion,
@@ -47,8 +52,12 @@ import {
   QUESTION_CAP_MESSAGE,
   type QuestionErrors,
   questionErrors,
+  removeChoice,
   removeQuestion,
   reorderQuestions,
+  setChoiceText,
+  setCorrectChoice,
+  setMode,
   setQuestionImage,
   titleError,
   unusedImageIds,
@@ -452,6 +461,11 @@ function QuestionCard({
   for (const key of ['text', 'answer', 'hostNotes'] as const) {
     if (touched.has(`${question.id}:${key}`)) shown[key] = errors[key];
   }
+  const choices = question.mode === 'choice' ? (question.choices ?? []) : null;
+  choices?.forEach((_, index) => {
+    const key = `choice${index}` as const;
+    if (touched.has(`${question.id}:${key}`)) shown[key] = errors[key];
+  });
 
   const base = `q-${question.id}`;
   const label = `Question ${number}`;
@@ -615,15 +629,47 @@ function QuestionCard({
           onImage(undefined);
         }}
       />
-      <TextField
-        id={`${base}-answer`}
-        label="Answer"
-        value={question.answer}
-        max={ANSWER_MAX}
-        error={shown.answer}
-        onChange={(answer) => onChange({ ...question, answer })}
-        onBlur={() => onTouch(`${question.id}:answer`)}
-      />
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${base}-mode`} className="font-semibold">
+          Mode
+        </label>
+        <select
+          id={`${base}-mode`}
+          value={question.mode ?? 'buzz'}
+          onChange={(event) => onChange(setMode(question, event.target.value as QuestionMode))}
+          className={`${field} w-auto self-start`}
+        >
+          <option value="buzz">Buzz</option>
+          <option value="choice">Choice</option>
+          {/* Typed joins with F87. Until then an imported typed question shows its mode only. */}
+          {question.mode === 'typed' && (
+            <option value="typed" disabled>
+              Typed
+            </option>
+          )}
+        </select>
+      </div>
+      {choices ? (
+        <ChoicesField
+          id={base}
+          question={question}
+          choices={choices}
+          errors={shown}
+          correctError={errors.correctChoice}
+          onChange={onChange}
+          onTouch={(index) => onTouch(`${question.id}:choice${index}`)}
+        />
+      ) : (
+        <TextField
+          id={`${base}-answer`}
+          label="Answer"
+          value={question.answer}
+          max={ANSWER_MAX}
+          error={shown.answer}
+          onChange={(answer) => onChange({ ...question, answer })}
+          onBlur={() => onTouch(`${question.id}:answer`)}
+        />
+      )}
       <TextField
         id={`${base}-notes`}
         label="Host notes (optional)"
@@ -658,6 +704,93 @@ function QuestionCard({
         <FieldError id={`${base}-points-error`} message={pointsValid ? undefined : POINTS_ERROR} />
       </div>
     </li>
+  );
+}
+
+interface ChoicesFieldProps {
+  id: string;
+  question: Question;
+  choices: string[];
+  errors: QuestionErrors;
+  correctError: string | undefined;
+  onChange: (question: Question) => void;
+  onTouch: (index: number) => void;
+}
+
+/** A choice question's 2–4 choices, lettered A–D, with a radio for the correct one. */
+function ChoicesField({
+  id,
+  question,
+  choices,
+  errors,
+  correctError,
+  onChange,
+  onTouch,
+}: ChoicesFieldProps) {
+  return (
+    <fieldset
+      aria-describedby={`${id}-choices-hint${correctError ? ` ${id}-correct-error` : ''}`}
+      className="flex flex-col gap-2"
+    >
+      <legend className="font-semibold">Choices</legend>
+      <p id={`${id}-choices-hint`} className="text-sm text-muted">
+        Mark the correct one. Players see them as A to D.
+      </p>
+      {choices.map((choice, index) => {
+        const letter = CHOICE_LETTERS[index]!;
+        const inputId = `${id}-choice-${index}`;
+        const error = errors[`choice${index}`];
+        return (
+          <div key={index} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                name={`${id}-correct`}
+                checked={question.correctChoice === index}
+                onChange={() => onChange(setCorrectChoice(question, index))}
+                aria-label={`Choice ${letter} is correct`}
+                className="size-6 shrink-0 accent-accent"
+              />
+              <label htmlFor={inputId} className="w-5 shrink-0 font-display text-xl">
+                <span className="sr-only">Choice </span>
+                {letter}
+              </label>
+              <input
+                id={inputId}
+                value={choice}
+                maxLength={CHOICE_TEXT_MAX}
+                onChange={(event) => onChange(setChoiceText(question, index, event.target.value))}
+                onBlur={() => onTouch(index)}
+                aria-invalid={error !== undefined}
+                aria-describedby={error ? `${inputId}-error` : undefined}
+                className={`${field} min-w-0 flex-1`}
+              />
+              {canRemoveChoice(question) && (
+                <button
+                  type="button"
+                  aria-label={`Remove choice ${letter}`}
+                  onClick={() => onChange(removeChoice(question, index))}
+                  className={smallButton}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <FieldError id={`${inputId}-error`} message={error} />
+          </div>
+        );
+      })}
+      <FieldError id={`${id}-correct-error`} message={correctError} />
+      {canAddChoice(question) && (
+        <button
+          type="button"
+          onClick={() => onChange(addChoice(question))}
+          className={`${smallButton} self-start`}
+        >
+          Add choice
+        </button>
+      )}
+    </fieldset>
   );
 }
 

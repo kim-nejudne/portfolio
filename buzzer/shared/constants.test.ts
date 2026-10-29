@@ -4,6 +4,9 @@ import {
   APP_NAME,
   AVATARS,
   BUZZ_SECONDS_CHOICES,
+  CHOICE_LETTERS,
+  CHOICES_MAX,
+  CHOICES_MIN,
   DEFAULT_PORT,
   DEFAULT_SETTINGS,
   FALSE_START_MS_CHOICES,
@@ -79,5 +82,11 @@ describe('shared constants', () => {
   it('offers answer times Off, 3, 5, 7 and 10 s in stepper order', () => {
     expect(ANSWER_SECONDS_CHOICES).toEqual([0, 3, 5, 7, 10]);
     expect(ANSWER_SECONDS_CHOICES).toContain(DEFAULT_SETTINGS.answerSeconds);
+  });
+
+  it('allows 2 to 4 choices, one letter A–D each', () => {
+    expect([CHOICES_MIN, CHOICES_MAX]).toEqual([2, 4]);
+    expect(CHOICE_LETTERS).toEqual(['A', 'B', 'C', 'D']);
+    expect(CHOICE_LETTERS).toHaveLength(CHOICES_MAX);
   });
 });

@@ -4,6 +4,10 @@
 import { nanoid } from 'nanoid';
 import {
   ANSWER_MAX,
+  CHOICE_LETTERS,
+  CHOICE_TEXT_MAX,
+  CHOICES_MAX,
+  CHOICES_MIN,
   DEFAULT_POINTS,
   DEFAULT_SETTINGS,
   HOST_NOTES_MAX,
@@ -13,9 +17,16 @@ import {
   QUESTION_TEXT_MAX,
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
-import type { Difficulty, Question, QuestionSet, ScreenView } from '../../../shared/types.js';
+import type {
+  Difficulty,
+  Question,
+  QuestionMode,
+  QuestionSet,
+  ScreenView,
+} from '../../../shared/types.js';
 
-export type QuestionField = 'text' | 'answer' | 'hostNotes';
+/** `choice0`…`choice3` are the choice fields of a choice question. */
+export type QuestionField = 'text' | 'answer' | 'hostNotes' | 'correctChoice' | `choice${number}`;
 export type QuestionErrors = Partial<Record<QuestionField, string>>;
 
 export const QUESTION_CAP_MESSAGE = `A set holds up to ${MAX_QUESTIONS_PER_SET} questions.`;
@@ -147,6 +158,67 @@ export function unusedImageIds(before: readonly Question[], after: readonly Ques
   return [...new Set(dropped)];
 }
 
+/**
+ * Changes a question's mode (Buzz is stored as no mode). Choice starts from the answer as choice A,
+ * marked correct, and a blank B. Leaving Choice keeps the choices in the draft, so switching back
+ * brings them back; play drops them from a question that is not a choice question (DECISIONS F84).
+ */
+export function setMode(question: Question, mode: QuestionMode): Question {
+  const next = { ...question };
+  if (mode === 'buzz') delete next.mode;
+  else next.mode = mode;
+  if (mode !== 'choice') return next;
+  if (question.choices === undefined) return withChoices(next, [question.answer, ''], 0);
+  return withChoices(next, question.choices, question.correctChoice);
+}
+
+/** Choices and the correct one, with `answer` kept equal to the correct choice's text. */
+function withChoices(
+  question: Question,
+  choices: string[],
+  correctChoice: number | undefined,
+): Question {
+  const next: Question = { ...question, choices, answer: '' };
+  delete next.correctChoice;
+  if (correctChoice === undefined) return next;
+  return { ...next, correctChoice, answer: choices[correctChoice] ?? '' };
+}
+
+export function setChoiceText(question: Question, index: number, text: string): Question {
+  const choices = (question.choices ?? []).map((choice, i) => (i === index ? text : choice));
+  return withChoices(question, choices, question.correctChoice);
+}
+
+export function setCorrectChoice(question: Question, index: number): Question {
+  return withChoices(question, question.choices ?? [], index);
+}
+
+export function canAddChoice(question: Question): boolean {
+  return (question.choices?.length ?? 0) < CHOICES_MAX;
+}
+
+export function canRemoveChoice(question: Question): boolean {
+  return (question.choices?.length ?? 0) > CHOICES_MIN;
+}
+
+/** Appends a blank choice, up to 4. */
+export function addChoice(question: Question): Question {
+  if (!canAddChoice(question)) return question;
+  return withChoices(question, [...(question.choices ?? []), ''], question.correctChoice);
+}
+
+/**
+ * Removes a choice, down to 2. The correct one keeps its mark as later choices move up; removing
+ * the correct choice leaves none marked, for the host to pick again.
+ */
+export function removeChoice(question: Question, index: number): Question {
+  if (!canRemoveChoice(question)) return question;
+  const choices = question.choices!.filter((_, i) => i !== index);
+  const correct = question.correctChoice;
+  if (correct === undefined || correct === index) return withChoices(question, choices, undefined);
+  return withChoices(question, choices, correct > index ? correct - 1 : correct);
+}
+
 function tooLong(value: string, max: number): string | undefined {
   return value.length > max ? `Up to ${max} characters.` : undefined;
 }
@@ -164,7 +236,17 @@ export function questionErrors(question: Question): QuestionErrors {
     if (long) errors.text = long;
   }
 
-  if (answer.length === 0) errors.answer = 'The answer is required.';
+  if (question.mode === 'choice') {
+    for (const [index, choice] of (question.choices ?? []).entries()) {
+      const trimmed = choice.trim();
+      const error =
+        trimmed.length === 0
+          ? `Write choice ${CHOICE_LETTERS[index]}.`
+          : tooLong(trimmed, CHOICE_TEXT_MAX);
+      if (error) errors[`choice${index}`] = error;
+    }
+    if (question.correctChoice === undefined) errors.correctChoice = 'Pick the correct choice.';
+  } else if (answer.length === 0) errors.answer = 'The answer is required.';
   else {
     const long = tooLong(answer, ANSWER_MAX);
     if (long) errors.answer = long;

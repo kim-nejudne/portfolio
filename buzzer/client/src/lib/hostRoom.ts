@@ -25,6 +25,12 @@ export function checkPlayable(set: QuestionSet): Checked {
   if (first === 'questions' && typeof index === 'number') {
     const number = index + 1;
     if (field === 'answer') return { ok: false, error: `Question ${number} needs an answer.` };
+    if (field === 'choices') {
+      return { ok: false, error: `Question ${number} needs 2 to 4 choices, each filled in.` };
+    }
+    if (field === 'correctChoice') {
+      return { ok: false, error: `Question ${number} needs its correct choice marked.` };
+    }
     if (field === 'text' && issue.code === 'custom') {
       return { ok: false, error: `Question ${number} needs text or an image.` };
     }

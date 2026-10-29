@@ -6,6 +6,9 @@ import {
   ANSWER_SECONDS_CHOICES,
   AVATARS,
   BUZZ_SECONDS_CHOICES,
+  CHOICE_TEXT_MAX,
+  CHOICES_MAX,
+  CHOICES_MIN,
   FALSE_START_MS_CHOICES,
   DIFFICULTIES,
   HOST_NOTES_MAX,
@@ -17,6 +20,7 @@ import {
   PLAYER_NAME_MIN,
   POINTS_MAX,
   POINTS_MIN,
+  QUESTION_MODES,
   QUESTION_TEXT_MAX,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -72,18 +76,77 @@ const emptySchema = z.object({});
 
 // ---------- Question sets ----------
 
+/**
+ * A choice question needs 2–4 choices and the index of the correct one; its `answer` is set to that
+ * choice's text, so a file may leave it blank. Other questions need an answer, and any choices left
+ * over from the editor (a question switched back from Choice) are dropped.
+ */
 export const questionSchema = z
   .object({
     id: idSchema,
     text: z.string().trim().max(QUESTION_TEXT_MAX),
     imageId: idSchema.optional(),
-    answer: z.string().trim().min(1).max(ANSWER_MAX),
+    answer: z.string().trim().max(ANSWER_MAX),
     hostNotes: z.string().trim().max(HOST_NOTES_MAX).optional(),
     points: pointsSchema,
+    mode: z.enum(QUESTION_MODES).optional(),
+    choices: z
+      .array(z.string().trim().min(1).max(CHOICE_TEXT_MAX))
+      .min(CHOICES_MIN)
+      .max(CHOICES_MAX)
+      .optional(),
+    correctChoice: z
+      .int()
+      .min(0)
+      .max(CHOICES_MAX - 1)
+      .optional(),
   })
-  .refine((q) => q.text.length > 0 || q.imageId !== undefined, {
-    message: 'A question needs text or an image',
-    path: ['text'],
+  .superRefine((q, ctx) => {
+    if (q.text.length === 0 && q.imageId === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'A question needs text or an image',
+        path: ['text'],
+      });
+    }
+    if (q.mode !== 'choice') {
+      if (q.answer.length === 0) {
+        ctx.addIssue({ code: 'custom', message: 'The answer is required', path: ['answer'] });
+      }
+      return;
+    }
+    if (q.choices === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `A choice question needs ${CHOICES_MIN} to ${CHOICES_MAX} choices`,
+        path: ['choices'],
+      });
+    }
+    if (q.correctChoice === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'A choice question needs a correct choice',
+        path: ['correctChoice'],
+      });
+    } else if (
+      q.choices !== undefined &&
+      // An index past the last possible choice already failed `max`; zod 4 still runs this check.
+      q.correctChoice < CHOICES_MAX &&
+      q.correctChoice >= q.choices.length
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `The correct choice must be one of the ${q.choices.length} choices`,
+        path: ['correctChoice'],
+      });
+    }
+  })
+  .transform((q): Question => {
+    if (q.mode === 'choice') return { ...q, answer: q.choices![q.correctChoice!]! };
+    const rest = { ...q };
+    delete rest.choices;
+    delete rest.correctChoice;
+    return rest;
   });
 
 /** A playable set: what room creation and import accept. Editor drafts may be incomplete. */

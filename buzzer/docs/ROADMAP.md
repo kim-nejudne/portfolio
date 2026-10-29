@@ -224,13 +224,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M21 — Answer modes
 
-- [ ] F84 Multiple choice: data and editor
-  - Spec: Data model (`Question`); Question editor and images (Set editor); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F80
-  - Done when:
-    - `Question.mode?: 'buzz' | 'choice' | 'typed'` (absent = buzz) and `choices?: string[]` (2–4, each 1–80 characters) with `correctChoice?: number`; the schema requires both for choice questions and sets `answer` to the correct choice's text
-    - The editor has a mode select per question; Choice shows 2–4 choice fields with a correct-answer radio; import and export keep them
-  - Tests: `schemas.test.ts` (valid, missing correct, out of range, answer derived), `SetEditor.test.tsx`, `importExport.test.ts`
+- [x] F84 Multiple choice: data and editor
 
 - [ ] F85 Multiple choice: server
   - Spec: Game flow and state machine (Transitions); Data model; Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
@@ -309,3 +303,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Avatars: show the avatar on the Screen's buzz banner, "also buzzed" list and Too early chips, and on the remote's Game over standings (F75 covered only the Done-when surfaces). A way to change the avatar after joining would need a `player:avatar` event like `player:rename` (F74, F75).
 - Teams: the results card image (F78) and the remote's Game over standings could rank teams first too, and scoreboard player rows could carry a team mark beside their own colour dot (F82).
 - Bundle: the main `index` chunk passed Vite's 500 kB warning (501.6 kB, 150.7 kB gzip) with F83. Lazy-load a page that only one device opens (the editor at `/sets`, or the results card renderer) to get back under it (F83).
+- Choice questions: the Print answer sheet could list the choices with the correct one marked (F84 prints the correct choice as the answer only), and the editor could warn about two choices with the same text.

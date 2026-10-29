@@ -97,6 +97,26 @@ describe('POST /api/rooms', () => {
     expect(room?.lastActivityAt).toBe(T0);
   });
 
+  it('stores a choice question with its answer set to the correct choice, and drops stray choices', async () => {
+    const rooms = new InMemoryRoomStore();
+    const base = await listen({ rooms });
+    const [first] = validBody.set.questions;
+    const choice = {
+      ...first!,
+      id: 'qc',
+      answer: '',
+      mode: 'choice',
+      choices: ['No', ' Yes '],
+      correctChoice: 1,
+    };
+    const stray = { ...first!, id: 'qs', choices: ['A', 'B'], correctChoice: 0 };
+    const body = { ...validBody, set: { ...validBody.set, questions: [choice, stray] } };
+    const { code } = (await (await postRoom(base, body)).json()) as CreateRoomResponse;
+    const [storedChoice, storedStray] = rooms.get(code)!.set.questions;
+    expect(storedChoice).toMatchObject({ choices: ['No', 'Yes'], correctChoice: 1, answer: 'Yes' });
+    expect(storedStray).toEqual({ ...first, id: 'qs' });
+  });
+
   it('stores only the SHA-256 hash of the hostToken, never the token', async () => {
     const rooms = new InMemoryRoomStore();
     const base = await listen({ rooms });

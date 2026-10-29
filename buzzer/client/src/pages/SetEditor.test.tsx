@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  CHOICE_TEXT_MAX,
   MAX_QUESTIONS_PER_SET,
   QUESTION_TEXT_MAX,
   SET_CATEGORY_MAX,
@@ -650,5 +651,133 @@ describe('Set editor images', () => {
     await settle();
     expect((await getSet('set-1'))!.questions).toEqual([]);
     expect(await db.images.get('img-a')).toBeUndefined();
+  });
+});
+
+describe('Set editor choice questions', () => {
+  const saved = async () => (await getSet('set-1'))!.questions[0]!;
+  const choiceInput = (letter: string) => card(1).getByLabelText(`Choice ${letter}`);
+  const radio = (letter: string) =>
+    card(1).getByRole('radio', { name: `Choice ${letter} is correct` }) as HTMLInputElement;
+  const pick = (mode: string) =>
+    fireEvent.change(card(1).getByLabelText('Mode'), { target: { value: mode } });
+
+  it('each card has a mode select, Buzz by default, with Answer for a buzz question', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const mode = card(1).getByLabelText('Mode') as HTMLSelectElement;
+    expect(mode.value).toBe('buzz');
+    expect([...mode.options].map((o) => o.textContent)).toEqual(['Buzz', 'Choice']);
+    expect(card(1).getByLabelText('Answer')).toBeTruthy();
+    expect(card(1).queryByRole('group', { name: 'Choices' })).toBeNull();
+  });
+
+  it('Choice swaps Answer for choices A and B, the answer becoming A and marked correct', async () => {
+    await seed([q('a', { answer: 'Paris' })]);
+    await renderEditor();
+    pick('choice');
+    expect(card(1).queryByLabelText('Answer')).toBeNull();
+    expect(card(1).getByRole('group', { name: 'Choices' })).toBeTruthy();
+    expect((choiceInput('A') as HTMLInputElement).value).toBe('Paris');
+    expect((choiceInput('B') as HTMLInputElement).value).toBe('');
+    expect((choiceInput('A') as HTMLInputElement).maxLength).toBe(CHOICE_TEXT_MAX);
+    expect(radio('A').checked).toBe(true);
+    await settle();
+    expect(await saved()).toMatchObject({
+      mode: 'choice',
+      choices: ['Paris', ''],
+      correctChoice: 0,
+      answer: 'Paris',
+    });
+  });
+
+  it('typing choices and marking another correct saves the answer as that choice', async () => {
+    await seed([
+      q('a', { mode: 'choice', choices: ['Lyon', ''], correctChoice: 0, answer: 'Lyon' }),
+    ]);
+    await renderEditor();
+    type(choiceInput('B'), 'Paris');
+    fireEvent.click(radio('B'));
+    expect(radio('A').checked).toBe(false);
+    await settle();
+    expect(await saved()).toMatchObject({
+      choices: ['Lyon', 'Paris'],
+      correctChoice: 1,
+      answer: 'Paris',
+    });
+  });
+
+  it('adds choices up to D and removes them down to two', async () => {
+    await seed([q('a', { mode: 'choice', choices: ['A1', 'B1'], correctChoice: 1, answer: 'B1' })]);
+    await renderEditor();
+    expect(card(1).queryByRole('button', { name: /^Remove choice/ })).toBeNull();
+    fireEvent.click(card(1).getByRole('button', { name: 'Add choice' }));
+    fireEvent.click(card(1).getByRole('button', { name: 'Add choice' }));
+    expect(choiceInput('D')).toBeTruthy();
+    expect(card(1).queryByRole('button', { name: 'Add choice' })).toBeNull();
+
+    fireEvent.click(card(1).getByRole('button', { name: 'Remove choice A' }));
+    expect(radio('A').checked).toBe(true);
+    await settle();
+    expect(await saved()).toMatchObject({
+      choices: ['B1', '', ''],
+      correctChoice: 0,
+      answer: 'B1',
+    });
+  });
+
+  it('removing the correct choice asks the host to pick one again', async () => {
+    await seed([
+      q('a', {
+        mode: 'choice',
+        choices: ['Lyon', 'Paris', 'Nice'],
+        correctChoice: 1,
+        answer: 'Paris',
+      }),
+    ]);
+    await renderEditor();
+    fireEvent.click(card(1).getByRole('button', { name: 'Remove choice B' }));
+    expect(card(1).getByText('Pick the correct choice.')).toBeTruthy();
+    expect(radio('A').checked || radio('B').checked).toBe(false);
+    fireEvent.click(radio('B'));
+    expect(card(1).queryByText('Pick the correct choice.')).toBeNull();
+    await settle();
+    expect(await saved()).toMatchObject({
+      choices: ['Lyon', 'Nice'],
+      correctChoice: 1,
+      answer: 'Nice',
+    });
+  });
+
+  it('a blank choice shows its error once left', async () => {
+    await seed([
+      q('a', { mode: 'choice', choices: ['Lyon', 'Paris'], correctChoice: 1, answer: 'Paris' }),
+    ]);
+    await renderEditor();
+    const a = choiceInput('A');
+    type(a, ' ');
+    expect(card(1).queryByText('Write choice A.')).toBeNull();
+    fireEvent.blur(a);
+    expect(card(1).getByText('Write choice A.')).toBeTruthy();
+    expect(a.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('back to Buzz shows Answer with the correct choice, and Choice brings the choices back', async () => {
+    await seed([
+      q('a', {
+        mode: 'choice',
+        choices: ['Lyon', 'Paris', 'Nice'],
+        correctChoice: 1,
+        answer: 'Paris',
+      }),
+    ]);
+    await renderEditor();
+    pick('buzz');
+    expect((card(1).getByLabelText('Answer') as HTMLInputElement).value).toBe('Paris');
+    await settle();
+    expect(await saved()).not.toHaveProperty('mode');
+    pick('choice');
+    expect((choiceInput('C') as HTMLInputElement).value).toBe('Nice');
+    expect(radio('B').checked).toBe(true);
   });
 });

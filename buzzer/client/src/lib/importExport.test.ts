@@ -161,6 +161,54 @@ describe('Import JSON', () => {
     expect(parsed.set).not.toHaveProperty('difficulty');
   });
 
+  it('round-trips choice questions: export writes mode, choices and the correct one, import keeps them', async () => {
+    const choice = {
+      id: 'q5',
+      text: 'Largest planet?',
+      answer: 'Jupiter',
+      points: 100,
+      mode: 'choice' as const,
+      choices: ['Mars', 'Jupiter', 'Venus'],
+      correctChoice: 1,
+    };
+    const mixed: QuestionSet = { ...SET, questions: [...SET.questions, choice] };
+    const file = JSON.parse(await exportSetFile(mixed, loadImage)) as QuestionSet;
+    expect(file.questions[4]).toEqual(choice);
+
+    const parsed = parseSetFile(JSON.stringify(file));
+    if (!parsed.ok) throw new Error(parsed.errors.join('\n'));
+    const stored = await importSet(parsed.set, parsed.images);
+    expect((await getSet(stored.id))!.questions[4]).toEqual(choice);
+  });
+
+  it('imports a choice question whose answer is blank, setting it to the correct choice', async () => {
+    const file = await exported();
+    file.questions[0] = {
+      ...file.questions[0],
+      answer: '',
+      mode: 'choice',
+      choices: ['Lyon', 'Paris'],
+      correctChoice: 1,
+    };
+    const parsed = parseSetFile(JSON.stringify(file));
+    expect(parsed.ok && parsed.set.questions[0]!.answer).toBe('Paris');
+  });
+
+  it('refuses a choice question without a correct choice, or with one out of range', async () => {
+    const file = await exported();
+    file.questions[0] = { ...file.questions[0], mode: 'choice', choices: ['Lyon', 'Paris'] };
+    file.questions[2] = {
+      ...file.questions[2],
+      mode: 'choice',
+      choices: ['Dog', 'Cat'],
+      correctChoice: 2,
+    };
+    expect(errorsOf(JSON.stringify(file))).toEqual([
+      'Question 1 › correctChoice: A choice question needs a correct choice',
+      'Question 3 › correctChoice: The correct choice must be one of the 2 choices',
+    ]);
+  });
+
   it('refuses a bad category or difficulty with its path', async () => {
     const file = await exported();
     expect(errorsOf(JSON.stringify({ ...file, category: '', difficulty: 'extreme' }))).toEqual([
@@ -191,7 +239,7 @@ describe('Import JSON', () => {
 
     expect(errorsOf(JSON.stringify(file))).toEqual([
       'Title: Too small: expected string to have >=1 characters',
-      'Question 1 › answer: Too small: expected string to have >=1 characters',
+      'Question 1 › answer: The answer is required',
       'Question 3 › points: Invalid input: expected number, received string',
       'Schema version: Invalid input: expected 1',
     ]);
@@ -306,7 +354,7 @@ describe('Export all and import many', () => {
     ]);
     expect(parsed.sets[1]!.parsed).toEqual({
       ok: false,
-      errors: ['Question 1 › answer: Too small: expected string to have >=1 characters'],
+      errors: ['Question 1 › answer: The answer is required'],
     });
     expect(parsed.sets[2]!.parsed).toEqual({
       ok: false,

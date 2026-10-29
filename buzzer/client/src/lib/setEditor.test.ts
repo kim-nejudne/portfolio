@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANSWER_MAX,
+  CHOICE_TEXT_MAX,
   DEFAULT_POINTS,
   HOST_NOTES_MAX,
   MAX_QUESTIONS_PER_SET,
@@ -10,7 +11,10 @@ import {
 } from '../../../shared/constants.js';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import {
+  addChoice,
   addQuestion,
+  canAddChoice,
+  canRemoveChoice,
   canAddQuestion,
   categoriesInUse,
   duplicateQuestion,
@@ -19,8 +23,12 @@ import {
   parsePoints,
   previewView,
   questionErrors,
+  removeChoice,
   removeQuestion,
   reorderQuestions,
+  setChoiceText,
+  setCorrectChoice,
+  setMode,
   setQuestionImage,
   titleError,
   unusedImageIds,
@@ -213,5 +221,70 @@ describe('category and difficulty', () => {
       { ...base, category: '   ' },
     ];
     expect(categoriesInUse(sets)).toEqual(['animals', 'Science']);
+  });
+});
+
+describe('choice questions in the editor', () => {
+  const choice = (choices: string[], correctChoice?: number) =>
+    q('a', {
+      mode: 'choice',
+      choices,
+      answer: correctChoice === undefined ? '' : choices[correctChoice]!,
+      ...(correctChoice === undefined ? {} : { correctChoice }),
+    });
+
+  it('switching to Choice starts with the answer as choice A, marked correct, and a blank B', () => {
+    expect(setMode(q('a', { answer: 'Paris' }), 'choice')).toEqual(
+      q('a', { answer: 'Paris', mode: 'choice', choices: ['Paris', ''], correctChoice: 0 }),
+    );
+  });
+
+  it('switching to Buzz stores no mode and keeps the choices, which come back on Choice', () => {
+    const asChoice = choice(['Lyon', 'Paris', 'Nice'], 1);
+    const asBuzz = setMode(asChoice, 'buzz');
+    expect(asBuzz).not.toHaveProperty('mode');
+    expect(asBuzz.answer).toBe('Paris');
+    expect(setMode(asBuzz, 'choice')).toEqual(asChoice);
+  });
+
+  it('keeps the answer equal to the correct choice as it is typed or re-marked', () => {
+    const typed = setChoiceText(choice(['Lyon', 'Paris'], 1), 1, 'Paris, France');
+    expect(typed).toMatchObject({ choices: ['Lyon', 'Paris, France'], answer: 'Paris, France' });
+    expect(setChoiceText(typed, 0, 'Lille').answer).toBe('Paris, France');
+    expect(setCorrectChoice(typed, 0)).toMatchObject({ correctChoice: 0, answer: 'Lyon' });
+  });
+
+  it('adds blank choices up to 4', () => {
+    const three = addChoice(choice(['A', 'B'], 0));
+    expect(three.choices).toEqual(['A', 'B', '']);
+    const four = addChoice(three);
+    expect(canAddChoice(four)).toBe(false);
+    expect(addChoice(four)).toEqual(four);
+  });
+
+  it('removes choices down to 2, and the correct one keeps its mark as later ones move up', () => {
+    const four = choice(['A', 'B', 'C', 'D'], 2);
+    expect(removeChoice(four, 0)).toMatchObject({ choices: ['B', 'C', 'D'], correctChoice: 1 });
+    expect(removeChoice(four, 3)).toMatchObject({ choices: ['A', 'B', 'C'], correctChoice: 2 });
+    const two = choice(['A', 'B'], 0);
+    expect(canRemoveChoice(two)).toBe(false);
+    expect(removeChoice(two, 1)).toEqual(two);
+  });
+
+  it('removing the correct choice leaves none marked and no answer', () => {
+    const removed = removeChoice(choice(['A', 'B', 'C'], 1), 1);
+    expect(removed.choices).toEqual(['A', 'C']);
+    expect(removed).not.toHaveProperty('correctChoice');
+    expect(removed.answer).toBe('');
+    expect(questionErrors(removed)).toEqual({ correctChoice: 'Pick the correct choice.' });
+  });
+
+  it('flags blank and over-long choices by letter, and never asks for a separate answer', () => {
+    const errors = questionErrors(choice(['Paris', ' ', 'x'.repeat(CHOICE_TEXT_MAX + 1)], 0));
+    expect(errors).toEqual({
+      choice1: 'Write choice B.',
+      choice2: `Up to ${CHOICE_TEXT_MAX} characters.`,
+    });
+    expect(questionErrors(choice(['', 'B'], 1))).toEqual({ choice0: 'Write choice A.' });
   });
 });

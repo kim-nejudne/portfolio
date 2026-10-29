@@ -12,6 +12,25 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F84 — Multiple choice: data and editor (2026-10-30)
+**What changed:**
+- Shared: `Question.mode?: QuestionMode` (`'buzz' | 'choice' | 'typed'`, absent = buzz), `choices?: string[]`, `correctChoice?: number`; constants `QUESTION_MODES`, `CHOICES_MIN`/`CHOICES_MAX` (2/4), `CHOICE_TEXT_MAX` (80), `CHOICE_LETTERS` (A–D).
+- `questionSchema` (`shared/schemas.ts`): a `superRefine` requires `choices` and an in-range `correctChoice` for choice questions (and a non-blank answer for the others), then a `transform` sets `answer` to the correct choice's trimmed text and drops stray `choices`/`correctChoice` from non-choice questions. The server's room creation, `checkPlayable`, export and import all go through it.
+- Editor (`SetEditor.tsx`, helpers in `lib/setEditor.ts`): a per-card "Mode" select (Buzz, Choice). Choice shows the `ChoicesField`: A–D inputs, a "Choice X is correct" radio each, Remove (above 2), Add choice (below 4); the helpers `setMode`, `setChoiceText`, `setCorrectChoice`, `addChoice`, `removeChoice` keep `answer` equal to the correct choice. `questionErrors` gives "Write choice B." and "Pick the correct choice."; `checkPlayable` names the question.
+- Tests: `schemas.test.ts` +6 (valid and derived answer, missing choices or correct, out of range, counts and lengths, buzz/typed modes, strays dropped), `setEditor.test.ts` +7, `SetEditor.test.tsx` +7, `importExport.test.ts` +3 (round trip, blank answer derived, refusals with paths; two expected messages now read "The answer is required"), `hostRoom.test.ts` +2, `http.test.ts` +1 (stored room has the derived answer), `constants.test.ts` +1. 2023 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F84 (derived answer and dropped strays; the editor's mode select and choices; buzz play until F85).
+
+**Notes for next session:**
+- **A choice question plays as a buzz question until F85.** `viewQuestion` in `server/views.ts` names its fields, so `choices` and `correctChoice` reach no view yet; F85 adds `choices` to Screen and Player views and must keep `correctChoice` out until REVEAL. `HostView.question` is the whole `Question`, so the remote already gets them.
+- zod 4 runs an object's `superRefine` even after a field's `min`/`max` check failed (not after a type error), hence the `correctChoice < CHOICES_MAX` guard in `questionSchema`.
+- The editor's Typed option is F87's; an imported typed question shows a disabled "Typed" option and plays as buzz.
+- Playtest (Playwright, editor at 390×844): mode select, Choice with A/B, Add choice to D and Remove down to 2, marking B correct, autosave, Export JSON (`mode`, `choices`, `correctChoice: 1`, `answer: "Paris"`), Import back with mode and radio kept. No console errors. Not checked visually at 375 px, and no screenshots taken. File: `.playtest/F84/export.json`.
+- Main `index` chunk 501.56 → 502.66 kB (151.02 kB gzip).
+- One full `npm test` run during the final verify reported 1 failed test out of 2023. The dot reporter didn't name it, and it never came back: the next three full runs passed, and five runs of the touched files passed. It could be a timing flake somewhere; if it shows up again, note the file.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets`, open or create a set, and on a question card set **Mode** to **Choice**. Fill A–D, mark the correct one, then **Export JSON** from the set list and import it again.
+
 ## F83 — Teams: host controls (2026-10-29)
 **What changed:**
 - Views carry `canChangeTeams` (`canChangeTeams(room)` in `server/reducer.ts`, true in LOBBY and REVEAL, the same `TEAM_PHASES` the reducer checks), like `canUndo`. The editor's `previewView` sets it only for its REVEAL preview.

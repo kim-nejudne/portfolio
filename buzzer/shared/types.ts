@@ -20,10 +20,15 @@ export interface Question {
   id: string;
   text: string; // may be '' if imageId is set
   imageId?: string; // key into the image store
-  answer: string;
+  answer: string; // for a choice question, the correct choice's text
   hostNotes?: string;
   points: number; // default 100
+  mode?: QuestionMode; // default 'buzz'
+  choices?: string[]; // choice questions: 2–4
+  correctChoice?: number; // choice questions: index into choices
 }
+
+export type QuestionMode = 'buzz' | 'choice' | 'typed';
 
 // ---------- Server room state (in memory) ----------
 

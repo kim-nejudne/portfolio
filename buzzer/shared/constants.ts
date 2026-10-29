@@ -6,6 +6,7 @@ import type {
   BuzzSeconds,
   Difficulty,
   FalseStartMs,
+  QuestionMode,
   RoomSettings,
   TeamCount,
 } from './types.js';
@@ -168,6 +169,17 @@ export const QUESTION_TEXT_MAX = 300;
 export const ANSWER_MAX = 200;
 export const HOST_NOTES_MAX = 500; // DECISIONS #11
 export const DEFAULT_POINTS = 100;
+/** A question's mode; absent means buzz. */
+export const QUESTION_MODES = [
+  'buzz',
+  'choice',
+  'typed',
+] as const satisfies readonly QuestionMode[];
+export const CHOICES_MIN = 2;
+export const CHOICES_MAX = 4;
+export const CHOICE_TEXT_MAX = 80;
+/** How choices are labelled on every device, in order. */
+export const CHOICE_LETTERS = ['A', 'B', 'C', 'D'] as const;
 // SPEC-QUESTION: the spec gives no points range, no score-change bound and no scoreboard ceiling; see DECISIONS (F02).
 export const POINTS_MIN = 0;
 export const POINTS_MAX = 10_000;
