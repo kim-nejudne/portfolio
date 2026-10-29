@@ -92,6 +92,7 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     falseStarts: [],
     session: null,
     teams: null,
+    board: null,
     choice: null,
     typed: null,
     showScoreboard: false,

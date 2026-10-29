@@ -9,7 +9,7 @@ import {
 } from '../shared/constants.js';
 import type { Ack, Fx, View } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
-import { makeQuestion, makeRoom, makeSet, T0 } from './test/rooms.js';
+import { makeBoardSet, makeQuestion, makeRoom, makeSet, T0 } from './test/rooms.js';
 import {
   flush,
   hostJoin,
@@ -676,5 +676,54 @@ describe('socket gateway: typed answers', () => {
       ok: false,
       error: 'Type your answer',
     });
+  });
+});
+
+describe('socket gateway: category board', () => {
+  /** A board set's table: a Screen, the host and one player, started on the board. */
+  async function boardTable() {
+    const h = await start({ room: makeRoom({ set: makeBoardSet(2), hostTokenHash: TOKEN_HASH }) });
+    const [screen, host, a] = await Promise.all([h.connect(), h.connect(), h.connect()]);
+    await screenJoin(screen);
+    await hostJoin(host);
+    await playerJoin(a, 'a', 'Ann');
+    expect(await host.emitWithAck('host:start', {})).toEqual({ ok: true });
+    await Promise.all([screen, host, a].map(flush));
+    return { h, screen, host, a };
+  }
+
+  it('host:pick plays the tile, and every role gets the board with it used', async () => {
+    const { h, screen, host, a } = await boardTable();
+    const states = [screen, host, a].map(recordStates);
+    expect(await host.emitWithAck('host:pick', { questionIndex: 4 })).toEqual({ ok: true });
+    await Promise.all([screen, host, a].map(flush));
+
+    const room = h.rooms.get('ABCD')!;
+    expect(room).toMatchObject({ phase: 'QUESTION', questionIndex: 4, usedQuestionIds: ['q5'] });
+    const [toScreen, toHost, toA] = states.map((s) => s.at(-1)!);
+    for (const view of [toScreen, toHost]) {
+      if (view?.role !== 'screen' && view?.role !== 'host')
+        throw new Error('Expected a board view');
+      expect(view).toMatchObject({ phase: 'QUESTION', questionIndex: 4 });
+      expect(view.board?.columns[1]?.tiles[1]).toEqual({
+        questionIndex: 4,
+        points: 200,
+        used: true,
+      });
+    }
+    expect(toA).toMatchObject({ phase: 'QUESTION', questionIndex: 4 });
+  });
+
+  it('refuses host:pick from a player, a used tile and a bad payload', async () => {
+    const { host, a } = await boardTable();
+    expect((await a.emitWithAck('host:pick', { questionIndex: 0 })).ok).toBe(false);
+    expect(await host.emitWithAck('host:pick', { questionIndex: 0 })).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:prev', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:pick', { questionIndex: 0 })).toEqual({
+      ok: false,
+      error: 'That tile has been played',
+    });
+    const bad = await host.emitWithAck('host:pick', { questionIndex: -1 });
+    expect(!bad.ok && bad.error).toContain('Invalid host:pick');
   });
 });

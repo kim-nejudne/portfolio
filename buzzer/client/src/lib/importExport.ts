@@ -39,8 +39,11 @@ const dataUrlSchema = z.string().superRefine((value, ctx) => {
   }
 });
 
-/** A file must hold a playable set (DECISIONS F02), with `images` optional for text-only sets. */
-const setFileSchema = questionSetSchema.extend({
+/**
+ * A file must hold a playable set (DECISIONS F02), with `images` optional for text-only sets.
+ * `safeExtend` keeps the set's board check (F89).
+ */
+const setFileSchema = questionSetSchema.safeExtend({
   images: z.record(idSchema, dataUrlSchema).optional(),
 });
 

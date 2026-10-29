@@ -77,6 +77,17 @@ describe('buzzerState', () => {
     expect(buzzerState(view(), true).kind).toBe('practice');
   });
 
+  it('waits on the category board with a grey "Get ready…" that sends nothing (F89)', () => {
+    const board = view({ phase: 'BOARD', falseStartMs: 1000 });
+    for (const pressed of [false, true]) {
+      expect(buzzerState(board, pressed)).toEqual({
+        kind: 'idle',
+        label: 'Get ready…',
+        live: false,
+      });
+    }
+  });
+
   it('asks for a pick while a choice question takes answers, with no buzzer', () => {
     const answering = view({ phase: 'ANSWERING', questionIndex: 0, choice: choice() });
     expect(buzzerState(answering, true)).toEqual({

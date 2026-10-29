@@ -223,6 +223,28 @@ describe('Import JSON', () => {
     expect(parsed).toEqual({ ok: true, set: textOnly, images: [] });
   });
 
+  it('keeps a category board through import, and refuses a board tile not in the set (F89)', () => {
+    const questions = ['a1', 'a2', 'a3', 'b1', 'b2', 'b3'].map((id) => ({
+      ...SET.questions[0]!,
+      id,
+    }));
+    const board = {
+      columns: [
+        { title: 'A', questionIds: ['a1', 'a2', 'a3'] },
+        { title: 'B', questionIds: ['b1', 'b2', 'b3'] },
+      ],
+    };
+    const boardSet = { ...SET, questions, board };
+    expect(parseSetFile(JSON.stringify(boardSet))).toEqual({ ok: true, set: boardSet, images: [] });
+    const broken = {
+      ...boardSet,
+      board: { columns: [board.columns[0], { title: 'B', questionIds: ['b1', 'b2', 'zz'] }] },
+    };
+    expect(errorsOf(JSON.stringify(broken))).toEqual([
+      expect.stringContaining('A board tile must be a question of the set'),
+    ]);
+  });
+
   it('refuses a file that is not JSON', () => {
     expect(errorsOf('{"title": "Pub quiz",')).toEqual([
       expect.stringMatching(/^This file isn't valid JSON/),

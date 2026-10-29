@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { Buzz, Phase, Room } from '../shared/types.js';
-import { T0, makePlayer, makeQuestion, makeRoom, makeSet, withPlayers } from './test/rooms.js';
+import {
+  T0,
+  makeBoardSet,
+  makePlayer,
+  makeQuestion,
+  makeRoom,
+  makeSet,
+  withPlayers,
+} from './test/rooms.js';
 import { reduce, type Action } from './reducer.js';
 import { toView } from './views.js';
 
@@ -49,6 +57,11 @@ function withAvatars(phase: Phase): Room {
 }
 
 const SECRETS = (n: number) => [`Answer-${n}-secret`, `Notes-${n}-secret`];
+
+/** `midGame`'s players on a 2 × 3 board (q1–q6), started: in BOARD with no tile played. */
+function boardGame(): Room {
+  return run(midGame('LOBBY', { set: makeBoardSet(2), questionIndex: -1 }), { type: 'host:start' });
+}
 
 /** `midGame`'s question 2 as a choice question: B ("Lyon") is correct. */
 function choiceGame(phase: Phase, overrides: Partial<Room> = {}): Room {
@@ -396,6 +409,7 @@ describe('toView: canJudge, canUndo and canChangeTeams match what the reducer ac
       ['ANSWERING a typed question', typedAnswering()],
       ['ANSWERING a typed question, closed', typedClosed()],
       ['REVEAL after a typed question', run(typedClosed(), { type: 'host:reveal' })],
+      ['BOARD', boardGame()],
     ];
   }
 
@@ -1045,5 +1059,62 @@ describe('toView: typed questions', () => {
       expect(toView(room, 'host').typed).toBeNull();
     }
     expect(toView(answering(), 'player', 'p1').typed).toBeNull();
+  });
+});
+
+describe('toView: category board', () => {
+  it('is null for the Screen and the host when the set has no board', () => {
+    const room = midGame('QUESTION');
+    expect(toView(room, 'screen').board).toBeNull();
+    expect(toView(room, 'host').board).toBeNull();
+  });
+
+  it('carries the columns with each tile’s index, points and used flag, in every phase', () => {
+    const lobby = midGame('LOBBY', { set: makeBoardSet(2), questionIndex: -1 });
+    const played = run(boardGame(), { type: 'host:pick', questionIndex: 4 });
+    const tiles = (used: boolean[]) =>
+      [0, 1, 2].map((r) => ({ points: (r + 1) * 100, used: used[r] ?? false }));
+    for (const view of [toView(lobby, 'screen'), toView(lobby, 'host')]) {
+      expect(view.board).toEqual({
+        columns: [
+          { title: 'Category 1', tiles: tiles([]).map((t, r) => ({ ...t, questionIndex: r })) },
+          { title: 'Category 2', tiles: tiles([]).map((t, r) => ({ ...t, questionIndex: r + 3 })) },
+        ],
+      });
+    }
+    for (const view of [toView(played, 'screen'), toView(played, 'host')]) {
+      expect(view.board!.columns[1]!.tiles.map((t) => t.used)).toEqual([false, true, false]);
+      expect(view.board!.columns[0]!.tiles.map((t) => t.used)).toEqual([false, false, false]);
+    }
+  });
+
+  it('keeps a played tile used back on the board, and the phase reads BOARD', () => {
+    const room = run(boardGame(), { type: 'host:pick', questionIndex: 0 }, { type: 'host:prev' });
+    for (const view of [toView(room, 'screen'), toView(room, 'host')]) {
+      expect(view.phase).toBe('BOARD');
+      expect(view.board!.columns[0]!.tiles[0]!.used).toBe(true);
+    }
+    expect(toView(room, 'player', 'p1').phase).toBe('BOARD');
+  });
+
+  it('shows no question in BOARD, and no next question or image on a board set', () => {
+    const room = boardGame();
+    expect(toView(room, 'screen').question).toBeNull();
+    expect(toView(room, 'host').question).toBeNull();
+    expect(toView(room, 'host').nextQuestion).toBeNull();
+    expect(toView(room, 'screen').nextImageId).toBeNull();
+    const picked = run(room, { type: 'host:pick', questionIndex: 1 });
+    expect(toView(picked, 'host').question?.id).toBe('q2');
+    expect(toView(picked, 'host').nextQuestion).toBeNull();
+  });
+
+  it('leaks no question text, answer or notes through the board before a tile is played', () => {
+    for (const view of publicViews(boardGame())) {
+      for (let n = 1; n <= 6; n++) {
+        for (const secret of [...SECRETS(n), `Question ${n} text`]) {
+          expect(view).not.toContain(secret);
+        }
+      }
+    }
   });
 });

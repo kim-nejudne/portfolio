@@ -369,6 +369,9 @@ export function attachSockets(
     );
 
     handle(socket, 'host:markTyped', ({ groups }) => asHost({ type: 'host:markTyped', groups }));
+    handle(socket, 'host:pick', ({ questionIndex }) =>
+      asHost({ type: 'host:pick', questionIndex }),
+    );
 
     handle(socket, 'host:kick', ({ playerId }) => {
       const { code } = socket.data;

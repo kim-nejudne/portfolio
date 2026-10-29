@@ -12,6 +12,20 @@ export interface QuestionSet {
   schemaVersion: 1;
   category?: string; // 1–40 characters
   difficulty?: Difficulty;
+  board?: QuestionBoard; // category board (F89)
+}
+
+/**
+ * A category board: 2–6 columns, each a title and its questions' ids, Easy, Medium, Hard from top
+ * to bottom. Every id is a question of the set, used once on the board (F89).
+ */
+export interface QuestionBoard {
+  columns: BoardColumn[];
+}
+
+export interface BoardColumn {
+  title: string; // 1–40 characters
+  questionIds: string[]; // exactly 3: Easy, Medium, Hard
 }
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -39,6 +53,7 @@ export type Phase =
   | 'COLLECTING' // first buzz received, 150 ms window
   | 'BUZZED' // winner shown, waiting for host judgement
   | 'ANSWERING' // choice or typed question: every player answers (F85, F87)
+  | 'BOARD' // category board: host picks the next tile (F89)
   | 'REVEAL' // answer shown
   | 'FINAL';
 
@@ -183,6 +198,7 @@ export interface Room {
   autoOpenAt: number | null; // wall-clock ms; set in QUESTION while question 1's title card holds auto-open
   hostDevices: number; // connected host remotes (not a Screen holding the token)
   session: Session; // the night's games in this room
+  usedQuestionIds: string[]; // category board tiles already picked this game (F89)
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -316,6 +332,18 @@ export interface PlayerTypedView extends TypedView {
   mine: string | null;
 }
 
+/** A board tile: its question's index and points, never its text, and whether it was picked. */
+export interface BoardTile {
+  questionIndex: number;
+  points: number;
+  used: boolean;
+}
+
+/** The category board as the Screen and the host remote draw it, columns in set order (F89). */
+export interface BoardView {
+  columns: { title: string; tiles: BoardTile[] }[];
+}
+
 interface SharedRoomView {
   code: string;
   title: string;
@@ -346,6 +374,8 @@ interface SharedRoomView {
   session: SessionView | null;
   /** Every team with its score and rank while teams are on; null when off (F81). */
   teams: TeamView[] | null;
+  /** The category board with its used tiles, in every phase; null when the set has none (F89). */
+  board: BoardView | null;
 }
 
 /** Everything except answers, host notes and token data. */
@@ -487,6 +517,7 @@ export interface ClientPayloads {
   'host:settings': Partial<RoomSettings>;
   'host:setTeam': { playerId: string; team: number };
   'host:markTyped': { groups: string[] };
+  'host:pick': { questionIndex: number };
   'host:end': Record<string, never>;
 }
 

@@ -236,14 +236,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M22 — Category board
 
-- [ ] F89 Category board: server
-  - Spec: Game flow and state machine; Data model; Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F88
-  - Done when:
-    - `QuestionSet.board?: {columns: {title, questionIds: [easy, medium, hard]}[]}` (2–6 columns); the schema checks every id exists once
-    - Phase `BOARD`: Start game and Next go to BOARD instead of the next question; `host:pick {questionIndex}` in BOARD goes to QUESTION for an unused tile; the question then plays as usual; after the last tile Next goes to FINAL
-    - `Room.usedQuestionIds`; views carry the board with used tiles; `host:prev` returns to BOARD and frees nothing
-  - Tests: `reducer.board.test.ts` (pick, used tiles, finish, prev, invalid picks), `schemas.test.ts`, `views.test.ts`
+- [x] F89 Category board: server
 
 - [ ] F90 Category board: builder and devices
   - Spec: UI spec by view (Screen view, Host remote); Question editor and images (Set list); see DECISIONS, Proposed spec changes (audit)
@@ -277,3 +270,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Choice questions: the Print answer sheet could list the choices with the correct one marked (F84 prints the correct choice as the answer only), and the editor could warn about two choices with the same text.
 - Choice questions: a "Choice time" stepper (5–30 s) in Settings for `choiceSeconds`, settable over `host:settings` only today; the Screen lobby's settings column is full at 1280×720, so it needs a squeeze or a fold (F85, F86). The Screen could play the correct or wrong sound at a choice reveal (no `fx` is sent then), and the remote could name who picked what from `choice.answers` (F86).
 - Typed questions: a group's shown spelling breaks a tie by code point, so "PARIS" beats "paris" on the remote; prefer the spelling closest to the answer, or the first typed (F87, F88). Marking from the Screen's keyboard (it shows no groups, so Reveal and score uses the pre-marks there), and the correct and wrong sounds at a typed reveal (F88).
+- Category board: the set editor keeps a set's `board`, so deleting a question that sits on a tile leaves a board the schema refuses at Host time. The editor could show the board, drop it with a warning, or refuse to delete a tile's question (F89). A `BOARD` → FINAL Next once every tile is used, if End game proves too hidden (F89).

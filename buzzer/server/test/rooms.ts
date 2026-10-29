@@ -60,3 +60,23 @@ export function makePlayer(id: string, overrides: Partial<Player> = {}): Player 
 export function withPlayers(room: Room, players: Player[]): Room {
   return { ...room, players: Object.fromEntries(players.map((p) => [p.id, p])) };
 }
+
+/**
+ * A category board set (F89): `columns` columns of 3 questions, Easy, Medium, Hard at 100, 200
+ * and 300 points. Column c holds q(3c+1) to q(3c+3); `offBoard` more questions follow, on no tile.
+ */
+export function makeBoardSet(columns = 2, offBoard = 0): QuestionSet {
+  const onBoard = columns * 3;
+  return {
+    ...makeSet(onBoard + offBoard),
+    questions: Array.from({ length: onBoard + offBoard }, (_, i) =>
+      makeQuestion(i + 1, { points: i < onBoard ? ((i % 3) + 1) * 100 : 100 }),
+    ),
+    board: {
+      columns: Array.from({ length: columns }, (_, c) => ({
+        title: `Category ${c + 1}`,
+        questionIds: [`q${3 * c + 1}`, `q${3 * c + 2}`, `q${3 * c + 3}`],
+      })),
+    },
+  };
+}

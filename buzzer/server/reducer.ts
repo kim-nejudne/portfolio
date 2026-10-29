@@ -34,13 +34,18 @@ export const PICK_CHOICE_ERROR = 'Pick a choice';
 export const ANSWERS_CLOSED_ERROR = 'Answers are closed';
 export const NOT_TYPED_ERROR = 'Not a typed question';
 
+/** Errors for a pick that is not a tile of the board, or a tile already played (F89). */
+export const NOT_ON_BOARD_ERROR = 'Not a tile on the board';
+export const TILE_USED_ERROR = 'That tile has been played';
+
 /** The error for a team move, or a change of team count, during a question or after the game. */
 export const TEAMS_PHASE_ERROR = 'Teams can change only in the lobby or between questions';
 
 /** Phases a player may change team in, or the team count change: before the game and between questions. */
 // SPEC-QUESTION: `host:settings` is "any phase", but a team count change regroups everyone, so it
-// shares host:setTeam's phases; "between questions" is REVEAL. See DECISIONS (F81).
-const TEAM_PHASES: readonly Phase[] = ['LOBBY', 'REVEAL'];
+// shares host:setTeam's phases; "between questions" is REVEAL, and BOARD on a board set (F89).
+// See DECISIONS (F81).
+const TEAM_PHASES: readonly Phase[] = ['LOBBY', 'REVEAL', 'BOARD'];
 
 /** Phases before the answer is shown. `host:reveal` accepts these; `host:prev` also accepts REVEAL. */
 const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'ANSWERING'];
@@ -101,6 +106,7 @@ export type Action =
   | { type: 'host:settings'; settings: Partial<RoomSettings> }
   | { type: 'host:setTeam'; playerId: string; team: number }
   | { type: 'host:markTyped'; groups: string[] }
+  | { type: 'host:pick'; questionIndex: number }
   | { type: 'host:newGame'; set: QuestionSet; keepScores: boolean };
 
 /**
@@ -273,6 +279,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return hostSetTeam(room, action);
     case 'host:markTyped':
       return hostMarkTyped(room, action);
+    case 'host:pick':
+      return hostPick(room, action);
     case 'host:newGame':
       return hostNewGame(room, action);
     default:
@@ -996,6 +1004,7 @@ function hostNewGame(
     phase: 'LOBBY',
     questionIndex: -1,
     judgements: [],
+    usedQuestionIds: [],
     showScoreboard: false,
   });
 }
@@ -1032,6 +1041,8 @@ function hostStart(room: Room, now: number): ReduceResult {
   if (room.phase !== 'LOBBY') return fail(WRONG_PHASE_ERROR);
   // SPEC-QUESTION: "at least 1 player" counts disconnected players too; see DECISIONS (F13).
   if (Object.keys(room.players).length === 0) return fail('Wait for at least one player to join');
+  // A board game starts on the board; auto-open waits for the first pick (F89).
+  if (room.set.board) return done(onBoard(room));
   if (!room.settings.autoOpenBuzzers) return done(enterQuestion(room, 0));
   // Auto-open waits out the Screen's title card, so nobody can buzz on a question still hidden
   // behind it (DECISIONS F66). The host may open sooner.
@@ -1074,12 +1085,15 @@ function revealed(room: Room): Room {
 
 function hostNext(room: Room): ReduceResult {
   if (room.phase !== 'REVEAL') return fail(WRONG_PHASE_ERROR);
-  const finished = room.questionIndex + 1;
+  // On a board set, the questions finished are the tiles picked (F89).
+  const finished = room.set.board ? room.usedQuestionIds.length : room.questionIndex + 1;
   const every = room.settings.scoreboardEvery;
   const showScoreboard = every > 0 && finished % every === 0;
-  if (finished >= room.set.questions.length) {
+  const last = room.set.board ? boardTiles(room).length : room.set.questions.length;
+  if (finished >= last) {
     return done(tallied({ ...room, ...clearedQuestion, phase: 'FINAL', showScoreboard }));
   }
+  if (room.set.board) return done(onBoard({ ...room, showScoreboard }));
   return done(enterQuestion({ ...room, showScoreboard }, finished));
 }
 
@@ -1087,9 +1101,41 @@ function hostPrev(room: Room): ReduceResult {
   if (room.phase !== 'REVEAL' && !QUESTION_PHASES.includes(room.phase)) {
     return fail(WRONG_PHASE_ERROR);
   }
+  // Back to the board, with the tile still used: a pick is never undone (F89). With every tile
+  // played, the host ends the game with End game (DECISIONS F89).
+  if (room.set.board) return done(onBoard(room));
   // SPEC-QUESTION: going back onto an answered question; see DECISIONS #8 and (F13).
   if (room.questionIndex <= 0) return fail('Already on the first question');
   return done(enterQuestion(room, room.questionIndex - 1));
+}
+
+/**
+ * BOARD → the picked tile's question, played as any other: auto-open applies, as on a next.
+ * The tile is used from the pick on, so going back to the board does not free it (F89).
+ */
+function hostPick(
+  room: Room,
+  { questionIndex }: Extract<Action, { type: 'host:pick' }>,
+): ReduceResult {
+  if (room.phase !== 'BOARD') return fail(WRONG_PHASE_ERROR);
+  const id = room.set.questions[questionIndex]?.id;
+  if (id === undefined || !boardTiles(room).includes(id)) return fail(NOT_ON_BOARD_ERROR);
+  if (room.usedQuestionIds.includes(id)) return fail(TILE_USED_ERROR);
+  const picked = { ...room, usedQuestionIds: [...room.usedQuestionIds, id], showScoreboard: false };
+  return done(enterQuestion(picked, questionIndex));
+}
+
+/** Every question id on the room's board, column by column; none without a board. */
+function boardTiles(room: Room): string[] {
+  return room.set.board?.columns.flatMap((c) => c.questionIds) ?? [];
+}
+
+/**
+ * → BOARD, between questions of a board set. No question is current there, so `questionIndex`
+ * is -1 as in the lobby, and every per-question field starts empty (DECISIONS F89).
+ */
+function onBoard(room: Room): Room {
+  return { ...room, ...clearedQuestion, phase: 'BOARD', questionIndex: -1 };
 }
 
 /** Per-question state that starts empty on every question. */

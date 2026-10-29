@@ -184,6 +184,11 @@ export const QUESTION_MODES = [
 export const CHOICES_MIN = 2;
 export const CHOICES_MAX = 4;
 export const CHOICE_TEXT_MAX = 80;
+/** A category board's columns (F89); each column's title shares the set category's limit. */
+export const BOARD_COLUMNS_MIN = 2;
+export const BOARD_COLUMNS_MAX = 6;
+/** A board column's questions, top to bottom: Easy, Medium, Hard (DECISIONS F89). */
+export const BOARD_ROWS = 3;
 /** How choices are labelled on every device, in order. */
 export const CHOICE_LETTERS = ['A', 'B', 'C', 'D'] as const;
 /** Each choice's tile colour on every device, in letter order; dark text reads on all four (F86). */

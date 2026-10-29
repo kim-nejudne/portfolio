@@ -63,6 +63,9 @@ export function buzzerState(
     case 'LOBBY':
       // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
       return { kind: 'practice', label: 'Tap to test your buzzer', live: false };
+    case 'BOARD':
+      // The host is picking the next tile; the phone waits as before a question (DECISIONS F89).
+      return idle('Get ready…');
     case 'QUESTION':
       // A choice or typed question has no buzzer, so no false start either (DECISIONS, F85).
       if (view.choice || view.typed) return idle('Get ready…');

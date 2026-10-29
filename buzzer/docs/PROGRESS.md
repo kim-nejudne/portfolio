@@ -12,6 +12,39 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F89 — Category board: server (2026-10-30)
+**What changed:**
+- Shared:
+  - `QuestionSet.board?: {columns: {title, questionIds}[]}` (`QuestionBoard`, `BoardColumn`), with `BOARD_COLUMNS_MIN/MAX` (2/6) and `BOARD_ROWS` (3).
+  - Phase `'BOARD'` and `Room.usedQuestionIds`. A `BoardView` (titles; per tile `{questionIndex, points, used}`, no text) goes on the Screen and host views as `board`, null without a board.
+  - New `host:pick {questionIndex}`.
+- Schemas: `boardSchema` (2–6 columns, titles trimmed to 1–40, exactly 3 ids each). A set-level check refuses a tile that is not a question of the set, or a question on the board twice. The import file schema now uses `safeExtend`, because zod 4 won't `extend` a refined object, so imports keep the board check.
+- Reducer:
+  - `host:start` on a board set goes to BOARD (`questionIndex` -1, no title-card hold).
+  - `host:pick` (BOARD only) refuses an index that is not a tile, or a used tile. Otherwise it marks the tile used and plays the question through `enterQuestion`, with auto-open as on a Next.
+  - `host:next` from REVEAL goes to BOARD, or to FINAL after the last tile. The scoreboard counts tiles picked.
+  - `host:prev` from a question phase or REVEAL goes back to BOARD and frees nothing.
+  - BOARD joins the team-change phases. `host:newGame` and `createRoom` reset `usedQuestionIds`.
+- Views and gateway: `boardView`. `nextQuestion` and `nextImageId` are null on a board set. A `host:pick` handler. Phone: a grey "Get ready…" in BOARD.
+- Tests:
+  - New `reducer.board.test.ts` (39): start, auto-open, pick, plays as usual, used and off-board tiles, the wrong phases, next to BOARD and FINAL, scoreboard cadence, prev from 3 phases, scores kept, End game after prev from the last tile, buzzes and other actions in BOARD, team moves, a stale timer, new game.
+  - `schemas.test.ts` +9, `views.test.ts` +5 (plus BOARD in the canJudge/canUndo/canChangeTeams matrix), `sockets.test.ts` +2, `importExport.test.ts` +1, `buzzerState.test.ts` +1. Fixture `makeBoardSet` in `server/test/rooms.ts`.
+  - 2278 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-30 for F89 (schema and off-board questions; BOARD view and index -1; start, pick and auto-open; next, prev and the empty board; teams and the phone).
+
+**Notes for next session:**
+- **F90 builds the board UI on `view.board`.** Until then the Screen and remote render nothing designed for BOARD, and no client sends `host:pick`. Pick a tile by `tile.questionIndex`.
+- The Screen's title card triggers on LOBBY → QUESTION with index 0, so a board game never shows it. F90 could show it on LOBBY → BOARD.
+- The remote's and the Screen host bar's Previous are disabled at `questionIndex <= 0` (`SecondaryActions.tsx`, `ScreenHostControls.tsx`). On a board set, Prev from any tile is valid (back to BOARD), so F90 should enable it there and hide it in BOARD.
+- In BOARD, the phone's header has no "Question N of M" line, because `questionIndex` is -1.
+- After a Prev out of the last tile, the board is all used and only End game finishes the game. F90's remote should make that obvious (Backlog has the alternative).
+- Backlog: the editor keeps `board`, so deleting a tile's question breaks hosting the set.
+- The review found no Must-fix. I fixed its Should-fixes: the DECISIONS rows, and a table of actions refused in BOARD.
+- No playtest: server-only feature with no UI. Main `index` chunk 514.98 → 515.79 kB.
+
+**How to try it:** `npm test -- server/reducer.board.test.ts server/views.test.ts server/sockets.test.ts shared/schemas.test.ts`. There is no UI until F90. A set JSON with a `board` imports at `http://localhost:5173/sets` and hosts. The Screen and remote then sit in BOARD, and you pick a tile by sending `host:pick {questionIndex}` from a socket script, as in `.playtest/F87/drive.mjs`.
+
 ## F88 — Typed answers: devices (2026-10-30)
 **What changed:**
 - Lib:

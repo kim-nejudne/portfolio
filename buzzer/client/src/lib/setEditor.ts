@@ -103,6 +103,7 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     falseStarts: [],
     session: null,
     teams: null,
+    board: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     canJudge: false,

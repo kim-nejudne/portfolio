@@ -4,6 +4,7 @@
 
 import type {
   AnswerTimerView,
+  BoardView,
   BuzzGap,
   BuzzTimerView,
   ChoiceView,
@@ -59,7 +60,7 @@ function screenView(room: Room): ScreenView {
     ...shared(room),
     players: ranked.map(publicPlayer),
     question: current ? screenQuestion(current, isRevealed(room)) : null,
-    nextImageId: room.set.questions[room.questionIndex + 1]?.imageId ?? null,
+    nextImageId: nextQuestion(room)?.imageId ?? null,
     category: room.set.category ?? null,
     difficulty: room.set.difficulty ?? null,
     hostDevices: room.hostDevices,
@@ -76,7 +77,7 @@ function hostView(room: Room): HostView {
     ...shared(room),
     players: joined.map((p) => ({ ...publicPlayer(p), rttMs: p.rttMs })),
     question: currentQuestion(room),
-    nextQuestion: room.set.questions[room.questionIndex + 1] ?? null,
+    nextQuestion: nextQuestion(room),
     buzzes: room.buzzes,
     judgements: room.judgements,
     choice: hostChoiceView(room),
@@ -169,7 +170,36 @@ function shared(room: Room) {
     buzzTimer: buzzTimerView(room),
     session: sessionView(room),
     teams: teamsView(room),
+    board: boardView(room),
   };
+}
+
+/**
+ * The board's columns with each tile's question index, points and whether it was picked. No
+ * question text, so it is the same for the Screen and the host. Null without a board (F89).
+ */
+function boardView(room: Room): BoardView | null {
+  const { board, questions } = room.set;
+  if (!board) return null;
+  return {
+    columns: board.columns.map((column) => ({
+      title: column.title,
+      tiles: column.questionIds.map((id) => {
+        const questionIndex = questions.findIndex((q) => q.id === id);
+        return {
+          questionIndex,
+          points: questions[questionIndex]?.points ?? 0,
+          used: room.usedQuestionIds.includes(id),
+        };
+      }),
+    })),
+  };
+}
+
+/** The question after this one in set order; none on a board set, where the host picks it (F89). */
+function nextQuestion(room: Room): Question | null {
+  if (room.set.board) return null;
+  return room.set.questions[room.questionIndex + 1] ?? null;
 }
 
 /**

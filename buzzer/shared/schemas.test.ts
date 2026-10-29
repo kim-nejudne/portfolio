@@ -3,6 +3,8 @@ import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
   AVATARS,
+  BOARD_COLUMNS_MAX,
+  BOARD_COLUMNS_MIN,
   BUZZ_SECONDS_CHOICES,
   CHOICE_TEXT_MAX,
   FALSE_START_MS_CHOICES,
@@ -172,6 +174,105 @@ describe('questionSetSchema', () => {
 
   it('rejects an unknown schema version', () => {
     expect(questionSetSchema.safeParse({ ...set(), schemaVersion: 2 }).success).toBe(false);
+  });
+});
+
+describe('questionSetSchema: category board (F89)', () => {
+  /** `columns` columns of three questions each, c1q1…; ids on the board by default. */
+  function boardSet(columns: number, board?: QuestionSet['board']): QuestionSet {
+    const ids = Array.from({ length: columns }, (_, c) => [1, 2, 3].map((r) => `c${c}q${r}`));
+    return set({
+      questions: ids.flat().map((id) => question({ id })),
+      board: board ?? {
+        columns: ids.map((questionIds, c) => ({ title: `Category ${c + 1}`, questionIds })),
+      },
+    });
+  }
+
+  it('accepts 2 to 6 columns of three questions, and keeps the board', () => {
+    for (const columns of [BOARD_COLUMNS_MIN, BOARD_COLUMNS_MAX]) {
+      const parsed = questionSetSchema.parse(boardSet(columns));
+      expect(parsed.board?.columns).toHaveLength(columns);
+    }
+  });
+
+  it('refuses fewer than 2 or more than 6 columns', () => {
+    expect(questionSetSchema.safeParse(boardSet(BOARD_COLUMNS_MIN - 1)).success).toBe(false);
+    expect(questionSetSchema.safeParse(boardSet(BOARD_COLUMNS_MAX + 1)).success).toBe(false);
+  });
+
+  it('refuses a column without exactly three questions', () => {
+    const valid = boardSet(2);
+    for (const questionIds of [
+      ['c0q1', 'c0q2'],
+      ['c0q1', 'c0q2', 'c0q3', 'c1q1'],
+    ]) {
+      const columns = [{ title: 'Short', questionIds }, valid.board!.columns[1]!];
+      const result = questionSetSchema.safeParse({ ...valid, board: { columns } });
+      expect(result.success, questionIds.join()).toBe(false);
+    }
+  });
+
+  it('trims a column title and refuses a blank or over-long one', () => {
+    const valid = boardSet(2);
+    const titled = (title: string) => ({
+      ...valid,
+      board: { columns: [{ ...valid.board!.columns[0]!, title }, valid.board!.columns[1]!] },
+    });
+    expect(questionSetSchema.parse(titled('  Rivers ')).board!.columns[0]!.title).toBe('Rivers');
+    expect(questionSetSchema.safeParse(titled('x'.repeat(SET_CATEGORY_MAX))).success).toBe(true);
+    for (const title of ['', '   ', 'x'.repeat(SET_CATEGORY_MAX + 1)]) {
+      expect(questionSetSchema.safeParse(titled(title)).success, title).toBe(false);
+    }
+  });
+
+  it('refuses a tile that is not a question of the set', () => {
+    const valid = boardSet(2);
+    const columns = [
+      { title: 'A', questionIds: ['c0q1', 'c0q2', 'missing'] },
+      valid.board!.columns[1]!,
+    ];
+    const result = questionSetSchema.safeParse({ ...valid, board: { columns } });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe('A board tile must be a question of the set');
+    expect(result.error?.issues[0]?.path).toEqual(['board', 'columns', 0, 'questionIds', 2]);
+  });
+
+  it('refuses a question on the board twice, in one column or across two', () => {
+    const valid = boardSet(2);
+    for (const [first, second] of [
+      [
+        ['c0q1', 'c0q1', 'c0q3'],
+        ['c1q1', 'c1q2', 'c1q3'],
+      ],
+      [
+        ['c0q1', 'c0q2', 'c0q3'],
+        ['c1q1', 'c0q2', 'c1q3'],
+      ],
+    ]) {
+      const columns = [
+        { title: 'A', questionIds: first! },
+        { title: 'B', questionIds: second! },
+      ];
+      const result = questionSetSchema.safeParse({ ...valid, board: { columns } });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe('A question can be on the board only once');
+    }
+  });
+
+  it('allows questions off the board, and a set with no board at all', () => {
+    const valid = boardSet(2);
+    const extra = { ...valid, questions: [...valid.questions, question({ id: 'spare' })] };
+    expect(questionSetSchema.safeParse(extra).success).toBe(true);
+    expect(questionSetSchema.parse(set()).board).toBeUndefined();
+  });
+
+  it('room creation checks the board too', () => {
+    const valid = boardSet(2);
+    const columns = [{ title: 'A', questionIds: ['x', 'y', 'z'] }, valid.board!.columns[1]!];
+    const body = { set: { ...valid, board: { columns } }, settings: DEFAULT_SETTINGS };
+    expect(createRoomBodySchema.safeParse(body).success).toBe(false);
+    expect(createRoomBodySchema.safeParse({ ...body, set: valid }).success).toBe(true);
   });
 });
 
@@ -391,6 +492,16 @@ describe('createRoomBodySchema', () => {
     expect(markTyped.safeParse({}).success).toBe(false);
   });
 
+  it('host:pick takes a question index, a whole number within a set (F89)', () => {
+    const pick = clientPayloadSchemas['host:pick'];
+    expect(pick.parse({ questionIndex: 0 })).toEqual({ questionIndex: 0 });
+    expect(pick.safeParse({ questionIndex: MAX_QUESTIONS_PER_SET - 1 }).success).toBe(true);
+    for (const questionIndex of [-1, MAX_QUESTIONS_PER_SET, 1.5, '2', null]) {
+      expect(pick.safeParse({ questionIndex }).success, String(questionIndex)).toBe(false);
+    }
+    expect(pick.safeParse({}).success).toBe(false);
+  });
+
   it('host:settings takes a preset’s five keys in one payload (F73)', () => {
     const settings = clientPayloadSchemas['host:settings'];
     const party = {
@@ -486,6 +597,7 @@ describe('client event payloads', () => {
       'host:kick': { playerId: 'p1' },
       'host:settings': { scoreboardEvery: 0 },
       'host:setTeam': { playerId: 'p1', team: 3 },
+      'host:pick': { questionIndex: 4 },
       'host:markTyped': { groups: ['paris', 'paris france'] },
       'host:end': {},
     };

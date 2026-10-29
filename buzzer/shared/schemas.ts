@@ -5,6 +5,9 @@ import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
   AVATARS,
+  BOARD_COLUMNS_MAX,
+  BOARD_COLUMNS_MIN,
+  BOARD_ROWS,
   BUZZ_SECONDS_CHOICES,
   CHOICE_SECONDS_MAX,
   CHOICE_SECONDS_MIN,
@@ -153,24 +156,65 @@ export const questionSchema = z
     return rest;
   });
 
-/** A playable set: what room creation and import accept. Editor drafts may be incomplete. */
-export const questionSetSchema = z.object({
-  id: idSchema,
-  title: z.string().trim().min(1).max(SET_TITLE_MAX),
-  // Optional, so files from before F53 still import; schemaVersion stays 1 (DECISIONS F53).
-  category: z.string().trim().min(1).max(SET_CATEGORY_MAX).optional(),
-  difficulty: z.enum(DIFFICULTIES).optional(),
-  questions: z
-    .array(questionSchema)
-    .min(1)
-    .max(MAX_QUESTIONS_PER_SET)
-    .refine((qs) => new Set(qs.map((q) => q.id)).size === qs.length, {
-      message: 'Question ids must be unique',
-    }),
-  createdAt: z.int().nonnegative(),
-  updatedAt: z.int().nonnegative(),
-  schemaVersion: z.literal(1),
+/** A category board's shape; which ids it may hold is checked against the set's questions (F89). */
+export const boardSchema = z.object({
+  columns: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(SET_CATEGORY_MAX),
+        questionIds: z.array(idSchema).length(BOARD_ROWS),
+      }),
+    )
+    .min(BOARD_COLUMNS_MIN)
+    .max(BOARD_COLUMNS_MAX),
 });
+
+/** A playable set: what room creation and import accept. Editor drafts may be incomplete. */
+export const questionSetSchema = z
+  .object({
+    id: idSchema,
+    title: z.string().trim().min(1).max(SET_TITLE_MAX),
+    // Optional, so files from before F53 still import; schemaVersion stays 1 (DECISIONS F53).
+    category: z.string().trim().min(1).max(SET_CATEGORY_MAX).optional(),
+    difficulty: z.enum(DIFFICULTIES).optional(),
+    questions: z
+      .array(questionSchema)
+      .min(1)
+      .max(MAX_QUESTIONS_PER_SET)
+      .refine((qs) => new Set(qs.map((q) => q.id)).size === qs.length, {
+        message: 'Question ids must be unique',
+      }),
+    createdAt: z.int().nonnegative(),
+    updatedAt: z.int().nonnegative(),
+    schemaVersion: z.literal(1),
+    board: boardSchema.optional(),
+  })
+  // Every tile is a question of the set, and no question sits on the board twice. A question off
+  // the board is allowed; a board game never reaches it (DECISIONS F89).
+  .superRefine((set, ctx) => {
+    if (set.board === undefined) return;
+    const ids = new Set(set.questions.map((q) => q.id));
+    const seen = new Set<string>();
+    set.board.columns.forEach((column, c) => {
+      column.questionIds.forEach((id, r) => {
+        const path = ['board', 'columns', c, 'questionIds', r];
+        if (!ids.has(id)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'A board tile must be a question of the set',
+            path,
+          });
+        } else if (seen.has(id)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'A question can be on the board only once',
+            path,
+          });
+        }
+        seen.add(id);
+      });
+    });
+  });
 
 export const roomSettingsSchema = z.object({
   wrongPenalty: z.boolean(),
@@ -252,6 +296,13 @@ export const clientPayloadSchemas = {
       .int()
       .min(0)
       .max(TEAMS.length - 1),
+  }),
+  // The reducer checks the index against the room's board.
+  'host:pick': z.object({
+    questionIndex: z
+      .int()
+      .min(0)
+      .max(MAX_QUESTIONS_PER_SET - 1),
   }),
   'host:end': emptySchema,
 } satisfies { [E in ClientEvent]: z.ZodType<ClientPayloads[E]> };

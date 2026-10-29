@@ -41,6 +41,7 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     autoOpenAt: null,
     hostDevices: 0,
     session: { gameNumber: 1, totals: {}, players: {}, carried: {} },
+    usedQuestionIds: [],
     showScoreboard: false,
     createdAt: T0,
     lastActivityAt,
