@@ -11,6 +11,9 @@ import {
 } from '../lib/setFilter.js';
 import { INPUT, LABEL } from '../lib/ui.js';
 
+// The Preview button: the size of `/sets`' card buttons, so it is a 44 px target in a picker row too.
+const PREVIEW_BUTTON = `min-h-11 shrink-0 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
 
 interface CommonProps {
@@ -22,6 +25,8 @@ interface CommonProps {
   /** The list's box under the search and chips, such as its scroller. */
   listClassName?: string;
   className?: string;
+  /** Adds a **Preview** button per set (DECISIONS F56). Never on the Screen: it shows answers. */
+  onPreview?: (set: QuestionSet) => void;
 }
 
 /** One radio per set, for the pickers. */
@@ -45,7 +50,7 @@ interface ActionProps extends CommonProps {
  * by category in the order given. Enter in the search box picks the one set left.
  */
 export function SetBrowser(props: SelectProps | ActionProps) {
-  const { sets, id, detail, listClassName = '', className = '' } = props;
+  const { sets, id, detail, listClassName = '', className = '', onPreview } = props;
   const [filter, setFilter] = useState<SetFilter>({ query: '', difficulties: [] });
   const listRef = useRef<HTMLDivElement>(null);
   const shown = filterSets(sets, filter);
@@ -95,23 +100,35 @@ export function SetBrowser(props: SelectProps | ActionProps) {
               {group.category}
             </h3>
             {group.sets.map((set) => (
-              <label
+              <div
                 key={set.id}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent"
+                className="flex items-center gap-2 rounded-xl border-2 border-edge bg-bg has-checked:border-accent"
               >
-                <input
-                  type="radio"
-                  name={`${id}-set`}
-                  value={set.id}
-                  checked={props.selectedId === set.id}
-                  onChange={() => props.onSelect(set.id)}
-                  className="size-5 shrink-0 accent-accent"
-                />
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate">{set.title}</span>
-                  <span className="text-sm text-muted">{detail(set)}</span>
-                </span>
-              </label>
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-4 py-3">
+                  <input
+                    type="radio"
+                    name={`${id}-set`}
+                    value={set.id}
+                    checked={props.selectedId === set.id}
+                    onChange={() => props.onSelect(set.id)}
+                    className="size-5 shrink-0 accent-accent"
+                  />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate">{set.title}</span>
+                    <span className="text-sm text-muted">{detail(set)}</span>
+                  </span>
+                </label>
+                {onPreview && (
+                  <button
+                    type="button"
+                    onClick={() => onPreview(set)}
+                    aria-label={`Preview ${set.title}`}
+                    className={`${PREVIEW_BUTTON} mr-2`}
+                  >
+                    Preview
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         ))}
@@ -141,7 +158,19 @@ export function SetBrowser(props: SelectProps | ActionProps) {
                     </h3>
                     <p className="text-muted">{detail(set)}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">{props.actions(set)}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {props.actions(set)}
+                    {onPreview && (
+                      <button
+                        type="button"
+                        onClick={() => onPreview(set)}
+                        aria-label={`Preview ${set.title}`}
+                        className={PREVIEW_BUTTON}
+                      >
+                        Preview
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

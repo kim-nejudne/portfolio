@@ -242,6 +242,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
           phase={view.phase}
           onClose={closeNewGame}
           onNotice={show}
+          preview
         />
       )}
       <Toast toast={toast} />

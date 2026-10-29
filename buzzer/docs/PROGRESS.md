@@ -12,6 +12,27 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F56 — Set preview before hosting (2026-10-29)
+**What changed:**
+- `client/src/components/SetPreview.tsx`: a read-only dialog listing every question of a set: "Question N · P points", the text, a picture thumbnail, the answer and the host notes. A picture missing from this browser is named. Pictures come from `imagesOf(set)` (now exported from `hostRoom.ts`): the bundle for the sample, else Dexie, loaded lazily. Escape or Close returns focus to the Preview button. The page or picker behind is `inert`.
+- `SetBrowser` takes `onPreview`, which adds a **Preview** button ("Preview <title>") beside each picker radio and after each `/sets` card's actions. **Host a game** and the remote's **New game** offer **Pick this set**, which selects it. `/sets` (both tabs) offers **Host this set**. `NewGamePicker` shows Preview only with the `preview` prop: `Host.tsx` passes it and `Screen.tsx` doesn't.
+- Tests: `SetPreview.test.tsx` (4), `NewGamePicker.test.tsx` +3, `Sets.test.tsx` +3 (built-in card buttons now include Preview), `Landing.test.tsx` +1, `Screen.test.tsx` +1 and `Host.test.tsx` +1 (page-level: none on the Screen, one per set on the remote; both files now import `fake-indexeddb/auto`). 1323 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F56 (the dialog's content and image source; where Preview shows, the action labels, Esc).
+
+**Notes for next session:**
+- **Focus gotcha:** `inert` on the page behind blurs the clicked Preview button before effects run. So `SetPreview` reads the opener in a `useState` initializer on its first render. jsdom has no `inert` blur, so only the playtest covers this.
+- Playtest (Playwright):
+  - First run (390×844 and 1920×1080), 5 of 5 steps passed. `/sets` preview of the sample copy showed 10 questions and 2 thumbnails, and Host this set created a room. On Host a game, Pick this set checked the sample and Create room worked. The remote's New game had 63 Preview buttons; the Screen's had 0.
+  - Recheck at 375×667: no horizontal scroll. Preview buttons are 44 px, inside the row. The dialog's list scrolls inside it, with Pick and Close in view. Picker `section` and `/sets` `main` were `inert` while it was open. The recheck found focus returning to `body`, which led to the fix above. After the fix, focus returned to the Preview button after Escape, Pick and Close. Close is now 44 px.
+  - No console errors.
+- Not checked: a title long enough to truncate beside the Preview button at 375 px (none of the built-ins is).
+
+**How to try it:** `npm run dev`.
+1. On a phone (or devtools at 375×667), open `http://<laptop-LAN-IP>:5173` and tap **Host a game**. Tap **Preview** on "Sample: General Knowledge" to see every question with its answer, notes and the two pictures. Tap **Pick this set**, then **Create room**.
+2. On the laptop, open `http://localhost:5173/sets`. **Preview** is on every card in both tabs, and **Host this set** in the preview creates a room.
+3. Play a game to FINAL. **New game** on the host remote has Preview on every set; **New game** on the Screen has none.
+
 ## F55 — Set browser: search, categories and difficulty (2026-10-29)
 **What changed:**
 - `client/src/lib/setFilter.ts`: `filterSets` (every query word in the title or category, case- and accent-insensitive; difficulty chips any-of, `none` for sets without one) and `groupByCategory` (groups in first-appearance order, "Other" for no category or the category "Other", list order kept).

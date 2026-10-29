@@ -52,7 +52,7 @@ const loadSampleImage: LoadImage = async (imageId) =>
  * id alone tells them apart: Dexie v3 gave every stored copy a fresh id, and import and duplicate
  * mint fresh ids, so no stored set has the sample's id.
  */
-function imagesOf(set: QuestionSet): LoadImage {
+export function imagesOf(set: QuestionSet): LoadImage {
   return set.id === SAMPLE_SET_ID ? loadSampleImage : loadStoredImage;
 }
 

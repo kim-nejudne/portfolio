@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -434,6 +435,17 @@ describe('Host remote', () => {
         expect(within(picker).getByRole('checkbox', { name: 'Keep scores' })).toBeTruthy();
         fireEvent.click(within(picker).getByRole('button', { name: 'Cancel' }));
         expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
+      });
+
+      it("the remote's picker offers Preview for every set", async () => {
+        remote(final([player(1)]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
+        const picker = screen.getByRole('dialog', { name: 'New game' });
+        const radios = await within(picker).findAllByRole('radio');
+        expect(within(picker).getAllByRole('button', { name: /^Preview/ })).toHaveLength(
+          radios.length,
+        );
       });
 
       it('offers New game only in FINAL', () => {

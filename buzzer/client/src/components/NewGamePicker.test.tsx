@@ -49,10 +49,10 @@ function stubPut(status = 200) {
   return { fetch, release };
 }
 
-function renderPicker(phase: Phase = 'FINAL') {
+function renderPicker(phase: Phase = 'FINAL', preview = false) {
   const onClose = vi.fn();
   const onNotice = vi.fn();
-  const props = { code: 'WXYZ', hostToken: 'token-1', onClose, onNotice };
+  const props = { code: 'WXYZ', hostToken: 'token-1', onClose, onNotice, preview };
   const view = render(<NewGamePicker {...props} phase={phase} />);
   return {
     onClose,
@@ -282,5 +282,43 @@ describe('NewGamePicker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers no Preview on the Screen, which never passes `preview`', async () => {
+    renderPicker();
+    await options();
+    expect(within(dialog()).queryAllByRole('button', { name: /^Preview/ })).toEqual([]);
+    expect(screen.queryByText('Answer:', { exact: false })).toBeNull();
+  });
+
+  it("on the remote, Preview shows a set's answers, and Pick this set selects it", async () => {
+    renderPicker('FINAL', true);
+    const radios = await options();
+    expect(within(dialog()).getAllByRole('button', { name: /^Preview/ })).toHaveLength(
+      radios.length,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Round two' }));
+    const preview = screen.getByRole('dialog', { name: 'Round two' });
+    expect(within(preview).getByRole('listitem', { name: 'Question 1' }).textContent).toBe(
+      'Question 1 · 100 pointsWhat?Answer: Yes',
+    );
+    fireEvent.click(within(preview).getByRole('button', { name: 'Pick this set' }));
+    expect(screen.queryByRole('dialog', { name: 'Round two' })).toBeNull();
+    expect(radios[0]!.checked).toBe(false);
+    expect(radios[1]!.checked).toBe(true);
+  });
+
+  it('Esc in a preview closes only the preview', async () => {
+    const { onClose } = renderPicker('FINAL', true);
+    await options();
+    const opener = screen.getByRole('button', { name: 'Preview Round two' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Round two' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Preview Round two' }));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -133,7 +133,7 @@ describe('Set list tabs', () => {
     expect(await selectedTab()).toBe('Built-in');
   });
 
-  it('a built-in card offers only Duplicate to My sets and Host this set', async () => {
+  it('a built-in card offers only Duplicate to My sets, Host this set and Preview', async () => {
     renderSets();
     const starter = await card(STARTER_SETS[0]!.title);
     expect(starter.getByText('15 questions · Easy')).toBeTruthy();
@@ -142,7 +142,7 @@ describe('Set list tabs', () => {
         .getAllByRole('button')
         .concat(starter.queryAllByRole('link'))
         .map((b) => b.textContent),
-    ).toEqual(['Duplicate to My sets', 'Host this set']);
+    ).toEqual(['Duplicate to My sets', 'Host this set', 'Preview']);
   });
 
   it('groups the built-in cards under category headings, the sample under Other', async () => {
@@ -209,6 +209,32 @@ describe('Set list tabs', () => {
     expect(new Set(set.questions.map((q) => q.points))).toEqual(new Set([300]));
   });
 
+  it('Preview of the built-in sample shows its answers and its pictures from the bundle', async () => {
+    Object.assign(URL, { createObjectURL: () => 'blob:sample', revokeObjectURL: () => {} });
+    renderSets();
+    fireEvent.click(
+      (await card(SAMPLE_SET.title)).getByRole('button', { name: `Preview ${SAMPLE_SET.title}` }),
+    );
+    const preview = within(screen.getByRole('dialog', { name: SAMPLE_SET.title }));
+    expect(preview.getAllByRole('listitem')).toHaveLength(SAMPLE_SET.questions.length);
+    expect(preview.getByText(SAMPLE_SET.questions[0]!.answer)).toBeTruthy();
+    expect(await preview.findAllByRole('img', { name: /^Picture for question/ })).toHaveLength(2);
+  });
+
+  it('Host this set in a preview creates a room with that set', async () => {
+    const fetch = stubServer();
+    const hard = STARTER_SETS[2]!;
+    renderSets();
+    fireEvent.click(
+      (await card(hard.title)).getByRole('button', { name: `Preview ${hard.title}` }),
+    );
+    const preview = within(screen.getByRole('dialog', { name: hard.title }));
+    fireEvent.click(preview.getByRole('button', { name: 'Host this set' }));
+
+    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
+    expect(bodyOf(fetch).set).toEqual(hard);
+  });
+
   it('every button on the Built-in tab has the hover style', async () => {
     renderSets();
     await card(SAMPLE_SET.title);
@@ -260,6 +286,20 @@ describe('Set list /sets, My sets', () => {
     expect(cardTitles()).toEqual([OWN.title]);
     fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
     expect(document.activeElement?.textContent).toBe('Open');
+  });
+
+  it("Preview on My sets shows the set's answers and its pictures from this browser", async () => {
+    Object.assign(URL, { createObjectURL: () => 'blob:own', revokeObjectURL: () => {} });
+    await addOwn();
+    // A picture gone from this browser is named, not shown.
+    await db.images.delete(SAMPLE_SET.questions.find((q) => q.imageId)!.imageId!);
+    renderSets();
+    fireEvent.click((await card('Pub quiz')).getByRole('button', { name: 'Preview Pub quiz' }));
+    const preview = within(screen.getByRole('dialog', { name: 'Pub quiz' }));
+    expect(preview.getAllByRole('listitem')).toHaveLength(OWN.questions.length);
+    expect(preview.getByText(OWN.questions[0]!.answer)).toBeTruthy();
+    expect(await preview.findAllByRole('img', { name: /^Picture for question/ })).toHaveLength(1);
+    expect(await preview.findByText('The picture is missing from this browser.')).toBeTruthy();
   });
 
   it('shows the empty state when no sets exist', async () => {

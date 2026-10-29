@@ -5,6 +5,7 @@ import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_OUTLINE, BUTTON_PRIMARY, CARD } from '../lib/ui.js';
 import { RoomCreated } from './RoomCreated.js';
 import { SetBrowser } from './SetBrowser.js';
+import { SetPreview } from './SetPreview.js';
 
 type Status =
   | { kind: 'idle' }
@@ -21,6 +22,7 @@ export function HostGame() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
   const pickerRef = useRef<HTMLElement>(null);
   const picking = status.kind === 'picking';
 
@@ -86,6 +88,8 @@ export function HostGame() {
     <section
       ref={pickerRef}
       aria-labelledby="pick-heading"
+      // Behind an open preview, nothing in the picker takes focus or clicks.
+      inert={previewing !== null}
       className={`flex flex-col gap-4 ${CARD}`}
     >
       <h2 id="pick-heading" className="font-display text-3xl">
@@ -99,6 +103,7 @@ export function HostGame() {
         selectedId={selectedId}
         onSelect={setSelectedId}
         detail={(set) => setDetail(set, sets.indexOf(set) >= firstBuiltIn)}
+        onPreview={creating ? undefined : setPreviewing}
         listClassName="max-h-80 overflow-y-auto"
         className="text-lg"
       />
@@ -114,6 +119,14 @@ export function HostGame() {
         <p role="alert" className="text-center text-lg text-buzz">
           {error}
         </p>
+      )}
+      {previewing && (
+        <SetPreview
+          set={previewing}
+          actionLabel="Pick this set"
+          onAction={(set) => setSelectedId(set.id)}
+          onClose={() => setPreviewing(null)}
+        />
       )}
       <button
         type="button"

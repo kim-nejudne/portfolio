@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
+import type { QuestionSet } from '../../../shared/types.js';
 import { db } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
@@ -179,6 +180,24 @@ describe('Host a game', () => {
       set: SAMPLE_SET,
       settings: DEFAULT_SETTINGS,
     });
+  });
+
+  it('Preview shows a set with its answers, and Pick this set picks it for Create room', async () => {
+    await db.sets.add(quiz);
+    const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    renderLanding();
+    await openPicker();
+    const hard = STARTER_SETS[2]!;
+    fireEvent.click(screen.getByRole('button', { name: `Preview ${hard.title}` }));
+    const preview = within(screen.getByRole('dialog', { name: hard.title }));
+    expect(preview.getAllByRole('listitem')).toHaveLength(hard.questions.length);
+    expect(preview.getByText(hard.questions[0]!.answer)).toBeTruthy();
+    fireEvent.click(preview.getByRole('button', { name: 'Pick this set' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await screen.findByRole('heading', { name: 'Room created' });
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect((JSON.parse(init.body as string) as { set: QuestionSet }).set).toEqual(hard);
   });
 
   it('picks Animals – Easy by search, chip and Enter, then hosts it', async () => {

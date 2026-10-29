@@ -152,14 +152,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F55 Set browser: search, categories and difficulty
 
-- [ ] F56 Set preview before hosting
-  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F55
-  - Done when:
-    - Every set in `SetBrowser` has a **Preview** action that opens a read-only list of its questions with answers, host notes, points and image thumbnails
-    - Preview never shows on the Screen: it is offered on `/sets`, **Host a game** and the remote's New game picker, not in the Screen's New game picker (the Screen is public)
-    - From the preview the host can pick the set (pickers) or host it (`/sets`)
-  - Tests: `SetPreview.test.tsx` (content, images, pick), `NewGamePicker.test.tsx` (no Preview on the Screen)
+- [x] F56 Set preview before hosting
 
 ## M14 — Mixed games
 

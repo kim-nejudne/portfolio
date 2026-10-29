@@ -12,6 +12,7 @@ import type { QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { RoomCreated } from '../components/RoomCreated.js';
 import { SetBrowser } from '../components/SetBrowser.js';
+import { SetPreview } from '../components/SetPreview.js';
 import {
   createSet,
   deleteSet,
@@ -75,6 +76,7 @@ export function Sets() {
   const [notice, setNotice] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<{ file: string; errors: string[] } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -193,7 +195,11 @@ export function Sets() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-4 py-10">
+    // The preview is portaled out of `main`, so `inert` covers only the page behind it.
+    <main
+      inert={previewing !== null}
+      className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-4 py-10"
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-4xl text-accent">Question sets</h1>
         <div className="flex flex-wrap gap-2">
@@ -278,6 +284,7 @@ export function Sets() {
                 id="built-in"
                 sets={BUILT_IN_SETS}
                 detail={(set) => setDetail(set, false)}
+                onPreview={setPreviewing}
                 actions={(set) => (
                   <>
                     <button
@@ -310,6 +317,7 @@ export function Sets() {
                 mode="actions"
                 id="mine"
                 sets={sets}
+                onPreview={setPreviewing}
                 detail={(set) => (
                   <>
                     {setDetail(set, false)} · Last edited{' '}
@@ -360,6 +368,15 @@ export function Sets() {
             )}
           </div>
         </div>
+      )}
+
+      {previewing && (
+        <SetPreview
+          set={previewing}
+          actionLabel="Host this set"
+          onAction={(set) => void host(set)}
+          onClose={() => setPreviewing(null)}
+        />
       )}
 
       <Link

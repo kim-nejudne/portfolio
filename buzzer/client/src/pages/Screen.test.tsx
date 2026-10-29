@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -850,6 +851,14 @@ describe('Screen', () => {
         fireEvent.click(within(picker).getByRole('button', { name: 'Cancel' }));
         expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
         expect(bar()).toBeTruthy();
+      });
+
+      it('its picker offers no Preview: the Screen is public and a preview shows answers', async () => {
+        hostScreen(inPhase('FINAL'));
+        fireEvent.click(newGame()!);
+        const picker = screen.getByRole('dialog', { name: 'New game' });
+        expect((await within(picker).findAllByRole('radio')).length).toBeGreaterThan(0);
+        expect(within(picker).queryAllByRole('button', { name: /^Preview/ })).toEqual([]);
       });
 
       it('is not offered before FINAL', () => {

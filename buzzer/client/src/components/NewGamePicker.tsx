@@ -6,6 +6,7 @@ import { checkPlayable, hostNextSet, SetImagesError, uploadSetImages } from '../
 import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_PRIMARY } from '../lib/ui.js';
 import { SetBrowser } from './SetBrowser.js';
+import { SetPreview } from './SetPreview.js';
 
 type Status =
   | { kind: 'loading' }
@@ -21,6 +22,11 @@ interface NewGamePickerProps {
   onClose: () => void;
   /** Shows a message after the picker has closed, such as the 409's (the Screen's or remote's toast). */
   onNotice: (text: string) => void;
+  /**
+   * Offers **Preview** per set (DECISIONS F56). Only the Host remote passes it: a preview shows
+   * answers, and the Screen is public.
+   */
+  preview?: boolean;
   /** The dialog's box, for sizing per device. */
   className?: string;
 }
@@ -37,6 +43,7 @@ export function NewGamePicker({
   phase,
   onClose,
   onNotice,
+  preview = false,
   className = '',
 }: NewGamePickerProps) {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
@@ -47,6 +54,7 @@ export function NewGamePicker({
   const [submitted, setSubmitted] = useState(false);
   // The set already in the room after an image upload failed: a retry uploads only its images.
   const [uploadPending, setUploadPending] = useState<QuestionSet | null>(null);
+  const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -71,13 +79,15 @@ export function NewGamePicker({
   useEffect(() => headingRef.current?.focus(), []);
 
   const starting = status.kind === 'picking' && status.starting;
+  const locked = starting || uploadPending !== null;
 
   useEffect(() => {
     if (phase !== 'FINAL' && !submitted) onClose();
   }, [phase, submitted, onClose]);
 
   const onKey = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key !== 'Escape') return;
+    // An open preview takes Esc for itself.
+    if (event.key !== 'Escape' || previewing) return;
     // Esc belongs to the dialog, so nothing behind it acts on the press.
     event.stopImmediatePropagation();
     if (!starting) onClose();
@@ -115,8 +125,6 @@ export function NewGamePicker({
     }
   }
 
-  const locked = starting || uploadPending !== null;
-
   // On body: the Screen's stage is a positioned box, which would confine a fixed child.
   return createPortal(
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-bg/85 p-4">
@@ -124,6 +132,8 @@ export function NewGamePicker({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-game-heading"
+        // Behind an open preview, nothing in the picker takes focus or clicks.
+        inert={previewing !== null}
         className={`flex max-h-full w-full max-w-md flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-6 text-lg ${className}`}
       >
         <h2
@@ -149,6 +159,7 @@ export function NewGamePicker({
             selectedId={selectedId}
             onSelect={setSelectedId}
             disabled={locked}
+            onPreview={preview && !locked ? setPreviewing : undefined}
             detail={(set) =>
               // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
               setDetail(set, status.sets.indexOf(set) >= status.firstBuiltIn, checkPlayable(set).ok)
@@ -157,6 +168,14 @@ export function NewGamePicker({
             // min-content width would push the rows past the dialog.
             listClassName="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]"
             className="min-h-0"
+          />
+        )}
+        {previewing && (
+          <SetPreview
+            set={previewing}
+            actionLabel="Pick this set"
+            onAction={(set) => setSelectedId(set.id)}
+            onClose={() => setPreviewing(null)}
           />
         )}
         <label className="flex shrink-0 cursor-pointer items-center gap-3">
