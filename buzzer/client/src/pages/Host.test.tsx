@@ -89,6 +89,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     lockedOut: [],
     falseStarts: [],
     session: null,
+    teams: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     question: null,

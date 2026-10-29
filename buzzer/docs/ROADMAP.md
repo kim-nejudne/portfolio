@@ -216,15 +216,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M20 — Teams
 
-- [ ] F81 Teams: server
-  - Spec: Game flow and state machine (Scoring rules); Data model; Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F75
-  - Done when:
-    - `RoomSettings.teams: 0 | 2 | 3 | 4` (default 0); `TEAMS` (names and colours) in `shared/constants.ts`; `Player.team: number | null`
-    - Turning teams on or a new player joining assigns the smallest team (lowest index on a tie); `host:setTeam {playerId, team}` moves a player in LOBBY or between questions
-    - Team score is the sum of its members' scores (`server/ranking.ts` ranks teams; equal scores share a rank). Players still buzz and are judged alone
-    - Views carry `teams: {index, name, color, score, rank, memberIds}[]` when on
-  - Tests: `reducer.teams.test.ts` (assign, balance, move, settings off and on, scoring, ranking), `ranking.test.ts`, `views.test.ts`, `schemas.test.ts`
+- [x] F81 Teams: server
 
 - [ ] F82 Teams: Screen and phone
   - Spec: UI spec by view (Screen view, Player view); see DECISIONS, Proposed spec changes (audit)

@@ -167,6 +167,33 @@ describe('socket gateway: remaining host events', () => {
     });
   });
 
+  it('turns teams on and moves a player: every device gets the teams, and a player cannot move one', async () => {
+    const h = await start();
+    const [host, a, b] = await Promise.all([h.connect(), h.connect(), h.connect()]);
+    await host.emitWithAck('host:join', { code: 'ABCD', hostToken: TOKEN });
+    await a.emitWithAck('player:join', { code: 'ABCD', playerId: 'a', name: 'Ann' });
+    await b.emitWithAck('player:join', { code: 'ABCD', playerId: 'b', name: 'Bob' });
+    const phone = record<View>(b, 'state');
+
+    expect(await host.emitWithAck('host:settings', { teams: 2 })).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:setTeam', { playerId: 'b', team: 0 })).toEqual({
+      ok: true,
+    });
+    expect(await a.emitWithAck('host:setTeam', { playerId: 'a', team: 1 })).toEqual({
+      ok: false,
+      error: NOT_HOST_ERROR,
+    });
+    expect(await host.emitWithAck('host:setTeam', { playerId: 'b', team: 9 })).toMatchObject({
+      ok: false,
+    });
+    await flush(b);
+
+    expect(phone.at(-1)?.teams?.map((t) => [t.name, t.memberIds])).toEqual([
+      ['Red', ['a', 'b']],
+      ['Blue', []],
+    ]);
+  });
+
   it('rejects settings keys the schema does not know', async () => {
     const { h, host } = await openTable();
     const before = h.rooms.get('ABCD');

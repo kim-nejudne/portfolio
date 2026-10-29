@@ -58,6 +58,7 @@ describe('reduce: player:join', () => {
       rttMs: 0,
       joinedAt: T0 + 42,
       joinedAtOpening: 0,
+      team: null,
     });
   });
 

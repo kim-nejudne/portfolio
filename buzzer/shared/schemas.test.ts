@@ -6,6 +6,7 @@ import {
   BUZZ_SECONDS_CHOICES,
   FALSE_START_MS_CHOICES,
   DEFAULT_SETTINGS,
+  TEAM_COUNT_CHOICES,
   HOST_NOTES_MAX,
   ID_MAX,
   MAX_QUESTIONS_PER_SET,
@@ -242,6 +243,21 @@ describe('createRoomBodySchema', () => {
     );
   });
 
+  it('accepts every team count and rejects any other or a missing one', () => {
+    const body = (teams: unknown) => ({ set: set(), settings: { ...DEFAULT_SETTINGS, teams } });
+    for (const teams of TEAM_COUNT_CHOICES) {
+      expect(createRoomBodySchema.safeParse(body(teams)).success, String(teams)).toBe(true);
+    }
+    for (const teams of [1, 5, -2, 2.5, '2', null]) {
+      expect(createRoomBodySchema.safeParse(body(teams)).success, String(teams)).toBe(false);
+    }
+    const without: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete without.teams;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: without }).success).toBe(false);
+    expect(clientPayloadSchemas['host:settings'].safeParse({ teams: 4 }).success).toBe(true);
+    expect(clientPayloadSchemas['host:settings'].safeParse({ teams: 1 }).success).toBe(false);
+  });
+
   it('host:settings takes a preset’s five keys in one payload (F73)', () => {
     const settings = clientPayloadSchemas['host:settings'];
     const party = {
@@ -335,6 +351,7 @@ describe('client event payloads', () => {
       'host:adjustScore': { playerId: 'p1', delta: -100 },
       'host:kick': { playerId: 'p1' },
       'host:settings': { scoreboardEvery: 0 },
+      'host:setTeam': { playerId: 'p1', team: 3 },
       'host:end': {},
     };
     for (const [event, payload] of Object.entries(valid)) {
@@ -420,6 +437,18 @@ describe('client event payloads', () => {
     for (const result of ['correct', 'half', 'wrong']) {
       expect(clientPayloadSchemas['host:judge'].safeParse({ result }).success, result).toBe(true);
     }
+  });
+
+  it('host:setTeam takes a team index 0 to 3 and nothing else', () => {
+    const setTeam = clientPayloadSchemas['host:setTeam'];
+    for (const team of [0, 1, 2, 3]) {
+      expect(setTeam.safeParse({ playerId: 'p1', team }).success, String(team)).toBe(true);
+    }
+    for (const team of [-1, 4, 1.5, '1', null]) {
+      expect(setTeam.safeParse({ playerId: 'p1', team }).success, String(team)).toBe(false);
+    }
+    expect(setTeam.safeParse({ team: 0 }).success).toBe(false);
+    expect(setTeam.safeParse({ playerId: 'p 1', team: 0 }).success).toBe(false);
   });
 
   it('rejects an unknown judgement and a non-integer score change', () => {

@@ -350,6 +350,9 @@ export function attachSockets(
       asHost({ type: 'host:adjustScore', playerId, delta }),
     );
     handle(socket, 'host:settings', (settings) => asHost({ type: 'host:settings', settings }));
+    handle(socket, 'host:setTeam', ({ playerId, team }) =>
+      asHost({ type: 'host:setTeam', playerId, team }),
+    );
 
     handle(socket, 'host:kick', ({ playerId }) => {
       const { code } = socket.data;

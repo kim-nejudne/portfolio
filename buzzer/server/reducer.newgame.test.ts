@@ -66,12 +66,13 @@ function finished(overrides: Partial<Room> = {}): Room {
         buzzSeconds: 10,
         falseStartMs: 1000,
         showStandings: false,
+        teams: 2,
       },
       ...overrides,
     }),
     [
-      makePlayer('p1', { score: 300, joinedAtOpening: 0 }),
-      makePlayer('p2', { score: -100, connected: false, joinedAtOpening: 2 }),
+      makePlayer('p1', { score: 300, joinedAtOpening: 0, team: 1 }),
+      makePlayer('p2', { score: -100, connected: false, joinedAtOpening: 2, team: 1 }),
     ],
   );
 }

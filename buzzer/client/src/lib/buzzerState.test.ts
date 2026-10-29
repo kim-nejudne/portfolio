@@ -24,6 +24,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     buzzTimer: null,
     tonight: null,
     results: null,
+    teams: null,
     // As the server sets it: the list in LOBBY only.
     lobby:
       (overrides.phase ?? 'LOBBY') === 'LOBBY'

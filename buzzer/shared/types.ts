@@ -47,6 +47,7 @@ export interface Player {
   avatar?: string; // one of `AVATARS`; absent when the player picked none (F74)
   /** `openingCounter` at join. A player can buzz from the next opening (Edge cases; DECISIONS F14). */
   joinedAtOpening: number;
+  team: number | null; // index into `TEAMS`; null when teams are off (F81)
 }
 
 export interface Buzz {
@@ -100,6 +101,9 @@ export type BuzzSeconds = 0 | 5 | 10 | 15 | 20 | 30;
 /** Ms a false-started player waits after the buzzers open; 0 turns false starts off. */
 export type FalseStartMs = 0 | 500 | 1000;
 
+/** How many teams play; 0 turns teams off. */
+export type TeamCount = 0 | 2 | 3 | 4;
+
 export interface RoomSettings {
   wrongPenalty: boolean; // default false
   autoOpenBuzzers: boolean; // default false
@@ -108,6 +112,7 @@ export interface RoomSettings {
   buzzSeconds: BuzzSeconds; // default 0 = off
   falseStartMs: FalseStartMs; // default 0 = off
   showStandings: boolean; // default true: the Screen's top-5 rail during a question
+  teams: TeamCount; // default 0 = off
 }
 
 /** The buzz winner's answer time. `endsAt` is wall-clock ms and never leaves the server. */
@@ -184,6 +189,19 @@ export interface RankedTotal {
   rank: number;
 }
 
+/**
+ * A team as every view lists it, in index order (F81). Its score is the sum of its members'
+ * scores; equal scores share a rank. `memberIds` are in join order.
+ */
+export interface TeamView {
+  index: number;
+  name: string;
+  color: string;
+  score: number;
+  rank: number;
+  memberIds: string[];
+}
+
 /** The night so far: totals of every finished game, players who left included. */
 export interface SessionView {
   gameNumber: number;
@@ -231,6 +249,8 @@ interface SharedRoomView {
   buzzTimer: BuzzTimerView | null;
   /** Ranked session totals from game 2 on; null during the room's first game (F76). */
   session: SessionView | null;
+  /** Every team with its score and rank while teams are on; null when off (F81). */
+  teams: TeamView[] | null;
 }
 
 /** Everything except answers, host notes and token data. */
@@ -299,6 +319,8 @@ export interface PlayerView {
   /** What the results card draws, in FINAL only; null in every other phase (F78). */
   // SPEC-QUESTION: the spec's PlayerView has no ranking; see DECISIONS (F78).
   results: PlayerResults | null;
+  /** As `SharedRoomView.teams`: every team, so the phone can show its own and its rank (F81). */
+  teams: TeamView[] | null;
   answer?: string;
 }
 
@@ -357,6 +379,7 @@ export interface ClientPayloads {
   'host:adjustScore': { playerId: string; delta: number };
   'host:kick': { playerId: string };
   'host:settings': Partial<RoomSettings>;
+  'host:setTeam': { playerId: string; team: number };
   'host:end': Record<string, never>;
 }
 

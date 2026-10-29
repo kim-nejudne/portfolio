@@ -764,3 +764,57 @@ describe('toView: session', () => {
     ]);
   });
 });
+
+describe('toView: teams', () => {
+  /** Four players on 3 teams: Ana and Dee on Red, Bob on Blue, Green empty. */
+  function teamGame(overrides: Partial<Room> = {}): Room {
+    const room = midGame('REVEAL', overrides);
+    return withPlayers({ ...room, settings: { ...room.settings, teams: 3 } }, [
+      makePlayer('p4', { name: 'Dee', score: 200, joinedAt: T0 + 4, team: 0 }),
+      makePlayer('p2', { name: 'Bob', score: 300, joinedAt: T0 + 2, team: 1 }),
+      makePlayer('p1', { name: 'Ana', score: 100, joinedAt: T0 + 1, team: 0 }),
+    ]);
+  }
+
+  it('lists every team in index order with name, colour, summed score, rank and members', () => {
+    expect(toView(teamGame(), 'screen').teams).toEqual([
+      { index: 0, name: 'Red', color: '#EF4444', score: 300, rank: 1, memberIds: ['p1', 'p4'] },
+      { index: 1, name: 'Blue', color: '#3B82F6', score: 300, rank: 1, memberIds: ['p2'] },
+      { index: 2, name: 'Green', color: '#22C55E', score: 0, rank: 3, memberIds: [] },
+    ]);
+  });
+
+  it('gives the Screen, the host and every phone the same teams', () => {
+    const room = teamGame();
+    const screen = toView(room, 'screen').teams;
+    expect(toView(room, 'host').teams).toEqual(screen);
+    for (const id of ['p1', 'p2', 'p4']) expect(toView(room, 'player', id).teams).toEqual(screen);
+  });
+
+  it('a team score follows its members’ scores as they change', () => {
+    const result = reduce(teamGame(), { type: 'host:adjustScore', playerId: 'p2', delta: 50 }, T0);
+    if (!result.ok) throw new Error(result.error);
+    const { room } = result;
+    expect(toView(room, 'screen').teams?.map((t) => [t.score, t.rank])).toEqual([
+      [300, 2],
+      [350, 1],
+      [0, 3],
+    ]);
+  });
+
+  it('carries no teams while teams are off', () => {
+    const room = midGame('REVEAL');
+    expect(toView(room, 'screen').teams).toBeNull();
+    expect(toView(room, 'host').teams).toBeNull();
+    expect(toView(room, 'player', 'p1').teams).toBeNull();
+  });
+
+  it('carries no answer or note in a team list before reveal', () => {
+    const room = teamGame({ phase: 'BUZZED', winnerId: 'p1' });
+    for (const json of publicViews(room)) {
+      for (const secret of [...SECRETS(1), ...SECRETS(2), ...SECRETS(3)]) {
+        expect(json).not.toContain(secret);
+      }
+    }
+  });
+});

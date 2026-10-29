@@ -24,6 +24,8 @@ import {
   SCOREBOARD_EVERY_MAX,
   SET_CATEGORY_MAX,
   SET_TITLE_MAX,
+  TEAM_COUNT_CHOICES,
+  TEAMS,
 } from './constants.js';
 import type {
   ClientEvent,
@@ -111,6 +113,7 @@ export const roomSettingsSchema = z.object({
   buzzSeconds: z.literal(BUZZ_SECONDS_CHOICES),
   falseStartMs: z.literal(FALSE_START_MS_CHOICES),
   showStandings: z.boolean(),
+  teams: z.literal(TEAM_COUNT_CHOICES),
 });
 
 export const createRoomBodySchema = z.object({
@@ -160,6 +163,14 @@ export const clientPayloadSchemas = {
   'host:kick': z.object({ playerId: idSchema }),
   // Strict, so a typo like `wrongPenality` fails loudly instead of being dropped.
   'host:settings': z.strictObject(roomSettingsSchema.shape).partial(),
+  // The reducer checks the team against the room's `settings.teams`.
+  'host:setTeam': z.object({
+    playerId: idSchema,
+    team: z
+      .int()
+      .min(0)
+      .max(TEAMS.length - 1),
+  }),
   'host:end': emptySchema,
 } satisfies { [E in ClientEvent]: z.ZodType<ClientPayloads[E]> };
 

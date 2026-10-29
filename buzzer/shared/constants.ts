@@ -7,6 +7,7 @@ import type {
   Difficulty,
   FalseStartMs,
   RoomSettings,
+  TeamCount,
 } from './types.js';
 
 export const APP_NAME = 'Buzzr';
@@ -61,6 +62,17 @@ export const AVATARS = [
   '🍕',
   '🌵',
   '🚀',
+] as const;
+
+/**
+ * The teams, in index order: a room with teams on plays the first `settings.teams` of them (F81).
+ * Colours come from `PLAYER_PALETTE`, spread so no two look alike.
+ */
+export const TEAMS = [
+  { name: 'Red', color: '#EF4444' },
+  { name: 'Blue', color: '#3B82F6' },
+  { name: 'Green', color: '#22C55E' },
+  { name: 'Yellow', color: '#FACC15' },
 ] as const;
 
 export const MAX_PLAYERS_PER_ROOM = 50;
@@ -131,6 +143,9 @@ export const BUZZ_SECONDS_CHOICES = [
 /** The false-start waits the host can pick, in ms, in stepper order. 0 is off. */
 export const FALSE_START_MS_CHOICES = [0, 500, 1000] as const satisfies readonly FalseStartMs[];
 
+/** The team counts the host can pick, in stepper order. 0 is off. */
+export const TEAM_COUNT_CHOICES = [0, 2, 3, 4] as const satisfies readonly TeamCount[];
+
 export const DEFAULT_SETTINGS: RoomSettings = {
   wrongPenalty: false,
   autoOpenBuzzers: false,
@@ -139,6 +154,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   buzzSeconds: 0,
   falseStartMs: 0,
   showStandings: true,
+  teams: 0,
 };
 
 // ---------- Question sets ----------

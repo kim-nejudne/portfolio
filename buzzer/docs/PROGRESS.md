@@ -12,6 +12,24 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F81 — Teams: server (2026-10-29)
+**What changed:**
+- Shared: `RoomSettings.teams` (`TeamCount` 0, 2, 3 or 4; default 0), `TEAM_COUNT_CHOICES`, `TEAMS` (Red, Blue, Green, Yellow, palette colours), `Player.team: number | null`, `TeamView`, `teams: TeamView[] | null` on Screen, host and Player views, `host:setTeam {playerId, team}` (zod: team an integer 0–3).
+- `server/reducer.ts`: a joiner goes to the smallest team (lowest index on a tie); a new team count regroups everyone in join order (off sets all to null); `host:setTeam` moves a player. Both only in LOBBY or REVEAL (`TEAMS_PHASE_ERROR`); the same count is accepted in any phase. Scores still change only in `applyJudgement`.
+- `server/ranking.ts`: `rankTeams` (tied teams share a rank, listed by index), sharing one ranking core with `rankPlayers`. `server/views.ts`: `teamsView`, the summed score, rank and members of each team, in index order. `server/sockets.ts`: the `host:setTeam` handler.
+- Tests: new `reducer.teams.test.ts` (38: join assignment, balance, reconnect, mid-game join, count on, change and off, same count keeps moves, phase rules, setTeam errors, leave and kick, new game, scoring through judge, penalty, undo, adjust, move), `ranking.test.ts` +3, `views.test.ts` +5, `schemas.test.ts` +2, `constants.test.ts` +2, `sockets.host.test.ts` +1; fixtures gained `team` and `teams`. 1952 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F81 (LOBBY and REVEAL only, with the `host:settings` exception; assignment and regrouping; summed scores, index order, teams on every view).
+
+**Notes for next session:**
+- No UI yet: F82 (Screen and phone) and F83 (host stepper and team select). The client only got `teams: null` in fixtures and the editor's `previewView`.
+- F83's teams stepper is another lobby settings row: re-measure the Screen lobby's settings at 1280×720 (F64/F65 note) when it lands. The stepper should be disabled outside LOBBY and REVEAL, or the host will see the phase error.
+- When BOARD and ANSWERING arrive (M21/M22), decide whether BOARD counts as "between questions" for `TEAM_PHASES`.
+- A player who leaves takes their points off their team's score.
+- Main `index` chunk 494.70 → 494.92 kB (149.40 kB gzip).
+
+**How to try it:** server only, no UI yet. `npx vitest run server/reducer.teams.test.ts server/views.test.ts`. Over sockets, a host sends `host:settings {teams: 2}` in the lobby and every `state` carries `teams`.
+
 ## F80 — Export all and import many (2026-10-29)
 **What changed:**
 - `client/src/lib/importExport.ts`: `setFileEntry` (shared by Export JSON), `exportAllFile` (`{sets: [...]}` text plus the count and each skipped set's reason; drafts, missing images and sets that would take the file over the 201 MB import cap are skipped), `exportAllFileName` (`buzzr-sets-YYYY-MM-DD.json`), `parseImportFile` (`bad` / `one` / `many`; each many-set entry parsed on its own and labelled "Set N “Title”"). `parseSetFile` kept for single files.

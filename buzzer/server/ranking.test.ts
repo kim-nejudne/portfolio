@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rankPlayers } from './ranking.js';
+import { rankPlayers, rankTeams } from './ranking.js';
 import { T0, makePlayer } from './test/rooms.js';
 
 describe('rankPlayers', () => {
@@ -76,5 +76,37 @@ describe('rankPlayers', () => {
     const players = [makePlayer('a', { score: 0 }), makePlayer('b', { score: 5 })];
     rankPlayers(players);
     expect(players.map((p) => p.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('rankTeams', () => {
+  const team = (index: number, score: number) => ({ index, score });
+
+  it('sorts teams by score, highest first', () => {
+    const ranked = rankTeams([team(0, 100), team(1, 300), team(2, -50)]);
+    expect(ranked.map((t) => [t.index, t.rank])).toEqual([
+      [1, 1],
+      [0, 2],
+      [2, 3],
+    ]);
+  });
+
+  it('gives equal team scores the same rank and lists them by team index', () => {
+    const ranked = rankTeams([team(2, 200), team(0, 100), team(1, 200), team(3, 0)]);
+    expect(ranked.map((t) => [t.index, t.rank])).toEqual([
+      [1, 1],
+      [2, 1],
+      [0, 3],
+      [3, 4],
+    ]);
+  });
+
+  it('keeps every other field and does not reorder the input', () => {
+    const teams = [
+      { ...team(0, 0), name: 'Red' },
+      { ...team(1, 5), name: 'Blue' },
+    ];
+    expect(rankTeams(teams)[0]).toEqual({ index: 1, score: 5, name: 'Blue', rank: 1 });
+    expect(teams.map((t) => t.index)).toEqual([0, 1]);
   });
 });

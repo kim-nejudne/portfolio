@@ -10,6 +10,8 @@ import {
   PLAYER_PALETTE,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
+  TEAM_COUNT_CHOICES,
+  TEAMS,
 } from './constants.js';
 
 describe('shared constants', () => {
@@ -40,7 +42,7 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, and the standings rail on', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, the standings rail on and teams off', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
@@ -49,7 +51,20 @@ describe('shared constants', () => {
       buzzSeconds: 0,
       falseStartMs: 0,
       showStandings: true,
+      teams: 0,
     });
+  });
+
+  it('offers teams Off, 2, 3 and 4 in stepper order', () => {
+    expect(TEAM_COUNT_CHOICES).toEqual([0, 2, 3, 4]);
+    expect(TEAM_COUNT_CHOICES).toContain(DEFAULT_SETTINGS.teams);
+  });
+
+  it('has a distinct name and a distinct palette colour for each of the 4 teams', () => {
+    expect(TEAMS).toHaveLength(Math.max(...TEAM_COUNT_CHOICES));
+    expect(new Set(TEAMS.map((t) => t.name)).size).toBe(TEAMS.length);
+    expect(new Set(TEAMS.map((t) => t.color)).size).toBe(TEAMS.length);
+    for (const { color } of TEAMS) expect(PLAYER_PALETTE).toContain(color);
   });
 
   it('offers buzz times Off, 5, 10, 15, 20 and 30 s in stepper order', () => {

@@ -19,12 +19,13 @@ import type {
   ScreenQuestion,
   ScreenView,
   SessionView,
+  TeamView,
   View,
 } from '../shared/types.js';
-import { RESULTS_CARD_ROWS } from '../shared/constants.js';
+import { RESULTS_CARD_ROWS, TEAMS } from '../shared/constants.js';
 import { buzzGaps, rankOpening } from './fairness.js';
 import { canBuzz, canJudge, canUndo } from './reducer.js';
-import { rankPlayers, type Ranked } from './ranking.js';
+import { rankPlayers, rankTeams, type Ranked } from './ranking.js';
 
 export function toView(room: Room, role: 'screen'): ScreenView;
 export function toView(room: Room, role: 'host'): HostView;
@@ -108,6 +109,7 @@ function playerView(room: Room, playerId: string): PlayerView {
       room.phase === 'LOBBY' ? byJoinOrder(Object.values(room.players)).map(lobbyPlayer) : null,
     tonight: tonight(room, playerId),
     results: room.phase === 'FINAL' ? playerResults(room, ranked) : null,
+    teams: teamsView(room),
     ...(answer !== undefined && { answer }),
   };
 }
@@ -151,7 +153,33 @@ function shared(room: Room) {
     answerTimer: answerTimerView(room),
     buzzTimer: buzzTimerView(room),
     session: sessionView(room),
+    teams: teamsView(room),
   };
+}
+
+/**
+ * The room's teams in index order, each scored as the sum of its members' scores and ranked like
+ * players (equal scores share a rank). Null with teams off (F81).
+ */
+function teamsView(room: Room): TeamView[] | null {
+  const count = room.settings.teams;
+  if (count === 0) return null;
+  const joined = byJoinOrder(Object.values(room.players));
+  const teams = TEAMS.slice(0, count).map(({ name, color }, index) => {
+    const members = joined.filter((p) => p.team === index);
+    const score = members.reduce((sum, p) => sum + p.score, 0);
+    return { index, name, color, score, memberIds: members.map((p) => p.id) };
+  });
+  return rankTeams(teams)
+    .sort((a, b) => a.index - b.index)
+    .map((t) => ({
+      index: t.index,
+      name: t.name,
+      color: t.color,
+      score: t.score,
+      rank: t.rank,
+      memberIds: t.memberIds,
+    }));
 }
 
 /**

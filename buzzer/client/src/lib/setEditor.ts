@@ -90,6 +90,7 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     lockedOut: [],
     falseStarts: [],
     session: null,
+    teams: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     canJudge: false,

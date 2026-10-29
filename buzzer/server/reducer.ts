@@ -27,6 +27,14 @@ import { buzzGaps, inWindow, makeBuzz, rankOpening } from './fairness.js';
 /** The error for an action the transitions table does not list for the current phase. */
 export const WRONG_PHASE_ERROR = 'Not allowed in this phase';
 
+/** The error for a team move, or a change of team count, during a question or after the game. */
+export const TEAMS_PHASE_ERROR = 'Teams can change only in the lobby or between questions';
+
+/** Phases a player may change team in, or the team count change: before the game and between questions. */
+// SPEC-QUESTION: `host:settings` is "any phase", but a team count change regroups everyone, so it
+// shares host:setTeam's phases; "between questions" is REVEAL. See DECISIONS (F81).
+const TEAM_PHASES: readonly Phase[] = ['LOBBY', 'REVEAL'];
+
 /** Phases before the answer is shown. `host:reveal` accepts these; `host:prev` also accepts REVEAL. */
 const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'];
 
@@ -80,6 +88,7 @@ export type Action =
   | { type: 'host:adjustScore'; playerId: string; delta: number }
   | { type: 'host:kick'; playerId: string }
   | { type: 'host:settings'; settings: Partial<RoomSettings> }
+  | { type: 'host:setTeam'; playerId: string; team: number }
   | { type: 'host:newGame'; set: QuestionSet; keepScores: boolean };
 
 /**
@@ -198,6 +207,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return hostKick(room, action);
     case 'host:settings':
       return hostSettings(room, action);
+    case 'host:setTeam':
+      return hostSetTeam(room, action);
     case 'host:newGame':
       return hostNewGame(room, action);
     default:
@@ -238,6 +249,7 @@ function playerJoin(
     ...(avatar !== undefined && { avatar }),
     // SPEC-QUESTION: "can buzz from the next opening"; see DECISIONS (F14).
     joinedAtOpening: room.openingCounter,
+    team: smallestTeam(players, room.settings.teams),
   };
   return done(withPlayer(room, player), [{ type: 'fx', fx: { kind: 'join', playerId } }]);
 }
@@ -517,8 +529,8 @@ export type ScoreChange = JudgeResult | 'adjust';
 /**
  * Adds `pointsDelta` to `playerId`'s score. A judgement (`correct`, `half` or `wrong`) is also
  * recorded on the current question, and a wrong one locks the player out. Every score change goes
- * through here, judging, adjusting and undoing alike, so teams can later redirect the points in one
- * place (spec, "Out of scope").
+ * through here, judging, adjusting and undoing alike. A team's score is the sum of its members'
+ * scores, worked out in the views, so points always land on the player (F81).
  */
 export function applyJudgement(
   room: Room,
@@ -677,11 +689,15 @@ function withoutPlayer(room: Room, playerId: string): Room {
 /**
  * Any phase. Merges the keys that are set; each takes effect the next time it is consulted (the
  * next judgement, question entry or `host:next`), never on the current question (DECISIONS F20).
+ * A new team count is the exception: it regroups everyone at once, so it is taken only where a
+ * team move is, and the whole change is refused elsewhere (F81).
  */
 function hostSettings(
   room: Room,
   { settings }: Extract<Action, { type: 'host:settings' }>,
 ): ReduceResult {
+  const teamsChange = settings.teams !== undefined && settings.teams !== room.settings.teams;
+  if (teamsChange && !TEAM_PHASES.includes(room.phase)) return fail(TEAMS_PHASE_ERROR);
   const {
     wrongPenalty,
     autoOpenBuzzers,
@@ -690,8 +706,9 @@ function hostSettings(
     buzzSeconds,
     falseStartMs,
     showStandings,
+    teams,
   } = room.settings;
-  return done({
+  const merged: Room = {
     ...room,
     settings: {
       wrongPenalty: settings.wrongPenalty ?? wrongPenalty,
@@ -701,8 +718,44 @@ function hostSettings(
       buzzSeconds: settings.buzzSeconds ?? buzzSeconds,
       falseStartMs: settings.falseStartMs ?? falseStartMs,
       showStandings: settings.showStandings ?? showStandings,
+      teams: settings.teams ?? teams,
     },
-  });
+  };
+  return done(teamsChange ? regrouped(merged) : merged);
+}
+
+/** LOBBY or between questions: one player to another of the room's teams. Scores stay put (F81). */
+function hostSetTeam(
+  room: Room,
+  { playerId, team }: Extract<Action, { type: 'host:setTeam' }>,
+): ReduceResult {
+  const player = room.players[playerId];
+  if (!player) return fail('Unknown player');
+  if (room.settings.teams === 0) return fail('Teams are off');
+  if (team >= room.settings.teams) return fail('No such team');
+  if (!TEAM_PHASES.includes(room.phase)) return fail(TEAMS_PHASE_ERROR);
+  if (player.team === team) return done(room);
+  return done(withPlayer(room, { ...player, team }));
+}
+
+/**
+ * Puts everyone on a team afresh for `settings.teams`, each to the smallest team in join order,
+ * so the teams come out balanced; with teams off, on none (F81).
+ */
+function regrouped(room: Room): Room {
+  const order = Object.values(room.players).sort(
+    (a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  const placed: Player[] = [];
+  for (const p of order) placed.push({ ...p, team: smallestTeam(placed, room.settings.teams) });
+  return { ...room, players: Object.fromEntries(placed.map((p) => [p.id, p])) };
+}
+
+/** The team with the fewest of `players`, lowest index on a tie; null with teams off. */
+function smallestTeam(players: readonly Player[], teams: number): number | null {
+  if (teams === 0) return null;
+  const sizes = Array.from({ length: teams }, (_, i) => players.filter((p) => p.team === i).length);
+  return sizes.indexOf(Math.min(...sizes));
 }
 
 /**

@@ -51,6 +51,7 @@ export function makePlayer(id: string, overrides: Partial<Player> = {}): Player 
     rttMs: 0,
     joinedAt: T0,
     joinedAtOpening: 0,
+    team: null,
     ...overrides,
   };
 }
