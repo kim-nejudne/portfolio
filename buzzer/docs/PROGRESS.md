@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F79 — Bulk paste questions (2026-10-29)
+**What changed:**
+- New `client/src/lib/bulkPaste.ts`: `parsePaste` reads one question per line as `Question | Answer | points` or, when the paste has any tab, as spreadsheet cells; it handles quoted cells (`""`, delimiter or line break inside), trims stray spaces, skips blank lines and empty trailing cells, defaults points to 100, and returns the good questions plus each bad line with its line number, source and every reason. `addPasted` appends them with fresh ids, up to 100; `pasteRoom` gives what still fits.
+- New `components/PasteQuestions.tsx`: the panel with the text area, a live preview ("N questions found", "N lines skipped" with reasons), the "Only N more questions fit" note, **Add N questions** and Cancel. `SetEditor.tsx`: **Paste questions** beside **Add question** (disabled with it at 100); after adding, the panel closes and the first new card takes focus. The empty-set text mentions it.
+- Tests: `bulkPaste.test.ts` (15: both formats, CRLF, pipe in a cell, stray spaces and blank lines, quotes, literal quotes, unclosed quote, every bad reason, mixed paste hint, trailing cells, multi-line cell line number, empty paste, append, limit), `SetEditor.test.tsx` +4 (preview with reasons, Add appends and saves a spreadsheet paste, limit note and cap, disabled Add and Cancel). 1885 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F79 (format per paste and the mixed-paste reason; trimming, quotes and too many cells; preview, limit note and focus).
+
+**Notes for next session:**
+- A paste mixing tab and pipe lines reads every line as cells; pipe lines are skipped with "This paste has tabs, so | doesn't split cells."
+- A header row from a spreadsheet ("Question / Answer / Points") is skipped as a bad line (points not a whole number); the rest still adds.
+- Playtest (Playwright, 390×844, new empty set): pipe and tab pastes, quoted pipe, stray spaces, bad-line reasons, Add 2, then 100 lines into a 2-question set showed "Only 98 more questions fit" and filled the set to 100 with Add question disabled. No console errors. Screenshot: `.playtest/F79/limit-editor.png`. The mixed-paste reason was added after the playtest (unit test only).
+- Main `index` chunk unchanged at 494.67 kB (149.27 kB gzip).
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets`, edit a set, press **Paste questions** and paste lines such as `Capital of France? | Paris | 200`, or copy three columns from a spreadsheet. Check the preview, then **Add N questions**.
+
 ## F78 — Results card (2026-10-29)
 **What changed:**
 - New `client/src/lib/resultsCard.ts`: `cardFromRoom` (Screen, remote) and `cardFromPlayer` (phone) build the card's data; `cardLayout` gives the podium (generic `podiumSteps`) and each ranking cut to 10 with "and N more"; `drawResultsCard` paints a 1080×1350 card (logo, set title, date, podium, Full ranking, or This game and Tonight from game 2; no room code); `renderResultsCard` loads the fonts and encodes a PNG; `shareOrDownload` uses `navigator.share` with the file where `canShare({files})` allows, else downloads `buzzr-results.png`.

@@ -210,13 +210,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M19 — Editor
 
-- [ ] F79 Bulk paste questions
-  - Spec: Question editor and images (Set editor); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F53
-  - Done when:
-    - The set editor has **Paste questions**: a text area that takes one question per line as `Question | Answer | points` or tab-separated cells (a spreadsheet paste); points optional (default 100)
-    - A preview lists the parsed questions and each bad line with its reason (missing answer, over the length limits, points not an integer); **Add N questions** appends the good ones, within the 100-question limit
-  - Tests: `bulkPaste.test.ts` (both formats, quotes and stray spaces, bad lines, limit), `SetEditor.test.tsx`
+- [x] F79 Bulk paste questions
 
 - [ ] F80 Export all and import many
   - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)

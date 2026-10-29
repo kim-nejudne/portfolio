@@ -29,8 +29,10 @@ import {
 } from '../../../shared/constants.js';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
+import { PasteQuestions } from '../components/PasteQuestions.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
 import { type SaveStatus, useAutosave } from '../lib/autosave.js';
+import { addPasted, type PastedQuestion } from '../lib/bulkPaste.js';
 import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
@@ -91,6 +93,7 @@ function Editor({ setId }: { setId: string }) {
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [focusId, setFocusId] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [pasting, setPasting] = useState(false);
   // Suggestions for the Category field: what this browser's sets already use.
   const [categories, setCategories] = useState<string[]>([]);
   // SPEC-QUESTION: when an unused blob is deleted is unspecified (DECISIONS F29).
@@ -175,6 +178,14 @@ function Editor({ setId }: { setId: string }) {
   const add = () => {
     const questions = addQuestion(set.questions);
     setFocusId(questions.at(-1)!.id);
+    changeQuestions(questions);
+  };
+  const addFromPaste = (pasted: PastedQuestion[]) => {
+    const questions = addPasted(set.questions, pasted);
+    // The first new card takes focus, which brings the added questions into view.
+    const first = questions[set.questions.length];
+    if (first) setFocusId(first.id);
+    setPasting(false);
     changeQuestions(questions);
   };
 
@@ -292,7 +303,7 @@ function Editor({ setId }: { setId: string }) {
         {set.questions.length === 0 ? (
           <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
             No questions yet. Tap <strong className="text-ink">Add question</strong> to write the
-            first.
+            first, or <strong className="text-ink">Paste questions</strong> to bring in many.
           </p>
         ) : (
           <DndContext
@@ -330,15 +341,33 @@ function Editor({ setId }: { setId: string }) {
         )}
 
         <div className="flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={add}
-            disabled={!canAdd}
-            className={`rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
-          >
-            Add question
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={add}
+              disabled={!canAdd}
+              className={`rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
+            >
+              Add question
+            </button>
+            <button
+              type="button"
+              onClick={() => setPasting((open) => !open)}
+              disabled={!canAdd}
+              aria-expanded={pasting && canAdd}
+              className={smallButton}
+            >
+              Paste questions
+            </button>
+          </div>
           {!canAdd && <p className="text-muted">{QUESTION_CAP_MESSAGE}</p>}
+          {pasting && canAdd && (
+            <PasteQuestions
+              count={set.questions.length}
+              onAdd={addFromPaste}
+              onCancel={() => setPasting(false)}
+            />
+          )}
         </div>
       </main>
       {previewIndex !== null && previewIndex < set.questions.length && (

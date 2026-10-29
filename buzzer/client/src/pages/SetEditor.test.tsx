@@ -13,6 +13,7 @@ import type { Question, QuestionSet } from '../../../shared/types.js';
 import { AUTOSAVE_DELAY_MS } from '../lib/autosave.js';
 import { db, getSet } from '../lib/db.js';
 import { IMAGE_TOO_LARGE, shrinkImage } from '../lib/imagePipeline.js';
+import { MISSING_ANSWER } from '../lib/bulkPaste.js';
 import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { buttonsWithoutHover } from '../test/hover.js';
@@ -341,6 +342,95 @@ describe('Set editor /sets/:setId', () => {
     expect(
       (card(1).getByRole('button', { name: 'Duplicate question 1' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  it('Paste questions previews the good lines and each bad one with its reason', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const toggle = screen.getByRole('button', { name: 'Paste questions' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const area = screen.getByLabelText('Questions to paste');
+    expect(document.activeElement).toBe(area);
+    type(
+      area,
+      'Capital of France? | Paris | 200\nNo answer\n\n Largest planet?  | Jupiter \nHalf? | yes | 1.5',
+    );
+
+    const found = within(screen.getByRole('list', { name: 'Questions found' }));
+    expect(found.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Capital of France? · Paris · 200 pts',
+      'Largest planet? · Jupiter · 100 pts',
+    ]);
+    expect(screen.getByText('2 questions found')).toBeTruthy();
+    const skipped = within(screen.getByRole('list', { name: 'Lines skipped' }));
+    expect(skipped.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      `Line 2: ${MISSING_ANSWER}No answer`,
+      `Line 5: ${POINTS_ERROR}Half? | yes | 1.5`,
+    ]);
+    expect(screen.getByText('2 lines skipped')).toBeTruthy();
+    // Nothing is added until the button is pressed.
+    expect(screen.getAllByRole('listitem', { name: /^Question \d+$/ })).toHaveLength(1);
+  });
+
+  it('Add N questions appends the good spreadsheet rows after the others and saves them', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Paste questions' }));
+    type(
+      screen.getByLabelText('Questions to paste'),
+      '"Who said ""Hi""?"\tBob\t300\nNo answer\t\t\n2 + 2?\t4\t',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 questions' }));
+
+    expect(screen.queryByLabelText('Questions to paste')).toBeNull();
+    expect(document.activeElement).toBe(card(2).getByLabelText('Question'));
+    expect((card(2).getByLabelText('Question') as HTMLTextAreaElement).value).toBe(
+      'Who said "Hi"?',
+    );
+    expect((card(3).getByLabelText('Points') as HTMLInputElement).value).toBe('100');
+    await settle();
+    const saved = (await getSet('set-1'))!.questions;
+    expect(saved.map(({ text, answer, points }) => ({ text, answer, points }))).toEqual([
+      { text: 'Question a', answer: 'Answer a', points: 100 },
+      { text: 'Who said "Hi"?', answer: 'Bob', points: 300 },
+      { text: '2 + 2?', answer: '4', points: 100 },
+    ]);
+    expect(new Set(saved.map((x) => x.id)).size).toBe(3);
+  });
+
+  it('Add N questions adds only what fits within 100 and says so', async () => {
+    await seed(Array.from({ length: MAX_QUESTIONS_PER_SET - 1 }, (_, i) => q(`q${i}`)));
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Paste questions' }));
+    type(screen.getByLabelText('Questions to paste'), 'One? | 1\nTwo? | 2\nThree? | 3');
+    expect(screen.getByText('Only 1 more question fit: a set holds up to 100.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 question' }));
+    expect(screen.getAllByRole('listitem', { name: /^Question \d+$/ })).toHaveLength(
+      MAX_QUESTIONS_PER_SET,
+    );
+    expect(
+      (card(MAX_QUESTIONS_PER_SET).getByLabelText('Question') as HTMLTextAreaElement).value,
+    ).toBe('One?');
+    expect(
+      (screen.getByRole('button', { name: 'Paste questions' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    await settle();
+    expect((await getSet('set-1'))!.questions).toHaveLength(MAX_QUESTIONS_PER_SET);
+  });
+
+  it('Add stays disabled with nothing good to add, and Cancel closes without changes', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Paste questions' }));
+    const add = () => screen.getByRole('button', { name: /^Add \d+ questions?$/ });
+    expect((add() as HTMLButtonElement).disabled).toBe(true);
+    type(screen.getByLabelText('Questions to paste'), 'Only a question');
+    expect((add() as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Questions to paste')).toBeNull();
+    expect(screen.getAllByRole('listitem', { name: /^Question \d+$/ })).toHaveLength(1);
   });
 
   it('each card has a drag handle that the keyboard can pick up', async () => {
