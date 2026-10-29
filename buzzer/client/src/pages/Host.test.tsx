@@ -11,7 +11,13 @@ import {
   TEAMS,
 } from '../../../shared/constants.js';
 import { TOAST_MS } from '../components/Toast.js';
-import type { HostChoiceView, HostView, Question, TeamView } from '../../../shared/types.js';
+import type {
+  HostChoiceView,
+  HostTypedView,
+  HostView,
+  Question,
+  TeamView,
+} from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -1192,6 +1198,136 @@ describe('Host remote', () => {
     it('shows no tally for a buzz question', () => {
       remote(hostView({ phase: 'OPEN', questionIndex: 0, question: question(1) }));
       expect(screen.queryByRole('region', { name: 'Answers' })).toBeNull();
+    });
+  });
+
+  describe('typed questions (F88)', () => {
+    function remote(view: HostView, path = `/host/WXYZ#t=${TOKEN}`) {
+      const { socket } = renderHost(path);
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      socket.fire('state', view);
+      return socket;
+    }
+
+    const typedQuestion = question(1, { mode: 'typed', answer: 'Paris', hostNotes: 'Paree' });
+    const GROUPS: HostTypedView['groups'] = [
+      { key: 'paris', text: 'Paris', playerIds: ['p1', 'p2'], correct: true, preMarked: true },
+      { key: 'pariss', text: 'Pariss', playerIds: ['p3'], correct: false, preMarked: false },
+      { key: 'rome', text: 'Rome', playerIds: ['p4'], correct: false, preMarked: false },
+    ];
+    function typedView(
+      phase: HostView['phase'],
+      typed: Partial<HostTypedView> = {},
+      overrides: Partial<HostView> = {},
+    ): HostView {
+      return hostView({
+        phase,
+        questionIndex: 0,
+        openingCounter: 1,
+        question: typedQuestion,
+        players: [player(1), player(2), player(3), player(4), player(5)],
+        typed: {
+          answered: 4,
+          expected: 5,
+          timer: phase === 'ANSWERING' ? { seconds: 10 } : null,
+          closed: false,
+          groups: GROUPS,
+          ...typed,
+        },
+        ...overrides,
+      });
+    }
+    const panel = () => screen.getByRole('region', { name: 'Answers' });
+    const rows = () => within(panel()).getAllByRole('listitem');
+    const box = (text: string) =>
+      screen.getByRole('checkbox', { name: `Mark ${text} correct` }) as HTMLInputElement;
+    const marks = (socket: FakeSocket) =>
+      socket.emitted.filter((e) => e.event === 'host:markTyped').map((e) => e.payload);
+
+    it('lists the groups with their counts, pre-marked ones ticked', () => {
+      remote(typedView('ANSWERING'));
+      expect(within(panel()).getByRole('status').textContent).toBe('4 of 5 answered');
+      expect(rows().map((li) => li.textContent)).toEqual(['ParisPre-marked2', 'Pariss1', 'Rome1']);
+      expect([box('Paris').checked, box('Pariss').checked, box('Rome').checked]).toEqual([
+        true,
+        false,
+        false,
+      ]);
+      expect(rows()[0]!.dataset.correct).toBe('true');
+    });
+
+    it('a tick sends the whole ticked set as host:markTyped', () => {
+      const socket = remote(typedView('ANSWERING', { closed: true, timer: null }));
+      fireEvent.click(box('Pariss'));
+      expect(marks(socket)).toEqual([{ groups: ['paris', 'pariss'] }]);
+    });
+
+    it('an untick sends the set without that group, pre-marked or not', () => {
+      const socket = remote(typedView('ANSWERING', { closed: true, timer: null }));
+      fireEvent.click(box('Paris'));
+      expect(marks(socket)).toEqual([{ groups: [] }]);
+    });
+
+    it('the boxes follow the server: a new snapshot ticks what it marked', () => {
+      const socket = remote(typedView('ANSWERING'));
+      socket.fire(
+        'state',
+        typedView('ANSWERING', {
+          groups: GROUPS.map((group) =>
+            group.key === 'pariss' ? { ...group, correct: true } : group,
+          ),
+        }),
+      );
+      expect(box('Pariss').checked).toBe(true);
+    });
+
+    it('the primary action reads Reveal and score and sends host:reveal', () => {
+      const socket = remote(typedView('ANSWERING', { closed: true, timer: null }));
+      expect(within(panel()).getByRole('status').textContent).toBe('Answers closed · 4 answered');
+      fireEvent.click(screen.getByRole('button', { name: 'Reveal and score' }));
+      expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:reveal', payload: {} });
+    });
+
+    it('counts the answer time down beside Reveal and score until the answers lock', () => {
+      vi.useFakeTimers();
+      const socket = remote(typedView('ANSWERING'));
+      const timer = () => screen.queryByRole('timer', { name: 'Time to answer' });
+      expect(timer()?.textContent).toBe('10sec');
+      act(() => vi.advanceTimersByTime(3000));
+      expect(timer()?.textContent).toBe('7sec');
+      socket.fire('state', typedView('ANSWERING', { closed: true, timer: null }));
+      expect(timer()).toBeNull();
+      vi.useRealTimers();
+    });
+
+    it('reads Open answers before the answering starts', () => {
+      const socket = remote(
+        typedView('QUESTION', { answered: 0, groups: [] }, { openingCounter: 0 }),
+      );
+      expect(within(panel()).getByText('Not open yet.')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Open answers' }));
+      expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:open', payload: {} });
+    });
+
+    it('at REVEAL keeps the marked groups, read-only, with Next question', () => {
+      remote(typedView('REVEAL', { closed: true }));
+      expect(rows()).toHaveLength(3);
+      expect(box('Paris').disabled).toBe(true);
+      expect(box('Paris').checked).toBe(true);
+      expect(screen.getByRole('button', { name: 'Next question' })).toBeTruthy();
+    });
+
+    it('in the read-aloud layout, lists the groups only once the answers lock', () => {
+      const socket = remote(typedView('ANSWERING'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      expect(within(panel()).queryAllByRole('listitem')).toEqual([]);
+      expect(within(panel()).queryByText('Paris')).toBeNull();
+      socket.fire('state', typedView('ANSWERING', { closed: true, timer: null }));
+      expect(rows()).toHaveLength(3);
+    });
+
+    it('shows no marking panel for a buzz question', () => {
+      remote(hostView({ phase: 'OPEN', questionIndex: 0, question: question(1) }));
+      expect(screen.queryByRole('checkbox')).toBeNull();
     });
   });
 

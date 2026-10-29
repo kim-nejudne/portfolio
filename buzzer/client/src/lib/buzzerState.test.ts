@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER_PALETTE } from '../../../shared/constants.js';
-import type { PlayerChoiceView, PlayerView } from '../../../shared/types.js';
+import type { PlayerChoiceView, PlayerTypedView, PlayerView } from '../../../shared/types.js';
 import { buzzerState } from './buzzerState.js';
 
 function view(overrides: Partial<PlayerView> = {}): PlayerView {
@@ -49,6 +49,17 @@ function choice(overrides: Partial<PlayerChoiceView> = {}): PlayerChoiceView {
   };
 }
 
+function typed(overrides: Partial<PlayerTypedView> = {}): PlayerTypedView {
+  return {
+    answered: 0,
+    expected: 3,
+    timer: { seconds: 10 },
+    closed: false,
+    mine: null,
+    ...overrides,
+  };
+}
+
 function canBuzzFor({ phase, lockedOut, hasBuzzed }: Omit<PlayerView, 'canBuzz'>): boolean {
   return (phase === 'OPEN' || phase === 'COLLECTING') && !lockedOut && !hasBuzzed;
 }
@@ -82,16 +93,85 @@ describe('buzzerState', () => {
     expect(buzzerState(tapped, false, null, false, 0).label).toBe('Answer sent');
   });
 
-  it('a typed question shows no buzzer: no false start before it opens, then "Answering…" (F87)', () => {
-    const typed = { answered: 0, expected: 2, timer: null, closed: false, mine: null };
-    const shown = view({ phase: 'QUESTION', questionIndex: 0, falseStartMs: 500, typed });
+  it('a typed question shows no buzzer, so no false start before it opens (F87)', () => {
+    const shown = view({ phase: 'QUESTION', questionIndex: 0, falseStartMs: 500, typed: typed() });
     expect(buzzerState(shown, true)).toEqual({ kind: 'idle', label: 'Get ready…', live: false });
-    const answering = view({ phase: 'ANSWERING', questionIndex: 0, typed });
+  });
+
+  it('asks for a typed answer while the answers are open (F88)', () => {
+    const answering = view({ phase: 'ANSWERING', questionIndex: 0, typed: typed() });
     expect(buzzerState(answering, true)).toEqual({
-      kind: 'idle',
-      label: 'Answering…',
+      kind: 'typed',
+      label: 'Type your answer',
       live: false,
     });
+  });
+
+  it('says "Answer sent" once the server has this player\'s typed answer, open or closed (F88)', () => {
+    const open = view({ phase: 'ANSWERING', questionIndex: 0, typed: typed({ mine: 'Paris' }) });
+    expect(buzzerState(open, false).label).toBe('Answer sent');
+    const closed = view({
+      phase: 'ANSWERING',
+      questionIndex: 0,
+      typed: typed({ mine: 'Paris', closed: true, timer: null }),
+    });
+    expect(buzzerState(closed, false)).toEqual({
+      kind: 'typed',
+      label: 'Answer sent',
+      live: false,
+    });
+  });
+
+  it('says "Answers closed" to a player who sent nothing before the lock (F88)', () => {
+    const closed = view({
+      phase: 'ANSWERING',
+      questionIndex: 0,
+      typed: typed({ closed: true, timer: null }),
+    });
+    expect(buzzerState(closed, false).label).toBe('Answers closed');
+  });
+
+  it('says "Correct!" with the points when this player\'s typed group was marked right (F88)', () => {
+    const revealed = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Paris',
+      pointsThisQuestion: 100,
+      typed: typed({
+        timer: null,
+        closed: true,
+        mine: 'paris ',
+        groups: [
+          { key: 'paris', text: 'Paris', playerIds: ['p2', 'p1'], correct: true },
+          { key: 'rome', text: 'Rome', playerIds: ['p3'], correct: false },
+        ],
+      }),
+    });
+    expect(buzzerState(revealed, false)).toEqual({
+      kind: 'revealed',
+      caption: 'Your answer',
+      label: 'Correct!',
+      detail: '+100',
+      live: false,
+    });
+  });
+
+  it("shows the right answer when this player's typed group was not marked right (F88)", () => {
+    const revealed = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Paris',
+      typed: typed({
+        timer: null,
+        closed: true,
+        mine: 'Rome',
+        groups: [
+          { key: 'paris', text: 'Paris', playerIds: ['p2'], correct: true },
+          { key: 'rome', text: 'Rome', playerIds: ['p1'], correct: false },
+        ],
+      }),
+    });
+    expect(buzzerState(revealed, false)).toEqual({ kind: 'revealed', label: 'Paris', live: false });
   });
 
   it('never shows "Too early!" before a choice question opens, even with false starts on', () => {

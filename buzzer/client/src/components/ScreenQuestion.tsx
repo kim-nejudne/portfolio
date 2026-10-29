@@ -6,6 +6,7 @@ import type {
   Phase,
   RankedPlayer,
   ScreenView,
+  TypedView,
 } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
 import { signedPoints } from '../lib/results.js';
@@ -14,7 +15,7 @@ import {
   countdownText,
   useAnswerCountdown,
   useBuzzCountdown,
-  useChoiceCountdown,
+  useAnsweringCountdown,
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
@@ -45,7 +46,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const { question } = view;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
-  const choiceCountdown = useChoiceCountdown(view);
+  const answeringCountdown = useAnsweringCountdown(view);
   const held = useFalseStartWait(view, view.settings.falseStartMs, view.falseStarts.length > 0);
   const rowRef = useRef<HTMLDivElement>(null);
   // The length step is the most the text gets; the answer and the banner squeeze the card, so it
@@ -88,7 +89,16 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
         {view.choice ? (
           // A choice question shows its tiles in place of the buzzer status, the lit tile in
           // place of the answer at REVEAL, and nobody's name: several players may be right (F86).
-          <ChoiceBoard choice={view.choice} phase={view.phase} countdown={choiceCountdown} />
+          <ChoiceBoard choice={view.choice} phase={view.phase} countdown={answeringCountdown} />
+        ) : view.typed ? (
+          // A typed question has no buzzers; at REVEAL every player marked right is named (F88).
+          <TypedBoard
+            typed={view.typed}
+            phase={view.phase}
+            countdown={answeringCountdown}
+            answer={question.answer}
+            players={view.players}
+          />
         ) : view.phase === 'REVEAL' ? (
           <Reveal
             answer={question.answer}
@@ -228,31 +238,122 @@ function ChoiceBoard({
         })}
       </ol>
       {phase === 'ANSWERING' && (
-        <div className="flex shrink-0 items-center justify-center gap-[2vw]">
-          {countdown && (
-            <p
-              role="timer"
-              aria-label="Time to answer"
-              className={`min-w-[2.2em] rounded-full bg-buzz px-[1.4vw] py-[0.6vh] text-center font-display text-[min(3.4vw,6vh)] leading-tight text-ink tabular-nums ${STAGE_RING}`}
-            >
-              {countdown.secondsLeft}
-            </p>
-          )}
-          <p role="status" className="font-display text-[min(2.6vw,4.6vh)] text-accent">
-            {choice.answered} of {choice.expected} answered
-          </p>
-        </div>
+        <AnsweringProgress
+          countdown={countdown}
+          status={`${choice.answered} of ${choice.expected} answered`}
+        />
       )}
-      {phase === 'QUESTION' && (
-        <p
-          role="status"
-          className="shrink-0 self-center rounded-full border-2 border-edge bg-surface px-[3vw] py-[1.2vh] font-display text-[min(2.6vw,4.6vh)] text-muted"
-        >
-          Answers locked
-        </p>
-      )}
+      {phase === 'QUESTION' && <AnswersPill label="Answers locked" />}
     </section>
   );
+}
+
+/** The time left to answer in a red pill, and how many have answered (F86, F88). */
+function AnsweringProgress({
+  countdown,
+  status,
+}: {
+  countdown: AnswerCountdown | null;
+  status: string;
+}) {
+  return (
+    <div className="flex shrink-0 items-center justify-center gap-[2vw]">
+      {countdown && (
+        <p
+          role="timer"
+          aria-label="Time to answer"
+          className={`min-w-[2.2em] rounded-full bg-buzz px-[1.4vw] py-[0.6vh] text-center font-display text-[min(3.4vw,6vh)] leading-tight text-ink tabular-nums ${STAGE_RING}`}
+        >
+          {countdown.secondsLeft}
+        </p>
+      )}
+      <p role="status" className="font-display text-[min(2.6vw,4.6vh)] text-accent">
+        {status}
+      </p>
+    </div>
+  );
+}
+
+/** A grey pill for answers not taken: before they open, or once typed answers lock. */
+function AnswersPill({ label }: { label: string }) {
+  return (
+    <p
+      role="status"
+      className="shrink-0 self-center rounded-full border-2 border-edge bg-surface px-[3vw] py-[1.2vh] font-display text-[min(2.6vw,4.6vh)] text-muted"
+    >
+      {label}
+    </p>
+  );
+}
+
+interface TypedBoardProps {
+  typed: TypedView;
+  phase: Phase;
+  countdown: AnswerCountdown | null;
+  /** In the view at REVEAL only. */
+  answer: string | undefined;
+  players: RankedPlayer[];
+}
+
+/**
+ * A typed question (F88): "Answers locked" before it opens; the time left and "N of M answered"
+ * while answers come in; "Answers closed" once they lock and the host marks them. At REVEAL, the
+ * answer, and the names of the players whose answers were marked right. The view carries no
+ * answers or groups before REVEAL, so nothing here can give one away.
+ */
+function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProps) {
+  if (phase === 'REVEAL') {
+    const right = new Set(
+      (typed.groups ?? []).filter((group) => group.correct).flatMap((group) => group.playerIds),
+    );
+    const winners = players.filter((player) => right.has(player.id));
+    return (
+      <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
+        <p className={`text-muted ${SCREEN_LABEL}`}>Answer</p>
+        <AnswerText answer={answer} />
+        {winners.length > 0 ? (
+          <ul
+            aria-label="Got it"
+            className="flex max-w-full flex-wrap justify-center gap-[1vw] overflow-hidden"
+          >
+            {winners.map((player) => (
+              <li
+                key={player.id}
+                data-scorer
+                style={{ backgroundColor: player.color }}
+                className="flex items-center gap-[0.6vw] rounded-full px-[2vw] py-[0.8vh] font-display text-[min(2.4vw,4.6vh)] text-bg motion-safe:animate-pop-in"
+              >
+                {player.name}
+                <span className="sr-only"> ✓</span>
+                <Icon name="check" className="size-[1em]" />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="font-display text-[min(2.6vw,4.6vh)] text-muted">Nobody got it</p>
+        )}
+      </section>
+    );
+  }
+  if (phase === 'ANSWERING' && typed.closed) {
+    return (
+      <div className="flex shrink-0 items-center justify-center gap-[2vw]">
+        <AnswersPill label="Answers closed" />
+        <p className="font-display text-[min(2.6vw,4.6vh)] text-accent">
+          {typed.answered} answered
+        </p>
+      </div>
+    );
+  }
+  if (phase === 'ANSWERING') {
+    return (
+      <AnsweringProgress
+        countdown={countdown}
+        status={`${typed.answered} of ${typed.expected} answered`}
+      />
+    );
+  }
+  return <AnswersPill label="Answers locked" />;
 }
 
 /** Players judged wrong on this question, greyed out while the others may still buzz. */
@@ -317,11 +418,7 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
   return (
     <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
       <p className={`text-muted ${SCREEN_LABEL}`}>Answer</p>
-      <p
-        className={`max-w-full rounded-[min(1.88vw,3.3vh)] bg-surface px-[4vw] py-[2vh] text-center font-display text-[min(5vw,10vh)] leading-tight break-words text-accent ${STAGE_RING}`}
-      >
-        {answer}
-      </p>
+      <AnswerText answer={answer} />
       {scorer && (
         <p
           data-scorer
@@ -342,6 +439,17 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
         </p>
       )}
     </section>
+  );
+}
+
+/** The answer in large type, in the gold stage ring. */
+function AnswerText({ answer }: { answer: string | undefined }) {
+  return (
+    <p
+      className={`max-w-full rounded-[min(1.88vw,3.3vh)] bg-surface px-[4vw] py-[2vh] text-center font-display text-[min(5vw,10vh)] leading-tight break-words text-accent ${STAGE_RING}`}
+    >
+      {answer}
+    </p>
   );
 }
 

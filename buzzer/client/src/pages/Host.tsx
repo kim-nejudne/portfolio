@@ -19,6 +19,7 @@ import { ReadAloudJoin, ReadAloudQuestion } from '../components/ReadAloud.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
 import { ShareResults } from '../components/ShareResults.js';
 import { Toast, useToast } from '../components/Toast.js';
+import { TypedMarking } from '../components/TypedMarking.js';
 import { imageUrl } from '../lib/api.js';
 import {
   loadReadAloud,
@@ -255,6 +256,14 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
                 choice={view.choice}
                 phase={view.phase}
                 showCorrect={!readAloud || view.phase === 'REVEAL'}
+              />
+            )}
+            {view.typed && view.phase !== 'FINAL' && (
+              <TypedMarking
+                typed={view.typed}
+                phase={view.phase}
+                command={command}
+                showGroups={!readAloud || view.typed.closed || view.phase === 'REVEAL'}
               />
             )}
             <PrimaryAction view={view} command={command} bigWinner={readAloud} />

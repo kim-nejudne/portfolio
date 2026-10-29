@@ -41,6 +41,10 @@ export function primaryFor(view: ControlsView): { label: string; event: PrimaryE
   if (view.phase === 'QUESTION' && (view.choice || view.typed)) {
     return { label: 'Open answers', event: 'host:open' };
   }
+  // Typed answers wait for the host's marks; `host:reveal` scores them as marked (F87).
+  if (view.phase === 'ANSWERING' && view.typed) {
+    return { label: 'Reveal and score', event: 'host:reveal' };
+  }
   if (view.phase === 'REVEAL') {
     // `host:next` after the last question shows the final results instead of another question.
     const last = view.questionIndex >= view.questionCount - 1;
@@ -73,7 +77,8 @@ export type LocalShortcut = 'fullscreen' | 'bar' | 'sound' | 'help';
 export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
   {
     keys: ['Space'],
-    action: 'Primary action (Start / Open buzzers / Close answers / Reveal / Next)',
+    action:
+      'Primary action (Start / Open buzzers / Close answers / Reveal and score / Reveal / Next)',
   },
   { keys: ['C'], action: 'Correct' },
   { keys: ['V'], action: 'Half points' },

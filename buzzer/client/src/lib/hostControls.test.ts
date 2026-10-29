@@ -47,18 +47,23 @@ describe('primaryFor: choice questions (F86)', () => {
   });
 });
 
-describe('primaryFor: typed questions (F87)', () => {
+describe('primaryFor: typed questions (F87, F88)', () => {
   const TYPED: TypedView = { answered: 0, expected: 2, timer: null, closed: false };
 
-  it('reads "Open answers" before the answering starts, and "Close answers" during it', () => {
+  it('reads "Open answers" before the answering starts', () => {
     expect(primaryFor(view('QUESTION', { typed: TYPED }))).toEqual({
       label: 'Open answers',
       event: 'host:open',
     });
-    expect(primaryFor(view('ANSWERING', { typed: { ...TYPED, closed: true } }))).toEqual({
-      label: 'Close answers',
-      event: 'host:reveal',
-    });
+  });
+
+  it('reads "Reveal and score" in ANSWERING, open or locked: host:reveal scores the marks', () => {
+    for (const closed of [false, true]) {
+      expect(primaryFor(view('ANSWERING', { typed: { ...TYPED, closed } }))).toEqual({
+        label: 'Reveal and score',
+        event: 'host:reveal',
+      });
+    }
   });
 });
 

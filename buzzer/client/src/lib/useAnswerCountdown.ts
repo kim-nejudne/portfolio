@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AnswerTimerView, BuzzTimerView, ChoiceView } from '../../../shared/types.js';
+import type {
+  AnswerTimerView,
+  BuzzTimerView,
+  ChoiceView,
+  TypedView,
+} from '../../../shared/types.js';
 
 /** What every device shows once the server marks the answer time up. */
 export const TIME_UP_LABEL = 'Time’s up!';
@@ -56,23 +61,26 @@ export function useBuzzCountdown({
   return useCountdown(buzzTimer, questionIndex, openingCounter);
 }
 
-/** The parts of any role's view the choice countdown needs. */
-interface ChoiceCountdownSource {
+/** The parts of any role's view the answering countdown needs. */
+interface AnsweringCountdownSource {
   choice: Pick<ChoiceView, 'timer'> | null;
+  typed?: Pick<TypedView, 'timer'> | null;
   questionIndex: number;
   openingCounter: number;
 }
 
 /**
- * The time left to answer a choice question (F86), or null outside ANSWERING. It counts like the
- * buzz countdown and is never `up`: the server closes the answering at 0 and reveals (F85).
+ * The time left to answer a choice or typed question (F86, F88), or null outside ANSWERING and once
+ * typed answers lock. It counts like the buzz countdown and is never `up`: at 0 the server closes
+ * the answering (F85, F87).
  */
-export function useChoiceCountdown({
+export function useAnsweringCountdown({
   choice,
+  typed,
   questionIndex,
   openingCounter,
-}: ChoiceCountdownSource): AnswerCountdown | null {
-  return useCountdown(choice?.timer ?? null, questionIndex, openingCounter);
+}: AnsweringCountdownSource): AnswerCountdown | null {
+  return useCountdown(choice?.timer ?? typed?.timer ?? null, questionIndex, openingCounter);
 }
 
 /** Counts a view's timer down on this device; keyed by question index and opening counter. */

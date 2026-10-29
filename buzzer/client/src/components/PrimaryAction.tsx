@@ -5,7 +5,7 @@ import { LABEL } from '../lib/ui.js';
 import {
   useAnswerCountdown,
   useBuzzCountdown,
-  useChoiceCountdown,
+  useAnsweringCountdown,
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
@@ -44,7 +44,7 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
   const { busy, run } = command;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
-  const choiceCountdown = useChoiceCountdown(view);
+  const answeringCountdown = useAnsweringCountdown(view);
 
   if (view.phase === 'BUZZED') {
     // After a wrong answer the room waits in BUZZED before the buzzers reopen (DECISIONS #5).
@@ -131,7 +131,7 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
   );
   const side = buzzCountdown
     ? { countdown: buzzCountdown, label: 'Buzz time' }
-    : choiceCountdown && { countdown: choiceCountdown, label: 'Time to answer' };
+    : answeringCountdown && { countdown: answeringCountdown, label: 'Time to answer' };
   if (!side) return button;
   return (
     <div className="flex items-stretch gap-3">

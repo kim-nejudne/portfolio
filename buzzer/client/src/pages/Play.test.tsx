@@ -12,10 +12,12 @@ import {
   ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
   TEAMS,
+  TYPED_ANSWER_MAX,
 } from '../../../shared/constants.js';
 import type {
   PlayerChoiceView,
   PlayerResults,
+  PlayerTypedView,
   PlayerView,
   TeamView,
 } from '../../../shared/types.js';
@@ -1647,6 +1649,229 @@ describe('Play choice questions (F86)', () => {
         { phase: 'REVEAL', answer: 'Canberra' },
       ),
     );
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+});
+
+describe('Play typed questions (F88)', () => {
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    return sockets[0]!;
+  }
+
+  function typedView(
+    typed: Partial<PlayerTypedView> = {},
+    overrides: Partial<PlayerView> = {},
+  ): PlayerView {
+    return playerView({
+      phase: 'ANSWERING',
+      questionIndex: 0,
+      openingCounter: 1,
+      typed: {
+        answered: 0,
+        expected: 3,
+        timer: { seconds: 10 },
+        closed: false,
+        mine: null,
+        ...typed,
+      },
+      ...overrides,
+    });
+  }
+
+  const box = () => screen.getByRole('textbox', { name: 'Your answer' }) as HTMLInputElement;
+  const send = () => screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement;
+  const status = () => screen.getByRole('heading', { level: 1 });
+  const answers = (socket: FakeSocket) => socket.emitted.filter((e) => e.event === 'player:answer');
+  const type = (text: string) => fireEvent.change(box(), { target: { value: text } });
+
+  function stubVibrate() {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+    return vibrate;
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
+  it('shows a text box with Send in place of BUZZ, and sends the trimmed text', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView());
+    expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
+    expect(status().textContent).toBe('Type your answer');
+    expect(box().maxLength).toBe(TYPED_ANSWER_MAX);
+    expect(send().disabled).toBe(true);
+    type('  Paris ');
+    fireEvent.click(send());
+    expect(answers(socket).map((e) => e.payload)).toEqual([{ text: 'Paris' }]);
+  });
+
+  it('Enter sends too, and Space types in the box instead of buzzing', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView());
+    type('New York');
+    const spaced = fireEvent.keyDown(box(), { key: ' ', code: 'Space' });
+    expect(spaced).toBe(true);
+    fireEvent.submit(box().form!);
+    expect(socket.emitted.filter((e) => e.event === 'player:buzz')).toEqual([]);
+    expect(answers(socket).map((e) => e.payload)).toEqual([{ text: 'New York' }]);
+  });
+
+  it('says "Answer sent" once the server has it, and Send waits for a change', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView());
+    type('Paris');
+    fireEvent.click(send());
+    act(() => answers(socket)[0]!.ack({ ok: true }));
+    socket.fire('state', typedView({ mine: 'Paris', answered: 1 }));
+    expect(status().textContent).toBe('Answer sent');
+    expect(box().value).toBe('Paris');
+    expect(send().disabled).toBe(true);
+  });
+
+  it('stays editable until the answers close: a changed answer is sent again', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView({ mine: 'Paris', answered: 1 }));
+    type('Lyon');
+    expect(send().disabled).toBe(false);
+    fireEvent.click(send());
+    expect(answers(socket).map((e) => e.payload)).toEqual([{ text: 'Lyon' }]);
+  });
+
+  it('locks the box with the sent answer once the answers close', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView({ mine: 'Paris', answered: 1 }));
+    type('Lyon');
+    socket.fire('state', typedView({ mine: 'Paris', answered: 1, closed: true, timer: null }));
+    expect(box().disabled).toBe(true);
+    expect(box().value).toBe('Paris');
+    expect(send().disabled).toBe(true);
+    expect(status().textContent).toBe('Answer sent');
+    expect(screen.queryByRole('timer')).toBeNull();
+  });
+
+  it('says "Answers closed" to a player who sent nothing in time', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView({ closed: true, timer: null }));
+    expect(status().textContent).toBe('Answers closed');
+    expect(box().disabled).toBe(true);
+  });
+
+  it('a refused answer shows why and leaves the text to send again', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView());
+    type('Paris');
+    fireEvent.click(send());
+    act(() => answers(socket)[0]!.ack({ ok: false, error: 'Answers are closed' }));
+    expect(screen.getByRole('alert').textContent).toBe('Answers are closed');
+    expect(box().value).toBe('Paris');
+    expect(status().textContent).toBe('Type your answer');
+  });
+
+  it('shows the box disabled before the answers open, and sends nothing', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      typedView({ timer: null }, { phase: 'QUESTION', openingCounter: 0, falseStartMs: 500 }),
+    );
+    expect(box().disabled).toBe(true);
+    fireEvent.keyDown(window, { code: 'Space' });
+    expect(
+      socket.emitted.filter((e) => e.event.startsWith('player:') && e.event !== 'player:join'),
+    ).toEqual([]);
+    expect(status().textContent).toBe('Get ready…');
+  });
+
+  it('counts the answer time down', async () => {
+    const socket = await joined();
+    vi.useFakeTimers();
+    socket.fire('state', typedView());
+    const timer = () => screen.getByRole('timer', { name: 'Time to answer' });
+    expect(timer().textContent).toBe('10seconds to answer');
+    act(() => vi.advanceTimersByTime(4000));
+    expect(timer().textContent).toBe('6seconds to answer');
+  });
+
+  it('starts the next typed question with an empty box', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView({ mine: 'Paris' }));
+    socket.fire('state', typedView({}, { questionIndex: 1, openingCounter: 2 }));
+    expect(box().value).toBe('');
+  });
+
+  it('at the reveal says "Correct! +100" when their group was marked right', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      typedView(
+        {
+          timer: null,
+          closed: true,
+          mine: 'paris',
+          groups: [{ key: 'paris', text: 'Paris', playerIds: ['p1'], correct: true }],
+        },
+        { phase: 'REVEAL', answer: 'Paris', pointsThisQuestion: 100 },
+      ),
+    );
+    const card = screen.getByRole('region', { name: 'Answer' });
+    expect(within(card).getByText('Your answer')).toBeTruthy();
+    expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Correct!');
+    expect(within(card).getByText('+100')).toBeTruthy();
+  });
+
+  it('at the reveal shows the right answer when their group was not marked right', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      typedView(
+        {
+          timer: null,
+          closed: true,
+          mine: 'Lyon',
+          groups: [
+            { key: 'paris', text: 'Paris', playerIds: ['p2'], correct: true },
+            { key: 'lyon', text: 'Lyon', playerIds: ['p1'], correct: false },
+          ],
+        },
+        { phase: 'REVEAL', answer: 'Paris' },
+      ),
+    );
+    const card = screen.getByRole('region', { name: 'Answer' });
+    expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Paris');
+    expect(box().value).toBe('Lyon');
+    expect(box().disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('vibrates for a right or wrong answer at the reveal, and not without one', async () => {
+    const vibrate = stubVibrate();
+    const socket = await joined();
+    const reveal = (mine: string | null, correct: boolean) =>
+      typedView(
+        {
+          timer: null,
+          closed: true,
+          mine,
+          groups: mine ? [{ key: 'k', text: mine, playerIds: ['p1'], correct }] : [],
+        },
+        { phase: 'REVEAL', answer: 'Paris' },
+      );
+
+    socket.fire('state', typedView({ mine: 'Paris' }));
+    socket.fire('state', reveal('Paris', true));
+    expect(vibrate).toHaveBeenLastCalledWith([60, 80, 60]);
+
+    socket.fire('state', typedView({ mine: 'Rome' }, { questionIndex: 1 }));
+    socket.fire('state', reveal('Rome', false));
+    expect(vibrate).toHaveBeenLastCalledWith(400);
+
+    vibrate.mockClear();
+    socket.fire('state', typedView({}, { questionIndex: 2 }));
+    socket.fire('state', reveal(null, false));
     expect(vibrate).not.toHaveBeenCalled();
   });
 });

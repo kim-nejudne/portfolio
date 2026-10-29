@@ -12,6 +12,49 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F88 — Typed answers: devices (2026-10-30)
+**What changed:**
+- Lib:
+  - `buzzerState` has a new kind `typed`: "Type your answer", then "Answer sent", or "Answers closed" when locked with no answer.
+  - New `gotItRight(view)` (choice pick or typed group) drives "Correct! +100" and the reveal vibration for both modes.
+  - `hostControls.primaryFor` reads **Reveal and score** (`host:reveal`) on a typed question in ANSWERING.
+  - `useChoiceCountdown` is now `useAnsweringCountdown` and reads `choice?.timer ?? typed?.timer`.
+- Phone (`Play.tsx`):
+  - New `TypedAnswer`, keyed per opening: a text box (80 characters) and **Send** in place of BUZZ. It sends `player:answer {text}`, and Enter sends too.
+  - Send is off while the box holds `mine`, and an edit can be re-sent until the lock. Then the box shows `mine`, and a refusal toasts.
+  - At REVEAL the box stays, disabled, with no Send.
+  - Space no longer buzzes from inside an input. `useChoiceHaptics` is now `useAnswerHaptics`.
+- Remote: new `TypedMarking.tsx`, shown under the question card.
+  - It shows "N of M answered", or "Answers closed · N answered".
+  - Each group has its spelling, a "Pre-marked" tag, its count and a checkbox from the server's `correct`. A tick sends the whole ticked set as `host:markTyped` through the command lock.
+  - The boxes are read-only at REVEAL. In read-aloud the groups wait for the lock.
+- Screen (`ScreenQuestion.tsx`): new `TypedBoard`.
+  - "Answers locked" before opening, then the countdown and "N of M answered", then "Answers closed".
+  - At REVEAL: the answer, plus a chip in each player's colour for everyone in a correct group, or "Nobody got it".
+  - Shared pieces: `AnsweringProgress`, `AnswersPill`, `AnswerText` (also used by `ChoiceBoard` and `Reveal`).
+- Tests:
+  - `Play.test.tsx` +13: box, trim, Enter, Space, sent, re-edit, lock, closed-with-none, refusal, before open, countdown, next question, reveal right/wrong, vibration.
+  - `Host.test.tsx` +10, `Screen.test.tsx` +6 (5 typed plus the host bar).
+  - `buzzerState.test.ts` (6 typed; replaces F87's "Answering…"), `hostControls.test.ts` (Reveal and score), `useAnswerCountdown.test.ts` +1.
+  - 2220 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F88 (phone; remote; Screen).
+
+**Notes for next session:**
+- With F88 done, all of M17/M18 (choice and typed) is built.
+- Review Should-fix, not changed: `TypedMarking.toggle` builds the set from the last snapshot. That is safe only because `command.busy` disables the boxes until the next snapshot; keep that lock if the remote's command handling changes.
+- Backlog item added: a group's spelling breaks ties by code point ("PARIS" beat "paris" in the playtest); marking from the Screen; sounds at a typed reveal.
+- Playtest (Playwright; one host tab, three players in their own contexts; a one-question Typed set, "Paris" with alternative "The City of Light"):
+  - "paris", "  PARIS " and "The City of Light" arrived as 2 groups, both pre-marked.
+  - The host unticked one group, then **Reveal and score**: Ann and Bob got "Correct! +100", and Cy got "Answer Paris" and 0.
+  - The Screen showed the countdown and "0 of 3 answered", then "Answers closed · 3 answered". At reveal it showed PARIS with Ann ✓ and Bob ✓ (`.playtest/F88/reveal-screen.png`, checked).
+  - No answer text on the Screen or phones before reveal. No console errors read on the host tab.
+  - Not covered: re-editing before the lock (the round closed when all three had answered) and the player and Screen consoles. Unit tests cover re-editing.
+  - After the playtest, Send was hidden at REVEAL.
+- Main `index` chunk 509.90 → 514.98 kB.
+
+**How to try it:** `npm run dev`. At `http://localhost:5173/sets`, set a question's **Mode** to **Typed**, with alternatives one per line, then **Host a game**. Join 3+ phones at `http://<LAN-IP>:5173/play/<code>` and pair a phone as the remote. On the typed question press **Open answers**, type variants on the phones, tick or untick groups on the remote, then **Reveal and score**.
+
 ## F87 — Typed answers: data, editor and server (2026-10-30)
 **What changed:**
 - Shared: `TYPED_ANSWER_MAX` (80). `Room.typed {answers, marks, closed}` (`TypedAnswers`). View types `TypedGroup`, `TypedView`, `HostTypedView`, `PlayerTypedView`. `player:answer` is now `{choice} | {text}` (a zod union; text trimmed, 1–80). New `host:markTyped {groups: string[]}` (≤ 50 keys of ≤ 80).

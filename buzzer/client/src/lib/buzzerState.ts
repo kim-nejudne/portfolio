@@ -8,7 +8,7 @@ export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next questi
 /** The phone's label for a false start, until the wait after the opening ends (UI spec, Player view). */
 export const TOO_EARLY_LABEL = 'Too early!';
 
-/** The phone's label once its pick for a choice question is in (UI spec, Player view). */
+/** The phone's label once its pick or typed answer is in (UI spec, Player view). */
 export const ANSWER_SENT_LABEL = 'Answer sent';
 
 /**
@@ -16,10 +16,12 @@ export const ANSWER_SENT_LABEL = 'Answer sent';
  * the winner's red panel, dim, muted with a red X, the answer in a card, or the final result in
  * place of the button. The label is the status line above the button; the button itself always
  * reads BUZZ. `choice` is a choice question taking answers: the choice buttons replace the buzzer.
+ * `typed` is a typed question taking answers, or locked and waiting for the host: a text box does.
  */
 export type BuzzerKind =
   | 'idle'
   | 'choice'
+  | 'typed'
   | 'practice'
   | 'early'
   | 'live'
@@ -92,8 +94,15 @@ export function buzzerState(
       }
       return { kind: 'lost', label: `${view.winnerName ?? 'Someone'} buzzed first`, live: false };
     case 'ANSWERING':
-      // F88 brings the typed answer box; until then the phone only shows that answers are open.
-      if (view.typed) return idle('Answering…');
+      // A typed answer can change until the answers lock; then the room waits for the host (F87).
+      if (view.typed) {
+        const { mine, closed } = view.typed;
+        return {
+          kind: 'typed',
+          label: mine !== null ? ANSWER_SENT_LABEL : closed ? 'Answers closed' : 'Type your answer',
+          live: false,
+        };
+      }
       // The pick can still change until the answering closes (DECISIONS, F85).
       return {
         kind: 'choice',
@@ -101,11 +110,7 @@ export function buzzerState(
         live: false,
       };
     case 'REVEAL':
-      if (
-        view.choice &&
-        view.choice.mine !== null &&
-        view.choice.mine === view.choice.correctChoice
-      ) {
+      if (gotItRight(view)) {
         return {
           kind: 'revealed',
           caption: 'Your answer',
@@ -129,6 +134,12 @@ export function buzzerState(
         live: false,
       };
   }
+}
+
+/** This player's choice or typed answer was right, by the REVEAL view's correct choice or groups. */
+export function gotItRight({ choice, typed, me }: PlayerView): boolean {
+  if (choice) return choice.mine !== null && choice.mine === choice.correctChoice;
+  return !!typed?.groups?.some((group) => group.correct && group.playerIds.includes(me.id));
 }
 
 function idle(label: string): BuzzerState {

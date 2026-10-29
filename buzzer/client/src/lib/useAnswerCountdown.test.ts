@@ -7,7 +7,7 @@ import {
   TIME_UP_LABEL,
   useAnswerCountdown,
   useBuzzCountdown,
-  useChoiceCountdown,
+  useAnsweringCountdown,
 } from './useAnswerCountdown.js';
 
 interface Props {
@@ -167,8 +167,8 @@ describe('useBuzzCountdown', () => {
   });
 });
 
-describe('useChoiceCountdown', () => {
-  type ChoiceProps = Parameters<typeof useChoiceCountdown>[0];
+describe('useAnsweringCountdown', () => {
+  type ChoiceProps = Parameters<typeof useAnsweringCountdown>[0];
   const answering = (seconds: number): ChoiceProps => ({
     choice: { timer: { seconds } },
     questionIndex: 3,
@@ -176,7 +176,7 @@ describe('useChoiceCountdown', () => {
   });
 
   it('counts the choice time down to 0 and stops there; closing is the server’s', () => {
-    const { result } = renderHook((props: ChoiceProps) => useChoiceCountdown(props), {
+    const { result } = renderHook((props: ChoiceProps) => useAnsweringCountdown(props), {
       initialProps: answering(10),
     });
     expect(result.current).toEqual({ secondsLeft: 10, up: false });
@@ -188,13 +188,30 @@ describe('useChoiceCountdown', () => {
   });
 
   it('is null for a buzz question and once the answering closes', () => {
-    const { result, rerender } = renderHook((props: ChoiceProps) => useChoiceCountdown(props), {
+    const { result, rerender } = renderHook((props: ChoiceProps) => useAnsweringCountdown(props), {
       initialProps: { ...answering(10), choice: null } as ChoiceProps,
     });
     expect(result.current).toBeNull();
     rerender(answering(10));
     expect(result.current?.secondsLeft).toBe(10);
     rerender({ ...answering(10), choice: { timer: null } });
+    expect(result.current).toBeNull();
+  });
+
+  it('counts a typed question’s time down, and is null once its answers lock (F88)', () => {
+    const typed = (timer: { seconds: number } | null): ChoiceProps => ({
+      choice: null,
+      typed: { timer },
+      questionIndex: 3,
+      openingCounter: 2,
+    });
+    const { result, rerender } = renderHook((props: ChoiceProps) => useAnsweringCountdown(props), {
+      initialProps: typed({ seconds: 10 }),
+    });
+    expect(result.current).toEqual({ secondsLeft: 10, up: false });
+    tick(4000);
+    expect(result.current?.secondsLeft).toBe(6);
+    rerender(typed(null));
     expect(result.current).toBeNull();
   });
 });

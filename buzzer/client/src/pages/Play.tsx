@@ -17,9 +17,17 @@ import {
   PLAYER_NAME_MAX,
   ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
+  TYPED_ANSWER_MAX,
 } from '../../../shared/constants.js';
 import { playerNameSchema } from '../../../shared/schemas.js';
-import type { Ack, LobbyPlayer, PlayerChoiceView, PlayerView } from '../../../shared/types.js';
+import type {
+  Ack,
+  ClientPayloads,
+  LobbyPlayer,
+  PlayerChoiceView,
+  PlayerTypedView,
+  PlayerView,
+} from '../../../shared/types.js';
 import { BulbRail } from '../components/BulbRail.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
@@ -28,7 +36,7 @@ import { PlayerAvatar } from '../components/PlayerAvatar.js';
 import { ShareResults } from '../components/ShareResults.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
-import { buzzerState, type BuzzerKind, type BuzzerState } from '../lib/buzzerState.js';
+import { buzzerState, gotItRight, type BuzzerKind, type BuzzerState } from '../lib/buzzerState.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -47,7 +55,7 @@ import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import {
   useAnswerCountdown,
   useBuzzCountdown,
-  useChoiceCountdown,
+  useAnsweringCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
@@ -363,10 +371,10 @@ function PlayerRoom({
     [socketRef],
   );
   const answer = useCallback<SendAnswer>(
-    (choice, ack) => {
+    (payload, ack) => {
       const socket = socketRef.current;
       if (!socket) return ack({ ok: false, error: 'Not connected' });
-      socket.emit('player:answer', { choice }, ack);
+      socket.emit('player:answer', payload, ack);
     },
     [socketRef],
   );
@@ -408,8 +416,8 @@ function PlayerRoom({
 
 /** Sends a press: a buzz, or a lobby test buzz. */
 type SendPress = (event: 'player:buzz' | 'player:practice', ack: (res: Ack) => void) => void;
-/** Sends `player:answer` with a choice index, for a choice question. */
-type SendAnswer = (choice: number, ack: (res: Ack) => void) => void;
+/** Sends `player:answer`: a choice index, or a typed answer's text. */
+type SendAnswer = (answer: ClientPayloads['player:answer'], ack: (res: Ack) => void) => void;
 /** Sends `player:rename` with a name already checked against the join's rules. */
 type SendRename = (name: string, ack: (res: Ack) => void) => void;
 type SendLeave = (ack: (res: Ack) => void) => void;
@@ -438,20 +446,20 @@ function useOutcomeHaptics(meId: string): void {
 }
 
 /**
- * Vibrates when a choice question this player answered is revealed (UI spec, Player view: vibrate
- * on correct and wrong). The server sends no `fx` at its close (DECISIONS, F85), so this follows the
- * change from ANSWERING to REVEAL; a reconnect straight into REVEAL never replays it.
+ * Vibrates when a choice or typed question this player answered is revealed (UI spec, Player view:
+ * vibrate on correct and wrong). The server sends no `fx` at its close (DECISIONS, F85, F87), so
+ * this follows the change from ANSWERING to REVEAL; a reconnect straight into REVEAL never replays it.
  */
-function useChoiceHaptics(view: PlayerView): void {
+function useAnswerHaptics(view: PlayerView): void {
   const lastPhase = useRef(view.phase);
   useEffect(() => {
     const was = lastPhase.current;
     lastPhase.current = view.phase;
-    const choice = view.choice;
     if (was !== 'ANSWERING' || view.phase !== 'REVEAL' || !('vibrate' in navigator)) return;
-    if (!choice || choice.mine === null || choice.correctChoice === undefined) return;
-    navigator.vibrate(choice.mine === choice.correctChoice ? CORRECT_VIBRATION : WRONG_VIBRATION);
-  }, [view.phase, view.choice]);
+    const mine = view.choice?.mine ?? view.typed?.mine ?? null;
+    if (mine === null) return;
+    navigator.vibrate(gotItRight(view) ? CORRECT_VIBRATION : WRONG_VIBRATION);
+  }, [view]);
 }
 
 /*
@@ -465,8 +473,9 @@ const DEAD_BUTTON =
 
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: DEAD_BUTTON,
-  // The choice buttons replace the buzzer then; this look is never drawn.
+  // The choice buttons or the text box replace the buzzer then; these looks are never drawn.
   choice: DEAD_BUTTON,
+  typed: DEAD_BUTTON,
   // Live but muted: no pulse, a darker red, the same press-in.
   // Amber and pressed in: the press before the opening was noted, and the wait is on (F72).
   early:
@@ -486,6 +495,7 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
 const STATUS_LOOK: Record<BuzzerKind, string> = {
   idle: 'text-accent',
   choice: 'text-accent',
+  typed: 'text-accent',
   practice: 'text-accent',
   early: 'text-warn',
   live: 'text-accent',
@@ -522,7 +532,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   const picked = (pick?.opening === opening ? pick.choice : null) ?? view.choice?.mine ?? null;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
-  const choiceCountdown = useChoiceCountdown(view);
+  const answeringCountdown = useAnsweringCountdown(view);
   const held = useFalseStartWait(view, view.falseStartMs, view.falseStart);
   const state = buzzerState(view, pressedAt === opening, countdown, held, picked);
   // Counts test buzzes, so each one restarts the ring animation.
@@ -532,7 +542,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   const [leaving, setLeaving] = useState(false);
   useWakeLock();
   useOutcomeHaptics(view.me.id);
-  useChoiceHaptics(view);
+  useAnswerHaptics(view);
   const inLobby = view.phase === 'LOBBY';
   const enabled = state.live || state.kind === 'practice';
   const team = teamOf(view.teams, view.me.id);
@@ -556,7 +566,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
     if (state.kind !== 'choice' || choice === picked) return;
     setPick({ opening, choice });
     if ('vibrate' in navigator) navigator.vibrate(30);
-    answer(choice, (res) => {
+    answer({ choice }, (res) => {
       if (res.ok) return;
       // Refused (closed, rate limit, offline): back to what the server has.
       setPick((current) =>
@@ -583,12 +593,14 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
     });
   }
 
-  // Space buzzes, except while the menu or the name form is open: there it types and taps.
+  // Space buzzes, except while the menu or the name form is open, or in the typed answer's box:
+  // there it types and taps.
   const onKey = useEffectEvent((event: KeyboardEvent) => {
     if (panel !== null) {
       if (event.key === 'Escape') setPanel(null);
       return;
     }
+    if (event.target instanceof HTMLInputElement) return;
     if (event.code !== 'Space') return;
     event.preventDefault();
     if (!event.repeat) press();
@@ -776,6 +788,15 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 enabled={state.kind === 'choice'}
                 onPick={choose}
               />
+            ) : view.typed ? (
+              // Keyed by the opening, so a new question starts with an empty box.
+              <TypedAnswer
+                key={opening}
+                typed={view.typed}
+                enabled={state.kind === 'typed' && !view.typed.closed}
+                answer={answer}
+                onRefused={show}
+              />
             ) : (
               <button
                 type="button"
@@ -812,17 +833,17 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 {buzzCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to buzz
               </p>
             )}
-            {/* The time left to answer a choice question (F86). */}
-            {choiceCountdown && (
+            {/* The time left to answer a choice or typed question (F86, F88). */}
+            {answeringCountdown && (
               <p
                 role="timer"
                 aria-label="Time to answer"
                 className="flex shrink-0 items-baseline gap-2 font-bold text-muted"
               >
                 <span className="font-display text-4xl leading-none text-ink tabular-nums">
-                  {choiceCountdown.secondsLeft}
+                  {answeringCountdown.secondsLeft}
                 </span>
-                {choiceCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to answer
+                {answeringCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to answer
               </p>
             )}
           </div>
@@ -893,6 +914,72 @@ function ChoiceButtons({ choice, picked, enabled, onPick }: ChoiceButtonsProps) 
         );
       })}
     </ol>
+  );
+}
+
+interface TypedAnswerProps {
+  typed: PlayerTypedView;
+  /** Answers are being taken and not yet locked. Before and after, the box shows but is disabled. */
+  enabled: boolean;
+  answer: SendAnswer;
+  onRefused: (error: string) => void;
+}
+
+/**
+ * A typed question on the phone (UI spec, Player view): a text box and **Send**. The answer can be
+ * edited and sent again until the answers lock; the server's `mine` is what counts as sent, so
+ * Send is off while the box holds it. Enter sends too.
+ */
+function TypedAnswer({ typed, enabled, answer, onRefused }: TypedAnswerProps) {
+  const [draft, setDraft] = useState(typed.mine ?? '');
+  const [sending, setSending] = useState(false);
+  const text = draft.trim();
+  const canSend = enabled && !sending && text !== '' && text !== typed.mine;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSend) return;
+    setSending(true);
+    // Drops the keyboard, so the status line above shows "Answer sent".
+    const input = event.currentTarget.elements.namedItem('typed-answer');
+    if (input instanceof HTMLInputElement) input.blur();
+    answer({ text }, (res) => {
+      setSending(false);
+      if (!res.ok) onRefused(res.error);
+    });
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      aria-label="Your answer"
+      className="flex w-full max-w-sm shrink-0 touch-auto flex-col gap-3"
+    >
+      <label htmlFor="typed-answer" className="sr-only">
+        Your answer
+      </label>
+      <input
+        id="typed-answer"
+        name="typed-answer"
+        // Once locked, the box shows what the server has, not an edit that was never sent.
+        value={enabled ? draft : (typed.mine ?? '')}
+        onChange={(event) => setDraft(event.target.value)}
+        disabled={!enabled}
+        placeholder={enabled ? 'Type your answer' : ''}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="send"
+        maxLength={TYPED_ANSWER_MAX}
+        className={`${INPUT} text-2xl select-text disabled:opacity-60`}
+      />
+      {/* At REVEAL the box stays as a record of the answer; there is nothing left to send. */}
+      {typed.groups === undefined && (
+        <button type="submit" disabled={!canSend} className={`${BUTTON_PRIMARY} text-2xl`}>
+          Send
+        </button>
+      )}
+    </form>
   );
 }
 

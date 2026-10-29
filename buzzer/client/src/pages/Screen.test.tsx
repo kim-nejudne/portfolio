@@ -13,7 +13,7 @@ import {
   TEAMS,
   TITLE_CARD_MS,
 } from '../../../shared/constants.js';
-import type { RankedPlayer, ScreenView, TeamView } from '../../../shared/types.js';
+import type { RankedPlayer, ScreenView, TeamView, TypedView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
 import { playSound, resetSounds, startSounds } from '../lib/sounds.js';
@@ -921,6 +921,14 @@ describe('Screen', () => {
       expect(sent(socket).at(-1)).toEqual(['host:reveal', {}]);
     });
 
+    it('on a typed question the bar reads Reveal and score in ANSWERING, and Space sends host:reveal (F88)', () => {
+      const typed = { answered: 1, expected: 2, timer: null, closed: true };
+      const socket = hostScreen(inPhase('ANSWERING', { openingCounter: 1, typed }));
+      expect(within(bar()!).getByRole('button', { name: /Reveal and score/ })).toBeTruthy();
+      press(' ');
+      expect(sent(socket)).toEqual([['host:reveal', {}]]);
+    });
+
     it('ignores shortcuts with Ctrl, Cmd or Alt held, and key repeats', () => {
       const socket = hostScreen(inPhase('REVEAL'));
       press('s', { ctrlKey: true });
@@ -1725,6 +1733,75 @@ describe('Screen result states', () => {
       expect(scorer()).toBeNull();
       expect(choiceTime()).toBeNull();
       expect(screen.queryByText(/answered$/)).toBeNull();
+    });
+  });
+
+  describe('typed questions (F88)', () => {
+    const typedTime = () => screen.queryByRole('timer', { name: 'Time to answer' });
+    const answering = (typed: Partial<TypedView> = {}) =>
+      questionView({
+        phase: 'ANSWERING',
+        openingCounter: 1,
+        typed: { answered: 1, expected: 3, timer: { seconds: 10 }, closed: false, ...typed },
+      });
+    const revealed = (groups: TypedView['groups']) =>
+      revealView({
+        winnerId: null,
+        scorerId: 'p1',
+        typed: { answered: 3, expected: 3, timer: null, closed: true, groups },
+      });
+
+    it('counts the answer time down and shows "N of M answered", with no buzzer status', () => {
+      vi.useFakeTimers();
+      const socket = show(answering());
+      expect(typedTime()?.textContent).toBe('10');
+      expect(screen.getByRole('status').textContent).toBe('1 of 3 answered');
+      expect(screen.queryByText(/Buzzers/)).toBeNull();
+      act(() => vi.advanceTimersByTime(4000));
+      expect(typedTime()?.textContent).toBe('6');
+      socket.fire('state', answering({ answered: 2 }));
+      expect(screen.getByRole('status').textContent).toBe('2 of 3 answered');
+    });
+
+    it('shows "Answers closed" once the answers lock, with no countdown', () => {
+      show(answering({ answered: 2, closed: true, timer: null }));
+      expect(screen.getByRole('status').textContent).toBe('Answers closed');
+      expect(screen.getByText('2 answered')).toBeTruthy();
+      expect(typedTime()).toBeNull();
+    });
+
+    it('shows "Answers locked" before the answering opens', () => {
+      show({ ...answering({ answered: 0, timer: null }), phase: 'QUESTION', openingCounter: 0 });
+      expect(screen.getByRole('status').textContent).toBe('Answers locked');
+    });
+
+    it('at the reveal shows the answer and names every player marked right', () => {
+      show(
+        revealed([
+          { key: 'canberra', text: 'Canberra', playerIds: ['p3', 'p1'], correct: true },
+          { key: 'canbera', text: 'Canbera', playerIds: ['p2'], correct: false },
+        ]),
+      );
+      const answer = screen.getByRole('region', { name: 'Answer' });
+      expect(within(answer).getByText(ANSWER)).toBeTruthy();
+      const got = within(answer).getByRole('list', { name: 'Got it' });
+      // In ranking order, as the view lists the players.
+      expect(
+        within(got)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['Ana ✓', 'Cy ✓']);
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = ana.color;
+      expect(within(got).getAllByRole('listitem')[0]!.style.backgroundColor).toBe(
+        probe.style.backgroundColor,
+      );
+    });
+
+    it('at the reveal says "Nobody got it" when no group was marked right', () => {
+      show(revealed([{ key: 'sydney', text: 'Sydney', playerIds: ['p1'], correct: false }]));
+      expect(screen.getByText('Nobody got it')).toBeTruthy();
+      expect(screen.queryByRole('list', { name: 'Got it' })).toBeNull();
     });
   });
 

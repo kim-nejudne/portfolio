@@ -232,14 +232,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F87 Typed answers: data, editor and server
 
-- [ ] F88 Typed answers: devices
-  - Spec: UI spec by view (Screen view, Player view, Host remote); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F87
-  - Done when:
-    - Phone: a text input with **Send** (editable until it closes); then "Answer sent"
-    - Remote: the groups with counts and a correct checkbox each (pre-marked ones ticked), then **Reveal and score**
-    - Screen: countdown and "N of M answered"; at REVEAL the answer and the names of the players who got it
-  - Tests: `Play.test.tsx`, `Host.test.tsx`, `Screen.test.tsx`. `/playtest`: three players type variants of one answer
+- [x] F88 Typed answers: devices
 
 ## M22 — Category board
 
@@ -283,3 +276,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Bundle: the main `index` chunk passed Vite's 500 kB warning (501.6 kB, 150.7 kB gzip) with F83. Lazy-load a page that only one device opens (the editor at `/sets`, or the results card renderer) to get back under it (F83).
 - Choice questions: the Print answer sheet could list the choices with the correct one marked (F84 prints the correct choice as the answer only), and the editor could warn about two choices with the same text.
 - Choice questions: a "Choice time" stepper (5–30 s) in Settings for `choiceSeconds`, settable over `host:settings` only today; the Screen lobby's settings column is full at 1280×720, so it needs a squeeze or a fold (F85, F86). The Screen could play the correct or wrong sound at a choice reveal (no `fx` is sent then), and the remote could name who picked what from `choice.answers` (F86).
+- Typed questions: a group's shown spelling breaks a tie by code point, so "PARIS" beats "paris" on the remote; prefer the spelling closest to the answer, or the first typed (F87, F88). Marking from the Screen's keyboard (it shows no groups, so Reveal and score uses the pre-marks there), and the correct and wrong sounds at a typed reveal (F88).
