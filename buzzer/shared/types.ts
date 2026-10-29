@@ -271,6 +271,17 @@ export interface CreateRoomResponse {
   hostToken: string;
 }
 
+/** `PUT /api/rooms/:code/set` body: the next game's set, in FINAL only (DECISIONS F49). */
+export interface NewGameBody {
+  set: QuestionSet;
+  keepScores: boolean;
+}
+
+/** `PUT /api/rooms/:code/set`, on success (200). */
+export interface NewGameResponse {
+  ok: true;
+}
+
 /** `GET /api/rooms/:code/exists`, for the join form. `phase` is null when there is no such room. */
 export interface RoomExistsResponse {
   exists: boolean;

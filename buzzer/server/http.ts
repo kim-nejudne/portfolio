@@ -15,12 +15,19 @@ import {
   ROOM_CHECK_RATE_LIMIT,
   ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_CREATE_RATE_LIMIT,
+  ROOM_NOT_FOUND_ERROR,
 } from '../shared/constants.js';
-import { createRoomBodySchema, idSchema, roomCodeSchema } from '../shared/schemas.js';
+import {
+  createRoomBodySchema,
+  idSchema,
+  newGameBodySchema,
+  roomCodeSchema,
+} from '../shared/schemas.js';
 import type {
   ConfigResponse,
   CreateRoomResponse,
   HttpErrorBody,
+  NewGameResponse,
   RoomExistsResponse,
   UploadImageResponse,
 } from '../shared/types.js';
@@ -29,8 +36,10 @@ import { lanAddress } from './env.js';
 import { generateHostToken, hashHostToken, verifyHostToken } from './hostToken.js';
 import { InMemoryImageStore, type ImageStore } from './imageStore.js';
 import { createRateLimiter } from './rateLimit.js';
+import { reduce, WRONG_PHASE_ERROR } from './reducer.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore, type RoomStore } from './roomStore.js';
+import type { Dispatch } from './sockets.js';
 
 export interface AppOptions {
   /** Built client (dist/client). When set, the app serves it, with index.html for client routes. */
@@ -51,6 +60,11 @@ export interface AppOptions {
   publicUrl?: string | null;
   /** The server's network interfaces, read on each config request. Faked in tests. */
   interfaces?: () => ReturnType<typeof networkInterfaces>;
+  /**
+   * The gateway's `dispatch`, so an HTTP action reaches every device. Without a gateway (HTTP-only
+   * tests) the action is reduced and stored, and nobody is told.
+   */
+  dispatch?: Dispatch;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -80,6 +94,14 @@ export function createApp({
   trustProxy = false,
   publicUrl = null,
   interfaces = networkInterfaces,
+  dispatch = (code, action) => {
+    const room = rooms.get(code);
+    const result = room
+      ? reduce(room, action, clock())
+      : { ok: false as const, error: ROOM_NOT_FOUND_ERROR };
+    if (result.ok) rooms.set(result.room);
+    return result.ok ? { ok: true } : result;
+  },
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -205,6 +227,49 @@ export function createApp({
     express.raw({ type: () => true, limit: IMAGE_MAX_BYTES }),
     storeImage,
     onImageTooLarge,
+  );
+
+  // A new game in the same room (DECISIONS F49). The room and token are checked before the body is
+  // read, so only the host can make the server buffer a set.
+  app.put(
+    '/api/rooms/:code/set',
+    (req, res, next) => {
+      const code = roomCodeSchema.safeParse(req.params.code);
+      const room = code.success ? rooms.get(code.data) : undefined;
+      if (!room) return sendError(res, 404, 'This room does not exist.');
+      const token = bearerToken(req);
+      if (token === undefined || !verifyHostToken(token, room.hostTokenHash)) {
+        res.set('WWW-Authenticate', 'Bearer');
+        return sendError(res, 401, 'Only the host of this room can start a new game.');
+      }
+      res.locals.code = room.code;
+      next();
+    },
+    express.json({ limit: CREATE_ROOM_BODY_MAX_BYTES }),
+    (req, res) => {
+      const parsed = newGameBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        sendError(res, 400, `Invalid set: ${z.prettifyError(parsed.error)}`);
+        return;
+      }
+      const code = res.locals.code as string;
+      const { set, keepScores } = parsed.data;
+      const ack = dispatch(code, { type: 'host:newGame', set, keepScores });
+      if (!ack.ok) {
+        // Only FINAL takes a new game: a second request (Screen and remote racing) lands here.
+        if (ack.error === WRONG_PHASE_ERROR) {
+          return sendError(res, 409, 'A new game can start only after the game has ended.');
+        }
+        // The room expired between the check above and now.
+        if (ack.error === ROOM_NOT_FOUND_ERROR) {
+          return sendError(res, 404, 'This room does not exist.');
+        }
+        return sendError(res, 409, ack.error);
+      }
+      // The old set's images go; the upload route now accepts only the new set's imageIds.
+      images.deleteRoom(code);
+      res.json({ ok: true } satisfies NewGameResponse);
+    },
   );
 
   app.get('/api/rooms/:code/images/:imageId', (req, res) => {

@@ -10,6 +10,28 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F49 — New game: server (2026-10-29)
+**What changed:**
+- Shared: `NewGameBody {set, keepScores}`, `NewGameResponse {ok: true}`, `newGameBodySchema` (with the type-equality check).
+- Reducer: `host:newGame {set, keepScores}`, FINAL only (else `WRONG_PHASE_ERROR`). Returns LOBBY with the new set, `questionIndex` −1, the per-question fields, `judgements` and `showScoreboard` cleared. Players (disconnected too), `kickedIds`, `settings`, code and `openingCounter` stay. Scores go to 0 through `applyJudgement` unless `keepScores`. No effects.
+- HTTP: `PUT /api/rooms/:code/set` in `server/http.ts`. 404 / 401 before the body is read, then `express.json` at `CREATE_ROOM_BODY_MAX_BYTES` (413), zod (400), dispatch (409 outside FINAL), then `images.deleteRoom(code)` and 200 `{ok: true}`.
+- Gateway: `attachSockets` returns `{io, dispatch}` (new `Gateway`, `Dispatch` types). `index.ts` passes `dispatch` to `createApp`, bound late. The socket test harness mounts `createApp` the same way and exposes `base` and `images`.
+- Tests:
+  - New `server/reducer.newgame.test.ts` (27): full reset, kept fields, keepScores both ways, disconnected and kicked players, rejection from the six other phases, no undo across games, start/end on the new set, stale `windowClosed` / `reopen` / `answerTimeUp` in the lobby and on question 0.
+  - New `server/http.newgame.test.ts` (13): each status, the 1 MB limit at the edge, racing PUTs (200 + 409), old images freed and only new ones uploadable, images kept on refusal, all four socket roles (Screen, hosting Screen, Host, Player) get LOBBY with the new count, scores on every device, no new-set answers or notes in Screen/Player frames (through `host:start`).
+  - `schemas.test.ts` +3. 1198 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-29 for F49 on the route's check order, the error mapping, the gateway's return shape and the default `dispatch`. The two earlier F49 rows (HTTP not socket; what resets) were followed as written.
+
+**Notes for next session:**
+- No UI yet. F50 adds the picker on the Screen (when it holds the hostToken) and the remote, then re-uploads the new set's images with the existing route after the PUT succeeds.
+- The client must send `Content-Type: application/json`; express ignores other bodies, which then fail zod with 400.
+- No playtest: server-only feature. Socket coverage is in `http.newgame.test.ts`.
+- The DECISIONS "Proposed spec changes" entry for new game still needs to go into SPEC.md (Kim's edit).
+
+**How to try it:** `npm run dev`. Host a set at `http://localhost:5173/sets`, join a phone, Start, then End game on the remote. Copy the Screen's localStorage value `buzzr:hostToken:CODE`, then:
+`curl -i -X PUT localhost:3000/api/rooms/CODE/set -H "Authorization: Bearer TOKEN" -H 'Content-Type: application/json' -d @set.json` with `{"set": <exported set JSON>, "keepScores": false}`. Every device returns to the lobby. A second identical request answers 409.
+
 ## F48 — Seed starter sets into My sets (2026-10-29)
 **What changed:**
 - `client/src/lib/db.ts`:

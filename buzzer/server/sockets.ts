@@ -70,6 +70,15 @@ export interface GatewayOptions {
   playerJoinLimit?: RateLimit;
 }
 
+/** Reduces `action` in room `code`, stores the result and sends every device its new state. */
+export type Dispatch = (code: string, action: Action) => Ack;
+
+/** The running gateway. `dispatch` lets the HTTP layer apply an action too (DECISIONS F49). */
+export interface Gateway {
+  io: GatewayServer;
+  dispatch: Dispatch;
+}
+
 /** Every joined socket of a room, whatever its role: `room:closed` goes here. */
 export const anyRoom = (code: string) => `room:${code}`;
 export const screenRoom = (code: string) => `room:${code}:screen`;
@@ -85,7 +94,7 @@ export function attachSockets(
     trustProxy = false,
     playerJoinLimit = PLAYER_JOIN_RATE_LIMIT,
   }: GatewayOptions,
-): GatewayServer {
+): Gateway {
   const io: GatewayServer = new Server(httpServer, {
     transports: ['websocket'],
     // A bigger frame closes the connection. Images go over HTTP, never sockets.
@@ -319,7 +328,7 @@ export function attachSockets(
     });
   });
 
-  return io;
+  return { io, dispatch };
 }
 
 /**

@@ -16,6 +16,7 @@ import {
 import {
   clientPayloadSchemas,
   createRoomBodySchema,
+  newGameBodySchema,
   playerNameSchema,
   questionSetSchema,
 } from './schemas.js';
@@ -161,6 +162,30 @@ describe('createRoomBodySchema', () => {
     expect(createRoomBodySchema.safeParse({ set: set(), settings: withoutTimer }).success).toBe(
       false,
     );
+  });
+});
+
+describe('newGameBodySchema', () => {
+  it('accepts a set with keepScores on or off', () => {
+    for (const keepScores of [true, false]) {
+      expect(newGameBodySchema.safeParse({ set: set(), keepScores }).success).toBe(true);
+    }
+  });
+
+  it('rejects a missing or non-boolean keepScores', () => {
+    for (const keepScores of [undefined, null, 'true', 1]) {
+      expect(
+        newGameBodySchema.safeParse({ set: set(), keepScores }).success,
+        String(keepScores),
+      ).toBe(false);
+    }
+  });
+
+  it('rejects a missing or unplayable set', () => {
+    expect(newGameBodySchema.safeParse({ keepScores: false }).success).toBe(false);
+    expect(
+      newGameBodySchema.safeParse({ set: set({ questions: [] }), keepScores: false }).success,
+    ).toBe(false);
   });
 });
 

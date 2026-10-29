@@ -1,5 +1,5 @@
-// The socket gateway harness shared by the `server/sockets*.test.ts` files: a real gateway on a
-// random port, real Socket.IO clients, and clocks the tests move. Left out of the build.
+// The socket gateway harness shared by the `server/sockets*.test.ts` files: a real gateway and the
+// HTTP app on a random port, real Socket.IO clients, and clocks the tests move. Left out of the build.
 
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -13,6 +13,8 @@ import type {
   View,
 } from '../../shared/types.js';
 import { generateHostToken, hashHostToken } from '../hostToken.js';
+import { createApp } from '../http.js';
+import { InMemoryImageStore } from '../imageStore.js';
 import type { RateLimit } from '../rateLimit.js';
 import { InMemoryRoomStore } from '../roomStore.js';
 import { attachSockets, type GatewayServer } from '../sockets.js';
@@ -37,6 +39,9 @@ export async function stopAll(): Promise<void> {
 export interface Harness {
   io: GatewayServer;
   rooms: InMemoryRoomStore;
+  images: InMemoryImageStore;
+  /** The HTTP origin, such as `http://127.0.0.1:51234`. Its routes dispatch through the gateway. */
+  base: string;
   connect(): Promise<TestClient>;
   /** Moves the wall clock (reducer `now`, rate limiters). It starts at `T0`. */
   advance(ms: number): void;
@@ -61,14 +66,24 @@ export async function start({
   let now = T0;
   let mono = 1000;
   const rooms = new InMemoryRoomStore();
+  const images = new InMemoryImageStore();
   if (room) rooms.set(room);
-  const httpServer = createServer();
-  const io = attachSockets(httpServer, {
+  // Bound late, as in index.ts: the gateway needs the server first.
+  const httpServer = createServer(
+    createApp({
+      rooms,
+      images,
+      clock: () => now,
+      dispatch: (code, action) => gateway.dispatch(code, action),
+    }),
+  );
+  const gateway = attachSockets(httpServer, {
     rooms,
     clock: () => now,
     ...(fakeMonotonic && { monotonic: () => mono }),
     ...(playerJoinLimit && { playerJoinLimit }),
   });
+  const { io } = gateway;
   servers.push(io);
   await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
   const { port } = httpServer.address() as AddressInfo;
@@ -76,6 +91,8 @@ export async function start({
   return {
     io,
     rooms,
+    images,
+    base: `http://127.0.0.1:${port}`,
     advance: (ms) => (now += ms),
     advanceMono(ms) {
       if (!fakeMonotonic) throw new Error('advanceMono needs start({ fakeMonotonic: true })');

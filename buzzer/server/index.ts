@@ -23,10 +23,21 @@ const publicUrl = parsePublicUrl(process.env.PUBLIC_URL);
 const rooms = new InMemoryRoomStore();
 const images = new InMemoryImageStore(undefined, imagesMaxBytes);
 
+// The HTTP routes dispatch through the gateway, which needs the server first, so the call is
+// bound late: no request arrives before `listen`.
 const httpServer = createServer(
-  createApp({ clientDir, rooms, images, clock: Date.now, trustProxy, publicUrl }),
+  createApp({
+    clientDir,
+    rooms,
+    images,
+    clock: Date.now,
+    trustProxy,
+    publicUrl,
+    dispatch: (code, action) => gateway.dispatch(code, action),
+  }),
 );
-const io = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });
+const gateway = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });
+const { io } = gateway;
 
 // An expired room frees its images, and every device still in it shows "This game has ended".
 startRoomSweeper(rooms, Date.now, ROOM_SWEEP_INTERVAL_MS, (codes) => {

@@ -10,7 +10,16 @@ import {
   PLAYER_PALETTE,
   REOPEN_DELAY_MS,
 } from '../shared/constants.js';
-import type { Buzz, Fx, JudgeResult, Phase, Player, Room, RoomSettings } from '../shared/types.js';
+import type {
+  Buzz,
+  Fx,
+  JudgeResult,
+  Phase,
+  Player,
+  QuestionSet,
+  Room,
+  RoomSettings,
+} from '../shared/types.js';
 import { buzzGaps, inWindow, makeBuzz, rankOpening } from './fairness.js';
 
 /** The error for an action the transitions table does not list for the current phase. */
@@ -42,8 +51,9 @@ export type TimerAction =
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
- * and parsed the payload with zod; `player:disconnect` and timer actions come from the gateway
- * itself. `receivedAt` is the gateway's monotonic `performance.now()` at arrival (DECISIONS F05).
+ * and parsed the payload with zod, and `host:newGame` the same way from the HTTP route;
+ * `player:disconnect` and timer actions come from the gateway itself. `receivedAt` is the
+ * gateway's monotonic `performance.now()` at arrival (DECISIONS F05).
  */
 export type Action =
   | { type: 'player:join'; playerId: string; name: string }
@@ -61,7 +71,8 @@ export type Action =
   | { type: 'host:undo' }
   | { type: 'host:adjustScore'; playerId: string; delta: number }
   | { type: 'host:kick'; playerId: string }
-  | { type: 'host:settings'; settings: Partial<RoomSettings> };
+  | { type: 'host:settings'; settings: Partial<RoomSettings> }
+  | { type: 'host:newGame'; set: QuestionSet; keepScores: boolean };
 
 /**
  * Work for the gateway: `fx` is broadcast to the room's sockets; `schedule` dispatches `action`
@@ -124,6 +135,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return hostKick(room, action);
     case 'host:settings':
       return hostSettings(room, action);
+    case 'host:newGame':
+      return hostNewGame(room, action);
     default:
       return fail('Unknown action');
   }
@@ -491,6 +504,34 @@ function hostSettings(
       scoreboardEvery: settings.scoreboardEvery ?? scoreboardEvery,
       answerSeconds: settings.answerSeconds ?? answerSeconds,
     },
+  });
+}
+
+/**
+ * FINAL → LOBBY with another set: the same code, players (disconnected ones too), kicks and
+ * settings. Every per-game field starts again, so undo never reaches across games, and
+ * `openingCounter` keeps counting up, so no timer of the last game can fire (DECISIONS F49).
+ */
+function hostNewGame(
+  room: Room,
+  { set, keepScores }: Extract<Action, { type: 'host:newGame' }>,
+): ReduceResult {
+  if (room.phase !== 'FINAL') return fail(WRONG_PHASE_ERROR);
+  // Zeroed through applyJudgement, as every score change is.
+  const scored = keepScores
+    ? room
+    : Object.values(room.players).reduce(
+        (r, p) => applyJudgement(r, p.id, 'adjust', -p.score),
+        room,
+      );
+  return done({
+    ...scored,
+    ...clearedQuestion,
+    set,
+    phase: 'LOBBY',
+    questionIndex: -1,
+    judgements: [],
+    showScoreboard: false,
   });
 }
 

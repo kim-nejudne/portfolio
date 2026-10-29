@@ -23,6 +23,7 @@ import type {
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
+  NewGameBody,
   Question,
   QuestionSet,
   RoomSettings,
@@ -104,6 +105,12 @@ export const createRoomBodySchema = z.object({
   settings: roomSettingsSchema,
 });
 
+/** `PUT /api/rooms/:code/set`: a new game in the same room, after FINAL. */
+export const newGameBodySchema = z.object({
+  set: questionSetSchema,
+  keepScores: z.boolean(),
+});
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -140,4 +147,5 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof questionSetSchema>, QuestionSet>>,
   Assert<Equals<z.infer<typeof roomSettingsSchema>, RoomSettings>>,
   Assert<Equals<z.infer<typeof createRoomBodySchema>, CreateRoomBody>>,
+  Assert<Equals<z.infer<typeof newGameBodySchema>, NewGameBody>>,
 ];
