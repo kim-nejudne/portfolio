@@ -9,9 +9,10 @@ import {
   GAME_ENDED_ERROR,
   PLAYER_PALETTE,
   ROOM_NOT_FOUND_ERROR,
+  TEAMS,
   TITLE_CARD_MS,
 } from '../../../shared/constants.js';
-import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
+import type { RankedPlayer, ScreenView, TeamView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
 import { playSound, resetSounds, startSounds } from '../lib/sounds.js';
@@ -2033,5 +2034,127 @@ describe('avatars', () => {
       ...avatars(onStep('3rd place')),
     ]).toEqual(expected);
     expect(avatars(rowsOf(screen.getByRole('region', { name: 'Full ranking' })))).toEqual(expected);
+  });
+});
+
+describe('Screen with teams', () => {
+  function team(index: number, score: number, rank: number, memberIds: string[]): TeamView {
+    return { index, ...TEAMS[index]!, score, rank, memberIds };
+  }
+  // 2 teams × 3, as F81 balances six joiners: Red gets the 1st, 3rd and 5th, Blue the rest.
+  const six = [1, 2, 3, 4, 5, 6].map((n) => player(n, { name: `P${n}` }));
+  const teams = [team(0, 0, 1, ['p1', 'p3', 'p5']), team(1, 0, 1, ['p2', 'p4', 'p6'])];
+
+  function show(view: ScreenView) {
+    const { socket } = renderScreen();
+    socket.fire('state', view);
+    return socket;
+  }
+  const column = (name: string) => screen.getByRole('region', { name: `${name} team` });
+  const chipsOf = (el: HTMLElement) =>
+    within(el)
+      .queryAllByRole('listitem')
+      .map((li) => li.textContent);
+  /** A hex colour as jsdom writes it back in a style: "rgb(…)". */
+  const rgb = (hex: string) => {
+    const probe = document.createElement('span');
+    probe.style.color = hex;
+    return probe.style.color;
+  };
+
+  describe('lobby', () => {
+    it('shows one column per team, in index order, with its members in join order', () => {
+      show(lobbyView(six, { teams }));
+      const players = screen.getByRole('region', { name: 'Players' });
+      const columns = within(players).getAllByRole('region');
+      expect(columns.map((c) => c.getAttribute('aria-label'))).toEqual(['Red team', 'Blue team']);
+      expect(chipsOf(column('Red'))).toEqual(['P1', 'P3', 'P5']);
+      expect(chipsOf(column('Blue'))).toEqual(['P2', 'P4', 'P6']);
+    });
+
+    it("heads each column with the team's name in its colour and its player count", () => {
+      show(lobbyView(six, { teams }));
+      const heading = within(column('Blue')).getByRole('heading');
+      expect(heading.textContent).toBe('Blue3');
+      expect(within(heading).getByText('Blue').style.color).toBe(rgb(TEAMS[1].color));
+      expect(column('Blue').style.borderColor).toBe(rgb(TEAMS[1].color));
+    });
+
+    it('keeps an empty team as a column, and moves a chip when a player changes team', () => {
+      const socket = show(
+        lobbyView(six.slice(0, 2), {
+          teams: [team(0, 0, 1, ['p1', 'p2']), team(1, 0, 1, []), team(2, 0, 1, [])],
+        }),
+      );
+      expect(within(column('Blue')).getByText('No players yet')).toBeTruthy();
+      expect(within(column('Green')).getByText('No players yet')).toBeTruthy();
+      socket.fire(
+        'state',
+        lobbyView(six.slice(0, 2), {
+          teams: [team(0, 0, 1, ['p1']), team(1, 0, 1, []), team(2, 0, 1, ['p2'])],
+        }),
+      );
+      expect(chipsOf(column('Red'))).toEqual(['P1']);
+      expect(chipsOf(column('Green'))).toEqual(['P2']);
+    });
+
+    it('with teams off shows one list of chips and no columns', () => {
+      show(lobbyView(six));
+      const players = screen.getByRole('region', { name: 'Players' });
+      expect(within(players).queryAllByRole('region')).toHaveLength(0);
+      expect(chipsOf(players)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
+    });
+  });
+
+  describe('during the game', () => {
+    const ranked = [
+      player(2, { name: 'P2', score: 300, rank: 1 }),
+      player(1, { name: 'P1', score: 200, rank: 2 }),
+      player(3, { name: 'P3', score: 100, rank: 3 }),
+      player(4, { name: 'P4', score: 50, rank: 4 }),
+      player(5, { name: 'P5', score: 0, rank: 5 }),
+      player(6, { name: 'P6', score: 0, rank: 5 }),
+    ];
+    // Red: 200 + 100 + 0; Blue: 300 + 50 + 0.
+    const scored = [team(0, 300, 2, ['p1', 'p3', 'p5']), team(1, 350, 1, ['p2', 'p4', 'p6'])];
+    const question = { id: 'q1', text: 'Capital of France?', points: 100 };
+
+    it('the standings rail ranks the teams first, then the top 3 players', () => {
+      show(lobbyView(ranked, { phase: 'QUESTION', questionIndex: 0, question, teams: scored }));
+      const rail = screen.getByRole('complementary', { name: 'Standings' });
+      const rows = (name: string) =>
+        within(within(rail).getByRole('list', { name }))
+          .getAllByRole('listitem')
+          .map((li) => li.textContent);
+      expect(rows('Teams')).toEqual(['1Blue350', '2Red300']);
+      expect(rows('Players')).toEqual(['1P2300', '2P1200', '3P3100']);
+    });
+
+    it('the scoreboard ranks the teams first, then every player', () => {
+      show(
+        lobbyView(ranked, {
+          phase: 'REVEAL',
+          questionIndex: 0,
+          question,
+          teams: scored,
+          showScoreboard: true,
+        }),
+      );
+      const board = screen.getByRole('region', { name: 'Scoreboard' });
+      const lists = within(board).getAllByRole('list');
+      expect(lists.map((l) => l.getAttribute('aria-label'))).toEqual(['Teams', null]);
+      expect(chipsOf(lists[0]!)).toEqual(['1Blue350', '2Red300']);
+      expect(chipsOf(lists[1]!)).toHaveLength(6);
+    });
+
+    it('the Final screen stands the teams on the podium, then ranks the players', () => {
+      show(lobbyView(ranked, { phase: 'FINAL', questionIndex: 9, teams: scored }));
+      const podium = screen.getByRole('region', { name: 'Team podium' });
+      const steps = [...podium.querySelectorAll(':scope > ol > li')].map(
+        (step) => `${step.getAttribute('aria-label')}: ${step.querySelector('ul')!.textContent}`,
+      );
+      expect(steps).toEqual(['2nd place: Red', '1st place: Blue']);
+      expect(chipsOf(screen.getByRole('region', { name: 'Full ranking' }))).toHaveLength(6);
+    });
   });
 });

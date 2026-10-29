@@ -218,13 +218,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F81 Teams: server
 
-- [ ] F82 Teams: Screen and phone
-  - Spec: UI spec by view (Screen view, Player view); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F81
-  - Done when:
-    - With teams on, the Screen lobby shows one column per team; the scoreboard, standings rail and FINAL rank teams first (team podium, then players)
-    - The phone's top bar shows the team name and colour; its final state shows the team's rank
-  - Tests: `Screen.test.tsx`, `ScreenResults` tests, `Play.test.tsx`. `/playtest`: 2 teams × 3 bots
+- [x] F82 Teams: Screen and phone
 
 - [ ] F83 Teams: host controls
   - Spec: UI spec by view (Host remote, Screen view Lobby); see DECISIONS, Proposed spec changes (audit)
@@ -319,3 +313,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).
 - False start: a vibration of its own on the phone's `fx falseStart` (the press gives only the 30 ms tap today), if the spec's vibrate list grows to include it (F72).
 - Avatars: show the avatar on the Screen's buzz banner, "also buzzed" list and Too early chips, and on the remote's Game over standings (F75 covered only the Done-when surfaces). A way to change the avatar after joining would need a `player:avatar` event like `player:rename` (F74, F75).
+- Teams: the results card image (F78) and the remote's Game over standings could rank teams first too, and scoreboard player rows could carry a team mark beside their own colour dot (F82).

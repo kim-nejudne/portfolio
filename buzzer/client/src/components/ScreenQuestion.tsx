@@ -103,7 +103,12 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
           </>
         )}
       </div>
-      <StandingsRail phase={view.phase} players={view.players} show={view.settings.showStandings} />
+      <StandingsRail
+        phase={view.phase}
+        players={view.players}
+        show={view.settings.showStandings}
+        teams={view.teams}
+      />
     </div>
   );
 }

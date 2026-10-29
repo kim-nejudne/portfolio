@@ -36,6 +36,7 @@ import {
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
 import { ordinal, pointsLabel } from '../lib/results.js';
+import { teamOf } from '../lib/teams.js';
 import { cardFromPlayer } from '../lib/resultsCard.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
@@ -492,6 +493,7 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
   useOutcomeHaptics(view.me.id);
   const inLobby = view.phase === 'LOBBY';
   const enabled = state.live || state.kind === 'practice';
+  const team = teamOf(view.teams, view.me.id);
 
   function press() {
     if (state.kind === 'practice') return practice();
@@ -575,6 +577,18 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-lg leading-tight font-bold">{view.me.name}</span>
+            {/* With teams on, their team's name and colour (UI spec, Player view: top bar; F82). */}
+            {team && (
+              <span data-team className="flex items-center gap-1.5 text-[13px] font-bold">
+                <span
+                  aria-hidden="true"
+                  data-team-color
+                  style={{ backgroundColor: team.color }}
+                  className="size-2.5 shrink-0 rounded-sm"
+                />
+                <span className="truncate">{team.name} team</span>
+              </span>
+            )}
             <span className="flex items-center gap-1.5 text-[13px] text-muted">
               <ConnectionDot />
               Room {view.code}
@@ -657,6 +671,21 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
           <p className={LABEL}>Game over</p>
           <p className="font-display text-6xl text-accent">{state.label}</p>
           <p className="font-display text-3xl">{state.detail}</p>
+          {/* With teams on, how their team finished (F82). */}
+          {team && view.teams && (
+            <p aria-label="Team" className="mt-2 flex flex-col gap-1 text-lg text-muted">
+              <span className={LABEL}>{team.name} team</span>
+              <span className="flex items-center justify-center gap-2 font-display text-2xl text-ink">
+                <span
+                  aria-hidden="true"
+                  data-team-color
+                  style={{ backgroundColor: team.color }}
+                  className="size-3.5 shrink-0 rounded-sm"
+                />
+                {ordinal(team.rank)} of {view.teams.length} teams · {pointsLabel(team.score)}
+              </span>
+            </p>
+          )}
           {/* From game 2, the night so far (F77). */}
           {view.tonight && (
             <p aria-label="Tonight" className="mt-2 flex flex-col gap-1 text-lg text-muted">

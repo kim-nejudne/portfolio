@@ -7,7 +7,7 @@ import {
   ROOM_NOT_FOUND_ERROR,
   TITLE_CARD_MS,
 } from '../../../shared/constants.js';
-import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
+import type { Phase, RankedPlayer, ScreenView, TeamView } from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
 import { PlayerAvatar } from '../components/PlayerAvatar.js';
@@ -178,7 +178,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
               command={canHost ? command : null}
             />
           ) : view.phase === 'FINAL' ? (
-            <FinalResults players={view.players} session={view.session} />
+            <FinalResults players={view.players} session={view.session} teams={view.teams} />
           ) : titleCard ? (
             <TitleCard view={view} />
           ) : (
@@ -190,6 +190,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
               players={view.players}
               lastOrder={scoreboardOrder}
               onShown={setScoreboardOrder}
+              teams={view.teams}
             />
           )}
         </div>
@@ -339,7 +340,7 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
             )}
           </div>
         </div>
-        <PlayerChips players={view.players} />
+        <PlayerChips players={view.players} teams={view.teams} />
       </div>
       {command && <LobbyHostPanel view={view} command={command} />}
     </div>
@@ -395,46 +396,97 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
   );
 }
 
-function PlayerChips({ players }: { players: RankedPlayer[] }) {
-  const listRef = useRef<HTMLUListElement>(null);
+/**
+ * The joined players as coloured chips. With teams on, one column per team in index order, each
+ * headed by the team's name in its colour, its members in join order (F82).
+ */
+function PlayerChips({ players, teams }: { players: RankedPlayer[]; teams: TeamView[] | null }) {
+  // The box the chips must fit: the one list, or every team's column.
+  const listRef = useRef<HTMLDivElement>(null);
   const pops = usePracticePops();
   // Smaller chips past 20 players, and smaller still if the room's names would not fit: nobody can
-  // scroll a TV, so every chip must stay above the bottom strip (F38).
+  // scroll a TV, so every chip must stay above the bottom strip (F38). A move between teams
+  // changes the columns' heights, so the teams are part of what it fits.
   useShrinkToFit(
     listRef,
     players.length > MANY_PLAYERS ? CHIP_MAX_MANY : CHIP_MAX_FEW,
     CHIP_MIN_PX,
-    players.map((player) => `${player.avatar ?? ''}${player.name}`).join('\n'),
+    players.map((player) => `${player.avatar ?? ''}${player.name}`).join('\n') +
+      (teams ? `\n${teams.map((team) => team.memberIds.join(',')).join('|')}` : ''),
   );
-  if (players.length === 0) {
+  if (players.length === 0 && !teams) {
     return <p className="text-[2.67cqw] text-muted">Waiting for players…</p>;
   }
+  const chip = (player: RankedPlayer) => {
+    // A test buzz remounts the chip under a new key, so its bump replays (F60).
+    const pop = pops.get(player.id);
+    return (
+      <PlayerChip
+        key={pop === undefined ? player.id : `${player.id}:${pop}`}
+        player={player}
+        pop={pop}
+      />
+    );
+  };
+  const byId = new Map(players.map((player) => [player.id, player]));
   return (
     <section aria-label="Players" className="flex min-h-0 flex-1 flex-col gap-[2vh]">
       <p className="text-[1.6cqw] font-bold tracking-[0.25em] text-muted uppercase">
         {players.length} {players.length === 1 ? 'player' : 'players'}
       </p>
-      <ul
-        ref={listRef}
-        className="flex min-h-0 flex-1 flex-wrap content-start gap-[0.45em] overflow-hidden"
-      >
-        {players.map((player) => {
-          // A test buzz remounts the chip under a new key, so its bump replays (F60).
-          const pop = pops.get(player.id);
-          return (
-            <li
-              key={pop === undefined ? player.id : `${player.id}:${pop}`}
-              style={{ backgroundColor: player.color }}
-              data-practice={pop}
-              className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
-            >
-              <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
-              {player.name}
-            </li>
-          );
-        })}
-      </ul>
+      <div ref={listRef} className="min-h-0 flex-1 overflow-hidden">
+        {teams ? (
+          <div
+            style={{ gridTemplateColumns: `repeat(${teams.length}, minmax(0, 1fr))` }}
+            className="grid content-start gap-[1em]"
+          >
+            {teams.map((team) => {
+              const members = team.memberIds.flatMap((id) => byId.get(id) ?? []);
+              return (
+                <section
+                  key={team.index}
+                  aria-label={`${team.name} team`}
+                  style={{ borderColor: team.color }}
+                  className="flex min-w-0 flex-col gap-[0.45em] border-t-[0.2em] pt-[0.4em]"
+                >
+                  <h2 className="flex items-baseline justify-between gap-[0.5em] font-display">
+                    <span style={{ color: team.color }} className="truncate">
+                      {team.name}
+                    </span>
+                    <span className="shrink-0 text-[0.7em] text-muted tabular-nums">
+                      {members.length}
+                    </span>
+                  </h2>
+                  {members.length === 0 ? (
+                    <p className="text-[0.7em] text-muted">No players yet</p>
+                  ) : (
+                    <ul className="flex flex-wrap content-start gap-[0.45em]">
+                      {members.map(chip)}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <ul className="flex flex-wrap content-start gap-[0.45em]">{players.map(chip)}</ul>
+        )}
+      </div>
     </section>
+  );
+}
+
+/** One player's chip in their colour; `pop` counts their test buzzes. */
+function PlayerChip({ player, pop }: { player: RankedPlayer; pop: number | undefined }) {
+  return (
+    <li
+      style={{ backgroundColor: player.color }}
+      data-practice={pop}
+      className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
+    >
+      <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
+      {player.name}
+    </li>
   );
 }
 

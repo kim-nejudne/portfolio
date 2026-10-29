@@ -12,6 +12,26 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F82 — Teams: Screen and phone (2026-10-29)
+**What changed:**
+- New `client/src/lib/teams.ts`: `teamOf` (the player's team from `memberIds`) and `teamsByRank` (the server's rank, index order on ties).
+- Screen lobby (`pages/Screen.tsx`): with teams on, one column per team in index order. Each column has a border in the team's colour, the name in that colour, the player count and the members' chips in join order; an empty team shows "No players yet". One shrink-to-fit now runs on a wrapper round either the chip list or the columns, which drops the ref casts.
+- `ScreenResults.tsx`: the Scoreboard puts team cards above the players, who then take the dense text. On FinalResults, the "Team podium" stands the teams (tied teams share a step, a 4th team is named under it), and the Full ranking and Tonight cards stay the players'. `StandingsRail.tsx`: every team by rank, then the top 3 players (`STANDINGS_TOP_WITH_TEAMS`).
+- Phone (`pages/Play.tsx`): a "<Team> team" line with a colour square under the name in the top bar; in the final state, "<Team> team · 2nd of 3 teams · 450 points" above Tonight.
+- Tests: `teams.test.ts` (3), `ScreenResults.test.tsx` +6 (team podium and ties, 4th team, colour and score, players after, scoreboard teams first, teams off), `Screen.test.tsx` +7 (columns and order, heading colour and count, empty column and a move, teams off, rail, scoreboard, Final), `Play.test.tsx` +6 (top bar in lobby and mid-game, a move, teams off, final team line, teams off at final). 1974 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F82 (lobby columns; teams first on the scoreboard, rail and Final; the phone's team line).
+
+**Notes for next session:**
+- Playtest (Playwright, room with 6 bots + one phone at 390×844, Screen at 1920×1080). Teams were forced on by rewriting the create-room request to `settings.teams = 2`, because the stepper is F83. Checked: the lobby's columns (Red 4, Blue 3), "Red team" on the phone's top bar (from the page text; the colour was not checked), the rail with teams first, the scoreboard at question 6, the Final team podium, and the phone's team line. No console errors. Files: `.playtest/F82/`.
+- **Not checked visually:** the rail with 4 teams above the host bar at 1080p (only 2 teams were played), the phone's top bar mid-game in a screenshot, and the lobby chip fit after the wrapper refactor (same behaviour, jsdom only).
+- F83: the host's team select and teams stepper. Re-measure the Screen lobby's settings at 1280×720 (F64/F65 note). Columns of a 4-team lobby with 50 players lean on the shrink-to-fit; worth a look then.
+- Player rows on the scoreboard keep their own colour dots, so "Bot 1" can show a red dot while on Blue.
+- The results card image (F78) has no teams yet; it could go in Backlog if wanted.
+- Main `index` chunk 494.92 → 499.37 kB (150.22 kB gzip).
+
+**How to try it:** until F83 adds the stepper, a host turns teams on over the socket (`host:settings {teams: 2}` in the lobby) or with a create-room request carrying `settings.teams`. Then `npm run dev`, open `http://localhost:5173/screen/<code>` on the laptop and `http://<LAN-IP>:5173/play/<code>` on phones (or `/dev/bots`): the lobby shows team columns, phones show their team, and the scoreboard, rail and Final rank teams first.
+
 ## F81 — Teams: server (2026-10-29)
 **What changed:**
 - Shared: `RoomSettings.teams` (`TeamCount` 0, 2, 3 or 4; default 0), `TEAM_COUNT_CHOICES`, `TEAMS` (Red, Blue, Green, Yellow, palette colours), `Player.team: number | null`, `TeamView`, `teams: TeamView[] | null` on Screen, host and Player views, `host:setTeam {playerId, team}` (zod: team an integer 0–3).

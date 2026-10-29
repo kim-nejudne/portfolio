@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { RankedPlayer, SessionView } from '../../../shared/types.js';
+import type { RankedPlayer, SessionView, TeamView } from '../../../shared/types.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 import { ordinal, podiumSteps, replayOrder, type PodiumStep } from '../lib/results.js';
+import { teamsByRank } from '../lib/teams.js';
 import { prefersReducedMotion, useFlip } from '../lib/useFlip.js';
 
 /** A Screen card: the phone's 20px radius and 24–28px padding, at 1280 wide. */
@@ -17,6 +18,8 @@ interface ScoreboardProps {
   lastOrder: string[];
   /** Called with the order on screen once it is the current ranking. */
   onShown: (order: string[]) => void;
+  /** With teams on, the teams in index order: they are ranked above the players (F82). */
+  teams?: TeamView[] | null;
 }
 
 /**
@@ -24,7 +27,7 @@ interface ScoreboardProps {
  * then slides into the current ranking, so the audience sees who climbed. Later score changes
  * slide too. With reduced motion it opens in the current ranking.
  */
-export function Scoreboard({ players, lastOrder, onShown }: ScoreboardProps) {
+export function Scoreboard({ players, lastOrder, onShown, teams = null }: ScoreboardProps) {
   const [replaying, setReplaying] = useState(() => lastOrder.length > 0 && !prefersReducedMotion());
   const shown = replaying ? replayOrder(lastOrder, players) : players;
 
@@ -46,11 +49,13 @@ export function Scoreboard({ players, lastOrder, onShown }: ScoreboardProps) {
     >
       <div className={`${SCREEN_CARD} flex min-h-0 flex-1 flex-col gap-[3vh]`}>
         <h2 className="shrink-0 font-display text-[min(3vw,5.3vh)] text-accent">Scoreboard</h2>
+        {teams && <TeamStandings teams={teams} />}
         {/* The host can show it in the lobby, or after kicking everyone. */}
         {shown.length === 0 ? (
           <p className="text-[min(3vw,5.5vh)] text-muted">No players yet</p>
         ) : (
-          <RankingList rows={shown} />
+          // Under the teams, the players take the smaller text, so both fit the card.
+          <RankingList rows={shown} dense={teams !== null} />
         )}
       </div>
     </section>
@@ -59,14 +64,17 @@ export function Scoreboard({ players, lastOrder, onShown }: ScoreboardProps) {
 
 /**
  * The Final screen: a top-3 podium, then everyone's rank and score (UI spec, Screen view: Final).
- * From game 2, a Tonight card beside the ranking lists the night's totals (F77).
+ * From game 2, a Tonight card beside the ranking lists the night's totals (F77). With teams on,
+ * the podium is the teams' and the full ranking stays the players' (F82).
  */
 export function FinalResults({
   players,
   session = null,
+  teams = null,
 }: {
   players: RankedPlayer[];
   session?: SessionView | null;
+  teams?: TeamView[] | null;
 }) {
   if (players.length === 0 && !session?.totals.length) {
     return (
@@ -78,20 +86,30 @@ export function FinalResults({
   const tonight = session && session.totals.length > 0 ? session.totals : null;
   // Beside the Tonight card, a long ranking keeps the width its columns need (F77).
   const rankingFlex = tonight && players.length > 10 ? 'flex-[3]' : 'flex-[2]';
+  const podium: PodiumEntry[] = teams ? teamsByRank(teams).map(teamEntry) : players;
+  // A 4th team has no step; it is named under the podium, so every team is ranked.
+  const offPodium = teams ? podium.filter((team) => team.rank > 3) : [];
   return (
     <div className="flex min-h-0 flex-1 gap-[3vw] px-[3.75vw] pt-[1vh] pb-[3vh]">
       <section
-        aria-label="Podium"
+        aria-label={teams ? 'Team podium' : 'Podium'}
         className={`flex min-w-0 flex-col gap-[3vh] ${tonight ? 'flex-[2]' : 'flex-[3]'}`}
       >
         <h1 className="shrink-0 font-display text-[min(4.4vw,9vh)] text-accent [text-shadow:0.3vw_0.3vw_0_var(--color-bg-deep)]">
           Final results
         </h1>
         <ol className="flex min-h-0 flex-1 items-end justify-center gap-[1.5vw]">
-          {podiumSteps(players).map((step) => (
+          {podiumSteps(podium).map((step) => (
             <Step key={step.rank} step={step} />
           ))}
         </ol>
+        {offPodium.length > 0 && (
+          <p className="shrink-0 text-center font-display text-[min(2vw,3.6vh)] text-muted">
+            {offPodium
+              .map((team) => `${ordinal(team.rank)} ${team.name} ${team.score}`)
+              .join(' · ')}
+          </p>
+        )}
       </section>
       <section
         aria-label="Full ranking"
@@ -147,10 +165,25 @@ function tonightRows(totals: SessionView['totals'], players: RankedPlayer[]): Ra
   }));
 }
 
+/** One name on a podium step: a player, or a team with teams on. */
+type PodiumEntry = Omit<RankingRow, 'connected'>;
+
+/** A team as a podium entry or ranking row: its name in its colour, with its summed score. */
+function teamEntry(team: TeamView): RankingRow {
+  return {
+    id: `team:${team.index}`,
+    name: team.name,
+    color: team.color,
+    score: team.score,
+    rank: team.rank,
+    connected: true,
+  };
+}
+
 /** Step heights, top step first. Full class strings, so Tailwind can see them. */
 const STEP_HEIGHT = ['h-[30vh]', 'h-[21vh]', 'h-[14vh]'] as const;
 
-function Step({ step }: { step: PodiumStep }) {
+function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
   const names = step.players.length > 3 ? 'text-[min(1.6vw,3vh)]' : 'text-[min(2.6vw,5vh)]';
   // The winners' step is lit gold, in the stage ring; the others stand on surface.
   const top = step.rank === 1;
@@ -187,6 +220,42 @@ function Step({ step }: { step: PodiumStep }) {
         </span>
       </div>
     </li>
+  );
+}
+
+/**
+ * The teams on the scoreboard, best first: one card each in a row, rank, name in the team's
+ * colour and the summed score (F82). Cards slide when the order changes.
+ */
+function TeamStandings({ teams }: { teams: TeamView[] }) {
+  const list = useRef<HTMLOListElement>(null);
+  const ranked = teamsByRank(teams);
+  useFlip(list, ranked.map((team) => team.index).join(','));
+  return (
+    <ol
+      ref={list}
+      aria-label="Teams"
+      className="grid shrink-0 auto-cols-fr grid-flow-col gap-[1.5vw] text-[min(2.6vw,4.6vh)]"
+    >
+      {ranked.map((team) => (
+        <li
+          key={team.index}
+          data-flip-key={team.index}
+          style={{ borderColor: team.color }}
+          className="flex min-w-0 items-center gap-[0.5em] rounded-[0.5em] border-[0.12em] bg-bg px-[0.6em] py-[0.35em]"
+        >
+          <span className="shrink-0 font-display text-muted tabular-nums">{team.rank}</span>
+          <span
+            aria-hidden="true"
+            data-team-color
+            style={{ backgroundColor: team.color }}
+            className="size-[0.6em] shrink-0 rounded-full"
+          />
+          <span className="min-w-0 flex-1 truncate font-display">{team.name}</span>
+          <span className="shrink-0 font-display tabular-nums">{team.score}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

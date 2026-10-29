@@ -10,8 +10,9 @@ import {
   PLAYER_PALETTE,
   ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
+  TEAMS,
 } from '../../../shared/constants.js';
-import type { PlayerResults, PlayerView } from '../../../shared/types.js';
+import type { PlayerResults, PlayerView, TeamView } from '../../../shared/types.js';
 import { TOAST_MS } from '../components/Toast.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -1358,5 +1359,78 @@ describe('Play avatars', () => {
       null,
       AVATARS[6],
     ]);
+  });
+});
+
+describe('Play with teams', () => {
+  function team(index: number, score: number, rank: number, memberIds: string[]): TeamView {
+    return { index, ...TEAMS[index]!, score, rank, memberIds };
+  }
+  // Ana (p1) is on Blue.
+  const teams = [team(0, 500, 1, ['p2', 'p4']), team(1, 300, 2, ['p1', 'p3'])];
+
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    return sockets[0]!;
+  }
+  const teamLine = () => screen.getByRole('banner').querySelector<HTMLElement>('[data-team]');
+
+  it.each([
+    ['in the lobby', playerView({ teams })],
+    [
+      'during a question',
+      playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, teams }),
+    ],
+  ])("the top bar shows the team's name and colour %s", async (_, view) => {
+    const socket = await joined();
+    socket.fire('state', view);
+    expect(teamLine()!.textContent).toBe('Blue team');
+    const swatch = teamLine()!.querySelector<HTMLElement>('[data-team-color]')!;
+    expect(swatch.style.backgroundColor).toBe(hexToRgb(TEAMS[1].color));
+  });
+
+  it('the top bar follows a move to another team', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ teams }));
+    socket.fire(
+      'state',
+      playerView({ teams: [team(0, 0, 1, ['p1', 'p2', 'p4']), team(1, 0, 1, ['p3'])] }),
+    );
+    expect(teamLine()!.textContent).toBe('Red team');
+  });
+
+  it('with teams off the top bar shows no team', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(teamLine()).toBeNull();
+  });
+
+  it("the final result adds the team's rank and score", async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'FINAL',
+        questionIndex: 9,
+        playerCount: 4,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 200, rank: 3 },
+        teams,
+      }),
+    );
+    const result = screen.getByRole('region', { name: 'Final result' });
+    expect(within(result).getByLabelText('Team').textContent).toBe(
+      'Blue team2nd of 2 teams · 300 points',
+    );
+    expect(within(result).getByText('3rd of 4')).toBeTruthy();
+  });
+
+  it('with teams off the final result has no team line', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9 }));
+    const result = screen.getByRole('region', { name: 'Final result' });
+    expect(within(result).queryByLabelText('Team')).toBeNull();
   });
 });
