@@ -150,15 +150,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F54 Built-in sets library
 
-- [ ] F55 Set browser: search, categories and difficulty
-  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F54
-  - Done when:
-    - `client/src/lib/setFilter.ts` filters sets by a search string (title and category, case- and accent-insensitive), by difficulty chips (any of Easy, Medium, Hard, None) and groups them by category (sets without one under "Other"), keeping each list's order
-    - A shared `SetBrowser` component (search box, difficulty chips, grouped list, single selection or action buttons) replaces the flat lists in `HostGame`, `NewGamePicker` and both `/sets` tabs
-    - With the 61 built-ins, typing "anim" and choosing Easy leaves one set; a phone at 375×667 shows the search box and chips without scrolling the picker
-    - Keyboard: the search box is first in tab order; Enter on a single result selects it
-  - Tests: `setFilter.test.ts` (search, accents, chips, grouping, order), `SetBrowser.test.tsx`, updated `Landing.test.tsx`, `NewGamePicker.test.tsx` and `Sets.test.tsx`. `/playtest`: pick Animals – Easy by search on a phone-sized tab and on the Screen's New game picker
+- [x] F55 Set browser: search, categories and difficulty
 
 - [ ] F56 Set preview before hosting
   - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)

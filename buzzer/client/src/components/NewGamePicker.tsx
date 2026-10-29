@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
 import { NewGameTakenError } from '../lib/api.js';
 import { checkPlayable, hostNextSet, SetImagesError, uploadSetImages } from '../lib/hostRoom.js';
-import { questionCount } from '../lib/setLabels.js';
+import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_PRIMARY } from '../lib/ui.js';
+import { SetBrowser } from './SetBrowser.js';
 
 type Status =
   | { kind: 'loading' }
@@ -140,22 +141,23 @@ export function NewGamePicker({
           </p>
         )}
         {status.kind === 'picking' && (
-          // The scroller is a div: a fieldset won't shrink as a flex child, and its default
-          // min-content width would push the rows past the dialog.
-          <div className="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]">
-            <fieldset disabled={locked} className="flex min-w-0 flex-col gap-2">
-              <legend className="sr-only">Question set</legend>
-              {status.sets.map((set, index) => (
-                <SetOption
-                  key={set.id}
-                  set={set}
-                  builtIn={index >= status.firstBuiltIn}
-                  checked={selectedId === set.id}
-                  onSelect={() => setSelectedId(set.id)}
-                />
-              ))}
-            </fieldset>
-          </div>
+          <SetBrowser
+            mode="select"
+            id="new-game"
+            legend="Question set"
+            sets={status.sets}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            disabled={locked}
+            detail={(set) =>
+              // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
+              setDetail(set, status.sets.indexOf(set) >= status.firstBuiltIn, checkPlayable(set).ok)
+            }
+            // The scroller is a div: a fieldset won't shrink as a flex child, and its default
+            // min-content width would push the rows past the dialog.
+            listClassName="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]"
+            className="min-h-0"
+          />
         )}
         <label className="flex shrink-0 cursor-pointer items-center gap-3">
           <input
@@ -197,40 +199,5 @@ export function NewGamePicker({
       </section>
     </div>,
     document.body,
-  );
-}
-
-function SetOption({
-  set,
-  builtIn,
-  checked,
-  onSelect,
-}: {
-  set: QuestionSet;
-  builtIn: boolean;
-  checked: boolean;
-  onSelect: () => void;
-}) {
-  // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
-  const playable = checkPlayable(set).ok;
-  return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent">
-      <input
-        type="radio"
-        name="new-game-set"
-        value={set.id}
-        checked={checked}
-        onChange={onSelect}
-        className="size-5 shrink-0 accent-accent"
-      />
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate">{set.title}</span>
-        <span className="text-sm text-muted">
-          {questionCount(set.questions.length)}
-          {builtIn && ' · Built-in'}
-          {!playable && ' · Not playable yet'}
-        </span>
-      </span>
-    </label>
   );
 }

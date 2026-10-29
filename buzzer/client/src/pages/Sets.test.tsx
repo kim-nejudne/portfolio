@@ -74,7 +74,7 @@ const selectedTab = async () =>
   (await screen.findAllByRole('tab')).find((t) => t.getAttribute('aria-selected') === 'true')!
     .textContent;
 const cardTitles = () =>
-  screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+  screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
 
 function draft(id: string, title: string, questions: QuestionSet['questions']): QuestionSet {
   return { id, title, questions, createdAt: 1, updatedAt: 2, schemaVersion: 1 };
@@ -136,13 +136,34 @@ describe('Set list tabs', () => {
   it('a built-in card offers only Duplicate to My sets and Host this set', async () => {
     renderSets();
     const starter = await card(STARTER_SETS[0]!.title);
-    expect(starter.getByText('15 questions')).toBeTruthy();
+    expect(starter.getByText('15 questions · Easy')).toBeTruthy();
     expect(
       starter
         .getAllByRole('button')
         .concat(starter.queryAllByRole('link'))
         .map((b) => b.textContent),
     ).toEqual(['Duplicate to My sets', 'Host this set']);
+  });
+
+  it('groups the built-in cards under category headings, the sample under Other', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(['Other', ...new Set(STARTER_SETS.map((s) => s.category!))]);
+    const animals = within(screen.getByRole('region', { name: 'Animals' }));
+    expect(animals.getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('search and the Easy chip narrow the built-ins to Animals – Easy', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {
+      target: { value: 'animal' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
+    expect(cardTitles()).toEqual(['Animals – Easy']);
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
+    expect(document.activeElement?.textContent).toBe('Duplicate to My sets');
   });
 
   it('Duplicate to My sets saves an editable copy and shows it in My sets', async () => {
@@ -210,6 +231,35 @@ describe('Set list /sets, My sets', () => {
     renderSets();
     await card('Newer quiz');
     expect(cardTitles()).toEqual(['Newer quiz', OWN.title]);
+  });
+
+  it('each tab starts with a clear search and no chip on', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {
+      target: { value: 'animal' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
+    fireEvent.click(
+      (await card('Animals – Easy')).getByRole('button', { name: 'Duplicate to My sets' }),
+    );
+    await card('Animals – Easy (copy)');
+    expect(await selectedTab()).toBe('My sets');
+    expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
+    expect(screen.getByRole('button', { name: 'Easy' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('search finds my sets by title, and Enter focuses Open on the one left', async () => {
+    await addOwn();
+    await db.sets.add({ ...draft('newer', 'Newer quiz', []), updatedAt: FIRST_VISIT + 1 });
+    renderSets();
+    await card('Newer quiz');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {
+      target: { value: 'pub' },
+    });
+    expect(cardTitles()).toEqual([OWN.title]);
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
+    expect(document.activeElement?.textContent).toBe('Open');
   });
 
   it('shows the empty state when no sets exist', async () => {

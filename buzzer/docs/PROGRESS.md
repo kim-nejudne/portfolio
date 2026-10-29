@@ -12,6 +12,31 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F55 — Set browser: search, categories and difficulty (2026-10-29)
+**What changed:**
+- `client/src/lib/setFilter.ts`: `filterSets` (every query word in the title or category, case- and accent-insensitive; difficulty chips any-of, `none` for sets without one) and `groupByCategory` (groups in first-appearance order, "Other" for no category or the category "Other", list order kept).
+- `client/src/components/SetBrowser.tsx`: search box (first in tab order), Easy / Medium / Hard / None chips (`aria-pressed`), grouped list, "No sets match." In `select` mode it renders radios (hiding the selection clears it; Enter with one set left selects it). In `actions` mode it renders `/sets` cards (Enter focuses the card's first action). It replaces the flat lists in `HostGame`, `NewGamePicker` and both `/sets` tabs. Category headings are `h3` in pickers and `h2` on `/sets`, where card titles are now `h3`.
+- Rows show the difficulty ("15 questions · Easy · Built-in", `setDetail`). `DIFFICULTY_LABELS` moved to `setLabels.ts`. **Host a game** scrolls its picker into view when it opens.
+- Tests: `setFilter.test.ts` (17), `SetBrowser.test.tsx` (15), `Landing.test.tsx` +3, `NewGamePicker.test.tsx` +3, `Sets.test.tsx` +4 (heading level now 3). 1310 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-29 for F55 (search rule and the "anim" mismatch; group order and "Other"; selection, Enter and tab reset; the picker scroll).
+
+**Notes for next session:**
+- **Roadmap mismatch:** "anim" at Easy leaves two sets (Animals – Easy, Anime & Manga – Easy) under any substring or prefix rule. The tests and playtest use "animal" at Easy, which leaves one. Marked with a `SPEC-QUESTION` in `setFilter.ts`.
+- Playtest (Playwright):
+  - First run, 375×667: the picker opened under the Join card with the chips below the fold (`.playtest/F55/picker-375.png` is from this run). The scroll fix followed.
+  - Re-run, 375×667: after tapping Host a game, the search box was at y 114 and the chips at y 182–278. "animal", Easy and Enter selected Animals – Easy, and Create room worked. On `/sets` the headings ran Other, Animals, …; one card was left and Enter focused Duplicate to My sets; My sets search found the copy.
+  - The Screen's New game picker (1920×1080) filtered and took Enter.
+  - No console errors.
+- Not playtested: the Host remote's New game picker (it needs a full game to FINAL). It uses the same component as the Screen's, and `NewGamePicker.test.tsx` covers it.
+- Main `index` chunk 449.31 kB (136.80 kB gzip); `db` 277.45 kB.
+- F56 adds Preview to `SetBrowser`: put it in the `actions` render prop on `/sets`, and add an optional per-row action in `select` mode (not on the Screen).
+
+**How to try it:** `npm run dev`.
+1. On a phone (or devtools at 375×667), open `http://<laptop-LAN-IP>:5173` and tap **Host a game**: the picker scrolls up with the search box and chips in view. Type "animal", tap **Easy**, press Enter (Go), then **Create room**.
+2. On the laptop, open `http://localhost:5173/sets`: the Built-in tab is grouped by category. Search and chips narrow it, and Enter on one result focuses its first button. My sets has its own search.
+3. Host a game to the end on the Screen, then press **New game**: the same search and chips are in the dialog.
+
 ## F54 — Built-in sets library (2026-10-29)
 **What changed:**
 - `shared/builtInSets.ts`: `BUILT_IN_SETS` (`SAMPLE_SET`, then the 60 `STARTER_SETS`) and `builtInSet(id)`, read from the bundle. New browsers no longer seed anything; `populate` and the v2 starter upgrade are gone.

@@ -8,11 +8,19 @@ import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import { db } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
+import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { Landing } from './Landing.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
 
+/** The elements asked to scroll into view; jsdom has no layout, so it has no scrollIntoView. */
+let scrolled: Element[] = [];
+
 beforeEach(async () => {
+  scrolled = [];
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled.push(this);
+  };
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   await db.delete();
   await db.open();
@@ -20,6 +28,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
+  delete (Element.prototype as Partial<Element>).scrollIntoView;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   localStorage.clear();
@@ -124,7 +133,9 @@ describe('Host a game', () => {
     expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
       'Pub quiz8 questions',
       `${SAMPLE_SET.title}10 questions · Built-in`,
-      ...STARTER_SETS.map((s) => `${s.title}15 questions · Built-in`),
+      ...STARTER_SETS.map(
+        (s) => `${s.title}15 questions · ${DIFFICULTY_LABELS[s.difficulty!]} · Built-in`,
+      ),
     ]);
     expect(radios.map((r) => r.checked)).toEqual([true, ...STARTER_SETS.map(() => false), false]);
   });
@@ -168,6 +179,43 @@ describe('Host a game', () => {
       set: SAMPLE_SET,
       settings: DEFAULT_SETTINGS,
     });
+  });
+
+  it('picks Animals – Easy by search, chip and Enter, then hosts it', async () => {
+    await db.sets.add(quiz);
+    const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    renderLanding();
+    await openPicker();
+    const search = screen.getByRole('searchbox', { name: 'Search sets' });
+    fireEvent.change(search, { target: { value: 'animal' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    fireEvent.keyDown(search, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await screen.findByRole('heading', { name: 'Room created' });
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { set: { id: string } };
+    expect(body.set.id).toBe('starter-animals-easy');
+  });
+
+  it('scrolls the picker to the top of the page when it opens, so its search box shows', async () => {
+    renderLanding();
+    const heading = await openPicker();
+    expect(scrolled).toEqual([heading.closest('section')]);
+  });
+
+  it('Create room waits for a pick once the search hides the preselected set', async () => {
+    await db.sets.add(quiz);
+    renderLanding();
+    await openPicker();
+    const create = screen.getByRole<HTMLButtonElement>('button', { name: 'Create room' });
+    expect(create.disabled).toBe(false);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {
+      target: { value: 'movies' },
+    });
+    expect(create.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('radio', { name: /^Movies – Hard/ }));
+    expect(create.disabled).toBe(false);
   });
 
   it('an unfinished draft is refused with what to fix, before any request', async () => {

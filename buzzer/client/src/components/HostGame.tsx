@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
-import { questionCount } from '../lib/setLabels.js';
+import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_OUTLINE, BUTTON_PRIMARY, CARD } from '../lib/ui.js';
 import { RoomCreated } from './RoomCreated.js';
+import { SetBrowser } from './SetBrowser.js';
 
 type Status =
   | { kind: 'idle' }
@@ -20,6 +21,13 @@ export function HostGame() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pickerRef = useRef<HTMLElement>(null);
+  const picking = status.kind === 'picking';
+
+  // The picker opens under the Join card: bring its search box and chips into view (DECISIONS F55).
+  useEffect(() => {
+    if (picking) pickerRef.current?.scrollIntoView({ block: 'start' });
+  }, [picking]);
 
   async function openPicker() {
     setStatus({ kind: 'loading' });
@@ -75,35 +83,25 @@ export function HostGame() {
   const { sets, firstBuiltIn, creating } = status;
 
   return (
-    <section aria-labelledby="pick-heading" className={`flex flex-col gap-4 ${CARD}`}>
+    <section
+      ref={pickerRef}
+      aria-labelledby="pick-heading"
+      className={`flex flex-col gap-4 ${CARD}`}
+    >
       <h2 id="pick-heading" className="font-display text-3xl">
         Pick a question set
       </h2>
-      <fieldset className="flex max-h-80 flex-col gap-2 overflow-y-auto">
-        <legend className="sr-only">Question set</legend>
-        {sets.map((set, index) => (
-          <label
-            key={set.id}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent"
-          >
-            <input
-              type="radio"
-              name="host-set"
-              value={set.id}
-              checked={selectedId === set.id}
-              onChange={() => setSelectedId(set.id)}
-              className="size-5 accent-accent"
-            />
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-lg">{set.title}</span>
-              <span className="text-sm text-muted">
-                {questionCount(set.questions.length)}
-                {index >= firstBuiltIn && ' · Built-in'}
-              </span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      <SetBrowser
+        mode="select"
+        id="host"
+        legend="Question set"
+        sets={sets}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        detail={(set) => setDetail(set, sets.indexOf(set) >= firstBuiltIn)}
+        listClassName="max-h-80 overflow-y-auto"
+        className="text-lg"
+      />
       <button
         type="button"
         onClick={() => void create(status)}

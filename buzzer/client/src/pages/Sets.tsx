@@ -5,13 +5,13 @@ import {
   useState,
   type ChangeEvent,
   type KeyboardEvent,
-  type ReactNode,
 } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { RoomCreated } from '../components/RoomCreated.js';
+import { SetBrowser } from '../components/SetBrowser.js';
 import {
   createSet,
   deleteSet,
@@ -29,7 +29,7 @@ import {
   IMPORT_FILE_MAX_BYTES,
   parseSetFile,
 } from '../lib/importExport.js';
-import { formatEdited, questionCount } from '../lib/setLabels.js';
+import { formatEdited, setDetail } from '../lib/setLabels.js';
 
 const LOAD_ERROR = 'Could not load the saved sets in this browser.';
 
@@ -272,9 +272,14 @@ export function Sets() {
           </div>
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
             {tab === 'builtIn' ? (
-              <ul className="flex flex-col gap-4">
-                {BUILT_IN_SETS.map((set) => (
-                  <SetCard key={set.id} set={set} detail={questionCount(set.questions.length)}>
+              <SetBrowser
+                key="builtIn"
+                mode="actions"
+                id="built-in"
+                sets={BUILT_IN_SETS}
+                detail={(set) => setDetail(set, false)}
+                actions={(set) => (
+                  <>
                     <button
                       type="button"
                       onClick={() => void duplicateToMine(set.id)}
@@ -291,29 +296,30 @@ export function Sets() {
                     >
                       Host this set
                     </button>
-                  </SetCard>
-                ))}
-              </ul>
+                  </>
+                )}
+              />
             ) : sets.length === 0 ? (
               <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
                 No question sets yet. Tap <strong className="text-ink">New set</strong> to write
                 one, or duplicate a built-in set.
               </p>
             ) : (
-              <ul className="flex flex-col gap-4">
-                {sets.map((set) => (
-                  <SetCard
-                    key={set.id}
-                    set={set}
-                    detail={
-                      <>
-                        {questionCount(set.questions.length)} · Last edited{' '}
-                        <time dateTime={new Date(set.updatedAt).toISOString()}>
-                          {formatEdited(set.updatedAt)}
-                        </time>
-                      </>
-                    }
-                  >
+              <SetBrowser
+                key="mine"
+                mode="actions"
+                id="mine"
+                sets={sets}
+                detail={(set) => (
+                  <>
+                    {setDetail(set, false)} · Last edited{' '}
+                    <time dateTime={new Date(set.updatedAt).toISOString()}>
+                      {formatEdited(set.updatedAt)}
+                    </time>
+                  </>
+                )}
+                actions={(set) => (
+                  <>
                     <Link to={`/sets/${set.id}`} className={smallButton}>
                       Open
                     </Link>
@@ -348,9 +354,9 @@ export function Sets() {
                     >
                       Host this set
                     </button>
-                  </SetCard>
-                ))}
-              </ul>
+                  </>
+                )}
+              />
             )}
           </div>
         </div>
@@ -363,31 +369,5 @@ export function Sets() {
         Back to start
       </Link>
     </main>
-  );
-}
-
-/** One set's card: its title, a line of detail, then its actions. */
-function SetCard({
-  set,
-  detail,
-  children,
-}: {
-  set: QuestionSet;
-  detail: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <li
-      aria-labelledby={`set-${set.id}`}
-      className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
-    >
-      <div className="min-w-0">
-        <h2 id={`set-${set.id}`} className="truncate font-display text-2xl">
-          {set.title}
-        </h2>
-        <p className="text-muted">{detail}</p>
-      </div>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </li>
   );
 }

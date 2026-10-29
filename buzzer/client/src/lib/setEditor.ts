@@ -173,12 +173,6 @@ export function titleError(title: string): string | undefined {
   return tooLong(trimmed, SET_TITLE_MAX);
 }
 
-export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
-  easy: 'Easy',
-  medium: 'Medium',
-  hard: 'Hard',
-};
-
 /** The set with the typed category, or without one when the field is blank. */
 export function withCategory(set: QuestionSet, category: string): QuestionSet {
   if (category.trim() !== '') return { ...set, category };

@@ -38,7 +38,6 @@ import {
   addQuestion,
   canAddQuestion,
   categoriesInUse,
-  DIFFICULTY_LABELS,
   duplicateQuestion,
   moveQuestion,
   parsePoints,
@@ -54,6 +53,7 @@ import {
   withCategory,
   withDifficulty,
 } from '../lib/setEditor.js';
+import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 
 const LOAD_ERROR = 'Could not load this set in this browser.';

@@ -7,6 +7,7 @@ import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
 import { NEW_GAME_TAKEN_MESSAGE } from '../lib/api.js';
 import { addImage, db, saveSet } from '../lib/db.js';
+import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { NewGamePicker } from './NewGamePicker.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
@@ -79,7 +80,9 @@ describe('NewGamePicker', () => {
       'Half done0 questions · Not playable yet',
       'Round two1 question',
       `${SAMPLE_SET.title}10 questions · Built-in`,
-      ...STARTER_SETS.map((set) => `${set.title}15 questions · Built-in`),
+      ...STARTER_SETS.map(
+        (set) => `${set.title}15 questions · ${DIFFICULTY_LABELS[set.difficulty!]} · Built-in`,
+      ),
     ]);
     expect(radios[0]!.checked).toBe(true);
   });
@@ -129,6 +132,44 @@ describe('NewGamePicker', () => {
     release();
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(putBody(fetch).keepScores).toBe(true);
+  });
+
+  it('puts the search box first in tab order after the heading', async () => {
+    renderPicker();
+    await options();
+    const first = [...dialog().querySelectorAll<HTMLElement>('input, button')].find(
+      (element) => !(element as HTMLInputElement).disabled,
+    );
+    expect(first).toBe(within(dialog()).getByRole('searchbox', { name: 'Search sets' }));
+  });
+
+  it('picks Animals – Easy by search and chip, and sends it', async () => {
+    const { fetch, release } = stubPut();
+    const { onClose } = renderPicker();
+    await options();
+    const search = within(dialog()).getByRole('searchbox', { name: 'Search sets' });
+    fireEvent.change(search, { target: { value: 'animal' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Easy' }));
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect((await options()).map((radio) => radio.checked)).toEqual([true]);
+    fireEvent.click(startButton());
+    release();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(putBody(fetch).set.id).toBe('starter-animals-easy');
+  });
+
+  it('locks the search box and chips while the new game is set up', async () => {
+    const { release } = stubPut();
+    const { onClose } = renderPicker();
+    fireEvent.click((await options())[1]!);
+    fireEvent.click(startButton());
+    const search = within(dialog()).getByRole<HTMLInputElement>('searchbox');
+    await waitFor(() => expect(search.disabled).toBe(true));
+    expect(within(dialog()).getByRole<HTMLButtonElement>('button', { name: 'Hard' }).disabled).toBe(
+      true,
+    );
+    release();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
   it('shows progress and locks the picker until the new game is set up', async () => {
