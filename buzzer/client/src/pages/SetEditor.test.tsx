@@ -38,6 +38,9 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  // Unmounting flushes a change still waiting. Close first, so that write fails instead of racing
+  // the next test's db.delete(), which hung that test's settle().
+  db.close();
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
