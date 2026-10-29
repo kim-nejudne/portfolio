@@ -243,6 +243,8 @@ interface SharedRoomView {
   canJudge: boolean;
   /** `host:undo` would be accepted (DECISIONS F02: the client never derives this). */
   canUndo: boolean;
+  /** A team move or a new team count would be accepted: LOBBY or REVEAL (F83). */
+  canChangeTeams: boolean;
   /** The player judged correct on the current question, for the reveal; null if nobody was. */
   scorerId: string | null;
   answerTimer: AnswerTimerView | null;

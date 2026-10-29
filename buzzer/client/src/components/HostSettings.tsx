@@ -3,6 +3,7 @@ import {
   BUZZ_SECONDS_CHOICES,
   FALSE_START_MS_CHOICES,
   SCOREBOARD_EVERY_MAX,
+  TEAM_COUNT_CHOICES,
 } from '../../../shared/constants.js';
 import type { HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
 import { HOVER } from '../lib/hover.js';
@@ -31,12 +32,12 @@ const SIZES = {
   compact: {
     row: 'gap-2 px-3 py-1',
     label: 'text-base',
-    // One line per row, so the presets, all seven rows and Start game fit at 1280×720 with no
-    // scroll (F65, F73).
+    // One line per row, and steppers and presets a little shorter than 2rem, so the presets, all
+    // eight rows and Start game fit at 1280×720 with no scroll (F65, F73, F83).
     detail: 'sr-only',
-    stepper: 'size-8 text-xl',
+    stepper: 'size-7 text-lg',
     value: 'w-12',
-    preset: 'h-8 px-2 text-base',
+    preset: 'h-7 px-2 text-base',
     track: 'h-6 w-11',
     knob: 'size-4',
   },
@@ -100,7 +101,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
   const every = settings.scoreboardEvery;
 
   return (
-    <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-2' : 'gap-3'}`}>
+    <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-1.5' : 'gap-3'}`}>
       <div role="group" aria-labelledby="presets-label" className={`${row} ${size.row}`}>
         <p className="flex-1">
           <span id="presets-label" className={`block font-bold ${size.label}`}>
@@ -142,7 +143,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         onChange={(autoOpenBuzzers) => change({ autoOpenBuzzers })}
         size={size}
       />
-      <SecondsStepper
+      <ChoiceStepper
         id="answer-time-label"
         label="Answer time"
         detail="Seconds the first buzzer has to answer."
@@ -153,7 +154,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         onChange={(answerSeconds) => change({ answerSeconds })}
         size={size}
       />
-      <SecondsStepper
+      <ChoiceStepper
         id="buzz-time-label"
         label="Buzz time"
         detail="Seconds to buzz in before the answer is revealed."
@@ -164,7 +165,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         onChange={(buzzSeconds) => change({ buzzSeconds })}
         size={size}
       />
-      <SecondsStepper
+      <ChoiceStepper
         id="false-start-label"
         label="False start"
         detail="A press before the buzzers open waits this long after they do."
@@ -218,16 +219,32 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         onChange={(showStandings) => change({ showStandings })}
         size={size}
       />
+      {/* Only in the lobby or between questions, where the server takes a new count (F83). */}
+      <ChoiceStepper
+        id="teams-label"
+        label="Teams"
+        detail="A new count regroups everyone. Only in the lobby or between questions."
+        noun="teams"
+        less="Fewer teams"
+        choices={TEAM_COUNT_CHOICES}
+        value={settings.teams}
+        disabled={busy || !view.canChangeTeams}
+        onChange={(teams) => change({ teams })}
+        size={size}
+        format={String}
+      />
     </section>
   );
 }
 
-interface SecondsStepperProps<T extends number> {
+interface ChoiceStepperProps<T extends number> {
   id: string;
   label: string;
   detail: string;
   /** Names the − and + buttons: "Less answer time", "More answer time". */
   noun: string;
+  /** Names the − button instead, where "Less" reads wrong: "Fewer teams". */
+  less?: string;
   /** The allowed values, shortest first; 0 shows as Off. */
   choices: readonly T[];
   value: T;
@@ -238,19 +255,23 @@ interface SecondsStepperProps<T extends number> {
   format?: (value: T) => string;
 }
 
-/** A row that steps through a fixed list of times: the answer time, buzz time and false start. */
-function SecondsStepper<T extends number>({
+/**
+ * A row that steps through a fixed list of values: the answer time, buzz time, false start and
+ * team count.
+ */
+function ChoiceStepper<T extends number>({
   id,
   label,
   detail,
   noun,
+  less = `Less ${noun}`,
   choices,
   value,
   disabled,
   onChange,
   size,
   format = (seconds) => `${seconds} s`,
-}: SecondsStepperProps<T>) {
+}: ChoiceStepperProps<T>) {
   const step = choices.indexOf(value);
   const shorter = choices[step - 1];
   const longer = choices[step + 1];
@@ -264,7 +285,7 @@ function SecondsStepper<T extends number>({
       </p>
       <button
         type="button"
-        aria-label={`Less ${noun}`}
+        aria-label={less}
         onClick={() => shorter !== undefined && onChange(shorter)}
         disabled={disabled || shorter === undefined}
         className={`${stepper} ${size.stepper}`}

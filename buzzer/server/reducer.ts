@@ -580,6 +580,11 @@ export function canJudge(room: Room): boolean {
   return room.phase === 'BUZZED' && room.winnerId !== null && room.reopenAt === null;
 }
 
+/** Whether `host:setTeam` or a new team count would be accepted, phase-wise (F81, F83). */
+export function canChangeTeams(room: Room): boolean {
+  return TEAM_PHASES.includes(room.phase);
+}
+
 /** Whether `host:undo` would be accepted: this question's last judgement, with its undo point. */
 export function canUndo(room: Room): boolean {
   const last = room.judgements.at(-1);

@@ -24,7 +24,7 @@ import type {
 } from '../shared/types.js';
 import { RESULTS_CARD_ROWS, TEAMS } from '../shared/constants.js';
 import { buzzGaps, rankOpening } from './fairness.js';
-import { canBuzz, canJudge, canUndo } from './reducer.js';
+import { canBuzz, canChangeTeams, canJudge, canUndo } from './reducer.js';
 import { rankPlayers, rankTeams, type Ranked } from './ranking.js';
 
 export function toView(room: Room, role: 'screen'): ScreenView;
@@ -149,6 +149,7 @@ function shared(room: Room) {
     // Not secret, so a Screen holding the hostToken can show the same controls (F23).
     canJudge: canJudge(room),
     canUndo: canUndo(room),
+    canChangeTeams: canChangeTeams(room),
     scorerId: scorerId(room),
     answerTimer: answerTimerView(room),
     buzzTimer: buzzTimerView(room),

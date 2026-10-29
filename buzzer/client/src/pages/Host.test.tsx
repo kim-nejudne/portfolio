@@ -8,9 +8,10 @@ import {
   GAME_ENDED_ERROR,
   PLAYER_PALETTE,
   ROOM_NOT_FOUND_ERROR,
+  TEAMS,
 } from '../../../shared/constants.js';
 import { TOAST_MS } from '../components/Toast.js';
-import type { HostView, Question } from '../../../shared/types.js';
+import type { HostView, Question, TeamView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import type { GameSocket } from '../lib/socket.js';
@@ -98,6 +99,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     judgements: [],
     canJudge: false,
     canUndo: false,
+    canChangeTeams: true,
     scorerId: null,
     answerTimer: null,
     buzzTimer: null,
@@ -658,6 +660,62 @@ describe('Host remote', () => {
       expect(screen.getByText('No one has joined yet.')).toBeTruthy();
       socket.fire('state', hostView({ players: [player(1)] }));
       expect(screen.getByRole('region', { name: 'Players (1)' })).toBeTruthy();
+    });
+
+    it('with teams, the Players tab groups by team and a team select moves a player', () => {
+      const team = (index: number, memberIds: string[]): TeamView => ({
+        ...TEAMS[index]!,
+        index,
+        score: 0,
+        rank: 1,
+        memberIds,
+      });
+      const settings = { ...DEFAULT_SETTINGS, teams: 2 as const };
+      const socket = remote(
+        hostView({
+          settings,
+          players: [player(1), player(2), player(3)],
+          teams: [team(0, ['p1', 'p3']), team(1, ['p2'])],
+        }),
+      );
+      openTab(/^Players/);
+      const members = (name: RegExp) =>
+        within(screen.getByRole('region', { name }))
+          .getAllByRole('listitem')
+          .map((row) => row.getAttribute('aria-label'));
+      expect(members(/^Red/)).toEqual(['Player 1', 'Player 3']);
+      expect(members(/^Blue/)).toEqual(['Player 2']);
+      fireEvent.change(screen.getByRole('combobox', { name: 'Team for Player 1' }), {
+        target: { value: '1' },
+      });
+      expect(socket.emitted.at(-1)).toMatchObject({
+        event: 'host:setTeam',
+        payload: { playerId: 'p1', team: 1 },
+      });
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+      socket.fire(
+        'state',
+        hostView({
+          settings,
+          players: [player(1), player(2), player(3)],
+          teams: [team(0, ['p3']), team(1, ['p1', 'p2'])],
+        }),
+      );
+      expect(members(/^Blue/)).toEqual(['Player 1', 'Player 2']);
+    });
+
+    it('the Settings tab has the Teams stepper, which sends host:settings', () => {
+      const socket = remote(hostView());
+      openTab(/^Settings$/);
+      expect(screen.getByRole('status', { name: 'Teams' }).textContent).toBe('Off');
+      fireEvent.click(screen.getByRole('button', { name: 'More teams' }));
+      expect(socket.emitted.at(-1)).toMatchObject({
+        event: 'host:settings',
+        payload: { teams: 2 },
+      });
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+      socket.fire('state', hostView({ settings: { ...DEFAULT_SETTINGS, teams: 2 } }));
+      expect(screen.getByRole('status', { name: 'Teams' }).textContent).toBe('2');
     });
 
     it('a rejected action from another tab shows the same toast', () => {

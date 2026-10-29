@@ -7,8 +7,9 @@ import {
   PLAYER_PALETTE,
   SCOREBOARD_EVERY_MAX,
   SCORE_DELTA_MAX,
+  TEAMS,
 } from '../../../shared/constants.js';
-import type { Ack, HostView, Phase } from '../../../shared/types.js';
+import type { Ack, HostView, Phase, TeamCount, TeamView } from '../../../shared/types.js';
 import { resetRoomStore, useRoomStore } from '../lib/roomStore.js';
 import { useHostCommand, type SendHost } from '../lib/useHostCommand.js';
 import { HostPlayers } from './HostPlayers.js';
@@ -57,6 +58,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     judgements: [],
     canJudge: false,
     canUndo: false,
+    canChangeTeams: true,
     scorerId: null,
     answerTimer: null,
     buzzTimer: null,
@@ -618,11 +620,11 @@ describe('HostSettings', () => {
     expect(toggle(/^Auto-open buzzers/)).toBeTruthy();
     expect(screen.getByRole('status', { name: 'Answer time' }).textContent).toBe('5 s');
     expect(screen.getByRole('status', { name: 'False start' }).textContent).toBe('0.5 s');
-    expect(button('More false start wait').className).toContain('size-8');
+    expect(button('More false start wait').className).toContain('size-7');
     expect(every().textContent).toBe('5');
-    expect(button('More answer time').className).toContain('size-8');
+    expect(button('More answer time').className).toContain('size-7');
     expect(toggle(/^Auto-open buzzers/).className).toContain('py-1');
-    expect(preset('Competitive').className).toContain('h-8');
+    expect(preset('Competitive').className).toContain('h-7');
     cleanup();
 
     setup(HostSettings, view);
@@ -646,5 +648,186 @@ describe('HostSettings', () => {
 
     setup(HostSettings, view);
     expect(detail().className).not.toContain('sr-only');
+  });
+});
+
+/** `count` teams with the given members, in index order, as the server lists them. */
+function teams(count: TeamCount, members: string[][], scores: number[] = []): TeamView[] {
+  return TEAMS.slice(0, count).map((team, index) => ({
+    index,
+    name: team.name,
+    color: team.color,
+    score: scores[index] ?? 0,
+    rank: 1,
+    memberIds: members[index] ?? [],
+  }));
+}
+
+/** Teams on: Players 1 and 3 on Red, Player 2 on Blue, in the lobby unless overridden. */
+function teamView(overrides: Partial<HostView> = {}): HostView {
+  return hostView({
+    phase: 'LOBBY',
+    questionIndex: -1,
+    question: null,
+    settings: { ...DEFAULT_SETTINGS, teams: 2 },
+    players: [player(1, { score: 100 }), player(2), player(3, { score: 50 })],
+    teams: teams(2, [['p1', 'p3'], ['p2']], [150, 0]),
+    ...overrides,
+  });
+}
+
+describe('HostSettings: teams stepper', () => {
+  const count = () => screen.getByRole('status', { name: 'Teams' });
+
+  it('shows Off by default, with − stopped', () => {
+    setup(HostSettings, hostView({ phase: 'LOBBY' }));
+    expect(count().textContent).toBe('Off');
+    expect(isDisabled('Fewer teams')).toBe(true);
+    expect(isDisabled('More teams')).toBe(false);
+  });
+
+  it.each<[TeamCount, string, TeamCount]>([
+    [0, 'More teams', 2],
+    [2, 'More teams', 3],
+    [3, 'More teams', 4],
+    [4, 'Fewer teams', 3],
+    [3, 'Fewer teams', 2],
+    [2, 'Fewer teams', 0],
+  ])('from %i, %s sends only teams %i', (from, label, to) => {
+    const { sent } = setup(
+      HostSettings,
+      hostView({ phase: 'LOBBY', settings: { ...DEFAULT_SETTINGS, teams: from } }),
+    );
+    fireEvent.click(button(label));
+    expect(sent).toEqual([
+      expect.objectContaining({ event: 'host:settings', payload: { teams: to } }),
+    ]);
+  });
+
+  it('shows the count from the snapshot and stops + at 4', () => {
+    setup(HostSettings, hostView({ phase: 'LOBBY', settings: { ...DEFAULT_SETTINGS, teams: 4 } }));
+    expect(count().textContent).toBe('4');
+    expect(isDisabled('More teams')).toBe(true);
+  });
+
+  it('is off while the view says teams cannot change, and on again when it can', () => {
+    const view = { settings: { ...DEFAULT_SETTINGS, teams: 2 as const } };
+    const { rerender } = setup(HostSettings, hostView({ ...view, canChangeTeams: false }));
+    expect(isDisabled('More teams')).toBe(true);
+    expect(isDisabled('Fewer teams')).toBe(true);
+    expect(isDisabled('More answer time')).toBe(false);
+    rerender(hostView({ ...view, phase: 'REVEAL', canChangeTeams: true }));
+    expect(isDisabled('More teams')).toBe(false);
+  });
+
+  it('presets leave the team count alone', () => {
+    const { sent } = setup(HostSettings, hostView({ phase: 'LOBBY' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Party' }));
+    expect(sent[0]?.payload).not.toHaveProperty('teams');
+  });
+
+  it('the Screen lobby (compact) has the stepper too', () => {
+    const send = vi.fn<SendHost>();
+    const view = hostView({ phase: 'LOBBY', settings: { ...DEFAULT_SETTINGS, teams: 3 } });
+    function Compact() {
+      return <HostSettings view={view} command={useHostCommand(view, send, vi.fn())} compact />;
+    }
+    render(<Compact />);
+    expect(count().textContent).toBe('3');
+    expect(button('More teams').className).toContain('size-7');
+  });
+});
+
+describe('HostPlayers: teams', () => {
+  const group = (name: RegExp) => screen.getByRole('region', { name });
+  const select = (name: string) =>
+    screen.getByRole('combobox', { name: `Team for ${name}` }) as HTMLSelectElement;
+  const names = (region: HTMLElement) =>
+    within(region)
+      .queryAllByRole('listitem')
+      .map((li) => li.getAttribute('aria-label'));
+
+  beforeEach(() => useRoomStore.setState({ connection: 'connected' }));
+  afterEach(resetRoomStore);
+
+  it('groups players by team in index order, members in join order', () => {
+    setup(HostPlayers, teamView());
+    const groups = within(screen.getByRole('region', { name: 'Players (3)' }))
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent);
+    expect(groups).toEqual(['Red2 players150', 'Blue1 player0']);
+    expect(names(group(/^Red/))).toEqual(['Player 1', 'Player 3']);
+    expect(names(group(/^Blue/))).toEqual(['Player 2']);
+  });
+
+  it('heads each team with its colour', () => {
+    setup(HostPlayers, teamView());
+    const heading = within(group(/^Blue/)).getByRole('heading');
+    expect(within(heading).getByText('Blue').style.color).toBe('rgb(59, 130, 246)');
+  });
+
+  it('keeps an empty team with "No players yet"', () => {
+    setup(
+      HostPlayers,
+      teamView({
+        settings: { ...DEFAULT_SETTINGS, teams: 3 },
+        teams: teams(3, [['p1', 'p3'], ['p2'], []]),
+      }),
+    );
+    expect(within(group(/^Green/)).getByText('No players yet')).toBeTruthy();
+  });
+
+  it('each row has a team select showing its team and offering every team', () => {
+    setup(HostPlayers, teamView());
+    expect(select('Player 3').value).toBe('0');
+    expect(select('Player 2').value).toBe('1');
+    expect([...select('Player 2').options].map((o) => o.textContent)).toEqual(['Red', 'Blue']);
+  });
+
+  it('picking a team sends host:setTeam and moves the row only with the next snapshot', () => {
+    const { sent, rerender } = setup(HostPlayers, teamView());
+    fireEvent.change(select('Player 3'), { target: { value: '1' } });
+    expect(sent).toMatchObject([{ event: 'host:setTeam', payload: { playerId: 'p3', team: 1 } }]);
+    expect(names(group(/^Red/))).toEqual(['Player 1', 'Player 3']);
+    expect(select('Player 3').value).toBe('0');
+    act(() => sent[0]!.ack({ ok: true }));
+    rerender(teamView({ teams: teams(2, [['p1'], ['p2', 'p3']]) }));
+    expect(names(group(/^Blue/))).toEqual(['Player 2', 'Player 3']);
+    expect(select('Player 3').value).toBe('1');
+  });
+
+  it('a refused move shows the error and leaves the player where they were', () => {
+    const { sent, onRejected } = setup(HostPlayers, teamView());
+    fireEvent.change(select('Player 1'), { target: { value: '1' } });
+    act(() => sent[0]!.ack({ ok: false, error: 'No such team' }));
+    expect(onRejected).toHaveBeenCalledWith('No such team');
+    expect(select('Player 1').value).toBe('0');
+  });
+
+  it('the select is off while the view says teams cannot change', () => {
+    setup(
+      HostPlayers,
+      teamView({
+        phase: 'QUESTION',
+        questionIndex: 1,
+        question: { id: 'q2', text: 'Q2', answer: 'A2', points: 200 },
+        canChangeTeams: false,
+      }),
+    );
+    expect(select('Player 1').disabled).toBe(true);
+    expect(isDisabled('Add 200 to Player 1')).toBe(false);
+  });
+
+  it('with teams off there are no groups and no team select', () => {
+    setup(HostPlayers, hostView());
+    expect(screen.queryAllByRole('heading', { level: 3 })).toEqual([]);
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('a player on no team still shows, under No team', () => {
+    setup(HostPlayers, teamView({ teams: teams(2, [['p1'], ['p2']]) }));
+    expect(names(group(/^No team/))).toEqual(['Player 3']);
+    expect(select('Player 3').value).toBe('');
   });
 });

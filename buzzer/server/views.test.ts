@@ -282,7 +282,7 @@ describe('toView: host', () => {
   });
 });
 
-describe('toView: canJudge and canUndo match what the reducer accepts', () => {
+describe('toView: canJudge, canUndo and canChangeTeams match what the reducer accepts', () => {
   const NOW = T0 + 10_000;
   const JUDGE_WRONG: Action = { type: 'host:judge', result: 'wrong' };
   const after = (room: Room, ...actions: Action[]) =>
@@ -331,6 +331,9 @@ describe('toView: canJudge and canUndo match what the reducer accepts', () => {
     for (const view of [toView(room, 'host'), toView(room, 'screen')]) {
       expect(view.canJudge).toBe(reduce(room, JUDGE_WRONG, NOW).ok);
       expect(view.canUndo).toBe(reduce(room, { type: 'host:undo' }, NOW).ok);
+      expect(view.canChangeTeams).toBe(
+        reduce(room, { type: 'host:settings', settings: { teams: 2 } }, NOW).ok,
+      );
     }
   });
 
@@ -345,6 +348,7 @@ describe('toView: canJudge and canUndo match what the reducer accepts', () => {
     const views = rooms().map(([, room]) => toView(room, 'host'));
     expect(new Set(views.map((v) => v.canJudge))).toEqual(new Set([true, false]));
     expect(new Set(views.map((v) => v.canUndo))).toEqual(new Set([true, false]));
+    expect(new Set(views.map((v) => v.canChangeTeams))).toEqual(new Set([true, false]));
   });
 });
 

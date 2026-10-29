@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F83 — Teams: host controls (2026-10-29)
+**What changed:**
+- Views carry `canChangeTeams` (`canChangeTeams(room)` in `server/reducer.ts`, true in LOBBY and REVEAL, the same `TEAM_PHASES` the reducer checks), like `canUndo`. The editor's `previewView` sets it only for its REVEAL preview.
+- `HostSettings.tsx`: a last "Teams" row (Off, 2, 3, 4 from `TEAM_COUNT_CHOICES`) that sends `{teams}` only, disabled while `canChangeTeams` is false. It's on the remote and in the hosting Screen's compact lobby, and the presets leave it alone. `SecondsStepper` became `ChoiceStepper`, with an optional `less` label ("Fewer teams"). Compact rows are tighter (steppers `size-7`, presets `h-7`, 6 px gaps), so all eight rows still fit at 1280×720.
+- `HostPlayers.tsx`: rows are now a `PlayerRow` component. With teams on, `TeamGroups` shows one group per team in index order: colour square, name in the team's colour, player count, team score, "No players yet" when empty. Each row has a native "Team for <name>" select that sends `host:setTeam` and shows the snapshot's team. A player on no team (which the server never leaves) would show under "No team".
+- Tests: `HostControls.test.tsx` +19 (stepper: Off by default, six steps, 4 stops +, disabled while teams can't change, presets leave teams, compact; Players: grouping and order, heading colour, empty team, select value and options, move only with the snapshot, refused move, select disabled, teams off, no-team fallback), `Host.test.tsx` +2 (Players tab grouping and a move over the socket; Settings tab stepper over the socket), `views.test.ts` (canChangeTeams matches what the reducer accepts in every phase, both answers covered). Compact size assertions now expect `size-7` and `h-7`. 1996 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F83 (`canChangeTeams` on the views; the Teams row, its detail and presets; the Players tab's groups and native select).
+
+**Notes for next session:**
+- **The Screen lobby's settings column is now full at 1280×720.** With no host phone paired, the aside is 463 px and its content 463 px (no inner scroll; the Teams row ends flush with the aside's bottom). At 1366×768 there are 22 px spare, and at 1920×1080 there are 223 px. Any further lobby settings row (such as the language setting) needs another squeeze or a fold. Before the fix, the first playtest showed the Teams row cut off under an inner scrollbar; the page itself never scrolled, so a page-level check missed it.
+- Playtest (Playwright, room with 5–8 bots, remote at 375 and 390 px, Screen at 1280×720 and 1920×1080). Checked: stepper Off→2→3→4 with + stopped at 4; the Screen lobby's stepper; Players grouped Red/Blue/Green(/Yellow) with counts; a move from the remote reached the phone ("Blue team") and the Screen's columns; teams off from the Screen removed the groups; selects and both stepper buttons disabled in QUESTION and with buzzers open, enabled in REVEAL; at 375 px in REVEAL a row wraps to two lines (−100 +100 Custom / select … Kick) with no horizontal overflow. No console errors (the one warning is socket.io's dev-mode "WebSocket is closed before the connection is established" at page load). Files: `.playtest/F83/`.
+- Main `index` chunk 499.37 → 501.56 kB (150.74 kB gzip), now past Vite's 500 kB warning (build still passes). Backlog item added.
+
+**How to try it:** `npm run dev`, then on the laptop open `http://localhost:5173/` → **Host a game**. In the lobby, the settings beside Start game end with **Teams**; press + for 2–4 teams. Join phones at `http://<LAN-IP>:5173/play/<code>` (or bots at `/dev/bots/<code>`). Pair a phone as host remote: **Players** tab shows the team groups; change a player's team with their select (lobby or after Reveal answer only).
+
 ## F82 — Teams: Screen and phone (2026-10-29)
 **What changed:**
 - New `client/src/lib/teams.ts`: `teamOf` (the player's team from `memberIds`) and `teamsByRank` (the server's rank, index order on ties).

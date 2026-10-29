@@ -95,6 +95,7 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     settings: DEFAULT_SETTINGS,
     canJudge: false,
     canUndo: false,
+    canChangeTeams: reveal,
     scorerId: null,
     answerTimer: null,
     buzzTimer: null,

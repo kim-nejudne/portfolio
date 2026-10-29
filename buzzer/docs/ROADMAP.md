@@ -220,13 +220,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F82 Teams: Screen and phone
 
-- [ ] F83 Teams: host controls
-  - Spec: UI spec by view (Host remote, Screen view Lobby); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F82
-  - Done when:
-    - The Settings tab and lobby settings have a "Teams" stepper (Off, 2, 3, 4)
-    - The Players tab groups players by team with a team select per player (sends `host:setTeam`)
-  - Tests: `HostControls.test.tsx`, `Host.test.tsx`
+- [x] F83 Teams: host controls
 
 ## M21 — Answer modes
 
@@ -314,3 +308,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - False start: a vibration of its own on the phone's `fx falseStart` (the press gives only the 30 ms tap today), if the spec's vibrate list grows to include it (F72).
 - Avatars: show the avatar on the Screen's buzz banner, "also buzzed" list and Too early chips, and on the remote's Game over standings (F75 covered only the Done-when surfaces). A way to change the avatar after joining would need a `player:avatar` event like `player:rename` (F74, F75).
 - Teams: the results card image (F78) and the remote's Game over standings could rank teams first too, and scoreboard player rows could carry a team mark beside their own colour dot (F82).
+- Bundle: the main `index` chunk passed Vite's 500 kB warning (501.6 kB, 150.7 kB gzip) with F83. Lazy-load a page that only one device opens (the editor at `/sets`, or the results card renderer) to get back under it (F83).

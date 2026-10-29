@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { SCORE_DELTA_MAX } from '../../../shared/constants.js';
-import type { HostView } from '../../../shared/types.js';
+import type { HostView, TeamView } from '../../../shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
@@ -22,12 +22,13 @@ const small =
  *
  * While the remote's own socket is not connected, the last snapshot's statuses may be stale, so
  * every row says "status unknown", dimmed, until it reconnects (F41).
+ *
+ * With teams on, the rows are grouped by team, each with a team select (F83).
  */
 export function HostPlayers({ view, command }: HostPlayersProps) {
-  const { busy, run } = command;
-  const step = view.question?.points ?? 0;
-  const { players } = view;
+  const { players, teams } = view;
   const unknown = useRoomStore((state) => state.connection) !== 'connected';
+  const rowProps = { view, command, unknown };
 
   return (
     <section aria-labelledby="players-heading" className="flex flex-col gap-2">
@@ -36,74 +37,197 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
       </h2>
       {players.length === 0 ? (
         <p className="text-muted">No one has joined yet.</p>
+      ) : teams ? (
+        <TeamGroups players={players} teams={teams} rowProps={rowProps} />
       ) : (
         <ul className="flex flex-col gap-2">
           {players.map((player) => (
-            <li
-              key={player.id}
-              aria-label={player.name}
-              className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2"
-            >
-              {/* Greyed while offline or unknown; the buttons below stay full strength, since they still work. */}
-              <p
-                className={`flex items-center gap-3 ${player.connected && !unknown ? '' : 'opacity-40'}`}
-              >
-                <span
-                  aria-hidden
-                  style={{ backgroundColor: player.color }}
-                  className="size-4 shrink-0 rounded-full"
-                />
-                <PlayerAvatar avatar={player.avatar} className="text-xl" />
-                <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
-                <span className="text-sm text-muted">
-                  {unknown
-                    ? 'status unknown'
-                    : player.connected
-                      ? `online · ${Math.round(player.rttMs)} ms`
-                      : 'offline'}
-                </span>
-                <span className="font-display text-xl">{player.score}</span>
-              </p>
-              <p className="flex flex-wrap items-center gap-2">
-                {step > 0 && (
-                  <>
-                    <button
-                      type="button"
-                      aria-label={`Subtract ${step} from ${player.name}`}
-                      onClick={() => run('host:adjustScore', { playerId: player.id, delta: -step })}
-                      disabled={busy}
-                      className={small}
-                    >
-                      −{step}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Add ${step} to ${player.name}`}
-                      onClick={() => run('host:adjustScore', { playerId: player.id, delta: step })}
-                      disabled={busy}
-                      className={small}
-                    >
-                      +{step}
-                    </button>
-                  </>
-                )}
-                <CustomAdjust player={player} command={command} />
-                <span className="ml-auto">
-                  <ConfirmButton
-                    label="Kick"
-                    confirmLabel="Confirm kick"
-                    ariaLabel={`Kick ${player.name}`}
-                    onConfirm={() => run('host:kick', { playerId: player.id })}
-                    disabled={busy}
-                    className={small}
-                  />
-                </span>
-              </p>
-            </li>
+            <PlayerRow key={player.id} player={player} {...rowProps} />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+type HostPlayer = HostView['players'][number];
+
+interface RowProps {
+  view: HostView;
+  command: HostCommand;
+  /** The remote's socket is down, so every status may be stale. */
+  unknown: boolean;
+}
+
+/**
+ * With teams on (F83): one group per team in index order, as on the Screen's lobby, each headed
+ * by the team's colour, name, player count and score; members in join order. An empty team keeps
+ * its heading. A player on no team, which the server never leaves while teams are on, still gets
+ * a row under "No team" rather than vanishing.
+ */
+function TeamGroups({
+  players,
+  teams,
+  rowProps,
+}: {
+  players: HostPlayer[];
+  teams: TeamView[];
+  rowProps: RowProps;
+}) {
+  const byId = new Map(players.map((player) => [player.id, player]));
+  const grouped = new Set(teams.flatMap((team) => team.memberIds));
+  const unteamed = players.filter((player) => !grouped.has(player.id));
+
+  return (
+    <div className="flex flex-col gap-4">
+      {teams.map((team) => {
+        const members = team.memberIds.flatMap((id) => byId.get(id) ?? []);
+        const headingId = `team-${team.index}-heading`;
+        return (
+          <section key={team.index} aria-labelledby={headingId} className="flex flex-col gap-2">
+            <h3 id={headingId} className="flex items-center gap-2 font-display text-lg">
+              <span
+                aria-hidden
+                style={{ backgroundColor: team.color }}
+                className="size-4 shrink-0 rounded-sm"
+              />
+              <span style={{ color: team.color }}>{team.name}</span>
+              <span className="text-sm font-normal text-muted">
+                {members.length} {members.length === 1 ? 'player' : 'players'}
+              </span>
+              <span className="ml-auto">{team.score}</span>
+            </h3>
+            {members.length === 0 ? (
+              <p className="text-muted">No players yet</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {members.map((player) => (
+                  <PlayerRow
+                    key={player.id}
+                    player={player}
+                    team={team}
+                    teams={teams}
+                    {...rowProps}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+      {unteamed.length > 0 && (
+        <section aria-labelledby="team-none-heading" className="flex flex-col gap-2">
+          <h3 id="team-none-heading" className="font-display text-lg text-muted">
+            No team
+          </h3>
+          <ul className="flex flex-col gap-2">
+            {unteamed.map((player) => (
+              <PlayerRow key={player.id} player={player} team={null} teams={teams} {...rowProps} />
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One player: score and connection, the adjust buttons, Kick and, with teams on, a team select.
+ * The select shows the snapshot's team until the server moves the player; it is off outside the
+ * lobby and REVEAL, where the server refuses a move (`canChangeTeams`).
+ */
+function PlayerRow({
+  player,
+  view,
+  command,
+  unknown,
+  team,
+  teams,
+}: RowProps & { player: HostPlayer; team?: TeamView | null; teams?: TeamView[] }) {
+  const { busy, run } = command;
+  const step = view.question?.points ?? 0;
+
+  return (
+    <li
+      aria-label={player.name}
+      className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2"
+    >
+      {/* Greyed while offline or unknown; the buttons below stay full strength, since they still work. */}
+      <p className={`flex items-center gap-3 ${player.connected && !unknown ? '' : 'opacity-40'}`}>
+        <span
+          aria-hidden
+          style={{ backgroundColor: player.color }}
+          className="size-4 shrink-0 rounded-full"
+        />
+        <PlayerAvatar avatar={player.avatar} className="text-xl" />
+        <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
+        <span className="text-sm text-muted">
+          {unknown
+            ? 'status unknown'
+            : player.connected
+              ? `online · ${Math.round(player.rttMs)} ms`
+              : 'offline'}
+        </span>
+        <span className="font-display text-xl">{player.score}</span>
+      </p>
+      <p className="flex flex-wrap items-center gap-2">
+        {step > 0 && (
+          <>
+            <button
+              type="button"
+              aria-label={`Subtract ${step} from ${player.name}`}
+              onClick={() => run('host:adjustScore', { playerId: player.id, delta: -step })}
+              disabled={busy}
+              className={small}
+            >
+              −{step}
+            </button>
+            <button
+              type="button"
+              aria-label={`Add ${step} to ${player.name}`}
+              onClick={() => run('host:adjustScore', { playerId: player.id, delta: step })}
+              disabled={busy}
+              className={small}
+            >
+              +{step}
+            </button>
+          </>
+        )}
+        <CustomAdjust player={player} command={command} />
+        {teams && (
+          <select
+            aria-label={`Team for ${player.name}`}
+            value={team?.index ?? ''}
+            onChange={(e) =>
+              run('host:setTeam', { playerId: player.id, team: Number(e.target.value) })
+            }
+            disabled={busy || !view.canChangeTeams}
+            className={`${small} text-ink`}
+          >
+            {!team && (
+              <option value="" disabled>
+                No team
+              </option>
+            )}
+            {teams.map((option) => (
+              <option key={option.index} value={option.index}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <span className="ml-auto">
+          <ConfirmButton
+            label="Kick"
+            confirmLabel="Confirm kick"
+            ariaLabel={`Kick ${player.name}`}
+            onConfirm={() => run('host:kick', { playerId: player.id })}
+            disabled={busy}
+            className={small}
+          />
+        </span>
+      </p>
+    </li>
   );
 }
 
