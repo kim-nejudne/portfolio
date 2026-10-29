@@ -7,6 +7,7 @@ import { useShrinkToFit } from './useShrinkToFit.js';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  document.head.querySelectorAll('style').forEach((style) => style.remove());
 });
 
 /**
@@ -31,18 +32,26 @@ function renderFit(
   box: { width: number; height: number },
   rowsAt: (px: number) => number,
   content = 'a',
+  { max = 0.02, cssPx }: { max?: number | 'css'; cssPx?: number } = {},
 ) {
   function Fit({ content }: { content: string }) {
     const ref = useRef<HTMLUListElement>(null);
-    useShrinkToFit(ref, 0.02, 8, content);
+    useShrinkToFit(ref, max, 8, content);
     return (
       <ul
+        // Stands in for a text class: the size the element has with no inline font size.
+        className={cssPx === undefined ? undefined : 'sized'}
         ref={(el) => {
           if (el) fakeBox(el, box, rowsAt);
           ref.current = el;
         }}
       />
     );
+  }
+  if (cssPx !== undefined) {
+    const style = document.createElement('style');
+    style.textContent = `.sized { font-size: ${cssPx}px; }`;
+    document.head.append(style);
   }
   const result = render(<Fit content={content} />);
   const list = result.container.querySelector('ul')!;
@@ -100,5 +109,59 @@ describe('useShrinkToFit', () => {
     act(() => observed([], {} as ResizeObserver));
     expect(px()).toBeLessThanOrEqual(10);
     expect(px()).toBeGreaterThan(9.5);
+  });
+
+  describe("'css': at most the size the classes give", () => {
+    it('keeps the class size when the content fits, however wide the box', () => {
+      const { px } = renderFit({ width: 5000, height: 200 }, () => 2, 'a', {
+        max: 'css',
+        cssPx: 30,
+      });
+      expect(px()).toBe(30);
+    });
+
+    it('shrinks below the class size when the content would not fit', () => {
+      // 3 rows: fits while 6 × px <= 120, so at most 20 px.
+      const { px } = renderFit({ width: 1000, height: 120 }, () => 3, 'a', {
+        max: 'css',
+        cssPx: 30,
+      });
+      expect(px()).toBeLessThanOrEqual(20);
+      expect(px()).toBeGreaterThan(19.5);
+    });
+
+    it('measures the class size afresh on a refit, so a shrink does not stick', () => {
+      let rows = 3;
+      const { px, rerender } = renderFit({ width: 1000, height: 120 }, () => rows, 'a', {
+        max: 'css',
+        cssPx: 30,
+      });
+      expect(px()).toBeLessThanOrEqual(20);
+      rows = 1;
+      rerender('b');
+      expect(px()).toBe(30);
+    });
+
+    it('refits when the box is squeezed, as the answer appearing below does', () => {
+      let observed: ResizeObserverCallback = () => {};
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: ResizeObserverCallback) {
+            observed = callback;
+          }
+          observe() {}
+          disconnect() {}
+        },
+      );
+      const box = { width: 1000, height: 200 };
+      const { px } = renderFit(box, () => 2, 'a', { max: 'css', cssPx: 30 });
+      expect(px()).toBe(30);
+      // 2 rows: fits while 4 × px <= 60, so at most 15 px.
+      box.height = 60;
+      act(() => observed([], {} as ResizeObserver));
+      expect(px()).toBeLessThanOrEqual(15);
+      expect(px()).toBeGreaterThan(14.5);
+    });
   });
 });

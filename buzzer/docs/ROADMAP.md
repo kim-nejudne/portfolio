@@ -140,14 +140,7 @@ Kim's request of 2026-10-29: schedule every finding of the product audit (M12–
 
 - [x] F51 Host remote link after room creation
 
-- [ ] F52 Screen fixes from the backlog
-  - Spec: UI spec by view (Screen view); Roles and devices (Creating and joining a room, step 3)
-  - Depends: F51
-  - Done when:
-    - At REVEAL the question card fits at 1920×1080, 1366×768 and 1280×720: a two-line question ("What animal is known as the \"King of the Jungle\"?", Animals – Easy Q1) keeps both lines above the answer and winner banner (`ScreenQuestion.tsx`, `useShrinkToFit` in that phase)
-    - `PairHostPhone` builds its QR from the join origin (`useJoinOrigin`), as the join QR does since F42; a Screen on `localhost` hands the phone a LAN `/host/:code#t=…` link
-    - The Screen lobby's Pair host phone, side-panel Start game, settings switches and steppers have `HOVER` from `client/src/lib/hover.ts`
-  - Tests: `Screen.test.tsx` (pairing URL uses the join origin), `PairHostPhone.test.tsx`, `useShrinkToFit.test.tsx` if the hook changes. `/playtest`: the Animals – Easy Q1 reveal at the three sizes, screenshots in `.playtest/F52/`
+- [x] F52 Screen fixes from the backlog
 
 ## M13 — Set library
 

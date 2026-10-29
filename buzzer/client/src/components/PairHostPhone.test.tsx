@@ -51,6 +51,41 @@ describe('PairHostPhone', () => {
     expect(within(pairing).getByRole('button', { name: 'Hide' })).toBeTruthy();
   });
 
+  it('links to the join origin from the server, with the page port', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json({ joinOrigin: 'http://192.168.1.20' }))),
+    );
+    try {
+      const { open } = renderPairing();
+      // Let the config request settle before the dialog opens.
+      await act(async () => {});
+      open();
+      expect(within(dialog()!).getByTestId('qr').dataset.value).toBe(
+        `http://192.168.1.20:${window.location.port}/host/WXYZ#t=${'h'.repeat(43)}`,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('falls back to the page origin when the server has no address', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json({ joinOrigin: null }))),
+    );
+    try {
+      const { open } = renderPairing();
+      await act(async () => {});
+      open();
+      expect(within(dialog()!).getByTestId('qr').dataset.value).toBe(
+        `${window.location.origin}/host/WXYZ#t=${'h'.repeat(43)}`,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('moves focus to Hide, keeps Tab there, and gives focus back to the button on close', () => {
     const { button, open } = renderPairing();
     open();

@@ -2,7 +2,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PAIRING_QR_TTL_MS } from '../../../shared/constants.js';
-import { pairUrl } from '../lib/joinUrl.js';
+import { HOVER } from '../lib/hover.js';
+import { joinPageOrigin, pairUrl } from '../lib/joinUrl.js';
+import { useJoinOrigin } from '../lib/useJoinOrigin.js';
 import { useRoomStore } from '../lib/roomStore.js';
 
 interface PairHostPhoneProps {
@@ -26,7 +28,8 @@ interface Pairing {
  * **Pair host phone**: a dialog with a QR to `/host/:code#t=<hostToken>` for 60 seconds, then hidden
  * (Creating and joining a room, step 3). Shown only on devices that hold the token (DECISIONS #14).
  * It opens over the page, so the lobby keeps its layout (F38), and it closes on Hide, Esc, the
- * deadline, or as soon as another host device joins.
+ * deadline, or as soon as another host device joins. The link uses the join origin, as the join QR
+ * does, so a Screen on localhost hands the phone an address it can open (F52).
  */
 export function PairHostPhone({
   code,
@@ -40,6 +43,7 @@ export function PairHostPhone({
   const [pairing, setPairing] = useState<Pairing | null>(null);
   const [now, setNow] = useState(0);
   const hostJoins = useRoomStore((state) => state.hostJoins);
+  const joinOrigin = useJoinOrigin();
   // A host joining is the point of the QR, so it closes at once (F38).
   const open = pairing !== null && pairing.hostJoins === hostJoins;
   const deadline = open ? pairing.deadline : null;
@@ -66,13 +70,13 @@ export function PairHostPhone({
         type="button"
         onClick={show}
         aria-haspopup="dialog"
-        className={`rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display transition not-disabled:active:scale-95 ${className}`}
+        className={`rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display transition not-disabled:active:scale-95 ${HOVER} ${className}`}
       >
         Pair host phone
       </button>
       {deadline !== null && (
         <PairingDialog
-          url={pairUrl(window.location.origin, code, hostToken)}
+          url={pairUrl(joinPageOrigin(joinOrigin ?? null, window.location), code, hostToken)}
           secondsLeft={Math.ceil((deadline - now) / 1000)}
           onHide={() => setPairing(null)}
           className={dialogClassName}
@@ -143,7 +147,7 @@ function PairingDialog({ url, secondsLeft, onHide, className, qrSize }: PairingD
           ref={hideRef}
           type="button"
           onClick={onHide}
-          className="rounded-2xl border-2 border-edge bg-bg px-[1em] py-[0.3em] font-display transition active:scale-95"
+          className={`rounded-2xl border-2 border-edge bg-bg px-[1em] py-[0.3em] font-display transition active:scale-95 ${HOVER}`}
         >
           Hide{' '}
           <kbd

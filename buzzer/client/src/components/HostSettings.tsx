@@ -1,5 +1,6 @@
 import { ANSWER_SECONDS_CHOICES, SCOREBOARD_EVERY_MAX } from '../../../shared/constants.js';
 import type { HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
+import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 
 interface HostSettingsProps {
@@ -35,8 +36,8 @@ const SIZES = {
 type Sizes = (typeof SIZES)['regular'];
 
 const row = 'flex items-center rounded-2xl border-2 border-edge bg-surface';
-const stepper =
-  'rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40';
+// The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
+const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
@@ -160,7 +161,7 @@ function Switch({ label, detail, checked, disabled, onChange, size }: SwitchProp
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       disabled={disabled}
-      className={`${row} ${size.row} text-left transition disabled:opacity-40`}
+      className={`${row} ${size.row} text-left transition disabled:opacity-40 ${HOVER}`}
     >
       <span className="flex-1">
         <span className={`block font-bold ${size.label}`}>{label}</span>

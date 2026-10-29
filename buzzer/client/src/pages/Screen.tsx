@@ -21,6 +21,7 @@ import { StartOverlay } from '../components/StartOverlay.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
+import { HOVER } from '../lib/hover.js';
 import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
@@ -301,7 +302,7 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
         onClick={() => command.run('host:start', {})}
         disabled={command.busy}
         aria-keyshortcuts="Space"
-        className={`${BUTTON_PRIMARY} flex items-center justify-center gap-3 text-2xl`}
+        className={`${BUTTON_PRIMARY} flex items-center justify-center gap-3 text-2xl ${HOVER}`}
       >
         Start game <Icon name="arrow-right" className="size-7" />
         <kbd aria-hidden className="ml-2 font-mono text-base opacity-70">

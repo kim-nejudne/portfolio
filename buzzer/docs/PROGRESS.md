@@ -10,6 +10,38 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+<!-- entries below, newest first -->
+
+## F52 — Screen fixes from the backlog (2026-10-29)
+**What changed:**
+- Reveal fit:
+  - `useShrinkToFit` takes `max: number | 'css'`. With `'css'`, it clears its inline size and caps at the size the classes give, so it only ever shrinks.
+  - `ScreenQuestion` puts the length-step class (F18) on the text row, which is `overflow-hidden` and has the hook (min 12 px). The `h1` inherits the size.
+  - It runs in every question phase. It refits on resize (the answer, the scorer pill or the banner appearing) and on a new question.
+- `PairHostPhone` builds its QR from `joinPageOrigin(useJoinOrigin())`, like the join QR. A Screen on `localhost` now hands the phone `http://<LAN-IP>:5173/host/:code#t=…`. The Host remote's Pair button gets the same.
+- `HOVER` is on Pair host phone and its Hide button, the lobby's Start game, and the HostSettings switches and steppers.
+- Tests:
+  - `useShrinkToFit.test.tsx` +4 (`'css'`: keeps the class size, shrinks under it, fresh cap on refit, refit on resize).
+  - `PairHostPhone.test.tsx` +2 (LAN origin with the page port; page origin when null).
+  - `Screen.test.tsx` +3 (LAN pairing link, lobby and dialog hover, the text row fitted by measurement). 1238 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F52 (measured question fit; pairing origin).
+
+**Notes for next session:**
+- Playtest (Playwright):
+  - Plain Screen: Animals – Easy Q1 at REVEAL showed both lines above the answer at 1920×1080, 1366×768 and 1280×720.
+  - Hosting Screen (bar shown), Ana judged correct: at 1920×1080 the full step (≈92 px) would not fit above the answer and the scorer pill. The row shrank to 70 px (49 px at 1366×768, 47 px at 1280×720), and the question then fits on one line. The row's scrollHeight equals its clientHeight, so nothing is clipped.
+  - Pill bottom is 25–42 px above the bar top.
+  - Pairing QR decoded to the LAN address. No console errors.
+  - Screenshots are in `.playtest/F52/`.
+- The question text can step down when the answer appears (the card loses height). That is the fit working, not a flicker.
+- `docs/PROGRESS.md`: the `<!-- entries below -->` marker had drifted below F35, so `roadmap.mjs next` showed F35 as newest. It is back under the template.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and choose **Host this set** on Animals – Easy, then **Use this device as the Screen**. Join from a phone.
+2. In the lobby, hover Pair host phone, Start game and the settings: each shows the ink border. Open **Pair host phone** and scan it with a phone: it opens `http://<LAN-IP>:5173/host/…`.
+3. Start, buzz on Q1 and judge Correct. At 1280×720 (devtools), the question stays whole above LION and the scorer pill.
+
 ## F51 — Host remote link after room creation (2026-10-29)
 **What changed:**
 - `RoomCreated.tsx` has a third button, **Use this phone as the host remote**. It navigates to `/host/:code`. `hostSet` has already saved the hostToken, so the remote joins with the stored token and no pairing hash.
@@ -539,7 +571,6 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 3. Start, open the buzzers and buzz. The Screen shows 3, 2, 1 beside the winner's name, then "Time's up!" with a red flash and the new sound. The winner's phone counts down too; the Host phone counts above Correct / Wrong, then shows "Time's up" and vibrates (Android Chrome; iOS has no vibration).
 4. Judge as usual. Set Answer time back to Off: no countdown anywhere.
 
-<!-- entries below, newest first -->
 
 ## F35 — Answer timer: server and phone setting (2026-10-28)
 **What changed:**

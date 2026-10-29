@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { BuzzGap, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
 import { signedPoints } from '../lib/results.js';
@@ -8,12 +9,16 @@ import {
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useRecentFx } from '../lib/useRecentFx.js';
+import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 import { Icon } from './Icon.js';
 
 /** The gold stage ring round the hero panel: 6px of base, then 4px of gold, at 1280 wide. */
 const STAGE_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]';
 /** The same ring in the border colour, for a banner judged wrong. */
 const DIM_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-edge)]';
+
+/** The question text never shrinks below this, however squeezed the card (F52). */
+const QUESTION_MIN_PX = 12;
 
 /** A small uppercase label on the Screen (13–16px at 1280 wide). */
 const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] uppercase';
@@ -28,6 +33,15 @@ const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] upperc
 export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?: string }) {
   const { question } = view;
   const countdown = useAnswerCountdown(view);
+  const rowRef = useRef<HTMLDivElement>(null);
+  // The length step is the most the text gets; the answer and the banner squeeze the card, so it
+  // shrinks further when its lines would not fit what is left (F52).
+  useShrinkToFit(
+    rowRef,
+    'css',
+    QUESTION_MIN_PX,
+    question ? `${question.imageId ?? ''}\n${question.text}` : '',
+  );
   if (!question) return null;
   const text = question.text.trim();
   const winner = view.players.find((p) => p.id === view.winnerId);
@@ -39,16 +53,14 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
         className="flex min-h-0 flex-1 flex-col gap-[2vh] overflow-hidden rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
       >
         <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
-        {/* Safe centring: text taller than a squeezed card starts at the top and clips at the
-            bottom, instead of spilling over the label. */}
-        <div className="flex min-h-0 flex-1 items-center-safe gap-[4vw]">
-          {text && (
-            <h1
-              className={`max-h-full min-w-0 flex-1 overflow-hidden leading-tight font-bold break-words ${questionTextClass(text, question.imageId !== undefined)}`}
-            >
-              {text}
-            </h1>
-          )}
+        {/* Safe centring: text taller than a squeezed card, even at the smallest size, starts at
+            the top and clips at the bottom, instead of spilling over the label. The row carries
+            the text size, so the hook measures a box that its font size never changes. */}
+        <div
+          ref={rowRef}
+          className={`flex min-h-0 flex-1 items-center-safe gap-[4vw] overflow-hidden ${questionTextClass(text, question.imageId !== undefined)}`}
+        >
+          {text && <h1 className="min-w-0 flex-1 leading-tight font-bold break-words">{text}</h1>}
           {question.imageId && (
             <img
               src={imageSrc ?? imageUrl(view.code, question.imageId)}

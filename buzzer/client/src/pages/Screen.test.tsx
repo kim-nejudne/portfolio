@@ -432,6 +432,31 @@ describe('Screen', () => {
       fireEvent.keyDown(window, { key: ' ' });
       expect(hostEvents(socket)).toEqual(['host:start']);
     });
+
+    it("links to the server's LAN address, as the join QR does, when the Screen is on localhost", async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(Response.json({ joinOrigin: 'http://192.168.1.20' }))),
+      );
+      try {
+        lobbyWithToken();
+        const lan = `http://192.168.1.20:${window.location.port}`;
+        await screen.findByTitle(`Join at ${lan}/play/WXYZ`);
+        openPairing();
+        expect(within(dialog()!).getByTestId('qr').dataset.value).toBe(
+          `${lan}/host/WXYZ#t=${hostToken}`,
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('the lobby buttons and the dialog have the mouse hover', () => {
+      lobbyWithToken([player(1)]);
+      expect(buttonsWithoutHover(screen.getByRole('main'))).toEqual([]);
+      openPairing();
+      expect(buttonsWithoutHover(dialog()!)).toEqual([]);
+    });
   });
 
   describe('question and buzz views', () => {
@@ -520,13 +545,23 @@ describe('Screen', () => {
     });
 
     it('shrinks long question text', () => {
+      // The text row carries the size step; the heading inherits it (F52).
+      const sizeClass = () => screen.getByRole('heading', { level: 1 }).parentElement!.className;
       const socket = show(questionView());
-      const shortClass = screen.getByRole('heading', { level: 1 }).className;
+      const shortClass = sizeClass();
       socket.fire(
         'state',
         questionView({ question: { id: 'q3', text: 'Why '.repeat(60).trim() + '?', points: 100 } }),
       );
-      expect(screen.getByRole('heading', { level: 1 }).className).not.toBe(shortClass);
+      expect(sizeClass()).not.toBe(shortClass);
+    });
+
+    it('fits the text row by measurement, so the reveal never clips the question (F52)', () => {
+      show(questionView());
+      // jsdom has no layout: everything "fits", so the row gets its class size inline.
+      const row = screen.getByRole('heading', { level: 1 }).parentElement!;
+      expect(row.style.fontSize).toBe('16px');
+      expect(row.className).toContain('overflow-hidden');
     });
 
     it('shows the winner on the red first-to-buzz panel with their colour dot, in place of the status', () => {

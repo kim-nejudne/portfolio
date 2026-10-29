@@ -25,6 +25,7 @@ const STEP_LIMITS = [40, 90, 150, 220];
  * An image takes half the space, so it starts one step down.
  */
 // SPEC-QUESTION: "auto-shrinks to fit" is done by length steps, not by measuring the box (DECISIONS, F18).
+// Since F52 the step is a cap: `ScreenQuestion` measures and shrinks below it when the card is short.
 export function questionTextClass(text: string, hasImage: boolean): string {
   const length = text.trim().length;
   let step = STEP_LIMITS.findIndex((limit) => length <= limit);

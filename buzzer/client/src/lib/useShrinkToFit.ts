@@ -1,14 +1,16 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
 /**
- * Sets the element's font size to the largest value, at most `maxOfWidth` × its own width and at
- * least `minPx`, at which its content fits its height. Sizes inside it written in `em` scale along.
+ * Sets the element's font size to the largest value, at most `max` and at least `minPx`, at which
+ * its content fits its height. `max` is a share of its own width, or `'css'` for the size its
+ * classes give it, so it only ever shrinks. Sizes inside it written in `em` scale along.
  * It refits when the element is resized, when web fonts finish loading, and when `content` changes.
- * The Screen lobby uses it so every player chip stays above the bottom strip (F38).
+ * The Screen lobby uses it so every player chip stays above the bottom strip (F38), and the Screen's
+ * question so its text stays above the answer (F52).
  */
 export function useShrinkToFit(
   ref: RefObject<HTMLElement | null>,
-  maxOfWidth: number,
+  max: number | 'css',
   minPx: number,
   content: string,
 ): void {
@@ -20,7 +22,14 @@ export function useShrinkToFit(
       return el.scrollHeight <= el.clientHeight;
     };
     const fit = () => {
-      let hi = Math.max(minPx, el.clientWidth * maxOfWidth);
+      let cap: number;
+      if (max === 'css') {
+        el.style.fontSize = '';
+        cap = parseFloat(getComputedStyle(el).fontSize);
+      } else {
+        cap = el.clientWidth * max;
+      }
+      let hi = Math.max(minPx, cap);
       if (fitsAt(hi)) return;
       // Binary search to half a pixel: a handful of layouts, even for 50 chips.
       let lo = minPx;
@@ -46,5 +55,5 @@ export function useShrinkToFit(
       live = false;
       observer.disconnect();
     };
-  }, [ref, maxOfWidth, minPx, content]);
+  }, [ref, max, minPx, content]);
 }
