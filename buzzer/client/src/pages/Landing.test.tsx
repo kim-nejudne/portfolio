@@ -5,7 +5,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
-import { db, deleteSet } from '../lib/db.js';
+import { STARTER_SETS } from '../../../shared/starterSets/index.js';
+import { db } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { Landing } from './Landing.js';
 
@@ -119,8 +120,9 @@ describe('Host a game', () => {
     expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
       'Pub quiz10 questions',
       `${SAMPLE_SET.title}10 questions`,
+      ...STARTER_SETS.map((s) => `${s.title}15 questions`),
     ]);
-    expect(radios.map((r) => r.checked)).toEqual([true, false]);
+    expect(radios.map((r) => r.checked)).toEqual([true, ...STARTER_SETS.map(() => false), false]);
   });
 
   it('creates a room with the picked set and default settings', async () => {
@@ -140,7 +142,7 @@ describe('Host a game', () => {
   });
 
   it('with no saved sets, the picker links to My question sets and cannot create', async () => {
-    await deleteSet(SAMPLE_SET.id);
+    await db.sets.clear();
     renderLanding();
     await openPicker();
     expect(screen.getByText(/No saved sets yet/)).toBeTruthy();

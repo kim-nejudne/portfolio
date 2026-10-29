@@ -124,20 +124,12 @@ Kim's request of 2026-10-29: 60 built-in sets (20 categories × Easy, Medium, Ha
 
 - [x] F47 Starter set data
 
-- [ ] F48 Seed starter sets into My sets
-  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (starter sets)
-  - Depends: F47
-  - Done when:
-    - `client/src/lib/db.ts` declares `version(2)` with the same stores. A fresh browser's `populate` adds the sample (stamped now, as today) and the 60 starters, stamped `now - 1 - i` in `STARTER_SETS` order, so `/sets` lists the sample, then Animals – Easy … Words & Language – Hard
-    - The v1 → v2 `upgrade` adds every starter whose id is not already stored, stamped `oldest - 1 - i`, where `oldest` is the smallest stored `updatedAt` (or now when the list is empty). The host's own sets stay on top and **Host a game** still preselects the host's newest set
-    - Seeding never re-runs: a deleted starter stays deleted after reload. Adds are chained on Dexie promises inside the transaction (no native `await`); the starter JSON is a static import into the lazy db chunk
-    - `npm run build`: the player-facing main bundle does not grow (the data lands only in the chunk that holds `db.ts`); sizes recorded in DECISIONS
-    - **Host this set** on a starter creates a room, and the Screen shows its questions with 100/200/300 points
-  - Tests: `db.test.ts` (fake-indexeddb): a fresh database lists 61 sets in the stated order with the visit-time stamps; a v1 database holding two user sets upgrades to keep them first and unchanged, then the starters in order below the oldest; a v1 database with no sets gets the starters stamped from now; a deleted starter is not re-added on reopen. Update the existing "seeds the sample set" test. `/playtest`: `/sets` on a fresh profile, host a starter, play one question
+- [x] F48 Seed starter sets into My sets
 
 ## Bugs
 
 ## Backlog (not scheduled)
 
 - Hover on the Screen lobby controls: Pair host phone, the side-panel Start game, the settings switches and steppers have no hover style (F44 covered the host bar only). Add `HOVER` from `client/src/lib/hover.ts`.
+- Screen question card clips at REVEAL: at 1920×1080 a two-line question ("What animal is known as the \"King of the Jungle\"?", Animals – Easy Q1) loses its second line under the answer and winner banner (F48 playtest, `.playtest/F48/3-plus100-screen.png`). Fit the card in `ScreenQuestion.tsx` or shrink its text in that phase.
 - Pairing QR uses `joinOrigin` too: a Screen on localhost hands a phone an unreachable `/host/:code` link (F42). Pass the join origin to `PairHostPhone`.

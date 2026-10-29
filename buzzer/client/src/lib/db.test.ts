@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto';
+import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import {
   addImage,
@@ -18,6 +20,8 @@ import {
 } from './db.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
+
+const STARTER_IDS = STARTER_SETS.map((s) => s.id);
 
 function set(id: string, updatedAt: number, questions: QuestionSet['questions'] = []): QuestionSet {
   return { id, title: `Set ${id}`, questions, createdAt: 1, updatedAt, schemaVersion: 1 };
@@ -38,10 +42,77 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Starters as seeded below `top`: the first one at `top - 1`, then one ms older each. */
+function starterStamps(top: number): QuestionSet[] {
+  return STARTER_SETS.map((s, i) => ({ ...s, createdAt: top - 1 - i, updatedAt: top - 1 - i }));
+}
+
+/** Replaces the database with a version-1 one (before the starters) holding `sets`. */
+async function openAsV1(sets: QuestionSet[]): Promise<void> {
+  db.close();
+  await Dexie.delete('buzzr');
+  const v1 = new Dexie('buzzr');
+  v1.version(1).stores({ sets: 'id, updatedAt', images: 'id' });
+  await v1.open();
+  await v1.table('sets').bulkAdd(sets);
+  v1.close();
+}
+
 describe('question set database', () => {
-  it('seeds the sample set on first visit, stamped with the visit time', async () => {
+  it('seeds the sample, then the 60 starters in order, stamped from the visit time', async () => {
     const sets = await listSets();
-    expect(sets).toEqual([{ ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT }]);
+    expect(sets).toHaveLength(61);
+    expect(sets).toEqual([
+      { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT },
+      ...starterStamps(FIRST_VISIT),
+    ]);
+    expect(sets[1]!.title).toBe('Animals – Easy');
+    expect(sets[60]!.title).toBe('Words & Language – Hard');
+  });
+
+  it('upgrades a v1 database: own sets stay first and unchanged, starters go below the oldest', async () => {
+    const mine = [set('mine-new', 5_000), set('mine-old', 2_000)];
+    await openAsV1(mine);
+    await db.open();
+    const sets = await listSets();
+    expect(sets).toEqual([...mine, ...starterStamps(2_000)]);
+    // Host a game preselects the first listed set: still the host's newest.
+    expect(sets[0]!.id).toBe('mine-new');
+  });
+
+  it('upgrades an empty v1 database with the starters stamped from now', async () => {
+    await openAsV1([]);
+    await db.open();
+    expect(await listSets()).toEqual(starterStamps(FIRST_VISIT));
+  });
+
+  it('upgrade keeps a stored set whose id is a starter id, and adds only the missing ones', async () => {
+    const edited = { ...STARTER_SETS[0]!, title: 'My animals', createdAt: 3_000, updatedAt: 3_000 };
+    await openAsV1([edited]);
+    await db.open();
+    const sets = await listSets();
+    expect(sets).toHaveLength(60);
+    expect(sets[0]).toEqual(edited);
+    expect(sets.slice(1).map((s) => s.id)).toEqual(STARTER_IDS.slice(1));
+    expect(sets[1]!.updatedAt).toBe(3_000 - 1 - 1);
+  });
+
+  it('does not seed a starter again once it was deleted', async () => {
+    await deleteSet(STARTER_IDS[0]!);
+    db.close();
+    await db.open();
+    const ids = (await listSets()).map((s) => s.id);
+    expect(ids).toHaveLength(60);
+    expect(ids).not.toContain(STARTER_IDS[0]);
+  });
+
+  it('does not seed a starter again after an upgrade and a delete', async () => {
+    await openAsV1([set('mine', 2_000)]);
+    await db.open();
+    await deleteSet(STARTER_IDS[5]!);
+    db.close();
+    await db.open();
+    expect((await listSets()).map((s) => s.id)).not.toContain(STARTER_IDS[5]);
   });
 
   it("seeds the sample's 2 pictures as PNG blobs under the ids its questions use", async () => {
@@ -59,12 +130,18 @@ describe('question set database', () => {
     await deleteSet(SAMPLE_SET.id);
     db.close();
     await db.open();
-    expect(await listSets()).toEqual([]);
+    expect((await listSets()).map((s) => s.id)).toEqual(STARTER_IDS);
   });
 
   it('lists sets last edited first', async () => {
     await db.sets.bulkAdd([set('old', 10), set('new', FIRST_VISIT + 5), set('mid', 500)]);
-    expect((await listSets()).map((s) => s.id)).toEqual(['new', SAMPLE_SET.id, 'mid', 'old']);
+    expect((await listSets()).map((s) => s.id)).toEqual([
+      'new',
+      SAMPLE_SET.id,
+      ...STARTER_IDS,
+      'mid',
+      'old',
+    ]);
   });
 
   it('New set saves an empty, untitled draft with a fresh id', async () => {
@@ -89,7 +166,7 @@ describe('question set database', () => {
       ),
     );
     expect(await getSet(copy.id)).toEqual(copy);
-    expect(await listSets()).toHaveLength(2);
+    expect(await listSets()).toHaveLength(62);
   });
 
   it('Duplicate leaves the original unchanged', async () => {
@@ -163,6 +240,6 @@ describe('question set database', () => {
       createdAt: FIRST_VISIT,
       updatedAt: FIRST_VISIT + 10,
     });
-    expect((await listSets()).map((s) => s.id)).toEqual([SAMPLE_SET.id, 'other']);
+    expect((await listSets()).map((s) => s.id).slice(0, 2)).toEqual([SAMPLE_SET.id, 'other']);
   });
 });

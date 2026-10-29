@@ -5,8 +5,9 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
-import { db, deleteSet, getSet, listSets, NEW_SET_TITLE } from '../lib/db.js';
+import { db, getSet, listSets, NEW_SET_TITLE } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
 import { formatEdited } from '../lib/setLabels.js';
@@ -15,6 +16,8 @@ import { buttonsWithoutHover } from '../test/hover.js';
 import { Sets } from './Sets.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
+/** The sample plus the 60 starter sets, seeded on a first visit (F48). */
+const SEEDED = 1 + STARTER_SETS.length;
 const hostToken = 'h'.repeat(43);
 
 beforeEach(async () => {
@@ -69,11 +72,11 @@ describe('Set list /sets', () => {
     renderSets();
     await card('Newer quiz');
     const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(titles).toEqual(['Newer quiz', SAMPLE_SET.title]);
+    expect(titles).toEqual(['Newer quiz', SAMPLE_SET.title, ...STARTER_SETS.map((s) => s.title)]);
   });
 
   it('shows the empty state when no sets exist', async () => {
-    await deleteSet(SAMPLE_SET.id);
+    await db.sets.clear();
     renderSets();
     expect(await screen.findByText(/No question sets yet/)).toBeTruthy();
     expect(screen.queryByRole('listitem')).toBeNull();
@@ -100,7 +103,7 @@ describe('Set list /sets', () => {
     fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Duplicate' }));
     const copy = await card(`${SAMPLE_SET.title} (copy)`);
     expect(copy.getByText(/^10 questions/)).toBeTruthy();
-    expect(await listSets()).toHaveLength(2);
+    expect(await listSets()).toHaveLength(SEEDED + 1);
   });
 
   it('Delete asks for confirmation, and Cancel keeps the set', async () => {
@@ -117,8 +120,11 @@ describe('Set list /sets', () => {
     const sample = await card(SAMPLE_SET.title);
     fireEvent.click(sample.getByRole('button', { name: 'Delete' }));
     fireEvent.click(sample.getByRole('button', { name: 'Confirm delete' }));
-    expect(await screen.findByText(/No question sets yet/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByRole('listitem', { name: SAMPLE_SET.title })).toBeNull(),
+    );
     expect(await getSet(SAMPLE_SET.id)).toBeUndefined();
+    expect(await listSets()).toHaveLength(SEEDED - 1);
   });
 
   it('Host this set creates a room with that set and offers the Screen choices', async () => {
@@ -138,6 +144,22 @@ describe('Set list /sets', () => {
       set: { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT },
       settings: DEFAULT_SETTINGS,
     });
+  });
+
+  it('Host this set on a starter creates a room with its questions and level points', async () => {
+    const fetch = vi.fn(() =>
+      Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 })),
+    );
+    vi.stubGlobal('fetch', fetch);
+    const hard = STARTER_SETS[2]!;
+    renderSets();
+    fireEvent.click((await card(hard.title)).getByRole('button', { name: 'Host this set' }));
+
+    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    const { set } = JSON.parse(init.body as string) as { set: QuestionSet };
+    expect(set).toEqual({ ...hard, createdAt: FIRST_VISIT - 3, updatedAt: FIRST_VISIT - 3 });
+    expect(new Set(set.questions.map((q) => q.points))).toEqual(new Set([300]));
   });
 
   it('every button on the list and on Room created has the hover style', async () => {
@@ -250,7 +272,7 @@ describe('Set list /sets', () => {
 
       expect(await screen.findByRole('listitem', { name: 'Imported quiz' })).toBeTruthy();
       expect(screen.getByRole('status').textContent).toBe('Imported “Imported quiz”.');
-      expect(await listSets()).toHaveLength(2);
+      expect(await listSets()).toHaveLength(SEEDED + 1);
     });
 
     it('Import JSON lists the readable errors of a bad file and adds nothing', async () => {
@@ -273,7 +295,7 @@ describe('Set list /sets', () => {
         'Title: Too small: expected string to have >=1 characters',
         'Question 1 › points: Too small: expected number to be >=0',
       ]);
-      expect(await listSets()).toHaveLength(1);
+      expect(await listSets()).toHaveLength(SEEDED);
     });
 
     it('Import JSON refuses a file too large to be a set, without reading it', async () => {
@@ -285,7 +307,7 @@ describe('Set list /sets', () => {
       expect(within(alert).getByRole('listitem').textContent).toBe(
         'The file is larger than 201 MB.',
       );
-      expect(await listSets()).toHaveLength(1);
+      expect(await listSets()).toHaveLength(SEEDED);
     });
   });
 });

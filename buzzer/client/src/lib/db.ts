@@ -5,6 +5,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { nanoid } from 'nanoid';
 import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { sampleImages } from './sampleImages.js';
 
@@ -19,6 +20,14 @@ export const NEW_SET_TITLE = 'Untitled set';
 
 const COPY_SUFFIX = ' (copy)';
 
+/**
+ * The starter sets stamped just below `top`, one ms apart in `STARTER_SETS` order, so "last edited
+ * first" lists them Animals – Easy … Words & Language – Hard under everything stamped `top` or later.
+ */
+function stampedStarters(top: number): QuestionSet[] {
+  return STARTER_SETS.map((set, i) => ({ ...set, createdAt: top - 1 - i, updatedAt: top - 1 - i }));
+}
+
 class BuzzrDb extends Dexie {
   // Saved sets may be drafts: typed, not schema-checked, until play or export (DECISIONS F02).
   sets!: EntityTable<QuestionSet, 'id'>;
@@ -27,19 +36,38 @@ class BuzzrDb extends Dexie {
   constructor() {
     super('buzzr');
     this.version(1).stores({ sets: 'id, updatedAt', images: 'id' });
-    // `populate` runs once, when this browser first creates the database. A deleted sample stays
-    // deleted. The adds run inside the creating transaction, so a failed seed fails `open()`.
-    // Chained on Dexie's own promises: a native `await` here can let the transaction close.
+    // v2 adds the starter sets (DECISIONS F48) to a browser that already has a v1 database, below
+    // its oldest set, so the host's own sets stay on top. Ids already stored are left alone.
+    this.version(2)
+      .stores({ sets: 'id, updatedAt', images: 'id' })
+      .upgrade((tx) => {
+        const sets = tx.table<QuestionSet, string>('sets');
+        return sets
+          .orderBy('updatedAt')
+          .first()
+          .then((oldest) =>
+            sets
+              .toCollection()
+              .primaryKeys()
+              .then((stored) => {
+                const have = new Set(stored);
+                const starters = stampedStarters(oldest?.updatedAt ?? Date.now());
+                return sets.bulkAdd(starters.filter((set) => !have.has(set.id)));
+              }),
+          );
+      });
+    // `populate` runs once, when this browser first creates the database (the v2 upgrade does not
+    // run then). A deleted sample or starter stays deleted. The adds run inside the creating
+    // transaction, so a failed seed fails `open()`. Chained on Dexie's own promises: a native
+    // `await` here can let the transaction close.
     this.on('populate', (tx) => {
       const now = Date.now();
+      const sets = tx.table<QuestionSet, string>('sets');
       return tx
         .table<StoredImage, string>('images')
         .bulkAdd(sampleImages())
-        .then(() =>
-          tx
-            .table<QuestionSet, string>('sets')
-            .add({ ...SAMPLE_SET, createdAt: now, updatedAt: now }),
-        );
+        .then(() => sets.add({ ...SAMPLE_SET, createdAt: now, updatedAt: now }))
+        .then(() => sets.bulkAdd(stampedStarters(now)));
     });
   }
 }

@@ -10,6 +10,35 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F48 — Seed starter sets into My sets (2026-10-29)
+**What changed:**
+- `client/src/lib/db.ts`:
+  - `version(2)`, same stores. `populate` (fresh browser) adds the sample at `now`, then the 60 `STARTER_SETS` at `now - 1 - i`.
+  - The v1 → v2 `upgrade` adds each starter whose id is not stored at `oldest - 1 - i` (`oldest`: smallest stored `updatedAt`, or now). Own sets stay on top and unchanged.
+  - Both chained on Dexie promises, no native `await`. `STARTER_SETS` is a static import, so the data lives in the lazy `db` chunk.
+- Build: main `index` chunk 438.92 kB before and after; `db` chunk 112.74 → 286.57 kB (41.83 → 90.27 kB gzip).
+- Tests:
+  - `db.test.ts` +5: fresh 61 in order with stamps; v1 with two user sets; empty v1 stamped from now; v1 holding a starter id keeps it; a deleted starter is not re-added (fresh and after upgrade). The sample-seed, delete-sample, order, and duplicate tests now include the starters.
+  - `Sets.test.tsx` +1: **Host this set** on Animals – Hard sends its 15 questions at 300 points. Count and order expectations take the 60 starters; the empty-state tests clear the table.
+  - `Landing.test.tsx`: the picker lists all 62, the newest own set checked.
+  - 1155 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F48 cover the populate/upgrade stamping (including the 1 ms gap a skipped id leaves) and the bundle sizes.
+
+**Notes for next session:**
+- Playtest (Playwright), all pass:
+  - Upgrade path (old profile with a v1 database): 62 sets, own Untitled set first, sample, then the starters 1 ms apart. A deleted Animals – Easy stayed deleted after reload.
+  - Fresh profile: 61 cards, sample first, Words & Language – Hard last. **Host a game** preselects the sample.
+  - Animals – Easy hosted as room, one Player buzzed, C judged Correct: Screen showed "+100", scoreboard 100, N went to Question 2 / 15.
+- Found, not fixed (Backlog): the Screen's question card clips a two-line question at REVEAL.
+- The DECISIONS "Proposed spec changes" entry for starter sets is still pending Kim's edit of SPEC.md.
+- Browsers keep IndexedDB per origin: the deployed site and `localhost:5173` seed separately.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`: the sample, then Animals – Easy … Words & Language – Hard. An existing profile keeps its own sets above them.
+2. **Host this set** on any starter, **Use this device as the Screen**, join from a phone, and play a question: Correct scores 100, 200 or 300 by level.
+3. Delete a starter and reload: it stays gone.
+
 ## F47 — Starter set data (2026-10-29)
 **What changed:**
 - `shared/starterSets/<slug>.json`: 20 categories × Easy/Medium/Hard × 15 questions, 60 sets and 900 questions. They were written in Claude Desktop and copied from `~/Downloads/buzzr-starter/`, with the 39 review fixes in `~/Downloads/buzzr-starter-fixes.json` applied by a one-off scratchpad script. The script is not in the repo.
