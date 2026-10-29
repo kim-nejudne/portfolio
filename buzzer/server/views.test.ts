@@ -154,6 +154,23 @@ describe('toView: screen', () => {
     });
   });
 
+  it('carries the set’s category and difficulty for the title card, null when unset', () => {
+    const set = { ...makeSet(), category: 'Science', difficulty: 'hard' as const };
+    expect(toView(midGame('QUESTION', { set }), 'screen')).toMatchObject({
+      category: 'Science',
+      difficulty: 'hard',
+    });
+    expect(toView(midGame('QUESTION'), 'screen')).toMatchObject({
+      category: null,
+      difficulty: null,
+    });
+  });
+
+  it('carries hostDevices, the count of connected host remotes', () => {
+    expect(toView(makeRoom(), 'screen').hostDevices).toBe(0);
+    expect(toView(makeRoom({ hostDevices: 2 }), 'screen').hostDevices).toBe(2);
+  });
+
   it('lists the other buzzes in rank order with their gap to the winner', () => {
     const room = midGame('BUZZED', { buzzes: [buzz('p2', 60), buzz('p1', 10), buzz('p3', 30)] });
     expect(toView(room, 'screen').alsoBuzzed).toEqual([

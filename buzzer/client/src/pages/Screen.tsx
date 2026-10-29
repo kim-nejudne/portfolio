@@ -1,10 +1,11 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   GAME_ENDED_ERROR,
   INVALID_HOST_TOKEN_ERROR,
   ROOM_NOT_FOUND_ERROR,
+  TITLE_CARD_MS,
 } from '../../../shared/constants.js';
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
@@ -22,6 +23,7 @@ import { Toast, useToast } from '../components/Toast.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { HOVER } from '../lib/hover.js';
+import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
@@ -39,7 +41,7 @@ import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { usePracticePops } from '../lib/usePracticePops.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
 import { useSoundLevel } from '../lib/useSoundLevel.js';
-import { BUTTON_PRIMARY } from '../lib/ui.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 
 interface ScreenProps {
@@ -149,6 +151,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   const hostToken = canHost ? loadHostToken(code) : null;
   // The host bar handles `M` with the other shortcuts; a token-less Screen has only this key.
   useSoundKey(!canHost);
+  const titleCard = useTitleCard(view.phase, view.questionIndex);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
@@ -158,7 +161,8 @@ function ScreenStage({ view, canHost, send }: StageProps) {
         questionIndex={view.questionIndex}
         questionCount={view.questionCount}
         numbered={view.question !== null && view.phase !== 'FINAL'}
-        url={url}
+        // The lobby's body shows the join address with its QR, so the header leaves it out (F66).
+        url={view.phase === 'LOBBY' ? undefined : url}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">
         {/* With host controls, the content stops above the bar, so it never hides the reveal or the podium. */}
@@ -173,6 +177,8 @@ function ScreenStage({ view, canHost, send }: StageProps) {
             />
           ) : view.phase === 'FINAL' ? (
             <FinalResults players={view.players} />
+          ) : titleCard ? (
+            <TitleCard view={view} />
           ) : (
             <ScreenQuestion view={view} />
           )}
@@ -211,6 +217,49 @@ function ScreenStage({ view, canHost, send }: StageProps) {
       <Toast toast={toast} />
       <ReconnectingBanner />
     </main>
+  );
+}
+
+/**
+ * True for `TITLE_CARD_MS` after the room leaves the lobby for question 1, while the buzzers stay
+ * locked: opening them early ends it. A Screen that loads mid-game never shows it (F66).
+ */
+function useTitleCard(phase: Phase, questionIndex: number): boolean {
+  const [shown, setShown] = useState(false);
+  // The phase of the last render, so the move out of the lobby is caught while rendering.
+  const [previous, setPrevious] = useState(phase);
+  if (phase !== previous) {
+    setPrevious(phase);
+    setShown(previous === 'LOBBY' && phase === 'QUESTION' && questionIndex === 0);
+  }
+  useEffect(() => {
+    if (!shown) return;
+    const timer = setTimeout(() => setShown(false), TITLE_CARD_MS);
+    return () => clearTimeout(timer);
+  }, [shown]);
+  return shown;
+}
+
+/** The set's title, category and difficulty before question 1 (UI spec, Screen view: Title card). */
+function TitleCard({ view }: { view: ScreenView }) {
+  const details = [view.category, view.difficulty && DIFFICULTY_LABELS[view.difficulty]].filter(
+    Boolean,
+  );
+  return (
+    <section
+      aria-label="Title card"
+      className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-[6vw] text-center motion-safe:animate-pop-in"
+    >
+      <p className="text-[min(1.8vw,3.2vh)] font-bold tracking-[0.25em] text-muted uppercase">
+        Get ready
+      </p>
+      <h1 className="font-display text-[min(6vw,12vh)] leading-tight text-balance break-words text-accent [text-shadow:0.4vw_0.4vw_0_var(--color-bg-deep)]">
+        {view.title}
+      </h1>
+      {details.length > 0 && (
+        <p className="font-display text-[min(3vw,5.5vh)] text-ink">{details.join(' · ')}</p>
+      )}
+    </section>
   );
 }
 
@@ -295,8 +344,14 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
   );
 }
 
-/** Start game beside the room settings, for a host with no paired phone (F37). */
+/**
+ * Start game beside the room settings, for a host with no paired phone (F37). With a host phone
+ * paired, the settings fold behind a Settings button: the remote has them too (F66).
+ */
 function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostCommand }) {
+  const folded = view.hostDevices > 0;
+  const [open, setOpen] = useState(false);
+  const settingsId = useId();
   return (
     <aside
       aria-label="Game setup"
@@ -315,7 +370,25 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
           Space
         </kbd>
       </button>
-      <HostSettings view={view} command={command} compact />
+      {folded && (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={settingsId}
+          onClick={() => setOpen((o) => !o)}
+          className={`${BUTTON_SECONDARY} font-display text-xl ${HOVER}`}
+        >
+          Settings
+          <span aria-hidden className={`ml-2 inline-block transition ${open ? 'rotate-180' : ''}`}>
+            ▾
+          </span>
+        </button>
+      )}
+      {(!folded || open) && (
+        <div id={settingsId}>
+          <HostSettings view={view} command={command} compact />
+        </div>
+      )}
     </aside>
   );
 }

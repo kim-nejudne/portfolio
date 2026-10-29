@@ -178,15 +178,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F65 Standings: rank on the phone and a Screen rail
 
-- [ ] F66 Screen polish
-  - Spec: UI spec by view (Screen view); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F65
-  - Done when:
-    - The Screen lobby shows the join address once (the header strip, or the body's QR block, not both)
-    - The FINAL podium for one or two players shows only their steps, centred, with no empty step
-    - After **New game** (and at the first Start game), the Screen shows a 3-second title card with the set's title, category and difficulty before question 1
-    - `ScreenView.hostDevices` counts the connected host sockets (remotes, not the Screen itself); while it is above 0, the Screen lobby collapses its settings panel behind a **Settings** button
-  - Tests: `ScreenResults` tests (1 and 2 players), `Screen.test.tsx` (one join line, title card, settings collapse), `views.test.ts` (`hostDevices`), `sockets.host.test.ts` (count on pair and disconnect)
+- [x] F66 Screen polish
 
 ## M17 — Host depth
 

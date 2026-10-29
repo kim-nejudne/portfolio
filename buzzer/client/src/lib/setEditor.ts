@@ -96,6 +96,9 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     answerTimer: null,
     buzzTimer: null,
     nextImageId: null,
+    category: null,
+    difficulty: null,
+    hostDevices: 0,
     question: source
       ? {
           id: source.id,

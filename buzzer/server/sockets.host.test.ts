@@ -4,9 +4,22 @@ import {
   NOT_HOST_ERROR,
   PLAYER_KICKED_ERROR,
   REOPEN_DELAY_MS,
+  TITLE_CARD_MS,
 } from '../shared/constants.js';
 import type { Fx, HostView, View } from '../shared/types.js';
-import { flush, openTable, record, stopAll, TOKEN } from './test/sockets.js';
+import type { ScreenView } from '../shared/types.js';
+import {
+  flush,
+  hostJoin,
+  openTable,
+  playerJoin,
+  record,
+  screenJoin,
+  serverDisconnect,
+  start,
+  stopAll,
+  TOKEN,
+} from './test/sockets.js';
 
 beforeEach(() => {
   // Only the gateway's window and reopen timers are faked; socket I/O stays real.
@@ -225,5 +238,83 @@ describe('socket gateway: remaining host events', () => {
     expect(h.rooms.get('ABCD')).toMatchObject({ phase: 'OPEN', winnerId: null });
     expect(await b.emitWithAck('player:buzz', {})).toEqual({ ok: true });
     expect(h.rooms.get('ABCD')!.phase).toBe('COLLECTING');
+  });
+});
+
+describe('socket gateway: hostDevices', () => {
+  it('counts each paired remote on the Screen, and not the Screen holding the token', async () => {
+    const h = await start();
+    const [screen, first, second] = await Promise.all([h.connect(), h.connect(), h.connect()]);
+    const states = record<ScreenView>(screen, 'state');
+    expect(await screenJoin(screen, TOKEN)).toEqual({ ok: true });
+    expect(states.at(-1)!.hostDevices).toBe(0);
+
+    expect(await hostJoin(first)).toEqual({ ok: true });
+    await flush(screen);
+    expect(states.at(-1)!.hostDevices).toBe(1);
+
+    expect(await hostJoin(second)).toEqual({ ok: true });
+    await flush(screen);
+    expect(states.at(-1)!.hostDevices).toBe(2);
+    expect(h.rooms.get('ABCD')!.hostDevices).toBe(2);
+  });
+
+  it('gives a pairing remote exactly one state, carrying the new count', async () => {
+    const h = await start();
+    const host = await h.connect();
+    const states = record<HostView>(host, 'state');
+    expect(await hostJoin(host)).toEqual({ ok: true });
+    expect(states).toHaveLength(1);
+    expect(h.rooms.get('ABCD')!.hostDevices).toBe(1);
+  });
+
+  it('counts down as remotes disconnect, and a player leaving changes nothing', async () => {
+    const h = await start();
+    const [screen, first, second, player] = await Promise.all([
+      h.connect(),
+      h.connect(),
+      h.connect(),
+      h.connect(),
+    ]);
+    await screenJoin(screen);
+    await hostJoin(first);
+    await hostJoin(second);
+    await playerJoin(player, 'p1', 'Ana');
+    const states = record<ScreenView>(screen, 'state');
+
+    await serverDisconnect(h, first);
+    await flush(screen);
+    expect(states.at(-1)!.hostDevices).toBe(1);
+
+    await serverDisconnect(h, second);
+    await flush(screen);
+    expect(states.at(-1)!.hostDevices).toBe(0);
+
+    await serverDisconnect(h, player);
+    expect(h.rooms.get('ABCD')!.hostDevices).toBe(0);
+  });
+});
+
+describe('socket gateway: auto-open waits for the title card', () => {
+  it('opens question 1 on every device 3 s after Start game', async () => {
+    const h = await start();
+    const [screen, host, a] = await Promise.all([h.connect(), h.connect(), h.connect()]);
+    await screenJoin(screen);
+    await hostJoin(host);
+    await playerJoin(a, 'a', 'Ann');
+    expect(await host.emitWithAck('host:settings', { autoOpenBuzzers: true })).toEqual({
+      ok: true,
+    });
+    expect(await host.emitWithAck('host:start', {})).toEqual({ ok: true });
+    await Promise.all([screen, a].map(flush));
+    const states = record<View>(a, 'state');
+    expect(h.rooms.get('ABCD')).toMatchObject({ phase: 'QUESTION', questionIndex: 0 });
+
+    vi.advanceTimersByTime(TITLE_CARD_MS - 1);
+    expect(h.rooms.get('ABCD')!.phase).toBe('QUESTION');
+    vi.advanceTimersByTime(1);
+    expect(h.rooms.get('ABCD')!.phase).toBe('OPEN');
+    await Promise.all([screen, a].map(flush));
+    expect(states.at(-1)).toMatchObject({ phase: 'OPEN', canBuzz: true });
   });
 });

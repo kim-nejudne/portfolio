@@ -142,6 +142,8 @@ export const COLLECTION_WINDOW_MS = 150;
 export const MAX_LATENCY_CORRECTION_MS = 150;
 /** After a wrong answer, buzzers reopen for the others after this delay. */
 export const REOPEN_DELAY_MS = 1500;
+/** The Screen's title card before question 1; with auto-open on, the buzzers wait this long. */
+export const TITLE_CARD_MS = 3000;
 export const BUZZ_VIBRATE_MS = 30;
 
 // ---------- Rate limits ----------

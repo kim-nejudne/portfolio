@@ -47,6 +47,9 @@ function screenView(room: Room): ScreenView {
     players: ranked.map(publicPlayer),
     question: current ? screenQuestion(current, isRevealed(room)) : null,
     nextImageId: room.set.questions[room.questionIndex + 1]?.imageId ?? null,
+    category: room.set.category ?? null,
+    difficulty: room.set.difficulty ?? null,
+    hostDevices: room.hostDevices,
   };
 }
 

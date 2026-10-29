@@ -120,6 +120,8 @@ export interface Room {
   undo: UndoPoint | null; // the last judgement of this question can be undone
   answerTimer: AnswerTimer | null; // set in BUZZED while the winner's answer time runs
   buzzTimer: BuzzTimer | null; // set in OPEN while the buzz time runs
+  autoOpenAt: number | null; // wall-clock ms; set in QUESTION while question 1's title card holds auto-open
+  hostDevices: number; // connected host remotes (not a Screen holding the token)
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -189,6 +191,11 @@ export interface ScreenView extends SharedRoomView {
   question: ScreenQuestion | null; // null in LOBBY
   /** The next question's image (in LOBBY, the first's), so the Screen can preload it. */
   nextImageId: string | null;
+  /** The set's category and difficulty, for the title card; null when the set has none. */
+  category: string | null;
+  difficulty: Difficulty | null;
+  /** Connected host remotes, not counting the Screen itself: the lobby folds its settings then. */
+  hostDevices: number;
 }
 
 /** Everything, including the current and next question's answer and notes. */

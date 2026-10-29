@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Buzz, Phase, Room } from '../shared/types.js';
+import { TITLE_CARD_MS } from '../shared/constants.js';
 import { WRONG_PHASE_ERROR, reduce, type Action, type ReduceResult } from './reducer.js';
 import { T0, makePlayer, makeRoom, makeSet, withPlayers } from './test/rooms.js';
 
@@ -49,15 +50,23 @@ describe('reduce: host:start', () => {
     });
   });
 
-  it('opens the buzzers at once when autoOpenBuzzers is on', () => {
+  it('holds autoOpenBuzzers for the title card: question 0 locked, an autoOpen scheduled', () => {
     const room = withPlayers(
       makeRoom({ settings: { ...makeRoom().settings, autoOpenBuzzers: true } }),
       [makePlayer('p1')],
     );
-    const { room: next } = ok(act(room, { type: 'host:start' }));
-    expect(next.phase).toBe('OPEN');
+    const { room: next, effects } = ok(act(room, { type: 'host:start' }));
+    expect(next.phase).toBe('QUESTION');
     expect(next.questionIndex).toBe(0);
-    expect(next.openingCounter).toBe(1);
+    expect(next.openingCounter).toBe(0);
+    expect(next.autoOpenAt).toBe(NOW + TITLE_CARD_MS);
+    expect(effects).toEqual([
+      {
+        type: 'schedule',
+        at: NOW + TITLE_CARD_MS,
+        action: { type: 'autoOpen', questionIndex: 0, openingCounter: 0, at: NOW + TITLE_CARD_MS },
+      },
+    ]);
   });
 });
 

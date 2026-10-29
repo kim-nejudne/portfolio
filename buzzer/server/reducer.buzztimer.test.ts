@@ -142,7 +142,6 @@ describe('buzz timer: each opening starts one', () => {
   });
 
   it.each([
-    ['host:start', { type: 'host:start' }, 'LOBBY', 0],
     ['host:next', { type: 'host:next' }, 'REVEAL', 1],
     ['host:prev', { type: 'host:prev' }, 'REVEAL', 1],
   ] as const)('auto-open on %s starts the timer too', (_, action, phase, questionIndex) => {

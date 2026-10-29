@@ -10,6 +10,7 @@ import {
   PLAYER_KICKED_ERROR,
   PLAYER_PALETTE,
   REOPEN_DELAY_MS,
+  TITLE_CARD_MS,
 } from '../shared/constants.js';
 import type {
   Buzz,
@@ -41,21 +42,22 @@ const UNDO_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED', 'REVEAL']
 /**
  * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
  * index and opening counter so the reducer can ignore it once the room has moved on. `reopen`,
- * `answerTimeUp` and `buzzTimeUp` also carry their `at`, which must still equal `room.reopenAt`,
- * `room.answerTimer.endsAt` or `room.buzzTimer.endsAt`: an undo and a second judgement reuse the
- * index and counter (DECISIONS F20).
+ * `answerTimeUp`, `buzzTimeUp` and `autoOpen` also carry their `at`, which must still equal
+ * `room.reopenAt`, `room.answerTimer.endsAt`, `room.buzzTimer.endsAt` or `room.autoOpenAt`: an
+ * undo and a second judgement reuse the index and counter (DECISIONS F20).
  */
 export type TimerAction =
   | { type: 'windowClosed'; questionIndex: number; openingCounter: number }
   | { type: 'reopen'; questionIndex: number; openingCounter: number; at: number }
   | { type: 'answerTimeUp'; questionIndex: number; openingCounter: number; at: number }
-  | { type: 'buzzTimeUp'; questionIndex: number; openingCounter: number; at: number };
+  | { type: 'buzzTimeUp'; questionIndex: number; openingCounter: number; at: number }
+  | { type: 'autoOpen'; questionIndex: number; openingCounter: number; at: number };
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
  * and parsed the payload with zod, and `host:newGame` the same way from the HTTP route;
- * `player:disconnect` and timer actions come from the gateway itself. `receivedAt` is the
- * gateway's monotonic `performance.now()` at arrival (DECISIONS F05).
+ * `player:disconnect`, `hostDevices` and timer actions come from the gateway itself.
+ * `receivedAt` is the gateway's monotonic `performance.now()` at arrival (DECISIONS F05).
  */
 export type Action =
   | { type: 'player:join'; playerId: string; name: string }
@@ -64,6 +66,7 @@ export type Action =
   | { type: 'player:practice'; playerId: string }
   | { type: 'player:rename'; playerId: string; name: string }
   | { type: 'player:leave'; playerId: string }
+  | { type: 'hostDevices'; count: number }
   | TimerAction
   | { type: 'host:start' }
   | { type: 'host:open' }
@@ -150,8 +153,15 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return reopen(room, action);
     case 'buzzTimeUp':
       return buzzTimeUp(room, action);
+    case 'autoOpen':
+      return autoOpen(room, action);
+    case 'hostDevices':
+      // A count that did not change is ignored, so it neither broadcasts nor counts as activity.
+      return done(
+        action.count === room.hostDevices ? room : { ...room, hostDevices: action.count },
+      );
     case 'host:start':
-      return hostStart(room);
+      return hostStart(room, now);
     case 'host:open':
       return hostOpen(room);
     case 'host:judge':
@@ -392,6 +402,23 @@ function buzzTimeUp(
     room.openingCounter === openingCounter;
   if (!fresh) return done(room);
   return done(revealed(room), [{ type: 'fx', fx: { kind: 'buzzTimeUp' } }]);
+}
+
+/**
+ * Question 1's title card has had its time: open the buzzers, as auto-open would have at the
+ * start. Stale unless the room still shows that question, waiting on that same hold (DECISIONS F66).
+ */
+function autoOpen(
+  room: Room,
+  { questionIndex, openingCounter, at }: Extract<TimerAction, { type: 'autoOpen' }>,
+): ReduceResult {
+  const fresh =
+    room.phase === 'QUESTION' &&
+    room.autoOpenAt === at &&
+    room.questionIndex === questionIndex &&
+    room.openingCounter === openingCounter;
+  if (!fresh) return done(room);
+  return done(openBuzzers(room));
 }
 
 function hostJudge(
@@ -650,11 +677,19 @@ function hostNewGame(
   });
 }
 
-function hostStart(room: Room): ReduceResult {
+function hostStart(room: Room, now: number): ReduceResult {
   if (room.phase !== 'LOBBY') return fail(WRONG_PHASE_ERROR);
   // SPEC-QUESTION: "at least 1 player" counts disconnected players too; see DECISIONS (F13).
   if (Object.keys(room.players).length === 0) return fail('Wait for at least one player to join');
-  return done(enterQuestion(room, 0));
+  if (!room.settings.autoOpenBuzzers) return done(enterQuestion(room, 0));
+  // Auto-open waits out the Screen's title card, so nobody can buzz on a question still hidden
+  // behind it (DECISIONS F66). The host may open sooner.
+  const at = now + TITLE_CARD_MS;
+  const shown: Room = { ...room, ...clearedQuestion, phase: 'QUESTION', questionIndex: 0 };
+  const { questionIndex, openingCounter } = shown;
+  return done({ ...shown, autoOpenAt: at }, [
+    { type: 'schedule', at, action: { type: 'autoOpen', questionIndex, openingCounter, at } },
+  ]);
 }
 
 function hostOpen(room: Room): ReduceResult {
@@ -711,6 +746,7 @@ const clearedQuestion = {
   reopenAt: null,
   undo: null,
   answerTimer: null,
+  autoOpenAt: null,
 } satisfies Partial<Room>;
 
 /**
@@ -731,6 +767,7 @@ function openBuzzers(room: Room): Room {
     windowStartedAt: null,
     reopenAt: null,
     answerTimer: null,
+    autoOpenAt: null,
     openingCounter: room.openingCounter + 1,
   };
 }

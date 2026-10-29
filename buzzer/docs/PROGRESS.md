@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F66 — Screen polish (2026-10-29)
+**What changed:**
+- Lobby: the header leaves out "Join at" and the room code (the body's QR block has them); every other state keeps them. With a host remote paired, Game setup shows Start game and a **Settings** button (`aria-expanded`) over the folded settings.
+- Title card: `ScreenView` gains `category`, `difficulty` (null when unset) and `hostDevices`. `useTitleCard`/`TitleCard` in `Screen.tsx` show "Get ready", the set title and "Category · Difficulty" for `TITLE_CARD_MS` (3 s, `shared/constants.ts`) when the room moves from LOBBY to question 1, ending early if the buzzers open.
+- Server: with auto-open on, `host:start` shows question 1 locked, sets `Room.autoOpenAt` and schedules a new timer action `autoOpen`, which opens the buzzers 3 s later (stale-guarded by phase, index, counter and `at`). New gateway action `hostDevices {count}`: `countHostDevices` in `sockets.ts` counts the host channel after `host:join` and a host disconnect.
+- Tests: new `reducer.titlecard.test.ts` (21: hold, open, buzz ignored during it, buzz timer from the hold end, no hold without auto-open or on next/prev, early open, setting toggled off, six stale cases, New game, `hostDevices`), new `ScreenResults.test.tsx` (4: podium with 1, 2, 2 tied and 3 players), `sockets.host.test.ts` +4, `views.test.ts` +2, `Screen.test.tsx` +10 net (join address once, header in game, settings fold ×3, title card ×6); `reducer.flow` and `reducer.buzztimer` start-with-auto-open tests now expect the hold. 1604 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-29 for F66 (server hold for auto-open, Kim's choice; client title card; host count; lobby header and fold; podium already right since F24).
+
+**Notes for next session:**
+- The podium bullet needed no code: `podiumSteps` has dropped missing ranks since F24. Only tests were added.
+- `ScreenView.hostDevices` is on the Screen only; the remote does not get it.
+- Playtest (Playwright, room UZUG, Screen 1920×1080, Host remote, Ann and a bot): one join line in the lobby, header logo only; the title card showed ~3 s at the first Start game (sample set: title only) and after New game with Animals – Easy ("Animals · Easy"); podium with 1 player showed one centred step; with 2 players tied at 0, one shared step; the lobby showed **Settings▾** with the remote connected and the settings expanded once it had closed; no answer in the Screen text during question 1. Not checked in a browser: the auto-open hold (covered by `sockets.host.test.ts`), a 2nd-place step, opening the folded settings. Screenshots: `.playtest/F66/1-lobby-screen.png`, `3-podium1-screen.png`, `3-podium2-screen.png`.
+- Main `index` chunk 472.67 → 474.22 kB (143.08 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room, open the Screen, Click to start: the header shows only the logo. Pair a phone with **Pair host phone**: the lobby's settings fold behind **Settings**. Join a player (`http://<laptop-LAN-IP>:5173/play/<CODE>` or `/dev/bots/<CODE>`), turn on Auto-open buzzers, Start game: the Screen shows the title card for 3 s while phones stay locked, then question 1 opens. End game with one or two players to see the podium.
+
 ## F65 — Standings: rank on the phone and a Screen rail (2026-10-29)
 **What changed:**
 - Shared/server: `RoomSettings.showStandings` (default true in `DEFAULT_SETTINGS`), `z.boolean()` in the create body and `host:settings`, merged by `hostSettings`.

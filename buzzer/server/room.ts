@@ -30,6 +30,8 @@ export function createRoom({ code, hostTokenHash, set, settings, now }: NewRoom)
     undo: null,
     answerTimer: null,
     buzzTimer: null,
+    autoOpenAt: null,
+    hostDevices: 0,
     showScoreboard: false,
     createdAt: now,
     lastActivityAt: now,

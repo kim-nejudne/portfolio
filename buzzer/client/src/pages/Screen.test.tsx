@@ -8,6 +8,7 @@ import {
   GAME_ENDED_ERROR,
   PLAYER_PALETTE,
   ROOM_NOT_FOUND_ERROR,
+  TITLE_CARD_MS,
 } from '../../../shared/constants.js';
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
@@ -79,6 +80,9 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     buzzTimer: null,
     question: null,
     nextImageId: null,
+    category: null,
+    difficulty: null,
+    hostDevices: 0,
     ...overrides,
   };
 }
@@ -187,9 +191,10 @@ describe('Screen', () => {
       socket.fire('state', lobbyView());
       const lan = `192.168.1.20:${window.location.port}/play/WXYZ`;
       expect(await screen.findByTitle(`Join at http://${lan}`)).toBeTruthy();
-      expect(within(screen.getByRole('main')).getAllByText(lan).length).toBeGreaterThan(0);
-      expect(joinInfo().textContent).toBe(`Join at ${lan}Room WXYZ`);
+      expect(within(screen.getByRole('main')).getAllByText(lan)).toHaveLength(1);
       expect(screen.queryByRole('note')).toBeNull();
+      socket.fire('state', lobbyView([], { phase: 'REVEAL', questionIndex: 1 }));
+      expect(joinInfo().textContent).toBe(`Join at ${lan}Room WXYZ`);
     });
 
     it('uses PUBLIC_URL as it is', async () => {
@@ -197,8 +202,9 @@ describe('Screen', () => {
       const { socket } = renderScreen();
       socket.fire('state', lobbyView());
       expect(await screen.findByTitle('Join at https://buzzr.example/play/WXYZ')).toBeTruthy();
-      expect(joinInfo().textContent).toBe('Join at buzzr.example/play/WXYZRoom WXYZ');
       expect(screen.queryByRole('note')).toBeNull();
+      socket.fire('state', lobbyView([], { phase: 'REVEAL', questionIndex: 1 }));
+      expect(joinInfo().textContent).toBe('Join at buzzr.example/play/WXYZRoom WXYZ');
     });
   });
 
@@ -267,15 +273,21 @@ describe('Screen', () => {
     expect(rows.map((row) => row.className.includes('opacity-40'))).toEqual([false, true]);
   });
 
-  it('the header always shows "Join at <url>" and the room code, in the lobby and in a game', () => {
+  it('the lobby shows the join address once, in its QR block, not in the header', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView());
-    expect(within(screen.getByRole('banner')).getByRole('group').textContent).toBe(
-      `Join at ${joinUrl}Room WXYZ`,
-    );
+    expect(screen.queryByRole('group', { name: 'How to join' })).toBeNull();
+    expect(within(screen.getByRole('banner')).queryByText(joinUrl)).toBeNull();
+    expect(within(screen.getByRole('main')).getAllByText(joinUrl)).toHaveLength(1);
+    expect(screen.getByTitle(`Join at http://${joinUrl}`)).toBeTruthy();
+  });
 
-    socket.fire('state', lobbyView([], { phase: 'QUESTION', questionIndex: 0 }));
-    expect(joinInfo().textContent).toBe(`Join at ${joinUrl}Room WXYZ`);
+  it('the header shows "Join at <url>" and the room code once the game is on', () => {
+    const { socket } = renderScreen();
+    for (const phase of ['QUESTION', 'OPEN', 'REVEAL', 'FINAL'] as const) {
+      socket.fire('state', lobbyView([], { phase, questionIndex: 1 }));
+      expect(joinInfo().textContent).toBe(`Join at ${joinUrl}Room WXYZ`);
+    }
   });
 
   it('frames every state with a marquee bulb rail at the top and the bottom', () => {
@@ -1039,6 +1051,41 @@ describe('Screen', () => {
         expect(sent(socket)).toEqual([['host:start', {}]]);
       });
 
+      describe('with a host phone paired', () => {
+        const paired = (hostDevices = 1) => inPhase('LOBBY', { hostDevices });
+        const toggle = () => within(setup()!).getByRole('button', { name: /^Settings/ });
+
+        it('fold behind a Settings button, Start game still showing', () => {
+          hostScreen(paired());
+          expect(within(setup()!).getByRole('button', { name: /Start game/ })).toBeTruthy();
+          expect(toggle().getAttribute('aria-expanded')).toBe('false');
+          expect(screen.queryByRole('switch')).toBeNull();
+        });
+
+        it('Settings opens and closes them', () => {
+          hostScreen(paired(2));
+          fireEvent.click(toggle());
+          expect(toggle().getAttribute('aria-expanded')).toBe('true');
+          const panel = document.getElementById(toggle().getAttribute('aria-controls')!)!;
+          expect(within(panel).getByRole('switch', { name: /Auto-open buzzers/ })).toBeTruthy();
+          fireEvent.click(toggle());
+          expect(screen.queryByRole('switch')).toBeNull();
+        });
+
+        it('fold when a phone pairs, and come back when the last one leaves', () => {
+          const socket = hostScreen();
+          expect(screen.getByRole('switch', { name: /Auto-open buzzers/ })).toBeTruthy();
+          expect(within(setup()!).queryByRole('button', { name: /^Settings/ })).toBeNull();
+
+          socket.fire('state', paired());
+          expect(screen.queryByRole('switch')).toBeNull();
+
+          socket.fire('state', paired(0));
+          expect(screen.getByRole('switch', { name: /Auto-open buzzers/ })).toBeTruthy();
+          expect(within(setup()!).queryByRole('button', { name: /^Settings/ })).toBeNull();
+        });
+      });
+
       it('Space still starts the game while a settings control has focus', () => {
         const socket = hostScreen();
         const toggle = screen.getByRole('switch', { name: /Auto-open buzzers/ });
@@ -1543,6 +1590,101 @@ describe('Screen result states', () => {
       show(finalView([]));
       expect(screen.getByRole('heading', { name: 'Game over' })).toBeTruthy();
     });
+  });
+});
+
+describe('title card', () => {
+  const q1 = { id: 'q1', text: 'Which planet is largest?', points: 100 };
+  const lobby = () =>
+    lobbyView([player(1)], { title: 'Space Quiz', category: 'Science', difficulty: 'hard' });
+  const first = (phase: ScreenView['phase'] = 'QUESTION', overrides: Partial<ScreenView> = {}) =>
+    lobbyView([player(1)], {
+      title: 'Space Quiz',
+      category: 'Science',
+      difficulty: 'hard',
+      phase,
+      questionIndex: 0,
+      question: q1,
+      ...overrides,
+    });
+  const card = () => screen.queryByRole('region', { name: 'Title card' });
+
+  it('shows the set’s title, category and difficulty for 3 s after Start game, then question 1', () => {
+    vi.useFakeTimers();
+    const { socket } = renderScreen();
+    socket.fire('state', lobby());
+    socket.fire('state', first());
+    expect(within(card()!).getByRole('heading').textContent).toBe('Space Quiz');
+    expect(card()!.textContent).toContain('Science · Hard');
+    expect(screen.queryByText(q1.text)).toBeNull();
+
+    act(() => vi.advanceTimersByTime(TITLE_CARD_MS - 1));
+    expect(card()).toBeTruthy();
+    act(() => vi.advanceTimersByTime(1));
+    expect(card()).toBeNull();
+    expect(screen.getByText(q1.text)).toBeTruthy();
+  });
+
+  it('leaves out a category or difficulty the set does not have', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([player(1)], { title: 'Pub Quiz' }));
+    socket.fire(
+      'state',
+      first('QUESTION', { title: 'Pub Quiz', category: null, difficulty: null }),
+    );
+    expect(card()!.textContent).toBe('Get readyPub Quiz');
+    cleanup();
+
+    const next = renderScreen().socket;
+    next.fire('state', lobbyView([player(1)], { title: 'Pub Quiz' }));
+    next.fire(
+      'state',
+      first('QUESTION', { title: 'Pub Quiz', category: null, difficulty: 'easy' }),
+    );
+    expect(card()!.textContent).toBe('Get readyPub QuizEasy');
+  });
+
+  it('ends as soon as the buzzers open', () => {
+    vi.useFakeTimers();
+    const { socket } = renderScreen();
+    socket.fire('state', lobby());
+    socket.fire('state', first());
+    act(() => vi.advanceTimersByTime(1000));
+    socket.fire('state', first('OPEN', { openingCounter: 1 }));
+    expect(card()).toBeNull();
+    expect(screen.getByText(q1.text)).toBeTruthy();
+    // It does not come back in the rest of its 3 s.
+    socket.fire('state', first('QUESTION'));
+    expect(card()).toBeNull();
+  });
+
+  it('shows again at the start of a new game', () => {
+    vi.useFakeTimers();
+    const { socket } = renderScreen();
+    socket.fire('state', lobby());
+    socket.fire('state', first());
+    act(() => vi.advanceTimersByTime(TITLE_CARD_MS));
+    socket.fire('state', first('FINAL', { questionIndex: 0, question: null }));
+    socket.fire('state', lobbyView([player(1)], { title: 'Ocean Quiz', category: 'Nature' }));
+    socket.fire(
+      'state',
+      first('QUESTION', { title: 'Ocean Quiz', category: 'Nature', difficulty: null }),
+    );
+    expect(within(card()!).getByRole('heading').textContent).toBe('Ocean Quiz');
+  });
+
+  it('does not show on a Screen that joins mid-game', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', first());
+    expect(card()).toBeNull();
+    expect(screen.getByText(q1.text)).toBeTruthy();
+  });
+
+  it('does not show when the game moves between other questions', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobby());
+    socket.fire('state', first('QUESTION', { questionIndex: 1 }));
+    expect(card()).toBeNull();
   });
 });
 

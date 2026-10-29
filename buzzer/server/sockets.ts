@@ -211,6 +211,16 @@ export function attachSockets(
     rooms.set({ ...room, players: { ...room.players, [playerId]: { ...player, rttMs: rtt } } });
   }
 
+  /**
+   * Tells the room how many host remotes are connected, so the Screen lobby can fold its settings
+   * (F66). Returns whether the count changed, and so went out to every device.
+   */
+  function countHostDevices(code: string): boolean {
+    const count = io.sockets.adapter.rooms.get(hostRoom(code))?.size ?? 0;
+    if (rooms.get(code)?.hostDevices === count) return false;
+    return dispatch(code, { type: 'hostDevices', count }).ok;
+  }
+
   /** A join outside the reducer still counts as activity, or the sweeper could close a live room. */
   function touch(room: Room): Room {
     const touched = { ...room, lastActivityAt: clock() };
@@ -249,7 +259,8 @@ export function attachSockets(
       if (!verifyHostToken(hostToken, room.hostTokenHash)) return fail(INVALID_HOST_TOKEN_ERROR);
       socket.data = { ...socket.data, code, role: 'host', canHost: true };
       void socket.join([anyRoom(code), hostRoom(code)]);
-      socket.emit('state', toView(touch(room), 'host'));
+      // A new count reaches every device, this one included; otherwise only this one needs a state.
+      if (!countHostDevices(code)) socket.emit('state', toView(touch(room), 'host'));
       // The pairing QR has done its job: every other device showing it closes it (F38).
       socket.to([screenRoom(code), hostRoom(code)]).emit('host:paired', {});
       return { ok: true };
@@ -355,6 +366,8 @@ export function attachSockets(
 
     socket.on('disconnect', () => {
       const { code, role, playerId } = socket.data;
+      // Socket.IO has already taken the socket out of its rooms, so the count leaves it out.
+      if (role === 'host' && code && rooms.get(code)) countHostDevices(code);
       if (role !== 'player' || !code || !playerId) return;
       // A phone that reconnected before its old socket timed out is still here: keep it connected.
       if (io.sockets.adapter.rooms.get(playerRoom(code, playerId))?.size) return;
