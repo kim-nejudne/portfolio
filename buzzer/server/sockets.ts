@@ -266,7 +266,7 @@ export function attachSockets(
       return { ok: true };
     });
 
-    handle(socket, 'player:join', ({ code, playerId, name }) => {
+    handle(socket, 'player:join', ({ code, playerId, name, avatar }) => {
       if (socket.data.role) return fail('Already joined');
       const room = rooms.get(code);
       if (!room) return fail(ROOM_NOT_FOUND_ERROR);
@@ -276,7 +276,7 @@ export function attachSockets(
       }
       // Join the Socket.IO room first, so the broadcast inside dispatch reaches this socket too.
       void socket.join(playerRoom(code, playerId));
-      const ack = dispatch(code, { type: 'player:join', playerId, name });
+      const ack = dispatch(code, { type: 'player:join', playerId, name, avatar });
       if (!ack.ok) {
         void socket.leave(playerRoom(code, playerId));
         return ack;

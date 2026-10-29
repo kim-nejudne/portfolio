@@ -79,7 +79,14 @@ function playerView(room: Room, playerId: string): PlayerView {
     questionIndex: room.questionIndex,
     questionCount: room.set.questions.length,
     openingCounter: room.openingCounter,
-    me: { id: me.id, name: me.name, color: me.color, score: me.score, rank: me.rank },
+    me: {
+      id: me.id,
+      name: me.name,
+      color: me.color,
+      ...avatarOf(me),
+      score: me.score,
+      rank: me.rank,
+    },
     playerCount: ranked.length,
     hasBuzzed: room.buzzes.some((b) => b.playerId === playerId),
     canBuzz: canBuzz(room, playerId),
@@ -107,8 +114,13 @@ function byJoinOrder<P extends Player>(players: P[]): P[] {
 }
 
 /** A "Who's here" row, built field by field: no score, RTT or join data. */
-function lobbyPlayer({ id, name, color, connected }: Player): LobbyPlayer {
-  return { id, name, color, connected };
+function lobbyPlayer(p: Player): LobbyPlayer {
+  return { id: p.id, name: p.name, color: p.color, ...avatarOf(p), connected: p.connected };
+}
+
+/** The player's avatar as an optional key: absent, not undefined, when they picked none (F74). */
+function avatarOf({ avatar }: Player): { avatar?: string } {
+  return avatar !== undefined ? { avatar } : {};
 }
 
 /** Fields the Screen and the host remote both get. Built field by field so nothing extra slips in. */
@@ -173,6 +185,7 @@ function publicPlayer(p: Ranked<Player>): RankedPlayer {
     id: p.id,
     name: p.name,
     color: p.color,
+    ...avatarOf(p),
     score: p.score,
     connected: p.connected,
     rank: p.rank,

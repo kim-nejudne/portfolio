@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANSWER_SECONDS_CHOICES,
   APP_NAME,
+  AVATARS,
   BUZZ_SECONDS_CHOICES,
   DEFAULT_PORT,
   DEFAULT_SETTINGS,
@@ -21,6 +22,15 @@ describe('shared constants', () => {
     expect(PLAYER_PALETTE).toHaveLength(12);
     expect(new Set(PLAYER_PALETTE.map((c) => c.toUpperCase())).size).toBe(12);
     for (const colour of PLAYER_PALETTE) expect(colour).toMatch(/^#[0-9A-F]{6}$/i);
+  });
+
+  it('has 24 distinct avatars, each a single emoji glyph', () => {
+    expect(AVATARS).toHaveLength(24);
+    expect(new Set(AVATARS).size).toBe(24);
+    for (const avatar of AVATARS) {
+      expect([...avatar], avatar).toHaveLength(1);
+      expect(avatar, avatar).toMatch(/^\p{Emoji_Presentation}$/u);
+    }
   });
 
   it('builds 4-letter room codes from upper-case letters without I, L or O', () => {

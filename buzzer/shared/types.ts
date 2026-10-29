@@ -44,6 +44,7 @@ export interface Player {
   connected: boolean;
   rttMs: number; // rolling median
   joinedAt: number;
+  avatar?: string; // one of `AVATARS`; absent when the player picked none (F74)
   /** `openingCounter` at join. A player can buzz from the next opening (Edge cases; DECISIONS F14). */
   joinedAtOpening: number;
 }
@@ -149,6 +150,7 @@ export interface RankedPlayer {
   id: string;
   name: string;
   color: string;
+  avatar?: string;
   score: number;
   connected: boolean;
   rank: number;
@@ -224,6 +226,7 @@ export interface LobbyPlayer {
   id: string;
   name: string;
   color: string;
+  avatar?: string;
   connected: boolean;
 }
 
@@ -235,7 +238,7 @@ export interface PlayerView {
   questionIndex: number;
   questionCount: number;
   openingCounter: number;
-  me: { id: string; name: string; color: string; score: number; rank: number };
+  me: { id: string; name: string; color: string; avatar?: string; score: number; rank: number };
   playerCount: number;
   hasBuzzed: boolean; // this opening
   /** A press now would count: OPEN or COLLECTING, not locked out, not buzzed or joined this opening. */
@@ -280,7 +283,7 @@ export type JudgeResult = Judgement['result'];
 export interface ClientPayloads {
   'screen:join': { code: string; hostToken?: string }; // DECISIONS #2
   'host:join': { code: string; hostToken: string };
-  'player:join': { code: string; playerId: string; name: string };
+  'player:join': { code: string; playerId: string; name: string; avatar?: string };
   ping: { t: number };
   'player:buzz': Record<string, never>;
   'player:practice': Record<string, never>;

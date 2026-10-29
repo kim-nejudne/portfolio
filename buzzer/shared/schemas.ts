@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
+  AVATARS,
   BUZZ_SECONDS_CHOICES,
   FALSE_START_MS_CHOICES,
   DIFFICULTIES,
@@ -133,7 +134,12 @@ export const pairBodySchema = z.object({
 export const clientPayloadSchemas = {
   'screen:join': z.object({ code: roomCodeSchema, hostToken: hostTokenSchema.optional() }),
   'host:join': z.object({ code: roomCodeSchema, hostToken: hostTokenSchema }),
-  'player:join': z.object({ code: roomCodeSchema, playerId: idSchema, name: playerNameSchema }),
+  'player:join': z.object({
+    code: roomCodeSchema,
+    playerId: idSchema,
+    name: playerNameSchema,
+    avatar: z.enum(AVATARS).optional(),
+  }),
   ping: z.object({ t: z.number() }),
   'player:buzz': emptySchema,
   'player:practice': emptySchema,

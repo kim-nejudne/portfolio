@@ -104,6 +104,47 @@ describe('reduce: player:join', () => {
     expect(after.players.p1?.name).toBe('Ana');
   });
 
+  it('stores the avatar a new player picks', () => {
+    const result = reduce(
+      makeRoom(),
+      { type: 'player:join', playerId: 'p1', name: 'Ana', avatar: '🦊' },
+      T0,
+    );
+    expect(ok(result).room.players.p1?.avatar).toBe('🦊');
+  });
+
+  it('stores no avatar for a new player who picks none', () => {
+    const { room } = ok(join(makeRoom(), 'p1', 'Ana'));
+    expect(room.players.p1).not.toHaveProperty('avatar');
+  });
+
+  it('lets two players pick the same avatar', () => {
+    const a = ok(
+      reduce(makeRoom(), { type: 'player:join', playerId: 'a', name: 'Ana', avatar: '🐼' }, T0),
+    ).room;
+    const b = ok(
+      reduce(a, { type: 'player:join', playerId: 'b', name: 'Bob', avatar: '🐼' }, T0),
+    ).room;
+    expect([b.players.a?.avatar, b.players.b?.avatar]).toEqual(['🐼', '🐼']);
+  });
+
+  it('keeps the stored avatar when a reconnect sends a different one', () => {
+    const room = withPlayers(makeRoom(), [makePlayer('p1', { avatar: '🦊', connected: false })]);
+    const action = { type: 'player:join', playerId: 'p1', name: 'p1', avatar: '🐸' } as const;
+    expect(ok(reduce(room, action, T0)).room.players.p1?.avatar).toBe('🦊');
+  });
+
+  it('keeps the stored avatar when a reconnect sends none', () => {
+    const room = withPlayers(makeRoom(), [makePlayer('p1', { avatar: '🦊', connected: false })]);
+    expect(ok(join(room, 'p1')).room.players.p1?.avatar).toBe('🦊');
+  });
+
+  it('adds no avatar on a reconnect of a player who had none', () => {
+    const room = withPlayers(makeRoom(), [makePlayer('p1', { connected: false })]);
+    const action = { type: 'player:join', playerId: 'p1', name: 'p1', avatar: '🐸' } as const;
+    expect(ok(reduce(room, action, T0)).room.players.p1).not.toHaveProperty('avatar');
+  });
+
   it('keeps lockout status across a reconnect', () => {
     const room = withPlayers(makeRoom({ phase: 'OPEN', questionIndex: 0, lockedOut: ['p1'] }), [
       makePlayer('p1', { connected: false }),
@@ -244,6 +285,15 @@ describe('reduce: player:rename', () => {
     expect(room.players.p1).toEqual({ ...before.players.p1, name: 'Annie' });
     expect(room.lastActivityAt).toBe(T0 + 5000);
     expect(effects).toEqual([]);
+  });
+
+  it('keeps the avatar across a rename', () => {
+    const before = lobby();
+    const withAvatar = withPlayers(before, [
+      { ...before.players.p1!, avatar: '🦊' },
+      ...Object.values(before.players).filter((p) => p.id !== 'p1'),
+    ]);
+    expect(ok(rename(withAvatar, 'Annie')).room.players.p1?.avatar).toBe('🦊');
   });
 
   it('rejects a name another player has, ignoring case', () => {

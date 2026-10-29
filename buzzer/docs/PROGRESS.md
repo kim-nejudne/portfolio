@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F74 — Avatars: server (2026-10-29)
+**What changed:**
+- Shared: `AVATARS` in `shared/constants.ts`, 24 emoji, each one code point with emoji presentation. `Player.avatar?: string`. `RankedPlayer`, `LobbyPlayer` and `PlayerView.me` gain `avatar?`. The `player:join` payload takes optional `avatar`, validated by `z.enum(AVATARS).optional()`.
+- Reducer: a new player stores the avatar when one is sent. A reconnect keeps the stored avatar and ignores the payload's, even when the player had none, as it does for the name. Two players may share one. Rename keeps it.
+- Gateway passes `avatar` to `reduce`. Views: `avatarOf()` adds the key only when set, in Screen and host `players`, the phone's `lobby` and `me`.
+- Tests: `constants.test.ts` +1 (24, distinct, single emoji glyph), `schemas.test.ts` +2 (each avatar and none accepted; unknown, empty, doubled, variation selector, number, null rejected), `reducer.lobby.test.ts` +7 (stored, none, shared, reconnect with another, reconnect with none, reconnect adds none, rename keeps), `views.test.ts` +4 (Screen, host, `me`, lobby; key absent without one), `sockets.test.ts` +2 (end to end with reconnect; unknown avatar refused, nobody added). 1788 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F74 (single-code-point list, shared avatars; reconnect keeps the stored one, SPEC-QUESTION; key absent rather than null).
+
+**Notes for next session:**
+- There is no way to change an avatar after joining. If F75's join form lets a returning device pick another avatar, the server keeps the old one. A change would need its own event, like `player:rename`.
+- `Player.avatar` is typed `string`, as in the spec. Only the join schema restricts it to `AVATARS`.
+- Mutation-checked: when the gateway does not pass `avatar`, the sockets test fails.
+- No playtest, because no UI changed. Main `index` chunk 485.87 → 486.06 kB (146.30 kB gzip).
+
+**How to try it:** this is server only, and nothing in the UI sends an avatar until F75. Run `npx vitest run server/reducer.lobby.test.ts server/views.test.ts server/sockets.test.ts shared/schemas.test.ts shared/constants.test.ts`.
+
 ## F73 — Settings presets (2026-10-29)
 **What changed:**
 - Client: `HostSettings` gains a **Presets** row at the top (`role="group"`, label, **Party** and **Competitive** buttons with `aria-pressed`), so in the remote's Settings tab and the Screen lobby. A press sends one `host:settings` with the preset's five keys (auto-open, penalty, answer time, buzz time, false start); it is marked while those five keys match the room's settings. Party: auto-open on, penalty off, answer, buzz and false start off. Competitive: auto-open off, penalty on, answer 5 s, buzz 10 s, false start 0.5 s. Client-only; no server or schema change.

@@ -198,13 +198,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M18 — Players and sharing
 
-- [ ] F74 Avatars: server
-  - Spec: Data model (`Player`); Realtime events and HTTP API (`player:join`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F61
-  - Done when:
-    - `AVATARS` in `shared/constants.ts`: 24 emoji. `player:join` takes optional `avatar` (one of them); `Player.avatar?: string`; a reconnect keeps the stored one
-    - Every view's player entries and `me` carry `avatar`
-  - Tests: `reducer.lobby.test.ts`, `schemas.test.ts` (unknown avatar rejected), `views.test.ts`, `constants.test.ts`
+- [x] F74 Avatars: server
 
 - [ ] F75 Avatars: devices
   - Spec: UI spec by view (Player view, Screen view, Host remote); see DECISIONS, Proposed spec changes (audit)

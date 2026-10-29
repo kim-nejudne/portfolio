@@ -94,6 +94,36 @@ describe('socket gateway: joins', () => {
     ).toEqual({ ok: false, error: 'Room not found' });
   });
 
+  it("puts a joining player's avatar into the Screen's and their own state, and keeps it on a reconnect", async () => {
+    const h = await start();
+    const screen = await h.connect();
+    await screenJoin(screen);
+    const player = await h.connect();
+    const screenState = nextState(screen);
+    const ownState = nextState(player);
+    const join = { code: 'ABCD', playerId: 'p1', name: 'Ana', avatar: '🦊' };
+    expect(await player.emitWithAck('player:join', join)).toEqual({ ok: true });
+    expect(await screenState).toMatchObject({ players: [{ id: 'p1', avatar: '🦊' }] });
+    expect(await ownState).toMatchObject({
+      me: { avatar: '🦊' },
+      lobby: [{ id: 'p1', avatar: '🦊' }],
+    });
+
+    player.disconnect();
+    const again = await h.connect();
+    expect(await again.emitWithAck('player:join', { ...join, avatar: '🐸' })).toEqual({ ok: true });
+    expect(h.rooms.get('ABCD')!.players.p1?.avatar).toBe('🦊');
+  });
+
+  it('rejects a join with an avatar outside the list, and adds nobody', async () => {
+    const h = await start();
+    const player = await h.connect();
+    const join = { code: 'ABCD', playerId: 'p1', name: 'Ana', avatar: '🐝' };
+    const ack = await player.emitWithAck('player:join', join);
+    expect(!ack.ok && ack.error).toMatch(/^Invalid player:join:/);
+    expect(h.rooms.get('ABCD')!.players).toEqual({});
+  });
+
   it('rejects a second join on the same socket', async () => {
     const h = await start();
     const player = await h.connect();

@@ -60,7 +60,7 @@ export type TimerAction =
  * `receivedAt` is the gateway's monotonic `performance.now()` at arrival (DECISIONS F05).
  */
 export type Action =
-  | { type: 'player:join'; playerId: string; name: string }
+  | { type: 'player:join'; playerId: string; name: string; avatar?: string }
   | { type: 'player:disconnect'; playerId: string }
   | { type: 'player:buzz'; playerId: string; receivedAt: number }
   | { type: 'player:practice'; playerId: string }
@@ -208,7 +208,7 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
 
 function playerJoin(
   room: Room,
-  { playerId, name }: Extract<Action, { type: 'player:join' }>,
+  { playerId, name, avatar }: Extract<Action, { type: 'player:join' }>,
   now: number,
 ): ReduceResult {
   if (room.kickedIds.includes(playerId)) return fail(PLAYER_KICKED_ERROR);
@@ -216,6 +216,7 @@ function playerJoin(
   const existing = room.players[playerId];
   if (existing) {
     // A reconnect keeps the stored name, score and colour (DECISIONS F05). Lockout lives on the room.
+    // SPEC-QUESTION: the spec says nothing of a reconnect's avatar; it keeps the stored one (DECISIONS F74).
     return done(withPlayer(room, { ...existing, connected: true }));
   }
 
@@ -235,6 +236,7 @@ function playerJoin(
     connected: true,
     rttMs: 0,
     joinedAt: now,
+    ...(avatar !== undefined && { avatar }),
     // SPEC-QUESTION: "can buzz from the next opening"; see DECISIONS (F14).
     joinedAtOpening: room.openingCounter,
   };

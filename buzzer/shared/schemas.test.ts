@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
+  AVATARS,
   BUZZ_SECONDS_CHOICES,
   FALSE_START_MS_CHOICES,
   DEFAULT_SETTINGS,
@@ -371,6 +372,24 @@ describe('client event payloads', () => {
     expect(clientPayloadSchemas['player:rename'].parse({ name: '  Ada  ' }).name).toBe('Ada');
     for (const name of ['', '   ', 'x'.repeat(17), 'Ada\u0007']) {
       expect(clientPayloadSchemas['player:rename'].safeParse({ name }).success, name).toBe(false);
+    }
+  });
+
+  it('accepts a join with each avatar, or with none', () => {
+    const join = { code: 'ABCD', playerId: 'p1', name: 'Ada' };
+    expect(clientPayloadSchemas['player:join'].parse(join)).not.toHaveProperty('avatar');
+    for (const avatar of AVATARS) {
+      expect(clientPayloadSchemas['player:join'].parse({ ...join, avatar }).avatar).toBe(avatar);
+    }
+  });
+
+  it('rejects a join with an avatar outside the list', () => {
+    const join = { code: 'ABCD', playerId: 'p1', name: 'Ada' };
+    for (const avatar of ['🐝', 'A', '', '🦊🦊', '🦊\uFE0F', 1, null]) {
+      expect(
+        clientPayloadSchemas['player:join'].safeParse({ ...join, avatar }).success,
+        String(avatar),
+      ).toBe(false);
     }
   });
 

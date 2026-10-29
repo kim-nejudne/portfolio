@@ -32,6 +32,37 @@ export const PLAYER_PALETTE = [
   '#E2C08D', // sand
 ] as const;
 
+/**
+ * Avatars a player may pick on joining (F74): one emoji each, a single code point with emoji
+ * presentation, so every one is a single glyph on any device. Two players may share one.
+ */
+export const AVATARS = [
+  '🦊',
+  '🐼',
+  '🐸',
+  '🐙',
+  '🦄',
+  '🐯',
+  '🐵',
+  '🐧',
+  '🦉',
+  '🐢',
+  '🦁',
+  '🐨',
+  '🐷',
+  '🐮',
+  '🐰',
+  '🐻',
+  '🐳',
+  '🦖',
+  '👻',
+  '🤖',
+  '👽',
+  '🍕',
+  '🌵',
+  '🚀',
+] as const;
+
 export const MAX_PLAYERS_PER_ROOM = 50;
 /** The `player:join` error for a kicked playerId. The phone keeps that id, so it stays refused. */
 export const PLAYER_KICKED_ERROR = 'You were removed from this game';

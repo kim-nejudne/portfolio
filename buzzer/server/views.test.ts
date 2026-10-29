@@ -38,6 +38,16 @@ function publicViews(room: Room): string[] {
   ];
 }
 
+/** `midGame`, with avatars for Ana and Bob; Cy picked none. */
+function withAvatars(phase: Phase): Room {
+  const room = midGame(phase);
+  return withPlayers(room, [
+    { ...room.players.p1!, avatar: '🦊' },
+    { ...room.players.p2!, avatar: '🐼' },
+    room.players.p3!,
+  ]);
+}
+
 const SECRETS = (n: number) => [`Answer-${n}-secret`, `Notes-${n}-secret`];
 
 describe('toView: answers and notes never leak before reveal', () => {
@@ -102,6 +112,16 @@ describe('toView: screen', () => {
       connected: false,
       rank: 2,
     });
+  });
+
+  it("carries each player's avatar, and no avatar key for a player without one", () => {
+    const view = toView(withAvatars('OPEN'), 'screen');
+    expect(view.players.map((p) => [p.name, p.avatar])).toEqual([
+      ['Bob', '🐼'],
+      ['Ana', '🦊'],
+      ['Cy', undefined],
+    ]);
+    expect(view.players[2]).not.toHaveProperty('avatar');
   });
 
   it('carries the current question without answer or notes', () => {
@@ -205,6 +225,16 @@ describe('toView: host', () => {
 
   it('has no next question on the last question', () => {
     expect(toView(midGame('OPEN', { questionIndex: 2 }), 'host').nextQuestion).toBeNull();
+  });
+
+  it("carries each player's avatar, and no avatar key for a player without one", () => {
+    const view = toView(withAvatars('LOBBY'), 'host');
+    expect(view.players.map((p) => [p.name, p.avatar])).toEqual([
+      ['Ana', '🦊'],
+      ['Bob', '🐼'],
+      ['Cy', undefined],
+    ]);
+    expect(view.players[2]).not.toHaveProperty('avatar');
   });
 
   it('carries buzzes, judgements and each player’s RTT', () => {
@@ -416,6 +446,29 @@ describe('toView: player', () => {
     const view = toView(midGame('OPEN'), 'player', 'p3');
     expect(view.me).toEqual({ id: 'p3', name: 'Cy', color: '#EF4444', score: 100, rank: 2 });
     expect(view.playerCount).toBe(3);
+  });
+
+  it('carries the player’s own avatar in `me`, and no avatar key without one', () => {
+    const room = withAvatars('OPEN');
+    expect(toView(room, 'player', 'p1').me).toEqual({
+      id: 'p1',
+      name: 'Ana',
+      color: room.players.p1!.color,
+      avatar: '🦊',
+      score: 100,
+      rank: 2,
+    });
+    expect(toView(room, 'player', 'p3').me).not.toHaveProperty('avatar');
+  });
+
+  it("carries each player's avatar in the LOBBY list, and no avatar key without one", () => {
+    const lobby = toView(withAvatars('LOBBY'), 'player', 'p3').lobby!;
+    expect(lobby.map((p) => [p.name, p.avatar])).toEqual([
+      ['Ana', '🦊'],
+      ['Bob', '🐼'],
+      ['Cy', undefined],
+    ]);
+    expect(lobby[2]).not.toHaveProperty('avatar');
   });
 
   it("lists every player's id, name, colour and connection in join order in LOBBY", () => {
