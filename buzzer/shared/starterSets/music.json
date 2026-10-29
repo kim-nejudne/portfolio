@@ -2,6 +2,8 @@
   {
     "id": "starter-music-easy",
     "title": "Music – Easy",
+    "category": "Music",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "music-easy-01",
@@ -111,6 +113,8 @@
   {
     "id": "starter-music-medium",
     "title": "Music – Medium",
+    "category": "Music",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "music-medium-01",
@@ -222,6 +226,8 @@
   {
     "id": "starter-music-hard",
     "title": "Music – Hard",
+    "category": "Music",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "music-hard-01",

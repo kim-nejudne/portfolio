@@ -2,6 +2,8 @@
   {
     "id": "starter-animals-easy",
     "title": "Animals – Easy",
+    "category": "Animals",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "animals-easy-01",
@@ -114,6 +116,8 @@
   {
     "id": "starter-animals-medium",
     "title": "Animals – Medium",
+    "category": "Animals",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "animals-medium-01",
@@ -224,6 +228,8 @@
   {
     "id": "starter-animals-hard",
     "title": "Animals – Hard",
+    "category": "Animals",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "animals-hard-01",

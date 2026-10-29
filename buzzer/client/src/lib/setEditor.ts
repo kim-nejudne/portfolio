@@ -13,7 +13,7 @@ import {
   QUESTION_TEXT_MAX,
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
-import type { Question, QuestionSet, ScreenView } from '../../../shared/types.js';
+import type { Difficulty, Question, QuestionSet, ScreenView } from '../../../shared/types.js';
 
 export type QuestionField = 'text' | 'answer' | 'hostNotes';
 export type QuestionErrors = Partial<Record<QuestionField, string>>;
@@ -171,6 +171,38 @@ export function titleError(title: string): string | undefined {
   const trimmed = title.trim();
   if (trimmed.length === 0) return 'The set needs a title.';
   return tooLong(trimmed, SET_TITLE_MAX);
+}
+
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+};
+
+/** The set with the typed category, or without one when the field is blank. */
+export function withCategory(set: QuestionSet, category: string): QuestionSet {
+  if (category.trim() !== '') return { ...set, category };
+  const rest = { ...set };
+  delete rest.category;
+  return rest;
+}
+
+/** The set with a difficulty, or without one for None (''). */
+export function withDifficulty(set: QuestionSet, difficulty: Difficulty | ''): QuestionSet {
+  if (difficulty !== '') return { ...set, difficulty };
+  const rest = { ...set };
+  delete rest.difficulty;
+  return rest;
+}
+
+/** The categories saved sets already use, each once ignoring case (the first spelling wins), A–Z. */
+export function categoriesInUse(sets: readonly QuestionSet[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const { category } of sets) {
+    const trimmed = category?.trim();
+    if (trimmed && !byKey.has(trimmed.toLowerCase())) byKey.set(trimmed.toLowerCase(), trimmed);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
 }
 
 /** Reads the points field. Anything but a whole number in range is refused and not saved. */

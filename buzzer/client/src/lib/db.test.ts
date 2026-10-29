@@ -169,6 +169,13 @@ describe('question set database', () => {
     expect(await listSets()).toHaveLength(62);
   });
 
+  it('Duplicate copies the category and difficulty', async () => {
+    await db.sets.add({ ...set('tagged', 5), category: 'Science', difficulty: 'hard' });
+    const copy = await duplicateSet('tagged', 99);
+    expect(copy).toMatchObject({ category: 'Science', difficulty: 'hard' });
+    expect(await getSet(copy.id)).toMatchObject({ category: 'Science', difficulty: 'hard' });
+  });
+
   it('Duplicate leaves the original unchanged', async () => {
     const before = await getSet(SAMPLE_SET.id);
     await duplicateSet(SAMPLE_SET.id, 99);

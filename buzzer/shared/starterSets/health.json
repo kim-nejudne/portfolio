@@ -2,6 +2,8 @@
   {
     "id": "starter-health-easy",
     "title": "Human Body & Health – Easy",
+    "category": "Human Body & Health",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "health-easy-01",
@@ -114,6 +116,8 @@
   {
     "id": "starter-health-medium",
     "title": "Human Body & Health – Medium",
+    "category": "Human Body & Health",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "health-medium-01",
@@ -224,6 +228,8 @@
   {
     "id": "starter-health-hard",
     "title": "Human Body & Health – Hard",
+    "category": "Human Body & Health",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "health-hard-01",

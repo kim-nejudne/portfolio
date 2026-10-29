@@ -2,6 +2,8 @@
   {
     "id": "starter-world-geography-easy",
     "title": "World Geography – Easy",
+    "category": "World Geography",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "world-geography-easy-01",
@@ -109,6 +111,8 @@
   {
     "id": "starter-world-geography-medium",
     "title": "World Geography – Medium",
+    "category": "World Geography",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "world-geography-medium-01",
@@ -222,6 +226,8 @@
   {
     "id": "starter-world-geography-hard",
     "title": "World Geography – Hard",
+    "category": "World Geography",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "world-geography-hard-01",

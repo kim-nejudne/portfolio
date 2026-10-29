@@ -2,6 +2,8 @@
   {
     "id": "starter-sports-easy",
     "title": "Sports – Easy",
+    "category": "Sports",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "sports-easy-01",
@@ -113,6 +115,8 @@
   {
     "id": "starter-sports-medium",
     "title": "Sports – Medium",
+    "category": "Sports",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "sports-medium-01",
@@ -225,6 +229,8 @@
   {
     "id": "starter-sports-hard",
     "title": "Sports – Hard",
+    "category": "Sports",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "sports-hard-01",

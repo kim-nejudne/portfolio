@@ -2,6 +2,8 @@
   {
     "id": "starter-anime-easy",
     "title": "Anime & Manga – Easy",
+    "category": "Anime & Manga",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "anime-easy-01",
@@ -113,6 +115,8 @@
   {
     "id": "starter-anime-medium",
     "title": "Anime & Manga – Medium",
+    "category": "Anime & Manga",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "anime-medium-01",
@@ -226,6 +230,8 @@
   {
     "id": "starter-anime-hard",
     "title": "Anime & Manga – Hard",
+    "category": "Anime & Manga",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "anime-hard-01",

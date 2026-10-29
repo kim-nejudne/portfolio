@@ -12,6 +12,27 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F53 — Set category and difficulty fields (2026-10-29)
+**What changed:**
+- `QuestionSet` has optional `category` (1–40, trimmed by the schema; `SET_CATEGORY_MAX`) and `difficulty` (`'easy' | 'medium' | 'hard'`; `DIFFICULTIES` in `shared/constants.ts`). `questionSetSchema`, and so the set file schema, room creation and new game, accept both and still accept sets without them. `schemaVersion` stays 1.
+- All 60 starter sets in `shared/starterSets/*.json` carry `category` (the title before " – ", e.g. "Philippine TV & Pop Culture") and `difficulty` (the id's level), right after `title`. Only those 120 lines changed.
+- Set editor: **Category (optional)** with a `<datalist>` of the categories this browser's sets use, trimmed on blur; **Difficulty (optional)** select (None, Easy, Medium, Hard). Both autosave like the title; blank or None removes the key. Helpers `withCategory`, `withDifficulty`, `categoriesInUse`, `DIFFICULTY_LABELS` in `client/src/lib/setEditor.ts`.
+- Export writes both, import keeps both, Duplicate copies both (it already spread the source; now tested).
+- Tests: `schemas.test.ts` +4, `starterSets.test.ts` +2 (and the key order), `importExport.test.ts` +3, `db.test.ts` +1, `setEditor.test.ts` +3, `SetEditor.test.tsx` +4. 1255 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F53 (trim on blur and removing blank keys; the datalist and where labels live; no Dexie backfill for already-seeded starters).
+
+**Notes for next session:**
+- Browsers seeded before F53 keep stored starter copies without the two fields. F53 adds no Dexie upgrade, since F54 stops storing built-ins. F54's v3 clean-up must compare such a copy as if it had the bundled category and difficulty; the F54 roadmap bullet now says so.
+- Playtest (Playwright, 390×844), 6 of 6 steps passed on a fresh database: starter fields shown in the editor, the datalist held the 20 starter categories, Category and Difficulty survived a reload, Duplicate copied them, export wrote them (category trimmed), re-import kept them. No console errors. Trim-on-blur was added after the playtest (review should-fix), covered by `SetEditor.test.tsx`.
+- Nothing shows category or difficulty outside the editor yet: the set list (F55) and the Screen title card come later.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`, open any set (or **New set**).
+2. Type a category: the suggestions list the categories already in use. Pick a difficulty. Wait for **Saved**, reload: both are still there.
+3. Back on `/sets`, **Export JSON** the set: the file has `category` and `difficulty`. **Import JSON** it back, and **Duplicate** it: both keep the fields.
+4. A browser seeded before today shows starters without the fields; a fresh profile (or deleting the `buzzr` IndexedDB) shows them.
+
 ## F52 — Screen fixes from the backlog (2026-10-29)
 **What changed:**
 - Reveal fit:

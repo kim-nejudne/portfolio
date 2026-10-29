@@ -10,7 +10,11 @@ export interface QuestionSet {
   createdAt: number;
   updatedAt: number;
   schemaVersion: 1;
+  category?: string; // 1–40 characters
+  difficulty?: Difficulty;
 }
+
+export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface Question {
   id: string;

@@ -2,6 +2,8 @@
   {
     "id": "starter-video-games-easy",
     "title": "Video Games – Easy",
+    "category": "Video Games",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "video-games-easy-01",
@@ -109,6 +111,8 @@
   {
     "id": "starter-video-games-medium",
     "title": "Video Games – Medium",
+    "category": "Video Games",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "video-games-medium-01",
@@ -220,6 +224,8 @@
   {
     "id": "starter-video-games-hard",
     "title": "Video Games – Hard",
+    "category": "Video Games",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "video-games-hard-01",

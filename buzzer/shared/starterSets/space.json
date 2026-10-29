@@ -2,6 +2,8 @@
   {
     "id": "starter-space-easy",
     "title": "Space & Astronomy – Easy",
+    "category": "Space & Astronomy",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "space-easy-01",
@@ -111,6 +113,8 @@
   {
     "id": "starter-space-medium",
     "title": "Space & Astronomy – Medium",
+    "category": "Space & Astronomy",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "space-medium-01",
@@ -222,6 +226,8 @@
   {
     "id": "starter-space-hard",
     "title": "Space & Astronomy – Hard",
+    "category": "Space & Astronomy",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "space-hard-01",

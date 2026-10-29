@@ -134,6 +134,37 @@ describe('Import JSON', () => {
     expect(await db.images.count()).toBe(imagesBefore + 2);
   });
 
+  it('round-trips category and difficulty: export writes them, import keeps them', async () => {
+    const tagged: QuestionSet = { ...SET, category: 'Geography', difficulty: 'medium' };
+    const file = JSON.parse(await exportSetFile(tagged, loadImage)) as QuestionSet;
+    expect([file.category, file.difficulty]).toEqual(['Geography', 'medium']);
+
+    const parsed = parseSetFile(JSON.stringify(file));
+    if (!parsed.ok) throw new Error(parsed.errors.join('\n'));
+    const stored = await importSet(parsed.set, parsed.images);
+    expect(await getSet(stored.id)).toMatchObject({ category: 'Geography', difficulty: 'medium' });
+  });
+
+  it('exports a trimmed category, and imports a file without either field', async () => {
+    const file = JSON.parse(
+      await exportSetFile({ ...SET, category: '  Geography ' }, loadImage),
+    ) as QuestionSet;
+    expect(file.category).toBe('Geography');
+
+    const parsed = parseSetFile(await exportSetFile(SET, loadImage));
+    if (!parsed.ok) throw new Error(parsed.errors.join('\n'));
+    expect(parsed.set).not.toHaveProperty('category');
+    expect(parsed.set).not.toHaveProperty('difficulty');
+  });
+
+  it('refuses a bad category or difficulty with its path', async () => {
+    const file = await exported();
+    expect(errorsOf(JSON.stringify({ ...file, category: '', difficulty: 'extreme' }))).toEqual([
+      expect.stringMatching(/^Category: /),
+      expect.stringMatching(/^Difficulty: /),
+    ]);
+  });
+
   it('accepts a text-only file without an images field', () => {
     const textOnly = { ...SET, questions: [SET.questions[0]] };
     const parsed = parseSetFile(JSON.stringify(textOnly));

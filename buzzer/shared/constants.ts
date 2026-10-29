@@ -1,7 +1,7 @@
 // Values shared by the server and the client: app identity, palette and limits.
 // Sizes use binary units (1 KB = 1024 bytes). Times are in milliseconds.
 
-import type { AnswerSeconds, RoomSettings } from './types.js';
+import type { AnswerSeconds, Difficulty, RoomSettings } from './types.js';
 
 export const APP_NAME = 'Buzzr';
 
@@ -86,6 +86,9 @@ export const DEFAULT_SETTINGS: RoomSettings = {
 
 export const MAX_QUESTIONS_PER_SET = 100;
 export const SET_TITLE_MAX = 100; // DECISIONS #11
+export const SET_CATEGORY_MAX = 40;
+/** A set's optional difficulty, in editor and list order. */
+export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const satisfies readonly Difficulty[];
 export const QUESTION_TEXT_MAX = 300;
 export const ANSWER_MAX = 200;
 export const HOST_NOTES_MAX = 500; // DECISIONS #11

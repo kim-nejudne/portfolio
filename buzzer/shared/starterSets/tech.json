@@ -2,6 +2,8 @@
   {
     "id": "starter-tech-easy",
     "title": "Computers & Tech – Easy",
+    "category": "Computers & Tech",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "tech-easy-01",
@@ -108,6 +110,8 @@
   {
     "id": "starter-tech-medium",
     "title": "Computers & Tech – Medium",
+    "category": "Computers & Tech",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "tech-medium-01",
@@ -217,6 +221,8 @@
   {
     "id": "starter-tech-hard",
     "title": "Computers & Tech – Hard",
+    "category": "Computers & Tech",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "tech-hard-01",

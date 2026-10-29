@@ -2,6 +2,8 @@
   {
     "id": "starter-movies-easy",
     "title": "Movies – Easy",
+    "category": "Movies",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "movies-easy-01",
@@ -110,6 +112,8 @@
   {
     "id": "starter-movies-medium",
     "title": "Movies – Medium",
+    "category": "Movies",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "movies-medium-01",
@@ -220,6 +224,8 @@
   {
     "id": "starter-movies-hard",
     "title": "Movies – Hard",
+    "category": "Movies",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "movies-hard-01",

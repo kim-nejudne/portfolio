@@ -2,6 +2,8 @@
   {
     "id": "starter-ph-history-easy",
     "title": "Philippine History – Easy",
+    "category": "Philippine History",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "ph-history-easy-01",
@@ -114,6 +116,8 @@
   {
     "id": "starter-ph-history-medium",
     "title": "Philippine History – Medium",
+    "category": "Philippine History",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "ph-history-medium-01",
@@ -227,6 +231,8 @@
   {
     "id": "starter-ph-history-hard",
     "title": "Philippine History – Hard",
+    "category": "Philippine History",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "ph-history-hard-01",

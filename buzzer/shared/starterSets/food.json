@@ -2,6 +2,8 @@
   {
     "id": "starter-food-easy",
     "title": "Food & Drinks – Easy",
+    "category": "Food & Drinks",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "food-easy-01",
@@ -109,6 +111,8 @@
   {
     "id": "starter-food-medium",
     "title": "Food & Drinks – Medium",
+    "category": "Food & Drinks",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "food-medium-01",
@@ -218,6 +222,8 @@
   {
     "id": "starter-food-hard",
     "title": "Food & Drinks – Hard",
+    "category": "Food & Drinks",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "food-hard-01",

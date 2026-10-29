@@ -2,6 +2,8 @@
   {
     "id": "starter-world-history-easy",
     "title": "World History – Easy",
+    "category": "World History",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "world-history-easy-01",
@@ -113,6 +115,8 @@
   {
     "id": "starter-world-history-medium",
     "title": "World History – Medium",
+    "category": "World History",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "world-history-medium-01",
@@ -225,6 +229,8 @@
   {
     "id": "starter-world-history-hard",
     "title": "World History – Hard",
+    "category": "World History",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "world-history-hard-01",

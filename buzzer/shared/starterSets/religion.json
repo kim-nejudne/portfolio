@@ -2,6 +2,8 @@
   {
     "id": "starter-religion-easy",
     "title": "Religion – Easy",
+    "category": "Religion",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "religion-easy-01",
@@ -113,6 +115,8 @@
   {
     "id": "starter-religion-medium",
     "title": "Religion – Medium",
+    "category": "Religion",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "religion-medium-01",
@@ -226,6 +230,8 @@
   {
     "id": "starter-religion-hard",
     "title": "Religion – Hard",
+    "category": "Religion",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "religion-hard-01",

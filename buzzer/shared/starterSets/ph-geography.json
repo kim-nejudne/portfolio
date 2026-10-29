@@ -2,6 +2,8 @@
   {
     "id": "starter-ph-geography-easy",
     "title": "Philippine Geography – Easy",
+    "category": "Philippine Geography",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "ph-geography-easy-01",
@@ -112,6 +114,8 @@
   {
     "id": "starter-ph-geography-medium",
     "title": "Philippine Geography – Medium",
+    "category": "Philippine Geography",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "ph-geography-medium-01",
@@ -222,6 +226,8 @@
   {
     "id": "starter-ph-geography-hard",
     "title": "Philippine Geography – Hard",
+    "category": "Philippine Geography",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "ph-geography-hard-01",

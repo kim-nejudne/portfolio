@@ -20,20 +20,24 @@ import { type ClipboardEvent, type DragEvent, useEffect, useRef, useState } from
 import { Link, useParams } from 'react-router';
 import {
   ANSWER_MAX,
+  DIFFICULTIES,
   HOST_NOTES_MAX,
   QUESTION_TEXT_MAX,
+  SET_CATEGORY_MAX,
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
 import { type SaveStatus, useAutosave } from '../lib/autosave.js';
-import { addImage, deleteImages, getSet, saveSet } from '../lib/db.js';
+import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
 import {
   addQuestion,
   canAddQuestion,
+  categoriesInUse,
+  DIFFICULTY_LABELS,
   duplicateQuestion,
   moveQuestion,
   parsePoints,
@@ -46,6 +50,8 @@ import {
   setQuestionImage,
   titleError,
   unusedImageIds,
+  withCategory,
+  withDifficulty,
 } from '../lib/setEditor.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 
@@ -84,6 +90,8 @@ function Editor({ setId }: { setId: string }) {
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [focusId, setFocusId] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // Suggestions for the Category field: what this browser's sets already use.
+  const [categories, setCategories] = useState<string[]>([]);
   // SPEC-QUESTION: when an unused blob is deleted is unspecified (DECISIONS F29).
   // Images no question uses any more (removed, replaced, or their question deleted). They leave
   // this browser only once a saved set no longer references them, so a failed or pending save never
@@ -113,6 +121,11 @@ function Editor({ setId }: { setId: string }) {
         setLoad({ state: found ? 'ready' : 'missing' });
       },
       () => live && setLoad({ state: 'error' }),
+    );
+    // Without suggestions the field still takes any category, so a failed read is ignored.
+    listSets().then(
+      (sets) => live && setCategories(categoriesInUse(sets)),
+      () => {},
     );
     return () => {
       live = false;
@@ -217,6 +230,54 @@ function Editor({ setId }: { setId: string }) {
             className={`${field} font-display text-3xl`}
           />
           <FieldError id="set-title-error" message={titleProblem} />
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          <div className="flex min-w-48 flex-1 flex-col gap-1">
+            <label htmlFor="set-category" className="font-semibold">
+              Category <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <input
+              id="set-category"
+              list="set-categories"
+              value={set.category ?? ''}
+              maxLength={SET_CATEGORY_MAX}
+              onChange={(event) => change(withCategory(set, event.target.value))}
+              // Trimmed once the field is left, so typing "Pop Culture" keeps its space.
+              onBlur={() => {
+                const trimmed = set.category?.trim();
+                if (trimmed !== set.category) change(withCategory(set, trimmed ?? ''));
+              }}
+              className={field}
+            />
+            <datalist id="set-categories">
+              {categories.map((category) => (
+                <option key={category} value={category} />
+              ))}
+            </datalist>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="set-difficulty" className="font-semibold">
+              Difficulty <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <select
+              id="set-difficulty"
+              value={set.difficulty ?? ''}
+              onChange={(event) =>
+                change(
+                  withDifficulty(set, DIFFICULTIES.find((d) => d === event.target.value) ?? ''),
+                )
+              }
+              className={`${field} w-auto`}
+            >
+              <option value="">None</option>
+              {DIFFICULTIES.map((difficulty) => (
+                <option key={difficulty} value={difficulty}>
+                  {DIFFICULTY_LABELS[difficulty]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <Link

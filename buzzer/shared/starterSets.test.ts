@@ -36,6 +36,8 @@ describe('STARTER_SETS', () => {
       expect(Object.keys(set), set.id).toEqual([
         'id',
         'title',
+        'category',
+        'difficulty',
         'questions',
         'createdAt',
         'updatedAt',
@@ -58,6 +60,25 @@ describe('STARTER_SETS', () => {
         expect(q.id).toBe(`${slug}-${level}-${String(j + 1).padStart(2, '0')}`);
       });
     });
+  });
+
+  it('every set carries its category and difficulty, matching its title and id', () => {
+    STARTER_SETS.forEach((set, i) => {
+      const { level, title } = LEVELS[i % 3]!;
+      expect(set.difficulty, set.id).toBe(level);
+      expect(set.category, set.id).toBeTruthy();
+      expect(set.title, set.id).toBe(`${set.category} ${title}`);
+    });
+  });
+
+  it('STARTER_CATEGORIES and the files agree: one category name per slug, all different', () => {
+    const names = STARTER_CATEGORIES.map((slug) => {
+      const sets = STARTER_SETS.filter((s) => s.id.startsWith(`starter-${slug}-`));
+      expect(sets, slug).toHaveLength(3);
+      expect(new Set(sets.map((s) => s.category)).size, slug).toBe(1);
+      return sets[0]!.category;
+    });
+    expect(new Set(names).size).toBe(STARTER_CATEGORIES.length);
   });
 
   it('question ids are unique across all sets, and no question has a picture', () => {

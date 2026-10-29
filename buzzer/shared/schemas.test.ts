@@ -11,6 +11,7 @@ import {
   QUESTION_TEXT_MAX,
   SCORE_DELTA_MAX,
   SCOREBOARD_EVERY_MAX,
+  SET_CATEGORY_MAX,
   SET_TITLE_MAX,
 } from './constants.js';
 import {
@@ -100,6 +101,40 @@ describe('questionSetSchema', () => {
     expect(questionSetSchema.safeParse(longAnswer).success).toBe(false);
     expect(questionSetSchema.safeParse(longNotes).success).toBe(false);
     expect(questionSetSchema.safeParse(longTitle).success).toBe(false);
+  });
+
+  it('accepts a set with category and difficulty, trimming the category', () => {
+    const parsed = questionSetSchema.parse(set({ category: '  Science ', difficulty: 'hard' }));
+    expect([parsed.category, parsed.difficulty]).toEqual(['Science', 'hard']);
+    for (const difficulty of ['easy', 'medium', 'hard'] as const) {
+      expect(questionSetSchema.safeParse(set({ difficulty })).success, difficulty).toBe(true);
+    }
+  });
+
+  it('accepts a set without category or difficulty (files from before F53)', () => {
+    const parsed = questionSetSchema.parse(set());
+    expect(parsed).not.toHaveProperty('category');
+    expect(parsed).not.toHaveProperty('difficulty');
+    expect(parsed.schemaVersion).toBe(1);
+  });
+
+  it('accepts a 40-character category and rejects 41, blank and non-string ones', () => {
+    const ok = (category: unknown) => questionSetSchema.safeParse({ ...set(), category }).success;
+    expect(ok('x'.repeat(SET_CATEGORY_MAX))).toBe(true);
+    expect(ok(` ${'x'.repeat(SET_CATEGORY_MAX)} `)).toBe(true);
+    expect(ok('x'.repeat(SET_CATEGORY_MAX + 1))).toBe(false);
+    expect(ok('')).toBe(false);
+    expect(ok('   ')).toBe(false);
+    expect(ok(7)).toBe(false);
+  });
+
+  it('rejects a difficulty other than easy, medium or hard', () => {
+    for (const difficulty of ['Easy', 'extreme', '', 2, null]) {
+      expect(
+        questionSetSchema.safeParse({ ...set(), difficulty }).success,
+        String(difficulty),
+      ).toBe(false);
+    }
   });
 
   it('accepts points from 0 to 10000 and rejects 10001', () => {

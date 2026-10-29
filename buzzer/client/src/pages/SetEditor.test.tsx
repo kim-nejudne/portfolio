@@ -3,7 +3,11 @@ import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_QUESTIONS_PER_SET, QUESTION_TEXT_MAX } from '../../../shared/constants.js';
+import {
+  MAX_QUESTIONS_PER_SET,
+  QUESTION_TEXT_MAX,
+  SET_CATEGORY_MAX,
+} from '../../../shared/constants.js';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { AUTOSAVE_DELAY_MS } from '../lib/autosave.js';
 import { db, getSet } from '../lib/db.js';
@@ -98,6 +102,86 @@ describe('Set editor /sets/:setId', () => {
     expect(screen.getByRole('status', { name: 'Save status' }).textContent).toBe('Saving…');
     await settle();
     expect(await getSet('set-1')).toMatchObject({ title: 'Capitals', updatedAt: NOW });
+  });
+
+  it('edits Category and Difficulty and autosaves them like the title', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const category = screen.getByLabelText('Category (optional)') as HTMLInputElement;
+    const difficulty = screen.getByLabelText('Difficulty (optional)') as HTMLSelectElement;
+    expect([category.value, difficulty.value]).toEqual(['', '']);
+    expect([...difficulty.options].map((o) => o.text)).toEqual(['None', 'Easy', 'Medium', 'Hard']);
+    expect(category.maxLength).toBe(SET_CATEGORY_MAX);
+
+    type(category, 'Geography');
+    fireEvent.change(difficulty, { target: { value: 'medium' } });
+    expect(screen.getByRole('status', { name: 'Save status' }).textContent).toBe('Saving…');
+    await settle();
+    expect(await getSet('set-1')).toMatchObject({ category: 'Geography', difficulty: 'medium' });
+
+    cleanup();
+    await renderEditor();
+    expect((screen.getByLabelText('Category (optional)') as HTMLInputElement).value).toBe(
+      'Geography',
+    );
+    expect((screen.getByLabelText('Difficulty (optional)') as HTMLSelectElement).value).toBe(
+      'medium',
+    );
+  });
+
+  it('trims the category when the field is left', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const category = screen.getByLabelText('Category (optional)') as HTMLInputElement;
+    type(category, '  Pop Culture ');
+    expect(category.value).toBe('  Pop Culture ');
+    fireEvent.blur(category);
+    expect(category.value).toBe('Pop Culture');
+    await settle();
+    expect((await getSet('set-1'))!.category).toBe('Pop Culture');
+  });
+
+  it('clearing Category and choosing None removes both from the saved set', async () => {
+    await db.sets.add({
+      id: 'set-1',
+      title: 'Quiz',
+      questions: [q('a')],
+      createdAt: 1,
+      updatedAt: 2,
+      schemaVersion: 1,
+      category: 'Science',
+      difficulty: 'hard',
+    });
+    await renderEditor();
+    type(screen.getByLabelText('Category (optional)'), '  ');
+    fireEvent.change(screen.getByLabelText('Difficulty (optional)'), { target: { value: '' } });
+    await settle();
+    const saved = await getSet('set-1');
+    expect(saved).not.toHaveProperty('category');
+    expect(saved).not.toHaveProperty('difficulty');
+  });
+
+  it('suggests the categories already in use in this browser', async () => {
+    const other = (id: string, category: string): QuestionSet => ({
+      id,
+      title: id,
+      questions: [],
+      createdAt: 1,
+      updatedAt: 1,
+      schemaVersion: 1,
+      category,
+    });
+    await db.sets.bulkAdd([other('x', 'Science'), other('y', 'Animals'), other('z', 'Science')]);
+    await seed([q('a')]);
+    await renderEditor();
+    const input = screen.getByLabelText('Category (optional)');
+    const list = document.getElementById(input.getAttribute('list')!)!;
+    await waitFor(() =>
+      expect([...list.querySelectorAll('option')].map((o) => o.value)).toEqual([
+        'Animals',
+        'Science',
+      ]),
+    );
   });
 
   it('edits survive closing and reopening the editor', async () => {

@@ -12,6 +12,7 @@ import type { Question, QuestionSet } from '../../../shared/types.js';
 import {
   addQuestion,
   canAddQuestion,
+  categoriesInUse,
   duplicateQuestion,
   moveQuestion,
   newQuestion,
@@ -23,6 +24,8 @@ import {
   setQuestionImage,
   titleError,
   unusedImageIds,
+  withCategory,
+  withDifficulty,
 } from './setEditor.js';
 
 function q(id: string, overrides: Partial<Question> = {}): Question {
@@ -175,5 +178,40 @@ describe('set editor field checks', () => {
     for (const raw of ['', '-5', '2.5', '1e3', 'abc', String(POINTS_MAX + 1)]) {
       expect(parsePoints(raw)).toEqual({ ok: false });
     }
+  });
+});
+
+describe('category and difficulty', () => {
+  const base: QuestionSet = {
+    id: 's',
+    title: 'Quiz',
+    questions: [],
+    createdAt: 1,
+    updatedAt: 1,
+    schemaVersion: 1,
+  };
+
+  it('withCategory keeps what was typed and drops a blank category', () => {
+    expect(withCategory(base, 'Science ').category).toBe('Science ');
+    const tagged = withCategory(base, 'Science');
+    expect(withCategory(tagged, '   ')).toEqual(base);
+    expect(withCategory(tagged, '')).not.toHaveProperty('category');
+  });
+
+  it('withDifficulty sets a level and None removes it', () => {
+    const hard = withDifficulty(base, 'hard');
+    expect(hard.difficulty).toBe('hard');
+    expect(withDifficulty(hard, '')).toEqual(base);
+  });
+
+  it('categoriesInUse lists each saved category once, trimmed, alphabetically', () => {
+    const sets = [
+      { ...base, category: 'Science' },
+      { ...base, category: ' animals ' },
+      { ...base, category: 'science' },
+      base,
+      { ...base, category: '   ' },
+    ];
+    expect(categoriesInUse(sets)).toEqual(['animals', 'Science']);
   });
 });

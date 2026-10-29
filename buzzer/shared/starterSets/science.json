@@ -2,6 +2,8 @@
   {
     "id": "starter-science-easy",
     "title": "Science – Easy",
+    "category": "Science",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "science-easy-01",
@@ -111,6 +113,8 @@
   {
     "id": "starter-science-medium",
     "title": "Science – Medium",
+    "category": "Science",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "science-medium-01",
@@ -224,6 +228,8 @@
   {
     "id": "starter-science-hard",
     "title": "Science – Hard",
+    "category": "Science",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "science-hard-01",

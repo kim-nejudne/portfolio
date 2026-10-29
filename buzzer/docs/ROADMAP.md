@@ -146,22 +146,14 @@ Kim's request of 2026-10-29: schedule every finding of the product audit (M12–
 
 Built-in sets move out of My sets into a read-only library, and every set picker gets search, categories and difficulty (DECISIONS, audit plan).
 
-- [ ] F53 Set category and difficulty fields
-  - Spec: Data model (`QuestionSet`); Question editor and images (Set editor); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F52
-  - Done when:
-    - `QuestionSet` has optional `category?: string` (1–40 characters, trimmed) and `difficulty?: 'easy' | 'medium' | 'hard'`; `questionSetSchema` and the set file schema accept both and still accept files without them. `schemaVersion` stays 1
-    - Every set in `shared/starterSets/*.json` carries its category and difficulty; `STARTER_CATEGORIES` and the files agree
-    - The set editor has a Category text field (with a datalist of the categories already in use) and a Difficulty select (None, Easy, Medium, Hard), autosaved like the title
-    - Export writes both fields; import keeps them; Duplicate copies them
-  - Tests: `schemas.test.ts` (with and without the fields, bad values), `starterSets.test.ts` (every starter has both, matching its title), `importExport.test.ts` (round trip), `SetEditor.test.tsx` (edit and autosave), `db.test.ts` (duplicate keeps them)
+- [x] F53 Set category and difficulty fields
 
 - [ ] F54 Built-in sets library
   - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)
   - Depends: F53
   - Done when:
     - `shared/builtInSets.ts` exports `BUILT_IN_SETS` (`SAMPLE_SET` then `STARTER_SETS`), read from the bundle and never written to IndexedDB. New browsers no longer seed them
-    - Dexie `version(3)` deletes each stored set whose id is a built-in id and whose title, category, difficulty and questions deep-equal the bundled set. An edited copy stays in My sets under a fresh id, so no stored id collides with a built-in one. The sample's seeded images are deleted with it when no other set uses them
+    - Dexie `version(3)` deletes each stored set whose id is a built-in id and whose title, category, difficulty and questions deep-equal the bundled set (a copy seeded before F53 has neither field: compare it as if it had the bundled ones, DECISIONS F53). An edited copy stays in My sets under a fresh id, so no stored id collides with a built-in one. The sample's seeded images are deleted with it when no other set uses them
     - `/sets` has two tabs, **Built-in** and **My sets** (My sets first when it has any set, else Built-in). Built-in cards offer **Host this set** and **Duplicate to My sets** only; My sets keeps every current action
     - **Host a game** and the **New game** picker list My sets and then the built-ins. Hosting the sample uploads its images from `sampleImages()` (`client/src/lib/sampleImages.ts`), not IndexedDB
   - Tests: `db.test.ts` (v3 upgrade from a v2 database: untouched starters and sample removed, edited ones kept with new ids, the host's own sets untouched; fresh database holds no built-ins), `hostRoom.test.ts` (built-in sample images), `Sets.test.tsx` (tabs, built-in actions), `NewGamePicker.test.tsx`

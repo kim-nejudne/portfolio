@@ -2,6 +2,8 @@
   {
     "id": "starter-mythology-easy",
     "title": "Mythology & Folklore – Easy",
+    "category": "Mythology & Folklore",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "mythology-easy-01",
@@ -109,6 +111,8 @@
   {
     "id": "starter-mythology-medium",
     "title": "Mythology & Folklore – Medium",
+    "category": "Mythology & Folklore",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "mythology-medium-01",
@@ -218,6 +222,8 @@
   {
     "id": "starter-mythology-hard",
     "title": "Mythology & Folklore – Hard",
+    "category": "Mythology & Folklore",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "mythology-hard-01",

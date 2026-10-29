@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
+  DIFFICULTIES,
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
   ID_MAX,
@@ -17,6 +18,7 @@ import {
   ROOM_CODE_LENGTH,
   SCORE_DELTA_MAX,
   SCOREBOARD_EVERY_MAX,
+  SET_CATEGORY_MAX,
   SET_TITLE_MAX,
 } from './constants.js';
 import type {
@@ -81,6 +83,9 @@ export const questionSchema = z
 export const questionSetSchema = z.object({
   id: idSchema,
   title: z.string().trim().min(1).max(SET_TITLE_MAX),
+  // Optional, so files from before F53 still import; schemaVersion stays 1 (DECISIONS F53).
+  category: z.string().trim().min(1).max(SET_CATEGORY_MAX).optional(),
+  difficulty: z.enum(DIFFICULTIES).optional(),
   questions: z
     .array(questionSchema)
     .min(1)

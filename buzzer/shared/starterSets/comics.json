@@ -2,6 +2,8 @@
   {
     "id": "starter-comics-easy",
     "title": "Comics & Superheroes – Easy",
+    "category": "Comics & Superheroes",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "comics-easy-01",
@@ -107,6 +109,8 @@
   {
     "id": "starter-comics-medium",
     "title": "Comics & Superheroes – Medium",
+    "category": "Comics & Superheroes",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "comics-medium-01",
@@ -218,6 +222,8 @@
   {
     "id": "starter-comics-hard",
     "title": "Comics & Superheroes – Hard",
+    "category": "Comics & Superheroes",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "comics-hard-01",

@@ -2,6 +2,8 @@
   {
     "id": "starter-language-easy",
     "title": "Words & Language – Easy",
+    "category": "Words & Language",
+    "difficulty": "easy",
     "questions": [
       {
         "id": "language-easy-01",
@@ -112,6 +114,8 @@
   {
     "id": "starter-language-medium",
     "title": "Words & Language – Medium",
+    "category": "Words & Language",
+    "difficulty": "medium",
     "questions": [
       {
         "id": "language-medium-01",
@@ -221,6 +225,8 @@
   {
     "id": "starter-language-hard",
     "title": "Words & Language – Hard",
+    "category": "Words & Language",
+    "difficulty": "hard",
     "questions": [
       {
         "id": "language-hard-01",
