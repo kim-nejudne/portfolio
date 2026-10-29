@@ -180,6 +180,9 @@ interface SharedRoomView {
   winnerId: string | null;
   alsoBuzzed: BuzzGap[];
   lockedOut: string[];
+  /** Who pressed before the buzzers opened, with false starts on (F71); not secret. */
+  // SPEC-QUESTION: the spec's views carry no false start fields; see DECISIONS (F72).
+  falseStarts: string[];
   showScoreboard: boolean;
   settings: RoomSettings;
   /** `host:judge` would be accepted: false during the wait before a reopen. */
@@ -240,6 +243,8 @@ export interface PlayerView {
   lockedOut: boolean;
   /** Pressed before the buzzers opened, with false starts on; cleared by a later opening (F71). */
   falseStart: boolean;
+  /** The room's false start wait; 0 is off, and then a press before the opening is ignored. */
+  falseStartMs: FalseStartMs;
   winnerId: string | null;
   winnerName: string | null;
   /** Points this player gained or lost on the current question. */

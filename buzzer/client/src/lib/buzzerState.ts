@@ -5,14 +5,26 @@ import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
 /** A player who joined while the buzzers were open waits for the next opening (UI spec, Player view). */
 export const LATE_JOINER_LABEL = 'Get ready… you can buzz from the next question';
 
+/** The phone's label for a false start, until the wait after the opening ends (UI spec, Player view). */
+export const TOO_EARLY_LABEL = 'Too early!';
+
 /**
- * How the buzzer looks: grey, a muted test buzzer in the lobby, bright and pulsing, pressed in,
+ * How the buzzer looks: grey, a muted test buzzer in the lobby, amber after a false start, bright and pulsing, pressed in,
  * the winner's red panel, dim, muted with a red X, the answer in a card, or the final result in
  * place of the button. The label is the status line above the button; the button itself always
  * reads BUZZ.
  */
 export type BuzzerKind =
-  'idle' | 'practice' | 'live' | 'pressed' | 'won' | 'lost' | 'out' | 'revealed' | 'final';
+  | 'idle'
+  | 'practice'
+  | 'early'
+  | 'live'
+  | 'pressed'
+  | 'won'
+  | 'lost'
+  | 'out'
+  | 'revealed'
+  | 'final';
 
 export interface BuzzerState {
   kind: BuzzerKind;
@@ -28,22 +40,29 @@ export interface BuzzerState {
 /**
  * The buzzer's look and label for this player (UI spec, Player view). `pressed` is the local
  * press for the current opening, shown before the server's next snapshot arrives. `countdown` is
- * the answer countdown from `useAnswerCountdown`; only the winner's phone shows it.
+ * the answer countdown from `useAnswerCountdown`; only the winner's phone shows it. `held` is
+ * `useFalseStartWait`: this player pressed early and the wait after the opening has not ended.
  */
 export function buzzerState(
   view: PlayerView,
   pressed: boolean,
   countdown: AnswerCountdown | null = null,
+  held = false,
 ): BuzzerState {
   switch (view.phase) {
     case 'LOBBY':
       // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
       return { kind: 'practice', label: 'Tap to test your buzzer', live: false };
     case 'QUESTION':
-      return idle('Get ready…');
+      // With false starts on, the grey button still takes a press: the server records it (F71).
+      if (view.falseStartMs === 0) return idle('Get ready…');
+      if (pressed || view.falseStart) return tooEarly();
+      return { kind: 'idle', label: 'Get ready…', live: true };
     case 'OPEN':
     case 'COLLECTING':
       if (view.lockedOut) return lockedOut();
+      // The server ignores this player's presses until the wait ends, so none is sent (F71).
+      if (view.falseStart && held) return tooEarly();
       if (pressed || view.hasBuzzed) return { kind: 'pressed', label: 'Buzzed…', live: false };
       // Joined during this opening: a press could not count, so none is sent (DECISIONS F39).
       if (!view.canBuzz) return idle(LATE_JOINER_LABEL);
@@ -82,6 +101,10 @@ export function buzzerState(
 
 function idle(label: string): BuzzerState {
   return { kind: 'idle', label, live: false };
+}
+
+function tooEarly(): BuzzerState {
+  return { kind: 'early', label: TOO_EARLY_LABEL, live: false };
 }
 
 function lockedOut(): BuzzerState {

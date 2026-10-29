@@ -72,6 +72,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     winnerId: null,
     alsoBuzzed: [],
     lockedOut: [],
+    falseStarts: [],
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     question: null,

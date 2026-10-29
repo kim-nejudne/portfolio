@@ -48,6 +48,7 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     hasBuzzed: false,
     lockedOut: false,
     falseStart: false,
+    falseStartMs: 0,
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,
@@ -676,6 +677,74 @@ describe('Play buzzer', () => {
     expect(status().textContent).toBe('Ben buzzed first');
     socket.fire('state', { ...lost, answerTimer: { seconds: 3, up: true } });
     expect(status().textContent).toBe('Ben buzzed first');
+  });
+
+  describe('with false start on', () => {
+    const question = (overrides: Partial<PlayerView> = {}) =>
+      playerView({ phase: 'QUESTION', questionIndex: 0, falseStartMs: 500, ...overrides });
+
+    it('the grey button takes a press in QUESTION and shows "Too early!" in amber at once', async () => {
+      const socket = await joined();
+      socket.fire('state', question());
+      expect(status().textContent).toBe('Get ready…');
+      expect(buzzer().disabled).toBe(false);
+      expect(buzzer().dataset.look).toBe('idle');
+
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      expect(buzzes(socket)).toHaveLength(1);
+      expect(status().textContent).toBe('Too early!');
+      expect(status().className).toContain('text-warn');
+      expect(buzzer().dataset.look).toBe('early');
+      expect(buzzer().className).toContain('bg-warn');
+      expect(buzzer().disabled).toBe(true);
+    });
+
+    it('takes no press in QUESTION with the setting off', async () => {
+      const socket = await joined();
+      socket.fire('state', question({ falseStartMs: 0 }));
+      expect(buzzer().disabled).toBe(true);
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      expect(buzzes(socket)).toHaveLength(0);
+    });
+
+    it('stays "Too early!" after the opening until the wait ends, then buzzes at once', async () => {
+      const socket = await joined();
+      vi.useFakeTimers();
+      socket.fire('state', question({ falseStart: true }));
+      expect(status().textContent).toBe('Too early!');
+
+      socket.fire('state', open({ falseStartMs: 500, falseStart: true }));
+      expect(status().textContent).toBe('Too early!');
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      fireEvent.keyDown(window, { code: 'Space' });
+      expect(buzzes(socket)).toHaveLength(0);
+      act(() => vi.advanceTimersByTime(499));
+      expect(status().textContent).toBe('Too early!');
+
+      act(() => vi.advanceTimersByTime(1));
+      expect(status().textContent).toBe('Buzzers open!');
+      expect(buzzer().dataset.look).toBe('live');
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      expect(buzzes(socket)).toHaveLength(1);
+    });
+
+    it('a player who waited is live the moment the buzzers open', async () => {
+      const socket = await joined();
+      socket.fire('state', question());
+      socket.fire('state', open({ falseStartMs: 1000 }));
+      expect(status().textContent).toBe('Buzzers open!');
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      expect(buzzes(socket)).toHaveLength(1);
+    });
+
+    it('a refused early press frees the button again', async () => {
+      const socket = await joined();
+      socket.fire('state', question());
+      fireEvent.pointerDown(buzzer(), { button: 0 });
+      act(() => buzzes(socket)[0]!.ack({ ok: false, error: 'Too many buzzes' }));
+      expect(status().textContent).toBe('Get ready…');
+      expect(buzzer().disabled).toBe(false);
+    });
   });
 
   describe('with a buzz time', () => {

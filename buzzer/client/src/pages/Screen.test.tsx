@@ -71,6 +71,7 @@ function lobbyView(players: RankedPlayer[] = [], overrides: Partial<ScreenView> 
     winnerId: null,
     alsoBuzzed: [],
     lockedOut: [],
+    falseStarts: [],
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     canJudge: false,
@@ -1379,6 +1380,51 @@ describe('Screen result states', () => {
     it('shows no locked-out row when nobody was judged wrong', () => {
       show(questionView({ phase: 'OPEN', openingCounter: 1 }));
       expect(screen.queryByRole('list', { name: 'Locked out' })).toBeNull();
+    });
+
+    describe('with false start on', () => {
+      const settings = { ...DEFAULT_SETTINGS, falseStartMs: 500 as const };
+      const chips = () =>
+        within(screen.getByRole('list', { name: 'Too early' })).getAllByRole('listitem');
+
+      it('a false start shows a small "Too early" tag on that player’s chip, in their colour', () => {
+        show(questionView({ settings, falseStarts: ['p2'] }));
+        expect(chips().map((li) => li.textContent)).toEqual(['BenToo early']);
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = ben.color;
+        expect(chips()[0]!.style.backgroundColor).toBe(probe.style.backgroundColor);
+        expect(within(chips()[0]!).getByText('Too early').className).toContain('bg-warn');
+      });
+
+      it('keeps the tag after the opening until the wait ends', () => {
+        vi.useFakeTimers();
+        const socket = show(questionView({ settings, falseStarts: ['p2', 'p1'] }));
+        socket.fire(
+          'state',
+          questionView({ phase: 'OPEN', openingCounter: 1, settings, falseStarts: ['p2', 'p1'] }),
+        );
+        expect(chips().map((li) => li.textContent)).toEqual(['BenToo early', 'AnaToo early']);
+        act(() => vi.advanceTimersByTime(499));
+        expect(chips()).toHaveLength(2);
+        act(() => vi.advanceTimersByTime(1));
+        expect(screen.queryByRole('list', { name: 'Too early' })).toBeNull();
+      });
+
+      it('shows no tag when nobody pressed early, or once someone wins the buzz', () => {
+        show(questionView({ settings }));
+        expect(screen.queryByRole('list', { name: 'Too early' })).toBeNull();
+        cleanup();
+        show(
+          questionView({
+            phase: 'BUZZED',
+            openingCounter: 1,
+            winnerId: 'p1',
+            settings,
+            falseStarts: ['p2'],
+          }),
+        );
+        expect(screen.queryByRole('list', { name: 'Too early' })).toBeNull();
+      });
     });
 
     it('a buzz or join fx does not flash the Screen', () => {

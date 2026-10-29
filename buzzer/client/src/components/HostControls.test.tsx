@@ -45,6 +45,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     winnerId: null,
     alsoBuzzed: [],
     lockedOut: [],
+    falseStarts: [],
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     question: { id: 'q2', text: 'Q2', answer: 'A2', points: 200 },
@@ -461,6 +462,43 @@ describe('HostSettings', () => {
     expect(isDisabled('Less buzz time')).toBe(false);
   });
 
+  const falseStart = () => screen.getByRole('status', { name: 'False start' });
+
+  it('shows the false start Off by default', () => {
+    setup(HostSettings, hostView());
+    expect(falseStart().textContent).toBe('Off');
+    expect(isDisabled('Less false start wait')).toBe(true);
+    expect(isDisabled('More false start wait')).toBe(false);
+  });
+
+  it.each([
+    [0, 'More false start wait', 500],
+    [500, 'More false start wait', 1000],
+    [1000, 'Less false start wait', 500],
+    [500, 'Less false start wait', 0],
+  ] as const)('from %i ms, %s sends falseStartMs %i only', (from, label, to) => {
+    const { sent } = setup(
+      HostSettings,
+      hostView({ settings: { ...DEFAULT_SETTINGS, falseStartMs: from } }),
+    );
+    fireEvent.click(button(label));
+    expect(sent).toEqual([
+      expect.objectContaining({ event: 'host:settings', payload: { falseStartMs: to } }),
+    ]);
+  });
+
+  it('reads the false start as 0.5 s and 1 s, and stops the + button at 1 s', () => {
+    const { rerender } = setup(
+      HostSettings,
+      hostView({ settings: { ...DEFAULT_SETTINGS, falseStartMs: 500 } }),
+    );
+    expect(falseStart().textContent).toBe('0.5 s');
+    rerender(hostView({ settings: { ...DEFAULT_SETTINGS, falseStartMs: 1000 } }));
+    expect(falseStart().textContent).toBe('1 s');
+    expect(isDisabled('More false start wait')).toBe(true);
+    expect(isDisabled('Less false start wait')).toBe(false);
+  });
+
   it('shows the new value only once the snapshot carries it', () => {
     const { rerender } = setup(HostSettings, hostView());
     fireEvent.click(button('More questions between scoreboards'));
@@ -468,9 +506,12 @@ describe('HostSettings', () => {
     rerender(hostView({ settings: { ...DEFAULT_SETTINGS, scoreboardEvery: 6 } }));
     expect(every().textContent).toBe('6');
   });
+
   it('compact (the Screen lobby) keeps every control and value in tighter rows; the remote keeps its size', () => {
     const send = vi.fn<SendHost>();
-    const view = hostView({ settings: { ...DEFAULT_SETTINGS, answerSeconds: 5 } });
+    const view = hostView({
+      settings: { ...DEFAULT_SETTINGS, answerSeconds: 5, falseStartMs: 500 },
+    });
     function Compact() {
       return <HostSettings view={view} command={useHostCommand(view, send, vi.fn())} compact />;
     }
@@ -478,6 +519,8 @@ describe('HostSettings', () => {
     expect(toggle(/^Wrong-answer penalty/)).toBeTruthy();
     expect(toggle(/^Auto-open buzzers/)).toBeTruthy();
     expect(screen.getByRole('status', { name: 'Answer time' }).textContent).toBe('5 s');
+    expect(screen.getByRole('status', { name: 'False start' }).textContent).toBe('0.5 s');
+    expect(button('More false start wait').className).toContain('size-9');
     expect(every().textContent).toBe('5');
     expect(button('More answer time').className).toContain('size-9');
     expect(toggle(/^Auto-open buzzers/).className).toContain('py-2');

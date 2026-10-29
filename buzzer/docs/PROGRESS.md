@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F72 — False start: devices (2026-10-29)
+**What changed:**
+- Shared and views: `SharedRoomView.falseStarts` (Screen and host) and `PlayerView.falseStartMs`.
+- Client: new `lib/useFalseStartWait.ts`, true from the first OPEN/COLLECTING snapshot of an opening until `falseStartMs` later, keyed by question index and opening counter. `buzzerState` gains the `early` kind ("Too early!", `TOO_EARLY_LABEL`) and a 4th argument `held`: in QUESTION with the setting on, the grey button is live and a local press or `falseStart` gives `early`; in OPEN/COLLECTING a held false starter is `early` and sends nothing. `Play.tsx`: amber pressed-in look (`bg-warn`) and `text-warn` status line.
+- Screen: `ScreenQuestion` shows a `Too early` list, chips in the player's colour with a small amber tag, in QUESTION and during the wait. `HostSettings`: **False start** stepper Off / 0.5 s / 1 s after Buzz time (stepper takes a `format`), in the remote's Settings tab and the Screen lobby.
+- Tests: new `useFalseStartWait.test.ts` (6), `buzzerState.test.ts` +7, `Play.test.tsx` +5 (press in QUESTION, off, wait then buzz at once with fake timers, waiter live at once, refused press), `Screen.test.tsx` +3, `HostControls.test.tsx` +6 (Off default, 4 steps, labels and ends) and the compact test extended, `views.test.ts` +2. 1759 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-29 for F72 (view fields and device-counted wait, SPEC-QUESTION; grey but pressable QUESTION button; Screen chips with tag; stepper placement and no own vibration).
+
+**Notes for next session:**
+- The device wait restarts on a reload or reconnect mid-wait, so a phone can hold up to one wait longer than the server. Never shorter.
+- No haptic for `fx falseStart` beyond the press's 30 ms tap; Backlog item added.
+- Playtest (Playwright): room STVC, Screen 1920×1080, Alice at 390×844, a bot; stepper Off → 0.5 s → 1 s in the Screen lobby, early press amber "Too early!", Screen tag, a press 150 ms after opening ignored, then "Buzzers open!" and Alice won the next press; remote Settings tab stepper. Second run (room FMKB): seven compact rows and Start game fit at 1280×720 and 1920×1080 with no overflow. Screenshots: `.playtest/F72/2-early-player.png`, `2-early-screen.png`, `3-lobby-1280-screen.png`.
+- Main `index` chunk 483.13 → 484.81 kB (145.91 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game, use this device as the Screen, set **False start** to 0.5 s or 1 s in the lobby. On a phone at `http://<laptop-LAN-IP>:5173/play/<CODE>`, press the grey button while the question shows: "Too early!" in amber, and a "Too early" tag on the Screen. Open the buzzers: the phone stays amber for the wait, then reads "Buzzers open!".
+
 ## F71 — False start: server (2026-10-29)
 **What changed:**
 - Shared: `RoomSettings.falseStartMs: 0 | 500 | 1000` (`FalseStartMs`, `FALSE_START_MS_CHOICES`, default 0, `z.literal` in `roomSettingsSchema` and so in `host:settings`). `Room.openedAt` (monotonic start of the opening) and `Room.falseStarts` (playerIds, press order). `Fx {kind: 'falseStart', playerId}`. `PlayerView.falseStart`.

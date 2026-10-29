@@ -85,6 +85,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     canBuzz: canBuzz(room, playerId),
     lockedOut: room.lockedOut.includes(playerId),
     falseStart: room.falseStarts.includes(playerId),
+    falseStartMs: room.settings.falseStartMs,
     winnerId: room.winnerId,
     winnerName: room.winnerId ? (room.players[room.winnerId]?.name ?? null) : null,
     pointsThisQuestion: room.judgements
@@ -122,6 +123,7 @@ function shared(room: Room) {
     winnerId: room.winnerId,
     alsoBuzzed: alsoBuzzed(room),
     lockedOut: room.lockedOut,
+    falseStarts: room.falseStarts,
     showScoreboard: room.showScoreboard,
     settings: room.settings,
     // Not secret, so a Screen holding the hostToken can show the same controls (F23).

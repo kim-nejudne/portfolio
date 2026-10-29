@@ -38,6 +38,7 @@ import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useAnswerCountdown, useBuzzCountdown } from '../lib/useAnswerCountdown.js';
+import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
@@ -374,6 +375,9 @@ const DEAD_BUTTON =
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: DEAD_BUTTON,
   // Live but muted: no pulse, a darker red, the same press-in.
+  // Amber and pressed in: the press before the opening was noted, and the wait is on (F72).
+  early:
+    'translate-y-1 border-warn bg-warn text-bg shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_rgb(0_0_0/0.25)]',
   practice:
     'border-accent/60 bg-buzz-muted text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)] shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-muted-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-muted-pressed)]',
   live: `${RED_BUTTON} shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)] motion-safe:animate-buzz-pulse`,
@@ -389,6 +393,7 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
 const STATUS_LOOK: Record<BuzzerKind, string> = {
   idle: 'text-accent',
   practice: 'text-accent',
+  early: 'text-warn',
   live: 'text-accent',
   pressed: 'text-accent',
   won: 'text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]',
@@ -419,7 +424,8 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
   const [pressedAt, setPressedAt] = useState<string | null>(null);
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
-  const state = buzzerState(view, pressedAt === opening, countdown);
+  const held = useFalseStartWait(view, view.falseStartMs, view.falseStart);
+  const state = buzzerState(view, pressedAt === opening, countdown, held);
   // Counts test buzzes, so each one restarts the ring animation.
   const [practices, setPractices] = useState(0);
   const { toast, show } = useToast();

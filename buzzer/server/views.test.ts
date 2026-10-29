@@ -454,6 +454,21 @@ describe('toView: player', () => {
     expect(toView(room, 'player', 'p2').falseStart).toBe(false);
   });
 
+  it('gives the phone the room’s false start wait, so it can show "Too early!" (F72)', () => {
+    expect(toView(midGame('QUESTION'), 'player', 'p1').falseStartMs).toBe(0);
+    const on = midGame('QUESTION', {
+      settings: { ...midGame('QUESTION').settings, falseStartMs: 1000 },
+    });
+    expect(toView(on, 'player', 'p1').falseStartMs).toBe(1000);
+  });
+
+  it('lists every false starter in press order for the Screen and the host (F72)', () => {
+    const room = midGame('OPEN', { falseStarts: ['p2', 'p1'] });
+    expect(toView(room, 'screen').falseStarts).toEqual(['p2', 'p1']);
+    expect(toView(room, 'host').falseStarts).toEqual(['p2', 'p1']);
+    expect(toView(midGame('OPEN'), 'screen').falseStarts).toEqual([]);
+  });
+
   it('turns falseStart on with a press in QUESTION and off at the next question', () => {
     const shown = midGame('QUESTION', {
       settings: { ...midGame('QUESTION').settings, falseStartMs: 500 },

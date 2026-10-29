@@ -16,6 +16,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     hasBuzzed: false,
     lockedOut: false,
     falseStart: false,
+    falseStartMs: 0,
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,
@@ -244,5 +245,63 @@ describe('buzzerState results', () => {
       detail: '300 points',
       live: false,
     });
+  });
+});
+
+describe('buzzerState false start', () => {
+  const question = (overrides: Partial<PlayerView> = {}) =>
+    view({ phase: 'QUESTION', questionIndex: 0, falseStartMs: 500, ...overrides });
+
+  it('takes a press in QUESTION with the setting on, still grey and saying get ready', () => {
+    expect(buzzerState(question(), false)).toEqual({
+      kind: 'idle',
+      label: 'Get ready…',
+      live: true,
+    });
+  });
+
+  it('takes no press in QUESTION with the setting off', () => {
+    expect(buzzerState(question({ falseStartMs: 0 }), false).live).toBe(false);
+  });
+
+  it('shows "Too early!" as soon as the player presses early, before the server replies', () => {
+    expect(buzzerState(question(), true)).toEqual({
+      kind: 'early',
+      label: 'Too early!',
+      live: false,
+    });
+  });
+
+  it('shows "Too early!" for a false start the server recorded', () => {
+    expect(buzzerState(question({ falseStart: true }), false).kind).toBe('early');
+  });
+
+  it('stays "Too early!" and sends nothing after the opening until the wait ends', () => {
+    for (const phase of ['OPEN', 'COLLECTING'] as const) {
+      const open = view({ phase, questionIndex: 0, falseStartMs: 500, falseStart: true });
+      expect(buzzerState(open, false, null, true)).toEqual({
+        kind: 'early',
+        label: 'Too early!',
+        live: false,
+      });
+      expect(buzzerState(open, false, null, false)).toMatchObject({ kind: 'live', live: true });
+    }
+  });
+
+  it('never holds a player who did not press early', () => {
+    const open = view({ phase: 'OPEN', questionIndex: 0, falseStartMs: 500 });
+    expect(buzzerState(open, false, null, true).kind).toBe('live');
+  });
+
+  it('shows the winner to a false starter still waiting', () => {
+    const lost = view({
+      phase: 'BUZZED',
+      questionIndex: 0,
+      falseStartMs: 500,
+      falseStart: true,
+      winnerId: 'p2',
+      winnerName: 'Ben',
+    });
+    expect(buzzerState(lost, false, null, true).kind).toBe('lost');
   });
 });

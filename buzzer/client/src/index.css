@@ -33,7 +33,7 @@
   --color-win: #2bd99f;
   --color-win-ink: #052b1f;
 
-  /* The connection dot's amber (Player and Host) and the Screen's Reconnecting banner. Green is win, red is buzz. */
+  /* The connection dot's amber (Player and Host), the Screen's Reconnecting banner and a false start's "Too early". Green is win, red is buzz. */
   --color-warn: #f59e0b;
 
   --font-display: 'Bungee', 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;

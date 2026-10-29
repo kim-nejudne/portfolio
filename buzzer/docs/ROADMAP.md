@@ -192,13 +192,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F71 False start: server
 
-- [ ] F72 False start: devices
-  - Spec: UI spec by view (Player view, Screen view, Host remote); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F71
-  - Done when:
-    - With the setting on, the phone's button takes presses in QUESTION; a false start shows "Too early!" in amber until the penalty ends after opening
-    - The Screen shows a small "Too early" tag on that player's chip; the Settings tab and lobby settings have a "False start" stepper: Off, 0.5 s, 1 s
-  - Tests: `buzzerState.test.ts`, `Play.test.tsx`, `HostControls.test.tsx`. `/playtest`: press early, then try to buzz at once after opening
+- [x] F72 False start: devices
 
 - [ ] F73 Settings presets
   - Spec: UI spec by view (Host remote, Settings tab); see DECISIONS, Proposed spec changes (audit)
@@ -380,3 +374,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 ## Backlog (not scheduled)
 
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).
+- False start: a vibration of its own on the phone's `fx falseStart` (the press gives only the 30 ms tap today), if the spec's vibrate list grows to include it (F72).

@@ -88,6 +88,7 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     winnerId: null,
     alsoBuzzed: [],
     lockedOut: [],
+    falseStarts: [],
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     canJudge: false,

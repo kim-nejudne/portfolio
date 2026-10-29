@@ -1,6 +1,7 @@
 import {
   ANSWER_SECONDS_CHOICES,
   BUZZ_SECONDS_CHOICES,
+  FALSE_START_MS_CHOICES,
   SCOREBOARD_EVERY_MAX,
 } from '../../../shared/constants.js';
 import type { HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
@@ -29,7 +30,7 @@ const SIZES = {
   compact: {
     row: 'gap-2 px-3 py-2',
     label: 'text-base',
-    // One line per row, so all six rows and Start game fit at 1280×720 with no scroll (F65).
+    // One line per row, so all seven rows and Start game fit at 1280×720 with no scroll (F65).
     detail: 'sr-only',
     stepper: 'size-9 text-xl',
     value: 'w-12',
@@ -96,6 +97,18 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         onChange={(buzzSeconds) => change({ buzzSeconds })}
         size={size}
       />
+      <SecondsStepper
+        id="false-start-label"
+        label="False start"
+        detail="A press before the buzzers open waits this long after they do."
+        noun="false start wait"
+        choices={FALSE_START_MS_CHOICES}
+        value={settings.falseStartMs}
+        disabled={busy}
+        onChange={(falseStartMs) => change({ falseStartMs })}
+        size={size}
+        format={(ms) => `${ms / 1000} s`}
+      />
       <div className={`${row} ${size.row}`}>
         <p className="flex-1">
           <span id="scoreboard-every-label" className={`block font-bold ${size.label}`}>
@@ -154,9 +167,11 @@ interface SecondsStepperProps<T extends number> {
   disabled: boolean;
   onChange: (value: T) => void;
   size: Sizes;
+  /** Shows a value other than 0; whole seconds unless given. */
+  format?: (value: T) => string;
 }
 
-/** A row that steps through a fixed list of seconds: the answer time and the buzz time. */
+/** A row that steps through a fixed list of times: the answer time, buzz time and false start. */
 function SecondsStepper<T extends number>({
   id,
   label,
@@ -167,6 +182,7 @@ function SecondsStepper<T extends number>({
   disabled,
   onChange,
   size,
+  format = (seconds) => `${seconds} s`,
 }: SecondsStepperProps<T>) {
   const step = choices.indexOf(value);
   const shorter = choices[step - 1];
@@ -189,7 +205,7 @@ function SecondsStepper<T extends number>({
         −
       </button>
       <output aria-labelledby={id} className={`${size.value} text-center font-display`}>
-        {value === 0 ? 'Off' : `${value} s`}
+        {value === 0 ? 'Off' : format(value)}
       </output>
       <button
         type="button"

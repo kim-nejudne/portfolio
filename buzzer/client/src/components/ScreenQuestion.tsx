@@ -9,6 +9,7 @@ import {
   useBuzzCountdown,
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
+import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { useRecentFx } from '../lib/useRecentFx.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 import { Icon } from './Icon.js';
@@ -36,6 +37,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const { question } = view;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
+  const held = useFalseStartWait(view, view.settings.falseStartMs, view.falseStarts.length > 0);
   const rowRef = useRef<HTMLDivElement>(null);
   // The length step is the most the text gets; the answer and the banner squeeze the card, so it
   // shrinks further when its lines would not fit what is left (F52).
@@ -95,6 +97,9 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
               <BuzzerStatus open={buzzersOpen(view.phase)} />
             )}
             <LockedOut ids={view.lockedOut} players={view.players} />
+            {(view.phase === 'QUESTION' || held) && (
+              <FalseStarts ids={view.falseStarts} players={view.players} />
+            )}
           </>
         )}
       </div>
@@ -165,6 +170,36 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Players who pressed before the buzzers opened, as chips in their colour with a small amber
+ * "Too early" tag (F72): from the press until their wait after the opening ends.
+ */
+function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
+  const early = ids.flatMap((id) => players.find((p) => p.id === id) ?? []);
+  if (early.length === 0) return null;
+  return (
+    <ul
+      aria-label="Too early"
+      className="flex max-w-full shrink-0 flex-wrap justify-center gap-[1vw] overflow-hidden"
+    >
+      {early.map((player) => (
+        <li
+          key={player.id}
+          style={{ backgroundColor: player.color }}
+          className="flex items-center gap-[0.8vw] rounded-full py-[0.6vh] pr-[0.6vw] pl-[1.4vw] font-display text-[min(2vw,3.6vh)] text-bg motion-safe:animate-pop-in"
+        >
+          {player.name}
+          <span
+            className={`rounded-full bg-warn px-[0.8vw] py-[0.3vh] text-bg ${SCREEN_LABEL} tracking-[0.12em]`}
+          >
+            Too early
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
