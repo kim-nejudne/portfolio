@@ -54,6 +54,7 @@ export type LocalShortcut = 'fullscreen' | 'bar' | 'sound' | 'help';
 export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
   { keys: ['Space'], action: 'Primary action (Start / Open buzzers / Reveal / Next)' },
   { keys: ['C'], action: 'Correct' },
+  { keys: ['V'], action: 'Half points' },
   { keys: ['X'], action: 'Wrong' },
   { keys: ['R'], action: 'Reveal answer / skip' },
   { keys: ['N', '→'], action: 'Next question' },
@@ -77,12 +78,14 @@ export function shortcutFor(
 ): HostCommandCall | LocalShortcut | null {
   switch (key.length === 1 ? key.toLowerCase() : key) {
     case ' ': {
-      // SPEC-QUESTION: in BUZZED Space does nothing; C and X judge. See DECISIONS (F23).
+      // SPEC-QUESTION: in BUZZED Space does nothing; C, V and X judge. See DECISIONS (F23).
       const primary = primaryFor(view);
       return primary && { event: primary.event, payload: {} };
     }
     case 'c':
       return view.canJudge ? { event: 'host:judge', payload: { result: 'correct' } } : null;
+    case 'v':
+      return view.canJudge ? { event: 'host:judge', payload: { result: 'half' } } : null;
     case 'x':
       return view.canJudge ? { event: 'host:judge', payload: { result: 'wrong' } } : null;
     case 'r':

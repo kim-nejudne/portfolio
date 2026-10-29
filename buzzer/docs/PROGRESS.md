@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F67 — Half points and custom score adjust (2026-10-29)
+**What changed:**
+- Server: `Judgement.result` and the `host:judge` schema gain `'half'`. `hostJudge` sends it through correct's path with `Math.round(points / 2)`: REVEAL, `fx correct` with the half points, no lockout, penalty ignored. Undo is unchanged (it reverses `pointsDelta`). `scorerId` counts half.
+- Remote: the judging panel is a 3-column grid, Correct / **Half** (gold, new `half` split-circle icon) / Wrong, icon stacked above each label. Screen: a Half bar button and the `V` key (`hostControls.ts`, listed on `?` as "Half points").
+- Players tab: a **Custom** button per row (`aria-expanded`) opens a digits-only amount field (1–`SCORE_DELTA_MAX`) with − and + buttons naming the amount; sending closes it. Shown in every phase, the lobby included; the ±question-value buttons are unchanged.
+- Tests: `reducer.judge.test.ts` +10 (half points, rounding 75→38, 1→1, 0→0, 10000→5000, REVEAL, fx, record, penalty, guards; half in the wrong-phase loop), `reducer.undo.test.ts` +2, `schemas.test.ts` +1, `views.test.ts` +1, `hostControls.test.ts` (`v`, gated, help table), `Host.test.tsx` (Half in order and sending), `Screen.test.tsx` +2 (`V`, bar Half), `HostControls.test.tsx` +11 (Custom). 1632 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F67 (half through correct's path and scorer; gold Half, stacked judge buttons; Custom field with sign buttons).
+
+**Notes for next session:**
+- The lobby test for the question-value buttons now matches `/^(Add|Subtract) \d/`, since Custom's buttons start with "Add"/"Subtract" too and show in the lobby.
+- Playtest (Playwright, room XFTP: Screen 1920×1080, Host and Ann 390×844, 2 bots): remote order Correct, Half, Wrong; no answer in the Screen text before reveal; `?` lists `V Half points`; `V` gave Ann 50 of 100 and the Screen ✓; Undo restored judging; remote Half gave 50 again, Ann's phone showed +50; Custom 37 Subtract took Ann 50 → 13; 100001 disabled both buttons. At 375×667 (room TPPP) the three judge buttons are 93px each with no overflow and no page scroll; the first layout (icon beside the label) clipped Correct's icon by 8px, hence the stack. Custom open at 375: field, −, + on one line, Kick below, no overflow. Not checked in a browser: odd-point rounding (unit-tested), the Screen bar at 1280×720. Screenshots: `.playtest/F67/judge-375-host.png`, `custom-375-host.png`.
+- Main `index` chunk 474.22 → 476.24 kB (143.54 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room, open the Screen, Click to start, pair a phone with **Pair host phone**. Join a player at `http://<laptop-LAN-IP>:5173/play/<CODE>`, start, open the buzzers and buzz: the remote shows Correct / Half / Wrong, and the Screen takes `V`. On the remote's Players tab, tap **Custom**, type an amount, then − or +.
+
 ## F66 — Screen polish (2026-10-29)
 **What changed:**
 - Lobby: the header leaves out "Join at" and the room code (the body's QR block has them); every other state keeps them. With a host remote paired, Game setup shows Start game and a **Settings** button (`aria-expanded`) over the folded settings.

@@ -32,12 +32,13 @@ describe('shortcutFor: Space is the primary action', () => {
 });
 
 describe('shortcutFor: judging', () => {
-  it('C is correct and X is wrong while the view allows judging', () => {
+  it('C is correct, V is half and X is wrong while the view allows judging', () => {
     const buzzed = view('BUZZED', { canJudge: true });
     expect(shortcutFor('c', buzzed)).toEqual({
       event: 'host:judge',
       payload: { result: 'correct' },
     });
+    expect(shortcutFor('v', buzzed)).toEqual({ event: 'host:judge', payload: { result: 'half' } });
     expect(shortcutFor('x', buzzed)).toEqual({ event: 'host:judge', payload: { result: 'wrong' } });
   });
 
@@ -47,8 +48,9 @@ describe('shortcutFor: judging', () => {
     });
   });
 
-  it('C and X do nothing during the wait before a reopen', () => {
+  it('C, V and X do nothing during the wait before a reopen', () => {
     expect(shortcutFor('c', view('BUZZED', { canJudge: false }))).toBeNull();
+    expect(shortcutFor('v', view('BUZZED', { canJudge: false }))).toBeNull();
     expect(shortcutFor('x', view('BUZZED', { canJudge: false }))).toBeNull();
   });
 });
@@ -117,7 +119,7 @@ describe('shortcutFor: scoreboard, undo and local keys', () => {
 
   it('the help table lists every key from the spec', () => {
     const keys = SHORTCUTS.flatMap((s) => s.keys);
-    for (const key of ['Space', 'C', 'X', 'R', 'N', '→', '←', 'S', 'U', 'F', 'H', 'M', '?']) {
+    for (const key of ['Space', 'C', 'V', 'X', 'R', 'N', '→', '←', 'S', 'U', 'F', 'H', 'M', '?']) {
       expect(keys).toContain(key);
     }
   });

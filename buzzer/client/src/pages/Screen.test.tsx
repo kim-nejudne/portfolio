@@ -849,6 +849,12 @@ describe('Screen', () => {
         ['host:judge', { result: 'correct' }],
       ],
       [
+        'V',
+        'v',
+        inPhase('BUZZED', { winnerId: 'p1', canJudge: true }),
+        ['host:judge', { result: 'half' }],
+      ],
+      [
         'X',
         'x',
         inPhase('BUZZED', { winnerId: 'p1', canJudge: true }),
@@ -901,6 +907,20 @@ describe('Screen', () => {
       expect(controls.queryByRole('button', { name: 'Reveal answer' })).toBeNull();
       fireEvent.click(controls.getByRole('button', { name: 'Wrong' }));
       expect(sent(socket)).toEqual([['host:judge', { result: 'wrong' }]]);
+    });
+
+    it('the bar shows Half, with its V key, between Correct and Wrong', () => {
+      const socket = hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+      const half = within(bar()!).getByRole('button', { name: 'Half' });
+      expect(half.getAttribute('aria-keyshortcuts')).toBe('V');
+      const labels = [...half.parentElement!.querySelectorAll('button')].map((b) => b.textContent);
+      expect(labels.slice(labels.indexOf('CorrectC'), labels.indexOf('WrongX') + 1)).toEqual([
+        'CorrectC',
+        'HalfV',
+        'WrongX',
+      ]);
+      fireEvent.click(half);
+      expect(sent(socket)).toEqual([['host:judge', { result: 'half' }]]);
     });
 
     it('End game needs a second click', () => {

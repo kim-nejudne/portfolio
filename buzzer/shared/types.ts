@@ -58,7 +58,7 @@ export interface Buzz {
 export interface Judgement {
   questionIndex: number;
   playerId: string;
-  result: 'correct' | 'wrong';
+  result: 'correct' | 'half' | 'wrong';
   pointsDelta: number;
 }
 

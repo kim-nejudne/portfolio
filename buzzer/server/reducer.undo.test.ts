@@ -75,6 +75,28 @@ describe('reduce: host:undo restores the state right after the judged buzz', () 
     expect(effects).toEqual([]);
   });
 
+  it('reverses a half-points answer from REVEAL', () => {
+    const before = buzzed();
+    const revealed = step(before, judge('half'));
+    expect(revealed.players.p1?.score).toBe(225);
+
+    const { room, effects } = ok(reduce(revealed, UNDO, NOW + 100));
+    expect(room).toEqual(restorable(before));
+    expect(effects).toEqual([]);
+  });
+
+  it('lets the host judge half again after undoing a correct answer', () => {
+    const undone = step(step(buzzed(), judge('correct')), UNDO);
+    const room = step(undone, judge('half'));
+    expect(room.players.p1?.score).toBe(225);
+    expect(room.judgements.at(-1)).toEqual({
+      questionIndex: 1,
+      playerId: 'p1',
+      result: 'half',
+      pointsDelta: 125,
+    });
+  });
+
   it('reverses a wrong answer with the penalty during the wait before the reopen', () => {
     const before = withPenalty(buzzed());
     const waiting = step(before, judge('wrong'));

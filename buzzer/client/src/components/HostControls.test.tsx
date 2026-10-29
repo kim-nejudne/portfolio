@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS,
   PLAYER_PALETTE,
   SCOREBOARD_EVERY_MAX,
+  SCORE_DELTA_MAX,
 } from '../../../shared/constants.js';
 import type { Ack, HostView, Phase } from '../../../shared/types.js';
 import { resetRoomStore, useRoomStore } from '../lib/roomStore.js';
@@ -231,10 +232,83 @@ describe('HostPlayers', () => {
     expect(sent).toMatchObject([{ event: 'host:adjustScore', payload: { playerId: 'p2', delta } }]);
   });
 
-  it('hides the adjust buttons when there is no current question', () => {
+  it('hides the question-value buttons when there is no current question', () => {
     setup(HostPlayers, hostView({ phase: 'LOBBY', questionIndex: -1, question: null }));
-    expect(screen.queryByRole('button', { name: /^Add/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^(Add|Subtract) \d/ })).toBeNull();
     expect(button('Kick Player 1')).toBeTruthy();
+  });
+
+  describe('Custom', () => {
+    const custom = (name: string) => button(`Custom amount for ${name}`);
+    const field = (name: string) =>
+      screen.getByRole('textbox', { name: `Amount for ${name}` }) as HTMLInputElement;
+    const type = (name: string, value: string) =>
+      fireEvent.change(field(name), { target: { value } });
+
+    it('opens an amount field for that player only', () => {
+      setup(HostPlayers, hostView());
+      expect(custom('Player 2').getAttribute('aria-expanded')).toBe('false');
+      fireEvent.click(custom('Player 2'));
+      expect(custom('Player 2').getAttribute('aria-expanded')).toBe('true');
+      expect(field('Player 2')).toBeTruthy();
+      expect(screen.queryByRole('textbox', { name: 'Amount for Player 1' })).toBeNull();
+    });
+
+    it.each([
+      ['Add', 750],
+      ['Subtract', -750],
+    ])('%s sends host:adjustScore by the typed amount and closes the field', (verb, delta) => {
+      const { sent } = setup(HostPlayers, hostView());
+      fireEvent.click(custom('Player 2'));
+      type('Player 2', '750');
+      const name = verb === 'Add' ? 'Add 750 to Player 2' : 'Subtract 750 from Player 2';
+      const action = within(row('Player 2'))
+        .getAllByRole('button', { name })
+        .find((b) => b.textContent !== '+200' && b.textContent !== '−200')!;
+      expect(action.textContent).toBe(delta > 0 ? '+750' : '−750');
+      fireEvent.click(action);
+      expect(sent).toMatchObject([
+        { event: 'host:adjustScore', payload: { playerId: 'p2', delta } },
+      ]);
+      expect(screen.queryByRole('textbox', { name: 'Amount for Player 2' })).toBeNull();
+    });
+
+    it('accepts the largest allowed amount', () => {
+      const { sent } = setup(HostPlayers, hostView());
+      fireEvent.click(custom('Player 1'));
+      type('Player 1', String(SCORE_DELTA_MAX));
+      fireEvent.click(button(`Subtract ${SCORE_DELTA_MAX} from Player 1`));
+      expect(sent).toMatchObject([
+        { event: 'host:adjustScore', payload: { playerId: 'p1', delta: -SCORE_DELTA_MAX } },
+      ]);
+    });
+
+    it.each(['', '0', '-5', '2.5', 'abc', String(SCORE_DELTA_MAX + 1)])(
+      'keeps Add and Subtract disabled for %j',
+      (value) => {
+        const { sent } = setup(HostPlayers, hostView());
+        fireEvent.click(custom('Player 1'));
+        type('Player 1', value);
+        const actions = within(row('Player 1'))
+          .getAllByRole('button', { name: /custom amount (to|from) Player 1$/ })
+          .map((b) => (b as HTMLButtonElement).disabled);
+        expect(actions).toEqual([true, true]);
+        expect(sent).toEqual([]);
+      },
+    );
+
+    it('works without a current question, in the lobby', () => {
+      const { sent } = setup(
+        HostPlayers,
+        hostView({ phase: 'LOBBY', questionIndex: -1, question: null }),
+      );
+      fireEvent.click(custom('Player 1'));
+      type('Player 1', ' 40 ');
+      fireEvent.click(button('Add 40 to Player 1'));
+      expect(sent).toMatchObject([
+        { event: 'host:adjustScore', payload: { playerId: 'p1', delta: 40 } },
+      ]);
+    });
   });
 
   it('Kick needs a second tap on that player, then sends host:kick', () => {

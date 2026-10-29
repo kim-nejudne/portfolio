@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { SCORE_DELTA_MAX } from '../../../shared/constants.js';
 import type { HostView } from '../../../shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
@@ -13,8 +15,9 @@ const small =
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons
- * that adjust the score by the current question's value, and Kick. Without a current question (the
- * lobby, or a game ended from it) there is no value to adjust by, so the buttons are hidden.
+ * that adjust the score by the current question's value, a Custom amount, and Kick. Without a
+ * current question (the lobby, or a game ended from it) there is no value to adjust by, so those
+ * buttons are hidden; Custom stays.
  *
  * While the remote's own socket is not connected, the last snapshot's statuses may be stale, so
  * every row says "status unknown", dimmed, until it reconnects (F41).
@@ -82,6 +85,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
                     </button>
                   </>
                 )}
+                <CustomAdjust player={player} command={command} />
                 <span className="ml-auto">
                   <ConfirmButton
                     label="Kick"
@@ -98,5 +102,89 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
         </ul>
       )}
     </section>
+  );
+}
+
+/** A whole number of points from 1 to `SCORE_DELTA_MAX`, or null. */
+function parseAmount(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const amount = Number(trimmed);
+  return amount >= 1 && amount <= SCORE_DELTA_MAX ? amount : null;
+}
+
+/**
+ * Custom: a field for any amount, then Subtract or Add. The field takes digits only, because a
+ * phone's number pad has no minus key; the two buttons give the sign (DECISIONS F67).
+ */
+function CustomAdjust({
+  player,
+  command: { busy, run },
+}: {
+  player: HostView['players'][number];
+  command: HostCommand;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const amount = parseAmount(text);
+  const adjust = (delta: number) => {
+    run('host:adjustScore', { playerId: player.id, delta });
+    setOpen(false);
+    setText('');
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Custom amount for ${player.name}`}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={`${small} ${open ? 'border-accent' : ''}`}
+      >
+        Custom
+      </button>
+      {open && (
+        <span className="flex w-full items-center gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label={`Amount for ${player.name}`}
+            placeholder="Amount"
+            maxLength={String(SCORE_DELTA_MAX).length + 2}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            className="min-h-11 w-0 min-w-0 flex-1 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-display text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+          />
+          <button
+            type="button"
+            aria-label={
+              amount === null
+                ? `Subtract custom amount from ${player.name}`
+                : `Subtract ${amount} from ${player.name}`
+            }
+            onClick={() => amount !== null && adjust(-amount)}
+            disabled={busy || amount === null}
+            className={small}
+          >
+            −{amount ?? ''}
+          </button>
+          <button
+            type="button"
+            aria-label={
+              amount === null
+                ? `Add custom amount to ${player.name}`
+                : `Add ${amount} to ${player.name}`
+            }
+            onClick={() => amount !== null && adjust(amount)}
+            disabled={busy || amount === null}
+            className={small}
+          >
+            +{amount ?? ''}
+          </button>
+        </span>
+      )}
+    </>
   );
 }

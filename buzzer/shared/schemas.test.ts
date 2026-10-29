@@ -354,6 +354,12 @@ describe('client event payloads', () => {
     expect(adjust(SCORE_DELTA_MAX + 1)).toBe(false);
   });
 
+  it('accepts correct, half and wrong judgements', () => {
+    for (const result of ['correct', 'half', 'wrong']) {
+      expect(clientPayloadSchemas['host:judge'].safeParse({ result }).success, result).toBe(true);
+    }
+  });
+
   it('rejects an unknown judgement and a non-integer score change', () => {
     expect(clientPayloadSchemas['host:judge'].safeParse({ result: 'maybe' }).success).toBe(false);
     expect(

@@ -145,6 +145,14 @@ function GameButtons({
               Correct
             </BarButton>
             <BarButton
+              keyHint="V"
+              onClick={act({ event: 'host:judge', payload: { result: 'half' } })}
+              disabled={busy}
+              tone="bg-accent text-accent-ink border-accent font-display"
+            >
+              Half
+            </BarButton>
+            <BarButton
               keyHint="X"
               onClick={act({ event: 'host:judge', payload: { result: 'wrong' } })}
               disabled={busy}

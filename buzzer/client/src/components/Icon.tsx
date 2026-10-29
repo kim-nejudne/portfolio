@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 export type IconName =
   | 'check'
+  | 'half'
   | 'x'
   | 'arrow-right'
   | 'arrow-left'
@@ -15,6 +16,13 @@ export type IconName =
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
   check: <path d="M4.5 12.5l5 5L19.5 7" />,
+  // A circle split down the middle: half points.
+  half: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4v16" />
+    </>
+  ),
   x: <path d="M6 6l12 12M18 6L6 18" />,
   'arrow-right': <path d="M4 12h15M13 6l6 6-6 6" />,
   'arrow-left': <path d="M20 12H5M11 6l-6 6 6 6" />,

@@ -643,13 +643,17 @@ describe('Host remote', () => {
 
       it.each([
         ['Correct', 'correct'],
+        ['Half', 'half'],
         ['Wrong', 'wrong'],
-      ])('shows Correct and Wrong side by side; %s sends host:judge %s', (label, result) => {
+      ])('shows Correct, Half and Wrong side by side; %s sends host:judge %s', (label, result) => {
         const socket = remote(buzzed(true));
         expect(screen.queryByRole('button', { name: PRIMARY_LABELS })).toBeNull();
-        const correct = screen.getByRole('button', { name: 'Correct' });
-        const wrong = screen.getByRole('button', { name: 'Wrong' });
-        expect(correct.parentElement).toBe(wrong.parentElement);
+        const row = screen.getByRole('button', { name: 'Correct' }).parentElement!;
+        expect(
+          within(row)
+            .getAllByRole('button')
+            .map((b) => b.textContent),
+        ).toEqual(['Correct', 'Half', 'Wrong']);
         fireEvent.click(screen.getByRole('button', { name: label }));
         expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:judge', payload: { result } });
       });

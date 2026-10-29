@@ -18,8 +18,9 @@ interface PrimaryActionProps {
 const big =
   'flex min-h-[60px] w-full items-center justify-center gap-3 rounded-2xl px-6 py-3 font-display text-xl transition not-disabled:active:scale-95 disabled:opacity-40';
 
+// Icon above the label: three side by side leave ~93px each at 375px, too narrow for both in a row.
 const JUDGE =
-  'flex h-14 items-center justify-center gap-2 rounded-[14px] font-display text-[17px] transition not-disabled:active:scale-95 disabled:opacity-40';
+  'flex h-14 flex-col items-center justify-center gap-1 rounded-[14px] font-display text-[17px] leading-none transition not-disabled:active:scale-95 disabled:opacity-40';
 
 /** The icon beside each primary label. */
 const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
@@ -69,7 +70,7 @@ export function PrimaryAction({ view, command }: PrimaryActionProps) {
             </p>
           )}
           {countdown && <JudgeCountdown countdown={countdown} />}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => run('host:judge', { result: 'correct' })}
@@ -78,6 +79,15 @@ export function PrimaryAction({ view, command }: PrimaryActionProps) {
             >
               <Icon name="check" className="size-5" />
               Correct
+            </button>
+            <button
+              type="button"
+              onClick={() => run('host:judge', { result: 'half' })}
+              disabled={busy}
+              className={`${JUDGE} bg-accent text-accent-ink`}
+            >
+              <Icon name="half" className="size-5" />
+              Half
             </button>
             <button
               type="button"

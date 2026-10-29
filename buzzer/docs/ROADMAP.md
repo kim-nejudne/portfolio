@@ -182,14 +182,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M17 — Host depth
 
-- [ ] F67 Half points and custom score adjust
-  - Spec: Game flow and state machine (Scoring rules, Transitions); UI spec by view (Host remote, Screen host controls); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F66
-  - Done when:
-    - `host:judge` accepts `result: 'half'`: the winner gets `Math.round(points / 2)`, the room goes to REVEAL as for correct and emits `fx {kind: 'correct', playerId, points}` with the half points; undo reverses it
-    - The remote's judging panel has **Half** between Correct and Wrong; the Screen has the `V` key (listed on `?`)
-    - The Players tab's +/− buttons keep the question's value, and a **Custom** field adjusts by any integer within the existing ±100000 limit
-  - Tests: `reducer.judge.test.ts` and `reducer.undo.test.ts` (half), `schemas.test.ts`, `HostControls.test.tsx`, `hostControls.test.ts` (`v`)
+- [x] F67 Half points and custom score adjust
 
 - [ ] F68 Undo every judgement of the question
   - Spec: Reconnects, security and edge cases (Edge cases: Undo); Game flow and state machine (Transitions); see DECISIONS, Proposed spec changes (audit)

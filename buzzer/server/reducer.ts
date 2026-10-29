@@ -438,11 +438,13 @@ function hostJudge(
     undo: { buzzes: room.buzzes, windowStartedAt: room.windowStartedAt, winnerId: playerId },
     answerTimer: null,
   };
-  if (result === 'correct') {
-    const judged = applyJudgement(marked, playerId, 'correct', points);
+  if (result !== 'wrong') {
+    // Half ends the question as correct does, for half the points, rounded (DECISIONS F67).
+    const delta = result === 'half' ? Math.round(points / 2) : points;
+    const judged = applyJudgement(marked, playerId, result, delta);
     // The judged buzz stays, so the reveal can show who answered (DECISIONS F19).
     return done({ ...judged, phase: 'REVEAL' }, [
-      { type: 'fx', fx: { kind: 'correct', playerId, points } },
+      { type: 'fx', fx: { kind: 'correct', playerId, points: delta } },
     ]);
   }
 
@@ -470,10 +472,10 @@ function hostJudge(
 export type ScoreChange = JudgeResult | 'adjust';
 
 /**
- * Adds `pointsDelta` to `playerId`'s score. A judgement (`correct` or `wrong`) is also recorded
- * on the current question, and a wrong one locks the player out. Every score change goes through
- * here, judging, adjusting and undoing alike, so teams can later redirect the points in one place
- * (spec, "Out of scope").
+ * Adds `pointsDelta` to `playerId`'s score. A judgement (`correct`, `half` or `wrong`) is also
+ * recorded on the current question, and a wrong one locks the player out. Every score change goes
+ * through here, judging, adjusting and undoing alike, so teams can later redirect the points in one
+ * place (spec, "Out of scope").
  */
 export function applyJudgement(
   room: Room,

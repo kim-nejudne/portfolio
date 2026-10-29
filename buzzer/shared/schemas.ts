@@ -132,7 +132,7 @@ export const clientPayloadSchemas = {
   'player:leave': emptySchema,
   'host:start': emptySchema,
   'host:open': emptySchema,
-  'host:judge': z.object({ result: z.enum(['correct', 'wrong']) }),
+  'host:judge': z.object({ result: z.enum(['correct', 'half', 'wrong']) }),
   'host:reveal': emptySchema,
   'host:next': emptySchema,
   'host:prev': emptySchema,

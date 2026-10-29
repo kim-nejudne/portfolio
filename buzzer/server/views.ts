@@ -143,12 +143,12 @@ function buzzTimerView({ buzzTimer }: Room): BuzzTimerView | null {
 }
 
 /**
- * Who answered the current question correctly: the latest correct judgement on it, if that player
- * is still in the room. A question visited again with Previous keeps its earlier scorer.
+ * Who answered the current question correctly: the latest correct or half judgement on it, if that
+ * player is still in the room. A question visited again with Previous keeps its earlier scorer.
  */
 function scorerId(room: Room): string | null {
   const correct = room.judgements.findLast(
-    (j) => j.questionIndex === room.questionIndex && j.result === 'correct',
+    (j) => j.questionIndex === room.questionIndex && j.result !== 'wrong',
   );
   return correct && room.players[correct.playerId] ? correct.playerId : null;
 }

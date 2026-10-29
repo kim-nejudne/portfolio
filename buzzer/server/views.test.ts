@@ -319,6 +319,13 @@ describe('toView: scorerId', () => {
     ]);
   });
 
+  it('names the player judged half, at the reveal, for the Screen and the host', () => {
+    expect(scorer(after(midGame('BUZZED'), { type: 'host:judge', result: 'half' }))).toEqual([
+      'p1',
+      'p1',
+    ]);
+  });
+
   it('is null before anyone is judged correct, after a wrong answer, and after a skip', () => {
     const buzzed = midGame('BUZZED');
     expect(scorer(buzzed)).toEqual([null, null]);

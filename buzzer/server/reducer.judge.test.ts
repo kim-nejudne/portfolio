@@ -69,7 +69,7 @@ const scores = (room: Room) =>
 describe('reduce: host:judge is accepted only in BUZZED', () => {
   const others: Phase[] = ['LOBBY', 'QUESTION', 'OPEN', 'COLLECTING', 'REVEAL', 'FINAL'];
   it.each(others)('is rejected in %s', (phase) => {
-    for (const result of ['correct', 'wrong'] as const) {
+    for (const result of ['correct', 'half', 'wrong'] as const) {
       expect(reduce(buzzed({ phase }), judge(result), NOW)).toEqual({
         ok: false,
         error: WRONG_PHASE_ERROR,
@@ -122,6 +122,62 @@ describe('reduce: host:judge correct', () => {
   it('ignores the wrong-answer penalty setting', () => {
     const { room } = ok(reduce(withPenalty(buzzed()), judge('correct'), NOW));
     expect(room.players.p1?.score).toBe(350);
+  });
+});
+
+describe('reduce: host:judge half', () => {
+  it("adds half the question's points to the winner only", () => {
+    const { room } = ok(reduce(buzzed(), judge('half'), NOW));
+    expect(scores(room)).toEqual({ p1: 225, p2: 200, p3: 0 });
+  });
+
+  it.each([
+    [75, 38],
+    [1, 1],
+    [0, 0],
+    [10_000, 5000],
+  ])('rounds half of %i points to %i', (points, half) => {
+    const room = buzzed();
+    room.set.questions[1] = makeQuestion(2, { points });
+    const { room: next, effects } = ok(reduce(room, judge('half'), NOW));
+    expect(next.players.p1?.score).toBe(100 + half);
+    expect(effects).toEqual([
+      { type: 'fx', fx: { kind: 'correct', playerId: 'p1', points: half } },
+    ]);
+  });
+
+  it('moves to REVEAL like correct, keeping the winner and locking nobody out', () => {
+    const { room } = ok(reduce(buzzed(), judge('half'), NOW));
+    expect(room.phase).toBe('REVEAL');
+    expect(room.winnerId).toBe('p1');
+    expect(room.lockedOut).toEqual([]);
+    expect(room.reopenAt).toBeNull();
+  });
+
+  it('emits fx correct with the half points and schedules nothing', () => {
+    const { effects } = ok(reduce(buzzed(), judge('half'), NOW));
+    expect(effects).toEqual([{ type: 'fx', fx: { kind: 'correct', playerId: 'p1', points: 125 } }]);
+  });
+
+  it('records the judgement as half', () => {
+    const { room } = ok(reduce(buzzed(), judge('half'), NOW));
+    expect(room.judgements).toEqual([
+      { questionIndex: 1, playerId: 'p1', result: 'half', pointsDelta: 125 },
+    ]);
+  });
+
+  it('ignores the wrong-answer penalty setting', () => {
+    const { room } = ok(reduce(withPenalty(buzzed()), judge('half'), NOW));
+    expect(room.players.p1?.score).toBe(225);
+  });
+
+  it('is rejected outside BUZZED and after another judgement', () => {
+    expect(reduce(buzzed({ phase: 'OPEN' }), judge('half'), NOW)).toEqual({
+      ok: false,
+      error: WRONG_PHASE_ERROR,
+    });
+    const { room } = ok(reduce(buzzed(), judge('wrong'), NOW));
+    expect(reduce(room, judge('half'), NOW + 50)).toEqual({ ok: false, error: 'Already judged' });
   });
 });
 
