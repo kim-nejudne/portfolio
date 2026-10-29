@@ -48,7 +48,7 @@ export function runCall(command: HostCommand, call: HostCommandCall): void {
 }
 
 /** Keys that act on this device only and send nothing. */
-export type LocalShortcut = 'fullscreen' | 'bar' | 'help';
+export type LocalShortcut = 'fullscreen' | 'bar' | 'sound' | 'help';
 
 /** The Screen's keyboard shortcuts (UI spec, Screen host controls), as listed on the `?` overlay. */
 export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
@@ -62,6 +62,7 @@ export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
   { keys: ['U'], action: 'Undo last judgement' },
   { keys: ['F'], action: 'Toggle fullscreen' },
   { keys: ['H'], action: 'Show/hide control bar' },
+  { keys: ['M'], action: 'Sound on / Quiet / Muted' },
   { keys: ['?'], action: 'Show/hide this help' },
 ];
 
@@ -99,6 +100,8 @@ export function shortcutFor(
       return 'fullscreen';
     case 'h':
       return 'bar';
+    case 'm':
+      return 'sound';
     case '?':
       return 'help';
     default:

@@ -12,7 +12,7 @@ import {
 import type { RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
-import { playSound, startSounds } from '../lib/sounds.js';
+import { playSound, resetSounds, startSounds } from '../lib/sounds.js';
 import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
 import { FX_MS } from '../lib/useRecentFx.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
@@ -41,6 +41,8 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   localStorage.clear();
+  // Forgets the in-memory sound level, so one test's Quiet never carries into the next.
+  resetSounds();
 });
 
 function player(n: number, overrides: Partial<RankedPlayer> = {}): RankedPlayer {
@@ -765,6 +767,63 @@ describe('Screen', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    it('the bar’s sound button and M cycle Sound on, Quiet and Muted, kept on this device', () => {
+      const socket = hostScreen(inPhase('OPEN'));
+      const sound = () => within(bar()!).getByRole('button', { name: /^(Sound on|Quiet|Muted)$/ });
+      expect(sound().textContent).toBe('Sound onM');
+      expect(sound().getAttribute('aria-keyshortcuts')).toBe('M');
+      fireEvent.click(sound());
+      expect(sound().textContent).toBe('QuietM');
+      press('m');
+      expect(sound().textContent).toBe('MutedM');
+      expect(localStorage.getItem('buzzr:soundLevel')).toBe('muted');
+      press('M', { shiftKey: true });
+      expect(sound().textContent).toBe('Sound onM');
+      expect(sent(socket)).toEqual([]);
+    });
+
+    it('the bar shows the level this device chose before', () => {
+      localStorage.setItem('buzzr:soundLevel', 'quiet');
+      hostScreen(inPhase('OPEN'));
+      expect(within(bar()!).getByRole('button', { name: 'Quiet' })).toBeTruthy();
+    });
+
+    it('the ? help lists M for the sound level', () => {
+      hostScreen(inPhase('OPEN'));
+      press('?', { shiftKey: true });
+      const help = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+      expect(within(help).getByText('M')).toBeTruthy();
+      expect(within(help).getByText('Sound on / Quiet / Muted')).toBeTruthy();
+    });
+
+    it('a host Screen’s lobby has one sound button, on the bar', () => {
+      hostScreen(inPhase('LOBBY'));
+      expect(screen.getAllByRole('button', { name: 'Sound on' })).toHaveLength(1);
+      expect(within(bar()!).getByRole('button', { name: 'Sound on' })).toBeTruthy();
+    });
+
+    it('a token-less Screen has the sound button in its lobby, and M cycles it', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', inPhase('LOBBY'));
+      expect(bar()).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Sound on' }));
+      expect(screen.getByRole('button', { name: 'Quiet' })).toBeTruthy();
+      press('m');
+      expect(screen.getByRole('button', { name: 'Muted' })).toBeTruthy();
+      expect(localStorage.getItem('buzzr:soundLevel')).toBe('muted');
+      expect(sent(socket)).toEqual([]);
+    });
+
+    it('a token-less Screen keeps M during the game, with no button over the question', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', inPhase('OPEN'));
+      expect(screen.queryByRole('button', { name: 'Sound on' })).toBeNull();
+      press('m');
+      expect(localStorage.getItem('buzzr:soundLevel')).toBe('quiet');
+      press('m', { ctrlKey: true });
+      expect(localStorage.getItem('buzzr:soundLevel')).toBe('quiet');
+    });
+
     it.each([
       ['Space in the lobby', ' ', inPhase('LOBBY'), ['host:start', {}]],
       ['Space on a question', ' ', inPhase('QUESTION'), ['host:open', {}]],
@@ -1379,6 +1438,13 @@ describe('Click to start and sounds', () => {
     socket.fire('state', view('LOBBY'));
     for (const key of [' ', 'Enter', 's']) fireEvent.keyDown(startButton(), { key });
     expect(socket.emitted.filter((e) => e.event.startsWith('host:'))).toEqual([]);
+  });
+
+  it('M pressed on the overlay leaves a token-less Screen’s sound level alone', () => {
+    const { socket } = renderScreen(undefined, { start: false });
+    socket.fire('state', view('LOBBY'));
+    fireEvent.keyDown(startButton(), { key: 'm' });
+    expect(localStorage.getItem('buzzr:soundLevel')).toBeNull();
   });
 
   it('is not shown over an error', () => {

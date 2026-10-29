@@ -170,13 +170,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M16 — Screen and pace
 
-- [ ] F62 Screen sound: mute and volume
-  - Spec: UI spec by view (Screen view, Screen host controls); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F52
-  - Done when:
-    - The Screen has a sound button (on the host bar and in the lobby corner for a token-less Screen) cycling Sound on, Quiet (40 %), Muted; the `M` key does the same and is listed on the `?` overlay
-    - The level is kept in localStorage per device and applied through Howler's global volume before the first sound
-  - Tests: `sounds.test.ts` (levels, persisted), `hostControls.test.ts` (`m` shortcut), `Screen.test.tsx` (button, label)
+- [x] F62 Screen sound: mute and volume
 
 - [ ] F63 Buzz time limit: server
   - Spec: Game flow and state machine (Transitions); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)

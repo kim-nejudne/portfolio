@@ -12,6 +12,21 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F62 — Screen sound: mute and volume (2026-10-29)
+**What changed:**
+- `sounds.ts`: `SoundLevel` (`on`, `quiet`, `muted`), `SOUND_LEVEL_VOLUME` (1, 0.4, 0), `SOUND_LEVEL_LABEL`, `getSoundLevel` (localStorage `buzzr:soundLevel`, guarded, in-memory fallback), `cycleSoundLevel`, `subscribeSoundLevel`. `startSounds` sets `Howler.volume` from the stored level before creating any Howl; a later change sets it at once. New `useSoundLevel` hook (`useSyncExternalStore`).
+- Host Screen: a sound button on the host bar beside Fullscreen, labelled with the current level and an `M` hint; `M` is a local shortcut (`shortcutFor` → `'sound'`) and listed on the `?` overlay. Token-less Screen: the same button under the lobby's join QR, and its own `M` listener in every phase. Click to start still swallows keys.
+- Tests: `sounds.test.ts` +7 (now jsdom: cycle order and labels, persisted, invalid stored value, storage blocked, volume before the first Howl, live changes, subscribers), `hostControls.test.ts` (`m`/`M` in three phases, help lists M), `Screen.test.tsx` +7 (bar button and M with storage, stored level shown, help row, one button in a host lobby, token-less lobby button and M, token-less M mid-game and Ctrl-M ignored, M on the overlay). 1469 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F62 (levels, storage and Howler volume; button placement and the token-less `M`).
+
+**Notes for next session:**
+- Playtest (Playwright, 1920×1080, room BTFY): host bar showed "Sound on M"; click and `M` cycled Sound on, Quiet, Muted, Sound on with storage following; after a reload on `quiet` and Click to start, `Howler.volume()` read 0.4; `?` listed M; a token-less Screen showed the button under the QR and cycled by click and `M`. No console errors. Not checked by ear; no screenshot of the host bar with the new button (it is `flex-wrap`). Screenshot: `.playtest/F62/lobby-tokenless-screen.png`.
+- The token-less button is the lobby's only; mid-game a token-less Screen has `M` alone.
+- Main `index` chunk 467.53 → 468.88 kB (141.87 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room → open the Screen, Click to start. The bar's **Sound on** button (or `M`) cycles Quiet and Muted; play a test buzz from a phone at each level. Reload: the level stays. Open the same `/screen/<CODE>` in a private window (no token): the button sits under the QR, and `M` works there too.
+
 ## F61 — Leave, rename and outcome haptics on the phone (2026-10-29)
 **What changed:**
 - Server: `player:rename {name}` (LOBBY only, join's zod rules, case-insensitive duplicate check ignoring the player's own name, `NAME_TAKEN_ERROR` now in `shared/constants.ts`, 3 per 10 s per socket) and `player:leave {}` (any phase). Leave shares the kick's removal: `hostKick` now adds the id to `kickedIds` and calls the new `withoutPlayer`, which holds the F20 winner and window rules; leave calls it without the bar. The gateway then takes the leaver's sockets out of their Socket.IO rooms and resets `socket.data`, so the same connection can join again as a new player.

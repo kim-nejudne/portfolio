@@ -100,9 +100,12 @@ describe('shortcutFor: scoreboard, undo and local keys', () => {
     expect(shortcutFor('u', view('REVEAL'))).toBeNull();
   });
 
-  it('F, H and ? act on this device only', () => {
+  it('F, H, M and ? act on this device only', () => {
     expect(shortcutFor('f', view('OPEN'))).toBe('fullscreen');
     expect(shortcutFor('h', view('OPEN'))).toBe('bar');
+    expect(shortcutFor('m', view('OPEN'))).toBe('sound');
+    expect(shortcutFor('M', view('LOBBY'))).toBe('sound');
+    expect(shortcutFor('m', view('FINAL'))).toBe('sound');
     expect(shortcutFor('?', view('OPEN'))).toBe('help');
   });
 
@@ -114,7 +117,7 @@ describe('shortcutFor: scoreboard, undo and local keys', () => {
 
   it('the help table lists every key from the spec', () => {
     const keys = SHORTCUTS.flatMap((s) => s.keys);
-    for (const key of ['Space', 'C', 'X', 'R', 'N', '→', '←', 'S', 'U', 'F', 'H', '?']) {
+    for (const key of ['Space', 'C', 'X', 'R', 'N', '→', '←', 'S', 'U', 'F', 'H', 'M', '?']) {
       expect(keys).toContain(key);
     }
   });

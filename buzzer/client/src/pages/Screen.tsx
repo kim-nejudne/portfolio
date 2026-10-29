@@ -26,7 +26,7 @@ import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/join
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { preloadSounds, startSounds } from '../lib/sounds.js';
+import { cycleSoundLevel, preloadSounds, SOUND_LEVEL_LABEL, startSounds } from '../lib/sounds.js';
 import {
   useHostCommand,
   useSendHost,
@@ -38,6 +38,7 @@ import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { usePracticePops } from '../lib/usePracticePops.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
+import { useSoundLevel } from '../lib/useSoundLevel.js';
 import { BUTTON_PRIMARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 
@@ -146,6 +147,8 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   const [pickingNewGame, setPickingNewGame] = useState(false);
   const closeNewGame = useCallback(() => setPickingNewGame(false), []);
   const hostToken = canHost ? loadHostToken(code) : null;
+  // The host bar handles `M` with the other shortcuts; a token-less Screen has only this key.
+  useSoundKey(!canHost);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
@@ -272,6 +275,8 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
                 style={{ width: qrSize, height: qrSize }}
               />
             </div>
+            {/* A token-less Screen has no host bar, so its sound button lives here (F62). */}
+            {!command && <SoundButton />}
             {hostToken && (
               <PairHostPhone
                 code={view.code}
@@ -355,6 +360,38 @@ function PlayerChips({ players }: { players: RankedPlayer[] }) {
       </ul>
     </section>
   );
+}
+
+/** Cycles Sound on, Quiet and Muted, labelled with the current level (UI spec, Screen view). */
+function SoundButton() {
+  const level = useSoundLevel();
+  return (
+    <button
+      type="button"
+      onClick={cycleSoundLevel}
+      aria-keyshortcuts="M"
+      className={`rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display text-[1.78cqw] transition not-disabled:active:scale-95 ${HOVER}`}
+    >
+      {SOUND_LEVEL_LABEL[level]}
+      <kbd aria-hidden className="ml-[0.5em] font-mono text-[0.8em] opacity-70">
+        M
+      </kbd>
+    </button>
+  );
+}
+
+/** `M` cycles the sound level while `enabled`, for a Screen without the host bar's shortcuts. */
+function useSoundKey(enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) return;
+    const listener = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'm') return;
+      e.preventDefault();
+      cycleSoundLevel();
+    };
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, [enabled]);
 }
 
 function ScreenMessage({ title, link = true }: { title: string; link?: boolean }) {

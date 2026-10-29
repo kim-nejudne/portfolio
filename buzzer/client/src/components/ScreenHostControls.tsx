@@ -11,7 +11,9 @@ import {
 } from '../lib/hostControls.js';
 import { toggleFullscreen } from '../lib/fullscreen.js';
 import { HOVER } from '../lib/hover.js';
+import { cycleSoundLevel, SOUND_LEVEL_LABEL } from '../lib/sounds.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
+import { useSoundLevel } from '../lib/useSoundLevel.js';
 import { ConfirmButton } from './ConfirmButton.js';
 
 /** The bar hides after this long without mouse movement (UI spec, Screen host controls). */
@@ -36,6 +38,7 @@ export function ScreenHostControls({ view, command, onNewGame }: ScreenHostContr
   const [help, setHelp] = useState(false);
   const { moved, poke } = useRecentPointer(BAR_IDLE_MS);
   const barVisible = !collapsed && (moved || hovering);
+  const soundLevel = useSoundLevel();
   // The bar unmounts without a pointerleave, so hovering has to be cleared here.
   const collapse = () => {
     setCollapsed(true);
@@ -53,6 +56,7 @@ export function ScreenHostControls({ view, command, onNewGame }: ScreenHostContr
       document.activeElement.blur();
     }
     if (action === 'fullscreen') return toggleFullscreen();
+    if (action === 'sound') return cycleSoundLevel();
     if (action === 'help') return setHelp((open) => !open);
     if (action === 'bar') {
       // H acts on what the host can see: it hides a showing bar and brings back a hidden one.
@@ -81,6 +85,9 @@ export function ScreenHostControls({ view, command, onNewGame }: ScreenHostContr
         >
           <GameButtons view={view} command={command} onNewGame={onNewGame} />
           <span className="ml-auto flex gap-[0.8vw]">
+            <BarButton keyHint="M" onClick={cycleSoundLevel}>
+              {SOUND_LEVEL_LABEL[soundLevel]}
+            </BarButton>
             <BarButton keyHint="F" onClick={toggleFullscreen}>
               Fullscreen
             </BarButton>
