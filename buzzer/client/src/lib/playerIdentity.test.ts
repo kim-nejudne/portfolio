@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { idSchema } from '../../../shared/schemas.js';
-import { clearPlayer, loadPlayer, newPlayerId, savePlayer } from './playerIdentity.js';
+import {
+  clearPlayer,
+  loadPlayer,
+  newPlayerId,
+  renamePlayer,
+  savePlayer,
+} from './playerIdentity.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -26,6 +32,17 @@ describe('player identity', () => {
     clearPlayer('ABCD');
     expect(loadPlayer('ABCD')).toBeNull();
     expect(loadPlayer('WXYZ')).not.toBeNull();
+  });
+
+  it('renamePlayer keeps the playerId and stores the new name', () => {
+    savePlayer('ABCD', { playerId: 'id-a', name: 'Ana' });
+    renamePlayer('ABCD', 'Annie');
+    expect(loadPlayer('ABCD')).toEqual({ playerId: 'id-a', name: 'Annie' });
+  });
+
+  it('renamePlayer stores nothing for a room this device never joined', () => {
+    renamePlayer('ABCD', 'Annie');
+    expect(loadPlayer('ABCD')).toBeNull();
   });
 
   it('ignores an unreadable or invalid stored entry', () => {

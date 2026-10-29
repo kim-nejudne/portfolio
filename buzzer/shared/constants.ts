@@ -29,6 +29,8 @@ export const PLAYER_PALETTE = [
 export const MAX_PLAYERS_PER_ROOM = 50;
 /** The `player:join` error for a kicked playerId. The phone keeps that id, so it stays refused. */
 export const PLAYER_KICKED_ERROR = 'You were removed from this game';
+/** The `player:join` and `player:rename` error for a name another player has, ignoring case. */
+export const NAME_TAKEN_ERROR = 'That name is taken';
 /** The `screen:join` and `host:join` error for a wrong or stale hostToken. Clients drop the stored token on it. */
 export const INVALID_HOST_TOKEN_ERROR = 'Invalid host token';
 /** The error for a `host:*` event from a socket that did not join with the hostToken. */
@@ -46,6 +48,8 @@ export const ROOM_EXPIRED_REASON = 'expired';
 export const BUZZ_RATE_LIMITED_ERROR = 'Too many buzzes';
 /** The `ping` error past `PING_RATE_LIMIT`. */
 export const PING_RATE_LIMITED_ERROR = 'Too many pings';
+/** The `player:rename` error past `RENAME_RATE_LIMIT`. */
+export const RENAME_RATE_LIMITED_ERROR = 'Too many name changes. Wait a moment.';
 /** The room check's 429 error past `ROOM_CHECK_RATE_LIMIT`, shown on the join page. */
 export const ROOM_CHECK_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
 /** Player names are trimmed, then must be 1 to 16 characters. */
@@ -138,6 +142,8 @@ export const BUZZ_VIBRATE_MS = 30;
 export const BUZZ_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** Per socket. A client pings every 2 s; each ping holds a pong timer on the server (DECISIONS F15). */
 export const PING_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
+/** Per socket. Each rename sends every device a new state; the spec sets no limit (DECISIONS F61). */
+export const RENAME_RATE_LIMIT = { max: 3, windowMs: 10 * 1000 } as const;
 export const PLAYER_JOIN_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const; // DECISIONS #3
 export const ROOM_CREATE_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 /** `GET /api/rooms/:code/exists`, per IP: enough for a room of phones behind one NAT (DECISIONS F42). */

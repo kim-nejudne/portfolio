@@ -1,7 +1,16 @@
 import type { ReactNode } from 'react';
 
 export type IconName =
-  'check' | 'x' | 'arrow-right' | 'arrow-left' | 'undo' | 'eye' | 'skip' | 'trophy' | 'flag';
+  | 'check'
+  | 'x'
+  | 'arrow-right'
+  | 'arrow-left'
+  | 'undo'
+  | 'eye'
+  | 'skip'
+  | 'trophy'
+  | 'flag'
+  | 'more';
 
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
@@ -21,6 +30,8 @@ const PATHS: Record<IconName, ReactNode> = {
     <path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H4.5a3 3 0 003.5 4M16 6h3.5a3 3 0 01-3.5 4M12 13v4M8 20h8M10 17h4v3h-4z" />
   ),
   flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
+  // Three dots in a column: zero-length strokes with round caps.
+  more: <path d="M12 5h.01M12 12h.01M12 19h.01" strokeWidth={4} />,
 };
 
 /** An inline SVG stroke icon. Decorative: the button or text beside it carries the name. */

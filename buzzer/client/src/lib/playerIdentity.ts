@@ -37,7 +37,16 @@ export function loadPlayer(code: string): PlayerIdentity | null {
   }
 }
 
-/** Forgets the identity for a room that no longer exists, so a later room with the same code starts fresh. */
+/** After a rename in the lobby: the same playerId under the new name. Nothing stored, nothing to do. */
+export function renamePlayer(code: string, name: string): void {
+  const stored = loadPlayer(code);
+  if (stored) savePlayer(code, { ...stored, name });
+}
+
+/**
+ * Forgets the identity for a room that no longer exists, so a later room with the same code starts
+ * fresh, or that the player left, so the device joins again as a new player.
+ */
 export function clearPlayer(code: string): void {
   try {
     localStorage.removeItem(KEY_PREFIX + code);

@@ -166,15 +166,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F60 Practice buzz and who's here: devices
 
-- [ ] F61 Leave, rename and outcome haptics on the phone
-  - Spec: UI spec by view (Player view); Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F60
-  - Done when:
-    - `player:rename {name}` in LOBBY only, with the join's name rules and duplicate check ("That name is taken"); every view shows the new name
-    - `player:leave {}` removes the player from the room in any phase (not a kick: the same device may rejoin as new); the phone clears its stored identity for the room and returns to the join form
-    - The phone's top bar opens a small menu with **Change name** (LOBBY only) and **Leave game** (with confirm)
-    - The phone vibrates on correct (two short), wrong and lockout (one long) where `navigator.vibrate` exists
-  - Tests: `reducer.lobby.test.ts` (rename rules, leave in each phase, winner leaving mid-BUZZED behaves as a kick), `sockets.test.ts`, `Play.test.tsx` (menu, rename, leave, vibrate calls), `playerIdentity.test.ts`
+- [x] F61 Leave, rename and outcome haptics on the phone
 
 ## M16 — Screen and pace
 

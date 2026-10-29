@@ -251,6 +251,8 @@ describe('client event payloads', () => {
       ping: { t: 1234.5 },
       'player:buzz': {},
       'player:practice': {},
+      'player:rename': { name: 'Ada' },
+      'player:leave': {},
       'host:start': {},
       'host:open': {},
       'host:judge': { result: 'wrong' },
@@ -292,6 +294,13 @@ describe('client event payloads', () => {
         clientPayloadSchemas['host:join'].safeParse({ code: 'ABCD', hostToken }).success,
         hostToken,
       ).toBe(false);
+    }
+  });
+
+  it('trims a new name and holds it to the join rules', () => {
+    expect(clientPayloadSchemas['player:rename'].parse({ name: '  Ada  ' }).name).toBe('Ada');
+    for (const name of ['', '   ', 'x'.repeat(17), 'Ada\u0007']) {
+      expect(clientPayloadSchemas['player:rename'].safeParse({ name }).success, name).toBe(false);
     }
   });
 

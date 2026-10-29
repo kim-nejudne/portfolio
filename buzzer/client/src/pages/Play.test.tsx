@@ -365,7 +365,7 @@ describe('Play buzzer', () => {
 
   const open = (overrides: Partial<PlayerView> = {}) =>
     playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, ...overrides });
-  const buzzer = () => screen.getByRole('button') as HTMLButtonElement;
+  const buzzer = () => screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
   /** The state line above the button. */
   const status = () => screen.getByRole('heading', { level: 1 });
   const buzzes = (socket: FakeSocket) => socket.emitted.filter((e) => e.event === 'player:buzz');
@@ -729,7 +729,7 @@ describe('Play result states', () => {
       'state',
       playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 2, lockedOut: true }),
     );
-    const button = screen.getByRole('button') as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.dataset.look).toBe('out');
     expect(button.className).toContain('bg-surface');
@@ -751,7 +751,7 @@ describe('Play result states', () => {
         me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 100, rank: 1 },
       }),
     );
-    const button = screen.getByRole('button') as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.dataset.look).toBe('revealed');
     const card = screen.getByRole('region', { name: 'Answer' });
     expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Canberra');
@@ -780,7 +780,7 @@ describe('Play result states', () => {
     const result = screen.getByRole('region', { name: 'Final result' });
     expect(within(result).getByText('2nd of 4')).toBeTruthy();
     expect(within(result).getByText('300 points')).toBeTruthy();
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
   });
 
   it('shows "Removed by host" with a link home when kicked, and does not join again', async () => {
@@ -794,5 +794,178 @@ describe('Play result states', () => {
     expect(screen.getByRole('link', { name: 'Back to start' })).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();
     expect(socket.emitted.filter((e) => e.event === 'player:join')).toHaveLength(1);
+  });
+});
+
+describe('Play menu, rename, leave and haptics', () => {
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const socket = sockets[0]!;
+    act(() => lastJoin(socket).ack({ ok: true }));
+    return { socket, sockets };
+  }
+
+  const sent = (socket: FakeSocket, event: string) =>
+    socket.emitted.filter((e) => e.event === event);
+  const openMenu = () => fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+  const menuItem = (name: string) => screen.queryByRole('button', { name });
+
+  function stubVibrate() {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+    return vibrate;
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+  });
+
+  it('the top bar menu offers Change name and Leave game in the lobby', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView());
+    expect(menuItem('Change name')).toBeNull();
+
+    openMenu();
+    expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe('true');
+    expect(menuItem('Change name')).toBeTruthy();
+    expect(menuItem('Leave game')).toBeTruthy();
+  });
+
+  it('mid-game the menu offers only Leave game', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1 }));
+    openMenu();
+    expect(menuItem('Change name')).toBeNull();
+    expect(menuItem('Leave game')).toBeTruthy();
+  });
+
+  it('a tap outside closes the menu without buzzing, and Space does not buzz while it is open', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1 }));
+    openMenu();
+    fireEvent.keyDown(window, { code: 'Space' });
+    fireEvent.pointerDown(document.querySelector('[data-menu-backdrop]')!, { button: 0 });
+    expect(menuItem('Leave game')).toBeNull();
+    expect(sent(socket, 'player:buzz')).toHaveLength(0);
+  });
+
+  it('Change name sends player:rename with the trimmed name, then closes and stores it', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView());
+    openMenu();
+    fireEvent.click(menuItem('Change name')!);
+
+    const input = screen.getByLabelText('Your name') as HTMLInputElement;
+    expect(input.value).toBe('Ana');
+    fireEvent.change(input, { target: { value: '  Annie ' } });
+    // Typing a space in the field is not a test buzz.
+    fireEvent.keyDown(input, { code: 'Space', key: ' ' });
+    expect(sent(socket, 'player:practice')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(sent(socket, 'player:rename').map((e) => e.payload)).toEqual([{ name: 'Annie' }]);
+    act(() => sent(socket, 'player:rename')[0]!.ack({ ok: true }));
+    expect(screen.queryByRole('heading', { name: 'Change name' })).toBeNull();
+    expect(loadPlayer('WXYZ')).toEqual({ playerId: 'p1', name: 'Annie' });
+  });
+
+  it('a taken name stays on the Change name form with "That name is taken"', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView());
+    openMenu();
+    fireEvent.click(menuItem('Change name')!);
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Bo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    act(() => sent(socket, 'player:rename')[0]!.ack({ ok: false, error: 'That name is taken' }));
+
+    expect(screen.getByRole('alert').textContent).toBe('That name is taken');
+    expect(screen.getByRole('heading', { name: 'Change name' })).toBeTruthy();
+    expect(loadPlayer('WXYZ')).toEqual({ playerId: 'p1', name: 'Ana' });
+  });
+
+  it('a name with invisible characters is refused on the form, without sending', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView());
+    openMenu();
+    fireEvent.click(menuItem('Change name')!);
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Ana​' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert').textContent).toBe('Name contains invisible characters');
+    expect(sent(socket, 'player:rename')).toHaveLength(0);
+  });
+
+  it('the Change name form closes when the game starts', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView());
+    openMenu();
+    fireEvent.click(menuItem('Change name')!);
+    socket.fire('state', playerView({ phase: 'QUESTION', questionIndex: 0 }));
+    expect(screen.queryByRole('heading', { name: 'Change name' })).toBeNull();
+  });
+
+  it('Leave game asks to confirm, sends player:leave, then forgets the room and shows the join form', async () => {
+    const { socket, sockets } = await joined();
+    socket.fire('state', playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1 }));
+    openMenu();
+    fireEvent.click(menuItem('Leave game')!);
+    expect(sent(socket, 'player:leave')).toHaveLength(0);
+    fireEvent.click(menuItem('Confirm leave')!);
+    expect(sent(socket, 'player:leave').map((e) => e.payload)).toEqual([{}]);
+
+    act(() => sent(socket, 'player:leave')[0]!.ack({ ok: true }));
+    expect(loadPlayer('WXYZ')).toBeNull();
+    expect(socket.disconnected).toBe(true);
+    const input = screen.getByLabelText('Your name') as HTMLInputElement;
+    expect(input.value).toBe('Ana');
+
+    // Joining again is a new player: a new socket and a new playerId.
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    await vi.waitFor(() => expect(sockets).toHaveLength(2));
+    const rejoin = lastJoin(sockets[1]!).payload as { playerId: string; name: string };
+    expect(rejoin.name).toBe('Ana');
+    expect(rejoin.playerId).not.toBe('p1');
+  });
+
+  it('a refused leave keeps the player in and shows the reason in a toast', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView());
+    openMenu();
+    fireEvent.click(menuItem('Leave game')!);
+    fireEvent.click(menuItem('Confirm leave')!);
+    act(() => sent(socket, 'player:leave')[0]!.ack({ ok: false, error: 'Unknown player' }));
+    expect(screen.getByRole('alert').textContent).toBe('Unknown player');
+    expect(loadPlayer('WXYZ')).toEqual({ playerId: 'p1', name: 'Ana' });
+    expect(screen.getByRole('button', { name: 'BUZZ' })).toBeTruthy();
+  });
+
+  it('vibrates twice short on its own correct answer and once long on its own wrong one', async () => {
+    const vibrate = stubVibrate();
+    const { socket } = await joined();
+    socket.fire('state', playerView({ phase: 'BUZZED', questionIndex: 0, openingCounter: 1 }));
+
+    socket.fire('fx', { kind: 'correct', playerId: 'p1', points: 100 });
+    expect(vibrate).toHaveBeenLastCalledWith([60, 80, 60]);
+    socket.fire('fx', { kind: 'wrong', playerId: 'p1' });
+    expect(vibrate).toHaveBeenLastCalledWith(400);
+    expect(vibrate).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not vibrate for another player's outcome or for other effects", async () => {
+    const vibrate = stubVibrate();
+    const { socket } = await joined();
+    socket.fire('state', playerView({ phase: 'BUZZED', questionIndex: 0, openingCounter: 1 }));
+    socket.fire('fx', { kind: 'correct', playerId: 'p2', points: 100 });
+    socket.fire('fx', { kind: 'wrong', playerId: 'p2' });
+    socket.fire('fx', { kind: 'timeUp', playerId: 'p1' });
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('works where the phone cannot vibrate', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView({ phase: 'BUZZED', questionIndex: 0, openingCounter: 1 }));
+    expect(() => socket.fire('fx', { kind: 'wrong', playerId: 'p1' })).not.toThrow();
   });
 });

@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   BUZZ_RATE_LIMIT,
   BUZZ_RATE_LIMITED_ERROR,
+  NAME_TAKEN_ERROR,
+  RENAME_RATE_LIMIT,
+  RENAME_RATE_LIMITED_ERROR,
   SOCKET_MESSAGE_MAX_BYTES,
 } from '../shared/constants.js';
-import type { Ack, Fx } from '../shared/types.js';
+import type { Ack, Fx, View } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { makeSet, T0 } from './test/rooms.js';
 import {
@@ -302,24 +305,24 @@ describe('socket gateway: state broadcast', () => {
   });
 });
 
-describe('socket gateway: player:practice', () => {
-  /** Screen, host and players a and b, joined, still in LOBBY, every broadcast landed. */
-  async function lobbyTable() {
-    const h = await start();
-    const [screen, host, a, b] = await Promise.all([
-      h.connect(),
-      h.connect(),
-      h.connect(),
-      h.connect(),
-    ]);
-    await screenJoin(screen);
-    await hostJoin(host);
-    await playerJoin(a, 'a', 'Ann');
-    await playerJoin(b, 'b', 'Bob');
-    await Promise.all([screen, host, a, b].map(flush));
-    return { h, screen, host, a, b };
-  }
+/** Screen, host and players a and b, joined, still in LOBBY, every broadcast landed. */
+async function lobbyTable() {
+  const h = await start();
+  const [screen, host, a, b] = await Promise.all([
+    h.connect(),
+    h.connect(),
+    h.connect(),
+    h.connect(),
+  ]);
+  await screenJoin(screen);
+  await hostJoin(host);
+  await playerJoin(a, 'a', 'Ann');
+  await playerJoin(b, 'b', 'Bob');
+  await Promise.all([screen, host, a, b].map(flush));
+  return { h, screen, host, a, b };
+}
 
+describe('socket gateway: player:practice', () => {
   const practice = (c: TestClient): Promise<Ack> => c.emitWithAck('player:practice', {});
 
   it('sends fx practice to Screen, Host and every player, and no new state', async () => {
@@ -360,5 +363,97 @@ describe('socket gateway: player:practice', () => {
   it('rejects a practice buzz from a socket that has not joined as a player', async () => {
     const { host } = await lobbyTable();
     expect(await practice(host)).toEqual({ ok: false, error: 'Join the game first' });
+  });
+});
+
+/** The names in a view's player list, whatever the role. */
+const names = (view: View) =>
+  view.role === 'player' ? (view.lobby ?? []).map((p) => p.name) : view.players.map((p) => p.name);
+
+describe('socket gateway: player:rename', () => {
+  const rename = (c: TestClient, name: string): Promise<Ack> =>
+    c.emitWithAck('player:rename', { name });
+
+  it('sends every view the new name', async () => {
+    const { screen, host, a, b } = await lobbyTable();
+    const clients = [screen, host, a, b];
+    const states = clients.map(recordStates);
+
+    expect(await rename(a, '  Annie ')).toEqual({ ok: true });
+    await Promise.all(clients.map(flush));
+
+    for (const seen of states) expect(seen.map(names)).toEqual([['Annie', 'Bob']]);
+    expect(states[2]![0]).toMatchObject({ me: { id: 'a', name: 'Annie' } });
+  });
+
+  it('refuses a name another player has', async () => {
+    const { a } = await lobbyTable();
+    expect(await rename(a, 'BOB')).toEqual({ ok: false, error: NAME_TAKEN_ERROR });
+  });
+
+  it('refuses a rename once the game has started', async () => {
+    const { host, a } = await lobbyTable();
+    await host.emitWithAck('host:start', {});
+    expect(await rename(a, 'Annie')).toEqual({ ok: false, error: 'Not allowed in this phase' });
+  });
+
+  it(`allows ${RENAME_RATE_LIMIT.max} renames per socket in each window`, async () => {
+    const { h, a, b } = await lobbyTable();
+    for (let i = 0; i < RENAME_RATE_LIMIT.max; i++) {
+      expect(await rename(a, `Ann${i}`)).toEqual({ ok: true });
+    }
+    expect(await rename(a, 'Annie')).toEqual({ ok: false, error: RENAME_RATE_LIMITED_ERROR });
+    expect(await rename(b, 'Bobby')).toEqual({ ok: true });
+
+    h.advance(RENAME_RATE_LIMIT.windowMs);
+    expect(await rename(a, 'Annie')).toEqual({ ok: true });
+  });
+
+  it('refuses a rename from a socket that has not joined as a player', async () => {
+    const { screen } = await lobbyTable();
+    expect(await rename(screen, 'Annie')).toEqual({ ok: false, error: 'Join the game first' });
+  });
+});
+
+describe('socket gateway: player:leave', () => {
+  const leave = (c: TestClient): Promise<Ack> => c.emitWithAck('player:leave', {});
+
+  it('removes the player from every view and sends the leaver no more state', async () => {
+    const { h, screen, host, a, b } = await lobbyTable();
+    const states = [screen, host, b].map(recordStates);
+    const leaverStates = recordStates(a);
+
+    expect(await leave(a)).toEqual({ ok: true });
+    await Promise.all([screen, host, b].map(flush));
+
+    for (const seen of states) expect(seen.map(names)).toEqual([['Bob']]);
+    expect(leaverStates).toEqual([]);
+    expect(h.rooms.get('ABCD')!.kickedIds).toEqual([]);
+    expect(a.connected).toBe(true);
+  });
+
+  it('lets the same connection join again as a new player', async () => {
+    const { h, host, a } = await lobbyTable();
+    await host.emitWithAck('host:start', {});
+    await leave(a);
+
+    const back = nextState(a);
+    expect(await playerJoin(a, 'a2', 'Ann')).toEqual({ ok: true });
+    expect(await back).toMatchObject({ role: 'player', me: { id: 'a2', name: 'Ann', score: 0 } });
+    expect(Object.keys(h.rooms.get('ABCD')!.players).sort()).toEqual(['a2', 'b']);
+  });
+
+  it('dispatches no disconnect when the leaver closes the tab', async () => {
+    const { h, a } = await lobbyTable();
+    await leave(a);
+    const before = h.rooms.get('ABCD');
+    await serverDisconnect(h, a);
+    expect(h.rooms.get('ABCD')).toBe(before);
+  });
+
+  it('refuses a second leave on the same connection', async () => {
+    const { a } = await lobbyTable();
+    await leave(a);
+    expect(await leave(a)).toEqual({ ok: false, error: 'Join the game first' });
   });
 });

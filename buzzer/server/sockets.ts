@@ -15,6 +15,8 @@ import {
   PING_RATE_LIMITED_ERROR,
   PLAYER_JOIN_RATE_LIMIT,
   PONG_ACK_TIMEOUT_MS,
+  RENAME_RATE_LIMIT,
+  RENAME_RATE_LIMITED_ERROR,
   ROOM_NOT_FOUND_ERROR,
   SOCKET_MESSAGE_MAX_BYTES,
 } from '../shared/constants.js';
@@ -112,6 +114,7 @@ export function attachSockets(
   // Keyed by socket id: the spec's limit is per socket.
   const buzzLimiter = createRateLimiter(BUZZ_RATE_LIMIT, clock);
   const pingLimiter = createRateLimiter(PING_RATE_LIMIT, clock);
+  const renameLimiter = createRateLimiter(RENAME_RATE_LIMIT, clock);
 
   // Scheduled effects still pending. A timer must not fire into a gateway that has shut down.
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -297,6 +300,30 @@ export function attachSockets(
       if (role !== 'player' || !code || !playerId) return fail('Join the game first');
       if (!buzzLimiter.hit(socket.id)) return fail(BUZZ_RATE_LIMITED_ERROR);
       return dispatch(code, { type: 'player:practice', playerId });
+    });
+
+    handle(socket, 'player:rename', ({ name }) => {
+      const { code, role, playerId } = socket.data;
+      if (role !== 'player' || !code || !playerId) return fail('Join the game first');
+      if (!renameLimiter.hit(socket.id)) return fail(RENAME_RATE_LIMITED_ERROR);
+      return dispatch(code, { type: 'player:rename', playerId, name });
+    });
+
+    handle(socket, 'player:leave', () => {
+      const { code, role, playerId } = socket.data;
+      if (role !== 'player' || !code || !playerId) return fail('Join the game first');
+      const ack = dispatch(code, { type: 'player:leave', playerId });
+      if (!ack.ok) return ack;
+      // Not a kick: every socket of this player stays connected but unjoined, so the phone can
+      // join again as a new player on the same connection (DECISIONS F61).
+      for (const id of io.sockets.adapter.rooms.get(playerRoom(code, playerId)) ?? []) {
+        const own = io.sockets.sockets.get(id);
+        if (!own) continue;
+        void own.leave(playerRoom(code, playerId));
+        void own.leave(anyRoom(code));
+        own.data = { canHost: false, rttSamples: [] };
+      }
+      return ack;
     });
 
     handle(socket, 'host:start', () => asHost({ type: 'host:start' }));

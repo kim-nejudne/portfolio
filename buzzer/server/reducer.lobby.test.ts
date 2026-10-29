@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PLAYERS_PER_ROOM, PLAYER_PALETTE } from '../shared/constants.js';
-import type { Room } from '../shared/types.js';
+import { MAX_PLAYERS_PER_ROOM, NAME_TAKEN_ERROR, PLAYER_PALETTE } from '../shared/constants.js';
+import type { Phase, Room } from '../shared/types.js';
+import { makeBuzz } from './fairness.js';
 import { reduce, WRONG_PHASE_ERROR, type Action, type ReduceResult } from './reducer.js';
 import { T0, makePlayer, makeRoom, withPlayers } from './test/rooms.js';
 
@@ -210,5 +211,135 @@ describe('reduce: player:practice', () => {
 
   it('rejects an unknown player', () => {
     expect(practice(makeRoom(), 'nobody')).toEqual({ ok: false, error: 'Unknown player' });
+  });
+});
+
+const ALL_PHASES: Phase[] = [
+  'LOBBY',
+  'QUESTION',
+  'OPEN',
+  'COLLECTING',
+  'BUZZED',
+  'REVEAL',
+  'FINAL',
+];
+
+/** Three players, Ana, Ben and Cy, in `phase` of question 2's second opening. */
+function threeIn(phase: Phase, overrides: Partial<Room> = {}): Room {
+  return withPlayers(makeRoom({ phase, questionIndex: 1, openingCounter: 2, ...overrides }), [
+    makePlayer('p1', { name: 'Ana', joinedAt: T0 + 1, score: 100, color: PLAYER_PALETTE[0] }),
+    makePlayer('p2', { name: 'Ben', joinedAt: T0 + 2, score: 200, color: PLAYER_PALETTE[1] }),
+    makePlayer('p3', { name: 'Cy', joinedAt: T0 + 3, color: PLAYER_PALETTE[2] }),
+  ]);
+}
+
+describe('reduce: player:rename', () => {
+  const rename = (room: Room, name: string, playerId = 'p1'): ReduceResult =>
+    reduce(room, { type: 'player:rename', playerId, name }, T0 + 5000);
+  const lobby = () => threeIn('LOBBY', { questionIndex: -1, openingCounter: 0 });
+
+  it('changes the name in LOBBY and keeps score, colour and join order', () => {
+    const before = lobby();
+    const { room, effects } = ok(rename(before, 'Annie'));
+    expect(room.players.p1).toEqual({ ...before.players.p1, name: 'Annie' });
+    expect(room.lastActivityAt).toBe(T0 + 5000);
+    expect(effects).toEqual([]);
+  });
+
+  it('rejects a name another player has, ignoring case', () => {
+    expect(rename(lobby(), 'bEN')).toEqual({ ok: false, error: NAME_TAKEN_ERROR });
+  });
+
+  it('rejects a name a disconnected player has', () => {
+    const room = lobby();
+    const away = withPlayers(room, [room.players.p1!, { ...room.players.p2!, connected: false }]);
+    expect(rename(away, 'Ben')).toEqual({ ok: false, error: NAME_TAKEN_ERROR });
+  });
+
+  it('lets a player change the case of their own name', () => {
+    expect(ok(rename(lobby(), 'ANA')).room.players.p1?.name).toBe('ANA');
+  });
+
+  it('frees the old name for a new player', () => {
+    const { room } = ok(rename(lobby(), 'Annie'));
+    expect(ok(join(room, 'p4', 'Ana')).room.players.p4?.name).toBe('Ana');
+  });
+
+  it.each(ALL_PHASES.filter((p) => p !== 'LOBBY'))('rejects a rename in %s', (phase) => {
+    expect(rename(threeIn(phase), 'Annie')).toEqual({ ok: false, error: WRONG_PHASE_ERROR });
+  });
+
+  it('rejects an unknown player', () => {
+    expect(rename(lobby(), 'Annie', 'ghost')).toEqual({ ok: false, error: 'Unknown player' });
+  });
+});
+
+describe('reduce: player:leave', () => {
+  const leaveAction = (playerId: string): Action => ({ type: 'player:leave', playerId });
+  const leave = (room: Room, playerId = 'p3'): ReduceResult =>
+    reduce(room, leaveAction(playerId), T0 + 5000);
+  const kick = (room: Room, playerId: string): ReduceResult =>
+    reduce(room, { type: 'host:kick', playerId }, T0 + 5000);
+
+  it.each(ALL_PHASES)('removes the player in %s without barring the id', (phase) => {
+    const { room, effects } = ok(leave(threeIn(phase)));
+    expect(Object.keys(room.players)).toEqual(['p1', 'p2']);
+    expect(room.kickedIds).toEqual([]);
+    expect(room.phase).toBe(phase);
+    expect(effects).toEqual([]);
+  });
+
+  it('lets the same id join again as a new player at 0 points', () => {
+    const { room } = ok(leave(threeIn('OPEN'), 'p1'));
+    const back = ok(join(room, 'p1', 'Ana', T0 + 6000)).room.players.p1;
+    expect(back).toMatchObject({ name: 'Ana', score: 0, joinedAt: T0 + 6000, joinedAtOpening: 2 });
+  });
+
+  it('frees the name and the colour', () => {
+    const { room } = ok(leave(threeIn('LOBBY'), 'p2'));
+    expect(ok(join(room, 'p4', 'Ben')).room.players.p4?.color).toBe(PLAYER_PALETTE[1]);
+  });
+
+  const buzzed = (overrides: Partial<Room> = {}) =>
+    threeIn('BUZZED', {
+      buzzes: [makeBuzz('p1', 500, 0), makeBuzz('p2', 520, 0)],
+      winnerId: 'p1',
+      ...overrides,
+    });
+
+  // Leaving is a kick without the bar: every case of the F20 kick rules gives the same room.
+  it.each([
+    ['the unjudged winner in BUZZED (buzzers reopen)', buzzed(), 'p1'],
+    [
+      'the unjudged winner when nobody else is eligible (REVEAL)',
+      buzzed({ lockedOut: ['p2', 'p3'] }),
+      'p1',
+    ],
+    ['a losing buzzer in BUZZED', buzzed(), 'p2'],
+    [
+      'the only buzzer in COLLECTING',
+      threeIn('COLLECTING', { buzzes: [makeBuzz('p1', 500, 0)] }),
+      'p1',
+    ],
+    ['a locked-out player in OPEN', threeIn('OPEN', { lockedOut: ['p2'] }), 'p2'],
+  ] as const)('handles %s as a kick would', (_, room, playerId) => {
+    const left = ok(leave(room, playerId));
+    const kicked = ok(kick(room, playerId));
+    expect(left.room).toEqual({ ...kicked.room, kickedIds: [] });
+    expect(left.effects).toEqual(kicked.effects);
+  });
+
+  it('reopens at once when the winner leaves mid-BUZZED', () => {
+    const { room } = ok(leave(buzzed(), 'p1'));
+    expect(room).toMatchObject({ phase: 'OPEN', openingCounter: 3, buzzes: [], winnerId: null });
+  });
+
+  it('keeps the judgement history', () => {
+    const revealed = ok(reduce(buzzed(), { type: 'host:judge', result: 'correct' }, T0)).room;
+    expect(ok(leave(revealed, 'p1')).room.judgements).toEqual(revealed.judgements);
+  });
+
+  it('rejects an unknown player', () => {
+    expect(leave(threeIn('LOBBY'), 'ghost')).toEqual({ ok: false, error: 'Unknown player' });
   });
 });

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
   type FormEvent,
   type PointerEvent,
@@ -17,6 +18,7 @@ import {
 import { playerNameSchema } from '../../../shared/schemas.js';
 import type { Ack, LobbyPlayer, PlayerView } from '../../../shared/types.js';
 import { BulbRail } from '../components/BulbRail.js';
+import { ConfirmButton } from '../components/ConfirmButton.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { Icon } from '../components/Icon.js';
 import { Toast, useToast } from '../components/Toast.js';
@@ -26,6 +28,7 @@ import {
   clearPlayer,
   loadPlayer,
   newPlayerId,
+  renamePlayer,
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
@@ -35,7 +38,7 @@ import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useAnswerCountdown } from '../lib/useAnswerCountdown.js';
-import { BUTTON_PRIMARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
@@ -61,8 +64,9 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
   const [step, setStep] = useState<Step>({ kind: 'checking' });
   const [name, setName] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  // One id per visit, reused if the first name is rejected; saved only once a join succeeds.
-  const [playerId] = useState(newPlayerId);
+  // One id per visit, reused if the first name is rejected; saved only once a join succeeds. A
+  // player who leaves draws a new one, so they come back as a new player (DECISIONS F61).
+  const [playerId, setPlayerId] = useState(newPlayerId);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +124,28 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
     [code],
   );
 
+  const onRenamed = useCallback(
+    (newName: string) => {
+      renamePlayer(code, newName);
+      setStep((s) =>
+        s.kind === 'joining' ? { ...s, identity: { ...s.identity, name: newName } } : s,
+      );
+    },
+    [code],
+  );
+
+  // Back to the join form, with the name filled in to make coming back one tap.
+  const onLeft = useCallback(
+    (lastName: string) => {
+      clearPlayer(code);
+      setPlayerId(newPlayerId());
+      setName(lastName);
+      setFormError(null);
+      setStep({ kind: 'form' });
+    },
+    [code],
+  );
+
   switch (step.kind) {
     case 'checking':
       return <PlayMessage title="Checking the room…" link={false} />;
@@ -152,6 +178,8 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
           makeSocket={makeSocket}
           onJoined={onJoined}
           onRejected={onRejected}
+          onRenamed={onRenamed}
+          onLeft={onLeft}
         />
       );
   }
@@ -222,9 +250,22 @@ interface PlayerRoomProps {
   makeSocket: () => GameSocket;
   onJoined: (identity: PlayerIdentity) => void;
   onRejected: (error: string) => void;
+  /** The server took the new name. */
+  onRenamed: (name: string) => void;
+  /** The server removed this player; `name` is the one they had. */
+  onLeft: (name: string) => void;
 }
 
-function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }: PlayerRoomProps) {
+function PlayerRoom({
+  code,
+  identity,
+  saved,
+  makeSocket,
+  onJoined,
+  onRejected,
+  onRenamed,
+  onLeft,
+}: PlayerRoomProps) {
   const join = useCallback<JoinRoom>(
     (socket, ack) => {
       socket.emit('player:join', { code, ...identity }, (res) => {
@@ -256,6 +297,29 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
     },
     [socketRef],
   );
+  const rename = useCallback<SendRename>(
+    (name, ack) => {
+      const socket = socketRef.current;
+      if (!socket) return ack({ ok: false, error: 'Not connected' });
+      socket.emit('player:rename', { name }, (res) => {
+        if (res.ok) onRenamed(name);
+        ack(res);
+      });
+    },
+    [socketRef, onRenamed],
+  );
+  const leave = useCallback<SendLeave>(
+    (ack) => {
+      const socket = socketRef.current;
+      if (!socket) return ack({ ok: false, error: 'Not connected' });
+      socket.emit('player:leave', {}, (res) => {
+        // On success this page unmounts the room, and its socket with it.
+        if (res.ok) onLeft(identity.name);
+        ack(res);
+      });
+    },
+    [socketRef, onLeft, identity.name],
+  );
 
   const view = useRoomStore((state) => state.view);
   const error = useRoomStore((state) => state.error);
@@ -266,11 +330,37 @@ function PlayerRoom({ code, identity, saved, makeSocket, onJoined, onRejected }:
   }
   if (error) return <PlayMessage title={error} />;
   if (view?.role !== 'player') return <PlayMessage title="Joining…" link={false} />;
-  return <Buzzer view={view} send={press} />;
+  return <Buzzer view={view} send={press} rename={rename} leave={leave} />;
 }
 
 /** Sends a press: a buzz, or a lobby test buzz. */
 type SendPress = (event: 'player:buzz' | 'player:practice', ack: (res: Ack) => void) => void;
+/** Sends `player:rename` with a name already checked against the join's rules. */
+type SendRename = (name: string, ack: (res: Ack) => void) => void;
+type SendLeave = (ack: (res: Ack) => void) => void;
+
+/** Two short pulses for a correct answer, one long one for a wrong answer and its lockout. */
+const CORRECT_VIBRATION = [60, 80, 60];
+const WRONG_VIBRATION = 400;
+
+/**
+ * Vibrates on this player's own `fx correct` and `fx wrong` (UI spec, Player view). A wrong answer
+ * is what locks a player out, so its one pulse covers the lockout too (DECISIONS F61). Only events
+ * after mount count, as on the Host remote, so a reconnect never replays one.
+ */
+// SPEC-QUESTION: "vibrate on wrong and lockout" gets one pulse, as a lockout follows a wrong answer (DECISIONS, F61).
+function useOutcomeHaptics(meId: string): void {
+  const event = useRoomStore((state) => state.fx);
+  const handledSeq = useRef(event?.seq ?? 0);
+  useEffect(() => {
+    if (!event || event.seq <= handledSeq.current) return;
+    handledSeq.current = event.seq;
+    const { fx } = event;
+    if (!('vibrate' in navigator) || !('playerId' in fx) || fx.playerId !== meId) return;
+    if (fx.kind === 'correct') navigator.vibrate(CORRECT_VIBRATION);
+    else if (fx.kind === 'wrong') navigator.vibrate(WRONG_VIBRATION);
+  }, [event, meId]);
+}
 
 /*
  * The BUZZ button: a 10px gold rim, then 10px of base and 6px of border colour as rings, and an
@@ -312,13 +402,18 @@ interface BuzzerProps {
   view: PlayerView;
   /** Sends `player:buzz`, or `player:practice` in the lobby. */
   send: SendPress;
+  rename: SendRename;
+  leave: SendLeave;
 }
+
+/** What covers the buzzer: nothing, the top bar's menu, or the Change name form. */
+type Panel = 'menu' | 'rename' | null;
 
 /**
  * The buzzer screen (UI spec, Player view): the player's avatar, name, room and score on top, a
  * row of marquee bulbs, the state as a status line, the round BUZZ button, and their rank.
  */
-function Buzzer({ view, send }: BuzzerProps) {
+function Buzzer({ view, send, rename, leave }: BuzzerProps) {
   // The local press belongs to one opening; a new question or reopening clears it.
   const opening = `${view.questionIndex}:${view.openingCounter}`;
   const [pressedAt, setPressedAt] = useState<string | null>(null);
@@ -327,7 +422,11 @@ function Buzzer({ view, send }: BuzzerProps) {
   // Counts test buzzes, so each one restarts the ring animation.
   const [practices, setPractices] = useState(0);
   const { toast, show } = useToast();
+  const [panel, setPanel] = useState<Panel>(null);
+  const [leaving, setLeaving] = useState(false);
   useWakeLock();
+  useOutcomeHaptics(view.me.id);
+  const inLobby = view.phase === 'LOBBY';
   const enabled = state.live || state.kind === 'practice';
 
   function press() {
@@ -352,16 +451,30 @@ function Buzzer({ view, send }: BuzzerProps) {
       if (!res.ok) show(res.error);
     });
   }
-  const pressFromKey = useEffectEvent(press);
+  function leaveGame() {
+    setLeaving(true);
+    leave((res) => {
+      if (res.ok) return;
+      setLeaving(false);
+      show(res.error);
+    });
+  }
+
+  // Space buzzes, except while the menu or the name form is open: there it types and taps.
+  const onKey = useEffectEvent((event: KeyboardEvent) => {
+    if (panel !== null) {
+      if (event.key === 'Escape') setPanel(null);
+      return;
+    }
+    if (event.code !== 'Space') return;
+    event.preventDefault();
+    if (!event.repeat) press();
+  });
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return;
-      event.preventDefault();
-      if (!event.repeat) pressFromKey();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const listener = (event: KeyboardEvent) => onKey(event);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
   }, []);
 
   function onPointerDown(event: PointerEvent) {
@@ -378,7 +491,7 @@ function Buzzer({ view, send }: BuzzerProps) {
       : null;
 
   return (
-    <main className="flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none]">
+    <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none]">
       <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2">
         <span className="flex min-w-0 items-center gap-3">
           <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-accent font-display text-xl text-accent-ink">
@@ -399,13 +512,63 @@ function Buzzer({ view, send }: BuzzerProps) {
             </span>
           </span>
         </span>
-        <span
-          aria-label="Score"
-          className={`${PILL} shrink-0 px-4 py-1.5 font-display text-xl tabular-nums`}
-        >
-          {view.me.score}
+        <span className="flex shrink-0 items-center gap-2">
+          <span
+            aria-label="Score"
+            className={`${PILL} px-4 py-1.5 font-display text-xl tabular-nums`}
+          >
+            {view.me.score}
+          </span>
+          <button
+            type="button"
+            aria-label="Menu"
+            aria-expanded={panel === 'menu'}
+            aria-controls="player-menu"
+            onClick={() => setPanel((open) => (open === 'menu' ? null : 'menu'))}
+            className={`${PILL} grid size-11 place-items-center text-muted`}
+          >
+            <Icon name="more" />
+          </button>
         </span>
       </header>
+      {panel === 'menu' && (
+        <>
+          {/* Any tap outside closes the menu, and never reaches the buzzer underneath. */}
+          <div
+            aria-hidden="true"
+            data-menu-backdrop
+            onPointerDown={(event) => {
+              event.preventDefault();
+              setPanel(null);
+            }}
+            className="fixed inset-0 z-10"
+          />
+          <div
+            id="player-menu"
+            className={`absolute top-16 right-4 z-20 flex w-60 flex-col gap-2 ${CARD} p-3 shadow-[0_8px_24px_var(--color-bg-deep)]`}
+          >
+            {inLobby && (
+              <button
+                type="button"
+                onClick={() => setPanel('rename')}
+                className={`${BUTTON_SECONDARY} text-left font-bold`}
+              >
+                Change name
+              </button>
+            )}
+            <ConfirmButton
+              label="Leave game"
+              confirmLabel="Confirm leave"
+              onConfirm={leaveGame}
+              disabled={leaving}
+              className={`${BUTTON_SECONDARY} flex-1 text-left font-bold`}
+            />
+          </div>
+        </>
+      )}
+      {panel === 'rename' && inLobby && (
+        <RenameForm current={view.me.name} rename={rename} onDone={() => setPanel(null)} />
+      )}
       {state.kind === 'final' ? (
         <section
           aria-label="Final result"
@@ -462,6 +625,89 @@ function Buzzer({ view, send }: BuzzerProps) {
       )}
       <Toast toast={toast} />
     </main>
+  );
+}
+
+interface RenameFormProps {
+  current: string;
+  rename: SendRename;
+  onDone: () => void;
+}
+
+/**
+ * Change name, from the top bar's menu in the lobby: the join form's field and rules over the
+ * buzzer. A refusal ("That name is taken") stays on the form, as on the join form.
+ */
+function RenameForm({ current, rename, onDone }: RenameFormProps) {
+  const [name, setName] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const parsed = playerNameSchema.safeParse(name);
+    if (!parsed.success) {
+      return setError(
+        name.trim() === ''
+          ? 'Enter your name'
+          : (parsed.error.issues[0]?.message ?? 'That name won’t work'),
+      );
+    }
+    if (parsed.data === current) return onDone();
+    setError(null);
+    setSending(true);
+    rename(parsed.data, (res) => {
+      setSending(false);
+      if (res.ok) return onDone();
+      setError(res.error);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-20 flex touch-auto items-center justify-center bg-bg/95 px-4">
+      <form
+        onSubmit={submit}
+        aria-labelledby="rename-heading"
+        className={`flex w-full max-w-md flex-col gap-4 ${CARD}`}
+      >
+        <h2 id="rename-heading" className="font-display text-3xl">
+          Change name
+        </h2>
+        <label htmlFor="new-name" className={LABEL}>
+          Your name
+        </label>
+        <input
+          id="new-name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          autoFocus
+          autoComplete="nickname"
+          autoCapitalize="words"
+          enterKeyHint="done"
+          maxLength={PLAYER_NAME_MAX}
+          aria-invalid={error !== null}
+          aria-describedby={error ? 'rename-error' : undefined}
+          className={`${INPUT} text-3xl select-text`}
+        />
+        {error && (
+          <p id="rename-error" role="alert" className="text-lg text-buzz">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <button type="button" onClick={onDone} className={`${BUTTON_SECONDARY} flex-1 font-bold`}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={name.trim() === '' || sending}
+            className={`${BUTTON_PRIMARY} flex-1 text-xl`}
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

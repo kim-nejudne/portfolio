@@ -244,6 +244,8 @@ export interface ClientPayloads {
   ping: { t: number };
   'player:buzz': Record<string, never>;
   'player:practice': Record<string, never>;
+  'player:rename': { name: string };
+  'player:leave': Record<string, never>;
   'host:start': Record<string, never>;
   'host:open': Record<string, never>;
   'host:judge': { result: JudgeResult };

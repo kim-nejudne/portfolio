@@ -6,6 +6,7 @@ import {
   COLLECTION_WINDOW_MS,
   GAME_ENDED_ERROR,
   MAX_PLAYERS_PER_ROOM,
+  NAME_TAKEN_ERROR,
   PLAYER_KICKED_ERROR,
   PLAYER_PALETTE,
   REOPEN_DELAY_MS,
@@ -60,6 +61,8 @@ export type Action =
   | { type: 'player:disconnect'; playerId: string }
   | { type: 'player:buzz'; playerId: string; receivedAt: number }
   | { type: 'player:practice'; playerId: string }
+  | { type: 'player:rename'; playerId: string; name: string }
+  | { type: 'player:leave'; playerId: string }
   | TimerAction
   | { type: 'host:start' }
   | { type: 'host:open' }
@@ -108,6 +111,10 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return playerBuzz(room, action, now);
     case 'player:practice':
       return playerPractice(room, action);
+    case 'player:rename':
+      return playerRename(room, action);
+    case 'player:leave':
+      return playerLeave(room, action);
     case 'windowClosed':
       return windowClosed(room, action, now);
     case 'answerTimeUp':
@@ -164,8 +171,7 @@ function playerJoin(
   const players = Object.values(room.players);
   if (players.length >= MAX_PLAYERS_PER_ROOM) return fail('This game is full');
 
-  const key = name.toLowerCase();
-  if (players.some((p) => p.name.toLowerCase() === key)) return fail('That name is taken');
+  if (nameTaken(players, name)) return fail(NAME_TAKEN_ERROR);
 
   const player: Player = {
     id: playerId,
@@ -230,6 +236,41 @@ function playerPractice(
   if (!room.players[playerId]) return fail('Unknown player');
   if (room.phase !== 'LOBBY') return fail(WRONG_PHASE_ERROR);
   return done(room, [{ type: 'fx', fx: { kind: 'practice', playerId } }]);
+}
+
+/**
+ * LOBBY only, so the Screen's history of who buzzed never changes names mid-game. The name is
+ * already trimmed and length-checked by zod; the duplicate check is the join's, ignoring the
+ * player's own name, so a change of case goes through (DECISIONS F61).
+ */
+function playerRename(
+  room: Room,
+  { playerId, name }: Extract<Action, { type: 'player:rename' }>,
+): ReduceResult {
+  const player = room.players[playerId];
+  if (!player) return fail('Unknown player');
+  if (room.phase !== 'LOBBY') return fail(WRONG_PHASE_ERROR);
+  const others = Object.values(room.players).filter((p) => p.id !== playerId);
+  if (nameTaken(others, name)) return fail(NAME_TAKEN_ERROR);
+  return done(withPlayer(room, { ...player, name }));
+}
+
+/**
+ * Any phase. The player goes as after a kick, buzz winner included, but the id is not added to
+ * `kickedIds`: the device may come back as a new player (DECISIONS F61).
+ */
+function playerLeave(
+  room: Room,
+  { playerId }: Extract<Action, { type: 'player:leave' }>,
+): ReduceResult {
+  if (!room.players[playerId]) return fail('Unknown player');
+  return done(withoutPlayer(room, playerId));
+}
+
+/** Names are unique in a room, ignoring case. */
+function nameTaken(players: Player[], name: string): boolean {
+  const key = name.toLowerCase();
+  return players.some((p) => p.name.toLowerCase() === key);
 }
 
 /**
@@ -456,15 +497,19 @@ function hostAdjustScore(
   return done(applyJudgement(room, playerId, 'adjust', delta));
 }
 
-/**
- * Any phase. Removes the player for good and drops every live reference to them; their past
- * judgements stay in the history. An unjudged winning buzz is discarded and the buzzers reopen
- * at once, or the room moves to REVEAL if nobody else is eligible, as after a last wrong answer.
- * A window the kick leaves empty reopens too (DECISIONS #10, F20).
- */
+/** Any phase. Removes the player for good: the id joins `kickedIds`, so it cannot rejoin. */
 function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' }>): ReduceResult {
   if (!room.players[playerId]) return fail('Unknown player');
+  return done(withoutPlayer({ ...room, kickedIds: [...room.kickedIds, playerId] }, playerId));
+}
 
+/**
+ * Removes the player and drops every live reference to them; their past judgements stay in the
+ * history. An unjudged winning buzz is discarded and the buzzers reopen at once, or the room
+ * moves to REVEAL if nobody else is eligible, as after a last wrong answer. A window the removal
+ * leaves empty reopens too (DECISIONS #10, F20). Kick and leave share it (F61).
+ */
+function withoutPlayer(room: Room, playerId: string): Room {
   const players = Object.fromEntries(
     Object.entries(room.players).filter(([id]) => id !== playerId),
   );
@@ -476,7 +521,6 @@ function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' 
   const kicked: Room = {
     ...room,
     players,
-    kickedIds: [...room.kickedIds, playerId],
     buzzes: room.buzzes.filter(keep),
     lockedOut: room.lockedOut.filter((id) => id !== playerId),
     undo,
@@ -485,22 +529,22 @@ function hostKick(room: Room, { playerId }: Extract<Action, { type: 'host:kick' 
   const wasWinner = room.winnerId === playerId;
   const unjudged = room.phase === 'BUZZED' && wasWinner && room.reopenAt === null;
   if (unjudged && !anyoneEligible(kicked)) {
-    return done({
+    return {
       ...kicked,
       phase: 'REVEAL',
       buzzes: [],
       windowStartedAt: null,
       winnerId: null,
       answerTimer: null,
-    });
+    };
   }
   if (
     (room.phase === 'BUZZED' && wasWinner) ||
     (room.phase === 'COLLECTING' && room.buzzes.length > 0 && !kicked.buzzes.length)
   ) {
-    return done(openBuzzers({ ...kicked, winnerId: null }));
+    return openBuzzers({ ...kicked, winnerId: null });
   }
-  return done(wasWinner ? { ...kicked, winnerId: null, answerTimer: null } : kicked);
+  return wasWinner ? { ...kicked, winnerId: null, answerTimer: null } : kicked;
 }
 
 /**
