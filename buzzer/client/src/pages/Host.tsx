@@ -7,6 +7,7 @@ import {
 } from '../../../shared/constants.js';
 import type { HostView } from '../../../shared/types.js';
 import { BulbRail } from '../components/BulbRail.js';
+import { HostBoard } from '../components/HostBoard.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { HostPinEntry } from '../components/HostPinEntry.js';
 import { HostPlayers } from '../components/HostPlayers.js';
@@ -21,6 +22,7 @@ import { ShareResults } from '../components/ShareResults.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { TypedMarking } from '../components/TypedMarking.js';
 import { imageUrl } from '../lib/api.js';
+import { questionHeading, tileOf } from '../lib/boardCursor.js';
 import {
   loadReadAloud,
   readAloudRequested,
@@ -184,15 +186,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
           <p className="truncate text-sm text-muted">{view.title}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          {view.question && view.phase !== 'FINAL' && (
-            <p
-              aria-label={`Question ${view.questionIndex + 1} of ${view.questionCount}`}
-              className={`${PILL} px-3 py-1 font-display text-lg tabular-nums`}
-            >
-              Q{view.questionIndex + 1}
-              <span className="text-muted">/{view.questionCount}</span>
-            </p>
-          )}
+          {view.question && view.phase !== 'FINAL' && <QuestionPill view={view} />}
           <button
             type="button"
             aria-pressed={readAloud}
@@ -250,6 +244,9 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
               <ReadAloudJoin code={view.code} />
             ) : (
               <ReadAloudQuestion view={view} />
+            )}
+            {view.phase === 'BOARD' && view.board && (
+              <HostBoard board={view.board} command={command} />
             )}
             {view.choice && view.phase !== 'FINAL' && (
               <ChoiceTally
@@ -335,6 +332,25 @@ function useVibrateOnTimeUp(): void {
   }, [event]);
 }
 
+/** "Q3/10" in the header, or on a board set the tile's points: "200" (F90). */
+function QuestionPill({ view }: { view: HostView }) {
+  const tile = tileOf(view.board, view.questionIndex);
+  const pill = `${PILL} px-3 py-1 font-display text-lg tabular-nums`;
+  if (tile) {
+    return (
+      <p aria-label={`${tile.title} for ${tile.points}`} className={pill}>
+        {tile.points}
+      </p>
+    );
+  }
+  return (
+    <p aria-label={`Question ${view.questionIndex + 1} of ${view.questionCount}`} className={pill}>
+      Q{view.questionIndex + 1}
+      <span className="text-muted">/{view.questionCount}</span>
+    </p>
+  );
+}
+
 /**
  * The top of the remote: question number, text, the answer and notes box, and the image thumbnail
  * (UI spec, Host remote).
@@ -343,7 +359,7 @@ function QuestionCard({ view }: { view: HostView }) {
   // In the lobby there is no current question yet, so show the first one the host will read out.
   const question = view.question ?? view.nextQuestion;
   const label = view.question
-    ? `Question ${view.questionIndex + 1} of ${view.questionCount}`
+    ? questionHeading(view.board, view.questionIndex, view.questionCount)
     : `Up first: question 1 of ${view.questionCount}`;
 
   if (!question) return null;

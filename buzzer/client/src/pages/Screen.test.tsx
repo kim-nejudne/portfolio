@@ -13,7 +13,13 @@ import {
   TEAMS,
   TITLE_CARD_MS,
 } from '../../../shared/constants.js';
-import type { RankedPlayer, ScreenView, TeamView, TypedView } from '../../../shared/types.js';
+import type {
+  BoardView,
+  RankedPlayer,
+  ScreenView,
+  TeamView,
+  TypedView,
+} from '../../../shared/types.js';
 import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import type { GameSocket } from '../lib/socket.js';
 import { playSound, resetSounds, startSounds } from '../lib/sounds.js';
@@ -2366,5 +2372,161 @@ describe('Screen with teams', () => {
       expect(steps).toEqual(['2nd place: Red', '1st place: Blue']);
       expect(chipsOf(screen.getByRole('region', { name: 'Full ranking' }))).toHaveLength(6);
     });
+  });
+});
+
+describe('category board (F90)', () => {
+  const hostToken = 'h'.repeat(43);
+  /** 3 × 3; question i sits in column floor(i / 3), row i % 3. */
+  function board(used: number[] = []): BoardView {
+    return {
+      columns: ['Animals', 'Science', 'History'].map((title, c) => ({
+        title,
+        tiles: [0, 1, 2].map((r) => ({
+          questionIndex: c * 3 + r,
+          points: (r + 1) * 100,
+          used: used.includes(c * 3 + r),
+        })),
+      })),
+    };
+  }
+  const onBoard = (used: number[] = [], overrides: Partial<ScreenView> = {}) =>
+    lobbyView([player(1)], {
+      phase: 'BOARD',
+      questionIndex: -1,
+      questionCount: 9,
+      board: board(used),
+      ...overrides,
+    });
+  const picked = (index: number, used: number[], phase: ScreenView['phase'] = 'QUESTION') =>
+    lobbyView([player(1)], {
+      phase,
+      questionIndex: index,
+      questionCount: 9,
+      question: { id: `q${index + 1}`, text: 'Which bird cannot fly?', points: 200 },
+      board: board(used),
+    });
+
+  const grid = () => screen.getByRole('region', { name: 'Category board' });
+  const press = (key: string) => fireEvent.keyDown(window, { key });
+  const picks = (socket: FakeSocket) =>
+    socket.emitted.filter((e) => e.event === 'host:pick').map((e) => e.payload);
+
+  function hostScreen(view: ScreenView) {
+    saveHostToken('WXYZ', hostToken);
+    const { socket } = renderScreen();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', view);
+    return socket;
+  }
+
+  it('shows each category’s title and its point tiles, played ones dimmed', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', onBoard([1]));
+    const headings = within(grid())
+      .getAllByRole('heading')
+      .map((h) => h.textContent);
+    expect(headings).toEqual(['Animals', 'Science', 'History']);
+    const tile = (name: string) => within(grid()).getByText((_, el) => el?.textContent === name);
+    expect(tile('Animals, 100').className).not.toContain('opacity-30');
+    expect(tile('Animals, 200, played').className).toContain('opacity-30');
+    expect(tile('History, 300').textContent).toBe('History, 300');
+    // A Screen without the hostToken has nothing to press.
+    expect(within(grid()).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('the host bar’s arrow keys move between tiles and Enter picks one', () => {
+    const socket = hostScreen(onBoard());
+    const current = () => within(grid()).getByRole('button', { current: true }).textContent;
+    expect(current()).toBe('Animals, 100');
+    press('ArrowRight');
+    press('ArrowDown');
+    expect(current()).toBe('Science, 200');
+    expect(screen.getByRole('button', { name: /Pick Science 200/ })).toBeTruthy();
+    press('Enter');
+    expect(picks(socket)).toEqual([{ questionIndex: 4 }]);
+    // Neither Previous nor Next acts on the board.
+    expect(socket.emitted.some((e) => e.event === 'host:prev' || e.event === 'host:next')).toBe(
+      false,
+    );
+  });
+
+  it('Enter on a played tile sends nothing', () => {
+    const socket = hostScreen(onBoard([0, 3]));
+    // The cursor starts on the first open tile: History 100.
+    press('ArrowLeft');
+    press('ArrowLeft');
+    expect(within(grid()).getByRole('button', { current: true }).textContent).toBe(
+      'Animals, 100, played',
+    );
+    press('Enter');
+    expect(picks(socket)).toEqual([]);
+  });
+
+  it('a click on a tile picks it; played tiles are disabled', () => {
+    const socket = hostScreen(onBoard([2]));
+    expect(
+      within(grid()).getByRole<HTMLButtonElement>('button', { name: 'Animals, 300, played' })
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(within(grid()).getByRole('button', { name: 'History, 200' }));
+    expect(picks(socket)).toEqual([{ questionIndex: 7 }]);
+  });
+
+  it('the picked tile zooms into its question, headed by the category and points', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', onBoard());
+    socket.fire('state', picked(4, [4]));
+    const zoom = document.querySelector<HTMLElement>('[data-tile-zoom]')!;
+    expect(zoom.className).toContain('animate-tile-zoom');
+    // From the tile's place: the middle column, the middle row under the titles.
+    expect(zoom.style.transformOrigin).toBe('50% 62.5%');
+    expect(within(zoom).getByText('Which bird cannot fly?')).toBeTruthy();
+    expect(screen.getByText('Science · 200')).toBeTruthy();
+    expect(screen.queryByText(/Question 5/)).toBeNull();
+  });
+
+  it('a Screen that loads mid-question shows it without the zoom', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', picked(4, [4]));
+    expect(document.querySelector('[data-tile-zoom]')).toBeNull();
+    expect(screen.getByText('Which bird cannot fly?')).toBeTruthy();
+  });
+
+  it('back on the board, the cursor is on the first open tile', () => {
+    const socket = hostScreen(onBoard());
+    press('ArrowDown');
+    press('Enter');
+    socket.fire('state', picked(1, [1], 'REVEAL'));
+    expect(screen.getByRole('button', { name: /Back to the board/ })).toBeTruthy();
+    socket.fire('state', onBoard([0, 1]));
+    expect(within(grid()).getByRole('button', { current: true }).textContent).toBe('Science, 100');
+  });
+
+  it('Previous: hidden on the board, enabled on the first tile played', () => {
+    const socket = hostScreen(onBoard());
+    expect(screen.queryByRole('button', { name: /Previous/ })).toBeNull();
+    socket.fire('state', picked(0, [0]));
+    const previous = screen.getByRole<HTMLButtonElement>('button', { name: /Previous/ });
+    expect(previous.disabled).toBe(false);
+    press('ArrowLeft');
+    expect(socket.emitted.filter((e) => e.event === 'host:prev')).toHaveLength(1);
+  });
+
+  it('with every tile played, the bar points to End game', () => {
+    hostScreen(onBoard([0, 1, 2, 3, 4, 5, 6, 7, 8]));
+    expect(screen.getByText('Every tile played: End game')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Pick/ })).toBeNull();
+  });
+
+  it('Start game on a board set shows the title card, then the board', () => {
+    vi.useFakeTimers();
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([player(1)], { board: board() }));
+    socket.fire('state', onBoard());
+    expect(screen.getByRole('region', { name: 'Title card' })).toBeTruthy();
+    act(() => vi.advanceTimersByTime(TITLE_CARD_MS));
+    expect(screen.queryByRole('region', { name: 'Title card' })).toBeNull();
+    expect(grid()).toBeTruthy();
   });
 });

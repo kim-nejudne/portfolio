@@ -238,14 +238,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F89 Category board: server
 
-- [ ] F90 Category board: builder and devices
-  - Spec: UI spec by view (Screen view, Host remote); Question editor and images (Set list); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F89, F57
-  - Done when:
-    - The game builder has **Board** mode: choose 2–6 categories; it draws one Easy, Medium and Hard question per category into a board set (points 100/200/300 from the starters)
-    - Screen: the board grid (category titles, point tiles; used tiles dimmed); a picked tile zooms into the question
-    - Remote: the same grid to pick from in BOARD; the Screen's host bar uses arrow keys and Enter to pick
-  - Tests: `gameBuilder.test.ts` (board mode), `Screen.test.tsx`, `Host.test.tsx`. `/playtest`: a 3 × 3 board, play three tiles
+- [x] F90 Category board: builder and devices
 
 ## M23 — Taglish
 
@@ -271,3 +264,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 - Choice questions: a "Choice time" stepper (5–30 s) in Settings for `choiceSeconds`, settable over `host:settings` only today; the Screen lobby's settings column is full at 1280×720, so it needs a squeeze or a fold (F85, F86). The Screen could play the correct or wrong sound at a choice reveal (no `fx` is sent then), and the remote could name who picked what from `choice.answers` (F86).
 - Typed questions: a group's shown spelling breaks a tie by code point, so "PARIS" beats "paris" on the remote; prefer the spelling closest to the answer, or the first typed (F87, F88). Marking from the Screen's keyboard (it shows no groups, so Reveal and score uses the pre-marks there), and the correct and wrong sounds at a typed reveal (F88).
 - Category board: the set editor keeps a set's `board`, so deleting a question that sits on a tile leaves a board the schema refuses at Host time. The editor could show the board, drop it with a warning, or refuse to delete a tile's question (F89). A `BOARD` → FINAL Next once every tile is used, if End game proves too hidden (F89).
+- Category board: the phone still reads "Question 9 of 9" (set order) on a board set, and shows nothing in BOARD; it could name the tile ("Animals · 200") as the Screen and remote do, from a board-tile field on `PlayerView` (F90). A tile-reveal sound on the pick (F90).

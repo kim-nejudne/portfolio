@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import type { HostView } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
+import { questionHeading } from '../lib/boardCursor.js';
 import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
 import { CARD, LABEL } from '../lib/ui.js';
 import { useJoinOrigin } from '../lib/useJoinOrigin.js';
@@ -52,9 +53,7 @@ export function ReadAloudQuestion({ view }: { view: HostView }) {
       className="flex flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-5"
     >
       <p className={`flex justify-between gap-2 ${LABEL}`}>
-        <span>
-          Question {view.questionIndex + 1} of {view.questionCount}
-        </span>
+        <span>{questionHeading(view.board, view.questionIndex, view.questionCount)}</span>
         <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
       </p>
       {question.text && (

@@ -1,4 +1,5 @@
 import type { ClientPayloads, Phase, ScreenView } from '../../../shared/types.js';
+import { boardDone } from './boardCursor.js';
 import type { HostCommand, HostEvent } from './useHostCommand.js';
 
 /** What the host controls read. The host remote's HostView and the Screen's ScreenView both have it. */
@@ -12,6 +13,7 @@ export type ControlsView = Pick<
   | 'canUndo'
   | 'choice'
   | 'typed'
+  | 'board'
 >;
 
 /** The host events the primary button sends without a payload. */
@@ -45,6 +47,11 @@ export function primaryFor(view: ControlsView): { label: string; event: PrimaryE
   if (view.phase === 'ANSWERING' && view.typed) {
     return { label: 'Reveal and score', event: 'host:reveal' };
   }
+  if (view.phase === 'REVEAL' && view.board) {
+    // On a board set Next goes back to the board, or to FINAL once every tile is played (F89).
+    const done = boardDone(view.board);
+    return { label: done ? 'Show final results' : 'Back to the board', event: 'host:next' };
+  }
   if (view.phase === 'REVEAL') {
     // `host:next` after the last question shows the final results instead of another question.
     const last = view.questionIndex >= view.questionCount - 1;
@@ -56,6 +63,15 @@ export function primaryFor(view: ControlsView): { label: string; event: PrimaryE
 /** A question is on screen: neither the lobby nor the final results. */
 export function inGame(view: ControlsView): boolean {
   return view.phase !== 'LOBBY' && view.phase !== 'FINAL';
+}
+
+/**
+ * Whether Previous applies: from question 2 on, or on a board set from any tile back to the board.
+ * On the board itself there is nothing to go back to (DECISIONS F89).
+ */
+export function canGoBack(view: ControlsView): boolean {
+  if (!inGame(view)) return false;
+  return view.board ? view.phase !== 'BOARD' : view.questionIndex > 0;
 }
 
 /** One host event and its payload, ready for `HostCommand.run`. */
@@ -78,7 +94,7 @@ export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
   {
     keys: ['Space'],
     action:
-      'Primary action (Start / Open buzzers / Close answers / Reveal and score / Reveal / Next)',
+      'Primary action (Start / Open buzzers / Close answers / Reveal and score / Reveal / Next / Back to the board)',
   },
   { keys: ['C'], action: 'Correct' },
   { keys: ['V'], action: 'Half points' },
@@ -86,6 +102,8 @@ export const SHORTCUTS: readonly { keys: string[]; action: string }[] = [
   { keys: ['R'], action: 'Reveal answer / skip' },
   { keys: ['N', '→'], action: 'Next question' },
   { keys: ['←'], action: 'Previous question' },
+  { keys: ['← ↑ → ↓'], action: 'Move on the category board' },
+  { keys: ['Enter'], action: 'Pick the board tile' },
   { keys: ['S'], action: 'Toggle scoreboard' },
   { keys: ['U'], action: 'Undo last judgement' },
   { keys: ['F'], action: 'Toggle fullscreen' },
@@ -121,7 +139,7 @@ export function shortcutFor(
     case 'ArrowRight':
       return view.phase === 'REVEAL' ? { event: 'host:next', payload: {} } : null;
     case 'ArrowLeft':
-      return inGame(view) && view.questionIndex > 0 ? { event: 'host:prev', payload: {} } : null;
+      return canGoBack(view) ? { event: 'host:prev', payload: {} } : null;
     case 's':
       return { event: 'host:scoreboard', payload: { show: !view.showScoreboard } };
     case 'u':

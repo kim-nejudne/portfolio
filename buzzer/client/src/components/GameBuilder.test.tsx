@@ -6,7 +6,7 @@ import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { db, getImage, listSets } from '../lib/db.js';
-import { GAME_LIMIT_MESSAGE } from '../lib/gameBuilder.js';
+import { BOARD_SIZE_MESSAGE, GAME_LIMIT_MESSAGE } from '../lib/gameBuilder.js';
 import { checkPlayable } from '../lib/hostRoom.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { GameBuilder, type BuiltGame } from './GameBuilder.js';
@@ -196,5 +196,97 @@ describe('GameBuilder', () => {
     const { onBack } = renderBuilder();
     fireEvent.click(screen.getByRole('button', { name: 'Back to the sets' }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('GameBuilder: Category board mode (F90)', () => {
+  const boardMode = () => fireEvent.click(screen.getByRole('button', { name: 'Category board' }));
+  const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }));
+  const boxes = () => screen.getAllByRole<HTMLInputElement>('checkbox');
+
+  it('offers only categories with an Easy, a Medium and a Hard question', () => {
+    renderBuilder();
+    boardMode();
+    expect(
+      screen.getByRole('button', { name: 'Category board' }).getAttribute('aria-pressed'),
+    ).toBe('true');
+    const names = boxes().map((box) => box.closest('label')!.textContent);
+    expect(names).toContain('Animals');
+    // The sample set has no difficulty, so "Other" cannot fill a column.
+    expect(names).not.toContain('Other');
+    expect(screen.queryByRole('button', { name: 'Add a row' })).toBeNull();
+  });
+
+  it('needs 2 categories before it can host', () => {
+    renderBuilder();
+    boardMode();
+    expect(screen.getByText(BOARD_SIZE_MESSAGE)).toBeTruthy();
+    expect(hostButton().disabled).toBe(true);
+    tick('Animals');
+    expect(hostButton().disabled).toBe(true);
+    tick('Science');
+    expect(screen.queryByText(BOARD_SIZE_MESSAGE)).toBeNull();
+    expect(hostButton().disabled).toBe(false);
+    expect(screen.getByText('2 of 6 categories')).toBeTruthy();
+  });
+
+  it('stops at 6 categories', () => {
+    renderBuilder();
+    boardMode();
+    for (const box of boxes().slice(0, 6)) fireEvent.click(box);
+    expect(boxes().filter((box) => box.checked)).toHaveLength(6);
+    expect(
+      boxes()
+        .filter((box) => !box.checked)
+        .every((box) => box.disabled),
+    ).toBe(true);
+    fireEvent.click(boxes()[0]!);
+    expect(boxes().every((box) => !box.disabled)).toBe(true);
+  });
+
+  it('hosts a board: a column per category in the order ticked, 100/200/300 from the starters', async () => {
+    const { onHost } = renderBuilder();
+    boardMode();
+    tick('World History');
+    tick('Animals');
+    tick('Science');
+    expect(screen.getByText('Column 1').closest('label')!.textContent).toContain('World History');
+    fireEvent.click(hostButton());
+    await waitFor(() => expect(onHost).toHaveBeenCalledTimes(1));
+
+    const { set } = vi.mocked(onHost).mock.calls[0]![0];
+    expect(set.title).toBe('Board: World History, Animals, Science');
+    expect(set.board!.columns.map((c) => c.title)).toEqual(['World History', 'Animals', 'Science']);
+    const points = new Map(set.questions.map((q) => [q.id, q.points]));
+    for (const column of set.board!.columns) {
+      expect(column.questionIds.map((id) => points.get(id))).toEqual([100, 200, 300]);
+    }
+    expect(checkPlayable(set)).toEqual({ ok: true, set });
+  });
+
+  it('Save to My sets keeps the board', async () => {
+    const { onSaved } = renderBuilder();
+    boardMode();
+    tick('Animals');
+    tick('Science');
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    const [stored] = await listSets();
+    expect(stored!.board!.columns.map((c) => c.title)).toEqual(['Animals', 'Science']);
+  });
+
+  it('Mixed questions keeps its rows across a switch', () => {
+    renderBuilder();
+    choose('Questions, row 1', '3');
+    boardMode();
+    fireEvent.click(screen.getByRole('button', { name: 'Mixed questions' }));
+    expect(select('Questions, row 1').value).toBe('3');
+  });
+
+  it('says so when no category has every level', () => {
+    renderBuilder({ sources: [SAMPLE_SET] });
+    boardMode();
+    expect(screen.getByText('No category has an Easy, a Medium and a Hard question.')).toBeTruthy();
+    expect(hostButton().disabled).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import type { HostView } from '../../../shared/types.js';
-import { inGame, UNREVEALED } from '../lib/hostControls.js';
+import { canGoBack, inGame, UNREVEALED } from '../lib/hostControls.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
 import { Icon } from './Icon.js';
@@ -47,11 +47,12 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           Undo last judgement
         </button>
       )}
-      {playing && (
+      {/* On the board there is nothing to go back to; from any tile, Previous returns to it (F89). */}
+      {playing && view.phase !== 'BOARD' && (
         <button
           type="button"
           onClick={() => run('host:prev', {})}
-          disabled={busy || view.questionIndex <= 0}
+          disabled={busy || !canGoBack(view)}
           className={small}
         >
           <Icon name="arrow-left" className="size-5" />

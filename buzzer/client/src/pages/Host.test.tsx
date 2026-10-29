@@ -12,6 +12,7 @@ import {
 } from '../../../shared/constants.js';
 import { TOAST_MS } from '../components/Toast.js';
 import type {
+  BoardView,
   HostChoiceView,
   HostTypedView,
   HostView,
@@ -1473,5 +1474,118 @@ describe('Host remote', () => {
         vi.useRealTimers();
       }
     });
+  });
+});
+
+describe('Host remote: category board (F90)', () => {
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  /** 2 × 3; question i sits in column floor(i / 3), row i % 3. */
+  function board(used: number[] = []): BoardView {
+    return {
+      columns: ['Animals', 'Science'].map((title, c) => ({
+        title,
+        tiles: [0, 1, 2].map((r) => ({
+          questionIndex: c * 3 + r,
+          points: (r + 1) * 100,
+          used: used.includes(c * 3 + r),
+        })),
+      })),
+    };
+  }
+  const onBoard = (used: number[] = []) =>
+    hostView({
+      phase: 'BOARD',
+      questionIndex: -1,
+      questionCount: 6,
+      nextQuestion: null,
+      board: board(used),
+    });
+  const onTile = (index: number, phase: HostView['phase'], used: number[]) =>
+    hostView({
+      phase,
+      questionIndex: index,
+      questionCount: 6,
+      question: question(index + 1, { points: 200 }),
+      nextQuestion: null,
+      board: board(used),
+    });
+
+  function remote(view: HostView, path = `/host/WXYZ#t=${TOKEN}`) {
+    const rendered = renderHost(path);
+    act(() => rendered.socket.emitted[0]!.ack({ ok: true }));
+    rendered.socket.fire('state', view);
+    return rendered.socket;
+  }
+  const grid = () => screen.getByRole('region', { name: 'Category board' });
+  const sent = (socket: FakeSocket, event: string) =>
+    socket.emitted.filter((e) => e.event === event).map((e) => e.payload);
+
+  it('shows the grid in BOARD, and a tap on a tile picks it', () => {
+    const socket = remote(onBoard());
+    const headings = within(grid())
+      .getAllByRole('heading')
+      .map((h) => h.textContent);
+    expect(headings).toEqual(['Animals', 'Science']);
+    fireEvent.click(within(grid()).getByRole('button', { name: 'Science, 200' }));
+    expect(sent(socket, 'host:pick')).toEqual([{ questionIndex: 4 }]);
+  });
+
+  it('played tiles are dimmed and cannot be picked', () => {
+    const socket = remote(onBoard([0]));
+    const played = within(grid()).getByRole<HTMLButtonElement>('button', {
+      name: 'Animals, 100, played',
+    });
+    expect(played.disabled).toBe(true);
+    expect(played.className).toContain('opacity-30');
+    fireEvent.click(played);
+    expect(sent(socket, 'host:pick')).toEqual([]);
+  });
+
+  it('the grid shows only on the board', () => {
+    const socket = remote(onBoard());
+    socket.fire('state', onTile(4, 'QUESTION', [4]));
+    expect(screen.queryByRole('region', { name: 'Category board' })).toBeNull();
+    expect(screen.getByText('Question text 5')).toBeTruthy();
+  });
+
+  it('a picked question is headed by its category and tile points', () => {
+    remote(onTile(4, 'QUESTION', [4]));
+    const card = screen.getByRole('region', { name: 'Question' });
+    expect(card.textContent).toContain('Science');
+    expect(card.textContent).not.toContain('Question 5 of 6');
+    expect(screen.getByLabelText('Science for 200').textContent).toBe('200');
+  });
+
+  it('Previous is hidden on the board and goes back to it from the first tile played', () => {
+    const socket = remote(onBoard());
+    expect(screen.queryByRole('button', { name: 'Previous question' })).toBeNull();
+    socket.fire('state', onTile(0, 'QUESTION', [0]));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous question' }));
+    expect(sent(socket, 'host:prev')).toEqual([{}]);
+  });
+
+  it('REVEAL offers Back to the board, then Show final results after the last tile', () => {
+    const socket = remote(onTile(4, 'REVEAL', [4]));
+    fireEvent.click(screen.getByRole('button', { name: /Back to the board/ }));
+    expect(sent(socket, 'host:next')).toEqual([{}]);
+    socket.fire('state', onTile(5, 'REVEAL', [0, 1, 2, 3, 4, 5]));
+    expect(screen.getByRole('button', { name: /Show final results/ })).toBeTruthy();
+  });
+
+  it('with every tile played, it says to end the game', () => {
+    remote(onBoard([0, 1, 2, 3, 4, 5]));
+    expect(within(grid()).getByRole('note').textContent).toBe(
+      'Every tile has been played. End the game to show the final results.',
+    );
+  });
+
+  it('read aloud keeps the grid on the board', () => {
+    remote(onBoard(), `/host/WXYZ?read=1#t=${TOKEN}`);
+    expect(within(grid()).getAllByRole('button')).toHaveLength(6);
   });
 });

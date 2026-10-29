@@ -7,7 +7,13 @@ import {
   ROOM_NOT_FOUND_ERROR,
   TITLE_CARD_MS,
 } from '../../../shared/constants.js';
-import type { Phase, RankedPlayer, ScreenView, TeamView } from '../../../shared/types.js';
+import type {
+  BoardView,
+  Phase,
+  RankedPlayer,
+  ScreenView,
+  TeamView,
+} from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
 import { PlayerAvatar } from '../components/PlayerAvatar.js';
@@ -15,12 +21,14 @@ import { Icon } from '../components/Icon.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ReconnectingBanner } from '../components/ReconnectingBanner.js';
 import { ScreenHeader, ScreenRail } from '../components/ScreenChrome.js';
+import { ScreenBoard } from '../components/ScreenBoard.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
 import { FinalResults, Scoreboard } from '../components/ScreenResults.js';
 import { StartOverlay } from '../components/StartOverlay.js';
 import { Toast, useToast } from '../components/Toast.js';
+import { firstUnused, tileOf, type BoardCursor } from '../lib/boardCursor.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { HOVER } from '../lib/hover.js';
@@ -153,6 +161,10 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   // The host bar handles `M` with the other shortcuts; a token-less Screen has only this key.
   useSoundKey(!canHost);
   const titleCard = useTitleCard(view.phase, view.questionIndex);
+  const [cursor, setCursor] = useBoardCursor(view.phase, view.board);
+  const zoomFrom = useTileZoom(view.phase, view.questionIndex, view.board);
+  // On a board set, the header names the tile instead of the set-order number (F90).
+  const tile = tileOf(view.board, view.questionIndex);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
@@ -162,6 +174,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
         questionIndex={view.questionIndex}
         questionCount={view.questionCount}
         numbered={view.question !== null && view.phase !== 'FINAL'}
+        tileLabel={tile ? `${tile.title} · ${tile.points}` : undefined}
         gameNumber={view.session?.gameNumber}
         // The lobby's body shows the join address with its QR, so the header leaves it out (F66).
         url={view.phase === 'LOBBY' ? undefined : url}
@@ -181,6 +194,25 @@ function ScreenStage({ view, canHost, send }: StageProps) {
             <FinalResults players={view.players} session={view.session} teams={view.teams} />
           ) : titleCard ? (
             <TitleCard view={view} />
+          ) : view.phase === 'BOARD' && view.board ? (
+            <ScreenBoard
+              board={view.board}
+              cursor={canHost ? cursor : undefined}
+              onPick={
+                canHost ? (questionIndex) => command.run('host:pick', { questionIndex }) : undefined
+              }
+              busy={command.busy}
+            />
+          ) : zoomFrom ? (
+            // Keyed by question, so the zoom plays once as the picked tile opens (F90).
+            <div
+              key={view.questionIndex}
+              style={{ transformOrigin: zoomFrom }}
+              data-tile-zoom
+              className="flex min-h-0 flex-1 flex-col motion-safe:animate-tile-zoom"
+            >
+              <ScreenQuestion view={view} />
+            </div>
           ) : (
             <ScreenQuestion view={view} />
           )}
@@ -201,6 +233,8 @@ function ScreenStage({ view, canHost, send }: StageProps) {
           <ScreenHostControls
             view={view}
             command={command}
+            boardCursor={cursor}
+            onBoardCursor={setCursor}
             onNewGame={() => setPickingNewGame(true)}
           />
         )}
@@ -225,7 +259,8 @@ function ScreenStage({ view, canHost, send }: StageProps) {
 
 /**
  * True for `TITLE_CARD_MS` after the room leaves the lobby for question 1, while the buzzers stay
- * locked: opening them early ends it. A Screen that loads mid-game never shows it (F66).
+ * locked: opening them early ends it. On a board set it shows over the board until the first pick
+ * (F90). A Screen that loads mid-game never shows it (F66).
  */
 function useTitleCard(phase: Phase, questionIndex: number): boolean {
   const [shown, setShown] = useState(false);
@@ -233,7 +268,9 @@ function useTitleCard(phase: Phase, questionIndex: number): boolean {
   const [previous, setPrevious] = useState(phase);
   if (phase !== previous) {
     setPrevious(phase);
-    setShown(previous === 'LOBBY' && phase === 'QUESTION' && questionIndex === 0);
+    setShown(
+      previous === 'LOBBY' && ((phase === 'QUESTION' && questionIndex === 0) || phase === 'BOARD'),
+    );
   }
   useEffect(() => {
     if (!shown) return;
@@ -241,6 +278,48 @@ function useTitleCard(phase: Phase, questionIndex: number): boolean {
     return () => clearTimeout(timer);
   }, [shown]);
   return shown;
+}
+
+/**
+ * The host's place on the board for the arrow keys. It goes to the first unplayed tile each time
+ * the room comes back to the board, so the tile just played is never under it (F90).
+ */
+function useBoardCursor(
+  phase: Phase,
+  board: BoardView | null,
+): [BoardCursor, (cursor: BoardCursor) => void] {
+  const [cursor, setCursor] = useState<BoardCursor>(() =>
+    board ? firstUnused(board) : { column: 0, row: 0 },
+  );
+  const [previous, setPrevious] = useState(phase);
+  if (phase !== previous) {
+    setPrevious(phase);
+    if (phase === 'BOARD' && board) setCursor(firstUnused(board));
+  }
+  return [cursor, setCursor];
+}
+
+/**
+ * When the room moves from the board into a question, the picked tile's place on the board as a
+ * CSS transform origin, so the question grows out of it; null otherwise. It holds for the whole
+ * question, so the zoom is not cut short by the buzzers opening (F90).
+ */
+function useTileZoom(phase: Phase, questionIndex: number, board: BoardView | null): string | null {
+  const [zoom, setZoom] = useState<{ questionIndex: number; origin: string } | null>(null);
+  const [previous, setPrevious] = useState(phase);
+  if (phase !== previous) {
+    setPrevious(phase);
+    const column = board?.columns.findIndex((c) =>
+      c.tiles.some((t) => t.questionIndex === questionIndex),
+    );
+    if (previous === 'BOARD' && board && column !== undefined && column !== -1) {
+      const row = board.columns[column]!.tiles.findIndex((t) => t.questionIndex === questionIndex);
+      const x = ((column + 0.5) / board.columns.length) * 100;
+      const y = ((row + 1.5) / (board.columns[column]!.tiles.length + 1)) * 100;
+      setZoom({ questionIndex, origin: `${x}% ${y}%` });
+    }
+  }
+  return zoom?.questionIndex === questionIndex ? zoom.origin : null;
 }
 
 /** The set's title, category and difficulty before question 1 (UI spec, Screen view: Title card). */

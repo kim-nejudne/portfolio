@@ -10,6 +10,54 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F90 — Category board: builder and devices (2026-10-30)
+**What changed:**
+- Builder (`lib/gameBuilder.ts`, `GameBuilder.tsx`):
+  - A **Mixed questions / Category board** switch.
+  - Board mode ticks 2–6 of the categories that have a playable Easy, Medium and Hard question (`boardCategories`).
+  - `buildBoard` draws one question per level per category, column by column in tick order. Each question keeps its own points (the starters' 100/200/300).
+  - The set is titled "Board: …", filed under "Mixed", and saves with its board.
+  - The draw, title, picture loading and renumbering are shared with `buildGame`.
+- Screen:
+  - New `ScreenBoard`: one grid of titles and point tiles, played tiles dimmed, titles sized by column count.
+  - With host controls there is a gold cursor ring. Arrows move it and Enter or a click picks. The bar shows **Pick <category> <points>** (Enter), or "Every tile played: End game".
+  - The title card also shows on LOBBY → BOARD.
+  - A pick zooms the question out of the tile's place (`tile-zoom`, 600 ms, `transform-origin` from the tile).
+  - On a board set, the header pill reads "Animals · 200".
+- Remote:
+  - New `HostBoard` in BOARD, laid out on its side: a row per category, then its three tile buttons.
+  - The question card, read-aloud heading and header pill name the tile.
+- Shared logic:
+  - New `lib/boardCursor.ts`: `firstUnused`, `moveCursor`, `tileAt`, `tileOf`, `boardDone`, `questionHeading`.
+  - `hostControls`: REVEAL on a board reads **Back to the board** or **Show final results**. New `canGoBack`: Previous from any tile, hidden in BOARD, used by the remote, the bar and ←. The help table lists the arrows and Enter.
+- Tests:
+  - New `boardCursor.test.ts` (11). `gameBuilder.test.ts` +9, `GameBuilder.test.tsx` +7, `hostControls.test.ts` +5.
+  - `Screen.test.tsx` +10: grid, keys, played tile, click, zoom, mid-question load, cursor reset, Previous, all played, title card.
+  - `Host.test.tsx` +8.
+  - 2327 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F90 (builder board mode; the Screen board, cursor, title card, zoom without an auto-open hold; the remote board on its side, Previous and the REVEAL labels).
+
+**Notes for next session:**
+- With F90 done, all of M19 (category board) is built. F91 is the last roadmap item.
+- Playtest (Playwright, one browser context, so the Screen held the host token too; one player):
+  - Board mode with 1 then 3 categories ticked.
+  - Three tiles played: one picked on the remote, one on the Screen with ArrowRight, ArrowDown and Enter, and one more on the remote. The played tile was dimmed on both. A buzz judged Correct gave +200. No answer reached the Screen or phone before reveal. 0 console errors.
+  - A 6-category check found two layout problems, both fixed and re-shot:
+    - The Screen's per-column grids overlapped: long Bungee titles overflowed and the rows misaligned. It is now one grid with scaled titles; columns are equal and aligned at 1920×1080 and 1280×720.
+    - The remote's 48 px columns broke words mid-letter. It is now transposed: 129 px titles, 56×48 tiles.
+  - The cursor ring rendered white as a CSS outline, so it is now a box-shadow ring, checked gold.
+  - Screenshots are in `.playtest/F90/`. The zoom wasn't caught mid-animation (it was finished at ~100 ms after the pick); only the unit test checks its class and origin.
+- The phone still shows "Question N of M" in set order on a board set (Backlog).
+- Review: no Must-fix. Its Should-fixes (DECISIONS rows, playtest claims, 6-column check) are done.
+- Main `index` chunk 515.79 → 524.76 kB.
+
+**How to try it:** `npm run dev`.
+- At `http://localhost:5173/sets` press **Build a game**, then **Category board**. Tick 3 categories and press **Host this game**.
+- Join a phone at `http://<LAN-IP>:5173/play/<code>` and start.
+- On the Screen (the laptop that created the room), use the arrows and Enter to pick a tile; or tap one on the paired remote.
+- After the reveal, **Back to the board**. Played tiles are dimmed, and Previous from a tile returns to the board.
+
 <!-- entries below, newest first -->
 
 ## F89 — Category board: server (2026-10-30)

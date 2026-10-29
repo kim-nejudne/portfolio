@@ -4,6 +4,9 @@ import { MAX_QUESTIONS_PER_SET } from '../../../shared/constants.js';
 import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { Difficulty, Question, QuestionSet } from '../../../shared/types.js';
 import {
+  BOARD_SIZE_MESSAGE,
+  boardCategories,
+  buildBoard,
   buildGame,
   builderCategories,
   GAME_LIMIT_MESSAGE,
@@ -295,5 +298,91 @@ describe('buildGame images', () => {
     expect(await loadImage(SAMPLE_HEXAGON_ID)).toBeInstanceOf(Blob);
     expect(await loadImage(SAMPLE_FLAG_ID)).toBeInstanceOf(Blob);
     expect(await loadImage('not-in-this-game')).toBeUndefined();
+  });
+});
+
+describe('buildBoard (board mode)', () => {
+  const BOARD_SETS = [
+    ...SETS,
+    set('ah', 'Animals', 'hard', questions('ah', 10, 300)),
+    set('hm', 'History', 'medium', questions('hm', 10, 200)),
+    set('hh', 'History', 'hard', questions('hh', 10, 300)),
+    set('sm', 'Science', 'medium', questions('sm', 4, 200)),
+  ];
+
+  function board(sets: readonly QuestionSet[], categories: string[], seed = 1) {
+    const result = buildBoard(sets, categories, { random: seeded(seed), now: 5, id: 'board' });
+    if (!result.ok) throw new Error(result.error);
+    return result;
+  }
+
+  it('offers only the categories with a question at every level', () => {
+    expect(boardCategories(BOARD_SETS)).toEqual(['Animals', 'History']);
+    expect(boardCategories(SETS)).toEqual([]);
+  });
+
+  it('draws one Easy, Medium and Hard question per category into a column, in the order picked', () => {
+    const { set } = board(BOARD_SETS, ['History', 'Animals']);
+    expect(set.board!.columns.map((c) => c.title)).toEqual(['History', 'Animals']);
+    const byId = new Map(set.questions.map((q) => [q.id, q]));
+    const column = (c: number) =>
+      set.board!.columns[c]!.questionIds.map((id) => byId.get(id)!.answer.split(' ')[0]);
+    expect(column(0)).toEqual(['he', 'hm', 'hh']);
+    expect(column(1)).toEqual(['ae', 'am', 'ah']);
+  });
+
+  it('keeps each question’s points: 100, 200, 300 from top to bottom', () => {
+    const { set } = board(BOARD_SETS, ['Animals', 'History']);
+    const points = new Map(set.questions.map((q) => [q.id, q.points]));
+    for (const column of set.board!.columns) {
+      expect(column.questionIds.map((id) => points.get(id))).toEqual([100, 200, 300]);
+    }
+  });
+
+  it('is titled Board: <categories>, filed under Mixed, every question on a tile', () => {
+    const { set } = board(BOARD_SETS, ['Animals', 'History']);
+    expect(set.title).toBe('Board: Animals, History');
+    expect(set.category).toBe('Mixed');
+    expect(set.difficulty).toBeUndefined();
+    expect(set.questions.map((q) => q.id)).toEqual(
+      set.board!.columns.flatMap((c) => c.questionIds),
+    );
+    expect(checkPlayable(set)).toEqual({ ok: true, set });
+  });
+
+  it('draws differently for another random source', () => {
+    const answersOf = (seed: number) =>
+      answers(board(BOARD_SETS, ['Animals', 'History'], seed).set);
+    expect(answersOf(1)).toEqual(answersOf(1));
+    expect([2, 3, 4, 5].some((seed) => answersOf(seed).join() !== answersOf(1).join())).toBe(true);
+  });
+
+  it('builds a playable 6-column board from the built-in library', () => {
+    const categories = boardCategories(BUILT_IN_SETS).slice(0, 6);
+    expect(categories).toHaveLength(6);
+    const { set } = board(BUILT_IN_SETS, categories);
+    expect(set.questions).toHaveLength(18);
+    expect(new Set(set.questions.map((q) => q.answer)).size).toBe(18);
+    expect(checkPlayable(set)).toEqual({ ok: true, set });
+  });
+
+  it('refuses fewer than 2 or more than 6 categories', () => {
+    expect(buildBoard(BOARD_SETS, ['Animals'])).toEqual({ ok: false, error: BOARD_SIZE_MESSAGE });
+    const seven = Array.from({ length: 7 }, (_, i) => `C${i}`);
+    expect(buildBoard(BOARD_SETS, seven)).toEqual({ ok: false, error: BOARD_SIZE_MESSAGE });
+  });
+
+  it('refuses a category twice, ignoring case', () => {
+    expect(buildBoard(BOARD_SETS, ['Animals', ' animals'])).toEqual({
+      ok: false,
+      error: 'Each category can be on the board once.',
+    });
+  });
+
+  it('refuses a category missing a level', () => {
+    expect(buildBoard(BOARD_SETS, ['Animals', 'Science'])).toEqual({
+      ok: false,
+      error: 'Science has no question at every level.',
+    });
   });
 });

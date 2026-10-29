@@ -2,7 +2,13 @@
 // difficulties into a one-off set. Pure apart from `imagesOf`, which picks a module-level loader.
 
 import { nanoid } from 'nanoid';
-import { MAX_QUESTIONS_PER_SET, SET_TITLE_MAX } from '../../../shared/constants.js';
+import {
+  BOARD_COLUMNS_MAX,
+  BOARD_COLUMNS_MIN,
+  DIFFICULTIES,
+  MAX_QUESTIONS_PER_SET,
+  SET_TITLE_MAX,
+} from '../../../shared/constants.js';
 import type { Difficulty, Question, QuestionSet } from '../../../shared/types.js';
 import { checkPlayable, imagesOf, type LoadImage } from './hostRoom.js';
 import { groupByCategory, NO_CATEGORY } from './setFilter.js';
@@ -26,6 +32,11 @@ export const PICK_COUNT_MAX = 15;
 export const GAME_LIMIT_MESSAGE = `A game holds up to ${MAX_QUESTIONS_PER_SET} questions.`;
 
 export const NO_MATCH_MESSAGE = 'No questions match these picks.';
+
+export const BOARD_SIZE_MESSAGE = `Choose ${BOARD_COLUMNS_MIN} to ${BOARD_COLUMNS_MAX} categories.`;
+
+/** The category a board's title starts with, as "Mixed: …" does for a mixed game. */
+export const BOARD_TITLE_PREFIX = 'Board';
 
 export interface Shortfall {
   /** The row's index in the picks. */
@@ -144,15 +155,34 @@ export function pickCounts(sets: readonly QuestionSet[], picks: readonly GamePic
   return draw(pool(sets), picks, () => 0).got;
 }
 
-/** "Mixed: Animals, History" for the rows that drew questions, cut to fit the title limit. */
-function mixedTitle(picks: readonly GamePick[]): string {
+/** "Mixed: Animals, History" for the categories that drew questions, cut to fit the title limit. */
+function gameTitle(prefix: string, categories: readonly string[]): string {
   const names = new Map<string, string>();
-  for (const pick of picks) {
-    const name = pick.category.trim() || NO_CATEGORY;
+  for (const category of categories) {
+    const name = category.trim() || NO_CATEGORY;
     if (!names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
   }
-  const title = `${MIXED_CATEGORY}: ${[...names.values()].join(', ')}`;
+  const title = `${prefix}: ${[...names.values()].join(', ')}`;
   return title.length <= SET_TITLE_MAX ? title : `${title.slice(0, SET_TITLE_MAX - 1)}…`;
+}
+
+/** Each picture from the set its question was drawn from. */
+function imageLoader(entries: readonly Entry[]): LoadImage {
+  const sourceOf = new Map<string, QuestionSet>();
+  for (const { question, source } of entries) {
+    if (question.imageId !== undefined && !sourceOf.has(question.imageId)) {
+      sourceOf.set(question.imageId, source);
+    }
+  }
+  return async (imageId) => {
+    const source = sourceOf.get(imageId);
+    return source ? imagesOf(source)(imageId) : undefined;
+  };
+}
+
+/** Questions from different sets may share an id; the schema wants them unique within a set. */
+function renumbered(entries: readonly Entry[]): Question[] {
+  return entries.map(({ question }, index) => ({ ...question, id: `q${index + 1}` }));
 }
 
 /**
@@ -170,27 +200,16 @@ export function buildGame(
   if (drawn.length > MAX_QUESTIONS_PER_SET) return { ok: false, error: GAME_LIMIT_MESSAGE };
 
   const entries = shuffle(drawn, random);
-  // Questions from different sets may share an id; the schema wants them unique within a set.
-  const questions = entries.map(({ question }, index) => ({ ...question, id: `q${index + 1}` }));
-
-  const sourceOf = new Map<string, QuestionSet>();
-  for (const { question, source } of entries) {
-    if (question.imageId !== undefined && !sourceOf.has(question.imageId)) {
-      sourceOf.set(question.imageId, source);
-    }
-  }
-  const loadImage: LoadImage = async (imageId) => {
-    const source = sourceOf.get(imageId);
-    return source ? imagesOf(source)(imageId) : undefined;
-  };
-
   return {
     ok: true,
     set: {
       id,
-      title: mixedTitle(picks.filter((_, index) => got[index]! > 0)),
+      title: gameTitle(
+        MIXED_CATEGORY,
+        picks.filter((_, index) => got[index]! > 0).map((pick) => pick.category),
+      ),
       category: MIXED_CATEGORY,
-      questions,
+      questions: renumbered(entries),
       createdAt: now,
       updatedAt: now,
       schemaVersion: 1,
@@ -198,6 +217,74 @@ export function buildGame(
     shortfalls: picks.flatMap((pick, index) =>
       got[index]! < pick.count ? [{ pick: index, asked: pick.count, got: got[index]! }] : [],
     ),
-    loadImage,
+    loadImage: imageLoader(entries),
+  };
+}
+
+/** One question per level for a category: a board column's picks, Easy, Medium, Hard. */
+function columnPicks(category: string): GamePick[] {
+  return DIFFICULTIES.map((difficulty) => ({ category, difficulty, count: 1 }));
+}
+
+/**
+ * The categories a board can use: those with a playable question at every level, A–Z, as
+ * `builderCategories` spells them (DECISIONS F90).
+ */
+export function boardCategories(sets: readonly QuestionSet[]): string[] {
+  const entries = pool(sets);
+  return builderCategories(sets).filter(
+    (category) =>
+      draw(entries, columnPicks(category), () => 0).drawn.length === DIFFICULTIES.length,
+  );
+}
+
+/**
+ * A category board drawn from `sets` (DECISIONS F90): one column per category in the order given,
+ * each one Easy, Medium and Hard question from top to bottom, keeping its points (the starters'
+ * 100, 200, 300). Titled "Board: <categories>" and filed under "Mixed". Fails on fewer than 2 or
+ * more than 6 categories, a category named twice, or one without a question at every level.
+ */
+export function buildBoard(
+  sets: readonly QuestionSet[],
+  categories: readonly string[],
+  { random = Math.random, now = Date.now(), id = nanoid() } = {},
+): BuildResult {
+  if (categories.length < BOARD_COLUMNS_MIN || categories.length > BOARD_COLUMNS_MAX) {
+    return { ok: false, error: BOARD_SIZE_MESSAGE };
+  }
+  const keys = categories.map(categoryKey);
+  if (new Set(keys).size !== keys.length) {
+    return { ok: false, error: 'Each category can be on the board once.' };
+  }
+  const { drawn, got } = draw(pool(sets), categories.flatMap(columnPicks), random);
+  const short = categories.findIndex((_, c) =>
+    got.slice(c * DIFFICULTIES.length, (c + 1) * DIFFICULTIES.length).some((n) => n === 0),
+  );
+  if (short !== -1) {
+    return { ok: false, error: `${categories[short]} has no question at every level.` };
+  }
+  // `draw` keeps the picks' order, so the questions run column by column, Easy to Hard.
+  const questions = renumbered(drawn);
+  return {
+    ok: true,
+    set: {
+      id,
+      title: gameTitle(BOARD_TITLE_PREFIX, categories),
+      category: MIXED_CATEGORY,
+      questions,
+      board: {
+        columns: categories.map((category, c) => ({
+          title: category.trim() || NO_CATEGORY,
+          questionIds: questions
+            .slice(c * DIFFICULTIES.length, (c + 1) * DIFFICULTIES.length)
+            .map((question) => question.id),
+        })),
+      },
+      createdAt: now,
+      updatedAt: now,
+      schemaVersion: 1,
+    },
+    shortfalls: [],
+    loadImage: imageLoader(drawn),
   };
 }

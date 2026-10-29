@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import type { ScreenView } from '../../../shared/types.js';
+import { boardDone, moveCursor, tileAt, type BoardCursor } from '../lib/boardCursor.js';
 import {
+  canGoBack,
   inGame,
   primaryFor,
   runCall,
@@ -27,6 +29,9 @@ interface ScreenHostControlsProps {
   command: HostCommand;
   /** Opens the New game picker, offered in FINAL (DECISIONS F50). */
   onNewGame: () => void;
+  /** The tile the arrow keys are on in BOARD, and how to move it (F90). */
+  boardCursor: BoardCursor;
+  onBoardCursor: (cursor: BoardCursor) => void;
 }
 
 /**
@@ -34,7 +39,13 @@ interface ScreenHostControlsProps {
  * shortcuts, with a `?` help overlay. They act on the ScreenView, which never carries the answer
  * before reveal, so nothing here can show it (DECISIONS #2).
  */
-export function ScreenHostControls({ view, command, onNewGame }: ScreenHostControlsProps) {
+export function ScreenHostControls({
+  view,
+  command,
+  onNewGame,
+  boardCursor,
+  onBoardCursor,
+}: ScreenHostControlsProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [help, setHelp] = useState(false);
@@ -50,6 +61,23 @@ export function ScreenHostControls({ view, command, onNewGame }: ScreenHostContr
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
     if (e.key === 'Escape' && help) return setHelp(false);
+    // On the board the arrows move between tiles and Enter picks one (F90). Previous and Next
+    // don't apply there, so the arrows are free.
+    if (view.phase === 'BOARD' && view.board) {
+      const moved = moveCursor(view.board, boardCursor, e.key);
+      if (moved) {
+        e.preventDefault();
+        return onBoardCursor(moved);
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const tile = tileAt(view.board, boardCursor);
+        if (tile && !tile.used && !command.busy) {
+          command.run('host:pick', { questionIndex: tile.questionIndex });
+        }
+        return;
+      }
+    }
     const action = shortcutFor(e.key, view);
     if (!action) return;
     e.preventDefault();
@@ -85,7 +113,12 @@ export function ScreenHostControls({ view, command, onNewGame }: ScreenHostContr
           onPointerLeave={() => setHovering(false)}
           className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-[0.8vw] border-t-2 border-edge bg-bg-deep/95 px-[2vw] py-[1.2vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
         >
-          <GameButtons view={view} command={command} onNewGame={onNewGame} />
+          <GameButtons
+            view={view}
+            command={command}
+            onNewGame={onNewGame}
+            boardCursor={boardCursor}
+          />
           <span className="ml-auto flex gap-[0.8vw]">
             <BarButton keyHint="M" onClick={cycleSoundLevel}>
               {SOUND_LEVEL_LABEL[soundLevel]}
@@ -123,10 +156,12 @@ function GameButtons({
   view,
   command,
   onNewGame,
+  boardCursor,
 }: {
   view: ScreenView;
   command: HostCommand;
   onNewGame: () => void;
+  boardCursor: BoardCursor;
 }) {
   const { busy } = command;
   const act = (call: HostCommandCall) => () => runCall(command, call);
@@ -176,6 +211,9 @@ function GameButtons({
           {primary.label}
         </BarButton>
       )}
+      {view.phase === 'BOARD' && view.board && (
+        <BoardPick view={view} command={command} cursor={boardCursor} />
+      )}
       {view.phase === 'FINAL' && (
         <BarButton
           onClick={onNewGame}
@@ -198,11 +236,11 @@ function GameButtons({
           Skip question
         </BarButton>
       )}
-      {playing && (
+      {playing && view.phase !== 'BOARD' && (
         <BarButton
           keyHint="←"
           onClick={act({ event: 'host:prev', payload: {} })}
-          disabled={busy || view.questionIndex <= 0}
+          disabled={busy || !canGoBack(view)}
         >
           Previous
         </BarButton>
@@ -236,6 +274,35 @@ function GameButtons({
         />
       )}
     </>
+  );
+}
+
+/**
+ * In BOARD: "Pick Animals 200" for the tile under the arrow keys' cursor, or, once every tile is
+ * played (after a Previous from the last one), a pointer to End game (DECISIONS F89).
+ */
+function BoardPick({
+  view,
+  command,
+  cursor,
+}: {
+  view: ScreenView;
+  command: HostCommand;
+  cursor: BoardCursor;
+}) {
+  const board = view.board!;
+  if (boardDone(board)) return <span className="text-muted">Every tile played: End game</span>;
+  const tile = tileAt(board, cursor);
+  const title = board.columns[cursor.column]?.title ?? '';
+  return (
+    <BarButton
+      keyHint="Enter"
+      onClick={() => tile && command.run('host:pick', { questionIndex: tile.questionIndex })}
+      disabled={command.busy || !tile || tile.used}
+      tone="bg-accent text-accent-ink border-accent font-display"
+    >
+      {tile?.used ? `${title} ${tile.points} played` : `Pick ${title} ${tile?.points ?? ''}`}
+    </BarButton>
   );
 }
 

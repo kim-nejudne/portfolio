@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ChoiceView, Phase, TypedView } from '../../../shared/types.js';
-import { primaryFor, shortcutFor, SHORTCUTS, type ControlsView } from './hostControls.js';
+import type { BoardView, ChoiceView, Phase, TypedView } from '../../../shared/types.js';
+import {
+  canGoBack,
+  primaryFor,
+  shortcutFor,
+  SHORTCUTS,
+  type ControlsView,
+} from './hostControls.js';
 
 function view(phase: Phase, overrides: Partial<ControlsView> = {}): ControlsView {
   return {
@@ -12,6 +18,7 @@ function view(phase: Phase, overrides: Partial<ControlsView> = {}): ControlsView
     canUndo: false,
     choice: null,
     typed: null,
+    board: null,
     ...overrides,
   };
 }
@@ -176,5 +183,62 @@ describe('shortcutFor: scoreboard, undo and local keys', () => {
     for (const key of ['Space', 'C', 'V', 'X', 'R', 'N', '→', '←', 'S', 'U', 'F', 'H', 'M', '?']) {
       expect(keys).toContain(key);
     }
+  });
+});
+
+/** A 2 × 3 board; `used` lists the question indexes already picked. */
+function board(used: number[] = []): BoardView {
+  return {
+    columns: [0, 1].map((c) => ({
+      title: `C${c}`,
+      tiles: [0, 1, 2].map((r) => ({
+        questionIndex: c * 3 + r,
+        points: (r + 1) * 100,
+        used: used.includes(c * 3 + r),
+      })),
+    })),
+  };
+}
+
+describe('category board (F90)', () => {
+  it('REVEAL reads "Back to the board" while tiles are left, then "Show final results"', () => {
+    expect(primaryFor(view('REVEAL', { questionIndex: 5, board: board([5]) }))).toEqual({
+      label: 'Back to the board',
+      event: 'host:next',
+    });
+    expect(primaryFor(view('REVEAL', { board: board([0, 1, 2, 3, 4, 5]) }))).toEqual({
+      label: 'Show final results',
+      event: 'host:next',
+    });
+  });
+
+  it('BOARD has no primary action and no Space: the host picks a tile', () => {
+    expect(primaryFor(view('BOARD', { questionIndex: -1, board: board() }))).toBeNull();
+    expect(shortcutFor(' ', view('BOARD', { questionIndex: -1, board: board() }))).toBeNull();
+  });
+
+  it('Previous applies from any tile, question 1 too, but not on the board', () => {
+    expect(canGoBack(view('QUESTION', { questionIndex: 0, board: board([0]) }))).toBe(true);
+    expect(canGoBack(view('REVEAL', { questionIndex: 0, board: board([0]) }))).toBe(true);
+    expect(canGoBack(view('BOARD', { questionIndex: -1, board: board([0]) }))).toBe(false);
+    expect(shortcutFor('ArrowLeft', view('OPEN', { questionIndex: 0, board: board([0]) }))).toEqual(
+      { event: 'host:prev', payload: {} },
+    );
+    expect(
+      shortcutFor('ArrowLeft', view('BOARD', { questionIndex: -1, board: board() })),
+    ).toBeNull();
+  });
+
+  it('without a board, Previous still needs question 2 or later', () => {
+    expect(canGoBack(view('QUESTION', { questionIndex: 0 }))).toBe(false);
+    expect(canGoBack(view('QUESTION', { questionIndex: 1 }))).toBe(true);
+    expect(canGoBack(view('LOBBY'))).toBe(false);
+    expect(canGoBack(view('FINAL'))).toBe(false);
+  });
+
+  it('the help table lists the board keys', () => {
+    const keys = SHORTCUTS.flatMap((s) => s.keys);
+    expect(keys).toContain('Enter');
+    expect(keys).toContain('← ↑ → ↓');
   });
 });

@@ -18,6 +18,8 @@ interface ScreenHeaderProps {
   questionCount: number;
   /** "Question 3 / 10" in the centre pill; off in the lobby and on the Final screen. */
   numbered: boolean;
+  /** On a board set, "Animals · 200" in place of the question number (F90). */
+  tileLabel?: string;
   /** From game 2, "Game 2" in the centre pill whenever it shows no question number (F77). */
   gameNumber?: number;
   /** The join URL, for the "Join at" and room lines. The set editor's preview has none. */
@@ -33,6 +35,7 @@ export function ScreenHeader({
   questionIndex,
   questionCount,
   numbered,
+  tileLabel,
   gameNumber,
   url,
 }: ScreenHeaderProps) {
@@ -40,7 +43,9 @@ export function ScreenHeader({
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[2vw] px-[3.75vw] py-[min(1.72vw,3vh)]">
       <p className="font-display text-[min(3.125vw,5.6vh)] leading-none text-accent">{APP_NAME}</p>
-      {numbered ? (
+      {numbered && tileLabel ? (
+        <p className={pill}>{tileLabel}</p>
+      ) : numbered ? (
         <p className={pill}>
           Question {questionIndex + 1} / {questionCount}
         </p>
