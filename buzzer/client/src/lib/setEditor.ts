@@ -114,6 +114,7 @@ export function previewView(set: QuestionSet, index: number, reveal = false): Sc
     category: null,
     difficulty: null,
     hostDevices: 0,
+    choice: null,
     question: source
       ? {
           id: source.id,

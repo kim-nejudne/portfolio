@@ -22,6 +22,7 @@ const ALL_PHASES: Phase[] = [
   'OPEN',
   'COLLECTING',
   'BUZZED',
+  'ANSWERING',
   'REVEAL',
   'FINAL',
 ];
@@ -214,6 +215,7 @@ describe('reduce: host:settings', () => {
       falseStartMs: 0,
       showStandings: true,
       teams: 0,
+      choiceSeconds: 10,
     });
     expect(room.phase).toBe(phase);
     expect(effects).toEqual([]);
@@ -228,6 +230,7 @@ describe('reduce: host:settings', () => {
       falseStartMs: 500,
       showStandings: false,
       teams: 3,
+      choiceSeconds: 20,
     } as const;
     const room = step(inPhase('LOBBY'), { type: 'host:settings', settings });
     expect(room.settings).toEqual({ wrongPenalty: false, ...settings });
@@ -248,6 +251,7 @@ describe('reduce: host:settings', () => {
       falseStartMs: 0,
       showStandings: true,
       teams: 0,
+      choiceSeconds: 10,
     });
   });
 

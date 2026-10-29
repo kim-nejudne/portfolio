@@ -6,6 +6,8 @@ import {
   ANSWER_SECONDS_CHOICES,
   AVATARS,
   BUZZ_SECONDS_CHOICES,
+  CHOICE_SECONDS_MAX,
+  CHOICE_SECONDS_MIN,
   CHOICE_TEXT_MAX,
   CHOICES_MAX,
   CHOICES_MIN,
@@ -177,6 +179,7 @@ export const roomSettingsSchema = z.object({
   falseStartMs: z.literal(FALSE_START_MS_CHOICES),
   showStandings: z.boolean(),
   teams: z.literal(TEAM_COUNT_CHOICES),
+  choiceSeconds: z.int().min(CHOICE_SECONDS_MIN).max(CHOICE_SECONDS_MAX),
 });
 
 export const createRoomBodySchema = z.object({
@@ -211,6 +214,13 @@ export const clientPayloadSchemas = {
   'player:practice': emptySchema,
   'player:rename': z.object({ name: playerNameSchema }),
   'player:leave': emptySchema,
+  // The reducer checks the choice against the current question's choices.
+  'player:answer': z.object({
+    choice: z
+      .int()
+      .min(0)
+      .max(CHOICES_MAX - 1),
+  }),
   'host:start': emptySchema,
   'host:open': emptySchema,
   'host:judge': z.object({ result: z.enum(['correct', 'half', 'wrong']) }),

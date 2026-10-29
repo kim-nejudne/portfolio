@@ -6,9 +6,12 @@ import type {
   AnswerTimerView,
   BuzzGap,
   BuzzTimerView,
+  ChoiceView,
+  HostChoiceView,
   HostView,
   LobbyPlayer,
   Player,
+  PlayerChoiceView,
   PlayerResults,
   PlayerView,
   Question,
@@ -55,6 +58,7 @@ function screenView(room: Room): ScreenView {
     category: room.set.category ?? null,
     difficulty: room.set.difficulty ?? null,
     hostDevices: room.hostDevices,
+    choice: choiceView(room, isRevealed(room)),
   };
 }
 
@@ -69,6 +73,7 @@ function hostView(room: Room): HostView {
     nextQuestion: room.set.questions[room.questionIndex + 1] ?? null,
     buzzes: room.buzzes,
     judgements: room.judgements,
+    choice: hostChoiceView(room),
   };
 }
 
@@ -110,6 +115,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     tonight: tonight(room, playerId),
     results: room.phase === 'FINAL' ? playerResults(room, ranked) : null,
     teams: teamsView(room),
+    choice: playerChoiceView(room, playerId),
     ...(answer !== undefined && { answer }),
   };
 }
@@ -271,6 +277,57 @@ function publicPlayer(p: Ranked<Player>): RankedPlayer {
     connected: p.connected,
     rank: p.rank,
   };
+}
+
+/**
+ * The current choice question, built field by field: `correctChoice` and the per-choice counts
+ * only once `revealed`, so a Screen or phone cannot learn the answer early (F85). Null for any
+ * other question.
+ */
+function choiceView(room: Room, revealed: boolean): ChoiceView | null {
+  const question = currentQuestion(room);
+  if (question?.mode !== 'choice' || !question.choices) return null;
+  const answered = Object.keys(room.answers).filter((id) => room.players[id]).length;
+  const waiting = Object.values(room.players).filter((p) => p.connected && !(p.id in room.answers));
+  const { answeringTimer: timer } = room;
+  return {
+    choices: question.choices,
+    answered,
+    expected: answered + waiting.length,
+    timer: timer && { seconds: timer.seconds },
+    ...(revealed && {
+      ...(question.correctChoice !== undefined && { correctChoice: question.correctChoice }),
+      counts: choiceCounts(room, question.choices.length),
+    }),
+  };
+}
+
+/** The host's choice view: everything, at every phase, including each player's pick. */
+function hostChoiceView(room: Room): HostChoiceView | null {
+  const view = choiceView(room, false);
+  const question = currentQuestion(room);
+  if (!view || question?.correctChoice === undefined) return null;
+  return {
+    ...view,
+    correctChoice: question.correctChoice,
+    counts: choiceCounts(room, view.choices.length),
+    answers: room.answers,
+  };
+}
+
+/** The phone's choice view, with its own pick and nobody else's. */
+function playerChoiceView(room: Room, playerId: string): PlayerChoiceView | null {
+  const view = choiceView(room, isRevealed(room));
+  return view && { ...view, mine: room.answers[playerId] ?? null };
+}
+
+/** How many players in the room picked each choice. */
+function choiceCounts(room: Room, length: number): number[] {
+  const counts = Array.from({ length }, () => 0);
+  for (const [id, choice] of Object.entries(room.answers)) {
+    if (room.players[id] && choice < length) counts[choice]! += 1;
+  }
+  return counts;
 }
 
 /** Never spreads the question: `answer` and `hostNotes` must be opted in, not filtered out. */

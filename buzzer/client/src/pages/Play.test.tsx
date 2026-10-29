@@ -74,6 +74,7 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     tonight: null,
     results: null,
     teams: null,
+    choice: null,
     // As the server sets it: the list in LOBBY only.
     lobby:
       (overrides.phase ?? 'LOBBY') === 'LOBBY'

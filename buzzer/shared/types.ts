@@ -38,6 +38,7 @@ export type Phase =
   | 'OPEN' // buzzers open
   | 'COLLECTING' // first buzz received, 150 ms window
   | 'BUZZED' // winner shown, waiting for host judgement
+  | 'ANSWERING' // choice question: every player answers (F85)
   | 'REVEAL' // answer shown
   | 'FINAL';
 
@@ -118,6 +119,7 @@ export interface RoomSettings {
   falseStartMs: FalseStartMs; // default 0 = off
   showStandings: boolean; // default true: the Screen's top-5 rail during a question
   teams: TeamCount; // default 0 = off
+  choiceSeconds: number; // 5–30, default 10: how long a choice question takes answers (F85)
 }
 
 /** The buzz winner's answer time. `endsAt` is wall-clock ms and never leaves the server. */
@@ -129,6 +131,12 @@ export interface AnswerTimer {
 
 /** The time left to buzz in this opening. `endsAt` is wall-clock ms and never leaves the server. */
 export interface BuzzTimer {
+  seconds: number;
+  endsAt: number;
+}
+
+/** The time left to answer a choice question. `endsAt` is wall-clock ms and never leaves the server. */
+export interface AnsweringTimer {
   seconds: number;
   endsAt: number;
 }
@@ -155,6 +163,9 @@ export interface Room {
   undo: UndoPoint[]; // one per judgement of this question, newest last
   answerTimer: AnswerTimer | null; // set in BUZZED while the winner's answer time runs
   buzzTimer: BuzzTimer | null; // set in OPEN while the buzz time runs
+  // SPEC-QUESTION: answers and answeringTimer are not in the spec's Room; see DECISIONS (F85).
+  answers: Record<string, number>; // playerId → choice index, this question's choice answers
+  answeringTimer: AnsweringTimer | null; // set in ANSWERING while the answer time runs
   autoOpenAt: number | null; // wall-clock ms; set in QUESTION while question 1's title card holds auto-open
   hostDevices: number; // connected host remotes (not a Screen holding the token)
   session: Session; // the night's games in this room
@@ -228,6 +239,38 @@ export type AnswerTimerView = Pick<AnswerTimer, 'seconds' | 'up'>;
 /** The buzz timer as clients see it: the clients count down `seconds` themselves. */
 export type BuzzTimerView = Pick<BuzzTimer, 'seconds'>;
 
+/** The choice answer timer as clients see it, as for the buzz timer. */
+export type AnsweringTimerView = Pick<AnsweringTimer, 'seconds'>;
+
+/**
+ * A choice question as a view shows it, whenever one is the current question (F85). `answered` of
+ * `expected` is "N of M answered": `expected` counts connected players and anyone who answered, so
+ * the question closes when the two meet. `correctChoice` and `counts` reach the Screen and phones
+ * only at REVEAL; the host always has them.
+ */
+export interface ChoiceView {
+  choices: string[];
+  answered: number;
+  expected: number;
+  /** The answer time, in ANSWERING only; each device counts down from the snapshot. */
+  timer: AnsweringTimerView | null;
+  correctChoice?: number;
+  /** How many players picked each choice, in choice order. */
+  counts?: number[];
+}
+
+/** The host's choice view: everything, including who picked what. */
+export interface HostChoiceView extends ChoiceView {
+  correctChoice: number;
+  counts: number[];
+  answers: Record<string, number>;
+}
+
+/** The phone's choice view, with this player's own pick. */
+export interface PlayerChoiceView extends ChoiceView {
+  mine: number | null;
+}
+
 interface SharedRoomView {
   code: string;
   title: string;
@@ -271,6 +314,8 @@ export interface ScreenView extends SharedRoomView {
   difficulty: Difficulty | null;
   /** Connected host remotes, not counting the Screen itself: the lobby folds its settings then. */
   hostDevices: number;
+  /** The current question's choices; null unless it is a choice question (F85). */
+  choice: ChoiceView | null;
 }
 
 /** Everything, including the current and next question's answer and notes. */
@@ -282,6 +327,7 @@ export interface HostView extends SharedRoomView {
   players: (RankedPlayer & { rttMs: number })[];
   buzzes: Buzz[];
   judgements: Judgement[];
+  choice: HostChoiceView | null;
 }
 
 /** A row of the phone's "Who's here" list. */
@@ -328,6 +374,8 @@ export interface PlayerView {
   results: PlayerResults | null;
   /** As `SharedRoomView.teams`: every team, so the phone can show its own and its rank (F81). */
   teams: TeamView[] | null;
+  /** The current question's choices and this player's pick; null unless it is a choice question. */
+  choice: PlayerChoiceView | null;
   answer?: string;
 }
 
@@ -375,6 +423,7 @@ export interface ClientPayloads {
   'player:practice': Record<string, never>;
   'player:rename': { name: string };
   'player:leave': Record<string, never>;
+  'player:answer': { choice: number };
   'host:start': Record<string, never>;
   'host:open': Record<string, never>;
   'host:judge': { result: JudgeResult };

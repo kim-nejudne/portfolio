@@ -25,6 +25,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     tonight: null,
     results: null,
     teams: null,
+    choice: null,
     // As the server sets it: the list in LOBBY only.
     lobby:
       (overrides.phase ?? 'LOBBY') === 'LOBBY'
@@ -51,6 +52,14 @@ describe('buzzerState', () => {
 
   it('stays a test buzz in the lobby after a local press', () => {
     expect(buzzerState(view(), true).kind).toBe('practice');
+  });
+
+  it('offers no buzzer while a choice question takes answers', () => {
+    expect(buzzerState(view({ phase: 'ANSWERING' }), true)).toEqual({
+      kind: 'idle',
+      label: 'Answering…',
+      live: false,
+    });
   });
 
   it('says get ready while the question is shown and buzzers are locked', () => {

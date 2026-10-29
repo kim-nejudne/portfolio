@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BUZZ_RATE_LIMIT,
   BUZZ_RATE_LIMITED_ERROR,
@@ -9,7 +9,7 @@ import {
 } from '../shared/constants.js';
 import type { Ack, Fx, View } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
-import { makeSet, T0 } from './test/rooms.js';
+import { makeQuestion, makeRoom, makeSet, T0 } from './test/rooms.js';
 import {
   flush,
   hostJoin,
@@ -485,5 +485,113 @@ describe('socket gateway: player:leave', () => {
     const { a } = await lobbyTable();
     await leave(a);
     expect(await leave(a)).toEqual({ ok: false, error: 'Join the game first' });
+  });
+});
+
+describe('socket gateway: player:answer', () => {
+  beforeEach(() => {
+    // Only the gateway's answer timer is faked; socket I/O stays real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const pick = (c: TestClient, choice: unknown): Promise<Ack> =>
+    c.emitWithAck('player:answer', { choice } as { choice: number });
+
+  /** Lobby table whose question 1 is a choice question (B, "Lyon", correct), opened: ANSWERING. */
+  async function answeringTable() {
+    const set = makeSet();
+    set.questions[0] = makeQuestion(1, {
+      mode: 'choice',
+      choices: ['Paris', 'Lyon', 'Nice'],
+      correctChoice: 1,
+      answer: 'Lyon',
+    });
+    const h = await start({ room: makeRoom({ set, hostTokenHash: TOKEN_HASH }) });
+    const [screen, host, a, b] = await Promise.all([
+      h.connect(),
+      h.connect(),
+      h.connect(),
+      h.connect(),
+    ]);
+    await screenJoin(screen);
+    await hostJoin(host);
+    await playerJoin(a, 'a', 'Ann');
+    await playerJoin(b, 'b', 'Bob');
+    expect(await host.emitWithAck('host:start', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    expect(h.rooms.get('ABCD')!.phase).toBe('ANSWERING');
+    return { h, screen, host, a, b };
+  }
+
+  it('records an answer and sends every view the count, with no correct choice for Screen or phones', async () => {
+    const { h, screen, host, a, b } = await answeringTable();
+    const states = [screen, a, b, host].map(recordStates);
+    expect(await pick(a, 1)).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+
+    expect(h.rooms.get('ABCD')!.answers).toEqual({ a: 1 });
+    const [toScreen, toA, toB, toHost] = states.map((s) => s.at(-1)!);
+    expect(toScreen).toMatchObject({ choice: { answered: 1, expected: 2 } });
+    expect(toA).toMatchObject({ choice: { mine: 1 } });
+    expect(toB).toMatchObject({ choice: { mine: null } });
+    for (const view of [toScreen, toA, toB]) {
+      expect(JSON.stringify(view)).not.toContain('correctChoice');
+    }
+    expect(toHost).toMatchObject({ choice: { correctChoice: 1, answers: { a: 1 } } });
+  });
+
+  it('scores and reveals once every player has answered', async () => {
+    const { h, screen, host, a, b } = await answeringTable();
+    const states = recordStates(screen);
+    expect(await pick(a, 1)).toEqual({ ok: true });
+    expect(await pick(b, 0)).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+
+    const room = h.rooms.get('ABCD')!;
+    expect(room.phase).toBe('REVEAL');
+    expect([room.players.a!.score, room.players.b!.score]).toEqual([100, 0]);
+    expect(states.at(-1)).toMatchObject({
+      phase: 'REVEAL',
+      choice: { correctChoice: 1, counts: [1, 1, 0] },
+    });
+  });
+
+  it('closes and scores when the answer time runs out', async () => {
+    const { h, a } = await answeringTable();
+    expect(await pick(a, 1)).toEqual({ ok: true });
+    vi.advanceTimersByTime(10_000 - 1);
+    expect(h.rooms.get('ABCD')!.phase).toBe('ANSWERING');
+    h.advance(10_000);
+    vi.advanceTimersByTime(1);
+    expect(h.rooms.get('ABCD')!.phase).toBe('REVEAL');
+    expect(h.rooms.get('ABCD')!.players.a!.score).toBe(100);
+  });
+
+  it('acks an invalid choice with an error naming the event, and changes nothing', async () => {
+    const { h, a } = await answeringTable();
+    for (const choice of ['B', 4, -1, 1.5]) {
+      const ack = await pick(a, choice);
+      expect(ack.ok).toBe(false);
+      expect(!ack.ok && ack.error).toContain('Invalid player:answer');
+    }
+    expect(await pick(a, 3)).toEqual({ ok: false, error: 'No such choice' });
+    expect(h.rooms.get('ABCD')!.answers).toEqual({});
+  });
+
+  it('refuses an answer from a socket that has not joined as a player', async () => {
+    const { host } = await answeringTable();
+    expect(await pick(host, 0)).toEqual({ ok: false, error: 'Join the game first' });
+  });
+
+  it("shares player:buzz's per-socket limit", async () => {
+    const { a } = await answeringTable();
+    for (let i = 0; i < BUZZ_RATE_LIMIT.max; i++) {
+      expect(await pick(a, i % 2)).toEqual({ ok: true });
+    }
+    expect(await pick(a, 0)).toEqual({ ok: false, error: BUZZ_RATE_LIMITED_ERROR });
   });
 });

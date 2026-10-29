@@ -147,6 +147,11 @@ export const FALSE_START_MS_CHOICES = [0, 500, 1000] as const satisfies readonly
 /** The team counts the host can pick, in stepper order. 0 is off. */
 export const TEAM_COUNT_CHOICES = [0, 2, 3, 4] as const satisfies readonly TeamCount[];
 
+/** How long a choice question takes answers, in seconds (F85). */
+export const CHOICE_SECONDS_MIN = 5;
+export const CHOICE_SECONDS_MAX = 30;
+export const CHOICE_SECONDS_DEFAULT = 10;
+
 export const DEFAULT_SETTINGS: RoomSettings = {
   wrongPenalty: false,
   autoOpenBuzzers: false,
@@ -156,6 +161,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   falseStartMs: 0,
   showStandings: true,
   teams: 0,
+  choiceSeconds: CHOICE_SECONDS_DEFAULT,
 };
 
 // ---------- Question sets ----------

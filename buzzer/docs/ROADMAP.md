@@ -226,15 +226,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F84 Multiple choice: data and editor
 
-- [ ] F85 Multiple choice: server
-  - Spec: Game flow and state machine (Transitions); Data model; Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F84
-  - Done when:
-    - Phase `ANSWERING`: `host:open` on a choice question goes QUESTION → ANSWERING and schedules `answeringClosed` after `RoomSettings.choiceSeconds` (5–30, default 10)
-    - `player:answer {choice}` in ANSWERING records one answer per player (changeable until it closes); when all connected players answered or time is up the room goes to REVEAL and each correct player gets the points (penalty setting applies to wrong answers)
-    - Screen and Player views carry `choices` but never `correctChoice` before REVEAL; at REVEAL they carry it and the answer counts per choice. Host view carries everything
-    - `host:reveal` during ANSWERING closes it early and scores; undo is not offered for choice questions
-  - Tests: `reducer.choice.test.ts` (each transition, timing, change of answer, all answered, stale close, scoring, penalty), `views.test.ts` (no `correctChoice` before REVEAL, serialised check as the spec's answer test), `sockets.test.ts`
+- [x] F85 Multiple choice: server
 
 - [ ] F86 Multiple choice: devices
   - Spec: UI spec by view (Screen view, Player view, Host remote); see DECISIONS, Proposed spec changes (audit)

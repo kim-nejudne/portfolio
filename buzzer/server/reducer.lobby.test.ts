@@ -262,6 +262,7 @@ const ALL_PHASES: Phase[] = [
   'OPEN',
   'COLLECTING',
   'BUZZED',
+  'ANSWERING',
   'REVEAL',
   'FINAL',
 ];

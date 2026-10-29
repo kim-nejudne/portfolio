@@ -91,6 +91,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     falseStarts: [],
     session: null,
     teams: null,
+    choice: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     question: null,

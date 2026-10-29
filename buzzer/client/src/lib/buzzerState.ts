@@ -81,6 +81,9 @@ export function buzzerState(
         };
       }
       return { kind: 'lost', label: `${view.winnerName ?? 'Someone'} buzzed first`, live: false };
+    case 'ANSWERING':
+      // A choice question has no buzzer; F86 puts the choice buttons here.
+      return idle('Answering…');
     case 'REVEAL':
       return {
         kind: 'revealed',

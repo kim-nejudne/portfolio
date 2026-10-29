@@ -12,6 +12,25 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F85 — Multiple choice: server (2026-10-30)
+**What changed:**
+- Shared: `Phase` adds `'ANSWERING'`; `RoomSettings.choiceSeconds` (int 5–30, default 10; `CHOICE_SECONDS_MIN/MAX/DEFAULT`); `Room.answers` (playerId → choice) and `Room.answeringTimer`; `player:answer {choice}` (int 0–3) in `ClientPayloads` and `clientPayloadSchemas`; view types `ChoiceView`, `HostChoiceView`, `PlayerChoiceView`, `AnsweringTimerView`.
+- Reducer (`server/reducer.ts`): `opened()` sends a choice question QUESTION → ANSWERING as a new opening (from `host:open`, auto-open, and question 1's auto-open after the title card), and any other question to OPEN. `withAnsweringTimer` (beside `withBuzzTimer`, both now typed `Done`) starts `choiceSeconds` and schedules `answeringClosed {questionIndex, openingCounter, at}`. `playerAnswer` records or changes a pick. `withAnswersIn` in `reduce` closes once every connected player has answered (after an answer, a disconnect, a kick or a leave). `closedAnswering` scores through `applyJudgement` (correct +points, wrong 0 or −points with the penalty, no lockout, no undo point) and reveals. `host:reveal` in ANSWERING closes early; `host:prev` and `host:end` drop the answers unscored. ANSWERING joins `QUESTION_PHASES`. A press in QUESTION of a choice question is no false start.
+- Views (`server/views.ts`): `choice` on every view, field by field: Screen/Player get `choices`, `answered` of `expected`, `timer {seconds}`, and `correctChoice` + `counts` only in REVEAL; the phone gets `mine`; the host gets `correctChoice`, `counts` and `answers` always. Gateway: a `player:answer` handler on the buzz rate budget.
+- Tests: new `reducer.choice.test.ts` (39: open, timer, settings, auto-open both ways, answer/change/same, wrong phases, out of range, all answered incl. disconnect, kick and late joiner, nobody connected, stale closes ×3, scoring, judgements, penalty, no lockout, reveal early, no undo, judge/open refused, prev, end), `views.test.ts` +7 (serialised check for no `correctChoice`, `counts`, `"answer"` or `"answers"` before REVEAL; REVEAL fields; host; null for buzz) and two choice rooms in the canJudge/canUndo matrix, `sockets.test.ts` +6 (answer → views, all answered → REVEAL, timer close with fake timers, invalid payloads, non-player socket, rate budget), `schemas.test.ts` +2, `constants.test.ts` +1, `buzzerState.test.ts` +1; ANSWERING added to the any-phase lists of `reducer.admin.test.ts` and `reducer.lobby.test.ts`; settings shape assertions now include `choiceSeconds`. 2086 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-30 for F85 (Room fields and the setting; closing on all connected; scoring, no undo, no fx, no lockout; auto-open, false start and the rate budget; the views).
+
+**Notes for next session:**
+- **F86 builds the device UI on `view.choice`.** Until then the phone's buzzer area reads "Answering…" in ANSWERING (`buzzerState.ts`) with no way to answer, the remote and Screen have no primary action for ANSWERING (`BY_PHASE` in `hostControls.ts` has no entry; Skip's `UNREVEALED` list lacks ANSWERING), and a choice question closes on its timer with nobody scored. `R`/Skip and the remote's primary button need ANSWERING ("Close answers" → `host:reveal`).
+- No `fx` at close: the Screen's correct/wrong sounds and the phone's vibration must come from the REVEAL snapshot (`choice.mine` vs `choice.correctChoice`, `pointsThisQuestion`). `scorerId` is the latest correct judgement, so with several correct players it names only one; the Screen's reveal should use `choice` instead.
+- `choiceSeconds` has no stepper yet (no roadmap bullet asks for one); it's settable over `host:settings` only. Consider a Settings row in F86 or Backlog; the Screen lobby's settings column is full at 1280×720 (F83 note).
+- The editor's `previewView` sets `choice: null`, so the preview of a choice question shows no choices until F86 fills it.
+- Flake seen again by the reviewer: one full `npm test` run failed 1 test, the `document.title` assertion in `client/src/pages/AnswerSheet.test.tsx` ("names the printout after the set, and restores the title on leaving", ~line 86). Every other full run passed. That's likely F84's unnamed flake.
+- No playtest: server-only feature; the socket tests drive real Socket.IO clients through open → answer → REVEAL. Main `index` chunk 502.66 → 502.78 kB.
+
+**How to try it:** `npm test -- server/reducer.choice.test.ts server/views.test.ts server/sockets.test.ts`. In the app (`npm run dev`), a set with a choice question goes to ANSWERING on **Open buzzers** and reveals after 10 s; answering from a phone arrives with F86.
+
 ## F84 — Multiple choice: data and editor (2026-10-30)
 **What changed:**
 - Shared: `Question.mode?: QuestionMode` (`'buzz' | 'choice' | 'typed'`, absent = buzz), `choices?: string[]`, `correctChoice?: number`; constants `QUESTION_MODES`, `CHOICES_MIN`/`CHOICES_MAX` (2/4), `CHOICE_TEXT_MAX` (80), `CHOICE_LETTERS` (A–D).

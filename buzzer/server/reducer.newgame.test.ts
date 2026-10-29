@@ -56,6 +56,7 @@ function finished(overrides: Partial<Room> = {}): Room {
       reopenAt: T0 + 1500,
       undo: [{ buzzes: [buzz], windowStartedAt: 5, winnerId: 'p1' }],
       answerTimer: { seconds: 5, endsAt: T0 + 5000, up: true },
+      answers: { p1: 1 },
       showScoreboard: true,
       kickedIds: ['gone'],
       settings: {
@@ -67,6 +68,7 @@ function finished(overrides: Partial<Room> = {}): Room {
         falseStartMs: 1000,
         showStandings: false,
         teams: 2,
+        choiceSeconds: 20,
       },
       ...overrides,
     }),
@@ -97,6 +99,7 @@ describe('reduce: host:newGame', () => {
       undo: [],
       answerTimer: null,
       buzzTimer: null,
+      answers: {},
       showScoreboard: false,
       session: { ...room.session, gameNumber: 2 },
       players: {

@@ -313,6 +313,14 @@ export function attachSockets(
       return dispatch(code, { type: 'player:practice', playerId });
     });
 
+    // Shares the buzz budget too: a phone changing its answer is a press like any other (F85).
+    handle(socket, 'player:answer', ({ choice }) => {
+      const { code, role, playerId } = socket.data;
+      if (role !== 'player' || !code || !playerId) return fail('Join the game first');
+      if (!buzzLimiter.hit(socket.id)) return fail(BUZZ_RATE_LIMITED_ERROR);
+      return dispatch(code, { type: 'player:answer', playerId, choice });
+    });
+
     handle(socket, 'player:rename', ({ name }) => {
       const { code, role, playerId } = socket.data;
       if (role !== 'player' || !code || !playerId) return fail('Join the game first');

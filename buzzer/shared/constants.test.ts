@@ -5,6 +5,9 @@ import {
   AVATARS,
   BUZZ_SECONDS_CHOICES,
   CHOICE_LETTERS,
+  CHOICE_SECONDS_DEFAULT,
+  CHOICE_SECONDS_MAX,
+  CHOICE_SECONDS_MIN,
   CHOICES_MAX,
   CHOICES_MIN,
   DEFAULT_PORT,
@@ -45,7 +48,7 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, the standings rail on and teams off', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, the standings rail on, teams off and 10 s for a choice question', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
@@ -55,7 +58,13 @@ describe('shared constants', () => {
       falseStartMs: 0,
       showStandings: true,
       teams: 0,
+      choiceSeconds: 10,
     });
+  });
+
+  it('gives a choice question 5 to 30 seconds, 10 by default', () => {
+    expect([CHOICE_SECONDS_MIN, CHOICE_SECONDS_MAX]).toEqual([5, 30]);
+    expect(DEFAULT_SETTINGS.choiceSeconds).toBe(CHOICE_SECONDS_DEFAULT);
   });
 
   it('offers teams Off, 2, 3 and 4 in stepper order', () => {

@@ -50,6 +50,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     falseStarts: [],
     session: null,
     teams: null,
+    choice: null,
     showScoreboard: false,
     settings: DEFAULT_SETTINGS,
     question: { id: 'q2', text: 'Q2', answer: 'A2', points: 200 },

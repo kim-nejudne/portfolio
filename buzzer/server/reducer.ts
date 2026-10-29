@@ -36,7 +36,7 @@ export const TEAMS_PHASE_ERROR = 'Teams can change only in the lobby or between 
 const TEAM_PHASES: readonly Phase[] = ['LOBBY', 'REVEAL'];
 
 /** Phases before the answer is shown. `host:reveal` accepts these; `host:prev` also accepts REVEAL. */
-const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED'];
+const QUESTION_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'ANSWERING'];
 
 /** Phases where a buzz counts towards the winner. */
 const OPEN_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING'];
@@ -50,16 +50,18 @@ const UNDO_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED', 'REVEAL']
 /**
  * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
  * index and opening counter so the reducer can ignore it once the room has moved on. `reopen`,
- * `answerTimeUp`, `buzzTimeUp` and `autoOpen` also carry their `at`, which must still equal
- * `room.reopenAt`, `room.answerTimer.endsAt`, `room.buzzTimer.endsAt` or `room.autoOpenAt`: an
- * undo and a second judgement reuse the index and counter (DECISIONS F20).
+ * `answerTimeUp`, `buzzTimeUp`, `autoOpen` and `answeringClosed` also carry their `at`, which must
+ * still equal `room.reopenAt`, `room.answerTimer.endsAt`, `room.buzzTimer.endsAt`,
+ * `room.autoOpenAt` or `room.answeringTimer.endsAt`: an undo and a second judgement reuse the
+ * index and counter (DECISIONS F20).
  */
 export type TimerAction =
   | { type: 'windowClosed'; questionIndex: number; openingCounter: number }
   | { type: 'reopen'; questionIndex: number; openingCounter: number; at: number }
   | { type: 'answerTimeUp'; questionIndex: number; openingCounter: number; at: number }
   | { type: 'buzzTimeUp'; questionIndex: number; openingCounter: number; at: number }
-  | { type: 'autoOpen'; questionIndex: number; openingCounter: number; at: number };
+  | { type: 'autoOpen'; questionIndex: number; openingCounter: number; at: number }
+  | { type: 'answeringClosed'; questionIndex: number; openingCounter: number; at: number };
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
@@ -74,6 +76,7 @@ export type Action =
   | { type: 'player:practice'; playerId: string }
   | { type: 'player:rename'; playerId: string; name: string }
   | { type: 'player:leave'; playerId: string }
+  | { type: 'player:answer'; playerId: string; choice: number }
   | { type: 'hostDevices'; count: number }
   | TimerAction
   | { type: 'host:start' }
@@ -103,6 +106,8 @@ export type Effect =
 export type ReduceResult =
   { ok: true; room: Room; effects: Effect[] } | { ok: false; error: string };
 
+type Done = Extract<ReduceResult, { ok: true }>;
+
 /**
  * Applies `action` to `room` at `now` (wall-clock ms, as `Date.now` gives; DECISIONS F05).
  * `mono` is the gateway's monotonic `performance.now()` at dispatch; it stamps the start of a new
@@ -113,8 +118,21 @@ export type ReduceResult =
 export function reduce(room: Room, action: Action, now: number, mono?: number): ReduceResult {
   const result = apply(room, action, now);
   if (!result.ok || result.room === room) return result;
-  const stamped = withOpening(room, { ...result.room, lastActivityAt: now }, mono);
-  return withBuzzTimer(room, { ...result, room: stamped }, now);
+  const answered = withAnswersIn(result.room);
+  const stamped = withOpening(room, { ...answered, lastActivityAt: now }, mono);
+  return withAnsweringTimer(room, withBuzzTimer(room, { ...result, room: stamped }, now), now);
+}
+
+/**
+ * Closes a choice question as soon as every connected player has answered, so every path that
+ * can complete it (an answer, a disconnect, a kick or leave) does it in one place. With nobody
+ * connected, it waits for the timer (DECISIONS F85).
+ */
+function withAnswersIn(room: Room): Room {
+  if (room.phase !== 'ANSWERING') return room;
+  const connected = Object.values(room.players).filter((p) => p.connected);
+  if (connected.length === 0 || connected.some((p) => !(p.id in room.answers))) return room;
+  return closedAnswering(room);
 }
 
 /**
@@ -134,24 +152,53 @@ function withOpening(before: Room, room: Room, mono: number | undefined): Room {
  * starts the countdown when `buzzSeconds` is on; leaving OPEN, the first buzz included, clears it.
  * Within the same opening it runs on, so a settings change waits for the next one (DECISIONS F63).
  */
-function withBuzzTimer(
-  before: Room,
-  result: Extract<ReduceResult, { ok: true }>,
-  now: number,
-): ReduceResult {
+function withBuzzTimer(before: Room, result: Done, now: number): Done {
   const { room } = result;
   if (room.phase !== 'OPEN')
-    return room.buzzTimer ? done({ ...room, buzzTimer: null }, result.effects) : result;
+    return room.buzzTimer ? { ...result, room: { ...room, buzzTimer: null } } : result;
   if (room.openingCounter === before.openingCounter && before.phase === 'OPEN') return result;
 
   const seconds = room.settings.buzzSeconds;
-  if (seconds === 0) return done({ ...room, buzzTimer: null }, result.effects);
+  if (seconds === 0) return { ...result, room: { ...room, buzzTimer: null } };
   const at = now + seconds * 1000;
   const { questionIndex, openingCounter } = room;
-  return done({ ...room, buzzTimer: { seconds, endsAt: at } }, [
-    ...result.effects,
-    { type: 'schedule', at, action: { type: 'buzzTimeUp', questionIndex, openingCounter, at } },
-  ]);
+  return {
+    ...result,
+    room: { ...room, buzzTimer: { seconds, endsAt: at } },
+    effects: [
+      ...result.effects,
+      { type: 'schedule', at, action: { type: 'buzzTimeUp', questionIndex, openingCounter, at } },
+    ],
+  };
+}
+
+/**
+ * Keeps `answeringTimer` in step with ANSWERING, as `withBuzzTimer` does for OPEN: entering it,
+ * by `host:open` or auto-open, starts `choiceSeconds` and schedules `answeringClosed`; leaving it
+ * clears the timer. The setting is read on entry, so a change waits for the next question (F85).
+ */
+function withAnsweringTimer(before: Room, result: Done, now: number): Done {
+  const { room } = result;
+  if (room.phase !== 'ANSWERING') {
+    return room.answeringTimer ? { ...result, room: { ...room, answeringTimer: null } } : result;
+  }
+  if (room.openingCounter === before.openingCounter && before.phase === 'ANSWERING') return result;
+
+  const seconds = room.settings.choiceSeconds;
+  const at = now + seconds * 1000;
+  const { questionIndex, openingCounter } = room;
+  return {
+    ...result,
+    room: { ...room, answeringTimer: { seconds, endsAt: at } },
+    effects: [
+      ...result.effects,
+      {
+        type: 'schedule',
+        at,
+        action: { type: 'answeringClosed', questionIndex, openingCounter, at },
+      },
+    ],
+  };
 }
 
 function apply(room: Room, action: Action, now: number): ReduceResult {
@@ -168,6 +215,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return playerRename(room, action);
     case 'player:leave':
       return playerLeave(room, action);
+    case 'player:answer':
+      return playerAnswer(room, action);
     case 'windowClosed':
       return windowClosed(room, action, now);
     case 'answerTimeUp':
@@ -178,6 +227,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return buzzTimeUp(room, action);
     case 'autoOpen':
       return autoOpen(room, action);
+    case 'answeringClosed':
+      return answeringClosed(room, action);
     case 'hostDevices':
       // A count that did not change is ignored, so it neither broadcasts nor counts as activity.
       return done(
@@ -270,7 +321,8 @@ function playerBuzz(
 ): ReduceResult {
   const player = room.players[playerId];
   if (!player) return fail('Unknown player');
-  if (room.phase === 'QUESTION' && room.settings.falseStartMs > 0) {
+  // A choice question has no buzzer, so a press before it opens is no false start (F85).
+  if (room.phase === 'QUESTION' && room.settings.falseStartMs > 0 && !isChoice(room)) {
     return falseStart(room, playerId);
   }
   // Anything else that does not count is ignored silently: no error, no penalty (fairness rules).
@@ -362,6 +414,59 @@ function playerLeave(
 ): ReduceResult {
   if (!room.players[playerId]) return fail('Unknown player');
   return done(withoutPlayer(room, playerId));
+}
+
+/**
+ * ANSWERING only: records the player's choice, replacing any earlier one, so an answer can change
+ * until the question closes. The same choice again changes nothing (F85).
+ */
+function playerAnswer(
+  room: Room,
+  { playerId, choice }: Extract<Action, { type: 'player:answer' }>,
+): ReduceResult {
+  if (!room.players[playerId]) return fail('Unknown player');
+  if (room.phase !== 'ANSWERING') return fail(WRONG_PHASE_ERROR);
+  const choices = room.set.questions[room.questionIndex]?.choices ?? [];
+  if (choice >= choices.length) return fail('No such choice');
+  if (room.answers[playerId] === choice) return done(room);
+  return done({ ...room, answers: { ...room.answers, [playerId]: choice } });
+}
+
+/**
+ * Scores every choice answer and shows the answer. A correct choice gets the question's points; a
+ * wrong one gets none, or loses them with the penalty on. Each is a judgement through
+ * `applyJudgement`, with no undo point, so undo is not offered, and locks nobody out (F85).
+ * Unanswered players are not judged.
+ */
+function closedAnswering(room: Room): Room {
+  const question = room.set.questions[room.questionIndex];
+  const points = question?.points ?? 0;
+  const penalty = room.settings.wrongPenalty && points ? -points : 0;
+  const scored = Object.entries(room.answers).reduce((r, [playerId, choice]) => {
+    if (!r.players[playerId]) return r;
+    return choice === question?.correctChoice
+      ? applyJudgement(r, playerId, 'correct', points)
+      : applyJudgement(r, playerId, 'wrong', penalty);
+  }, room);
+  // A wrong choice is no buzzer lockout: the phones must not show one (F85).
+  return revealed({ ...scored, lockedOut: room.lockedOut });
+}
+
+/**
+ * The answer time ran out: score and reveal. Stale unless the room is still answering that same
+ * opening, waiting on that same timer (F85).
+ */
+function answeringClosed(
+  room: Room,
+  { questionIndex, openingCounter, at }: Extract<TimerAction, { type: 'answeringClosed' }>,
+): ReduceResult {
+  const fresh =
+    room.phase === 'ANSWERING' &&
+    room.answeringTimer?.endsAt === at &&
+    room.questionIndex === questionIndex &&
+    room.openingCounter === openingCounter;
+  if (!fresh) return done(room);
+  return done(closedAnswering(room));
 }
 
 /** Names are unique in a room, ignoring case. */
@@ -476,7 +581,7 @@ function autoOpen(
     room.questionIndex === questionIndex &&
     room.openingCounter === openingCounter;
   if (!fresh) return done(room);
-  return done(openBuzzers(room));
+  return done(opened(room));
 }
 
 function hostJudge(
@@ -667,6 +772,7 @@ function withoutPlayer(room: Room, playerId: string): Room {
     buzzes: room.buzzes.filter(keep),
     lockedOut: room.lockedOut.filter((id) => id !== playerId),
     falseStarts: room.falseStarts.filter((id) => id !== playerId),
+    answers: Object.fromEntries(Object.entries(room.answers).filter(([id]) => id !== playerId)),
     undo,
   };
 
@@ -712,6 +818,7 @@ function hostSettings(
     falseStartMs,
     showStandings,
     teams,
+    choiceSeconds,
   } = room.settings;
   const merged: Room = {
     ...room,
@@ -724,6 +831,7 @@ function hostSettings(
       falseStartMs: settings.falseStartMs ?? falseStartMs,
       showStandings: settings.showStandings ?? showStandings,
       teams: settings.teams ?? teams,
+      choiceSeconds: settings.choiceSeconds ?? choiceSeconds,
     },
   };
   return done(teamsChange ? regrouped(merged) : merged);
@@ -842,12 +950,13 @@ function hostStart(room: Room, now: number): ReduceResult {
 function hostOpen(room: Room): ReduceResult {
   if (room.phase !== 'QUESTION') return fail(WRONG_PHASE_ERROR);
   // The overlay hides when play moves on (DECISIONS #7).
-  return done(openBuzzers({ ...room, showScoreboard: false }));
+  return done(opened({ ...room, showScoreboard: false }));
 }
 
 function hostReveal(room: Room): ReduceResult {
   if (!QUESTION_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
-  return done(revealed(room));
+  // Closing a choice question early scores the answers in so far (F85).
+  return done(room.phase === 'ANSWERING' ? closedAnswering(room) : revealed(room));
 }
 
 /** → REVEAL with no points; an unjudged buzz is discarded. Lockouts stay until the question changes. */
@@ -860,6 +969,7 @@ function revealed(room: Room): Room {
     winnerId: null,
     reopenAt: null,
     answerTimer: null,
+    answeringTimer: null,
     showScoreboard: false,
   };
 }
@@ -896,6 +1006,8 @@ const clearedQuestion = {
   undo: [],
   answerTimer: null,
   autoOpenAt: null,
+  answers: {},
+  answeringTimer: null,
 } satisfies Partial<Room>;
 
 /**
@@ -904,7 +1016,27 @@ const clearedQuestion = {
  */
 function enterQuestion(room: Room, index: number): Room {
   const shown: Room = { ...room, ...clearedQuestion, phase: 'QUESTION', questionIndex: index };
-  return room.settings.autoOpenBuzzers ? openBuzzers(shown) : shown;
+  return room.settings.autoOpenBuzzers ? opened(shown) : shown;
+}
+
+/** The current question is a choice question. A typed one still plays as buzz until F87. */
+function isChoice(room: Room): boolean {
+  return room.set.questions[room.questionIndex]?.mode === 'choice';
+}
+
+/**
+ * QUESTION → a new opening: ANSWERING on a choice question, OPEN on any other. `host:open` and
+ * auto-open both come here; the timers are started by `withBuzzTimer` and `withAnsweringTimer`.
+ */
+function opened(room: Room): Room {
+  if (!isChoice(room)) return openBuzzers(room);
+  return {
+    ...room,
+    phase: 'ANSWERING',
+    answers: {},
+    autoOpenAt: null,
+    openingCounter: room.openingCounter + 1,
+  };
 }
 
 /** QUESTION (or BUZZED after a wrong answer) → OPEN: a new opening with no buzzes yet. */

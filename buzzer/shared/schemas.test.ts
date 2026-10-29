@@ -333,6 +333,43 @@ describe('createRoomBodySchema', () => {
     expect(clientPayloadSchemas['host:settings'].safeParse({ teams: 1 }).success).toBe(false);
   });
 
+  it('takes 5 to 30 whole seconds for a choice question, and requires it (F85)', () => {
+    const body = (choiceSeconds: unknown) => ({
+      set: set(),
+      settings: { ...DEFAULT_SETTINGS, choiceSeconds },
+    });
+    for (const choiceSeconds of [5, 10, 17, 30]) {
+      expect(
+        createRoomBodySchema.safeParse(body(choiceSeconds)).success,
+        String(choiceSeconds),
+      ).toBe(true);
+    }
+    for (const choiceSeconds of [4, 31, 0, 7.5, '10', null]) {
+      expect(
+        createRoomBodySchema.safeParse(body(choiceSeconds)).success,
+        String(choiceSeconds),
+      ).toBe(false);
+    }
+    const without: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete without.choiceSeconds;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: without }).success).toBe(false);
+    expect(clientPayloadSchemas['host:settings'].safeParse({ choiceSeconds: 20 }).success).toBe(
+      true,
+    );
+    expect(clientPayloadSchemas['host:settings'].safeParse({ choiceSeconds: 3 }).success).toBe(
+      false,
+    );
+  });
+
+  it('player:answer takes a choice index A–D, nothing else (F85)', () => {
+    const answer = clientPayloadSchemas['player:answer'];
+    for (const choice of [0, 1, 2, 3]) expect(answer.safeParse({ choice }).success).toBe(true);
+    for (const choice of [-1, 4, 1.5, 'A', null]) {
+      expect(answer.safeParse({ choice }).success, String(choice)).toBe(false);
+    }
+    expect(answer.safeParse({}).success).toBe(false);
+  });
+
   it('host:settings takes a preset’s five keys in one payload (F73)', () => {
     const settings = clientPayloadSchemas['host:settings'];
     const party = {
@@ -415,6 +452,7 @@ describe('client event payloads', () => {
       'player:practice': {},
       'player:rename': { name: 'Ada' },
       'player:leave': {},
+      'player:answer': { choice: 3 },
       'host:start': {},
       'host:open': {},
       'host:judge': { result: 'wrong' },

@@ -32,6 +32,8 @@ export function createRoom({ code, hostTokenHash, set, settings, now }: NewRoom)
     undo: [],
     answerTimer: null,
     buzzTimer: null,
+    answers: {},
+    answeringTimer: null,
     autoOpenAt: null,
     hostDevices: 0,
     session: { gameNumber: 1, totals: {}, players: {}, carried: {} },

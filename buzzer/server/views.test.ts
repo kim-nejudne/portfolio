@@ -50,6 +50,42 @@ function withAvatars(phase: Phase): Room {
 
 const SECRETS = (n: number) => [`Answer-${n}-secret`, `Notes-${n}-secret`];
 
+/** `midGame`'s question 2 as a choice question: B ("Lyon") is correct. */
+function choiceGame(phase: Phase, overrides: Partial<Room> = {}): Room {
+  const set = makeSet();
+  set.questions[1] = makeQuestion(2, {
+    mode: 'choice',
+    choices: ['Paris', 'Lyon', 'Nice', 'Metz'],
+    correctChoice: 1,
+    answer: 'Lyon',
+  });
+  return midGame(phase, { set, ...overrides });
+}
+
+/** The choice question answering since `T0 + 10_000`, Ana on A (wrong); Bob yet to answer. */
+function answering(): Room {
+  const steps: Action[] = [
+    { type: 'host:open' },
+    { type: 'player:answer', playerId: 'p1', choice: 0 },
+  ];
+  return steps.reduce((room, action) => {
+    const result = reduce(room, action, T0 + 10_000);
+    if (!result.ok) throw new Error(result.error);
+    return result.room;
+  }, choiceGame('QUESTION'));
+}
+
+/** `answering`, then Bob picks B (correct), which closes it: REVEAL. */
+function choiceRevealed(): Room {
+  const result = reduce(
+    answering(),
+    { type: 'player:answer', playerId: 'p2', choice: 1 },
+    T0 + 11_000,
+  );
+  if (!result.ok) throw new Error(result.error);
+  return result.room;
+}
+
 describe('toView: answers and notes never leak before reveal', () => {
   it('leaves the first question’s answer and notes out of Screen and Player views in LOBBY', () => {
     const room = withPlayers(makeRoom(), [makePlayer('p1'), makePlayer('p2')]);
@@ -324,6 +360,8 @@ describe('toView: canJudge, canUndo and canChangeTeams match what the reducer ac
       ['BUZZED after an undo', after(wrong, { type: 'host:undo' })],
       ['BUZZED after one undo of two judgements', after(twice, { type: 'host:undo' })],
       ['BUZZED after both undos', after(twice, { type: 'host:undo' }, { type: 'host:undo' })],
+      ['ANSWERING a choice question', answering()],
+      ['REVEAL after a choice question', choiceRevealed()],
     ];
   }
 
@@ -820,5 +858,72 @@ describe('toView: teams', () => {
         expect(json).not.toContain(secret);
       }
     }
+  });
+});
+
+describe('toView: choice questions', () => {
+  it('Screen and Player views carry the choices but never correctChoice or counts before REVEAL', () => {
+    for (const room of [choiceGame('QUESTION'), answering()]) {
+      for (const json of publicViews(room)) {
+        expect(json).toContain('"choices":["Paris","Lyon","Nice","Metz"]');
+        expect(json).not.toContain('correctChoice');
+        expect(json).not.toContain('counts');
+        // The answer is a choice's text, so look for the field rather than its value.
+        expect(json).not.toContain('"answer"');
+        for (const secret of SECRETS(2)) expect(json).not.toContain(secret);
+      }
+    }
+  });
+
+  it('a phone gets its own pick and nobody else’s', () => {
+    const room = answering();
+    expect(toView(room, 'player', 'p1').choice?.mine).toBe(0);
+    expect(toView(room, 'player', 'p2').choice?.mine).toBeNull();
+    for (const json of publicViews(room)) expect(json).not.toContain('"answers"');
+  });
+
+  it('counts N of M answered: M is the connected players and anyone who answered', () => {
+    const view = toView(answering(), 'screen').choice;
+    expect(view).toMatchObject({ answered: 1, expected: 2 });
+  });
+
+  it('carries the answer time in seconds only, while answering', () => {
+    const screen = toView(answering(), 'screen');
+    expect(screen.choice?.timer).toEqual({ seconds: 10 });
+    expect(JSON.stringify(screen)).not.toContain('endsAt');
+    expect(toView(choiceRevealed(), 'screen').choice?.timer).toBeNull();
+  });
+
+  it('at REVEAL the Screen and phones get the correct choice and the count per choice', () => {
+    const room = choiceRevealed();
+    expect(room.phase).toBe('REVEAL');
+    const screen = toView(room, 'screen');
+    expect(screen.choice).toMatchObject({ correctChoice: 1, counts: [1, 1, 0, 0] });
+    expect(screen.question?.answer).toBe('Lyon');
+    const bob = toView(room, 'player', 'p2');
+    expect(bob.choice).toMatchObject({ correctChoice: 1, counts: [1, 1, 0, 0], mine: 1 });
+    expect(bob.pointsThisQuestion).toBe(100);
+    expect(toView(room, 'player', 'p1').pointsThisQuestion).toBe(0);
+  });
+
+  it('the host view carries everything while answering', () => {
+    const host = toView(answering(), 'host');
+    expect(host.choice).toEqual({
+      choices: ['Paris', 'Lyon', 'Nice', 'Metz'],
+      answered: 1,
+      expected: 2,
+      timer: { seconds: 10 },
+      correctChoice: 1,
+      counts: [1, 0, 0, 0],
+      answers: { p1: 0 },
+    });
+  });
+
+  it('is null for a buzz question and in the lobby', () => {
+    for (const room of [midGame('OPEN'), makeRoom()]) {
+      expect(toView(room, 'screen').choice).toBeNull();
+      expect(toView(room, 'host').choice).toBeNull();
+    }
+    expect(toView(midGame('OPEN'), 'player', 'p1').choice).toBeNull();
   });
 });
