@@ -186,14 +186,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F68 Undo every judgement of the question
 
-- [ ] F69 Read-aloud mode (no TV)
-  - Spec: UI spec by view (Host remote); Roles and devices; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F51
-  - Done when:
-    - `RoomCreated` offers **Run from this phone (no TV)**, which opens `/host/:code?read=1`
-    - In read-aloud layout the remote shows the join code and QR in LOBBY, the question in large type to read out, the answer below a tap-to-show cover, and the same controls; the winner's name is large after a buzz
-    - The remote's header has a toggle between the normal and read-aloud layouts, kept in sessionStorage
-  - Tests: `Host.test.tsx` (layout, cover, toggle, lobby QR), `Landing.test.tsx`. `/playtest`: run two questions with no Screen tab open
+- [x] F69 Read-aloud mode (no TV)
 
 - [ ] F70 Pairing PIN
   - Spec: Roles and devices (Creating and joining a room, step 3); Realtime events and HTTP API (HTTP); Security; see DECISIONS, Proposed spec changes (audit)

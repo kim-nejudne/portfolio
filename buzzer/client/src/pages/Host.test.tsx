@@ -30,6 +30,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 const TOKEN = 't'.repeat(43);
@@ -95,7 +96,7 @@ function LocationProbe() {
   const navigate = useNavigate();
   return (
     <>
-      <output data-testid="location">{location.pathname + location.hash}</output>
+      <output data-testid="location">{location.pathname + location.search + location.hash}</output>
       <button type="button" onClick={() => void navigate(`/host/WXYZ#t=${TOKEN}`)}>
         Open pairing link
       </button>
@@ -851,6 +852,127 @@ describe('Host remote', () => {
       expect(screen.getByRole('alert').textContent).toBe('Wait');
       act(() => vi.advanceTimersByTime(1000));
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('read-aloud layout', () => {
+    function remote(view: HostView, path = `/host/WXYZ#t=${TOKEN}`) {
+      const rendered = renderHost(path);
+      act(() => rendered.socket.emitted[0]!.ack({ ok: true }));
+      rendered.socket.fire('state', view);
+      return rendered;
+    }
+
+    const toggle = () => screen.getByRole('button', { name: 'Read aloud' });
+    const inPhase = (phase: HostView['phase'], questionIndex = 0) =>
+      hostView({ phase, questionIndex, question: question(questionIndex + 1) });
+    const questionRegion = () => screen.getByRole('region', { name: 'Question' });
+
+    it('?read=1 opens it, stores it for this tab and leaves the address bar', async () => {
+      remote(inPhase('QUESTION'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      await flushNavigation();
+      expect(screen.getByTestId('location').textContent).toBe('/host/WXYZ');
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      expect(sessionStorage.getItem('buzzr:readAloud:WXYZ')).toBe('1');
+      expect(screen.getByRole('button', { name: 'Tap to show answer' })).toBeTruthy();
+    });
+
+    it('without ?read=1 or a stored choice the normal layout shows the answer box', () => {
+      remote(inPhase('QUESTION'));
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(within(questionRegion()).getByLabelText('Answer').textContent).toContain('Answer 1');
+      expect(screen.queryByRole('button', { name: 'Tap to show answer' })).toBeNull();
+    });
+
+    it('shows the question in large type with the answer and notes covered until tapped', () => {
+      remote(inPhase('QUESTION'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      const region = questionRegion();
+      expect(within(region).getByText('Question text 1').className).toContain('text-[28px]');
+      expect(within(region).getByText('Question 1 of 10')).toBeTruthy();
+      expect(region.textContent).not.toContain('Answer 1');
+      expect(region.textContent).not.toContain('Notes 1');
+      fireEvent.click(screen.getByRole('button', { name: 'Tap to show answer' }));
+      const answer = within(region).getByLabelText('Answer');
+      expect(answer.textContent).toContain('Answer 1');
+      expect(answer.textContent).toContain('Notes 1');
+      fireEvent.click(screen.getByRole('button', { name: 'Hide answer' }));
+      expect(region.textContent).not.toContain('Answer 1');
+    });
+
+    it('covers the answer again on the next question', () => {
+      const { socket } = remote(inPhase('QUESTION'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      fireEvent.click(screen.getByRole('button', { name: 'Tap to show answer' }));
+      socket.fire('state', inPhase('QUESTION', 1));
+      expect(questionRegion().textContent).toContain('Question text 2');
+      expect(questionRegion().textContent).not.toContain('Answer 2');
+      expect(screen.getByRole('button', { name: 'Tap to show answer' })).toBeTruthy();
+    });
+
+    it('uncovers the answer once revealed, for reading out', () => {
+      remote(inPhase('REVEAL'), `/host/WXYZ?read=1#t=${TOKEN}`);
+      expect(within(questionRegion()).getByLabelText('Answer').textContent).toContain('Answer 1');
+      expect(screen.queryByRole('button', { name: 'Tap to show answer' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Hide answer' })).toBeNull();
+    });
+
+    it('keeps the same controls', () => {
+      const socket = remote(inPhase('QUESTION'), `/host/WXYZ?read=1#t=${TOKEN}`).socket;
+      fireEvent.click(screen.getByRole('button', { name: 'Open buzzers' }));
+      expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:open', payload: {} });
+      expect(screen.getByRole('button', { name: /Skip question/ })).toBeTruthy();
+      expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+        'Game',
+        'Players (0)',
+        'Settings',
+      ]);
+    });
+
+    it("shows the winner's name larger after a buzz", () => {
+      const view = {
+        ...inPhase('BUZZED'),
+        players: [player(1, { name: 'Ann' })],
+        winnerId: 'p1',
+        canJudge: true,
+      };
+      remote(view, `/host/WXYZ?read=1#t=${TOKEN}`);
+      const judging = screen.getByRole('region', { name: 'Judging' });
+      const name = () => within(judging).getByText('Ann');
+      expect(name().parentElement!.className).toContain('text-[56px]');
+      // Wrapped, not cut: the host reads the whole name out.
+      expect(name().className).not.toContain('truncate');
+      fireEvent.click(toggle());
+      expect(name().parentElement!.className).toContain('text-[44px]');
+      expect(name().className).toContain('truncate');
+    });
+
+    it('in the lobby shows the join address, QR and code instead of the first question', () => {
+      remote(hostView(), `/host/WXYZ?read=1#t=${TOKEN}`);
+      const join = screen.getByRole('region', { name: 'Join' });
+      expect(within(join).getByTestId('qr').getAttribute('data-value')).toBe(
+        `${window.location.origin}/play/WXYZ`,
+      );
+      expect(within(join).getByText(`${window.location.host}/play/WXYZ`)).toBeTruthy();
+      expect(within(join).getByText('WXYZ')).toBeTruthy();
+      expect(screen.queryByRole('region', { name: 'Question' })).toBeNull();
+      expect(document.body.textContent).not.toContain('Answer 1');
+      expect(screen.getByRole('button', { name: 'Start game' })).toBeTruthy();
+    });
+
+    it('the header toggle switches layouts and keeps the choice in sessionStorage', () => {
+      const { unmount } = remote(inPhase('QUESTION'));
+      fireEvent.click(toggle());
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      expect(sessionStorage.getItem('buzzr:readAloud:WXYZ')).toBe('1');
+      expect(screen.getByRole('button', { name: 'Tap to show answer' })).toBeTruthy();
+      unmount();
+
+      // A reload in this tab keeps read aloud, with no ?read=1.
+      remote(inPhase('QUESTION'));
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      fireEvent.click(toggle());
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(sessionStorage.getItem('buzzr:readAloud:WXYZ')).toBeNull();
+      expect(within(questionRegion()).getByLabelText('Answer').textContent).toContain('Answer 1');
     });
   });
 

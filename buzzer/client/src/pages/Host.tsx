@@ -13,9 +13,16 @@ import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { PrimaryAction } from '../components/PrimaryAction.js';
+import { ReadAloudJoin, ReadAloudQuestion } from '../components/ReadAloud.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { imageUrl } from '../lib/api.js';
+import {
+  loadReadAloud,
+  readAloudRequested,
+  saveReadAloud,
+  withoutReadAloud,
+} from '../lib/hostLayout.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
@@ -54,10 +61,16 @@ function HostRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
   }
 
   // The token is in state now, so take it out of the address bar: it shouldn't linger in history or get shared.
+  // `?read=1` goes too, once stored for this tab, so the layout toggle alone decides after a reload (F69).
   useEffect(() => {
-    if (!location.hash) return;
-    void navigate({ pathname: location.pathname, search: location.search }, { replace: true });
-  }, [location.hash, location.pathname, location.search, navigate]);
+    const readAloud = readAloudRequested(location.search);
+    if (readAloud) saveReadAloud(code, true);
+    if (!location.hash && !readAloud) return;
+    void navigate(
+      { pathname: location.pathname, search: withoutReadAloud(location.search) },
+      { replace: true },
+    );
+  }, [code, location.hash, location.pathname, location.search, navigate]);
 
   // The token is stored only once the server accepts it, so a wrong link can't replace a good one.
   const onAccepted = useCallback((token: string) => saveHostToken(code, token), [code]);
@@ -151,6 +164,12 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   // Above the tabs: the picker stays open over the lobby while the new set's images upload.
   const [pickingNewGame, setPickingNewGame] = useState(false);
   const closeNewGame = useCallback(() => setPickingNewGame(false), []);
+  // Read aloud: the layout for a game with no Screen (F69), kept for this tab.
+  const [readAloud, setReadAloud] = useState(() => loadReadAloud(view.code));
+  const toggleReadAloud = () => {
+    saveReadAloud(view.code, !readAloud);
+    setReadAloud(!readAloud);
+  };
   usePreloadImage(view.code, view.nextQuestion?.imageId);
   useVibrateOnTimeUp();
   return (
@@ -165,15 +184,25 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
           </p>
           <p className="truncate text-sm text-muted">{view.title}</p>
         </div>
-        {view.question && view.phase !== 'FINAL' && (
-          <p
-            aria-label={`Question ${view.questionIndex + 1} of ${view.questionCount}`}
-            className={`${PILL} shrink-0 px-3 py-1 font-display text-lg tabular-nums`}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {view.question && view.phase !== 'FINAL' && (
+            <p
+              aria-label={`Question ${view.questionIndex + 1} of ${view.questionCount}`}
+              className={`${PILL} px-3 py-1 font-display text-lg tabular-nums`}
+            >
+              Q{view.questionIndex + 1}
+              <span className="text-muted">/{view.questionCount}</span>
+            </p>
+          )}
+          <button
+            type="button"
+            aria-pressed={readAloud}
+            onClick={toggleReadAloud}
+            className={`${PILL} min-h-11 px-3 text-sm ${readAloud ? 'border-accent text-accent' : 'text-muted'}`}
           >
-            Q{view.questionIndex + 1}
-            <span className="text-muted">/{view.questionCount}</span>
-          </p>
-        )}
+            Read aloud
+          </button>
+        </div>
       </header>
       <div
         role="tablist"
@@ -216,10 +245,14 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
           <>
             {view.phase === 'FINAL' ? (
               <GameOverCard view={view} onNewGame={() => setPickingNewGame(true)} />
-            ) : (
+            ) : !readAloud ? (
               <QuestionCard view={view} />
+            ) : view.phase === 'LOBBY' ? (
+              <ReadAloudJoin code={view.code} />
+            ) : (
+              <ReadAloudQuestion view={view} />
             )}
-            <PrimaryAction view={view} command={command} />
+            <PrimaryAction view={view} command={command} bigWinner={readAloud} />
             <SecondaryActions view={view} command={command} />
             {view.phase === 'LOBBY' && (
               <PairHostPhone

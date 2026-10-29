@@ -50,6 +50,14 @@ export function RoomCreated({ code }: { code: string }) {
       >
         Use this phone as the host remote
       </button>
+      {/* The remote stores the read-aloud choice for this tab and drops `?read=1` (F69). */}
+      <button
+        type="button"
+        onClick={() => void navigate(`/host/${code}?read=1`)}
+        className={`${BUTTON_SECONDARY} py-5 font-display text-2xl ${HOVER}`}
+      >
+        Run from this phone (no TV)
+      </button>
     </section>
   );
 }

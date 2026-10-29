@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F69 — Read-aloud mode (no TV) (2026-10-29)
+**What changed:**
+- `RoomCreated`: a fourth button, **Run from this phone (no TV)**, opens `/host/:code?read=1`.
+- New `client/src/lib/hostLayout.ts`: the read-aloud choice per room in sessionStorage (`buzzr:readAloud:<CODE>`), plus `?read=1` parsing and stripping. `Host.tsx` stores `?read=1` and drops it from the URL in the hash-stripping effect. The header gains a **Read aloud** toggle (`aria-pressed`) under the Q pill.
+- New `client/src/components/ReadAloud.tsx`: `ReadAloudJoin` (lobby: join address, QR, room code, localhost note) and `ReadAloudQuestion` (28px question, image, answer and notes under **Tap to show answer**, reset per question, uncovered in REVEAL). `PrimaryAction` takes `bigWinner`: 56px winner name that wraps instead of truncating.
+- Tests: `Host.test.tsx` +9 (read-aloud layout: `?read=1` stored and stripped, normal default, large question and cover, cover reset, REVEAL uncover, same controls, big winner wrapped, lobby QR/code without the first question, toggle across a remount), `Landing.test.tsx` +1 (fourth button, path with search), new `hostLayout.test.ts` (8). The `LocationProbe` and `CurrentPath` test helpers now include `location.search`. 1662 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F69 (stored and stripped `?read=1`; lobby join block and REVEAL uncover; big winner wraps).
+
+**Notes for next session:**
+- The layout is client-only; no server or view change. Nothing new reaches the Screen.
+- Opening `/host/:code?read=1` in a tab where the remote is already showing (same mount) stores the choice but the visible layout waits for a reload. Not reachable from the UI.
+- Playtest (Playwright, no Screen tab): run 1 at 390×844 (room JTAQ, Ann and a bot) took **Run from this phone (no TV)** into the read-aloud lobby with the QR, ran Q1 (no buzz, revealed) and Q2 (Ann buzzed, Correct), and tested the toggle and a reload. Run 2 at 375×667 (room PQJS): lobby and covered question had no overflow (`scrollWidth` 360); BUZZED with `Maximilianussss1` showed a 56px name truncated to "MAXI…", hence the wrap fix. Not checked in a browser: the wrapped name after the fix (unit-tested by class). Screenshots: `.playtest/F69/readaloud-host.png`, `1-lobby-host.png`, `2-question-host.png`, `3-buzzed-host.png` (before the fix).
+- Main `index` chunk 476.24 → 479.75 kB (144.54 kB gzip).
+
+**How to try it:** `npm run dev`. On a phone at `http://<laptop-LAN-IP>:5173`, Host a game → Create room → **Run from this phone (no TV)**. Players scan the QR on that phone. Start, read the question out, tap **Tap to show answer** to check it, open the buzzers and judge. The header's **Read aloud** button switches back to the normal remote.
+
 ## F68 — Undo every judgement of the question (2026-10-29)
 **What changed:**
 - Shared/server: `Room.undo` is now `UndoPoint[]`, newest last (`[]` in `createRoom`, `clearedQuestion` and new game). `hostJudge` pushes a point; `hostUndo` pops one, reverses `judgements.at(-1)` (points, lockout) and returns to BUZZED with that point's buzzes and winner, so repeated undos walk back the whole question. `canUndo` reads the top point. `host:end` now empties the stack too.

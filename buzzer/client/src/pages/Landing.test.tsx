@@ -28,7 +28,8 @@ afterEach(() => {
 });
 
 function CurrentPath() {
-  return <p data-testid="path">{useLocation().pathname}</p>;
+  const location = useLocation();
+  return <p data-testid="path">{location.pathname + location.search}</p>;
 }
 
 function renderLanding() {
@@ -302,6 +303,18 @@ describe('Host a game', () => {
     await hostAGame();
     fireEvent.click(screen.getByRole('button', { name: 'Use this phone as the host remote' }));
     expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ');
+    expect(loadHostToken('WXYZ')).toBe(hostToken);
+  });
+
+  it('Run from this phone (no TV) opens /host/<CODE>?read=1 with no token in the URL', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    const buttons = within(screen.getByRole('region', { name: 'Room created' }))
+      .getAllByRole('button')
+      .map((b) => b.textContent);
+    expect(buttons.at(-1)).toBe('Run from this phone (no TV)');
+    fireEvent.click(screen.getByRole('button', { name: 'Run from this phone (no TV)' }));
+    expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ?read=1');
     expect(loadHostToken('WXYZ')).toBe(hostToken);
   });
 

@@ -13,6 +13,8 @@ import { Icon, type IconName } from './Icon.js';
 interface PrimaryActionProps {
   view: HostView;
   command: HostCommand;
+  /** The read-aloud layout (F69): the winner's name larger, for a host calling it out. */
+  bigWinner?: boolean;
 }
 
 const big =
@@ -37,7 +39,7 @@ const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
  * are open with a buzz time, the seconds left sit beside it. The server decides whether it is
  * allowed.
  */
-export function PrimaryAction({ view, command }: PrimaryActionProps) {
+export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActionProps) {
   const { busy, run } = command;
   const countdown = useAnswerCountdown(view);
   const buzzCountdown = useBuzzCountdown(view);
@@ -60,13 +62,20 @@ export function PrimaryAction({ view, command }: PrimaryActionProps) {
         >
           <p className={`${LABEL} text-buzz-ink!`}>Buzzed first</p>
           {winner && (
-            <p className="flex min-w-0 items-center gap-3 font-display text-[44px] leading-none text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]">
+            <p
+              className={`flex min-w-0 items-center gap-3 font-display ${bigWinner ? 'text-[56px]' : 'text-[44px]'} leading-none text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]`}
+            >
               <span
                 aria-hidden="true"
                 style={{ backgroundColor: winner.color }}
                 className="size-4 shrink-0 rounded-full ring-2 ring-buzz-ink"
               />
-              <span className="min-w-0 truncate pb-1">{winner.name}</span>
+              {/* Read aloud wraps a long name instead of cutting it, so the host can call it out whole. */}
+              <span
+                className={`min-w-0 pb-1 ${bigWinner ? '[overflow-wrap:anywhere]' : 'truncate'}`}
+              >
+                {winner.name}
+              </span>
             </p>
           )}
           {countdown && <JudgeCountdown countdown={countdown} />}
