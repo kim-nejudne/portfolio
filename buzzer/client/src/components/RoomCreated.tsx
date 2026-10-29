@@ -42,6 +42,14 @@ export function RoomCreated({ code }: { code: string }) {
           Room code <strong className="font-display tracking-widest text-ink">{code}</strong>
         </p>
       )}
+      {/* hostSet already kept the hostToken (saveHostToken), so the remote joins without a pairing hash. */}
+      <button
+        type="button"
+        onClick={() => void navigate(`/host/${code}`)}
+        className={`${BUTTON_SECONDARY} py-5 font-display text-2xl ${HOVER}`}
+      >
+        Use this phone as the host remote
+      </button>
     </section>
   );
 }

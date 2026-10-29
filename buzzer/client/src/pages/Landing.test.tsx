@@ -185,6 +185,14 @@ describe('Host a game', () => {
     expect(screen.getByTestId('path').textContent).toBe('/screen/WXYZ');
   });
 
+  it('Use this phone as the host remote opens /host/<CODE> with no token in the URL', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    fireEvent.click(screen.getByRole('button', { name: 'Use this phone as the host remote' }));
+    expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ');
+    expect(loadHostToken('WXYZ')).toBe(hostToken);
+  });
+
   it('Open the Screen on another device shows the Screen URL and the code', async () => {
     stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     await hostAGame();

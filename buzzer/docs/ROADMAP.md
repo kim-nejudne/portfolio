@@ -138,14 +138,7 @@ Kim's request of 2026-10-29: after a game ends, the host picks another set and s
 
 Kim's request of 2026-10-29: schedule every finding of the product audit (M12–M23). The choices are in the DECISIONS rows dated 2026-10-29 marked "audit plan". Proposed spec wording is in DECISIONS, Proposed spec changes (audit). M12 takes the three Backlog bugs and the missing host-remote link.
 
-- [ ] F51 Host remote link after room creation
-  - Spec: Roles and devices (Creating and joining a room); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F50
-  - Done when:
-    - `RoomCreated.tsx` has a third button, **Use this phone as the host remote**, that navigates to `/host/:code`. The token is already in localStorage (`saveHostToken` in `hostRoom.ts`), so the remote joins without a pairing hash
-    - The button shows on **Host a game** and on `/sets` **Host this set** (both render `RoomCreated`)
-    - A phone that created the room and chose **Open the Screen on another device** can now reach its remote without typing a URL
-  - Tests: `Landing.test.tsx` and `Sets.test.tsx` (the button and its route); `Host.test.tsx` (a stored token with no hash joins as host). `/playtest`: create on a phone-sized tab, open the Screen in a second tab, run one question from the remote
+- [x] F51 Host remote link after room creation
 
 - [ ] F52 Screen fixes from the backlog
   - Spec: UI spec by view (Screen view); Roles and devices (Creating and joining a room, step 3)

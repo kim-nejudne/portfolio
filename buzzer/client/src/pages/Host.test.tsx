@@ -190,6 +190,16 @@ describe('Host remote', () => {
     expect(socket.emitted[0]?.payload).toEqual({ code: 'WXYZ', hostToken: TOKEN });
   });
 
+  it('the device that created the room opens the remote with no hash and joins as host', () => {
+    saveHostToken('WXYZ', TOKEN);
+    const { socket } = renderHost('/host/WXYZ');
+    expect(socket.emitted[0]?.event).toBe('host:join');
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', hostView());
+    expect(heading()).toBe('Host controls');
+    expect(loadHostToken('WXYZ')).toBe(TOKEN);
+  });
+
   it('joins again with the token after a reconnect, once the hash is gone', () => {
     const { socket } = renderHost(`/host/WXYZ#t=${TOKEN}`);
     socket.fire('connect');

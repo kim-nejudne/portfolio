@@ -10,6 +10,24 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F51 — Host remote link after room creation (2026-10-29)
+**What changed:**
+- `RoomCreated.tsx` has a third button, **Use this phone as the host remote**. It navigates to `/host/:code`. `hostSet` has already saved the hostToken, so the remote joins with the stored token and no pairing hash.
+- The button shows on both **Host a game** (landing page) and `/sets` **Host this set**, since both render `RoomCreated`.
+- Tests: `Landing.test.tsx` +1 and `Sets.test.tsx` +1 (the button, the `/host/WXYZ` route, the token still stored), and `Host.test.tsx` +1 (a stored token with no hash sends `host:join` and renders Host controls). 1229 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-29 for F51 covers the button's style and placement.
+
+**Notes for next session:**
+- Playtest (Playwright, 390×844), 5 of 5 steps passed. I created a room from Host a game, opened `/screen/:code` in a second tab and tapped the new button. It went to `/host/:code` with no `#t=`, joined as host and showed the answer. Start, Open buzzers and Reveal from the remote all reached the Screen. `/sets` Host this set showed the three buttons. No console errors.
+- Not exercised: judging a buzz. The scripted DOM `.click()` on BUZZ doesn't fire `pointerdown`. F51 doesn't touch buzzing.
+- A `node dist/server/index.js` in `buzzer/` has been running since 2026-10-27. It isn't from this session, so I left it alone.
+
+**How to try it:** `npm run dev`.
+1. On a phone, open `http://<laptop-LAN-IP>:5173`, tap **Host a game**, pick a set and tap **Create room**.
+2. Tap **Open the Screen on another device**, then open the URL it shows on the laptop.
+3. On the phone, tap **Use this phone as the host remote**. Host controls appear without pairing. Join from another phone and run a question.
+
 ## F50 — New game: picker on the Screen and the remote (2026-10-29)
 **What changed:**
 - `api.ts`: `replaceSet(code, hostToken, body)` (`PUT /api/rooms/:code/set`, JSON, Bearer). A 409 throws `NewGameTakenError` ("A new game has already been set up."); other errors carry the server's message.

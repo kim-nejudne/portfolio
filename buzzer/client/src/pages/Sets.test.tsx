@@ -146,6 +146,21 @@ describe('Set list /sets', () => {
     });
   });
 
+  it('Host this set offers Use this phone as the host remote, which opens /host/<CODE>', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }))),
+    );
+    renderSets();
+    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Host this set' }));
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Use this phone as the host remote' }),
+    );
+    expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ');
+    expect(loadHostToken('WXYZ')).toBe(hostToken);
+  });
+
   it('Host this set on a starter creates a room with its questions and level points', async () => {
     const fetch = vi.fn(() =>
       Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 })),
