@@ -79,12 +79,16 @@ export type AnswerSeconds = 0 | 3 | 5 | 7 | 10;
 /** Seconds the players have to buzz once the buzzers open; 0 turns the buzz timer off. */
 export type BuzzSeconds = 0 | 5 | 10 | 15 | 20 | 30;
 
+/** Ms a false-started player waits after the buzzers open; 0 turns false starts off. */
+export type FalseStartMs = 0 | 500 | 1000;
+
 export interface RoomSettings {
   wrongPenalty: boolean; // default false
   autoOpenBuzzers: boolean; // default false
   scoreboardEvery: number; // default 5, 0 = never auto
   answerSeconds: AnswerSeconds; // default 0 = off
   buzzSeconds: BuzzSeconds; // default 0 = off
+  falseStartMs: FalseStartMs; // default 0 = off
   showStandings: boolean; // default true: the Screen's top-5 rail during a question
 }
 
@@ -113,6 +117,9 @@ export interface Room {
   openingCounter: number; // increments each time buzzers open
   buzzes: Buzz[]; // for the current opening
   windowStartedAt: number | null; // monotonic receivedAt of the opening's first buzz
+  // SPEC-QUESTION: openedAt and falseStarts are not in the spec's Room; see DECISIONS (F71).
+  openedAt: number | null; // monotonic ms when this opening began; null if the gateway gave none
+  falseStarts: string[]; // playerIds who pressed in QUESTION, until a later opening of the question
   winnerId: string | null;
   lockedOut: string[]; // playerIds wrong this question
   judgements: Judgement[]; // whole game, enables undo
@@ -231,6 +238,8 @@ export interface PlayerView {
   /** A press now would count: OPEN or COLLECTING, not locked out, not buzzed or joined this opening. */
   canBuzz: boolean;
   lockedOut: boolean;
+  /** Pressed before the buzzers opened, with false starts on; cleared by a later opening (F71). */
+  falseStart: boolean;
   winnerId: string | null;
   winnerName: string | null;
   /** Points this player gained or lost on the current question. */
@@ -257,7 +266,8 @@ export type Fx =
   | { kind: 'timeUp'; playerId: string }
   | { kind: 'buzzTimeUp' }
   | { kind: 'join'; playerId: string }
-  | { kind: 'practice'; playerId: string };
+  | { kind: 'practice'; playerId: string }
+  | { kind: 'falseStart'; playerId: string };
 
 export type JudgeResult = Judgement['result'];
 

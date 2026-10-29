@@ -211,6 +211,7 @@ describe('reduce: host:settings', () => {
       scoreboardEvery: 5,
       answerSeconds: 0,
       buzzSeconds: 0,
+      falseStartMs: 0,
       showStandings: true,
     });
     expect(room.phase).toBe(phase);
@@ -223,6 +224,7 @@ describe('reduce: host:settings', () => {
       scoreboardEvery: 0,
       answerSeconds: 7,
       buzzSeconds: 15,
+      falseStartMs: 500,
       showStandings: false,
     } as const;
     const room = step(inPhase('LOBBY'), { type: 'host:settings', settings });
@@ -241,6 +243,7 @@ describe('reduce: host:settings', () => {
       scoreboardEvery: 3,
       answerSeconds: 0,
       buzzSeconds: 0,
+      falseStartMs: 0,
       showStandings: true,
     });
   });

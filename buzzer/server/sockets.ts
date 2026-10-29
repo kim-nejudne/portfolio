@@ -184,7 +184,7 @@ export function attachSockets(
     const room = rooms.get(code);
     if (!room) return fail(ROOM_NOT_FOUND_ERROR);
     const now = clock();
-    const result = reduce(room, action, now);
+    const result = reduce(room, action, now, monotonic());
     if (!result.ok) return fail(result.error);
     // An ignored action (a buzz that does not count, a stale timer) returns the same room object.
     if (result.room !== room) {

@@ -1,7 +1,13 @@
 // Values shared by the server and the client: app identity, palette and limits.
 // Sizes use binary units (1 KB = 1024 bytes). Times are in milliseconds.
 
-import type { AnswerSeconds, BuzzSeconds, Difficulty, RoomSettings } from './types.js';
+import type {
+  AnswerSeconds,
+  BuzzSeconds,
+  Difficulty,
+  FalseStartMs,
+  RoomSettings,
+} from './types.js';
 
 export const APP_NAME = 'Buzzr';
 
@@ -89,12 +95,16 @@ export const BUZZ_SECONDS_CHOICES = [
   0, 5, 10, 15, 20, 30,
 ] as const satisfies readonly BuzzSeconds[];
 
+/** The false-start waits the host can pick, in ms, in stepper order. 0 is off. */
+export const FALSE_START_MS_CHOICES = [0, 500, 1000] as const satisfies readonly FalseStartMs[];
+
 export const DEFAULT_SETTINGS: RoomSettings = {
   wrongPenalty: false,
   autoOpenBuzzers: false,
   scoreboardEvery: 5,
   answerSeconds: 0,
   buzzSeconds: 0,
+  falseStartMs: 0,
   showStandings: true,
 };
 

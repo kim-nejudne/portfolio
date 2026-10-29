@@ -15,6 +15,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
     playerCount: 3,
     hasBuzzed: false,
     lockedOut: false,
+    falseStart: false,
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,

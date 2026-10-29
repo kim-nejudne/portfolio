@@ -96,13 +96,27 @@ export type ReduceResult =
 
 /**
  * Applies `action` to `room` at `now` (wall-clock ms, as `Date.now` gives; DECISIONS F05).
+ * `mono` is the gateway's monotonic `performance.now()` at dispatch; it stamps the start of a new
+ * opening, which the false-start wait is measured from (DECISIONS F71).
  * Never mutates `room`. A rejected action returns an error and no room. An ignored action (a
  * buzz that does not count, a stale timer) returns the same `room` object, unstamped.
  */
-export function reduce(room: Room, action: Action, now: number): ReduceResult {
+export function reduce(room: Room, action: Action, now: number, mono?: number): ReduceResult {
   const result = apply(room, action, now);
   if (!result.ok || result.room === room) return result;
-  return withBuzzTimer(room, { ...result, room: { ...result.room, lastActivityAt: now } }, now);
+  const stamped = withOpening(room, { ...result.room, lastActivityAt: now }, mono);
+  return withBuzzTimer(room, { ...result, room: stamped }, now);
+}
+
+/**
+ * Stamps a new opening's monotonic start, so every path that opens the buzzers sets it in one
+ * place. Only the opening that follows the false starts keeps them: one from any other phase (a
+ * reopen after a wrong answer, a kick that empties the window) clears them (DECISIONS F71).
+ */
+function withOpening(before: Room, room: Room, mono: number | undefined): Room {
+  if (room.openingCounter === before.openingCounter) return room;
+  const falseStarts = before.phase === 'QUESTION' ? room.falseStarts : [];
+  return { ...room, openedAt: mono ?? null, falseStarts };
 }
 
 /**
@@ -243,8 +257,17 @@ function playerBuzz(
 ): ReduceResult {
   const player = room.players[playerId];
   if (!player) return fail('Unknown player');
-  // Anything that does not count is ignored silently: no error, no penalty (fairness rules).
-  if (!BUZZ_PHASES.includes(room.phase) || !eligible(room, player)) return done(room);
+  if (room.phase === 'QUESTION' && room.settings.falseStartMs > 0) {
+    return falseStart(room, playerId);
+  }
+  // Anything else that does not count is ignored silently: no error, no penalty (fairness rules).
+  if (
+    !BUZZ_PHASES.includes(room.phase) ||
+    !eligible(room, player) ||
+    held(room, playerId, receivedAt)
+  ) {
+    return done(room);
+  }
 
   const buzz = makeBuzz(playerId, receivedAt, player.rttMs);
   const { questionIndex, openingCounter } = room;
@@ -263,6 +286,27 @@ function playerBuzz(
   // late buzz for the also-buzzed list only; it can never win, because the winner is fixed
   // (DECISIONS #4).
   return done({ ...room, buzzes }, [log]);
+}
+
+/** A press before the buzzers open, with false starts on: recorded once per question (F71). */
+function falseStart(room: Room, playerId: string): ReduceResult {
+  if (room.falseStarts.includes(playerId)) return done(room);
+  return done({ ...room, falseStarts: [...room.falseStarts, playerId] }, [
+    { type: 'fx', fx: { kind: 'falseStart', playerId } },
+  ]);
+}
+
+/**
+ * A false starter's press within `falseStartMs` of the opening, in monotonic time. The wait ends
+ * inclusively, as the collection window does: a press at exactly `openedAt + falseStartMs` counts.
+ * The setting is read at the press, so turning it off releases the wait (DECISIONS F71).
+ */
+function held(room: Room, playerId: string, receivedAt: number): boolean {
+  return (
+    room.falseStarts.includes(playerId) &&
+    room.openedAt !== null &&
+    receivedAt < room.openedAt + room.settings.falseStartMs
+  );
 }
 
 /**
@@ -596,6 +640,7 @@ function withoutPlayer(room: Room, playerId: string): Room {
     players,
     buzzes: room.buzzes.filter(keep),
     lockedOut: room.lockedOut.filter((id) => id !== playerId),
+    falseStarts: room.falseStarts.filter((id) => id !== playerId),
     undo,
   };
 
@@ -634,6 +679,7 @@ function hostSettings(
     scoreboardEvery,
     answerSeconds,
     buzzSeconds,
+    falseStartMs,
     showStandings,
   } = room.settings;
   return done({
@@ -644,6 +690,7 @@ function hostSettings(
       scoreboardEvery: settings.scoreboardEvery ?? scoreboardEvery,
       answerSeconds: settings.answerSeconds ?? answerSeconds,
       buzzSeconds: settings.buzzSeconds ?? buzzSeconds,
+      falseStartMs: settings.falseStartMs ?? falseStartMs,
       showStandings: settings.showStandings ?? showStandings,
     },
   });
@@ -741,8 +788,10 @@ function hostPrev(room: Room): ReduceResult {
 const clearedQuestion = {
   buzzes: [],
   windowStartedAt: null,
+  openedAt: null,
   winnerId: null,
   lockedOut: [],
+  falseStarts: [],
   reopenAt: null,
   undo: [],
   answerTimer: null,

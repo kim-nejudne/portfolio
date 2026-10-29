@@ -73,6 +73,10 @@ describe('sounds', () => {
     expect(soundForFx({ kind: 'buzzTimeUp' })).toBe('timeUp');
   });
 
+  it('a false start plays no sound', () => {
+    expect(soundForFx({ kind: 'falseStart', playerId: 'p1' })).toBeNull();
+  });
+
   it('every sound has a file in client/public/sounds', () => {
     // Lists the files without loading them.
     const files = Object.keys(import.meta.glob('../../public/sounds/*.wav')).sort();

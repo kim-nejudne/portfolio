@@ -1781,6 +1781,15 @@ describe('Click to start and sounds', () => {
     expect(played()).toEqual(['practice', 'practice']);
   });
 
+  it('plays nothing for a false start, and the next fx still plays (F71)', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', view('QUESTION'));
+    socket.fire('fx', { kind: 'falseStart', playerId: 'p1' });
+    expect(played()).toEqual([]);
+    socket.fire('fx', { kind: 'buzz', playerId: 'p1', gaps: [] });
+    expect(played()).toEqual(['buzz']);
+  });
+
   it('plays nothing before Click to start, and never replays an fx from before the click', () => {
     const { socket } = renderScreen(undefined, { start: false });
     socket.fire('state', view('LOBBY'));

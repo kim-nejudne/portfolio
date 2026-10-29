@@ -5,6 +5,7 @@ import {
   BUZZ_SECONDS_CHOICES,
   DEFAULT_PORT,
   DEFAULT_SETTINGS,
+  FALSE_START_MS_CHOICES,
   PLAYER_PALETTE,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -29,19 +30,25 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, and the standings rail on', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions no answer or buzz timer, no false start, and the standings rail on', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
       scoreboardEvery: 5,
       answerSeconds: 0,
       buzzSeconds: 0,
+      falseStartMs: 0,
       showStandings: true,
     });
   });
 
   it('offers buzz times Off, 5, 10, 15, 20 and 30 s in stepper order', () => {
     expect(BUZZ_SECONDS_CHOICES).toEqual([0, 5, 10, 15, 20, 30]);
+  });
+
+  it('offers false-start waits Off, 0.5 s and 1 s in stepper order', () => {
+    expect(FALSE_START_MS_CHOICES).toEqual([0, 500, 1000]);
+    expect(FALSE_START_MS_CHOICES).toContain(DEFAULT_SETTINGS.falseStartMs);
   });
 
   it('offers answer times Off, 3, 5, 7 and 10 s in stepper order', () => {

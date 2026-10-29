@@ -190,15 +190,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F70 Pairing PIN
 
-- [ ] F71 False start: server
-  - Spec: Buzzer fairness and timing; Game flow and state machine (Transitions); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F63
-  - Done when:
-    - `RoomSettings.falseStartMs: 0 | 500 | 1000` (default 0)
-    - With it on, a `player:buzz` in QUESTION records a false start for that player (once per question) and emits `fx {kind: 'falseStart', playerId}`; when the buzzers open, that player's buzzes are ignored until `falseStartMs` after the opening (monotonic clock)
-    - Off, early presses are ignored as today; a reopen after a wrong answer clears false starts
-    - `PlayerView.falseStart: boolean` for this question
-  - Tests: `reducer.buzz.test.ts` and `reducer.window.test.ts` (penalty window, once per question, reopen clears, off), `sockets.buzz.test.ts`, `views.test.ts`
+- [x] F71 False start: server
 
 - [ ] F72 False start: devices
   - Spec: UI spec by view (Player view, Screen view, Host remote); see DECISIONS, Proposed spec changes (audit)

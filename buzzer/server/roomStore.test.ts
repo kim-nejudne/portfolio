@@ -26,6 +26,8 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     openingCounter: 0,
     buzzes: [],
     windowStartedAt: null,
+    openedAt: null,
+    falseStarts: [],
     winnerId: null,
     lockedOut: [],
     judgements: [],

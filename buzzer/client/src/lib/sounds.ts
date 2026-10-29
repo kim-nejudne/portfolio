@@ -19,13 +19,14 @@ export function soundUrl(name: SoundName): string {
 }
 
 /**
- * The sound an `fx` event plays. FINAL's fanfare is not an `fx`.
+ * The sound an `fx` event plays, or null for one the Screen keeps quiet. FINAL's fanfare is not an `fx`.
  * SPEC-QUESTION: the spec gives Wrong "buzz sound" but lists a separate wrong sound; `wrong.wav`
  * is the low game-show buzzer, `buzz.wav` the ring-in (DECISIONS, F31).
  * A lobby test buzz plays `practice.wav`, a quiet tick (DECISIONS F60). Nobody buzzing in time
- * plays the answer timer's `timeUp.wav` (DECISIONS F63).
+ * plays the answer timer's `timeUp.wav` (DECISIONS F63). A false start is silent (DECISIONS F71).
  */
-export function soundForFx(fx: Fx): SoundName {
+export function soundForFx(fx: Fx): SoundName | null {
+  if (fx.kind === 'falseStart') return null;
   return fx.kind === 'buzzTimeUp' ? 'timeUp' : fx.kind;
 }
 

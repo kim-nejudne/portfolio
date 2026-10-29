@@ -229,6 +229,70 @@ describe('socket gateway: buzz timer', () => {
   });
 });
 
+describe('socket gateway: false start', () => {
+  /** openTable moved on to question 2 with false starts at 500 ms; the buzzers are shut. */
+  async function questionTwo() {
+    const table = await openTable();
+    const { host, screen, a, b } = table;
+    expect(await host.emitWithAck('host:settings', { falseStartMs: 500 })).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:reveal', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:next', {})).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    return table;
+  }
+
+  it('an early press tells every device, and that player waits 500 ms of monotonic time after the opening', async () => {
+    const { h, screen, host, a, b } = await questionTwo();
+    const fxs = [screen, host, a, b].map((c) => record<Fx>(c, 'fx'));
+    const states = record<View>(a, 'state');
+
+    expect(await buzz(a)).toEqual({ ok: true });
+    expect(await buzz(a)).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    for (const seen of fxs) expect(seen).toEqual([{ kind: 'falseStart', playerId: 'a' }]);
+    expect(states.at(-1)).toMatchObject({ phase: 'QUESTION', falseStart: true });
+
+    h.advanceMono(2000);
+    expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
+    h.advanceMono(499);
+    expect(await buzz(a)).toEqual({ ok: true });
+    expect(h.rooms.get('ABCD')!).toMatchObject({ phase: 'OPEN', buzzes: [] });
+    h.advanceMono(1);
+    expect(await buzz(a)).toEqual({ ok: true });
+    expect(h.rooms.get('ABCD')!.phase).toBe('COLLECTING');
+    expect(h.rooms.get('ABCD')!.buzzes.map((x) => x.playerId)).toEqual(['a']);
+  });
+
+  it('the other player can buzz the moment the buzzers open', async () => {
+    const { h, host, a, b } = await questionTwo();
+    await buzz(a);
+    expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
+    await buzz(a);
+    await buzz(b);
+    expect(h.rooms.get('ABCD')!.buzzes.map((x) => x.playerId)).toEqual(['b']);
+  });
+
+  it('off by default: an early press sends nothing and changes nothing', async () => {
+    const { h, screen, host, a } = await openTable();
+    expect(await host.emitWithAck('host:reveal', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:next', {})).toEqual({ ok: true });
+    await Promise.all([screen, a].map(flush));
+    const fxs = record<Fx>(screen, 'fx');
+    const before = h.rooms.get('ABCD')!;
+
+    expect(await buzz(a)).toEqual({ ok: true });
+    await flush(screen);
+    expect(fxs).toEqual([]);
+    expect(h.rooms.get('ABCD')).toBe(before);
+  });
+
+  it('rejects a false-start wait that is not one of the choices', async () => {
+    const { host } = await openTable();
+    const ack = await host.emitWithAck('host:settings', { falseStartMs: 750 as never });
+    expect(ack.ok).toBe(false);
+  });
+});
+
 describe('socket gateway: buzz rate limit', () => {
   it('rejects the 6th buzz in a second from one socket, and allows it again after the second', async () => {
     const { h, a, b } = await openTable();

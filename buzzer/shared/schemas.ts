@@ -5,6 +5,7 @@ import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
   BUZZ_SECONDS_CHOICES,
+  FALSE_START_MS_CHOICES,
   DIFFICULTIES,
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
@@ -107,6 +108,7 @@ export const roomSettingsSchema = z.object({
   scoreboardEvery: z.int().min(0).max(SCOREBOARD_EVERY_MAX),
   answerSeconds: z.literal(ANSWER_SECONDS_CHOICES),
   buzzSeconds: z.literal(BUZZ_SECONDS_CHOICES),
+  falseStartMs: z.literal(FALSE_START_MS_CHOICES),
   showStandings: z.boolean(),
 });
 

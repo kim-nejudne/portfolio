@@ -3,6 +3,7 @@ import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
   BUZZ_SECONDS_CHOICES,
+  FALSE_START_MS_CHOICES,
   DEFAULT_SETTINGS,
   HOST_NOTES_MAX,
   ID_MAX,
@@ -214,6 +215,28 @@ describe('createRoomBodySchema', () => {
     const withoutTimer: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
     delete withoutTimer.buzzSeconds;
     expect(createRoomBodySchema.safeParse({ set: set(), settings: withoutTimer }).success).toBe(
+      false,
+    );
+  });
+
+  it('accepts every false-start wait and rejects any other or a missing one', () => {
+    const body = (falseStartMs: unknown) => ({
+      set: set(),
+      settings: { ...DEFAULT_SETTINGS, falseStartMs },
+    });
+    for (const ms of FALSE_START_MS_CHOICES) {
+      expect(createRoomBodySchema.safeParse(body(ms)).success, String(ms)).toBe(true);
+    }
+    for (const ms of [1, 250, 750, 2000, -500, 0.5, '500', null]) {
+      expect(createRoomBodySchema.safeParse(body(ms)).success, String(ms)).toBe(false);
+    }
+    const without: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete without.falseStartMs;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: without }).success).toBe(false);
+    expect(clientPayloadSchemas['host:settings'].safeParse({ falseStartMs: 500 }).success).toBe(
+      true,
+    );
+    expect(clientPayloadSchemas['host:settings'].safeParse({ falseStartMs: 300 }).success).toBe(
       false,
     );
   });

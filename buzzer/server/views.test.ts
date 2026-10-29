@@ -448,6 +448,26 @@ describe('toView: player', () => {
     expect(toView(room, 'player', 'p2').lockedOut).toBe(false);
   });
 
+  it('shows whether the player false-started this question (F71)', () => {
+    const room = midGame('QUESTION', { falseStarts: ['p1'] });
+    expect(toView(room, 'player', 'p1').falseStart).toBe(true);
+    expect(toView(room, 'player', 'p2').falseStart).toBe(false);
+  });
+
+  it('turns falseStart on with a press in QUESTION and off at the next question', () => {
+    const shown = midGame('QUESTION', {
+      settings: { ...midGame('QUESTION').settings, falseStartMs: 500 },
+    });
+    const pressed = reduce(shown, { type: 'player:buzz', playerId: 'p2', receivedAt: 5 }, T0);
+    if (!pressed.ok) throw new Error(pressed.error);
+    expect(toView(pressed.room, 'player', 'p2').falseStart).toBe(true);
+    const revealed = reduce(pressed.room, { type: 'host:reveal' }, T0);
+    if (!revealed.ok) throw new Error(revealed.error);
+    const next = reduce(revealed.room, { type: 'host:next' }, T0);
+    if (!next.ok) throw new Error(next.error);
+    expect(toView(next.room, 'player', 'p2').falseStart).toBe(false);
+  });
+
   it('shows whether the player has buzzed this opening', () => {
     const room = midGame('COLLECTING');
     expect(toView(room, 'player', 'p2').hasBuzzed).toBe(true);

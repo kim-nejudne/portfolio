@@ -84,6 +84,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     hasBuzzed: room.buzzes.some((b) => b.playerId === playerId),
     canBuzz: canBuzz(room, playerId),
     lockedOut: room.lockedOut.includes(playerId),
+    falseStart: room.falseStarts.includes(playerId),
     winnerId: room.winnerId,
     winnerName: room.winnerId ? (room.players[room.winnerId]?.name ?? null) : null,
     pointsThisQuestion: room.judgements

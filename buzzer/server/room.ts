@@ -23,6 +23,8 @@ export function createRoom({ code, hostTokenHash, set, settings, now }: NewRoom)
     openingCounter: 0,
     buzzes: [],
     windowStartedAt: null,
+    openedAt: null,
+    falseStarts: [],
     winnerId: null,
     lockedOut: [],
     judgements: [],

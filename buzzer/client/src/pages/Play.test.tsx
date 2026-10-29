@@ -47,6 +47,7 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     playerCount: 1,
     hasBuzzed: false,
     lockedOut: false,
+    falseStart: false,
     winnerId: null,
     winnerName: null,
     pointsThisQuestion: 0,

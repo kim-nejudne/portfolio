@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLLECTION_WINDOW_MS } from '../shared/constants.js';
+import { COLLECTION_WINDOW_MS, DEFAULT_SETTINGS } from '../shared/constants.js';
 import type { Phase, Room } from '../shared/types.js';
 import { reduce, type Action, type Effect, type ReduceResult } from './reducer.js';
 import { T0, makePlayer, makeRoom, withPlayers } from './test/rooms.js';
@@ -306,4 +306,72 @@ describe('reduce: a stale windowClosed is a no-op', () => {
       expectNoop(room, windowClosed(room));
     });
   }
+});
+
+describe('reduce: player:buzz records a false start (F71)', () => {
+  const on = (phase: Phase, falseStartMs: 500 | 1000 = 500, overrides: Partial<Room> = {}) =>
+    inPhase(phase, { settings: { ...DEFAULT_SETTINGS, falseStartMs }, ...overrides });
+
+  it('records a press in QUESTION and emits fx falseStart for that player', () => {
+    const { room, effects } = ok(act(on('QUESTION'), press('p2', 500)));
+    expect(room.falseStarts).toEqual(['p2']);
+    expect(effects).toEqual([{ type: 'fx', fx: { kind: 'falseStart', playerId: 'p2' } }]);
+    expect(room.phase).toBe('QUESTION');
+    expect(room.buzzes).toEqual([]);
+    expect(room.lastActivityAt).toBe(NOW);
+  });
+
+  it('records it at 1000 ms as at 500 ms', () => {
+    expect(ok(act(on('QUESTION', 1000), press('p1', 500))).room.falseStarts).toEqual(['p1']);
+  });
+
+  it('records each player once per question: a second press changes nothing', () => {
+    const first = ok(act(on('QUESTION'), press('p1', 500))).room;
+    const second = ok(act(first, press('p1', 900)));
+    expect(second.room).toBe(first);
+    expect(second.effects).toEqual([]);
+  });
+
+  it('records several players in press order', () => {
+    const { room } = run(on('QUESTION'), press('p3', 500), press('p1', 520), press('p3', 540));
+    expect(room.falseStarts).toEqual(['p3', 'p1']);
+  });
+
+  it('also records a press while question 1 holds for its title card', () => {
+    const room = on('QUESTION', 500, { questionIndex: 0, autoOpenAt: NOW + 2000 });
+    expect(ok(act(room, press('p1', 500))).room.falseStarts).toEqual(['p1']);
+  });
+
+  it('ignores a press in QUESTION silently when the setting is off, as before', () => {
+    const room = inPhase('QUESTION');
+    const result = ok(act(room, press('p1', 500)));
+    expect(result.room).toBe(room);
+    expect(result.effects).toEqual([]);
+  });
+
+  for (const phase of ['LOBBY', 'REVEAL', 'FINAL'] as const) {
+    it(`records nothing for a press in ${phase}`, () => {
+      const room = on(phase);
+      const result = ok(act(room, press('p1', 500)));
+      expect(result.room).toBe(room);
+      expect(result.effects).toEqual([]);
+    });
+  }
+
+  it('records nothing for a press in OPEN: it is a buzz', () => {
+    const { room } = ok(act(on('OPEN'), press('p1', 500)));
+    expect(room.falseStarts).toEqual([]);
+    expect(room.phase).toBe('COLLECTING');
+  });
+
+  it('rejects a press from a player who is not in the room', () => {
+    expect(act(on('QUESTION'), press('ghost', 500))).toEqual({
+      ok: false,
+      error: 'Unknown player',
+    });
+  });
+
+  it('starts every room with no false starts', () => {
+    expect(makeRoom().falseStarts).toEqual([]);
+  });
 });

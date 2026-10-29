@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLLECTION_WINDOW_MS } from '../shared/constants.js';
+import { COLLECTION_WINDOW_MS, DEFAULT_SETTINGS } from '../shared/constants.js';
 import type { Fx, Phase, Room } from '../shared/types.js';
 import { reduce, type Action, type Effect, type ReduceResult } from './reducer.js';
 import { T0, makePlayer, makeRoom, withPlayers } from './test/rooms.js';
@@ -233,5 +233,145 @@ describe('reduce: windowStartedAt is cleared with the buzzes', () => {
     expect(room.phase).toBe('BUZZED');
     expect(room.buzzes.map((b) => b.playerId)).toEqual(['p1']);
     expect(room.windowStartedAt).toBe(START);
+  });
+});
+
+// F71: a false starter's buzzes are ignored until `falseStartMs` after the opening, in monotonic time.
+describe('reduce: the false-start wait', () => {
+  const OPENED = 2_000;
+
+  /** Runs `actions` in order with the gateway's monotonic time `mono`, failing on a rejection. */
+  function at(mono: number, room: Room, ...actions: Action[]): { room: Room; effects: Effect[] } {
+    let effects: Effect[] = [];
+    for (const action of actions) ({ room, effects } = ok(reduce(room, action, NOW, mono)));
+    return { room, effects };
+  }
+
+  /** p1 pressed early on question 2 with false starts at `falseStartMs`; the buzzers are shut. */
+  function falseStarted(falseStartMs: 500 | 1000 = 500): Room {
+    const room = inPhase('QUESTION', { settings: { ...DEFAULT_SETTINGS, falseStartMs } });
+    return at(OPENED - 300, room, press('p1', OPENED - 300)).room;
+  }
+
+  const open: Action = { type: 'host:open' };
+
+  /** The `reopen` that a wrong judgement scheduled. */
+  function scheduledReopen(effects: Effect[]): Action {
+    for (const e of effects)
+      if (e.type === 'schedule' && e.action.type === 'reopen') return e.action;
+    throw new Error('No reopen scheduled');
+  }
+
+  it('stamps the opening’s monotonic start, on host:open and on a reopen', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    expect(opened.openedAt).toBe(OPENED);
+    const judged = at(OPENED + 300, opened, press('p2', OPENED + 10), windowClosed(opened), {
+      type: 'host:judge',
+      result: 'wrong',
+    });
+    const reopened = at(OPENED + 2_000, judged.room, scheduledReopen(judged.effects)).room;
+    expect(reopened.openedAt).toBe(OPENED + 2_000);
+  });
+
+  it('ignores the false starter’s press 1 ms before the wait ends and counts it at the end', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    const early = at(OPENED + 499, opened, press('p1', OPENED + 499));
+    expect(early.room).toBe(opened);
+    expect(early.effects).toEqual([]);
+    const { room } = at(OPENED + 500, opened, press('p1', OPENED + 500));
+    expect(room.phase).toBe('COLLECTING');
+    expect(room.buzzes.map((b) => b.playerId)).toEqual(['p1']);
+  });
+
+  it('holds for 1000 ms with the 1 s setting', () => {
+    const opened = at(OPENED, falseStarted(1000), open).room;
+    expect(at(OPENED + 999, opened, press('p1', OPENED + 999)).room).toBe(opened);
+    expect(at(OPENED + 1000, opened, press('p1', OPENED + 1000)).room.phase).toBe('COLLECTING');
+  });
+
+  it('lets everyone else buzz at once', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    const { room } = at(OPENED + 1, opened, press('p2', OPENED + 1));
+    expect(room.buzzes.map((b) => b.playerId)).toEqual(['p2']);
+  });
+
+  it('ignores the false starter in the collection window and in BUZZED during the wait', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    const collecting = at(OPENED + 10, opened, press('p2', OPENED + 10)).room;
+    expect(at(OPENED + 20, collecting, press('p1', OPENED + 20)).room).toBe(collecting);
+    const buzzed = at(OPENED + 160, collecting, windowClosed(collecting)).room;
+    expect(at(OPENED + 400, buzzed, press('p1', OPENED + 400)).room).toBe(buzzed);
+    // After the wait, a late press is listed again (DECISIONS #4).
+    const late = at(OPENED + 600, buzzed, press('p1', OPENED + 600)).room;
+    expect(late.buzzes.map((b) => b.playerId)).toEqual(['p2', 'p1']);
+  });
+
+  it('measures the wait from the opening, not from when the press was dispatched', () => {
+    // A buzz that arrived inside the wait stays ignored even if the reducer runs it later.
+    const opened = at(OPENED, falseStarted(), open).room;
+    expect(at(OPENED + 900, opened, press('p1', OPENED + 400)).room).toBe(opened);
+  });
+
+  it('keeps the false starts when question 1’s title card hold opens the buzzers', () => {
+    const shown = falseStarted();
+    const held = { ...shown, questionIndex: 0, autoOpenAt: NOW + 1000 };
+    const { questionIndex, openingCounter } = held;
+    const opened = at(OPENED, held, {
+      type: 'autoOpen',
+      questionIndex,
+      openingCounter,
+      at: NOW + 1000,
+    }).room;
+    expect(opened.phase).toBe('OPEN');
+    expect(opened.falseStarts).toEqual(['p1']);
+    expect(at(OPENED + 100, opened, press('p1', OPENED + 100)).room).toBe(opened);
+  });
+
+  it('clears the false starts on a reopen after a wrong answer, so the player can buzz at once', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    const judged = at(OPENED + 300, opened, press('p2', OPENED + 10), windowClosed(opened), {
+      type: 'host:judge',
+      result: 'wrong',
+    });
+    expect(judged.room.falseStarts).toEqual(['p1']);
+    const REOPENED = OPENED + 2_000;
+    const reopened = at(REOPENED, judged.room, scheduledReopen(judged.effects)).room;
+    expect(reopened.phase).toBe('OPEN');
+    expect(reopened.falseStarts).toEqual([]);
+    const { room } = at(REOPENED + 1, reopened, press('p1', REOPENED + 1));
+    expect(room.buzzes.map((b) => b.playerId)).toEqual(['p1']);
+  });
+
+  it('clears the false starts when a kick of the unjudged winner reopens the buzzers', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    const buzzed = at(OPENED + 200, opened, press('p2', OPENED + 10), windowClosed(opened)).room;
+    const reopened = at(OPENED + 300, buzzed, kick('p2')).room;
+    expect(reopened.phase).toBe('OPEN');
+    expect(reopened.falseStarts).toEqual([]);
+    expect(at(OPENED + 301, reopened, press('p1', OPENED + 301)).room.phase).toBe('COLLECTING');
+  });
+
+  it('drops a kicked false starter from the list', () => {
+    const room = at(OPENED, falseStarted(), kick('p1')).room;
+    expect(room.falseStarts).toEqual([]);
+  });
+
+  it('clears the false starts on the next and the previous question', () => {
+    const revealed = at(OPENED, falseStarted(), { type: 'host:reveal' }).room;
+    expect(revealed.falseStarts).toEqual(['p1']);
+    expect(at(OPENED, revealed, { type: 'host:next' }).room.falseStarts).toEqual([]);
+    expect(at(OPENED, falseStarted(), { type: 'host:prev' }).room.falseStarts).toEqual([]);
+  });
+
+  it('releases the wait when the host turns false starts off', () => {
+    const opened = at(OPENED, falseStarted(), open).room;
+    const off = at(OPENED + 50, opened, { type: 'host:settings', settings: { falseStartMs: 0 } });
+    expect(at(OPENED + 100, off.room, press('p1', OPENED + 100)).room.phase).toBe('COLLECTING');
+  });
+
+  it('holds nobody when the opening has no monotonic start', () => {
+    const opened = ok(reduce(falseStarted(), open, NOW)).room;
+    expect(opened.openedAt).toBeNull();
+    expect(at(OPENED, opened, press('p1', OPENED)).room.phase).toBe('COLLECTING');
   });
 });

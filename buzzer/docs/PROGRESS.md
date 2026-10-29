@@ -12,6 +12,24 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F71 — False start: server (2026-10-29)
+**What changed:**
+- Shared: `RoomSettings.falseStartMs: 0 | 500 | 1000` (`FalseStartMs`, `FALSE_START_MS_CHOICES`, default 0, `z.literal` in `roomSettingsSchema` and so in `host:settings`). `Room.openedAt` (monotonic start of the opening) and `Room.falseStarts` (playerIds, press order). `Fx {kind: 'falseStart', playerId}`. `PlayerView.falseStart`.
+- Reducer: `reduce(room, action, now, mono?)`; a post-step `withOpening` stamps `openedAt = mono` whenever `openingCounter` moves, and clears `falseStarts` unless the opening came from QUESTION. `player:buzz` in QUESTION with the setting on records the player once and emits `fx falseStart`; otherwise it is still ignored silently. In OPEN, COLLECTING and BUZZED a false starter's press with `receivedAt < openedAt + falseStartMs` is ignored (ends inclusive). `clearedQuestion` resets both fields; kick or leave drops the player from the list; `host:settings` merges the key.
+- Gateway: `dispatch` passes `monotonic()` to `reduce`. Views: `PlayerView.falseStart`. Client: `soundForFx` returns null for `falseStart` and `useScreenSounds` skips it, so the Screen stays silent.
+- Tests: `reducer.buzz.test.ts` +11 (record, once, order, title-card hold, off, other phases, unknown player), `reducer.window.test.ts` +13 (stamp on open and reopen, 499/500 ms edge, 1000 ms, others at once, COLLECTING and BUZZED, late dispatch, autoOpen keeps, reopen clears, kick reopen clears, kicked false starter, next/prev clear, setting off releases, no `mono`), `sockets.buzz.test.ts` +4 (fx to every device and `falseStart` state, 500 ms monotonic wait, other player at once, off by default, bad value rejected), `views.test.ts` +2, `schemas.test.ts` +1, `constants.test.ts` +1, `sounds.test.ts` +1, `Screen.test.tsx` +1; fixtures in admin, newgame, roomStore, `buzzerState` and `Play` tests. 1730 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-29 for F71 (`openedAt` from the gateway's `mono`, SPEC-QUESTION; who keeps or clears false starts; a held press is an ordinary ignore, setting read at the press; silent Screen).
+
+**Notes for next session:**
+- `mono` is optional so the hundreds of existing `reduce(room, action, now)` test calls stay as they are; without it `openedAt` is null and nobody is held. The gateway is the only production caller and always passes it (a sockets test fails if it stops). Making it required is a possible later tidy-up.
+- `canBuzz` is still true during the wait (the view carries no time). F72 should drive "Too early!" from `falseStart` plus `settings.falseStartMs`, counting from the OPEN snapshot. A press inside the wait is acked `{ok: true}` and changes nothing.
+- F61's DECISIONS row says a false start needs its own vibration trigger: `fx falseStart` with the player's own id is that trigger.
+- Mutation-checked: an off-by-one in the wait, never clearing on reopen, and the gateway not passing `mono` each fail tests.
+- No playtest: no UI changed. Main `index` chunk 483.03 → 483.13 kB (145.52 kB gzip).
+
+**How to try it:** server only; nothing in the UI turns it on until F72 adds the stepper and the phone states. Run `npx vitest run server/reducer.window.test.ts server/reducer.buzz.test.ts server/sockets.buzz.test.ts`.
+
 ## F70 — Pairing PIN (2026-10-29)
 **What changed:**
 - Server: new `server/pairing.ts` `PairingStore` (outside `Room`): one PIN per room, 6 digits from `crypto.randomInt`, salted SHA-256 compared in constant time, valid 60 s (`PAIRING_PIN_TTL_MS`), single use, deleted on the 5th miss, replaced by a new request, and freed by an unref'd timer. It holds the presented hostToken for the PIN's life (the room keeps only the hash). `http.ts`: `POST /api/rooms/:code/pairing` (Bearer; 201 `{pin}`, 401, 404) and `POST /api/rooms/:code/pair` (`PAIR_RATE_LIMIT` 5/min per IP, then per room, 429; 400 malformed; 413 over 1 KB; 401 for every other failure; 200 `{hostToken}`). Shared: `pairBodySchema`, `PairingResponse`, `PairBody`, `PairResponse`, the `PAIRING_PIN_*` and `PAIR_*` constants.
