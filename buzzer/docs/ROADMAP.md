@@ -118,6 +118,32 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 - [x] F46 Slim runtime image and CI job
 
+## M10 — Starter sets
+
+Kim's request of 2026-10-29: 60 built-in sets (20 categories × Easy, Medium, Hard, 15 questions each) for Filipino game nights, written in Claude Desktop and reviewed in Claude Code. The choices are in the DECISIONS row dated 2026-10-29 marked "starter plan". Proposed spec wording is in DECISIONS, Proposed spec changes (starter sets).
+
+- [ ] F47 Starter set data
+  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (starter sets)
+  - Depends: F46
+  - Done when:
+    - The 20 files in `~/Downloads/buzzr-starter/` are copied to `shared/starterSets/<slug>.json` with the 39 entries of `~/Downloads/buzzr-starter-fixes.json` applied (listed fields replace the original; `hostNotes: null` removes the note). The one-off apply script stays in the scratchpad, not the repo. The JSON is generated data and does not count toward the session's line budget
+    - Every question keeps the key order `id, text, answer, hostNotes?, points`; every set keeps `createdAt: 0`, `updatedAt: 0`, `schemaVersion: 1`
+    - `shared/starterSets/index.ts` exports `STARTER_SETS: QuestionSet[]` (60 sets) in category order (`animals`, `movies`, `ph-history`, `world-history`, `science`, `religion`, `tech`, `comics`, `anime`, `video-games`, `food`, `ph-geography`, `world-geography`, `music`, `sports`, `ph-pop-culture`, `health`, `space`, `mythology`, `language`), Easy, Medium, Hard within each
+    - JSON imports typecheck: `resolveJsonModule` in `tsconfig.json` if needed, justified in DECISIONS. No new dependency
+    - Every applied fix is visible in the data (e.g. `space-easy-12` has no host note; `tech-medium-02` answers Xiaomi)
+  - Tests: `shared/starterSets.test.ts`: 60 sets; each parses with `questionSetSchema` unchanged and has 15 questions; set ids are `starter-<slug>-<level>` and unique; question ids unique across all sets; points 100/200/300 by level; titles end "– Easy"/"– Medium"/"– Hard"; no `imageId`; each can create a room with `DEFAULT_SETTINGS` (`createRoomBodySchema`)
+
+- [ ] F48 Seed starter sets into My sets
+  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (starter sets)
+  - Depends: F47
+  - Done when:
+    - `client/src/lib/db.ts` declares `version(2)` with the same stores. A fresh browser's `populate` adds the sample (stamped now, as today) and the 60 starters, stamped `now - 1 - i` in `STARTER_SETS` order, so `/sets` lists the sample, then Animals – Easy … Words & Language – Hard
+    - The v1 → v2 `upgrade` adds every starter whose id is not already stored, stamped `oldest - 1 - i`, where `oldest` is the smallest stored `updatedAt` (or now when the list is empty). The host's own sets stay on top and **Host a game** still preselects the host's newest set
+    - Seeding never re-runs: a deleted starter stays deleted after reload. Adds are chained on Dexie promises inside the transaction (no native `await`); the starter JSON is a static import into the lazy db chunk
+    - `npm run build`: the player-facing main bundle does not grow (the data lands only in the chunk that holds `db.ts`); sizes recorded in DECISIONS
+    - **Host this set** on a starter creates a room, and the Screen shows its questions with 100/200/300 points
+  - Tests: `db.test.ts` (fake-indexeddb): a fresh database lists 61 sets in the stated order with the visit-time stamps; a v1 database holding two user sets upgrades to keep them first and unchanged, then the starters in order below the oldest; a v1 database with no sets gets the starters stamped from now; a deleted starter is not re-added on reopen. Update the existing "seeds the sample set" test. `/playtest`: `/sets` on a fresh profile, host a starter, play one question
+
 ## Bugs
 
 ## Backlog (not scheduled)
