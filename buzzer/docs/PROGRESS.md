@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F64 — Buzz time limit: devices (2026-10-29)
+**What changed:**
+- `useAnswerCountdown.ts`: one private `useCountdown` behind `useAnswerCountdown` and the new `useBuzzCountdown` (`buzzTimer`, never `up`).
+- Settings (remote tab and Screen lobby): a "Buzz time" stepper (Off, 5, 10, 15, 20, 30 s) under Answer time; both rows now use one `SecondsStepper` in `HostSettings.tsx`.
+- Screen: `BuzzTimeRing` in `ScreenQuestion.tsx`: the gold stage ring around "Buzzers OPEN" drains as a conic ring (`--left`), seconds in a dark chip. `ScreenFlash` flashes red on `fx buzzTimeUp`. Phone: "N seconds to buzz" (singular at 1) under the BUZZ button. Remote: a "sec" box beside Reveal answer (`PrimaryAction.tsx`).
+- Tests: `useAnswerCountdown.test.ts` +4, `HostControls.test.tsx` +10 (stepper), `Host.test.tsx` +3, `Screen.test.tsx` +4 (ring drains, gone on buzz and restarts on reopen, plain without, time up plays `timeUp`, flashes, shows the answer), `Play.test.tsx` +3. 1531 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F64 (shared counting, never `up`; ring, phone line for everyone, remote box, red flash, one stepper).
+
+**Notes for next session:**
+- Playtest (Playwright, Screen 1920×1080, Host and two players 390×844, room QQPA): the lobby stepper cycled Off to 30 s with the ends disabled, and the Host tab showed the same value; with 5 s, Screen, phone and remote each counted 5 to 1; nobody buzzed and all three showed the reveal ("Jupiter") about 5 s after opening; the answer was absent from the Screen while open. Not checked: the sound by ear, the answer's absence on the phones during the countdown, console on Host and player tabs. One Screen console warning (WebSocket closed before connected, likely dev reconnect noise). The playtest found "1 seconds to buzz", fixed after. Screenshots: `.playtest/F64/ring-screen.png`, `.playtest/F64/open-host.png`.
+- The ring steps once a second and its drained part is `--color-edge`, subtle from far away; the seconds chip carries the count.
+- Main `index` chunk 468.98 → 471.20 kB (142.44 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room, open the Screen, Click to start. In the lobby settings set **Buzz time** to 5 s. Join from a phone at `http://<laptop-LAN-IP>:5173/play/<CODE>`, start, open the buzzers and don't buzz: the Screen ring, the phone line and the remote box count down, then every device shows the answer and the Screen flashes red with the time's-up sound.
+
 ## F63 — Buzz time limit: server (2026-10-29)
 **What changed:**
 - Shared: `BuzzSeconds` and `BUZZ_SECONDS_CHOICES` (0, 5, 10, 15, 20, 30), `RoomSettings.buzzSeconds` (default 0, in `DEFAULT_SETTINGS`), zod in the create body and `host:settings`. `Room.buzzTimer {seconds, endsAt}`, `BuzzTimerView {seconds}` on the Screen, Host and Player views (no `endsAt`), `Fx {kind: 'buzzTimeUp'}`.

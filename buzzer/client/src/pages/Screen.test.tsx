@@ -1114,6 +1114,55 @@ describe('Screen result states', () => {
       .getAllByRole('listitem')
       .map((li) => li.textContent);
 
+  describe('buzz time', () => {
+    const ring = () => document.querySelector<HTMLElement>('[data-buzz-ring]');
+    const buzzTime = () => screen.queryByRole('timer', { name: 'Buzz time' });
+    const opened = (openingCounter = 1) =>
+      questionView({ phase: 'OPEN', openingCounter, buzzTimer: { seconds: 10 } });
+
+    it('counts down in a ring around "Buzzers OPEN" that drains as the seconds go', () => {
+      vi.useFakeTimers();
+      show(opened());
+      expect(screen.getByRole('status').textContent).toBe('Buzzers OPEN');
+      expect(ring()?.contains(screen.getByRole('status'))).toBe(true);
+      expect(ring()?.contains(buzzTime())).toBe(true);
+      expect(buzzTime()?.textContent).toBe('10');
+      expect(ring()?.style.getPropertyValue('--left')).toBe('1');
+      act(() => vi.advanceTimersByTime(4000));
+      expect(buzzTime()?.textContent).toBe('6');
+      expect(ring()?.style.getPropertyValue('--left')).toBe('0.6');
+    });
+
+    it('goes on the first buzz, and restarts in full when the buzzers reopen', () => {
+      vi.useFakeTimers();
+      const socket = show(opened());
+      act(() => vi.advanceTimersByTime(7000));
+      socket.fire('state', questionView({ phase: 'COLLECTING', openingCounter: 1 }));
+      expect(ring()).toBeNull();
+      expect(screen.getByRole('status').textContent).toBe('Buzzers OPEN');
+      socket.fire('state', opened(2));
+      expect(buzzTime()?.textContent).toBe('10');
+    });
+
+    it('without a buzz time, "Buzzers OPEN" keeps its plain stage ring', () => {
+      show(questionView({ phase: 'OPEN', openingCounter: 1 }));
+      expect(ring()).toBeNull();
+      expect(buzzTime()).toBeNull();
+    });
+
+    it('at time up plays the time’s-up sound, flashes red and moves to the reveal', () => {
+      vi.mocked(playSound).mockClear();
+      const socket = show(opened());
+      socket.fire('state', revealView({ winnerId: null, scorerId: null }));
+      socket.fire('fx', { kind: 'buzzTimeUp' });
+      expect(vi.mocked(playSound).mock.calls.map(([name]) => name)).toEqual(['timeUp']);
+      expect(flash()?.dataset.flash).toBe('buzzTimeUp');
+      expect(flash()?.className).toContain('bg-buzz');
+      expect(ring()).toBeNull();
+      expect(within(screen.getByRole('region', { name: 'Answer' })).getByText(ANSWER)).toBeTruthy();
+    });
+  });
+
   describe('judged', () => {
     it('a correct answer flashes green and floats "+100" up from the name, then both clear', () => {
       vi.useFakeTimers();

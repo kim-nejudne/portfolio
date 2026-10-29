@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AnswerTimerView } from '../../../shared/types.js';
-import { countdownText, TIME_UP_LABEL, useAnswerCountdown } from './useAnswerCountdown.js';
+import type { AnswerTimerView, BuzzTimerView } from '../../../shared/types.js';
+import {
+  countdownText,
+  TIME_UP_LABEL,
+  useAnswerCountdown,
+  useBuzzCountdown,
+} from './useAnswerCountdown.js';
 
 interface Props {
   answerTimer: AnswerTimerView | null;
@@ -102,6 +107,62 @@ describe('useAnswerCountdown', () => {
     tick(2000);
     rerender(running(5));
     expect(result.current?.secondsLeft).toBe(3);
+  });
+});
+
+interface BuzzProps {
+  buzzTimer: BuzzTimerView | null;
+  questionIndex: number;
+  openingCounter: number;
+}
+
+const buzzOpen = (seconds: number, overrides: Partial<BuzzProps> = {}): BuzzProps => ({
+  buzzTimer: { seconds },
+  questionIndex: 2,
+  openingCounter: 1,
+  ...overrides,
+});
+
+function setupBuzz(initial: BuzzProps) {
+  return renderHook((props: BuzzProps) => useBuzzCountdown(props), { initialProps: initial });
+}
+
+describe('useBuzzCountdown', () => {
+  it('is null with no buzz time set', () => {
+    const { result } = setupBuzz({ buzzTimer: null, questionIndex: 2, openingCounter: 1 });
+    expect(result.current).toBeNull();
+  });
+
+  it('counts the buzz time down to 0 and stops there; time up is the server’s reveal', () => {
+    const { result } = setupBuzz(buzzOpen(5));
+    expect(result.current).toEqual({ secondsLeft: 5, up: false });
+    tick(2000);
+    expect(result.current?.secondsLeft).toBe(3);
+    tick(10_000);
+    expect(result.current).toEqual({ secondsLeft: 0, up: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('becomes null on the first buzz, and restarts in full when the buzzers reopen', () => {
+    const { result, rerender } = setupBuzz(buzzOpen(10));
+    tick(4000);
+    rerender({ ...buzzOpen(10), buzzTimer: null });
+    expect(result.current).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    rerender(buzzOpen(10, { openingCounter: 2 }));
+    expect(result.current?.secondsLeft).toBe(10);
+  });
+
+  it('runs alongside the answer countdown of the same opening without sharing its count', () => {
+    type Both = BuzzProps & { answerTimer: AnswerTimerView | null };
+    const initialProps: Both = { ...buzzOpen(15), answerTimer: null };
+    const { result, rerender } = renderHook(
+      (props: Both) => ({ buzz: useBuzzCountdown(props), answer: useAnswerCountdown(props) }),
+      { initialProps },
+    );
+    tick(6000);
+    rerender({ ...buzzOpen(15), buzzTimer: null, answerTimer: { seconds: 5, up: false } });
+    expect(result.current).toEqual({ buzz: null, answer: { secondsLeft: 5, up: false } });
   });
 });
 

@@ -758,6 +758,42 @@ describe('Host remote', () => {
       expect(screen.queryByRole('button', { name: PRIMARY_LABELS })).toBeNull();
     });
 
+    describe('with a buzz time', () => {
+      const buzzTimer = () => screen.queryByRole('timer', { name: 'Buzz time' });
+      const open = (openingCounter = 1) => ({
+        ...inPhase('OPEN'),
+        openingCounter,
+        buzzTimer: { seconds: 10 },
+      });
+
+      it('shows the seconds left beside Reveal answer while the buzzers are open', () => {
+        vi.useFakeTimers();
+        const socket = remote(open());
+        expect(buzzTimer()?.previousElementSibling).toBe(primary());
+        expect(buzzTimer()?.textContent).toBe('10sec');
+        act(() => vi.advanceTimersByTime(4000));
+        expect(buzzTimer()?.textContent).toBe('6sec');
+        fireEvent.click(primary());
+        expect(socket.emitted.at(-1)).toMatchObject({ event: 'host:reveal', payload: {} });
+      });
+
+      it('goes on the first buzz and restarts in full when the buzzers reopen', () => {
+        vi.useFakeTimers();
+        const socket = remote(open());
+        act(() => vi.advanceTimersByTime(7000));
+        socket.fire('state', { ...inPhase('COLLECTING'), openingCounter: 1 });
+        expect(buzzTimer()).toBeNull();
+        socket.fire('state', open(2));
+        expect(buzzTimer()?.textContent).toBe('10sec');
+      });
+
+      it('is absent with no buzz time', () => {
+        remote(inPhase('OPEN'));
+        expect(primary()).toBeTruthy();
+        expect(buzzTimer()).toBeNull();
+      });
+    });
+
     it('cycles through the game as each new state arrives', () => {
       const socket = remote(hostView({ players: [player(1)] }));
       const labels = [primary().textContent];

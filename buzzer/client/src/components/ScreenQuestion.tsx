@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import type { BuzzGap, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
 import { signedPoints } from '../lib/results.js';
@@ -6,6 +6,7 @@ import { buzzersOpen, formatGap, questionTextClass } from '../lib/screenQuestion
 import {
   countdownText,
   useAnswerCountdown,
+  useBuzzCountdown,
   type AnswerCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useRecentFx } from '../lib/useRecentFx.js';
@@ -33,6 +34,7 @@ const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] upperc
 export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?: string }) {
   const { question } = view;
   const countdown = useAnswerCountdown(view);
+  const buzzCountdown = useBuzzCountdown(view);
   const rowRef = useRef<HTMLDivElement>(null);
   // The length step is the most the text gets; the answer and the banner squeeze the card, so it
   // shrinks further when its lines would not fit what is left (F52).
@@ -85,7 +87,11 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
         />
       ) : (
         <>
-          <BuzzerStatus open={buzzersOpen(view.phase)} />
+          {buzzCountdown && view.buzzTimer ? (
+            <BuzzTimeRing countdown={buzzCountdown} seconds={view.buzzTimer.seconds} />
+          ) : (
+            <BuzzerStatus open={buzzersOpen(view.phase)} />
+          )}
           <LockedOut ids={view.lockedOut} players={view.players} />
         </>
       )}
@@ -105,6 +111,35 @@ function BuzzerStatus({ open }: { open: boolean }) {
     >
       {open ? 'Buzzers OPEN' : 'Buzzers locked'}
     </p>
+  );
+}
+
+/**
+ * "Buzzers OPEN" with a buzz time (UI spec, Screen view: Question): the gold stage ring drains
+ * clockwise as the seconds run out, and the seconds sit beside the words. At 0 the server reveals
+ * the answer (DECISIONS, F63), so the ring never shows time up itself.
+ */
+function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seconds: number }) {
+  const left = seconds > 0 ? countdown.secondsLeft / seconds : 0;
+  return (
+    <div
+      data-buzz-ring
+      style={{ '--left': left } as CSSProperties}
+      className="shrink-0 self-center rounded-full bg-[conic-gradient(var(--color-accent)_calc(var(--left)*1turn),var(--color-edge)_0)] p-[0.78vw] motion-safe:animate-buzz-pulse"
+    >
+      <div className="flex items-center gap-[2.4vw] rounded-full border-2 border-buzz bg-buzz px-[4vw] py-[1.6vh] font-display text-[min(3.4vw,6vh)] shadow-[0_0_0_0.47vw_var(--color-bg)]">
+        <p role="status" className="text-ink [text-shadow:0.25vw_0.25vw_0_var(--color-buzz-ink)]">
+          Buzzers OPEN
+        </p>
+        <p
+          role="timer"
+          aria-label="Buzz time"
+          className="min-w-[1.6em] rounded-full bg-buzz-ink px-[1vw] text-center leading-tight text-ink tabular-nums"
+        >
+          {countdown.secondsLeft}
+        </p>
+      </div>
+    </div>
   );
 }
 

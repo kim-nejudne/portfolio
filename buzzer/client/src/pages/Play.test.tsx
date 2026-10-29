@@ -677,6 +677,39 @@ describe('Play buzzer', () => {
     expect(status().textContent).toBe('Ben buzzed first');
   });
 
+  describe('with a buzz time', () => {
+    const buzzTime = () => screen.queryByRole('timer', { name: 'Buzz time' });
+
+    it('shows the seconds left under the button while the buzzers are open', async () => {
+      const socket = await joined();
+      vi.useFakeTimers();
+      socket.fire('state', open({ openingCounter: 1, buzzTimer: { seconds: 5 } }));
+      expect(buzzer().compareDocumentPosition(buzzTime()!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(buzzTime()?.textContent).toBe('5seconds to buzz');
+      act(() => vi.advanceTimersByTime(2000));
+      expect(buzzTime()?.textContent).toBe('3seconds to buzz');
+      act(() => vi.advanceTimersByTime(2000));
+      expect(buzzTime()?.textContent).toBe('1second to buzz');
+      expect(buzzer().dataset.look).toBe('live');
+    });
+
+    it('goes once someone buzzes, and shows the answer at time up', async () => {
+      const socket = await joined();
+      socket.fire('state', open({ openingCounter: 1, buzzTimer: { seconds: 5 } }));
+      socket.fire('state', open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' }));
+      expect(buzzTime()).toBeNull();
+      socket.fire('state', open({ phase: 'REVEAL', answer: 'Paris', canBuzz: false }));
+      expect(buzzTime()).toBeNull();
+      expect(status().textContent).toBe('Paris');
+    });
+
+    it('is absent with no buzz time', async () => {
+      const socket = await joined();
+      socket.fire('state', open());
+      expect(buzzTime()).toBeNull();
+    });
+  });
+
   it("everyone else sees the winner's name on a dim button", async () => {
     const socket = await joined();
     socket.fire('state', open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' }));

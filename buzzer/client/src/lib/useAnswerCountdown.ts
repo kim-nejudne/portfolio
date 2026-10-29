@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AnswerTimerView } from '../../../shared/types.js';
+import type { AnswerTimerView, BuzzTimerView } from '../../../shared/types.js';
 
 /** What every device shows once the server marks the answer time up. */
 export const TIME_UP_LABEL = 'Time’s up!';
@@ -14,15 +14,22 @@ export interface AnswerCountdown {
   up: boolean;
 }
 
-/** The parts of any role's view the countdown needs. */
+/** The parts of any role's view the answer countdown needs. */
 interface CountdownSource {
   answerTimer: AnswerTimerView | null;
   questionIndex: number;
   openingCounter: number;
 }
 
+/** The parts of any role's view the buzz countdown needs. */
+interface BuzzCountdownSource {
+  buzzTimer: BuzzTimerView | null;
+  questionIndex: number;
+  openingCounter: number;
+}
+
 /**
- * The winner's answer countdown (UI spec: Player, Screen and Host views), or null with no timer
+ * The winner's answer countdown (UI spec, Player, Screen and Host views), or null with no timer
  * running. Views carry no end time (DECISIONS, F35), so each device counts `seconds` down from
  * when the timer first appears for this question and opening, and restarts on a new one. It reads
  * the clock on every tick, so a throttled tab catches up instead of falling behind. It stops at 0;
@@ -33,9 +40,31 @@ export function useAnswerCountdown({
   questionIndex,
   openingCounter,
 }: CountdownSource): AnswerCountdown | null {
-  const seconds = answerTimer?.seconds ?? 0;
-  const up = answerTimer?.up ?? false;
-  const key = answerTimer ? `${questionIndex}:${openingCounter}` : null;
+  return useCountdown(answerTimer, questionIndex, openingCounter);
+}
+
+/**
+ * The buzz time left while the buzzers are open (UI spec, Screen view: Question), or null with no
+ * buzz time. It counts like the answer countdown and is never `up`: the server's time up moves the
+ * room to REVEAL, which clears the timer (DECISIONS, F63).
+ */
+export function useBuzzCountdown({
+  buzzTimer,
+  questionIndex,
+  openingCounter,
+}: BuzzCountdownSource): AnswerCountdown | null {
+  return useCountdown(buzzTimer, questionIndex, openingCounter);
+}
+
+/** Counts a view's timer down on this device; keyed by question index and opening counter. */
+function useCountdown(
+  timer: { seconds: number; up?: boolean } | null,
+  questionIndex: number,
+  openingCounter: number,
+): AnswerCountdown | null {
+  const seconds = timer?.seconds ?? 0;
+  const up = timer?.up ?? false;
+  const key = timer ? `${questionIndex}:${openingCounter}` : null;
 
   const [count, setCount] = useState({ key, left: seconds });
   let left = count.left;

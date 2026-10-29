@@ -174,14 +174,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F63 Buzz time limit: server
 
-- [ ] F64 Buzz time limit: devices
-  - Spec: UI spec by view (Screen view, Player view, Host remote); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F63
-  - Done when:
-    - The Settings tab and the Screen lobby settings have a "Buzz time" stepper: Off, 5, 10, 15, 20, 30 s
-    - While OPEN with a buzz timer, the Screen shows a countdown ring around "Buzzers open", the phone shows the seconds under its button and the remote shows them beside the primary action (`useAnswerCountdown` reused or generalised)
-    - On `fx buzzTimeUp` the Screen plays the time's-up sound and moves to the reveal
-  - Tests: `HostControls.test.tsx` (stepper), `Screen.test.tsx`, `Play.test.tsx`, `useAnswerCountdown.test.ts`. `/playtest`: 5 s limit, nobody buzzes, reveal arrives
+- [x] F64 Buzz time limit: devices
 
 - [ ] F65 Standings: rank on the phone and a Screen rail
   - Spec: UI spec by view (Player view, Screen view); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)

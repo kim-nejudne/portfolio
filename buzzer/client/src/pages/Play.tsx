@@ -37,7 +37,7 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
-import { useAnswerCountdown } from '../lib/useAnswerCountdown.js';
+import { useAnswerCountdown, useBuzzCountdown } from '../lib/useAnswerCountdown.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
@@ -418,6 +418,7 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
   const opening = `${view.questionIndex}:${view.openingCounter}`;
   const [pressedAt, setPressedAt] = useState<string | null>(null);
   const countdown = useAnswerCountdown(view);
+  const buzzCountdown = useBuzzCountdown(view);
   const state = buzzerState(view, pressedAt === opening, countdown);
   // Counts test buzzes, so each one restarts the ring animation.
   const [practices, setPractices] = useState(0);
@@ -608,6 +609,19 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
               )}
               BUZZ
             </button>
+            {/* The buzz time left, while the buzzers are open (DECISIONS, F64). */}
+            {buzzCountdown && (
+              <p
+                role="timer"
+                aria-label="Buzz time"
+                className="flex shrink-0 items-baseline gap-2 font-bold text-muted"
+              >
+                <span className="font-display text-4xl leading-none text-ink tabular-nums">
+                  {buzzCountdown.secondsLeft}
+                </span>
+                {buzzCountdown.secondsLeft === 1 ? 'second' : 'seconds'} to buzz
+              </p>
+            )}
           </div>
           {view.lobby && <WhosHere players={view.lobby} meId={view.me.id} />}
           {inGame && (

@@ -1,4 +1,8 @@
-import { ANSWER_SECONDS_CHOICES, SCOREBOARD_EVERY_MAX } from '../../../shared/constants.js';
+import {
+  ANSWER_SECONDS_CHOICES,
+  BUZZ_SECONDS_CHOICES,
+  SCOREBOARD_EVERY_MAX,
+} from '../../../shared/constants.js';
 import type { HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
 import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
@@ -50,9 +54,6 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
   const { settings } = view;
   const change = (patch: Partial<RoomSettings>) => run('host:settings', patch);
   const every = settings.scoreboardEvery;
-  const answerStep = ANSWER_SECONDS_CHOICES.indexOf(settings.answerSeconds);
-  const shorter = ANSWER_SECONDS_CHOICES[answerStep - 1];
-  const longer = ANSWER_SECONDS_CHOICES[answerStep + 1];
 
   return (
     <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-2' : 'gap-3'}`}>
@@ -72,40 +73,28 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         onChange={(autoOpenBuzzers) => change({ autoOpenBuzzers })}
         size={size}
       />
-      <div className={`${row} ${size.row}`}>
-        <p className="flex-1">
-          <span id="answer-time-label" className={`block font-bold ${size.label}`}>
-            Answer time
-          </span>
-          <span className={`${size.detail} text-muted`}>
-            Seconds the first buzzer has to answer.
-          </span>
-        </p>
-        <button
-          type="button"
-          aria-label="Less answer time"
-          onClick={() => shorter !== undefined && change({ answerSeconds: shorter })}
-          disabled={busy || shorter === undefined}
-          className={`${stepper} ${size.stepper}`}
-        >
-          −
-        </button>
-        <output
-          aria-labelledby="answer-time-label"
-          className={`${size.value} text-center font-display`}
-        >
-          {settings.answerSeconds === 0 ? 'Off' : `${settings.answerSeconds} s`}
-        </output>
-        <button
-          type="button"
-          aria-label="More answer time"
-          onClick={() => longer !== undefined && change({ answerSeconds: longer })}
-          disabled={busy || longer === undefined}
-          className={`${stepper} ${size.stepper}`}
-        >
-          +
-        </button>
-      </div>
+      <SecondsStepper
+        id="answer-time-label"
+        label="Answer time"
+        detail="Seconds the first buzzer has to answer."
+        noun="answer time"
+        choices={ANSWER_SECONDS_CHOICES}
+        value={settings.answerSeconds}
+        disabled={busy}
+        onChange={(answerSeconds) => change({ answerSeconds })}
+        size={size}
+      />
+      <SecondsStepper
+        id="buzz-time-label"
+        label="Buzz time"
+        detail="Seconds to buzz in before the answer is revealed."
+        noun="buzz time"
+        choices={BUZZ_SECONDS_CHOICES}
+        value={settings.buzzSeconds}
+        disabled={busy}
+        onChange={(buzzSeconds) => change({ buzzSeconds })}
+        size={size}
+      />
       <div className={`${row} ${size.row}`}>
         <p className="flex-1">
           <span id="scoreboard-every-label" className={`block font-bold ${size.label}`}>
@@ -141,6 +130,68 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         </button>
       </div>
     </section>
+  );
+}
+
+interface SecondsStepperProps<T extends number> {
+  id: string;
+  label: string;
+  detail: string;
+  /** Names the − and + buttons: "Less answer time", "More answer time". */
+  noun: string;
+  /** The allowed values, shortest first; 0 shows as Off. */
+  choices: readonly T[];
+  value: T;
+  disabled: boolean;
+  onChange: (value: T) => void;
+  size: Sizes;
+}
+
+/** A row that steps through a fixed list of seconds: the answer time and the buzz time. */
+function SecondsStepper<T extends number>({
+  id,
+  label,
+  detail,
+  noun,
+  choices,
+  value,
+  disabled,
+  onChange,
+  size,
+}: SecondsStepperProps<T>) {
+  const step = choices.indexOf(value);
+  const shorter = choices[step - 1];
+  const longer = choices[step + 1];
+  return (
+    <div className={`${row} ${size.row}`}>
+      <p className="flex-1">
+        <span id={id} className={`block font-bold ${size.label}`}>
+          {label}
+        </span>
+        <span className={`${size.detail} text-muted`}>{detail}</span>
+      </p>
+      <button
+        type="button"
+        aria-label={`Less ${noun}`}
+        onClick={() => shorter !== undefined && onChange(shorter)}
+        disabled={disabled || shorter === undefined}
+        className={`${stepper} ${size.stepper}`}
+      >
+        −
+      </button>
+      <output aria-labelledby={id} className={`${size.value} text-center font-display`}>
+        {value === 0 ? 'Off' : `${value} s`}
+      </output>
+      <button
+        type="button"
+        aria-label={`More ${noun}`}
+        onClick={() => longer !== undefined && onChange(longer)}
+        disabled={disabled || longer === undefined}
+        className={`${stepper} ${size.stepper}`}
+      >
+        +
+      </button>
+    </div>
   );
 }
 

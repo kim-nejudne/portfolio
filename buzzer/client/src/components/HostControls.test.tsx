@@ -339,6 +339,42 @@ describe('HostSettings', () => {
     expect(isDisabled('Less answer time')).toBe(false);
   });
 
+  const buzzTime = () => screen.getByRole('status', { name: 'Buzz time' });
+
+  it('shows the buzz time Off by default', () => {
+    setup(HostSettings, hostView());
+    expect(buzzTime().textContent).toBe('Off');
+    expect(isDisabled('Less buzz time')).toBe(true);
+    expect(isDisabled('More buzz time')).toBe(false);
+  });
+
+  it.each([
+    [0, 'More buzz time', 5],
+    [5, 'More buzz time', 10],
+    [10, 'More buzz time', 15],
+    [15, 'More buzz time', 20],
+    [20, 'More buzz time', 30],
+    [30, 'Less buzz time', 20],
+    [10, 'Less buzz time', 5],
+    [5, 'Less buzz time', 0],
+  ] as const)('from %i s, %s sends buzzSeconds %i only', (from, label, to) => {
+    const { sent } = setup(
+      HostSettings,
+      hostView({ settings: { ...DEFAULT_SETTINGS, buzzSeconds: from } }),
+    );
+    fireEvent.click(button(label));
+    expect(sent).toEqual([
+      expect.objectContaining({ event: 'host:settings', payload: { buzzSeconds: to } }),
+    ]);
+  });
+
+  it('reads the buzz time and stops the + button at 30 s', () => {
+    setup(HostSettings, hostView({ settings: { ...DEFAULT_SETTINGS, buzzSeconds: 30 } }));
+    expect(buzzTime().textContent).toBe('30 s');
+    expect(isDisabled('More buzz time')).toBe(true);
+    expect(isDisabled('Less buzz time')).toBe(false);
+  });
+
   it('shows the new value only once the snapshot carries it', () => {
     const { rerender } = setup(HostSettings, hostView());
     fireEvent.click(button('More questions between scoreboards'));
