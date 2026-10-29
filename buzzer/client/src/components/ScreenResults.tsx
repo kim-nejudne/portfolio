@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { RankedPlayer } from '../../../shared/types.js';
+import type { RankedPlayer, SessionView } from '../../../shared/types.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 import { ordinal, podiumSteps, replayOrder, type PodiumStep } from '../lib/results.js';
 import { prefersReducedMotion, useFlip } from '../lib/useFlip.js';
@@ -50,25 +50,40 @@ export function Scoreboard({ players, lastOrder, onShown }: ScoreboardProps) {
         {shown.length === 0 ? (
           <p className="text-[min(3vw,5.5vh)] text-muted">No players yet</p>
         ) : (
-          <RankingList players={shown} />
+          <RankingList rows={shown} />
         )}
       </div>
     </section>
   );
 }
 
-/** The Final screen: a top-3 podium, then everyone's rank and score (UI spec, Screen view: Final). */
-export function FinalResults({ players }: { players: RankedPlayer[] }) {
-  if (players.length === 0) {
+/**
+ * The Final screen: a top-3 podium, then everyone's rank and score (UI spec, Screen view: Final).
+ * From game 2, a Tonight card beside the ranking lists the night's totals (F77).
+ */
+export function FinalResults({
+  players,
+  session = null,
+}: {
+  players: RankedPlayer[];
+  session?: SessionView | null;
+}) {
+  if (players.length === 0 && !session?.totals.length) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <h1 className="font-display text-[5vw] text-muted">Game over</h1>
       </div>
     );
   }
+  const tonight = session && session.totals.length > 0 ? session.totals : null;
+  // Beside the Tonight card, a long ranking keeps the width its columns need (F77).
+  const rankingFlex = tonight && players.length > 10 ? 'flex-[3]' : 'flex-[2]';
   return (
     <div className="flex min-h-0 flex-1 gap-[3vw] px-[3.75vw] pt-[1vh] pb-[3vh]">
-      <section aria-label="Podium" className="flex min-w-0 flex-[3] flex-col gap-[3vh]">
+      <section
+        aria-label="Podium"
+        className={`flex min-w-0 flex-col gap-[3vh] ${tonight ? 'flex-[2]' : 'flex-[3]'}`}
+      >
         <h1 className="shrink-0 font-display text-[min(4.4vw,9vh)] text-accent [text-shadow:0.3vw_0.3vw_0_var(--color-bg-deep)]">
           Final results
         </h1>
@@ -80,13 +95,56 @@ export function FinalResults({ players }: { players: RankedPlayer[] }) {
       </section>
       <section
         aria-label="Full ranking"
-        className={`${SCREEN_CARD} flex min-w-0 flex-[2] flex-col gap-[2vh]`}
+        className={`${SCREEN_CARD} flex min-w-0 ${rankingFlex} flex-col gap-[2vh]`}
       >
         <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">Full ranking</h2>
-        <RankingList players={players} />
+        <RankingList rows={players} dense={tonight !== null} />
       </section>
+      {tonight && (
+        <section
+          aria-label="Tonight"
+          className={`${SCREEN_CARD} flex min-w-0 flex-[2] flex-col gap-[2vh]`}
+        >
+          <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">Tonight</h2>
+          <RankingList rows={tonightRows(tonight.slice(0, TONIGHT_ROWS), players)} dense />
+          {tonight.length > TONIGHT_ROWS && (
+            <p className="shrink-0 text-[min(1.6vw,2.9vh)] text-muted">
+              and {tonight.length - TONIGHT_ROWS} more
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
+}
+
+/** The Tonight card lists the night's top 10: one column, legible beside the game's ranking. */
+export const TONIGHT_ROWS = 10;
+
+/** A row of a ranking list: a player's game score, or their night total. */
+interface RankingRow {
+  id: string;
+  name: string;
+  color: string;
+  avatar?: string;
+  score: number;
+  rank: number;
+  /** Dimmed when false: disconnected, or gone from the room for a night total. */
+  connected: boolean;
+}
+
+/** The night's totals as ranking rows. A player who left keeps a dimmed row, as a disconnected one does. */
+function tonightRows(totals: SessionView['totals'], players: RankedPlayer[]): RankingRow[] {
+  const here = new Map(players.map((p) => [p.id, p.connected]));
+  return totals.map((t) => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+    ...(t.avatar !== undefined && { avatar: t.avatar }),
+    score: t.total,
+    rank: t.rank,
+    connected: here.get(t.id) ?? false,
+  }));
 }
 
 /** Step heights, top step first. Full class strings, so Tailwind can see them. */
@@ -132,21 +190,25 @@ function Step({ step }: { step: PodiumStep }) {
   );
 }
 
+/** Ranking text sizes, largest first. Full class strings, so Tailwind can see them. */
+const RANKING_TEXT = [
+  'text-[min(3vw,5.5vh)]',
+  'text-[min(2vw,3.6vh)]',
+  'text-[min(1.4vw,2.4vh)]',
+] as const;
+
 /**
  * Ranked rows of rank, name and score, filling down each column. Up to 10 players fit one
- * column; more spread over two or three, and the text shrinks to keep 50 on screen.
+ * column; more spread over two or three, and the text shrinks to keep 50 on screen. `dense`
+ * never uses the largest text, for a short list in a narrower card beside the Tonight card (F77).
  */
-function RankingList({ players }: { players: RankedPlayer[] }) {
+function RankingList({ rows: players, dense = false }: { rows: RankingRow[]; dense?: boolean }) {
   const list = useRef<HTMLOListElement>(null);
   useFlip(list, players.map((p) => p.id).join(','));
-  const columns = players.length <= 10 ? 1 : players.length <= 24 ? 2 : 3;
+  const size = players.length <= 10 ? 0 : players.length <= 24 ? 1 : 2;
+  const columns = size + 1;
   const rows = Math.max(Math.ceil(players.length / columns), 1);
-  const text =
-    players.length <= 10
-      ? 'text-[min(3vw,5.5vh)]'
-      : players.length <= 24
-        ? 'text-[min(2vw,3.6vh)]'
-        : 'text-[min(1.4vw,2.4vh)]';
+  const text = RANKING_TEXT[dense ? Math.max(size, 1) : size];
   return (
     <ol
       ref={list}

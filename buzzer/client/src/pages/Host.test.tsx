@@ -532,6 +532,43 @@ describe('Host remote', () => {
         expect(within(picker).getByRole('checkbox', { name: 'Keep scores' })).toBeTruthy();
       });
 
+      it('from game 2 the card lists the night totals under Tonight, with the game number', () => {
+        const session = {
+          gameNumber: 2,
+          totals: [
+            { id: 'p2', name: 'Player 2', color: PLAYER_PALETTE[1], total: 700, rank: 1 },
+            { id: 'p9', name: 'Gone', color: PLAYER_PALETTE[8], total: 300, rank: 2 },
+            { id: 'p1', name: 'Player 1', color: PLAYER_PALETTE[0], total: 300, rank: 2 },
+          ],
+        };
+        remote({
+          ...final([player(1, { score: 100, rank: 2 }), player(2, { score: 400, rank: 1 })]),
+          session,
+        });
+        const card = screen.getByRole('region', { name: 'Game over' });
+        expect(within(card).getByText('Game 2')).toBeTruthy();
+        const tonight = within(card).getByRole('region', { name: 'Tonight' });
+        expect(
+          within(tonight)
+            .getAllByRole('listitem')
+            .map((row) => row.textContent),
+        ).toEqual(['1stPlayer 2700', '2ndGone300', '2ndPlayer 1300']);
+        // The game's own ranking is unchanged above it.
+        const game = within(card).getAllByRole('list')[0]!;
+        expect(
+          within(game)
+            .getAllByRole('listitem')
+            .map((row) => row.textContent),
+        ).toEqual(['1stPlayer 2400', '2ndPlayer 1100']);
+      });
+
+      it('in game 1 the card has no Tonight list and no game number', () => {
+        remote(final([player(1)]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        expect(within(card).queryByRole('region', { name: 'Tonight' })).toBeNull();
+        expect(within(card).queryByText(/^Game \d/)).toBeNull();
+      });
+
       it('offers New game only in FINAL', () => {
         for (const phase of ['LOBBY', 'QUESTION', 'OPEN', 'REVEAL'] as const) {
           remote(

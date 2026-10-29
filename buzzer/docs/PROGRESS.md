@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F77 — Session totals: devices (2026-10-29)
+**What changed:**
+- Server: `PlayerView.tonight` = `{total, rank, count}` from the ranked session totals, null in game 1 or before the player's first tally. Only the player's own line reaches the phone.
+- Screen Final (`ScreenResults.tsx`): from game 2 a **Tonight** card beside Full ranking, top 10 totals plus "and N more", players who left dimmed. `RankingList` takes generic rows and a `dense` flag (no largest text). `ScreenHeader` takes `gameNumber`: the centre pill reads "Game N" in the lobby and the Final from game 2; during play it keeps "Question N / M".
+- Remote `GameOverCard`: "Game N" pill beside the heading and a **Tonight** list (rank, colour, name, total) under the game ranking; rows share a new `RankRows`. Phone final: "Tonight · 2nd of 5 · 650 points" under the score. New `pointsLabel()` in `lib/results.ts`, reused by `buzzerState`.
+- Tests: `views.test.ts` +2 (own total and rank only, ties, leaver counted, no other names; null in game 1 and for an untallied player), `ScreenResults.test.tsx` +3 (absent in game 1; ranked beside the game ranking with a leaver dimmed; top 10 and "and 3 more"), `Screen.test.tsx` +3 (Tonight and "Game 2" in FINAL; neither in game 1; question number kept in game 2), `Host.test.tsx` +2, `Play.test.tsx` +2. Fixtures gain `tonight: null`. 1840 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F77 (`tonight` on the phone, superseding F76's "the phone gets nothing"; Tonight card layout, 10-row cap, leavers dimmed; "Game N" pill and the remote's uncapped list).
+
+**Notes for next session:**
+- With Tonight shown the podium narrows to 2/6, so "Final results" wraps to two lines at 1920×1080; it still fits.
+- The remote's Tonight list is uncapped; with 50 players it is long but scrolls.
+- Playtest (Playwright): room TJZB, Ann and Bo, two games (100/200, then 300/0). Game 1 Final: no Tonight, no "Game N" anywhere. Game 2: Screen header "Game 2", Tonight Ann 400 / Bo 200 beside Full ranking Ann 300 / Bo 0; remote card same; phones "1st of 2 · 400 points" and "2nd of 2 · 200 points". Screenshot: `.playtest/F77/final-screen.png`.
+- Main `index` chunk 487.42 → 489.38 kB (147.24 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room → Use this device as the Screen; pair a phone and join two players at `http://<laptop-LAN-IP>:5173/play/<CODE>`. Play to the end, press **New game**, play again: at game 2's Final the Screen shows Tonight and "Game 2", the remote's Game over card lists Tonight, and each phone shows its night rank and total.
+
 ## F76 — Session totals: server (2026-10-29)
 **What changed:**
 - Shared: `Room.session: Session` = `{gameNumber, totals, players, carried}`. `gameNumber` starts at 1; `totals` is playerId → points over every finished game; `players` is name, colour, avatar and `joinedAt` at each player's latest tally; `carried` is the scores Keep scores brought into the current game. New view types `RankedTotal` and `SessionView`; `SharedRoomView.session` (Screen and host) is `null` in game 1 and ranked totals from game 2 on. Phone views do not get it.

@@ -1,5 +1,5 @@
 import type { PlayerView } from '../../../shared/types.js';
-import { ordinal, signedPoints } from './results.js';
+import { ordinal, pointsLabel, signedPoints } from './results.js';
 import { TIME_UP_LABEL, type AnswerCountdown } from './useAnswerCountdown.js';
 
 /** A player who joined while the buzzers were open waits for the next opening (UI spec, Player view). */
@@ -93,7 +93,7 @@ export function buzzerState(
       return {
         kind: 'final',
         label: `${ordinal(view.me.rank)} of ${view.playerCount}`,
-        detail: `${view.me.score} ${Math.abs(view.me.score) === 1 ? 'point' : 'points'}`,
+        detail: pointsLabel(view.me.score),
         live: false,
       };
   }

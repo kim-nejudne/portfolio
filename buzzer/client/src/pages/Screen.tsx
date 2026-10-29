@@ -162,6 +162,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
         questionIndex={view.questionIndex}
         questionCount={view.questionCount}
         numbered={view.question !== null && view.phase !== 'FINAL'}
+        gameNumber={view.session?.gameNumber}
         // The lobby's body shows the join address with its QR, so the header leaves it out (F66).
         url={view.phase === 'LOBBY' ? undefined : url}
       />
@@ -177,7 +178,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
               command={canHost ? command : null}
             />
           ) : view.phase === 'FINAL' ? (
-            <FinalResults players={view.players} />
+            <FinalResults players={view.players} session={view.session} />
           ) : titleCard ? (
             <TitleCard view={view} />
           ) : (

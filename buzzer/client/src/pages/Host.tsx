@@ -359,46 +359,71 @@ function QuestionCard({ view }: { view: HostView }) {
 /**
  * The Game tab in FINAL: "Game over", the final ranking and **New game** (DECISIONS F50). The view
  * lists players in join order with each one's rank, so this orders by rank; tied players share it
- * and keep join order.
+ * and keep join order. From game 2, the night's totals follow under **Tonight** (F77).
  */
 function GameOverCard({ view, onNewGame }: { view: HostView; onNewGame: () => void }) {
   const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
+  const tonight = view.session?.totals ?? [];
   return (
     <section aria-labelledby="game-over-heading" className={`flex flex-col gap-3 ${CARD}`}>
-      <h2 id="game-over-heading" className="font-display text-3xl text-accent">
-        Game over
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="game-over-heading" className="font-display text-3xl text-accent">
+          Game over
+        </h2>
+        {view.session && (
+          <p className={`${PILL} shrink-0 px-3 py-1 font-display text-sm`}>
+            Game {view.session.gameNumber}
+          </p>
+        )}
+      </div>
       {ranked.length === 0 ? (
         <p className="text-muted">No players</p>
       ) : (
-        <ol className="flex flex-col gap-2">
-          {ranked.map((player) => (
-            <li
-              key={player.id}
-              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-lg ${
-                player.rank === 1 ? 'bg-accent text-accent-ink' : 'bg-bg'
-              }`}
-            >
-              <span
-                className={`w-12 shrink-0 font-display ${player.rank === 1 ? '' : 'text-muted'}`}
-              >
-                {ordinal(player.rank)}
-              </span>
-              <span
-                aria-hidden
-                style={{ backgroundColor: player.color }}
-                className="size-4 shrink-0 rounded-full"
-              />
-              <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
-              <span className="font-display text-xl">{player.score}</span>
-            </li>
-          ))}
-        </ol>
+        <RankRows rows={ranked.map((p) => ({ ...p, points: p.score }))} />
+      )}
+      {tonight.length > 0 && (
+        <section aria-labelledby="tonight-heading" className="flex flex-col gap-2">
+          <h3 id="tonight-heading" className="font-display text-2xl text-accent">
+            Tonight
+          </h3>
+          <RankRows rows={tonight.map((t) => ({ ...t, points: t.total }))} />
+        </section>
       )}
       <button type="button" onClick={onNewGame} className={`${BUTTON_PRIMARY} text-xl`}>
         New game
       </button>
     </section>
+  );
+}
+
+/** Ranked rows of place, colour, name and points, the leaders lit gold. */
+function RankRows({
+  rows,
+}: {
+  rows: { id: string; name: string; color: string; rank: number; points: number }[];
+}) {
+  return (
+    <ol className="flex flex-col gap-2">
+      {rows.map((row) => (
+        <li
+          key={row.id}
+          className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-lg ${
+            row.rank === 1 ? 'bg-accent text-accent-ink' : 'bg-bg'
+          }`}
+        >
+          <span className={`w-12 shrink-0 font-display ${row.rank === 1 ? '' : 'text-muted'}`}>
+            {ordinal(row.rank)}
+          </span>
+          <span
+            aria-hidden
+            style={{ backgroundColor: row.color }}
+            className="size-4 shrink-0 rounded-full"
+          />
+          <span className="min-w-0 flex-1 truncate font-bold">{row.name}</span>
+          <span className="font-display text-xl">{row.points}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

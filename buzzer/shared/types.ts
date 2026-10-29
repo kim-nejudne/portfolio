@@ -292,6 +292,10 @@ export interface PlayerView {
   buzzTimer: BuzzTimerView | null;
   /** Every player in join order, in LOBBY only; `null` in every other phase (DECISIONS F59). */
   lobby: LobbyPlayer[] | null;
+  /** This player's night total and rank among `count` totals, from game 2 on; null in game 1 or
+   * before their first tally (F77). Not the whole list: the phone shows only its own line. */
+  // SPEC-QUESTION: the spec's PlayerView has no night total; see DECISIONS (F77).
+  tonight: { total: number; rank: number; count: number } | null;
   answer?: string;
 }
 

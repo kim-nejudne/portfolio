@@ -677,6 +677,18 @@ describe('toView: session', () => {
     expect(JSON.stringify(toView(room, 'host'))).not.toContain('carried');
   });
 
+  it('gives the phone only its own total and night rank, ties shared, players who left counted', () => {
+    expect(toView(secondGame(), 'player', 'p2').tonight).toEqual({ total: 300, rank: 1, count: 3 });
+    expect(toView(secondGame(), 'player', 'p1').tonight).toEqual({ total: 100, rank: 3, count: 3 });
+    expect(JSON.stringify(toView(secondGame(), 'player', 'p1'))).not.toContain('Dee');
+  });
+
+  it('gives the phone no night line in game 1, nor to a player not yet tallied', () => {
+    expect(toView(midGame('FINAL'), 'player', 'p1').tonight).toBeNull();
+    // Cy (p3) joined game 2 and has no total until its FINAL.
+    expect(toView(secondGame(), 'player', 'p3').tonight).toBeNull();
+  });
+
   it('shows the night so far at the FINAL of game 3, Keep scores on then off', () => {
     const act = (room: Room, action: Action): Room => {
       const result = reduce(room, action, T0);

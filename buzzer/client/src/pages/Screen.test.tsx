@@ -530,6 +530,13 @@ describe('Screen', () => {
       ).toBeTruthy();
     });
 
+    it('in game 2 the header pill still shows the question number', () => {
+      show(questionView({ session: { gameNumber: 2, totals: [] } }));
+      const banner = screen.getByRole('banner');
+      expect(within(banner).getByText('Question 3 / 10')).toBeTruthy();
+      expect(within(banner).queryByText('Game 2')).toBeNull();
+    });
+
     it('shows "Buzzers locked" until the buzzers open, then "Buzzers OPEN" in another colour', () => {
       const socket = show(questionView());
       const locked = screen.getByRole('status');
@@ -1629,6 +1636,25 @@ describe('Screen result states', () => {
     function finalView(players: RankedPlayer[]): ScreenView {
       return lobbyView(players, { phase: 'FINAL', questionIndex: 9, question: null });
     }
+
+    it('from game 2 shows the Tonight panel and "Game N" in the header', () => {
+      const ana = player(1, { name: 'Ana', score: 400, rank: 1 });
+      show({
+        ...finalView([ana]),
+        session: {
+          gameNumber: 2,
+          totals: [{ id: ana.id, name: 'Ana', color: ana.color, total: 900, rank: 1 }],
+        },
+      });
+      expect(within(screen.getByRole('banner')).getByText('Game 2')).toBeTruthy();
+      expect(rows('Tonight')).toEqual(['1Ana900']);
+    });
+
+    it('in game 1 has no Tonight panel and no game number', () => {
+      show(finalView([player(1, { name: 'Ana', score: 400, rank: 1 })]));
+      expect(screen.queryByRole('region', { name: 'Tonight' })).toBeNull();
+      expect(within(screen.getByRole('banner')).queryByText(/^Game \d/)).toBeNull();
+    });
 
     it('shows a top-3 podium, then the full ranking', () => {
       show(

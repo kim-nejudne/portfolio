@@ -18,6 +18,8 @@ interface ScreenHeaderProps {
   questionCount: number;
   /** "Question 3 / 10" in the centre pill; off in the lobby and on the Final screen. */
   numbered: boolean;
+  /** From game 2, "Game 2" in the centre pill whenever it shows no question number (F77). */
+  gameNumber?: number;
   /** The join URL, for the "Join at" and room lines. The set editor's preview has none. */
   url?: string;
 }
@@ -31,17 +33,19 @@ export function ScreenHeader({
   questionIndex,
   questionCount,
   numbered,
+  gameNumber,
   url,
 }: ScreenHeaderProps) {
+  const pill = `${PILL} px-[1.6vw] py-[min(0.5vw,0.9vh)] font-display text-[min(1.56vw,2.8vh)] whitespace-nowrap tabular-nums`;
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[2vw] px-[3.75vw] py-[min(1.72vw,3vh)]">
       <p className="font-display text-[min(3.125vw,5.6vh)] leading-none text-accent">{APP_NAME}</p>
       {numbered ? (
-        <p
-          className={`${PILL} px-[1.6vw] py-[min(0.5vw,0.9vh)] font-display text-[min(1.56vw,2.8vh)] whitespace-nowrap tabular-nums`}
-        >
+        <p className={pill}>
           Question {questionIndex + 1} / {questionCount}
         </p>
+      ) : gameNumber !== undefined && gameNumber >= 2 ? (
+        <p className={pill}>Game {gameNumber}</p>
       ) : (
         <span />
       )}

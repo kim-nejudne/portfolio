@@ -104,6 +104,7 @@ function playerView(room: Room, playerId: string): PlayerView {
     buzzTimer: buzzTimerView(room),
     lobby:
       room.phase === 'LOBBY' ? byJoinOrder(Object.values(room.players)).map(lobbyPlayer) : null,
+    tonight: tonight(room, playerId),
     ...(answer !== undefined && { answer }),
   };
 }
@@ -170,6 +171,13 @@ function sessionView({ session }: Room): SessionView | null {
     rank: t.rank,
   }));
   return { gameNumber: session.gameNumber, totals };
+}
+
+/** One player's line of the night: their total and rank, none until they have a total (F77). */
+function tonight(room: Room, playerId: string): PlayerView['tonight'] {
+  const night = sessionView(room);
+  const mine = night?.totals.find((t) => t.id === playerId);
+  return night && mine ? { total: mine.total, rank: mine.rank, count: night.totals.length } : null;
 }
 
 /** Seconds and whether time is up, never `endsAt`: each device counts down from the snapshot. */

@@ -34,7 +34,7 @@ import {
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
-import { ordinal } from '../lib/results.js';
+import { ordinal, pointsLabel } from '../lib/results.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
@@ -655,6 +655,16 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
           <p className={LABEL}>Game over</p>
           <p className="font-display text-6xl text-accent">{state.label}</p>
           <p className="font-display text-3xl">{state.detail}</p>
+          {/* From game 2, the night so far (F77). */}
+          {view.tonight && (
+            <p aria-label="Tonight" className="mt-2 flex flex-col gap-1 text-lg text-muted">
+              <span className={LABEL}>Tonight</span>
+              <span className="font-display text-2xl text-ink">
+                {ordinal(view.tonight.rank)} of {view.tonight.count} ·{' '}
+                {pointsLabel(view.tonight.total)}
+              </span>
+            </p>
+          )}
         </section>
       ) : (
         <>

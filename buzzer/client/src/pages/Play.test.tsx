@@ -55,6 +55,7 @@ function playerView(overrides: Partial<PlayerView> = {}): PlayerView {
     pointsThisQuestion: 0,
     answerTimer: null,
     buzzTimer: null,
+    tonight: null,
     // As the server sets it: the list in LOBBY only.
     lobby:
       (overrides.phase ?? 'LOBBY') === 'LOBBY'
@@ -886,6 +887,31 @@ describe('Play result states', () => {
     expect(within(result).getByText('2nd of 4')).toBeTruthy();
     expect(within(result).getByText('300 points')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
+  });
+
+  it('from game 2 the final result adds the night total and rank', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'FINAL',
+        questionIndex: 9,
+        playerCount: 4,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 300, rank: 2 },
+        tonight: { total: 1, rank: 3, count: 5 },
+      }),
+    );
+    const result = screen.getByRole('region', { name: 'Final result' });
+    const tonight = within(result).getByLabelText('Tonight');
+    expect(tonight.textContent).toBe('Tonight3rd of 5 · 1 point');
+    expect(within(result).getByText('2nd of 4')).toBeTruthy();
+  });
+
+  it('in game 1 the final result has no night line', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9 }));
+    const result = screen.getByRole('region', { name: 'Final result' });
+    expect(within(result).queryByLabelText('Tonight')).toBeNull();
   });
 
   it('has no rank in the top bar in the lobby', async () => {

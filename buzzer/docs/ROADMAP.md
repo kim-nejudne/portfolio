@@ -204,13 +204,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F76 Session totals: server
 
-- [ ] F77 Session totals: devices
-  - Spec: UI spec by view (Screen view Final, Host remote, Player view); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F76
-  - Done when:
-    - From game 2 the Screen's FINAL has a **Tonight** panel ranking the totals beside the game ranking, and the header reads "Game N"
-    - The remote's Game over card and the phone's final state show the player's total and night rank too
-  - Tests: `ScreenResults` tests, `Host.test.tsx`, `Play.test.tsx`. `/playtest`: two games, totals add up
+- [x] F77 Session totals: devices
 
 - [ ] F78 Results card
   - Spec: UI spec by view (Screen view Final, Host remote, Player view); see DECISIONS, Proposed spec changes (audit)

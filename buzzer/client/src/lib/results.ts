@@ -15,6 +15,11 @@ export function signedPoints(points: number): string {
   return '0';
 }
 
+/** A score with its unit: "1 point", "−1 point", "250 points". */
+export function pointsLabel(points: number): string {
+  return `${points} ${Math.abs(points) === 1 ? 'point' : 'points'}`;
+}
+
 /** One step of the podium: every player who shares that rank stands on it. */
 export interface PodiumStep {
   rank: number;

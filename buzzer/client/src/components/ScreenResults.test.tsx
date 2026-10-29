@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PLAYER_PALETTE } from '../../../shared/constants.js';
-import type { RankedPlayer } from '../../../shared/types.js';
-import { FinalResults } from './ScreenResults.js';
+import type { RankedPlayer, RankedTotal, SessionView } from '../../../shared/types.js';
+import { FinalResults, TONIGHT_ROWS } from './ScreenResults.js';
 
 afterEach(cleanup);
 
@@ -67,5 +67,52 @@ describe('FinalResults full ranking', () => {
   ])('with %i players uses %i columns that may shrink below their content', (count, columns) => {
     render(<FinalResults players={many(count)} />);
     expect(ranking().style.gridTemplateColumns).toBe(`repeat(${columns}, minmax(0, 1fr))`);
+  });
+});
+
+describe('FinalResults Tonight panel', () => {
+  function total(n: number, name: string, value: number, rank: number): RankedTotal {
+    return { id: `p${n}`, name, color: PLAYER_PALETTE[n - 1]!, total: value, rank };
+  }
+  const tonight = () => screen.queryByRole('region', { name: 'Tonight' });
+  const rows = (region: HTMLElement) => [...region.querySelectorAll('li')];
+
+  it('is absent in game 1', () => {
+    render(<FinalResults players={[player(1, 'Ana', 300, 1)]} session={null} />);
+    expect(tonight()).toBeNull();
+  });
+
+  it('ranks the night totals beside the game ranking, a player who left dimmed', () => {
+    const session: SessionView = {
+      gameNumber: 2,
+      totals: [total(2, 'Ben', 500, 1), total(3, 'Cy', 400, 2), total(1, 'Ana', 400, 2)],
+    };
+    // Cy left during game 2: still in the night, gone from this game.
+    render(
+      <FinalResults
+        players={[player(1, 'Ana', 300, 1), player(2, 'Ben', 100, 2)]}
+        session={session}
+      />,
+    );
+    const panel = tonight()!;
+    expect(rows(panel).map((li) => li.textContent)).toEqual(['1Ben500', '2Cy400', '2Ana400']);
+    expect(rows(panel).map((li) => li.className.includes('opacity-40'))).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    // The game's own ranking still shows this game's scores.
+    const game = screen.getByRole('region', { name: 'Full ranking' });
+    expect(rows(game).map((li) => li.textContent)).toEqual(['1Ana300', '2Ben100']);
+  });
+
+  it(`lists the top ${TONIGHT_ROWS} and counts the rest`, () => {
+    const totals = Array.from({ length: 13 }, (_, i) =>
+      total((i % 8) + 1, `T${i}`, 100 - i, i + 1),
+    );
+    render(<FinalResults players={[player(1, 'Ana', 0, 1)]} session={{ gameNumber: 3, totals }} />);
+    const panel = tonight()!;
+    expect(rows(panel)).toHaveLength(TONIGHT_ROWS);
+    expect(within(panel).getByText('and 3 more')).toBeTruthy();
   });
 });
