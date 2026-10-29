@@ -415,6 +415,27 @@ describe('Host remote', () => {
         });
       });
 
+      it('New game on the card opens the picker over the remote', () => {
+        remote(final([player(1)]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
+        fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
+        const picker = screen.getByRole('dialog', { name: 'New game' });
+        expect(within(picker).getByRole('checkbox', { name: 'Keep scores' })).toBeTruthy();
+        fireEvent.click(within(picker).getByRole('button', { name: 'Cancel' }));
+        expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
+      });
+
+      it('offers New game only in FINAL', () => {
+        for (const phase of ['LOBBY', 'QUESTION', 'OPEN', 'REVEAL'] as const) {
+          remote(
+            hostView({ phase, questionIndex: phase === 'LOBBY' ? -1 : 0, question: question(1) }),
+          );
+          expect(screen.queryByRole('button', { name: 'New game' })).toBeNull();
+          cleanup();
+        }
+      });
+
       it('before FINAL the Game tab shows the question, not the card', () => {
         remote(hostView({ phase: 'REVEAL', questionIndex: 0, question: question(1) }));
         expect(screen.getByRole('region', { name: 'Question' })).toBeTruthy();

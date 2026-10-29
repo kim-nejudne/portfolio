@@ -8,6 +8,7 @@ import {
 } from '../../../shared/constants.js';
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
+import { NewGamePicker } from '../components/NewGamePicker.js';
 import { Icon } from '../components/Icon.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ReconnectingBanner } from '../components/ReconnectingBanner.js';
@@ -139,6 +140,10 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   const url = joinUrl(joinPageOrigin(joinOrigin ?? null, window.location), code);
   // Only once the server has answered that it has no address phones can reach.
   const unreachable = joinOrigin === null && isLoopbackHost(window.location.hostname);
+  // Above the phase switch: the picker stays open over the lobby while the new set's images upload.
+  const [pickingNewGame, setPickingNewGame] = useState(false);
+  const closeNewGame = useCallback(() => setPickingNewGame(false), []);
+  const hostToken = canHost ? loadHostToken(code) : null;
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-bg">
@@ -176,10 +181,28 @@ function ScreenStage({ view, canHost, send }: StageProps) {
           )}
         </div>
         <ScreenFlash />
-        {/* Last, so the bar stays above the scoreboard and the flash. */}
-        {canHost && <ScreenHostControls view={view} command={command} />}
+        {/* Last, so the bar stays above the scoreboard and the flash. Off under the picker, so no
+            shortcut (Space: Start game) acts while the new set's images upload. */}
+        {canHost && !pickingNewGame && (
+          <ScreenHostControls
+            view={view}
+            command={command}
+            onNewGame={() => setPickingNewGame(true)}
+          />
+        )}
       </div>
       <ScreenRail />
+      {pickingNewGame && hostToken && (
+        <NewGamePicker
+          code={code}
+          hostToken={hostToken}
+          phase={view.phase}
+          onClose={closeNewGame}
+          onNotice={show}
+          // Sized in rem for a laptop Screen, like the lobby's Game setup; doubled on a 4K viewport.
+          className="min-[2560px]:[zoom:2]"
+        />
+      )}
       <Toast toast={toast} />
       <ReconnectingBanner />
     </main>

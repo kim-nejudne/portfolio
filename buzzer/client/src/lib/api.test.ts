@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, ROOM_CHECK_RATE_LIMITED_ERROR } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
-import { createRoom, fetchConfig, roomExists, uploadImage } from './api.js';
+import {
+  createRoom,
+  fetchConfig,
+  NEW_GAME_TAKEN_MESSAGE,
+  NewGameTakenError,
+  replaceSet,
+  roomExists,
+  uploadImage,
+} from './api.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -103,5 +111,46 @@ describe('uploadImage', () => {
     await expect(uploadImage('WXYZ', 't', 'img1', blob)).rejects.toThrow(
       'Could not reach the server',
     );
+  });
+});
+
+describe('replaceSet', () => {
+  const next = { set: SAMPLE_SET, keepScores: true };
+
+  it('puts the set and keepScores as JSON with the Bearer hostToken', async () => {
+    const fetch = stubFetch(Response.json({ ok: true }));
+    await expect(replaceSet('WXYZ', 'secret', next)).resolves.toBeUndefined();
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/rooms/WXYZ/set');
+    expect(init.method).toBe('PUT');
+    expect(init.headers).toEqual({
+      authorization: 'Bearer secret',
+      'content-type': 'application/json',
+    });
+    expect(JSON.parse(init.body as string)).toEqual(next);
+  });
+
+  it('throws NewGameTakenError on 409', async () => {
+    stubFetch(Response.json({ ok: false, error: 'Only after the game' }, { status: 409 }));
+    const caught = await replaceSet('WXYZ', 'secret', next).catch((e: unknown) => e);
+    expect(caught).toBeInstanceOf(NewGameTakenError);
+    expect((caught as Error).message).toBe(NEW_GAME_TAKEN_MESSAGE);
+  });
+
+  it("throws the server's error message", async () => {
+    stubFetch(Response.json({ ok: false, error: 'Invalid host token' }, { status: 401 }));
+    await expect(replaceSet('WXYZ', 'secret', next)).rejects.toThrow('Invalid host token');
+  });
+
+  it('throws a readable message when the body is not JSON', async () => {
+    stubFetch(new Response('Bad Gateway', { status: 502 }));
+    await expect(replaceSet('WXYZ', 'secret', next)).rejects.toThrow(
+      'Could not start a new game (502).',
+    );
+  });
+
+  it('throws a readable message when the server cannot be reached', async () => {
+    stubFetch(new TypeError('Failed to fetch'));
+    await expect(replaceSet('WXYZ', 'secret', next)).rejects.toThrow('Could not reach the server');
   });
 });

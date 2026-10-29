@@ -21,6 +21,8 @@ interface ScreenHostControlsProps {
   view: ScreenView;
   /** Shared with the lobby's settings, so one press anywhere waits for the next snapshot. */
   command: HostCommand;
+  /** Opens the New game picker, offered in FINAL (DECISIONS F50). */
+  onNewGame: () => void;
 }
 
 /**
@@ -28,7 +30,7 @@ interface ScreenHostControlsProps {
  * shortcuts, with a `?` help overlay. They act on the ScreenView, which never carries the answer
  * before reveal, so nothing here can show it (DECISIONS #2).
  */
-export function ScreenHostControls({ view, command }: ScreenHostControlsProps) {
+export function ScreenHostControls({ view, command, onNewGame }: ScreenHostControlsProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [help, setHelp] = useState(false);
@@ -77,7 +79,7 @@ export function ScreenHostControls({ view, command }: ScreenHostControlsProps) {
           onPointerLeave={() => setHovering(false)}
           className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-[0.8vw] border-t-2 border-edge bg-bg-deep/95 px-[2vw] py-[1.2vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
         >
-          <GameButtons view={view} command={command} />
+          <GameButtons view={view} command={command} onNewGame={onNewGame} />
           <span className="ml-auto flex gap-[0.8vw]">
             <BarButton keyHint="F" onClick={toggleFullscreen}>
               Fullscreen
@@ -108,7 +110,15 @@ export function ScreenHostControls({ view, command }: ScreenHostControlsProps) {
 }
 
 /** The bar's game actions, with the same rules as the remote's (UI spec, Host remote). */
-function GameButtons({ view, command }: { view: ScreenView; command: HostCommand }) {
+function GameButtons({
+  view,
+  command,
+  onNewGame,
+}: {
+  view: ScreenView;
+  command: HostCommand;
+  onNewGame: () => void;
+}) {
   const { busy } = command;
   const act = (call: HostCommandCall) => () => runCall(command, call);
   const primary = primaryFor(view);
@@ -147,6 +157,15 @@ function GameButtons({ view, command }: { view: ScreenView; command: HostCommand
           tone="bg-accent text-accent-ink border-accent font-display"
         >
           {primary.label}
+        </BarButton>
+      )}
+      {view.phase === 'FINAL' && (
+        <BarButton
+          onClick={onNewGame}
+          disabled={busy}
+          tone="bg-accent text-accent-ink border-accent font-display"
+        >
+          New game
         </BarButton>
       )}
       {UNREVEALED.includes(view.phase) && (

@@ -800,6 +800,41 @@ describe('Screen', () => {
       Reflect.deleteProperty(document, 'fullscreenElement');
     });
 
+    describe('new game', () => {
+      const newGame = () => screen.queryByRole('button', { name: 'New game' });
+
+      it('in FINAL the bar offers New game, which opens the picker over the results', () => {
+        hostScreen(inPhase('FINAL'));
+        expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
+        fireEvent.click(newGame()!);
+        const picker = screen.getByRole('dialog', { name: 'New game' });
+        expect(within(picker).getByRole('checkbox', { name: 'Keep scores' })).toBeTruthy();
+        // The bar and its shortcuts are off under the picker.
+        expect(bar()).toBeNull();
+        expect(screen.getByRole('region', { name: 'Podium' })).toBeTruthy();
+        fireEvent.click(within(picker).getByRole('button', { name: 'Cancel' }));
+        expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
+        expect(bar()).toBeTruthy();
+      });
+
+      it('is not offered before FINAL', () => {
+        for (const phase of ['LOBBY', 'QUESTION', 'OPEN', 'BUZZED', 'REVEAL'] as const) {
+          hostScreen(inPhase(phase));
+          expect(bar()).toBeTruthy();
+          expect(newGame()).toBeNull();
+          cleanup();
+          localStorage.clear();
+        }
+      });
+
+      it('is never offered on a Screen without the hostToken', () => {
+        const { socket } = renderScreen();
+        socket.fire('state', inPhase('FINAL'));
+        expect(screen.getByRole('region', { name: 'Podium' })).toBeTruthy();
+        expect(newGame()).toBeNull();
+      });
+    });
+
     describe('lobby settings', () => {
       const setup = () => screen.queryByRole('complementary', { name: 'Game setup' });
 

@@ -10,6 +10,7 @@ import { BulbRail } from '../components/BulbRail.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { HostPlayers } from '../components/HostPlayers.js';
 import { HostSettings } from '../components/HostSettings.js';
+import { NewGamePicker } from '../components/NewGamePicker.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { PrimaryAction } from '../components/PrimaryAction.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
@@ -20,7 +21,7 @@ import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { ordinal } from '../lib/results.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { CARD, LABEL, PILL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD, LABEL, PILL } from '../lib/ui.js';
 import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
@@ -147,6 +148,9 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   const [tab, setTab] = useState<Tab>('Game');
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
   const command = useHostCommand(view, send, show);
+  // Above the tabs: the picker stays open over the lobby while the new set's images upload.
+  const [pickingNewGame, setPickingNewGame] = useState(false);
+  const closeNewGame = useCallback(() => setPickingNewGame(false), []);
   usePreloadImage(view.code, view.nextQuestion?.imageId);
   useVibrateOnTimeUp();
   return (
@@ -210,7 +214,11 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       >
         {tab === 'Game' && (
           <>
-            {view.phase === 'FINAL' ? <GameOverCard view={view} /> : <QuestionCard view={view} />}
+            {view.phase === 'FINAL' ? (
+              <GameOverCard view={view} onNewGame={() => setPickingNewGame(true)} />
+            ) : (
+              <QuestionCard view={view} />
+            )}
             <PrimaryAction view={view} command={command} />
             <SecondaryActions view={view} command={command} />
             {view.phase === 'LOBBY' && (
@@ -227,6 +235,15 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
         {tab === 'Players' && <HostPlayers view={view} command={command} />}
         {tab === 'Settings' && <HostSettings view={view} command={command} />}
       </div>
+      {pickingNewGame && (
+        <NewGamePicker
+          code={view.code}
+          hostToken={hostToken}
+          phase={view.phase}
+          onClose={closeNewGame}
+          onNotice={show}
+        />
+      )}
       <Toast toast={toast} />
     </main>
   );
@@ -310,10 +327,11 @@ function QuestionCard({ view }: { view: HostView }) {
 }
 
 /**
- * The Game tab in FINAL: "Game over" and the final ranking. The view lists players in join order
- * with each one's rank, so this orders by rank; tied players share it and keep join order.
+ * The Game tab in FINAL: "Game over", the final ranking and **New game** (DECISIONS F50). The view
+ * lists players in join order with each one's rank, so this orders by rank; tied players share it
+ * and keep join order.
  */
-function GameOverCard({ view }: { view: HostView }) {
+function GameOverCard({ view, onNewGame }: { view: HostView; onNewGame: () => void }) {
   const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
   return (
     <section aria-labelledby="game-over-heading" className={`flex flex-col gap-3 ${CARD}`}>
@@ -347,6 +365,9 @@ function GameOverCard({ view }: { view: HostView }) {
           ))}
         </ol>
       )}
+      <button type="button" onClick={onNewGame} className={`${BUTTON_PRIMARY} text-xl`}>
+        New game
+      </button>
     </section>
   );
 }

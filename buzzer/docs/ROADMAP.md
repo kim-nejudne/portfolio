@@ -132,16 +132,7 @@ Kim's request of 2026-10-29: after a game ends, the host picks another set and s
 
 - [x] F49 New game: server
 
-- [ ] F50 New game: picker on the Screen and the remote
-  - Spec: UI spec by view (Screen view, Host remote); see DECISIONS, Proposed spec changes (new game)
-  - Depends: F49
-  - Done when:
-    - `client/src/lib/api.ts` has `replaceSet(code, hostToken, body)`. `hostRoom.ts` shares the playable check and image gathering between `hostSet` and a new `hostNextSet(code, hostToken, set, keepScores)`, which checks the set and its images before the PUT, then uploads each image once; errors read as in `hostSet`
-    - A `NewGamePicker` component lists this browser's saved sets (newest first, drafts marked unplayable as on **Host a game**), with a **Keep scores** toggle (default off) and a **Start new game** button that shows progress while images upload and the error inline on failure
-    - Screen with the hostToken, FINAL: the control bar shows **New game**, which opens the picker over the results; never shown on a Screen without the token. Remote, FINAL: the Game over card has a **New game** button opening the same picker
-    - After it succeeds both devices show the lobby with the same code and the players, scores 0 or kept; Player phones show the lobby waiting state; **Start game** plays the new set from question 1
-    - A 409 (the other device already started one) shows "A new game has already been set up." and closes the picker
-  - Tests: `hostRoom.test.ts` (`hostNextSet`: unplayable set, missing image, over 50 MB, PUT then uploads in order, upload failure), `api.test.ts` (`replaceSet`), `NewGamePicker.test.tsx` (list, toggle, submit, error, 409), `Screen.test.tsx` and `Host.test.tsx` (button only in FINAL and only for a host). `/playtest`: finish a 1-question game, New game on the Screen with Keep scores off, then on the remote with it on, play one question each time
+- [x] F50 New game: picker on the Screen and the remote
 
 ## Bugs
 

@@ -3,8 +3,20 @@ import type {
   CreateRoomBody,
   CreateRoomResponse,
   HttpErrorBody,
+  NewGameBody,
   RoomExistsResponse,
 } from '../../../shared/types.js';
+
+/** What a 409 from `PUT /api/rooms/:code/set` means: another device already started the next game. */
+export const NEW_GAME_TAKEN_MESSAGE = 'A new game has already been set up.';
+
+/** `replaceSet` refused with 409, so the caller can close its picker instead of offering a retry. */
+export class NewGameTakenError extends Error {
+  constructor() {
+    super(NEW_GAME_TAKEN_MESSAGE);
+    this.name = 'NewGameTakenError';
+  }
+}
 
 /** `GET /api/rooms/:code/exists`. Throws a readable Error when the server cannot answer. */
 export async function roomExists(code: string): Promise<boolean> {
@@ -87,4 +99,29 @@ export async function uploadImage(
   if (response.ok) return;
   const data = (await response.json().catch(() => null)) as HttpErrorBody | null;
   throw new Error(data?.error ?? `Could not upload an image (${response.status}).`);
+}
+
+/**
+ * `PUT /api/rooms/:code/set` with the room's hostToken: the next game's set, in FINAL only
+ * (DECISIONS F49). Throws `NewGameTakenError` on 409, else an Error carrying the server's message.
+ */
+export async function replaceSet(
+  code: string,
+  hostToken: string,
+  body: NewGameBody,
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/rooms/${encodeURIComponent(code)}/set`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${hostToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  if (response.ok) return;
+  if (response.status === 409) throw new NewGameTakenError();
+  const data = (await response.json().catch(() => null)) as HttpErrorBody | null;
+  throw new Error(data?.error ?? `Could not start a new game (${response.status}).`);
 }

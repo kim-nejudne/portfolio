@@ -10,6 +10,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F50 — New game: picker on the Screen and the remote (2026-10-29)
+**What changed:**
+- `api.ts`: `replaceSet(code, hostToken, body)` (`PUT /api/rooms/:code/set`, JSON, Bearer). A 409 throws `NewGameTakenError` ("A new game has already been set up."); other errors carry the server's message.
+- `hostRoom.ts`: `gatherImages` (playable check, each image once, 50 MB) and `uploadImages` are shared by `hostSet` and the new `hostNextSet(code, hostToken, set, keepScores)`: checks, then the PUT, then the uploads. An upload failing after the PUT throws `SetImagesError`; `uploadSetImages` retries only the uploads.
+- New `components/NewGamePicker.tsx`: a modal over the page (portal to body). It lists this browser's saved sets newest first (seeding the starters on a fresh phone), marks drafts "Not playable yet", has **Keep scores** (default off), **Start new game** ("Starting new game…" while it runs), the error inline, **Retry images** after an upload failure, and Cancel / Esc. A 409 toasts and closes. It closes itself if the room leaves FINAL before this device sent anything.
+- Screen: **New game** in the host bar in FINAL only (never without the token). The bar and shortcuts unmount while the picker is open. Remote: **New game** on the Game over card. Both keep the picker's state above the phase switch, so it survives the LOBBY snapshot during uploads.
+- Tests: `api.test.ts` +5, `hostRoom.test.ts` +7, new `NewGamePicker.test.tsx` (11), `Screen.test.tsx` +3, `Host.test.tsx` +2. 1226 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-29 for F50 cover:
+- drafts pickable and marked
+- where the picker's state lives, its self-close, and the button-label progress
+- `SetImagesError` and **Retry images**
+- the 409 toast
+- the Screen bar button, the bar unmounting under the picker, and the picker's sizing
+
+**Notes for next session:**
+- Playtest (Playwright, Screen at 1920×1080, remote, one Player), room SGRA:
+  - The Screen offered New game in FINAL. With Keep scores off it went back to the lobby with the same code and player, the phone showed score 0 and "Waiting for the host", and Start game played question 1 of 10.
+  - The remote's New game with Keep scores on kept 100. Start game played question 1, and the Screen text had no answer before reveal.
+  - A Screen without the token showed no New game.
+  - The first layout check found the list running past the dialog, then a horizontal overflow at 390 px and a squashed button. Both were fixed and rechecked at 1920×1080 and 390×844.
+- Not run live: the 409 race (two devices pressing at once). Unit tests cover it.
+- Deviations: the tabs shared one browser context, and the game reached FINAL through End game after Q1 rather than a 1-question set.
+- The DECISIONS "Proposed spec changes" entry for new game still needs to go into SPEC.md (Kim's edit).
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and host a set. Pair a phone as Host, and join from another phone.
+2. Start, play a question, then **End game**.
+3. On the Screen, move the mouse and click **New game** in the bar. Pick a set, leave **Keep scores** off, then **Start new game**. Every device shows the lobby with the same code and players, with scores at 0.
+4. Start game and play. End again, then use **New game** on the remote's Game over card with **Keep scores** on. Scores carry over.
+
 ## F49 — New game: server (2026-10-29)
 **What changed:**
 - Shared: `NewGameBody {set, keepScores}`, `NewGameResponse {ok: true}`, `newGameBodySchema` (with the type-equality check).
