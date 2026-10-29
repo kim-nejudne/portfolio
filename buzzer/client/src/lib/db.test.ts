@@ -2,9 +2,11 @@ import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SET_TITLE_MAX } from '../../../shared/constants.js';
-import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
+import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
+import { sampleImages } from './sampleImages.js';
 import {
   addImage,
   copyTitle,
@@ -12,8 +14,10 @@ import {
   db,
   deleteImages,
   deleteSet,
+  duplicateBuiltIn,
   duplicateSet,
   getSet,
+  listHostableSets,
   listSets,
   NEW_SET_TITLE,
   saveSet,
@@ -21,7 +25,8 @@ import {
 
 const FIRST_VISIT = 1_700_000_000_000;
 
-const STARTER_IDS = STARTER_SETS.map((s) => s.id);
+/** A copy of the sample stored as the host's own set, with its pictures. */
+const OWN = 'own-sample';
 
 function set(id: string, updatedAt: number, questions: QuestionSet['questions'] = []): QuestionSet {
   return { id, title: `Set ${id}`, questions, createdAt: 1, updatedAt, schemaVersion: 1 };
@@ -42,118 +47,181 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** Starters as seeded below `top`: the first one at `top - 1`, then one ms older each. */
-function starterStamps(top: number): QuestionSet[] {
-  return STARTER_SETS.map((s, i) => ({ ...s, createdAt: top - 1 - i, updatedAt: top - 1 - i }));
+/** The sample's two picture ids. */
+const SAMPLE_IMAGE_IDS = [SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID];
+
+/** The sample and the starters as F48's `populate` stored them, before category and difficulty. */
+function seededV2(): QuestionSet[] {
+  const seeded = [
+    { ...SAMPLE_SET, createdAt: 2_000, updatedAt: 2_000 },
+    ...STARTER_SETS.map((s, i) => ({ ...s, createdAt: 1_999 - i, updatedAt: 1_999 - i })),
+  ];
+  return seeded.map((set) => {
+    const old = { ...set };
+    delete old.category;
+    delete old.difficulty;
+    return old;
+  });
 }
 
-/** Replaces the database with a version-1 one (before the starters) holding `sets`. */
-async function openAsV1(sets: QuestionSet[]): Promise<void> {
+/**
+ * Replaces the database with a version-`version` one holding `sets` and `images`, as an older
+ * build left it (v1 seeded the sample, v2 the starters too).
+ */
+async function openAsOld(
+  version: 1 | 2,
+  sets: QuestionSet[],
+  images = sampleImages(),
+): Promise<void> {
   db.close();
   await Dexie.delete('buzzr');
-  const v1 = new Dexie('buzzr');
-  v1.version(1).stores({ sets: 'id, updatedAt', images: 'id' });
-  await v1.open();
-  await v1.table('sets').bulkAdd(sets);
-  v1.close();
+  const old = new Dexie('buzzr');
+  old.version(version).stores({ sets: 'id, updatedAt', images: 'id' });
+  await old.open();
+  await old.table('sets').bulkAdd(sets);
+  await old.table('images').bulkAdd(images);
+  old.close();
 }
 
-describe('question set database', () => {
-  it('seeds the sample, then the 60 starters in order, stamped from the visit time', async () => {
-    const sets = await listSets();
-    expect(sets).toHaveLength(61);
-    expect(sets).toEqual([
-      { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT },
-      ...starterStamps(FIRST_VISIT),
-    ]);
-    expect(sets[1]!.title).toBe('Animals – Easy');
-    expect(sets[60]!.title).toBe('Words & Language – Hard');
+const imageIds = async () => (await db.images.toCollection().primaryKeys()).sort();
+
+describe('built-in sets', () => {
+  it('BUILT_IN_SETS is the sample, then the 60 starters in their order', () => {
+    expect(BUILT_IN_SETS).toEqual([SAMPLE_SET, ...STARTER_SETS]);
+    expect(BUILT_IN_SETS).toHaveLength(61);
   });
 
-  it('upgrades a v1 database: own sets stay first and unchanged, starters go below the oldest', async () => {
-    const mine = [set('mine-new', 5_000), set('mine-old', 2_000)];
-    await openAsV1(mine);
-    await db.open();
-    const sets = await listSets();
-    expect(sets).toEqual([...mine, ...starterStamps(2_000)]);
-    // Host a game preselects the first listed set: still the host's newest.
-    expect(sets[0]!.id).toBe('mine-new');
+  it('a fresh database holds no built-in sets and no pictures', async () => {
+    expect(await listSets()).toEqual([]);
+    expect(await db.images.count()).toBe(0);
   });
 
-  it('upgrades an empty v1 database with the starters stamped from now', async () => {
-    await openAsV1([]);
-    await db.open();
-    expect(await listSets()).toEqual(starterStamps(FIRST_VISIT));
+  it("Host a game's list is this browser's sets, last edited first, then the built-ins", async () => {
+    await db.sets.bulkAdd([set('old', 10), set('new', 20)]);
+    const { mine, builtIn } = await listHostableSets();
+    expect(mine.map((s) => s.id)).toEqual(['new', 'old']);
+    expect(builtIn).toBe(BUILT_IN_SETS);
   });
 
-  it('upgrade keeps a stored set whose id is a starter id, and adds only the missing ones', async () => {
-    const edited = { ...STARTER_SETS[0]!, title: 'My animals', createdAt: 3_000, updatedAt: 3_000 };
-    await openAsV1([edited]);
-    await db.open();
-    const sets = await listSets();
-    expect(sets).toHaveLength(60);
-    expect(sets[0]).toEqual(edited);
-    expect(sets.slice(1).map((s) => s.id)).toEqual(STARTER_IDS.slice(1));
-    expect(sets[1]!.updatedAt).toBe(3_000 - 1 - 1);
+  it('Duplicate to My sets stores an editable "(copy)" of a starter under a fresh id', async () => {
+    const starter = STARTER_SETS[4]!;
+    const copy = await duplicateBuiltIn(starter.id, 99);
+    expect(copy).toEqual({
+      ...starter,
+      id: expect.not.stringMatching(starter.id),
+      title: `${starter.title} (copy)`,
+      createdAt: 99,
+      updatedAt: 99,
+    });
+    expect(await listSets()).toEqual([copy]);
   });
 
-  it('does not seed a starter again once it was deleted', async () => {
-    await deleteSet(STARTER_IDS[0]!);
-    db.close();
-    await db.open();
-    const ids = (await listSets()).map((s) => s.id);
-    expect(ids).toHaveLength(60);
-    expect(ids).not.toContain(STARTER_IDS[0]);
-  });
-
-  it('does not seed a starter again after an upgrade and a delete', async () => {
-    await openAsV1([set('mine', 2_000)]);
-    await db.open();
-    await deleteSet(STARTER_IDS[5]!);
-    db.close();
-    await db.open();
-    expect((await listSets()).map((s) => s.id)).not.toContain(STARTER_IDS[5]);
-  });
-
-  it("seeds the sample's 2 pictures as PNG blobs under the ids its questions use", async () => {
-    const used = SAMPLE_SET.questions.flatMap((q) => (q.imageId ? [q.imageId] : []));
-    const images = await db.images.toArray();
-    expect(images.map((i) => i.id).sort()).toEqual([...used].sort());
-    for (const { blob } of images) {
-      expect(blob.type).toBe('image/png');
-      const signature = new Uint8Array(await blob.arrayBuffer()).slice(0, 8);
-      expect([...signature]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  it("Duplicate to My sets copies the sample's pictures under fresh ids", async () => {
+    const copy = await duplicateBuiltIn(SAMPLE_SET.id, 99);
+    const copied = copy.questions.flatMap((q) => (q.imageId ? [q.imageId] : []));
+    expect(copied).toHaveLength(2);
+    for (const id of copied) expect(SAMPLE_IMAGE_IDS).not.toContain(id);
+    expect(await imageIds()).toEqual([...copied].sort());
+    for (const id of copied) {
+      const signature = new Uint8Array(await (await db.images.get(id))!.blob.arrayBuffer());
+      expect([...signature.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     }
   });
 
-  it('does not seed the sample again once it was deleted', async () => {
-    await deleteSet(SAMPLE_SET.id);
-    db.close();
+  it('Duplicate to My sets of an unknown id fails with a readable error', async () => {
+    await expect(duplicateBuiltIn('gone')).rejects.toThrow('That set no longer exists.');
+  });
+});
+
+describe('version 3 upgrade', () => {
+  it('removes the untouched sample and starters from a v2 database, with the pictures', async () => {
+    await openAsOld(2, seededV2());
     await db.open();
-    expect((await listSets()).map((s) => s.id)).toEqual(STARTER_IDS);
+    expect(await listSets()).toEqual([]);
+    expect(await db.images.count()).toBe(0);
+  });
+
+  it('removes untouched starters stored with category and difficulty (seeded after F53)', async () => {
+    const withFields = STARTER_SETS.slice(0, 3).map((s) => ({ ...s, createdAt: 5, updatedAt: 5 }));
+    await openAsOld(2, withFields, []);
+    await db.open();
+    expect(await listSets()).toEqual([]);
+  });
+
+  it("leaves the host's own sets and their pictures untouched", async () => {
+    const own = [set('mine-new', 5_000), set('mine-pics', 3_000, [imageQuestion('q1', 'img-1')])];
+    const ownImage = { id: 'img-1', blob: new Blob(['png'], { type: 'image/png' }) };
+    await openAsOld(2, [...own, ...seededV2()], [...sampleImages(), ownImage]);
+    await db.open();
+    expect(await listSets()).toEqual(own);
+    expect(await imageIds()).toEqual(['img-1']);
+  });
+
+  it('keeps an edited starter in My sets under a fresh id, with its content and dates', async () => {
+    const [first, ...rest] = seededV2();
+    const editedTitle = { ...rest[0]!, title: 'My animals' };
+    const editedQuestion = {
+      ...rest[1]!,
+      questions: rest[1]!.questions.map((q, i) => (i === 0 ? { ...q, answer: 'Changed' } : q)),
+    };
+    const editedLevel = {
+      ...STARTER_SETS[2]!,
+      difficulty: 'easy' as const,
+      createdAt: 9,
+      updatedAt: 9,
+    };
+    await openAsOld(2, [first!, editedTitle, editedQuestion, editedLevel, ...rest.slice(3)]);
+    await db.open();
+
+    const kept = await listSets();
+    expect(kept).toEqual(
+      [editedTitle, editedQuestion, editedLevel].map((set) => ({ ...set, id: expect.any(String) })),
+    );
+    const builtInIds = new Set(BUILT_IN_SETS.map((s) => s.id));
+    for (const { id } of kept) expect(builtInIds.has(id)).toBe(false);
+  });
+
+  it("keeps the sample's pictures while an edited sample still uses them", async () => {
+    const [sample, ...starters] = seededV2();
+    const edited = { ...sample!, title: 'Our sample', updatedAt: 3_000 };
+    await openAsOld(2, [edited, ...starters]);
+    await db.open();
+
+    const [kept] = await listSets();
+    expect(kept).toEqual({ ...edited, id: expect.not.stringMatching(SAMPLE_SET.id) });
+    expect(await imageIds()).toEqual([...SAMPLE_IMAGE_IDS].sort());
+  });
+
+  it('removes the sample a v1 database seeded and keeps a copy the host made', async () => {
+    const seededSample = { ...SAMPLE_SET, createdAt: 2_000, updatedAt: 2_000 };
+    await openAsOld(1, [seededSample, set('mine', 1_000)]);
+    await db.open();
+    expect((await listSets()).map((s) => s.id)).toEqual(['mine']);
+    expect(await db.images.count()).toBe(0);
+  });
+});
+
+describe('question set database', () => {
+  beforeEach(async () => {
+    await db.sets.add({ ...SAMPLE_SET, id: OWN, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT });
+    await db.images.bulkAdd(sampleImages());
   });
 
   it('lists sets last edited first', async () => {
     await db.sets.bulkAdd([set('old', 10), set('new', FIRST_VISIT + 5), set('mid', 500)]);
-    expect((await listSets()).map((s) => s.id)).toEqual([
-      'new',
-      SAMPLE_SET.id,
-      ...STARTER_IDS,
-      'mid',
-      'old',
-    ]);
+    expect((await listSets()).map((s) => s.id)).toEqual(['new', OWN, 'mid', 'old']);
   });
 
   it('New set saves an empty, untitled draft with a fresh id', async () => {
     const created = await createSet(42);
     expect(created).toMatchObject({ title: NEW_SET_TITLE, questions: [], createdAt: 42 });
-    expect(created.id).not.toBe(SAMPLE_SET.id);
+    expect(created.id).not.toBe(OWN);
     expect(await getSet(created.id)).toEqual(created);
   });
 
   it('Duplicate saves a copy with a new id, a "(copy)" title and the same questions', async () => {
-    const copy = await duplicateSet(SAMPLE_SET.id, 99);
-    expect(copy.id).not.toBe(SAMPLE_SET.id);
+    const copy = await duplicateSet(OWN, 99);
+    expect(copy.id).not.toBe(OWN);
     expect(copy).toMatchObject({
       title: `${SAMPLE_SET.title} (copy)`,
       createdAt: 99,
@@ -166,7 +234,7 @@ describe('question set database', () => {
       ),
     );
     expect(await getSet(copy.id)).toEqual(copy);
-    expect(await listSets()).toHaveLength(62);
+    expect(await listSets()).toHaveLength(2);
   });
 
   it('Duplicate copies the category and difficulty', async () => {
@@ -177,9 +245,9 @@ describe('question set database', () => {
   });
 
   it('Duplicate leaves the original unchanged', async () => {
-    const before = await getSet(SAMPLE_SET.id);
-    await duplicateSet(SAMPLE_SET.id, 99);
-    expect(await getSet(SAMPLE_SET.id)).toEqual(before);
+    const before = await getSet(OWN);
+    await duplicateSet(OWN, 99);
+    expect(await getSet(OWN)).toEqual(before);
   });
 
   it('Duplicate copies image blobs, so the copy keeps them when the original is deleted', async () => {
@@ -239,14 +307,14 @@ describe('question set database', () => {
 
   it('saving an edited set stamps updatedAt, so it moves to the top of the list', async () => {
     await db.sets.add(set('other', FIRST_VISIT + 5));
-    const sample = (await getSet(SAMPLE_SET.id))!;
+    const sample = (await getSet(OWN))!;
     await saveSet({ ...sample, title: 'Renamed' }, FIRST_VISIT + 10);
-    expect(await getSet(SAMPLE_SET.id)).toEqual({
+    expect(await getSet(OWN)).toEqual({
       ...sample,
       title: 'Renamed',
       createdAt: FIRST_VISIT,
       updatedAt: FIRST_VISIT + 10,
     });
-    expect((await listSets()).map((s) => s.id).slice(0, 2)).toEqual([SAMPLE_SET.id, 'other']);
+    expect((await listSets()).map((s) => s.id).slice(0, 2)).toEqual([OWN, 'other']);
   });
 });

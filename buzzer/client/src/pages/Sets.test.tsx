@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
@@ -10,19 +11,27 @@ import type { QuestionSet } from '../../../shared/types.js';
 import { db, getSet, listSets, NEW_SET_TITLE } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
+import { sampleImages } from '../lib/sampleImages.js';
 import { formatEdited } from '../lib/setLabels.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { buttonsWithoutHover } from '../test/hover.js';
 import { Sets } from './Sets.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
-/** The sample plus the 60 starter sets, seeded on a first visit (F48). */
-const SEEDED = 1 + STARTER_SETS.length;
 const hostToken = 'h'.repeat(43);
+
+/** The host's own set: a copy of the sample, with its two pictures, saved in this browser. */
+const OWN: QuestionSet = {
+  ...SAMPLE_SET,
+  id: 'own-quiz',
+  title: 'Pub quiz',
+  createdAt: FIRST_VISIT,
+  updatedAt: FIRST_VISIT,
+};
 
 beforeEach(async () => {
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
-  // The seeded sample's pictures must survive fake-indexeddb's clone (see nodeBlob.ts).
+  // Stored pictures must survive fake-indexeddb's clone (see nodeBlob.ts).
   vi.stubGlobal('Blob', NodeBlob);
   await db.delete();
   await db.open();
@@ -34,6 +43,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
 });
+
+async function addOwn() {
+  await db.sets.add(OWN);
+  await db.images.bulkAdd(sampleImages());
+}
 
 function CurrentPath() {
   return <p data-testid="path">{useLocation().pathname}</p>;
@@ -55,37 +69,162 @@ async function card(title: string) {
   return within(await screen.findByRole('listitem', { name: title }));
 }
 
+const tab = (name: string) => screen.getByRole('tab', { name });
+const selectedTab = async () =>
+  (await screen.findAllByRole('tab')).find((t) => t.getAttribute('aria-selected') === 'true')!
+    .textContent;
+const cardTitles = () =>
+  screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+
 function draft(id: string, title: string, questions: QuestionSet['questions']): QuestionSet {
   return { id, title, questions, createdAt: 1, updatedAt: 2, schemaVersion: 1 };
 }
 
-describe('Set list /sets', () => {
-  it('shows a card with title, question count and last edited time', async () => {
+/** A fake server that creates room WXYZ and accepts every image upload. */
+function stubServer() {
+  const fetch = vi.fn((url: string) =>
+    Promise.resolve(
+      url === '/api/rooms'
+        ? Response.json({ code: 'WXYZ', hostToken }, { status: 201 })
+        : Response.json({ ok: true }, { status: 201 }),
+    ),
+  );
+  vi.stubGlobal('fetch', fetch);
+  return fetch;
+}
+
+const bodyOf = (fetch: ReturnType<typeof stubServer>, call = 0) =>
+  JSON.parse((fetch.mock.calls[call] as unknown as [string, RequestInit])[1].body as string) as {
+    set: QuestionSet;
+    settings: unknown;
+  };
+
+describe('Set list tabs', () => {
+  it('opens on Built-in when My sets is empty, listing the sample then the 60 starters', async () => {
     renderSets();
-    const sample = await card(SAMPLE_SET.title);
-    expect(sample.getByText(/^10 questions · Last edited/)).toBeTruthy();
-    expect(sample.getByText(formatEdited(FIRST_VISIT))).toBeTruthy();
+    expect(await selectedTab()).toBe('Built-in');
+    await card(SAMPLE_SET.title);
+    expect(cardTitles()).toEqual(BUILT_IN_SETS.map((s) => s.title));
+    expect(cardTitles()).toHaveLength(61);
+    expect(screen.getByRole('tabpanel', { name: 'Built-in' })).toBeTruthy();
+  });
+
+  it('opens on My sets once this browser has a set', async () => {
+    await addOwn();
+    renderSets();
+    expect(await selectedTab()).toBe('My sets');
+    await card(OWN.title);
+    expect(cardTitles()).toEqual([OWN.title]);
+  });
+
+  it('switches tabs on click and with the arrow keys', async () => {
+    await addOwn();
+    renderSets();
+    await card(OWN.title);
+    fireEvent.click(tab('Built-in'));
+    await card(SAMPLE_SET.title);
+    expect(screen.queryByRole('listitem', { name: OWN.title })).toBeNull();
+
+    fireEvent.keyDown(tab('Built-in'), { key: 'ArrowRight' });
+    expect(await selectedTab()).toBe('My sets');
+    expect(document.activeElement).toBe(tab('My sets'));
+    await card(OWN.title);
+    fireEvent.keyDown(tab('My sets'), { key: 'ArrowLeft' });
+    expect(await selectedTab()).toBe('Built-in');
+  });
+
+  it('a built-in card offers only Duplicate to My sets and Host this set', async () => {
+    renderSets();
+    const starter = await card(STARTER_SETS[0]!.title);
+    expect(starter.getByText('15 questions')).toBeTruthy();
+    expect(
+      starter
+        .getAllByRole('button')
+        .concat(starter.queryAllByRole('link'))
+        .map((b) => b.textContent),
+    ).toEqual(['Duplicate to My sets', 'Host this set']);
+  });
+
+  it('Duplicate to My sets saves an editable copy and shows it in My sets', async () => {
+    renderSets();
+    fireEvent.click(
+      (await card(STARTER_SETS[1]!.title)).getByRole('button', { name: 'Duplicate to My sets' }),
+    );
+    const copy = await card(`${STARTER_SETS[1]!.title} (copy)`);
+    expect(await selectedTab()).toBe('My sets');
+    expect(screen.getByRole('status').textContent).toBe(
+      `Copied “${STARTER_SETS[1]!.title} (copy)” to My sets.`,
+    );
+    expect(copy.getByRole('link', { name: 'Open' })).toBeTruthy();
+    const [stored] = await listSets();
+    expect(stored).toMatchObject({ questions: STARTER_SETS[1]!.questions, createdAt: FIRST_VISIT });
+    expect(stored!.id).not.toBe(STARTER_SETS[1]!.id);
+  });
+
+  it('Host this set on the built-in sample creates a room and uploads its 2 pictures', async () => {
+    const fetch = stubServer();
+    renderSets();
+    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Host this set' }));
+
+    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
+    expect(bodyOf(fetch)).toEqual({ set: SAMPLE_SET, settings: DEFAULT_SETTINGS });
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      '/api/rooms',
+      '/api/rooms/WXYZ/images/sample-img-hexagon',
+      '/api/rooms/WXYZ/images/sample-img-flag',
+    ]);
+    expect(await listSets()).toEqual([]);
+  });
+
+  it('Host this set on a starter creates a room with its questions and level points', async () => {
+    const fetch = stubServer();
+    const hard = STARTER_SETS[2]!;
+    renderSets();
+    fireEvent.click((await card(hard.title)).getByRole('button', { name: 'Host this set' }));
+
+    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
+    const { set } = bodyOf(fetch);
+    expect(set).toEqual(hard);
+    expect(new Set(set.questions.map((q) => q.points))).toEqual(new Set([300]));
+  });
+
+  it('every button on the Built-in tab has the hover style', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    expect(buttonsWithoutHover()).toEqual([]);
+  });
+});
+
+describe('Set list /sets, My sets', () => {
+  it('shows a card with title, question count and last edited time', async () => {
+    await addOwn();
+    renderSets();
+    const own = await card(OWN.title);
+    expect(own.getByText(/^10 questions · Last edited/)).toBeTruthy();
+    expect(own.getByText(formatEdited(FIRST_VISIT))).toBeTruthy();
   });
 
   it('lists every saved set, last edited first', async () => {
+    await addOwn();
     await db.sets.add({ ...draft('newer', 'Newer quiz', []), updatedAt: FIRST_VISIT + 1 });
     renderSets();
     await card('Newer quiz');
-    const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(titles).toEqual(['Newer quiz', SAMPLE_SET.title, ...STARTER_SETS.map((s) => s.title)]);
+    expect(cardTitles()).toEqual(['Newer quiz', OWN.title]);
   });
 
   it('shows the empty state when no sets exist', async () => {
-    await db.sets.clear();
     renderSets();
+    await card(SAMPLE_SET.title);
+    fireEvent.click(tab('My sets'));
     expect(await screen.findByText(/No question sets yet/)).toBeTruthy();
     expect(screen.queryByRole('listitem')).toBeNull();
   });
 
   it('Open goes to the set editor', async () => {
+    await addOwn();
     renderSets();
-    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('link', { name: 'Open' }));
-    expect(screen.getByTestId('path').textContent).toBe(`/sets/${SAMPLE_SET.id}`);
+    fireEvent.click((await card(OWN.title)).getByRole('link', { name: 'Open' }));
+    expect(screen.getByTestId('path').textContent).toBe(`/sets/${OWN.id}`);
   });
 
   it('New set saves an untitled draft and opens it in the editor', async () => {
@@ -99,60 +238,53 @@ describe('Set list /sets', () => {
   });
 
   it('Duplicate adds a copy card', async () => {
+    await addOwn();
     renderSets();
-    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Duplicate' }));
-    const copy = await card(`${SAMPLE_SET.title} (copy)`);
+    fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Duplicate' }));
+    const copy = await card(`${OWN.title} (copy)`);
     expect(copy.getByText(/^10 questions/)).toBeTruthy();
-    expect(await listSets()).toHaveLength(SEEDED + 1);
+    expect(await listSets()).toHaveLength(2);
   });
 
   it('Delete asks for confirmation, and Cancel keeps the set', async () => {
+    await addOwn();
     renderSets();
-    const sample = await card(SAMPLE_SET.title);
-    fireEvent.click(sample.getByRole('button', { name: 'Delete' }));
-    fireEvent.click(sample.getByRole('button', { name: 'Cancel' }));
-    expect(await getSet(SAMPLE_SET.id)).toBeDefined();
-    expect(sample.getByRole('button', { name: 'Delete' })).toBeTruthy();
+    const own = await card(OWN.title);
+    fireEvent.click(own.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(own.getByRole('button', { name: 'Cancel' }));
+    expect(await getSet(OWN.id)).toBeDefined();
+    expect(own.getByRole('button', { name: 'Delete' })).toBeTruthy();
   });
 
   it('Delete then Confirm delete removes the set', async () => {
+    await addOwn();
     renderSets();
-    const sample = await card(SAMPLE_SET.title);
-    fireEvent.click(sample.getByRole('button', { name: 'Delete' }));
-    fireEvent.click(sample.getByRole('button', { name: 'Confirm delete' }));
-    await waitFor(() =>
-      expect(screen.queryByRole('listitem', { name: SAMPLE_SET.title })).toBeNull(),
-    );
-    expect(await getSet(SAMPLE_SET.id)).toBeUndefined();
-    expect(await listSets()).toHaveLength(SEEDED - 1);
+    const own = await card(OWN.title);
+    fireEvent.click(own.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(own.getByRole('button', { name: 'Confirm delete' }));
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: OWN.title })).toBeNull());
+    expect(await getSet(OWN.id)).toBeUndefined();
+    expect(await listSets()).toHaveLength(0);
   });
 
   it('Host this set creates a room with that set and offers the Screen choices', async () => {
-    const fetch = vi.fn(() =>
-      Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 })),
-    );
-    vi.stubGlobal('fetch', fetch);
+    await addOwn();
+    const fetch = stubServer();
     renderSets();
-    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Host this set' }));
 
     expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
     expect(screen.getByText('WXYZ')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Use this device as the Screen' })).toBeTruthy();
     expect(loadHostToken('WXYZ')).toBe(hostToken);
-    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(JSON.parse(init.body as string)).toEqual({
-      set: { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT },
-      settings: DEFAULT_SETTINGS,
-    });
+    expect(bodyOf(fetch)).toEqual({ set: OWN, settings: DEFAULT_SETTINGS });
   });
 
   it('Host this set offers Use this phone as the host remote, which opens /host/<CODE>', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }))),
-    );
+    await addOwn();
+    stubServer();
     renderSets();
-    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Host this set' }));
 
     fireEvent.click(
       await screen.findByRole('button', { name: 'Use this phone as the host remote' }),
@@ -161,49 +293,30 @@ describe('Set list /sets', () => {
     expect(loadHostToken('WXYZ')).toBe(hostToken);
   });
 
-  it('Host this set on a starter creates a room with its questions and level points', async () => {
-    const fetch = vi.fn(() =>
-      Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 })),
-    );
-    vi.stubGlobal('fetch', fetch);
-    const hard = STARTER_SETS[2]!;
-    renderSets();
-    fireEvent.click((await card(hard.title)).getByRole('button', { name: 'Host this set' }));
-
-    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
-    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
-    const { set } = JSON.parse(init.body as string) as { set: QuestionSet };
-    expect(set).toEqual({ ...hard, createdAt: FIRST_VISIT - 3, updatedAt: FIRST_VISIT - 3 });
-    expect(new Set(set.questions.map((q) => q.points))).toEqual(new Set([300]));
-  });
-
   it('every button on the list and on Room created has the hover style', async () => {
-    vi.stubGlobal('fetch', () =>
-      Promise.resolve(Response.json({ code: 'WXYZ', hostToken }, { status: 201 })),
-    );
+    await addOwn();
+    stubServer();
     renderSets();
-    const sample = await card(SAMPLE_SET.title);
+    const own = await card(OWN.title);
     expect(buttonsWithoutHover()).toEqual([]);
-    fireEvent.click(sample.getByRole('button', { name: 'Host this set' }));
+    fireEvent.click(own.getByRole('button', { name: 'Host this set' }));
     await screen.findByRole('heading', { name: 'Room created' });
     expect(buttonsWithoutHover()).toEqual([]);
   });
 
   it('Host this set shows the server refusal and keeps the list', async () => {
+    await addOwn();
     vi.stubGlobal('fetch', () =>
       Promise.resolve(Response.json({ ok: false, error: 'Too many rooms' }, { status: 429 })),
     );
     renderSets();
-    const sample = await card(SAMPLE_SET.title);
-    fireEvent.click(sample.getByRole('button', { name: 'Host this set' }));
+    const own = await card(OWN.title);
+    fireEvent.click(own.getByRole('button', { name: 'Host this set' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Too many rooms');
     expect(screen.queryByRole('heading', { name: 'Room created' })).toBeNull();
     expect(localStorage.length).toBe(0);
     await waitFor(() =>
-      expect(sample.getByRole('button', { name: 'Host this set' })).toHaveProperty(
-        'disabled',
-        false,
-      ),
+      expect(own.getByRole('button', { name: 'Host this set' })).toHaveProperty('disabled', false),
     );
   });
 
@@ -255,13 +368,14 @@ describe('Set list /sets', () => {
 
     it('Export JSON downloads the set as one named file', async () => {
       const downloads = captureDownloads();
+      await addOwn();
       renderSets();
-      fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Export JSON' }));
+      fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Export JSON' }));
       await waitFor(() => expect(downloads).toHaveLength(1));
 
-      expect(downloads[0]!.name).toBe('sample-general-knowledge.json');
+      expect(downloads[0]!.name).toBe('pub-quiz.json');
       const file = JSON.parse(await downloads[0]!.text) as QuestionSet & { images: object };
-      expect(file.title).toBe(SAMPLE_SET.title);
+      expect(file.title).toBe(OWN.title);
       expect(file.questions).toEqual(SAMPLE_SET.questions);
       expect(Object.keys(file.images).sort()).toEqual(['sample-img-flag', 'sample-img-hexagon']);
       expect(Object.values(file.images)).toEqual([
@@ -279,7 +393,7 @@ describe('Set list /sets', () => {
       expect(downloads).toEqual([]);
     });
 
-    it('Import JSON adds the set from a valid file', async () => {
+    it('Import JSON adds the set from a valid file and shows My sets', async () => {
       renderSets();
       await card(SAMPLE_SET.title);
       const textOnly = SAMPLE_SET.questions.filter((q) => q.imageId === undefined);
@@ -287,7 +401,8 @@ describe('Set list /sets', () => {
 
       expect(await screen.findByRole('listitem', { name: 'Imported quiz' })).toBeTruthy();
       expect(screen.getByRole('status').textContent).toBe('Imported “Imported quiz”.');
-      expect(await listSets()).toHaveLength(SEEDED + 1);
+      expect(await selectedTab()).toBe('My sets');
+      expect(await listSets()).toHaveLength(1);
     });
 
     it('Import JSON lists the readable errors of a bad file and adds nothing', async () => {
@@ -310,7 +425,7 @@ describe('Set list /sets', () => {
         'Title: Too small: expected string to have >=1 characters',
         'Question 1 › points: Too small: expected number to be >=0',
       ]);
-      expect(await listSets()).toHaveLength(SEEDED);
+      expect(await listSets()).toHaveLength(0);
     });
 
     it('Import JSON refuses a file too large to be a set, without reading it', async () => {
@@ -322,7 +437,7 @@ describe('Set list /sets', () => {
       expect(within(alert).getByRole('listitem').textContent).toBe(
         'The file is larger than 201 MB.',
       );
-      expect(await listSets()).toHaveLength(SEEDED);
+      expect(await listSets()).toHaveLength(0);
     });
   });
 });

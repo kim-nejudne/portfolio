@@ -27,14 +27,14 @@ describe('AppRoutes', () => {
     expect(headingAt(path)).toBe(heading);
   });
 
-  it('/sets loads the My question sets page, which reports a browser without IndexedDB', async () => {
+  it('/sets loads the Question sets page, which reports a browser without IndexedDB', async () => {
     // jsdom has no IndexedDB, like some private browsing modes.
     render(
       <MemoryRouter initialEntries={['/sets']}>
         <AppRoutes />
       </MemoryRouter>,
     );
-    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('My question sets');
+    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Question sets');
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Could not load the saved sets in this browser.',
     );

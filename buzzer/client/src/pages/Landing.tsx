@@ -61,7 +61,7 @@ export function Landing() {
         to="/sets"
         className="self-center py-2 text-center text-lg text-muted underline underline-offset-4 hover:text-ink"
       >
-        My question sets
+        Question sets
       </Link>
     </main>
   );

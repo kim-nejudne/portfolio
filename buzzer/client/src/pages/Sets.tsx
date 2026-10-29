@@ -1,9 +1,26 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { Link, useNavigate } from 'react-router';
+import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { RoomCreated } from '../components/RoomCreated.js';
-import { createSet, deleteSet, duplicateSet, getImage, importSet, listSets } from '../lib/db.js';
+import {
+  createSet,
+  deleteSet,
+  duplicateBuiltIn,
+  duplicateSet,
+  getImage,
+  importSet,
+  listSets,
+} from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
 import { hostSet } from '../lib/hostRoom.js';
 import {
@@ -29,12 +46,29 @@ function download(text: string, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+type Tab = 'builtIn' | 'mine';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'builtIn', label: 'Built-in' },
+  { id: 'mine', label: 'My sets' },
+];
+
+/** The tab a visit opens on: My sets once this browser has a set, else the built-in library. */
+function firstTab(mine: readonly QuestionSet[]): Tab {
+  return mine.length > 0 ? 'mine' : 'builtIn';
+}
+
 const smallButton = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
-/** Set list `/sets`: this browser's saved question sets, last edited first. */
+/**
+ * Set list `/sets`: two tabs, the read-only **Built-in** library from the bundle and **My sets**,
+ * this browser's saved sets, last edited first (DECISIONS F54).
+ */
 export function Sets() {
   const navigate = useNavigate();
   const [sets, setSets] = useState<QuestionSet[] | null>(null);
+  const [tab, setTab] = useState<Tab>('builtIn');
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [hostedCode, setHostedCode] = useState<string | null>(null);
@@ -53,7 +87,11 @@ export function Sets() {
   useEffect(() => {
     let live = true;
     listSets().then(
-      (loaded) => live && setSets(loaded),
+      (loaded) => {
+        if (!live) return;
+        setSets(loaded);
+        setTab(firstTab(loaded));
+      },
       () => live && setError(LOAD_ERROR),
     );
     return () => {
@@ -86,6 +124,13 @@ export function Sets() {
       await duplicateSet(id);
       await reload();
     });
+  const duplicateToMine = (id: string) =>
+    act(async () => {
+      const copy = await duplicateBuiltIn(id);
+      await reload();
+      setNotice(`Copied “${copy.title}” to My sets.`);
+      setTab('mine');
+    });
   const remove = (id: string) =>
     act(async () => {
       await deleteSet(id);
@@ -115,12 +160,22 @@ export function Sets() {
       const imported = await importSet(parsed.set, parsed.images);
       setNotice(`Imported “${imported.title}”.`);
       await reload();
+      setTab('mine');
     });
   };
   const host = (set: QuestionSet) =>
     act(async () => {
       setHostedCode(await hostSet(set));
     });
+
+  /** Arrow keys move between the tabs, as in the ARIA tabs pattern. */
+  function onTabKey(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const next = TABS[(TABS.findIndex((t) => t.id === tab) + 1) % TABS.length]!.id;
+    setTab(next);
+    tabRefs.current[next]?.focus();
+  }
 
   if (hostedCode !== null) {
     return (
@@ -131,7 +186,7 @@ export function Sets() {
           onClick={() => setHostedCode(null)}
           className="text-lg text-muted underline underline-offset-4 hover:text-ink"
         >
-          Back to my sets
+          Back to question sets
         </button>
       </main>
     );
@@ -140,7 +195,7 @@ export function Sets() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-display text-4xl text-accent">My question sets</h1>
+        <h1 className="font-display text-4xl text-accent">Question sets</h1>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -192,68 +247,113 @@ export function Sets() {
 
       {sets === null ? (
         error === null && <p className="text-muted">Loading…</p>
-      ) : sets.length === 0 ? (
-        <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
-          No question sets yet. Tap <strong className="text-ink">New set</strong> to write one.
-        </p>
       ) : (
-        <ul className="flex flex-col gap-4">
-          {sets.map((set) => (
-            <li
-              key={set.id}
-              aria-labelledby={`set-${set.id}`}
-              className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
-            >
-              <div className="min-w-0">
-                <h2 id={`set-${set.id}`} className="truncate font-display text-2xl">
-                  {set.title}
-                </h2>
-                <p className="text-muted">
-                  {questionCount(set.questions.length)} · Last edited{' '}
-                  <time dateTime={new Date(set.updatedAt).toISOString()}>
-                    {formatEdited(set.updatedAt)}
-                  </time>
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link to={`/sets/${set.id}`} className={smallButton}>
-                  Open
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => void duplicate(set.id)}
-                  disabled={busy}
-                  className={smallButton}
-                >
-                  Duplicate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void exportSet(set)}
-                  disabled={busy}
-                  className={smallButton}
-                >
-                  Export JSON
-                </button>
-                <ConfirmButton
-                  label="Delete"
-                  confirmLabel="Confirm delete"
-                  onConfirm={() => void remove(set.id)}
-                  disabled={busy}
-                  className={smallButton}
-                />
-                <button
-                  type="button"
-                  onClick={() => void host(set)}
-                  disabled={busy}
-                  className={`${smallButton} border-accent text-accent`}
-                >
-                  Host this set
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-4">
+          <div role="tablist" aria-label="Question sets" className="flex gap-2">
+            {TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                ref={(element) => {
+                  tabRefs.current[id] = element;
+                }}
+                type="button"
+                role="tab"
+                id={`tab-${id}`}
+                aria-selected={tab === id}
+                aria-controls={`panel-${id}`}
+                tabIndex={tab === id ? 0 : -1}
+                onClick={() => setTab(id)}
+                onKeyDown={onTabKey}
+                className={`min-h-11 rounded-xl border-2 px-4 py-2 font-display text-xl transition aria-selected:border-accent aria-selected:text-accent ${HOVER} border-edge text-muted`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+            {tab === 'builtIn' ? (
+              <ul className="flex flex-col gap-4">
+                {BUILT_IN_SETS.map((set) => (
+                  <SetCard key={set.id} set={set} detail={questionCount(set.questions.length)}>
+                    <button
+                      type="button"
+                      onClick={() => void duplicateToMine(set.id)}
+                      disabled={busy}
+                      className={smallButton}
+                    >
+                      Duplicate to My sets
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void host(set)}
+                      disabled={busy}
+                      className={`${smallButton} border-accent text-accent`}
+                    >
+                      Host this set
+                    </button>
+                  </SetCard>
+                ))}
+              </ul>
+            ) : sets.length === 0 ? (
+              <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
+                No question sets yet. Tap <strong className="text-ink">New set</strong> to write
+                one, or duplicate a built-in set.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {sets.map((set) => (
+                  <SetCard
+                    key={set.id}
+                    set={set}
+                    detail={
+                      <>
+                        {questionCount(set.questions.length)} · Last edited{' '}
+                        <time dateTime={new Date(set.updatedAt).toISOString()}>
+                          {formatEdited(set.updatedAt)}
+                        </time>
+                      </>
+                    }
+                  >
+                    <Link to={`/sets/${set.id}`} className={smallButton}>
+                      Open
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void duplicate(set.id)}
+                      disabled={busy}
+                      className={smallButton}
+                    >
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void exportSet(set)}
+                      disabled={busy}
+                      className={smallButton}
+                    >
+                      Export JSON
+                    </button>
+                    <ConfirmButton
+                      label="Delete"
+                      confirmLabel="Confirm delete"
+                      onConfirm={() => void remove(set.id)}
+                      disabled={busy}
+                      className={smallButton}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void host(set)}
+                      disabled={busy}
+                      className={`${smallButton} border-accent text-accent`}
+                    >
+                      Host this set
+                    </button>
+                  </SetCard>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       )}
 
       <Link
@@ -263,5 +363,31 @@ export function Sets() {
         Back to start
       </Link>
     </main>
+  );
+}
+
+/** One set's card: its title, a line of detail, then its actions. */
+function SetCard({
+  set,
+  detail,
+  children,
+}: {
+  set: QuestionSet;
+  detail: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <li
+      aria-labelledby={`set-${set.id}`}
+      className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
+    >
+      <div className="min-w-0">
+        <h2 id={`set-${set.id}`} className="truncate font-display text-2xl">
+          {set.title}
+        </h2>
+        <p className="text-muted">{detail}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </li>
   );
 }

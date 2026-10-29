@@ -9,7 +9,8 @@ import { BUTTON_PRIMARY } from '../lib/ui.js';
 type Status =
   | { kind: 'loading' }
   | { kind: 'failed' }
-  | { kind: 'picking'; sets: QuestionSet[]; starting: boolean };
+  // `sets` lists this browser's sets, then the built-ins from index `firstBuiltIn` on.
+  | { kind: 'picking'; sets: QuestionSet[]; firstBuiltIn: number; starting: boolean };
 
 interface NewGamePickerProps {
   code: string;
@@ -24,7 +25,8 @@ interface NewGamePickerProps {
 }
 
 /**
- * **New game** after the final results (DECISIONS F49–F50): pick one of this browser's saved sets,
+ * **New game** after the final results (DECISIONS F49–F50): pick one of this browser's saved sets
+ * or a built-in one (DECISIONS F54),
  * choose whether scores carry over, then the room returns to the lobby with the new set. It stays
  * open while the images upload, so the parent keeps it mounted across the switch to LOBBY.
  */
@@ -48,14 +50,15 @@ export function NewGamePicker({
 
   useEffect(() => {
     let live = true;
-    // Dexie loads only once a host opens the picker; a paired phone seeds its starters here (F48).
+    // Dexie loads only once a host opens the picker. A paired phone has the built-ins too.
     import('../lib/db.js')
-      .then(({ listSets }) => listSets())
+      .then(({ listHostableSets }) => listHostableSets())
       .then(
-        (sets) => {
+        ({ mine, builtIn }) => {
           if (!live) return;
+          const sets = [...mine, ...builtIn];
           setSelectedId(sets[0]?.id ?? null);
-          setStatus({ kind: 'picking', sets, starting: false });
+          setStatus({ kind: 'picking', sets, firstBuiltIn: mine.length, starting: false });
         },
         () => live && setStatus({ kind: 'failed' }),
       );
@@ -85,10 +88,11 @@ export function NewGamePicker({
     return () => window.removeEventListener('keydown', listener, { capture: true });
   }, []);
 
-  async function start(sets: QuestionSet[]) {
+  async function start(picking: Extract<Status, { kind: 'picking' }>) {
+    const { sets } = picking;
     const set = uploadPending ?? sets.find((s) => s.id === selectedId);
     if (!set) return;
-    setStatus({ kind: 'picking', sets, starting: true });
+    setStatus({ ...picking, starting: true });
     setSubmitted(true);
     setError(null);
     try {
@@ -106,7 +110,7 @@ export function NewGamePicker({
       } else {
         setError((caught as Error).message);
       }
-      setStatus({ kind: 'picking', sets, starting: false });
+      setStatus({ ...picking, starting: false });
     }
   }
 
@@ -135,26 +139,24 @@ export function NewGamePicker({
             Could not load the saved sets in this browser.
           </p>
         )}
-        {status.kind === 'picking' &&
-          (status.sets.length === 0 ? (
-            <p className="text-muted">No saved sets in this browser.</p>
-          ) : (
-            // The scroller is a div: a fieldset won't shrink as a flex child, and its default
-            // min-content width would push the rows past the dialog.
-            <div className="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]">
-              <fieldset disabled={locked} className="flex min-w-0 flex-col gap-2">
-                <legend className="sr-only">Question set</legend>
-                {status.sets.map((set) => (
-                  <SetOption
-                    key={set.id}
-                    set={set}
-                    checked={selectedId === set.id}
-                    onSelect={() => setSelectedId(set.id)}
-                  />
-                ))}
-              </fieldset>
-            </div>
-          ))}
+        {status.kind === 'picking' && (
+          // The scroller is a div: a fieldset won't shrink as a flex child, and its default
+          // min-content width would push the rows past the dialog.
+          <div className="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]">
+            <fieldset disabled={locked} className="flex min-w-0 flex-col gap-2">
+              <legend className="sr-only">Question set</legend>
+              {status.sets.map((set, index) => (
+                <SetOption
+                  key={set.id}
+                  set={set}
+                  builtIn={index >= status.firstBuiltIn}
+                  checked={selectedId === set.id}
+                  onSelect={() => setSelectedId(set.id)}
+                />
+              ))}
+            </fieldset>
+          </div>
+        )}
         <label className="flex shrink-0 cursor-pointer items-center gap-3">
           <input
             type="checkbox"
@@ -167,7 +169,7 @@ export function NewGamePicker({
         </label>
         <button
           type="button"
-          onClick={() => status.kind === 'picking' && void start(status.sets)}
+          onClick={() => status.kind === 'picking' && void start(status)}
           disabled={status.kind !== 'picking' || starting || selectedId === null}
           className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
         >
@@ -200,10 +202,12 @@ export function NewGamePicker({
 
 function SetOption({
   set,
+  builtIn,
   checked,
   onSelect,
 }: {
   set: QuestionSet;
+  builtIn: boolean;
   checked: boolean;
   onSelect: () => void;
 }) {
@@ -223,6 +227,7 @@ function SetOption({
         <span className="truncate">{set.title}</span>
         <span className="text-sm text-muted">
           {questionCount(set.questions.length)}
+          {builtIn && ' · Built-in'}
           {!playable && ' · Not playable yet'}
         </span>
       </span>

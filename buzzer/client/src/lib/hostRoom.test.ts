@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ROOM_IMAGES_MAX_BYTES } from '../../../shared/constants.js';
-import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { NewGameTakenError } from './api.js';
 import {
@@ -12,6 +12,7 @@ import {
   uploadSetImages,
 } from './hostRoom.js';
 import { loadHostToken } from './hostTokens.js';
+import { sampleImages } from './sampleImages.js';
 
 const good: Question = { id: 'q1', text: 'What?', answer: 'Yes', points: 100 };
 
@@ -141,6 +142,22 @@ describe('hostSet', () => {
     await expect(hostSet(imageSet, load)).rejects.toThrow(
       "Couldn't upload an image: The image is larger than 1.5 MB.",
     );
+  });
+
+  it('hosting the built-in sample uploads its pictures from the bundle, not IndexedDB', async () => {
+    const calls = stubServer();
+    await expect(hostSet(SAMPLE_SET)).resolves.toBe('WXYZ');
+    expect(calls.map((c) => c.url)).toEqual([
+      '/api/rooms',
+      `/api/rooms/WXYZ/images/${SAMPLE_HEXAGON_ID}`,
+      `/api/rooms/WXYZ/images/${SAMPLE_FLAG_ID}`,
+    ]);
+    const bundled = new Map(sampleImages().map((image) => [image.id, image.blob]));
+    for (const call of calls.slice(1)) {
+      const id = call.url.split('/').pop()!;
+      expect(call.headers['content-type']).toBe('image/png');
+      expect(await (call.body as Blob).text()).toBe(await bundled.get(id)!.text());
+    }
   });
 
   it('uploads nothing for a text-only set', async () => {

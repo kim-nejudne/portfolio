@@ -2,6 +2,7 @@
 // on the landing page and **Host this set** on the set list, and **New game** after the final results.
 
 import { DEFAULT_SETTINGS, ROOM_IMAGES_MAX_BYTES } from '../../../shared/constants.js';
+import { SAMPLE_SET_ID } from '../../../shared/sampleSet.js';
 import { questionSetSchema } from '../../../shared/schemas.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { createRoom, replaceSet, uploadImage } from './api.js';
@@ -41,6 +42,19 @@ export type LoadImage = (imageId: string) => Promise<Blob | undefined>;
 // Dexie loads only when a host creates a room, not on every player's phone (as in HostGame).
 const loadStoredImage: LoadImage = async (imageId) =>
   (await (await import('./db.js')).getImage(imageId))?.blob;
+
+// The built-in sample is never stored (DECISIONS F54): its pictures come from the bundle.
+const loadSampleImage: LoadImage = async (imageId) =>
+  (await import('./sampleImages.js')).sampleImages().find((image) => image.id === imageId)?.blob;
+
+/**
+ * Where `set`'s images live: the bundle for the built-in sample, else this browser's database. The
+ * id alone tells them apart: Dexie v3 gave every stored copy a fresh id, and import and duplicate
+ * mint fresh ids, so no stored set has the sample's id.
+ */
+function imagesOf(set: QuestionSet): LoadImage {
+  return set.id === SAMPLE_SET_ID ? loadSampleImage : loadStoredImage;
+}
 
 const MB = 1024 * 1024;
 
@@ -105,7 +119,7 @@ async function uploadImages(
  * the set is not playable, an image is missing or over the room's 50 MB, or the server refuses.
  * The image checks run before the room is created, so a set that cannot be uploaded makes no room.
  */
-export async function hostSet(set: QuestionSet, loadImage = loadStoredImage): Promise<string> {
+export async function hostSet(set: QuestionSet, loadImage = imagesOf(set)): Promise<string> {
   const gathered = await gatherImages(set, loadImage);
   const { code, hostToken } = await createRoom({ set: gathered.set, settings: DEFAULT_SETTINGS });
   saveHostToken(code, hostToken);
@@ -124,7 +138,7 @@ export async function hostNextSet(
   hostToken: string,
   set: QuestionSet,
   keepScores: boolean,
-  loadImage = loadStoredImage,
+  loadImage = imagesOf(set),
 ): Promise<void> {
   const gathered = await gatherImages(set, loadImage);
   await replaceSet(code, hostToken, { set: gathered.set, keepScores });
@@ -136,7 +150,7 @@ export async function uploadSetImages(
   code: string,
   hostToken: string,
   set: QuestionSet,
-  loadImage = loadStoredImage,
+  loadImage = imagesOf(set),
 ): Promise<void> {
   const gathered = await gatherImages(set, loadImage);
   await uploadImages(code, hostToken, gathered.images, SetImagesError);

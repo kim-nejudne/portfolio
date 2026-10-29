@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SAMPLE_SET } from '../../../shared/sampleSet.js';
+import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
 import { NEW_GAME_TAKEN_MESSAGE } from '../lib/api.js';
@@ -23,7 +23,7 @@ beforeEach(async () => {
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   await db.delete();
   await db.open();
-  // The newest two, above the seeded sample and starters.
+  // This browser's own sets; the built-ins are listed after them, from the bundle.
   await saveSet(roundTwo, FIRST_VISIT + 1);
   await saveSet(draft, FIRST_VISIT + 2);
 });
@@ -63,23 +63,44 @@ function renderPicker(phase: Phase = 'FINAL') {
 const dialog = () => screen.getByRole('dialog', { name: 'New game' });
 const options = () => within(dialog()).findAllByRole<HTMLInputElement>('radio');
 const startButton = () => screen.getByRole<HTMLButtonElement>('button', { name: /new game…?$/i });
-const putBody = (fetch: ReturnType<typeof stubPut>['fetch']) =>
+const putBody = (fetch: { mock: { calls: unknown[] } }) =>
   JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string) as {
     set: QuestionSet;
     keepScores: boolean;
   };
 
 describe('NewGamePicker', () => {
-  it("lists this browser's saved sets newest first, the newest picked and drafts marked", async () => {
+  it("lists this browser's sets newest first, then the built-ins, the newest picked and drafts marked", async () => {
     renderPicker();
     const radios = await options();
     expect(radios).toHaveLength(2 + 1 + STARTER_SETS.length);
     const labels = radios.map((radio) => radio.closest('label')!.textContent);
-    expect(labels[0]).toBe('Half done0 questions · Not playable yet');
-    expect(labels[1]).toBe('Round two1 question');
-    expect(labels[2]).toContain(SAMPLE_SET.title);
-    expect(labels.filter((label) => label!.includes('Not playable yet'))).toHaveLength(1);
+    expect(labels).toEqual([
+      'Half done0 questions · Not playable yet',
+      'Round two1 question',
+      `${SAMPLE_SET.title}10 questions · Built-in`,
+      ...STARTER_SETS.map((set) => `${set.title}15 questions · Built-in`),
+    ]);
     expect(radios[0]!.checked).toBe(true);
+  });
+
+  it('starting the built-in sample sends it and uploads its pictures from the bundle', async () => {
+    const fetch = vi.fn(async (url: string) =>
+      url.endsWith('/set')
+        ? Response.json({ ok: true })
+        : Response.json({ ok: true }, { status: 201 }),
+    );
+    vi.stubGlobal('fetch', fetch);
+    const { onClose } = renderPicker();
+    fireEvent.click((await options())[2]!);
+    fireEvent.click(startButton());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      '/api/rooms/WXYZ/set',
+      `/api/rooms/WXYZ/images/${SAMPLE_HEXAGON_ID}`,
+      `/api/rooms/WXYZ/images/${SAMPLE_FLAG_ID}`,
+    ]);
+    expect(putBody(fetch).set).toEqual(SAMPLE_SET);
   });
 
   it('sends the picked set with Keep scores off by default', async () => {

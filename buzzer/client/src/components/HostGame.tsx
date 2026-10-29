@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { questionCount } from '../lib/setLabels.js';
@@ -9,12 +8,13 @@ import { RoomCreated } from './RoomCreated.js';
 type Status =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'picking'; sets: QuestionSet[]; creating: boolean }
+  // `sets` lists this browser's sets, then the built-ins from index `firstBuiltIn` on.
+  | { kind: 'picking'; sets: QuestionSet[]; firstBuiltIn: number; creating: boolean }
   | { kind: 'created'; code: string };
 
 /**
- * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets,
- * create the room, keep its hostToken on this device, then ask where the Screen is.
+ * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets or a
+ * built-in one (DECISIONS F54), create the room, keep its hostToken on this device, then ask where the Screen is.
  */
 export function HostGame() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -26,26 +26,27 @@ export function HostGame() {
     setError(null);
     try {
       // Dexie loads only once a host opens the picker, not on every player's phone.
-      const { listSets } = await import('../lib/db.js');
-      const sets = await listSets();
+      const { listHostableSets } = await import('../lib/db.js');
+      const { mine, builtIn } = await listHostableSets();
+      const sets = [...mine, ...builtIn];
       setSelectedId(sets[0]?.id ?? null);
-      setStatus({ kind: 'picking', sets, creating: false });
+      setStatus({ kind: 'picking', sets, firstBuiltIn: mine.length, creating: false });
     } catch {
       setError('Could not load the saved sets in this browser.');
       setStatus({ kind: 'idle' });
     }
   }
 
-  async function create(sets: QuestionSet[]) {
-    const set = sets.find((s) => s.id === selectedId);
+  async function create(picking: Extract<Status, { kind: 'picking' }>) {
+    const set = picking.sets.find((s) => s.id === selectedId);
     if (!set) return;
-    setStatus({ kind: 'picking', sets, creating: true });
+    setStatus({ ...picking, creating: true });
     setError(null);
     try {
       setStatus({ kind: 'created', code: await hostSet(set) });
     } catch (caught) {
       setError((caught as Error).message);
-      setStatus({ kind: 'picking', sets, creating: false });
+      setStatus({ ...picking, creating: false });
     }
   }
 
@@ -71,48 +72,41 @@ export function HostGame() {
     );
   }
 
-  const { sets, creating } = status;
+  const { sets, firstBuiltIn, creating } = status;
 
   return (
     <section aria-labelledby="pick-heading" className={`flex flex-col gap-4 ${CARD}`}>
       <h2 id="pick-heading" className="font-display text-3xl">
         Pick a question set
       </h2>
-      {sets.length === 0 ? (
-        <p className="text-lg text-muted">
-          No saved sets yet.{' '}
-          <Link to="/sets" className="text-ink underline underline-offset-4">
-            Make one in My question sets
-          </Link>
-          .
-        </p>
-      ) : (
-        <fieldset className="flex max-h-80 flex-col gap-2 overflow-y-auto">
-          <legend className="sr-only">Question set</legend>
-          {sets.map((set) => (
-            <label
-              key={set.id}
-              className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent"
-            >
-              <input
-                type="radio"
-                name="host-set"
-                value={set.id}
-                checked={selectedId === set.id}
-                onChange={() => setSelectedId(set.id)}
-                className="size-5 accent-accent"
-              />
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-lg">{set.title}</span>
-                <span className="text-sm text-muted">{questionCount(set.questions.length)}</span>
+      <fieldset className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+        <legend className="sr-only">Question set</legend>
+        {sets.map((set, index) => (
+          <label
+            key={set.id}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-edge bg-bg px-4 py-3 has-checked:border-accent"
+          >
+            <input
+              type="radio"
+              name="host-set"
+              value={set.id}
+              checked={selectedId === set.id}
+              onChange={() => setSelectedId(set.id)}
+              className="size-5 accent-accent"
+            />
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-lg">{set.title}</span>
+              <span className="text-sm text-muted">
+                {questionCount(set.questions.length)}
+                {index >= firstBuiltIn && ' · Built-in'}
               </span>
-            </label>
-          ))}
-        </fieldset>
-      )}
+            </span>
+          </label>
+        ))}
+      </fieldset>
       <button
         type="button"
-        onClick={() => void create(sets)}
+        onClick={() => void create(status)}
         disabled={creating || selectedId === null}
         className={`${BUTTON_PRIMARY} py-5 text-2xl`}
       >

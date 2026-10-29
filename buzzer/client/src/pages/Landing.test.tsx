@@ -79,12 +79,10 @@ describe('Landing', () => {
     expect(screen.queryByTestId('path')).toBeNull();
   });
 
-  it('offers Host a game and links My question sets to /sets', () => {
+  it('offers Host a game and links Question sets to /sets', () => {
     renderLanding();
     expect(screen.getByRole('button', { name: 'Host a game' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'My question sets' }).getAttribute('href')).toBe(
-      '/sets',
-    );
+    expect(screen.getByRole('link', { name: 'Question sets' }).getAttribute('href')).toBe('/sets');
   });
 });
 
@@ -97,8 +95,14 @@ describe('Host a game', () => {
     return fetch;
   }
 
-  const seededSample = { ...SAMPLE_SET, createdAt: FIRST_VISIT, updatedAt: FIRST_VISIT };
-  const quiz = { ...seededSample, id: 'quiz', title: 'Pub quiz', updatedAt: FIRST_VISIT + 1 };
+  const quiz = {
+    ...SAMPLE_SET,
+    id: 'quiz',
+    title: 'Pub quiz',
+    questions: SAMPLE_SET.questions.filter((q) => q.imageId === undefined),
+    createdAt: FIRST_VISIT,
+    updatedAt: FIRST_VISIT + 1,
+  };
 
   async function openPicker() {
     fireEvent.click(screen.getByRole('button', { name: 'Host a game' }));
@@ -112,15 +116,15 @@ describe('Host a game', () => {
     return screen.findByRole('heading', { name: 'Room created' });
   }
 
-  it('Host a game lists every saved set, the last edited one picked', async () => {
+  it("Host a game lists this browser's sets, then the built-ins, the last edited one picked", async () => {
     await db.sets.add(quiz);
     renderLanding();
     await openPicker();
     const radios = screen.getAllByRole<HTMLInputElement>('radio');
     expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
-      'Pub quiz10 questions',
-      `${SAMPLE_SET.title}10 questions`,
-      ...STARTER_SETS.map((s) => `${s.title}15 questions`),
+      'Pub quiz8 questions',
+      `${SAMPLE_SET.title}10 questions · Built-in`,
+      ...STARTER_SETS.map((s) => `${s.title}15 questions · Built-in`),
     ]);
     expect(radios.map((r) => r.checked)).toEqual([true, ...STARTER_SETS.map(() => false), false]);
   });
@@ -130,28 +134,40 @@ describe('Host a game', () => {
     const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     renderLanding();
     await openPicker();
-    fireEvent.click(screen.getByRole('radio', { name: /^Sample: General Knowledge/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
     await screen.findByRole('heading', { name: 'Room created' });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('/api/rooms');
-    expect(JSON.parse(init.body as string)).toEqual({
-      set: seededSample,
-      settings: DEFAULT_SETTINGS,
-    });
+    expect(JSON.parse(init.body as string)).toEqual({ set: quiz, settings: DEFAULT_SETTINGS });
   });
 
-  it('with no saved sets, the picker links to My question sets and cannot create', async () => {
-    await db.sets.clear();
+  it('with no saved sets, the picker lists the built-ins and hosts the sample with its pictures', async () => {
+    const fetch = vi.fn((url: string) =>
+      Promise.resolve(
+        url === '/api/rooms'
+          ? Response.json({ code: 'WXYZ', hostToken }, { status: 201 })
+          : Response.json({ ok: true }, { status: 201 }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetch);
     renderLanding();
     await openPicker();
-    expect(screen.getByText(/No saved sets yet/)).toBeTruthy();
+    expect(screen.getAllByRole('radio')).toHaveLength(1 + STARTER_SETS.length);
     expect(
-      screen.getByRole('link', { name: 'Make one in My question sets' }).getAttribute('href'),
-    ).toBe('/sets');
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create room' }).disabled).toBe(
-      true,
-    );
+      screen.getByRole<HTMLInputElement>('radio', { name: /^Sample: General Knowledge/ }).checked,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await screen.findByRole('heading', { name: 'Room created' });
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      '/api/rooms',
+      '/api/rooms/WXYZ/images/sample-img-hexagon',
+      '/api/rooms/WXYZ/images/sample-img-flag',
+    ]);
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      set: SAMPLE_SET,
+      settings: DEFAULT_SETTINGS,
+    });
   });
 
   it('an unfinished draft is refused with what to fix, before any request', async () => {

@@ -12,6 +12,27 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F54 — Built-in sets library (2026-10-29)
+**What changed:**
+- `shared/builtInSets.ts`: `BUILT_IN_SETS` (`SAMPLE_SET`, then the 60 `STARTER_SETS`) and `builtInSet(id)`, read from the bundle. New browsers no longer seed anything; `populate` and the v2 starter upgrade are gone.
+- Dexie `version(3)` deletes each stored copy of a built-in whose title, category, difficulty and questions equal the bundled set. A pre-F53 copy without either field counts as unedited. An edited copy stays in My sets under a fresh id with its dates. The sample's pictures are deleted when no remaining set uses them; the host's own sets are untouched.
+- `/sets` has **Built-in** and **My sets** tabs. It opens on My sets when this browser has a set, else Built-in. Built-in cards offer **Duplicate to My sets** (a "(copy)" with its own pictures, then shows My sets) and **Host this set**. My sets keeps every action.
+- **Host a game** and **New game** list My sets, then the built-ins marked "· Built-in" (`listHostableSets()`). Hosting the sample uploads its pictures from `sampleImages()` (`hostRoom.ts`, `imagesOf`), not IndexedDB. The editor's category suggestions include the built-in categories.
+- Tests: `db.test.ts` (built-ins, Duplicate to My sets, 6 v3-upgrade cases from v2 and v1 databases), `hostRoom.test.ts` +1, `Sets.test.tsx` (8 tab and built-in tests; the My sets tests now use a stored set), `NewGamePicker.test.tsx` +1, `Landing.test.tsx` (order, built-in sample hosted with its pictures), `SetEditor.test.tsx` (built-in categories). 1268 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-29 for F54 (v3 clean-up rules; image loader by id; tabs, "(copy)" and the "Question sets" rename; picker order and the Built-in label; built-in category suggestions).
+
+**Notes for next session:**
+- Playtest (Playwright, `/sets` and `/`): fresh database held 0 sets and 0 images, and `/sets` opened on Built-in with only Duplicate to My sets and Host this set per card. Duplicating the sample then reloading opened My sets with the copy and all five actions. Host a game listed My sets first, then the built-ins, each marked Built-in. Hosting the built-in sample posted the room, then both `sample-img-*` uploads (201). No console errors. The playtester's snapshot showed 49 built-in cards; `Sets.test.tsx` asserts all 61 render, so that was probably a truncated snapshot.
+- The v3 upgrade has not been run against a real browser's v2 database, only fake-indexeddb in `db.test.ts`. On Kim's own browser, `/sets` after this build should show only edited copies in My sets.
+- Card titles and the pickers still show no category or difficulty; F55 adds search, chips and grouping.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets`. A browser seeded before today loses its untouched starters and sample on load; a fresh profile shows My sets empty and opens on **Built-in**.
+2. On Built-in, tap **Duplicate to My sets** on any set: My sets opens with "<title> (copy)", which Open edits.
+3. Tap **Host this set** on "Sample: General Knowledge", then **Use this device as the Screen**, join from a phone and play to question 4: the hexagon shows.
+4. On a phone, open `http://<laptop-LAN-IP>:5173`, tap **Host a game**: your sets come first, then the built-ins marked Built-in.
+
 ## F53 — Set category and difficulty fields (2026-10-29)
 **What changed:**
 - `QuestionSet` has optional `category` (1–40, trimmed by the schema; `SET_CATEGORY_MAX`) and `difficulty` (`'easy' | 'medium' | 'hard'`; `DIFFICULTIES` in `shared/constants.ts`). `questionSetSchema`, and so the set file schema, room creation and new game, accept both and still accept sets without them. `schemaVersion` stays 1.

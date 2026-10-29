@@ -8,8 +8,11 @@ export const SAMPLE_HEXAGON_ID = 'sample-img-hexagon';
 /** The flag of Japan, for question 7, which has no text. */
 export const SAMPLE_FLAG_ID = 'sample-img-flag';
 
+/** The sample's set id: hosting it takes its pictures from the bundle (DECISIONS F54). */
+export const SAMPLE_SET_ID = 'sample-general-knowledge';
+
 export const SAMPLE_SET: QuestionSet = {
-  id: 'sample-general-knowledge',
+  id: SAMPLE_SET_ID,
   title: 'Sample: General Knowledge',
   questions: [
     {

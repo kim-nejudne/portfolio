@@ -8,6 +8,7 @@ import {
   QUESTION_TEXT_MAX,
   SET_CATEGORY_MAX,
 } from '../../../shared/constants.js';
+import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { AUTOSAVE_DELAY_MS } from '../lib/autosave.js';
 import { db, getSet } from '../lib/db.js';
@@ -161,7 +162,7 @@ describe('Set editor /sets/:setId', () => {
     expect(saved).not.toHaveProperty('difficulty');
   });
 
-  it('suggests the categories already in use in this browser', async () => {
+  it('suggests the categories in use in this browser and the built-in ones, each once', async () => {
     const other = (id: string, category: string): QuestionSet => ({
       id,
       title: id,
@@ -171,17 +172,23 @@ describe('Set editor /sets/:setId', () => {
       schemaVersion: 1,
       category,
     });
-    await db.sets.bulkAdd([other('x', 'Science'), other('y', 'Animals'), other('z', 'Science')]);
+    await db.sets.bulkAdd([
+      other('x', 'Board games'),
+      other('y', 'Animals'),
+      // Listed last (oldest), so the first spelling wins.
+      { ...other('z', 'board games'), updatedAt: 0 },
+    ]);
     await seed([q('a')]);
     await renderEditor();
     const input = screen.getByLabelText('Category (optional)');
     const list = document.getElementById(input.getAttribute('list')!)!;
+    const builtIn = [...new Set(STARTER_SETS.map((set) => set.category!))];
     await waitFor(() =>
-      expect([...list.querySelectorAll('option')].map((o) => o.value)).toEqual([
-        'Animals',
-        'Science',
-      ]),
+      expect([...list.querySelectorAll('option')].map((o) => o.value)).toEqual(
+        ['Board games', ...builtIn].sort((a, b) => a.localeCompare(b)),
+      ),
     );
+    expect(builtIn).toHaveLength(20);
   });
 
   it('edits survive closing and reopening the editor', async () => {

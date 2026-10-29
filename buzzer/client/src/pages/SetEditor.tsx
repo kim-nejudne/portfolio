@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { type ClipboardEvent, type DragEvent, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import {
   ANSWER_MAX,
   DIFFICULTIES,
@@ -122,9 +123,10 @@ function Editor({ setId }: { setId: string }) {
       },
       () => live && setLoad({ state: 'error' }),
     );
-    // Without suggestions the field still takes any category, so a failed read is ignored.
+    // Without suggestions the field still takes any category, so a failed read is ignored. The
+    // built-in sets' categories are suggested too, though they are not stored (DECISIONS F54).
     listSets().then(
-      (sets) => live && setCategories(categoriesInUse(sets)),
+      (sets) => live && setCategories(categoriesInUse([...sets, ...BUILT_IN_SETS])),
       () => {},
     );
     return () => {
@@ -354,7 +356,7 @@ function Editor({ setId }: { setId: string }) {
 function BackLink() {
   return (
     <Link to="/sets" className="text-lg text-muted underline underline-offset-4 hover:text-ink">
-      ← My question sets
+      ← Question sets
     </Link>
   );
 }
