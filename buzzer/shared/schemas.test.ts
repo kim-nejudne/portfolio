@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
+  BUZZ_SECONDS_CHOICES,
   DEFAULT_SETTINGS,
   HOST_NOTES_MAX,
   ID_MAX,
@@ -198,6 +199,24 @@ describe('createRoomBodySchema', () => {
       false,
     );
   });
+
+  it('accepts every buzz time choice and rejects any other or a missing one', () => {
+    const body = (buzzSeconds: unknown) => ({
+      set: set(),
+      settings: { ...DEFAULT_SETTINGS, buzzSeconds },
+    });
+    for (const seconds of BUZZ_SECONDS_CHOICES) {
+      expect(createRoomBodySchema.safeParse(body(seconds)).success, String(seconds)).toBe(true);
+    }
+    for (const seconds of [1, 3, 25, 60, -5, 7.5, '10', null]) {
+      expect(createRoomBodySchema.safeParse(body(seconds)).success, String(seconds)).toBe(false);
+    }
+    const withoutTimer: Partial<RoomSettings> = { ...DEFAULT_SETTINGS };
+    delete withoutTimer.buzzSeconds;
+    expect(createRoomBodySchema.safeParse({ set: set(), settings: withoutTimer }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('newGameBodySchema', () => {
@@ -359,6 +378,16 @@ describe('client event payloads', () => {
     }
     for (const answerSeconds of [2, 6, 11, 30, 5.5, '3']) {
       expect(settings.safeParse({ answerSeconds }).success, String(answerSeconds)).toBe(false);
+    }
+  });
+
+  it('accepts a buzz time from the choices only', () => {
+    const settings = clientPayloadSchemas['host:settings'];
+    for (const buzzSeconds of BUZZ_SECONDS_CHOICES) {
+      expect(settings.safeParse({ buzzSeconds }).success, String(buzzSeconds)).toBe(true);
+    }
+    for (const buzzSeconds of [3, 7, 25, 45, 10.5, '5']) {
+      expect(settings.safeParse({ buzzSeconds }).success, String(buzzSeconds)).toBe(false);
     }
   });
 

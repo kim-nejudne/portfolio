@@ -61,6 +61,7 @@ function finished(overrides: Partial<Room> = {}): Room {
         autoOpenBuzzers: false,
         scoreboardEvery: 3,
         answerSeconds: 5,
+        buzzSeconds: 10,
       },
       ...overrides,
     }),
@@ -88,6 +89,7 @@ describe('reduce: host:newGame', () => {
       reopenAt: null,
       undo: null,
       answerTimer: null,
+      buzzTimer: null,
       showScoreboard: false,
       players: {
         p1: { ...room.players.p1, score: 0 },

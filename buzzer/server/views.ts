@@ -5,6 +5,7 @@
 import type {
   AnswerTimerView,
   BuzzGap,
+  BuzzTimerView,
   HostView,
   LobbyPlayer,
   Player,
@@ -86,6 +87,7 @@ function playerView(room: Room, playerId: string): PlayerView {
       .filter((j) => j.questionIndex === room.questionIndex && j.playerId === playerId)
       .reduce((sum, j) => sum + j.pointsDelta, 0),
     answerTimer: answerTimerView(room),
+    buzzTimer: buzzTimerView(room),
     lobby:
       room.phase === 'LOBBY' ? byJoinOrder(Object.values(room.players)).map(lobbyPlayer) : null,
     ...(answer !== undefined && { answer }),
@@ -123,12 +125,18 @@ function shared(room: Room) {
     canUndo: canUndo(room),
     scorerId: scorerId(room),
     answerTimer: answerTimerView(room),
+    buzzTimer: buzzTimerView(room),
   };
 }
 
 /** Seconds and whether time is up, never `endsAt`: each device counts down from the snapshot. */
 function answerTimerView({ answerTimer }: Room): AnswerTimerView | null {
   return answerTimer && { seconds: answerTimer.seconds, up: answerTimer.up };
+}
+
+/** Seconds only, never `endsAt`, as for the answer timer. */
+function buzzTimerView({ buzzTimer }: Room): BuzzTimerView | null {
+  return buzzTimer && { seconds: buzzTimer.seconds };
 }
 
 /**

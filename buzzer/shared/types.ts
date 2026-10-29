@@ -76,11 +76,15 @@ export interface UndoPoint {
 /** Seconds the buzz winner has to answer; 0 turns the answer timer off. */
 export type AnswerSeconds = 0 | 3 | 5 | 7 | 10;
 
+/** Seconds the players have to buzz once the buzzers open; 0 turns the buzz timer off. */
+export type BuzzSeconds = 0 | 5 | 10 | 15 | 20 | 30;
+
 export interface RoomSettings {
   wrongPenalty: boolean; // default false
   autoOpenBuzzers: boolean; // default false
   scoreboardEvery: number; // default 5, 0 = never auto
   answerSeconds: AnswerSeconds; // default 0 = off
+  buzzSeconds: BuzzSeconds; // default 0 = off
 }
 
 /** The buzz winner's answer time. `endsAt` is wall-clock ms and never leaves the server. */
@@ -88,6 +92,12 @@ export interface AnswerTimer {
   seconds: number;
   endsAt: number;
   up: boolean;
+}
+
+/** The time left to buzz in this opening. `endsAt` is wall-clock ms and never leaves the server. */
+export interface BuzzTimer {
+  seconds: number;
+  endsAt: number;
 }
 
 export interface Room {
@@ -108,6 +118,7 @@ export interface Room {
   reopenAt: number | null; // wall-clock ms; set in BUZZED while a wrong answer waits to reopen
   undo: UndoPoint | null; // the last judgement of this question can be undone
   answerTimer: AnswerTimer | null; // set in BUZZED while the winner's answer time runs
+  buzzTimer: BuzzTimer | null; // set in OPEN while the buzz time runs
   showScoreboard: boolean; // overlay, independent of phase
   createdAt: number;
   lastActivityAt: number;
@@ -145,6 +156,9 @@ export interface ScreenQuestion {
 /** The answer timer as clients see it: the clients count down `seconds` themselves. */
 export type AnswerTimerView = Pick<AnswerTimer, 'seconds' | 'up'>;
 
+/** The buzz timer as clients see it: the clients count down `seconds` themselves. */
+export type BuzzTimerView = Pick<BuzzTimer, 'seconds'>;
+
 interface SharedRoomView {
   code: string;
   title: string;
@@ -165,6 +179,7 @@ interface SharedRoomView {
   /** The player judged correct on the current question, for the reveal; null if nobody was. */
   scorerId: string | null;
   answerTimer: AnswerTimerView | null;
+  buzzTimer: BuzzTimerView | null;
 }
 
 /** Everything except answers, host notes and token data. */
@@ -213,6 +228,7 @@ export interface PlayerView {
   /** Points this player gained or lost on the current question. */
   pointsThisQuestion: number;
   answerTimer: AnswerTimerView | null;
+  buzzTimer: BuzzTimerView | null;
   /** Every player in join order, in LOBBY only; `null` in every other phase (DECISIONS F59). */
   lobby: LobbyPlayer[] | null;
   answer?: string;
@@ -231,6 +247,7 @@ export type Fx =
   | { kind: 'correct'; playerId: string; points: number }
   | { kind: 'wrong'; playerId: string }
   | { kind: 'timeUp'; playerId: string }
+  | { kind: 'buzzTimeUp' }
   | { kind: 'join'; playerId: string }
   | { kind: 'practice'; playerId: string };
 

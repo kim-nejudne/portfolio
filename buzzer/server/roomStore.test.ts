@@ -32,6 +32,7 @@ function makeRoom(code: string, lastActivityAt = T0): Room {
     reopenAt: null,
     undo: null,
     answerTimer: null,
+    buzzTimer: null,
     showScoreboard: false,
     createdAt: T0,
     lastActivityAt,

@@ -180,6 +180,55 @@ describe('socket gateway: answer timer', () => {
   });
 });
 
+describe('socket gateway: buzz timer', () => {
+  it('a host:settings buzz time runs out on the next opening, reveals with no points and tells every device', async () => {
+    const { h, screen, host, a, b } = await openTable();
+    expect(await host.emitWithAck('host:settings', { buzzSeconds: 5 })).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:reveal', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:next', {})).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    const fxs = [screen, host, a, b].map((c) => record<Fx>(c, 'fx'));
+    const states = record<View>(a, 'state');
+
+    expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
+    await flush(a);
+    expect(states.at(-1)).toMatchObject({ phase: 'OPEN', buzzTimer: { seconds: 5 } });
+
+    vi.advanceTimersByTime(5000 - 1);
+    expect(h.rooms.get('ABCD')!.phase).toBe('OPEN');
+    vi.advanceTimersByTime(1);
+    await Promise.all([screen, host, a, b].map(flush));
+
+    for (const seen of fxs) expect(seen).toEqual([{ kind: 'buzzTimeUp' }]);
+    expect(states.at(-1)).toMatchObject({ phase: 'REVEAL', buzzTimer: null, me: { score: 0 } });
+    expect(h.rooms.get('ABCD')!.judgements).toEqual([]);
+  });
+
+  it('a buzz before the time is up stops the timer: no reveal when it would have fired', async () => {
+    const { h, screen, host, a, b } = await openTable();
+    expect(await host.emitWithAck('host:settings', { buzzSeconds: 5 })).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:reveal', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:next', {})).toEqual({ ok: true });
+    expect(await host.emitWithAck('host:open', {})).toEqual({ ok: true });
+    await Promise.all([screen, host, a, b].map(flush));
+    const fxs = record<Fx>(screen, 'fx');
+
+    vi.advanceTimersByTime(4000);
+    await buzz(a);
+    vi.advanceTimersByTime(10_000);
+    await flush(screen);
+
+    expect(h.rooms.get('ABCD')!).toMatchObject({ phase: 'BUZZED', winnerId: 'a', buzzTimer: null });
+    expect(fxs.map((fx) => fx.kind)).toEqual(['buzz']);
+  });
+
+  it('rejects a buzz time that is not one of the choices', async () => {
+    const { host } = await openTable();
+    const ack = await host.emitWithAck('host:settings', { buzzSeconds: 25 as never });
+    expect(ack.ok).toBe(false);
+  });
+});
+
 describe('socket gateway: buzz rate limit', () => {
   it('rejects the 6th buzz in a second from one socket, and allows it again after the second', async () => {
     const { h, a, b } = await openTable();

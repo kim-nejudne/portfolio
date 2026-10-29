@@ -54,6 +54,7 @@ function hostView(overrides: Partial<HostView> = {}): HostView {
     canUndo: false,
     scorerId: null,
     answerTimer: null,
+    buzzTimer: null,
     ...overrides,
   };
 }

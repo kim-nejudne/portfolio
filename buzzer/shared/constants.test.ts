@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANSWER_SECONDS_CHOICES,
   APP_NAME,
+  BUZZ_SECONDS_CHOICES,
   DEFAULT_PORT,
   DEFAULT_SETTINGS,
   PLAYER_PALETTE,
@@ -28,13 +29,18 @@ describe('shared constants', () => {
     expect(ROOM_CODE_ALPHABET).toHaveLength(23);
   });
 
-  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions and no answer timer', () => {
+  it('defaults to no penalty, manual buzzer opening, a scoreboard every 5 questions and no answer or buzz timer', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       wrongPenalty: false,
       autoOpenBuzzers: false,
       scoreboardEvery: 5,
       answerSeconds: 0,
+      buzzSeconds: 0,
     });
+  });
+
+  it('offers buzz times Off, 5, 10, 15, 20 and 30 s in stepper order', () => {
+    expect(BUZZ_SECONDS_CHOICES).toEqual([0, 5, 10, 15, 20, 30]);
   });
 
   it('offers answer times Off, 3, 5, 7 and 10 s in stepper order', () => {

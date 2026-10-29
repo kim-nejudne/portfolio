@@ -40,15 +40,16 @@ const UNDO_PHASES: readonly Phase[] = ['OPEN', 'COLLECTING', 'BUZZED', 'REVEAL']
 
 /**
  * A scheduled action. The gateway dispatches it when its timer fires; it carries the question
- * index and opening counter so the reducer can ignore it once the room has moved on. `reopen`
- * and `answerTimeUp` also carry their `at`, which must still equal `room.reopenAt` or
- * `room.answerTimer.endsAt`: an undo and a second judgement reuse the index and counter
- * (DECISIONS F20).
+ * index and opening counter so the reducer can ignore it once the room has moved on. `reopen`,
+ * `answerTimeUp` and `buzzTimeUp` also carry their `at`, which must still equal `room.reopenAt`,
+ * `room.answerTimer.endsAt` or `room.buzzTimer.endsAt`: an undo and a second judgement reuse the
+ * index and counter (DECISIONS F20).
  */
 export type TimerAction =
   | { type: 'windowClosed'; questionIndex: number; openingCounter: number }
   | { type: 'reopen'; questionIndex: number; openingCounter: number; at: number }
-  | { type: 'answerTimeUp'; questionIndex: number; openingCounter: number; at: number };
+  | { type: 'answerTimeUp'; questionIndex: number; openingCounter: number; at: number }
+  | { type: 'buzzTimeUp'; questionIndex: number; openingCounter: number; at: number };
 
 /**
  * Everything the reducer accepts. Client events arrive here after the gateway has checked auth
@@ -98,7 +99,33 @@ export type ReduceResult =
 export function reduce(room: Room, action: Action, now: number): ReduceResult {
   const result = apply(room, action, now);
   if (!result.ok || result.room === room) return result;
-  return { ...result, room: { ...result.room, lastActivityAt: now } };
+  return withBuzzTimer(room, { ...result, room: { ...result.room, lastActivityAt: now } }, now);
+}
+
+/**
+ * Keeps `buzzTimer` in step with the openings, so every path that opens the buzzers (host:open,
+ * auto-open, a reopen, a kick that empties the window) starts one in a single place. A new opening
+ * starts the countdown when `buzzSeconds` is on; leaving OPEN, the first buzz included, clears it.
+ * Within the same opening it runs on, so a settings change waits for the next one (DECISIONS F63).
+ */
+function withBuzzTimer(
+  before: Room,
+  result: Extract<ReduceResult, { ok: true }>,
+  now: number,
+): ReduceResult {
+  const { room } = result;
+  if (room.phase !== 'OPEN')
+    return room.buzzTimer ? done({ ...room, buzzTimer: null }, result.effects) : result;
+  if (room.openingCounter === before.openingCounter && before.phase === 'OPEN') return result;
+
+  const seconds = room.settings.buzzSeconds;
+  if (seconds === 0) return done({ ...room, buzzTimer: null }, result.effects);
+  const at = now + seconds * 1000;
+  const { questionIndex, openingCounter } = room;
+  return done({ ...room, buzzTimer: { seconds, endsAt: at } }, [
+    ...result.effects,
+    { type: 'schedule', at, action: { type: 'buzzTimeUp', questionIndex, openingCounter, at } },
+  ]);
 }
 
 function apply(room: Room, action: Action, now: number): ReduceResult {
@@ -121,6 +148,8 @@ function apply(room: Room, action: Action, now: number): ReduceResult {
       return answerTimeUp(room, action);
     case 'reopen':
       return reopen(room, action);
+    case 'buzzTimeUp':
+      return buzzTimeUp(room, action);
     case 'host:start':
       return hostStart(room);
     case 'host:open':
@@ -348,6 +377,23 @@ function answerTimeUp(
   ]);
 }
 
+/**
+ * Nobody buzzed in time: the answer is shown with no points, as after `host:reveal`. Stale unless
+ * the room is still in that same opening, waiting on that same timer (DECISIONS F63).
+ */
+function buzzTimeUp(
+  room: Room,
+  { questionIndex, openingCounter, at }: Extract<TimerAction, { type: 'buzzTimeUp' }>,
+): ReduceResult {
+  const fresh =
+    room.phase === 'OPEN' &&
+    room.buzzTimer?.endsAt === at &&
+    room.questionIndex === questionIndex &&
+    room.openingCounter === openingCounter;
+  if (!fresh) return done(room);
+  return done(revealed(room), [{ type: 'fx', fx: { kind: 'buzzTimeUp' } }]);
+}
+
 function hostJudge(
   room: Room,
   { result }: Extract<Action, { type: 'host:judge' }>,
@@ -555,7 +601,8 @@ function hostSettings(
   room: Room,
   { settings }: Extract<Action, { type: 'host:settings' }>,
 ): ReduceResult {
-  const { wrongPenalty, autoOpenBuzzers, scoreboardEvery, answerSeconds } = room.settings;
+  const { wrongPenalty, autoOpenBuzzers, scoreboardEvery, answerSeconds, buzzSeconds } =
+    room.settings;
   return done({
     ...room,
     settings: {
@@ -563,6 +610,7 @@ function hostSettings(
       autoOpenBuzzers: settings.autoOpenBuzzers ?? autoOpenBuzzers,
       scoreboardEvery: settings.scoreboardEvery ?? scoreboardEvery,
       answerSeconds: settings.answerSeconds ?? answerSeconds,
+      buzzSeconds: settings.buzzSeconds ?? buzzSeconds,
     },
   });
 }
@@ -610,8 +658,12 @@ function hostOpen(room: Room): ReduceResult {
 
 function hostReveal(room: Room): ReduceResult {
   if (!QUESTION_PHASES.includes(room.phase)) return fail(WRONG_PHASE_ERROR);
-  // No points; an unjudged buzz is discarded. Lockouts stay until the question changes.
-  return done({
+  return done(revealed(room));
+}
+
+/** → REVEAL with no points; an unjudged buzz is discarded. Lockouts stay until the question changes. */
+function revealed(room: Room): Room {
+  return {
     ...room,
     phase: 'REVEAL',
     buzzes: [],
@@ -620,7 +672,7 @@ function hostReveal(room: Room): ReduceResult {
     reopenAt: null,
     answerTimer: null,
     showScoreboard: false,
-  });
+  };
 }
 
 function hostNext(room: Room): ReduceResult {

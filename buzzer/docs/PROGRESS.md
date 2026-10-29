@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F63 — Buzz time limit: server (2026-10-29)
+**What changed:**
+- Shared: `BuzzSeconds` and `BUZZ_SECONDS_CHOICES` (0, 5, 10, 15, 20, 30), `RoomSettings.buzzSeconds` (default 0, in `DEFAULT_SETTINGS`), zod in the create body and `host:settings`. `Room.buzzTimer {seconds, endsAt}`, `BuzzTimerView {seconds}` on the Screen, Host and Player views (no `endsAt`), `Fx {kind: 'buzzTimeUp'}`.
+- Reducer: new timer action `buzzTimeUp {questionIndex, openingCounter, at}`. `withBuzzTimer`, a post-step in `reduce`, starts the timer and schedules the action on every new opening (host:open, auto-open, reopen, an emptied window) and clears it whenever the room leaves OPEN, so the first buzz stops it. A fresh `buzzTimeUp` goes to REVEAL through `revealed()`, now shared with `host:reveal`, and emits `fx buzzTimeUp`. `hostSettings` merges `buzzSeconds`.
+- Client, compile-level only: `soundForFx` maps `buzzTimeUp` to `timeUp`; view fixtures and the editor preview carry `buzzTimer: null`.
+- Tests: new `reducer.buzztimer.test.ts` (29: start, each choice, off, reopen restarts, auto-open on start/next/prev, emptied window, unchanged in the same opening, settings wait, buzz clears, reveal/end/prev/undo clear, time up to REVEAL with no points, lockouts kept, overlay hidden, seven stale cases), `sockets.buzz.test.ts` +3 (fires through the gateway to every device, a buzz stops it, bad value refused), `views.test.ts` +2, `schemas.test.ts` +2, `constants.test.ts` +1, `sounds.test.ts` +1; settings fixtures in `reducer.admin`, `reducer.newgame`, `roomStore` gained the new fields. 1507 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-29 for F63 (one post-step keeps the timer in step with openings; freshness by `at`, time up shares the reveal path, sound mapped early).
+
+**Notes for next session:**
+- No UI: the Settings stepper, the countdowns and the reveal animation are F64. The Screen already plays `timeUp.wav` on `fx buzzTimeUp`, so F64's sound bullet only needs a test through the Screen.
+- `useAnswerCountdown` keys on `questionIndex:openingCounter`; each opening's buzz timer has its own counter, so the same key works for a generalised hook.
+- No playtest (server only). Main `index` chunk 468.88 → 468.98 kB (141.92 kB gzip).
+
+**How to try it:** `npm test -- server/reducer.buzztimer.test.ts server/sockets.buzz.test.ts`. No control sets `buzzSeconds` until F64.
+
 ## F62 — Screen sound: mute and volume (2026-10-29)
 **What changed:**
 - `sounds.ts`: `SoundLevel` (`on`, `quiet`, `muted`), `SOUND_LEVEL_VOLUME` (1, 0.4, 0), `SOUND_LEVEL_LABEL`, `getSoundLevel` (localStorage `buzzr:soundLevel`, guarded, in-memory fallback), `cycleSoundLevel`, `subscribeSoundLevel`. `startSounds` sets `Howler.volume` from the stored level before creating any Howl; a later change sets it at once. New `useSoundLevel` hook (`useSyncExternalStore`).

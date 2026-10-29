@@ -436,6 +436,32 @@ describe('toView: player', () => {
   });
 });
 
+describe('toView: buzzTimer', () => {
+  const ENDS_AT = T0 + 876_543;
+
+  it('gives every role the seconds, never endsAt', () => {
+    const room = midGame('OPEN', { buzzTimer: { seconds: 20, endsAt: ENDS_AT } });
+    const views = [
+      toView(room, 'screen'),
+      toView(room, 'host'),
+      ...Object.keys(room.players).map((id) => toView(room, 'player', id)),
+    ];
+    for (const view of views) {
+      expect(view.buzzTimer).toEqual({ seconds: 20 });
+      const json = JSON.stringify(view);
+      expect(json).not.toContain('endsAt');
+      expect(json).not.toContain(String(ENDS_AT));
+    }
+  });
+
+  it('is null in every view when no timer runs', () => {
+    const room = midGame('OPEN');
+    expect(toView(room, 'screen').buzzTimer).toBeNull();
+    expect(toView(room, 'host').buzzTimer).toBeNull();
+    expect(toView(room, 'player', 'p2').buzzTimer).toBeNull();
+  });
+});
+
 describe('toView: answerTimer', () => {
   const ENDS_AT = T0 + 987_654;
   const timed = (up: boolean) =>

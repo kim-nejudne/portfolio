@@ -172,15 +172,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F62 Screen sound: mute and volume
 
-- [ ] F63 Buzz time limit: server
-  - Spec: Game flow and state machine (Transitions); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F52
-  - Done when:
-    - `RoomSettings.buzzSeconds: 0 | 5 | 10 | 15 | 20 | 30` (default 0 = off), in `DEFAULT_SETTINGS`, the create body and `host:settings`
-    - Each opening (first open and every reopen after a wrong answer) with `buzzSeconds` > 0 sets `Room.buzzTimer {seconds, endsAt}` and schedules `buzzTimeUp {questionIndex, openingCounter, at}`
-    - A fresh `buzzTimeUp` in OPEN goes to REVEAL with no points and emits `fx {kind: 'buzzTimeUp'}`; a stale one (moved on, COLLECTING, judged, other opening) is ignored. The first buzz clears the timer
-    - Views carry `buzzTimer {seconds} | null` without `endsAt`
-  - Tests: new `server/reducer.buzztimer.test.ts` (start, reopen restarts, buzz clears, time up to REVEAL, every stale case), `sockets.buzz.test.ts` (fires through the gateway), `views.test.ts`, `schemas.test.ts`
+- [x] F63 Buzz time limit: server
 
 - [ ] F64 Buzz time limit: devices
   - Spec: UI spec by view (Screen view, Player view, Host remote); see DECISIONS, Proposed spec changes (audit)

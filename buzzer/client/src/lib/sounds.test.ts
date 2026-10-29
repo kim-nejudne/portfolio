@@ -69,6 +69,10 @@ describe('sounds', () => {
     expect(soundForFx({ kind: 'practice', playerId: 'p1' })).toBe('practice');
   });
 
+  it('nobody buzzing in time plays the time-up sound', () => {
+    expect(soundForFx({ kind: 'buzzTimeUp' })).toBe('timeUp');
+  });
+
   it('every sound has a file in client/public/sounds', () => {
     // Lists the files without loading them.
     const files = Object.keys(import.meta.glob('../../public/sounds/*.wav')).sort();
