@@ -1,5 +1,6 @@
 // **Export JSON** and **Import JSON** on the set list (Set list; Images). One file carries a whole
 // set: the set's own fields plus `images`, each referenced image once as a base64 data URL.
+// **Export all** writes `{sets: [...]}`, each entry such a set file, and import accepts either.
 
 import { z } from 'zod';
 import { IMAGE_MAX_BYTES, MAX_QUESTIONS_PER_SET } from '../../../shared/constants.js';
@@ -79,13 +80,14 @@ export function exportFileName(title: string): string {
 }
 
 /**
- * The JSON text of one export file. Throws a readable Error for a draft (import accepts only
- * playable sets, so a draft's file could not come back) or for an image gone from this browser.
+ * One set as its file object: the set's fields plus `images`. Throws a readable Error for a draft
+ * (import accepts only playable sets, so a draft's file could not come back) or for an image gone
+ * from this browser.
  */
-export async function exportSetFile(
+async function setFileEntry(
   set: QuestionSet,
   loadImage: (id: string) => Promise<Blob | undefined>,
-): Promise<string> {
+): Promise<QuestionSet & { images: Record<string, string> }> {
   const checked = checkPlayable(set);
   if (!checked.ok) throw new Error(checked.error);
 
@@ -100,7 +102,69 @@ export async function exportSetFile(
     }
     images.set(imageId, await blobToDataUrl(blob));
   }
-  return JSON.stringify({ ...checked.set, images: Object.fromEntries(images) }, null, 2);
+  return { ...checked.set, images: Object.fromEntries(images) };
+}
+
+/** The JSON text of one export file. Throws as `setFileEntry`. */
+export async function exportSetFile(
+  set: QuestionSet,
+  loadImage: (id: string) => Promise<Blob | undefined>,
+): Promise<string> {
+  return JSON.stringify(await setFileEntry(set, loadImage), null, 2);
+}
+
+/** "buzzr-sets-2026-10-29.json", in the browser's own date. */
+export function exportAllFileName(now = Date.now()): string {
+  const date = new Date(now);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `buzzr-sets-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
+}
+
+export interface ExportAll {
+  /** The file's text; meaningful only when `exported` is above 0. */
+  text: string;
+  exported: number;
+  skipped: { title: string; reason: string }[];
+}
+
+/**
+ * **Export all**: every set that `exportSetFile` would write, in order, as `{sets: [...]}` (the
+ * same text as `JSON.stringify(..., null, 2)`). A draft or a set with a missing image is skipped
+ * with its reason, and so is a set that would take the file over `maxBytes`, which import refuses.
+ */
+export async function exportAllFile(
+  sets: readonly QuestionSet[],
+  loadImage: (id: string) => Promise<Blob | undefined>,
+  maxBytes = IMPORT_FILE_MAX_BYTES,
+): Promise<ExportAll> {
+  const encoder = new TextEncoder();
+  const head = '{\n  "sets": [\n';
+  const tail = '\n  ]\n}';
+  let size = encoder.encode(head + tail).length;
+  const entries: string[] = [];
+  const skipped: ExportAll['skipped'] = [];
+  for (const set of sets) {
+    let entry: string;
+    try {
+      // Indented as `JSON.stringify` nests it; JSON strings hold no raw line breaks.
+      entry = JSON.stringify(await setFileEntry(set, loadImage), null, 2).replace(/^/gm, '    ');
+    } catch (caught) {
+      skipped.push({ title: set.title, reason: (caught as Error).message });
+      continue;
+    }
+    const bytes = encoder.encode(entry).length + (entries.length > 0 ? 2 : 0);
+    if (size + bytes > maxBytes) {
+      const limit = Math.round(maxBytes / 1024 / 1024);
+      skipped.push({
+        title: set.title,
+        reason: `It would take the file over ${limit} MB. Export it on its own.`,
+      });
+      continue;
+    }
+    size += bytes;
+    entries.push(entry);
+  }
+  return { text: head + entries.join(',\n') + tail, exported: entries.length, skipped };
 }
 
 /** "schemaVersion" → "Schema version". */
@@ -120,21 +184,32 @@ function describePath(path: readonly PropertyKey[]): string {
   return [sentenceCase(first), ...(second === undefined ? [] : [second]), ...rest].join(' › ');
 }
 
-function refuse(errors: string[]): ParsedSetFile {
+/** The first `IMPORT_ERRORS_SHOWN` errors, then "…and N more." */
+function capErrors(errors: string[]): string[] {
   const shown = errors.slice(0, IMPORT_ERRORS_SHOWN);
   if (errors.length > shown.length) shown.push(`…and ${errors.length - shown.length} more.`);
-  return { ok: false, errors: shown };
+  return shown;
+}
+
+function refuse(errors: string[]): ParsedSetFile {
+  return { ok: false, errors: capErrors(errors) };
+}
+
+function parseJson(text: string): { ok: true; json: unknown } | { ok: false; error: string } {
+  try {
+    return { ok: true, json: JSON.parse(text) };
+  } catch (caught) {
+    return { ok: false, error: `This file isn't valid JSON (${(caught as Error).message}).` };
+  }
 }
 
 /** Reads an import file. Never throws: a bad file gives readable errors, each a path and message. */
 export function parseSetFile(text: string): ParsedSetFile {
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch (caught) {
-    return refuse([`This file isn't valid JSON (${(caught as Error).message}).`]);
-  }
+  const parsed = parseJson(text);
+  return parsed.ok ? parseSetValue(parsed.json) : refuse([parsed.error]);
+}
 
+function parseSetValue(json: unknown): ParsedSetFile {
   const result = setFileSchema.safeParse(json);
   if (!result.success) {
     return refuse(result.error.issues.map((i) => `${describePath(i.path)}: ${i.message}`));
@@ -155,4 +230,51 @@ export function parseSetFile(text: string): ParsedSetFile {
   if (errors.length > 0) return refuse(errors);
   // Images no question references are dropped.
   return { ok: true, set, images: [...images.values()] };
+}
+
+const manyFileSchema = z.object({
+  sets: z.array(z.unknown()).min(1, 'The file has no sets'),
+});
+
+export type ParsedImportFile =
+  | { kind: 'one'; parsed: ParsedSetFile }
+  | { kind: 'many'; sets: { label: string; parsed: ParsedSetFile }[] }
+  | { kind: 'bad'; errors: string[] };
+
+/** 'Set 2 “Pub quiz”', or 'Set 2' when the entry has no usable title. */
+function entryLabel(entry: unknown, index: number): string {
+  const title = (entry as { title?: unknown } | null)?.title;
+  return typeof title === 'string' && title.trim() !== ''
+    ? `Set ${index + 1} “${title.trim()}”`
+    : `Set ${index + 1}`;
+}
+
+/**
+ * Reads a single-set file or an **Export all** file (an object with `sets` and no `questions`).
+ * Each set of a many-set file is checked on its own, so the good ones can still be imported.
+ */
+export function parseImportFile(text: string): ParsedImportFile {
+  const parsed = parseJson(text);
+  if (!parsed.ok) return { kind: 'bad', errors: [parsed.error] };
+  const { json } = parsed;
+  const isMany =
+    typeof json === 'object' &&
+    json !== null &&
+    !Array.isArray(json) &&
+    Object.hasOwn(json, 'sets') &&
+    !Object.hasOwn(json, 'questions');
+  if (!isMany) return { kind: 'one', parsed: parseSetValue(json) };
+
+  const result = manyFileSchema.safeParse(json);
+  if (!result.success) {
+    const errors = result.error.issues.map((i) => `${describePath(i.path)}: ${i.message}`);
+    return { kind: 'bad', errors: capErrors(errors) };
+  }
+  return {
+    kind: 'many',
+    sets: result.data.sets.map((entry, index) => ({
+      label: entryLabel(entry, index),
+      parsed: parseSetValue(entry),
+    })),
+  };
 }

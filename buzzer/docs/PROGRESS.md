@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F80 — Export all and import many (2026-10-29)
+**What changed:**
+- `client/src/lib/importExport.ts`: `setFileEntry` (shared by Export JSON), `exportAllFile` (`{sets: [...]}` text plus the count and each skipped set's reason; drafts, missing images and sets that would take the file over the 201 MB import cap are skipped), `exportAllFileName` (`buzzr-sets-YYYY-MM-DD.json`), `parseImportFile` (`bad` / `one` / `many`; each many-set entry parsed on its own and labelled "Set N “Title”"). `parseSetFile` kept for single files.
+- New `client/src/lib/lastExport.ts`: guarded localStorage `buzzr:lastExport`.
+- `pages/Sets.tsx`: on My sets, a bar with "Last export: <date>" or "Never exported…" and **Export all**; "Exported N sets to <file>." with a Skipped list; import of a many-set file adds each good set ("Imported N sets.") and lists each bad one under "Couldn't import X of Y sets from <file>:"; sets stored before a failed write still show.
+- Tests: `importExport.test.ts` +8 (many-set file and skipped drafts, missing image, many-set round trip with images, mixed valid and invalid, single-set and bad wrappers, size limit, limit wording, file name), `lastExport.test.ts` (3), `Sets.test.tsx` +5 (Export all download, skipped and Last export; stored last export; drafts only; many-set import with a bad set; failed write midway). 1901 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F80 (file shape, skips and size cap; many-set detection and per-set errors; Last export counts only Export all).
+
+**Notes for next session:**
+- A picture shared by two sets is embedded once per set; an Export all of many duplicated sets is bigger than it needs to be.
+- `exportAllFile` builds the whole text in memory (up to 201 MB); fine for real libraries, heavy at the cap.
+- Playtest (Playwright, `/sets` only): Export all of 2 sets, then 8 with an empty draft listed as skipped; a mixed many-set file imported 2 and listed Set 2's errors; a single-set file still imports; Last export shown after export and "Never exported" after clearing the key. No console errors. Image embedding and the size cap were checked by unit tests only. Files: `.playtest/F80/`.
+- Main `index` chunk 494.67 → 494.70 kB (149.28 kB gzip).
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets`, **My sets** tab (duplicate a built-in set first if it is empty). Read the "Never exported" line, press **Export all**, then **Import JSON** the downloaded `buzzr-sets-<date>.json`: every set comes back as a new copy.
+
 ## F79 — Bulk paste questions (2026-10-29)
 **What changed:**
 - New `client/src/lib/bulkPaste.ts`: `parsePaste` reads one question per line as `Question | Answer | points` or, when the paste has any tab, as spreadsheet cells; it handles quoted cells (`""`, delimiter or line break inside), trims stray spaces, skips blank lines and empty trailing cells, defaults points to 100, and returns the good questions plus each bad line with its line number, source and every reason. `addPasted` appends them with fresh ids, up to 100; `pasteRoom` gives what still fits.

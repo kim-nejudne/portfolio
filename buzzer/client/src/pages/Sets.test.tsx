@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import Dexie from 'dexie';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
@@ -10,7 +11,7 @@ import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { db, getSet, listSets, NEW_SET_TITLE } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
-import { IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
+import { exportAllFileName, IMPORT_FILE_MAX_BYTES } from '../lib/importExport.js';
 import { sampleImages } from '../lib/sampleImages.js';
 import { formatEdited } from '../lib/setLabels.js';
 import { NodeBlob } from '../test/nodeBlob.js';
@@ -528,6 +529,112 @@ describe('Set list /sets, My sets', () => {
         'The file is larger than 201 MB.',
       );
       expect(await listSets()).toHaveLength(0);
+    });
+
+    /** The line above My sets about the last Export all. */
+    const backupLine = () => screen.getByText(/^(Never exported|Last export)/);
+
+    it('Export all downloads every playable set in one dated file and lists drafts as skipped', async () => {
+      const downloads = captureDownloads();
+      await addOwn();
+      await db.sets.add(draft('d', 'Draft', []));
+      renderSets();
+      await card(OWN.title);
+      expect(backupLine().textContent).toBe(
+        'Never exported. Your sets live only in this browser: use Export all now and then to keep a backup file.',
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Export all' }));
+      await waitFor(() => expect(downloads).toHaveLength(1));
+
+      const fileName = exportAllFileName(FIRST_VISIT);
+      expect(downloads[0]!.name).toBe(fileName);
+      const file = JSON.parse(await downloads[0]!.text) as {
+        sets: (QuestionSet & { images: object })[];
+      };
+      expect(file.sets.map((set) => set.title)).toEqual([OWN.title]);
+      expect(Object.keys(file.sets[0]!.images).sort()).toEqual([
+        'sample-img-flag',
+        'sample-img-hexagon',
+      ]);
+      expect((await screen.findByRole('status')).textContent).toBe(
+        `Exported 1 set to ${fileName}.`,
+      );
+      expect(
+        within(screen.getByRole('list', { name: 'Skipped sets' }))
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['“Draft”: This set has no questions yet.']);
+      expect(backupLine().textContent).toBe(`Last export: ${formatEdited(FIRST_VISIT)}`);
+      expect(localStorage.getItem('buzzr:lastExport')).toBe(String(FIRST_VISIT));
+    });
+
+    it('My sets shows the last export this browser made', async () => {
+      const lastWeek = FIRST_VISIT - 7 * 24 * 60 * 60 * 1000;
+      localStorage.setItem('buzzr:lastExport', String(lastWeek));
+      await addOwn();
+      renderSets();
+      await card(OWN.title);
+      expect(backupLine().textContent).toBe(`Last export: ${formatEdited(lastWeek)}`);
+    });
+
+    it('Export all with only drafts says so and downloads nothing', async () => {
+      const downloads = captureDownloads();
+      await db.sets.add(draft('d', 'Draft', []));
+      renderSets();
+      await card('Draft');
+      fireEvent.click(screen.getByRole('button', { name: 'Export all' }));
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'Nothing to export: none of your sets is playable yet.',
+      );
+      expect(screen.getByRole('list', { name: 'Skipped sets' }).textContent).toBe(
+        '“Draft”: This set has no questions yet.',
+      );
+      expect(downloads).toEqual([]);
+      expect(backupLine().textContent).toMatch(/^Never exported/);
+    });
+
+    it('Import JSON of a many-set file adds each good set and lists each bad one', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const textOnly = SAMPLE_SET.questions.filter((q) => q.imageId === undefined);
+      const good = (title: string) => ({ ...SAMPLE_SET, title, questions: textOnly });
+      chooseFile(
+        JSON.stringify({
+          sets: [good('First'), { ...good('Broken'), questions: [] }, good('Third')],
+        }),
+        'backup.json',
+      );
+
+      expect(await screen.findByRole('listitem', { name: 'First' })).toBeTruthy();
+      expect(screen.getByRole('listitem', { name: 'Third' })).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toBe('Imported 2 sets.');
+      expect(await selectedTab()).toBe('My sets');
+      const alert = screen.getByRole('alert');
+      expect(within(alert).getByText("Couldn't import 1 of 3 sets from backup.json:")).toBeTruthy();
+      expect(
+        within(within(alert).getByRole('list', { name: 'Set 2 “Broken”' }))
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['Questions: Too small: expected array to have >=1 items']);
+      expect((await listSets()).map((set) => set.title).sort()).toEqual(['First', 'Third']);
+    });
+
+    it('Import JSON of a many-set file still shows the sets stored before a failed write', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const add = db.sets.add.bind(db.sets);
+      vi.spyOn(db.sets, 'add').mockImplementation((set) =>
+        set.title === 'Second' ? Dexie.Promise.reject(new Error('Disk full.')) : add(set),
+      );
+      const textOnly = SAMPLE_SET.questions.filter((q) => q.imageId === undefined);
+      const good = (title: string) => ({ ...SAMPLE_SET, title, questions: textOnly });
+      chooseFile(JSON.stringify({ sets: [good('First'), good('Second')] }), 'backup.json');
+
+      expect(await screen.findByRole('listitem', { name: 'First' })).toBeTruthy();
+      expect((await screen.findByRole('alert')).textContent).toBe('Disk full.');
+      expect(screen.getByRole('status').textContent).toBe('Imported 1 set.');
     });
   });
 });

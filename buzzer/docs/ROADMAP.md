@@ -212,14 +212,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F79 Bulk paste questions
 
-- [ ] F80 Export all and import many
-  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F79
-  - Done when:
-    - **Export all** on My sets writes one file `{sets: [...]}` of every playable set with images embedded, named `buzzr-sets-<date>.json`; drafts are listed as skipped
-    - Import accepts a single-set file or a many-set file; each set is imported or reports its own errors
-    - My sets shows "Last export: <date>" (localStorage), or "Never exported" with a hint that sets live only in this browser
-  - Tests: `importExport.test.ts` (many-set round trip, mixed valid and invalid, size limit), `Sets.test.tsx`
+- [x] F80 Export all and import many
 
 ## M20 — Teams
 

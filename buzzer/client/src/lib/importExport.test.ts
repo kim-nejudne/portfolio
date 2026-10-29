@@ -5,9 +5,13 @@ import type { QuestionSet } from '../../../shared/types.js';
 import { db, getImage, getSet, importSet } from './db.js';
 import {
   dataUrlToBlob,
+  exportAllFile,
+  exportAllFileName,
   exportFileName,
   exportSetFile,
   IMPORT_ERRORS_SHOWN,
+  IMPORT_FILE_MAX_BYTES,
+  parseImportFile,
   parseSetFile,
 } from './importExport.js';
 
@@ -224,5 +228,140 @@ describe('Import JSON', () => {
     const errors = errorsOf(JSON.stringify(file));
     expect(errors).toHaveLength(IMPORT_ERRORS_SHOWN + 1);
     expect(errors.at(-1)).toBe('…and 5 more.');
+  });
+});
+
+describe('Export all and import many', () => {
+  const TEXT_ONLY: QuestionSet = {
+    ...SET,
+    id: 'text',
+    title: 'Text only',
+    questions: [SET.questions[0]!],
+  };
+  const DRAFT: QuestionSet = { ...SET, id: 'draft', title: 'Half done', questions: [] };
+
+  it('writes {sets: [...]} of every playable set with its images, and skips drafts', async () => {
+    const result = await exportAllFile([SET, DRAFT, TEXT_ONLY], loadImage);
+
+    expect(result.exported).toBe(2);
+    expect(result.skipped).toEqual([
+      { title: 'Half done', reason: 'This set has no questions yet.' },
+    ]);
+    const file = JSON.parse(result.text) as { sets: (QuestionSet & { images: object })[] };
+    expect(result.text).toBe(JSON.stringify(file, null, 2));
+    expect(file.sets.map((set) => set.title)).toEqual(['Pub quiz', 'Text only']);
+    expect(JSON.parse(await exportSetFile(SET, loadImage))).toEqual(file.sets[0]);
+    expect(file.sets[1]!.images).toEqual({});
+  });
+
+  it('skips a set whose image is gone, with the reason', async () => {
+    const result = await exportAllFile([SET, TEXT_ONLY], (id) =>
+      Promise.resolve(id === 'img-2' ? undefined : blobs.get(id)),
+    );
+    expect(result.exported).toBe(1);
+    expect(result.skipped).toEqual([
+      { title: 'Pub quiz', reason: "Question 3's image is missing from this browser." },
+    ]);
+  });
+
+  it('round-trips many sets with their images through one file', async () => {
+    const { text } = await exportAllFile([SET, TEXT_ONLY], loadImage);
+    const parsed = parseImportFile(text);
+    if (parsed.kind !== 'many') throw new Error('Expected a many-set file');
+    expect(parsed.sets.map((entry) => entry.label)).toEqual([
+      'Set 1 “Pub quiz”',
+      'Set 2 “Text only”',
+    ]);
+
+    for (const { parsed: entry } of parsed.sets) {
+      if (!entry.ok) throw new Error(entry.errors.join('\n'));
+      await importSet(entry.set, entry.images);
+    }
+    const stored = await db.sets.toArray();
+    expect(stored.map((set) => set.title).sort()).toEqual(['Pub quiz', 'Text only']);
+    const quiz = stored.find((set) => set.title === 'Pub quiz')!;
+    expect(quiz.questions.map(({ text, answer, points }) => ({ text, answer, points }))).toEqual(
+      SET.questions.map(({ text, answer, points }) => ({ text, answer, points })),
+    );
+    const flag = await getImage(quiz.questions[1]!.imageId!);
+    expect(await bytes(flag!.blob)).toEqual(PNG_BYTES);
+    expect(flag!.blob.type).toBe('image/png');
+    expect(quiz.questions[3]!.imageId).toBe(quiz.questions[1]!.imageId);
+  });
+
+  it('checks each set on its own: good sets parse, bad ones carry their own errors', async () => {
+    const file = JSON.parse((await exportAllFile([SET, TEXT_ONLY], loadImage)).text) as {
+      sets: Record<string, unknown>[];
+    };
+    file.sets.push({ ...file.sets[1], title: '' }, { nope: true });
+    file.sets[1] = { ...file.sets[1], questions: [{ ...SET.questions[0], answer: '' }] };
+
+    const parsed = parseImportFile(JSON.stringify(file));
+    if (parsed.kind !== 'many') throw new Error('Expected a many-set file');
+    expect(parsed.sets.map(({ label, parsed: entry }) => [label, entry.ok])).toEqual([
+      ['Set 1 “Pub quiz”', true],
+      ['Set 2 “Text only”', false],
+      ['Set 3', false],
+      ['Set 4', false],
+    ]);
+    expect(parsed.sets[1]!.parsed).toEqual({
+      ok: false,
+      errors: ['Question 1 › answer: Too small: expected string to have >=1 characters'],
+    });
+    expect(parsed.sets[2]!.parsed).toEqual({
+      ok: false,
+      errors: ['Title: Too small: expected string to have >=1 characters'],
+    });
+  });
+
+  it('reads a single-set file as one set, and refuses an empty or malformed sets list', async () => {
+    const one = parseImportFile(await exportSetFile(SET, loadImage));
+    expect(one.kind === 'one' && one.parsed.ok && one.parsed.set.title).toBe('Pub quiz');
+
+    expect(parseImportFile('{"sets": []}')).toEqual({
+      kind: 'bad',
+      errors: ['Sets: The file has no sets'],
+    });
+    expect(parseImportFile('{"sets": {}}')).toEqual({
+      kind: 'bad',
+      errors: ['Sets: Invalid input: expected array, received object'],
+    });
+    expect(parseImportFile('{"sets": [')).toMatchObject({
+      kind: 'bad',
+      errors: [expect.stringMatching(/^This file isn't valid JSON/)],
+    });
+  });
+
+  it('skips a set that would take the file over the size limit import accepts', async () => {
+    const small = await exportAllFile([TEXT_ONLY], loadImage);
+    const limit = new TextEncoder().encode(small.text).length;
+    const result = await exportAllFile([TEXT_ONLY, SET], loadImage, limit);
+
+    expect(result.exported).toBe(1);
+    expect(result.text).toBe(small.text);
+    expect(result.skipped).toEqual([
+      { title: 'Pub quiz', reason: expect.stringMatching(/^It would take the file over/) },
+    ]);
+  });
+
+  it('names the limit in MB when a set with a large picture does not fit', async () => {
+    const large = new Blob([new Uint8Array(1024 * 1024)], { type: 'image/png' });
+    const result = await exportAllFile([TEXT_ONLY, SET], () => Promise.resolve(large), 1024 * 1024);
+    expect(result.exported).toBe(1);
+    expect(result.skipped).toEqual([
+      { title: 'Pub quiz', reason: 'It would take the file over 1 MB. Export it on its own.' },
+    ]);
+    // By default the limit is the one import checks before reading a file.
+    const fits = await exportAllFile([TEXT_ONLY, SET], () => Promise.resolve(large));
+    expect([fits.exported, Math.round(IMPORT_FILE_MAX_BYTES / 1024 / 1024)]).toEqual([2, 201]);
+  });
+
+  it('names the file after the local date', () => {
+    expect(exportAllFileName(new Date(2026, 9, 29, 23, 30).getTime())).toBe(
+      'buzzr-sets-2026-10-29.json',
+    );
+    expect(exportAllFileName(new Date(2027, 0, 5, 0, 5).getTime())).toBe(
+      'buzzr-sets-2027-01-05.json',
+    );
   });
 });

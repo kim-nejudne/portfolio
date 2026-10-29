@@ -27,11 +27,16 @@ import {
 import { HOVER } from '../lib/hover.js';
 import { hostSet } from '../lib/hostRoom.js';
 import {
+  exportAllFile,
+  exportAllFileName,
   exportFileName,
   exportSetFile,
+  IMPORT_ERRORS_SHOWN,
   IMPORT_FILE_MAX_BYTES,
-  parseSetFile,
+  parseImportFile,
+  type ExportAll,
 } from '../lib/importExport.js';
+import { loadLastExport, saveLastExport } from '../lib/lastExport.js';
 import { formatEdited, setDetail } from '../lib/setLabels.js';
 
 const LOAD_ERROR = 'Could not load the saved sets in this browser.';
@@ -48,6 +53,11 @@ function download(text: string, fileName: string) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
+
+/** One line of an import's error list: a file-level message, or a set of a many-set file. */
+type ImportProblem = string | { label: string; errors: string[] };
+
+const setCount = (count: number) => `${count} ${count === 1 ? 'set' : 'sets'}`;
 
 type Tab = 'builtIn' | 'mine';
 
@@ -76,7 +86,12 @@ export function Sets() {
   const [busy, setBusy] = useState(false);
   const [hostedCode, setHostedCode] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [importErrors, setImportErrors] = useState<{ file: string; errors: string[] } | null>(null);
+  const [importErrors, setImportErrors] = useState<{
+    heading: string;
+    problems: ImportProblem[];
+  } | null>(null);
+  const [exportSkipped, setExportSkipped] = useState<ExportAll['skipped']>([]);
+  const [lastExport, setLastExport] = useState(loadLastExport);
   const fileInput = useRef<HTMLInputElement>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
   const [building, setBuilding] = useState(false);
@@ -112,6 +127,7 @@ export function Sets() {
     setError(null);
     setNotice(null);
     setImportErrors(null);
+    setExportSkipped([]);
     try {
       await action();
     } catch (caught) {
@@ -148,26 +164,74 @@ export function Sets() {
       const text = await exportSetFile(set, async (id) => (await getImage(id))?.blob);
       download(text, exportFileName(set.title));
     });
+  const exportAll = (all: readonly QuestionSet[]) =>
+    act(async () => {
+      const result = await exportAllFile(all, async (id) => (await getImage(id))?.blob);
+      setExportSkipped(result.skipped);
+      if (result.exported === 0) {
+        setError('Nothing to export: none of your sets is playable yet.');
+        return;
+      }
+      const now = Date.now();
+      const fileName = exportAllFileName(now);
+      download(result.text, fileName);
+      saveLastExport(now);
+      setLastExport(now);
+      setNotice(`Exported ${setCount(result.exported)} to ${fileName}.`);
+    });
   const importFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Cleared, so choosing the same file again after a fix still fires `change`.
     event.target.value = '';
     if (!file) return;
+    const refused = (problems: ImportProblem[]) =>
+      setImportErrors({ heading: `Couldn't import ${file.name}:`, problems });
     void act(async () => {
       if (file.size > IMPORT_FILE_MAX_BYTES) {
         const limit = Math.round(IMPORT_FILE_MAX_BYTES / 1024 / 1024);
-        setImportErrors({ file: file.name, errors: [`The file is larger than ${limit} MB.`] });
+        refused([`The file is larger than ${limit} MB.`]);
         return;
       }
-      const parsed = parseSetFile(await file.text());
-      if (!parsed.ok) {
-        setImportErrors({ file: file.name, errors: parsed.errors });
+      const parsed = parseImportFile(await file.text());
+      if (parsed.kind === 'bad') return refused(parsed.errors);
+      if (parsed.kind === 'one') {
+        if (!parsed.parsed.ok) return refused(parsed.parsed.errors);
+        const imported = await importSet(parsed.parsed.set, parsed.parsed.images);
+        setNotice(`Imported “${imported.title}”.`);
+        await reload();
+        setTab('mine');
         return;
       }
-      const imported = await importSet(parsed.set, parsed.images);
-      setNotice(`Imported “${imported.title}”.`);
-      await reload();
-      setTab('mine');
+
+      // Each set on its own: the good ones are imported even when others are refused.
+      const failed = parsed.sets.flatMap(({ label, parsed: entry }) =>
+        entry.ok ? [] : [{ label, errors: entry.errors }],
+      );
+      if (failed.length > 0) {
+        const shown: ImportProblem[] = failed.slice(0, IMPORT_ERRORS_SHOWN);
+        if (failed.length > shown.length) {
+          shown.push(`…and ${setCount(failed.length - shown.length)} more.`);
+        }
+        setImportErrors({
+          heading: `Couldn't import ${failed.length} of ${setCount(parsed.sets.length)} from ${file.name}:`,
+          problems: shown,
+        });
+      }
+      let imported = 0;
+      try {
+        for (const { parsed: entry } of parsed.sets) {
+          if (!entry.ok) continue;
+          await importSet(entry.set, entry.images);
+          imported += 1;
+        }
+      } finally {
+        // Sets stored before a failed write still show, beside its error.
+        if (imported > 0) {
+          setNotice(`Imported ${setCount(imported)}.`);
+          await reload();
+          setTab('mine');
+        }
+      }
     });
   };
   const host = (set: QuestionSet) =>
@@ -251,6 +315,19 @@ export function Sets() {
         {notice}
       </p>
 
+      {exportSkipped.length > 0 && (
+        <div className="flex flex-col gap-2 text-lg text-muted">
+          <p>Skipped {setCount(exportSkipped.length)}:</p>
+          <ul aria-label="Skipped sets" className="list-disc pl-6">
+            {exportSkipped.map(({ title, reason }, i) => (
+              <li key={i}>
+                “{title}”: {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {error && (
         <p role="alert" className="text-lg text-buzz">
           {error}
@@ -259,11 +336,22 @@ export function Sets() {
 
       {importErrors && (
         <div role="alert" className="flex flex-col gap-2 text-lg text-buzz">
-          <p>Couldn't import {importErrors.file}:</p>
+          <p>{importErrors.heading}</p>
           <ul className="list-disc pl-6">
-            {importErrors.errors.map((message, i) => (
-              <li key={i}>{message}</li>
-            ))}
+            {importErrors.problems.map((problem, i) =>
+              typeof problem === 'string' ? (
+                <li key={i}>{problem}</li>
+              ) : (
+                <li key={i}>
+                  {problem.label}
+                  <ul aria-label={problem.label} className="list-[circle] pl-6">
+                    {problem.errors.map((message, j) => (
+                      <li key={j}>{message}</li>
+                    ))}
+                  </ul>
+                </li>
+              ),
+            )}
           </ul>
         </div>
       )}
@@ -352,59 +440,87 @@ export function Sets() {
                 one, or duplicate a built-in set.
               </p>
             ) : (
-              <SetBrowser
-                key="mine"
-                mode="actions"
-                id="mine"
-                sets={sets}
-                onPreview={setPreviewing}
-                detail={(set) => (
-                  <>
-                    {setDetail(set, false)} · Last edited{' '}
-                    <time dateTime={new Date(set.updatedAt).toISOString()}>
-                      {formatEdited(set.updatedAt)}
-                    </time>
-                  </>
-                )}
-                actions={(set) => (
-                  <>
-                    <Link to={`/sets/${set.id}`} className={smallButton}>
-                      Open
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void duplicate(set.id)}
-                      disabled={busy}
-                      className={smallButton}
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void exportSet(set)}
-                      disabled={busy}
-                      className={smallButton}
-                    >
-                      Export JSON
-                    </button>
-                    <ConfirmButton
-                      label="Delete"
-                      confirmLabel="Confirm delete"
-                      onConfirm={() => void remove(set.id)}
-                      disabled={busy}
-                      className={smallButton}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void host(set)}
-                      disabled={busy}
-                      className={`${smallButton} border-accent text-accent`}
-                    >
-                      Host this set
-                    </button>
-                  </>
-                )}
-              />
+              <>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border-2 border-edge p-4">
+                  <p className="text-lg text-muted">
+                    {lastExport === null ? (
+                      <>
+                        Never exported. Your sets live only in this browser: use{' '}
+                        <strong className="text-ink">Export all</strong> now and then to keep a
+                        backup file.
+                      </>
+                    ) : (
+                      <>
+                        Last export:{' '}
+                        <time dateTime={new Date(lastExport).toISOString()}>
+                          {formatEdited(lastExport)}
+                        </time>
+                      </>
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void exportAll(sets)}
+                    disabled={busy}
+                    className={smallButton}
+                  >
+                    Export all
+                  </button>
+                </div>
+                <SetBrowser
+                  key="mine"
+                  mode="actions"
+                  id="mine"
+                  sets={sets}
+                  onPreview={setPreviewing}
+                  detail={(set) => (
+                    <>
+                      {setDetail(set, false)} · Last edited{' '}
+                      <time dateTime={new Date(set.updatedAt).toISOString()}>
+                        {formatEdited(set.updatedAt)}
+                      </time>
+                    </>
+                  )}
+                  actions={(set) => (
+                    <>
+                      <Link to={`/sets/${set.id}`} className={smallButton}>
+                        Open
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void duplicate(set.id)}
+                        disabled={busy}
+                        className={smallButton}
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void exportSet(set)}
+                        disabled={busy}
+                        className={smallButton}
+                      >
+                        Export JSON
+                      </button>
+                      <ConfirmButton
+                        label="Delete"
+                        confirmLabel="Confirm delete"
+                        onConfirm={() => void remove(set.id)}
+                        disabled={busy}
+                        className={smallButton}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void host(set)}
+                        disabled={busy}
+                        className={`${smallButton} border-accent text-accent`}
+                      >
+                        Host this set
+                      </button>
+                    </>
+                  )}
+                />
+              </>
             )}
           </div>
         </div>
