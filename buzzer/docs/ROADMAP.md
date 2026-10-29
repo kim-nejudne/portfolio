@@ -160,14 +160,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M15 — Lobby and phone
 
-- [ ] F58 Landing explainer and host-first layout
-  - Spec: UI spec by view (Landing page `/`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F51
-  - Done when:
-    - Under the logo, one line says what Buzzr is ("A game-show buzzer: questions on the TV, buzzers on your phones")
-    - **Host a game** is a filled button of equal weight to **Join**; while the set picker is open it replaces the Join card instead of opening below it, and Cancel brings Join back
-    - At 375×667 the Join card and Host a game fit without scrolling
-  - Tests: `Landing.test.tsx` (explainer, picker replaces Join, Cancel). `/playtest`: phone-size screenshot
+- [x] F58 Landing explainer and host-first layout
 
 - [ ] F59 Practice buzz and who's here: server
   - Spec: UI spec by view (Player view); Realtime events and HTTP API; see DECISIONS, Proposed spec changes (audit)

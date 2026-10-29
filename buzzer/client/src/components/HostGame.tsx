@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_OUTLINE, BUTTON_PRIMARY, CARD } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD } from '../lib/ui.js';
 import { GameBuilder } from './GameBuilder.js';
 import { RoomCreated } from './RoomCreated.js';
 import { SetBrowser } from './SetBrowser.js';
@@ -18,20 +18,21 @@ type Status =
 /**
  * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets or a
  * built-in one (DECISIONS F54), create the room, keep its hostToken on this device, then ask where the Screen is.
+ * `onOpenChange` reports when the picker or the created room is showing, so the landing page can hide the Join card
+ * (DECISIONS F58).
  */
-export function HostGame() {
+export function HostGame({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
   const [building, setBuilding] = useState(false);
-  const pickerRef = useRef<HTMLElement>(null);
-  const picking = status.kind === 'picking';
+  const open = status.kind === 'picking' || status.kind === 'created';
 
-  // The picker opens under the Join card: bring its search box and chips into view (DECISIONS F55).
-  useEffect(() => {
-    if (picking) pickerRef.current?.scrollIntoView({ block: 'start' });
-  }, [picking]);
+  // Before paint, so no frame shows the picker and the Join card together.
+  useLayoutEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
 
   async function openPicker() {
     setStatus({ kind: 'loading' });
@@ -72,7 +73,7 @@ export function HostGame() {
           type="button"
           onClick={() => void openPicker()}
           disabled={status.kind === 'loading'}
-          className={`${BUTTON_OUTLINE} py-5 text-2xl`}
+          className={`${BUTTON_PRIMARY} text-2xl`}
         >
           Host a game
         </button>
@@ -89,7 +90,6 @@ export function HostGame() {
 
   return (
     <section
-      ref={pickerRef}
       aria-labelledby="pick-heading"
       // Behind an open preview, nothing in the picker takes focus or clicks.
       inert={previewing !== null}

@@ -9,6 +9,8 @@ import { BUTTON_PRIMARY, CARD, INPUT, LABEL } from '../lib/ui.js';
 export function Landing() {
   const navigate = useNavigate();
   const [code, setCode] = useState('');
+  // While Host a game's picker (or its created room) shows, it takes the Join card's place.
+  const [hosting, setHosting] = useState(false);
   const ready = isCompleteRoomCode(code);
 
   function join(event: FormEvent) {
@@ -23,39 +25,44 @@ export function Landing() {
         <h1 className="text-center font-display text-6xl text-accent [text-shadow:4px_4px_0_var(--color-bg-deep)]">
           {APP_NAME}
         </h1>
+        <p className="text-center text-lg text-muted">
+          A game-show buzzer: questions on the TV, buzzers on your phones
+        </p>
       </div>
 
-      <form
-        onSubmit={join}
-        aria-labelledby="join-heading"
-        className={`flex flex-col gap-4 ${CARD}`}
-      >
-        <h2 id="join-heading" className="font-display text-3xl">
-          Join a game
-        </h2>
-        <label htmlFor="room-code" className={LABEL}>
-          Room code
-        </label>
-        <input
-          id="room-code"
-          value={code}
-          onChange={(event) => setCode(normalizeRoomCode(event.target.value))}
-          placeholder="ABCD"
-          inputMode="text"
-          autoCapitalize="characters"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="go"
-          maxLength={ROOM_CODE_LENGTH}
-          className={`${INPUT} text-center text-5xl tracking-[0.3em] uppercase placeholder:text-edge`}
-        />
-        <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
-          Join
-        </button>
-      </form>
+      {!hosting && (
+        <form
+          onSubmit={join}
+          aria-labelledby="join-heading"
+          className={`flex flex-col gap-4 ${CARD}`}
+        >
+          <h2 id="join-heading" className="font-display text-3xl">
+            Join a game
+          </h2>
+          <label htmlFor="room-code" className={LABEL}>
+            Room code
+          </label>
+          <input
+            id="room-code"
+            value={code}
+            onChange={(event) => setCode(normalizeRoomCode(event.target.value))}
+            placeholder="ABCD"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            maxLength={ROOM_CODE_LENGTH}
+            className={`${INPUT} text-center text-5xl tracking-[0.3em] uppercase placeholder:text-edge`}
+          />
+          <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
+            Join
+          </button>
+        </form>
+      )}
 
-      <HostGame />
+      <HostGame onOpenChange={setHosting} />
 
       <Link
         to="/sets"

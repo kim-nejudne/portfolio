@@ -14,14 +14,7 @@ import { Landing } from './Landing.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
 
-/** The elements asked to scroll into view; jsdom has no layout, so it has no scrollIntoView. */
-let scrolled: Element[] = [];
-
 beforeEach(async () => {
-  scrolled = [];
-  Element.prototype.scrollIntoView = function (this: Element) {
-    scrolled.push(this);
-  };
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   await db.delete();
   await db.open();
@@ -29,7 +22,6 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup();
-  delete (Element.prototype as Partial<Element>).scrollIntoView;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   localStorage.clear();
@@ -87,6 +79,21 @@ describe('Landing', () => {
     fireEvent.change(input, { target: { value: 'qr' } });
     fireEvent.submit(input.form!);
     expect(screen.queryByTestId('path')).toBeNull();
+  });
+
+  it('says what Buzzr is in one line under the logo', () => {
+    renderLanding();
+    const explainer = screen.getByText(
+      'A game-show buzzer: questions on the TV, buzzers on your phones',
+    );
+    expect(explainer.previousElementSibling).toBe(screen.getByRole('heading', { level: 1 }));
+  });
+
+  it('Host a game is a filled button of the same weight as Join', () => {
+    const { join } = renderLanding();
+    const host = screen.getByRole('button', { name: 'Host a game' });
+    expect(host.className).toBe(join.className);
+    expect(host.className).toContain('bg-accent');
   });
 
   it('offers Host a game and links Question sets to /sets', () => {
@@ -217,10 +224,29 @@ describe('Host a game', () => {
     expect(body.set.id).toBe('starter-animals-easy');
   });
 
-  it('scrolls the picker to the top of the page when it opens, so its search box shows', async () => {
+  it('the open picker replaces the Join card, in its place under the logo', async () => {
     renderLanding();
     const heading = await openPicker();
-    expect(scrolled).toEqual([heading.closest('section')]);
+    expect(screen.queryByRole('form', { name: 'Join a game' })).toBeNull();
+    expect(screen.queryByLabelText('Room code')).toBeNull();
+    const picker = heading.closest('section')!;
+    expect(picker.previousElementSibling?.querySelector('h1')).toBeTruthy();
+  });
+
+  it('the Join card stays hidden while building a game', async () => {
+    renderLanding();
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Build a game' }));
+    await screen.findByRole('heading', { name: 'Build a game' });
+    expect(screen.queryByRole('form', { name: 'Join a game' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the sets' }));
+    expect(screen.queryByRole('form', { name: 'Join a game' })).toBeNull();
+  });
+
+  it('the created room keeps the Join card hidden', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    expect(screen.queryByRole('form', { name: 'Join a game' })).toBeNull();
   });
 
   it('Create room waits for a pick once the search hides the preselected set', async () => {
@@ -247,12 +273,15 @@ describe('Host a game', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('Cancel closes the picker', async () => {
-    renderLanding();
+  it('Cancel closes the picker and brings the Join card back', async () => {
+    const { input } = renderLanding();
+    fireEvent.change(input, { target: { value: 'wx' } });
     await openPicker();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('heading', { name: 'Pick a question set' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Host a game' })).toBeTruthy();
+    expect(screen.getByRole('form', { name: 'Join a game' })).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Room code').value).toBe('WX');
   });
 
   it('stores the hostToken in localStorage under the room code', async () => {

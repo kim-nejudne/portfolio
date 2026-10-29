@@ -16,10 +16,10 @@ export const INPUT =
 
 const PRESS = 'transition not-disabled:active:scale-95 disabled:opacity-40';
 
-/** Gold fill, indigo Bungee label: Join, Start game, Next question. */
+/** Gold fill, indigo Bungee label: Join, Host a game, Start game, Next question. */
 export const BUTTON_PRIMARY = `min-h-11 rounded-2xl bg-accent px-6 py-4 font-display text-accent-ink not-disabled:hover:bg-accent-hover ${PRESS}`;
 
-/** A gold outline with a gold Bungee label on no fill: Host a game. */
+/** A gold outline with a gold Bungee label on no fill: Save to My sets. */
 export const BUTTON_OUTLINE = `min-h-11 rounded-2xl border-2 border-accent bg-transparent px-6 py-4 font-display text-accent not-disabled:hover:border-accent-hover not-disabled:hover:text-accent-hover ${PRESS}`;
 
 /** Surface fill and a border: the remote's smaller actions. */

@@ -12,6 +12,20 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F58 — Landing explainer and host-first layout (2026-10-29)
+**What changed:**
+- `Landing.tsx`: the line "A game-show buzzer: questions on the TV, buzzers on your phones" under the logo. The Join card renders only while `HostGame` is closed; the typed code stays in `Landing` state, so Cancel brings it back.
+- `HostGame.tsx`: **Host a game** uses Join's classes (`BUTTON_PRIMARY text-2xl`, filled gold). A new optional `onOpenChange` prop reports the picker, builder or Room created, from a layout effect (a plain effect let one frame show both cards; the first test run caught it). The F55 `scrollIntoView` is gone: the picker now opens under the logo. `BUTTON_OUTLINE` remains only on Save to My sets.
+- Tests: `Landing.test.tsx` +4 (explainer, equal weight, picker replaces Join, builder keeps it hidden, Room created keeps it hidden; the F55 scroll test removed; Cancel now checks Join and the kept code). 1370 tests in total. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-29 for F58 (explainer, button classes, Join hidden through Room created, F55 scroll superseded).
+
+**Notes for next session:**
+- Playtest (Playwright, 375×667): the explainer shows under the logo; Join is 276×64 inside its card and Host a game 328×64, both gold. **Host a game**'s bottom edge is at y=637 of 667 at scroll 0. The page is 753 px tall, so only the **Question sets** link is below the fold. Opening the picker removed the Join card and put "Pick a question set" under the explainer; Cancel brought Join back. No console errors. `.playtest/F58/landing-375x667.png` was shot scrolled about 87 px, so its logo is cut off.
+- Main `index` chunk 460.84 → 461.33 kB (139.99 kB gzip).
+
+**How to try it:** `npm run dev`. On a phone (or devtools at 375×667), open `http://<laptop-LAN-IP>:5173`: the explainer, the Join card and a gold **Host a game** fit on one screen. Type two letters, tap **Host a game**: the picker takes the Join card's place. Tap **Cancel**: Join returns with the two letters. Tap **Host a game**, then **Create room**: Room created shows where the picker was.
+
 ## F57 — Game builder (2026-10-29)
 **What changed:**
 - `client/src/lib/gameBuilder.ts`: `buildGame(sets, picks, { random, now, id })` draws `{category, difficulty, count}` rows from the playable sets. It draws without repeats (copies count once), shuffles with the injected random source, renumbers the questions `q1…`, titles the set "Mixed: <categories>" with category "Mixed" and no difficulty, and reports each short row. It fails for no match or over 100 questions, and returns a `loadImage` that reads each picture from its source set (bundle or IndexedDB). There are also `builderCategories` and `pickCounts` (the live per-row counts).
