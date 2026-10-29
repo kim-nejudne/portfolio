@@ -10,6 +10,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F47 — Starter set data (2026-10-29)
+**What changed:**
+- `shared/starterSets/<slug>.json`: 20 categories × Easy/Medium/Hard × 15 questions, 60 sets and 900 questions. They were written in Claude Desktop and copied from `~/Downloads/buzzr-starter/`, with the 39 review fixes in `~/Downloads/buzzr-starter-fixes.json` applied by a one-off scratchpad script. The script is not in the repo.
+  - Each file is an array of 3 sets in the set file shape, so it also imports through Import JSON.
+- `shared/starterSets/index.ts` exports:
+  - `STARTER_CATEGORIES`: 20 slugs in list order.
+  - `StarterCategory`.
+  - `STARTER_SETS`: the 60 sets, parsed with `questionSetSchema.array()` at module load.
+- Config:
+  - `resolveJsonModule` in `tsconfig.json` and `tsconfig.node.json`.
+  - `tsconfig.build.json` excludes `shared/starterSets`, so `dist/shared` has no question data.
+  - No new dependency.
+- `shared/starterSets.test.ts` (7 tests):
+  - order and count;
+  - schema parse unchanged, with 15 questions each;
+  - key order;
+  - titles, points and question ids by level;
+  - 900 unique ids and no pictures;
+  - `createRoomBodySchema` accepts every set;
+  - spot-checks of 4 fixes.
+
+**Decisions:** DECISIONS rows dated 2026-10-29: "starter plan" (content and review), and F47 (file layout, parse instead of cast, the tsconfig changes).
+
+**Notes for next session:**
+- F48 seeds these into Dexie. Import `STARTER_SETS` statically into `client/src/lib/db.ts`: it is already a lazy chunk, and the upgrade transaction cannot await a dynamic import.
+- Nothing imports the data yet, so the client bundle is unchanged (main `index` 438.9 kB, `db` 112.7 kB). Record F48's sizes against these.
+- Only 4 of the 39 fixes are asserted in tests. The review recomputed all 39 against the originals and found 0 differences.
+- Known level miss, left as is: `ph-pop-culture-hard-01` (Cardo Dalisay) is easy for Hard. No verified replacement.
+
+**How to try it:** `npx vitest run shared/starterSets.test.ts`. To see the content in the app before F48, Import JSON does not take an array. Copy one set object out of a file into its own `.json` and import that on `/sets`.
+
 ## F46 — Slim runtime image and CI job (2026-10-28)
 **What changed:**
 - `package.json`: `dependencies` is now only what `dist/server` imports: express, proxy-addr, socket.io and zod.

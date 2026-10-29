@@ -1,0 +1,333 @@
+[
+  {
+    "id": "starter-language-easy",
+    "title": "Words & Language – Easy",
+    "questions": [
+      {
+        "id": "language-easy-01",
+        "text": "What is the national language of the Philippines?",
+        "answer": "Filipino",
+        "hostNotes": "Not Tagalog, though Filipino is based mainly on it. English is an official language but not the national language.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-02",
+        "text": "What is the Filipino word for \"thank you\"?",
+        "answer": "Salamat",
+        "hostNotes": "Also accept: salamat po, maraming salamat.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-03",
+        "text": "What short word do Filipinos add to sentences to show respect when speaking to elders?",
+        "answer": "Po",
+        "hostNotes": "Also accept: ho, opo (respectful \"yes\").",
+        "points": 100
+      },
+      {
+        "id": "language-easy-04",
+        "text": "What Filipino word is used for an older sister or an older woman one respects?",
+        "answer": "Ate",
+        "points": 100
+      },
+      {
+        "id": "language-easy-05",
+        "text": "What is the popular name for the mix of Tagalog and English that many Filipinos speak?",
+        "answer": "Taglish",
+        "hostNotes": "Also accept: Englog.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-06",
+        "text": "In English, what does the greeting \"Maligayang Pasko\" mean?",
+        "answer": "Merry Christmas",
+        "points": 100
+      },
+      {
+        "id": "language-easy-07",
+        "text": "What is the Filipino word for \"tomorrow\"?",
+        "answer": "Bukas",
+        "hostNotes": "It also means \"open\".",
+        "points": 100
+      },
+      {
+        "id": "language-easy-08",
+        "text": "In Philippine English, what is a \"CR\" or \"comfort room\"?",
+        "answer": "Toilet",
+        "hostNotes": "Also accept: restroom, bathroom, washroom.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-09",
+        "text": "What is the plural of \"mouse\"?",
+        "answer": "Mice",
+        "points": 100
+      },
+      {
+        "id": "language-easy-10",
+        "text": "What part of speech describes a noun, like \"tall\" or \"blue\"?",
+        "answer": "Adjective",
+        "hostNotes": "Also accept: pang-uri.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-11",
+        "text": "What do you call a word that means the opposite of another word?",
+        "answer": "Antonym",
+        "hostNotes": "Also accept: kasalungat.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-12",
+        "text": "What do you call a word that means the same as another word?",
+        "answer": "Synonym",
+        "hostNotes": "Also accept: kasingkahulugan.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-13",
+        "text": "What Filipino slang word for a deep, emotional line drawn from heartbreak literally means \"pull\"?",
+        "answer": "Hugot",
+        "hostNotes": "Also accept: hugot line.",
+        "points": 100
+      },
+      {
+        "id": "language-easy-14",
+        "text": "What Filipino slang word for a role model is \"idol\" spelled backward?",
+        "answer": "Lodi",
+        "points": 100
+      },
+      {
+        "id": "language-easy-15",
+        "text": "What 2010 Filipino internet trend typed words with mixed letters, numbers and capitals, like \"3ow p0w\"?",
+        "answer": "Jejemon",
+        "hostNotes": "Also accept: jejemon style.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-language-medium",
+    "title": "Words & Language – Medium",
+    "questions": [
+      {
+        "id": "language-medium-01",
+        "text": "In which month is Buwan ng Wika, the national language month, celebrated?",
+        "answer": "August",
+        "hostNotes": "Also accept: Agosto. Manuel L. Quezon was born on August 19.",
+        "points": 200
+      },
+      {
+        "id": "language-medium-02",
+        "text": "How many letters are in the modern Filipino alphabet?",
+        "answer": "28",
+        "hostNotes": "Also accept: twenty-eight. The 26 English letters plus Ñ and NG.",
+        "points": 200
+      },
+      {
+        "id": "language-medium-03",
+        "text": "Ilonggo is another name for which Visayan language?",
+        "answer": "Hiligaynon",
+        "points": 200
+      },
+      {
+        "id": "language-medium-04",
+        "text": "The Filipino greeting \"kumusta\" comes from which language?",
+        "answer": "Spanish",
+        "hostNotes": "From \"¿cómo está?\", meaning \"how are you?\".",
+        "points": 200
+      },
+      {
+        "id": "language-medium-05",
+        "text": "The Filipino greeting \"Mabuhay!\" literally means what in English?",
+        "answer": "Long live",
+        "hostNotes": "Also accept: to live, may you live. It is also used as \"welcome\" and \"cheers\".",
+        "points": 200
+      },
+      {
+        "id": "language-medium-06",
+        "text": "What Filipino word for the giddy rush of romantic excitement is now in the Oxford English Dictionary?",
+        "answer": "Kilig",
+        "points": 200
+      },
+      {
+        "id": "language-medium-07",
+        "text": "What is the Filipino word for a riddle?",
+        "answer": "Bugtong",
+        "hostNotes": "Also accept: palaisipan.",
+        "points": 200
+      },
+      {
+        "id": "language-medium-08",
+        "text": "Which slang word, popular around 2017, is \"malupit\" spelled backward?",
+        "answer": "Petmalu",
+        "points": 200
+      },
+      {
+        "id": "language-medium-09",
+        "text": "What do you call a word that reads the same forward and backward, like \"level\" or \"kayak\"?",
+        "answer": "Palindrome",
+        "points": 200
+      },
+      {
+        "id": "language-medium-10",
+        "text": "What figure of speech compares two things using \"like\" or \"as\"?",
+        "answer": "Simile",
+        "hostNotes": "Not metaphor, which compares without \"like\" or \"as\".",
+        "points": 200
+      },
+      {
+        "id": "language-medium-11",
+        "text": "What do you call words that sound the same but have different meanings, like \"flower\" and \"flour\"?",
+        "answer": "Homophones",
+        "hostNotes": "Also accept: homophone. Accept homonyms.",
+        "points": 200
+      },
+      {
+        "id": "language-medium-12",
+        "text": "What do you call a word formed from initials and pronounced as a word, like \"NASA\" or \"ASEAN\"?",
+        "answer": "Acronym",
+        "hostNotes": "Not initialism, which is spelled out letter by letter, like \"FBI\".",
+        "points": 200
+      },
+      {
+        "id": "language-medium-13",
+        "text": "What is the plural of \"cactus\"?",
+        "answer": "Cacti",
+        "hostNotes": "Also accept: cactuses, which is also correct.",
+        "points": 200
+      },
+      {
+        "id": "language-medium-14",
+        "text": "What is the word for an extreme fear of spiders?",
+        "answer": "Arachnophobia",
+        "points": 200
+      },
+      {
+        "id": "language-medium-15",
+        "text": "Which Philippine language, also called Sinugbuanon, has the most native speakers in the Visayas and Mindanao?",
+        "answer": "Cebuano",
+        "hostNotes": "Also accept: Bisaya, Binisaya, Sugbuanon.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-language-hard",
+    "title": "Words & Language – Hard",
+    "questions": [
+      {
+        "id": "language-hard-01",
+        "text": "What figure of speech uses exaggeration, like \"I've told you a million times\"?",
+        "answer": "Hyperbole",
+        "points": 300
+      },
+      {
+        "id": "language-hard-02",
+        "text": "What word describes terms that imitate sounds, like \"buzz\" or \"tiktilaok\"?",
+        "answer": "Onomatopoeia",
+        "hostNotes": "Accept close pronunciations: on-uh-mat-uh-PEE-uh.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-03",
+        "text": "In Philippine English, what does someone on the phone mean by \"for a while\"?",
+        "answer": "Please wait",
+        "hostNotes": "Also accept: hold on, wait a moment, hold the line.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-04",
+        "text": "In Philippine English, what does a caller mean by \"For a while\" on the phone?",
+        "answer": "Please hold on",
+        "hostNotes": "Also accept: wait a moment, please wait, hold the line.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-05",
+        "text": "In Filipino grammar, \"pandiwa\" is the term for which part of speech?",
+        "answer": "Verb",
+        "hostNotes": "Pangngalan is noun, pang-uri is adjective.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-06",
+        "text": "What is the study of the origins and history of words called?",
+        "answer": "Etymology",
+        "hostNotes": "Not entomology, the study of insects.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-07",
+        "text": "What is a sentence that uses every letter of the alphabet, like \"The quick brown fox...\", called?",
+        "answer": "Pangram",
+        "points": 300
+      },
+      {
+        "id": "language-hard-08",
+        "text": "What is the term for a word taken from another language, like \"sapatos\" from Spanish?",
+        "answer": "Loanword",
+        "hostNotes": "Also accept: borrowed word, borrowing, hiram na salita.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-09",
+        "text": "What English word for a remote, backward area came from the Tagalog word for mountain?",
+        "answer": "Boondocks",
+        "hostNotes": "From \"bundok\", picked up by American soldiers in the Philippines.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-10",
+        "text": "What Filipino word means both \"night\" and a starchy root crop called taro?",
+        "answer": "Gabi",
+        "hostNotes": "The two are pronounced differently: ga-BI (night) and GA-bi (taro).",
+        "points": 300
+      },
+      {
+        "id": "language-hard-11",
+        "text": "Which letter of the Filipino alphabet is written with two characters?",
+        "answer": "NG",
+        "hostNotes": "Also accept: N-G, \"nga\". Not Ñ, which is a single character.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-12",
+        "text": "How many letters did the old Tagalog \"Abakada\" alphabet have?",
+        "answer": "20",
+        "hostNotes": "Also accept: twenty. It was introduced by Lope K. Santos.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-13",
+        "text": "What is the Filipino word for a proverb or wise saying?",
+        "answer": "Salawikain",
+        "hostNotes": "Also accept: kasabihan.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-14",
+        "text": "What Filipino poetic debate is named after the author of \"Florante at Laura\"?",
+        "answer": "Balagtasan",
+        "hostNotes": "Named after Francisco Balagtas.",
+        "points": 300
+      },
+      {
+        "id": "language-hard-15",
+        "text": "Which Commonwealth president is called the \"Father of the National Language\"?",
+        "answer": "Manuel L. Quezon",
+        "hostNotes": "Also accept: Quezon. Called \"Ama ng Wikang Pambansa\".",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

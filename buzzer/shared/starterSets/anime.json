@@ -1,0 +1,339 @@
+[
+  {
+    "id": "starter-anime-easy",
+    "title": "Anime & Manga – Easy",
+    "questions": [
+      {
+        "id": "anime-easy-01",
+        "text": "What is the name of Ash's yellow electric Pokémon partner?",
+        "answer": "Pikachu",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-02",
+        "text": "What Japanese word is used for comics and graphic novels from Japan?",
+        "answer": "Manga",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-03",
+        "text": "What sport is the anime \"Slam Dunk\" about?",
+        "answer": "Basketball",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-04",
+        "text": "In Pokémon, what red-and-white device is thrown to catch a Pokémon?",
+        "answer": "Poké Ball",
+        "hostNotes": "Also accept: Pokeball, ball.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-05",
+        "text": "Doraemon is a blue robot shaped like what animal?",
+        "answer": "Cat",
+        "hostNotes": "Also accept: pusa. He is a robot cat from the 22nd century.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-06",
+        "text": "What is the name of the main Saiyan hero of \"Dragon Ball\"?",
+        "answer": "Goku",
+        "hostNotes": "Also accept: Son Goku, Kakarot.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-07",
+        "text": "In \"Dragon Ball\", how many Dragon Balls must be gathered to summon the wish-granting dragon?",
+        "answer": "Seven",
+        "hostNotes": "Also accept: 7. The dragon is Shenron.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-08",
+        "text": "In \"One Piece\", what does Monkey D. Luffy dream of becoming?",
+        "answer": "King of the Pirates",
+        "hostNotes": "Also accept: Pirate King.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-09",
+        "text": "Naruto Uzumaki is a ninja from which hidden village?",
+        "answer": "Hidden Leaf Village",
+        "hostNotes": "Also accept: Konoha, Konohagakure, Leaf Village.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-10",
+        "text": "In the Filipino dub of \"Ghost Fighter\", what is the name of the main hero?",
+        "answer": "Eugene",
+        "hostNotes": "In the Japanese original, he is Yusuke Urameshi.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-11",
+        "text": "What 1970s super robot anime, pulled off Philippine TV in 1979, got a live-action remake in 2023?",
+        "answer": "Voltes V",
+        "hostNotes": "Also accept: Voltes Five, Voltes V: Legacy. The remake aired on GMA.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-12",
+        "text": "In \"Demon Slayer\", what is the name of the boy whose sister Nezuko is turned into a demon?",
+        "answer": "Tanjiro",
+        "hostNotes": "Also accept: Tanjiro Kamado.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-13",
+        "text": "In \"Attack on Titan\", humanity lives inside giant what to protect itself from the Titans?",
+        "answer": "Walls",
+        "hostNotes": "Also accept: pader. The three walls are Maria, Rose and Sina.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-14",
+        "text": "Which Studio Ghibli film features a giant furry forest spirit and a Catbus?",
+        "answer": "My Neighbor Totoro",
+        "hostNotes": "Also accept: Totoro, Tonari no Totoro.",
+        "points": 100
+      },
+      {
+        "id": "anime-easy-15",
+        "text": "What is the name of the boy detective shrunk by a poison in \"Detective Conan\"?",
+        "answer": "Conan Edogawa",
+        "hostNotes": "Also accept: Conan, Shinichi Kudo (his real identity).",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-anime-medium",
+    "title": "Anime & Manga – Medium",
+    "questions": [
+      {
+        "id": "anime-medium-01",
+        "text": "What is the name of Goku's signature energy-blast attack in \"Dragon Ball\"?",
+        "answer": "Kamehameha",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-02",
+        "text": "What is the name of the lazy boy whom Doraemon helps with gadgets?",
+        "answer": "Nobita",
+        "hostNotes": "Also accept: Nobita Nobi.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-03",
+        "text": "\"Ghost Fighter\" is the Filipino dub of which Japanese anime?",
+        "answer": "Yu Yu Hakusho",
+        "hostNotes": "Also accept: YuYu Hakusho, Yu Yu.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-04",
+        "text": "In \"Slam Dunk\", what is the name of the red-haired delinquent who joins the basketball team?",
+        "answer": "Hanamichi Sakuragi",
+        "hostNotes": "Also accept: Sakuragi, Hanamichi.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-05",
+        "text": "What creature is sealed inside Naruto's body?",
+        "answer": "Nine-Tailed Fox",
+        "hostNotes": "Also accept: Kurama, Kyuubi, Nine-Tails.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-06",
+        "text": "What is the name of the main character of \"Attack on Titan\"?",
+        "answer": "Eren Yeager",
+        "hostNotes": "Also accept: Eren, Eren Jaeger.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-07",
+        "text": "In Pokémon, what is the name of Ash's hometown?",
+        "answer": "Pallet Town",
+        "hostNotes": "Also accept: Pallet.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-08",
+        "text": "In \"Death Note\", what is the name of the student who finds the notebook that kills?",
+        "answer": "Light Yagami",
+        "hostNotes": "Also accept: Light, Kira. Not L, the detective hunting him.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-09",
+        "text": "In \"One Piece\", what Devil Fruit did Luffy eat to gain his rubber powers?",
+        "answer": "Gum-Gum Fruit",
+        "hostNotes": "Also accept: Gomu Gomu no Mi. Late in the story it is revealed as the Hito Hito no Mi, Model: Nika; accept that too.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-10",
+        "text": "Which Studio Ghibli film follows a girl named Chihiro who works in a bathhouse for spirits?",
+        "answer": "Spirited Away",
+        "hostNotes": "Also accept: Sen to Chihiro no Kamikakushi.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-11",
+        "text": "Which Japanese director co-founded Studio Ghibli and made \"Spirited Away\"?",
+        "answer": "Hayao Miyazaki",
+        "hostNotes": "Also accept: Miyazaki.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-12",
+        "text": "In \"Voltes V\", who is the leader of the team and pilot of the Volt In?",
+        "answer": "Steve Armstrong",
+        "hostNotes": "Also accept: Steve. In the Japanese original he is Kenichi Go.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-13",
+        "text": "In \"Bleach\", what is the name of the orange-haired teen who becomes a Soul Reaper?",
+        "answer": "Ichigo Kurosaki",
+        "hostNotes": "Also accept: Ichigo.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-14",
+        "text": "What are the first names of the two alchemist brothers in \"Fullmetal Alchemist\"?",
+        "answer": "Edward and Alphonse",
+        "hostNotes": "Both names needed. Also accept: Ed and Al. Their surname is Elric.",
+        "points": 200
+      },
+      {
+        "id": "anime-medium-15",
+        "text": "In \"Jujutsu Kaisen\", whose cursed fingers does Yuji Itadori swallow?",
+        "answer": "Ryomen Sukuna",
+        "hostNotes": "Also accept: Sukuna, King of Curses.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-anime-hard",
+    "title": "Anime & Manga – Hard",
+    "questions": [
+      {
+        "id": "anime-hard-01",
+        "text": "What is the name of Goku's second son?",
+        "answer": "Goten",
+        "hostNotes": "Also accept: Son Goten. Not Gohan, his first son.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-02",
+        "text": "In \"Naruto\", which clan does Sasuke belong to?",
+        "answer": "Uchiha",
+        "hostNotes": "Also accept: Uchiha clan.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-03",
+        "text": "What two words is the name \"Pokémon\" short for?",
+        "answer": "Pocket Monsters",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-04",
+        "text": "In \"Death Note\", what fruit does the shinigami Ryuk love to eat?",
+        "answer": "Apples",
+        "hostNotes": "Also accept: apple, mansanas.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-05",
+        "text": "What Japanese term is used for manga and anime aimed at teenage boys?",
+        "answer": "Shōnen",
+        "hostNotes": "Also accept: shonen. Not shōjo, which targets girls.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-06",
+        "text": "Which manga artist created \"Dragon Ball\"?",
+        "answer": "Akira Toriyama",
+        "hostNotes": "Also accept: Toriyama. He also created \"Dr. Slump\".",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-07",
+        "text": "Which manga artist created \"One Piece\"?",
+        "answer": "Eiichiro Oda",
+        "hostNotes": "Also accept: Oda.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-08",
+        "text": "In \"Slam Dunk\", what is the name of the high school whose basketball team the series follows?",
+        "answer": "Shohoku",
+        "hostNotes": "Also accept: Shohoku High.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-09",
+        "text": "What was the name of the Straw Hat Pirates' first ship in \"One Piece\"?",
+        "answer": "Going Merry",
+        "hostNotes": "Also accept: Merry, Merry Go. Not the Thousand Sunny, their second ship.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-10",
+        "text": "In the Filipino dub of \"Ghost Fighter\", what name was given to the fire demon Hiei?",
+        "answer": "Vincent",
+        "hostNotes": "The others: Yusuke is Eugene, Kuwabara is Alfred, Kurama is Dennis.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-11",
+        "text": "In \"Voltes V\", what is the name of the Boazanian prince who leads the invasion of Earth?",
+        "answer": "Prince Zardoz",
+        "hostNotes": "Also accept: Zardoz. In the Japanese original he is Prince Heinel.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-12",
+        "text": "Which Pokémon is number 001 in the National Pokédex?",
+        "answer": "Bulbasaur",
+        "hostNotes": "Not Pikachu, which is number 025.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-13",
+        "text": "In \"Hunter x Hunter\", Killua comes from what famous family of assassins?",
+        "answer": "Zoldyck",
+        "hostNotes": "Also accept: Zoldyck family, Zaoldyeck.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-14",
+        "text": "Who is the teenage pilot of Evangelion Unit-01 in \"Neon Genesis Evangelion\"?",
+        "answer": "Shinji Ikari",
+        "hostNotes": "Also accept: Shinji.",
+        "points": 300
+      },
+      {
+        "id": "anime-hard-15",
+        "text": "What 1988 Studio Ghibli film follows two orphaned siblings in Japan near the end of World War II?",
+        "answer": "Grave of the Fireflies",
+        "hostNotes": "Also accept: Hotaru no Haka. Directed by Isao Takahata.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

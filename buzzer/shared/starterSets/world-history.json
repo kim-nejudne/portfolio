@@ -1,0 +1,339 @@
+[
+  {
+    "id": "starter-world-history-easy",
+    "title": "World History – Easy",
+    "questions": [
+      {
+        "id": "world-history-easy-01",
+        "text": "Which ancient people built the Great Pyramids of Giza?",
+        "answer": "Egyptians",
+        "hostNotes": "Also accept: ancient Egyptians.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-02",
+        "text": "Who led Nazi Germany during World War II?",
+        "answer": "Adolf Hitler",
+        "hostNotes": "Also accept: Hitler.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-03",
+        "text": "In what year did World War II end?",
+        "answer": "1945",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-04",
+        "text": "Which explorer reached the Americas in 1492?",
+        "answer": "Christopher Columbus",
+        "hostNotes": "Also accept: Columbus, Cristóbal Colón.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-05",
+        "text": "Which French emperor was defeated at the Battle of Waterloo in 1815?",
+        "answer": "Napoleon Bonaparte",
+        "hostNotes": "Also accept: Napoleon, Napoleon I.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-06",
+        "text": "Who led India's nonviolent struggle for independence from Britain?",
+        "answer": "Mahatma Gandhi",
+        "hostNotes": "Also accept: Gandhi, Mohandas Gandhi. Not Indira Gandhi, a later prime minister.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-07",
+        "text": "Which Italian Renaissance artist painted the Mona Lisa?",
+        "answer": "Leonardo da Vinci",
+        "hostNotes": "Also accept: Leonardo, da Vinci.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-08",
+        "text": "Which Egyptian queen, according to legend, died from the bite of an asp?",
+        "answer": "Cleopatra",
+        "hostNotes": "Also accept: Cleopatra VII.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-09",
+        "text": "Which ancient empire built the Colosseum?",
+        "answer": "Roman Empire",
+        "hostNotes": "Also accept: Romans, Rome, ancient Rome.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-10",
+        "text": "Which Japanese city was hit by the first atomic bomb used in war, in 1945?",
+        "answer": "Hiroshima",
+        "hostNotes": "Not Nagasaki, which was bombed three days later.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-11",
+        "text": "Which South African leader spent 27 years in prison before becoming president?",
+        "answer": "Nelson Mandela",
+        "hostNotes": "Also accept: Mandela, Madiba.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-12",
+        "text": "Which German city was divided by a wall from 1961 to 1989?",
+        "answer": "Berlin",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-13",
+        "text": "Which Jewish teenager's diary, written while hiding from the Nazis, became world-famous?",
+        "answer": "Anne Frank",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-14",
+        "text": "Which country gave the Statue of Liberty to the United States?",
+        "answer": "France",
+        "hostNotes": "It was dedicated in New York in 1886.",
+        "points": 100
+      },
+      {
+        "id": "world-history-easy-15",
+        "text": "Genghis Khan founded which empire?",
+        "answer": "Mongol Empire",
+        "hostNotes": "Also accept: Mongols, Mongolia.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-world-history-medium",
+    "title": "World History – Medium",
+    "questions": [
+      {
+        "id": "world-history-medium-01",
+        "text": "During the Cold War, the United States' main rival was which country?",
+        "answer": "Soviet Union",
+        "hostNotes": "Also accept: USSR, Soviet Russia.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-02",
+        "text": "Which Roman leader was assassinated on the Ides of March in 44 BC?",
+        "answer": "Julius Caesar",
+        "hostNotes": "Also accept: Caesar.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-03",
+        "text": "Which British prime minister led the country through most of World War II?",
+        "answer": "Winston Churchill",
+        "hostNotes": "Also accept: Churchill.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-04",
+        "text": "What plague killed millions of people in 14th-century Europe?",
+        "answer": "Black Death",
+        "hostNotes": "Also accept: bubonic plague, the plague.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-05",
+        "text": "Which South American civilization built Machu Picchu?",
+        "answer": "Inca",
+        "hostNotes": "Also accept: Incas, Inca Empire. Not the Aztecs or Maya.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-06",
+        "text": "Which Macedonian king built an empire stretching to India before he turned 33?",
+        "answer": "Alexander the Great",
+        "hostNotes": "Also accept: Alexander III of Macedon.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-07",
+        "text": "Who led the Soviet Union during World War II?",
+        "answer": "Joseph Stalin",
+        "hostNotes": "Also accept: Stalin. Not Lenin, who died in 1924.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-08",
+        "text": "Which French teenager led armies in the Hundred Years' War and was burned at the stake?",
+        "answer": "Joan of Arc",
+        "hostNotes": "Also accept: Jeanne d'Arc, St. Joan.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-09",
+        "text": "What name is given to the Allied landings in Normandy on June 6, 1944?",
+        "answer": "D-Day",
+        "hostNotes": "Also accept: Operation Overlord, Operation Neptune.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-10",
+        "text": "Who founded the People's Republic of China in 1949?",
+        "answer": "Mao Zedong",
+        "hostNotes": "Also accept: Mao, Mao Tse-tung, Chairman Mao.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-11",
+        "text": "What Paris fortress-prison was stormed on July 14, 1789?",
+        "answer": "Bastille",
+        "hostNotes": "The event marks the start of the French Revolution. July 14 is France's national day.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-12",
+        "text": "The legendary Hanging Gardens were said to be in which ancient city?",
+        "answer": "Babylon",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-13",
+        "text": "The 1919 Treaty of Versailles formally ended which war?",
+        "answer": "World War I",
+        "hostNotes": "Also accept: First World War, WWI, the Great War.",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-14",
+        "text": "What was the code name of the US-led project that built the first atomic bombs?",
+        "answer": "Manhattan Project",
+        "points": 200
+      },
+      {
+        "id": "world-history-medium-15",
+        "text": "Whose assassination in Sarajevo in 1914 set off the chain of events leading to a global war?",
+        "answer": "Archduke Franz Ferdinand",
+        "hostNotes": "Also accept: Franz Ferdinand. He was heir to the Austro-Hungarian throne.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-world-history-hard",
+    "title": "World History – Hard",
+    "questions": [
+      {
+        "id": "world-history-hard-01",
+        "text": "What ancient network of trade routes linked China to the Mediterranean?",
+        "answer": "Silk Road",
+        "hostNotes": "Also accept: Silk Route, Silk Roads.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-02",
+        "text": "Which Soviet nuclear power plant exploded in 1986, in what is now Ukraine?",
+        "answer": "Chernobyl",
+        "hostNotes": "Also accept: Chornobyl.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-03",
+        "text": "What 1215 English charter limited the powers of King John?",
+        "answer": "Magna Carta",
+        "hostNotes": "Latin for \"Great Charter\".",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-04",
+        "text": "The Rosetta Stone was the key to deciphering what ancient writing system?",
+        "answer": "Egyptian hieroglyphs",
+        "hostNotes": "Also accept: hieroglyphs, hieroglyphics.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-05",
+        "text": "Which Carthaginian general famously crossed the Alps with war elephants?",
+        "answer": "Hannibal",
+        "hostNotes": "Also accept: Hannibal Barca. Not Hannibal Lecter.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-06",
+        "text": "Which Portuguese explorer was the first to sail from Europe to India, in 1498?",
+        "answer": "Vasco da Gama",
+        "hostNotes": "Also accept: da Gama.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-07",
+        "text": "Which Russian royal dynasty was overthrown in 1917, its last tsar's family executed in 1918?",
+        "answer": "Romanov",
+        "hostNotes": "Also accept: Romanovs, House of Romanov. The last tsar was Nicholas II.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-08",
+        "text": "Which Soviet leader introduced the policies of glasnost and perestroika?",
+        "answer": "Mikhail Gorbachev",
+        "hostNotes": "Also accept: Gorbachev.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-09",
+        "text": "What was the name of the great fleet Spain sent against England in 1588?",
+        "answer": "The Spanish Armada",
+        "hostNotes": "Also accept: Armada, Invincible Armada.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-10",
+        "text": "During the Seven Years' War, which country briefly occupied Manila from 1762 to 1764?",
+        "answer": "Great Britain",
+        "hostNotes": "Also accept: Britain, England, the British.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-11",
+        "text": "What Aztec capital stood where Mexico City is today?",
+        "answer": "Tenochtitlan",
+        "hostNotes": "Also accept: Tenochtitlán.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-12",
+        "text": "Which ancient Mesopotamian king is famous for a law code based on \"an eye for an eye\"?",
+        "answer": "Hammurabi",
+        "hostNotes": "Also accept: Hammurapi.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-13",
+        "text": "Which first emperor of China was buried with the Terracotta Army?",
+        "answer": "Qin Shi Huang",
+        "hostNotes": "Also accept: Qin Shi Huangdi, Shi Huangdi, Ying Zheng.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-14",
+        "text": "Which Chinese admiral led huge \"treasure fleets\" across the Indian Ocean in the early 1400s?",
+        "answer": "Zheng He",
+        "hostNotes": "Also accept: Cheng Ho.",
+        "points": 300
+      },
+      {
+        "id": "world-history-hard-15",
+        "text": "In which city was ASEAN founded in 1967, with the Philippines as a founding member?",
+        "answer": "Bangkok",
+        "hostNotes": "Signed as the Bangkok Declaration. The five founders: Indonesia, Malaysia, the Philippines, Singapore and Thailand.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

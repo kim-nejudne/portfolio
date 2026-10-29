@@ -1,0 +1,333 @@
+[
+  {
+    "id": "starter-world-geography-easy",
+    "title": "World Geography – Easy",
+    "questions": [
+      {
+        "id": "world-geography-easy-01",
+        "text": "What is the largest continent in the world?",
+        "answer": "Asia",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-02",
+        "text": "What is the capital of Japan?",
+        "answer": "Tokyo",
+        "hostNotes": "Not Kyoto, the old imperial capital.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-03",
+        "text": "In which city is the Eiffel Tower?",
+        "answer": "Paris",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-04",
+        "text": "What is the capital of South Korea?",
+        "answer": "Seoul",
+        "hostNotes": "Not Pyongyang, the capital of North Korea, or Busan.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-05",
+        "text": "What is the highest mountain in the world above sea level?",
+        "answer": "Mount Everest",
+        "hostNotes": "Also accept: Everest, Sagarmatha, Chomolungma.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-06",
+        "text": "Which European country is shaped like a boot?",
+        "answer": "Italy",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-07",
+        "text": "Which country is home to the Great Wall?",
+        "answer": "China",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-08",
+        "text": "The Taj Mahal is in which country?",
+        "answer": "India",
+        "hostNotes": "It is in the city of Agra.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-09",
+        "text": "In which city is the clock tower known as Big Ben?",
+        "answer": "London",
+        "hostNotes": "Big Ben is strictly the name of the bell inside.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-10",
+        "text": "In which country is the Sydney Opera House?",
+        "answer": "Australia",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-11",
+        "text": "What is the largest desert in Africa?",
+        "answer": "Sahara",
+        "hostNotes": "Also accept: Sahara Desert. Not the Kalahari.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-12",
+        "text": "What is the coldest continent?",
+        "answer": "Antarctica",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-13",
+        "text": "What city-state at the southern tip of the Malay Peninsula is a major Asian financial hub?",
+        "answer": "Singapore",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-14",
+        "text": "What great river flows north through Egypt into the Mediterranean Sea?",
+        "answer": "Nile",
+        "hostNotes": "Also accept: Nile River.",
+        "points": 100
+      },
+      {
+        "id": "world-geography-easy-15",
+        "text": "What is the smallest country in the world?",
+        "answer": "Vatican City",
+        "hostNotes": "Also accept: Vatican, Holy See. It lies inside Rome.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-world-geography-medium",
+    "title": "World Geography – Medium",
+    "questions": [
+      {
+        "id": "world-geography-medium-01",
+        "text": "What is the largest country in the world by land area?",
+        "answer": "Russia",
+        "hostNotes": "Not Canada, which is second.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-02",
+        "text": "What is the capital of Australia?",
+        "answer": "Canberra",
+        "hostNotes": "Not Sydney or Melbourne.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-03",
+        "text": "What is the capital of Canada?",
+        "answer": "Ottawa",
+        "hostNotes": "Not Toronto or Vancouver.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-04",
+        "text": "What is the capital of Vietnam?",
+        "answer": "Hanoi",
+        "hostNotes": "Not Ho Chi Minh City (Saigon), the largest city.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-05",
+        "text": "What is the capital of the United Arab Emirates?",
+        "answer": "Abu Dhabi",
+        "hostNotes": "Not Dubai, the largest city.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-06",
+        "text": "What is the main language spoken in Brazil?",
+        "answer": "Portuguese",
+        "hostNotes": "Not Spanish.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-07",
+        "text": "What canal connects the Mediterranean Sea to the Red Sea?",
+        "answer": "Suez Canal",
+        "hostNotes": "Also accept: Suez.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-08",
+        "text": "What canal in Central America links the Atlantic and Pacific Oceans?",
+        "answer": "Panama Canal",
+        "hostNotes": "Also accept: Panama.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-09",
+        "text": "What is the largest island in the world?",
+        "answer": "Greenland",
+        "hostNotes": "Australia is counted as a continent, not an island.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-10",
+        "text": "What large island off southeast Africa is the only natural home of lemurs?",
+        "answer": "Madagascar",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-11",
+        "text": "Which South American river carries more water than any other river in the world?",
+        "answer": "Amazon",
+        "hostNotes": "Also accept: Amazon River.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-12",
+        "text": "What mountain range runs along the whole western side of South America?",
+        "answer": "Andes",
+        "hostNotes": "Also accept: Andes Mountains. It is the longest continental mountain range in the world.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-13",
+        "text": "Which Turkish city lies on both sides of the Bosphorus, in Europe and in Asia?",
+        "answer": "Istanbul",
+        "hostNotes": "Formerly Constantinople. Not Ankara, the capital.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-14",
+        "text": "The temple complex of Angkor Wat is in which country?",
+        "answer": "Cambodia",
+        "hostNotes": "It appears on Cambodia's national flag.",
+        "points": 200
+      },
+      {
+        "id": "world-geography-medium-15",
+        "text": "Which Scandinavian country is famous for its deep coastal inlets called fjords?",
+        "answer": "Norway",
+        "hostNotes": "Not Sweden or Finland.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-world-geography-hard",
+    "title": "World Geography – Hard",
+    "questions": [
+      {
+        "id": "world-geography-hard-01",
+        "text": "What cold desert covers much of Mongolia and northern China?",
+        "answer": "Gobi",
+        "hostNotes": "Also accept: Gobi Desert.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-02",
+        "text": "What is the capital of Turkey?",
+        "answer": "Ankara",
+        "hostNotes": "Not Istanbul, the largest city.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-03",
+        "text": "What is the capital of New Zealand?",
+        "answer": "Wellington",
+        "hostNotes": "Not Auckland, the largest city.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-04",
+        "text": "What salt lake between Israel and Jordan has the lowest land elevation on Earth?",
+        "answer": "Dead Sea",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-05",
+        "text": "Mount Kilimanjaro, Africa's highest mountain, is in which country?",
+        "answer": "Tanzania",
+        "hostNotes": "Not Kenya, though it is near the border.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-06",
+        "text": "What narrow strait separates Spain from Morocco?",
+        "answer": "Strait of Gibraltar",
+        "hostNotes": "Also accept: Gibraltar.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-07",
+        "text": "Which river flows through Baghdad?",
+        "answer": "Tigris",
+        "hostNotes": "Also accept: Tigris River. Not the Euphrates, its twin river.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-08",
+        "text": "Which country has the only national flag that is not four-sided?",
+        "answer": "Nepal",
+        "hostNotes": "It is made of two stacked triangles. Not Switzerland or Vatican City, whose flags are square.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-09",
+        "text": "Which mountain range in Russia is traditionally the boundary between Europe and Asia?",
+        "answer": "Ural Mountains",
+        "hostNotes": "Also accept: Urals. Not the Caucasus.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-10",
+        "text": "What Siberian lake is the deepest lake in the world?",
+        "answer": "Lake Baikal",
+        "hostNotes": "Also accept: Baikal.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-11",
+        "text": "What Venezuelan waterfall is the world's tallest uninterrupted waterfall?",
+        "answer": "Angel Falls",
+        "hostNotes": "Also accept: Kerepakupai Merú, Salto Ángel. Not Niagara or Victoria Falls.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-12",
+        "text": "The Prime Meridian, 0° longitude, passes through which London district?",
+        "answer": "Greenwich",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-13",
+        "text": "The historic desert city of Timbuktu is in which African country?",
+        "answer": "Mali",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-14",
+        "text": "What is the largest country in Africa by area?",
+        "answer": "Algeria",
+        "hostNotes": "Not Sudan, which was largest until South Sudan split off in 2011.",
+        "points": 300
+      },
+      {
+        "id": "world-geography-hard-15",
+        "text": "Which small kingdom is completely surrounded by South Africa?",
+        "answer": "Lesotho",
+        "hostNotes": "Not Eswatini (Swaziland), which also borders Mozambique.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

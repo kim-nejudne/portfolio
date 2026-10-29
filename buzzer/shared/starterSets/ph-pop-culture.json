@@ -1,0 +1,322 @@
+[
+  {
+    "id": "starter-ph-pop-culture-easy",
+    "title": "Philippine TV & Pop Culture – Easy",
+    "questions": [
+      {
+        "id": "ph-pop-culture-easy-01",
+        "text": "What noontime variety show, first aired in 1979, calls its hosts and fans \"Dabarkads\"?",
+        "answer": "Eat Bulaga!",
+        "hostNotes": "Also accept: Eat Bulaga. Also accept E.A.T., the name the original hosts used in 2023–2024.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-02",
+        "text": "Which noontime show revived the singing contest \"Tawag ng Tanghalan\" in 2016?",
+        "answer": "It's Showtime",
+        "hostNotes": "Also accept: Showtime.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-03",
+        "text": "Which TV network's stars and viewers are called \"Kapamilya\"?",
+        "answer": "ABS-CBN",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-04",
+        "text": "Which TV network's stars and viewers are called \"Kapuso\"?",
+        "answer": "GMA",
+        "hostNotes": "Also accept: GMA Network, GMA-7.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-05",
+        "text": "Which Coco Martin action teleserye ran on ABS-CBN from 2015 to 2022?",
+        "answer": "FPJ's Ang Probinsyano",
+        "hostNotes": "Also accept: Ang Probinsyano, Probinsyano.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-06",
+        "text": "In what reality show do housemates live under the watchful voice of \"Kuya\"?",
+        "answer": "Pinoy Big Brother",
+        "hostNotes": "Also accept: PBB.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-07",
+        "text": "Pia Wurtzbach won the 2015 title of which international beauty pageant?",
+        "answer": "Miss Universe",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-08",
+        "text": "Which Filipina was crowned Miss Universe 2018, famous for her \"lava walk\"?",
+        "answer": "Catriona Gray",
+        "hostNotes": "Also accept: Catriona.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-09",
+        "text": "What is the love-team name of Kathryn Bernardo and Daniel Padilla?",
+        "answer": "KathNiel",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-10",
+        "text": "What 2015 \"Kalyeserye\" love team paired Alden Richards with Maine Mendoza?",
+        "answer": "AlDub",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-11",
+        "text": "Which comedian and TV host is known as the \"Unkabogable Star\"?",
+        "answer": "Vice Ganda",
+        "hostNotes": "Also accept: Vice, Jose Marie Viceral.",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-12",
+        "text": "What GMA fantasy series follows four Sang'gre sisters who guard the elemental gems?",
+        "answer": "Encantadia",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-13",
+        "text": "In 2007, Marian Rivera starred in GMA's remake of which Mexican telenovela?",
+        "answer": "Marimar",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-14",
+        "text": "What Filipino children's educational show featured Pong Pagong and Kiko Matsing?",
+        "answer": "Batibot",
+        "points": 100
+      },
+      {
+        "id": "ph-pop-culture-easy-15",
+        "text": "What long-running GMA gag show, starring Michael V, first aired in 1995?",
+        "answer": "Bubble Gang",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-ph-pop-culture-medium",
+    "title": "Philippine TV & Pop Culture – Medium",
+    "questions": [
+      {
+        "id": "ph-pop-culture-medium-01",
+        "text": "Which TV host and actress is called the \"Queen of All Media\"?",
+        "answer": "Kris Aquino",
+        "hostNotes": "Also accept: Kris.",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-02",
+        "text": "Which actress and singer is known as the \"Megastar\"?",
+        "answer": "Sharon Cuneta",
+        "hostNotes": "Also accept: Sharon, Shawie.",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-03",
+        "text": "Which actress is known as the \"Diamond Star\"?",
+        "answer": "Maricel Soriano",
+        "hostNotes": "Also accept: Maricel.",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-04",
+        "text": "Who became the first Filipina to win Miss Universe, in 1969?",
+        "answer": "Gloria Diaz",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-05",
+        "text": "Who became the first Filipina to win Miss World, in 2013?",
+        "answer": "Megan Young",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-06",
+        "text": "What is the love-team name of James Reid and Nadine Lustre?",
+        "answer": "JaDine",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-07",
+        "text": "Which veteran journalist hosts the GMA feature show known as \"KMJS\"?",
+        "answer": "Jessica Soho",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-08",
+        "text": "What 2014 teleserye starring Enrique Gil and Liza Soberano is set on a Benguet strawberry farm?",
+        "answer": "Forevermore",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-09",
+        "text": "Which 2000 ABS-CBN teleserye starred Kristine Hermosa and Jericho Rosales as Yna and Angelo?",
+        "answer": "Pangako Sa 'Yo",
+        "hostNotes": "Also accept: Pangako Sa Iyo. It was remade in 2015.",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-10",
+        "text": "In \"Be Careful With My Heart\", what nickname did Maya give Richard Yap's character?",
+        "answer": "Sir Chief",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-11",
+        "text": "What 1990s ABS-CBN youth drama starred Judy Ann Santos, Rico Yan and Jolina Magdangal?",
+        "answer": "Gimik",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-12",
+        "text": "In which sitcom did Dolphy play Kevin Cosme, whose family lived beside the railroad tracks?",
+        "answer": "Home Along Da Riles",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-13",
+        "text": "What ABS-CBN gag show, which ran from 2005 to 2019, had an all-child cast?",
+        "answer": "Goin' Bulilit",
+        "hostNotes": "Also accept: Goin Bulilit.",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-14",
+        "text": "What ABS-CBN children's fantasy anthology first aired in 1997?",
+        "answer": "Wansapanataym",
+        "hostNotes": "Its title is a Filipino spelling of \"once upon a time\".",
+        "points": 200
+      },
+      {
+        "id": "ph-pop-culture-medium-15",
+        "text": "What 1990s ABS-CBN youth gag and variety show helped launch the career of Jolina Magdangal?",
+        "answer": "Ang TV",
+        "hostNotes": "Not Gimik, which was a drama series.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-ph-pop-culture-hard",
+    "title": "Philippine TV & Pop Culture – Hard",
+    "questions": [
+      {
+        "id": "ph-pop-culture-hard-01",
+        "text": "What is the name of Coco Martin's police officer character in \"Ang Probinsyano\"?",
+        "answer": "Cardo Dalisay",
+        "hostNotes": "Also accept: Cardo.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-02",
+        "text": "In the sitcom \"Okay Ka, Fairy Ko!\", what is the name of Vic Sotto's character?",
+        "answer": "Enteng Kabisote",
+        "hostNotes": "Also accept: Enteng.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-03",
+        "text": "What GMA reality talent search crowned Mark Herras and Jennylyn Mercado as its first winners in 2004?",
+        "answer": "StarStruck",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-04",
+        "text": "What 2004 GMA fantasy series was about a race of winged bird-people?",
+        "answer": "Mulawin",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-05",
+        "text": "In \"Encantadia\", which Sang'gre sister holds the gem of fire?",
+        "answer": "Pirena",
+        "hostNotes": "The others: Amihan (air), Alena (water) and Danaya (earth).",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-06",
+        "text": "Which singer won the first season of \"Pinoy Dream Academy\" in 2006?",
+        "answer": "Yeng Constantino",
+        "hostNotes": "Also accept: Yeng.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-07",
+        "text": "In 2016, Kylie Verzosa won which international beauty pageant?",
+        "answer": "Miss International",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-08",
+        "text": "At Miss Universe 2015, which contestant was wrongly announced as the winner before Pia Wurtzbach?",
+        "answer": "Miss Colombia",
+        "hostNotes": "Also accept: Ariadna Gutiérrez, Colombia. Host Steve Harvey read the card wrong.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-09",
+        "text": "Which TV host, called the \"Master Showman\", hosted the youth show \"That's Entertainment\"?",
+        "answer": "German Moreno",
+        "hostNotes": "Also accept: Kuya Germs.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-10",
+        "text": "What 2006 ABS-CBN superhero series starred child actor Makisig Morales?",
+        "answer": "Super Inggo",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-11",
+        "text": "Which actress played Marsha opposite Dolphy in the sitcom \"John en Marsha\"?",
+        "answer": "Nida Blanca",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-12",
+        "text": "Who was named the first \"Big Winner\" of \"Pinoy Big Brother\" in 2005?",
+        "answer": "Nene Tamayo",
+        "hostNotes": "Also accept: Nene.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-13",
+        "text": "In GMA's \"Maria Clara at Ibarra\" (2022), what is the nickname of Barbie Forteza's nursing student?",
+        "answer": "Klay",
+        "hostNotes": "Her full name in the series is Maria Clara Infantes.",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-14",
+        "text": "What 1997 ABS-CBN teleserye starred Claudine Barretto, Rico Yan and Diether Ocampo?",
+        "answer": "Mula sa Puso",
+        "points": 300
+      },
+      {
+        "id": "ph-pop-culture-hard-15",
+        "text": "In the network name ABS-CBN, what did \"ABS\" originally stand for?",
+        "answer": "Alto Broadcasting System",
+        "hostNotes": "CBN stood for Chronicle Broadcasting Network.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

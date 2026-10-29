@@ -1,0 +1,339 @@
+[
+  {
+    "id": "starter-ph-history-easy",
+    "title": "Philippine History – Easy",
+    "questions": [
+      {
+        "id": "ph-history-easy-01",
+        "text": "Who is the national hero of the Philippines?",
+        "answer": "José Rizal",
+        "hostNotes": "Also accept: Rizal, Jose Rizal.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-02",
+        "text": "Which country colonized the Philippines after Spain?",
+        "answer": "United States",
+        "hostNotes": "Also accept: USA, America, Amerika.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-03",
+        "text": "Which country occupied the Philippines during World War II?",
+        "answer": "Japan",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-04",
+        "text": "On what date is Philippine Independence Day celebrated?",
+        "answer": "June 12",
+        "hostNotes": "Marks the 1898 proclamation of independence from Spain.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-05",
+        "text": "Who was the first president of the Philippines?",
+        "answer": "Emilio Aguinaldo",
+        "hostNotes": "Also accept: Aguinaldo.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-06",
+        "text": "Which Mactan chieftain defeated Ferdinand Magellan's forces in 1521?",
+        "answer": "Lapu-Lapu",
+        "hostNotes": "Also accept: Lapulapu, Cali Pulaco.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-07",
+        "text": "Who founded the Katipunan in 1892?",
+        "answer": "Andrés Bonifacio",
+        "hostNotes": "Also accept: Bonifacio, Andres Bonifacio. He co-founded it with others, but he is the accepted answer.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-08",
+        "text": "The 1986 People Power Revolution is named after what major Metro Manila road?",
+        "answer": "EDSA",
+        "hostNotes": "Also accept: Epifanio de los Santos Avenue.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-09",
+        "text": "What is the title of José Rizal's first novel?",
+        "answer": "Noli Me Tangere",
+        "hostNotes": "Also accept: Noli. Not El Filibusterismo, which was his second.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-10",
+        "text": "How many rays does the sun on the Philippine flag have?",
+        "answer": "Eight",
+        "hostNotes": "They stand for the first eight provinces to revolt against Spain.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-11",
+        "text": "The Philippines was named after which future Spanish king?",
+        "answer": "King Philip II",
+        "hostNotes": "Also accept: Philip II, Felipe II. Must include \"II\" or \"the Second\".",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-12",
+        "text": "Which elderly woman, called the \"Mother of the Katipunan\", cared for wounded revolutionaries?",
+        "answer": "Melchora Aquino",
+        "hostNotes": "Also accept: Tandang Sora.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-13",
+        "text": "In which province did the 1942 Death March of Filipino and American prisoners begin?",
+        "answer": "Bataan",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-14",
+        "text": "Who sewed the first Philippine flag in Hong Kong?",
+        "answer": "Marcela Agoncillo",
+        "hostNotes": "Also accept: Agoncillo. She was helped by her daughter Lorenza and Delfina Herbosa de Natividad.",
+        "points": 100
+      },
+      {
+        "id": "ph-history-easy-15",
+        "text": "For about how many years did Spain rule the Philippines?",
+        "answer": "333 years",
+        "hostNotes": "Commonly taught as 333 years (1565 to 1898). Accept answers from 330 to 333.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-ph-history-medium",
+    "title": "Philippine History – Medium",
+    "questions": [
+      {
+        "id": "ph-history-medium-01",
+        "text": "Who was the first female president of the Philippines?",
+        "answer": "Corazon Aquino",
+        "hostNotes": "Also accept: Cory Aquino, Cory.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-02",
+        "text": "Which American general vowed \"I shall return\" after leaving the Philippines in 1942?",
+        "answer": "Douglas MacArthur",
+        "hostNotes": "Also accept: MacArthur. He landed in Leyte in 1944.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-03",
+        "text": "Which president declared martial law in September 1972?",
+        "answer": "Ferdinand Marcos",
+        "hostNotes": "Also accept: Marcos, Ferdinand E. Marcos Sr. It was done through Proclamation No. 1081.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-04",
+        "text": "Who was the \"Boy General\" killed defending Tirad Pass in 1899?",
+        "answer": "Gregorio del Pilar",
+        "hostNotes": "Also accept: Goyo, del Pilar. Not Marcelo H. del Pilar, the propagandist. He was 24.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-05",
+        "text": "Which paralyzed hero is known as the \"Brains of the Revolution\"?",
+        "answer": "Apolinario Mabini",
+        "hostNotes": "Also accept: Mabini. Also called the \"Sublime Paralytic\".",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-06",
+        "text": "In which Cavite town was Philippine independence proclaimed in 1898?",
+        "answer": "Kawit",
+        "hostNotes": "From the balcony of Aguinaldo's house, now the Aguinaldo Shrine.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-07",
+        "text": "Who composed the music of the Philippine national anthem?",
+        "answer": "Julián Felipe",
+        "hostNotes": "Also accept: Julian Felipe.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-08",
+        "text": "Who founded the first permanent Spanish settlement in the Philippines, in Cebu in 1565?",
+        "answer": "Miguel López de Legazpi",
+        "hostNotes": "Also accept: Legazpi, Legaspi. Not Magellan, who died in 1521.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-09",
+        "text": "What combined name is given to the three Filipino priests executed by the Spanish in 1872?",
+        "answer": "GomBurZa",
+        "hostNotes": "Fathers Mariano Gómez, José Burgos and Jacinto Zamora.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-10",
+        "text": "What is the title of the farewell poem José Rizal wrote before his execution?",
+        "answer": "Mi Último Adiós",
+        "hostNotes": "Also accept: My Last Farewell, Huling Paalam.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-11",
+        "text": "Who was president of the Philippine Commonwealth when it was established in 1935?",
+        "answer": "Manuel L. Quezon",
+        "hostNotes": "Also accept: Quezon.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-12",
+        "text": "Whose assassination at the Manila International Airport in 1983 sparked mass protests?",
+        "answer": "Benigno \"Ninoy\" Aquino Jr.",
+        "hostNotes": "Also accept: Ninoy Aquino, Ninoy. The airport (NAIA) now bears his name.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-13",
+        "text": "On what date in 1946 did the United States formally grant Philippine independence?",
+        "answer": "July 4",
+        "hostNotes": "Not June 12, Independence Day since 1962. July 4 is now observed as Philippine Republic Day.",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-14",
+        "text": "What newspaper of Filipino reformists was published in Spain starting in 1889?",
+        "answer": "La Solidaridad",
+        "points": 200
+      },
+      {
+        "id": "ph-history-medium-15",
+        "text": "What documents did Katipuneros tear up in the 1896 Cry of Pugad Lawin?",
+        "answer": "Cédulas",
+        "hostNotes": "Also accept: cedula, sedula, community tax certificates. Some historians call the event the Cry of Balintawak.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-ph-history-hard",
+    "title": "Philippine History – Hard",
+    "questions": [
+      {
+        "id": "ph-history-hard-01",
+        "text": "What precolonial Filipino script, now seen in logos and tattoos, uses symbols for syllables?",
+        "answer": "Baybayin",
+        "hostNotes": "Also accept: alibata, though historians prefer baybayin.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-02",
+        "text": "Who continued her husband Diego's revolt in Ilocos after his assassination in 1763?",
+        "answer": "Gabriela Silang",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-03",
+        "text": "What island fortress at the mouth of Manila Bay fell to Japan in May 1942?",
+        "answer": "Corregidor",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-04",
+        "text": "The Manila galleons sailed across the Pacific to which Mexican port?",
+        "answer": "Acapulco",
+        "hostNotes": "The galleon trade ran from 1565 to 1815.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-05",
+        "text": "Who became the first president of the independent Third Republic in 1946?",
+        "answer": "Manuel Roxas",
+        "hostNotes": "Also accept: Roxas. Not Quezon or Osmeña, who led the Commonwealth.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-06",
+        "text": "In which Bulacan church was the First Philippine Republic's constitution framed?",
+        "answer": "Barasoain Church",
+        "hostNotes": "Also accept: Barasoain. It is in Malolos, hence the Malolos Constitution.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-07",
+        "text": "What 1897 truce sent the Filipino revolutionary leaders into exile in Hong Kong?",
+        "answer": "Pact of Biak-na-Bato",
+        "hostNotes": "Also accept: Biak-na-Bato.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-08",
+        "text": "What Spanish-era system forced Filipino men to do 40 days of unpaid labor a year?",
+        "answer": "Polo y servicio",
+        "hostNotes": "Also accept: polo, sapilitang paggawa. It was cut to 15 days in 1884.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-09",
+        "text": "In the 1898 Treaty of Paris, how much did the United States pay Spain for the Philippines?",
+        "answer": "$20 million",
+        "hostNotes": "Also accept: 20 million dollars.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-10",
+        "text": "Who led the longest revolt in Philippine history, lasting about 85 years in Bohol?",
+        "answer": "Francisco Dagohoy",
+        "hostNotes": "Also accept: Dagohoy. The revolt ran from 1744 to 1829.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-11",
+        "text": "What 1934 US law promised Philippine independence after a 10-year Commonwealth period?",
+        "answer": "Tydings–McDuffie Act",
+        "hostNotes": "Also accept: Tydings-McDuffie, Philippine Independence Act. Not the Jones Law of 1916.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-12",
+        "text": "Who wrote the \"Kartilya ng Katipunan\", the society's code of conduct?",
+        "answer": "Emilio Jacinto",
+        "hostNotes": "Also accept: Jacinto. He is called the \"Brains of the Katipunan\".",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-13",
+        "text": "What 17th-century Maguindanao sultan, now honored by a province's name, fought Spanish colonizers?",
+        "answer": "Sultan Kudarat",
+        "hostNotes": "Also accept: Kudarat, Muhammad Kudarat.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-14",
+        "text": "What was the name of the Katipunan's newspaper, first published in 1896?",
+        "answer": "Kalayaan",
+        "hostNotes": "Only one issue came out. Not La Solidaridad, which was the reformists' paper in Spain.",
+        "points": 300
+      },
+      {
+        "id": "ph-history-hard-15",
+        "text": "What artifact dated 900 AD is the oldest known written document found in the Philippines?",
+        "answer": "Laguna Copperplate Inscription",
+        "hostNotes": "Also accept: Laguna Copperplate. It was found near Lumban, Laguna, in 1989.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

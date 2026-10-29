@@ -1,0 +1,338 @@
+[
+  {
+    "id": "starter-science-easy",
+    "title": "Science – Easy",
+    "questions": [
+      {
+        "id": "science-easy-01",
+        "text": "What is the chemical formula for water?",
+        "answer": "H2O",
+        "hostNotes": "Also accept: H₂O.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-02",
+        "text": "What force pulls objects toward the ground?",
+        "answer": "Gravity",
+        "points": 100
+      },
+      {
+        "id": "science-easy-03",
+        "text": "What instrument is used to measure temperature?",
+        "answer": "Thermometer",
+        "points": 100
+      },
+      {
+        "id": "science-easy-04",
+        "text": "What instrument makes tiny things like cells look bigger?",
+        "answer": "Microscope",
+        "hostNotes": "Not a magnifying glass, which is not strong enough to see cells.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-05",
+        "text": "Which part of a plant absorbs water from the soil?",
+        "answer": "Roots",
+        "hostNotes": "Also accept: ugat.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-06",
+        "text": "At what temperature in Celsius does water boil at sea level?",
+        "answer": "100°C",
+        "hostNotes": "Also accept: 100, 100 degrees.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-07",
+        "text": "Which scientist developed the theory of relativity?",
+        "answer": "Albert Einstein",
+        "hostNotes": "Also accept: Einstein.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-08",
+        "text": "Which English scientist wrote the three laws of motion?",
+        "answer": "Isaac Newton",
+        "hostNotes": "Also accept: Newton.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-09",
+        "text": "What process do plants use to make food from sunlight?",
+        "answer": "Photosynthesis",
+        "points": 100
+      },
+      {
+        "id": "science-easy-10",
+        "text": "Which Albay volcano is famous for its near-perfect cone shape?",
+        "answer": "Mayon",
+        "hostNotes": "Also accept: Mayon Volcano, Mount Mayon.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-11",
+        "text": "What is the name of the Philippine government's weather bureau?",
+        "answer": "PAGASA",
+        "hostNotes": "Philippine Atmospheric, Geophysical and Astronomical Services Administration.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-12",
+        "text": "Which Batangas volcano sits in the middle of a lake?",
+        "answer": "Taal",
+        "hostNotes": "Also accept: Taal Volcano.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-13",
+        "text": "The Richter scale measures the strength of what natural event?",
+        "answer": "Earthquakes",
+        "hostNotes": "Also accept: lindol.",
+        "points": 100
+      },
+      {
+        "id": "science-easy-14",
+        "text": "What is the hardest natural substance on Earth?",
+        "answer": "Diamond",
+        "points": 100
+      },
+      {
+        "id": "science-easy-15",
+        "text": "What is the center of an atom called?",
+        "answer": "Nucleus",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-science-medium",
+    "title": "Science – Medium",
+    "questions": [
+      {
+        "id": "science-medium-01",
+        "text": "What gas gives soft drinks their fizz?",
+        "answer": "Carbon dioxide",
+        "hostNotes": "Also accept: CO2.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-02",
+        "text": "What is the chemical name of table salt?",
+        "answer": "Sodium chloride",
+        "hostNotes": "Also accept: NaCl.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-03",
+        "text": "Which subatomic particle has a negative charge?",
+        "answer": "Electron",
+        "points": 200
+      },
+      {
+        "id": "science-medium-04",
+        "text": "What gas makes up most of Earth's atmosphere?",
+        "answer": "Nitrogen",
+        "hostNotes": "Not oxygen. Nitrogen is about 78% of the air, oxygen about 21%.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-05",
+        "text": "What is the pH of pure water?",
+        "answer": "7",
+        "hostNotes": "Also accept: seven, neutral.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-06",
+        "text": "What is the chemical symbol for gold?",
+        "answer": "Au",
+        "hostNotes": "From the Latin \"aurum\". Not Ag, which is silver.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-07",
+        "text": "Which metal is liquid at a standard room temperature of 25 °C?",
+        "answer": "Mercury",
+        "hostNotes": "Also accept: Hg, quicksilver.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-08",
+        "text": "What part of a cell is known as its \"powerhouse\"?",
+        "answer": "Mitochondria",
+        "hostNotes": "Also accept: mitochondrion.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-09",
+        "text": "Which scientist proposed the theory of evolution by natural selection?",
+        "answer": "Charles Darwin",
+        "hostNotes": "Also accept: Darwin, Alfred Russel Wallace (who proposed it with Darwin in 1858).",
+        "points": 200
+      },
+      {
+        "id": "science-medium-10",
+        "text": "Who was the first woman to win a Nobel Prize?",
+        "answer": "Marie Curie",
+        "hostNotes": "Also accept: Curie. She won in Physics (1903) and again in Chemistry (1911).",
+        "points": 200
+      },
+      {
+        "id": "science-medium-11",
+        "text": "What is the scientific study of weather and the atmosphere called?",
+        "answer": "Meteorology",
+        "hostNotes": "Despite the name, it is not the study of meteors.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-12",
+        "text": "The Philippines lies on what horseshoe-shaped belt of volcanoes and earthquakes around the Pacific?",
+        "answer": "Ring of Fire",
+        "hostNotes": "Also accept: Pacific Ring of Fire.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-13",
+        "text": "Which Philippine government agency monitors volcanoes and earthquakes?",
+        "answer": "PHIVOLCS",
+        "hostNotes": "Philippine Institute of Volcanology and Seismology. Not PAGASA, which handles weather.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-14",
+        "text": "Which Luzon volcano had one of the 20th century's largest eruptions in 1991?",
+        "answer": "Mount Pinatubo",
+        "hostNotes": "Also accept: Pinatubo.",
+        "points": 200
+      },
+      {
+        "id": "science-medium-15",
+        "text": "What do you call a destructive flow of volcanic debris mixed with water?",
+        "answer": "Lahar",
+        "hostNotes": "The word comes from Javanese.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-science-hard",
+    "title": "Science – Hard",
+    "questions": [
+      {
+        "id": "science-hard-01",
+        "text": "Who discovered penicillin in 1928?",
+        "answer": "Alexander Fleming",
+        "hostNotes": "Also accept: Fleming.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-02",
+        "text": "What is the most abundant element in the universe?",
+        "answer": "Hydrogen",
+        "hostNotes": "Not oxygen or helium. Helium is second.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-03",
+        "text": "What do you call a substance that speeds up a chemical reaction without being used up?",
+        "answer": "Catalyst",
+        "hostNotes": "Enzymes are biological catalysts.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-04",
+        "text": "What does DNA stand for?",
+        "answer": "Deoxyribonucleic acid",
+        "hostNotes": "Must be the full term. Accept minor mispronunciations.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-05",
+        "text": "What is it called when a solid turns directly into a gas, like dry ice?",
+        "answer": "Sublimation",
+        "hostNotes": "Not evaporation, which starts from a liquid.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-06",
+        "text": "What is the bending of light as it passes from air into water called?",
+        "answer": "Refraction",
+        "hostNotes": "Not reflection, which is light bouncing off a surface.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-07",
+        "text": "Which Russian chemist created the first widely used periodic table, in 1869?",
+        "answer": "Dmitri Mendeleev",
+        "hostNotes": "Also accept: Mendeleev, Mendeleyev.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-08",
+        "text": "What is the SI base unit of temperature?",
+        "answer": "Kelvin",
+        "hostNotes": "Not Celsius, which is a derived unit.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-09",
+        "text": "What type of rock forms when magma or lava cools and hardens?",
+        "answer": "Igneous",
+        "hostNotes": "Not sedimentary or metamorphic.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-10",
+        "text": "What property of a sound wave determines its pitch?",
+        "answer": "Frequency",
+        "hostNotes": "Not amplitude, which determines loudness.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-11",
+        "text": "What scale ranks minerals from talc at 1 to the hardest at 10?",
+        "answer": "Mohs scale",
+        "hostNotes": "Also accept: Mohs.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-12",
+        "text": "What is the SI unit of electric current?",
+        "answer": "Ampere",
+        "hostNotes": "Also accept: amp. Not volt or watt.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-13",
+        "text": "Which physicist imagined a cat in a box that is both alive and dead?",
+        "answer": "Erwin Schrödinger",
+        "hostNotes": "Also accept: Schrödinger, Schrodinger.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-14",
+        "text": "The International Rice Research Institute (IRRI) is based in which Laguna town?",
+        "answer": "Los Baños",
+        "hostNotes": "Also accept: Los Banos.",
+        "points": 300
+      },
+      {
+        "id": "science-hard-15",
+        "text": "Which Filipino National Scientist and pediatrician devised a bamboo incubator for rural areas?",
+        "answer": "Fe del Mundo",
+        "hostNotes": "She founded the first pediatric hospital in the Philippines.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

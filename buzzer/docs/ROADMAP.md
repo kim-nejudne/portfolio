@@ -122,16 +122,7 @@ Kim's review of 2026-10-28: every Backlog item is scheduled here, grouped by are
 
 Kim's request of 2026-10-29: 60 built-in sets (20 categories × Easy, Medium, Hard, 15 questions each) for Filipino game nights, written in Claude Desktop and reviewed in Claude Code. The choices are in the DECISIONS row dated 2026-10-29 marked "starter plan". Proposed spec wording is in DECISIONS, Proposed spec changes (starter sets).
 
-- [ ] F47 Starter set data
-  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (starter sets)
-  - Depends: F46
-  - Done when:
-    - The 20 files in `~/Downloads/buzzr-starter/` are copied to `shared/starterSets/<slug>.json` with the 39 entries of `~/Downloads/buzzr-starter-fixes.json` applied (listed fields replace the original; `hostNotes: null` removes the note). The one-off apply script stays in the scratchpad, not the repo. The JSON is generated data and does not count toward the session's line budget
-    - Every question keeps the key order `id, text, answer, hostNotes?, points`; every set keeps `createdAt: 0`, `updatedAt: 0`, `schemaVersion: 1`
-    - `shared/starterSets/index.ts` exports `STARTER_SETS: QuestionSet[]` (60 sets) in category order (`animals`, `movies`, `ph-history`, `world-history`, `science`, `religion`, `tech`, `comics`, `anime`, `video-games`, `food`, `ph-geography`, `world-geography`, `music`, `sports`, `ph-pop-culture`, `health`, `space`, `mythology`, `language`), Easy, Medium, Hard within each
-    - JSON imports typecheck: `resolveJsonModule` in `tsconfig.json` if needed, justified in DECISIONS. No new dependency
-    - Every applied fix is visible in the data (e.g. `space-easy-12` has no host note; `tech-medium-02` answers Xiaomi)
-  - Tests: `shared/starterSets.test.ts`: 60 sets; each parses with `questionSetSchema` unchanged and has 15 questions; set ids are `starter-<slug>-<level>` and unique; question ids unique across all sets; points 100/200/300 by level; titles end "– Easy"/"– Medium"/"– Hard"; no `imageId`; each can create a room with `DEFAULT_SETTINGS` (`createRoomBodySchema`)
+- [x] F47 Starter set data
 
 - [ ] F48 Seed starter sets into My sets
   - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (starter sets)

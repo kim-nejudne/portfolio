@@ -1,0 +1,333 @@
+[
+  {
+    "id": "starter-space-easy",
+    "title": "Space & Astronomy – Easy",
+    "questions": [
+      {
+        "id": "space-easy-01",
+        "text": "What is the closest star to Earth?",
+        "answer": "The Sun",
+        "hostNotes": "Also accept: Sun, araw.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-02",
+        "text": "What is Earth's only natural satellite?",
+        "answer": "The Moon",
+        "hostNotes": "Also accept: Moon, buwan, Luna.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-03",
+        "text": "Which planet is known as the \"Red Planet\"?",
+        "answer": "Mars",
+        "points": 100
+      },
+      {
+        "id": "space-easy-04",
+        "text": "What is the largest planet in our solar system?",
+        "answer": "Jupiter",
+        "points": 100
+      },
+      {
+        "id": "space-easy-05",
+        "text": "Which planet is most famous for its bright, wide rings?",
+        "answer": "Saturn",
+        "hostNotes": "Jupiter, Uranus and Neptune also have faint rings.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-06",
+        "text": "Who was the first person to walk on the Moon?",
+        "answer": "Neil Armstrong",
+        "hostNotes": "Also accept: Armstrong. Not Buzz Aldrin, who followed him.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-07",
+        "text": "How many planets are in our solar system?",
+        "answer": "Eight",
+        "hostNotes": "Also accept: 8.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-08",
+        "text": "What is the name of the galaxy that contains our solar system?",
+        "answer": "Milky Way",
+        "hostNotes": "Also accept: the Milky Way Galaxy.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-09",
+        "text": "What do you call a person trained to travel into space?",
+        "answer": "Astronaut",
+        "hostNotes": "Also accept: cosmonaut, taikonaut.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-10",
+        "text": "Which former ninth planet was reclassified as a dwarf planet in 2006?",
+        "answer": "Pluto",
+        "points": 100
+      },
+      {
+        "id": "space-easy-11",
+        "text": "Which planet is closest to the Sun?",
+        "answer": "Mercury",
+        "points": 100
+      },
+      {
+        "id": "space-easy-12",
+        "text": "What is the curved path a planet follows around the Sun called?",
+        "answer": "Orbit",
+        "points": 100
+      },
+      {
+        "id": "space-easy-13",
+        "text": "What icy object grows a glowing tail as it nears the Sun?",
+        "answer": "Comet",
+        "hostNotes": "Not an asteroid or meteor.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-14",
+        "text": "What do you call a group of stars that forms a recognizable pattern, like Orion?",
+        "answer": "Constellation",
+        "hostNotes": "Also accept: asterism.",
+        "points": 100
+      },
+      {
+        "id": "space-easy-15",
+        "text": "What is the scientific name for a \"shooting star\"?",
+        "answer": "Meteor",
+        "hostNotes": "Not meteorite, which is a piece that reaches the ground.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-space-medium",
+    "title": "Space & Astronomy – Medium",
+    "questions": [
+      {
+        "id": "space-medium-01",
+        "text": "Which planet is the hottest in our solar system?",
+        "answer": "Venus",
+        "hostNotes": "Not Mercury. Venus's thick carbon dioxide atmosphere traps heat.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-02",
+        "text": "Which planet is farthest from the Sun?",
+        "answer": "Neptune",
+        "hostNotes": "Not Pluto, which is now a dwarf planet.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-03",
+        "text": "What was the name of the 1969 mission that first landed humans on the Moon?",
+        "answer": "Apollo 11",
+        "hostNotes": "Must include \"11\".",
+        "points": 200
+      },
+      {
+        "id": "space-medium-04",
+        "text": "Who became the first human to travel into space, in 1961?",
+        "answer": "Yuri Gagarin",
+        "hostNotes": "Also accept: Gagarin. Not Neil Armstrong.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-05",
+        "text": "What is a region of space where gravity is so strong that not even light can escape?",
+        "answer": "Black hole",
+        "points": 200
+      },
+      {
+        "id": "space-medium-06",
+        "text": "What scientific theory says the universe began from an extremely hot, dense state and has been expanding ever since?",
+        "answer": "Big Bang",
+        "hostNotes": "Also accept: Big Bang theory.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-07",
+        "text": "What famous space telescope was launched into orbit in 1990?",
+        "answer": "Hubble Space Telescope",
+        "hostNotes": "Also accept: Hubble. Not James Webb, launched in 2021.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-08",
+        "text": "What do you call the powerful explosion of a dying star?",
+        "answer": "Supernova",
+        "points": 200
+      },
+      {
+        "id": "space-medium-09",
+        "text": "A light-year is a unit used to measure what?",
+        "answer": "Distance",
+        "hostNotes": "Not time. It is the distance light travels in one year.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-10",
+        "text": "What type of eclipse happens when the Moon passes between the Sun and Earth?",
+        "answer": "Solar eclipse",
+        "hostNotes": "Not a lunar eclipse, when Earth's shadow falls on the Moon.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-11",
+        "text": "What famous comet returns to Earth's skies roughly every 76 years?",
+        "answer": "Halley's Comet",
+        "hostNotes": "Also accept: Halley. It last appeared in 1986.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-12",
+        "text": "What was the name of the first artificial satellite, launched by the Soviet Union in 1957?",
+        "answer": "Sputnik 1",
+        "hostNotes": "Also accept: Sputnik.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-13",
+        "text": "Which planet rotates tipped on its side, so it seems to roll around the Sun?",
+        "answer": "Uranus",
+        "points": 200
+      },
+      {
+        "id": "space-medium-14",
+        "text": "What is the short name of the Philippine Space Agency, created in 2019?",
+        "answer": "PhilSA",
+        "hostNotes": "Not PSA, which is the Philippine Statistics Authority, or PAGASA.",
+        "points": 200
+      },
+      {
+        "id": "space-medium-15",
+        "text": "What was the name of the first Philippine-built microsatellite, launched in 2016?",
+        "answer": "Diwata-1",
+        "hostNotes": "Also accept: Diwata. It was released into orbit from the International Space Station.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-space-hard",
+    "title": "Space & Astronomy – Hard",
+    "questions": [
+      {
+        "id": "space-hard-01",
+        "text": "Which Italian astronomer discovered Jupiter's four largest moons with a telescope in 1610?",
+        "answer": "Galileo Galilei",
+        "hostNotes": "Also accept: Galileo. The four are called the Galilean moons.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-02",
+        "text": "Which Polish astronomer proposed that the Earth and planets revolve around the Sun?",
+        "answer": "Nicolaus Copernicus",
+        "hostNotes": "Also accept: Copernicus.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-03",
+        "text": "Who became the first woman in space, in 1963?",
+        "answer": "Valentina Tereshkova",
+        "hostNotes": "Also accept: Tereshkova.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-04",
+        "text": "What was the name of the Soviet dog who became the first animal to orbit Earth, in 1957?",
+        "answer": "Laika",
+        "points": 300
+      },
+      {
+        "id": "space-hard-05",
+        "text": "To the nearest minute, about how long does sunlight take to reach Earth?",
+        "answer": "8 minutes",
+        "hostNotes": "Also accept: eight minutes. It is about 8 minutes and 20 seconds.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-06",
+        "text": "The main asteroid belt lies between which two planets?",
+        "answer": "Mars and Jupiter",
+        "hostNotes": "Both needed, in either order.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-07",
+        "text": "What is the nearest large spiral galaxy to the Milky Way?",
+        "answer": "Andromeda",
+        "hostNotes": "Also accept: Andromeda Galaxy, M31. Not the Magellanic Clouds, which are small satellite galaxies.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-08",
+        "text": "What is the brightest star in the night sky?",
+        "answer": "Sirius",
+        "hostNotes": "Also accept: Dog Star. Not Polaris, the North Star, which is not especially bright.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-09",
+        "text": "Apart from the Sun, what is the closest star to Earth?",
+        "answer": "Proxima Centauri",
+        "hostNotes": "Also accept: Alpha Centauri, the star system it belongs to.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-10",
+        "text": "What is the largest volcano in the solar system, found on Mars?",
+        "answer": "Olympus Mons",
+        "points": 300
+      },
+      {
+        "id": "space-hard-11",
+        "text": "What is the largest moon in the solar system?",
+        "answer": "Ganymede",
+        "hostNotes": "It orbits Jupiter. Not Titan, which is second.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-12",
+        "text": "What are the names of the two moons of Mars?",
+        "answer": "Phobos and Deimos",
+        "hostNotes": "Both needed.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-13",
+        "text": "What is the name of NASA's rover that landed on Mars in February 2021?",
+        "answer": "Perseverance",
+        "hostNotes": "Also accept: Percy. Not Curiosity, which landed in 2012.",
+        "points": 300
+      },
+      {
+        "id": "space-hard-14",
+        "text": "What is the outer atmosphere of the Sun, seen as a glowing halo during a total eclipse?",
+        "answer": "Corona",
+        "points": 300
+      },
+      {
+        "id": "space-hard-15",
+        "text": "The Big Dipper is part of which constellation?",
+        "answer": "Ursa Major",
+        "hostNotes": "Also accept: Great Bear. Not Ursa Minor, the Little Dipper.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

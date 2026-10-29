@@ -1,0 +1,335 @@
+[
+  {
+    "id": "starter-music-easy",
+    "title": "Music – Easy",
+    "questions": [
+      {
+        "id": "music-easy-01",
+        "text": "Which musical instrument usually has 88 black and white keys?",
+        "answer": "Piano",
+        "hostNotes": "Also accept: grand piano, upright piano.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-02",
+        "text": "Which singer of \"Thriller\" and \"Billie Jean\" is known as the \"King of Pop\"?",
+        "answer": "Michael Jackson",
+        "hostNotes": "Also accept: MJ.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-03",
+        "text": "Which British band was made up of John, Paul, George and Ringo?",
+        "answer": "The Beatles",
+        "hostNotes": "Also accept: Beatles.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-04",
+        "text": "What Filipino folk song is about a small nipa hut surrounded by vegetables?",
+        "answer": "Bahay Kubo",
+        "points": 100
+      },
+      {
+        "id": "music-easy-05",
+        "text": "Which Filipina singer is known as \"Asia's Songbird\"?",
+        "answer": "Regine Velasquez",
+        "hostNotes": "Also accept: Regine, Regine Velasquez-Alcasid.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-06",
+        "text": "Which American singer-songwriter released the albums \"1989\" and \"Folklore\"?",
+        "answer": "Taylor Swift",
+        "points": 100
+      },
+      {
+        "id": "music-easy-07",
+        "text": "Which K-pop boy group calls its fans the \"ARMY\"?",
+        "answer": "BTS",
+        "hostNotes": "Also accept: Bangtan Boys, Bangtan Sonyeondan.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-08",
+        "text": "Which Filipino band sang \"Ang Huling El Bimbo\" and \"With a Smile\"?",
+        "answer": "Eraserheads",
+        "hostNotes": "Also accept: E-Heads.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-09",
+        "text": "Which British singer is famous for the ballads \"Hello\" and \"Someone Like You\"?",
+        "answer": "Adele",
+        "points": 100
+      },
+      {
+        "id": "music-easy-10",
+        "text": "Which Korean singer had a worldwide viral hit in 2012 with \"Gangnam Style\"?",
+        "answer": "Psy",
+        "points": 100
+      },
+      {
+        "id": "music-easy-11",
+        "text": "Which Filipino singer and dancer is known as \"Mr. Pure Energy\"?",
+        "answer": "Gary Valenciano",
+        "hostNotes": "Also accept: Gary V.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-12",
+        "text": "Which Filipino singer-songwriter wrote and sang the 1978 hit \"Anak\"?",
+        "answer": "Freddie Aguilar",
+        "hostNotes": "Also accept: Ka Freddie. The song has been translated into many languages.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-13",
+        "text": "Which P-pop boy group sang \"Gento\" and \"MAPA\"?",
+        "answer": "SB19",
+        "points": 100
+      },
+      {
+        "id": "music-easy-14",
+        "text": "Which Filipino folk band, led by twin brothers Paolo and Miguel, sang \"Kathang Isip\"?",
+        "answer": "Ben&Ben",
+        "hostNotes": "Also accept: Ben and Ben. The twins are Paolo and Miguel Guico.",
+        "points": 100
+      },
+      {
+        "id": "music-easy-15",
+        "text": "What Filipino folk dance has performers hopping between two clapping bamboo poles?",
+        "answer": "Tinikling",
+        "hostNotes": "Not Singkil, the Maranao dance that also uses bamboo poles but is performed with fans.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-music-medium",
+    "title": "Music – Medium",
+    "questions": [
+      {
+        "id": "music-medium-01",
+        "text": "In Filipino music, what does OPM stand for?",
+        "answer": "Original Pilipino Music",
+        "hostNotes": "Also accept: Original Pinoy Music, Original Philippine Music.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-02",
+        "text": "Who was the lead vocalist and main songwriter of the Eraserheads?",
+        "answer": "Ely Buendia",
+        "hostNotes": "Also accept: Ely.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-03",
+        "text": "Which Filipina singer originated the role of Kim in \"Miss Saigon\" in London in 1989?",
+        "answer": "Lea Salonga",
+        "hostNotes": "She won a Tony Award for the role in 1991.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-04",
+        "text": "Which Filipino singer became the lead vocalist of the American band Journey in 2007?",
+        "answer": "Arnel Pineda",
+        "hostNotes": "Guitarist Neal Schon found him through his YouTube covers.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-05",
+        "text": "Which Filipina singer is known as \"Asia's Nightingale\"?",
+        "answer": "Lani Misalucha",
+        "hostNotes": "Not Regine Velasquez, who is \"Asia's Songbird\".",
+        "points": 200
+      },
+      {
+        "id": "music-medium-06",
+        "text": "Which Filipino band sang \"Harana\" and \"Buloy\"?",
+        "answer": "Parokya ni Edgar",
+        "hostNotes": "Also accept: Parokya.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-07",
+        "text": "Which Filipino band sang \"Kisapmata\" and \"Hinahanap-hanap Kita\"?",
+        "answer": "Rivermaya",
+        "points": 200
+      },
+      {
+        "id": "music-medium-08",
+        "text": "Which Swedish group sang \"Dancing Queen\" and \"Mamma Mia\"?",
+        "answer": "ABBA",
+        "points": 200
+      },
+      {
+        "id": "music-medium-09",
+        "text": "Which reggae legend sang \"No Woman, No Cry\" and \"Three Little Birds\"?",
+        "answer": "Bob Marley",
+        "points": 200
+      },
+      {
+        "id": "music-medium-10",
+        "text": "Which rapper joined Luis Fonsi on the 2017 hit \"Despacito\"?",
+        "answer": "Daddy Yankee",
+        "hostNotes": "Justin Bieber was on a later remix; accept him only if the player says \"remix\".",
+        "points": 200
+      },
+      {
+        "id": "music-medium-11",
+        "text": "Which composer, who lost his hearing, wrote the \"Ode to Joy\" in his Ninth Symphony?",
+        "answer": "Ludwig van Beethoven",
+        "hostNotes": "Also accept: Beethoven.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-12",
+        "text": "Which Austrian child prodigy composed the opera \"The Magic Flute\"?",
+        "answer": "Wolfgang Amadeus Mozart",
+        "hostNotes": "Also accept: Mozart.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-13",
+        "text": "What traditional Filipino art song of love and longing was often sung in serenades?",
+        "answer": "Kundiman",
+        "hostNotes": "Not harana, which is the serenade itself, not the song form.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-14",
+        "text": "In sheet music, what Italian word tells the player to play loudly?",
+        "answer": "Forte",
+        "hostNotes": "Written as \"f\". Its opposite is piano (\"p\"), meaning soft.",
+        "points": 200
+      },
+      {
+        "id": "music-medium-15",
+        "text": "What set of small tuned gongs is the traditional ensemble instrument of Mindanao?",
+        "answer": "Kulintang",
+        "hostNotes": "Also accept: kulintangan.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-music-hard",
+    "title": "Music – Hard",
+    "questions": [
+      {
+        "id": "music-hard-01",
+        "text": "What was Freddie Mercury's birth name?",
+        "answer": "Farrokh Bulsara",
+        "hostNotes": "Also accept: Bulsara. He was the lead singer of Queen.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-02",
+        "text": "Which American rapper's real name is Marshall Mathers?",
+        "answer": "Eminem",
+        "hostNotes": "Also accept: Slim Shady.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-03",
+        "text": "Which Beatle was shot and killed outside his New York home in 1980?",
+        "answer": "John Lennon",
+        "hostNotes": "Also accept: Lennon.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-04",
+        "text": "In sheet music, what Italian word means the music gradually gets louder?",
+        "answer": "Crescendo",
+        "hostNotes": "Not forte, which simply means loud. The opposite is decrescendo or diminuendo.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-05",
+        "text": "To which family of instruments do the flute, clarinet and oboe belong?",
+        "answer": "Woodwinds",
+        "hostNotes": "Also accept: woodwind. Not brass, even though some flutes are made of metal.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-06",
+        "text": "Which Italian Baroque composer wrote \"The Four Seasons\"?",
+        "answer": "Antonio Vivaldi",
+        "hostNotes": "Also accept: Vivaldi.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-07",
+        "text": "Which Russian composer wrote the music for the ballets \"Swan Lake\" and \"The Nutcracker\"?",
+        "answer": "Pyotr Ilyich Tchaikovsky",
+        "hostNotes": "Also accept: Tchaikovsky.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-08",
+        "text": "What is the name of the OPM trio of Jim Paredes, Boboy Garovillo and Danny Javier?",
+        "answer": "APO Hiking Society",
+        "hostNotes": "Also accept: APO, The Apo.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-09",
+        "text": "At which university did the Eraserheads form in 1989?",
+        "answer": "University of the Philippines Diliman",
+        "hostNotes": "Also accept: UP, UP Diliman.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-10",
+        "text": "\"Pare Ko\" is on which 1993 Eraserheads debut album?",
+        "answer": "Ultraelectromagneticpop!",
+        "hostNotes": "Also accept: Ultraelectromagneticpop.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-11",
+        "text": "Which 1970s band recorded \"Himig Natin\", often called the first Pinoy rock anthem?",
+        "answer": "Juan de la Cruz Band",
+        "hostNotes": "Also accept: Juan de la Cruz.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-12",
+        "text": "What Filipino string ensemble is made up of bandurrias, octavinas and guitars?",
+        "answer": "Rondalla",
+        "points": 300
+      },
+      {
+        "id": "music-hard-13",
+        "text": "Which Filipino National Artist lyricist was famous for making music by blowing on a leaf?",
+        "answer": "Levi Celerio",
+        "hostNotes": "Also accept: Celerio. He wrote lyrics for \"Ang Pasko ay Sumapit\" and \"Pitong Gatang\".",
+        "points": 300
+      },
+      {
+        "id": "music-hard-14",
+        "text": "Which singer and actress is known as the \"Queen of Kundiman\"?",
+        "answer": "Sylvia La Torre",
+        "hostNotes": "Also accept: Atang de la Rama, who is also called the Queen of Kundiman.",
+        "points": 300
+      },
+      {
+        "id": "music-hard-15",
+        "text": "What Filipino composer and National Artist is widely known as \"Mr. C\"?",
+        "answer": "Ryan Cayabyab",
+        "hostNotes": "Also accept: Cayabyab. He was named National Artist for Music in 2018.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

@@ -1,0 +1,328 @@
+[
+  {
+    "id": "starter-comics-easy",
+    "title": "Comics & Superheroes – Easy",
+    "questions": [
+      {
+        "id": "comics-easy-01",
+        "text": "What color does Bruce Banner turn when he becomes angry?",
+        "answer": "Green",
+        "hostNotes": "Also accept: berde. In his first 1962 appearance, the Hulk was grey.",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-02",
+        "text": "Which Marvel hero wields a magic hammer called Mjolnir?",
+        "answer": "Thor",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-03",
+        "text": "What green mineral from his home planet weakens Superman?",
+        "answer": "Kryptonite",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-04",
+        "text": "What is Superman's secret identity?",
+        "answer": "Clark Kent",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-05",
+        "text": "What is Spider-Man's real name?",
+        "answer": "Peter Parker",
+        "hostNotes": "Accept Miles Morales only if the player specifies the Miles version.",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-06",
+        "text": "Which city does Batman protect?",
+        "answer": "Gotham City",
+        "hostNotes": "Also accept: Gotham.",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-07",
+        "text": "What is the name of the girl who transforms into Darna?",
+        "answer": "Narda",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-08",
+        "text": "What Filipino komiks superhero can stretch his body like rubber?",
+        "answer": "Lastikman",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-09",
+        "text": "What is the Flash's main superpower?",
+        "answer": "Super speed",
+        "hostNotes": "Also accept: speed, running fast.",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-10",
+        "text": "Which DC heroine uses a golden Lasso of Truth?",
+        "answer": "Wonder Woman",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-11",
+        "text": "What is the name of the aunt who raised Spider-Man?",
+        "answer": "Aunt May",
+        "hostNotes": "Also accept: May, May Parker.",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-12",
+        "text": "What is the first name of Bruce Wayne's loyal butler?",
+        "answer": "Alfred",
+        "hostNotes": "Full name: Alfred Pennyworth.",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-13",
+        "text": "What is the name of Thor's mischievous adopted brother?",
+        "answer": "Loki",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-14",
+        "text": "Wolverine, Storm and Cyclops belong to which team of mutant heroes?",
+        "answer": "X-Men",
+        "points": 100
+      },
+      {
+        "id": "comics-easy-15",
+        "text": "Which purple Marvel villain collects the Infinity Stones?",
+        "answer": "Thanos",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-comics-medium",
+    "title": "Comics & Superheroes – Medium",
+    "questions": [
+      {
+        "id": "comics-medium-01",
+        "text": "What is the name of the talking raccoon in the Guardians of the Galaxy?",
+        "answer": "Rocket",
+        "hostNotes": "Also accept: Rocket Raccoon.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-02",
+        "text": "Which komiks legend created both Darna and Captain Barbell?",
+        "answer": "Mars Ravelo",
+        "hostNotes": "Also accept: Ravelo. He also created Lastikman, Dyesebel and Bondying.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-03",
+        "text": "In the komiks, what object does Darna's human self swallow to transform?",
+        "answer": "A magic stone",
+        "hostNotes": "Also accept: white stone, pebble, bato.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-04",
+        "text": "What is the name of Darna's snake-haired archenemy?",
+        "answer": "Valentina",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-05",
+        "text": "Which Mars Ravelo heroine is a mermaid?",
+        "answer": "Dyesebel",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-06",
+        "text": "Which komiks hero, a blacksmith named Flavio, wields a magic sword?",
+        "answer": "Ang Panday",
+        "hostNotes": "Also accept: Panday. Created by Carlo J. Caparas and Steve Gan.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-07",
+        "text": "What is the first name of Trese, the supernatural detective heroine of the Filipino comic \"Trese\"?",
+        "answer": "Alexandra",
+        "hostNotes": "Created by Budjette Tan and Kajo Baldisimo.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-08",
+        "text": "Which Marvel legend co-created Spider-Man with artist Steve Ditko?",
+        "answer": "Stan Lee",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-09",
+        "text": "Which Marvel hero holds the title of Sorcerer Supreme?",
+        "answer": "Doctor Strange",
+        "hostNotes": "Also accept: Stephen Strange, Dr. Strange.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-10",
+        "text": "What nearly indestructible metal is bonded to Wolverine's skeleton?",
+        "answer": "Adamantium",
+        "hostNotes": "Not vibranium.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-11",
+        "text": "Which DC villain was a psychiatrist at Arkham Asylum before falling for the Joker?",
+        "answer": "Harley Quinn",
+        "hostNotes": "Also accept: Harleen Quinzel.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-12",
+        "text": "What is the name of the newspaper where Clark Kent works?",
+        "answer": "Daily Planet",
+        "hostNotes": "Also accept: The Daily Planet. Not the Daily Bugle, which is Spider-Man's paper.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-13",
+        "text": "Which Marvel hero shrinks with Pym Particles and can talk to ants?",
+        "answer": "Ant-Man",
+        "hostNotes": "Also accept: Scott Lang, Hank Pym.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-14",
+        "text": "In the Marvel movies, what metal is Captain America's shield made of?",
+        "answer": "Vibranium",
+        "hostNotes": "In some comics it is a vibranium-steel alloy.",
+        "points": 200
+      },
+      {
+        "id": "comics-medium-15",
+        "text": "Which Fantastic Four member can burst into flames and fly?",
+        "answer": "Human Torch",
+        "hostNotes": "Also accept: Johnny Storm.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-comics-hard",
+    "title": "Comics & Superheroes – Hard",
+    "questions": [
+      {
+        "id": "comics-hard-01",
+        "text": "What is the name of Thor's home realm?",
+        "answer": "Asgard",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-02",
+        "text": "What is Black Widow's real name?",
+        "answer": "Natasha Romanoff",
+        "hostNotes": "Also accept: Natasha Romanova, Natasha. Yelena Belova also used the name.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-03",
+        "text": "Which Spider-Man villain has four mechanical tentacles attached to his body?",
+        "answer": "Doctor Octopus",
+        "hostNotes": "Also accept: Doc Ock, Otto Octavius.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-04",
+        "text": "What is the real name of the Scarlet Witch?",
+        "answer": "Wanda Maximoff",
+        "hostNotes": "Also accept: Wanda.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-05",
+        "text": "In DC Comics, what is the name of the island home of the Amazons?",
+        "answer": "Themyscira",
+        "hostNotes": "Also accept: Paradise Island.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-06",
+        "text": "What was Superman's birth name on Krypton?",
+        "answer": "Kal-El",
+        "hostNotes": "Not Jor-El, his father.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-07",
+        "text": "What is Deadpool's real name?",
+        "answer": "Wade Wilson",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-08",
+        "text": "Venom is an alien creature that bonds with a host. What type of being is it called?",
+        "answer": "Symbiote",
+        "hostNotes": "Its species is called the Klyntar.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-09",
+        "text": "Green Lantern's power ring is fueled by what quality of its wearer?",
+        "answer": "Willpower",
+        "hostNotes": "Also accept: will.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-10",
+        "text": "In the Darna stories, what is the name of Narda's younger brother?",
+        "answer": "Ding",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-11",
+        "text": "Which artist co-created Batman with writer Bill Finger in 1939?",
+        "answer": "Bob Kane",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-12",
+        "text": "Superman made his first appearance in 1938 in which comic book?",
+        "answer": "Action Comics #1",
+        "hostNotes": "Also accept: Action Comics.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-13",
+        "text": "What is the name of the weakling who becomes Captain Barbell?",
+        "answer": "Tengteng",
+        "hostNotes": "Also accept: Teng-Teng.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-14",
+        "text": "Which Carlo Vergara superheroine is the alter ego of a small-town parlorista named Ada?",
+        "answer": "Zsazsa Zaturnnah",
+        "hostNotes": "Also accept: Zaturnnah. Ada transforms after swallowing a stone that fell from the sky.",
+        "points": 300
+      },
+      {
+        "id": "comics-hard-15",
+        "text": "Which Filipino artist co-created DC's Western antihero Jonah Hex in 1972?",
+        "answer": "Tony DeZuniga",
+        "hostNotes": "Also accept: DeZuniga. He co-created him with writer John Albano.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

@@ -1,0 +1,331 @@
+[
+  {
+    "id": "starter-health-easy",
+    "title": "Human Body & Health – Easy",
+    "questions": [
+      {
+        "id": "health-easy-01",
+        "text": "What is the largest organ of the human body?",
+        "answer": "Skin",
+        "hostNotes": "Not the liver, which is the largest internal organ.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-02",
+        "text": "How many chambers does the human heart have?",
+        "answer": "Four",
+        "hostNotes": "Also accept: 4. Two atria and two ventricles.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-03",
+        "text": "Which vitamin does your skin make when exposed to sunlight?",
+        "answer": "Vitamin D",
+        "points": 100
+      },
+      {
+        "id": "health-easy-04",
+        "text": "What mosquito-borne disease, common in the Philippine rainy season, can cause a dangerous drop in platelets?",
+        "answer": "Dengue",
+        "hostNotes": "Also accept: dengue fever. Spread by Aedes mosquitoes.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-05",
+        "text": "What is the normal human body temperature in degrees Celsius, to the nearest degree?",
+        "answer": "37°C",
+        "hostNotes": "Also accept: 37, 36 to 37.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-06",
+        "text": "Which pair of bean-shaped organs filter the blood and make urine?",
+        "answer": "Kidneys",
+        "hostNotes": "Also accept: kidney, bato.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-07",
+        "text": "Which type of blood cell fights infection?",
+        "answer": "White blood cells",
+        "hostNotes": "Also accept: leukocytes, WBC.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-08",
+        "text": "What deadly viral disease can people get from the bite of an infected dog?",
+        "answer": "Rabies",
+        "hostNotes": "Also accept: rabis.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-09",
+        "text": "What is the medical term for high blood pressure?",
+        "answer": "Hypertension",
+        "hostNotes": "Not hypotension, which is low blood pressure.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-10",
+        "text": "What is the traditional Filipino healing massage called?",
+        "answer": "Hilot",
+        "hostNotes": "A practitioner is called a manghihilot.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-11",
+        "text": "Which organs does tuberculosis mainly attack?",
+        "answer": "Lungs",
+        "hostNotes": "Also accept: baga.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-12",
+        "text": "How many bones does an adult human have?",
+        "answer": "206",
+        "points": 100
+      },
+      {
+        "id": "health-easy-13",
+        "text": "Including wisdom teeth, how many teeth does a full adult set have?",
+        "answer": "32",
+        "hostNotes": "Also accept: thirty-two.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-14",
+        "text": "What is the colored part of the eye called?",
+        "answer": "Iris",
+        "hostNotes": "Not the pupil, which is the black opening in its center.",
+        "points": 100
+      },
+      {
+        "id": "health-easy-15",
+        "text": "What is the longest bone in the human body?",
+        "answer": "Femur",
+        "hostNotes": "Also accept: thigh bone.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-health-medium",
+    "title": "Human Body & Health – Medium",
+    "questions": [
+      {
+        "id": "health-medium-01",
+        "text": "What is the largest internal organ of the human body?",
+        "answer": "Liver",
+        "hostNotes": "Also accept: atay.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-02",
+        "text": "Which organ produces insulin?",
+        "answer": "Pancreas",
+        "points": 200
+      },
+      {
+        "id": "health-medium-03",
+        "text": "What iron-rich protein in red blood cells carries oxygen?",
+        "answer": "Hemoglobin",
+        "hostNotes": "Also accept: haemoglobin.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-04",
+        "text": "A lack of which vitamin causes scurvy?",
+        "answer": "Vitamin C",
+        "hostNotes": "Also accept: ascorbic acid.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-05",
+        "text": "Which butterfly-shaped gland in the neck controls the body's metabolism?",
+        "answer": "Thyroid",
+        "hostNotes": "Also accept: thyroid gland.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-06",
+        "text": "What tube carries food from the mouth to the stomach?",
+        "answer": "Esophagus",
+        "hostNotes": "Also accept: oesophagus, gullet. Not the trachea, which carries air.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-07",
+        "text": "What disease can people catch by wading through floodwater contaminated with rat urine?",
+        "answer": "Leptospirosis",
+        "points": 200
+      },
+      {
+        "id": "health-medium-08",
+        "text": "What herbal plant, approved by the Department of Health, is a common Filipino remedy for cough?",
+        "answer": "Lagundi",
+        "hostNotes": "Not sambong, which is used for kidney stones and as a diuretic. Yerba buena is also DOH-approved, mainly for pain; accept it at the host's discretion.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-09",
+        "text": "Which Filipino hero trained as an eye doctor and operated on his own mother's eyes?",
+        "answer": "José Rizal",
+        "hostNotes": "Also accept: Rizal, Jose Rizal. He trained in ophthalmology in Europe.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-10",
+        "text": "What is the common name for the clavicle?",
+        "answer": "Collarbone",
+        "points": 200
+      },
+      {
+        "id": "health-medium-11",
+        "text": "What is the common name for the tympanic membrane?",
+        "answer": "Eardrum",
+        "points": 200
+      },
+      {
+        "id": "health-medium-12",
+        "text": "What is the yellowish liquid part of blood called?",
+        "answer": "Plasma",
+        "hostNotes": "Also accept: blood plasma. Not serum, which is plasma without clotting factors.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-13",
+        "text": "\"Bulutong-tubig\" is the Filipino name for what itchy, blistery childhood disease?",
+        "answer": "Chickenpox",
+        "hostNotes": "Also accept: varicella. Not measles, which is tigdas.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-14",
+        "text": "Which small organ under the liver stores bile?",
+        "answer": "Gallbladder",
+        "hostNotes": "Also accept: apdo.",
+        "points": 200
+      },
+      {
+        "id": "health-medium-15",
+        "text": "Which blood type is known as the universal donor?",
+        "answer": "O negative",
+        "hostNotes": "Also accept: O-. Not plain type O: O positive gives only to positive types. AB positive is the universal recipient.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-health-hard",
+    "title": "Human Body & Health – Hard",
+    "questions": [
+      {
+        "id": "health-hard-01",
+        "text": "Which ancient Greek physician is called the \"Father of Medicine\"?",
+        "answer": "Hippocrates",
+        "hostNotes": "The Hippocratic Oath is named after him.",
+        "points": 300
+      },
+      {
+        "id": "health-hard-02",
+        "text": "What does CPR stand for?",
+        "answer": "Cardiopulmonary resuscitation",
+        "points": 300
+      },
+      {
+        "id": "health-hard-03",
+        "text": "What is the medical name for the kneecap?",
+        "answer": "Patella",
+        "points": 300
+      },
+      {
+        "id": "health-hard-04",
+        "text": "What is the medical name for the tailbone?",
+        "answer": "Coccyx",
+        "points": 300
+      },
+      {
+        "id": "health-hard-05",
+        "text": "What organ, also called the voice box, holds the vocal cords?",
+        "answer": "Larynx",
+        "hostNotes": "Not the pharynx (throat) or trachea (windpipe).",
+        "points": 300
+      },
+      {
+        "id": "health-hard-06",
+        "text": "Which part of the brain controls balance and coordination?",
+        "answer": "Cerebellum",
+        "hostNotes": "Not the cerebrum.",
+        "points": 300
+      },
+      {
+        "id": "health-hard-07",
+        "text": "What are the tiny air sacs in the lungs where oxygen enters the blood called?",
+        "answer": "Alveoli",
+        "hostNotes": "Also accept: alveolus.",
+        "points": 300
+      },
+      {
+        "id": "health-hard-08",
+        "text": "What is the smallest bone in the human body?",
+        "answer": "Stapes",
+        "hostNotes": "Also accept: stirrup. It is in the middle ear.",
+        "points": 300
+      },
+      {
+        "id": "health-hard-09",
+        "text": "What is the longest nerve in the human body, running from the lower back down each leg?",
+        "answer": "Sciatic nerve",
+        "hostNotes": "Also accept: sciatic.",
+        "points": 300
+      },
+      {
+        "id": "health-hard-10",
+        "text": "What \"feel-good\" chemicals does the brain release during exercise to relieve pain?",
+        "answer": "Endorphins",
+        "points": 300
+      },
+      {
+        "id": "health-hard-11",
+        "text": "Which hormone, made when it gets dark, helps regulate sleep?",
+        "answer": "Melatonin",
+        "points": 300
+      },
+      {
+        "id": "health-hard-12",
+        "text": "A lack of vitamin B1, or thiamine, causes what disease?",
+        "answer": "Beriberi",
+        "points": 300
+      },
+      {
+        "id": "health-hard-13",
+        "text": "What Filipino word refers to a relapse after an illness or childbirth, blamed on overexertion?",
+        "answer": "Binat",
+        "points": 300
+      },
+      {
+        "id": "health-hard-14",
+        "text": "Which English doctor developed the first vaccine, against smallpox, in 1796?",
+        "answer": "Edward Jenner",
+        "hostNotes": "Also accept: Jenner. He used material from cowpox sores.",
+        "points": 300
+      },
+      {
+        "id": "health-hard-15",
+        "text": "Which American scientist developed the first widely used polio vaccine in the 1950s?",
+        "answer": "Jonas Salk",
+        "hostNotes": "Also accept: Salk. Albert Sabin later developed the oral polio vaccine.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

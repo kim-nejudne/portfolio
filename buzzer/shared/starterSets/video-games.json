@@ -1,0 +1,329 @@
+[
+  {
+    "id": "starter-video-games-easy",
+    "title": "Video Games – Easy",
+    "questions": [
+      {
+        "id": "video-games-easy-01",
+        "text": "What is the name of Nintendo's famous mustached plumber?",
+        "answer": "Mario",
+        "hostNotes": "Also accept: Super Mario.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-02",
+        "text": "What is the name of Mario's taller brother, who wears green?",
+        "answer": "Luigi",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-03",
+        "text": "Which company makes the PlayStation consoles?",
+        "answer": "Sony",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-04",
+        "text": "Which company makes the Xbox consoles?",
+        "answer": "Microsoft",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-05",
+        "text": "What yellow, circle-shaped arcade character eats dots while being chased by ghosts?",
+        "answer": "Pac-Man",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-06",
+        "text": "What is the name of Sega's fast blue hedgehog mascot?",
+        "answer": "Sonic",
+        "hostNotes": "Also accept: Sonic the Hedgehog.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-07",
+        "text": "What 5v5 mobile game by Moonton is often simply called \"ML\" in the Philippines?",
+        "answer": "Mobile Legends: Bang Bang",
+        "hostNotes": "Also accept: Mobile Legends, MLBB.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-08",
+        "text": "What do Filipinos commonly call the internet cafés where kids used to play games for hours?",
+        "answer": "Computer shop",
+        "hostNotes": "Also accept: comshop, compshop, netcafé, internet café.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-09",
+        "text": "In \"Minecraft\", what is the name of the green creature that sneaks up and explodes?",
+        "answer": "Creeper",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-10",
+        "text": "In \"Angry Birds\", what animals steal the birds' eggs?",
+        "answer": "Pigs",
+        "hostNotes": "Also accept: green pigs, baboy.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-11",
+        "text": "What falling-block puzzle game was created by a Soviet engineer in 1984?",
+        "answer": "Tetris",
+        "hostNotes": "Created by Alexey Pajitnov.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-12",
+        "text": "Which princess does Mario usually rescue?",
+        "answer": "Princess Peach",
+        "hostNotes": "Also accept: Peach, Princess Toadstool. Not Zelda or Daisy.",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-13",
+        "text": "In which game do crewmates try to find the \"impostor\" hiding among them?",
+        "answer": "Among Us",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-14",
+        "text": "What Epic Games battle royale is famous for its building and dance emotes?",
+        "answer": "Fortnite",
+        "points": 100
+      },
+      {
+        "id": "video-games-easy-15",
+        "text": "What 2016 mobile game had people walking around outdoors to catch creatures on their phones?",
+        "answer": "Pokémon GO",
+        "hostNotes": "Also accept: Pokemon GO.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-video-games-medium",
+    "title": "Video Games – Medium",
+    "questions": [
+      {
+        "id": "video-games-medium-01",
+        "text": "What is the name of Mario's green dinosaur companion?",
+        "answer": "Yoshi",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-02",
+        "text": "What is the name of the spiky turtle king who is Mario's archenemy?",
+        "answer": "Bowser",
+        "hostNotes": "Also accept: King Koopa.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-03",
+        "text": "What do the letters GTA stand for in the game series?",
+        "answer": "Grand Theft Auto",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-04",
+        "text": "In \"Minecraft\", what is the name of the default male player character?",
+        "answer": "Steve",
+        "hostNotes": "The default female character is Alex.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-05",
+        "text": "What Nintendo console, released in 2017, can be docked to a TV or played as a handheld?",
+        "answer": "Nintendo Switch",
+        "hostNotes": "Also accept: Switch.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-06",
+        "text": "In \"Mobile Legends\", what premium currency do players buy with real money?",
+        "answer": "Diamonds",
+        "hostNotes": "Also accept: dias.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-07",
+        "text": "In \"Mobile Legends\", what powerful jungle monster, once killed, pushes lanes for your team?",
+        "answer": "Lord",
+        "hostNotes": "Not the Turtle, which gives gold and experience.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-08",
+        "text": "In \"Plants vs. Zombies\", what resource do you collect to place new plants?",
+        "answer": "Sun",
+        "hostNotes": "Also accept: sunlight, sun points.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-09",
+        "text": "In \"The Legend of Zelda\", what is the name of the green-clad hero?",
+        "answer": "Link",
+        "hostNotes": "Not Zelda, who is the princess.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-10",
+        "text": "In \"Minecraft\", what fiery dimension do you enter through an obsidian portal?",
+        "answer": "The Nether",
+        "hostNotes": "Also accept: Nether. Not the End.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-11",
+        "text": "Which company makes both \"League of Legends\" and \"Valorant\"?",
+        "answer": "Riot Games",
+        "hostNotes": "Also accept: Riot.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-12",
+        "text": "What was the name of the handheld console Nintendo released in 1989?",
+        "answer": "Game Boy",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-13",
+        "text": "In \"Street Fighter\", what is the name of Ryu's famous fireball attack?",
+        "answer": "Hadouken",
+        "hostNotes": "Also accept: Hadoken.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-14",
+        "text": "What Korean online game, huge in Filipino computer shops in the 2000s, featured pink blob monsters called Porings?",
+        "answer": "Ragnarok Online",
+        "hostNotes": "Also accept: Ragnarok, RO.",
+        "points": 200
+      },
+      {
+        "id": "video-games-medium-15",
+        "text": "In the Philippine esports league \"MPL PH\", what does MPL stand for?",
+        "answer": "Mobile Legends Professional League",
+        "hostNotes": "Also accept: MLBB Professional League, Mobile Legends: Bang Bang Professional League.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-video-games-hard",
+    "title": "Video Games – Hard",
+    "questions": [
+      {
+        "id": "video-games-hard-01",
+        "text": "In \"Counter-Strike\", which team's goal is to plant the bomb?",
+        "answer": "Terrorists",
+        "hostNotes": "Also accept: T, T side. Counter-Terrorists try to defuse it.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-02",
+        "text": "Lara Croft is the hero of which action-adventure game series?",
+        "answer": "Tomb Raider",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-03",
+        "text": "What is the name of the red ghost in \"Pac-Man\"?",
+        "answer": "Blinky",
+        "hostNotes": "The others: Pinky (pink), Inky (cyan) and Clyde (orange).",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-04",
+        "text": "What is the real first name of Sonic's fox sidekick, Tails?",
+        "answer": "Miles",
+        "hostNotes": "Full name: Miles \"Tails\" Prower.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-05",
+        "text": "What is the title of the armored super-soldier hero of Microsoft's \"Halo\" series?",
+        "answer": "Master Chief",
+        "hostNotes": "Also accept: John-117.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-06",
+        "text": "What is the name of the spiky-haired, sword-wielding hero of \"Final Fantasy VII\"?",
+        "answer": "Cloud Strife",
+        "hostNotes": "Also accept: Cloud.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-07",
+        "text": "The \"Tekken\" story centers on the feuding Heihachi, Kazuya and Jin. What is their family name?",
+        "answer": "Mishima",
+        "hostNotes": "Jin's full name is Jin Kazama, after his mother, but he is still part of the Mishima bloodline.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-08",
+        "text": "What is the code name of the stealth hero of the \"Metal Gear\" series?",
+        "answer": "Solid Snake",
+        "hostNotes": "Also accept: Snake. Naked Snake (Big Boss) is the hero of some prequel games, so accept him too.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-09",
+        "text": "What is the name of the main villain of \"The Legend of Zelda\" series?",
+        "answer": "Ganon",
+        "hostNotes": "Also accept: Ganondorf.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-10",
+        "text": "In the game \"Dota\", what does the name \"DotA\" originally stand for?",
+        "answer": "Defense of the Ancients",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-11",
+        "text": "What 1993 id Software shooter has a space marine fighting demons on the moons of Mars?",
+        "answer": "Doom",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-12",
+        "text": "In the 1981 arcade game \"Donkey Kong\", what was Mario originally called?",
+        "answer": "Jumpman",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-13",
+        "text": "Before video games, Nintendo was founded in 1889 to make what product?",
+        "answer": "Playing cards",
+        "hostNotes": "Also accept: cards, hanafuda cards.",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-14",
+        "text": "What is the gamer nickname of Markus Persson, the Swedish creator of \"Minecraft\"?",
+        "answer": "Notch",
+        "points": 300
+      },
+      {
+        "id": "video-games-hard-15",
+        "text": "Which Philippine team won the Mobile Legends M2 World Championship in January 2021?",
+        "answer": "Bren Esports",
+        "hostNotes": "Also accept: Bren. Not Blacklist International, which won M3 later in 2021.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

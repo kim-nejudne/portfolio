@@ -1,0 +1,336 @@
+[
+  {
+    "id": "starter-animals-easy",
+    "title": "Animals – Easy",
+    "questions": [
+      {
+        "id": "animals-easy-01",
+        "text": "What animal is known as the \"King of the Jungle\"?",
+        "answer": "Lion",
+        "hostNotes": "Also accept: leon.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-02",
+        "text": "What is the national animal of the Philippines?",
+        "answer": "Carabao",
+        "hostNotes": "Also accept: water buffalo, kalabaw.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-03",
+        "text": "What insect makes honey?",
+        "answer": "Honeybee",
+        "hostNotes": "Also accept: bee, pukyutan.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-04",
+        "text": "What animal fights in a sabong?",
+        "answer": "Rooster",
+        "hostNotes": "Also accept: gamecock, fighting cock, manok, tandang.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-05",
+        "text": "What is the fastest land animal?",
+        "answer": "Cheetah",
+        "hostNotes": "Not the peregrine falcon, which is fastest overall but flies.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-06",
+        "text": "What is the tallest animal in the world?",
+        "answer": "Giraffe",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-07",
+        "text": "What black-and-white bear from China eats mostly bamboo?",
+        "answer": "Giant panda",
+        "hostNotes": "Also accept: panda.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-08",
+        "text": "What do you call a baby frog?",
+        "answer": "Tadpole",
+        "hostNotes": "Also accept: polliwog.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-09",
+        "text": "What sea creature is called \"pawikan\" in Filipino?",
+        "answer": "Sea turtle",
+        "hostNotes": "Also accept: turtle, marine turtle.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-10",
+        "text": "What orange-and-white fish lives among sea anemones and is the hero of Finding Nemo?",
+        "answer": "Clownfish",
+        "hostNotes": "Also accept: anemonefish.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-11",
+        "text": "What is the largest land animal?",
+        "answer": "African elephant",
+        "hostNotes": "Also accept: elephant. Strictly, it is the African bush elephant.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-12",
+        "text": "What lizard is famous for changing its skin color?",
+        "answer": "Chameleon",
+        "hostNotes": "Also accept: hunyango.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-13",
+        "text": "What tiny primate with huge eyes is a famous attraction in Bohol?",
+        "answer": "Philippine tarsier",
+        "hostNotes": "Also accept: tarsier.",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-14",
+        "text": "What do you call an animal that eats only plants?",
+        "answer": "Herbivore",
+        "points": 100
+      },
+      {
+        "id": "animals-easy-15",
+        "text": "What small wild buffalo is found only on the island of Mindoro?",
+        "answer": "Tamaraw",
+        "hostNotes": "Also accept: Bubalus mindorensis. Not the carabao, which is domesticated and found nationwide.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-animals-medium",
+    "title": "Animals – Medium",
+    "questions": [
+      {
+        "id": "animals-medium-01",
+        "text": "What is the largest living bird?",
+        "answer": "Ostrich",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-02",
+        "text": "What insect is called \"alitaptap\" in Filipino?",
+        "answer": "Firefly",
+        "hostNotes": "Also accept: lightning bug.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-03",
+        "text": "What is the largest species of big cat?",
+        "answer": "Tiger",
+        "hostNotes": "Not the lion. The Siberian (Amur) tiger is the largest subspecies.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-04",
+        "text": "What is the only mammal capable of true flight?",
+        "answer": "Bat",
+        "hostNotes": "Also accept: paniki. Flying squirrels and colugos only glide.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-05",
+        "text": "What word describes animals that are active at night and sleep during the day?",
+        "answer": "Nocturnal",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-06",
+        "text": "What famously slow mammal spends most of its life hanging upside down in rainforest trees?",
+        "answer": "Sloth",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-07",
+        "text": "What is the process called when a caterpillar transforms into a butterfly?",
+        "answer": "Metamorphosis",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-08",
+        "text": "What egg-laying mammal from Australia has a duck-like bill?",
+        "answer": "Platypus",
+        "hostNotes": "Also accept: duck-billed platypus. Echidnas also lay eggs but have no duck bill.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-09",
+        "text": "Bangus is the Filipino name for what fish?",
+        "answer": "Milkfish",
+        "hostNotes": "Also accept: Chanos chanos.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-10",
+        "text": "What do Filipinos call the wild pig?",
+        "answer": "Baboy-ramo",
+        "hostNotes": "Also accept: baboy-damo, baboy ihalas.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-11",
+        "text": "The bayawak is what kind of large lizard?",
+        "answer": "Monitor lizard",
+        "hostNotes": "Also accept: monitor.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-12",
+        "text": "What is the largest fish in the world?",
+        "answer": "Whale shark",
+        "hostNotes": "Also accept: butanding. Not the blue whale, which is a mammal. Donsol, Sorsogon, is famous for whale shark watching.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-13",
+        "text": "What is the medicine made to treat venomous snake bites called?",
+        "answer": "Antivenom",
+        "hostNotes": "Also accept: antivenin, anti-venom.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-14",
+        "text": "The Philippine eagle was once known by what name, after the prey it was believed to favor?",
+        "answer": "Monkey-eating eagle",
+        "hostNotes": "It was renamed the Philippine eagle in 1978 and declared the national bird in 1995.",
+        "points": 200
+      },
+      {
+        "id": "animals-medium-15",
+        "text": "What seagrass-eating marine mammal, nicknamed the \"sea cow\", lives in Philippine waters?",
+        "answer": "Dugong",
+        "hostNotes": "Also accept: duyong. Not the manatee, which does not live in the Philippines.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-animals-hard",
+    "title": "Animals – Hard",
+    "questions": [
+      {
+        "id": "animals-hard-01",
+        "text": "How many hearts does an octopus have?",
+        "answer": "Three",
+        "hostNotes": "Two pump blood to the gills and one pumps it to the rest of the body.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-02",
+        "text": "What is the collective noun for a group of crows?",
+        "answer": "Murder",
+        "hostNotes": "Accept: a murder of crows.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-03",
+        "text": "Which Australian animal has fingerprints so similar to humans' that they could confuse a crime scene?",
+        "answer": "Koala",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-04",
+        "text": "What is the only bird that can fly backwards?",
+        "answer": "Hummingbird",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-05",
+        "text": "What is the largest living rodent?",
+        "answer": "Capybara",
+        "hostNotes": "Not the beaver, which is second largest.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-06",
+        "text": "Flamingos get their pink color from what?",
+        "answer": "Their diet",
+        "hostNotes": "Also accept: food, shrimp, algae, carotenoids. Flamingo chicks are born grey or white.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-07",
+        "text": "A narwhal's long tusk is actually what body part?",
+        "answer": "A tooth",
+        "hostNotes": "Also accept: canine tooth. Not a horn.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-08",
+        "text": "What animal's name comes from the Greek for \"river horse\"?",
+        "answer": "Hippopotamus",
+        "hostNotes": "Also accept: hippo.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-09",
+        "text": "Under its stripes, what color is a zebra's skin?",
+        "answer": "Black",
+        "hostNotes": "Also accept: dark grey.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-10",
+        "text": "What giant marine shellfish is called \"taklobo\" in the Philippines?",
+        "answer": "Giant clam",
+        "hostNotes": "Also accept: clam, Tridacna.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-11",
+        "text": "What critically endangered white bird, called \"katala\", is found mainly in Palawan?",
+        "answer": "Philippine cockatoo",
+        "hostNotes": "Also accept: cockatoo, red-vented cockatoo.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-12",
+        "text": "In 2011, a record-breaking crocodile named Lolong was captured in which Philippine province?",
+        "answer": "Agusan del Sur",
+        "hostNotes": "Captured in Bunawan. Not Agusan del Norte. At about 6.17 m, Guinness listed him as the largest crocodile in captivity.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-13",
+        "text": "What \"living fossil\" sea creature has blue blood used to test vaccines and medicines for contamination?",
+        "answer": "Horseshoe crab",
+        "hostNotes": "Despite the name, it is more closely related to spiders and scorpions than to true crabs.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-14",
+        "text": "What is the local name of the tiny mouse-deer found only in Balabac and nearby islands of Palawan?",
+        "answer": "Pilandok",
+        "hostNotes": "Also accept: Philippine mouse-deer, Balabac chevrotain. Pilandok is also the clever trickster of Maranao folk tales.",
+        "points": 300
+      },
+      {
+        "id": "animals-hard-15",
+        "text": "What tiny goby from Lake Buhi, Camarines Sur, is among the smallest fish ever harvested commercially?",
+        "answer": "Sinarapan",
+        "hostNotes": "Also accept: Mistichthys luzonensis. Adults are only about 1 to 1.5 cm long.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

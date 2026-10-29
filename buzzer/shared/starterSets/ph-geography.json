@@ -1,0 +1,333 @@
+[
+  {
+    "id": "starter-ph-geography-easy",
+    "title": "Philippine Geography – Easy",
+    "questions": [
+      {
+        "id": "ph-geography-easy-01",
+        "text": "What is the capital city of the Philippines?",
+        "answer": "Manila",
+        "hostNotes": "Also accept: City of Manila. Not Quezon City, which is the most populous city.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-02",
+        "text": "What is the largest island in the Philippines?",
+        "answer": "Luzon",
+        "hostNotes": "Not Mindanao, which is second.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-03",
+        "text": "What is the highest mountain in the Philippines?",
+        "answer": "Mount Apo",
+        "hostNotes": "Also accept: Apo, Bundok Apo.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-04",
+        "text": "Which city is known as the \"Summer Capital of the Philippines\"?",
+        "answer": "Baguio",
+        "hostNotes": "Also accept: Baguio City.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-05",
+        "text": "What famous cone-shaped hills in Bohol turn brown during the dry season?",
+        "answer": "Chocolate Hills",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-06",
+        "text": "What small island in Aklan is famous for its powdery White Beach?",
+        "answer": "Boracay",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-07",
+        "text": "What ocean lies to the east of the Philippines?",
+        "answer": "Pacific Ocean",
+        "hostNotes": "Also accept: Pacific. The Philippine Sea is the part of the Pacific next to the country; accept it too.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-08",
+        "text": "Which city is known as the \"Queen City of the South\"?",
+        "answer": "Cebu City",
+        "hostNotes": "Also accept: Cebu.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-09",
+        "text": "The famous Puerto Princesa Underground River is in which province?",
+        "answer": "Palawan",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-10",
+        "text": "Which Mindanao city celebrates the Kadayawan Festival every August?",
+        "answer": "Davao City",
+        "hostNotes": "Also accept: Davao.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-11",
+        "text": "What river flows through Manila and empties into Manila Bay?",
+        "answer": "Pasig River",
+        "hostNotes": "Also accept: Pasig, Ilog Pasig.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-12",
+        "text": "What Ilocos Sur city is famous for its cobblestone streets, calesas and Spanish-era houses?",
+        "answer": "Vigan",
+        "hostNotes": "Also accept: Vigan City, Ciudad Fernandina. It is a UNESCO World Heritage Site.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-13",
+        "text": "What is the largest lake in the Philippines?",
+        "answer": "Laguna de Bay",
+        "hostNotes": "Also accept: Laguna Lake, Lawa ng Laguna. Not Taal Lake or Lake Lanao.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-14",
+        "text": "What body of water lies to the west of the Philippines?",
+        "answer": "West Philippine Sea",
+        "hostNotes": "Also accept: South China Sea. The West Philippine Sea is the Philippine name for the parts within its claimed waters.",
+        "points": 100
+      },
+      {
+        "id": "ph-geography-easy-15",
+        "text": "What large island lies just north of the Philippines, closest to its northern tip?",
+        "answer": "Taiwan",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-ph-geography-medium",
+    "title": "Philippine Geography – Medium",
+    "questions": [
+      {
+        "id": "ph-geography-medium-01",
+        "text": "The Banaue Rice Terraces are in which province?",
+        "answer": "Ifugao",
+        "hostNotes": "Not Benguet or Mountain Province.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-02",
+        "text": "Hundred Islands National Park, in Alaminos, is in which province?",
+        "answer": "Pangasinan",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-03",
+        "text": "Which Negros city, home of the MassKara Festival, is called the \"City of Smiles\"?",
+        "answer": "Bacolod",
+        "hostNotes": "Also accept: Bacolod City.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-04",
+        "text": "Which Mindanao city, where many people speak Chavacano, is called \"Asia's Latin City\"?",
+        "answer": "Zamboanga City",
+        "hostNotes": "Also accept: Zamboanga.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-05",
+        "text": "What is the northernmost province of the Philippines?",
+        "answer": "Batanes",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-06",
+        "text": "What is the longest river in the Philippines?",
+        "answer": "Cagayan River",
+        "hostNotes": "Also accept: Rio Grande de Cagayan. Not the Pasig River.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-07",
+        "text": "What is the longest mountain range in the Philippines, running along eastern Luzon?",
+        "answer": "Sierra Madre",
+        "hostNotes": "Not the Cordillera Central, which is in northern Luzon.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-08",
+        "text": "What bridge connects the islands of Samar and Leyte?",
+        "answer": "San Juanico Bridge",
+        "hostNotes": "Also accept: San Juanico. It spans the San Juanico Strait.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-09",
+        "text": "Which Leyte city was devastated by Typhoon Yolanda (Haiyan) in 2013?",
+        "answer": "Tacloban",
+        "hostNotes": "Also accept: Tacloban City.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-10",
+        "text": "Which Mountain Province town is famous for its hanging coffins and caves?",
+        "answer": "Sagada",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-11",
+        "text": "Which Central Luzon province is called the \"Rice Granary of the Philippines\"?",
+        "answer": "Nueva Ecija",
+        "hostNotes": "Not Isabela, another major rice producer.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-12",
+        "text": "Siargao Island, home of the surf break Cloud 9, belongs to which province?",
+        "answer": "Surigao del Norte",
+        "hostNotes": "Not Surigao del Sur.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-13",
+        "text": "What island province, home of the Moriones Festival, is called the \"heart of the Philippines\"?",
+        "answer": "Marinduque",
+        "hostNotes": "It sits near the geographic center of the country and is roughly heart-shaped.",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-14",
+        "text": "Which Cordillera province, famous for La Trinidad's strawberry farms, is called the \"Salad Bowl of the Philippines\"?",
+        "answer": "Benguet",
+        "points": 200
+      },
+      {
+        "id": "ph-geography-medium-15",
+        "text": "What waterfall in Iligan City powers one of Mindanao's major hydroelectric plants?",
+        "answer": "Maria Cristina Falls",
+        "hostNotes": "Also accept: Maria Cristina.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-ph-geography-hard",
+    "title": "Philippine Geography – Hard",
+    "questions": [
+      {
+        "id": "ph-geography-hard-01",
+        "text": "What is the highest mountain in Luzon, famous for its \"sea of clouds\"?",
+        "answer": "Mount Pulag",
+        "hostNotes": "Also accept: Pulag. It is the third-highest peak in the Philippines.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-02",
+        "text": "What is the largest lake in Mindanao, on whose shore Marawi City stands?",
+        "answer": "Lake Lanao",
+        "hostNotes": "Also accept: Lanao, Ranao. It is the second-largest lake in the Philippines.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-03",
+        "text": "Which Mindanao city is known as the \"City of Golden Friendship\"?",
+        "answer": "Cagayan de Oro",
+        "hostNotes": "Also accept: CDO, Cagayan de Oro City.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-04",
+        "text": "Which island province, famous for its Lanzones Festival, is called the \"Island Born of Fire\"?",
+        "answer": "Camiguin",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-05",
+        "text": "What active volcano on Negros is the highest peak in the Visayas?",
+        "answer": "Kanlaon",
+        "hostNotes": "Also accept: Mount Kanlaon, Canlaon.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-06",
+        "text": "Which city served as the official capital of the Philippines from 1948 to 1976?",
+        "answer": "Quezon City",
+        "hostNotes": "Also accept: QC. Manila became the capital again in 1976.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-07",
+        "text": "What is the third-largest island in the Philippines, after Luzon and Mindanao?",
+        "answer": "Samar",
+        "hostNotes": "Not Negros, which is fourth, or Palawan, which is fifth.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-08",
+        "text": "Which Ilocos Norte town is known for the giant wind turbines lining its coast?",
+        "answer": "Bangui",
+        "hostNotes": "The Bangui Wind Farm opened in 2005.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-09",
+        "text": "What is the capital town of Batanes?",
+        "answer": "Basco",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-10",
+        "text": "The Mangyan peoples are the indigenous groups of which large island?",
+        "answer": "Mindoro",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-11",
+        "text": "The UNESCO-listed Tubbataha Reefs lie in the middle of which sea?",
+        "answer": "Sulu Sea",
+        "hostNotes": "Also accept: Sulu. Not the Celebes Sea.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-12",
+        "text": "Lake Sebu, home of the T'boli people, is in which Mindanao province?",
+        "answer": "South Cotabato",
+        "hostNotes": "Not Cotabato (North Cotabato) or Sultan Kudarat.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-13",
+        "text": "What narrow strait separates the islands of Cebu and Negros?",
+        "answer": "Tañon Strait",
+        "hostNotes": "Also accept: Tanon Strait.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-14",
+        "text": "What strait separates the northern Philippines from Taiwan?",
+        "answer": "Luzon Strait",
+        "hostNotes": "Also accept: Bashi Channel, which is part of it.",
+        "points": 300
+      },
+      {
+        "id": "ph-geography-hard-15",
+        "text": "What deep ocean trench runs just off the eastern coast of the Philippines?",
+        "answer": "Philippine Trench",
+        "hostNotes": "Also accept: Mindanao Trench, Philippine Deep. Not the Mariana Trench, which is farther east.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

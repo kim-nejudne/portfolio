@@ -1,0 +1,325 @@
+[
+  {
+    "id": "starter-mythology-easy",
+    "title": "Mythology & Folklore – Easy",
+    "questions": [
+      {
+        "id": "mythology-easy-01",
+        "text": "Who is the king of the gods in Greek mythology?",
+        "answer": "Zeus",
+        "hostNotes": "Not Jupiter, his Roman counterpart, since the question says Greek.",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-02",
+        "text": "What sea creature of legend is half woman and half fish?",
+        "answer": "Mermaid",
+        "hostNotes": "Also accept: sirena.",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-03",
+        "text": "What Filipino folklore creature is a tall being with the head and legs of a horse?",
+        "answer": "Tikbalang",
+        "hostNotes": "Also accept: tigbalang.",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-04",
+        "text": "What cigar-smoking giant of Filipino folklore is said to live in big trees like balete?",
+        "answer": "Kapre",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-05",
+        "text": "What Filipino creature separates its upper body from its legs and flies off at night?",
+        "answer": "Manananggal",
+        "hostNotes": "Not the aswang, which is a broader term.",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-06",
+        "text": "What tiny old man of folklore lives in an anthill and can curse people who disturb his home?",
+        "answer": "Nuno sa punso",
+        "hostNotes": "Also accept: nuno. People say \"tabi-tabi po\" to avoid disturbing him.",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-07",
+        "text": "What general Filipino term is used for shape-shifting, flesh-eating monsters of folklore?",
+        "answer": "Aswang",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-08",
+        "text": "In the Filipino legend, the lazy girl Pinang turns into what fruit?",
+        "answer": "Pineapple",
+        "hostNotes": "Also accept: pinya. The legend is \"Alamat ng Pinya\".",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-09",
+        "text": "What lazy folk character lay under a guava tree waiting for the fruit to fall into his mouth?",
+        "answer": "Juan Tamad",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-10",
+        "text": "What legendary bird bursts into flames and is reborn from its own ashes?",
+        "answer": "Phoenix",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-11",
+        "text": "What is the name of the winged horse of Greek mythology?",
+        "answer": "Pegasus",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-12",
+        "text": "What one-eyed giants appear in Greek mythology, including in the story of Odysseus?",
+        "answer": "Cyclopes",
+        "hostNotes": "Also accept: Cyclops. The one Odysseus blinds is Polyphemus.",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-13",
+        "text": "Which Greek hero could only be wounded in his heel?",
+        "answer": "Achilles",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-14",
+        "text": "Which snake-haired Gorgon could turn people to stone with a look?",
+        "answer": "Medusa",
+        "points": 100
+      },
+      {
+        "id": "mythology-easy-15",
+        "text": "Which winged Roman god of love shoots arrows to make people fall in love?",
+        "answer": "Cupid",
+        "hostNotes": "Also accept: Amor. Not Eros, his Greek counterpart, since the question says Roman.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-mythology-medium",
+    "title": "Mythology & Folklore – Medium",
+    "questions": [
+      {
+        "id": "mythology-medium-01",
+        "text": "Who is the Greek god of the sea, who carries a trident?",
+        "answer": "Poseidon",
+        "hostNotes": "His Roman counterpart is Neptune.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-02",
+        "text": "Which Greek goddess of wisdom gave her name to the city of Athens?",
+        "answer": "Athena",
+        "hostNotes": "Also accept: Athene, Pallas Athena.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-03",
+        "text": "In Greek myth, who opened a jar that released all the evils into the world?",
+        "answer": "Pandora",
+        "hostNotes": "Hope remained inside. It is often called Pandora's box.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-04",
+        "text": "What half-man, half-bull monster lived in the Labyrinth of Crete?",
+        "answer": "Minotaur",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-05",
+        "text": "What is the name of the three-headed dog that guards the Greek underworld?",
+        "answer": "Cerberus",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-06",
+        "text": "Who flew too close to the sun on wings of feathers and wax?",
+        "answer": "Icarus",
+        "hostNotes": "Not Daedalus, his father, who made the wings.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-07",
+        "text": "Which Titan was condemned to hold up the sky on his shoulders?",
+        "answer": "Atlas",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-08",
+        "text": "Which jackal-headed Egyptian god is linked to death and mummification?",
+        "answer": "Anubis",
+        "hostNotes": "Not Osiris, ruler of the underworld.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-09",
+        "text": "Who is the one-eyed king of the gods in Norse mythology?",
+        "answer": "Odin",
+        "hostNotes": "Also accept: Woden, Wotan.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-10",
+        "text": "Who is the supreme god and creator in Tagalog mythology?",
+        "answer": "Bathala",
+        "hostNotes": "Also accept: Bathalang Maykapal.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-11",
+        "text": "What legendary diwata is said to guard a mountain in Laguna that bears her name?",
+        "answer": "Maria Makiling",
+        "hostNotes": "Also accept: Mariang Makiling.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-12",
+        "text": "In the Tagalog creation legend, the first man and woman emerged from what plant?",
+        "answer": "Bamboo",
+        "hostNotes": "Also accept: kawayan. They were Malakas and Maganda.",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-13",
+        "text": "What giant sea serpent of Philippine myth is said to swallow the moon during eclipses?",
+        "answer": "Bakunawa",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-14",
+        "text": "What legendary Filipino giant, trapped between two mountains in Rizal, causes earthquakes?",
+        "answer": "Bernardo Carpio",
+        "points": 200
+      },
+      {
+        "id": "mythology-medium-15",
+        "text": "What creature of Filipino folklore disguises itself as a crying baby to lure victims?",
+        "answer": "Tiyanak",
+        "hostNotes": "Also accept: tianak.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-mythology-hard",
+    "title": "Mythology & Folklore – Hard",
+    "questions": [
+      {
+        "id": "mythology-hard-01",
+        "text": "In Greek myth, which king was doomed to push a boulder uphill forever?",
+        "answer": "Sisyphus",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-02",
+        "text": "Which Athenian hero escaped the Labyrinth by following a ball of thread?",
+        "answer": "Theseus",
+        "hostNotes": "Princess Ariadne gave him the thread.",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-03",
+        "text": "Which Greek hero led the Argonauts in search of the Golden Fleece?",
+        "answer": "Jason",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-04",
+        "text": "Across what river does the ferryman Charon carry souls into the Greek underworld?",
+        "answer": "Styx",
+        "hostNotes": "Also accept: River Styx, Acheron (named in some versions).",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-05",
+        "text": "In Norse myth, what is the great hall where warriors who die in battle feast with Odin?",
+        "answer": "Valhalla",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-06",
+        "text": "What giant ash tree connects the nine worlds in Norse mythology?",
+        "answer": "Yggdrasil",
+        "hostNotes": "Accept close pronunciations: IG-druh-sil.",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-07",
+        "text": "Which monkey god helps Rama rescue Sita in the Hindu epic \"Ramayana\"?",
+        "answer": "Hanuman",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-08",
+        "text": "What do Filipinos call the fair, enchanted beings said to lure humans into their invisible world?",
+        "answer": "Engkanto",
+        "hostNotes": "Also accept: encanto, engkantada (female).",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-09",
+        "text": "Which hero of an Ilocano epic could already speak on the day he was born?",
+        "answer": "Lam-ang",
+        "hostNotes": "The epic is \"Biag ni Lam-ang\" (\"The Life of Lam-ang\").",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-10",
+        "text": "The diwata Mariang Sinukuan is said to live on which Pampanga mountain?",
+        "answer": "Mount Arayat",
+        "hostNotes": "Also accept: Arayat.",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-11",
+        "text": "In Tagalog mythology, what is the name of Bathala's daughter, the goddess of the moon?",
+        "answer": "Mayari",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-12",
+        "text": "The colorful legendary bird called the sarimanok comes from the art and folklore of which people?",
+        "answer": "Maranao",
+        "hostNotes": "Also accept: Meranaw.",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-13",
+        "text": "The epic \"Hinilawod\" comes from the Sulod people of which Visayan island?",
+        "answer": "Panay",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-14",
+        "text": "What epic chants of the Ifugao, sung during harvests and funerals, are recognized by UNESCO?",
+        "answer": "Hudhud",
+        "hostNotes": "Also accept: Hudhud chants.",
+        "points": 300
+      },
+      {
+        "id": "mythology-hard-15",
+        "text": "What Maranao epic, recognized by UNESCO, tells of the hero Prince Bantugan?",
+        "answer": "Darangen",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

@@ -1,0 +1,327 @@
+[
+  {
+    "id": "starter-tech-easy",
+    "title": "Computers & Tech – Easy",
+    "questions": [
+      {
+        "id": "tech-easy-01",
+        "text": "Which company makes the iPhone?",
+        "answer": "Apple",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-02",
+        "text": "Which company develops the Android operating system?",
+        "answer": "Google",
+        "hostNotes": "Also accept: Alphabet.",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-03",
+        "text": "Which social network did Mark Zuckerberg co-found in 2004?",
+        "answer": "Facebook",
+        "hostNotes": "Also accept: TheFacebook, its original name.",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-04",
+        "text": "What video-sharing site, founded in 2005, did Google buy in 2006?",
+        "answer": "YouTube",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-05",
+        "text": "What is the name of Apple's voice assistant?",
+        "answer": "Siri",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-06",
+        "text": "Which brand made the nearly indestructible 3310 phone?",
+        "answer": "Nokia",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-07",
+        "text": "Who co-founded Microsoft with Paul Allen in 1975?",
+        "answer": "Bill Gates",
+        "hostNotes": "Also accept: Gates.",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-08",
+        "text": "What blue-branded mobile wallet app do millions of Filipinos use to pay bills and send money?",
+        "answer": "GCash",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-09",
+        "text": "What do you call unwanted junk email sent in bulk?",
+        "answer": "Spam",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-10",
+        "text": "On a Windows computer, what keyboard shortcut copies selected text?",
+        "answer": "Ctrl + C",
+        "hostNotes": "Also accept: Control C. On a Mac it is Command + C.",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-11",
+        "text": "What do you call a harmful program that spreads by copying itself onto other files or computers?",
+        "answer": "Virus",
+        "hostNotes": "Also accept: computer virus, worm, malware.",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-12",
+        "text": "What does the \"e\" in \"email\" stand for?",
+        "answer": "Electronic",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-13",
+        "text": "What do you call the small picture you tap or click on a screen to open an app?",
+        "answer": "Icon",
+        "hostNotes": "Also accept: app icon.",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-14",
+        "text": "In computing, what does \"PC\" stand for?",
+        "answer": "Personal computer",
+        "points": 100
+      },
+      {
+        "id": "tech-easy-15",
+        "text": "What three-letter abbreviation names the part of a computer often called its \"brain\"?",
+        "answer": "CPU",
+        "hostNotes": "Also accept: central processing unit, processor.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-tech-medium",
+    "title": "Computers & Tech – Medium",
+    "questions": [
+      {
+        "id": "tech-medium-01",
+        "text": "Who co-founded Apple with Steve Wozniak in 1976?",
+        "answer": "Steve Jobs",
+        "hostNotes": "Also accept: Jobs. Ronald Wayne was a third, short-lived co-founder.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-02",
+        "text": "Which Chinese company makes the Redmi line of smartphones?",
+        "answer": "Xiaomi",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-03",
+        "text": "In 2023, Twitter was renamed to what single letter?",
+        "answer": "X",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-04",
+        "text": "What social network, hugely popular in the Philippines before Facebook, let friends post \"testimonials\"?",
+        "answer": "Friendster",
+        "hostNotes": "Not Multiply or MySpace.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-05",
+        "text": "Which telco owns the prepaid brand TNT, or \"Talk 'N Text\"?",
+        "answer": "Smart",
+        "hostNotes": "Also accept: Smart Communications. Not Globe, whose prepaid brand is TM.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-06",
+        "text": "What is the main circuit board inside a computer called?",
+        "answer": "Motherboard",
+        "hostNotes": "Also accept: mainboard, logic board.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-07",
+        "text": "What number system, using only 0s and 1s, do computers use?",
+        "answer": "Binary",
+        "hostNotes": "Also accept: base 2.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-08",
+        "text": "How many bits are in one byte?",
+        "answer": "Eight",
+        "hostNotes": "Also accept: 8.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-09",
+        "text": "Which popular programming language shares its name with a large snake?",
+        "answer": "Python",
+        "hostNotes": "It was actually named after the comedy group Monty Python.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-10",
+        "text": "What is the term for a fake email or site that tricks you into giving away your password?",
+        "answer": "Phishing",
+        "hostNotes": "Done by text message, it is called smishing.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-11",
+        "text": "What is the name of the small data file a website stores in your browser?",
+        "answer": "Cookie",
+        "hostNotes": "Also accept: browser cookie, HTTP cookie.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-12",
+        "text": "Which company created ChatGPT?",
+        "answer": "OpenAI",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-13",
+        "text": "The Philippines was once called the \"texting capital of the world\". What does SMS stand for?",
+        "answer": "Short Message Service",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-14",
+        "text": "The \"Y2K bug\" was feared to crash computers at the start of which year?",
+        "answer": "2000",
+        "hostNotes": "Also accept: year 2000.",
+        "points": 200
+      },
+      {
+        "id": "tech-medium-15",
+        "text": "In what year was the first iPhone released?",
+        "answer": "2007",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-tech-hard",
+    "title": "Computers & Tech – Hard",
+    "questions": [
+      {
+        "id": "tech-hard-01",
+        "text": "In \"QR code\", what do the letters \"QR\" stand for?",
+        "answer": "Quick Response",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-02",
+        "text": "Bluetooth technology is named after a king from which country?",
+        "answer": "Denmark",
+        "hostNotes": "Also accept: Danish. King Harald \"Bluetooth\" Gormsson united Danish tribes in the 10th century.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-03",
+        "text": "What Apple computer, launched in 1984, helped popularize the mouse and on-screen windows?",
+        "answer": "Macintosh",
+        "hostNotes": "Also accept: Mac, Apple Macintosh.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-04",
+        "text": "What 2000 computer worm, traced to a Filipino student, spread by email posing as a romantic confession?",
+        "answer": "ILOVEYOU",
+        "hostNotes": "Also accept: I Love You virus, Love Bug, Love Letter.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-05",
+        "text": "What was Google's original name when it began as a research project in 1996?",
+        "answer": "BackRub",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-06",
+        "text": "Which British mathematician helped crack the Enigma code and proposed a test for machine intelligence?",
+        "answer": "Alan Turing",
+        "hostNotes": "Also accept: Turing.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-07",
+        "text": "Which British scientist invented the World Wide Web in 1989?",
+        "answer": "Tim Berners-Lee",
+        "hostNotes": "Also accept: Berners-Lee.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-08",
+        "text": "Which Chinese company bought IBM's PC business in 2005, including the ThinkPad line?",
+        "answer": "Lenovo",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-09",
+        "text": "A processor's clock speed is measured in what unit?",
+        "answer": "Hertz",
+        "hostNotes": "Also accept: gigahertz, GHz, megahertz.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-10",
+        "text": "Which company released the 4004, the first commercially available microprocessor, in 1971?",
+        "answer": "Intel",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-11",
+        "text": "What did the Philippine telco name PLDT originally stand for?",
+        "answer": "Philippine Long Distance Telephone Company",
+        "hostNotes": "Accept without \"Company\". The company was renamed PLDT Inc. in 2016.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-12",
+        "text": "Which 19th-century Englishwoman is often called the first computer programmer?",
+        "answer": "Ada Lovelace",
+        "hostNotes": "Also accept: Lovelace, Augusta Ada King. She was poet Lord Byron's daughter.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-13",
+        "text": "Which English inventor designed the Analytical Engine, earning the title \"father of the computer\"?",
+        "answer": "Charles Babbage",
+        "hostNotes": "Also accept: Babbage.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-14",
+        "text": "What room-sized 1940s machine is often called the first general-purpose electronic computer?",
+        "answer": "ENIAC",
+        "hostNotes": "Electronic Numerical Integrator and Computer, built at the University of Pennsylvania.",
+        "points": 300
+      },
+      {
+        "id": "tech-hard-15",
+        "text": "Which Filipino inventor patented the \"Sing-Along System\", a karaoke machine?",
+        "answer": "Roberto del Rosario",
+        "hostNotes": "Also accept: del Rosario. Japan's Daisuke Inoue built an early karaoke machine too.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

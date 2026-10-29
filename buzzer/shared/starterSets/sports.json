@@ -1,0 +1,337 @@
+[
+  {
+    "id": "starter-sports-easy",
+    "title": "Sports – Easy",
+    "questions": [
+      {
+        "id": "sports-easy-01",
+        "text": "How many players does each basketball team have on the court at one time?",
+        "answer": "Five",
+        "hostNotes": "Also accept: 5.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-02",
+        "text": "In basketball, how many points is a shot made from beyond the arc worth?",
+        "answer": "Three",
+        "hostNotes": "Also accept: 3.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-03",
+        "text": "What does PBA stand for?",
+        "answer": "Philippine Basketball Association",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-04",
+        "text": "Which late NBA legend was nicknamed the \"Black Mamba\"?",
+        "answer": "Kobe Bryant",
+        "hostNotes": "Also accept: Kobe.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-05",
+        "text": "With which NBA team did Michael Jordan win all six of his championships?",
+        "answer": "Chicago Bulls",
+        "hostNotes": "Also accept: Bulls.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-06",
+        "text": "What is the nickname of the Philippine men's national basketball team?",
+        "answer": "Gilas Pilipinas",
+        "hostNotes": "Also accept: Gilas.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-07",
+        "text": "Which sport is played at Wimbledon?",
+        "answer": "Tennis",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-08",
+        "text": "What racket sport uses a feathered shuttlecock?",
+        "answer": "Badminton",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-09",
+        "text": "The FIFA World Cup is the biggest tournament in which sport?",
+        "answer": "Football",
+        "hostNotes": "Also accept: soccer.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-10",
+        "text": "In which sport do players set and spike a ball over a high net?",
+        "answer": "Volleyball",
+        "hostNotes": "Also accept: beach volleyball.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-11",
+        "text": "In which sport is knocking down all ten pins with your first ball called a strike?",
+        "answer": "Bowling",
+        "hostNotes": "Also accept: ten-pin bowling.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-12",
+        "text": "Which weightlifter won the Philippines' first-ever Olympic gold medal, at the Tokyo Games?",
+        "answer": "Hidilyn Diaz",
+        "hostNotes": "Also accept: Hidilyn. The Tokyo 2020 Games were held in 2021.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-13",
+        "text": "In what sport does Filipino Olympic champion Carlos Yulo compete?",
+        "answer": "Gymnastics",
+        "hostNotes": "Also accept: artistic gymnastics.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-14",
+        "text": "Which Filipino billiards legend is nicknamed \"The Magician\"?",
+        "answer": "Efren \"Bata\" Reyes",
+        "hostNotes": "Also accept: Efren Reyes, Bata Reyes.",
+        "points": 100
+      },
+      {
+        "id": "sports-easy-15",
+        "text": "What Filipino stick-fighting art was declared the national martial art and sport in 2009?",
+        "answer": "Arnis",
+        "hostNotes": "Also accept: eskrima, escrima, kali.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-sports-medium",
+    "title": "Sports – Medium",
+    "questions": [
+      {
+        "id": "sports-medium-01",
+        "text": "In football, what do you call it when one player scores three goals in a single game?",
+        "answer": "Hat-trick",
+        "hostNotes": "Also accept: hat trick.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-02",
+        "text": "In tennis, what word is used for a score of zero?",
+        "answer": "Love",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-03",
+        "text": "Which Portuguese football superstar is known by the initials \"CR7\"?",
+        "answer": "Cristiano Ronaldo",
+        "hostNotes": "Also accept: Ronaldo. Not the Brazilian Ronaldo.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-04",
+        "text": "Which footballer captained Argentina to the 2022 FIFA World Cup title?",
+        "answer": "Lionel Messi",
+        "hostNotes": "Also accept: Messi.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-05",
+        "text": "Which Golden State Warriors point guard, famous for long three-pointers, made jersey number 30 famous?",
+        "answer": "Stephen Curry",
+        "hostNotes": "Also accept: Steph Curry, Curry.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-06",
+        "text": "In which city were the first modern Olympic Games held, in 1896?",
+        "answer": "Athens",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-07",
+        "text": "To the nearest kilometer, how long is a marathon?",
+        "answer": "42 km",
+        "hostNotes": "Exactly 42.195 km (26.2 miles).",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-08",
+        "text": "Which multi-sport event did the Philippines host in 2019?",
+        "answer": "Southeast Asian Games",
+        "hostNotes": "Also accept: SEA Games. The Philippines finished first in the overall medal tally.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-09",
+        "text": "Which PBA team is famous for its \"Never Say Die\" spirit?",
+        "answer": "Barangay Ginebra San Miguel",
+        "hostNotes": "Also accept: Ginebra, Barangay Ginebra.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-10",
+        "text": "Which longtime San Miguel Beermen center is nicknamed \"The Kraken\"?",
+        "answer": "June Mar Fajardo",
+        "hostNotes": "Also accept: Fajardo, June Mar.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-11",
+        "text": "Which 2021 NBA Sixth Man of the Year has also played for Gilas Pilipinas?",
+        "answer": "Jordan Clarkson",
+        "hostNotes": "Also accept: Clarkson.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-12",
+        "text": "Which Filipino boxer, a multi-division world champion, is nicknamed \"The Filipino Flash\"?",
+        "answer": "Nonito Donaire",
+        "hostNotes": "Also accept: Nonito Donaire Jr., Donaire. Not Flash Elorde.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-13",
+        "text": "In which track and field event does Filipino Olympian EJ Obiena compete?",
+        "answer": "Pole vault",
+        "hostNotes": "Also accept: pole vaulting.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-14",
+        "text": "At the 2024 Paris Olympics, Carlos Yulo won gold in vault and what other event?",
+        "answer": "Floor exercise",
+        "hostNotes": "Also accept: floor.",
+        "points": 200
+      },
+      {
+        "id": "sports-medium-15",
+        "text": "Which Filipina boxer won a silver medal in the featherweight division at the Tokyo Olympics?",
+        "answer": "Nesthy Petecio",
+        "hostNotes": "Also accept: Petecio.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-sports-hard",
+    "title": "Sports – Hard",
+    "questions": [
+      {
+        "id": "sports-hard-01",
+        "text": "In volleyball, what is the defensive specialist who wears a different-colored jersey called?",
+        "answer": "Libero",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-02",
+        "text": "On what surface is tennis's French Open played?",
+        "answer": "Clay",
+        "hostNotes": "Also accept: red clay. Wimbledon is on grass.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-03",
+        "text": "In golf, what is a score of one stroke under par on a hole called?",
+        "answer": "Birdie",
+        "hostNotes": "Two under is an eagle. One over is a bogey.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-04",
+        "text": "What is a perfect score in a game of ten-pin bowling?",
+        "answer": "300",
+        "hostNotes": "Twelve strikes in a row.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-05",
+        "text": "How many minutes long is each quarter of an NBA game?",
+        "answer": "12",
+        "hostNotes": "Also accept: twelve. FIBA quarters are 10 minutes.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-06",
+        "text": "What is the name of the trophy awarded to the NBA champions?",
+        "answer": "Larry O'Brien Trophy",
+        "hostNotes": "Also accept: Larry O'Brien, O'Brien Trophy.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-07",
+        "text": "Which Utah Jazz power forward was nicknamed \"The Mailman\" because he always delivered?",
+        "answer": "Karl Malone",
+        "hostNotes": "Also accept: Malone.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-08",
+        "text": "Which country won the very first FIFA World Cup, in 1930?",
+        "answer": "Uruguay",
+        "hostNotes": "Uruguay also hosted it.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-09",
+        "text": "What martial art did Bruce Lee create?",
+        "answer": "Jeet Kune Do",
+        "hostNotes": "Not Wing Chun, which he studied before creating it.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-10",
+        "text": "Which Filipino became the first chess grandmaster from Asia?",
+        "answer": "Eugene Torre",
+        "hostNotes": "Also accept: Torre.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-11",
+        "text": "Which four-time PBA MVP of the Purefoods franchise was nicknamed \"The Captain\"?",
+        "answer": "Alvin Patrimonio",
+        "hostNotes": "Also accept: Patrimonio.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-12",
+        "text": "Which Filipino boxing legend held the world junior lightweight title from 1960 to 1967?",
+        "answer": "Gabriel \"Flash\" Elorde",
+        "hostNotes": "Also accept: Flash Elorde, Elorde.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-13",
+        "text": "Which Filipina sprinter, a two-time Asian Games 100-meter champion, was called \"Asia's Sprint Queen\"?",
+        "answer": "Lydia de Vega",
+        "hostNotes": "Also accept: Diay, Lydia de Vega-Mercado.",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-14",
+        "text": "Anthony Villanueva won an Olympic silver medal for the Philippines in 1964 in what sport?",
+        "answer": "Boxing",
+        "points": 300
+      },
+      {
+        "id": "sports-hard-15",
+        "text": "Which swimmer won the Philippines' first Olympic medal, a bronze in 1928?",
+        "answer": "Teófilo Yldefonso",
+        "hostNotes": "Also accept: Teofilo Yldefonso, Yldefonso. Event: 200 m breaststroke.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

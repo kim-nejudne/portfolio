@@ -1,0 +1,329 @@
+[
+  {
+    "id": "starter-food-easy",
+    "title": "Food & Drinks – Easy",
+    "questions": [
+      {
+        "id": "food-easy-01",
+        "text": "What Filipino dish is meat stewed in vinegar, soy sauce, garlic and bay leaves?",
+        "answer": "Adobo",
+        "hostNotes": "Also accept: chicken adobo, pork adobo, adobong manok, adobong baboy.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-02",
+        "text": "What Filipino shaved-ice dessert gets its name from words meaning \"mix-mix\"?",
+        "answer": "Halo-halo",
+        "points": 100
+      },
+      {
+        "id": "food-easy-03",
+        "text": "Which Filipino fast-food chain is famous for its Chickenjoy and Yumburger?",
+        "answer": "Jollibee",
+        "points": 100
+      },
+      {
+        "id": "food-easy-04",
+        "text": "What fertilized duck egg is sold by street vendors at night?",
+        "answer": "Balut",
+        "points": 100
+      },
+      {
+        "id": "food-easy-05",
+        "text": "What sour Filipino soup is often flavored with tamarind?",
+        "answer": "Sinigang",
+        "hostNotes": "Also accept any kind: sinigang na baboy, sinigang na hipon, etc.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-06",
+        "text": "What noodle dish is served at Filipino birthdays because it symbolizes long life?",
+        "answer": "Pancit",
+        "hostNotes": "Also accept: pansit, pancit canton, pancit bihon, pancit palabok.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-07",
+        "text": "Filipino-style party spaghetti is famous for its sweet sauce and slices of what?",
+        "answer": "Hotdog",
+        "hostNotes": "Also accept: hot dogs, sausage.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-08",
+        "text": "What Filipino stew of oxtail and vegetables is cooked in a thick peanut sauce?",
+        "answer": "Kare-kare",
+        "points": 100
+      },
+      {
+        "id": "food-easy-09",
+        "text": "What purple yam is used to make halaya and many Filipino desserts?",
+        "answer": "Ube",
+        "hostNotes": "Also accept: ubi. Not taro (gabi) or kamote.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-10",
+        "text": "What \"silog\" breakfast combines cured beef, garlic fried rice and a fried egg?",
+        "answer": "Tapsilog",
+        "hostNotes": "Tapa + sinangag + itlog. Not tocilog (tocino) or longsilog (longganisa).",
+        "points": 100
+      },
+      {
+        "id": "food-easy-11",
+        "text": "What Japanese dish is made of vinegared rice, often topped or rolled with raw fish?",
+        "answer": "Sushi",
+        "hostNotes": "Not sashimi, which is raw fish without rice.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-12",
+        "text": "Which country is famous for croissants and baguettes?",
+        "answer": "France",
+        "points": 100
+      },
+      {
+        "id": "food-easy-13",
+        "text": "What fruit is the main ingredient of guacamole?",
+        "answer": "Avocado",
+        "points": 100
+      },
+      {
+        "id": "food-easy-14",
+        "text": "Kimchi, a spicy fermented cabbage dish, comes from which country?",
+        "answer": "Korea",
+        "hostNotes": "Also accept: South Korea.",
+        "points": 100
+      },
+      {
+        "id": "food-easy-15",
+        "text": "What spiky, strong-smelling fruit, called the \"king of fruits\", is a Davao favorite?",
+        "answer": "Durian",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-food-medium",
+    "title": "Food & Drinks – Medium",
+    "questions": [
+      {
+        "id": "food-medium-01",
+        "text": "What salty fermented shrimp or fish paste is the classic partner of green mango?",
+        "answer": "Bagoong",
+        "hostNotes": "Also accept: bagoong alamang, bagoong isda, shrimp paste.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-02",
+        "text": "Paella, a rice dish cooked in a wide pan, comes from which country?",
+        "answer": "Spain",
+        "points": 200
+      },
+      {
+        "id": "food-medium-03",
+        "text": "What Kapampangan dish of chopped pig's face is served on a sizzling plate?",
+        "answer": "Sisig",
+        "hostNotes": "Also accept: sizzling sisig, pork sisig.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-04",
+        "text": "What Bacolod grilled chicken is marinated in calamansi and vinegar and basted with annatto oil?",
+        "answer": "Chicken inasal",
+        "hostNotes": "Also accept: inasal, inasal na manok.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-05",
+        "text": "Tanduay is a famous Filipino brand of what liquor?",
+        "answer": "Rum",
+        "points": 200
+      },
+      {
+        "id": "food-medium-06",
+        "text": "What spicy pork-and-chili dish cooked in coconut milk is named after a passenger train?",
+        "answer": "Bicol Express",
+        "hostNotes": "Named after the PNR train line running from Manila to Bicol.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-07",
+        "text": "What chewy, jelly-like cubes made from fermented coconut water are often added to halo-halo?",
+        "answer": "Nata de coco",
+        "hostNotes": "Not kaong, which is sugar palm fruit. Not nata de piña, made from pineapple.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-08",
+        "text": "What purple Christmas rice cake is steamed in bamboo tubes?",
+        "answer": "Puto bumbong",
+        "hostNotes": "Not bibingka, which is baked in banana leaves.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-09",
+        "text": "Pho, a beef noodle soup, is the national dish of which country?",
+        "answer": "Vietnam",
+        "points": 200
+      },
+      {
+        "id": "food-medium-10",
+        "text": "Which Italian city is known as the birthplace of pizza?",
+        "answer": "Naples",
+        "hostNotes": "Also accept: Napoli.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-11",
+        "text": "What Ilocano vegetable dish combines squash, eggplant, ampalaya, okra and string beans?",
+        "answer": "Pinakbet",
+        "hostNotes": "Also accept: pakbet.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-12",
+        "text": "Which Western Visayas island province is famous for its sweet mangoes?",
+        "answer": "Guimaras",
+        "hostNotes": "Not Zambales, which is also known for mangoes but is in Luzon.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-13",
+        "text": "What legume is the main ingredient of hummus?",
+        "answer": "Chickpeas",
+        "hostNotes": "Also accept: garbanzos, garbanzo beans.",
+        "points": 200
+      },
+      {
+        "id": "food-medium-14",
+        "text": "What powdered Japanese green tea is used in lattes, ice cream and cakes?",
+        "answer": "Matcha",
+        "points": 200
+      },
+      {
+        "id": "food-medium-15",
+        "text": "Feta, a crumbly white cheese, traditionally comes from which country?",
+        "answer": "Greece",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-food-hard",
+    "title": "Food & Drinks – Hard",
+    "questions": [
+      {
+        "id": "food-hard-01",
+        "text": "What Mexican spirit is distilled from the blue agave plant?",
+        "answer": "Tequila",
+        "hostNotes": "Mezcal can be made from many agaves, but blue agave points to tequila.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-02",
+        "text": "What Japanese word names the savory \"fifth taste\", after sweet, sour, salty and bitter?",
+        "answer": "Umami",
+        "points": 300
+      },
+      {
+        "id": "food-hard-03",
+        "text": "What Ilocano dish is pork belly boiled, air-dried, then deep-fried until crackling?",
+        "answer": "Bagnet",
+        "hostNotes": "Not lechon kawali, the Tagalog pan-fried version.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-04",
+        "text": "What Iloilo noodle soup with pork offal and crushed chicharon is named after a district of the city?",
+        "answer": "La Paz batchoy",
+        "hostNotes": "Also accept: batchoy.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-05",
+        "text": "What Ilocano soup of goat or beef innards gets its bitter taste from bile?",
+        "answer": "Pinapaitan",
+        "hostNotes": "Also accept: papaitan.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-06",
+        "text": "What spice, the most expensive in the world by weight, comes from the stigmas of a crocus flower?",
+        "answer": "Saffron",
+        "points": 300
+      },
+      {
+        "id": "food-hard-07",
+        "text": "Which Italian coffee drink is an espresso \"stained\" with a small amount of milk foam?",
+        "answer": "Macchiato",
+        "hostNotes": "Also accept: caffè macchiato, espresso macchiato. Macchiato means \"stained\" or \"marked\".",
+        "points": 300
+      },
+      {
+        "id": "food-hard-08",
+        "text": "What French word is used on menus for edible snails?",
+        "answer": "Escargot",
+        "hostNotes": "Also accept: escargots.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-09",
+        "text": "What Cebuano \"hanging rice\" is cooked in pouches of woven coconut leaves?",
+        "answer": "Puso",
+        "hostNotes": "Also accept: pusô. A similar rice pouch is called ketupat in Malaysia and Indonesia.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-10",
+        "text": "What ginger-based chicken soup is served at the dinner in Chapter 3 of \"Noli Me Tangere\"?",
+        "answer": "Tinola",
+        "hostNotes": "Also accept: tinolang manok. Padre Damaso sulks when he gets the neck and a tough wing.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-11",
+        "text": "Pili nuts come mainly from which Philippine region?",
+        "answer": "Bicol",
+        "hostNotes": "Also accept: Bicol Region, Region V. Sorsogon and Albay are major producers.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-12",
+        "text": "Kape alamid is coffee made from beans that pass through the gut of what animal?",
+        "answer": "Civet",
+        "hostNotes": "Also accept: palm civet, musang, alamid. Indonesia's version is kopi luwak.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-13",
+        "text": "Batangas's kapeng barako comes mainly from which coffee species?",
+        "answer": "Liberica",
+        "hostNotes": "Also accept: Coffea liberica. Not Arabica or Robusta.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-14",
+        "text": "What Kapampangan delicacy is made from mole crickets cooked adobo-style?",
+        "answer": "Camaru",
+        "hostNotes": "Also accept: kamaru.",
+        "points": 300
+      },
+      {
+        "id": "food-hard-15",
+        "text": "Which Italian coffee-and-mascarpone dessert has a name meaning \"pick me up\"?",
+        "answer": "Tiramisu",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

@@ -1,0 +1,339 @@
+[
+  {
+    "id": "starter-religion-easy",
+    "title": "Religion – Easy",
+    "questions": [
+      {
+        "id": "religion-easy-01",
+        "text": "How many commandments did Moses receive from God?",
+        "answer": "Ten",
+        "hostNotes": "Also accept: 10.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-02",
+        "text": "In the Bible, who built an ark to survive the great flood?",
+        "answer": "Noah",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-03",
+        "text": "In the Bible, which young shepherd defeated the giant Goliath?",
+        "answer": "David",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-04",
+        "text": "What is the title of the leader of the Catholic Church?",
+        "answer": "Pope",
+        "hostNotes": "Also accept: Santo Papa, Bishop of Rome, Holy Father.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-05",
+        "text": "In the Bible, what was the name of the garden where Adam and Eve lived?",
+        "answer": "Eden",
+        "hostNotes": "Also accept: Garden of Eden, Paraiso.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-06",
+        "text": "What is the first book of the Bible?",
+        "answer": "Genesis",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-07",
+        "text": "What string of prayer beads do Catholics use to pray to the Virgin Mary?",
+        "answer": "Rosary",
+        "hostNotes": "Also accept: rosaryo.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-08",
+        "text": "What series of Masses do Filipino Catholics attend in the nine days before Christmas?",
+        "answer": "Simbang Gabi",
+        "hostNotes": "Also accept: Misa de Gallo, Misa de Aguinaldo.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-09",
+        "text": "Cebu's Sinulog festival honors what image of the child Jesus?",
+        "answer": "Santo Niño",
+        "hostNotes": "Also accept: Santo Nino, Señor Santo Niño, Holy Child.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-10",
+        "text": "Millions join the Traslacion in Quiapo every January 9 to honor what image?",
+        "answer": "Black Nazarene",
+        "hostNotes": "Also accept: Poong Nazareno, Nuestro Padre Jesús Nazareno, Nazareno.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-11",
+        "text": "During which week do Filipino Catholics traditionally go on Visita Iglesia?",
+        "answer": "Holy Week",
+        "hostNotes": "Also accept: Semana Santa, Mahal na Araw.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-12",
+        "text": "What is the 40-day Christian season of fasting and prayer before Easter?",
+        "answer": "Lent",
+        "hostNotes": "Also accept: Kuwaresma, Cuaresma.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-13",
+        "text": "What is the holy book of Islam?",
+        "answer": "Quran",
+        "hostNotes": "Also accept: Koran, Qur'an.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-14",
+        "text": "During which Islamic month do Muslims fast from dawn to sunset?",
+        "answer": "Ramadan",
+        "hostNotes": "Also accept: Ramadhan.",
+        "points": 100
+      },
+      {
+        "id": "religion-easy-15",
+        "text": "In the Bible, which prophet was swallowed by a great fish?",
+        "answer": "Jonah",
+        "hostNotes": "Also accept: Jonas.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-religion-medium",
+    "title": "Religion – Medium",
+    "questions": [
+      {
+        "id": "religion-medium-01",
+        "text": "According to the Gospels, in which town was Jesus born?",
+        "answer": "Bethlehem",
+        "hostNotes": "Not Nazareth, where he grew up.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-02",
+        "text": "At the wedding at Cana, what did Jesus turn water into?",
+        "answer": "Wine",
+        "hostNotes": "It is described as his first public miracle.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-03",
+        "text": "Which apostle denied knowing Jesus three times?",
+        "answer": "Peter",
+        "hostNotes": "Also accept: Simon Peter, San Pedro. Not Judas, who betrayed him.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-04",
+        "text": "Which archangel told Mary she would bear the Son of God?",
+        "answer": "Gabriel",
+        "hostNotes": "Also accept: San Gabriel. The event is called the Annunciation.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-05",
+        "text": "In Islam, who is regarded as the final prophet?",
+        "answer": "Muhammad",
+        "hostNotes": "Also accept: Mohammed, Prophet Muhammad.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-06",
+        "text": "What was the birth name of the Buddha?",
+        "answer": "Siddhartha Gautama",
+        "hostNotes": "Also accept: Siddhartha, Gautama.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-07",
+        "text": "What is the pilgrimage to Mecca that every able Muslim must make at least once?",
+        "answer": "Hajj",
+        "hostNotes": "Also accept: Haj. A man who has completed it is called a Hajji.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-08",
+        "text": "What name is given to the first five books of the Hebrew Bible?",
+        "answer": "Torah",
+        "hostNotes": "Also accept: Pentateuch.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-09",
+        "text": "What Hindu festival of lights celebrates the victory of light over darkness?",
+        "answer": "Diwali",
+        "hostNotes": "Also accept: Deepavali.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-10",
+        "text": "Who was the first Filipino saint, canonized in 1987?",
+        "answer": "Lorenzo Ruiz",
+        "hostNotes": "Also accept: San Lorenzo Ruiz. Not Pedro Calungsod, the second, canonized in 2012.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-11",
+        "text": "Which church was founded in the Philippines by Felix Manalo in 1914?",
+        "answer": "Iglesia ni Cristo",
+        "hostNotes": "Also accept: INC.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-12",
+        "text": "What Easter dawn rite reenacts the meeting of the Risen Christ and his mother?",
+        "answer": "Salubong",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-13",
+        "text": "What Muslim holiday, also a Philippine national holiday, marks the end of the month of fasting?",
+        "answer": "Eid al-Fitr",
+        "hostNotes": "Also accept: Eid'l Fitr, Eid ul-Fitr, Hari Raya Puasa. Not Eid al-Adha.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-14",
+        "text": "Which river do Hindus consider the most sacred?",
+        "answer": "Ganges",
+        "hostNotes": "Also accept: Ganga.",
+        "points": 200
+      },
+      {
+        "id": "religion-medium-15",
+        "text": "The Dalai Lama is the spiritual leader of which branch of Buddhism?",
+        "answer": "Tibetan Buddhism",
+        "hostNotes": "Also accept: Tibetan, Vajrayana, Gelug (his school).",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-religion-hard",
+    "title": "Religion – Hard",
+    "questions": [
+      {
+        "id": "religion-hard-01",
+        "text": "How many times a day are Muslims required to pray?",
+        "answer": "Five",
+        "hostNotes": "Also accept: 5. The daily prayer is called salah or salat.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-02",
+        "text": "Which Hindu god has the head of an elephant?",
+        "answer": "Ganesha",
+        "hostNotes": "Also accept: Ganesh, Ganapati.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-03",
+        "text": "In Buddhism, what is the state of final freedom from suffering and rebirth called?",
+        "answer": "Nirvana",
+        "hostNotes": "Also accept: Nibbana.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-04",
+        "text": "What Hebrew word, sung in praise especially at Easter, means \"praise the Lord\"?",
+        "answer": "Hallelujah",
+        "hostNotes": "Also accept: Alleluia, Aleluya.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-05",
+        "text": "Which apostle doubted the Resurrection until he saw Jesus's wounds?",
+        "answer": "Thomas",
+        "hostNotes": "Also accept: Doubting Thomas, Santo Tomas.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-06",
+        "text": "What is the Jewish coming-of-age ceremony for a 13-year-old boy called?",
+        "answer": "Bar mitzvah",
+        "hostNotes": "For girls it is the bat mitzvah.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-07",
+        "text": "What eight-day Jewish holiday is celebrated by lighting a menorah?",
+        "answer": "Hanukkah",
+        "hostNotes": "Also accept: Chanukah, Festival of Lights.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-08",
+        "text": "What Hindu scripture records a dialogue between Krishna and the warrior Arjuna?",
+        "answer": "Bhagavad Gita",
+        "hostNotes": "Also accept: Gita. It is part of the epic Mahabharata.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-09",
+        "text": "What is the Filipino Lenten tradition of chanting the life and passion of Christ called?",
+        "answer": "Pabasa",
+        "hostNotes": "Also accept: Pasyon, Pabasa ng Pasyon.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-10",
+        "text": "What Filipino Christmas Eve pageant reenacts Mary and Joseph searching for a place to stay?",
+        "answer": "Panunuluyan",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-11",
+        "text": "Under what title of the Virgin Mary is she the principal patroness of the Philippines?",
+        "answer": "Immaculate Conception",
+        "hostNotes": "Also accept: Our Lady of the Immaculate Conception, Inmaculada Concepción. Declared by Pope Pius XII in 1942.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-12",
+        "text": "What Intramuros church, finished in 1607, is the oldest stone church still standing in the Philippines?",
+        "answer": "San Agustin Church",
+        "hostNotes": "Also accept: San Agustin, Church of St. Augustine. Not Manila Cathedral.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-13",
+        "text": "Which pope celebrated the closing Mass of World Youth Day in Manila in 1995?",
+        "answer": "Pope John Paul II",
+        "hostNotes": "Also accept: John Paul II, St. John Paul II.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-14",
+        "text": "Which teenage Visayan catechist, martyred in Guam in 1672, was canonized in 2012?",
+        "answer": "Pedro Calungsod",
+        "hostNotes": "Also accept: San Pedro Calungsod.",
+        "points": 300
+      },
+      {
+        "id": "religion-hard-15",
+        "text": "The oldest mosque in the Philippines, built in 1380, is in which province?",
+        "answer": "Tawi-Tawi",
+        "hostNotes": "The Sheik Karimul Makhdum Mosque in Simunul.",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]

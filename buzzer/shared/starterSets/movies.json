@@ -1,0 +1,331 @@
+[
+  {
+    "id": "starter-movies-easy",
+    "title": "Movies – Easy",
+    "questions": [
+      {
+        "id": "movies-easy-01",
+        "text": "In \"Toy Story\", what is the name of the cowboy doll?",
+        "answer": "Woody",
+        "hostNotes": "Also accept: Sheriff Woody.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-02",
+        "text": "In \"Frozen\", what is the name of the talking snowman?",
+        "answer": "Olaf",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-03",
+        "text": "What green ogre is the title character of a 2001 DreamWorks animated film?",
+        "answer": "Shrek",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-04",
+        "text": "In the Harry Potter films, what is the name of the school of witchcraft and wizardry?",
+        "answer": "Hogwarts",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-05",
+        "text": "What 1997 film about a doomed ocean liner starred Leonardo DiCaprio and Kate Winslet?",
+        "answer": "Titanic",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-06",
+        "text": "What Pixar film is about a rat who dreams of becoming a chef in Paris?",
+        "answer": "Ratatouille",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-07",
+        "text": "Which late Filipino actor was hailed as the \"King of Comedy\"?",
+        "answer": "Dolphy",
+        "hostNotes": "Also accept: Rodolfo Vera Quizon.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-08",
+        "text": "Which comedienne played the title role in the \"Ang Tanging Ina\" films?",
+        "answer": "Ai-Ai delas Alas",
+        "hostNotes": "Also accept: Ai-Ai. Her character is Ina Montecillo.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-09",
+        "text": "The 2019 film \"Hello, Love, Goodbye\", starring Kathryn Bernardo and Alden Richards, is set mainly in which city?",
+        "answer": "Hong Kong",
+        "hostNotes": "Joy and Ethan are both OFWs in Hong Kong.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-10",
+        "text": "What are the names of the couple played by John Lloyd Cruz and Bea Alonzo in \"One More Chance\"?",
+        "answer": "Popoy and Basha",
+        "hostNotes": "Both names needed. The film came out in 2007.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-11",
+        "text": "Vin Diesel plays Dominic Toretto in which car-racing film franchise?",
+        "answer": "The Fast and the Furious",
+        "hostNotes": "Also accept: Fast & Furious, Fast and Furious.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-12",
+        "text": "What 2009 James Cameron film is set on the moon Pandora, home of the blue Na'vi?",
+        "answer": "Avatar",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-13",
+        "text": "In \"The Lion King\", what is the name of Simba's father?",
+        "answer": "Mufasa",
+        "hostNotes": "Not Scar, who is Simba's uncle.",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-14",
+        "text": "In \"Star Wars\", who is revealed to be Luke Skywalker's father?",
+        "answer": "Darth Vader",
+        "hostNotes": "Also accept: Anakin Skywalker. The real line is \"No, I am your father.\"",
+        "points": 100
+      },
+      {
+        "id": "movies-easy-15",
+        "text": "Which actor played Tony Stark in the Marvel Cinematic Universe films?",
+        "answer": "Robert Downey Jr.",
+        "hostNotes": "Also accept: RDJ.",
+        "points": 100
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-movies-medium",
+    "title": "Movies – Medium",
+    "questions": [
+      {
+        "id": "movies-medium-01",
+        "text": "In Pixar's \"Up\", what does Carl use to make his house fly?",
+        "answer": "Balloons",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-02",
+        "text": "In \"The Matrix\", what color pill does Neo take?",
+        "answer": "Red",
+        "hostNotes": "The blue pill would have let him go back to his normal life.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-03",
+        "text": "What is the name of the boy accidentally left behind in \"Home Alone\"?",
+        "answer": "Kevin",
+        "hostNotes": "Also accept: Kevin McCallister.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-04",
+        "text": "In the Harry Potter films, what is the name of Harry's snowy owl?",
+        "answer": "Hedwig",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-05",
+        "text": "Which 1984 film made Arnold Schwarzenegger's line \"I'll be back\" famous?",
+        "answer": "The Terminator",
+        "hostNotes": "Also accept: Terminator.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-06",
+        "text": "Which Pixar film is set in the Land of the Dead during Día de los Muertos?",
+        "answer": "Coco",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-07",
+        "text": "Who directed \"Jaws\", \"E.T.\" and \"Jurassic Park\"?",
+        "answer": "Steven Spielberg",
+        "hostNotes": "Also accept: Spielberg.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-08",
+        "text": "Which action star was hailed as \"Da King\" of Philippine movies?",
+        "answer": "Fernando Poe Jr.",
+        "hostNotes": "Also accept: FPJ, Ronald Allan Poe.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-09",
+        "text": "What is the name of the fictional African nation in \"Black Panther\"?",
+        "answer": "Wakanda",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-10",
+        "text": "John Arcilla played the title role in what 2015 historical film?",
+        "answer": "Heneral Luna",
+        "hostNotes": "He played General Antonio Luna.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-11",
+        "text": "What long-running Filipino horror anthology film series is a Metro Manila Film Festival staple?",
+        "answer": "Shake, Rattle & Roll",
+        "hostNotes": "Produced by Regal Films. The first one came out in 1984.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-12",
+        "text": "Which real-life celebrity couple starred in the 2023 MMFF film \"Rewind\"?",
+        "answer": "Dingdong Dantes and Marian Rivera",
+        "hostNotes": "Both names needed. Also accept: DongYan.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-13",
+        "text": "Which actress cried out \"Walang himala!\" in the 1982 film \"Himala\"?",
+        "answer": "Nora Aunor",
+        "hostNotes": "She played Elsa, a village girl believed to perform miracles.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-14",
+        "text": "What was Disney's first full-length animated feature film, released in 1937?",
+        "answer": "Snow White and the Seven Dwarfs",
+        "hostNotes": "Also accept: Snow White.",
+        "points": 200
+      },
+      {
+        "id": "movies-medium-15",
+        "text": "The 2017 Filipino indie hit \"Kita Kita\" is set in which Japanese city?",
+        "answer": "Sapporo",
+        "hostNotes": "Starred Alessandra de Rossi and Empoy Marquez.",
+        "points": 200
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  },
+  {
+    "id": "starter-movies-hard",
+    "title": "Movies – Hard",
+    "questions": [
+      {
+        "id": "movies-hard-01",
+        "text": "Which actor won back-to-back Best Actor Oscars for \"Philadelphia\" and \"Forrest Gump\"?",
+        "answer": "Tom Hanks",
+        "hostNotes": "Also accept: Hanks.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-02",
+        "text": "Which actor played the Joker in \"The Dark Knight\" (2008)?",
+        "answer": "Heath Ledger",
+        "hostNotes": "He won a posthumous Oscar for the role. Not Joaquin Phoenix, who played the Joker in 2019.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-03",
+        "text": "Which 2019 South Korean film was the first non-English-language film to win the Oscar for Best Picture?",
+        "answer": "Parasite",
+        "hostNotes": "Directed by Bong Joon-ho.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-04",
+        "text": "In \"Back to the Future\", what make of car is turned into a time machine?",
+        "answer": "DeLorean",
+        "hostNotes": "Also accept: DMC DeLorean, DeLorean DMC-12.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-05",
+        "text": "Which actor voiced the Genie in Disney's 1992 animated \"Aladdin\"?",
+        "answer": "Robin Williams",
+        "hostNotes": "Not Will Smith, who played the Genie in the 2019 live-action remake.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-06",
+        "text": "In \"Inception\", what small object does Cobb use as his totem to tell dreams from reality?",
+        "answer": "A spinning top",
+        "hostNotes": "Also accept: top.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-07",
+        "text": "Which 1985 film features Cherie Gil's iconic line \"You're nothing but a second-rate, trying hard copycat!\"?",
+        "answer": "Bituing Walang Ningning",
+        "hostNotes": "She says it to Sharon Cuneta's character before splashing a glass of wine in her face.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-08",
+        "text": "Which film was mistakenly announced as Best Picture at the 2017 Oscars before \"Moonlight\" was named the real winner?",
+        "answer": "La La Land",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-09",
+        "text": "Which actress starred as the title character of the 2008 film \"Ploning\", set in Cuyo, Palawan?",
+        "answer": "Judy Ann Santos",
+        "hostNotes": "Also accept: Juday.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-10",
+        "text": "What is the name of the spaceship's computer in \"2001: A Space Odyssey\"?",
+        "answer": "HAL 9000",
+        "hostNotes": "Also accept: HAL.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-11",
+        "text": "In Stanley Kubrick's \"The Shining\", what is the name of the haunted hotel?",
+        "answer": "The Overlook Hotel",
+        "hostNotes": "Also accept: Overlook.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-12",
+        "text": "Who became the first Filipino to win Best Actress at the Cannes Film Festival, in 2016 for \"Ma' Rosa\"?",
+        "answer": "Jaclyn Jose",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-13",
+        "text": "What 1982 Peque Gallaga classic follows wealthy Negros families during World War II?",
+        "answer": "Oro, Plata, Mata",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-14",
+        "text": "Which Filipino director won the Golden Lion at the 2016 Venice Film Festival for \"The Woman Who Left\"?",
+        "answer": "Lav Diaz",
+        "hostNotes": "The Filipino title is \"Ang Babaeng Humayo\". He is known for films that run many hours.",
+        "points": 300
+      },
+      {
+        "id": "movies-hard-15",
+        "text": "Who directed the 1975 classic \"Maynila sa mga Kuko ng Liwanag\"?",
+        "answer": "Lino Brocka",
+        "hostNotes": "In English: \"Manila in the Claws of Light\".",
+        "points": 300
+      }
+    ],
+    "createdAt": 0,
+    "updatedAt": 0,
+    "schemaVersion": 1
+  }
+]
