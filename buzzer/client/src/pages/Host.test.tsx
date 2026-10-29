@@ -448,6 +448,17 @@ describe('Host remote', () => {
         );
       });
 
+      it("the remote's picker offers Build a game", async () => {
+        remote(final([player(1)]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
+        const picker = screen.getByRole('dialog', { name: 'New game' });
+        await within(picker).findAllByRole('radio');
+        fireEvent.click(within(picker).getByRole('button', { name: 'Build a game' }));
+        expect(within(picker).getByRole('button', { name: 'Start new game' })).toBeTruthy();
+        expect(within(picker).getByRole('checkbox', { name: 'Keep scores' })).toBeTruthy();
+      });
+
       it('offers New game only in FINAL', () => {
         for (const phase of ['LOBBY', 'QUESTION', 'OPEN', 'REVEAL'] as const) {
           remote(

@@ -243,6 +243,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
           onClose={closeNewGame}
           onNotice={show}
           preview
+          builder
         />
       )}
       <Toast toast={toast} />

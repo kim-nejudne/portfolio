@@ -3,6 +3,7 @@ import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_OUTLINE, BUTTON_PRIMARY, CARD } from '../lib/ui.js';
+import { GameBuilder } from './GameBuilder.js';
 import { RoomCreated } from './RoomCreated.js';
 import { SetBrowser } from './SetBrowser.js';
 import { SetPreview } from './SetPreview.js';
@@ -23,6 +24,7 @@ export function HostGame() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
+  const [building, setBuilding] = useState(false);
   const pickerRef = useRef<HTMLElement>(null);
   const picking = status.kind === 'picking';
 
@@ -40,6 +42,7 @@ export function HostGame() {
       const { mine, builtIn } = await listHostableSets();
       const sets = [...mine, ...builtIn];
       setSelectedId(sets[0]?.id ?? null);
+      setBuilding(false);
       setStatus({ kind: 'picking', sets, firstBuiltIn: mine.length, creating: false });
     } catch {
       setError('Could not load the saved sets in this browser.');
@@ -93,49 +96,80 @@ export function HostGame() {
       className={`flex flex-col gap-4 ${CARD}`}
     >
       <h2 id="pick-heading" className="font-display text-3xl">
-        Pick a question set
+        {building ? 'Build a game' : 'Pick a question set'}
       </h2>
-      <SetBrowser
-        mode="select"
-        id="host"
-        legend="Question set"
-        sets={sets}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        detail={(set) => setDetail(set, sets.indexOf(set) >= firstBuiltIn)}
-        onPreview={creating ? undefined : setPreviewing}
-        listClassName="max-h-80 overflow-y-auto"
-        className="text-lg"
-      />
-      <button
-        type="button"
-        onClick={() => void create(status)}
-        disabled={creating || selectedId === null}
-        className={`${BUTTON_PRIMARY} py-5 text-2xl`}
-      >
-        {creating ? 'Creating room…' : 'Create room'}
-      </button>
-      {error && (
-        <p role="alert" className="text-center text-lg text-buzz">
-          {error}
-        </p>
-      )}
-      {previewing && (
-        <SetPreview
-          set={previewing}
-          actionLabel="Pick this set"
-          onAction={(set) => setSelectedId(set.id)}
-          onClose={() => setPreviewing(null)}
+      {building ? (
+        <GameBuilder
+          sources={sets}
+          hostLabel="Host this game"
+          hostingLabel="Creating room…"
+          onHost={async ({ set, loadImage }) =>
+            setStatus({ kind: 'created', code: await hostSet(set, loadImage) })
+          }
+          onSaved={(saved) => {
+            // The saved game joins this browser's sets, first and picked, ready for Create room.
+            setStatus({ ...status, sets: [saved, ...sets], firstBuiltIn: firstBuiltIn + 1 });
+            setSelectedId(saved.id);
+            setBuilding(false);
+          }}
+          onBack={() => setBuilding(false)}
         />
+      ) : (
+        <>
+          <SetBrowser
+            mode="select"
+            id="host"
+            legend="Question set"
+            sets={sets}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            detail={(set) => setDetail(set, sets.indexOf(set) >= firstBuiltIn)}
+            onPreview={creating ? undefined : setPreviewing}
+            listClassName="max-h-80 overflow-y-auto"
+            className="text-lg"
+          />
+          <button
+            type="button"
+            onClick={() => void create(status)}
+            disabled={creating || selectedId === null}
+            className={`${BUTTON_PRIMARY} py-5 text-2xl`}
+          >
+            {creating ? 'Creating room…' : 'Create room'}
+          </button>
+          {error && (
+            <p role="alert" className="text-center text-lg text-buzz">
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setBuilding(true);
+              setError(null);
+            }}
+            disabled={creating}
+            className="min-h-11 text-lg text-accent underline underline-offset-4 hover:text-accent-hover disabled:opacity-40"
+          >
+            Build a game
+          </button>
+          {previewing && (
+            <SetPreview
+              set={previewing}
+              actionLabel="Pick this set"
+              onAction={(set) => setSelectedId(set.id)}
+              onClose={() => setPreviewing(null)}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => setStatus({ kind: 'idle' })}
+            disabled={creating}
+            className="text-lg text-muted underline underline-offset-4 hover:text-ink"
+          >
+            Cancel
+          </button>
+        </>
       )}
-      <button
-        type="button"
-        onClick={() => setStatus({ kind: 'idle' })}
-        disabled={creating}
-        className="text-lg text-muted underline underline-offset-4 hover:text-ink"
-      >
-        Cancel
-      </button>
     </section>
   );
 }

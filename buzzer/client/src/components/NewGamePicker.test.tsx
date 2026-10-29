@@ -49,10 +49,10 @@ function stubPut(status = 200) {
   return { fetch, release };
 }
 
-function renderPicker(phase: Phase = 'FINAL', preview = false) {
+function renderPicker(phase: Phase = 'FINAL', preview = false, builder = false) {
   const onClose = vi.fn();
   const onNotice = vi.fn();
-  const props = { code: 'WXYZ', hostToken: 'token-1', onClose, onNotice, preview };
+  const props = { code: 'WXYZ', hostToken: 'token-1', onClose, onNotice, preview, builder };
   const view = render(<NewGamePicker {...props} phase={phase} />);
   return {
     onClose,
@@ -320,5 +320,92 @@ describe('NewGamePicker', () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  describe('Build a game', () => {
+    const change = (name: string, value: string) =>
+      fireEvent.change(screen.getByRole('combobox', { name }), { target: { value } });
+
+    /**
+     * Every question under Other, as one built game: the built-in sample's ten, pictures included,
+     * and Round two's one. Asking for more than there are takes them all, so the draw is fixed.
+     */
+    async function buildFromSample() {
+      await options();
+      fireEvent.click(screen.getByRole('button', { name: 'Build a game' }));
+      change('Category, row 1', 'Other');
+      change('Questions, row 1', '15');
+      expect(screen.getByText('Total: 11 questions')).toBeTruthy();
+    }
+
+    it('is offered only with `builder` (the remote), not on the Screen', async () => {
+      renderPicker();
+      await options();
+      expect(screen.queryByRole('button', { name: 'Build a game' })).toBeNull();
+      cleanup();
+      renderPicker('FINAL', true, true);
+      await options();
+      expect(screen.getByRole('button', { name: 'Build a game' })).toBeTruthy();
+    });
+
+    it('Start new game sends the built game with Keep scores and its pictures from the bundle', async () => {
+      const fetch = vi.fn(async (url: string) =>
+        url.endsWith('/set')
+          ? Response.json({ ok: true })
+          : Response.json({ ok: true }, { status: 201 }),
+      );
+      vi.stubGlobal('fetch', fetch);
+      const { onClose } = renderPicker('FINAL', true, true);
+      await buildFromSample();
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Keep scores' }));
+      fireEvent.click(startButton());
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+
+      const body = putBody(fetch);
+      expect(body.keepScores).toBe(true);
+      expect(body.set).toMatchObject({ title: 'Mixed: Other', category: 'Mixed' });
+      expect(body.set.questions).toHaveLength(11);
+      expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual([
+        '/api/rooms/WXYZ/images/sample-img-flag',
+        '/api/rooms/WXYZ/images/sample-img-hexagon',
+        '/api/rooms/WXYZ/set',
+      ]);
+    });
+
+    it('after a built game’s image fails to upload, Retry images sends only its images', async () => {
+      let uploads = 0;
+      const fetch = vi.fn(async (url: string) => {
+        if (url.endsWith('/set')) return Response.json({ ok: true });
+        uploads += 1;
+        return uploads === 1
+          ? Response.json({ ok: false, error: 'Server busy' }, { status: 503 })
+          : Response.json({ ok: true }, { status: 201 });
+      });
+      vi.stubGlobal('fetch', fetch);
+      const { onClose } = renderPicker('FINAL', true, true);
+      await buildFromSample();
+      fireEvent.click(startButton());
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        "Couldn't upload an image: Server busy The new game is set up; retry to send its images.",
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Retry images' }));
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+      const urls = fetch.mock.calls.map(([url]) => url);
+      expect(urls.filter((url) => url.endsWith('/set'))).toHaveLength(1);
+      expect(urls.filter((url) => url.includes('/images/'))).toHaveLength(1 + 2);
+    });
+
+    it('Save to My sets puts the game first in the list, picked', async () => {
+      renderPicker('FINAL', true, true);
+      await options();
+      fireEvent.click(screen.getByRole('button', { name: 'Build a game' }));
+      change('Questions, row 1', '3');
+      fireEvent.click(screen.getByRole('button', { name: 'Save to My sets' }));
+      await waitFor(async () => {
+        const first = (await options())[0]!;
+        expect(first.closest('label')!.textContent).toBe('Mixed: Animals3 questions');
+        expect(first.checked).toBe(true);
+      });
+    });
   });
 });

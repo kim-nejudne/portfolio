@@ -861,6 +861,14 @@ describe('Screen', () => {
         expect(within(picker).queryAllByRole('button', { name: /^Preview/ })).toEqual([]);
       });
 
+      it('its picker offers no Build a game: that is on the host remote', async () => {
+        hostScreen(inPhase('FINAL'));
+        fireEvent.click(newGame()!);
+        const picker = screen.getByRole('dialog', { name: 'New game' });
+        expect((await within(picker).findAllByRole('radio')).length).toBeGreaterThan(0);
+        expect(within(picker).queryByRole('button', { name: 'Build a game' })).toBeNull();
+      });
+
       it('is not offered before FINAL', () => {
         for (const phase of ['LOBBY', 'QUESTION', 'OPEN', 'BUZZED', 'REVEAL'] as const) {
           hostScreen(inPhase(phase));

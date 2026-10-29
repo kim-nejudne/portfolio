@@ -2,9 +2,16 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
 import { NewGameTakenError } from '../lib/api.js';
-import { checkPlayable, hostNextSet, SetImagesError, uploadSetImages } from '../lib/hostRoom.js';
+import {
+  checkPlayable,
+  hostNextSet,
+  imagesOf,
+  SetImagesError,
+  uploadSetImages,
+} from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_PRIMARY } from '../lib/ui.js';
+import { GameBuilder, type BuiltGame } from './GameBuilder.js';
 import { SetBrowser } from './SetBrowser.js';
 import { SetPreview } from './SetPreview.js';
 
@@ -27,6 +34,8 @@ interface NewGamePickerProps {
    * answers, and the Screen is public.
    */
   preview?: boolean;
+  /** Offers **Build a game** (DECISIONS F57). Only the Host remote passes it, as with `preview`. */
+  builder?: boolean;
   /** The dialog's box, for sizing per device. */
   className?: string;
 }
@@ -44,6 +53,7 @@ export function NewGamePicker({
   onClose,
   onNotice,
   preview = false,
+  builder = false,
   className = '',
 }: NewGamePickerProps) {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
@@ -53,8 +63,11 @@ export function NewGamePicker({
   // Once this device has sent a set, the room leaving FINAL is its own doing, not a reason to close.
   const [submitted, setSubmitted] = useState(false);
   // The set already in the room after an image upload failed: a retry uploads only its images.
-  const [uploadPending, setUploadPending] = useState<QuestionSet | null>(null);
+  const [uploadPending, setUploadPending] = useState<BuiltGame | null>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
+  const [building, setBuilding] = useState(false);
+  // A built game is on its way to the room (the builder shows its own progress).
+  const [sendingBuilt, setSendingBuilt] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -78,7 +91,7 @@ export function NewGamePicker({
 
   useEffect(() => headingRef.current?.focus(), []);
 
-  const starting = status.kind === 'picking' && status.starting;
+  const starting = (status.kind === 'picking' && status.starting) || sendingBuilt;
   const locked = starting || uploadPending !== null;
 
   useEffect(() => {
@@ -99,31 +112,63 @@ export function NewGamePicker({
     return () => window.removeEventListener('keydown', listener, { capture: true });
   }, []);
 
-  async function start(picking: Extract<Status, { kind: 'picking' }>) {
-    const { sets } = picking;
-    const set = uploadPending ?? sets.find((s) => s.id === selectedId);
-    if (!set) return;
-    setStatus({ ...picking, starting: true });
+  /**
+   * Sends `game` to the room. A 409 or a failed image upload is handled here; any other Error is
+   * thrown for the caller to show.
+   */
+  async function send(game: BuiltGame) {
     setSubmitted(true);
     setError(null);
     try {
-      if (uploadPending) await uploadSetImages(code, hostToken, set);
-      else await hostNextSet(code, hostToken, set, keepScores);
+      if (uploadPending) await uploadSetImages(code, hostToken, game.set, game.loadImage);
+      else await hostNextSet(code, hostToken, game.set, keepScores, game.loadImage);
       onClose();
     } catch (caught) {
       if (caught instanceof NewGameTakenError) {
         onNotice(caught.message);
         return onClose();
       }
-      if (caught instanceof SetImagesError) {
-        setUploadPending(set);
-        setError(`${caught.message} The new game is set up; retry to send its images.`);
-      } else {
-        setError((caught as Error).message);
-      }
-      setStatus({ ...picking, starting: false });
+      if (!(caught instanceof SetImagesError)) throw caught;
+      setUploadPending(game);
+      setBuilding(false);
+      setError(`${caught.message} The new game is set up; retry to send its images.`);
     }
   }
+
+  async function start(picking: Extract<Status, { kind: 'picking' }>) {
+    const picked = picking.sets.find((s) => s.id === selectedId);
+    const game = uploadPending ?? (picked && { set: picked, loadImage: imagesOf(picked) });
+    if (!game) return;
+    setStatus({ ...picking, starting: true });
+    try {
+      await send(game);
+    } catch (caught) {
+      setError((caught as Error).message);
+    }
+    setStatus({ ...picking, starting: false });
+  }
+
+  async function startBuilt(game: BuiltGame) {
+    setSendingBuilt(true);
+    try {
+      await send(game);
+    } finally {
+      setSendingBuilt(false);
+    }
+  }
+
+  const keepScoresBox = (
+    <label className="flex shrink-0 cursor-pointer items-center gap-3">
+      <input
+        type="checkbox"
+        checked={keepScores}
+        onChange={(event) => setKeepScores(event.target.checked)}
+        disabled={locked}
+        className="size-5 accent-accent"
+      />
+      Keep scores
+    </label>
+  );
 
   // On body: the Screen's stage is a positioned box, which would confine a fixed child.
   return createPortal(
@@ -150,71 +195,104 @@ export function NewGamePicker({
             Could not load the saved sets in this browser.
           </p>
         )}
-        {status.kind === 'picking' && (
-          <SetBrowser
-            mode="select"
-            id="new-game"
-            legend="Question set"
-            sets={status.sets}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            disabled={locked}
-            onPreview={preview && !locked ? setPreviewing : undefined}
-            detail={(set) =>
-              // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
-              setDetail(set, status.sets.indexOf(set) >= status.firstBuiltIn, checkPlayable(set).ok)
-            }
-            // The scroller is a div: a fieldset won't shrink as a flex child, and its default
-            // min-content width would push the rows past the dialog.
-            listClassName="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]"
-            className="min-h-0"
-          />
+        {status.kind === 'picking' && building ? (
+          <GameBuilder
+            sources={status.sets}
+            hostLabel="Start new game"
+            hostingLabel="Starting new game…"
+            onHost={startBuilt}
+            onSaved={(saved) => {
+              // The saved game joins this browser's sets, first and picked.
+              setStatus({
+                ...status,
+                sets: [saved, ...status.sets],
+                firstBuiltIn: status.firstBuiltIn + 1,
+              });
+              setSelectedId(saved.id);
+              setBuilding(false);
+            }}
+            onBack={() => setBuilding(false)}
+          >
+            {keepScoresBox}
+          </GameBuilder>
+        ) : (
+          <>
+            {status.kind === 'picking' && (
+              <SetBrowser
+                mode="select"
+                id="new-game"
+                legend="Question set"
+                sets={status.sets}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                disabled={locked}
+                onPreview={preview && !locked ? setPreviewing : undefined}
+                detail={(set) =>
+                  // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
+                  setDetail(
+                    set,
+                    status.sets.indexOf(set) >= status.firstBuiltIn,
+                    checkPlayable(set).ok,
+                  )
+                }
+                // The scroller is a div: a fieldset won't shrink as a flex child, and its default
+                // min-content width would push the rows past the dialog.
+                listClassName="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]"
+                className="min-h-0"
+              />
+            )}
+            {previewing && (
+              <SetPreview
+                set={previewing}
+                actionLabel="Pick this set"
+                onAction={(set) => setSelectedId(set.id)}
+                onClose={() => setPreviewing(null)}
+              />
+            )}
+            {keepScoresBox}
+            <button
+              type="button"
+              onClick={() => status.kind === 'picking' && void start(status)}
+              disabled={
+                status.kind !== 'picking' || starting || (selectedId === null && !uploadPending)
+              }
+              className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
+            >
+              {starting
+                ? uploadPending
+                  ? 'Sending images…'
+                  : 'Starting new game…'
+                : uploadPending
+                  ? 'Retry images'
+                  : 'Start new game'}
+            </button>
+            {error && (
+              <p role="alert" className="text-center text-buzz">
+                {error}
+              </p>
+            )}
+            {builder && status.kind === 'picking' && !locked && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBuilding(true);
+                  setError(null);
+                }}
+                className="min-h-11 shrink-0 text-accent underline underline-offset-4 hover:text-accent-hover"
+              >
+                Build a game
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={starting}
+              className="shrink-0 text-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          </>
         )}
-        {previewing && (
-          <SetPreview
-            set={previewing}
-            actionLabel="Pick this set"
-            onAction={(set) => setSelectedId(set.id)}
-            onClose={() => setPreviewing(null)}
-          />
-        )}
-        <label className="flex shrink-0 cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            checked={keepScores}
-            onChange={(event) => setKeepScores(event.target.checked)}
-            disabled={locked}
-            className="size-5 accent-accent"
-          />
-          Keep scores
-        </label>
-        <button
-          type="button"
-          onClick={() => status.kind === 'picking' && void start(status)}
-          disabled={status.kind !== 'picking' || starting || selectedId === null}
-          className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
-        >
-          {starting
-            ? uploadPending
-              ? 'Sending images…'
-              : 'Starting new game…'
-            : uploadPending
-              ? 'Retry images'
-              : 'Start new game'}
-        </button>
-        {error && (
-          <p role="alert" className="text-center text-buzz">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={starting}
-          className="shrink-0 text-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
-        >
-          Cancel
-        </button>
       </section>
     </div>,
     document.body,

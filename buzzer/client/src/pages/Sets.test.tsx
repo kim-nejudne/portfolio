@@ -531,3 +531,58 @@ describe('Set list /sets, My sets', () => {
     });
   });
 });
+
+describe('Set list /sets, Build a game', () => {
+  const change = (name: string, value: string) =>
+    fireEvent.change(screen.getByRole('combobox', { name }), { target: { value } });
+
+  /** Opens the builder once the sets have loaded (it is disabled until then). */
+  async function openBuilder() {
+    await screen.findAllByRole('tab');
+    fireEvent.click(screen.getByRole('button', { name: 'Build a game' }));
+  }
+
+  it('builds a game from the sample and hosts it with its pictures, saving nothing', async () => {
+    const fetch = stubServer();
+    renderSets();
+    await openBuilder();
+    expect(screen.getByRole('heading', { name: 'Build a game' })).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    change('Category, row 1', 'Other');
+    change('Questions, row 1', '10');
+    fireEvent.click(screen.getByRole('button', { name: 'Host this game' }));
+
+    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
+    expect(bodyOf(fetch).set).toMatchObject({ title: 'Mixed: Other', category: 'Mixed' });
+    expect(bodyOf(fetch).set.questions).toHaveLength(10);
+    expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual([
+      '/api/rooms',
+      '/api/rooms/WXYZ/images/sample-img-flag',
+      '/api/rooms/WXYZ/images/sample-img-hexagon',
+    ]);
+    expect(await listSets()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to question sets' }));
+    expect(await screen.findByRole('tablist')).toBeTruthy();
+  });
+
+  it('draws from my own sets as well as the built-ins', async () => {
+    await addOwn();
+    renderSets();
+    await openBuilder();
+    change('Category, row 1', 'Other');
+    change('Questions, row 1', '15');
+    // Pub quiz is a copy of the sample: its questions count once.
+    expect(screen.getByText('Total: 10 questions')).toBeTruthy();
+  });
+
+  it('Save to My sets shows the game in My sets', async () => {
+    renderSets();
+    await openBuilder();
+    change('Questions, row 1', '4');
+    fireEvent.click(screen.getByRole('button', { name: 'Save to My sets' }));
+
+    expect(await screen.findByText('Saved “Mixed: Animals” to My sets.')).toBeTruthy();
+    expect(await selectedTab()).toBe('My sets');
+    expect((await card('Mixed: Animals')).getByText(/^4 questions/)).toBeTruthy();
+  });
+});

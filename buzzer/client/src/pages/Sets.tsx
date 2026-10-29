@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -10,6 +11,7 @@ import { Link, useNavigate } from 'react-router';
 import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
+import { GameBuilder } from '../components/GameBuilder.js';
 import { RoomCreated } from '../components/RoomCreated.js';
 import { SetBrowser } from '../components/SetBrowser.js';
 import { SetPreview } from '../components/SetPreview.js';
@@ -77,6 +79,9 @@ export function Sets() {
   const [importErrors, setImportErrors] = useState<{ file: string; errors: string[] } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
+  const [building, setBuilding] = useState(false);
+  // One array per load, so the builder's category list and counts aren't redone on every render.
+  const sources = useMemo(() => [...(sets ?? []), ...BUILT_IN_SETS], [sets]);
 
   const reload = useCallback(async () => {
     try {
@@ -205,6 +210,18 @@ export function Sets() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => {
+              setBuilding(true);
+              setNotice(null);
+              setError(null);
+            }}
+            disabled={busy || sets === null || building}
+            className={`rounded-2xl border-2 border-accent px-5 py-3 font-display text-xl text-accent transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
+          >
+            Build a game
+          </button>
+          <button
+            type="button"
             onClick={() => fileInput.current?.click()}
             disabled={busy || sets === null}
             className={`rounded-2xl border-2 border-accent px-5 py-3 font-display text-xl text-accent transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
@@ -253,6 +270,29 @@ export function Sets() {
 
       {sets === null ? (
         error === null && <p className="text-muted">Loading…</p>
+      ) : building ? (
+        <section aria-labelledby="build-heading" className="flex flex-col gap-4">
+          <h2 id="build-heading" className="font-display text-3xl">
+            Build a game
+          </h2>
+          <GameBuilder
+            sources={sources}
+            hostLabel="Host this game"
+            hostingLabel="Creating room…"
+            onHost={async ({ set, loadImage }) => {
+              const code = await hostSet(set, loadImage);
+              setBuilding(false);
+              setHostedCode(code);
+            }}
+            onSaved={(saved) => {
+              setBuilding(false);
+              setNotice(`Saved “${saved.title}” to My sets.`);
+              setTab('mine');
+              void reload();
+            }}
+            onBack={() => setBuilding(false)}
+          />
+        </section>
       ) : (
         <div className="flex flex-col gap-4">
           <div role="tablist" aria-label="Question sets" className="flex gap-2">

@@ -156,14 +156,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 ## M14 — Mixed games
 
-- [ ] F57 Game builder
-  - Spec: Question editor and images (Set list `/sets`); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F55
-  - Done when:
-    - `client/src/lib/gameBuilder.ts` builds a playable `QuestionSet` from picks of `{category, difficulty, count}` over the given sets: questions drawn without repeats, shuffled with an injectable random source, each keeping its points, image and notes. Title "Mixed: <categories>", category "Mixed", no difficulty. A pick asking for more than exist takes all and reports the shortfall
-    - **Build a game** on `/sets`, **Host a game** and the remote's New game picker: add rows (category select, difficulty select, count 1–15), see the total, then **Host** (or **Start new game**) or **Save to My sets**
-    - The result passes `checkPlayable` and the 100-question limit; an image question carries its image (`hostSet` uploads it)
-  - Tests: `gameBuilder.test.ts` (draws, no repeats, seeded shuffle, shortfall, limit, images), `GameBuilder.test.tsx`. `/playtest`: build 3 categories × 3 questions, host it, play two questions
+- [x] F57 Game builder
 
 ## M15 — Lobby and phone
 

@@ -12,6 +12,32 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F57 — Game builder (2026-10-29)
+**What changed:**
+- `client/src/lib/gameBuilder.ts`: `buildGame(sets, picks, { random, now, id })` draws `{category, difficulty, count}` rows from the playable sets. It draws without repeats (copies count once), shuffles with the injected random source, renumbers the questions `q1…`, titles the set "Mixed: <categories>" with category "Mixed" and no difficulty, and reports each short row. It fails for no match or over 100 questions, and returns a `loadImage` that reads each picture from its source set (bundle or IndexedDB). There are also `builderCategories` and `pickCounts` (the live per-row counts).
+- `client/src/components/GameBuilder.tsx`: the rows (category, Any difficulty / Easy / Medium / Hard, count 1–15), Add a row, Remove, "Only N questions match.", the total, the limit message, the host button (label prop), **Save to My sets** (`importSet` with its own picture copies) and **Back to the sets**.
+- Wired in three places. The `/sets` header gets **Build a game**, whose **Host this game** calls `hostSet` and whose Save shows My sets. The Host a game picker gets a **Build a game** link, and the remote's New game picker gets it through the new `builder` prop, which `Host.tsx` passes and the Screen doesn't. `NewGamePicker`'s send path now carries `{set, loadImage}`, so a built game's image retry works.
+- Tests: `gameBuilder.test.ts` (21), `GameBuilder.test.tsx` (10), `Landing.test.tsx` +3, `Sets.test.tsx` +3, `NewGamePicker.test.tsx` +4, `Host.test.tsx` +1, `Screen.test.tsx` +1. 1366 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-29 for F57 (pool, Any difficulty and draw order; repeats, copies and the title; images and Save; where it shows and the labels).
+
+**Notes for next session:**
+- **Repeats gotcha:** a copy's pictures get fresh ids, so a picture-only card is deduplicated by answer and notes. The first rule (text, else image id) let the sample's flag card appear twice in a profile holding a sample copy. The playtest found it.
+- Playtest (Playwright):
+  - On `/sets`, built Animals, Science and Movies × 3 (total 9), saved it to My sets, then hosted it. The remote showed "Question 1 of 9". Two questions were played with one player: buzz and Correct (+100). The answer wasn't in the Screen or Player text before reveal.
+  - The remote's New game → Build a game (Space & Astronomy, Hard, 15) → Start new game loaded 15 questions.
+  - At 375×667, Host a game → Build a game: no horizontal scroll, and the selects stay inside the card. Remove is 46 px, Add a row 44 px, and Back 44 px after a fix.
+  - On a wiped profile, Other / Any / 15 said "Only 10 questions match.", and Host this game posted the room, then `sample-img-hexagon` and `sample-img-flag` (201). After Duplicate to My sets it still said 10.
+  - No console errors.
+- Not playtested: two players at once (shared tab storage), or a game over 100 (unit-tested).
+- Main `index` chunk 449.31 → 460.84 kB (139.89 kB gzip). HostGame loads the builder eagerly.
+- F58 moves the Host a game picker in place of the Join card. The builder renders inside that picker card, so it moves with it.
+
+**How to try it:** `npm run dev`.
+1. On the laptop, open `http://localhost:5173/sets` and tap **Build a game**. Add rows (for example Animals Easy 3, Science Medium 3, World History Hard 3) and watch the total. Then tap **Host this game**, or **Save to My sets** to keep it.
+2. On a phone (`http://<laptop-LAN-IP>:5173`), tap **Host a game**, then **Build a game** under Create room. Set Other / Any / 15 to see "Only 10 questions match.", then Host this game: the sample's pictures upload.
+3. Play to FINAL. On the paired host phone, **New game** → **Build a game** → **Start new game** (Keep scores is above it). The Screen's New game has no builder.
+
 ## F56 — Set preview before hosting (2026-10-29)
 **What changed:**
 - `client/src/components/SetPreview.tsx`: a read-only dialog listing every question of a set: "Question N · P points", the text, a picture thumbnail, the answer and the host notes. A picture missing from this browser is named. Pictures come from `imagesOf(set)` (now exported from `hostRoom.ts`): the bundle for the sample, else Dexie, loaded lazily. Escape or Close returns focus to the Preview button. The page or picker behind is `inert`.

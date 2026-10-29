@@ -286,6 +286,72 @@ describe('Host a game', () => {
     expect(screen.getAllByText('WXYZ').length).toBeGreaterThan(1);
   });
 
+  /** Build a game with three rows: Animals, Science and World History, 3 each at one level. */
+  function buildThreeByThree() {
+    fireEvent.click(screen.getByRole('button', { name: 'Build a game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a row' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a row' }));
+    const rows: [string, string][] = [
+      ['Animals', 'easy'],
+      ['Science', 'medium'],
+      ['World History', 'hard'],
+    ];
+    rows.forEach(([category, difficulty], i) => {
+      const change = (name: string, value: string) =>
+        fireEvent.change(screen.getByRole('combobox', { name: `${name}, row ${i + 1}` }), {
+          target: { value },
+        });
+      change('Category', category);
+      change('Difficulty', difficulty);
+      change('Questions', '3');
+    });
+  }
+
+  it('Build a game hosts 3 categories × 3 questions as one Mixed set', async () => {
+    const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    renderLanding();
+    await openPicker();
+    buildThreeByThree();
+    expect(screen.getByRole('heading', { name: 'Build a game' })).toBeTruthy();
+    expect(screen.getByText('Total: 9 questions')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Host this game' }));
+    await screen.findByRole('heading', { name: 'Room created' });
+    const { set } = JSON.parse(
+      (fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    ) as { set: QuestionSet };
+    expect(set).toMatchObject({
+      title: 'Mixed: Animals, Science, World History',
+      category: 'Mixed',
+    });
+    expect(set.questions.map((q) => q.points).sort()).toEqual([
+      100, 100, 100, 200, 200, 200, 300, 300, 300,
+    ]);
+    expect(loadHostToken('WXYZ')).toBe(hostToken);
+  });
+
+  it('Build a game, Save to My sets puts the game first in the picker, picked', async () => {
+    renderLanding();
+    await openPicker();
+    buildThreeByThree();
+    fireEvent.click(screen.getByRole('button', { name: 'Save to My sets' }));
+    await screen.findByRole('heading', { name: 'Pick a question set' });
+    const first = screen.getAllByRole<HTMLInputElement>('radio')[0]!;
+    expect(first.labels?.[0]?.textContent).toBe(
+      'Mixed: Animals, Science, World History9 questions',
+    );
+    expect(first.checked).toBe(true);
+    expect(await db.sets.count()).toBe(1);
+  });
+
+  it('Back to the sets returns from Build a game to the picker', async () => {
+    renderLanding();
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Build a game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the sets' }));
+    expect(screen.getByRole('heading', { name: 'Pick a question set' })).toBeTruthy();
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0);
+  });
+
   it('shows the server error and lets the host try again', async () => {
     stubCreateRoom(Response.json({ ok: false, error: 'Too many rooms' }, { status: 429 }));
     renderLanding();
