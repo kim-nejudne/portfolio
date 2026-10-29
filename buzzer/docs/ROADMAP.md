@@ -200,13 +200,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F74 Avatars: server
 
-- [ ] F75 Avatars: devices
-  - Spec: UI spec by view (Player view, Screen view, Host remote); see DECISIONS, Proposed spec changes (audit)
-  - Depends: F74
-  - Done when:
-    - The join form has an avatar grid (optional, remembered with the name on the device)
-    - The avatar replaces the initial in the phone's top bar, the Screen lobby chips, scoreboard, standings rail, podium and the remote's Players tab; without one, the initial shows as now
-  - Tests: `Play.test.tsx`, `Screen.test.tsx`, `playerIdentity.test.ts`. `/playtest`: three players with avatars, lobby and final
+- [x] F75 Avatars: devices
 
 - [ ] F76 Session totals: server
   - Spec: Data model (`Room`); Game flow and state machine (Transitions: new game); see DECISIONS, Proposed spec changes (audit)
@@ -363,3 +357,4 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).
 - False start: a vibration of its own on the phone's `fx falseStart` (the press gives only the 30 ms tap today), if the spec's vibrate list grows to include it (F72).
+- Avatars: show the avatar on the Screen's buzz banner, "also buzzed" list and Too early chips, and on the remote's Game over standings (F75 covered only the Done-when surfaces). A way to change the avatar after joining would need a `player:avatar` event like `player:rename` (F74, F75).

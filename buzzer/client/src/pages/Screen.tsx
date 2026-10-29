@@ -10,6 +10,7 @@ import {
 import type { Phase, RankedPlayer, ScreenView } from '../../../shared/types.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
+import { PlayerAvatar } from '../components/PlayerAvatar.js';
 import { Icon } from '../components/Icon.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ReconnectingBanner } from '../components/ReconnectingBanner.js';
@@ -402,7 +403,7 @@ function PlayerChips({ players }: { players: RankedPlayer[] }) {
     listRef,
     players.length > MANY_PLAYERS ? CHIP_MAX_MANY : CHIP_MAX_FEW,
     CHIP_MIN_PX,
-    players.map((player) => player.name).join('\n'),
+    players.map((player) => `${player.avatar ?? ''}${player.name}`).join('\n'),
   );
   if (players.length === 0) {
     return <p className="text-[2.67cqw] text-muted">Waiting for players…</p>;
@@ -426,6 +427,7 @@ function PlayerChips({ players }: { players: RankedPlayer[] }) {
               data-practice={pop}
               className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
             >
+              <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
               {player.name}
             </li>
           );

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AVATARS,
   DEFAULT_SETTINGS,
   GAME_ENDED_ERROR,
   PLAYER_PALETTE,
@@ -1901,5 +1902,67 @@ describe('Click to start and sounds', () => {
     const { socket } = renderScreen();
     socket.fire('state', view('FINAL'));
     expect(played()).toEqual([]);
+  });
+});
+
+describe('avatars', () => {
+  // Ana and Cy picked one, Ben did not.
+  const players = [
+    player(1, { name: 'Ana', score: 300, rank: 1, avatar: AVATARS[0] }),
+    player(2, { name: 'Ben', score: 200, rank: 2 }),
+    player(3, { name: 'Cy', score: 100, rank: 3, avatar: AVATARS[7] }),
+  ];
+  const expected = [AVATARS[0], null, AVATARS[7]];
+  /** Each row's avatar in order, null for a row without one. */
+  const avatars = (rows: HTMLElement[]) =>
+    rows.map((row) => row.querySelector('[data-avatar]')?.textContent ?? null);
+  const rowsOf = (region: HTMLElement) => within(region).getAllByRole('listitem');
+
+  function show(view: ScreenView) {
+    const { socket } = renderScreen();
+    socket.fire('state', view);
+  }
+
+  it('the lobby chips show each avatar before the name, and only the name without one', () => {
+    show(lobbyView(players));
+    const chips = rowsOf(screen.getByRole('region', { name: 'Players' }));
+    expect(avatars(chips)).toEqual(expected);
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      `${AVATARS[0]}Ana`,
+      'Ben',
+      `${AVATARS[7]}Cy`,
+    ]);
+  });
+
+  it('the scoreboard rows show each avatar beside the name', () => {
+    show(lobbyView(players, { phase: 'REVEAL', questionIndex: 0, showScoreboard: true }));
+    expect(avatars(rowsOf(screen.getByRole('region', { name: 'Scoreboard' })))).toEqual(expected);
+  });
+
+  it('the standings rail shows each avatar beside the name', () => {
+    show(
+      lobbyView(players, {
+        phase: 'QUESTION',
+        questionIndex: 0,
+        question: { id: 'q1', text: 'Question?', points: 100 },
+        settings: { ...DEFAULT_SETTINGS, showStandings: true },
+      }),
+    );
+    expect(avatars(rowsOf(screen.getByRole('complementary', { name: 'Standings' })))).toEqual(
+      expected,
+    );
+  });
+
+  it('the podium and the full ranking show each avatar beside the name', () => {
+    show(lobbyView(players, { phase: 'FINAL', questionIndex: 9 }));
+    const podium = screen.getByRole('region', { name: 'Podium' });
+    const onStep = (place: string) =>
+      within(within(podium).getByRole('listitem', { name: place })).getAllByRole('listitem');
+    expect([
+      ...avatars(onStep('1st place')),
+      ...avatars(onStep('2nd place')),
+      ...avatars(onStep('3rd place')),
+    ]).toEqual(expected);
+    expect(avatars(rowsOf(screen.getByRole('region', { name: 'Full ranking' })))).toEqual(expected);
   });
 });

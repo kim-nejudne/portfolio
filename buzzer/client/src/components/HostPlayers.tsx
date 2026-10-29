@@ -4,6 +4,7 @@ import type { HostView } from '../../../shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { ConfirmButton } from './ConfirmButton.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 
 interface HostPlayersProps {
   view: HostView;
@@ -52,6 +53,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
                   style={{ backgroundColor: player.color }}
                   className="size-4 shrink-0 rounded-full"
                 />
+                <PlayerAvatar avatar={player.avatar} className="text-xl" />
                 <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
                 <span className="text-sm text-muted">
                   {unknown

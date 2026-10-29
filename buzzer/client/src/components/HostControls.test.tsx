@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AVATARS,
   DEFAULT_SETTINGS,
   PLAYER_PALETTE,
   SCOREBOARD_EVERY_MAX,
@@ -190,6 +191,13 @@ describe('HostPlayers', () => {
     expect(row('Player 1').textContent).toContain('online · 0 ms');
     expect(row('Player 1').textContent).toContain('400');
     expect(row('Player 2').textContent).toContain('offline');
+  });
+
+  it('shows the avatar beside the name, and nothing for a player without one', () => {
+    setup(HostPlayers, hostView({ players: [player(1, { avatar: AVATARS[9] }), player(2)] }));
+    const avatar = (name: string) => nameLine(name).querySelector('[data-avatar]');
+    expect(avatar('Player 1')?.textContent).toBe(AVATARS[9]);
+    expect(avatar('Player 2')).toBeNull();
   });
 
   it('greys out a disconnected player, who stays in the list, while their buttons stay usable', () => {

@@ -51,3 +51,21 @@ describe('FinalResults podium', () => {
     expect(steps()).toEqual(['2nd place: Ben', '1st place: Ana', '3rd place: Cy']);
   });
 });
+
+describe('FinalResults full ranking', () => {
+  const ranking = () =>
+    screen.getByRole('region', { name: 'Full ranking' }).querySelector<HTMLOListElement>('ol')!;
+  const many = (count: number) =>
+    Array.from({ length: count }, (_, i) => player((i % 8) + 1, `P${i}`, 0, 1));
+
+  // jsdom has no layout: the shrinkable tracks are what keep a wide row (avatar, long name) from
+  // pushing its score past the card's edge, as the F75 playtest found at 1920×1080.
+  it.each([
+    [3, 1],
+    [12, 2],
+    [30, 3],
+  ])('with %i players uses %i columns that may shrink below their content', (count, columns) => {
+    render(<FinalResults players={many(count)} />);
+    expect(ranking().style.gridTemplateColumns).toBe(`repeat(${columns}, minmax(0, 1fr))`);
+  });
+});

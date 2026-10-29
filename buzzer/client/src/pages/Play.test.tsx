@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  AVATARS,
   GAME_ENDED_ERROR,
   PING_INTERVAL_MS,
   PLAYER_KICKED_ERROR,
@@ -1137,5 +1138,138 @@ describe('Play menu, rename, leave and haptics', () => {
     const { socket } = await joined();
     socket.fire('state', playerView({ phase: 'BUZZED', questionIndex: 0, openingCounter: 1 }));
     expect(() => socket.fire('fx', { kind: 'wrong', playerId: 'p1' })).not.toThrow();
+  });
+});
+
+describe('Play avatars', () => {
+  const avatarButton = (avatar: string) => screen.getByRole('button', { name: `Avatar ${avatar}` });
+  const pressed = () =>
+    screen
+      .getAllByRole('button', { name: /^Avatar / })
+      .filter((b) => b.getAttribute('aria-pressed') === 'true')
+      .map((b) => b.textContent);
+
+  it('the join form offers the 24 avatars, none chosen', async () => {
+    stubExists(true);
+    renderPlay();
+    await screen.findByLabelText('Your name');
+    const group = screen.getByRole('group', { name: 'Avatar (optional)' });
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual([...AVATARS]);
+    expect(pressed()).toEqual([]);
+  });
+
+  it('a chosen avatar goes in player:join and is stored with the name', async () => {
+    stubExists(true);
+    const { sockets } = renderPlay();
+    await screen.findByLabelText('Your name');
+    fireEvent.click(avatarButton(AVATARS[4]));
+    expect(pressed()).toEqual([AVATARS[4]]);
+    await submitName('Ana');
+    const join = lastJoin(sockets[0]!);
+    expect(join.payload).toEqual({
+      code: 'WXYZ',
+      playerId: expect.any(String),
+      name: 'Ana',
+      avatar: AVATARS[4],
+    });
+    act(() => join.ack({ ok: true }));
+    const { playerId } = join.payload as { playerId: string };
+    expect(loadPlayer('WXYZ')).toEqual({ playerId, name: 'Ana', avatar: AVATARS[4] });
+  });
+
+  it('tapping the chosen avatar again clears it, and the join carries none', async () => {
+    stubExists(true);
+    const { sockets } = renderPlay();
+    await screen.findByLabelText('Your name');
+    fireEvent.click(avatarButton(AVATARS[0]));
+    fireEvent.click(avatarButton(AVATARS[1]));
+    expect(pressed()).toEqual([AVATARS[1]]);
+    fireEvent.click(avatarButton(AVATARS[1]));
+    expect(pressed()).toEqual([]);
+    await submitName('Ana');
+    expect(lastJoin(sockets[0]!).payload).not.toHaveProperty('avatar');
+  });
+
+  it('a refresh rejoins with the remembered avatar, without the form', async () => {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'stored-id', name: 'Ana', avatar: AVATARS[2] });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    expect(lastJoin(sockets[0]!).payload).toEqual({
+      code: 'WXYZ',
+      playerId: 'stored-id',
+      name: 'Ana',
+      avatar: AVATARS[2],
+    });
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+  });
+
+  it('a taken name keeps the chosen avatar on the form', async () => {
+    stubExists(true);
+    const { sockets } = renderPlay();
+    await screen.findByLabelText('Your name');
+    fireEvent.click(avatarButton(AVATARS[5]));
+    await submitName('Ana');
+    act(() => lastJoin(sockets[0]!).ack({ ok: false, error: 'That name is taken' }));
+    expect(pressed()).toEqual([AVATARS[5]]);
+  });
+
+  it('after Leave game the form has the name and avatar filled in', async () => {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana', avatar: AVATARS[3] });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const socket = sockets[0]!;
+    act(() => lastJoin(socket).ack({ ok: true }));
+    socket.fire('state', playerView());
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm leave' }));
+    const leave = socket.emitted.find((e) => e.event === 'player:leave')!;
+    act(() => leave.ack({ ok: true }));
+    expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('Ana');
+    expect(pressed()).toEqual([AVATARS[3]]);
+  });
+
+  it('the top bar shows the avatar in place of the initial', async () => {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana', avatar: AVATARS[0] });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const me = { id: 'p1', name: 'ana', color: PLAYER_PALETTE[3], score: 0, rank: 1 };
+    sockets[0]!.fire('state', playerView({ me: { ...me, avatar: AVATARS[0] } }));
+    const badge = () =>
+      screen.getByRole('banner').querySelector('[data-player-color]')!.parentElement!;
+    expect(badge().textContent).toBe(AVATARS[0]);
+    expect(badge().querySelector('[data-avatar]')).not.toBeNull();
+
+    sockets[0]!.fire('state', playerView({ me }));
+    expect(badge().textContent).toBe('A');
+    expect(badge().querySelector('[data-avatar]')).toBeNull();
+  });
+
+  it('Who’s here shows each avatar beside the name', async () => {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    sockets[0]!.fire(
+      'state',
+      playerView({
+        playerCount: 2,
+        lobby: [
+          { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], connected: true },
+          { id: 'p2', name: 'Ben', color: PLAYER_PALETTE[0], connected: true, avatar: AVATARS[6] },
+        ],
+      }),
+    );
+    const rows = within(screen.getByRole('region', { name: /Who’s here/ })).getAllByRole(
+      'listitem',
+    );
+    expect(rows.map((row) => row.querySelector('[data-avatar]')?.textContent ?? null)).toEqual([
+      null,
+      AVATARS[6],
+    ]);
   });
 });

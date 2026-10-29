@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { Link, useParams } from 'react-router';
 import {
+  AVATARS,
   GAME_ENDED_ERROR,
   PLAYER_KICKED_ERROR,
   PLAYER_NAME_MAX,
@@ -21,6 +22,7 @@ import { BulbRail } from '../components/BulbRail.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { Icon } from '../components/Icon.js';
+import { PlayerAvatar } from '../components/PlayerAvatar.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
 import { buzzerState, type BuzzerKind, type BuzzerState } from '../lib/buzzerState.js';
@@ -61,9 +63,12 @@ type Step =
   | { kind: 'form' }
   | { kind: 'joining'; identity: PlayerIdentity; saved: boolean };
 
+type Avatar = NonNullable<PlayerIdentity['avatar']>;
+
 function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSocket }) {
   const [step, setStep] = useState<Step>({ kind: 'checking' });
   const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState<Avatar | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   // One id per visit, reused if the first name is rejected; saved only once a join succeeds. A
   // player who leaves draws a new one, so they come back as a new player (DECISIONS F61).
@@ -105,7 +110,11 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
       );
     }
     setFormError(null);
-    setStep({ kind: 'joining', identity: { playerId, name: parsed.data }, saved: false });
+    // No `avatar` key without one: the join is then exactly as before avatars.
+    const identity = avatar
+      ? { playerId, name: parsed.data, avatar }
+      : { playerId, name: parsed.data };
+    setStep({ kind: 'joining', identity, saved: false });
   }
 
   const onJoined = useCallback(
@@ -135,12 +144,13 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
     [code],
   );
 
-  // Back to the join form, with the name filled in to make coming back one tap.
+  // Back to the join form, with the name and avatar filled in to make coming back one tap.
   const onLeft = useCallback(
-    (lastName: string) => {
+    (last: PlayerIdentity) => {
       clearPlayer(code);
       setPlayerId(newPlayerId());
-      setName(lastName);
+      setName(last.name);
+      setAvatar(last.avatar ?? null);
       setFormError(null);
       setStep({ kind: 'form' });
     },
@@ -168,7 +178,15 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
       );
     case 'form':
       return (
-        <NameForm code={code} name={name} error={formError} onName={setName} onSubmit={submit} />
+        <NameForm
+          code={code}
+          name={name}
+          avatar={avatar}
+          error={formError}
+          onName={setName}
+          onAvatar={setAvatar}
+          onSubmit={submit}
+        />
       );
     case 'joining':
       return (
@@ -189,12 +207,14 @@ function PlayRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
 interface NameFormProps {
   code: string;
   name: string;
+  avatar: Avatar | null;
   error: string | null;
   onName: (name: string) => void;
+  onAvatar: (avatar: Avatar | null) => void;
   onSubmit: (event: FormEvent) => void;
 }
 
-function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
+function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: NameFormProps) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-4 py-10">
       <form
@@ -225,6 +245,7 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
             {error}
           </p>
         )}
+        <AvatarPicker avatar={avatar} onAvatar={onAvatar} />
         <button
           type="submit"
           disabled={name.trim() === ''}
@@ -243,6 +264,40 @@ function NameForm({ code, name, error, onName, onSubmit }: NameFormProps) {
   );
 }
 
+/**
+ * The optional avatar on the join form (F75): a grid of the 24 emoji. Tapping the chosen one again
+ * clears it, so a player can still join with only their name.
+ */
+function AvatarPicker({
+  avatar,
+  onAvatar,
+}: {
+  avatar: Avatar | null;
+  onAvatar: (avatar: Avatar | null) => void;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className={`${LABEL} mb-2`}>Avatar (optional)</legend>
+      <div className="grid grid-cols-6 gap-2">
+        {AVATARS.map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-label={`Avatar ${option}`}
+            aria-pressed={avatar === option}
+            onClick={() => onAvatar(avatar === option ? null : option)}
+            className={`grid aspect-square place-items-center rounded-[14px] border-2 text-[26px] leading-none ${
+              avatar === option ? 'border-accent bg-accent/20' : 'border-edge bg-bg'
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 interface PlayerRoomProps {
   code: string;
   identity: PlayerIdentity;
@@ -253,8 +308,8 @@ interface PlayerRoomProps {
   onRejected: (error: string) => void;
   /** The server took the new name. */
   onRenamed: (name: string) => void;
-  /** The server removed this player; `name` is the one they had. */
-  onLeft: (name: string) => void;
+  /** The server removed this player; `identity` is the one they had. */
+  onLeft: (identity: PlayerIdentity) => void;
 }
 
 function PlayerRoom({
@@ -315,11 +370,11 @@ function PlayerRoom({
       if (!socket) return ack({ ok: false, error: 'Not connected' });
       socket.emit('player:leave', {}, (res) => {
         // On success this page unmounts the room, and its socket with it.
-        if (res.ok) onLeft(identity.name);
+        if (res.ok) onLeft(identity);
         ack(res);
       });
     },
-    [socketRef, onLeft, identity.name],
+    [socketRef, onLeft, identity],
   );
 
   const view = useRoomStore((state) => state.view);
@@ -502,7 +557,12 @@ function Buzzer({ view, send, rename, leave }: BuzzerProps) {
       <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2">
         <span className="flex min-w-0 items-center gap-3">
           <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-accent font-display text-xl text-accent-ink">
-            <span aria-hidden="true">{[...view.me.name][0]?.toUpperCase()}</span>
+            {/* The avatar replaces the initial when the player picked one (F75). */}
+            {view.me.avatar ? (
+              <PlayerAvatar avatar={view.me.avatar} className="text-2xl" />
+            ) : (
+              <span aria-hidden="true">{[...view.me.name][0]?.toUpperCase()}</span>
+            )}
             {/* Their palette colour, as on the Screen's chips and banner (DECISIONS, Prime Time). */}
             <span
               aria-hidden="true"
@@ -760,6 +820,7 @@ function WhosHere({ players, meId }: { players: LobbyPlayer[]; meId: string }) {
               style={{ backgroundColor: player.color }}
               className="size-4 shrink-0 rounded-full"
             />
+            <PlayerAvatar avatar={player.avatar} />
             <span className="truncate">{player.name}</span>
             {player.id === meId && <span className="text-sm text-muted">(you)</span>}
           </li>

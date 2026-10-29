@@ -12,6 +12,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F75 — Avatars: devices (2026-10-29)
+**What changed:**
+- Phone: the join form has an **Avatar (optional)** grid of the 24 emoji under the name, as toggle buttons (`aria-pressed`); tapping the chosen one clears it. `player:join` carries `avatar` only when one is picked. `playerIdentity` stores it per room with the name (`z.enum(AVATARS).optional().catch(undefined)`: an unknown stored avatar is dropped, the identity kept), so a refresh rejoins with it; Leave game refills name and avatar; a taken name keeps the pick. The top bar's gold circle shows the avatar in place of the initial, the initial without one. "Who's here" shows avatars too.
+- New `components/PlayerAvatar.tsx` (emoji, `aria-hidden`, `data-avatar`; nothing without one). Placed before the name, colour kept, in the Screen lobby chips, scoreboard and Final full ranking (`RankingList`), podium, standings rail and the remote's Players tab.
+- `RankingList`: `minmax(0, 1fr)` columns, avatar inside the name span, gap 0.6em, rank column 1.4em, so scores never clip and a long name ellipsizes.
+- Tests: `playerIdentity.test.ts` +4, `Play.test.tsx` +8 (grid, payload and storage, clear on retap, refresh rejoin, taken name keeps it, Leave refill, top bar avatar vs initial, Who's here), `Screen.test.tsx` +4 (lobby chips, scoreboard, rail, podium and full ranking; none without), `ScreenResults.test.tsx` +3 (shrinkable columns at 1/2/3 columns), `HostControls.test.tsx` +1 (Players tab). 1808 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-29 for F75 (avatar beside the colour, not replacing it, off the phone; toggle grid, per-room storage, unknown avatar dropped; ranking grid and row tightening).
+
+**Notes for next session:**
+- Still no way to change an avatar after joining (F74). Leave game rejoins under a new playerId (F61), so a new pick there applies.
+- Not shown yet: Screen buzz banner, "also buzzed", Too early chips, remote's Game over standings. Backlog item added.
+- Playtest (Playwright): room SZDC (Ann 🦊, Bea 🐼, Cal 🚀): grid, storage, top bar, Who's here, lobby chips, rail, podium, Players tab pass; Final full ranking clipped scores at 1920×1080. After `minmax(0, 1fr)` alone (room YYKQ, with Dan without avatar), "Ann" truncated to "A…". After the row tightening (room YUGR, plus "Alexandria" 🐙): names in full, Alexandria ellipsized, no clipping at 1920×1080 or 1280×720; scoreboard fine; Dan shows "D" on the phone and plain name elsewhere. Screenshots: `.playtest/F75/final2-1920.png`, `final2-1280.png`, `scoreboard2.png`, `lobby-screen.png`, `lobby-ann.png`, `lobby-dan.png`.
+- Main `index` chunk 486.06 → 487.42 kB (146.70 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room → Use this device as the Screen. On phones at `http://<laptop-LAN-IP>:5173/play/<CODE>`, pick an avatar under the name (or none) and join: the avatar is in the phone's top bar and on the Screen's chips; play to the end for the podium and full ranking. A paired host phone's Players tab shows them too.
+
 ## F74 — Avatars: server (2026-10-29)
 **What changed:**
 - Shared: `AVATARS` in `shared/constants.ts`, 24 emoji, each one code point with emoji presentation. `Player.avatar?: string`. `RankedPlayer`, `LobbyPlayer` and `PlayerView.me` gain `avatar?`. The `player:join` payload takes optional `avatar`, validated by `z.enum(AVATARS).optional()`.

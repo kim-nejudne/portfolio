@@ -1,14 +1,21 @@
-// The playerId and name this device joined each room with, kept in localStorage so a refresh
+// The playerId, name and avatar this device joined each room with, kept in localStorage so a refresh
 // rejoins as the same player (Reconnection and state recovery). Storage can be unavailable
 // (private mode, blocked site data), so every access is guarded.
 
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { AVATARS } from '../../../shared/constants.js';
 import { idSchema, playerNameSchema } from '../../../shared/schemas.js';
 
 const KEY_PREFIX = 'buzzr:player:';
 
-const identitySchema = z.object({ playerId: idSchema, name: playerNameSchema });
+// An avatar this build no longer offers is dropped rather than losing the whole identity, so the
+// device still rejoins (the server keeps the avatar it stored anyway, DECISIONS F74).
+const identitySchema = z.object({
+  playerId: idSchema,
+  name: playerNameSchema,
+  avatar: z.enum(AVATARS).optional().catch(undefined),
+});
 
 export type PlayerIdentity = z.infer<typeof identitySchema>;
 
@@ -31,13 +38,16 @@ export function loadPlayer(code: string): PlayerIdentity | null {
     const raw = localStorage.getItem(KEY_PREFIX + code);
     if (raw === null) return null;
     const parsed = identitySchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
+    if (!parsed.success) return null;
+    // No `avatar` key at all without one, so the join payload carries none.
+    const { avatar, ...rest } = parsed.data;
+    return avatar === undefined ? rest : { ...rest, avatar };
   } catch {
     return null;
   }
 }
 
-/** After a rename in the lobby: the same playerId under the new name. Nothing stored, nothing to do. */
+/** After a rename in the lobby: the same playerId and avatar under the new name. Nothing stored, nothing to do. */
 export function renamePlayer(code: string, name: string): void {
   const stored = loadPlayer(code);
   if (stored) savePlayer(code, { ...stored, name });

@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { Phase, RankedPlayer } from '../../../shared/types.js';
 import { useFlip } from '../lib/useFlip.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 
 /** How many players the rail lists. */
 export const STANDINGS_TOP = 5;
@@ -51,6 +52,7 @@ export function StandingsRail({ phase, players, show }: StandingsRailProps) {
               style={{ backgroundColor: player.color }}
               className="size-[0.55em] shrink-0 rounded-full"
             />
+            <PlayerAvatar avatar={player.avatar} />
             <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
             <span className="shrink-0 font-display tabular-nums">{player.score}</span>
           </li>

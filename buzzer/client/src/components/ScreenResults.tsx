@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RankedPlayer } from '../../../shared/types.js';
+import { PlayerAvatar } from './PlayerAvatar.js';
 import { ordinal, podiumSteps, replayOrder, type PodiumStep } from '../lib/results.js';
 import { prefersReducedMotion, useFlip } from '../lib/useFlip.js';
 
@@ -107,6 +108,7 @@ function Step({ step }: { step: PodiumStep }) {
             style={{ backgroundColor: player.color }}
             className={`truncate rounded-[1.5vh] px-[1vw] py-[0.6vh] text-center font-display text-bg ${names}`}
           >
+            <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
             {player.name}
           </li>
         ))}
@@ -148,16 +150,22 @@ function RankingList({ players }: { players: RankedPlayer[] }) {
   return (
     <ol
       ref={list}
-      style={{ gridTemplateRows: `repeat(${rows}, minmax(0, auto))` }}
+      // Columns that may shrink below their content, so a long name truncates instead of pushing
+      // the score past the card's edge (the avatar made rows wider, F75).
+      style={{
+        gridTemplateRows: `repeat(${rows}, minmax(0, auto))`,
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+      }}
       className={`grid min-h-0 grid-flow-col content-start gap-x-[1.5vw] gap-y-[0.8vh] overflow-hidden ${text}`}
     >
       {players.map((player) => (
         <li
           key={player.id}
           data-flip-key={player.id}
-          className={`flex items-center gap-[0.8em] rounded-[0.6em] bg-bg px-[0.7em] py-[0.45em] ${player.connected ? '' : 'opacity-40'}`}
+          className={`flex items-center gap-[0.6em] rounded-[0.6em] bg-bg px-[0.7em] py-[0.45em] ${player.connected ? '' : 'opacity-40'}`}
         >
-          <span className="w-[1.8em] shrink-0 text-right font-display text-muted tabular-nums">
+          {/* Two digits fit 1.4em, as on the standings rail; the room it frees goes to the name. */}
+          <span className="w-[1.4em] shrink-0 text-right font-display text-muted tabular-nums">
             {player.rank}
           </span>
           <span
@@ -165,7 +173,11 @@ function RankingList({ players }: { players: RankedPlayer[] }) {
             style={{ backgroundColor: player.color }}
             className="size-[0.55em] shrink-0 rounded-full"
           />
-          <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
+          {/* The avatar sits inside the name, not in a column of its own, so it costs no extra gap. */}
+          <span className="min-w-0 flex-1 truncate font-bold">
+            <PlayerAvatar avatar={player.avatar} className="mr-[0.3em] text-[0.85em]" />
+            {player.name}
+          </span>
           <span className="shrink-0 font-display tabular-nums">{player.score}</span>
         </li>
       ))}

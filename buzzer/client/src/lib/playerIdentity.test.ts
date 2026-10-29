@@ -22,6 +22,25 @@ describe('player identity', () => {
     expect(loadPlayer('WXYZ')).toEqual({ playerId: 'id-w', name: 'Wes' });
   });
 
+  it('remembers the avatar with the name', () => {
+    savePlayer('ABCD', { playerId: 'id-a', name: 'Ana', avatar: '🦊' });
+    expect(loadPlayer('ABCD')).toEqual({ playerId: 'id-a', name: 'Ana', avatar: '🦊' });
+  });
+
+  it('an identity without an avatar has no avatar key', () => {
+    savePlayer('ABCD', { playerId: 'id-a', name: 'Ana' });
+    expect(Object.keys(loadPlayer('ABCD')!)).toEqual(['playerId', 'name']);
+  });
+
+  it('drops an unknown stored avatar but keeps the identity', () => {
+    localStorage.setItem(
+      'buzzr:player:ABCD',
+      JSON.stringify({ playerId: 'id-a', name: 'Ana', avatar: 'X' }),
+    );
+    expect(loadPlayer('ABCD')).toEqual({ playerId: 'id-a', name: 'Ana' });
+    expect(Object.keys(loadPlayer('ABCD')!)).toEqual(['playerId', 'name']);
+  });
+
   it('returns null for a room this device never joined', () => {
     expect(loadPlayer('ABCD')).toBeNull();
   });
@@ -38,6 +57,12 @@ describe('player identity', () => {
     savePlayer('ABCD', { playerId: 'id-a', name: 'Ana' });
     renamePlayer('ABCD', 'Annie');
     expect(loadPlayer('ABCD')).toEqual({ playerId: 'id-a', name: 'Annie' });
+  });
+
+  it('renamePlayer keeps the avatar', () => {
+    savePlayer('ABCD', { playerId: 'id-a', name: 'Ana', avatar: '🐼' });
+    renamePlayer('ABCD', 'Annie');
+    expect(loadPlayer('ABCD')).toEqual({ playerId: 'id-a', name: 'Annie', avatar: '🐼' });
   });
 
   it('renamePlayer stores nothing for a room this device never joined', () => {
