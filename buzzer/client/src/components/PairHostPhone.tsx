@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PAIRING_QR_TTL_MS } from '../../../shared/constants.js';
+import { createPairingPin } from '../lib/api.js';
 import { HOVER } from '../lib/hover.js';
 import { joinPageOrigin, pairUrl } from '../lib/joinUrl.js';
 import { useJoinOrigin } from '../lib/useJoinOrigin.js';
@@ -18,15 +19,19 @@ interface PairHostPhoneProps {
   qrSize: string;
 }
 
-/** An open pairing QR: when it hides, and how many hosts had joined when it opened. */
+/**
+ * An open pairing QR: when it hides, how many hosts had joined when it opened, and its PIN once the
+ * server answers (`null` while waiting, `'failed'` when it could not make one).
+ */
 interface Pairing {
   deadline: number;
   hostJoins: number;
+  pin: string | null | 'failed';
 }
 
 /**
- * **Pair host phone**: a dialog with a QR to `/host/:code#t=<hostToken>` for 60 seconds, then hidden
- * (Creating and joining a room, step 3). Shown only on devices that hold the token (DECISIONS #14).
+ * **Pair host phone**: a dialog with a QR to `/host/:code#t=<hostToken>` and a 6-digit PIN beside it
+ * for 60 seconds, then hidden (Creating and joining a room, step 3; F70). Shown only on devices that hold the token (DECISIONS #14).
  * It opens over the page, so the lobby keeps its layout (F38), and it closes on Hide, Esc, the
  * deadline, or as soon as another host device joins. The link uses the join origin, as the join QR
  * does, so a Screen on localhost hands the phone an address it can open (F52).
@@ -47,6 +52,7 @@ export function PairHostPhone({
   // A host joining is the point of the QR, so it closes at once (F38).
   const open = pairing !== null && pairing.hostJoins === hostJoins;
   const deadline = open ? pairing.deadline : null;
+  const origin = joinPageOrigin(joinOrigin ?? null, window.location);
 
   useEffect(() => {
     if (deadline === null) return;
@@ -60,8 +66,14 @@ export function PairHostPhone({
 
   function show() {
     const time = Date.now();
+    const next: Pairing = { deadline: time + PAIRING_QR_TTL_MS, hostJoins, pin: null };
     setNow(time);
-    setPairing({ deadline: time + PAIRING_QR_TTL_MS, hostJoins });
+    setPairing(next);
+    // Each opening asks for a new PIN, which replaces the last one on the server. A late answer for
+    // a dialog already closed or reopened is dropped.
+    const settle = (pin: Pairing['pin']) =>
+      setPairing((current) => (current === next ? { ...current, pin } : current));
+    createPairingPin(code, hostToken).then(settle, () => settle('failed'));
   }
 
   return (
@@ -74,10 +86,12 @@ export function PairHostPhone({
       >
         Pair host phone
       </button>
-      {deadline !== null && (
+      {open && pairing && (
         <PairingDialog
-          url={pairUrl(joinPageOrigin(joinOrigin ?? null, window.location), code, hostToken)}
-          secondsLeft={Math.ceil((deadline - now) / 1000)}
+          url={pairUrl(origin, code, hostToken)}
+          hostAddress={{ host: origin.replace(/^https?:\/\//, ''), path: `/host/${code}` }}
+          pin={pairing.pin}
+          secondsLeft={Math.ceil((pairing.deadline - now) / 1000)}
           onHide={() => setPairing(null)}
           className={dialogClassName}
           qrSize={qrSize}
@@ -89,13 +103,25 @@ export function PairHostPhone({
 
 interface PairingDialogProps {
   url: string;
+  /** The remote's address without the token or scheme, for a phone that types the PIN. Split so a
+   * narrow dialog wraps it before the path, not inside a word. */
+  hostAddress: { host: string; path: string };
+  pin: Pairing['pin'];
   secondsLeft: number;
   onHide: () => void;
   className: string;
   qrSize: string;
 }
 
-function PairingDialog({ url, secondsLeft, onHide, className, qrSize }: PairingDialogProps) {
+function PairingDialog({
+  url,
+  hostAddress,
+  pin,
+  secondsLeft,
+  onHide,
+  className,
+  qrSize,
+}: PairingDialogProps) {
   const hideRef = useRef<HTMLButtonElement>(null);
 
   // Hide is the only control, so it takes focus, and focus goes back to where it was on any close.
@@ -134,13 +160,37 @@ function PairingDialog({ url, secondsLeft, onHide, className, qrSize }: PairingD
         className={`flex flex-col items-center gap-[0.6em] rounded-[1em] border-2 border-edge bg-surface p-[1.2em] text-center ${className}`}
       >
         <p className="font-display text-[1.3em]">Scan with the host’s phone</p>
-        <div className="rounded-2xl bg-white p-[0.6em]">
-          <QRCodeSVG
-            value={url}
-            title="Pair a host phone"
-            marginSize={0}
-            style={{ width: qrSize, height: qrSize }}
-          />
+        <div className="flex flex-wrap items-center justify-center gap-[1em]">
+          <div className="rounded-2xl bg-white p-[0.6em]">
+            <QRCodeSVG
+              value={url}
+              title="Pair a host phone"
+              marginSize={0}
+              style={{ width: qrSize, height: qrSize }}
+            />
+          </div>
+          <div className="flex max-w-[14em] flex-col items-center gap-[0.3em]">
+            <p className="text-muted">
+              or open{' '}
+              <span className="text-ink">
+                {hostAddress.host}
+                <wbr />
+                {hostAddress.path}
+              </span>{' '}
+              and type
+            </p>
+            {pin === 'failed' ? (
+              <p className="text-muted">PIN unavailable. Use the QR.</p>
+            ) : (
+              <p
+                data-testid="pairing-pin"
+                aria-busy={pin === null}
+                className="font-mono text-[2.2em] leading-none font-bold tracking-[0.1em] tabular-nums"
+              >
+                {pin === null ? '··· ···' : `${pin.slice(0, 3)} ${pin.slice(3)}`}
+              </p>
+            )}
+          </div>
         </div>
         <p className="text-muted">Hides in {secondsLeft} s</p>
         <button

@@ -178,7 +178,7 @@ describe('Host remote', () => {
 
     it('a pairing link opened in a tab already on this page takes effect without a reload', async () => {
       const { socket, makeSocket } = renderHost();
-      expect(heading()).toBe('Not authorised');
+      expect(heading()).toBe('Pair this phone');
       fireEvent.click(screen.getByRole('button', { name: 'Open pairing link' }));
       await flushNavigation();
       expect(makeSocket).toHaveBeenCalledOnce();
@@ -212,26 +212,95 @@ describe('Host remote', () => {
     ]);
   });
 
-  describe('Not authorised', () => {
-    it('without a token it says Not authorised and never connects', () => {
+  describe('PIN entry', () => {
+    /** Answers `POST /api/rooms/WXYZ/pair` with `res`, and records the calls. */
+    function stubPair(res: () => Response) {
+      const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() =>
+        Promise.resolve(res()),
+      );
+      vi.stubGlobal('fetch', fetch);
+      return fetch;
+    }
+    const pinInput = () => screen.getByLabelText('Pairing PIN') as HTMLInputElement;
+    const pairButton = () => screen.getByRole('button', { name: 'Pair' }) as HTMLButtonElement;
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('without a token it shows the PIN entry instead of Not authorised, and never connects', () => {
       const { makeSocket } = renderHost();
-      expect(heading()).toBe('Not authorised');
+      expect(heading()).toBe('Pair this phone');
+      expect(screen.queryByText('Not authorised')).toBeNull();
+      expect(pinInput().getAttribute('inputmode')).toBe('numeric');
       expect(makeSocket).not.toHaveBeenCalled();
+    });
+
+    it('keeps only digits, and Pair waits for all 6', () => {
+      renderHost();
+      fireEvent.change(pinInput(), { target: { value: '12a3 45' } });
+      expect(pinInput().value).toBe('12345');
+      expect(pairButton().disabled).toBe(true);
+      fireEvent.change(pinInput(), { target: { value: '1234567' } });
+      expect(pinInput().value).toBe('123456');
+      expect(pairButton().disabled).toBe(false);
+    });
+
+    it('a right PIN joins as host with the token from the server, and stores it once accepted', async () => {
+      const fetch = stubPair(() => Response.json({ hostToken: TOKEN }));
+      const { socket, makeSocket } = renderHost();
+      fireEvent.change(pinInput(), { target: { value: '123456' } });
+      fireEvent.click(pairButton());
+      await act(async () => {});
+      const [url, init] = fetch.mock.calls[0]!;
+      expect(url).toBe('/api/rooms/WXYZ/pair');
+      expect(JSON.parse(init!.body as string)).toEqual({ pin: '123456' });
+      expect(makeSocket).toHaveBeenCalledOnce();
+      expect(socket.emitted[0]?.payload).toEqual({ code: 'WXYZ', hostToken: TOKEN });
+      expect(loadHostToken('WXYZ')).toBeNull();
+      act(() => socket.emitted[0]!.ack({ ok: true }));
+      expect(loadHostToken('WXYZ')).toBe(TOKEN);
+    });
+
+    it("a wrong PIN shows the server's message, clears the field and stays unconnected", async () => {
+      stubPair(() =>
+        Response.json({ ok: false, error: 'That PIN is wrong or has expired.' }, { status: 401 }),
+      );
+      const { makeSocket } = renderHost();
+      fireEvent.change(pinInput(), { target: { value: '000000' } });
+      fireEvent.click(pairButton());
+      await act(async () => {});
+      expect(screen.getByRole('alert').textContent).toBe('That PIN is wrong or has expired.');
+      expect(pinInput().value).toBe('');
+      expect(pinInput().getAttribute('aria-invalid')).toBe('true');
+      expect(makeSocket).not.toHaveBeenCalled();
+    });
+
+    it('says when there have been too many tries', async () => {
+      stubPair(() =>
+        Response.json(
+          { ok: false, error: 'Too many PIN tries. Wait a minute and try again.' },
+          { status: 429 },
+        ),
+      );
+      renderHost();
+      fireEvent.change(pinInput(), { target: { value: '000000' } });
+      fireEvent.click(pairButton());
+      await act(async () => {});
+      expect(screen.getByRole('alert').textContent).toContain('Too many PIN tries');
     });
 
     it('a malformed hash token counts as no token, and the hash is still stripped', async () => {
       const { makeSocket } = renderHost('/host/WXYZ#t=short');
       await flushNavigation();
-      expect(heading()).toBe('Not authorised');
+      expect(heading()).toBe('Pair this phone');
       expect(makeSocket).not.toHaveBeenCalled();
       expect(loadHostToken('WXYZ')).toBeNull();
       expect(screen.getByTestId('location').textContent).toBe('/host/WXYZ');
     });
 
-    it('a token the server rejects is forgotten, the socket closes and nothing secret shows', () => {
+    it('a token the server rejects is forgotten, the socket closes and the PIN entry shows', () => {
       const { socket } = renderHost(`/host/WXYZ#t=${TOKEN}`);
       act(() => socket.emitted[0]!.ack({ ok: false, error: 'Invalid host token' }));
-      expect(heading()).toBe('Not authorised');
+      expect(heading()).toBe('Pair this phone');
       expect(loadHostToken('WXYZ')).toBeNull();
       expect(socket.disconnected).toBe(true);
       expect(document.body.textContent).not.toContain('Answer 1');

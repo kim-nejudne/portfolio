@@ -75,6 +75,11 @@ export const HOST_TOKEN_BYTES = 32;
 export const HOST_TOKEN_LENGTH = 43;
 /** The Screen's pairing QR hides itself after this long. */
 export const PAIRING_QR_TTL_MS = 60 * 1000;
+/** A pairing PIN: this many digits, valid as long as the QR shows, used once (F70). */
+export const PAIRING_PIN_LENGTH = 6;
+export const PAIRING_PIN_TTL_MS = PAIRING_QR_TTL_MS;
+/** Wrong guesses at one PIN before it is revoked. */
+export const PAIRING_PIN_MAX_MISSES = 5;
 
 /** The answer times the host can pick, in seconds, in stepper order. 0 is off. */
 export const ANSWER_SECONDS_CHOICES = [0, 3, 5, 7, 10] as const satisfies readonly AnswerSeconds[];
@@ -157,6 +162,12 @@ export const PLAYER_JOIN_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const;
 export const ROOM_CREATE_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 /** `GET /api/rooms/:code/exists`, per IP: enough for a room of phones behind one NAT (DECISIONS F42). */
 export const ROOM_CHECK_RATE_LIMIT = { max: 30, windowMs: 60 * 1000 } as const;
+/** `POST /api/rooms/:code/pair`, per IP and, separately, per room (F70). */
+export const PAIR_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 } as const;
+/** The pair route's 429 error past `PAIR_RATE_LIMIT`. */
+export const PAIR_RATE_LIMITED_ERROR = 'Too many PIN tries. Wait a minute and try again.';
+/** The pair route's 401 error: wrong, expired, used or revoked PIN, or no such room. */
+export const PAIR_INVALID_PIN_ERROR = 'That PIN is wrong or has expired.';
 
 // ---------- Client UI ----------
 

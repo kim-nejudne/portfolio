@@ -10,6 +10,7 @@ import {
   HOST_TOKEN_LENGTH,
   ID_MAX,
   MAX_QUESTIONS_PER_SET,
+  PAIRING_PIN_LENGTH,
   PLAYER_NAME_MAX,
   PLAYER_NAME_MIN,
   POINTS_MAX,
@@ -27,6 +28,7 @@ import type {
   ClientPayloads,
   CreateRoomBody,
   NewGameBody,
+  PairBody,
   Question,
   QuestionSet,
   RoomSettings,
@@ -119,6 +121,11 @@ export const newGameBodySchema = z.object({
   keepScores: z.boolean(),
 });
 
+/** `POST /api/rooms/:code/pair`: the digits of a pairing PIN, nothing else (F70). */
+export const pairBodySchema = z.object({
+  pin: z.string().regex(new RegExp(`^\\d{${PAIRING_PIN_LENGTH}}$`)),
+});
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -159,4 +166,5 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof roomSettingsSchema>, RoomSettings>>,
   Assert<Equals<z.infer<typeof createRoomBodySchema>, CreateRoomBody>>,
   Assert<Equals<z.infer<typeof newGameBodySchema>, NewGameBody>>,
+  Assert<Equals<z.infer<typeof pairBodySchema>, PairBody>>,
 ];

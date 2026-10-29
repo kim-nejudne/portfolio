@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, ROOM_CHECK_RATE_LIMITED_ERROR } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import {
+  createPairingPin,
   createRoom,
   fetchConfig,
   NEW_GAME_TAKEN_MESSAGE,
   NewGameTakenError,
+  pairWithPin,
   replaceSet,
   roomExists,
   uploadImage,
@@ -152,5 +154,49 @@ describe('replaceSet', () => {
   it('throws a readable message when the server cannot be reached', async () => {
     stubFetch(new TypeError('Failed to fetch'));
     await expect(replaceSet('WXYZ', 'secret', next)).rejects.toThrow('Could not reach the server');
+  });
+});
+
+describe('createPairingPin', () => {
+  it('posts with the Bearer hostToken and returns the PIN', async () => {
+    const fetch = stubFetch(Response.json({ pin: '012345' }, { status: 201 }));
+    await expect(createPairingPin('WXYZ', 'secret')).resolves.toBe('012345');
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/rooms/WXYZ/pairing');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toEqual({ authorization: 'Bearer secret' });
+  });
+
+  it("throws the server's error message", async () => {
+    stubFetch(Response.json({ ok: false, error: 'Only the host' }, { status: 401 }));
+    await expect(createPairingPin('WXYZ', 'secret')).rejects.toThrow('Only the host');
+  });
+
+  it('throws a readable message when the server cannot be reached', async () => {
+    stubFetch(new TypeError('Failed to fetch'));
+    await expect(createPairingPin('WXYZ', 'secret')).rejects.toThrow('Could not reach the server');
+  });
+});
+
+describe('pairWithPin', () => {
+  it('posts the PIN as JSON and returns the hostToken', async () => {
+    const fetch = stubFetch(Response.json({ hostToken: 'tok' }));
+    await expect(pairWithPin('WXYZ', '123456')).resolves.toBe('tok');
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/rooms/WXYZ/pair');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ pin: '123456' });
+  });
+
+  it("throws the server's error message on 401 and 429", async () => {
+    stubFetch(Response.json({ ok: false, error: 'That PIN is wrong' }, { status: 401 }));
+    await expect(pairWithPin('WXYZ', '123456')).rejects.toThrow('That PIN is wrong');
+    stubFetch(Response.json({ ok: false, error: 'Too many PIN tries' }, { status: 429 }));
+    await expect(pairWithPin('WXYZ', '123456')).rejects.toThrow('Too many PIN tries');
+  });
+
+  it('throws a readable message when the body is not JSON', async () => {
+    stubFetch(new Response('Bad Gateway', { status: 502 }));
+    await expect(pairWithPin('WXYZ', '123456')).rejects.toThrow('Could not pair (502).');
   });
 });

@@ -12,6 +12,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 
 <!-- entries below, newest first -->
 
+## F70 — Pairing PIN (2026-10-29)
+**What changed:**
+- Server: new `server/pairing.ts` `PairingStore` (outside `Room`): one PIN per room, 6 digits from `crypto.randomInt`, salted SHA-256 compared in constant time, valid 60 s (`PAIRING_PIN_TTL_MS`), single use, deleted on the 5th miss, replaced by a new request, and freed by an unref'd timer. It holds the presented hostToken for the PIN's life (the room keeps only the hash). `http.ts`: `POST /api/rooms/:code/pairing` (Bearer; 201 `{pin}`, 401, 404) and `POST /api/rooms/:code/pair` (`PAIR_RATE_LIMIT` 5/min per IP, then per room, 429; 400 malformed; 413 over 1 KB; 401 for every other failure; 200 `{hostToken}`). Shared: `pairBodySchema`, `PairingResponse`, `PairBody`, `PairResponse`, the `PAIRING_PIN_*` and `PAIR_*` constants.
+- Client: `api.ts` `createPairingPin`, `pairWithPin`. `PairHostPhone` asks for a PIN each time it opens and shows it (`NNN NNN`) beside the QR with the remote's address (`<join origin>/host/CODE`, wrapping before `/host`); a late answer for an earlier opening is dropped; failure says "PIN unavailable. Use the QR." New `HostPinEntry`: `/host/:code` without a token shows **Pair this phone** (numeric field, Pair at 6 digits, server message in an alert) instead of "Not authorised"; the token joins through the existing accept-then-store path.
+- Tests: new `http.pair.test.ts` (20: each status, 60 s edge, single use, replace, revoke, both limits, IP-first, 413, timer frees, old timer keeps new PIN), `PairHostPhone.test.tsx` +3, `Host.test.tsx` PIN entry (5 new; the Not authorised tests now expect the PIN entry), `App.test.tsx`, `api.test.ts` +6. 1695 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-29 for F70 (token held beside the PIN, SPEC-QUESTION; one PIN per room and dialog states; status codes and limit order; PIN entry page).
+
+**Notes for next session:**
+- Five junk tries in a minute from anyone lock a room's PIN entry for that minute (per-room limit from the Done-when); the QR still pairs.
+- Hide does not revoke the PIN on the server; it lives out its 60 s. Backlog item added.
+- Playtest (Playwright): run 1 at 1920×1080 Screen + phone context (room CPJK): PIN beside the QR, remote paired by PIN, Screen dialog closed on join; curl-style checks of 401/201/200/401 reuse/401 after 62 s/400/429. Revoke after 5 misses is not reachable from one IP (the 429 comes first); unit-tested from 5 IPs. Run 1 found the address breaking inside "hos/t" and the PIN field clipping the 6th digit at 390 px, both fixed; run 2 (room THMJ) confirmed the wrap before `/host`, all six digits at 375×667 (`scrollWidth` 375), and pairing by PIN. Screenshots: `.playtest/F70/4-dialog-fixed-screen.png`, `5-pinentry-375-host.png`, `5b-paired-375-host.png`.
+- Main `index` chunk 479.75 → 483.03 kB (145.47 kB gzip).
+
+**How to try it:** `npm run dev`. Host a game → Create room → Use this device as the Screen, then **Pair host phone**. On a phone open `http://<laptop-LAN-IP>:5173/host/<CODE>`, type the 6-digit PIN, tap Pair.
+
 ## F69 — Read-aloud mode (no TV) (2026-10-29)
 **What changed:**
 - `RoomCreated`: a fourth button, **Run from this phone (no TV)**, opens `/host/:code?read=1`.

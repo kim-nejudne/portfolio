@@ -4,6 +4,8 @@ import type {
   CreateRoomResponse,
   HttpErrorBody,
   NewGameBody,
+  PairingResponse,
+  PairResponse,
   RoomExistsResponse,
 } from '../../../shared/types.js';
 
@@ -124,4 +126,46 @@ export async function replaceSet(
   if (response.status === 409) throw new NewGameTakenError();
   const data = (await response.json().catch(() => null)) as HttpErrorBody | null;
   throw new Error(data?.error ?? `Could not start a new game (${response.status}).`);
+}
+
+/** `POST /api/rooms/:code/pairing` with the room's hostToken: a fresh 6-digit pairing PIN (F70). */
+export async function createPairingPin(code: string, hostToken: string): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/rooms/${encodeURIComponent(code)}/pairing`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${hostToken}` },
+    });
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  const data = (await response.json().catch(() => null)) as PairingResponse | HttpErrorBody | null;
+  if (!response.ok || data === null || !('pin' in data) || typeof data.pin !== 'string') {
+    throw new Error(
+      data && 'error' in data ? data.error : `Could not make a PIN (${response.status}).`,
+    );
+  }
+  return data.pin;
+}
+
+/**
+ * `POST /api/rooms/:code/pair`: trades a pairing PIN for the room's hostToken (F70). Throws an Error
+ * carrying the server's message (wrong or expired PIN, too many tries) when it is refused.
+ */
+export async function pairWithPin(code: string, pin: string): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/rooms/${encodeURIComponent(code)}/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  const data = (await response.json().catch(() => null)) as PairResponse | HttpErrorBody | null;
+  if (!response.ok || data === null || !('hostToken' in data)) {
+    throw new Error(data && 'error' in data ? data.error : `Could not pair (${response.status}).`);
+  }
+  return data.hostToken;
 }

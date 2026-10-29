@@ -48,8 +48,8 @@ describe('AppRoutes', () => {
     expect(headingAt('/play/ABCD')).toBe('Checking the room…');
   });
 
-  it('/host/:code renders the Host remote, which refuses a device without a token', () => {
-    expect(headingAt('/host/ABCD')).toBe('Not authorised');
+  it('/host/:code renders the Host remote, which asks a device without a token for a PIN', () => {
+    expect(headingAt('/host/ABCD')).toBe('Pair this phone');
   });
 
   it('/sets/:setId loads the set editor, which reports a browser without IndexedDB', async () => {

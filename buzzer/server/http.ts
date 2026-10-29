@@ -12,6 +12,9 @@ import {
   CREATE_ROOM_BODY_MAX_BYTES,
   IMAGE_MAX_BYTES,
   IMAGE_TYPES,
+  PAIR_INVALID_PIN_ERROR,
+  PAIR_RATE_LIMIT,
+  PAIR_RATE_LIMITED_ERROR,
   ROOM_CHECK_RATE_LIMIT,
   ROOM_CHECK_RATE_LIMITED_ERROR,
   ROOM_CREATE_RATE_LIMIT,
@@ -21,6 +24,7 @@ import {
   createRoomBodySchema,
   idSchema,
   newGameBodySchema,
+  pairBodySchema,
   roomCodeSchema,
 } from '../shared/schemas.js';
 import type {
@@ -28,6 +32,8 @@ import type {
   CreateRoomResponse,
   HttpErrorBody,
   NewGameResponse,
+  PairingResponse,
+  PairResponse,
   RoomExistsResponse,
   UploadImageResponse,
 } from '../shared/types.js';
@@ -35,6 +41,7 @@ import { createRoomCode, type Rng } from './codes.js';
 import { lanAddress } from './env.js';
 import { generateHostToken, hashHostToken, verifyHostToken } from './hostToken.js';
 import { InMemoryImageStore, type ImageStore } from './imageStore.js';
+import { PairingStore } from './pairing.js';
 import { createRateLimiter } from './rateLimit.js';
 import { reduce, WRONG_PHASE_ERROR } from './reducer.js';
 import { createRoom } from './room.js';
@@ -47,6 +54,8 @@ export interface AppOptions {
   rooms?: RoomStore;
   /** Uploaded question images. Share it with the room sweeper so a deleted room frees its images. */
   images?: ImageStore;
+  /** Live pairing PINs (F70). Tests pass one with a fixed PIN. */
+  pairings?: PairingStore;
   /** Wall-clock ms for `createdAt` and the rate limiter. */
   clock?: () => number;
   /** Draws room codes. Seeded in tests. */
@@ -89,6 +98,7 @@ export function createApp({
   clientDir,
   rooms = new InMemoryRoomStore(),
   images = new InMemoryImageStore(),
+  pairings = new PairingStore(),
   clock = Date.now,
   rng = Math.random,
   trustProxy = false,
@@ -109,6 +119,8 @@ export function createApp({
 
   const createLimiter = createRateLimiter(ROOM_CREATE_RATE_LIMIT, clock);
   const checkLimiter = createRateLimiter(ROOM_CHECK_RATE_LIMIT, clock);
+  const pairIpLimiter = createRateLimiter(PAIR_RATE_LIMIT, clock);
+  const pairRoomLimiter = createRateLimiter(PAIR_RATE_LIMIT, clock);
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true });
@@ -270,6 +282,56 @@ export function createApp({
       images.deleteRoom(code);
       res.json({ ok: true } satisfies NewGameResponse);
     },
+  );
+
+  // A pairing PIN for a phone that cannot scan the QR (F70). Only a host can ask; a new PIN replaces
+  // the room's previous one.
+  app.post('/api/rooms/:code/pairing', (req, res) => {
+    const code = roomCodeSchema.safeParse(req.params.code);
+    const room = code.success ? rooms.get(code.data) : undefined;
+    if (!room) return sendError(res, 404, 'This room does not exist.');
+    const token = bearerToken(req);
+    if (token === undefined || !verifyHostToken(token, room.hostTokenHash)) {
+      res.set('WWW-Authenticate', 'Bearer');
+      return sendError(res, 401, 'Only the host of this room can pair a phone.');
+    }
+    // SPEC-QUESTION: the room stores only the token's hash, so the PIN keeps the presented token
+    // in memory for its 60 s to hand back on a match (DECISIONS F70).
+    const pin = pairings.create(room.code, token, clock());
+    res.status(201).json({ pin } satisfies PairingResponse);
+  });
+
+  // Every attempt counts against both limits, valid or not. The IP is checked first, so one address
+  // past its limit cannot use up the room's tries as well.
+  const limitPair: RequestHandler = (req, res, next) => {
+    const room = String(req.params.code).toUpperCase();
+    if (pairIpLimiter.hit(req.ip ?? 'unknown') && pairRoomLimiter.hit(room)) return next();
+    sendError(res, 429, PAIR_RATE_LIMITED_ERROR);
+  };
+
+  const redeemPin: RequestHandler = (req, res) => {
+    const parsed = pairBodySchema.safeParse(req.body);
+    if (!parsed.success) return sendError(res, 400, 'Send the 6-digit PIN.');
+    const code = roomCodeSchema.safeParse(req.params.code);
+    const result =
+      code.success && rooms.has(code.data)
+        ? pairings.redeem(code.data, parsed.data.pin, clock())
+        : { ok: false as const };
+    if (!result.ok) return sendError(res, 401, PAIR_INVALID_PIN_ERROR);
+    res.json({ hostToken: result.hostToken } satisfies PairResponse);
+  };
+
+  const onPairTooLarge: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
+    if (err.type !== 'entity.too.large') return next(err);
+    sendError(res, 413, 'Send only the 6-digit PIN.');
+  };
+
+  app.post(
+    '/api/rooms/:code/pair',
+    limitPair,
+    express.json({ limit: 1024 }),
+    redeemPin,
+    onPairTooLarge,
   );
 
   app.get('/api/rooms/:code/images/:imageId', (req, res) => {

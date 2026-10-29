@@ -325,6 +325,20 @@ export interface NewGameResponse {
   ok: true;
 }
 
+/** `POST /api/rooms/:code/pairing`, on success (201): a fresh pairing PIN for this room (F70). */
+export interface PairingResponse {
+  pin: string;
+}
+
+/** `POST /api/rooms/:code/pair` body and response: a PIN in, the room's hostToken out. */
+export interface PairBody {
+  pin: string;
+}
+
+export interface PairResponse {
+  hostToken: string;
+}
+
 /** `GET /api/rooms/:code/exists`, for the join form. `phase` is null when there is no such room. */
 export interface RoomExistsResponse {
   exists: boolean;

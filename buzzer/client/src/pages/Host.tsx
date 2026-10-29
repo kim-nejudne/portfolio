@@ -8,6 +8,7 @@ import {
 import type { HostView } from '../../../shared/types.js';
 import { BulbRail } from '../components/BulbRail.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
+import { HostPinEntry } from '../components/HostPinEntry.js';
 import { HostPlayers } from '../components/HostPlayers.js';
 import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
@@ -85,15 +86,9 @@ function HostRoom({ code, makeSocket }: { code: string; makeSocket: () => GameSo
     [code],
   );
 
-  // Without a token this page never connects, so nothing secret can arrive.
-  if (!hostToken) {
-    return (
-      <HostMessage
-        title="Not authorised"
-        detail="Open this page by scanning Pair host phone on the Screen."
-      />
-    );
-  }
+  // Without a token this page never connects, so nothing secret can arrive. A PIN from the pairing
+  // dialog gets one (F70); like a link's token, it is stored only once the server accepts the join.
+  if (!hostToken) return <HostPinEntry code={code} onPaired={setHostToken} />;
   // Keyed by token: a different token needs a fresh socket and join.
   return (
     <HostConnected

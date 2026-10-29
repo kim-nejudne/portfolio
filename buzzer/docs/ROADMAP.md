@@ -188,14 +188,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 - [x] F69 Read-aloud mode (no TV)
 
-- [ ] F70 Pairing PIN
-  - Spec: Roles and devices (Creating and joining a room, step 3); Realtime events and HTTP API (HTTP); Security; see DECISIONS, Proposed spec changes (audit)
-  - Depends: F52
-  - Done when:
-    - The pairing dialog shows a 6-digit PIN beside the QR. `POST /api/rooms/:code/pairing` (Bearer hostToken) creates it: valid 60 s, single use, stored hashed
-    - `POST /api/rooms/:code/pair {pin}` returns `{hostToken}` for a valid PIN, 401 otherwise, and is rate-limited (5 per minute per IP and per room); after 5 wrong PINs the PIN is revoked
-    - `/host/:code` without a token shows a PIN entry instead of "Not authorised"
-  - Tests: `server/http.pair.test.ts` (each status, expiry, single use, limits, revoke), `PairHostPhone.test.tsx`, `Host.test.tsx` (PIN entry joins)
+- [x] F70 Pairing PIN
 
 - [ ] F71 False start: server
   - Spec: Buzzer fairness and timing; Game flow and state machine (Transitions); Data model (`RoomSettings`); see DECISIONS, Proposed spec changes (audit)
@@ -393,3 +386,5 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 ## Bugs
 
 ## Backlog (not scheduled)
+
+- Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).
