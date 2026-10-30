@@ -3,7 +3,8 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PLAYER_PALETTE, TEAMS } from '../../../shared/constants.js';
 import type { RankedPlayer, RankedTotal, SessionView, TeamView } from '../../../shared/types.js';
-import { FinalResults, Scoreboard, TONIGHT_ROWS } from './ScreenResults.js';
+import { pureWidthSizes, textSizesWithoutFloor } from '../test/screenSizes.js';
+import { FinalResults, rankingColumns, Scoreboard, TONIGHT_ROWS } from './ScreenResults.js';
 
 afterEach(cleanup);
 
@@ -205,5 +206,98 @@ describe('Scoreboard with teams', () => {
     render(<Scoreboard players={players} lastOrder={[]} onShown={() => {}} />);
     expect(within(board()).queryByRole('list', { name: 'Teams' })).toBeNull();
     expect(within(board()).getAllByRole('listitem')).toHaveLength(3);
+  });
+});
+
+describe('legibility on any display (F100)', () => {
+  const many = (count: number) =>
+    Array.from({ length: count }, (_, i) => player((i % 8) + 1, `P${i}`, 0, i + 1));
+  const ranking = (region: string) =>
+    screen.getByRole('region', { name: region }).querySelector<HTMLOListElement>('ol')!;
+  function tonightOf(count: number): SessionView {
+    const totals = many(count).map(({ id, name, color, score, rank }) => ({
+      id,
+      name,
+      color,
+      total: score,
+      rank,
+    }));
+    return { gameNumber: 2, totals };
+  }
+
+  it.each([
+    [6, 1],
+    [7, 2],
+    [10, 2],
+    [16, 2],
+    [24, 3],
+    [30, 3],
+    [50, 4],
+  ])('ranks %i players in %i columns, so 24 stay at 24px or more at 1080p', (count, columns) => {
+    expect(rankingColumns(count)).toBe(columns);
+  });
+
+  it('beside the Tonight card keeps a ranking of 10 in one column', () => {
+    render(<FinalResults players={many(10)} session={tonightOf(3)} />);
+    expect(ranking('Full ranking').style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
+  });
+
+  it('gives the ranking the card’s remaining height, with rows as tall as their content, so its fit can measure them', () => {
+    render(<Scoreboard players={many(24)} lastOrder={[]} onShown={() => {}} />);
+    const list = screen.getByRole('region', { name: 'Scoreboard' }).querySelector('ol')!;
+    expect(list.className).toContain('flex-1');
+    expect(list.className).toContain('overflow-hidden');
+    expect(list.style.gridTemplateRows).toBe('repeat(8, auto)');
+    expect(list.style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+  });
+
+  it.each([
+    [
+      'the scoreboard',
+      () => render(<Scoreboard players={many(10)} lastOrder={[]} onShown={() => {}} />),
+    ],
+    [
+      'the scoreboard with teams',
+      () =>
+        render(
+          <Scoreboard
+            players={many(4)}
+            lastOrder={[]}
+            onShown={() => {}}
+            teams={[0, 1].map((index) => ({
+              index,
+              ...TEAMS[index]!,
+              score: 0,
+              rank: 1,
+              memberIds: [],
+            }))}
+          />,
+        ),
+    ],
+    ['the Final screen', () => render(<FinalResults players={many(12)} session={tonightOf(12)} />)],
+    ['an empty Final screen', () => render(<FinalResults players={[]} />)],
+  ])('every text size on %s has a floor, and none grows with the width alone', (_, show) => {
+    show();
+    expect(textSizesWithoutFloor(document.body)).toEqual([]);
+    expect(pureWidthSizes(document.body)).toEqual([]);
+  });
+
+  it('stacks the Final screen in portrait: podium, ranking, then Tonight', () => {
+    render(<FinalResults players={many(3)} session={tonightOf(3)} />);
+    const podium = screen.getByRole('region', { name: 'Podium' });
+    const root = podium.parentElement!;
+    expect(root.className).toContain('stage-portrait:flex-col');
+    expect([...root.children].map((el) => el.getAttribute('aria-label'))).toEqual([
+      'Podium',
+      'Full ranking',
+      'Tonight',
+    ]);
+  });
+
+  it('widens the podium steps and lowers them in portrait', () => {
+    render(<FinalResults players={many(3)} />);
+    const step = screen.getByRole('listitem', { name: '1st place' });
+    expect(step.className).toContain('stage-portrait:max-w-[30vw]');
+    expect(step.querySelector('[data-winner]')!.className).toContain('stage-portrait:h-[16vh]');
   });
 });

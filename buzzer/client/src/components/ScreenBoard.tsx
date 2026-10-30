@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type CSSProperties } from 'react';
 import type { BoardView } from '../../../shared/types.js';
 import type { BoardCursor } from '../lib/boardCursor.js';
 import { HOVER } from '../lib/hover.js';
@@ -26,16 +26,21 @@ export function ScreenBoard({ board, cursor, onPick, busy = false }: ScreenBoard
       // One grid for the whole board, filled column by column, so every title shares the tallest
       // title's row and the tiles line up across columns. Titles shrink as columns are added, so
       // a long word ("SUPERHEROES") still fits a sixth of the width.
-      style={{
-        gridTemplateColumns: `repeat(${board.columns.length}, minmax(0, 1fr))`,
-        gridTemplateRows: `auto repeat(${rows}, minmax(0, 1fr))`,
-        fontSize: `min(2vw, ${(9 / board.columns.length).toFixed(2)}vw, 3.6vh)`,
-      }}
-      className="grid min-h-0 flex-1 grid-flow-col gap-[1.2vw] px-[3.75vw] pt-[1vh] pb-[3vh]"
+      style={
+        {
+          gridTemplateColumns: `repeat(${board.columns.length}, minmax(0, 1fr))`,
+          gridTemplateRows: `auto repeat(${rows}, minmax(0, 1fr))`,
+          fontSize: `max(var(--screen-min-label), min(2vw, ${(9 / board.columns.length).toFixed(2)}vw, 3.6vh))`,
+          // Tile values shrink with the column count too (SCR-05). Up to 6 columns the new term is
+          // never below 4.5vw, so 16:9 sizes are as before (F100).
+          '--tile-text': `min(4.5vw, ${(27 / board.columns.length).toFixed(2)}vw, 8vh)`,
+        } as CSSProperties
+      }
+      className="grid min-h-0 flex-1 grid-flow-col gap-[min(1.2vw,2.14vh)] px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[3vh]"
     >
       {board.columns.map((column, c) => (
         <Fragment key={c}>
-          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 border-accent bg-bg-deep px-[0.8vw] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-accent">
+          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 border-accent bg-bg-deep px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-accent">
             {column.title}
           </h2>
           {column.tiles.map((tile, r) => {
@@ -47,11 +52,11 @@ export function ScreenBoard({ board, cursor, onPick, busy = false }: ScreenBoard
                 {tile.used && <span className="sr-only">, played</span>}
               </>
             );
-            const look = `flex min-h-0 min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 font-display text-[min(4.5vw,8vh)] tabular-nums transition ${
+            const look = `flex min-h-0 min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 font-display text-[max(var(--screen-min-body),var(--tile-text))] tabular-nums transition ${
               tile.used
                 ? 'border-edge bg-bg text-muted opacity-30'
                 : 'border-edge bg-surface text-ink'
-            } ${selected ? 'shadow-[0_0_0_0.3vw_var(--color-bg),0_0_0_0.6vw_var(--color-accent)]' : ''}`;
+            } ${selected ? 'shadow-[0_0_0_min(0.3vw,0.54vh)_var(--color-bg),0_0_0_min(0.6vw,1.07vh)_var(--color-accent)]' : ''}`;
             return onPick ? (
               <button
                 key={r}

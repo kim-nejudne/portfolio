@@ -264,20 +264,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F99 Host remote dashboard on tablet and desktop
 
-- [ ] F100 Screen legibility on any display
-  - Spec: UI spec by view (Screen view); see `docs/ux/06-screen.md`
-  - Depends: F92
-  - Done when:
-    - SCR-01 … SCR-08 are closed
-    - No Screen text renders below 14px at 1024×768, 820×1180 or 390×844
-    - Lobby chips have a 14px floor with "+N more"
-    - `zoom:2` needs a minimum height of 1440px
-    - Pure-vw sizes are converted to `min(vw, vh)`
-    - The scoreboard and final ranking fit 10 and 24 players at 720p and 1080p
-    - Board tiles fit at 6 columns on 4:3
-    - The lobby, image questions and Final stack in portrait
-    - 1920×1080 is unchanged (screenshot comparison)
-  - Tests: `Screen.test.tsx` and `ScreenResults.test.tsx` (floors present in the class strings, portrait stacking classes, chip overflow "+N more"), `useShrinkToFit.test.tsx` (new floor)
+- [x] F100 Screen legibility on any display
 
 - [ ] F101 Screen host bar and overlays
   - Spec: UI spec by view (Screen host controls); see `docs/ux/06-screen.md`
@@ -315,3 +302,5 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 - Responsive (F93): the search box placeholder is Bungee (`INPUT`), and is cut short at 375px ("SEARCH TITLE OR CATEG…"). A shorter placeholder or a DM Sans one for search would fix it (F94 touches `SetBrowser` on `/sets`).
 - Responsive (F94): the `⋯` and Backup menus always open below. On the last card near the window's foot the menu runs past it and the page scrolls; flipping above when there is no room would avoid that. The `docs/ux/02` sketch also puts the tabs on the search row at `xl`, which would need SetBrowser to take a toolbar slot; F94 left them on their own row (7 cards still show at 1440×900).
 - Responsive (F99, HST-11): keyboard shortcuts on a laptop remote. On `pointer-fine` at `lg`, the remote accepts the Screen's keys (Space, C, V, X, R, N, ←, S, U), routed to the same `host:*` actions, with key hints on the buttons as on the Screen bar. Reuse the Screen's key map (`shortcutFor` in `ScreenHostControls.tsx`); do not write a second one. The keys are off while typing in an input. Done when: at 1440×900, Space opens buzzers and C, V and X judge, with the existing `host:*` events.
+- Responsive (F100): the lobby's join block (title, URL, room code, QR) is sized from its column's width, capped by height. On a short, wide hosting Screen (2560×1080 with Game setup and the host bar's fixed 8vh reserve) 50 players get two rows of chips and "+29 more". F101's measured bar reserve gives some back. Fitting the join block to a share of the height would give the rest.
+- Responsive (F100): on a phone used as a hosting Screen, the stacked lobby scrolls. The chips and their "+N more" can sit below the fold, under Game setup's Start button. It is graceful, not designed (SCR-08).

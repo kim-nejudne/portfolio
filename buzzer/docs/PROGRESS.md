@@ -10,6 +10,65 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F100 — Screen legibility on any display (2026-10-30)
+**What changed:**
+- `index.css`:
+  - Floor variables `--screen-min-label/body/name` (14/18/24px). The editor preview's stage sets them to 0px.
+  - Variants `stage-portrait:` and `stage-narrow:` (container queries on the Screen's `<main>`, now a size container), and `ultrawide:` (`min-aspect-ratio: 2/1`).
+- **Floors (SCR-01):** every Screen text size in `Screen.tsx`, `ScreenChrome`, `ScreenQuestion`, `lib/screenQuestion.ts`, `ScreenResults`, `ScreenBoard`, `StandingsRail` and `ReconnectingBanner` is `max(var(--screen-min-…), min(…))`. So are the em-sized key hints, team labels and ranking avatars. The lobby's cqw sizes gained a vh cap. Question text and chips shrink no lower than 14px.
+- **Lobby chips:** `useShrinkToFit(…, overflow)` returns, per `[data-fit-group]`, how many items fit at the floor, less one. The lobby then shows "+N more" (`plusMore`, English and Taglish), per team column with teams on.
+- **Pure vw (SCR-03):** every bare vw/cqw size on the Screen, the host bar's spacing included, is `min(Xvw, X·16/9 vh)`. That keeps 16:9 exact. The rail is `min(17vw,30.3vh)`, the Reconnecting banner `min(3.2vw,5.7vh)`, and Game over `min(5vw,8.9vh)`.
+- **Zoom (SCR-02):** `ZOOM_4K` needs a 2560px width and a 1440px height, on Game setup and the New game picker.
+- **Rankings (SCR-04):** the list fills the card's remaining height. Rows are content-height (not `minmax(0,auto)`), `leading-tight`, with 0.35em padding. The list shrinks to fit, down to 14px. `rankingColumns` gives 1/2/3/4 columns for ≤6/≤16/≤30/more players; next to Tonight it keeps the old 1/2/3.
+- **Board (SCR-05):** tiles use `--tile-text: min(4.5vw, 27/n vw, 8vh)`, with an 18px floor.
+- **Portrait and narrow (SCR-06, SCR-07):**
+  - The lobby stacks Game setup under the room at full width. Only a hosting lobby may then scroll, with the chips keeping 30cqh.
+  - A narrow lobby column puts the QR under the code.
+  - An image goes under the question text, at full width, and "also buzzed" goes under the winner's banner.
+  - The Final stacks podium, ranking and Tonight. Its steps are up to 30vw wide and lower.
+  - `ultrawide:` caps the room code and QR harder by height.
+- **Phone (SCR-08):** a dismissible note under the header below 640px, from a JS media query: "The Screen is made for a TV or laptop. Players join at <url>" (`screenPhoneNote`, English and Taglish).
+- Tests:
+  - `Screen.test.tsx` has a new block "legibility on any display (F100)" with 36 tests:
+    - For 9 states (lobby, question, image, buzz, reveal, choice, 6-column board, scoreboard, final), no unfloored text size and no pure-width size.
+    - The floor values and the size container.
+    - Chips: "+N more" at 14px, all shown when they fit, a recount on a join, and per team column.
+    - Lobby, QR, image and also-buzzed stacking; the ultrawide caps; the zoom query; board tiles; the rail; the banner.
+    - The phone note: shown and dismissed, absent on a TV, in Taglish.
+  - `ScreenResults.test.tsx` +15: `rankingColumns`, the dense column, fit-ready rows, floors and width on the scoreboard, teams and Final, Final stacking and steps.
+  - `useShrinkToFit.test.tsx` +6 (overflow), `QuestionPreview.test.tsx` +1 (floors off).
+  - New helper `test/screenSizes.ts` (`textSizesWithoutFloor`, `pureWidthSizes`).
+  - 2574 tests in total. No new dependency.
+
+**Decisions:** the seven DECISIONS rows dated 2026-10-30 for F100 (floor variables and the preview; container variants and the 16:9 conversion; the stacked lobby, its scroll and `ultrawide`; chip overflow; rankings; board tiles; zoom and the phone note).
+
+**Notes for next session:**
+- **F101 is next**, on the host bar and overlays. The content's fixed `mb-[8vh]` reserve still costs the hosting lobby on 2560×1080, where 50 players show 21 chips and "+29 more" (Backlog). The bar's spacing is already `min(vw, vh)`. Its kbd hints are floored at 14px.
+- **1920×1080 pixel diff** (`.playtest/F100/diff.py`, against `before/` and `before2/`):
+  - Identical: question, open, buzzed, image and title card.
+  - Text that shrinks to fit (the reveal's and choice's question text, the lobby's chips) moved by under 0.5px. That comes from the binary search's new 14px lower bound.
+  - Deliberately changed: the scoreboard and Final rankings. Before, 10 players at 1080p overlapped and the last row was cut (`before/B-scoreboard-1920x1080.png`).
+- **Real-browser evidence for SCR-04**, since jsdom can't lay it out. `.playtest/F100/final/B-*` and `C-*` shots at 1280×720 and 1920×1080 show every row inside its list:
+  - 10 players: 47px on the scoreboard, 51px on the Final at 1080p.
+  - 24 players: 27.7px and 30px at 1080p, 18.4px at 720p.
+- The UX doc's board estimate was wrong: 1000 already fit 6 columns at 4:3. The new term is a guard (DECISIONS).
+- Review: no Must-fix. Should-fixes done: these records, the ranking avatar under 14px (the helper now flags sub-1em sizes, and a fixture has an avatar), and the SCR-04 evidence above.
+- No playtest-skill run. My own Playwright script covered the same ground across the full matrix (below).
+- Main `index` chunk 547.29 → 552.93 kB.
+
+**Playtest:** `.playtest/F100/drive.mjs <label> A,B,C,D,E` (cached Playwright 1.61, socket host and players, the Screen in Chromium with reduced motion). Restart `npm run dev` between runs, because of the join and room limits.
+- **States:** a 6-player lobby (host and plain), title card, question, open, buzzed, reveal, image, choice and Final. A 10- and a 24-player scoreboard and Final. A 6-column board. A 50-player lobby.
+- **Sizes:** 1920×1080, 1280×720, 1024×768, 820×1180 and 390×844, plus 2560×1080, 2560×1440 and 3440×1440 for some states.
+- **Each shot is audited:** no text under 14px (`getComputedStyle` on every text element), nothing past the viewport's edges, ranking rows inside their list and at least 24px at 1080p, board values inside their tiles, and every chip shown or counted.
+- **Baseline:** 44 failures at 1024×768, 820×1180 and 390×844, down to 5.5px. **Final run:** 0 failures, no console errors.
+- **Screenshots I checked:**
+  - 820×1180: the hosting lobby (every setting visible, no scroll), an image question (image under the text, full width), the Final (podium, then ranking; steps over 120px).
+  - 390×844: buzzed (also-buzzed under the banner), choice, and the hosting lobby (scrolls; QR whole).
+  - 1920×1080: the 24-player scoreboard (3 columns).
+  - 2560×1080, 2560×1440 and 3440×1440 lobbies: zoom only at 2560×1440.
+
+**How to try it:** `npm run dev`, host a set at `http://localhost:5173`, open the Screen at `http://localhost:5173/screen/<code>`, and spawn players at `/dev/bots/<code>`. In DevTools' device bar, try 1024×768, 820×1180 and 390×844: nothing reads under 14px, the lobby stacks in portrait, and an image question puts the image under the text. With 50 bots on a phone-sized Screen, the chips end in "+N more". Show the scoreboard with 24 players at 1280×720 and 1920×1080: every row is visible.
+
 ## F99 — Host remote dashboard on tablet and desktop (2026-10-30)
 **What changed:**
 - New `lib/useMediaQuery.ts`:

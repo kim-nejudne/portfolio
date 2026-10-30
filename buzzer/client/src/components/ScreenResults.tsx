@@ -5,10 +5,18 @@ import { PlayerAvatar } from './PlayerAvatar.js';
 import { ordinal, podiumSteps, replayOrder, type PodiumStep } from '../lib/results.js';
 import { teamsByRank } from '../lib/teams.js';
 import { prefersReducedMotion, useFlip } from '../lib/useFlip.js';
+import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 
-/** A Screen card: the phone's 20px radius and 24–28px padding, at 1280 wide. */
+/**
+ * A Screen card: the phone's 20px radius and 24–28px padding, at 1280 wide. Every size here is
+ * capped by height for ultrawide displays and has a floor for small ones (F100).
+ */
 const SCREEN_CARD =
-  'rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]';
+  'rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[min(2.2vw,3.92vh)] py-[min(2vw,3.5vh)]';
+
+/** A card's heading: Full ranking, Tonight. */
+const CARD_HEADING =
+  'shrink-0 font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-accent';
 
 /** How long the scoreboard shows the previous standings before it reorders. */
 export const REORDER_DELAY_MS = 800;
@@ -47,16 +55,18 @@ export function Scoreboard({ players, lastOrder, onShown, teams = null }: Scoreb
   return (
     <section
       aria-label="Scoreboard"
-      className="absolute inset-0 flex flex-col bg-bg px-[3.75vw] pt-[1vh] pb-[3vh]"
+      className="absolute inset-0 flex flex-col bg-bg px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[3vh]"
     >
       <div className={`${SCREEN_CARD} flex min-h-0 flex-1 flex-col gap-[3vh]`}>
-        <h2 className="shrink-0 font-display text-[min(3vw,5.3vh)] text-accent">
+        <h2 className="shrink-0 font-display text-[max(var(--screen-min-name),min(3vw,5.3vh))] text-accent">
           {t('scoreboard')}
         </h2>
         {teams && <TeamStandings teams={teams} />}
         {/* The host can show it in the lobby, or after kicking everyone. */}
         {shown.length === 0 ? (
-          <p className="text-[min(3vw,5.5vh)] text-muted">{t('noPlayersYet')}</p>
+          <p className="text-[max(var(--screen-min-body),min(3vw,5.5vh))] text-muted">
+            {t('noPlayersYet')}
+          </p>
         ) : (
           // Under the teams, the players take the smaller text, so both fit the card.
           <RankingList rows={shown} dense={teams !== null} />
@@ -84,7 +94,9 @@ export function FinalResults({
   if (players.length === 0 && !session?.totals.length) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <h1 className="font-display text-[5vw] text-muted">{t('gameOver')}</h1>
+        <h1 className="font-display text-[max(var(--screen-min-name),min(5vw,8.9vh))] text-muted">
+          {t('gameOver')}
+        </h1>
       </div>
     );
   }
@@ -95,21 +107,22 @@ export function FinalResults({
   // A 4th team has no step; it is named under the podium, so every team is ranked.
   const offPodium = teams ? podium.filter((team) => team.rank > 3) : [];
   return (
-    <div className="flex min-h-0 flex-1 gap-[3vw] px-[3.75vw] pt-[1vh] pb-[3vh]">
+    // Portrait: the podium, then the ranking, then Tonight, each across the full width (F100).
+    <div className="flex min-h-0 flex-1 gap-[min(3vw,5.34vh)] px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[3vh] stage-portrait:flex-col">
       <section
         aria-label={teams ? 'Team podium' : 'Podium'}
         className={`flex min-w-0 flex-col gap-[3vh] ${tonight ? 'flex-[2]' : 'flex-[3]'}`}
       >
-        <h1 className="shrink-0 font-display text-[min(4.4vw,9vh)] text-accent [text-shadow:0.3vw_0.3vw_0_var(--color-bg-deep)]">
+        <h1 className="shrink-0 font-display text-[max(var(--screen-min-name),min(4.4vw,9vh))] text-accent [text-shadow:min(0.3vw,0.54vh)_min(0.3vw,0.54vh)_0_var(--color-bg-deep)]">
           {t('finalResults')}
         </h1>
-        <ol className="flex min-h-0 flex-1 items-end justify-center gap-[1.5vw]">
+        <ol className="flex min-h-0 flex-1 items-end justify-center gap-[min(1.5vw,2.67vh)]">
           {podiumSteps(podium).map((step) => (
             <Step key={step.rank} step={step} />
           ))}
         </ol>
         {offPodium.length > 0 && (
-          <p className="shrink-0 text-center font-display text-[min(2vw,3.6vh)] text-muted">
+          <p className="shrink-0 text-center font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-muted">
             {offPodium
               .map((team) => `${ordinal(team.rank)} ${team.name} ${team.score}`)
               .join(' · ')}
@@ -120,9 +133,7 @@ export function FinalResults({
         aria-label="Full ranking"
         className={`${SCREEN_CARD} flex min-w-0 ${rankingFlex} flex-col gap-[2vh]`}
       >
-        <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">
-          {t('fullRanking')}
-        </h2>
+        <h2 className={CARD_HEADING}>{t('fullRanking')}</h2>
         <RankingList rows={players} dense={tonight !== null} />
       </section>
       {tonight && (
@@ -130,12 +141,10 @@ export function FinalResults({
           aria-label="Tonight"
           className={`${SCREEN_CARD} flex min-w-0 flex-[2] flex-col gap-[2vh]`}
         >
-          <h2 className="shrink-0 font-display text-[min(2vw,3.6vh)] text-accent">
-            {t('tonight')}
-          </h2>
+          <h2 className={CARD_HEADING}>{t('tonight')}</h2>
           <RankingList rows={tonightRows(tonight.slice(0, TONIGHT_ROWS), players)} dense />
           {tonight.length > TONIGHT_ROWS && (
-            <p className="shrink-0 text-[min(1.6vw,2.9vh)] text-muted">
+            <p className="shrink-0 text-[max(var(--screen-min-label),min(1.6vw,2.9vh))] text-muted">
               {t('andMore', { n: tonight.length - TONIGHT_ROWS })}
             </p>
           )}
@@ -189,24 +198,35 @@ function teamEntry(team: TeamView): RankingRow {
   };
 }
 
-/** Step heights, top step first. Full class strings, so Tailwind can see them. */
-const STEP_HEIGHT = ['h-[30vh]', 'h-[21vh]', 'h-[14vh]'] as const;
+/**
+ * Step heights, top step first; lower in portrait, where the podium shares the height with the
+ * ranking (F100). Full class strings, so Tailwind can see them.
+ */
+const STEP_HEIGHT = [
+  'h-[30vh] stage-portrait:h-[16vh]',
+  'h-[21vh] stage-portrait:h-[11vh]',
+  'h-[14vh] stage-portrait:h-[7.5vh]',
+] as const;
 
 function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
-  const names = step.players.length > 3 ? 'text-[min(1.6vw,3vh)]' : 'text-[min(2.6vw,5vh)]';
+  const names =
+    step.players.length > 3
+      ? 'text-[max(var(--screen-min-body),min(1.6vw,3vh))]'
+      : 'text-[max(var(--screen-min-name),min(2.6vw,5vh))]';
   // The winners' step is lit gold, in the stage ring; the others stand on surface.
   const top = step.rank === 1;
   return (
     <li
       aria-label={`${ordinal(step.rank)} place`}
-      className="flex min-h-0 max-w-[16vw] min-w-0 flex-1 flex-col items-stretch justify-end gap-[1vh]"
+      // Portrait gives each step up to a third of the width (F100).
+      className="flex min-h-0 max-w-[min(16vw,28.45vh)] min-w-0 flex-1 flex-col items-stretch justify-end gap-[1vh] stage-portrait:max-w-[30vw]"
     >
       <ul className="flex min-h-0 flex-col gap-[0.8vh] overflow-hidden">
         {step.players.map((player) => (
           <li
             key={player.id}
             style={{ backgroundColor: player.color }}
-            className={`truncate rounded-[1.5vh] px-[1vw] py-[0.6vh] text-center font-display text-bg ${names}`}
+            className={`truncate rounded-[1.5vh] px-[min(1vw,1.78vh)] py-[0.6vh] text-center font-display text-bg ${names}`}
           >
             <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
             {player.name}
@@ -217,13 +237,15 @@ function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
         data-winner={top || undefined}
         className={`flex shrink-0 flex-col items-center justify-start gap-[0.5vh] rounded-t-[2vh] border-2 pt-[2vh] ${STEP_HEIGHT[step.height]} ${
           top
-            ? 'border-accent bg-accent text-accent-ink shadow-[0_0_2vw_color-mix(in_oklab,var(--color-accent)_45%,transparent)]'
+            ? 'border-accent bg-accent text-accent-ink shadow-[0_0_min(2vw,3.56vh)_color-mix(in_oklab,var(--color-accent)_45%,transparent)]'
             : 'border-edge bg-surface'
         }`}
       >
-        <span className="font-display text-[min(4vw,8vh)] leading-none">{ordinal(step.rank)}</span>
+        <span className="font-display text-[max(var(--screen-min-name),min(4vw,8vh))] leading-none">
+          {ordinal(step.rank)}
+        </span>
         <span
-          className={`font-display text-[min(2vw,4vh)] tabular-nums ${top ? 'text-accent-ink' : 'text-muted'}`}
+          className={`font-display text-[max(var(--screen-min-body),min(2vw,4vh))] tabular-nums ${top ? 'text-accent-ink' : 'text-muted'}`}
         >
           {step.players[0]!.score}
         </span>
@@ -244,7 +266,7 @@ function TeamStandings({ teams }: { teams: TeamView[] }) {
     <ol
       ref={list}
       aria-label="Teams"
-      className="grid shrink-0 auto-cols-fr grid-flow-col gap-[1.5vw] text-[min(2.6vw,4.6vh)]"
+      className="grid shrink-0 auto-cols-fr grid-flow-col gap-[min(1.5vw,2.67vh)] text-[max(var(--screen-min-name),min(2.6vw,4.6vh))]"
     >
       {ranked.map((team) => (
         <li
@@ -268,41 +290,65 @@ function TeamStandings({ teams }: { teams: TeamView[] }) {
   );
 }
 
-/** Ranking text sizes, largest first. Full class strings, so Tailwind can see them. */
+/**
+ * Ranking text sizes, largest first: the most each step gets. Full class strings, so Tailwind can
+ * see them.
+ */
 const RANKING_TEXT = [
-  'text-[min(3vw,5.5vh)]',
-  'text-[min(2vw,3.6vh)]',
-  'text-[min(1.4vw,2.4vh)]',
+  'text-[max(var(--screen-min-body),min(3vw,5.5vh))]',
+  'text-[max(var(--screen-min-body),min(2vw,3.6vh))]',
+  'text-[max(var(--screen-min-body),min(1.4vw,2.4vh))]',
 ] as const;
 
+/** A ranking shrinks to fit its card, but not below the Screen's 14px floor (F100). */
+const RANKING_MIN_PX = 14;
+
 /**
- * Ranked rows of rank, name and score, filling down each column. Up to 10 players fit one
- * column; more spread over two or three, and the text shrinks to keep 50 on screen. `dense`
- * never uses the largest text, for a short list in a narrower card beside the Tonight card (F77).
+ * Columns for a ranking with the card to itself: few enough rows that 24 players stay at 24px or
+ * more at 1080p, above the host bar (SCR-04). Beside the Tonight card (`dense`) the card is
+ * narrower, so it keeps one column up to 10.
+ */
+export function rankingColumns(count: number): number {
+  return count <= 6 ? 1 : count <= 16 ? 2 : count <= 30 ? 3 : 4;
+}
+
+/**
+ * Ranked rows of rank, name and score, filling down each column, in `rankingColumns` columns
+ * (F100), and the text shrinks to keep 50 on screen. `dense` never uses the largest text, and
+ * keeps one column up to 10, for a short list in a narrower card beside the Tonight card (F77).
+ * The list takes the card's remaining height, and its text shrinks below the step when the rows
+ * would not fit it, so no row is ever cut off (SCR-04).
  */
 function RankingList({ rows: players, dense = false }: { rows: RankingRow[]; dense?: boolean }) {
   const list = useRef<HTMLOListElement>(null);
   useFlip(list, players.map((p) => p.id).join(','));
+  useShrinkToFit(
+    list,
+    'css',
+    RANKING_MIN_PX,
+    players.map((p) => `${p.avatar ?? ''}${p.name}${p.score}`).join('\n'),
+  );
   const size = players.length <= 10 ? 0 : players.length <= 24 ? 1 : 2;
-  const columns = size + 1;
+  const columns = dense ? size + 1 : rankingColumns(players.length);
   const rows = Math.max(Math.ceil(players.length / columns), 1);
   const text = RANKING_TEXT[dense ? Math.max(size, 1) : size];
   return (
     <ol
       ref={list}
       // Columns that may shrink below their content, so a long name truncates instead of pushing
-      // the score past the card's edge (the avatar made rows wider, F75).
+      // the score past the card's edge (the avatar made rows wider, F75). Rows keep their content's
+      // height, so the list's overflow is what the fit measures.
       style={{
-        gridTemplateRows: `repeat(${rows}, minmax(0, auto))`,
+        gridTemplateRows: `repeat(${rows}, auto)`,
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
       }}
-      className={`grid min-h-0 grid-flow-col content-start gap-x-[1.5vw] gap-y-[0.8vh] overflow-hidden ${text}`}
+      className={`grid min-h-0 flex-1 grid-flow-col content-start gap-x-[min(1.5vw,2.67vh)] gap-y-[0.8vh] overflow-hidden ${text}`}
     >
       {players.map((player) => (
         <li
           key={player.id}
           data-flip-key={player.id}
-          className={`flex items-center gap-[0.6em] rounded-[0.6em] bg-bg px-[0.7em] py-[0.45em] ${player.connected ? '' : 'opacity-40'}`}
+          className={`flex items-center gap-[0.6em] rounded-[0.6em] bg-bg px-[0.7em] py-[0.35em] leading-tight ${player.connected ? '' : 'opacity-40'}`}
         >
           {/* Two digits fit 1.4em, as on the standings rail; the room it frees goes to the name. */}
           <span className="w-[1.4em] shrink-0 text-right font-display text-muted tabular-nums">
@@ -315,7 +361,10 @@ function RankingList({ rows: players, dense = false }: { rows: RankingRow[]; den
           />
           {/* The avatar sits inside the name, not in a column of its own, so it costs no extra gap. */}
           <span className="min-w-0 flex-1 truncate font-bold">
-            <PlayerAvatar avatar={player.avatar} className="mr-[0.3em] text-[0.85em]" />
+            <PlayerAvatar
+              avatar={player.avatar}
+              className="mr-[0.3em] text-[max(var(--screen-min-label),0.85em)]"
+            />
             {player.name}
           </span>
           <span className="shrink-0 font-display tabular-nums">{player.score}</span>

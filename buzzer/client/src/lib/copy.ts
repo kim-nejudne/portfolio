@@ -98,6 +98,10 @@ const EN = {
   finalResults: 'Final results',
   fullRanking: 'Full ranking',
   andMore: 'and {n} more',
+  // The lobby's last chip when the rest of the room does not fit the display (F100).
+  plusMore: '+{n} more',
+  // A one-line note on a phone-sized Screen (F100).
+  screenPhoneNote: 'The Screen is made for a TV or laptop. Players join at {url}',
   reconnecting: 'Reconnecting…',
 } as const;
 
@@ -192,6 +196,8 @@ const TAGLISH: Record<CopyKey, string> = {
   finalResults: 'Final na resulta',
   fullRanking: 'Buong ranking',
   andMore: 'at {n} pa',
+  plusMore: '+{n} pa',
+  screenPhoneNote: 'Para sa TV o laptop ang Screen. Dito sumali ang mga player: {url}',
   reconnecting: 'Kumokonekta ulit…',
 };
 

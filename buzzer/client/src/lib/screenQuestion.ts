@@ -7,14 +7,15 @@ export function formatGap(gapMs: number): string {
 
 /**
  * Font sizes for the question text, largest first. Each is capped by height as well as width, so
- * a short or wide window still fits. Full class strings, so Tailwind can see them.
+ * a short or wide window still fits, and floored for small displays (F100). Full class strings, so
+ * Tailwind can see them.
  */
 const TEXT_STEPS = [
-  'text-[min(6cqw,11cqh)]',
-  'text-[min(4.8cqw,8.5cqh)]',
-  'text-[min(3.8cqw,6.8cqh)]',
-  'text-[min(3cqw,5.4cqh)]',
-  'text-[min(2.4cqw,4.3cqh)]',
+  'text-[max(var(--screen-min-body),min(6cqw,11cqh))]',
+  'text-[max(var(--screen-min-body),min(4.8cqw,8.5cqh))]',
+  'text-[max(var(--screen-min-body),min(3.8cqw,6.8cqh))]',
+  'text-[max(var(--screen-min-body),min(3cqw,5.4cqh))]',
+  'text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))]',
 ] as const;
 
 /** Upper text length for each step but the last. */

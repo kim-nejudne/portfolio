@@ -30,7 +30,9 @@ import { FakeSocket } from '../test/fakeSocket.js';
 import { stubDownload, stubShare, unstubShare } from '../test/share.js';
 import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { buttonsWithoutHover } from '../test/hover.js';
+import { pureWidthSizes, textSizesWithoutFloor } from '../test/screenSizes.js';
 import { Screen } from './Screen.js';
+import css from '../index.css?raw';
 
 // Records the sounds instead of loading Howler.
 vi.mock('../lib/sounds.js', async (importOriginal) => ({
@@ -42,8 +44,16 @@ vi.mock('../lib/sounds.js', async (importOriginal) => ({
 
 // Renders the QR's encoded value, so tests can check where it points.
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value, title }: { value: string; title: string }) => (
-    <svg data-testid="qr" data-value={value}>
+  QRCodeSVG: ({
+    value,
+    title,
+    className,
+  }: {
+    value: string;
+    title: string;
+    className?: string;
+  }) => (
+    <svg data-testid="qr" data-value={value} className={className}>
       <title>{title}</title>
     </svg>
   ),
@@ -2676,5 +2686,361 @@ describe('Screen in Taglish (F91)', () => {
     const bar = screen.getByRole('toolbar', { name: 'Host controls' });
     expect(within(bar).getByRole('button', { name: /Open buzzers/ })).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('Sarado pa ang buzzers');
+  });
+});
+
+describe('legibility on any display (F100)', () => {
+  const hostToken = 'h'.repeat(43);
+  // With an avatar, so the em-sized avatars in chips, rows and steps are checked too.
+  const ana = player(1, { name: 'Ana', avatar: AVATARS[0] });
+  const ben = player(2, { name: 'Ben' });
+  const cy = player(3, { name: 'Cy' });
+  const question = { id: 'q3', text: 'What is the capital of Australia?', points: 100 };
+  const sixColumns: BoardView = {
+    columns: ['A', 'B', 'C', 'D', 'E', 'F'].map((title, c) => ({
+      title,
+      tiles: [0, 1, 2].map((r) => ({ questionIndex: c * 3 + r, points: 1000, used: false })),
+    })),
+  };
+  /** One view per kind of Screen state, so every size on the Screen is rendered at least once. */
+  const states: [string, ScreenView][] = [
+    ['lobby', lobbyView([ana, ben, cy])],
+    ['question', lobbyView([ana, ben, cy], { phase: 'QUESTION', questionIndex: 2, question })],
+    [
+      'image question',
+      lobbyView([ana, ben, cy], {
+        phase: 'OPEN',
+        questionIndex: 2,
+        question: { ...question, imageId: 'img1' },
+        lockedOut: ['p3'],
+      }),
+    ],
+    [
+      'buzz',
+      lobbyView([ana, ben, cy], {
+        phase: 'BUZZED',
+        questionIndex: 2,
+        question,
+        winnerId: 'p1',
+        alsoBuzzed: [{ playerId: 'p2', gapMs: 120 }],
+        answerTimer: { seconds: 10, up: false },
+      }),
+    ],
+    [
+      'reveal',
+      lobbyView([ana, ben, cy], {
+        phase: 'REVEAL',
+        questionIndex: 2,
+        question: { ...question, answer: 'Canberra' },
+        scorerId: 'p1',
+      }),
+    ],
+    [
+      'choice',
+      lobbyView([ana, ben, cy], {
+        phase: 'ANSWERING',
+        questionIndex: 2,
+        openingCounter: 1,
+        question,
+        choice: { choices: ['A', 'B', 'C', 'D'], answered: 1, expected: 3, timer: { seconds: 10 } },
+      }),
+    ],
+    ['board', lobbyView([ana], { phase: 'BOARD', questionIndex: -1, board: sixColumns })],
+    [
+      'scoreboard',
+      lobbyView([ana, ben, cy], {
+        phase: 'REVEAL',
+        questionIndex: 2,
+        question,
+        showScoreboard: true,
+      }),
+    ],
+    ['final', lobbyView([ana, ben, cy], { phase: 'FINAL', questionIndex: 9 })],
+  ];
+
+  function hostScreen(view: ScreenView) {
+    saveHostToken('WXYZ', hostToken);
+    const { socket } = renderScreen();
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    socket.fire('state', view);
+    return socket;
+  }
+
+  it.each(states)('every text size in the %s has a floor for small displays', (_, view) => {
+    hostScreen(view);
+    expect(textSizesWithoutFloor(document.body)).toEqual([]);
+  });
+
+  it.each(states)(
+    'no size in the %s grows with the width alone, so ultrawide stays in proportion',
+    (_, view) => {
+      hostScreen(view);
+      expect(pureWidthSizes(document.body)).toEqual([]);
+    },
+  );
+
+  it('floors labels at 14px, body text at 18px and names at 24px', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', states[3]![1]);
+    expect(screen.getByText('First to buzz').className).toContain(
+      'max(var(--screen-min-label),min(1.2cqw,2.1cqh))',
+    );
+    const name = screen.getByRole('heading', { level: 2, name: /Ana/ });
+    expect(name.className).toContain('max(var(--screen-min-name),');
+    expect(css).toContain('--screen-min-label: 14px;');
+    expect(css).toContain('--screen-min-body: 18px;');
+    expect(css).toContain('--screen-min-name: 24px;');
+  });
+
+  it('makes the stage a size container, so the portrait variants follow the Screen', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView());
+    expect(screen.getByRole('main').className).toContain('[container-type:size]');
+  });
+
+  describe('lobby chips', () => {
+    const list = () =>
+      screen.getByRole('region', { name: 'Players' }).querySelector<HTMLElement>(':scope > div')!;
+    /**
+     * jsdom has no layout: the chip list is 200px tall and every chip takes a 40px row of its own,
+     * whatever the font size. So 5 chips fit, and more never fit, even at the floor.
+     */
+    function fakeChipLayout() {
+      const isList = (el: Element) => el.matches('section[aria-label="Players"] > div');
+      const rows = (el: Element) => el.querySelectorAll('li').length;
+      vi.spyOn(Element.prototype, 'clientHeight', 'get').mockImplementation(function (
+        this: Element,
+      ) {
+        return isList(this) ? 200 : 0;
+      });
+      vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(function (
+        this: Element,
+      ) {
+        return isList(this) ? rows(this) * 40 : 0;
+      });
+      const rect = Element.prototype.getBoundingClientRect;
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: Element,
+      ) {
+        if (isList(this)) return { ...rect.call(this), top: 0, bottom: 200 } as DOMRect;
+        if (this.tagName === 'LI' && this.parentElement?.hasAttribute('data-fit-group')) {
+          const index = [...this.parentElement.children].indexOf(this);
+          return { ...rect.call(this), top: index * 40, bottom: (index + 1) * 40 } as DOMRect;
+        }
+        return rect.call(this);
+      });
+    }
+    const twelve = Array.from({ length: 12 }, (_, i) => player(i + 1));
+
+    it('never go below 14px, and end in "+N more" when the rest of the room does not fit', () => {
+      fakeChipLayout();
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView(twelve));
+      const chips = within(list()).getAllByRole('listitem');
+      expect(chips.map((li) => li.textContent)).toEqual([
+        'Player 1',
+        'Player 2',
+        'Player 3',
+        'Player 4',
+        '+8 more',
+      ]);
+      expect(list().style.fontSize).toBe('14px');
+    });
+
+    it('show every chip when they fit', () => {
+      fakeChipLayout();
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView(twelve.slice(0, 5)));
+      expect(within(list()).getAllByRole('listitem')).toHaveLength(5);
+      expect(screen.queryByText(/more$/)).toBeNull();
+    });
+
+    it('count again from the whole room when a player joins', () => {
+      fakeChipLayout();
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView(twelve));
+      socket.fire('state', lobbyView([...twelve, player(13)]));
+      expect(screen.getByText('+9 more')).toBeTruthy();
+    });
+
+    it('cut each team column on its own (teams on)', () => {
+      fakeChipLayout();
+      const team = (index: number, members: RankedPlayer[]): TeamView => ({
+        index,
+        ...TEAMS[index]!,
+        score: 0,
+        rank: 1,
+        memberIds: members.map((p) => p.id),
+      });
+      const red = team(0, twelve.slice(0, 8));
+      const blue = team(1, twelve.slice(8));
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView(twelve, { teams: [red, blue] }));
+      const column = (name: string) =>
+        within(screen.getByRole('region', { name })).getAllByRole('listitem');
+      // Each column's rows are counted from its own top in this fake, so Blue's 4 all fit.
+      expect(column('Red team').map((li) => li.textContent)).toEqual([
+        'Player 1',
+        'Player 2',
+        'Player 3',
+        'Player 4',
+        '+4 more',
+      ]);
+      expect(column('Blue team')).toHaveLength(4);
+    });
+  });
+
+  describe('portrait and narrow displays', () => {
+    it('stack the lobby: Game setup goes under the room, full width, and only a hosting lobby scrolls', () => {
+      hostScreen(lobbyView([ana]));
+      const setup = screen.getByRole('complementary', { name: 'Game setup' });
+      const lobby = setup.parentElement!;
+      expect(lobby.className).toContain('stage-narrow:flex-col');
+      expect(lobby.className).toContain('stage-narrow:overflow-y-auto');
+      expect(setup.className).toContain('stage-narrow:w-full');
+      cleanup();
+      localStorage.clear();
+
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView([ana]));
+      const plain = screen.getByRole('region', { name: 'Players' }).closest('.\\@container')!;
+      expect(plain.parentElement!.className).toContain('stage-narrow:flex-col');
+      expect(plain.parentElement!.className).not.toContain('overflow-y-auto');
+    });
+
+    it('put the join QR under the code in a narrow lobby column, larger', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView([ana]));
+      const qr = screen.getByTestId('qr');
+      expect(qr.getAttribute('class')).toContain('@max-[37.5rem]:size-[min(30vh,60cqw)]');
+      const row = screen.getByRole('heading', { level: 1, name: 'WXYZ' }).parentElement!
+        .parentElement!;
+      expect(row.className).toContain('@max-[37.5rem]:flex-col');
+    });
+
+    it('put an image under the question text, but leave a text-only question as it is', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', states[2]![1]);
+      const image = screen.getByRole('img', { name: 'Question image' });
+      expect(image.parentElement!.className).toContain('stage-portrait:flex-col');
+      expect(image.className).toContain('stage-portrait:w-full');
+      socket.fire('state', states[1]![1]);
+      const text = screen.getByRole('heading', { level: 1, name: question.text });
+      expect(text.parentElement!.className).not.toContain('stage-portrait:flex-col');
+      expect(text.className).not.toContain('stage-portrait:flex-none');
+    });
+
+    it('put "also buzzed" under the winner’s banner', () => {
+      const { socket } = renderScreen();
+      socket.fire('state', states[3]![1]);
+      const banner = screen.getByRole('region', { name: 'Buzz result' });
+      expect(banner.className).toContain('stage-portrait:flex-col');
+      const also = screen.getByRole('list', { name: 'Also buzzed' }).parentElement!;
+      expect(also.className).toContain('stage-portrait:max-w-full');
+    });
+  });
+
+  it('caps the room code and QR harder by height on an ultrawide display, so the chips keep room', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([ana]));
+    const code = screen.getByRole('heading', { level: 1, name: 'WXYZ' });
+    expect(code.className).toContain('ultrawide:text-[clamp(4rem,16.67cqw,20vh)]');
+    expect(screen.getByTestId('qr').getAttribute('class')).toContain(
+      'ultrawide:size-[min(24vh,28cqw)]',
+    );
+    expect(css).toContain('@custom-variant ultrawide (@media (min-aspect-ratio: 2/1));');
+  });
+
+  it('doubles the rem-sized Game setup only on a display 2560 wide and 1440 tall', () => {
+    hostScreen(lobbyView([ana]));
+    const setup = screen.getByRole('complementary', { name: 'Game setup' });
+    expect(setup.className).toContain(
+      '[@media(min-width:2560px)_and_(min-height:1440px)]:[zoom:2]',
+    );
+    expect(setup.className).not.toContain('min-[2560px]');
+  });
+
+  it('sizes 6-column board tiles by the column count as well, with a floor', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', states[6]![1]);
+    const board = screen.getByRole('region', { name: 'Category board' });
+    expect(board.style.getPropertyValue('--tile-text')).toBe('min(4.5vw, 4.50vw, 8vh)');
+    expect(within(board).getAllByText('1000')[0]!.className).toContain(
+      'max(var(--screen-min-body),var(--tile-text))',
+    );
+  });
+
+  it('caps the standings rail by the height, so it keeps its size on an ultrawide display', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', states[1]![1]);
+    const rail = screen.getByRole('complementary', { name: 'Standings' });
+    expect(rail.className).toContain('w-[min(17vw,30.3vh)]');
+  });
+
+  it('caps the Reconnecting banner by the height and floors it', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([ana]));
+    vi.useFakeTimers();
+    try {
+      socket.fire('disconnect', 'transport close');
+      act(() => vi.advanceTimersByTime(OFFLINE_AFTER_MS));
+      expect(screen.getByText('Reconnecting…').className).toContain(
+        'text-[max(var(--screen-min-body),min(3.2vw,5.7vh))]',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe('on a phone-sized display', () => {
+    const note = () => screen.queryByRole('note');
+    function phoneWidth(matches: boolean) {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        value: (query: string) => ({
+          matches: matches && query === '(max-width: 39.99rem)',
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+      });
+    }
+    afterEach(() => {
+      Reflect.deleteProperty(window, 'matchMedia');
+    });
+
+    it('says the Screen is made for a TV and where players join, until dismissed', () => {
+      phoneWidth(true);
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView([ana], { phase: 'QUESTION', questionIndex: 0, question }));
+      expect(note()!.textContent).toBe(
+        `The Screen is made for a TV or laptop. Players join at ${joinUrl}`,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+      expect(note()).toBeNull();
+    });
+
+    it('says nothing on a TV or laptop', () => {
+      phoneWidth(false);
+      const { socket } = renderScreen();
+      socket.fire('state', lobbyView([ana], { phase: 'QUESTION', questionIndex: 0, question }));
+      expect(note()).toBeNull();
+    });
+
+    it('says it in Taglish when the room is in Taglish', () => {
+      phoneWidth(true);
+      const { socket } = renderScreen();
+      socket.fire(
+        'state',
+        lobbyView([ana], {
+          phase: 'QUESTION',
+          questionIndex: 0,
+          question,
+          settings: { ...DEFAULT_SETTINGS, copy: 'taglish' },
+        }),
+      );
+      expect(note()!.textContent).toBe(
+        `Para sa TV o laptop ang Screen. Dito sumali ang mga player: ${joinUrl}`,
+      );
+    });
   });
 });

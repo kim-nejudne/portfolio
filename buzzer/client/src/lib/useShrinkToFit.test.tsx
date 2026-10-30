@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useShrinkToFit } from './useShrinkToFit.js';
+import { useShrinkToFit, type FitCounts } from './useShrinkToFit.js';
 
 afterEach(() => {
   cleanup();
@@ -163,5 +163,135 @@ describe('useShrinkToFit', () => {
       expect(px()).toBeLessThanOrEqual(15);
       expect(px()).toBeGreaterThan(14.5);
     });
+  });
+});
+
+describe('useShrinkToFit with overflow (F100)', () => {
+  /**
+   * jsdom has no layout: the box is `height` px tall at its top, and each item of a group is a
+   * 40px row of its own from the box's top, whatever the font size. An item marked `data-more`
+   * takes `moreRows` rows, as a long "+N more" might wrap.
+   */
+  function renderCut(
+    groups: Record<string, number>,
+    box: { height: number },
+    { overflow = true, moreRows = 1 }: { overflow?: boolean; moreRows?: number } = {},
+  ) {
+    const results: (FitCounts | null)[] = [];
+    function Cut() {
+      const ref = useRef<HTMLDivElement>(null);
+      const counts = useShrinkToFit(ref, 0.02, 14, 'a', overflow);
+      results.push(counts);
+      return (
+        <div ref={ref} data-box>
+          {Object.entries(groups).map(([key, total]) => {
+            const shown = counts?.[key] ?? total;
+            return (
+              <ul key={key} data-fit-group={key}>
+                {Array.from({ length: Math.min(shown, total) }, (_, i) => (
+                  <li key={i}>{i}</li>
+                ))}
+                {shown < total && <li data-more>+{total - shown} more</li>}
+              </ul>
+            );
+          })}
+        </div>
+      );
+    }
+    const rowsOf = (li: Element) => (li.hasAttribute('data-more') ? moreRows : 1);
+    const isBox = (el: Element) => el.hasAttribute('data-box');
+    vi.spyOn(Element.prototype, 'clientHeight', 'get').mockImplementation(function (this: Element) {
+      return isBox(this) ? box.height : 0;
+    });
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockImplementation(() => 1000);
+    // Each group is a column of its own, so the box's content is as tall as its tallest group.
+    vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(function (this: Element) {
+      if (!isBox(this)) return 0;
+      const heights = [...this.children].map(
+        (ul) => [...ul.children].reduce((sum, li) => sum + rowsOf(li), 0) * 40,
+      );
+      return Math.max(0, ...heights);
+    });
+    const rect = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      if (isBox(this)) return { ...rect.call(this), top: 0, bottom: box.height } as DOMRect;
+      if (this.tagName === 'LI') {
+        const before = [...this.parentElement!.children].slice(
+          0,
+          [...this.parentElement!.children].indexOf(this) + 1,
+        );
+        const bottom = before.reduce((sum, li) => sum + rowsOf(li), 0) * 40;
+        return { ...rect.call(this), top: bottom - 40, bottom } as DOMRect;
+      }
+      return rect.call(this);
+    });
+    const result = render(<Cut />);
+    const box_ = result.container.querySelector<HTMLElement>('[data-box]')!;
+    return {
+      counts: () => results.at(-1),
+      items: (key: string) =>
+        [...box_.querySelectorAll(`[data-fit-group="${key}"] > li`)].map((li) => li.textContent),
+      px: () => parseFloat(box_.style.fontSize),
+    };
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('cuts nothing while everything fits', () => {
+    const { counts, items } = renderCut({ all: 5 }, { height: 200 });
+    expect(counts()).toBeNull();
+    expect(items('all')).toHaveLength(5);
+  });
+
+  it('at the floor, keeps what fits less one, and "+N more" takes the last place', () => {
+    const { counts, items, px } = renderCut({ all: 12 }, { height: 200 });
+    expect(counts()).toEqual({ all: 4 });
+    expect(items('all')).toEqual(['0', '1', '2', '3', '+8 more']);
+    expect(px()).toBe(14);
+  });
+
+  it('cuts one more when "+N more" takes more room than the item it replaced', () => {
+    const { counts, items } = renderCut({ all: 12 }, { height: 200 }, { moreRows: 2 });
+    expect(counts()).toEqual({ all: 3 });
+    expect(items('all')).toEqual(['0', '1', '2', '+9 more']);
+  });
+
+  it('cuts only the groups that do not fit', () => {
+    const { items } = renderCut({ red: 8, blue: 4 }, { height: 200 });
+    expect(items('red')).toEqual(['0', '1', '2', '3', '+4 more']);
+    expect(items('blue')).toEqual(['0', '1', '2', '3']);
+  });
+
+  it('measures again from the whole list when the box is resized', () => {
+    let observed: ResizeObserverCallback = () => {};
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          observed = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const box = { height: 200 };
+    const { counts, items } = renderCut({ all: 12 }, box);
+    expect(counts()).toEqual({ all: 4 });
+    box.height = 400;
+    act(() => observed([], {} as ResizeObserver));
+    expect(counts()).toEqual({ all: 9 });
+    expect(items('all')).toHaveLength(10);
+    // A report of the same size does not measure again.
+    act(() => observed([], {} as ResizeObserver));
+    expect(counts()).toEqual({ all: 9 });
+  });
+
+  it('without overflow never cuts, as before', () => {
+    const { counts, items, px } = renderCut({ all: 12 }, { height: 200 }, { overflow: false });
+    expect(counts()).toBeNull();
+    expect(items('all')).toHaveLength(12);
+    expect(px()).toBe(14);
   });
 });

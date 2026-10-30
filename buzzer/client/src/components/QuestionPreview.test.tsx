@@ -138,6 +138,14 @@ describe('QuestionPreview stage and bar (F95)', () => {
     expect(stage.parentElement!.className).toContain('[container-type:size]');
   });
 
+  it('turns the Screen’s text floors off, so the stage stays a scaled-down TV (F100)', () => {
+    render(<Harness questions={[q('a')]} />);
+    const stage = screen.getByTestId('preview-stage');
+    for (const floor of ['label', 'body', 'name']) {
+      expect(stage.className).toContain(`[--screen-min-${floor}:0px]`);
+    }
+  });
+
   it('Show answer is the primary button; Close is a ✕ that does not outweigh it', () => {
     render(<Harness questions={[q('a')]} />);
     expect(toggle().className).toContain(BUTTON_PRIMARY_SMALL);

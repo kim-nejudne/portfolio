@@ -112,7 +112,7 @@ export function ScreenHostControls({
           aria-label="Host controls"
           onPointerEnter={() => setHovering(true)}
           onPointerLeave={() => setHovering(false)}
-          className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-[0.8vw] border-t-2 border-edge bg-bg-deep/95 px-[2vw] py-[1.2vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
+          className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-[min(0.8vw,1.43vh)] border-t-2 border-edge bg-bg-deep/95 px-[min(2vw,3.56vh)] py-[1.2vh] text-[clamp(0.875rem,1.1vw,1.75rem)]"
         >
           <GameButtons
             view={view}
@@ -120,7 +120,7 @@ export function ScreenHostControls({
             onNewGame={onNewGame}
             boardCursor={boardCursor}
           />
-          <span className="ml-auto flex gap-[0.8vw]">
+          <span className="ml-auto flex gap-[min(0.8vw,1.43vh)]">
             <BarButton keyHint="M" onClick={cycleSoundLevel}>
               {SOUND_LEVEL_LABEL[soundLevel]}
             </BarButton>
@@ -141,7 +141,7 @@ export function ScreenHostControls({
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className={`absolute right-[2vw] bottom-[1.2vh] rounded-full border-2 border-edge bg-surface px-[1.2vw] py-[0.6vh] text-[clamp(0.875rem,1.1vw,1.75rem)] ${HOVER}`}
+            className={`absolute right-[min(2vw,3.56vh)] bottom-[1.2vh] rounded-full border-2 border-edge bg-surface px-[min(1.2vw,2.14vh)] py-[0.6vh] text-[clamp(0.875rem,1.1vw,1.75rem)] ${HOVER}`}
           >
             Show controls <Kbd>H</Kbd>
           </button>
@@ -310,7 +310,7 @@ function BoardPick({
 }
 
 const BAR_BUTTON_SHAPE =
-  'rounded-[min(1.1vw,2vh)] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40';
+  'rounded-[min(1.1vw,2vh)] border-2 px-[min(1vw,1.78vh)] py-[0.6vh] transition disabled:opacity-40';
 const barButton = `${BAR_BUTTON_SHAPE} ${HOVER}`;
 
 interface BarButtonProps {
@@ -341,7 +341,10 @@ function BarButton({ children, keyHint, onClick, disabled, pressed, tone }: BarB
 
 function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd aria-hidden className="ml-[0.5vw] font-mono text-[0.8em] opacity-70">
+    <kbd
+      aria-hidden
+      className="ml-[min(0.5vw,0.89vh)] font-mono text-[max(var(--screen-min-label),0.8em)] opacity-70"
+    >
       {children}
     </kbd>
   );
@@ -354,14 +357,14 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-label="Keyboard shortcuts"
-        className="flex flex-col gap-[2vh] rounded-[2vh] border-2 border-edge bg-surface px-[3vw] py-[3vh] text-[clamp(1rem,1.6vw,2.5rem)]"
+        className="flex flex-col gap-[2vh] rounded-[2vh] border-2 border-edge bg-surface px-[min(3vw,5.34vh)] py-[3vh] text-[clamp(1rem,1.6vw,2.5rem)]"
       >
         <h2 className="font-display text-[1.4em]">Keyboard shortcuts</h2>
         <table>
           <tbody>
             {SHORTCUTS.map(({ keys, action }) => (
               <tr key={action}>
-                <td className="pr-[2vw] font-mono whitespace-nowrap text-accent">
+                <td className="pr-[min(2vw,3.56vh)] font-mono whitespace-nowrap text-accent">
                   {keys.join(' or ')}
                 </td>
                 <td>{action}</td>

@@ -42,9 +42,10 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
   return (
     <aside
       aria-label="Standings"
-      className="hidden w-[17vw] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1280px)_and_(min-height:720px)]:flex"
+      // Capped by height too, so an ultrawide display does not stretch it (F100).
+      className="hidden w-[min(17vw,30.3vh)] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1280px)_and_(min-height:720px)]:flex"
     >
-      <p className="shrink-0 text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] text-muted uppercase">
+      <p className="shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold tracking-[0.25em] text-muted uppercase">
         {t('standings')}
       </p>
       {teams && (
@@ -52,7 +53,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
           <ol
             ref={teamList}
             aria-label="Teams"
-            className="flex shrink-0 flex-col gap-[1vh] text-[min(1.6vw,2.8vh)]"
+            className="flex shrink-0 flex-col gap-[1vh] text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
           >
             {ranked.map((team) => (
               <li
@@ -75,7 +76,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
               </li>
             ))}
           </ol>
-          <p className="mt-[0.6vh] shrink-0 text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] text-muted uppercase">
+          <p className="mt-[0.6vh] shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold tracking-[0.25em] text-muted uppercase">
             {t('players')}
           </p>
         </>
@@ -83,7 +84,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
       <ol
         ref={list}
         aria-label={teams ? 'Players' : undefined}
-        className="flex min-h-0 flex-col gap-[1vh] text-[min(1.6vw,2.8vh)]"
+        className="flex min-h-0 flex-col gap-[1vh] text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
       >
         {top.map((player) => (
           <li

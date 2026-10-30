@@ -202,7 +202,7 @@ function PairingDialog({
           Hide{' '}
           <kbd
             aria-hidden
-            className="ml-[0.3em] hidden font-mono pointer-fine:inline text-[0.8em] opacity-70"
+            className="ml-[0.3em] hidden font-mono pointer-fine:inline text-[max(14px,0.8em)] opacity-70"
           >
             Esc
           </kbd>

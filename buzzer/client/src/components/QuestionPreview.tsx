@@ -78,7 +78,8 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
       <div className="grid min-h-0 flex-1 place-items-center [container-type:size]">
         <div
           data-testid="preview-stage"
-          className={`flex flex-col overflow-hidden bg-bg [container-type:size] ${STAGE_SIZE}`}
+          // No text floors: the stage is a scaled-down TV, not a small Screen (F100).
+          className={`flex flex-col overflow-hidden bg-bg [container-type:size] [--screen-min-body:0px] [--screen-min-label:0px] [--screen-min-name:0px] ${STAGE_SIZE}`}
         >
           <ScreenRail />
           <ScreenHeader

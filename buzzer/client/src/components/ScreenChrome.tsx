@@ -9,7 +9,8 @@ import { BulbRail } from './BulbRail.js';
  * In `cqw`/`cqh`, the window's on the Screen and the stage's in the editor's preview (EDT-08).
  */
 const SCREEN_BULBS = 40;
-const SCREEN_RAIL = 'px-[3.75cqw] py-[min(1.1cqw,1.94cqh)] [--bulb:min(0.94cqw,1.67cqh)]';
+const SCREEN_RAIL =
+  'px-[min(3.75cqw,6.67cqh)] py-[min(1.1cqw,1.94cqh)] [--bulb:min(0.94cqw,1.67cqh)]';
 
 /** The marquee rail along the top and bottom edge of every Screen state. */
 export function ScreenRail() {
@@ -44,10 +45,11 @@ export function ScreenHeader({
   url,
 }: ScreenHeaderProps) {
   const t = useCopy();
-  const pill = `${PILL} px-[1.6cqw] py-[min(0.5cqw,0.9cqh)] font-display text-[min(1.56cqw,2.8cqh)] whitespace-nowrap tabular-nums`;
+  // Every size has a floor for small displays (F100); the editor's preview turns the floors off.
+  const pill = `${PILL} px-[min(1.6cqw,2.85cqh)] py-[min(0.5cqw,0.9cqh)] font-display text-[max(var(--screen-min-label),min(1.56cqw,2.8cqh))] whitespace-nowrap tabular-nums`;
   return (
-    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[2cqw] px-[3.75cqw] py-[min(1.72cqw,3cqh)]">
-      <p className="font-display text-[min(3.125cqw,5.6cqh)] leading-none text-accent">
+    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[min(2cqw,3.56cqh)] px-[min(3.75cqw,6.67cqh)] py-[min(1.72cqw,3cqh)]">
+      <p className="font-display text-[max(var(--screen-min-body),min(3.125cqw,5.6cqh))] leading-none text-accent">
         {APP_NAME}
       </p>
       {numbered && tileLabel ? (
@@ -63,7 +65,7 @@ export function ScreenHeader({
         <div
           role="group"
           aria-label="How to join"
-          className="min-w-0 justify-self-end text-right text-[min(1.4cqw,2.5cqh)] leading-snug text-muted"
+          className="min-w-0 justify-self-end text-right text-[max(var(--screen-min-label),min(1.4cqw,2.5cqh))] leading-snug text-muted"
         >
           <p className="break-all">
             {t('joinAt')} <span className="font-bold text-ink">{displayUrl(url)}</span>

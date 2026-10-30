@@ -6,6 +6,17 @@
  */
 @custom-variant short (@media (max-height: 500px));
 
+/*
+ * The Screen's stage (F100). Its <main> is a size container, as is the set editor's 16:9 preview,
+ * so these follow the stage rather than the window: a preview is never portrait. `stage-narrow`
+ * also covers a landscape window under 1000px, where the lobby's columns no longer fit.
+ */
+@custom-variant stage-portrait (@container (orientation: portrait));
+@custom-variant stage-narrow (@container (orientation: portrait) or (width < 1000px));
+/* Wider than 2:1 (2560×1080, 3440×1440): the lobby is short for its width, so its biggest pieces
+   are capped by height harder than 16:9 needs. 1920×1080 is 16:9 and unaffected. */
+@custom-variant ultrawide (@media (min-aspect-ratio: 2/1));
+
 /* The set picker's bar stuck to the bottom of a phone or tablet (F93): a focused or scrolled-to
    set stops above it rather than under it. */
 @media (width < 64rem) {
@@ -189,6 +200,14 @@
   --red-ink-soft: var(--color-buzz-ink-soft);
   --green: var(--color-win);
   --green-ink: var(--color-win-ink);
+
+  /*
+   * The Screen's text floors (F100): labels, body text and names never render smaller than these,
+   * however small the display. The set editor's preview sets them to 0, so it stays a scaled TV.
+   */
+  --screen-min-label: 14px;
+  --screen-min-body: 18px;
+  --screen-min-name: 24px;
 }
 
 @layer base {

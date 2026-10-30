@@ -13,7 +13,7 @@ export function ReconnectingBanner() {
   return (
     <p
       role="status"
-      className="fixed inset-x-0 top-0 z-40 bg-warn py-[1.6vh] text-center font-display text-[3.2vw] text-accent-ink shadow-lg"
+      className="fixed inset-x-0 top-0 z-40 bg-warn py-[1.6vh] text-center font-display text-[max(var(--screen-min-body),min(3.2vw,5.7vh))] text-accent-ink shadow-lg"
     >
       {t('reconnecting')}
     </p>
