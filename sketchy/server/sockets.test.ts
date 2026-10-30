@@ -334,6 +334,29 @@ describe('host actions', () => {
     expect(s.rooms.get(CODE)!.phase).toBe('CHOOSING');
   });
 
+  it('host:settings: validated, applied for the token Screen, and in every view (F22)', async () => {
+    const s = await setup();
+    const screen = await s.connect();
+    await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken });
+    const ben = await joinPlayer(s, KEY_BEN, 'Ben');
+    expect(await screen.emit('host:settings', { drawSeconds: 50 })).toEqual({
+      ok: false,
+      error: 'invalidPayload',
+    });
+    expect(await screen.emit('host:settings', { drawSeconds: 80, cycles: 3 })).toEqual({
+      ok: true,
+    });
+    const seen = await ben.client.state((v) => v.settings.drawSeconds === 80);
+    expect(seen.settings.cycles).toBe(3);
+    const plain = await s.connect();
+    await plain.emit('screen:join', { code: CODE });
+    expect(await plain.emit('host:settings', { cycles: 1 })).toEqual({
+      ok: false,
+      error: 'notHost',
+    });
+    expect(s.rooms.get(CODE)!.settings.cycles).toBe(3);
+  });
+
   it('need a join first', async () => {
     const s = await setup();
     const stranger = await s.connect();

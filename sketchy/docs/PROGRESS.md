@@ -38,8 +38,78 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F19: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 560–640); (a) play a turn without guessing and watch the blanks on the TV and a guesser's phone at half time and three-quarter time; (b) next turn, have both guessers type the word; (c) on a third turn, one guesser gets it and the other locks their phone (or turns Wi-Fi off) · (a) one letter appears in the blanks at ~50% and a second at ~75% (only one for a 4–5 letter word, none for a 3-letter word), the same letters in the same places on the TV and every phone; (b) about 1.5 s after the last correct guess the turn ends and the TV and phones show "Everyone got it! 🎉" above "It was…", and on the small phone the reveal fits with no scrolling, even with a two-word answer; (c) the turn ends ~1.5 s after the first guesser got it, without waiting for the locked phone
 - [ ] F20: `npm run dev`, laptop Screen on the TV (Start), then 10 players (3 real phones plus bots from `/dev/bots/CODE`); play a 2-round game; repeat the scoreboard part on a portrait tablet Screen · after round 1 the TV shows "Round 1 of 2 done" with all 10 players ranked in two columns and the "Next ▶" button in its own row above the footer, covering no score; each phone shows "#N of 10" and its total; tied players share a medal or number; after round 2 the TV shows "Final scores" with no Next button; during turns no phone or TV shows a total, only "+N this turn"
 - [ ] F21: `npm run dev` + `npm run lan`, laptop Screen on the TV (Start), 3 real phones (one ≈ 360 × 560–640); play a 2-round game; (a) on turn 1, as soon as it ends, look at the next drawer's phone; (b) next drawer taps a card during the reveal; (c) on another turn the next drawer taps nothing; (d) on the last turn of round 1, the next round's first drawer picks during the scoreboard; (e) once, the next drawer locks their phone/turns Wi-Fi off during the reveal · (a) it buzzes and shows "You draw next! Pick a word", three cards and a ◔ countdown from about 12 s, while the TV and the other phones show the reveal and no card word; (b) the phone shows "✏️ You draw next! Get ready" and, when the reveal ends (8 s), the pad opens at once; (c) after the reveal the TV shows "… is choosing…" for about 4 s and then the easiest word is drawn; (d) the cards stay through "Round 1 of 2 done" and drawing starts right after the scoreboard; (e) when the reveal ends, the following player gets the cards instead; on the small phone the cards fit with no scrolling, and a tap that lands as the cards appear (mid-guess) doesn't pick a word
+- [ ] F22: `npm run dev`, laptop Screen on the TV (Start), 2 phones joined; from the couch (about 3–5 m): click **Settings ⚙** (top right), pick Quick, then Barkada Night, then Drawing time 100 s, then Esc; then reopen it, pick Classic and press Done; also try it on a tablet Screen in portrait · every label and pressed (orange) button is readable from the couch; the panel fits the TV with no scrolling; the orange highlight moves to the tapped preset, and "Presets · Custom" appears once 100 s is hand-picked; after Esc the lobby line reads "80 s · 3 rounds · Mixed words" with no preset name, after Classic it reads "Classic · 60 s · 2 rounds · Mixed words"; Tab never reaches Start while the panel is open; on the tablet the panel scrolls and every button is easy to tap
 
 <!-- entries below, newest first -->
+
+## F22 — Settings and presets (2026-10-30)
+**What changed:**
+- **Reducer:** `host:settings` (host only: a token Screen or the crown holder) merges a validated partial into `room.settings`, with no effects. Any setting in LOBBY; in every other phase (FINAL included) only `guessFeed`. A payload with a lobby-only key is refused whole with `wrongPhase`. An empty payload is a no-op. The gateway already zod-validated it (`partialSettingsSchema`, strict: `drawSeconds` must be 45/60/80/100).
+- **Client:**
+  - `lib/settings.ts`: `presetOf(settings)` is the preset whose `drawSeconds`/`cycles`/`hints` match, or null.
+  - `ScreenSettings.tsx`:
+    - `SettingsButton` ("Settings ⚙", top right of the token Screen's lobby).
+    - `ScreenSettings`, mounted while open: it sends `host:settings`, handles Esc, and focuses the dialog.
+    - `SettingsPanel` (presentational): the three presets with time, rounds and length; every setting as a row of `aria-pressed` buttons in the spec's order. Busy buttons use `aria-disabled` (focus stays) and ignore taps. A refusal shows "Could not change that. Try again." It is 1 column in portrait, 2 from 1:1 and 3 from 16:10, so it fits 1920×1080 without scrolling.
+  - `ScreenLobby`: owns the open state; the lobby behind the panel is `inert`, and focus returns to the button on close. The summary line now leads with the active preset ("Classic · 60 s · 2 rounds · Mixed words", `presetSummary`).
+  - `copy.ts`: the settings strings (English; Taglish with F45).
+- **Tests:**
+  - `server/reducer.settings.test.ts` (new, 21):
+    - the defaults (60 s);
+    - a partial merge, every drawing time, every setting at once, each preset's values;
+    - an empty no-op, and a later start using the new drawing time;
+    - the crown holder allowed; a plain Screen, a player and a stale `isHost` refused;
+    - `guessFeed` accepted in CHOOSING, DRAWING, REVEAL, SCOREBOARD and FINAL with no phase or timer change;
+    - every lobby-only key refused in each of those phases, plus a mixed payload;
+    - a non-host refused mid-game;
+    - a mid-turn switch to clean re-masking a feed guess already in the Screen view, and off emptying it.
+  - `sockets.test.ts` (+1): `drawSeconds: 50` → `invalidPayload`; the token Screen's change reaches a phone's view; a plain Screen gets `notHost`.
+  - `client/src/lib/settings.test.ts` (new, 4) and `ScreenSettings.test.tsx` (new, 5): every setting and value listed, the default highlights, "Custom", the error line, the button only on the token Screen, and the preset in the summary.
+- No new dependencies.
+
+**Decisions:** DECISIONS 45 covers:
+- the phases;
+- a mixed mid-game payload refused whole;
+- FINAL counted as mid-game;
+- presets shown by `drawSeconds`/`cycles`/`hints`;
+- the panel's layout and behaviour;
+- where the mid-game `guessFeed` controls land (F24, F25).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 45, this entry and the Kim check. Its "DECISIONS 38 is the wrong citation" was checked: row 38 does define view-time masking, so the comment stands. The mid-game `guessFeed` UI is F24 (`G`, the control bar) and F25 (the crown drawer), so it is not in Backlog.
+- **secrets-fairness: PASS.** No leak; the handler touches only `settings`. Optional: a rate limit on `host:settings` (host-only and cheap), added to Backlog.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - the lobby `inert` behind the panel;
+  - `aria-disabled` instead of `disabled`, so focus isn't dropped;
+  - the error reset on reopen (the panel remounts);
+  - "About 4–5 min" as in the spec;
+  - "Game text" for `copy`, so it can't be confused with Words;
+  - text at 3.2vmin, with legends at 80% and the preset lines at full opacity;
+  - the 1:1 and 16:10 column breakpoints;
+  - the summary as a copy template.
+
+**Notes for next session:**
+- **F24:** the `G` key and the control bar send `host:settings {guessFeed}`; the reducer already allows it in any phase.
+- **F25:** the crown phone's "Change" can reuse `SettingsPanel` (it takes `settings`, `sending`, `error`, `onSend`, `onClose`). The phone's drawer needs only the `guessFeed` row.
+- **F45:** add the settings strings to the Taglish table.
+- **F48:** custom words go in this panel (the spec's "the settings and custom words").
+
+**How to try it:**
+- Unit tests: `npx vitest run server/reducer.settings.test.ts server/sockets.test.ts client/src/lib/settings.test.ts client/src/components/screen`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), then **Settings ⚙**. Pick a preset or any value; the highlight follows the server's snapshot, and the lobby line updates.
+- Automated: `npm run playtest -- .playtest/F22/scenario.ts` (gitignored). It runs a TV Screen, 2 phones and a portrait phone Screen. All steps pass:
+  - the 45/60/80/100 options with 60 s pressed;
+  - 80 s applied through the snapshot;
+  - Quick and Barkada Night become active;
+  - the panel fits 1920×1080 without scrolling, with the lobby inert behind it;
+  - hints off → "Custom";
+  - Esc returns focus to the button;
+  - the summary names the preset;
+  - no Settings button after Start;
+  - the portrait Screen's panel scrolls.
+  - Screenshots: `.playtest/F22/panel-open-tv-screen.png`, `panel-open-portrait-portrait.png`. No console errors.
+  - Not covered through the UI: the mid-game restriction, since no UI sends it yet (F24/F25); the unit tests cover it.
+
 
 ## F21 — Overlapped choosing (2026-10-30)
 **What changed:**

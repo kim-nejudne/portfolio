@@ -11,12 +11,14 @@
 import {
   ALL_GUESSED_MS,
   CHOOSE_MS,
+  DEFAULT_SETTINGS,
   CLOSE_GUESSES_MAX,
   FEED_MAX,
   GRACE_MS,
   GUESS_INTERVAL_MS,
   HINT_AT,
   MAX_PLAYERS,
+  MID_GAME_SETTINGS,
   MIN_PLAYERS,
   NAME_OF_DISCONNECTED_ERROR,
   PLAYER_COLORS,
@@ -31,6 +33,7 @@ import type {
   Player,
   ReduceError,
   Room,
+  RoomSettings,
   Sender,
   Turn,
   TurnEndReason,
@@ -88,6 +91,8 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return skip(d, action, now, fx);
     case 'host:next':
       return next(d, action, now, fx);
+    case 'host:settings':
+      return settings(d, action);
     case 'timer':
       return timer(d, action, now, fx);
     case 'sys:connected':
@@ -103,7 +108,6 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'host:resume':
     case 'host:kick':
     case 'host:crown':
-    case 'host:settings':
     case 'host:customWords':
     case 'host:end':
     case 'host:rematch':
@@ -672,6 +676,24 @@ function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Han
   if (d.paused) return 'paused';
   if (d.phase === 'REVEAL') afterReveal(d, now, fx);
   else afterScoreboard(d, now, fx);
+  return undefined;
+}
+
+/**
+ * Merges a validated partial into the settings: any key in LOBBY, only `guessFeed` once the game
+ * has started (FINAL too; a rematch keeps the game's settings). One lobby-only key refuses the
+ * whole payload, as the schema does for a bad value. Nothing else changes: views read the settings
+ * at view time, so a new `guessFeed` re-masks a feed already on screen (DECISIONS 38).
+ */
+function settings(d: Room, a: ActionOf<'host:settings'>): Handled {
+  if (!isHost(d, a.by)) return 'notHost';
+  // The action carries the settings beside `type` and `by`; only setting keys are read.
+  const changes = (Object.keys(DEFAULT_SETTINGS) as (keyof RoomSettings)[]).filter(
+    (key) => a[key] !== undefined,
+  );
+  const midGame: readonly string[] = MID_GAME_SETTINGS;
+  if (d.phase !== 'LOBBY' && changes.some((key) => !midGame.includes(key))) return 'wrongPhase';
+  d.settings = { ...d.settings, ...Object.fromEntries(changes.map((key) => [key, a[key]])) };
   return undefined;
 }
 

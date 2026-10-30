@@ -54,12 +54,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F21 Overlapped choosing
 
-- [ ] F22 Settings and presets
-  - Spec: Settings; Reducer actions and effects (Actions)
-  - Depends: F20
-  - Done when:
-    - `host:settings` with validation (`drawSeconds` 45/60/80/100, default 60); presets are a client-side shortcut sending `host:settings`; Screen lobby settings panel; only `guessFeed` changeable mid-game
-  - Tests: `reducer.settings.test.ts`
+- [x] F22 Settings and presets
 
 - [ ] F23 Late join and turn order
   - Spec: Game flow and state machine (Turn order); Reconnects, security and edge cases (Edge cases); UI by role and phase (Guesser phone)
@@ -307,5 +302,6 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - PNG download of a gallery drawing: 1024 × 1024 plus a caption band "tsinelas · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
 - `drawer:choose` with an optional `turnId`, refused when it doesn't match the open choice, so a late duplicate tap from one CHOOSING can't pick the next `upcoming` deal when the sole connected player draws back-to-back (F21 review).
 - The next drawer's phone: a one-line "It was {word}" strip above the "You draw next!" cards, and focus moved to the cards' heading on mount and to the "Get ready" line after a tap (F21 review).
+- A per-socket rate limit on `host:settings` (host-only and a cheap merge, but each one broadcasts every view) (F22 review).
 - Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).
