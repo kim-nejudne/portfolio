@@ -10,12 +10,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F01 Project skeleton and tooling
 
-- [ ] F02 Shared types, schemas and constants
-  - Spec: Data model (Room state); Settings; Reducer actions and effects (Actions)
-  - Depends: F01
-  - Done when:
-    - `shared/types.ts`, `shared/schemas.ts` (zod for every socket payload), `shared/constants.ts` (palettes, limits, timings, presets) match the spec
-  - Tests: `schemas.test.ts` — each payload schema accepts a valid example and rejects bad ones
+- [x] F02 Shared types, schemas and constants
 
 - [ ] F03 Rooms, codes and RoomStore
   - Spec: Roles and devices (Creating and joining a room); Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security)

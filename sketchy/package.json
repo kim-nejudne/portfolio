@@ -20,7 +20,8 @@
     "playtest": "tsx scripts/playtest/run.ts"
   },
   "dependencies": {
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
