@@ -22,13 +22,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F07 Screen page v0
 
-- [ ] F08 Player page v0
-  - Spec: UI by role and phase (Landing page, Drawer phone, Guesser phone); Canvas and drawing tools (Stopping scroll and zoom)
-  - Depends: F05, F06
-  - Done when:
-    - Join by code with a name; lobby waiting screen; rejoin on refresh
-    - Drawer: the word (small, in the top bar) and a black-pen square pad with scroll, zoom and pull-to-refresh locked; the pad follows the Drawer layout sizing, with no scroll and no overflow at 360 × 560, 390 × 664 and 412 × 780
-    - Guesser: timer, blanks, guess box, "✓ You got it! +N" without the word; reveal and final screens
+- [x] F08 Player page v0
 
 - [ ] F09 Dev tool: fake players
   - Spec: Ported from Buzzr; Test plan (Automated tests)
