@@ -9,6 +9,7 @@ import {
   exportAllFileName,
   exportFileName,
   exportSetFile,
+  fillFromTitle,
   IMPORT_ERRORS_SHOWN,
   IMPORT_FILE_MAX_BYTES,
   parseImportFile,
@@ -433,5 +434,108 @@ describe('Export all and import many', () => {
     expect(exportAllFileName(new Date(2027, 0, 5, 0, 5).getTime())).toBe(
       'buzzr-sets-2027-01-05.json',
     );
+  });
+});
+
+describe('a bare array of sets (F102)', () => {
+  const level = (title: string, extra: Partial<QuestionSet> = {}): QuestionSet => ({
+    ...SET,
+    id: title.toLowerCase().replace(/\W+/g, '-'),
+    title,
+    questions: [SET.questions[0]!],
+    ...extra,
+  });
+
+  it('imports each entry as its own set, like an Export all file', () => {
+    const parsed = parseImportFile(
+      JSON.stringify([level('Math – Easy'), level('Math – Medium'), level('Math – Hard')]),
+    );
+    if (parsed.kind !== 'many') throw new Error('Expected a many-set file');
+    expect(parsed.sets.map((entry) => entry.label)).toEqual([
+      'Set 1 “Math – Easy”',
+      'Set 2 “Math – Medium”',
+      'Set 3 “Math – Hard”',
+    ]);
+    expect(
+      parsed.sets.map(
+        ({ parsed: entry }) => entry.ok && [entry.set.category, entry.set.difficulty],
+      ),
+    ).toEqual([
+      ['Math', 'easy'],
+      ['Math', 'medium'],
+      ['Math', 'hard'],
+    ]);
+  });
+
+  it('checks each entry on its own, and refuses an empty array', () => {
+    const parsed = parseImportFile(
+      JSON.stringify([level('Math – Easy'), { ...level('Math – Medium'), questions: [] }, 7]),
+    );
+    if (parsed.kind !== 'many') throw new Error('Expected a many-set file');
+    expect(parsed.sets.map(({ label, parsed: entry }) => [label, entry.ok])).toEqual([
+      ['Set 1 “Math – Easy”', true],
+      ['Set 2 “Math – Medium”', false],
+      ['Set 3', false],
+    ]);
+    expect(parseImportFile('[]')).toEqual({ kind: 'bad', errors: ['The file has no sets'] });
+  });
+
+  it('reads a starter file with the two fields stripped back to its three sets', async () => {
+    const { default: animals } = await import('../../../shared/starterSets/animals.json', {
+      with: { type: 'json' },
+    });
+    const stripped = animals.map((set) => {
+      const copy: Partial<typeof set> = { ...set };
+      delete copy.category;
+      delete copy.difficulty;
+      return copy;
+    });
+    const parsed = parseImportFile(JSON.stringify(stripped));
+    if (parsed.kind !== 'many') throw new Error('Expected a many-set file');
+    const sets = parsed.sets.map(({ parsed: entry }) => {
+      if (!entry.ok) throw new Error(entry.errors.join('\n'));
+      return entry.set;
+    });
+    expect(sets).toEqual(animals);
+  });
+
+  it('fills category and difficulty from the title on a single-set file too', async () => {
+    const one = parseImportFile(await exportSetFile(level('Animals – Easy'), loadImage));
+    expect(one.kind === 'one' && one.parsed.ok && one.parsed.set).toMatchObject({
+      title: 'Animals – Easy',
+      category: 'Animals',
+      difficulty: 'easy',
+    });
+  });
+});
+
+describe('fillFromTitle (F102)', () => {
+  const fill = (title: string) => fillFromTitle({ ...SET, title });
+
+  it('reads the topic and the level across an en dash, a hyphen or an em dash', () => {
+    for (const title of ['Pop Culture – Easy', 'Pop Culture - easy', 'Pop Culture — EASY']) {
+      expect(fill(title)).toMatchObject({ title, category: 'Pop Culture', difficulty: 'easy' });
+    }
+    expect(fill('  Math  –  Hard  ')).toMatchObject({ category: 'Math', difficulty: 'hard' });
+  });
+
+  it('leaves a title without a spaced level alone', () => {
+    for (const title of ['Pub quiz', 'Math–Easy', 'Math – Expert', 'Easy', 'Math – Easy round']) {
+      const set = fill(title);
+      expect([set.category, set.difficulty]).toEqual([undefined, undefined]);
+    }
+  });
+
+  it('leaves a set that has either field as it is', () => {
+    const category = { ...SET, title: 'Math – Easy', category: 'Numbers' };
+    const difficulty = { ...SET, title: 'Math – Easy', difficulty: 'hard' as const };
+    expect(fillFromTitle(category)).toEqual(category);
+    expect(fillFromTitle(difficulty)).toEqual(difficulty);
+  });
+
+  it('sets only the difficulty when the topic is longer than a category may be', () => {
+    const set = fill(`${'x'.repeat(41)} – Medium`);
+    expect([set.category, set.difficulty]).toEqual([undefined, 'medium']);
+    expect(fill(`${'x'.repeat(40)} – Medium`).category).toBe('x'.repeat(40));
   });
 });

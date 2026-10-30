@@ -268,6 +268,10 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F101 Screen host bar and overlays
 
+## M25 — Import
+
+- [x] F102 Import a bare array of sets
+
 ## Bugs
 
 ## Backlog (not scheduled)

@@ -10,6 +10,18 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F102 — Import a bare array of sets (2026-10-30)
+**What changed:**
+- `parseImportFile` (`client/src/lib/importExport.ts`) reads a top-level JSON array like an Export all file: each entry through `parseSetValue`, labelled by `entryLabel`, via a new shared `parseEntries`. `[]` is refused with "The file has no sets". `Sets.tsx` needed no change: its `many` branch imports the good sets, lists the bad ones and shows "Imported 3 sets.".
+- New `fillFromTitle(set)`, called in `parseSetValue`, so every import path uses it. A set with neither `category` nor `difficulty` whose title is "<topic> – Easy|Medium|Hard" (en dash, hyphen or em dash, spaced; level in any case) gets `difficulty`, and gets `category` when the topic is 1–40 characters. The title is unchanged.
+- Tests: `importExport.test.ts` +8 (array file, per-entry errors and empty array, a starter file with both fields stripped deep-equals `animals.json`, the single-set path, and 4 `fillFromTitle` cases). `Sets.test.tsx` +2 (an array upload stores 3 sets with category and level; importing the same array twice stores it twice). 2617 tests. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-10-30 for F102 (the array shape; the title rule and its 40-character edge).
+
+**Notes for next session:** sets imported in one go share almost the same `updatedAt`, so a starter file's group lists Hard, Medium, Easy (the last imported is newest). Export all files behave the same way. 17 of the 20 bundled topics in `~/Downloads/buzzr-starter` differ from `shared/starterSets` once `category` and `difficulty` are ignored (e.g. `language.json`). Kim chose not to update the built-ins here.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets`, then **Backup ▾ › Import JSON** with `~/Downloads/buzzr-starter/ph-showbiz.json`. Expect "Imported 3 sets." and three cards under "Philippine Showbiz Chika", each with its level. The Easy chip leaves only the Easy set.
+
 ## F101 — Screen host bar and overlays (2026-10-30)
 **What changed:**
 - **Host bar (SCR-09, SCR-11):** `ScreenHostControls` is one row (`flex-nowrap`; it wraps only on a `stage-narrow` stage).

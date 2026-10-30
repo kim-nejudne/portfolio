@@ -1,11 +1,16 @@
 // **Export JSON** and **Import JSON** on the set list (Set list; Images). One file carries a whole
 // set: the set's own fields plus `images`, each referenced image once as a base64 data URL.
-// **Export all** writes `{sets: [...]}`, each entry such a set file, and import accepts either.
+// **Export all** writes `{sets: [...]}`, each entry such a set file, and import accepts either, or a
+// bare array of set files (the starter file shape, F102).
 
 import { z } from 'zod';
-import { IMAGE_MAX_BYTES, MAX_QUESTIONS_PER_SET } from '../../../shared/constants.js';
+import {
+  IMAGE_MAX_BYTES,
+  MAX_QUESTIONS_PER_SET,
+  SET_CATEGORY_MAX,
+} from '../../../shared/constants.js';
 import { idSchema, questionSetSchema } from '../../../shared/schemas.js';
-import type { QuestionSet } from '../../../shared/types.js';
+import type { Difficulty, QuestionSet } from '../../../shared/types.js';
 import type { StoredImage } from './db.js';
 import { checkPlayable } from './hostRoom.js';
 
@@ -218,7 +223,8 @@ function parseSetValue(json: unknown): ParsedSetFile {
     return refuse(result.error.issues.map((i) => `${describePath(i.path)}: ${i.message}`));
   }
 
-  const { images: dataUrls = {}, ...set } = result.data;
+  const { images: dataUrls = {}, ...parsed } = result.data;
+  const set = fillFromTitle(parsed);
   const errors: string[] = [];
   const images = new Map<string, StoredImage>();
   for (const [index, { imageId }] of set.questions.entries()) {
@@ -233,6 +239,26 @@ function parseSetValue(json: unknown): ParsedSetFile {
   if (errors.length > 0) return refuse(errors);
   // Images no question references are dropped.
   return { ok: true, set, images: [...images.values()] };
+}
+
+/** "Animals – Easy", "Animals - easy", "Animals — EASY": the topic, then the level (F102). */
+const TITLE_LEVEL = /^(.+?)\s+[–—-]\s+(easy|medium|hard)$/i;
+
+/**
+ * A set with neither `category` nor `difficulty` gets both from a "<topic> – <level>" title, the
+ * starter files' naming (F102). The category is left off when the topic is longer than allowed.
+ */
+export function fillFromTitle(set: QuestionSet): QuestionSet {
+  if (set.category !== undefined || set.difficulty !== undefined) return set;
+  const match = TITLE_LEVEL.exec(set.title.trim());
+  if (!match) return set;
+  const category = match[1]!.trim();
+  const difficulty = match[2]!.toLowerCase() as Difficulty;
+  // SPEC-QUESTION: the spec has no title rule; a topic too long for a category keeps only the level
+  // (DECISIONS F102).
+  return category.length <= SET_CATEGORY_MAX
+    ? { ...set, category, difficulty }
+    : { ...set, difficulty };
 }
 
 const manyFileSchema = z.object({
@@ -253,13 +279,18 @@ function entryLabel(entry: unknown, index: number): string {
 }
 
 /**
- * Reads a single-set file or an **Export all** file (an object with `sets` and no `questions`).
- * Each set of a many-set file is checked on its own, so the good ones can still be imported.
+ * Reads a single-set file, an **Export all** file (an object with `sets` and no `questions`), or a
+ * bare array of sets (F102). Each set of a many-set file is checked on its own, so the good ones can
+ * still be imported.
  */
 export function parseImportFile(text: string): ParsedImportFile {
   const parsed = parseJson(text);
   if (!parsed.ok) return { kind: 'bad', errors: [parsed.error] };
   const { json } = parsed;
+  if (Array.isArray(json)) {
+    if (json.length === 0) return { kind: 'bad', errors: ['The file has no sets'] };
+    return { kind: 'many', sets: parseEntries(json) };
+  }
   const isMany =
     typeof json === 'object' &&
     json !== null &&
@@ -273,11 +304,12 @@ export function parseImportFile(text: string): ParsedImportFile {
     const errors = result.error.issues.map((i) => `${describePath(i.path)}: ${i.message}`);
     return { kind: 'bad', errors: capErrors(errors) };
   }
-  return {
-    kind: 'many',
-    sets: result.data.sets.map((entry, index) => ({
-      label: entryLabel(entry, index),
-      parsed: parseSetValue(entry),
-    })),
-  };
+  return { kind: 'many', sets: parseEntries(result.data.sets) };
+}
+
+function parseEntries(entries: unknown[]): { label: string; parsed: ParsedSetFile }[] {
+  return entries.map((entry, index) => ({
+    label: entryLabel(entry, index),
+    parsed: parseSetValue(entry),
+  }));
 }

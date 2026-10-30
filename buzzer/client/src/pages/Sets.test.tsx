@@ -740,6 +740,46 @@ describe('Set list /sets, My sets', () => {
       expect((await listSets()).map((set) => set.title).sort()).toEqual(['First', 'Third']);
     });
 
+    it('Import JSON of a bare array adds each set, with category and level from its title', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const textOnly = SAMPLE_SET.questions.filter((q) => q.imageId === undefined);
+      const levels = ['Easy', 'Medium', 'Hard'];
+      chooseFile(
+        JSON.stringify(
+          levels.map((l) => ({ ...SAMPLE_SET, title: `Math – ${l}`, questions: textOnly })),
+        ),
+        'math.json',
+      );
+
+      expect(await screen.findByRole('listitem', { name: 'Math – Easy' })).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toBe('Imported 3 sets.');
+      expect(screen.queryByRole('alert')).toBeNull();
+      const stored = (await listSets()).sort((a, b) => a.title.localeCompare(b.title));
+      expect(
+        stored.map(({ title, category, difficulty }) => [title, category, difficulty]),
+      ).toEqual([
+        ['Math – Easy', 'Math', 'easy'],
+        ['Math – Hard', 'Math', 'hard'],
+        ['Math – Medium', 'Math', 'medium'],
+      ]);
+    });
+
+    it('Import JSON of the same bare array twice adds its sets twice', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const textOnly = SAMPLE_SET.questions.filter((q) => q.imageId === undefined);
+      const file = JSON.stringify(
+        ['Easy', 'Hard'].map((l) => ({ ...SAMPLE_SET, title: `Math – ${l}`, questions: textOnly })),
+      );
+      chooseFile(file, 'math.json');
+      await screen.findByRole('listitem', { name: 'Math – Easy' });
+      chooseFile(file, 'math.json');
+
+      await waitFor(async () => expect(await listSets()).toHaveLength(4));
+      expect(new Set((await listSets()).map((set) => set.id)).size).toBe(4);
+    });
+
     it('Import JSON of a many-set file still shows the sets stored before a failed write', async () => {
       renderSets();
       await card(SAMPLE_SET.title);
