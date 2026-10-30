@@ -12,6 +12,10 @@ const production = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || DEFAULT_PORT;
 // Behind nginx in production: TRUST_PROXY=1 so rate limits key on the client's address.
 const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+if (production && trustProxy === false) {
+  // Behind nginx every phone would share one address, and with it 10 new joins a minute for the site.
+  console.warn('TRUST_PROXY is not set: behind a proxy, every player shares one rate limit.');
+}
 
 // In development Vite serves the client; in production the compiled server sits in dist/server.
 const clientDir = production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
@@ -41,6 +45,7 @@ const httpServer = createServer(
 // socket acts, by which time `inkGateway` is set.
 const { io, dispatch } = attachSockets(httpServer, {
   rooms,
+  trustProxy,
   onInk: (code, effect) => inkGateway.onInk(code, effect),
 });
 const inkGateway = attachInkGateway(io, { rooms, dispatch });

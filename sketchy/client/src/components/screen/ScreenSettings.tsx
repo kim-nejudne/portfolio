@@ -167,7 +167,7 @@ export function ScreenSettings({
     setError(null);
     try {
       const res = await socket.timeout(5000).emitWithAck('host:settings', changes);
-      if (!res.ok) setError(t('settingsFailed'));
+      if (!res.ok) setError(t(res.error === 'rateLimited' ? 'tooFast' : 'settingsFailed'));
     } catch {
       setError(t('settingsFailed'));
     } finally {

@@ -16,6 +16,7 @@ import {
   type ControlId,
   type HostCommand,
 } from '../../lib/hostKeys.js';
+import { hostRefusalCopy } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { PlayersDialog } from './PlayersDialog.js';
 import {
@@ -166,8 +167,8 @@ function TokenScreenControls({
       try {
         const res = await socket.timeout(ACK_TIMEOUT_MS).emitWithAck(event, payload as never);
         // Other refusals (the phase moved on, a race) need no message: the next `state` shows it.
-        if (!res.ok && res.error === 'notAvailable') setStatus(t('notYet'));
-        else if (!res.ok && res.error === 'notEnoughPlayers') setStatus(t('needTwoPlayers'));
+        const message = res.ok ? null : hostRefusalCopy(res.error);
+        if (message) setStatus(t(message));
       } catch {
         setStatus(t('hostActionFailed'));
       } finally {

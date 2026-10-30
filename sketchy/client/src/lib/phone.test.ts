@@ -117,6 +117,13 @@ describe('joinOutcome', () => {
     });
   });
 
+  it('too many joins from one address says so, at the name step (F44)', () => {
+    expect(joinOutcome({ ok: false, error: 'rateLimited' })).toEqual({
+      status: 'form',
+      error: 'joinTooMany',
+    });
+  });
+
   it('a taken name or a full room goes back to the name step with its message', () => {
     expect(joinOutcome({ ok: false, error: 'nameTaken' })).toEqual({
       status: 'form',

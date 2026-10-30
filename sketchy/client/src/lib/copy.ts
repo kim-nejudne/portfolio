@@ -121,6 +121,7 @@ const EN = {
   guessFeedNow: 'Guess feed: {feed}',
   notYet: 'That’s coming in a later update',
   hostActionFailed: 'Could not do that. Try again.',
+  tooFast: 'Too fast. Wait a moment and try again.',
   // ---------- Host: players list (token Screen and crown phone) ----------
   ctlPlayers: 'Players',
   playersTitle: 'Players',
@@ -157,6 +158,7 @@ const EN = {
   roomFull: 'That game is full.',
   removed: 'You were removed from this game',
   joinFailed: 'Could not join. Try again.',
+  joinTooMany: 'Too many people joined from this network just now. Try again in a minute.',
   areYou: 'Are you {name}?',
   areYouHint: '{name}’s phone is offline. Rejoin to keep their points.',
   rejoinAs: 'Rejoin as {name}',

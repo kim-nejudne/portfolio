@@ -2,7 +2,7 @@
 // it, and the next snapshot shows the result. Only the outcomes a host can act on get a message.
 
 import { useCallback, useEffect, useState } from 'react';
-import type { ClientPayloads } from '../../../shared/types.js';
+import type { AckError, ClientPayloads } from '../../../shared/types.js';
 import type { CopyKey, Translate } from './copy.js';
 import type { HostEvent } from './hostKeys.js';
 import type { GameSocket } from './socket.js';
@@ -10,6 +10,24 @@ import type { GameSocket } from './socket.js';
 const ACK_TIMEOUT_MS = 5000;
 /** How long a hint or a refusal stays up. */
 export const STATUS_MS = 3000;
+
+/**
+ * The message for a refused host action, or null when the next snapshot says enough (the phase
+ * moved on, a race). Shared by the crown phone's drawer and the Screen's controls.
+ */
+export function hostRefusalCopy(error: AckError): CopyKey | null {
+  switch (error) {
+    case 'notAvailable':
+      return 'notYet';
+    case 'notEnoughPlayers':
+      return 'needTwoPlayers';
+    // Over HOST_ACTION_RATE_LIMIT (F44): only a stuck key or a frantic tapper gets here.
+    case 'rateLimited':
+      return 'tooFast';
+    default:
+      return null;
+  }
+}
 
 /**
  * Sends `event` and resolves with the copy key to show, or null. Offline it sends nothing:
@@ -26,10 +44,7 @@ export async function sendHost<E extends HostEvent>(
     const res = await socket
       .timeout(ACK_TIMEOUT_MS)
       .emitWithAck(event as HostEvent, payload as never);
-    if (res.ok) return null;
-    if (res.error === 'notAvailable') return 'notYet';
-    if (res.error === 'notEnoughPlayers') return 'needTwoPlayers';
-    return null;
+    return res.ok ? null : hostRefusalCopy(res.error);
   } catch {
     return 'hostActionFailed';
   }

@@ -7,9 +7,14 @@
 // `toView` for every socket in the room → run the effects. See "Realtime events and HTTP API".
 
 import { createHash } from 'node:crypto';
-import type { Server as HttpServer } from 'node:http';
+import type { Server as HttpServer, IncomingMessage } from 'node:http';
+import express from 'express';
+import proxyaddr from 'proxy-addr';
 import { Server, type Socket } from 'socket.io';
 import {
+  HOST_ACTION_RATE_LIMIT,
+  JOIN_RATE_LIMIT,
+  MAX_PLAYERS,
   PING_RATE_LIMIT,
   REACTION_INTERVAL_MS,
   VISIBILITY_RATE_LIMIT,
@@ -35,7 +40,7 @@ import type {
 } from '../shared/types.js';
 import { addRttSample, medianRtt, oneWayMs } from './fairness.js';
 import { verifyHostToken } from './hostToken.js';
-import { createRateLimiter } from './rateLimit.js';
+import { createRateLimiter, type RateLimit } from './rateLimit.js';
 import { reduce } from './reducer.js';
 import type { RoomStore } from './roomStore.js';
 import { toView } from './views.js';
@@ -80,6 +85,10 @@ export interface GatewayOptions {
   scheduler?: Scheduler;
   /** Receives `inkOpen`, `inkClose`, `inkReset` and `doodleDrop` for the room `code`. */
   onInk?: (code: string, effect: InkEffect) => void;
+  /** Express's `trust proxy` value, so the join limit sees the same client address as HTTP. */
+  trustProxy?: boolean | number | string;
+  /** `player:join` per client address. Tests may lower or raise it. */
+  joinRateLimit?: RateLimit;
 }
 
 /** Reduces `action` in room `code`, stores it, sends every socket its view and runs the effects. */
@@ -113,6 +122,8 @@ export function attachSockets(
     monotonic = () => performance.now(),
     scheduler = defaultScheduler,
     onInk = () => {},
+    trustProxy = false,
+    joinRateLimit = JOIN_RATE_LIMIT,
   }: GatewayOptions,
 ): Gateway {
   const io: GatewayServer = new Server(httpServer, {
@@ -124,6 +135,17 @@ export function attachSockets(
     maxHttpBufferSize: SOCKET_MAX_BUFFER_BYTES,
   });
 
+  // Ported from Buzzr: Express compiles `trust proxy` (hop count, list or boolean) into the
+  // function `req.ip` uses, so behind nginx the join limit keys on the phone's address.
+  const trust = express().set('trust proxy', trustProxy).get('trust proxy fn') as (
+    addr: string,
+    i: number,
+  ) => boolean;
+  const clientIp = (req: IncomingMessage) => proxyaddr(req, trust);
+
+  const joinLimiter = createRateLimiter(joinRateLimit, monotonic);
+  // Keyed by socket id, as the spec says: a Screen and a crown phone each get their own 10 a second.
+  const hostLimiter = createRateLimiter(HOST_ACTION_RATE_LIMIT, monotonic);
   // Keyed by socket id: one phone's pings can't use up another's.
   const pingLimiter = createRateLimiter(PING_RATE_LIMIT, monotonic);
   // Keyed by room and pid: one reaction a second per player, however many phones they use.
@@ -279,6 +301,8 @@ export function attachSockets(
     };
 
     const asHost = (build: (by: Sender) => Action): Ack => {
+      // Every try counts, refused or not, so a socket can't hammer the host checks either.
+      if (!hostLimiter.hit(socket.id)) return fail('rateLimited');
       const s = sender();
       if (typeof s === 'string') return fail(s);
       // The reducer checks again: a player sender must still hold the crown.
@@ -303,6 +327,14 @@ export function attachSockets(
     handle(socket, 'player:join', ({ code, playerKey, name, takeOver, hidden }) => {
       if (socket.data.role) return fail('alreadyJoined');
       const keyHash = hashPlayerKey(playerKey);
+      // SPEC-QUESTION: a rejoin by a key the room knows never counts, so a barkada reloading
+      // together behind one Wi-Fi always gets back in. Nor does a plain join to a full room: the
+      // 11th friend reads "That game is full", not "try again in a minute". Every other join
+      // counts, refused or not, takeovers included (DECISIONS 66).
+      const players = Object.values(rooms.get(code)?.players ?? {});
+      const known = players.some((p) => p.keyHash === keyHash);
+      const counts = !known && (takeOver === true || players.length < MAX_PLAYERS);
+      if (counts && !joinLimiter.hit(clientIp(socket.request))) return fail('rateLimited');
       let pid: string | undefined;
       const res = commit(
         code,

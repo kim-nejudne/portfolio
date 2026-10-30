@@ -106,12 +106,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F43 Reconnect every role
 
-- [ ] F44 Rate limits and limits
-  - Spec: Reconnects, security and edge cases (Security); Drawing data protocol (Limits)
-  - Depends: F43
-  - Done when:
-    - Every limit in Security and Limits is enforced with a friendly message on the client
-  - Tests: `rateLimit.test.ts` cases for guesses, reactions, joins, ink
+- [x] F44 Rate limits and limits
 
 ## M8 — Language and content
 
@@ -214,3 +209,5 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Display font swap: a metric-matched fallback `@font-face` (`local('Roboto')`/`local('Arial')` with `size-adjust` and ascent/descent overrides) so headings don't reflow when Fredoka arrives on a slow Android (F39 review).
 - A catch-all route (`*` → Landing or a "No such page" with a link home); unknown paths render blank today, as they did with react-router (F39 review).
 - Play's Leave: `navigate('/', {replace: true})` so Back doesn't return to the join form of the game just left (needs `replace` in `client/src/lib/router.tsx`) (F39 review).
+- Join limit hardening (F44 secrets-fairness should-fixes): a looser per-key cap on rejoins by a known key (a joined player can loop connect + rejoin, each a commit and a broadcast); key IPv6 addresses on their /64 and fold `::ffff:a.b.c.d` into the IPv4 form.
+- Screen lobby: clear a Start refusal ("Too fast", "Could not start") after `STATUS_MS`, as the host bar does, so the player-count hint comes back (F44 mobile-ux should-fix).

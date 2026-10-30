@@ -56,7 +56,15 @@ export function ScreenLobby({
     try {
       const res = await socket.timeout(5000).emitWithAck('host:start', {});
       if (!res.ok)
-        setError(res.error === 'notEnoughPlayers' ? t('needTwoPlayers') : t('startFailed'));
+        setError(
+          t(
+            res.error === 'notEnoughPlayers'
+              ? 'needTwoPlayers'
+              : res.error === 'rateLimited'
+                ? 'tooFast'
+                : 'startFailed',
+          ),
+        );
     } catch {
       setError(t('startFailed'));
     } finally {

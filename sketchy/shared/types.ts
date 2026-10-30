@@ -376,7 +376,8 @@ export type GatewayError =
   | 'notHost'
   | 'notDrawer' // `/ink`: a batch from anyone but the current drawer
   | 'staleTurn' // `/ink`: a batch for a turn that is no longer current
-  // Over a per-socket limit (`ping`, `/ink` batches, hellos, gets) or per-player (`player:react`).
+  // Over a per-socket limit (`ping`, host actions, `/ink` hellos and gets), per player (`player:react`,
+  // `/ink` batches) or per client address (`player:join` by a key the room doesn't know).
   | 'rateLimited'
   | 'inkFull' // `/ink`: the canvas is full; the batch's new strokes were dropped, the rest applied
   | 'inkGap' // `/ink`: a batch after a missing `seq`; dropped, and `ink:resend` asks for the gap

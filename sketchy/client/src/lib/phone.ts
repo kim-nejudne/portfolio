@@ -115,6 +115,8 @@ export function joinOutcome(res: Ack): JoinOutcome {
       return { status: 'form', error: 'nameTaken' };
     case 'roomFull':
       return { status: 'form', error: 'roomFull' };
+    case 'rateLimited':
+      return { status: 'form', error: 'joinTooMany' };
     default:
       return { status: 'form', error: 'joinFailed' };
   }
