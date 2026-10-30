@@ -17,9 +17,11 @@ import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
 import { keepPinging } from '../lib/ping.js';
 import { createScreenFx } from '../lib/screenFx.js';
+import { playSound, preloadSounds, soundForFx, startSounds } from '../lib/sounds.js';
 import { usePointerCoarse } from '../lib/usePointerCoarse.js';
 import { useScreenLayout } from '../lib/useScreenLayout.js';
 import { createInkSocket, createSocket } from '../lib/socket.js';
+import { useScreenSounds } from '../lib/useScreenSounds.js';
 import { useWakeLock } from '../lib/wakeLock.js';
 
 type Status = 'connecting' | 'live' | 'ended';
@@ -97,6 +99,8 @@ export function Screen() {
     let needTwoTimer: ReturnType<typeof setTimeout> | undefined;
     socket.on('fx', (fx) => {
       turnFx.push(fx);
+      const sound = soundForFx(fx);
+      if (sound) playSound(sound);
       if (fx.kind === 'wordsReshuffled') {
         setReshuffled(true);
         clearTimeout(reshuffleTimer);
@@ -152,13 +156,18 @@ export function Screen() {
     };
   }, [code, socket, ink, doodles, turnFx, debug]);
 
+  // Howler starts downloading at once, so the tap can unlock audio without waiting for it.
+  useEffect(preloadSounds, []);
+
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
+  useScreenSounds(view, state?.at ?? 0);
 
-  // Inside the gesture, as browsers require. The wake lock follows from `started`; F38 unlocks
-  // audio here too.
+  // Inside the gesture, as browsers require: fullscreen, audio (F38), and from `started` on, the
+  // wake lock.
   const start = () => {
     enterFullscreen();
+    void startSounds();
     setStarted(true);
   };
   const startOverlay = !started && <StartOverlay coarse={coarse} onStart={start} t={t} />;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
-import type { PlayerView } from '../../../shared/types.js';
+import type { Fx, PlayerView } from '../../../shared/types.js';
 import {
   addOwnGuess,
   createPointerGate,
@@ -8,6 +8,7 @@ import {
   DRAWER_TOOL_ROW_PX,
   drawerPadSize,
   drawerSideways,
+  fxVibration,
   gainedCrown,
   guessAnswer,
   phoneWakeLock,
@@ -251,5 +252,22 @@ describe('phoneWakeLock (F37)', () => {
   it('lets the phone sleep in the lobby and with no game view', () => {
     expect(phoneWakeLock(v('LOBBY'))).toBe(false);
     expect(phoneWakeLock(null)).toBe(false);
+  });
+});
+
+describe('fxVibration', () => {
+  it('vibrates on "your turn" and on nothing else', () => {
+    expect(fxVibration({ kind: 'yourTurn' })).toBe(200);
+    const silent: Fx[] = [
+      { kind: 'crowned' },
+      { kind: 'correct', pid: 'p1', points: 270, order: 1 },
+      { kind: 'nearMiss' },
+      { kind: 'wrong' },
+      { kind: 'hint' },
+      { kind: 'closeAlert', pid: 'p2' },
+      { kind: 'turnEnd', reason: 'time' },
+      { kind: 'notEnoughPlayers' },
+    ];
+    expect(silent.map(fxVibration)).toEqual(silent.map(() => null));
   });
 });

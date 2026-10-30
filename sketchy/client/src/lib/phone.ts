@@ -2,7 +2,7 @@
 // answer means for the page, and the pad's first-pointer rule. Presentation only.
 
 import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
-import type { Ack, PlayerView, TimerView } from '../../../shared/types.js';
+import type { Ack, Fx, PlayerView, TimerView } from '../../../shared/types.js';
 import type { CopyKey } from './copy.js';
 
 /** The top bar: the word (small), the timer, "2 of 4 got it" and the latest guess. */
@@ -190,4 +190,15 @@ export function createPointerGate(): PointerGate {
       return true;
     },
   };
+}
+
+/** How long the drawer's phone vibrates on "your turn". */
+export const YOUR_TURN_VIBRATE_MS = 200;
+
+/**
+ * How long an `fx` vibrates this phone, or null. Phones are otherwise silent (Overview: Sound):
+ * "your turn" is the only vibration and the only cue a phone makes.
+ */
+export function fxVibration(fx: Fx): number | null {
+  return fx.kind === 'yourTurn' ? YOUR_TURN_VIBRATE_MS : null;
 }

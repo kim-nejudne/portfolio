@@ -24,6 +24,7 @@ import { createConnection } from '../lib/connection.js';
 import { translator, type CopyKey } from '../lib/copy.js';
 import {
   addOwnGuess,
+  fxVibration,
   gainedCrown,
   joinOutcome,
   phoneWakeLock,
@@ -45,7 +46,6 @@ import { useWakeLock } from '../lib/wakeLock.js';
 type Status = 'form' | 'joining' | 'live' | 'ended' | 'removed';
 
 const ACK_TIMEOUT_MS = 5000;
-const YOUR_TURN_VIBRATE_MS = 200;
 const CROWN_TOAST_MS = 4000;
 /** Room codes are four letters from the code alphabet; anything else can't be a game. */
 const CODE_PATTERN = /^[A-Z]{4}$/;
@@ -189,7 +189,8 @@ export function Play() {
       setState({ view, at: performance.now() });
     });
     socket.on('fx', (fx) => {
-      if (fx.kind === 'yourTurn') navigator.vibrate?.(YOUR_TURN_VIBRATE_MS);
+      const vibrate = fxVibration(fx);
+      if (vibrate !== null) navigator.vibrate?.(vibrate);
       if (fx.kind === 'notEnoughPlayers') setNeedTwoToast((n) => n + 1);
       if (fx.kind === 'closeAlert') closeAlert.push(fx.pid);
       if (fx.kind === 'wrong' || fx.kind === 'nearMiss') {

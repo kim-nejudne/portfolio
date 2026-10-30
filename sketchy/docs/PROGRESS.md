@@ -53,8 +53,73 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F35: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 3+ real phones; also a tablet held upright as a second Screen (`/screen/CODE`) · turn 1: two phones guess right (the slower phone first if you can) and one types a near miss and a wrong guess: at the reveal the word pops in, the biggest text on the TV and readable from the sofa, "Got it" lists the guessers in the order the server credited them with their points, "Almost:" shows the near miss then the wrong guess (never more than three, never the same guess twice), and "+N for Mika’s drawing" shows; turn 2: nobody guesses right (one wrong guess) and let the time run out: "Nobody got it! 😱" heads the panel above "It was…" (in the tablet's top bar too), and below the word there is no "Got it" and no points, only "Almost:"; no "+0" anywhere, and no speech bubble lingers into the reveal; set Guess feed Off (G) and play a turn with a near miss and a wrong guess: "Almost:" lists only the near miss (say if you'd rather Off showed the wrong guesses at the reveal too, DECISIONS 57); with Reduce motion on, the word appears without growing in
 - [ ] F36: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (one small Android if you have one, one iPhone) · on the drawer's phone, pick a word and don't draw: about 10 s in, "Start with one big shape. Anything helps!" appears just above the pad (on a small phone it sits over the pad's top edge) and the pad doesn't move; start a stroke right on that text: the line draws and the text is gone for the rest of the turn (Clear doesn't bring it back); have a guesser type a wrong guess: "Bea: sapatos" appears on the drawer's second line; have another type a near miss (the word plus "ko", or one letter off): "Cy is close!" shows there in amber for about 2 s, readable at arm's length but not from the next seat, then the wrong guess comes back; the Screen and the other phones never show the near miss; with VoiceOver/TalkBack on the drawer's phone, the nudge and "is close!" are read out
 - [ ] F37: `npm run dev` + `npm run lan CODE`, open the **Screen URL printed by `npm run lan`** (the LAN address, not localhost) on the laptop on the TV, plus a tablet or spare phone as a second Screen, and 3 real phones (one iPhone, one small Android if you have one) · on each Screen, "Click to start" (laptop) or "Tap to start" (tablet) covers the page: one tap goes fullscreen (not on an iPhone Screen) and the Screen doesn't dim or sleep for 15 minutes on battery; the lobby QR scans with each phone's camera from the sofa (≈ 2–3 m; note the farthest distance that works, see the Backlog's QR line) and opens `/play/CODE` on the LAN address; "🔌 Keep this device plugged in" shows on the tablet or phone Screen and not on the laptop (also try an Android TV or Chromecast browser if you have one: it may report no pointer and show "Click to start" with no note); during a game no phone dims or locks (lobby phones may); turn on airplane mode on one phone: the dot in its top-right corner goes amber at once, red after about 5 s, and back to green with the same name and score within a few seconds of turning it off; try Wi-Fi with no internet (unplug the router's WAN) for the amber after about 6 s
+- [ ] F38: `npm run dev` + `npm run lan CODE`, the laptop Screen on the TV with its speakers on, plus an iPad or iPhone as a second Screen with its ringer switch on silent, and 3 real phones; tap/click to start on each Screen, play a game of 2 short turns (let one run out of time), then end it · each phone joining gives a short pop; each new turn a two-note chime; each correct guess a ding; the last 10 s of a turn tick once a second, stopping while paused and picking up after; a timed-out turn gives a low double buzz, then the sting as the word pops in; FINAL plays the fanfare; nothing is cut short or doubled; the iPad/iPhone Screen plays everything with the ringer switch on silent; after locking and unlocking the iPad (or taking a call), one tap brings its sound back; `M` (or the bar's Sound button) cycles Sound on / Quiet / Muted, and the tick is still audible on Quiet from the sofa (≈ 2–3 m); only the drawer's phone buzzes on "your turn", and no phone makes a sound
 
 <!-- entries below, newest first -->
+
+## F38 — Sounds (2026-10-31)
+**What changed:**
+- **Sounds** (`client/src/lib/sounds.ts`, new; ported from Buzzr's `sounds.ts`): seven Screen sounds, `join`, `yourTurn`, `correct`, `tick`, `timeUp`, `reveal` and `fanfare`, synthesised by `scripts/make-sounds.mjs` (new, ported from Buzzr's) into `client/public/sounds/*.wav` (about 260 KB, with a README: self-made, nothing to license).
+- **When they play** (DECISIONS 60):
+  - `fx join` → pop, `fx correct` → ding (`soundForFx`, in `Screen.tsx`'s `fx` handler).
+  - `transitionSounds(prev, next)` reads the snapshot: a new turn id in CHOOSING or DRAWING chimes; entering REVEAL plays the sting, 600 ms after `timeUp` when `endReason` is `time`; entering FINAL plays the fanfare. A Screen's first snapshot plays nothing, so a reload mid-game is quiet.
+  - The last-10-s tick (`nextTick`): each whole second from 10 to 1 in DRAWING, counted locally from the snapshot's timer like `useCountdown`. A pause stops it, the resume snapshot picks it up again, a second is never ticked twice in a turn, and one already passed is skipped, not played late.
+  - `createScreenSounds` runs both from snapshots; `useScreenSounds` (new) feeds it in `Screen.tsx`.
+- **Levels:** Sound on / Quiet / Muted is Howler's global volume at 1 / 0.4 / 0. F24's `soundPref` now notifies listeners, so `M` and the bar's Sound button apply at once, and it keeps the level in memory when storage is blocked.
+- **Loading and unlock:** Howler is a lazy chunk (9.6 KB gzipped) that only the Screen chunk imports. The Screen starts fetching it on mount. Tap to start (`start()`) then, inside the gesture: sets iOS's `audioSession.type = 'playback'` (plays through the ringer switch), creates the sounds, plays a one-sample silent buffer and resumes the AudioContext. Every later tap, click or key re-unlocks while the context isn't running (a tap before Howler arrived, an iOS interruption). `autoSuspend` is off, so the first tick of a long turn isn't late. A tick whose file is still loading is dropped, not played late. Before the tap nothing plays.
+- **Phones** vibrate 200 ms on `fx yourTurn` and nothing else (`fxVibration` in `client/src/lib/phone.ts`, used by `Play.tsx`). They never load Howler or a sound file.
+- **New dependencies:** `howler` and `@types/howler` (dev, like the other client packages). The spec names Howler for the Screen's sounds.
+- **Tests:**
+  - `client/src/lib/sounds.test.ts` (new, 31):
+    - `soundForFx`: join and correct, every other fx silent;
+    - `transitionSounds`: the first snapshot is quiet; the chime on the first deal, the next turn, a word chosen ahead, after SCOREBOARD and a rematch, and not within a turn; time-up then the sting at +600 ms on a timed-out reveal, the sting alone otherwise; the fanfare once; back to the lobby is quiet;
+    - `nextTick`: 10 to 1, skipping a passed second, no repeat after a resync;
+    - `createScreenSounds` with fake timers: 10 ticks then time-up and the sting; silent while paused and resumed from the new clock; no double tick on a mid-countdown snapshot; each turn counts from 10; `stop` cancels a waiting sting and tick;
+    - Howler (mocked): every file exists; nothing before start; unlock inside the tap with Howler preloaded; a later tap or key unlocks while not running and not once running; `autoSuspend` off; the iOS audio session; a loading tick dropped; the stored level before any sound and every change after; one start; silent on failure;
+    - `soundPref`: kept across a reload and in memory when storage is blocked.
+  - `phone.test.ts` (+1 `fxVibration`: `yourTurn` only).
+
+**Decisions:** DECISIONS 60 (each sound's moment, the tick under pause and resync, time-up before the sting, the quiet first snapshot, the levels, the lazy load and unlock, phone vibration, plain Screens without `M`).
+
+Reviews:
+- **spec-checker: FAIL**, all for missing pieces at review time:
+  - DECISIONS 60 (cited by the SPEC-QUESTION) wasn't written yet;
+  - the PROGRESS entry and Kim check were missing;
+  - only the first playtest run's failure screenshots were in `.playtest/F38`;
+  - the hook had no test.
+  
+  All fixed: the decision, this entry and the Kim check are written, the stale screenshots are removed, the playtest passes, and the hook's timing moved into `createScreenSounds` with fake-timer tests.
+- **mobile-ux: PASS WITH FIXES.**
+  - Must-fix, the unlock lost when Howler arrives after the tap: fixed. The tap unlocks synchronously with the preloaded module, plays a silent buffer, and later gestures retry.
+  - Should-fix, all applied: iOS `audioSession` playback; `autoSuspend` off; recovery after an interruption, by the retry listener; a tick that's still loading is dropped, with a dev `onloaderror` log.
+  - Nits: Quiet's tick is in the Kim check; there's now a dev log when Howler fails.
+  
+  Not changed: a `maxAge` on `/sounds` (a server change; revalidation is a cheap 304).
+- **secrets-fairness:** not run, since `server/`, `shared/` and ink code are unchanged.
+
+**Playtest:**
+- **`.playtest/F38/scenario.ts`** (playtester: a 1920×1080 Screen; Ana on a Pixel 7, Ben on an iPhone 13, Cara on a Pixel 7), re-run after the review fixes. It reads the Screen's dev `[sound] name` lines and stubs `navigator.vibrate`. All pass:
+  - three `join`s;
+  - `yourTurn` on the deal; only Ana's phone vibrates (`[200]`);
+  - no word in the Screen's or the guessers' HTML before the reveal;
+  - `M` cycles quiet, muted, on;
+  - `correct`, then `reveal` with no `timeUp` when all guessed;
+  - turn 2 timed out: 10 `tick`s, `timeUp`, then `reveal`;
+  - `E E` ends the game and plays `fanfare`;
+  - phones load no Howler and no `.wav`, and the Screen loads Howler and all seven.
+- No console errors.
+- Not exercised: what's actually audible, the iOS unlock and ringer switch, and Quiet from the sofa (Kim check).
+
+**Notes for next session:**
+- **F39:** `/` + `/play` is 119.1 KB gzipped (budget 120). Howler (9.6 KB) is in its own chunk, and the Screen chunk is 23.0 KB.
+- **F45:** no new copy keys.
+- The Backlog has `M` and a sound button for plain (no-token) Screens.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/sounds.test.ts client/src/lib/phone.test.ts`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F38/scenario.ts` (about 2 minutes: it waits out a 60 s turn).
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), click "Click to start", add bots at `/dev/bots/CODE`, and listen: the joins, the chime on the deal, the ticks in the last 10 s, the time-up and the sting, and the fanfare after End game (E, E). Press M to cycle the level.
+- To change a sound: edit `scripts/make-sounds.mjs` and run `node scripts/make-sounds.mjs`.
 ## F37 — QR, tap-to-start, wake lock and connection dot (2026-10-31)
 **What changed:**
 - **Lobby QR** (`client/src/lib/qr.ts`, new): `qrPath` draws the code from `qrcode`'s matrix as one SVG path (error correction M, 4-module quiet zone, 29 modules for a join URL). `JoinQr` in `ScreenLobby.tsx` sits beside the join details, before How to play, on every Screen. It points to this Screen's own origin + `/play/CODE`. Below 640 px wide or 480 px tall, "Code:" goes above the letters and the QR shrinks into what's left (min 64 px), so it never covers the code.

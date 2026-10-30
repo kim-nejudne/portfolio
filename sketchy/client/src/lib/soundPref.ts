@@ -7,6 +7,10 @@ export type SoundLevel = (typeof SOUND_LEVELS)[number];
 
 const KEY = 'sketchy:sound';
 
+// The level when storage can't be written: it lasts until the page is closed.
+let memoryLevel: SoundLevel = 'on';
+const listeners = new Set<(level: SoundLevel) => void>();
+
 export function nextSoundLevel(level: SoundLevel): SoundLevel {
   return SOUND_LEVELS[(SOUND_LEVELS.indexOf(level) + 1) % SOUND_LEVELS.length]!;
 }
@@ -14,16 +18,30 @@ export function nextSoundLevel(level: SoundLevel): SoundLevel {
 export function loadSoundLevel(): SoundLevel {
   try {
     const stored = globalThis.localStorage?.getItem(KEY);
-    return SOUND_LEVELS.find((l) => l === stored) ?? 'on';
+    return SOUND_LEVELS.find((l) => l === stored) ?? memoryLevel;
   } catch {
-    return 'on';
+    return memoryLevel;
   }
 }
 
 export function saveSoundLevel(level: SoundLevel): void {
+  memoryLevel = level;
   try {
     globalThis.localStorage?.setItem(KEY, level);
   } catch {
-    // Not kept: it still applies until the page reloads.
+    // Kept in memory only, until the page is closed.
   }
+  for (const listener of listeners) listener(level);
+}
+
+/** Calls `listener` with every new level. Returns the unsubscribe. */
+export function subscribeSoundLevel(listener: (level: SoundLevel) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Forgets the in-memory level, for tests. */
+export function resetSoundLevel(): void {
+  memoryLevel = 'on';
+  listeners.clear();
 }
