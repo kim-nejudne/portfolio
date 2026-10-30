@@ -549,6 +549,16 @@ export interface RoomExistsResponse {
   full: boolean;
 }
 
+/**
+ * Dev only (`NODE_ENV !== 'production'`): `GET /api/dev/rooms/:code/word`, so a dev bot can guess
+ * right on demand. The one deliberate way a word leaves the server before REVEAL; production
+ * never registers the route.
+ */
+export interface DevWordResponse {
+  turnId: number | null;
+  word: string | null; // null until the drawer has a word
+}
+
 /** Body of every HTTP error response, shaped like a failed `Ack`. */
 export interface HttpErrorBody {
   ok: false;

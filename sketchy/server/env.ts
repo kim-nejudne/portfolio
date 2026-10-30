@@ -11,3 +11,12 @@ export function parseTrustProxy(value: string | undefined): boolean | number | s
   if (value === 'true') return true;
   return /^\d+$/.test(value) ? Number(value) : value;
 }
+
+/**
+ * Dev tools (the `/api/dev` routes for `/dev/bots`) are opt-in: only `NODE_ENV=development`, which
+ * `npm run dev` sets. Unset or anything else is off, so a deploy that forgets `NODE_ENV` stays
+ * closed rather than serving the word.
+ */
+export function devToolsEnabled(nodeEnv: string | undefined): boolean {
+  return nodeEnv === 'development';
+}

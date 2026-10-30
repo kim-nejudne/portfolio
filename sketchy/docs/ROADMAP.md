@@ -24,12 +24,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F08 Player page v0
 
-- [ ] F09 Dev tool: fake players
-  - Spec: Ported from Buzzr; Test plan (Automated tests)
-  - Depends: F07, F08
-  - Done when:
-    - `/dev/bots/:code` (only when `NODE_ENV !== 'production'`) adds N bots that guess random words; a dev-only `GET /api/dev/rooms/:code/word` lets a bot guess right on demand; one bot can draw a scripted doodle as the drawer
-    - **M1 acceptance:** a laptop Screen and 3 real phones on the LAN play a full cycle; every player draws once; the drawing appears live on the Screen; correct guesses score
+- [x] F09 Dev tool: fake players
 
 ## M2 — Fair and secret
 

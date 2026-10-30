@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names server,client --prefix-colors cyan,magenta \"tsx watch --clear-screen=false server/index.ts\" \"vite\"",
+    "dev": "concurrently --kill-others-on-fail --names server,client --prefix-colors cyan,magenta \"NODE_ENV=development tsx watch --clear-screen=false server/index.ts\" \"vite\"",
     "build": "vite build && tsc -p tsconfig.build.json",
     "start": "NODE_ENV=production node dist/server/index.js",
     "test": "vitest run",

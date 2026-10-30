@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PORT } from '../shared/constants.js';
-import { parseTrustProxy } from './env.js';
+import { devToolsEnabled, parseTrustProxy } from './env.js';
 import { createApp } from './http.js';
 import { attachInkGateway } from './inkGateway.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
@@ -16,7 +16,15 @@ const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 const clientDir = production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
 
 const rooms = new InMemoryRoomStore();
-const httpServer = createServer(createApp({ clientDir, rooms, clock: Date.now, trustProxy }));
+const httpServer = createServer(
+  createApp({
+    clientDir,
+    rooms,
+    clock: Date.now,
+    trustProxy,
+    dev: devToolsEnabled(process.env.NODE_ENV),
+  }),
+);
 
 // The ink gateway needs `io`, and `io` needs the ink effects handler. Effects only run once a
 // socket acts, by which time `inkGateway` is set.

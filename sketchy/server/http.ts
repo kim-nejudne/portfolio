@@ -9,6 +9,7 @@ import {
 import { createRoomBodySchema, roomCodeSchema } from '../shared/schemas.js';
 import type {
   CreateRoomResponse,
+  DevWordResponse,
   HealthResponse,
   HttpErrorBody,
   RoomExistsResponse,
@@ -32,6 +33,11 @@ export interface AppOptions {
    * Off by default: trusting `X-Forwarded-For` without a proxy lets anyone dodge the rate limit.
    */
   trustProxy?: boolean | number | string;
+  /**
+   * Development tools (Dev tool: fake players): `GET /api/dev/rooms/:code/word`. Off by default;
+   * `index.ts` turns it on only for `NODE_ENV=development` (`devToolsEnabled`).
+   */
+  dev?: boolean;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -60,6 +66,7 @@ export function createApp({
   clock = Date.now,
   rng = Math.random,
   trustProxy = false,
+  dev = false,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -118,6 +125,21 @@ export function createApp({
       full: room !== undefined && Object.keys(room.players).length >= MAX_PLAYERS,
     } satisfies RoomExistsResponse);
   });
+
+  // Dev only: the current word, so a dev bot can guess right on demand. Never registered in
+  // production, and nothing logs the answer. In `npm run dev` the server is reachable from the
+  // LAN (for phones), so anyone on the Wi-Fi who knows the code can read the word: a dev trade-off.
+  if (dev) {
+    app.get('/api/dev/rooms/:code/word', (req, res) => {
+      const code = roomCodeSchema.safeParse(req.params.code);
+      const room = code.success ? rooms.get(code.data) : undefined;
+      if (!room) return sendError(res, 404, 'No game with that code.');
+      res.json({
+        turnId: room.turn?.id ?? null,
+        word: room.turn?.word?.word ?? null,
+      } satisfies DevWordResponse);
+    });
+  }
 
   app.use('/api', (_req, res) => sendError(res, 404, 'Not found.'));
   app.use('/api', apiErrors);

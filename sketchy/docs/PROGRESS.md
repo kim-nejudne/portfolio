@@ -20,8 +20,29 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F08: on an iPhone (Safari) and a budget Android (Chrome), join a game with `npm run dev` + `npm run lan`, start with 3 players, and on the drawer's phone: pinch, double-tap and drag down from the top of the pad while drawing · the page never zooms, scrolls or pull-to-refreshes, a second finger or palm leaves no line, and the pad, word bar and both toolbar rows fit with nothing cut off
 - [ ] F08: on a guesser's phone, type a wrong guess and tap ➤, then lock the phone for 10 s, unlock, and pull down to refresh · the keyboard stays up after ➤ and the box stays above it; after unlocking and after the refresh the phone comes back to the same game as the same player (no name step, same points)
+- [ ] F09 (M1 acceptance): `npm run dev`, then `npm run lan CODE` after starting a game on the laptop (Screen on the TV); join from 3 real phones on the same Wi-Fi, Start, and play a full cycle (each phone draws once; guess each other's drawings) · every player gets exactly one drawing turn, each stroke appears live on the TV within a blink, correct guesses show ✓ and points on the Screen and the guesser's phone, and the game ends at Final scores. Then open `http://<laptop>:5173/dev/bots/CODE` in a laptop tab before Start, spawn 2 bots and play again · bots join, guess random words in the feed, and draw the house doodle on their turn
 
 <!-- entries below, newest first -->
+
+## F09 — Dev tool: fake players (2026-10-30)
+**What changed:**
+- `server/http.ts`: dev-only `GET /api/dev/rooms/:code/word` → `{turnId, word}` (`DevWordResponse` in `shared/types.ts`), registered only with `createApp({dev: true})`. `server/env.ts` `devToolsEnabled(NODE_ENV)` is true only for `development`, which `npm run dev` now sets on the server command; unset, `production` or anything else → 404 (fails closed).
+- `client/src/dev/bots.ts`: `createBot` is a real player socket (`player:join` with fixed key `sketchy-dev-bot-0000k`, name "Bot k", rejoins on reconnect, 5 s ack timeout with retry). It opens `/ink` only after the join. It auto-guesses decoy Tagalog words every 3–8 s while it may guess. `guessRight()` fetches the dev word and drops it if the turn moved on; the panel never shows the word. `draw()` plays the scripted doodle through `inkSender`: one step per 20 ms, held while paused, stopped when the turn ends, auto once per turn when drawing. `leave()` = `player:leave` + close both sockets. `client/src/dev/doodle.ts`: a house, door and sun as pen steps ≤ 24 grid units. `client/src/dev/fakeSocket.ts`: a test double, adapted from Buzzr.
+- `client/src/pages/DevBots.tsx` at `/dev/bots/:code`, registered in `App.tsx` only when `import.meta.env.DEV` (lazy chunk). Spawn N (1–10), Remove all, toggles "Guess random words by themselves" / "Draw the doodle on their turn" (both on), "Everyone: random guess" / "Everyone: guess right". Per bot: status, role, last message, and Guess / Guess right / Draw. No new dependencies.
+
+**Decisions:** DECISIONS 31–32. The dev endpoint is opt-in on `NODE_ENV=development`, stricter than the roadmap's `!== 'production'`: both reviewers flagged that as failing open. Bots: fixed keys, decoy words, the doodle script, no pings and no word choosing. Reviews:
+- spec-checker: PASS WITH FIXES. Applied: the M1 Kim check, DECISIONS rows, and the production-bundle grep as evidence.
+- secrets-fairness: PASS WITH FIXES. No leak paths. Applied: fail-closed gate with a test, and a comment on the LAN trade-off.
+- mobile-ux: PASS WITH FIXES. Same gate finding; the join budget is unaffected.
+
+**Notes for next session:**
+- F44's join rate limit must leave room for up to 9 bots from one address (the Vite proxy makes them all localhost).
+- F18: bots don't choose words. If CHOOSING waits on the drawer, a bot drawer relies on the 12 s auto-pick, or add `drawer:choose` to the bot then.
+- F13: bots don't send `ping`. If fairness needs RTT samples to accept guesses, add pings to the bot as Buzzr's did.
+- F51: the Dockerfile should set `NODE_ENV=production` for the client anyway; the dev endpoint stays off without it.
+- In production, `/dev/bots/CODE` falls back to `index.html` and matches no route (blank page), as other unknown paths do until a 404 page exists.
+
+**How to try it:** `npm run dev`, open http://localhost:5173 on the laptop and tap **Start**, then open http://localhost:5173/dev/bots/CODE in another tab. Spawn 3 and press Start on the Screen. Bot 1 draws the house on the Screen and the others guess random words. Press "Everyone: guess right" to end the turn. Automated: `npm run playtest -- .playtest/F09/scenario.ts` (gitignored; 6 steps). It creates a room, checks the dev endpoint (404 unknown, null in the lobby), spawns 3 bots that appear in the lobby, and starts the game. It then checks that the bot's doodle reaches the Screen canvas and the word is not in the Screen DOM before the reveal. Finally, guess right gives "✓ got it" and the reveal shows points for both guessers and the drawer. Production: `npm run build`, then `grep -r api/dev dist/client` finds nothing, and `/api/dev/...` answers 404 with `NODE_ENV` set to production or unset. Unit: `server/http.dev.test.ts`, `server/env.test.ts`, `client/src/dev/{bots,doodle}.test.ts`, `client/src/pages/DevBots.test.tsx`.
 
 ## F08 — Player page v0 (2026-10-30)
 **What changed:**
