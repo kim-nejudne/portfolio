@@ -8,7 +8,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M1 — Thin slice
 
-- [ ] F01 Project skeleton and tooling
+- [!] F01 Project skeleton and tooling
   - Spec: Tech stack and architecture (Folder layout); Ported from Buzzr
   - Depends: none
   - Done when:
@@ -19,6 +19,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
     - CI job for `sketchy/` in `.github/workflows/ci.yml`: format check, lint, typecheck, test, build
     - `CLAUDE.md` and the `.claude/` workflow (local only, gitignored) adapted from Buzzr: done in the bootstrap (2026-10-30); adjust only if needed (e.g. the playtest skill once the harness exists)
   - Tests: `http.test.ts` — `/healthz`
+  - Blocked: npm install is an 'ask' rule in .claude/settings.json and no one could approve it in the unattended run; all F01 files are written (uncommitted) with pinned deps in package.json. Unblock: run 'npm install' in sketchy/ (creates package-lock.json), then npm run verify stages, lan, playtest smoke, and commit.
 
 - [ ] F02 Shared types, schemas and constants
   - Spec: Data model (Room state); Settings; Reducer actions and effects (Actions)
