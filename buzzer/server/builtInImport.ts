@@ -34,7 +34,8 @@ export function fileEntries(
   return { ok: true, entries: sets };
 }
 
-function capped(errors: string[]): string[] {
+/** At most ten reasons, then "…and N more." (also a refused **Publish**, F107). */
+export function capped(errors: string[]): string[] {
   const shown = errors.slice(0, ERRORS_SHOWN);
   if (errors.length > shown.length) shown.push(`…and ${errors.length - shown.length} more.`);
   return shown;

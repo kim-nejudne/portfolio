@@ -10,6 +10,40 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F107 — Edit built-ins with draft and publish (2026-10-30)
+**What changed:**
+- Shared: `draftSetSchema` (bounded, untrimmed, blanks allowed, no `imageId`, board shape only). `AdminDraftResponse {set, draft}`, `AdminDraftIdsResponse {ids}`, `AdminPublishErrorBody {error, problems}`. `builtInFileSchema.drafts` is a record of draft sets, each filed under its own id; `BuiltInData.drafts` is `Record<string, QuestionSet>`.
+- Server (`adminRoutes.ts`, `draftRoutes`):
+  - `GET|PUT|DELETE /api/admin/built-in-sets/:id/draft`, `POST /api/admin/built-in-sets/:id/publish` and `GET /api/admin/built-in-sets/drafts`. All are behind `requireAdmin`, and the writes behind `requireWrite`. Each is 404 unless the id is a live set.
+  - Publish validates with `questionSetSchema` and replaces the set in place. A refusal is a 400 with up to 10 `describePath: message` problems.
+  - PUT and publish re-check inside the queued update: a set deleted meanwhile gives 404, and a draft changed meanwhile gives 409. `capped` is exported from `builtInImport.ts`.
+- Client:
+  - New `lib/setStore.ts` (`SetStore`, `browserSetStore`, `adminDraftStore`). `adminBuiltIns.ts` gains `loadDraftIds`, `loadDraft`, `saveDraft`, `discardDraft` and `publishDraft`. `useAutosave` exposes `flush`.
+  - `SetEditor` takes `store`. New `AdminSetEditor` on the lazy route `/admin/sets/:setId`.
+  - Admin mode hides pictures and Print and suggests only built-in categories. It shows "Draft saved", plus an `AdminBar` row: status, **Discard draft** (confirm) and **Publish**, and the problems in an alert. The page is inert while either runs.
+  - `Sets.tsx`: **Edit** in a server built-in's menu, and a "Draft" pill on the detail line.
+- Tests:
+  - `http.admin.test.ts` +10: fallback, round trip hidden from the public list and on disk, PUT refusals, refused publish, publish in place, 409/404, discard, 401s and Origin, and two race tests.
+  - `schemas.test.ts` +13, `builtInStore.test.ts` (+3 cases, one test reworked), new `setStore.test.ts` (3), `SetEditor.test.tsx` +10, `Sets.test.tsx` +3.
+  - 2806 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-30 for F107 (draft schema; routes and races; an import keeps a replaced set's draft; the editor; the Built-in tab).
+
+**Notes for next session:**
+- With F107, M26 (super-admin) is complete. The roadmap has no todo left (107/107).
+- **Before using it on the droplet:** set `ADMIN_PASSWORD_HASH` and create `/opt/buzzr/data` (F103 and F105 notes).
+- After Publish, the row reads "Built-in set · Published" until the next edit. That is deliberate (the playtest asked).
+- The sticky toolbar is taller in admin mode (two rows on a phone). The cards' `scroll-mt-32` was not retuned, so a jumped-to card may sit slightly under the bar on a phone.
+- A 401 during a save switches the page to the sign-in message, and the unsaved change is lost (the save could not land anyway).
+- The review found no Must-fix. I fixed its Should-fixes: the DECISIONS rows, the check-then-write race (PUT and publish), a `setStore` test, and the admin-only category suggestions.
+- Main `index` chunk 560.51 → 561.35 kB. `SetEditor` 81.4 kB.
+- Playtest (Playwright, :5173, a throwaway hash and a scratchpad `DATA_DIR`):
+  - Steps passed: Edit on server sets only, no picture controls or Print, the draft surviving a reload while the public list kept the old title, the badge, a refused publish naming "Question 1 › answer: The answer is required", then publish (public list updated, badge gone), discard, and signed-out refusal.
+  - At 375, the Publish button first wrapped away from Discard. The two now share a group, and a recheck showed both rows, unarmed and armed, with no overflow (`.playtest/F107/admin-row-375*.png`, checked).
+  - The only console errors were the expected 401s on the session, a 404 from an earlier server without a hash, and the deliberate 400 publish.
+
+**How to try it:** `H=$(npm run -s admin:hash)`, then `ADMIN_PASSWORD_HASH="$H" npm run dev`. Sign in at `http://localhost:5173/admin`, open **Question sets**, then **Built-in**, then a set's `⋯`, then **Edit**. Edit, then **Publish** or **Discard draft**. `npm test -- server/http.admin.test.ts shared/schemas.test.ts client/src/pages/SetEditor.test.tsx client/src/pages/Sets.test.tsx client/src/lib/setStore.test.ts`.
+
 ## F106 — Admin import, delete, hide sample, export (2026-10-30)
 **What changed:**
 - Shared: `ADMIN_IMPORT_MAX_BYTES` (2 MB), `BUILT_IN_SETS_MAX` (500), `AdminImportResponse` / `RejectedSet`, `sampleHiddenBodySchema`. New `shared/setFile.ts` holds `fillFromTitle`, `describePath` and `entryLabel`, moved from `client/src/lib/importExport.ts` (which re-exports `fillFromTitle`).

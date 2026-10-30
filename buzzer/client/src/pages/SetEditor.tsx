@@ -29,17 +29,28 @@ import {
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
 import type { Question, QuestionMode, QuestionSet } from '../../../shared/types.js';
+import { ConfirmButton } from '../components/ConfirmButton.js';
 import { Icon } from '../components/Icon.js';
 import { OverflowMenu } from '../components/OverflowMenu.js';
 import { PageShell } from '../components/PageShell.js';
 import { PasteQuestions } from '../components/PasteQuestions.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
+import { discardDraft, publishDraft } from '../lib/adminBuiltIns.js';
+import { useAdminSession } from '../lib/adminSession.js';
 import { type SaveStatus, useAutosave } from '../lib/autosave.js';
 import { loadBuiltInSets } from '../lib/builtInSets.js';
 import { addPasted, type PastedQuestion } from '../lib/bulkPaste.js';
-import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js';
+import { addImage, deleteImages, listSets } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
-import { BUTTON_ICON, BUTTON_PRIMARY_SMALL, BUTTON_SMALL, FIELD, LINK } from '../lib/ui.js';
+import { adminDraftStore, browserSetStore, type SetStore } from '../lib/setStore.js';
+import {
+  BUTTON_DANGER,
+  BUTTON_ICON,
+  BUTTON_PRIMARY_SMALL,
+  BUTTON_SMALL,
+  FIELD,
+  LINK,
+} from '../lib/ui.js';
 import { cardDomId, useCurrentCard } from '../lib/useCurrentCard.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
@@ -76,6 +87,7 @@ import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 
 const LOAD_ERROR = 'Could not load this set in this browser.';
+const ADMIN_LOAD_ERROR = 'Could not load this built-in set.';
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
   saved: 'Saved',
@@ -90,16 +102,77 @@ const DRAG_INSTRUCTIONS: ScreenReaderInstructions = {
 
 type Load = { state: 'loading' } | { state: 'missing' } | { state: 'error' } | { state: 'ready' };
 
-/** Set editor `/sets/:setId`. Every change is saved to this browser after 500 ms. */
-export function SetEditor() {
+/**
+ * Set editor `/sets/:setId`. Every change is saved to `store` after 500 ms: this browser by
+ * default, or the admin's draft of a built-in set (F107).
+ */
+export function SetEditor({ store = browserSetStore }: { store?: SetStore }) {
   const { setId = '' } = useParams();
+  // Discard draft starts the editor again from the live set, fields and all.
+  const [generation, setGeneration] = useState(0);
   // A new id gets a fresh editor, so no edit can land on the previous set's state.
-  return <Editor key={setId} setId={setId} />;
+  return (
+    <Editor
+      key={`${setId}:${generation}`}
+      setId={setId}
+      store={store}
+      onReload={() => setGeneration((n) => n + 1)}
+    />
+  );
 }
 
-function Editor({ setId }: { setId: string }) {
+/**
+ * `/admin/sets/:setId` (F107): a built-in set in the editor, for the signed-in admin only. Changes
+ * autosave to a draft only the admin sees; **Publish** makes it live.
+ */
+export function AdminSetEditor() {
+  const session = useAdminSession();
+  if (session.kind === 'signedIn') return <SetEditor store={adminDraftStore} />;
+  return (
+    <PageShell
+      header={
+        <Link to="/sets" className={`${LINK} text-lg`}>
+          ← Question sets
+        </Link>
+      }
+    >
+      <h1 className="font-display text-4xl text-accent">Edit built-in set</h1>
+      {session.kind === 'loading' ? (
+        <p className="text-muted">Loading…</p>
+      ) : (
+        <p role="alert" className="text-lg">
+          Only the admin can edit built-in sets.{' '}
+          <Link to="/admin" className={LINK}>
+            Sign in as admin
+          </Link>
+        </p>
+      )}
+    </PageShell>
+  );
+}
+
+type AdminAction =
+  | { state: 'idle' }
+  | { state: 'busy' }
+  | { state: 'published' }
+  | { state: 'failed'; error: string; problems: string[] };
+
+function Editor({
+  setId,
+  store,
+  onReload,
+}: {
+  setId: string;
+  store: SetStore;
+  onReload: () => void;
+}) {
+  const admin = store.kind === 'admin';
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [set, setSet] = useState<QuestionSet | null>(null);
+  // Admin mode: whether an unpublished draft exists, and the last Publish or Discard's outcome.
+  const [hasDraft, setHasDraft] = useState(false);
+  const [action, setAction] = useState<AdminAction>({ state: 'idle' });
+  const saveFailed = useRef(false);
   // The newest set, for an image that finishes storing after more edits were made.
   const latest = useRef<QuestionSet | null>(null);
   // Errors show once a field has been left, so a fresh card is not red before it is written.
@@ -114,8 +187,15 @@ function Editor({ setId }: { setId: string }) {
   // this browser only once a saved set no longer references them, so a failed or pending save never
   // points at a deleted blob. A failed delete only leaves an unused blob behind.
   const unusedImages = useRef(new Set<string>());
-  const { status, schedule } = useAutosave(async (next: QuestionSet) => {
-    await saveSet(next);
+  const { status, schedule, flush } = useAutosave(async (next: QuestionSet) => {
+    try {
+      await store.save(next);
+    } catch (err) {
+      saveFailed.current = true;
+      throw err;
+    }
+    saveFailed.current = false;
+    if (admin) setHasDraft(true);
     const inUse = new Set(next.questions.map((q) => q.imageId));
     const gone = [...unusedImages.current].filter((id) => !inUse.has(id));
     if (gone.length === 0) return;
@@ -138,26 +218,28 @@ function Editor({ setId }: { setId: string }) {
 
   useEffect(() => {
     let live = true;
-    getSet(setId).then(
+    store.load(setId).then(
       (found) => {
         if (!live) return;
-        latest.current = found ?? null;
-        setSet(found ?? null);
+        latest.current = found?.set ?? null;
+        setSet(found?.set ?? null);
+        setHasDraft(found?.draft ?? false);
         setLoad({ state: found ? 'ready' : 'missing' });
       },
       () => live && setLoad({ state: 'error' }),
     );
     // Without suggestions the field still takes any category, so a failed read is ignored. The
     // built-in sets' categories are suggested too, though they are not stored (DECISIONS F54); a
-    // failed fetch of them leaves this browser's own.
-    Promise.all([listSets(), loadBuiltInSets().catch(() => [])]).then(
+    // failed fetch of them leaves this browser's own. A built-in's editor suggests only the
+    // built-ins' categories: this browser's sets are not the library's (F107).
+    Promise.all([store.kind === 'admin' ? [] : listSets(), loadBuiltInSets().catch(() => [])]).then(
       ([sets, builtIn]) => live && setCategories(categoriesInUse([...sets, ...builtIn])),
       () => {},
     );
     return () => {
       live = false;
     };
-  }, [setId]);
+  }, [setId, store]);
 
   if (load.state !== 'ready' || set === null) {
     return (
@@ -168,12 +250,18 @@ function Editor({ setId }: { setId: string }) {
           </Link>
         }
       >
-        <h1 className="font-display text-4xl text-accent">Edit set</h1>
+        <h1 className="font-display text-4xl text-accent">
+          {admin ? 'Edit built-in set' : 'Edit set'}
+        </h1>
         {load.state === 'loading' && <p className="text-muted">Loading…</p>}
-        {load.state === 'missing' && <p role="alert">This set no longer exists.</p>}
+        {load.state === 'missing' && (
+          <p role="alert">
+            {admin ? 'There is no built-in set with this id.' : 'This set no longer exists.'}
+          </p>
+        )}
         {load.state === 'error' && (
           <p role="alert" className="text-lg text-buzz">
-            {LOAD_ERROR}
+            {admin ? ADMIN_LOAD_ERROR : LOAD_ERROR}
           </p>
         )}
       </PageShell>
@@ -181,6 +269,7 @@ function Editor({ setId }: { setId: string }) {
   }
 
   const change = (next: QuestionSet) => {
+    if (action.state === 'published') setAction({ state: 'idle' });
     latest.current = next;
     setSet(next);
     schedule(next);
@@ -242,10 +331,47 @@ function Editor({ setId }: { setId: string }) {
   const openPreview = () => setPreviewIndex(Math.max(currentIndex, 0));
   const printTo = `/sets/${encodeURIComponent(set.id)}/print`;
 
+  // Both wait for the last change to reach the draft. The editor is inert meanwhile, so no edit
+  // can land after a discard and bring the draft back.
+  const publish = async () => {
+    setAction({ state: 'busy' });
+    await flush();
+    if (saveFailed.current) {
+      setAction({
+        state: 'failed',
+        error: "Couldn't save the draft, so it wasn't published.",
+        problems: [],
+      });
+      return;
+    }
+    try {
+      const result = await publishDraft(set.id);
+      if (result.ok) {
+        setHasDraft(false);
+        setAction({ state: 'published' });
+      } else {
+        setAction({ state: 'failed', error: result.error, problems: result.problems });
+      }
+    } catch (err) {
+      setAction({ state: 'failed', error: (err as Error).message, problems: [] });
+    }
+  };
+  const discard = async () => {
+    setAction({ state: 'busy' });
+    await flush();
+    try {
+      await discardDraft(set.id);
+      onReload();
+    } catch (err) {
+      setAction({ state: 'failed', error: (err as Error).message, problems: [] });
+    }
+  };
+  const busy = action.state === 'busy';
+
   return (
     <>
       {/* The preview covers the page, so `inert` keeps focus and clicks out of the editor behind it. */}
-      <div inert={previewIndex !== null}>
+      <div inert={previewIndex !== null || busy}>
         <PageShell width="wide">
           {/* EDT-01: the status and the actions stay on screen at every scroll position. Solid, not
               blurred: a backdrop filter would pin the phone's fixed Add button inside the bar. */}
@@ -276,7 +402,7 @@ function Editor({ setId }: { setId: string }) {
                   status === 'error' ? 'max-w-40 text-sm text-buzz md:max-w-56' : 'text-muted'
                 }`}
               >
-                {STATUS_TEXT[status]}
+                {admin && status === 'saved' && hasDraft ? 'Draft saved' : STATUS_TEXT[status]}
                 {status === 'saved' && <Icon name="check" className="size-5 text-win" />}
               </p>
               <div className="hidden items-center gap-2 md:flex">
@@ -299,9 +425,12 @@ function Editor({ setId }: { setId: string }) {
                 >
                   Preview
                 </button>
-                <Link to={printTo} aria-label="Print answer sheet" className={BUTTON_SMALL}>
-                  Print
-                </Link>
+                {/* The answer sheet reads this browser's sets, which a built-in is not. */}
+                {!admin && (
+                  <Link to={printTo} aria-label="Print answer sheet" className={BUTTON_SMALL}>
+                    Print
+                  </Link>
+                )}
               </div>
               <div className="md:hidden">
                 <OverflowMenu
@@ -315,7 +444,7 @@ function Editor({ setId }: { setId: string }) {
                       onSelect: openPreview,
                       disabled: set.questions.length === 0,
                     },
-                    { label: 'Print answer sheet', to: printTo },
+                    ...(admin ? [] : [{ label: 'Print answer sheet', to: printTo }]),
                   ]}
                 />
               </div>
@@ -329,6 +458,15 @@ function Editor({ setId }: { setId: string }) {
                 Add question
               </button>
             </div>
+            {admin && (
+              <AdminBar
+                hasDraft={hasDraft}
+                action={action}
+                busy={busy}
+                onPublish={() => void publish()}
+                onDiscard={() => void discard()}
+              />
+            )}
             {attention.length > 0 && (
               // EDT-10: one click from the bar to the first question with a problem.
               <button
@@ -461,6 +599,7 @@ function Editor({ setId }: { setId: string }) {
                           }
                           onDelete={() => changeQuestions(removeQuestion(set.questions, index))}
                           onPreview={() => setPreviewIndex(index)}
+                          pictures={!admin}
                           onImage={(imageId) => changeImage(question.id, imageId)}
                         />
                       ))}
@@ -482,6 +621,70 @@ function Editor({ setId }: { setId: string }) {
         />
       )}
     </>
+  );
+}
+
+interface AdminBarProps {
+  hasDraft: boolean;
+  action: AdminAction;
+  busy: boolean;
+  onPublish: () => void;
+  onDiscard: () => void;
+}
+
+/**
+ * Admin mode's second toolbar row (F107): whether a draft is open, **Discard draft** (confirm) and
+ * **Publish**, then a refused publish's problems, each naming its field.
+ */
+function AdminBar({ hasDraft, action, busy, onPublish, onDiscard }: AdminBarProps) {
+  return (
+    <div className="flex flex-col gap-2 pt-2">
+      {/* On a phone the label takes a line and the two buttons share the next. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-muted">
+          {hasDraft
+            ? 'Built-in set · Draft, seen only by you'
+            : action.state === 'published'
+              ? 'Built-in set · Published'
+              : 'Built-in set · Live'}
+        </p>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <ConfirmButton
+            label="Discard draft"
+            confirmLabel="Confirm discard"
+            onConfirm={onDiscard}
+            disabled={!hasDraft || busy}
+            className={BUTTON_DANGER}
+            cancelClassName={BUTTON_SMALL}
+          />
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={!hasDraft || busy}
+            className={BUTTON_PRIMARY_SMALL}
+          >
+            {busy ? 'Working…' : 'Publish'}
+          </button>
+        </div>
+      </div>
+      {action.state === 'failed' && (
+        <div role="alert" className="text-buzz">
+          <p>{action.error}</p>
+          {action.problems.length > 0 && (
+            <ul className="list-disc pl-6">
+              {action.problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {action.state === 'published' && (
+        <p role="status" className="text-win">
+          Published. Everyone sees this version now.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -562,6 +765,8 @@ interface QuestionCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onPreview: () => void;
+  /** False for a built-in set, which is text only (F107): no picture field, drop or paste. */
+  pictures: boolean;
   onImage: (imageId: string | undefined) => void;
 }
 
@@ -579,6 +784,7 @@ function QuestionCard({
   onDuplicate,
   onDelete,
   onPreview,
+  pictures,
   onImage,
 }: QuestionCardProps) {
   const {
@@ -629,7 +835,7 @@ function QuestionCard({
     }
   };
 
-  const hasFiles = (event: DragEvent) => event.dataTransfer.types.includes('Files');
+  const hasFiles = (event: DragEvent) => pictures && event.dataTransfer.types.includes('Files');
   const onDragOver = (event: DragEvent<HTMLLIElement>) => {
     if (!hasFiles(event)) return;
     // Without this the browser opens the dropped file in place of the editor.
@@ -651,6 +857,7 @@ function QuestionCard({
   // A pasted image file becomes the question's image. Text pasted into a field stays text, even
   // when the clipboard also carries a picture of it (as office apps do).
   const onPaste = (event: ClipboardEvent<HTMLLIElement>) => {
+    if (!pictures) return;
     const file = [...event.clipboardData.files].find((f) => f.type.startsWith('image/'));
     if (!file) return;
     const intoText =
@@ -774,20 +981,22 @@ function QuestionCard({
             className={FIELD}
           />
         </div>
-        <div className="col-span-2 md:col-span-1">
-          <ImageField
-            id={`${base}-image`}
-            number={number}
-            imageId={question.imageId}
-            busy={imageBusy}
-            error={imageError}
-            onFile={(file) => void addImageFile(file)}
-            onRemove={() => {
-              setImageError(null);
-              onImage(undefined);
-            }}
-          />
-        </div>
+        {pictures && (
+          <div className="col-span-2 md:col-span-1">
+            <ImageField
+              id={`${base}-image`}
+              number={number}
+              imageId={question.imageId}
+              busy={imageBusy}
+              error={imageError}
+              onFile={(file) => void addImageFile(file)}
+              onRemove={() => {
+                setImageError(null);
+                onImage(undefined);
+              }}
+            />
+          </div>
+        )}
         {!pointsValid && (
           <div className="col-span-2 md:col-span-3">
             <FieldError id={`${base}-points-error`} message={POINTS_ERROR} />

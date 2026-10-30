@@ -620,6 +620,25 @@ export interface AdminImportResponse {
   rejected: RejectedSet[];
 }
 
+/**
+ * `GET`, `PUT` and `DELETE /api/admin/built-in-sets/:id/draft` (F107): the admin's draft of a
+ * built-in set, or the live set when there is none (`draft` false). A draft may be unplayable.
+ */
+export interface AdminDraftResponse {
+  set: QuestionSet;
+  draft: boolean;
+}
+
+/** `GET /api/admin/built-in-sets/drafts`: the ids of the built-in sets with a draft (F107). */
+export interface AdminDraftIdsResponse {
+  ids: string[];
+}
+
+/** `POST /api/admin/built-in-sets/:id/publish`, refused (400): what makes the draft unplayable. */
+export interface AdminPublishErrorBody extends HttpErrorBody {
+  problems: string[];
+}
+
 /** Body of `PUT /api/admin/sample-hidden` (F106). */
 export interface SampleHiddenBody {
   hidden: boolean;

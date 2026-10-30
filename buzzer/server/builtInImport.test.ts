@@ -8,7 +8,7 @@ import { makeQuestion, makeSet } from './test/rooms.js';
 
 const set = (id: string, title = `Set ${id}`): QuestionSet => ({ ...makeSet(2), id, title });
 
-function data(sets: QuestionSet[], drafts: Record<string, unknown> = {}): BuiltInData {
+function data(sets: QuestionSet[], drafts: Record<string, QuestionSet> = {}): BuiltInData {
   return { version: 1, sets, drafts, sampleHidden: false };
 }
 
@@ -50,9 +50,9 @@ describe('importBuiltIns', () => {
   });
 
   it('keeps drafts and sampleHidden', () => {
-    const before = { ...data([set('a')], { a: { title: 'draft' } }), sampleHidden: true };
+    const before = { ...data([set('a')], { a: set('a', 'draft') }), sampleHidden: true };
     const { data: after } = importBuiltIns(before, [set('a', 'New A')]);
-    expect(after.drafts).toEqual({ a: { title: 'draft' } });
+    expect(after.drafts).toEqual({ a: set('a', 'draft') });
     expect(after.sampleHidden).toBe(true);
   });
 

@@ -70,7 +70,9 @@ describe('openBuiltInStore', () => {
 
   it('loads the sets, drafts and sampleHidden a later boot finds', async () => {
     const set = makeSet();
-    const data = { version: 1, sets: [set], drafts: { set1: { title: '' } }, sampleHidden: true };
+    // A draft may be unplayable: no title, no answer.
+    const draft = { ...set, title: '', questions: [{ ...set.questions[0]!, answer: '' }] };
+    const data = { version: 1, sets: [set], drafts: { [set.id]: draft }, sampleHidden: true };
     await writeFile(path, JSON.stringify(data));
     const store = await openBuiltInStore(dir);
     expect(store.read()).toEqual(data);
@@ -92,6 +94,23 @@ describe('openBuiltInStore', () => {
       [{ version: 1, sets: [{ id: 'x' }], drafts: {}, sampleHidden: false }, /sets/],
       [{ version: 1, sets: [makeSet(), makeSet()], drafts: {}, sampleHidden: false }, /unique/],
       [{ version: 1, sets: [], drafts: { 'bad id': {} }, sampleHidden: false }, /drafts/],
+      // F107: a draft is a set's shape, filed under its own id, with no pictures.
+      [{ version: 1, sets: [], drafts: { x: { title: '' } }, sampleHidden: false }, /drafts/],
+      [{ version: 1, sets: [], drafts: { other: makeSet() }, sampleHidden: false }, /its set's id/],
+      [
+        {
+          version: 1,
+          sets: [],
+          drafts: {
+            [makeSet().id]: {
+              ...makeSet(),
+              questions: [{ ...makeSet().questions[0]!, imageId: 'img-1' }],
+            },
+          },
+          sampleHidden: false,
+        },
+        /pictures/,
+      ],
       [{ version: 1, sets: [], drafts: {}, sampleHidden: 'no' }, /sampleHidden/],
       [[], /expected object/],
     ];

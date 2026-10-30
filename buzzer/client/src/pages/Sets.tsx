@@ -34,11 +34,13 @@ import {
   BUTTON_PRIMARY_SMALL,
   BUTTON_SMALL,
   LINK,
+  PILL,
 } from '../lib/ui.js';
 import {
   deleteBuiltIn,
   exportBuiltIns,
   importToBuiltIns,
+  loadDraftIds,
   setSampleHidden,
 } from '../lib/adminBuiltIns.js';
 import { useAdminSession } from '../lib/adminSession.js';
@@ -122,6 +124,19 @@ export function Sets() {
   const builtInSets = builtIns.kind === 'ready' ? builtIns.sets : null;
   // Signed in at `/admin`, the Built-in tab gains the admin's tools (F106).
   const isAdmin = useAdminSession().kind === 'signedIn';
+  // The built-in sets with an unpublished draft (F107). Without the list, no badge shows.
+  const [draftIds, setDraftIds] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (!isAdmin) return;
+    let live = true;
+    loadDraftIds().then(
+      (ids) => live && setDraftIds(new Set(ids)),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [isAdmin]);
   // One array per load, so the builder's category list and counts aren't redone on every render.
   // Without the built-ins, the builder still draws from My sets.
   const sources = useMemo(() => [...(sets ?? []), ...(builtInSets ?? [])], [sets, builtInSets]);
@@ -561,7 +576,16 @@ export function Sets() {
                         mode="actions"
                         id="built-in"
                         sets={builtIns.sets}
-                        detail={(set) => setDetail(set, false)}
+                        detail={(set) =>
+                          isAdmin && draftIds.has(set.id) ? (
+                            <>
+                              {setDetail(set, false)}{' '}
+                              <span className={`${PILL} px-2 text-sm text-ink`}>Draft</span>
+                            </>
+                          ) : (
+                            setDetail(set, false)
+                          )
+                        }
                         // A built-in set is read-only, so its title opens the preview.
                         cardTitle={(set) => (
                           <button
@@ -583,9 +607,14 @@ export function Sets() {
                                 label: 'Duplicate to My sets',
                                 onSelect: () => void duplicateToMine(set),
                               },
-                              // The sample is bundled: the admin hides it rather than deleting it.
+                              // The sample is bundled: the admin hides it rather than editing or
+                              // deleting it.
                               ...(isAdmin && set.id !== SAMPLE_SET_ID
                                 ? [
+                                    {
+                                      label: 'Edit',
+                                      to: `/admin/sets/${encodeURIComponent(set.id)}`,
+                                    },
                                     {
                                       label: 'Delete',
                                       confirmLabel: 'Confirm delete',

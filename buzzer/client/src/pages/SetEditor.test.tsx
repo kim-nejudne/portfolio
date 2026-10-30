@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetAdminSession } from '../lib/adminSession.js';
 import { resetBuiltInSets } from '../lib/builtInSets.js';
 import { serveSeededBuiltIns } from '../test/builtIns.js';
 import {
@@ -20,7 +21,7 @@ import { MISSING_ANSWER } from '../lib/bulkPaste.js';
 import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { buttonsWithoutHover } from '../test/hover.js';
-import { SetEditor } from './SetEditor.js';
+import { AdminSetEditor, SetEditor } from './SetEditor.js';
 
 // jsdom has no canvas to shrink with; the pipeline's own rules are in imagePipeline.test.ts.
 vi.mock('../lib/imagePipeline.js', async (importOriginal) => ({
@@ -1066,5 +1067,216 @@ describe('Set editor typed questions (F87)', () => {
     expect(card(1).getByLabelText('Host notes (optional)')).toBeTruthy();
     await settle();
     expect(await saved()).not.toHaveProperty('mode');
+  });
+});
+
+describe('Set editor admin mode: a built-in set (F107)', () => {
+  const LIVE: QuestionSet = {
+    id: 'built-1',
+    title: 'Live quiz',
+    questions: [q('a'), q('b')],
+    createdAt: 1,
+    updatedAt: 2,
+    schemaVersion: 1,
+  };
+  const DRAFT_URL = '/api/admin/built-in-sets/built-1/draft';
+  const PUBLISH_URL = '/api/admin/built-in-sets/built-1/publish';
+
+  /**
+   * A fake server holding set `built-1` and the admin's draft of it. `publishAnswer`, when given,
+   * answers Publish in place of making the draft live.
+   */
+  function serveDrafts({
+    draft,
+    publishAnswer,
+  }: { draft?: QuestionSet; publishAnswer?: () => Response } = {}) {
+    let live = LIVE;
+    let current = draft;
+    const fetch = vi.fn(async (url: string, init: RequestInit = {}) => {
+      const method = init.method ?? 'GET';
+      if (url === DRAFT_URL && method === 'GET') {
+        return Response.json({ set: current ?? live, draft: current !== undefined });
+      }
+      if (url === DRAFT_URL && method === 'PUT') {
+        current = JSON.parse(init.body as string) as QuestionSet;
+        return Response.json({ set: current, draft: true });
+      }
+      if (url === DRAFT_URL && method === 'DELETE') {
+        current = undefined;
+        return Response.json({ set: live, draft: false });
+      }
+      if (url === PUBLISH_URL && method === 'POST') {
+        if (publishAnswer) return publishAnswer();
+        live = current!;
+        current = undefined;
+        return Response.json({ set: live, draft: false });
+      }
+      return Response.json({ ok: false, error: 'Not found.' }, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetch);
+    return { fetch, draft: () => current, live: () => live };
+  }
+
+  afterEach(() => {
+    resetAdminSession();
+    vi.unstubAllGlobals();
+  });
+
+  async function renderAdmin({ signedIn = true } = {}) {
+    resetAdminSession(
+      signedIn ? { kind: 'signedIn', expiresAt: NOW + 3_600_000 } : { kind: 'signedOut' },
+    );
+    render(
+      <MemoryRouter initialEntries={['/admin/sets/built-1']}>
+        <Routes>
+          <Route path="/admin/sets/:setId" element={<AdminSetEditor />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    if (signedIn) await screen.findByLabelText('Set title');
+  }
+
+  const status = () => screen.getByRole('status', { name: 'Save status' }).textContent;
+  const typeTitle = (title: string) =>
+    fireEvent.change(screen.getByLabelText('Set title'), { target: { value: title } });
+  async function saveDraft() {
+    await act(() => vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS));
+    await waitFor(() => expect(status()).toBe('Draft saved'));
+  }
+
+  it('opens the live set when there is no draft, with Publish and Discard draft off', async () => {
+    serveDrafts();
+    await renderAdmin();
+    expect(screen.getByLabelText<HTMLInputElement>('Set title').value).toBe('Live quiz');
+    expect(screen.getByText('Built-in set · Live')).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Discard draft' }).disabled).toBe(
+      true,
+    );
+  });
+
+  it('opens the draft when there is one', async () => {
+    serveDrafts({ draft: { ...LIVE, title: 'Draft quiz' } });
+    await renderAdmin();
+    expect(screen.getByLabelText<HTMLInputElement>('Set title').value).toBe('Draft quiz');
+    expect(screen.getByText('Built-in set · Draft, seen only by you')).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' }).disabled).toBe(false);
+  });
+
+  it('has no picture controls and no Print; a pasted image is not taken', async () => {
+    const server = serveDrafts();
+    await renderAdmin();
+    expect(screen.queryByText('Add image')).toBeNull();
+    expect(card(1).queryByLabelText('Choose an image for question 1')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Print answer sheet' })).toBeNull();
+    const file = new File(['x'], 'pic.png', { type: 'image/png' });
+    fireEvent.paste(screen.getByRole('listitem', { name: 'Question 1' }), {
+      clipboardData: { files: [file], types: ['Files'] },
+    });
+    expect(shrinkImage).not.toHaveBeenCalled();
+    expect(server.fetch.mock.calls.map(([, init]) => init?.method ?? 'GET')).toEqual(['GET']);
+  });
+
+  it('autosaves each change to the draft, not to this browser', async () => {
+    const server = serveDrafts();
+    await renderAdmin();
+    typeTitle('Renamed quiz');
+    await saveDraft();
+    expect(server.draft()).toMatchObject({ id: 'built-1', title: 'Renamed quiz' });
+    expect(server.live().title).toBe('Live quiz');
+    expect(await getSet('built-1')).toBeUndefined();
+    expect(screen.getByText('Built-in set · Draft, seen only by you')).toBeTruthy();
+  });
+
+  it('Publish sends the waiting change first, then publishes, and says so', async () => {
+    const server = serveDrafts({ draft: LIVE });
+    await renderAdmin();
+    typeTitle('Published quiz');
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    expect((await screen.findByText(/^Published\./)).textContent).toBe(
+      'Published. Everyone sees this version now.',
+    );
+    expect(server.live().title).toBe('Published quiz');
+    expect(server.draft()).toBeUndefined();
+    const calls = server.fetch.mock.calls.map(([url, init]) => `${init?.method ?? 'GET'} ${url}`);
+    expect(calls.slice(-2)).toEqual([`PUT ${DRAFT_URL}`, `POST ${PUBLISH_URL}`]);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' }).disabled).toBe(true);
+  });
+
+  it('a refused Publish lists the bad fields, and the draft stays', async () => {
+    const server = serveDrafts({
+      draft: { ...LIVE, title: '' },
+      publishAnswer: () =>
+        Response.json(
+          {
+            ok: false,
+            error: 'The draft cannot be published yet.',
+            problems: ['Title: Too small', 'Question 2 › answer: The answer is required'],
+          },
+          { status: 400 },
+        ),
+    });
+    await renderAdmin();
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('The draft cannot be published yet.');
+    expect(
+      within(alert)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Title: Too small', 'Question 2 › answer: The answer is required']);
+    expect(server.draft()).toMatchObject({ title: '' });
+    expect(screen.getByLabelText<HTMLInputElement>('Set title').value).toBe('');
+  });
+
+  it('Discard draft, confirmed, drops the draft and shows the live set again', async () => {
+    const server = serveDrafts({ draft: { ...LIVE, title: 'Draft quiz' } });
+    await renderAdmin();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm discard' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText<HTMLInputElement>('Set title').value).toBe('Live quiz'),
+    );
+    expect(server.draft()).toBeUndefined();
+    expect(screen.getByText('Built-in set · Live')).toBeTruthy();
+  });
+
+  it('a 401 while saving ends the admin session and the editor closes', async () => {
+    serveDrafts();
+    await renderAdmin();
+    vi.stubGlobal('fetch', async () => Response.json({ ok: false, error: 'x' }, { status: 401 }));
+    typeTitle('Renamed quiz');
+    await act(() => vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Only the admin can edit built-in sets.',
+    );
+  });
+
+  it('signed out, the page asks for the admin and loads nothing', async () => {
+    const server = serveDrafts();
+    await renderAdmin({ signedIn: false });
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Only the admin can edit built-in sets. Sign in as admin',
+    );
+    expect(screen.getByRole('link', { name: 'Sign in as admin' }).getAttribute('href')).toBe(
+      '/admin',
+    );
+    expect(screen.queryByLabelText('Set title')).toBeNull();
+    expect(server.fetch).not.toHaveBeenCalled();
+  });
+
+  it('an id that is not a built-in says so', async () => {
+    serveDrafts();
+    resetAdminSession({ kind: 'signedIn', expiresAt: NOW + 3_600_000 });
+    render(
+      <MemoryRouter initialEntries={['/admin/sets/nope']}>
+        <Routes>
+          <Route path="/admin/sets/:setId" element={<AdminSetEditor />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'There is no built-in set with this id.',
+    );
   });
 });

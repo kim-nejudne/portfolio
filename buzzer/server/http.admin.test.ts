@@ -3,7 +3,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ADMIN_COOKIE,
   ADMIN_IMPORT_MAX_BYTES,
@@ -12,9 +12,12 @@ import {
   ADMIN_SESSION_MS,
   ADMIN_WRONG_PASSWORD_ERROR,
   BUILT_IN_SETS_MAX,
+  SET_TITLE_MAX,
 } from '../shared/constants.js';
 import type {
+  AdminDraftIdsResponse,
   AdminImportResponse,
+  AdminPublishErrorBody,
   AdminSessionResponse,
   BuiltInSetsResponse,
   HttpErrorBody,
@@ -427,12 +430,15 @@ describe('built-in set admin (F106)', () => {
 
   describe('DELETE /api/admin/built-in-sets/:id', () => {
     it('removes the live set and its draft', async () => {
-      await builtIns.update((data) => ({ ...data, drafts: { a: { title: 'draft' }, b: {} } }));
+      await builtIns.update((data) => ({
+        ...data,
+        drafts: { a: set('a', 'draft'), b: set('b', 'draft') },
+      }));
       const { base, cookie } = await signedIn();
       const res = await write(base, 'DELETE', '/built-in-sets/a', {}, { cookie });
       expect(res.status).toBe(200);
       expect(await ids(base)).toEqual(['b']);
-      expect(builtIns.read().drafts).toEqual({ b: {} });
+      expect(builtIns.read().drafts).toEqual({ b: set('b', 'draft') });
     });
 
     it('is 404 for an id that is neither live nor a draft', async () => {
@@ -464,7 +470,7 @@ describe('built-in set admin (F106)', () => {
   describe('GET /api/admin/built-in-sets/export', () => {
     it('downloads buzzr-built-ins-<date>.json as {sets}, which re-imports as is', async () => {
       const { base, cookie } = await signedIn();
-      await builtIns.update((data) => ({ ...data, drafts: { a: { title: 'draft' } } }));
+      await builtIns.update((data) => ({ ...data, drafts: { a: set('a', 'draft') } }));
       const res = await fetch(`${base}/api/admin/built-in-sets/export`, { headers: { cookie } });
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toMatch(/^application\/json/);
@@ -480,6 +486,190 @@ describe('built-in set admin (F106)', () => {
       const again = await importFile(base, cookie, text);
       expect(await again.json()).toEqual({ added: 0, replaced: 2, rejected: [] });
       expect(builtIns.read().sets).toEqual(before);
+    });
+  });
+
+  describe('drafts and publish (F107)', () => {
+    const draftPath = (id: string) => `/built-in-sets/${id}/draft`;
+    const getDraft = (base: string, cookie: string, id = 'a') =>
+      fetch(`${base}/api/admin${draftPath(id)}`, { headers: { cookie } });
+    const putDraft = (base: string, cookie: string, draft: unknown, id = 'a') =>
+      write(base, 'PUT', draftPath(id), draft, { cookie });
+    const publish = (base: string, cookie: string, id = 'a') =>
+      write(base, 'POST', `/built-in-sets/${id}/publish`, {}, { cookie });
+    const draftIds = async (base: string, cookie: string) =>
+      (
+        (await (
+          await fetch(`${base}/api/admin/built-in-sets/drafts`, { headers: { cookie } })
+        ).json()) as AdminDraftIdsResponse
+      ).ids;
+
+    /** Set a, retitled and with its first answer blanked: a draft that cannot be published. */
+    const unplayable = (): QuestionSet => {
+      const live = set('a', 'Old A');
+      return {
+        ...live,
+        title: '  ',
+        questions: [{ ...live.questions[0]!, answer: '' }, live.questions[1]!],
+      };
+    };
+
+    it('GET falls back to the live set when there is no draft', async () => {
+      const { base, cookie } = await signedIn();
+      const res = await getDraft(base, cookie);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ set: set('a', 'Old A'), draft: false });
+      expect(await draftIds(base, cookie)).toEqual([]);
+    });
+
+    it('round-trips an unplayable draft, stamped, and never shows it on the public list', async () => {
+      const { base, cookie, advance } = await signedIn();
+      advance(5000);
+      const res = await putDraft(base, cookie, unplayable());
+      expect(res.status).toBe(200);
+      const saved = { ...unplayable(), updatedAt: T0 + 5000 };
+      expect(await res.json()).toEqual({ set: saved, draft: true });
+      expect(await (await getDraft(base, cookie)).json()).toEqual({ set: saved, draft: true });
+      expect(await draftIds(base, cookie)).toEqual(['a']);
+      // Untouched where everyone else reads, and on disk beside the live set.
+      expect((await publicList(base)).sets).toEqual([set('a', 'Old A'), set('b')]);
+      const file = JSON.parse(await readFile(join(dir, BUILT_IN_FILE), 'utf8')) as {
+        drafts: unknown;
+      };
+      expect(file.drafts).toEqual({ a: saved });
+    });
+
+    it('refuses a draft with a picture, past a limit, of another id, or for an unknown set', async () => {
+      const { base, cookie } = await signedIn();
+      const live = set('a');
+      const pictured = { ...live, questions: [{ ...live.questions[0]!, imageId: 'img-1' }] };
+      const long = { ...live, title: 'x'.repeat(SET_TITLE_MAX + 1) };
+      const responses = [
+        await putDraft(base, cookie, pictured),
+        await putDraft(base, cookie, long),
+        await putDraft(base, cookie, set('b')),
+        await putDraft(base, cookie, { ...live, id: 'nope' }, 'nope'),
+        await putDraft(base, cookie, '{"id": ', 'a'),
+      ];
+      expect(responses.map((r) => r.status)).toEqual([400, 400, 400, 404, 400]);
+      expect(await errorOf(responses[0]!)).toBe(
+        'Question 1 › imageId: Built-in sets cannot have pictures',
+      );
+      expect(await errorOf(responses[1]!)).toMatch(/^Title: /);
+      expect(await draftIds(base, cookie)).toEqual([]);
+    });
+
+    it('a refused publish names the bad fields and changes nothing', async () => {
+      const { base, cookie } = await signedIn();
+      await putDraft(base, cookie, unplayable());
+      const res = await publish(base, cookie);
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as AdminPublishErrorBody;
+      expect(body.error).toBe('The draft cannot be published yet.');
+      expect(body.problems).toEqual([
+        expect.stringMatching(/^Title: /),
+        'Question 1 › answer: The answer is required',
+      ]);
+      expect((await publicList(base)).sets[0]).toEqual(set('a', 'Old A'));
+      expect(await draftIds(base, cookie)).toEqual(['a']);
+    });
+
+    it('publish makes the draft the live set in place and drops the draft', async () => {
+      const { base, cookie, advance } = await signedIn();
+      const edited = { ...set('a', '  New A  '), category: 'Science' };
+      await putDraft(base, cookie, edited);
+      advance(9000);
+      const res = await publish(base, cookie);
+      expect(res.status).toBe(200);
+      // Trimmed and stamped as an import would leave it.
+      const live = { ...edited, title: 'New A', updatedAt: T0 + 9000 };
+      expect(await res.json()).toEqual({ set: live, draft: false });
+      expect((await publicList(base)).sets).toEqual([live, set('b')]);
+      expect(await draftIds(base, cookie)).toEqual([]);
+      expect(await (await getDraft(base, cookie)).json()).toEqual({ set: live, draft: false });
+    });
+
+    it('publish without a draft is 409, and for an unknown set 404', async () => {
+      const { base, cookie } = await signedIn();
+      expect((await publish(base, cookie)).status).toBe(409);
+      expect((await publish(base, cookie, 'nope')).status).toBe(404);
+    });
+
+    it('discard drops the draft and answers the live set; the live set is untouched', async () => {
+      const { base, cookie } = await signedIn();
+      await putDraft(base, cookie, unplayable());
+      const res = await write(base, 'DELETE', draftPath('a'), {}, { cookie });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ set: set('a', 'Old A'), draft: false });
+      expect(await draftIds(base, cookie)).toEqual([]);
+      expect(builtIns.read().sets[0]).toEqual(set('a', 'Old A'));
+      // Again, with nothing to drop, is still fine; an unknown set is 404.
+      expect((await write(base, 'DELETE', draftPath('a'), {}, { cookie })).status).toBe(200);
+      expect((await write(base, 'DELETE', draftPath('nope'), {}, { cookie })).status).toBe(404);
+    });
+
+    /**
+     * Holds each admin write at the store's door until `release`, so a change can land between a
+     * route's first check and its write, as a second request could.
+     */
+    function holdWrites() {
+      const real = builtIns;
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      let held = 0;
+      builtIns = {
+        read: () => real.read(),
+        update: async (change) => {
+          held += 1;
+          await gate;
+          return real.update(change);
+        },
+      };
+      return { real, release, held: () => held };
+    }
+
+    it('a draft saved just as its set is deleted is refused, not left behind', async () => {
+      const hold = holdWrites();
+      const { base, cookie } = await signedIn();
+      const put = putDraft(base, cookie, set('a', 'Late'));
+      await vi.waitFor(() => expect(hold.held()).toBe(1));
+      await hold.real.update((data) => ({ ...data, sets: data.sets.filter((s) => s.id !== 'a') }));
+      hold.release();
+      expect((await put).status).toBe(404);
+      expect(hold.real.read().drafts).toEqual({});
+    });
+
+    it('a publish whose draft was saved again meanwhile is refused, and the newer draft kept', async () => {
+      await builtIns.update((data) => ({ ...data, drafts: { a: set('a', 'First') } }));
+      const hold = holdWrites();
+      const { base, cookie } = await signedIn();
+      const published = publish(base, cookie);
+      await vi.waitFor(() => expect(hold.held()).toBe(1));
+      await hold.real.update((data) => ({ ...data, drafts: { a: set('a', 'Second') } }));
+      hold.release();
+      const res = await published;
+      expect(res.status).toBe(409);
+      expect(await errorOf(res)).toBe('The draft changed while publishing. Publish again.');
+      expect(hold.real.read().sets[0]).toEqual(set('a', 'Old A'));
+      expect(hold.real.read().drafts).toEqual({ a: set('a', 'Second') });
+    });
+
+    it('every draft route is 401 without a session, and the writes need the Origin', async () => {
+      const { base, cookie } = await signedIn();
+      const responses = [
+        await getDraft(base, ''),
+        await putDraft(base, '', set('a')),
+        await write(base, 'DELETE', draftPath('a'), {}),
+        await publish(base, ''),
+        await fetch(`${base}/api/admin/built-in-sets/drafts`),
+      ];
+      expect(responses.map((r) => r.status)).toEqual([401, 401, 401, 401, 401]);
+      const crossSite = await write(base, 'PUT', draftPath('a'), set('a'), {
+        cookie,
+        origin: 'https://evil.example',
+      });
+      expect(crossSite.status).toBe(403);
+      expect(await draftIds(base, cookie)).toEqual([]);
     });
   });
 

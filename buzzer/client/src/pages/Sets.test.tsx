@@ -1026,13 +1026,14 @@ describe('Admin tools on the Built-in tab (F106)', () => {
    * A fake server with the built-ins and the admin routes. An import adds `NEW_SET` and answers
    * `IMPORTED`; `failWith` answers every admin write with that status.
    */
-  function serveAdmin({ failWith }: { failWith?: number } = {}) {
+  function serveAdmin({ failWith, drafts = [] }: { failWith?: number; drafts?: string[] } = {}) {
     resetBuiltInSets();
     let sets = [SERVER_SET];
     let sampleHidden = false;
     const fetch = vi.fn(async (url: string, init: RequestInit = {}) => {
       const method = init.method ?? 'GET';
       if (url === '/api/built-in-sets') return Response.json({ sets, sampleHidden });
+      if (url === '/api/admin/built-in-sets/drafts') return Response.json({ ids: drafts });
       if (failWith !== undefined && method !== 'GET') {
         return Response.json({ ok: false, error: 'Nope' }, { status: failWith });
       }
@@ -1065,10 +1066,10 @@ describe('Admin tools on the Built-in tab (F106)', () => {
 
   const signIn = () => resetAdminSession({ kind: 'signedIn', expiresAt: FIRST_VISIT + 3_600_000 });
   const tools = () => screen.queryByRole('group', { name: 'Admin tools' });
-  /** The admin requests the page sent: method and path. */
+  /** The admin requests the page sent: method and path, past the one for the Draft badges. */
   const adminCalls = (fetch: ReturnType<typeof serveAdmin>) =>
     fetch.mock.calls
-      .filter(([url]) => url.startsWith('/api/admin'))
+      .filter(([url]) => url.startsWith('/api/admin') && url !== '/api/admin/built-in-sets/drafts')
       .map(([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${url}`);
   const menuItems = async (title: string) =>
     (await openMenu(title)).getAllByRole('menuitem').map((item) => item.textContent);
@@ -1091,10 +1092,38 @@ describe('Admin tools on the Built-in tab (F106)', () => {
     for (const name of ['Import to built-ins', 'Export built-ins', 'Hide sample']) {
       expect(row.getByRole('button', { name })).toBeTruthy();
     }
-    expect(await menuItems(SERVER_SET.title)).toEqual(['Duplicate to My sets', 'Delete']);
+    expect(await menuItems(SERVER_SET.title)).toEqual(['Duplicate to My sets', 'Edit', 'Delete']);
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    // The sample is bundled: it is hidden, not deleted.
+    // The sample is bundled: it is hidden, not edited or deleted.
     expect(await menuItems(SAMPLE_SET.title)).toEqual(['Duplicate to My sets']);
+  });
+
+  it('signed in, Edit opens the built-in in the admin editor (F107)', async () => {
+    serveAdmin();
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    const menu = await openMenu(SERVER_SET.title);
+    expect(menu.getByRole('menuitem', { name: 'Edit' }).getAttribute('href')).toBe(
+      '/admin/sets/server-quiz',
+    );
+  });
+
+  it('signed in, a built-in with a draft has a "Draft" badge, and the others none (F107)', async () => {
+    serveAdmin({ drafts: [SERVER_SET.id] });
+    signIn();
+    renderSets();
+    const server = await card(SERVER_SET.title);
+    await waitFor(() => expect(server.getByText('Draft')).toBeTruthy());
+    expect((await card(SAMPLE_SET.title)).queryByText('Draft')).toBeNull();
+  });
+
+  it('signed out, no draft list is asked for and no badge shows (F107)', async () => {
+    const fetch = serveAdmin({ drafts: [SERVER_SET.id] });
+    renderSets();
+    const server = await card(SERVER_SET.title);
+    expect(server.queryByText('Draft')).toBeNull();
+    expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/admin/built-in-sets/drafts');
   });
 
   it('Import to built-ins sends the file, shows the result line and the rejected sets, and refreshes the list', async () => {

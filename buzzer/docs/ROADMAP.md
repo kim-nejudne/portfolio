@@ -282,17 +282,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F106 Admin import, delete, hide sample, export
 
-- [ ] F107 Edit built-ins with draft and publish
-  - Spec: Set editor; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
-  - Depends: F106
-  - Done when:
-    - `draftSetSchema` in `shared/schemas.ts`: the set shape with incomplete fields allowed, bounded lengths, no `imageId`
-    - `GET|PUT|DELETE /api/admin/built-in-sets/:id/draft` and `POST /api/admin/built-in-sets/:id/publish`; GET falls back to the live set; publish validates with `questionSetSchema` and replaces the live set
-    - `SetEditor` takes a store (IndexedDB or the admin draft API); `/admin/sets/:setId` opens a built-in for the signed-in admin only
-    - In admin mode the editor hides picture controls and shows **Publish** and **Discard draft**; publish errors name the bad fields
-    - Signed in, a built-in card has **Edit** and a "Draft" badge while a draft exists
-    - A draft never appears in `GET /api/built-in-sets`
-  - Tests: `server/http.admin.test.ts` (draft round trip, publish validation, discard, draft hidden from the public list), `shared/schemas.test.ts`, `SetEditor.test.tsx` (admin mode)
+- [x] F107 Edit built-ins with draft and publish
 
 ## Bugs
 

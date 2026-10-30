@@ -15,6 +15,10 @@ const Sets = lazy(() => import('./pages/Sets.js').then((m) => ({ default: m.Sets
 const SetEditor = lazy(() =>
   import('./pages/SetEditor.js').then((m) => ({ default: m.SetEditor })),
 );
+// A built-in set in the same editor, for the signed-in admin (F107).
+const AdminSetEditor = lazy(() =>
+  import('./pages/SetEditor.js').then((m) => ({ default: m.AdminSetEditor })),
+);
 
 // The super-admin's sign-in (F105): no link reaches it, so it never loads for anyone else.
 const Admin = lazy(() => import('./pages/Admin.js').then((m) => ({ default: m.Admin })));
@@ -60,6 +64,14 @@ export function AppRoutes() {
         element={
           <Suspense>
             <Admin />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/sets/:setId"
+        element={
+          <Suspense>
+            <AdminSetEditor />
           </Suspense>
         }
       />

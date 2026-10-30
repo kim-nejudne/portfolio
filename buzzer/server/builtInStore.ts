@@ -7,13 +7,13 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { SAMPLE_SET_ID } from '../shared/sampleSet.js';
-import { idSchema, questionSetSchema } from '../shared/schemas.js';
+import { draftSetSchema, idSchema, questionSetSchema } from '../shared/schemas.js';
 import { STARTER_SETS } from '../shared/starterSets/index.js';
 import type { QuestionSet } from '../shared/types.js';
 
 export const BUILT_IN_FILE = 'built-in-sets.json';
 
-/** The file's shape. Drafts are checked loosely until F107 gives them their own schema. */
+/** The file's shape. A draft may be unplayable, but is filed under its own id (F107). */
 export const builtInFileSchema = z.object({
   version: z.literal(1),
   sets: z
@@ -30,14 +30,19 @@ export const builtInFileSchema = z.object({
     .refine((sets) => sets.every((s) => s.id !== SAMPLE_SET_ID), {
       message: "No built-in set may take the bundled sample's id",
     }),
-  drafts: z.record(idSchema, z.unknown()),
+  drafts: z
+    .record(idSchema, draftSetSchema)
+    .refine((drafts) => Object.entries(drafts).every(([id, draft]) => draft.id === id), {
+      message: "Each draft must be filed under its set's id",
+    }),
   sampleHidden: z.boolean(),
 });
 
 export interface BuiltInData {
   version: 1;
   sets: QuestionSet[];
-  drafts: Record<string, unknown>;
+  /** The admin's unpublished edits, by set id. Never served to anyone else (F107). */
+  drafts: Record<string, QuestionSet>;
   sampleHidden: boolean;
 }
 

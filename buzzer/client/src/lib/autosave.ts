@@ -84,5 +84,10 @@ export function useAutosave<T>(save: (value: T) => Promise<void>) {
     };
   }, []);
 
-  return { status, schedule: (value: T) => saverRef.current!.schedule(value) };
+  return {
+    status,
+    schedule: (value: T) => saverRef.current!.schedule(value),
+    /** Writes a waiting change now; rejects never, so read `status` for a failure. */
+    flush: () => saverRef.current!.flush(),
+  };
 }

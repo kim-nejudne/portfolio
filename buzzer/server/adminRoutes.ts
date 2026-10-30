@@ -11,15 +11,26 @@ import {
   ADMIN_RATE_LIMITED_ERROR,
   ADMIN_WRONG_PASSWORD_ERROR,
 } from '../shared/constants.js';
-import { adminLoginBodySchema, idSchema, sampleHiddenBodySchema } from '../shared/schemas.js';
+import {
+  adminLoginBodySchema,
+  draftSetSchema,
+  idSchema,
+  questionSetSchema,
+  sampleHiddenBodySchema,
+} from '../shared/schemas.js';
+import { describePath } from '../shared/setFile.js';
 import type {
+  AdminDraftIdsResponse,
+  AdminDraftResponse,
   AdminImportResponse,
+  AdminPublishErrorBody,
   AdminSessionResponse,
   BuiltInSetsResponse,
   HttpErrorBody,
+  QuestionSet,
 } from '../shared/types.js';
 import { adminCookie, verifyAdminPassword, type AdminSessions } from './admin.js';
-import { fileEntries, importBuiltIns } from './builtInImport.js';
+import { capped, fileEntries, importBuiltIns } from './builtInImport.js';
 import type { BuiltInStore } from './builtInStore.js';
 import type { AdminPasswordHash } from './env.js';
 import type { RateLimiter } from './rateLimit.js';
@@ -53,6 +64,8 @@ export function builtInsExportFileName(now: number): string {
 
 const SAVE_FAILED_ERROR = 'Could not save the built-in sets. Try again.';
 const SAMPLE_HIDDEN_ERROR = 'Send {"hidden": true} or {"hidden": false}.';
+const NO_SET_ERROR = 'There is no built-in set with that id.';
+const DRAFT_BODY_ERROR = 'Send the draft as a set.';
 
 /**
  * `/api/admin/*`, mounted only when `ADMIN_PASSWORD_HASH` is set (F105). Later admin routes go behind
@@ -197,7 +210,7 @@ function builtInRoutes(
     const { sets, drafts } = builtIns.read();
     const known =
       id.success && (sets.some((s) => s.id === id.data) || Object.hasOwn(drafts, id.data));
-    if (!id.success || !known) return sendError(res, 404, 'There is no built-in set with that id.');
+    if (!id.success || !known) return sendError(res, 404, NO_SET_ERROR);
     try {
       await builtIns.update((data) => ({
         ...data,
@@ -228,6 +241,8 @@ function builtInRoutes(
     onBodyError(SAMPLE_HIDDEN_ERROR, SAMPLE_HIDDEN_ERROR),
   );
 
+  draftRoutes(router, builtIns, requireAdmin, clock, onBodyError);
+
   // The live sets only, as an **Export all** file, so it comes back through the import as is.
   router.get('/built-in-sets/export', requireAdmin, (_req, res) => {
     const { sets } = builtIns.read();
@@ -235,4 +250,130 @@ function builtInRoutes(
     res.type('application/json');
     res.send(`${JSON.stringify({ sets } satisfies Pick<BuiltInSetsResponse, 'sets'>, null, 2)}\n`);
   });
+}
+
+/**
+ * The admin's draft of a built-in set (F107): the set editor autosaves into it, **Publish** makes it
+ * the live set, **Discard draft** drops it. Only a live set can have a draft, so every route is 404
+ * for an id that is not live; deleting the set drops its draft too (F106).
+ */
+function draftRoutes(
+  router: Router,
+  builtIns: BuiltInStore,
+  requireAdmin: RequestHandler,
+  clock: () => number,
+  onBodyError: (tooLarge: string, notJson: string) => ErrorRequestHandler,
+): void {
+  /** The live set with `:id`, or undefined after a 404 has been sent. */
+  const liveSet = (req: Request, res: Response): QuestionSet | undefined => {
+    const id = idSchema.safeParse(req.params.id);
+    const set = id.success ? builtIns.read().sets.find((s) => s.id === id.data) : undefined;
+    if (!set) sendError(res, 404, NO_SET_ERROR);
+    return set;
+  };
+
+  // For the Built-in tab's "Draft" badges.
+  router.get('/built-in-sets/drafts', requireAdmin, (_req, res) => {
+    res.json({ ids: Object.keys(builtIns.read().drafts) } satisfies AdminDraftIdsResponse);
+  });
+
+  router.get('/built-in-sets/:id/draft', requireAdmin, (req, res) => {
+    const live = liveSet(req, res);
+    if (!live) return;
+    const draft = builtIns.read().drafts[live.id];
+    res.json({ set: draft ?? live, draft: draft !== undefined } satisfies AdminDraftResponse);
+  });
+
+  router.put(
+    '/built-in-sets/:id/draft',
+    requireAdmin,
+    requireWrite,
+    // The largest draft the schema allows is well under the import's limit.
+    express.json({ limit: ADMIN_IMPORT_MAX_BYTES }),
+    async (req: Request, res: Response) => {
+      const live = liveSet(req, res);
+      if (!live) return;
+      const parsed = draftSetSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const problem = parsed.error.issues[0]!;
+        return sendError(res, 400, `${describePath(problem.path)}: ${problem.message}`);
+      }
+      if (parsed.data.id !== live.id)
+        return sendError(res, 400, "The draft's id is not this set's.");
+      const draft: QuestionSet = { ...parsed.data, updatedAt: clock() };
+      // Checked again in turn: a delete queued ahead of this write must not leave an orphan draft.
+      let gone = false;
+      try {
+        await builtIns.update((data) => {
+          gone = !data.sets.some((s) => s.id === live.id);
+          return gone ? data : { ...data, drafts: { ...data.drafts, [live.id]: draft } };
+        });
+      } catch {
+        return sendError(res, 500, SAVE_FAILED_ERROR);
+      }
+      if (gone) return sendError(res, 404, NO_SET_ERROR);
+      res.json({ set: draft, draft: true } satisfies AdminDraftResponse);
+    },
+    onBodyError(
+      `The draft is larger than ${ADMIN_IMPORT_MAX_BYTES / 1024 / 1024} MB.`,
+      DRAFT_BODY_ERROR,
+    ),
+  );
+
+  // Answers with the live set, which the editor shows in place of the draft.
+  router.delete('/built-in-sets/:id/draft', requireAdmin, requireWrite, async (req, res) => {
+    const live = liveSet(req, res);
+    if (!live) return;
+    try {
+      await builtIns.update((data) => ({ ...data, drafts: withoutDraft(data.drafts, live.id) }));
+    } catch {
+      return sendError(res, 500, SAVE_FAILED_ERROR);
+    }
+    res.json({ set: live, draft: false } satisfies AdminDraftResponse);
+  });
+
+  // A body is not read, but a write still needs the JSON content type and this site's Origin.
+  router.post('/built-in-sets/:id/publish', requireAdmin, requireWrite, async (req, res) => {
+    const live = liveSet(req, res);
+    if (!live) return;
+    const draft = builtIns.read().drafts[live.id];
+    if (!draft) return sendError(res, 409, 'There is no draft to publish.');
+    // The same check as an import, so a published set hosts like any other.
+    const parsed = questionSetSchema.safeParse(draft);
+    if (!parsed.success) {
+      res.status(400).json({
+        ok: false,
+        error: 'The draft cannot be published yet.',
+        problems: capped(parsed.error.issues.map((i) => `${describePath(i.path)}: ${i.message}`)),
+      } satisfies AdminPublishErrorBody);
+      return;
+    }
+    const published: QuestionSet = { ...parsed.data, updatedAt: clock() };
+    // In turn, the draft checked must still be the one stored: a save or delete queued ahead of
+    // this write wins, and the admin publishes again.
+    let changed = false;
+    try {
+      await builtIns.update((data) => {
+        changed = data.drafts[live.id] !== draft || !data.sets.some((s) => s.id === live.id);
+        if (changed) return data;
+        return {
+          ...data,
+          // In place, so the set keeps its spot in the list.
+          sets: data.sets.map((s) => (s.id === live.id ? published : s)),
+          drafts: withoutDraft(data.drafts, live.id),
+        };
+      });
+    } catch {
+      return sendError(res, 500, SAVE_FAILED_ERROR);
+    }
+    if (changed) return sendError(res, 409, 'The draft changed while publishing. Publish again.');
+    res.json({ set: published, draft: false } satisfies AdminDraftResponse);
+  });
+}
+
+function withoutDraft(
+  drafts: Record<string, QuestionSet>,
+  id: string,
+): Record<string, QuestionSet> {
+  return Object.fromEntries(Object.entries(drafts).filter(([key]) => key !== id));
 }

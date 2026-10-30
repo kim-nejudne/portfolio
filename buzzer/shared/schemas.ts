@@ -220,6 +220,44 @@ export const questionSetSchema = z
     });
   });
 
+/**
+ * A question as the editor saves it, before it is playable: any field may be blank or half-made,
+ * but each is bounded as in the editor. No pictures: this is a server built-in's draft (F107).
+ * Not trimmed, so the editor gets back exactly what was typed.
+ */
+const draftQuestionSchema = z.object({
+  id: idSchema,
+  text: z.string().max(QUESTION_TEXT_MAX),
+  imageId: z.never({ error: 'Built-in sets cannot have pictures' }).optional(),
+  answer: z.string().max(ANSWER_MAX),
+  hostNotes: z.string().max(HOST_NOTES_MAX).optional(),
+  points: pointsSchema,
+  mode: z.enum(QUESTION_MODES).optional(),
+  choices: z.array(z.string().max(CHOICE_TEXT_MAX)).max(CHOICES_MAX).optional(),
+  correctChoice: z
+    .int()
+    .min(0)
+    .max(CHOICES_MAX - 1)
+    .optional(),
+});
+
+/**
+ * The admin's draft of a built-in set (F107): the set's shape with incomplete fields allowed and
+ * bounded lengths. **Publish** checks it with `questionSetSchema` before it goes live.
+ */
+export const draftSetSchema = z.object({
+  id: idSchema,
+  title: z.string().max(SET_TITLE_MAX),
+  category: z.string().max(SET_CATEGORY_MAX).optional(),
+  difficulty: z.enum(DIFFICULTIES).optional(),
+  questions: z.array(draftQuestionSchema).max(MAX_QUESTIONS_PER_SET),
+  createdAt: z.int().nonnegative(),
+  updatedAt: z.int().nonnegative(),
+  schemaVersion: z.literal(1),
+  // Its shape only: a draft may still list a question that was deleted since.
+  board: boardSchema.optional(),
+});
+
 export const roomSettingsSchema = z.object({
   wrongPenalty: z.boolean(),
   autoOpenBuzzers: z.boolean(),
@@ -333,4 +371,6 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof pairBodySchema>, PairBody>>,
   Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
   Assert<Equals<z.infer<typeof sampleHiddenBodySchema>, SampleHiddenBody>>,
+  // A draft is a set the editor can open, though not one it can play.
+  Assert<z.infer<typeof draftSetSchema> extends QuestionSet ? true : false>,
 ];

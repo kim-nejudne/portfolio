@@ -24,6 +24,7 @@ import {
 import {
   clientPayloadSchemas,
   createRoomBodySchema,
+  draftSetSchema,
   newGameBodySchema,
   playerNameSchema,
   questionSetSchema,
@@ -273,6 +274,55 @@ describe('questionSetSchema: category board (F89)', () => {
     const body = { set: { ...valid, board: { columns } }, settings: DEFAULT_SETTINGS };
     expect(createRoomBodySchema.safeParse(body).success).toBe(false);
     expect(createRoomBodySchema.safeParse({ ...body, set: valid }).success).toBe(true);
+  });
+});
+
+describe('draftSetSchema (F107)', () => {
+  it('takes an unplayable set as the editor saves it: blank title, answer and choices', () => {
+    const draft = set({
+      title: '',
+      questions: [
+        question({ text: '', answer: '' }),
+        question({ id: 'q2', mode: 'choice', choices: ['', 'B'], answer: '' }),
+      ],
+    });
+    expect(draftSetSchema.parse(draft)).toEqual(draft);
+  });
+
+  it('takes a set with no questions, and keeps what was typed untrimmed', () => {
+    const draft = set({ title: '  Quiz ', questions: [] });
+    expect(draftSetSchema.parse(draft)).toEqual(draft);
+  });
+
+  it('refuses a picture', () => {
+    const result = draftSetSchema.safeParse(set({ questions: [question({ imageId: 'img-1' })] }));
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ['questions', 0, 'imageId'],
+      message: 'Built-in sets cannot have pictures',
+    });
+  });
+
+  it.each([
+    ['title', set({ title: 'x'.repeat(SET_TITLE_MAX + 1) })],
+    ['category', set({ category: 'x'.repeat(SET_CATEGORY_MAX + 1) })],
+    ['question text', set({ questions: [question({ text: 'x'.repeat(QUESTION_TEXT_MAX + 1) })] })],
+    ['answer', set({ questions: [question({ answer: 'x'.repeat(ANSWER_MAX + 1) })] })],
+    ['host notes', set({ questions: [question({ hostNotes: 'x'.repeat(HOST_NOTES_MAX + 1) })] })],
+    ['a choice', set({ questions: [question({ choices: ['x'.repeat(CHOICE_TEXT_MAX + 1)] })] })],
+    ['five choices', set({ questions: [question({ choices: ['a', 'b', 'c', 'd', 'e'] })] })],
+    ['points', set({ questions: [question({ points: POINTS_MAX + 1 })] })],
+    [
+      'question count',
+      set({
+        questions: Array.from({ length: MAX_QUESTIONS_PER_SET + 1 }, (_, i) =>
+          question({ id: `q${i}` }),
+        ),
+      }),
+    ],
+    ['id', set({ id: 'bad id' })],
+  ])('refuses a draft past its bounds: %s', (_name, draft) => {
+    expect(draftSetSchema.safeParse(draft).success).toBe(false);
   });
 });
 
