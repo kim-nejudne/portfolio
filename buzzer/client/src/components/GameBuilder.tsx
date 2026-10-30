@@ -36,7 +36,7 @@ interface GameBuilderProps {
   hostLabel: string;
   /** Shown on the host button while `onHost` runs. */
   hostingLabel: string;
-  /** Hosts the game. A thrown Error's message shows under the buttons. */
+  /** Hosts the game. A thrown Error's message shows above the buttons. */
   onHost: (game: BuiltGame) => Promise<void>;
   /** After **Save to My sets** stored the game. */
   onSaved: (saved: QuestionSet) => void;
@@ -158,24 +158,37 @@ export function GameBuilder({
   }
 
   const locked = busy !== null;
+  const showProblem =
+    problem !== null && (mode === 'board' ? boardOptions.length > 0 : rows.length > 0);
 
   return (
     <div className="flex min-h-0 flex-col gap-4">
-      <div role="group" aria-label="Kind of game" className="grid shrink-0 grid-cols-2 gap-2">
+      {/* A segmented control: one track, the chosen kind filled (LND-07). Native radios, so the
+          arrow keys move between the two. */}
+      <div
+        role="radiogroup"
+        aria-label="Kind of game"
+        className="grid shrink-0 grid-cols-2 gap-1 rounded-2xl border-2 border-edge bg-bg p-1"
+      >
         {MODES.map((option) => (
-          <button
+          <label
             key={option.mode}
-            type="button"
-            aria-pressed={mode === option.mode}
-            onClick={() => {
-              setMode(option.mode);
-              setError(null);
-            }}
-            disabled={locked}
-            className={`${BUTTON_SMALL} ${mode === option.mode ? 'border-accent text-accent' : ''}`}
+            className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-center text-base font-bold text-muted transition not-has-checked:not-has-disabled:hover:text-ink has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent has-disabled:cursor-default has-disabled:opacity-40"
           >
+            <input
+              type="radio"
+              name="game-kind"
+              value={option.mode}
+              checked={mode === option.mode}
+              onChange={() => {
+                setMode(option.mode);
+                setError(null);
+              }}
+              disabled={locked}
+              className="sr-only"
+            />
             {option.label}
-          </button>
+          </label>
         ))}
       </div>
       {mode === 'board' ? (
@@ -190,7 +203,7 @@ export function GameBuilder({
           <p className="text-muted">
             Draw questions from the categories you choose. Each keeps its own points.
           </p>
-          <ol className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <ol className="flex flex-col gap-3">
             {rows.map((row, index) => {
               const number = index + 1;
               const got = counts[index] ?? 0;
@@ -198,14 +211,15 @@ export function GameBuilder({
                 <li
                   key={row.key}
                   aria-label={`Row ${number}`}
-                  className="grid grid-cols-[1fr_auto_auto] gap-2 rounded-xl border-2 border-edge p-3"
+                  // From a tablet up, category, difficulty, count and Remove share one line.
+                  className="grid grid-cols-[1fr_auto_auto] gap-2 rounded-xl border-2 border-edge p-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
                 >
                   <select
                     aria-label={`Category, row ${number}`}
                     value={row.category}
                     onChange={(event) => update(row.key, { category: event.target.value })}
                     disabled={locked}
-                    className={`${FIELD} col-span-3`}
+                    className={`${FIELD} col-span-3 md:col-span-1`}
                   >
                     {categories.map((category) => (
                       <option key={category} value={category}>
@@ -254,7 +268,7 @@ export function GameBuilder({
                     Remove
                   </button>
                   {got < row.count && (
-                    <p className="col-span-3 text-base text-buzz">
+                    <p className="col-span-3 text-base text-buzz md:col-span-4">
                       {got === 0 ? 'No questions match.' : `Only ${questionCount(got)} match.`}
                     </p>
                   )}
@@ -275,39 +289,44 @@ export function GameBuilder({
           </p>
         </>
       )}
-      {problem && (mode === 'board' ? boardOptions.length > 0 : rows.length > 0) && (
-        <p className="text-buzz">{problem}</p>
-      )}
       {children}
-      <button
-        type="button"
-        onClick={() => void run('host')}
-        disabled={locked || problem !== null}
-        className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
-      >
-        {busy === 'host' ? hostingLabel : hostLabel}
-      </button>
-      <button
-        type="button"
-        onClick={() => void run('save')}
-        disabled={locked || problem !== null}
-        className={`${BUTTON_OUTLINE} shrink-0 text-xl`}
-      >
-        {busy === 'save' ? 'Saving…' : 'Save to My sets'}
-      </button>
-      {error && (
-        <p role="alert" className="text-center text-buzz">
-          {error}
-        </p>
+      {/* Every message in one place, above the actions (LND-07). */}
+      {(showProblem || error) && (
+        <div className="flex flex-col gap-1">
+          {showProblem && <p className="text-buzz">{problem}</p>}
+          {error && (
+            <p role="alert" className="text-buzz">
+              {error}
+            </p>
+          )}
+        </div>
       )}
-      <button
-        type="button"
-        onClick={onBack}
-        disabled={locked}
-        className={`${LINK} shrink-0 text-lg`}
-      >
-        Back to the sets
-      </button>
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+        <button
+          type="button"
+          onClick={() => void run('host')}
+          disabled={locked || problem !== null}
+          className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
+        >
+          {busy === 'host' ? hostingLabel : hostLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => void run('save')}
+          disabled={locked || problem !== null}
+          className={`${BUTTON_OUTLINE} shrink-0 text-xl`}
+        >
+          {busy === 'save' ? 'Saving…' : 'Save to My sets'}
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={locked}
+          className={`${LINK} shrink-0 self-center text-lg md:ml-auto`}
+        >
+          Back to the sets
+        </button>
+      </div>
     </div>
   );
 }
@@ -333,7 +352,7 @@ function BoardPicks({ options, picked, onToggle, locked }: BoardPicksProps) {
         Choose {BOARD_COLUMNS_MIN} to {BOARD_COLUMNS_MAX} categories. Each becomes a column of one
         Easy, one Medium and one Hard question, keeping their points.
       </p>
-      <fieldset className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+      <fieldset className="grid gap-2 md:grid-cols-2">
         <legend className="sr-only">Board categories</legend>
         {options.map((category) => {
           const column = picked.indexOf(category);

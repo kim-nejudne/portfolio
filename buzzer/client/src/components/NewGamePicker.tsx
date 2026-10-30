@@ -10,9 +10,9 @@ import {
   uploadSetImages,
 } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_PRIMARY, LINK } from '../lib/ui.js';
 import { GameBuilder, type BuiltGame } from './GameBuilder.js';
 import { SetBrowser } from './SetBrowser.js';
+import { SetPicker } from './SetPicker.js';
 import { SetPreview } from './SetPreview.js';
 
 type Status =
@@ -158,7 +158,7 @@ export function NewGamePicker({
   }
 
   const keepScoresBox = (
-    <label className="flex min-h-11 shrink-0 cursor-pointer items-center gap-3">
+    <label className="flex min-h-11 cursor-pointer items-center gap-3">
       <input
         type="checkbox"
         checked={keepScores}
@@ -170,128 +170,128 @@ export function NewGamePicker({
     </label>
   );
 
+  const picking = status.kind === 'picking' ? status : null;
+  const selected = picking?.sets.find((set) => set.id === selectedId);
+  const detail = (set: QuestionSet) =>
+    // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
+    setDetail(
+      set,
+      picking !== null && picking.sets.indexOf(set) >= picking.firstBuiltIn,
+      checkPlayable(set).ok,
+    );
+  const heading = (
+    <h2
+      id="new-game-heading"
+      ref={headingRef}
+      tabIndex={-1}
+      className="font-display text-3xl outline-none"
+    >
+      New game
+    </h2>
+  );
+
   // On body: the Screen's stage is a positioned box, which would confine a fixed child.
   return createPortal(
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-bg/85 p-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-bg/85 p-4 short:p-2">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-game-heading"
         // Behind an open preview, nothing in the picker takes focus or clicks.
         inert={previewing !== null}
-        className={`flex max-h-full w-full max-w-md flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-6 text-lg ${className}`}
+        // The whole dialog scrolls, list included, so a short window reaches every control (LND-06).
+        className={`flex max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] border-2 border-edge bg-surface p-6 text-lg [scrollbar-color:var(--color-edge)_transparent] short:max-w-2xl md:max-w-3xl lg:max-w-5xl ${className}`}
       >
-        <h2
-          id="new-game-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className="shrink-0 font-display text-3xl outline-none"
-        >
-          New game
-        </h2>
-        {status.kind === 'loading' && <p className="text-muted">Loading your sets…</p>}
-        {status.kind === 'failed' && (
-          <p role="alert" className="text-buzz">
-            Could not load the saved sets in this browser.
-          </p>
-        )}
-        {status.kind === 'picking' && building ? (
-          <GameBuilder
-            sources={status.sets}
-            hostLabel="Start new game"
-            hostingLabel="Starting new game…"
-            onHost={startBuilt}
-            onSaved={(saved) => {
-              // The saved game joins this browser's sets, first and picked.
-              setStatus({
-                ...status,
-                sets: [saved, ...status.sets],
-                firstBuiltIn: status.firstBuiltIn + 1,
-              });
-              setSelectedId(saved.id);
-              setBuilding(false);
-            }}
-            onBack={() => setBuilding(false)}
-          >
-            {keepScoresBox}
-          </GameBuilder>
-        ) : (
+        {picking && building ? (
           <>
-            {status.kind === 'picking' && (
-              <SetBrowser
-                mode="select"
-                id="new-game"
-                legend="Question set"
-                sets={status.sets}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                disabled={locked}
-                onPreview={preview && !locked ? setPreviewing : undefined}
-                detail={(set) =>
-                  // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
-                  setDetail(
-                    set,
-                    status.sets.indexOf(set) >= status.firstBuiltIn,
-                    checkPlayable(set).ok,
-                  )
-                }
-                // The scroller is a div: a fieldset won't shrink as a flex child, and its default
-                // min-content width would push the rows past the dialog.
-                listClassName="min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]"
-                className="min-h-0"
-              />
-            )}
-            {previewing && (
-              <SetPreview
-                set={previewing}
-                actionLabel="Pick this set"
-                onAction={(set) => setSelectedId(set.id)}
-                onClose={() => setPreviewing(null)}
-              />
-            )}
-            {keepScoresBox}
-            <button
-              type="button"
-              onClick={() => status.kind === 'picking' && void start(status)}
-              disabled={
-                status.kind !== 'picking' || starting || (selectedId === null && !uploadPending)
-              }
-              className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
+            {heading}
+            <GameBuilder
+              sources={picking.sets}
+              hostLabel="Start new game"
+              hostingLabel="Starting new game…"
+              onHost={startBuilt}
+              onSaved={(saved) => {
+                // The saved game joins this browser's sets, first and picked.
+                setStatus({
+                  ...picking,
+                  sets: [saved, ...picking.sets],
+                  firstBuiltIn: picking.firstBuiltIn + 1,
+                });
+                setSelectedId(saved.id);
+                setBuilding(false);
+              }}
+              onBack={() => setBuilding(false)}
             >
-              {starting
+              {keepScoresBox}
+            </GameBuilder>
+          </>
+        ) : (
+          <SetPicker
+            inDialog
+            heading={heading}
+            back={{ label: 'Cancel', onClick: onClose, disabled: starting }}
+            onBuild={
+              builder && picking && !locked
+                ? () => {
+                    setBuilding(true);
+                    setError(null);
+                  }
+                : undefined
+            }
+            browser={
+              <>
+                {status.kind === 'loading' && <p className="text-muted">Loading your sets…</p>}
+                {status.kind === 'failed' && (
+                  <p role="alert" className="text-buzz">
+                    Could not load the saved sets in this browser.
+                  </p>
+                )}
+                {picking && (
+                  <SetBrowser
+                    mode="select"
+                    id="new-game"
+                    legend="Question set"
+                    sets={picking.sets}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    disabled={locked}
+                    detail={detail}
+                  />
+                )}
+              </>
+            }
+            selected={selected && { set: selected, detail: detail(selected) }}
+            onPreview={preview && !locked ? setPreviewing : undefined}
+            extra={keepScoresBox}
+            message={
+              error && (
+                <p role="alert" className="text-center text-buzz">
+                  {error}
+                </p>
+              )
+            }
+            action={{
+              label: starting
                 ? uploadPending
                   ? 'Sending images…'
                   : 'Starting new game…'
                 : uploadPending
                   ? 'Retry images'
-                  : 'Start new game'}
-            </button>
-            {error && (
-              <p role="alert" className="text-center text-buzz">
-                {error}
-              </p>
+                  : 'Start new game',
+              onClick: () => picking && void start(picking),
+              disabled: picking === null || starting || (selectedId === null && !uploadPending),
+            }}
+          >
+            {previewing && (
+              <SetPreview
+                set={previewing}
+                // The set is the picked one, so the preview's next step is the picker's own.
+                actionLabel="Start new game"
+                onAction={() => picking && void start(picking)}
+                onClose={() => setPreviewing(null)}
+              />
             )}
-            {builder && status.kind === 'picking' && !locked && (
-              <button
-                type="button"
-                onClick={() => {
-                  setBuilding(true);
-                  setError(null);
-                }}
-                className="min-h-11 shrink-0 text-accent underline underline-offset-4 hover:text-accent-hover"
-              >
-                Build a game
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={starting}
-              className={`${LINK} shrink-0`}
-            >
-              Cancel
-            </button>
-          </>
+          </SetPicker>
         )}
       </section>
     </div>,

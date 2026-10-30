@@ -11,8 +11,6 @@ import {
 } from '../lib/setFilter.js';
 import { BUTTON_SMALL, INPUT, LABEL } from '../lib/ui.js';
 
-// The Preview button: the size of `/sets`' card buttons, so it is a 44 px target in a picker row too.
-
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
 
 interface CommonProps {
@@ -21,11 +19,9 @@ interface CommonProps {
   id: string;
   /** The line under a set's title. */
   detail: (set: QuestionSet) => ReactNode;
-  /** The list's box under the search and chips, such as its scroller. */
+  /** Extra classes for the list's box under the search and chips. */
   listClassName?: string;
   className?: string;
-  /** Adds a **Preview** button per set (DECISIONS F56). Never on the Screen: it shows answers. */
-  onPreview?: (set: QuestionSet) => void;
 }
 
 /** One radio per set, for the pickers. */
@@ -42,6 +38,11 @@ interface SelectProps extends CommonProps {
 interface ActionProps extends CommonProps {
   mode: 'actions';
   actions: (set: QuestionSet) => ReactNode;
+  /**
+   * Adds a **Preview** button per set (DECISIONS F56). A picker previews only its picked set, from
+   * its summary (`SetPicker`), so its cards stay short (LND-02).
+   */
+  onPreview?: (set: QuestionSet) => void;
 }
 
 /**
@@ -49,7 +50,7 @@ interface ActionProps extends CommonProps {
  * by category in the order given. Enter in the search box picks the one set left.
  */
 export function SetBrowser(props: SelectProps | ActionProps) {
-  const { sets, id, detail, listClassName = '', className = '', onPreview } = props;
+  const { sets, id, detail, listClassName = '', className = '' } = props;
   const [filter, setFilter] = useState<SetFilter>({ query: '', difficulties: [] });
   const listRef = useRef<HTMLDivElement>(null);
   const shown = filterSets(sets, filter);
@@ -98,37 +99,30 @@ export function SetBrowser(props: SelectProps | ActionProps) {
             <h3 id={`${id}-group-${index}`} className={LABEL}>
               {group.category}
             </h3>
-            {group.sets.map((set) => (
-              <div
-                key={set.id}
-                className="flex items-center gap-2 rounded-xl border-2 border-edge bg-bg has-checked:border-accent"
-              >
-                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-4 py-3">
-                  <input
-                    type="radio"
-                    name={`${id}-set`}
-                    value={set.id}
-                    checked={props.selectedId === set.id}
-                    onChange={() => props.onSelect(set.id)}
-                    className="size-5 shrink-0 accent-accent"
-                  />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{set.title}</span>
-                    <span className="text-sm text-muted">{detail(set)}</span>
-                  </span>
-                </label>
-                {onPreview && (
-                  <button
-                    type="button"
-                    onClick={() => onPreview(set)}
-                    aria-label={`Preview ${set.title}`}
-                    className={`${BUTTON_SMALL} mr-2 shrink-0`}
-                  >
-                    Preview
-                  </button>
-                )}
-              </div>
-            ))}
+            <div className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-3">
+              {group.sets.map((set) => (
+                <div
+                  key={set.id}
+                  className="flex rounded-xl border-2 border-edge bg-bg has-checked:border-accent"
+                >
+                  <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 px-4 py-3 @2xl:gap-2 @2xl:px-3">
+                    <input
+                      type="radio"
+                      name={`${id}-set`}
+                      value={set.id}
+                      checked={props.selectedId === set.id}
+                      onChange={() => props.onSelect(set.id)}
+                      className="mt-1 size-5 shrink-0 accent-accent"
+                    />
+                    <span className="flex min-w-0 flex-col">
+                      {/* Two lines before it clips: a built-in title never needs more (LND-02). */}
+                      <span className="line-clamp-2 break-words @2xl:text-base">{set.title}</span>
+                      <span className="text-sm text-muted">{detail(set)}</span>
+                    </span>
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </fieldset>
@@ -159,10 +153,10 @@ export function SetBrowser(props: SelectProps | ActionProps) {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {props.actions(set)}
-                    {onPreview && (
+                    {props.onPreview && (
                       <button
                         type="button"
-                        onClick={() => onPreview(set)}
+                        onClick={() => props.onPreview?.(set)}
                         aria-label={`Preview ${set.title}`}
                         className={`${BUTTON_SMALL} shrink-0`}
                       >
@@ -179,33 +173,37 @@ export function SetBrowser(props: SelectProps | ActionProps) {
     );
 
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      <input
-        type="search"
-        value={filter.query}
-        onChange={(event) => change({ ...filter, query: event.target.value })}
-        onKeyDown={onSearchKey}
-        disabled={disabled}
-        aria-label="Search sets"
-        placeholder="Search title or category"
-        autoComplete="off"
-        spellCheck={false}
-        enterKeyHint="search"
-        className={`${INPUT} shrink-0 py-2 text-lg placeholder:text-muted`}
-      />
-      <div role="group" aria-label="Difficulty" className="flex shrink-0 flex-wrap gap-2">
-        {DIFFICULTY_CHIPS.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            aria-pressed={filter.difficulties.includes(chip)}
-            onClick={() => toggle(chip)}
-            disabled={disabled}
-            className={`min-h-11 rounded-full border-2 border-edge px-4 text-base font-bold text-muted transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
-          >
-            {CHIP_LABELS[chip]}
-          </button>
-        ))}
+    // A container: the list's columns, and the search and chips sharing a row, follow the room the
+    // browser has, not the window (LND-02).
+    <div className={`@container flex flex-col gap-3 ${className}`}>
+      <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
+        <input
+          type="search"
+          value={filter.query}
+          onChange={(event) => change({ ...filter, query: event.target.value })}
+          onKeyDown={onSearchKey}
+          disabled={disabled}
+          aria-label="Search sets"
+          placeholder="Search title or category"
+          autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          className={`${INPUT} shrink-0 py-2 text-lg placeholder:text-muted @2xl:min-w-0 @2xl:flex-1`}
+        />
+        <div role="group" aria-label="Difficulty" className="flex shrink-0 flex-wrap gap-2">
+          {DIFFICULTY_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              aria-pressed={filter.difficulties.includes(chip)}
+              onClick={() => toggle(chip)}
+              disabled={disabled}
+              className={`min-h-11 rounded-full border-2 border-edge px-4 text-base font-bold text-muted transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
+            >
+              {CHIP_LABELS[chip]}
+            </button>
+          ))}
+        </div>
       </div>
       <div ref={listRef} className={listClassName}>
         {shown.length === 0 ? (

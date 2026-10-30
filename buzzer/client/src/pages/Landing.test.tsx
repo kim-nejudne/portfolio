@@ -97,6 +97,28 @@ describe('Landing', () => {
     expect(host.className).toContain('bg-accent');
   });
 
+  it('Join and Host are two cards of the same weight, side by side from a tablet up (LND-01)', () => {
+    const { join } = renderLanding();
+    const joinCard = screen.getByRole('form', { name: 'Join a game' });
+    const hostCard = screen.getByRole('region', { name: 'Host a game' });
+    expect(joinCard.parentElement).toBe(hostCard.parentElement);
+    expect(joinCard.parentElement!.className).toContain('md:grid-cols-2');
+    expect(hostCard.className).toBe(joinCard.className);
+    expect(
+      within(hostCard).getByText('Questions on the TV, buzzers on everyone’s phone'),
+    ).toBeTruthy();
+    expect(within(hostCard).getByRole('link', { name: 'Question sets' })).toBeTruthy();
+    expect(join.closest('[data-width]')!.getAttribute('data-width')).toBe('wide');
+  });
+
+  it('a disabled Join turns indigo with a muted label, not faded gold (LND-08)', () => {
+    const { join } = renderLanding();
+    expect(join.disabled).toBe(true);
+    expect(join.className).toContain('disabled:bg-edge');
+    expect(join.className).toContain('disabled:text-muted');
+    expect(join.className).not.toContain('disabled:opacity');
+  });
+
   it('offers Host a game and links Question sets to /sets', () => {
     renderLanding();
     expect(screen.getByRole('button', { name: 'Host a game' })).toBeTruthy();
@@ -190,19 +212,22 @@ describe('Host a game', () => {
     });
   });
 
-  it('Preview shows a set with its answers, and Pick this set picks it for Create room', async () => {
+  it('Preview shows the picked set with its answers, and Create room in it hosts that set', async () => {
     await db.sets.add(quiz);
     const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     renderLanding();
     await openPicker();
     const hard = STARTER_SETS[2]!;
-    fireEvent.click(screen.getByRole('button', { name: `Preview ${hard.title}` }));
+    // One Preview, in the summary, for the picked set (LND-02): the cards stay short.
+    expect(screen.getAllByRole('button', { name: /^Preview/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${hard.title}`) }));
+    const summary = screen.getByRole('complementary', { name: 'Picked set' });
+    fireEvent.click(within(summary).getByRole('button', { name: `Preview ${hard.title}` }));
     const preview = within(screen.getByRole('dialog', { name: hard.title }));
     expect(preview.getAllByRole('listitem')).toHaveLength(hard.questions.length);
     expect(preview.getByText(hard.questions[0]!.answer)).toBeTruthy();
-    fireEvent.click(preview.getByRole('button', { name: 'Pick this set' }));
+    fireEvent.click(preview.getByRole('button', { name: 'Create room' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
     await screen.findByRole('heading', { name: 'Room created' });
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect((JSON.parse(init.body as string) as { set: QuestionSet }).set).toEqual(hard);
@@ -231,7 +256,53 @@ describe('Host a game', () => {
     expect(screen.queryByRole('form', { name: 'Join a game' })).toBeNull();
     expect(screen.queryByLabelText('Room code')).toBeNull();
     const picker = heading.closest('section')!;
-    expect(picker.previousElementSibling?.querySelector('h1')).toBeTruthy();
+    expect(picker.className).toContain('md:col-span-2');
+    expect(picker.parentElement!.previousElementSibling?.querySelector('h1')).toBeTruthy();
+  });
+
+  it('the picker has Back on top and Build a game as an outline button with its hint (LND-04)', async () => {
+    renderLanding();
+    const heading = await openPicker();
+    const picker = heading.closest('section')!;
+    const back = within(picker).getByRole('button', { name: 'Back' });
+    const build = within(picker).getByRole('button', { name: 'Build a game' });
+    expect(within(picker).getAllByRole('button')[0]).toBe(back);
+    expect(back.className).toContain('min-h-11');
+    expect(build.className).toContain('border-accent');
+    expect(build.className).toContain('min-h-11');
+    expect(build.getAttribute('aria-describedby')).toBeTruthy();
+    expect(document.getElementById(build.getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Mix categories or make a category board',
+    );
+  });
+
+  it('the set list scrolls with the page: no box of its own (LND-02)', async () => {
+    renderLanding();
+    const heading = await openPicker();
+    const picker = heading.closest('section')!;
+    const radio = within(picker).getAllByRole('radio')[0]!;
+    for (let el: Element | null = radio; el && el !== picker; el = el.parentElement) {
+      expect(el.className).not.toMatch(/max-h-|overflow-y-auto/);
+    }
+  });
+
+  it('the picked set and Create room stay in a sticky summary, which follows the pick (LND-03)', async () => {
+    await db.sets.add(quiz);
+    renderLanding();
+    await openPicker();
+    const summary = screen.getByRole('complementary', { name: 'Picked set' });
+    expect(summary.className).toContain('sticky');
+    expect(summary.className).toContain('lg:top-6');
+    expect(within(summary).getByRole('button', { name: 'Create room' })).toBeTruthy();
+    expect(summary.textContent).toContain('Pub quiz');
+    expect(summary.textContent).toContain('8 questions');
+    fireEvent.click(screen.getByRole('radio', { name: /^Animals – Easy/ }));
+    expect(summary.textContent).toContain('Animals – Easy');
+    expect(summary.textContent).toContain('Animals · 15 questions · Easy · Built-in');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {
+      target: { value: 'movies' },
+    });
+    expect(summary.textContent).toContain('Pick a set');
   });
 
   it('the Join card stays hidden while building a game', async () => {
@@ -274,11 +345,11 @@ describe('Host a game', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('Cancel closes the picker and brings the Join card back', async () => {
+  it('Back closes the picker and brings the Join card back', async () => {
     const { input } = renderLanding();
     fireEvent.change(input, { target: { value: 'wx' } });
     await openPicker();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('heading', { name: 'Pick a question set' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Host a game' })).toBeTruthy();
     expect(screen.getByRole('form', { name: 'Join a game' })).toBeTruthy();
@@ -291,41 +362,93 @@ describe('Host a game', () => {
     expect(loadHostToken('WXYZ')).toBe(hostToken);
   });
 
-  it('Use this device as the Screen opens /screen/<CODE>', async () => {
+  it('This is the Screen opens /screen/<CODE>', async () => {
     stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     await hostAGame();
-    fireEvent.click(screen.getByRole('button', { name: 'Use this device as the Screen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'This is the Screen' }));
     expect(screen.getByTestId('path').textContent).toBe('/screen/WXYZ');
   });
 
-  it('Use this phone as the host remote opens /host/<CODE> with no token in the URL', async () => {
+  it('Host remote opens /host/<CODE> with no token in the URL', async () => {
     stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     await hostAGame();
-    fireEvent.click(screen.getByRole('button', { name: 'Use this phone as the host remote' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Host remote' }));
     expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ');
     expect(loadHostToken('WXYZ')).toBe(hostToken);
   });
 
-  it('Run from this phone (no TV) opens /host/<CODE>?read=1 with no token in the URL', async () => {
+  it('Phone only opens /host/<CODE>?read=1 with no token in the URL', async () => {
     stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     await hostAGame();
-    const buttons = within(screen.getByRole('region', { name: 'Room created' }))
-      .getAllByRole('button')
-      .map((b) => b.textContent);
-    expect(buttons.at(-1)).toBe('Run from this phone (no TV)');
-    fireEvent.click(screen.getByRole('button', { name: 'Run from this phone (no TV)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phone only' }));
     expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ?read=1');
     expect(loadHostToken('WXYZ')).toBe(hostToken);
   });
 
-  it('Open the Screen on another device shows the Screen URL and the code', async () => {
+  it('Screen elsewhere shows the Screen URL and the code', async () => {
     stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     await hostAGame();
-    const other = screen.getByRole('button', { name: 'Open the Screen on another device' });
+    const other = screen.getByRole('button', { name: 'Screen elsewhere' });
+    expect(other.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText(`${window.location.host}/screen/WXYZ`)).toBeNull();
     fireEvent.click(other);
+    expect(other.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText(`${window.location.host}/screen/WXYZ`)).toBeTruthy();
     expect(screen.getAllByText('WXYZ').length).toBeGreaterThan(1);
+  });
+
+  /** The option cards of Room created, in order: [title, its one-line explanation]. */
+  function roomOptions() {
+    return within(screen.getByRole('region', { name: 'Room created' }))
+      .getAllByRole('button')
+      .map((button) => [
+        button.textContent!.replace(
+          document.getElementById(button.getAttribute('aria-describedby')!)!.textContent!,
+          '',
+        ),
+        document.getElementById(button.getAttribute('aria-describedby')!)!.textContent,
+      ]);
+  }
+
+  it('on a touch screen, Room created offers Host remote first, in gold, then Phone only (LND-05)', async () => {
+    stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    await hostAGame();
+    expect(roomOptions()).toEqual([
+      ['Host remote', 'Control the game from this phone'],
+      ['Phone only', 'No TV: run everything from here'],
+      ['This is the Screen', 'Show questions on this device'],
+      ['Screen elsewhere', 'Open the Screen on a TV or laptop'],
+    ]);
+    expect(screen.getByRole('button', { name: 'Host remote' }).className).toContain('bg-accent');
+    expect(screen.getByRole('button', { name: 'Phone only' }).className).not.toContain('bg-accent');
+  });
+
+  it('with a mouse, Room created offers This is the Screen first, in gold (LND-05)', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === '(hover: hover) and (pointer: fine)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+    try {
+      stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+      await hostAGame();
+      expect(roomOptions().map(([title]) => title)).toEqual([
+        'This is the Screen',
+        'Screen elsewhere',
+        'Host remote',
+        'Phone only',
+      ]);
+      const region = screen.getByRole('region', { name: 'Room created' });
+      expect(region.querySelector('.md\\:grid-cols-2')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'This is the Screen' }).className).toContain(
+        'bg-accent',
+      );
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
   });
 
   /** Build a game with three rows: Animals, Science and World History, 3 each at one level. */

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { APP_NAME, ROOM_CODE_LENGTH } from '../../../shared/constants.js';
 import { BulbRail } from '../components/BulbRail.js';
 import { HostGame } from '../components/HostGame.js';
+import { PageShell } from '../components/PageShell.js';
 import { isCompleteRoomCode, normalizeRoomCode } from '../lib/roomCode.js';
 import { BUTTON_PRIMARY, CARD, INPUT, LABEL, LINK } from '../lib/ui.js';
 
@@ -19,54 +20,71 @@ export function Landing() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-8 px-4 py-10">
+    <PageShell
+      width="wide"
+      // On a tall window the hero and the two cards sit mid-page, not at the top (LND-01). The
+      // open picker stays top-aligned, so filtering its list never moves its search box.
+      className={hosting ? '' : 'lg:flex-1 lg:justify-center'}
+    >
       <div className="flex flex-col items-center gap-4">
-        <BulbRail count={9} variant="row" />
-        <h1 className="text-center font-display text-6xl text-accent [text-shadow:4px_4px_0_var(--color-bg-deep)]">
+        {/* While hosting, only the logo stays, so the picker starts high on the page. */}
+        {!hosting && <BulbRail count={9} variant="row" />}
+        <h1
+          className={`text-center font-display text-accent [text-shadow:4px_4px_0_var(--color-bg-deep)] ${hosting ? 'text-4xl' : 'text-6xl'}`}
+        >
           {APP_NAME}
         </h1>
-        <p className="text-center text-lg text-muted">
-          A game-show buzzer: questions on the TV, buzzers on your phones
-        </p>
+        {!hosting && (
+          <p className="text-center text-lg text-muted">
+            A game-show buzzer: questions on the TV, buzzers on your phones
+          </p>
+        )}
       </div>
 
-      {!hosting && (
-        <form
-          onSubmit={join}
-          aria-labelledby="join-heading"
-          className={`flex flex-col gap-4 ${CARD}`}
-        >
-          <h2 id="join-heading" className="font-display text-3xl">
-            Join a game
-          </h2>
-          <label htmlFor="room-code" className={LABEL}>
-            Room code
-          </label>
-          <input
-            id="room-code"
-            value={code}
-            onChange={(event) => setCode(normalizeRoomCode(event.target.value))}
-            placeholder="ABCD"
-            inputMode="text"
-            autoCapitalize="characters"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="go"
-            maxLength={ROOM_CODE_LENGTH}
-            className={`${INPUT} text-center text-5xl tracking-[0.3em] uppercase placeholder:text-edge`}
-          />
-          <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
-            Join
-          </button>
-        </form>
-      )}
+      {/* Join and Host: two cards of the same weight, side by side from a tablet up. */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {!hosting && (
+          <form
+            onSubmit={join}
+            aria-labelledby="join-heading"
+            className={`flex flex-col gap-4 ${CARD}`}
+          >
+            <h2 id="join-heading" className="font-display text-3xl">
+              Join a game
+            </h2>
+            <label htmlFor="room-code" className={LABEL}>
+              Room code
+            </label>
+            <input
+              id="room-code"
+              value={code}
+              onChange={(event) => setCode(normalizeRoomCode(event.target.value))}
+              placeholder="ABCD"
+              inputMode="text"
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
+              maxLength={ROOM_CODE_LENGTH}
+              className={`${INPUT} text-center text-5xl tracking-[0.3em] uppercase placeholder:text-edge`}
+            />
+            <button
+              type="submit"
+              disabled={!ready}
+              className={`${BUTTON_PRIMARY} mt-auto text-2xl`}
+            >
+              Join
+            </button>
+          </form>
+        )}
 
-      <HostGame onOpenChange={setHosting} />
-
-      <Link to="/sets" className={`${LINK} self-center text-lg`}>
-        Question sets
-      </Link>
-    </main>
+        <HostGame onOpenChange={setHosting}>
+          <Link to="/sets" className={`${LINK} self-center text-lg`}>
+            Question sets
+          </Link>
+        </HostGame>
+      </div>
+    </PageShell>
   );
 }

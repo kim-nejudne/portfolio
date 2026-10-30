@@ -11,7 +11,11 @@ export type IconName =
   | 'skip'
   | 'trophy'
   | 'flag'
-  | 'more';
+  | 'more'
+  | 'tv'
+  | 'cast'
+  | 'remote'
+  | 'phone';
 
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
@@ -40,6 +44,30 @@ const PATHS: Record<IconName, ReactNode> = {
   flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   // Three dots in a column: zero-length strokes with round caps.
   more: <path d="M12 5h.01M12 12h.01M12 19h.01" strokeWidth={4} />,
+  tv: (
+    <>
+      <rect x="3" y="4" width="18" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </>
+  ),
+  // A screen with the cast waves in its corner: the Screen on another device.
+  cast: (
+    <path d="M3 8V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2h-6M3 12a8 8 0 018 8M3 16a4 4 0 014 4" />
+  ),
+  // A phone with a big button: the host remote.
+  remote: (
+    <>
+      <rect x="6" y="2" width="12" height="20" rx="2.5" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M12 17h.01" strokeWidth={4} />
+    </>
+  ),
+  phone: (
+    <>
+      <rect x="6" y="2" width="12" height="20" rx="2.5" />
+      <path d="M10.5 18h3" />
+    </>
+  ),
 };
 
 /** An inline SVG stroke icon. Decorative: the button or text beside it carries the name. */

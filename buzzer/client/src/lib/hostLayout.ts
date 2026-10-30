@@ -22,7 +22,7 @@ export function saveReadAloud(code: string, on: boolean): void {
   }
 }
 
-/** The search param `RoomCreated`'s **Run from this phone (no TV)** opens the remote with. */
+/** The search param `RoomCreated`'s **Phone only** opens the remote with. */
 export const READ_ALOUD_PARAM = 'read';
 
 /** True when `search` asks for the read-aloud layout (`?read=1`). */

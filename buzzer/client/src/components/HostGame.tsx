@@ -1,11 +1,12 @@
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_PRIMARY, CARD, LINK } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD } from '../lib/ui.js';
 import { GameBuilder } from './GameBuilder.js';
 import { RoomCreated } from './RoomCreated.js';
 import { SetBrowser } from './SetBrowser.js';
+import { SetPicker } from './SetPicker.js';
 import { SetPreview } from './SetPreview.js';
 
 type Status =
@@ -19,9 +20,15 @@ type Status =
  * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets or a
  * built-in one (DECISIONS F54), create the room, keep its hostToken on this device, then ask where the Screen is.
  * `onOpenChange` reports when the picker or the created room is showing, so the landing page can hide the Join card
- * (DECISIONS F58).
+ * (DECISIONS F58). Closed, it is the landing page's Host a game card, with `children` at its foot.
  */
-export function HostGame({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
+export function HostGame({
+  onOpenChange,
+  children,
+}: {
+  onOpenChange?: (open: boolean) => void;
+  children?: ReactNode;
+}) {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,16 +71,26 @@ export function HostGame({ onOpenChange }: { onOpenChange?: (open: boolean) => v
     }
   }
 
-  if (status.kind === 'created') return <RoomCreated code={status.code} />;
+  if (status.kind === 'created') {
+    return (
+      <div className="md:col-span-2">
+        <RoomCreated code={status.code} />
+      </div>
+    );
+  }
 
   if (status.kind !== 'picking') {
     return (
-      <div className="flex flex-col gap-3">
+      <section aria-labelledby="host-card-heading" className={`flex flex-col gap-4 ${CARD}`}>
+        <h2 id="host-card-heading" className="font-display text-3xl">
+          Host a game
+        </h2>
+        <p className="text-lg text-muted">Questions on the TV, buzzers on everyone&rsquo;s phone</p>
         <button
           type="button"
           onClick={() => void openPicker()}
           disabled={status.kind === 'loading'}
-          className={`${BUTTON_PRIMARY} text-2xl`}
+          className={`${BUTTON_PRIMARY} mt-auto text-2xl`}
         >
           Host a game
         </button>
@@ -82,93 +99,93 @@ export function HostGame({ onOpenChange }: { onOpenChange?: (open: boolean) => v
             {error}
           </p>
         )}
-      </div>
+        {children}
+      </section>
     );
   }
 
   const { sets, firstBuiltIn, creating } = status;
+  const builtIn = (set: QuestionSet) => sets.indexOf(set) >= firstBuiltIn;
+  const selected = sets.find((set) => set.id === selectedId);
 
   return (
     <section
       aria-labelledby="pick-heading"
       // Behind an open preview, nothing in the picker takes focus or clicks.
       inert={previewing !== null}
-      className={`flex flex-col gap-4 ${CARD}`}
+      className={`flex flex-col gap-4 md:col-span-2 ${CARD}`}
     >
-      <h2 id="pick-heading" className="font-display text-3xl">
-        {building ? 'Build a game' : 'Pick a question set'}
-      </h2>
       {building ? (
-        <GameBuilder
-          sources={sets}
-          hostLabel="Host this game"
-          hostingLabel="Creating room…"
-          onHost={async ({ set, loadImage }) =>
-            setStatus({ kind: 'created', code: await hostSet(set, loadImage) })
-          }
-          onSaved={(saved) => {
-            // The saved game joins this browser's sets, first and picked, ready for Create room.
-            setStatus({ ...status, sets: [saved, ...sets], firstBuiltIn: firstBuiltIn + 1 });
-            setSelectedId(saved.id);
-            setBuilding(false);
-          }}
-          onBack={() => setBuilding(false)}
-        />
-      ) : (
         <>
-          <SetBrowser
-            mode="select"
-            id="host"
-            legend="Question set"
-            sets={sets}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            detail={(set) => setDetail(set, sets.indexOf(set) >= firstBuiltIn)}
-            onPreview={creating ? undefined : setPreviewing}
-            listClassName="max-h-80 overflow-y-auto"
-            className="text-lg"
-          />
-          <button
-            type="button"
-            onClick={() => void create(status)}
-            disabled={creating || selectedId === null}
-            className={`${BUTTON_PRIMARY} py-5 text-2xl`}
-          >
-            {creating ? 'Creating room…' : 'Create room'}
-          </button>
-          {error && (
-            <p role="alert" className="text-center text-lg text-buzz">
-              {error}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setBuilding(true);
-              setError(null);
-            }}
-            disabled={creating}
-            className="min-h-11 text-lg text-accent underline underline-offset-4 hover:text-accent-hover disabled:opacity-40"
-          >
+          <h2 id="pick-heading" className="font-display text-3xl">
             Build a game
-          </button>
+          </h2>
+          <GameBuilder
+            sources={sets}
+            hostLabel="Host this game"
+            hostingLabel="Creating room…"
+            onHost={async ({ set, loadImage }) =>
+              setStatus({ kind: 'created', code: await hostSet(set, loadImage) })
+            }
+            onSaved={(saved) => {
+              // The saved game joins this browser's sets, first and picked, ready for Create room.
+              setStatus({ ...status, sets: [saved, ...sets], firstBuiltIn: firstBuiltIn + 1 });
+              setSelectedId(saved.id);
+              setBuilding(false);
+            }}
+            onBack={() => setBuilding(false)}
+          />
+        </>
+      ) : (
+        <SetPicker
+          heading={
+            <h2 id="pick-heading" className="font-display text-3xl">
+              Pick a question set
+            </h2>
+          }
+          back={{ label: 'Back', onClick: () => setStatus({ kind: 'idle' }), disabled: creating }}
+          onBuild={() => {
+            setBuilding(true);
+            setError(null);
+          }}
+          buildDisabled={creating}
+          browser={
+            <SetBrowser
+              mode="select"
+              id="host"
+              legend="Question set"
+              sets={sets}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              detail={(set) => setDetail(set, builtIn(set))}
+              className="text-lg"
+            />
+          }
+          selected={selected && { set: selected, detail: setDetail(selected, builtIn(selected)) }}
+          onPreview={creating ? undefined : setPreviewing}
+          message={
+            error && (
+              <p role="alert" className="text-center text-lg text-buzz">
+                {error}
+              </p>
+            )
+          }
+          action={{
+            label: creating ? 'Creating room…' : 'Create room',
+            onClick: () => void create(status),
+            disabled: creating || selectedId === null,
+          }}
+        >
           {previewing && (
             <SetPreview
               set={previewing}
-              actionLabel="Pick this set"
-              onAction={(set) => setSelectedId(set.id)}
+              // The set is the picked one, so the preview's next step is the picker's own.
+              actionLabel="Create room"
+              onAction={() => void create(status)}
               onClose={() => setPreviewing(null)}
             />
           )}
-          <button
-            type="button"
-            onClick={() => setStatus({ kind: 'idle' })}
-            disabled={creating}
-            className={`${LINK} text-lg`}
-          >
-            Cancel
-          </button>
-        </>
+        </SetPicker>
       )}
     </section>
   );

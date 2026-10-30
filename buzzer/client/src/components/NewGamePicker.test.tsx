@@ -134,13 +134,32 @@ describe('NewGamePicker', () => {
     expect(putBody(fetch).keepScores).toBe(true);
   });
 
-  it('puts the search box first in tab order after the heading', async () => {
+  it('puts Cancel, Keep scores, then the search box first in tab order after the heading (LND-04)', async () => {
     renderPicker();
     await options();
-    const first = [...dialog().querySelectorAll<HTMLElement>('input, button')].find(
+    const order = [...dialog().querySelectorAll<HTMLElement>('input, button')].filter(
       (element) => !(element as HTMLInputElement).disabled,
     );
-    expect(first).toBe(within(dialog()).getByRole('searchbox', { name: 'Search sets' }));
+    expect(order.slice(0, 3)).toEqual([
+      within(dialog()).getByRole('button', { name: 'Cancel' }),
+      within(dialog()).getByRole('checkbox', { name: 'Keep scores' }),
+      within(dialog()).getByRole('searchbox', { name: 'Search sets' }),
+    ]);
+  });
+
+  it('scrolls as a whole, list included, and widens to two panes at lg (LND-06)', async () => {
+    renderPicker();
+    await options();
+    expect(dialog().className).toContain('overflow-y-auto');
+    expect(dialog().className).toContain('lg:max-w-5xl');
+    const radio = within(dialog()).getAllByRole('radio')[0]!;
+    for (let el = radio.parentElement; el && el !== dialog(); el = el.parentElement) {
+      expect(el.className).not.toMatch(/overflow-y-auto|max-h-/);
+    }
+    const summary = within(dialog()).getByRole('complementary', { name: 'Picked set' });
+    expect(within(summary).getByRole('button', { name: 'Start new game' })).toBeTruthy();
+    const keep = within(dialog()).getByRole('checkbox', { name: 'Keep scores' });
+    expect(keep.closest('label')!.className).toContain('min-h-11');
   });
 
   it('picks Animals – Easy by search and chip, and sends it', async () => {
@@ -291,26 +310,27 @@ describe('NewGamePicker', () => {
     expect(screen.queryByText('Answer:', { exact: false })).toBeNull();
   });
 
-  it("on the remote, Preview shows a set's answers, and Pick this set selects it", async () => {
-    renderPicker('FINAL', true);
+  it("on the remote, Preview shows the picked set's answers, and Start new game in it sends it", async () => {
+    const { fetch, release } = stubPut();
+    const { onClose } = renderPicker('FINAL', true);
     const radios = await options();
-    expect(within(dialog()).getAllByRole('button', { name: /^Preview/ })).toHaveLength(
-      radios.length,
-    );
+    expect(within(dialog()).getAllByRole('button', { name: /^Preview/ })).toHaveLength(1);
+    fireEvent.click(radios[1]!);
     fireEvent.click(screen.getByRole('button', { name: 'Preview Round two' }));
     const preview = screen.getByRole('dialog', { name: 'Round two' });
     expect(within(preview).getByRole('listitem', { name: 'Question 1' }).textContent).toBe(
       'Question 1 · 100 pointsWhat?Answer: Yes',
     );
-    fireEvent.click(within(preview).getByRole('button', { name: 'Pick this set' }));
+    fireEvent.click(within(preview).getByRole('button', { name: 'Start new game' }));
     expect(screen.queryByRole('dialog', { name: 'Round two' })).toBeNull();
-    expect(radios[0]!.checked).toBe(false);
-    expect(radios[1]!.checked).toBe(true);
+    release();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(putBody(fetch).set.title).toBe('Round two');
   });
 
   it('Esc in a preview closes only the preview', async () => {
     const { onClose } = renderPicker('FINAL', true);
-    await options();
+    fireEvent.click((await options())[1]!);
     const opener = screen.getByRole('button', { name: 'Preview Round two' });
     opener.focus();
     fireEvent.click(opener);

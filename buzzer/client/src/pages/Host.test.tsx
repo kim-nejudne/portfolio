@@ -539,15 +539,19 @@ describe('Host remote', () => {
         expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
       });
 
-      it("the remote's picker offers Preview for every set", async () => {
+      it("the remote's picker offers Preview of the picked set", async () => {
         remote(final([player(1)]));
         const card = screen.getByRole('region', { name: 'Game over' });
         fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
         const picker = screen.getByRole('dialog', { name: 'New game' });
-        const radios = await within(picker).findAllByRole('radio');
-        expect(within(picker).getAllByRole('button', { name: /^Preview/ })).toHaveLength(
-          radios.length,
-        );
+        const radios = await within(picker).findAllByRole<HTMLInputElement>('radio');
+        const picked = radios.find((radio) => radio.checked)!;
+        const title = picked.closest('label')!.querySelector('.line-clamp-2')!.textContent;
+        expect(
+          within(picker)
+            .getAllByRole('button', { name: /^Preview/ })
+            .map((b) => b.getAttribute('aria-label')),
+        ).toEqual([`Preview ${title}`]);
       });
 
       it("the remote's picker offers Build a game", async () => {

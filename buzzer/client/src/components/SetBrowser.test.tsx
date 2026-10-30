@@ -34,7 +34,7 @@ const chip = (name: string) => screen.getByRole<HTMLButtonElement>('button', { n
 const radioTitles = () =>
   screen
     .queryAllByRole<HTMLInputElement>('radio')
-    .map((radio) => radio.closest('label')!.querySelector('.truncate')!.textContent);
+    .map((radio) => radio.closest('label')!.querySelector('.line-clamp-2')!.textContent);
 const selected = () => screen.getByTestId('selected').textContent;
 const type = (text: string) => fireEvent.change(search(), { target: { value: text } });
 
@@ -157,6 +157,29 @@ describe('SetBrowser picker', () => {
     );
     type('POKEMON');
     expect(radioTitles()).toEqual(['Pokémon']);
+  });
+
+  it('lays the sets out as a container-query grid with no scroll box of its own (LND-02)', () => {
+    render(<Picker />);
+    const animals = screen.getByRole('group', { name: 'Animals' });
+    const grid = animals.querySelector('h3 + div')!;
+    expect(grid.className).toContain('@md:grid-cols-2');
+    expect(grid.className).toContain('@2xl:grid-cols-3');
+    const container = grid.closest('.\\@container')!;
+    expect(container).toBeTruthy();
+    for (let el: Element | null = grid; el && el !== document.body; el = el.parentElement) {
+      expect(el.className).not.toMatch(/overflow-y-auto|max-h-/);
+    }
+  });
+
+  it('wraps a title onto a second line instead of cutting it short (LND-02)', () => {
+    render(<Picker />);
+    const title = screen
+      .getByRole('radio', { name: /^Animals – Easy/ })
+      .closest('label')!
+      .querySelector('.line-clamp-2')!;
+    expect(title.textContent).toBe('Animals – Easy');
+    expect(screen.getByRole('group', { name: 'Animals' }).querySelector('.truncate')).toBeNull();
   });
 
   it('disabled locks the search box, the chips and the sets', () => {

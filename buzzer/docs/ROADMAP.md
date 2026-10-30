@@ -250,17 +250,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F92 Responsive foundations
 
-- [ ] F93 Landing and host picker on every screen
-  - Spec: UI spec by view (Landing page); see `docs/ux/01-landing-and-hosting.md`
-  - Depends: F92
-  - Done when:
-    - LND-01 … LND-08 are closed
-    - At `md`, Join and Host are equal side-by-side cards
-    - The picker has no inner scroll box. At `lg` it is two panes with a sticky summary and Create room; on phones it has a sticky bottom Create room bar
-    - RoomCreated shows option cards ordered by pointer type
-    - NewGamePicker scrolls at 667×375 and matches the picker at `lg`
-    - GameBuilder actions are one row at `md`
-  - Tests: `Landing.test.tsx`, `NewGamePicker.test.tsx`, `GameBuilder.test.tsx`, `SetBrowser.test.tsx` updated for the new structure
+- [x] F93 Landing and host picker on every screen
 
 - [ ] F94 Set library grid
   - Spec: Question editor and images (Set list); see `docs/ux/02-set-library.md`
@@ -383,3 +373,5 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 - Taglish: the phone's results card image (`resultsCard.ts`) is still drawn in English; server errors in toasts stay English (they would need an error code per message); the join form and "Joining…" stay English, since the language arrives with the first snapshot — `GET /api/rooms/:code/exists` could return it (F91). Kim to review the drafted Taglish strings in `client/src/lib/copy.ts`.
 - Tests: one full `npm test` run in a few fails a single client test with `expect(document.title).toBe('Buzzr')` (seen in F84, F85, F87 and F92; the next run passes). Some suite leaves `document.title` set for the next file in the same worker; reset it in the shared jsdom setup, or find the page that changes it on unmount.
 - Responsive (F92 leftovers): the hand-written filled and outline buttons on Sets, SetEditor and PasteQuestions and the hand-written `CARD`s on Host, HostBoard, TypedMarking, ReadAloud and PasteQuestions should move to `BUTTON_PRIMARY`, `BUTTON_OUTLINE` and `CARD` as F94, F95 and F98 lay those pages out again. The editor's drag handle, ↑/↓ buttons, correct-choice radio and the join form's avatar cells are still under 44px (EDT and PLY features).
+- Responsive (F93): RoomCreated is top-aligned on a tall window. Landing centres only its hero and cards, so at 1440×900 the created room leaves the lower half empty. Centring it too would need Landing to tell the picker (top-aligned) from the created room.
+- Responsive (F93): the search box placeholder is Bungee (`INPUT`), and is cut short at 375px ("SEARCH TITLE OR CATEG…"). A shorter placeholder or a DM Sans one for search would fix it (F94 touches `SetBrowser` on `/sets`).

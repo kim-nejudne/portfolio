@@ -10,6 +10,73 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F93 — Landing and host picker on every screen (2026-10-30)
+**What changed:**
+- Landing (`pages/Landing.tsx`):
+  - It uses `PageShell width="wide"`. At `md`, Join and Host are equal cards side by side. The Host card is `HostGame`'s closed state: a pitch line, **Host a game**, then **Question sets**.
+  - At `lg` it is vertically centred.
+  - While hosting, the hero shrinks to the logo, and the picker or the created room spans both columns.
+- New `components/SetPicker.tsx`, shared by HostGame and NewGamePicker:
+  - At the top: "← Back" ("Cancel" in the dialog), the heading, and **Build a game** as an outline button with its hint. Keep scores sits under them.
+  - The set list flows with the page.
+  - A "Picked set" `aside` holds the title, detail, **Preview**, any error and the main action. Below `lg` it is a sticky bottom bar; at `lg` it is a sticky right pane.
+  - `index.css` adds a `scroll-padding-bottom` while the bar shows, so focus stops above it.
+- `SetBrowser`:
+  - It is an `@container`. Picker sets form a 1/2/3-column grid, and the search and chips share a row at `@2xl`.
+  - Titles use `line-clamp-2`, not `truncate`.
+  - Per-card Preview is gone from the pickers (it stays on `/sets`).
+- `RoomCreated`:
+  - Four option cards with icons: This is the Screen, Screen elsewhere, Host remote, Phone only. They form a 2×2 grid at `md`.
+  - The cards are ordered by `usePointerFine()`, and the first is gold.
+  - New icons in `Icon.tsx`: `tv`, `cast`, `remote`, `phone`.
+- `NewGamePicker`: the whole dialog scrolls; it is `short:max-w-2xl`, `md:max-w-3xl` and `lg:max-w-5xl`, and uses `SetPicker`.
+- `GameBuilder`:
+  - The kind toggle is a segmented radio group.
+  - Problem and error share one area above the actions.
+  - Host, Save and Back are one row at `md`, and mixed rows are one line at `md`.
+- `lib/ui.ts`: a disabled `BUTTON_PRIMARY` is `bg-edge text-muted` with no opacity.
+- Tests:
+  - `Landing.test.tsx` +9: cards, disabled Join, Back and Build, no list box, sticky summary following the pick, Preview → Create room, the four options, touch order, mouse order.
+  - `SetBrowser.test.tsx` +2, `GameBuilder.test.tsx` +2, `NewGamePicker.test.tsx` +1.
+  - Updated for the new structure: Cancel → Back, the RoomCreated names, radios for the toggle, a summary Preview in Landing, NewGamePicker and `Host.test.tsx`, and the new names in `Sets.test.tsx`.
+  - 2403 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-10-30 for F93:
+- SetPicker and its bar
+- Preview in the summary, whose action is now the main action
+- the container grid thresholds
+- the Landing layout and the hero
+- RoomCreated's cards and pointer order
+- the disabled primary, the segmented toggle, the builder row and the dialog widths
+
+**Notes for next session:**
+- **Preview changed:** it previews the picked set only, and its button now hosts or starts that set. "Pick this set" is gone from the pickers. `/sets` still has per-card Preview with **Host this set**.
+- Ordering RoomCreated by pointer bends the "pointer variants never for layout" rule, because the roadmap asks for it. In Playwright's mobile emulation `(hover: hover) and (pointer: fine)` still matched, so the touch order was proven by unit tests only. At 820×1180 (touch, not `isMobile`) the browser showed the touch order.
+- The layout bullets are proven by class assertions in the unit tests, plus my browser measurements below. jsdom has no layout.
+- The review found no Must-fix. I fixed its Should-fixes: the DECISIONS rows, and a re-shot to confirm the `lg` summary title wraps in full. The other two went to the Backlog or are noted here: RoomCreated is not centred on tall windows, and the Bungee search placeholder clips at 375px.
+- Measured with my Playwright scripts (`.playtest/F93/audit.mjs`, `picker.mjs` and `dialog-debug.mjs`; screenshots there, the ones I opened looked right):
+  - **Landing:** at 1440×900 the block is 1088px wide (176–1264), with 244px above and 218px below. At 820 and 1024 the cards are side by side and of equal height. At 375 it is one column.
+  - **Picker:** at 1440×900, 10 sets are fully visible in 3 columns with no clipped title. At 820×1180, 16 sets are visible.
+  - **Sticky bar:** Create room and the picked title stayed in view after scrolling half and all the way, at 375×667, 667×375, 820×1180, 1024×768 and 1440×900.
+  - **Back and Build a game:** 44px and 64px, in view at 375×667.
+  - **No control under 44px** on the landing, picker or builder pages.
+  - **GameBuilder:** the actions are on one row from 820px up.
+  - **RoomCreated:** no title wraps at 375; all four cards are in view at 1024×768 and 1440×900.
+  - **Disabled Join:** `rgb(46,41,112)` with `rgb(183,179,230)` text at full opacity.
+  - **New game dialog** (room driven to FINAL by a socket script):
+    - Remote: at 667×375 it is 651×359, scrolls, and every control was reachable. At 375×667, all 61 sets scroll clear of the bar.
+    - Remote and Screen at 1440×900 and 1920×1080: 1024px wide, two panes, a 2-column grid, all reachable.
+  - No console errors.
+- The playtest skill (Playwright) independently passed Landing at `md`, the `lg` two panes with the sticky pane, the phone sticky bar, Create room and the RoomCreated cards. It did not open the dialog; my scripts covered that.
+- Restart `npm run dev` between long browser runs. Each audit creates rooms, and the per-network room limit then answers "Too many rooms created from this network".
+- Main `index` chunk 531.74 → 536.87 kB.
+
+**How to try it:** `npm run dev`.
+- Open `http://localhost:5173/` at 1440×900, then at 820 wide and on a phone.
+- **Host a game**: search, pick, scroll (the summary or bar stays), **Preview** → **Create room**, then see the four cards.
+- For New game: finish a game with the remote paired, then **New game** on the remote or the Screen. At 667×375 the dialog scrolls as a whole.
+- **Build a game** shows the segmented toggle and the one-row actions.
+
 ## F92 — Responsive foundations (2026-10-30)
 **What changed:**
 - Variants and rules:

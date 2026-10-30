@@ -22,8 +22,12 @@ export const INPUT =
 
 const PRESS = 'transition not-disabled:active:scale-95 disabled:opacity-40';
 
-/** Gold fill, indigo Bungee label: Join, Host a game, Start game, Next question. */
-export const BUTTON_PRIMARY = `min-h-11 rounded-2xl bg-accent px-6 py-4 font-display text-accent-ink not-disabled:hover:bg-accent-hover ${PRESS}`;
+/**
+ * Gold fill, indigo Bungee label: Join, Host a game, Start game, Next question. Disabled, it turns
+ * indigo with a muted label rather than fading, because faded gold reads as brown (LND-08).
+ */
+export const BUTTON_PRIMARY =
+  'min-h-11 rounded-2xl bg-accent px-6 py-4 font-display text-accent-ink transition not-disabled:hover:bg-accent-hover not-disabled:active:scale-95 disabled:bg-edge disabled:text-muted';
 
 /** A gold outline with a gold Bungee label on no fill: Save to My sets. */
 export const BUTTON_OUTLINE = `min-h-11 rounded-2xl border-2 border-accent bg-transparent px-6 py-4 font-display text-accent not-disabled:hover:border-accent-hover not-disabled:hover:text-accent-hover ${PRESS}`;

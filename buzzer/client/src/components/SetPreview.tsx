@@ -7,7 +7,7 @@ import { BUTTON_PRIMARY, LABEL, LINK } from '../lib/ui.js';
 
 interface SetPreviewProps {
   set: QuestionSet;
-  /** The host's next step with this set: "Pick this set" in the pickers, "Host this set" on `/sets`. */
+  /** The host's next step with this set: the picker's Create room or Start new game, "Host this set" on `/sets`. */
   actionLabel: string;
   /** Runs the action; the preview closes first. */
   onAction: (set: QuestionSet) => void;

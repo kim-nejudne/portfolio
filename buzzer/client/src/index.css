@@ -6,6 +6,15 @@
  */
 @custom-variant short (@media (max-height: 500px));
 
+/* The set picker's bar stuck to the bottom of a phone or tablet (F93): a focused or scrolled-to
+   set stops above it rather than under it. */
+@media (width < 64rem) {
+  html:has([data-sticky-bar]),
+  [role='dialog']:has(> * > [data-sticky-bar]) {
+    scroll-padding-bottom: 13rem;
+  }
+}
+
 /*
  * "Prime Time": a TV game-show studio. Deep indigo, marquee gold, stage red.
  * Player colours are separate and come from PLAYER_PALETTE in shared/constants.

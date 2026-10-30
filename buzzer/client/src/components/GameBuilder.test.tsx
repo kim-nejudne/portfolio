@@ -192,6 +192,35 @@ describe('GameBuilder', () => {
     for (const id of imageIds) expect((await getImage(id))?.blob.size).toBeGreaterThan(0);
   });
 
+  it('the kind of game is one radio group with Mixed questions picked (LND-07)', () => {
+    renderBuilder();
+    const group = screen.getByRole('radiogroup', { name: 'Kind of game' });
+    const radios = within(group).getAllByRole<HTMLInputElement>('radio');
+    expect(radios.map((r) => r.closest('label')!.textContent)).toEqual([
+      'Mixed questions',
+      'Category board',
+    ]);
+    expect(radios.map((r) => r.checked)).toEqual([true, false]);
+    expect(radios.every((r) => r.name === radios[0]!.name)).toBe(true);
+  });
+
+  it('shows the host error and a problem in one place, above Host, Save and Back in one row (LND-07)', async () => {
+    const onHost = vi.fn(() => Promise.reject(new Error('The server said no.')));
+    renderBuilder({ onHost });
+    const actions = hostButton().parentElement!;
+    expect(actions.className).toContain('md:flex-row');
+    expect(saveButton().parentElement).toBe(actions);
+    expect(screen.getByRole('button', { name: 'Back to the sets' }).parentElement).toBe(actions);
+
+    fireEvent.click(hostButton());
+    const alert = await screen.findByRole('alert');
+    expect(alert.parentElement!.nextElementSibling).toBe(actions);
+
+    for (let i = 0; i < 6; i++) fireEvent.click(screen.getByRole('button', { name: 'Add a row' }));
+    for (let i = 1; i <= 7; i++) choose(`Questions, row ${i}`, '15');
+    expect(screen.getByText(GAME_LIMIT_MESSAGE).parentElement!.nextElementSibling).toBe(actions);
+  });
+
   it('Back to the sets leaves the builder', () => {
     const { onBack } = renderBuilder();
     fireEvent.click(screen.getByRole('button', { name: 'Back to the sets' }));
@@ -200,16 +229,16 @@ describe('GameBuilder', () => {
 });
 
 describe('GameBuilder: Category board mode (F90)', () => {
-  const boardMode = () => fireEvent.click(screen.getByRole('button', { name: 'Category board' }));
+  const boardMode = () => fireEvent.click(screen.getByRole('radio', { name: 'Category board' }));
   const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }));
   const boxes = () => screen.getAllByRole<HTMLInputElement>('checkbox');
 
   it('offers only categories with an Easy, a Medium and a Hard question', () => {
     renderBuilder();
     boardMode();
-    expect(
-      screen.getByRole('button', { name: 'Category board' }).getAttribute('aria-pressed'),
-    ).toBe('true');
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Category board' }).checked).toBe(
+      true,
+    );
     const names = boxes().map((box) => box.closest('label')!.textContent);
     expect(names).toContain('Animals');
     // The sample set has no difficulty, so "Other" cannot fill a column.
@@ -279,7 +308,7 @@ describe('GameBuilder: Category board mode (F90)', () => {
     renderBuilder();
     choose('Questions, row 1', '3');
     boardMode();
-    fireEvent.click(screen.getByRole('button', { name: 'Mixed questions' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Mixed questions' }));
     expect(select('Questions, row 1').value).toBe('3');
   });
 

@@ -378,20 +378,18 @@ describe('Set list /sets, My sets', () => {
 
     expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
     expect(screen.getByText('WXYZ')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Use this device as the Screen' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'This is the Screen' })).toBeTruthy();
     expect(loadHostToken('WXYZ')).toBe(hostToken);
     expect(bodyOf(fetch)).toEqual({ set: OWN, settings: DEFAULT_SETTINGS });
   });
 
-  it('Host this set offers Use this phone as the host remote, which opens /host/<CODE>', async () => {
+  it('Host this set offers Host remote, which opens /host/<CODE>', async () => {
     await addOwn();
     stubServer();
     renderSets();
     fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Host this set' }));
 
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Use this phone as the host remote' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Host remote' }));
     expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ');
     expect(loadHostToken('WXYZ')).toBe(hostToken);
   });
