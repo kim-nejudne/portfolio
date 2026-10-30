@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { DRAW_COLORS } from '../../../../shared/constants.js';
 import type { PlayerView } from '../../../../shared/types.js';
 import type { DrawerInkLink } from '../../ink/drawerSync.js';
+import type { PadState } from '../../ink/padTools.js';
 import type { Translate } from '../../lib/copy.js';
-import { DRAWER_BAR_PX, DRAWER_TOOL_ROW_PX, drawerPadSize } from '../../lib/phone.js';
+import { DRAWER_BAR_PX, drawerPadSize } from '../../lib/phone.js';
 import { formatClock } from '../../lib/screen.js';
+import { DEFAULT_TOOL } from '../../lib/tools.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { useDrawLock } from '../../lib/useDrawLock.js';
-import { DrawPad } from './DrawPad.js';
+import { DrawPad, type PadControls } from './DrawPad.js';
+import { DrawToolbar } from './DrawToolbar.js';
 
 interface Props {
   view: PlayerView;
@@ -28,6 +30,10 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
   useDrawLock(true);
   const boxRef = useRef<HTMLDivElement>(null);
   const [pad, setPad] = useState(0);
+  // Every turn starts with the black pen at M (Tools: defaults); a new turn remounts this view.
+  const [tool, setTool] = useState(DEFAULT_TOOL);
+  const [padState, setPadState] = useState<PadState>({ canUndo: false, canClear: false });
+  const controlsRef = useRef<PadControls | null>(null);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -68,26 +74,27 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
       </header>
       <div className="grid min-h-0 w-full flex-1 place-items-center">
         {pad > 0 && (
-          <DrawPad turnId={turn.id} size={pad} ink={ink} disabled={paused} label={t('noInkYet')} />
+          <DrawPad
+            turnId={turn.id}
+            size={pad}
+            ink={ink}
+            disabled={paused}
+            label={t('noInkYet')}
+            tool={tool}
+            controlsRef={controlsRef}
+            onState={setPadState}
+          />
         )}
       </div>
-      <div
-        style={{ height: DRAWER_TOOL_ROW_PX }}
-        className="flex w-full shrink-0 items-center justify-center gap-2"
-      >
-        <span
-          role="img"
-          aria-label={t('blackPen')}
-          style={{ background: DRAW_COLORS[0] }}
-          className="block size-10 rounded-full border-2 border-white ring-2 ring-[#FF6B35] ring-offset-2 ring-offset-[#1D1B22]"
-        />
-      </div>
-      <p
-        style={{ height: DRAWER_TOOL_ROW_PX }}
-        className="flex w-full shrink-0 items-center justify-center px-3 text-center text-sm text-white/60"
-      >
-        {t('moreToolsSoon')}
-      </p>
+      <DrawToolbar
+        tool={tool}
+        onTool={setTool}
+        pad={padState}
+        onUndo={() => controlsRef.current?.undo()}
+        onClear={() => controlsRef.current?.clear()}
+        disabled={paused}
+        t={t}
+      />
     </div>
   );
 }

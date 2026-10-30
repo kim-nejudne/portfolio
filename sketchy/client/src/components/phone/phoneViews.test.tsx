@@ -165,6 +165,38 @@ describe('drawer phone', () => {
     expect(html).toContain('1 of 2 got it');
     expect(html).toContain('Ana: payong');
   });
+  it('has the two toolbar rows: 8 swatches (40 px in 44 px), then size, Eraser, Undo, Clear (F30)', () => {
+    const render = (paused: boolean) =>
+      renderToStaticMarkup(
+        <DrawerTurn
+          view={drawingView('mika')}
+          receivedAt={0}
+          ink={{ send: () => {}, bind: () => () => {} }}
+          paused={paused}
+          t={t}
+        />,
+      );
+    const html = render(false);
+    const swatches = [...html.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>/g)];
+    const colours = ['Black', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Brown'];
+    for (const name of colours) expect(html).toContain(`aria-label="${name}"`);
+    // The 8 swatches and the Eraser are toggles; black is on, the eraser off.
+    expect(swatches).toHaveLength(9);
+    expect(html).toMatch(/aria-label="Black" aria-pressed="true"/);
+    expect(html.match(/class="grid size-11 [^"]*"/g)).toHaveLength(8);
+    expect(html.match(/class="block size-10 rounded-full[^"]*"/g)).toHaveLength(8);
+    expect(html).toContain('aria-label="Brush size: medium. Tap to change"');
+    expect(html).toMatch(/aria-pressed="false"[^>]*>Eraser<\/button>/);
+    // Nothing drawn yet: Undo and Clear do nothing.
+    expect(html).toMatch(/disabled=""[^>]*>↶ Undo<\/button>/);
+    expect(html).toMatch(/disabled=""[^>]*>✕ Clear<\/button>/);
+    expect(html).not.toContain('coming soon');
+    expect(html.match(/style="height:48px"/g)).toHaveLength(2);
+    // Paused: every tool waits.
+    const paused = render(true);
+    const total = paused.match(/<button/g)!.length;
+    expect(paused.match(/<button[^>]*disabled=""/g)).toHaveLength(total);
+  });
   it('shows hint letters in the blanks, and the hidden-letter count (F19)', () => {
     const view = drawingView('jun', {
       players: drawingView('jun').players.map((p) =>

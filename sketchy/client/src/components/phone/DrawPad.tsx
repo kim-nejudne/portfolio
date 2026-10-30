@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { DEFAULT_INK_SIZE } from '../../../../shared/constants.js';
+import { useEffect, useRef, type RefObject } from 'react';
 import {
   createInkStack,
   pushStroke,
@@ -8,14 +7,19 @@ import {
 } from '../../../../shared/ink.js';
 import { mergeSnapshot, type DrawerInkLink } from '../../ink/drawerSync.js';
 import { createInkSender, toGrid } from '../../ink/inkSender.js';
+import { padClear, padState, padUndo, type PadState } from '../../ink/padTools.js';
 import { drawStroke, redrawPicture } from '../../lib/ink.js';
 import { createPointerGate } from '../../lib/phone.js';
+import { inkColor, type DrawTool } from '../../lib/tools.js';
 
 /** The pad's backing store never goes past this, whatever the phone's pixel ratio. */
 const MAX_BACKING_PX = 2048;
-/** v0: black pen only (colour 0). Colours, sizes, eraser, undo and clear come with their feature. */
-// SPEC-QUESTION: the toolbar (8 colours, S/M/L, eraser, undo, clear) is F32; v0 draws black at M (DECISIONS 30).
-const PEN_COLOR = 0;
+
+/** What the toolbar can ask of the pad. */
+export interface PadControls {
+  undo(): void;
+  clear(): void;
+}
 
 interface Props {
   turnId: number;
@@ -26,6 +30,12 @@ interface Props {
   /** While true (paused), the stroke in hand ends and new ones don't start. */
   disabled: boolean;
   label: string;
+  /** The colour (or eraser) and size the next stroke starts with. */
+  tool: DrawTool;
+  /** Set to the pad's Undo and Clear while a turn is on it. */
+  controlsRef: RefObject<PadControls | null>;
+  /** Whether Undo and Clear would do something, after every change. */
+  onState: (state: PadState) => void;
 }
 
 /**
@@ -37,7 +47,7 @@ interface Props {
  * starts a blank pad. The sender waits for the turn's snapshot from the server: empty on a fresh
  * turn, the drawing so far after a reload, which goes under anything drawn meanwhile.
  */
-export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
+export function DrawPad({ turnId, size, ink, disabled, label, tool, controlsRef, onState }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // The latest link, so a new object doesn't restart the turn.
   const inkRef = useRef(ink);
@@ -51,6 +61,14 @@ export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
   const repaintRef = useRef<() => void>(() => {});
   const disabledRef = useRef(disabled);
   const endStrokeRef = useRef<() => void>(() => {});
+  const toolRef = useRef(tool);
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
+  const onStateRef = useRef(onState);
+  useEffect(() => {
+    onStateRef.current = onState;
+  }, [onState]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -58,8 +76,8 @@ export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
     if (!canvas || !ctx) return;
 
     const sender = createInkSender({ turnId, send: (b) => inkRef.current.send(b), held: true });
-    // F32: the toolbar's undo and clear call `sender.undo()`/`clear()` and also `popAction` or
-    // `pushClear` on this stack, then `repaint()`, so the pad and the Screen stay the same picture.
+    // Undo and clear change this stack and send the same op (`padTools`), so the pad and the
+    // Screen stay the same picture.
     const stack = createInkStack();
     const drawn = new Map<number, number>();
     const gate = createPointerGate();
@@ -92,9 +110,19 @@ export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
     };
     repaintRef.current = repaint;
     repaint();
+    let reported = '';
+    const report = () => {
+      const state = padState(stack, sender);
+      const key = `${state.canUndo}${state.canClear}`;
+      if (key === reported) return;
+      reported = key;
+      onStateRef.current(state);
+    };
+    report();
     const unbind = inkRef.current.bind(turnId, sender, (snapshot, offset) => {
       mergeSnapshot(stack, snapshot.actions, offset);
       repaint();
+      report();
     });
 
     const gridPoint = (e: PointerEvent): [number, number] => {
@@ -118,9 +146,12 @@ export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
       pointerId = e.pointerId;
       rect = canvas.getBoundingClientRect();
       const [x, y] = gridPoint(e);
-      const id = sender.begin(PEN_COLOR, DEFAULT_INK_SIZE, x, y);
-      stroke = pushStroke(stack, id, PEN_COLOR, DEFAULT_INK_SIZE, x, y);
+      const color = inkColor(toolRef.current);
+      const size = toolRef.current.size;
+      const id = sender.begin(color, size, x, y);
+      stroke = pushStroke(stack, id, color, size, x, y);
       schedule();
+      report();
     };
     const onMove = (e: PointerEvent) => {
       if (!stroke || !gate.owns(e.pointerId)) return;
@@ -139,6 +170,14 @@ export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
     };
     const onEnd = (e: PointerEvent) => endStroke(e.pointerId);
     endStrokeRef.current = () => endStroke(pointerId);
+    // Undo or clear with a finger still on the pad ends that stroke first (undo then takes it off).
+    const padAction = (act: typeof padUndo) => () => {
+      if (disabledRef.current) return;
+      endStroke(pointerId);
+      if (act(stack, sender)) repaint();
+      report();
+    };
+    controlsRef.current = { undo: padAction(padUndo), clear: padAction(padClear) };
     // Background tabs throttle timers: send what is pending before the page hides.
     const onHide = () => {
       if (document.visibilityState === 'hidden') sender.flush();
@@ -167,8 +206,9 @@ export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
       unbind();
       repaintRef.current = () => {};
       endStrokeRef.current = () => {};
+      controlsRef.current = null;
     };
-  }, [turnId]);
+  }, [turnId, controlsRef]);
 
   useEffect(() => {
     disabledRef.current = disabled;

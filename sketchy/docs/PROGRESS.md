@@ -46,8 +46,46 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F27: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (a small Android, an iPhone, one more) · each lobby shows "Doodle yourself while you wait!" with a white pad (on the host's phone below Start); draw a face with a finger: the stroke follows the finger, the lobby doesn't scroll, zoom or pull-to-refresh while drawing, and a thumb on the gutter beside the pad still scrolls the lobby; ↶ Undo takes the last stroke off the phone and the TV; within a second or two the face replaces that player's initial on the TV chip and is recognisable from the sofa; reload one phone: its pad still shows the face and the TV keeps it; start the game: the faces stay on the sidebar chips; a phone that leaves (Leave, two taps) disappears with its face. No phone ever shows anyone else's doodle
 - [ ] F28: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (a small Android, an iPhone, one more); start a game · move the mouse and press Pause on the bar (or P): the TV dims the drawing with "Paused / The host paused the game" readable from the sofa, every phone shows the full-screen "Paused" and a guesser's keyboard drops; wait 10 s: the clock doesn't move; Resume (P, Space or the bar): "Back in 3, 2, 1" on the TV and every phone, then drawing goes on with the time it had left; on the crown phone open 👑 Host and Pause, then Resume from the same drawer over the overlay; Skip turn (two taps "Tap again to skip") in CHOOSING and while drawing; Players → Kick → "Remove Jun?" → tap again: Jun's phone shows "You were removed from this game" with a link home and can't join again with that phone; kick the crown holder from the TV: the crown moves to the next player; at a scoreboard, Leave on a phone says "Tap again to leave. Your points will be lost"; End game (two taps): everyone lands on the final scores with their points kept
 - [ ] F29: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (one holds the crown); play a short game (Quick preset) to the final scores · on the crown phone open 👑 Host, tap Rematch once ("Tap again to rematch: the gallery will be cleared"), tap again: the TV and every phone show "Game 2 starts in 3… 2… 1…" at the same moment with "<the 2nd joiner> draws first" under it, readable from the sofa, and that phone then gets "Your turn to draw!" and a vibrate; end game 2, rematch again from the TV (Space twice) and press Cancel (or Esc) during the countdown: everyone stays on the final scores; the TV's final scores now show the "Tonight · 2 games" panel with sensible totals; rematch once more and close two phones' browsers before it ends: "Need 2 players" on the TV and the remaining phone, the final scores unchanged; finally Back to lobby (two taps): everyone is in the lobby with their doodles, settings and names kept, and a new Start begins with the first joiner and no word from earlier games
+- [ ] F30: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (a small Android ≈ 360 px wide, an iPhone); start and, as the drawer: tap each of the 8 colours and draw a short line with each, cycle the size button M → L → S, turn on Eraser and rub out part of a line, tap Eraser again, then Undo three times, Clear, Undo; also tap Undo with a finger still on the pad · all 8 swatches and the 4 buttons fit in two rows with no scroll and are easy to hit with a thumb; the selected colour is obvious; the TV matches the pad after every tap (colours, thickness, the erased gap, Undo and Clear); the size dot turns white while erasing. In the lobby, doodle in two colours at L · the chip on the TV shows both colours
 
 <!-- entries below, newest first -->
+
+## F30 — Colours, sizes and eraser (2026-10-31)
+**What changed:**
+- **Client (drawer):**
+  - `lib/tools.ts`: the tool state (`DrawTool {color, size, eraser}`), `DEFAULT_TOOL` (black, M), `pickColor` (leaves the eraser), `cycleSize` (S → M → L → S), `toggleEraser` (keeps the pen colour), `inkColor` (8 while erasing).
+  - `ink/padTools.ts`: `padUndo`/`padClear` change the pad's stack and send `u`/`c` together; `padState` says when they'd do something (after the turn's snapshot, a non-empty stack, visible ink).
+  - `components/phone/DrawToolbar.tsx` (new): `ColourSwatches` (8 × 40 px circles in 44 px buttons, `aria-pressed`, white border + orange outline when picked), `SizeButton` (a 6/12/22 px dot in the pen colour, white while erasing, and S/M/L), and `DrawToolbar`, the two 48 px rows: colours, then size, Eraser, ↶ Undo, ✕ Clear. Disabled while paused; Undo/Clear greyed when they'd do nothing.
+  - `DrawPad.tsx`: takes `tool`, `controlsRef` (Undo/Clear for the toolbar) and `onState`; a stroke starts with `inkColor(tool)` at the tool's size; Undo or Clear with a finger down ends that stroke first. `DrawerTurn.tsx` holds the tool per turn and replaces the v0 placeholder rows.
+  - Smoothing was already one shared `drawStroke` (`lib/ink.ts`) on the pad, the Screen and the avatars; now tested.
+- **Client (lobby doodle):** `DoodlePad` gets the size button (by Undo) and the 8 colours under the pad (one row of 8 from 352 px, else 4 × 2); no Eraser or Clear (DECISIONS 53).
+- **Copy:** `colours`, `colourBlack`…`colourBrown`, `brushSize`, `sizeSmall/Medium/Large`, `eraser`, `undo`, `clear`; removed `blackPen`, `moreToolsSoon`.
+- **Tests:** `lib/tools.test.ts` (new, 5), `ink/padTools.test.ts` (new, 5: colours/sizes/eraser reach the server stack as drawn, undo back to empty, clear then undo, undo mid-stroke, nothing before the snapshot), `lib/ink.test.ts` (+3: quadratic midpoints and round caps, 8 colours and S/M/L widths, eraser = canvas colour), `phoneViews.test.tsx` (+1: the two rows, 44/40 px swatches, defaults, disabled Undo/Clear, all disabled while paused), `hostPhone.test.tsx` (button lists now include the doodle's tools; the helper reads `aria-label`).
+- No server change: the schema already took colours 0–8 and sizes 0–2. No new dependencies.
+
+**Decisions:** DECISIONS 53 (per-turn reset, eraser toggle and size, when Undo/Clear are enabled, the selection style, the single-dot size button, the doodle's tools and its 360 × 560 host lobby scroll).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: the Kim check, the single-dot note in DECISIONS 53. Not changed: swatches below 360 px (the spec's minimum is 360; 352 px fits); a DOM-level wiring test (no jsdom here; the playtest covers it).
+- **secrets-fairness: PASS WITH FIXES.** No leak, routing untouched. To Backlog: a refused batch (`inkFull`) leaves the pad ahead of the server, so a later Undo would diverge (open since F12). Not changed: the pause race (the resync on resume resends the `u`) and the gate case (the gate always owns the stroke's pointer).
+- **mobile-ux: PASS WITH FIXES.** Applied: the size dot is white while erasing; row 2's buttons have `px-1` for room at 360 px. To Backlog: pinch-zoom lock on the drawer's bars and a live region for the size. Not changed: the taller lobby (recorded in DECISIONS 53).
+
+**Playtest:** `.playtest/F30/scenario.ts` (TV Screen, Ana and Ben on Pixel 7s, bots) and `lobby.ts`:
+- drawer at 360×560, 390×664, 412×780: no overflow, square pad on screen, all 12 tools inside the viewport, ≥ 44×44, under the pad: pass;
+- Red at L → 14,355 red pixels on the Screen; the eraser leaves pure white at the crossing; a colour tap turns the eraser off: pass;
+- Undo removes the stroke on the pad and the Screen, Clear → 0 non-white pixels on the Screen, Undo brings it back: pass;
+- the guesser has no canvas, and neither the guesser nor the Screen HTML has the word: pass;
+- lobby at 360×560: the guesser's swatches are on screen; the host's are below the fold under Start (scroll; DECISIONS 53); a blue doodle shows blue on the Screen chip.
+- No console errors. Screenshots: `.playtest/F30/layout-*-Ana.png`, `step2-screen.png`, `step3-screen.png`, `step4-screen.png`, `lobby360-*.png`, `lobby-chips-screen.png`.
+
+**Notes for next session:**
+- **F31 (drawer polish):** the toolbar is `DrawToolbar`; `DrawPad`'s `onState` reports `canUndo`/`canClear`.
+- **F45:** Taglish for the new copy keys; check row 2's labels fit at 360 px (`whitespace-nowrap`, about 82 px each).
+- **F49 (gallery):** draw with `redrawPicture`/`drawStroke` from `lib/ink.ts` so eraser strokes paint the canvas colour.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/tools.test.ts client/src/ink/padTools.test.ts client/src/lib/ink.test.ts client/src/components/phone`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE` or bots at `/dev/bots/CODE`; draw with each tool and watch the TV.
 
 ## F29 — Rematch, back to lobby and the night's totals (2026-10-31)
 **What changed:**

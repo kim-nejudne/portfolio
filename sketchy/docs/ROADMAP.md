@@ -74,12 +74,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M5 — Drawing tools
 
-- [ ] F30 Colours, sizes and eraser
-  - Spec: Canvas and drawing tools (Tools, Rendering); UI by role and phase (Drawer phone)
-  - Depends: F11
-  - Done when:
-    - Two toolbar rows: 8 colour swatches (40 px, 44 px hit area); one size button cycling S/M/L, Eraser, Undo, Clear; quadratic smoothing on drawer and Screen via one shared `drawStroke`
-  - Note (F27): the lobby `DoodlePad` has only the black pen at M and ↶ Undo; give it the same tools if they fit (the server already takes `c`, and a doodle's clear doesn't free its 20 KB, DECISIONS 50)
+- [x] F30 Colours, sizes and eraser
 
 - [ ] F31 Undo and clear
   - Spec: Canvas and drawing tools (Tools); Drawing data protocol (Ops and encoding)
@@ -265,3 +260,5 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Screen: dim the Tonight rows of players who have left; on a 4:3 Screen the host bar wraps to two rows and covers the Tonight strip until it auto-hides; the rematch countdown should use the same permanently mounted status region as "Paused" (F29 review).
 - Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).
+- Drawer ink after a refused batch (`inkFull`, an unrecovered `rateLimited`): the pad keeps a stroke the server lacks, so a later Undo pops different strokes on the pad and the Screen. Disable the tools, or rebuild the pad from a fresh snapshot, on such a refusal (F30 review).
+- Drawer phone: lock pinch-zoom on the top bar and toolbar (`touch-action` on the drawer root), and announce the new brush size in a live region after a tap (F30 review).

@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { visibleStrokes } from '../../../shared/ink.js';
+import {
+  CANVAS_COLOR,
+  DRAW_COLORS,
+  ERASER_COLOR_INDEX,
+  INK_GRID,
+  INK_SIZES,
+} from '../../../shared/constants.js';
+import { visibleStrokes, type InkStroke } from '../../../shared/ink.js';
 import type { InkOp } from '../../../shared/types.js';
-import { createScreenInk } from './ink.js';
+import { createScreenInk, drawStroke } from './ink.js';
 
-// The action stack and codec are tested in `shared/ink.test.ts`; this is the Screen's feed.
+// The action stack and codec are tested in `shared/ink.test.ts`; this is the Screen's feed and the
+// shared `drawStroke`.
 
 describe('Screen ink feed', () => {
   it('ink:turn clears the picture for the new turn', () => {
@@ -116,5 +124,68 @@ describe('Screen ink feed: seq and snapshots', () => {
     feed.turn(1);
     expect(feed.batch([2, 6, dot(1)])).toBe('gap');
     expect(feed.picture()).toMatchObject({ turnId: 2, seq: 0 });
+  });
+});
+
+describe('drawStroke (F30)', () => {
+  /** A 2D context that records the calls and styles `drawStroke` uses. */
+  function recorder() {
+    const calls: string[] = [];
+    const ctx = {
+      strokeStyle: '',
+      lineWidth: 0,
+      lineCap: '',
+      lineJoin: '',
+      beginPath: () => calls.push('begin'),
+      moveTo: (x: number, y: number) => calls.push(`M ${x} ${y}`),
+      lineTo: (x: number, y: number) => calls.push(`L ${x} ${y}`),
+      quadraticCurveTo: (cx: number, cy: number, x: number, y: number) =>
+        calls.push(`Q ${cx} ${cy} ${x} ${y}`),
+      stroke: () => calls.push('stroke'),
+    };
+    return { ctx, calls, as: ctx as unknown as CanvasRenderingContext2D };
+  }
+  const stroke = (color: number, size: number, points: number[]): InkStroke => ({
+    id: 1,
+    color,
+    size,
+    points,
+    ended: true,
+  });
+
+  it('smooths with quadratic curves through the midpoints, round caps and joins', () => {
+    const { as, ctx, calls } = recorder();
+    // Canvas = grid size, so points come out unscaled.
+    drawStroke(as, stroke(0, 1, [0, 0, 100, 0, 100, 100, 200, 100]), INK_GRID);
+    expect(calls).toEqual([
+      'begin',
+      'M 0 0',
+      'Q 100 0 100 50',
+      'Q 100 100 150 100',
+      'L 200 100',
+      'stroke',
+    ]);
+    expect(ctx.lineCap).toBe('round');
+    expect(ctx.lineJoin).toBe('round');
+  });
+
+  it('draws each of the 8 colours and the S/M/L widths, scaled to the canvas', () => {
+    for (let c = 0; c < DRAW_COLORS.length; c++) {
+      const { as, ctx } = recorder();
+      drawStroke(as, stroke(c, 1, [10, 10]), INK_GRID);
+      expect(ctx.strokeStyle).toBe(DRAW_COLORS[c]);
+    }
+    INK_SIZES.forEach((width, size) => {
+      const { as, ctx } = recorder();
+      drawStroke(as, stroke(0, size, [10, 10]), INK_GRID / 2);
+      expect(ctx.lineWidth).toBe(width / 2);
+    });
+  });
+
+  it('the eraser paints the canvas colour', () => {
+    const { as, ctx } = recorder();
+    drawStroke(as, stroke(ERASER_COLOR_INDEX, 2, [10, 10, 50, 50]), INK_GRID);
+    expect(ctx.strokeStyle).toBe(CANVAS_COLOR);
+    expect(ctx.lineWidth).toBe(INK_SIZES[2]);
   });
 });

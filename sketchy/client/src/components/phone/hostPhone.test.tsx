@@ -82,13 +82,22 @@ function view(
 }
 
 /** The buttons' text (without `aria-hidden` icons), in order. */
+/** Each button's name: its `aria-label`, else its visible text. */
 const buttons = (html: string) =>
-  [...html.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) =>
-    m[1]!
-      .replace(/<span aria-hidden="true">.*?<\/span>/g, '')
-      .replace(/<[^>]+>/g, '')
-      .trim(),
+  [...html.matchAll(/<button([^>]*)>(.*?)<\/button>/g)].map(
+    (m) =>
+      /aria-label="([^"]*)"/.exec(m[1]!)?.[1] ??
+      m[2]!
+        .replace(/<span aria-hidden="true">.*?<\/span>/g, '')
+        .replace(/<[^>]+>/g, '')
+        .trim(),
   );
+/** The doodle pad's buttons (F30): the size, Undo and the 8 colours. */
+const DOODLE = [
+  'Brush size: medium. Tap to change',
+  '↶ Undo',
+  ...['Black', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Brown'],
+];
 
 const sendDoodle = () => Promise.resolve<Ack>({ ok: true });
 const lobby = (v: PlayerView) =>
@@ -103,7 +112,7 @@ describe('the crown holder’s lobby', () => {
     const html = lobby(view('LOBBY'));
     expect(html).toContain('You’re the host 👑');
     expect(html).toContain('Classic · 60 s · 2 rounds · Mixed words');
-    expect(buttons(html)).toEqual(['Start game ▶', 'Change', '↶ Undo', 'Leave']);
+    expect(buttons(html)).toEqual(['Start game ▶', 'Change', ...DOODLE, 'Leave']);
     expect(html).not.toContain('Waiting for');
     expect(html).toMatch(/<button type="button" aria-disabled="false"[^>]*>Start game/);
   });
@@ -123,7 +132,7 @@ describe('the crown holder’s lobby', () => {
     const html = lobby(view('LOBBY', { host: false }));
     expect(html).toContain('You’re in, Mika!');
     expect(html).toContain('Waiting for 👑 Jun to start');
-    expect(buttons(html)).toEqual(['↶ Undo', 'Leave']);
+    expect(buttons(html)).toEqual([...DOODLE, 'Leave']);
   });
 });
 
@@ -146,8 +155,8 @@ describe('the lobby doodle pad (F27)', () => {
     const html = lobby(view('LOBBY', { host: false }));
     expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Waiting for 👑 Jun to start'));
     expect(html.indexOf(PAD)).toBeLessThan(html.indexOf('Who’s here'));
-    // Optional: only its Undo, then Leave.
-    expect(buttons(html)).toEqual(['↶ Undo', 'Leave']);
+    // Optional: only its tools, then Leave.
+    expect(buttons(html)).toEqual([...DOODLE, 'Leave']);
   });
 });
 

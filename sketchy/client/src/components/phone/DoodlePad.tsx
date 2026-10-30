@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_INK_SIZE } from '../../../../shared/constants.js';
 import { visibleStrokes, type InkStroke } from '../../../../shared/ink.js';
 import {
   createPhoneDoodle,
@@ -13,11 +12,11 @@ import { toGrid } from '../../ink/inkSender.js';
 import type { Translate } from '../../lib/copy.js';
 import { drawStroke, redrawPicture } from '../../lib/ink.js';
 import { createPointerGate } from '../../lib/phone.js';
+import { DEFAULT_TOOL } from '../../lib/tools.js';
+import { ColourSwatches, SizeButton } from './DrawToolbar.js';
 
 /** The pad's backing store never goes past this, whatever the phone's pixel ratio. */
 const MAX_BACKING_PX = 1536;
-/** v0: black pen at M, as the drawer's pad until the toolbar (F32). */
-const PEN_COLOR = 0;
 
 interface Props {
   /** sessionStorage key for this room and player (`doodleKey`). */
@@ -31,6 +30,8 @@ interface Props {
  * pointer handling as the drawer's pad (first pointer only, captured, `pointercancel` ends the
  * stroke, `touch-action: none` so a stroke never scrolls the lobby). Each finished stroke goes to
  * the Screens as one batch; it never comes back to any phone. Undo takes the last stroke off.
+ * The drawer's colours and size button, but no Eraser or Clear: a doodle's 20 KB counts every
+ * stroke, erased or cleared ones too, and only Undo makes room (DECISIONS 53).
  * Optional and pointer-only: nothing waits on it. A stroke in hand when the game starts is dropped
  * with the pad.
  */
@@ -45,6 +46,11 @@ export function DoodlePad({ storageKey, send, t }: Props) {
   const [canUndo, setCanUndo] = useState(false);
   const doodleRef = useRef<PhoneDoodle | null>(null);
   const repaintRef = useRef<() => void>(() => {});
+  const [tool, setTool] = useState(DEFAULT_TOOL);
+  const toolRef = useRef(tool);
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -105,7 +111,7 @@ export function DoodlePad({ storageKey, send, t }: Props) {
       canvas.setPointerCapture(e.pointerId);
       rect = canvas.getBoundingClientRect();
       const [x, y] = gridPoint(e);
-      stroke = doodle.begin(PEN_COLOR, DEFAULT_INK_SIZE, x, y);
+      stroke = doodle.begin(toolRef.current.color, toolRef.current.size, x, y);
       setCanUndo(false);
       schedule();
     };
@@ -173,8 +179,9 @@ export function DoodlePad({ storageKey, send, t }: Props) {
 
   return (
     <section className="flex flex-col items-center gap-2">
-      <div className="flex w-full items-center justify-between gap-3">
+      <div className="flex w-full items-center gap-2">
         <h2 className="text-lg font-semibold">{t('doodleYourself')}</h2>
+        <SizeButton tool={tool} onTool={setTool} t={t} className="ml-auto shrink-0" />
         <button
           type="button"
           onClick={undo}
@@ -191,6 +198,15 @@ export function DoodlePad({ storageKey, send, t }: Props) {
           role="img"
           aria-label={t('doodlePad')}
           className="block size-full touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none]"
+        />
+      </div>
+      {/* One row of 8 where they fit (8 × 44 px), else two rows of 4. */}
+      <div className="@container w-full">
+        <ColourSwatches
+          tool={tool}
+          onTool={setTool}
+          t={t}
+          className="grid grid-cols-4 justify-items-center @min-[22rem]:grid-cols-8"
         />
       </div>
       <p role="status" className="min-h-[1.5em] text-center text-base text-[#FFD166]">
