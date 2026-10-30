@@ -33,6 +33,7 @@ import type {
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
+  InkAuth,
   InkBatch,
   InkClientEvent,
   InkClientPayloads,
@@ -143,6 +144,12 @@ export const inkBatchSchema = z
   .refine((batch) => encodedBytes(batch) <= INK_BATCH_MAX_BYTES, {
     message: `A batch is at most ${INK_BATCH_MAX_BYTES} bytes`,
   });
+
+/** A phone's `{code, playerKey}`, or nothing for a Screen. Anything else refuses the connection. */
+export const inkAuthSchema = z.union([
+  z.strictObject({ code: roomCodeSchema, playerKey: playerKeySchema }),
+  z.strictObject({}),
+]) satisfies z.ZodType<InkAuth>;
 
 export const inkPayloadSchemas = {
   'ink:batch': inkBatchSchema,

@@ -313,6 +313,9 @@ export type GatewayError =
   | 'notJoined' // a player or host event before a successful join
   | 'badHostToken'
   | 'notHost'
+  | 'notDrawer' // `/ink`: a batch from anyone but the current drawer
+  | 'staleTurn' // `/ink`: a batch for a turn that is no longer current
+  | 'rateLimited' // `/ink`: more than INK_BATCH_RATE_LIMIT batches from one socket
   | 'serverError';
 
 export type AckError = ReduceError | GatewayError;
@@ -507,6 +510,25 @@ export interface InkClientPayloads {
 }
 
 export type InkClientEvent = keyof InkClientPayloads;
+
+/**
+ * `/ink` handshake `auth`. A phone sends its room code and playerKey, so the gateway knows which
+ * player the socket is; a Screen sends nothing and joins with `ink:hello`.
+ */
+export type InkAuth = { code: string; playerKey: string } | Empty;
+
+/** `/ink` client→server events. Every one may take an ack; the drawer sends batches without. */
+export type InkClientToServerEvents = {
+  [E in InkClientEvent]: (payload: InkClientPayloads[E], ack?: (res: Ack) => void) => void;
+};
+
+/** `/ink` server→client events. Only Screens get them (and, from F12, the drawer's own snapshot). */
+export interface InkServerToClientEvents {
+  /** A new turn has opened: clear the canvas. */
+  'ink:turn': (payload: { turnId: number }) => void;
+  /** The drawer's batch, relayed as received. */
+  'ink:batch': (batch: InkBatch) => void;
+}
 
 // ---------- HTTP ----------
 

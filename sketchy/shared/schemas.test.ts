@@ -12,6 +12,7 @@ import {
 import {
   clientPayloadSchemas,
   createRoomBodySchema,
+  inkAuthSchema,
   inkBatchSchema,
   inkOpSchema,
   inkPayloadSchemas,
@@ -286,5 +287,23 @@ describe('inkPayloadSchemas', () => {
     while (JSON.stringify(ops(n + 1)).length <= DOODLE_MAX_BYTES) n++;
     expect(accepts(inkPayloadSchemas['doodle:batch'], { ops: ops(n) })).toBe(true);
     expect(accepts(inkPayloadSchemas['doodle:batch'], { ops: ops(n + 1) })).toBe(false);
+  });
+});
+
+describe('inkAuthSchema', () => {
+  it('accepts a phone with code and playerKey, and a Screen with nothing', () => {
+    expect(accepts(inkAuthSchema, { code: 'ABCD', playerKey: 'k'.repeat(21) })).toBe(true);
+    expect(accepts(inkAuthSchema, {})).toBe(true);
+  });
+
+  it('rejects a half-filled, malformed or padded handshake', () => {
+    expect(accepts(inkAuthSchema, { code: 'ABCD' })).toBe(false);
+    expect(accepts(inkAuthSchema, { playerKey: 'k'.repeat(21) })).toBe(false);
+    expect(accepts(inkAuthSchema, { code: 'ABCD', playerKey: 'short' })).toBe(false);
+    expect(accepts(inkAuthSchema, { code: 'ABCD', playerKey: 'k'.repeat(21), pid: 'p1' })).toBe(
+      false,
+    );
+    expect(accepts(inkAuthSchema, { pid: 'p1' })).toBe(false);
+    expect(accepts(inkAuthSchema, null)).toBe(false);
   });
 });

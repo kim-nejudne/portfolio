@@ -18,13 +18,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F05 Views and socket gateway
 
-- [ ] F06 Ink relay v0
-  - Spec: Drawing data protocol (Why a separate channel, Ops and encoding)
-  - Depends: F05
-  - Done when:
-    - `/ink` namespace; the drawer sends `b`/`p`/`e` batches every 50 ms on the 1024 grid (no simplification yet)
-    - The server accepts batches only from the current drawer in DRAWING for the current `turnId` and relays them to `ink:<code>:screen`; `inkOpen` sends `ink:turn` so Screens clear
-  - Tests: `inkGateway.test.ts` (socket.io-client) — a guesser socket receives no `/ink` event; batches from a non-drawer or an old `turnId` are dropped
+- [x] F06 Ink relay v0
 
 - [ ] F07 Screen page v0
   - Spec: UI by role and phase (Landing page, Screen)
