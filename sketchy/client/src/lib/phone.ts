@@ -23,6 +23,19 @@ export function drawerPadSize(width: number, height: number): number {
   return Math.max(0, Math.floor(Math.min(byWidth, byHeight)));
 }
 
+/** The pad at the smallest supported phone (360 × 560): a landscape pad below it doesn't fit. */
+const MIN_UPRIGHT_PAD_PX = drawerPadSize(360, 560);
+
+/**
+ * Whether the drawer should be asked to "Turn your phone upright" (Edge cases, phone rotated to
+ * landscape while drawing): the viewport is landscape and the pad would be smaller than at the
+ * minimum supported phone. A landscape tablet keeps its pad; portrait never asks.
+ */
+// SPEC-QUESTION: "keeps its square size where it fits" is read as a landscape pad at least as big as the 360 × 560 one (DECISIONS 54).
+export function drawerSideways(width: number, height: number): boolean {
+  return width > height && drawerPadSize(width, height) < MIN_UPRIGHT_PAD_PX;
+}
+
 // ---------- Joining ----------
 
 /**

@@ -7,6 +7,7 @@ import {
   DRAWER_BAR_PX,
   DRAWER_TOOL_ROW_PX,
   drawerPadSize,
+  drawerSideways,
   gainedCrown,
   guessAnswer,
   joinOutcome,
@@ -31,6 +32,39 @@ describe('drawerPadSize', () => {
   it('floors fractional viewports and never goes negative', () => {
     expect(drawerPadSize(360.6, 900)).toBe(352);
     expect(drawerPadSize(100, 100)).toBe(0);
+  });
+});
+
+describe('drawerSideways', () => {
+  it.each([
+    // A phone turned on its side: the pad would be smaller than at the 360 × 560 minimum.
+    [844, 390],
+    [780, 412],
+    [932, 430],
+    [640, 360],
+  ])('asks to turn upright at %i × %i', (w, h) => {
+    expect(drawerSideways(w, h)).toBe(true);
+  });
+
+  it.each([
+    // Upright phones, the minimum included, and a landscape tablet whose pad still fits.
+    [360, 560],
+    [390, 664],
+    [412, 780],
+    [1180, 820],
+    [1024, 768],
+  ])('keeps the pad at %i × %i', (w, h) => {
+    expect(drawerSideways(w, h)).toBe(false);
+  });
+
+  it('never asks in portrait, even on a viewport below the minimum', () => {
+    expect(drawerSideways(320, 480)).toBe(false);
+    expect(drawerSideways(400, 400)).toBe(false);
+  });
+
+  it('asks once a landscape pad drops below the 360 × 560 pad (352 px)', () => {
+    expect(drawerSideways(900, 352 + 168)).toBe(false);
+    expect(drawerSideways(900, 351 + 168)).toBe(true);
   });
 });
 

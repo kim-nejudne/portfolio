@@ -190,6 +190,8 @@ const EN = {
   turnPoints: '+{points} this turn',
   gotItCount: '{guessed} of {of} got it',
   noInkYet: 'Draw here',
+  turnUpright: 'Turn your phone upright',
+  drawingIsSafe: 'Your drawing is safe',
   // ---------- Phone: drawing tools ----------
   colours: 'Colours',
   colourBlack: 'Black',

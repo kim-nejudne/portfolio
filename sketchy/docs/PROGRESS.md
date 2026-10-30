@@ -47,8 +47,57 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F28: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (a small Android, an iPhone, one more); start a game · move the mouse and press Pause on the bar (or P): the TV dims the drawing with "Paused / The host paused the game" readable from the sofa, every phone shows the full-screen "Paused" and a guesser's keyboard drops; wait 10 s: the clock doesn't move; Resume (P, Space or the bar): "Back in 3, 2, 1" on the TV and every phone, then drawing goes on with the time it had left; on the crown phone open 👑 Host and Pause, then Resume from the same drawer over the overlay; Skip turn (two taps "Tap again to skip") in CHOOSING and while drawing; Players → Kick → "Remove Jun?" → tap again: Jun's phone shows "You were removed from this game" with a link home and can't join again with that phone; kick the crown holder from the TV: the crown moves to the next player; at a scoreboard, Leave on a phone says "Tap again to leave. Your points will be lost"; End game (two taps): everyone lands on the final scores with their points kept
 - [ ] F29: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (one holds the crown); play a short game (Quick preset) to the final scores · on the crown phone open 👑 Host, tap Rematch once ("Tap again to rematch: the gallery will be cleared"), tap again: the TV and every phone show "Game 2 starts in 3… 2… 1…" at the same moment with "<the 2nd joiner> draws first" under it, readable from the sofa, and that phone then gets "Your turn to draw!" and a vibrate; end game 2, rematch again from the TV (Space twice) and press Cancel (or Esc) during the countdown: everyone stays on the final scores; the TV's final scores now show the "Tonight · 2 games" panel with sensible totals; rematch once more and close two phones' browsers before it ends: "Need 2 players" on the TV and the remaining phone, the final scores unchanged; finally Back to lobby (two taps): everyone is in the lobby with their doodles, settings and names kept, and a new Start begins with the first joiner and no word from earlier games
 - [ ] F30: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (a small Android ≈ 360 px wide, an iPhone); start and, as the drawer: tap each of the 8 colours and draw a short line with each, cycle the size button M → L → S, turn on Eraser and rub out part of a line, tap Eraser again, then Undo three times, Clear, Undo; also tap Undo with a finger still on the pad · all 8 swatches and the 4 buttons fit in two rows with no scroll and are easy to hit with a thumb; the selected colour is obvious; the TV matches the pad after every tap (colours, thickness, the erased gap, Undo and Clear); the size dot turns white while erasing. In the lobby, doodle in two colours at L · the chip on the TV shows both colours
+- [ ] F32: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), a budget Android (Chrome) and an iPhone (Safari, and once more from a home-screen icon), plus a third phone guessing; on each as the drawer: draw with both toolbar rows in view, with the browser's bars showing; pinch and double-tap on the top bar and the toolbar; draw with two fingers (the second finger does nothing); draw a long stroke, then don't touch the phone for longer than its auto-lock time; mid-stroke, turn the phone on its side, then upright again, and draw · no scroll, overflow or zoom at any point and all 12 tools fit; the screen doesn't dim or lock while the pad shows (note it if the iPhone from the home screen does: iOS before 18.4 has no Wake Lock there); on its side the phone shows "Turn your phone upright", "Your drawing is safe" and the clock, the stroke stops, and upright again the drawing is intact on the pad and the TV and new strokes reach the TV
 
 <!-- entries below, newest first -->
+
+## F32 — Draw pad hardening (2026-10-31)
+**What changed:**
+- Already in place from F08 and F30, so nothing changed there: DPR sizing (`size × devicePixelRatio`, capped at 2048), coalesced events, the first pointer only (`createPointerGate` and pointer capture), and `pointercancel`/`lostpointercapture` ending the stroke (`DrawPad.tsx`). The scroll/zoom lock is `useDrawLock`.
+- `client/src/lib/wakeLock.ts` (new, the file the spec names): `holdWakeLock(nav, doc)` asks for a screen lock on a visible page and asks again on `visibilitychange`, since the browser drops it on hide. A refused request (no user gesture, battery saver) is retried on the next `pointerdown`, never twice at once. A lock that arrives after stop is released. No API or a throw does nothing. `useWakeLock(active)` is the hook. `DrawerTurn` holds it for the whole DRAWING view, through a pause too. F37 can reuse it for the Screen and phones.
+- `client/src/lib/phone.ts`: `drawerSideways(w, h)` is true when the view is landscape and the pad would be under 352 px (the pad at 360 × 560).
+- `DrawerTurn.tsx`:
+  - On its side, `TurnUpright` covers the view with "Turn your phone upright", "Your drawing is safe" and the clock (`role="alert"`, an inline SVG icon, no word). The header, pad and toolbar are `inert`, the pad and toolbar are disabled, and so the stroke in hand ends.
+  - The pad stays mounted at its upright size, so the turn's stack and sender carry on. A turn that starts sideways gets the pad its upright size would give (`drawerPadSize(h, w)`), so it binds to the turn at once.
+  - The whole view is `touch-none overflow-hidden`, so a pinch on the bar or toolbar can't zoom. This takes the first half of the F30 Backlog item.
+- Copy: `turnUpright`, `drawingIsSafe`.
+- Tests: `lib/wakeLock.test.ts` (new, 6: request and release, re-request on show, wait for visible and no double request, retry on tap after a refusal, late lock released, no API or a throw); `lib/phone.test.ts` (+4 `drawerSideways` tables: phones on their side, upright phones, landscape tablets, the 352 px edge); `phoneViews.test.tsx` (+2: `touch-none` root with no cover, and the cover's copy and clock with no word). No test of `DrawerTurn` calling `useWakeLock` (there's no jsdom here; the playtest checks it with a stub).
+- No new dependencies.
+
+**Decisions:** DECISIONS 54 (the sideways threshold, the drawer only, the cover's contents, keeping the pad mounted, holding the wake lock through a pause, retrying on a tap).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: this entry, the Kim check, DECISIONS 54 and the SPEC-QUESTION at `drawerSideways`, a test of the cover.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - the cover shows the clock;
+  - the content under it is `inert`;
+  - a turn that starts sideways binds its pad at once;
+  - an SVG instead of the 📱↻ emoji;
+  - the cover is tested;
+  - the Kim check covers an iPhone home-screen app (no Wake Lock before iOS 18.4) and auto-lock.
+  
+  Not changed: a page already zoomed before the turn isn't reset; no video-loop fallback for Wake Lock (it would need a dependency).
+- secrets-fairness not run: no server, shared or ink code changed.
+
+**Playtest:** `.playtest/F32/scenario.ts` (TV Screen, Ana on a Pixel 7 drawing at DPR 2.625, Ben guessing, bots, `navigator.wakeLock` stubbed). All 7 steps pass, and the final run was after the review fixes:
+- At 360×560, 390×664 and 412×780 there's no document scroll or overflow. The pad is square and fully visible (344/382/404 px), all 12 tools are in the viewport, and `canvas.width` = round(css × DPR) (903/1003/1061).
+- The wake lock is requested while drawing and requested again after a release, on `visibilitychange` and on a pad tap.
+- Rotated to 844×390 mid-stroke: the cover shows and every tool is disabled (the 👑 Host button stays usable above it). The pad stays 382 px and the Screen keeps the ink.
+- Back to 390×844: the cover is gone, the old ink is on the pad and the Screen, and a new stroke reaches the Screen.
+- A 1180×820 landscape tablet as the drawer: no cover, and the 604 px pad fits.
+- The word is in neither Ben's HTML nor the Screen's.
+- Every wake lock is released once the turn ends.
+- No console errors. Screenshots: `.playtest/F32/3-landscape-visual-Ana.png`, `4-back-upright-Ana.png`, `5-tablet-visual-Ana.png`.
+- Not playtested: a turn that starts with the phone already sideways (the pad mounts at its upright size and binds; the same mount path as any turn).
+
+**Notes for next session:**
+- **F37:** use `holdWakeLock`/`useWakeLock` from `lib/wakeLock.ts` for the Screen's Tap-to-start and phones during a game. Holding two locks at once is fine (each has its own sentinel).
+- **F45:** Taglish for `turnUpright` and `drawingIsSafe`.
+- Guesser and lobby phone views don't ask to turn upright (DECISIONS 54); see Backlog.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/wakeLock.test.ts client/src/lib/phone.test.ts client/src/components/phone/phoneViews.test.tsx`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE` or bots at `/dev/bots/CODE`. As the drawer, turn the phone on its side mid-stroke and back. In desktop Chrome, use device emulation and swap the orientation.
 
 ## F31 — Undo and clear (2026-10-31)
 **What changed:**

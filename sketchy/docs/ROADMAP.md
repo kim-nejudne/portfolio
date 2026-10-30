@@ -78,12 +78,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F31 Undo and clear
 
-- [ ] F32 Draw pad hardening
-  - Spec: Canvas and drawing tools (Canvas model, Stopping scroll and zoom); UI by role and phase (Drawer phone)
-  - Depends: F30
-  - Done when:
-    - Device-pixel-ratio sizing; coalesced events; first pointer only; `pointercancel`; Wake Lock while drawing; "Turn your phone upright"
-    - No scroll and no overflow at 360 × 560, 390 × 664 and 412 × 780 with both toolbar rows; checked on a budget Android and an iPhone (Manual playtest checklist, drawing items)
+- [x] F32 Draw pad hardening
 
 ## M6 — Screen and phone polish
 
@@ -256,4 +251,5 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).
 - Drawer ink after a refused batch (`inkFull`, an unrecovered `rateLimited`): the pad keeps a stroke the server lacks, so a later Undo pops different strokes on the pad and the Screen. Disable the tools, or rebuild the pad from a fresh snapshot, on such a refusal (F30 review).
-- Drawer phone: lock pinch-zoom on the top bar and toolbar (`touch-action` on the drawer root), and announce the new brush size in a live region after a tap (F30 review).
+- Drawer phone: announce the new brush size in a live region after a tap (F30 review; the pinch-zoom lock on the bars landed in F32).
+- Ask to turn upright on the other phone views too (guesser, lobby, choosing); F32 covers the drawer's pad only (DECISIONS 54).

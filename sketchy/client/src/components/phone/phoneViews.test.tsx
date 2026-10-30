@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import { welcomeTurn } from '../../lib/phone.js';
-import { DrawerTurn } from './DrawerTurn.js';
+import { DrawerTurn, TurnUpright } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
 import { PhoneStandings } from './PhoneStandings.js';
 import { WordChoice } from './WordChoice.js';
@@ -164,6 +164,27 @@ describe('drawer phone', () => {
     expect(html).toContain('◔ 0:47');
     expect(html).toContain('1 of 2 got it');
     expect(html).toContain('Ana: payong');
+  });
+  it('locks touch gestures on the whole view and starts without the rotate prompt (F32)', () => {
+    const html = renderToStaticMarkup(
+      <DrawerTurn
+        view={drawingView('mika')}
+        receivedAt={0}
+        ink={{ send: () => {}, bind: () => () => {} }}
+        paused={false}
+        t={t}
+      />,
+    );
+    expect(html).toMatch(/^<div class="[^"]*\btouch-none\b[^"]*\boverflow-hidden\b/);
+    expect(html).not.toContain('Turn your phone upright');
+  });
+  it('the rotate cover asks to turn upright, keeps the clock and never shows the word (F32)', () => {
+    const html = renderToStaticMarkup(<TurnUpright clock="0:47" t={t} />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('Turn your phone upright');
+    expect(html).toContain('Your drawing is safe');
+    expect(html).toContain('◔ 0:47');
+    expect(html).not.toContain(WORD);
   });
   it('has the two toolbar rows: 8 swatches (40 px in 44 px), then size, Eraser, Undo, Clear (F30)', () => {
     const render = (paused: boolean) =>
