@@ -8,6 +8,7 @@ import { ScreenStandings } from '../components/screen/ScreenStandings.js';
 import { ScreenTurn } from '../components/screen/ScreenTurn.js';
 import { createClockOffset, createDelayWindow, isDebug, recordPaint } from '../lib/clock.js';
 import { translator } from '../lib/copy.js';
+import { DoodleContext, createScreenDoodles } from '../lib/doodles.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
 import { keepPinging } from '../lib/ping.js';
@@ -33,6 +34,8 @@ export function Screen() {
   const [reshuffled, setReshuffled] = useState(false);
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
+  // Lobby doodles (F27), drawn as the players' avatars on every chip.
+  const doodles = useMemo(() => createScreenDoodles(), []);
   // `?debug=1` (F16): this Screen's clock offset to the server and the recent ink delays.
   const debug = useMemo(
     () => (isDebug() ? { clock: createClockOffset(), delays: createDelayWindow() } : null),
@@ -91,7 +94,11 @@ export function Screen() {
     const hello = () => inkSocket.emit('ink:hello', { code });
     inkSocket.on('connect', hello);
     inkSocket.on('ink:turn', ({ turnId }) => ink.turn(turnId));
-    inkSocket.on('ink:snapshot', (snapshot) => ink.snapshot(snapshot));
+    inkSocket.on('ink:snapshot', (snapshot) => {
+      ink.snapshot(snapshot);
+      doodles.replace(snapshot.doodles);
+    });
+    inkSocket.on('doodle', ({ pid, ops }) => doodles.apply(pid, ops));
     inkSocket.on('ink:batch', (batch) => {
       const applied = ink.batch(batch);
       if (applied === 'gap') hello();
@@ -114,7 +121,7 @@ export function Screen() {
       inkSocket.removeAllListeners();
       inkSocket.disconnect();
     };
-  }, [code, socket, ink, debug]);
+  }, [code, socket, ink, doodles, debug]);
 
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
@@ -169,11 +176,13 @@ export function Screen() {
         </p>
       )}
       <div className="min-h-0 flex-1">
-        {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
-        {inTurn && <ScreenTurn view={view} receivedAt={state!.at} ink={ink} t={t} />}
-        {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
-          <ScreenStandings view={view} t={t} />
-        )}
+        <DoodleContext value={doodles}>
+          {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
+          {inTurn && <ScreenTurn view={view} receivedAt={state!.at} ink={ink} t={t} />}
+          {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
+            <ScreenStandings view={view} t={t} />
+          )}
+        </DoodleContext>
       </div>
       <footer className="shrink-0 px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
         {window.location.host} · <strong className="tracking-widest text-white">{view.code}</strong>

@@ -44,7 +44,7 @@ export function ScreenStandings({ view, t }: { view: ScreenView; t: Translate })
                 `${rank}.`
               )}
             </span>
-            <Avatar player={player} size="1.2em" />
+            <Avatar player={player} size="1.5em" />
             <span className="truncate font-semibold" style={{ color: player.color }}>
               {player.name}
             </span>

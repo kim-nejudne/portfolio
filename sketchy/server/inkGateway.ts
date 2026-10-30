@@ -11,6 +11,12 @@
 // own live turn), `ink:sync` with the drawer's `ink:state`, and `ink:get` with a frozen turn for
 // a Screen's gallery.
 //
+// The one exception to "only the drawer sends ink" is the lobby doodle: in LOBBY any player still in
+// the room sends `doodle:batch` at stroke end, undo and clear. The store keeps it (20 KB per
+// player, a batch past it refused whole), relays it to the Screens as `doodle {pid, ops}`, and
+// `sys:doodle` tells the views whether that player now has one. A Screen's snapshot carries every
+// doodle; a phone never receives one, its own included.
+//
 // Limits: the schema's 4 KB and 200 points per op, 40 batches per second per player, the store's
 // caps, INK_INVALID_BATCHES_MAX invalid batches in a turn (which disconnect the socket), and per
 // socket rate limits on `ink:hello`/`ink:sync` and on `ink:get`.
@@ -34,7 +40,7 @@ import type {
 import { createInkStore, type InkStore, type TurnLog } from './inkStore.js';
 import { createRateLimiter } from './rateLimit.js';
 import type { RoomStore } from './roomStore.js';
-import { hashPlayerKey, type GatewayServer, type InkEffect } from './sockets.js';
+import { hashPlayerKey, type Dispatch, type GatewayServer, type InkEffect } from './sockets.js';
 
 /** What an `/ink` socket is. A phone is bound at the handshake; a Screen by `ink:hello`. */
 export interface InkSocketData {
@@ -63,6 +69,8 @@ export const inkScreenRoom = (code: string) => `ink:${code}:screen`;
 
 export interface InkGatewayOptions {
   rooms: RoomStore;
+  /** The main gateway's dispatch, for `sys:doodle`. */
+  dispatch?: Dispatch;
   /** Monotonic ms, for the batch rate limit and resend asks. */
   monotonic?: () => number;
   /** The ink logs (tests pass one with small caps). */
@@ -82,7 +90,12 @@ export interface InkGateway {
 
 export function attachInkGateway(
   io: GatewayServer,
-  { rooms, monotonic = () => performance.now(), store = createInkStore() }: InkGatewayOptions,
+  {
+    rooms,
+    dispatch = () => ({ ok: true }),
+    monotonic = () => performance.now(),
+    store = createInkStore(),
+  }: InkGatewayOptions,
 ): InkGateway {
   // Same engine as the main namespace (WebSocket only, 100 KB frames); its own event types.
   const ink = io.of('/ink') as unknown as InkNamespace;
@@ -134,9 +147,16 @@ export function attachInkGateway(
       socket.data = { ...socket.data, code, role: 'screen' };
       // Joined first, then the snapshot: batches relayed from here on follow it on this socket,
       // all with `seq > snapshot.seq`. A Screen that saw a gap says hello again for a fresh one.
+      // Doodles ride along, so later `doodle` relays apply on top of them.
       void socket.join(inkScreenRoom(code));
       const snapshot = store.snapshot(code);
-      if (snapshot) socket.emit('ink:snapshot', snapshot);
+      const doodles = store.doodles(code);
+      const any = Object.keys(doodles).length > 0;
+      if (snapshot || any)
+        socket.emit('ink:snapshot', {
+          ...(snapshot ?? { turnId: 0, seq: 0, actions: [] }),
+          ...(any ? { doodles } : {}),
+        });
       return { ok: true };
     });
 
@@ -191,8 +211,31 @@ export function attachInkGateway(
       return { ok: true, turnId, actions };
     });
 
-    // Doodles arrive with F27.
-    handle(socket, 'doodle:batch', () => fail('notAvailable'));
+    // A lobby doodle: any player still in the room, in LOBBY only. Shares the player's batch rate.
+    handle(
+      socket,
+      'doodle:batch',
+      ({ ops }) => {
+        const { code, role, pid } = socket.data;
+        if (!batchLimiter.hit(pid ? `${code}:${pid}` : socket.id)) return fail('rateLimited');
+        if (!code || !role) return fail('notJoined');
+        if (role !== 'player' || !pid) return fail('notPlayer');
+        const room = rooms.get(code);
+        if (!room) return fail('roomNotFound');
+        // Left or kicked: the handshake bound this socket to a pid the room no longer has.
+        const player = room.players[pid];
+        if (!player) return fail('notPlayer');
+        if (room.phase !== 'LOBBY') return fail('wrongPhase');
+        const out = store.doodle(code, pid, ops);
+        if (out.full) return fail('inkFull');
+        if (out.relay.length > 0)
+          ink.to(inkScreenRoom(code)).emit('doodle', { pid, ops: out.relay });
+        // Same tick as the LOBBY check above, so the reducer takes it (`has: true` is LOBBY only).
+        if (out.has !== player.hasDoodle) dispatch(code, { type: 'sys:doodle', pid, has: out.has });
+        return { ok: true };
+      },
+      () => countInvalid(socket),
+    );
   });
 
   /** Counts an invalid batch against the room's current turn; too many disconnect the socket. */
@@ -235,7 +278,11 @@ export function attachInkGateway(
         store.close(code, effect.turnId);
         break;
       case 'inkReset':
+        // Doodles stay for the session.
         store.reset(code);
+        break;
+      case 'doodleDrop':
+        store.dropDoodle(code, effect.pid);
         break;
       default:
         effect satisfies never;

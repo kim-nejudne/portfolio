@@ -43,8 +43,85 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F24: `npm run dev`, laptop Screen on the TV with a keyboard (Start), 3 phones; also a tablet as the token Screen once · from the couch, the bar's buttons are readable; it hides 3 s after the mouse stops and returns on a mouse move (on the tablet, on a tap); `?` shows the 11 shortcuts and Esc closes it; Space starts, then during a reveal Space/N move on; `G` shows "Guess feed: Clean" (wrong guesses masked on the TV), then Off, then All; S once shows "Press S again to skip the turn" and nothing happens, S twice skips; `F` goes fullscreen and back; `M` shows "Sound: Quiet"; a second Screen opened from the join link (no token) shows no bar and ignores every key; with Wi-Fi off on the laptop, tapping Skip twice shows "Could not do that. Try again." and nothing skips after Wi-Fi returns; Pause/End/Rematch show "That's coming in a later update" until F28/F29
 - [ ] F25: `npm run dev`, laptop Screen on the TV (Start), 3 real phones (an iPhone and an Android if you have both) via `npm run lan CODE` · the first phone shows "You're the host 👑", a big Start game (greyed with "Need 2 players" until a second phone joins) and "Classic · 60 s · 2 rounds · Mixed words" with Change; Change opens the settings with the players list at the bottom; on the TV, click another player's name → Give host crown: that phone shows "You're the host now 👑" (below the Host button, not covering it) and the TV reads "👑 Jun is hosting · tap a name to change"; start from the crown phone, then while someone draws tap 👑 Host: the sheet slides up with Pause, Skip turn, End game, Guess feed All/Clean/Off and the players, never the word; with the crown phone guessing and the keyboard up, the guess box stays visible under the Host bar; with the crown phone drawing, the sheet never opens by itself and the pad still fits; the crown holder leaving passes the crown (toast on the next phone)
 - [ ] F26: `npm run dev`, laptop Screen on the TV in fullscreen (Start), 3 phones via `npm run lan CODE` · from across the room, the lobby's three How to play steps (✏️ 1 · One person draws on their phone, 📱 2 · Everyone else types guesses 🤫, ⚡ 3 · Faster = more points) are readable under the code; start: during the first turn the yellow "Mika is drawing. Everyone else: type your guess on your phone 🤫" sits under the drawing on two lines, readable at 5 m and not cut off once the host bar hides; turn 2 reads "Type your guess. Don’t say it! 🤫"; the drawing does not jump in size when the word is revealed; from turn 3 there is no caption and the drawing is a little taller. Also try a landscape tablet as the Screen
+- [ ] F27: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (a small Android, an iPhone, one more) · each lobby shows "Doodle yourself while you wait!" with a white pad (on the host's phone below Start); draw a face with a finger: the stroke follows the finger, the lobby doesn't scroll, zoom or pull-to-refresh while drawing, and a thumb on the gutter beside the pad still scrolls the lobby; ↶ Undo takes the last stroke off the phone and the TV; within a second or two the face replaces that player's initial on the TV chip and is recognisable from the sofa; reload one phone: its pad still shows the face and the TV keeps it; start the game: the faces stay on the sidebar chips; a phone that leaves (Leave, two taps) disappears with its face. No phone ever shows anyone else's doodle
 
 <!-- entries below, newest first -->
+
+## F27 — Lobby doodles (2026-10-31)
+**What changed:**
+- **Server:**
+  - `inkStore.ts`: a doodle log per player (`doodle`, `dropDoodle`, `doodles`), reusing the turn log's per-op caps with `doodleMax` (20 KB, the whole stack). A batch past the cap is refused **whole** (applied to a copy), so the phone can drop exactly that stroke. `reset` (Rematch, Back to lobby) now keeps doodles; `forget` drops them.
+  - `inkGateway.ts`: `doodle:batch` from a handshake-bound player still in the room, LOBBY only. Order of checks: rate limit (the player's 40/s), `notJoined`, `notPlayer` (Screen, left or kicked), `roomNotFound`, `wrongPhase`, `inkFull`. Relayed to `ink:<code>:screen` only as `doodle {pid, ops}`; `sys:doodle` is dispatched when `hasDoodle` changes. A Screen's hello snapshot carries `doodles` (and is sent with `turnId: 0` when there is no turn yet); the drawer's own snapshot never does. Takes the new `dispatch` option (`server/index.ts`).
+  - `reducer.ts`: `sys:doodle {pid, has}` (`has: true` LOBBY only, `false` any time; `unknownPlayer`). `player:leave` emits the new `doodleDrop {pid}` effect, which `sockets.ts` hands to the ink gateway.
+  - `shared/types.ts`: the `doodleDrop` effect, the `doodle` server→client `/ink` event, `InkSnapshot.doodles?`.
+- **Client (phone):**
+  - `ink/doodle.ts`: the phone's doodle. One `doodle:batch` per finished stroke (RDP-simplified, and the pad keeps the simplified line), ↶ Undo as one `u`; a refused stroke is taken off, a refused undo put back, a timeout kept; undo waits for unanswered sends. Saved in sessionStorage per room and pid (checked by hand, no zod on `/play`).
+  - `DoodlePad.tsx` in `PhoneLobby`: "Doodle yourself while you wait!" with ↶ Undo, a white square pad (≤ 38 dvh, 3 rem narrower than the column), "Your doodle is full. Looking good!". In the host lobby below Start and the summary; in the plain lobby under the waiting line, above Who's here. The lobby scroller is `overscroll-contain`.
+  - `Play.tsx`: `sendDoodle` on the page's `/ink` socket (not buffered while it is down).
+- **Client (Screen):**
+  - `lib/doodles.ts`: the Screen's doodles by pid (snapshot, then relays) with per-pid versions, and `DoodleContext`.
+  - `Avatar` (`PlayerChip.tsx`) draws the doodle when the chip has `hasDoodle` and the Screen holds it (rounded square, player colour border, lines 6× thicker); phones have no context and keep initials. Lobby chip avatars are now max(8 vmin, 40 px), sidebar and standings 1.5 em.
+  - `lib/ink.ts`: `drawStroke`/`redrawPicture` take a `lineScale`.
+- **Tests:**
+  - `server/inkStore.test.ts` (+6): per-player stacks, the cap refusing a batch whole and undo freeing room, a clear not freeing room, `has` after undo and no-ops left out, reset keeps / drop / forget, rooms apart.
+  - `server/reducer.doodle.test.ts` (new, 9): `hasDoodle` in every view, `has: true` refused in the five game phases while `false` is taken, unknown pid, leave emits `doodleDrop` in the lobby and mid-game, a disconnect keeps it.
+  - `server/inkGateway.test.ts` (+6): relayed to both Screens and never to a phone (Ben's hello as a Screen included) or the main namespace; refused outside LOBBY, from a Screen and an unbound socket; the 20 KB cap (`inkFull`, not relayed, per player) and the schema's single-batch cap; a later Screen gets every doodle in its snapshot in the lobby and mid-game, the drawer's snapshot has none; leave drops it and refuses the old socket; `hasDoodle` false after undoing everything.
+  - Client: `ink/doodle.test.ts` (new, 7), `lib/doodles.test.ts` (new, 3), `PlayerChip.test.tsx` (new, 4), `hostPhone.test.tsx` (+2, Undo in the button lists), `lib/ink.test.ts` (+1, the doodles-only `turnId: 0` snapshot).
+- No new dependencies.
+
+**Decisions:** DECISIONS 50 covers:
+- what the 20 KB measures, and refusing a batch whole;
+- who may doodle, and when `sys:doodle` is sent;
+- the `doodleDrop` effect, and the snapshot shape;
+- the pad's tools, Undo and timeouts;
+- sessionStorage, placement and size;
+- the avatars.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied:
+  - this entry and the Kim check;
+  - a comment on why `sys:doodle` is always accepted (same tick as the LOBBY check);
+  - a test for the doodles-only `turnId: 0` snapshot on the Screen.
+- **secrets-fairness: PASS WITH FIXES.** No leak found. Applied:
+  - DECISIONS 50 notes that one `doodle:batch` may be 20 KB, not the turn batch's 4 KB (as DECISIONS 10 set);
+  - F28's roadmap entry says kick must emit `doodleDrop`.
+  - Not changed: the Screen keeps a departed player's doodle in memory until its next snapshot (the chip is gone; at most 20 KB a player).
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - ↶ Undo, so a slip or "full" isn't permanent;
+  - an ack timeout keeps the stroke;
+  - avatars grew to max(8 vmin, 40 px) in the lobby and 1.5 em in the sidebar and standings;
+  - gutters beside the pad, and `overscroll-contain` on the lobby;
+  - `role="img"` on the pad;
+  - per-pid avatar redraws;
+  - the in-hand-stroke-at-start case is documented.
+  - Not changed: "full" isn't re-announced on repeats.
+
+**Notes for next session:**
+- **F28:** kick must emit `doodleDrop` (roadmap note).
+- **F29:** keep each player's `hasDoodle` through the new-game reset (`inkReset` already keeps the doodles; roadmap note).
+- **F30/F31:** the lobby pad may get the toolbar (roadmap note); a doodle's clear doesn't free its 20 KB.
+- **F33:** the portrait strip's chips use `Avatar`, so they get doodles for free.
+- **F45:** Taglish for `doodleYourself`, `doodlePad`, `doodleFull`, `doodleUndo`.
+- Dev bots don't doodle (not needed; Backlog-worthy if wanted).
+
+**How to try it:**
+- Unit tests: `npx vitest run server/inkStore.test.ts server/reducer.doodle.test.ts server/inkGateway.test.ts client/src/ink/doodle.test.ts client/src/lib/doodles.test.ts client/src/components/screen/PlayerChip.test.tsx client/src/components/phone`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE`; doodle in each lobby and watch the TV chips.
+- Automated, both passing (gitignored):
+  - `npm run playtest -- .playtest/F27/scenario.ts`: a TV Screen, Ana (Pixel 7), Ben (iPhone 13), then a tablet Screen.
+    - both pads show;
+    - Ana's stroke becomes her chip avatar, and no phone frame mentions a doodle;
+    - the late tablet Screen gets her doodle;
+    - Ben's makes two avatars;
+    - Ben leaves and his avatar goes.
+  - `npm run playtest -- .playtest/F27/small.ts`: two 360×560 phones.
+    - The host's and the guesser's pads are wholly on screen with ≥ 24 px gutters.
+    - Two faces drawn, and the lobby didn't scroll; Undo removes the mouth.
+    - A reload keeps the face on the pad and the TV.
+    - Start keeps both faces in the sidebar.
+  - No console errors.
+  - Screenshots: `.playtest/F27/faces-screen.png`, `sidebar-screen.png`, `small-host-reloaded-Ana.png`.
+
 
 ## F26 — How to play and first-turn captions (2026-10-31)
 **What changed:**

@@ -327,6 +327,7 @@ export type Effect =
   | { type: 'inkOpen'; turnId: number; drawerPid: string }
   | { type: 'inkClose'; turnId: number }
   | { type: 'inkReset' }
+  | { type: 'doodleDrop'; pid: string }
   | { type: 'kick'; pid: string };
 
 // ---------- Client → server events (main namespace) ----------
@@ -577,6 +578,11 @@ export interface InkSnapshot {
   turnId: number;
   seq: number;
   actions: InkOp[];
+  /**
+   * Screens only: every player's lobby doodle as the ops that rebuild it, by pid; left out when
+   * nobody has one. A Screen gets a snapshot with no turn yet (turnId and seq 0) for doodles alone.
+   */
+  doodles?: Record<string, InkOp[]>;
 }
 
 /**
@@ -611,6 +617,8 @@ export interface InkServerToClientEvents {
   'ink:state': (payload: { turnId: number; lastSeq: number }) => void;
   /** A batch arrived after a gap: resend every kept batch from `from` on. */
   'ink:resend': (payload: { turnId: number; from: number }) => void;
+  /** Screens only: a player's lobby doodle batch, as the store applied it. */
+  doodle: (payload: { pid: string; ops: InkOp[] }) => void;
 }
 
 // ---------- HTTP ----------

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { Ack, ChoiceIndex, InkBatch, PlayerView } from '../../../shared/types.js';
+import type { Ack, ChoiceIndex, InkBatch, InkOp, PlayerView } from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { HostDrawer } from '../components/phone/HostDrawer.js';
@@ -104,6 +104,17 @@ export function Play() {
     },
     [code],
   );
+
+  // A finished lobby doodle stroke or undo (F27). Not buffered while `/ink` is down: the pad takes
+  // it back. No answer in time is null, and the pad keeps it (the server most likely took it).
+  const sendDoodle = useCallback(async (ops: InkOp[]): Promise<Ack | null> => {
+    const ink = inkRef.current;
+    if (!ink?.connected) return { ok: false, error: 'notJoined' };
+    return ink
+      .timeout(ACK_TIMEOUT_MS)
+      .emitWithAck('doodle:batch', { ops })
+      .catch(() => null);
+  }, []);
 
   const join = useCallback(async (): Promise<void> => {
     const identity = identityRef.current;
@@ -364,7 +375,9 @@ export function Play() {
         </p>
       )}
       <div inert={hostBar && hostOpen} className="min-h-0 flex-1">
-        {view.phase === 'LOBBY' && <PhoneLobby view={view} socket={socket} onLeave={leave} t={t} />}
+        {view.phase === 'LOBBY' && (
+          <PhoneLobby view={view} socket={socket} onLeave={leave} sendDoodle={sendDoodle} t={t} />
+        )}
         {isDrawer && view.phase === 'DRAWING' && (
           <DrawerTurn
             view={view}

@@ -1,28 +1,34 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../../shared/types.js';
+import { doodleKey, type SendDoodle } from '../../ink/doodle.js';
 import type { Translate } from '../../lib/copy.js';
 import { useHostSender } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { HostPlayerList } from '../HostPlayerList.js';
 import { ScreenSettings, settingsLine } from '../screen/ScreenSettings.js';
+import { DoodlePad } from './DoodlePad.js';
 import { LeaveButton } from './LeaveButton.js';
 
 /**
  * The lobby on a phone (UI by role and phase, Guesser phone, Lobby): "You're in, Jun!", their
  * colour, who is waiting for whom, who's here, and Leave. The crown holder's lobby is the host
  * view instead (Host controls, F25): "You're the host 👑", a big Start game, and the settings
- * summary with Change (presets, settings and the players list with Give crown and Kick). Not yet:
- * Change name (renames land with their reducer action), the doodle pad (F27), custom words (F48).
+ * summary with Change (presets, settings and the players list with Give crown and Kick). Both
+ * have the doodle pad (F27) under that, the host's below Start. Not yet: Change name (renames land
+ * with their reducer action), custom words (F48).
  */
 export function PhoneLobby({
   view,
   socket,
   onLeave,
+  sendDoodle,
   t,
 }: {
   view: PlayerView;
   socket: GameSocket;
   onLeave: () => void;
+  /** Sends a finished doodle stroke on the page's `/ink` socket. */
+  sendDoodle: SendDoodle;
   t: Translate;
 }) {
   const me = view.players.find((p) => p.pid === view.me.pid);
@@ -43,7 +49,10 @@ export function PhoneLobby({
 
   return (
     <div className="relative h-full">
-      <div inert={open} className="flex h-full flex-col gap-4 overflow-y-auto px-4 pt-4 pb-3">
+      <div
+        inert={open}
+        className="flex h-full flex-col gap-4 overflow-y-auto overscroll-contain px-4 pt-4 pb-3"
+      >
         <header className="flex items-center gap-3">
           <span
             aria-hidden
@@ -67,6 +76,9 @@ export function PhoneLobby({
             {t('waitingForHostToStart', { name: crown?.name ?? '' })}
           </p>
         )}
+
+        {/* SPEC-QUESTION: the spec puts a guesser's pad below the list; it goes above it, so it is on screen at 360×560 (DECISIONS 50). */}
+        <DoodlePad storageKey={doodleKey(view.code, view.me.pid)} send={sendDoodle} t={t} />
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-white/70">

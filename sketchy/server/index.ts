@@ -39,11 +39,11 @@ const httpServer = createServer(
 
 // The ink gateway needs `io`, and `io` needs the ink effects handler. Effects only run once a
 // socket acts, by which time `inkGateway` is set.
-const { io } = attachSockets(httpServer, {
+const { io, dispatch } = attachSockets(httpServer, {
   rooms,
   onInk: (code, effect) => inkGateway.onInk(code, effect),
 });
-const inkGateway = attachInkGateway(io, { rooms });
+const inkGateway = attachInkGateway(io, { rooms, dispatch });
 
 const stopSweeper = startRoomSweeper(rooms, Date.now, undefined, (codes) => {
   for (const code of codes) inkGateway.forget(code);

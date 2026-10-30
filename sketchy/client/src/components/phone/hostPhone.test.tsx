@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
-import type { Phase, PlayerChipView, PlayerView } from '../../../../shared/types.js';
+import type { Ack, Phase, PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { HostPlayerList } from '../HostPlayerList.js';
@@ -88,8 +88,11 @@ const buttons = (html: string) =>
       .trim(),
   );
 
+const sendDoodle = () => Promise.resolve<Ack>({ ok: true });
 const lobby = (v: PlayerView) =>
-  renderToStaticMarkup(<PhoneLobby view={v} socket={socket} onLeave={noop} t={t} />);
+  renderToStaticMarkup(
+    <PhoneLobby view={v} socket={socket} onLeave={noop} sendDoodle={sendDoodle} t={t} />,
+  );
 const sheet = (v: PlayerView) =>
   renderToStaticMarkup(<DrawerSheet view={v} socket={socket} t={t} onClose={noop} />);
 
@@ -98,7 +101,7 @@ describe('the crown holder’s lobby', () => {
     const html = lobby(view('LOBBY'));
     expect(html).toContain('You’re the host 👑');
     expect(html).toContain('Classic · 60 s · 2 rounds · Mixed words');
-    expect(buttons(html)).toEqual(['Start game ▶', 'Change', 'Leave']);
+    expect(buttons(html)).toEqual(['Start game ▶', 'Change', '↶ Undo', 'Leave']);
     expect(html).not.toContain('Waiting for');
     expect(html).toMatch(/<button type="button" aria-disabled="false"[^>]*>Start game/);
   });
@@ -118,7 +121,31 @@ describe('the crown holder’s lobby', () => {
     const html = lobby(view('LOBBY', { host: false }));
     expect(html).toContain('You’re in, Mika!');
     expect(html).toContain('Waiting for 👑 Jun to start');
-    expect(buttons(html)).toEqual(['Leave']);
+    expect(buttons(html)).toEqual(['↶ Undo', 'Leave']);
+  });
+});
+
+describe('the lobby doodle pad (F27)', () => {
+  const PAD = 'Doodle yourself while you wait!';
+
+  it('sits below Start and the summary in the host lobby', () => {
+    const html = lobby(view('LOBBY'));
+    expect(html).toContain(PAD);
+    expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Start game'));
+    expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Change'));
+    expect(html).toMatch(
+      /<canvas role="img" aria-label="Your doodle\. It shows on the Screen\."[^>]*touch-none/,
+    );
+    // Undo starts disabled: nothing drawn yet.
+    expect(html).toMatch(/<button type="button" disabled=""[^>]*>↶ Undo<\/button>/);
+  });
+
+  it('sits under the waiting line in the plain lobby, above who’s here', () => {
+    const html = lobby(view('LOBBY', { host: false }));
+    expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Waiting for 👑 Jun to start'));
+    expect(html.indexOf(PAD)).toBeLessThan(html.indexOf('Who’s here'));
+    // Optional: only its Undo, then Leave.
+    expect(buttons(html)).toEqual(['↶ Undo', 'Leave']);
   });
 });
 

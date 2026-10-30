@@ -256,3 +256,89 @@ describe('InkStore freezing and the room budget', () => {
     expect(store.turn(CODE)!.stack.actions).toHaveLength(1);
   });
 });
+
+describe('InkStore lobby doodles', () => {
+  const ANA = 'pid-ana';
+  const BEN = 'pid-ben';
+  // One stroke() is 40 encoded bytes ('b' 19, 'p' 21; 'e' counts nothing).
+  const STROKE_BYTES = 40;
+
+  it("applies a player's batches to their own stack; the doodles rebuild it", () => {
+    const store = createInkStore();
+    expect(store.doodle(CODE, ANA, stroke(1))).toEqual({
+      relay: stroke(1),
+      full: false,
+      has: true,
+    });
+    store.doodle(CODE, ANA, stroke(2, 600, 600));
+    store.doodle(CODE, BEN, stroke(1, 300, 300));
+    const doodles = store.doodles(CODE);
+    expect(Object.keys(doodles).sort()).toEqual([ANA, BEN].sort());
+    expect(visibleStrokes(rebuild(doodles[ANA]!)).map((s) => s.points[0])).toEqual([100, 600]);
+    expect(doodles[BEN]).toEqual(stroke(1, 300, 300));
+    // Doodles are not a turn: no snapshot, no turn log.
+    expect(store.snapshot(CODE)).toBeNull();
+    expect(store.turn(CODE)).toBeUndefined();
+  });
+
+  it('caps a doodle at its limit: a batch that would pass it is refused whole', () => {
+    const store = createInkStore({ doodleMax: 2 * STROKE_BYTES });
+    store.doodle(CODE, ANA, stroke(1));
+    store.doodle(CODE, ANA, stroke(2));
+    const before = store.doodles(CODE)[ANA];
+    // A batch with an undo and a new stroke: the stroke doesn't fit, so neither applies.
+    expect(store.doodle(CODE, ANA, [['u'], ...stroke(3), ...stroke(4)])).toEqual({
+      relay: [],
+      full: true,
+      has: true,
+    });
+    expect(store.doodles(CODE)[ANA]).toEqual(before);
+    // Undo frees room for the next stroke.
+    expect(store.doodle(CODE, ANA, [['u']]).full).toBe(false);
+    expect(store.doodle(CODE, ANA, stroke(3)).full).toBe(false);
+    // Each player has their own budget.
+    expect(store.doodle(CODE, BEN, stroke(1)).full).toBe(false);
+  });
+
+  it('counts strokes under a clear, so a clear never makes room', () => {
+    const store = createInkStore({ doodleMax: 2 * STROKE_BYTES + 5 });
+    store.doodle(CODE, ANA, stroke(1));
+    expect(store.doodle(CODE, ANA, [['c']])).toMatchObject({ full: false, has: false });
+    expect(store.doodle(CODE, ANA, stroke(2))).toMatchObject({ full: false, has: true });
+    expect(store.doodle(CODE, ANA, stroke(3)).full).toBe(true);
+  });
+
+  it('says has: false once every stroke is undone, and leaves no-ops out of the relay', () => {
+    const store = createInkStore();
+    store.doodle(CODE, ANA, stroke(1));
+    expect(store.doodle(CODE, ANA, [['p', 9, 1, 1], ['u']])).toEqual({
+      relay: [['u']],
+      full: false,
+      has: false,
+    });
+    expect(store.doodle(CODE, ANA, [['u']])).toEqual({ relay: [], full: false, has: false });
+  });
+
+  it('keeps doodles across reset (rematch, back to lobby); drops one on dropDoodle, all on forget', () => {
+    const { store, send } = live();
+    send(stroke(1));
+    store.doodle(CODE, ANA, stroke(1));
+    store.doodle(CODE, BEN, stroke(2));
+    store.reset(CODE);
+    expect(store.snapshot(CODE)).toBeNull();
+    expect(Object.keys(store.doodles(CODE)).sort()).toEqual([ANA, BEN].sort());
+    store.dropDoodle(CODE, ANA);
+    expect(Object.keys(store.doodles(CODE))).toEqual([BEN]);
+    // A dropped doodle starts again from empty.
+    expect(store.doodle(CODE, ANA, stroke(3)).relay).toEqual(stroke(3));
+    expect(store.doodles(CODE)[ANA]).toEqual(stroke(3));
+    store.forget(CODE);
+    expect(store.doodles(CODE)).toEqual({});
+  });
+
+  it('keeps rooms apart', () => {
+    const store = createInkStore();
+    store.doodle(CODE, ANA, stroke(1));
+    expect(store.doodles('WXYZ')).toEqual({});
+  });
+});

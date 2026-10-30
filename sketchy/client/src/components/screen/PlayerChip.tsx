@@ -1,7 +1,27 @@
+import { useContext, useEffect, useRef, useSyncExternalStore } from 'react';
+import { visibleStrokes, type InkStack } from '../../../../shared/ink.js';
 import type { PlayerChipView } from '../../../../shared/types.js';
+import { DoodleContext } from '../../lib/doodles.js';
+import { redrawPicture } from '../../lib/ink.js';
 
-/** A player's avatar: their initial in their colour (lobby doodles replace it in F27). */
+/** A doodle avatar's backing store: sharp at a TV chip's size, small enough for ten of them. */
+const AVATAR_PX = 128;
+/** Lines drawn this many times thicker, so an M stroke still reads at chip size. */
+const AVATAR_LINE_SCALE = 6;
+
+const noSubscribe = () => () => {};
+
+/**
+ * A player's avatar: their lobby doodle once their view says `hasDoodle` and this Screen holds it
+ * (Screens only: phones have no doodles), else their initial in their colour.
+ */
 export function Avatar({ player, size = '1em' }: { player: PlayerChipView; size?: string }) {
+  const doodles = useContext(DoodleContext);
+  const getVersion = () => doodles?.version(player.pid) ?? 0;
+  const version = useSyncExternalStore(doodles?.subscribe ?? noSubscribe, getVersion, getVersion);
+  const stack = player.hasDoodle ? doodles?.get(player.pid) : undefined;
+  if (stack && visibleStrokes(stack).length > 0)
+    return <DoodleAvatar stack={stack} version={version} color={player.color} size={size} />;
   return (
     <span
       aria-hidden
@@ -18,6 +38,35 @@ export function Avatar({ player, size = '1em' }: { player: PlayerChipView; size?
   );
 }
 
+function DoodleAvatar({
+  stack,
+  version,
+  color,
+  size,
+}: {
+  stack: InkStack;
+  version: number;
+  color: string;
+  size: string;
+}) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const ctx = ref.current?.getContext('2d');
+    if (ctx) redrawPicture(ctx, stack, AVATAR_PX, AVATAR_LINE_SCALE);
+  }, [stack, version]);
+  return (
+    <canvas
+      ref={ref}
+      aria-hidden
+      data-doodle
+      width={AVATAR_PX}
+      height={AVATAR_PX}
+      className="box-border inline-block shrink-0 rounded-[22%] bg-white"
+      style={{ width: size, height: size, border: `max(2px, calc(${size} * 0.07)) solid ${color}` }}
+    />
+  );
+}
+
 /**
  * A lobby chip: avatar and name, with the crown on the host. On the token Screen it is a button
  * (`onSelect`) that opens Give host crown and Kick for that player.
@@ -25,7 +74,7 @@ export function Avatar({ player, size = '1em' }: { player: PlayerChipView; size?
 export function LobbyChip({ player, onSelect }: { player: PlayerChipView; onSelect?: () => void }) {
   const inner = (
     <>
-      <Avatar player={player} size="max(5vmin, 32px)" />
+      <Avatar player={player} size="max(8vmin, 40px)" />
       <span className="truncate font-semibold" style={{ color: player.color }}>
         {player.crown && '👑 '}
         {player.name}

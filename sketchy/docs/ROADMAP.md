@@ -66,13 +66,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F26 How to play and first-turn captions
 
-- [ ] F27 Lobby doodles
-  - Spec: Drawing data protocol (Lobby doodles); Roles and devices (Creating and joining a room); UI by role and phase (Screen, Guesser phone)
-  - Depends: F12, F08
-  - Done when:
-    - In LOBBY each phone shows the doodle pad under "Doodle yourself while you wait!"; `doodle:batch` accepted only in LOBBY, 20 KB per player, relayed to Screens only
-    - The doodle is the player's avatar on every Screen chip for the session; a Screen joining later gets doodles in its snapshot; leaving drops it
-  - Tests: `inkGateway.test.ts` — doodles never reach a phone; refused outside LOBBY; size cap
+- [x] F27 Lobby doodles
 
 - [ ] F28 Pause, skip, kick and end
   - Spec: Game flow and state machine (Pausing, Transitions); Reducer actions and effects (Actions); UI by role and phase (Guesser phone, Host controls)
@@ -82,6 +76,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
     - Kick takes two taps ("Remove Jun?"); Leave takes two taps and mid-game says "Your points will be lost"; the kicked phone shows "You were removed from this game"
   - Note (F24): the token Screen's control bar (`HostControls`) already sends pause, resume, skip and end; add its players list with Kick (two taps) there too (DECISIONS 47)
   - Note (F25): the players list with Kick ("Remove Jun?", two taps) already exists on the token Screen (lobby chips, the bar's Players button) and the crown phone (Change, the Host drawer), via `HostPlayerList`; it sends `host:kick`. Kicking the crown holder must call `passCrown` in `reducer.ts`, with a test that the crown passes on kick (DECISIONS 48). The Host top bar sits above the paused overlay, so the crown phone's Resume stays reachable
+  - Note (F27): kick must also emit `{type: 'doodleDrop', pid}` as `leave` does (the ink gateway drops the doodle), with a test (DECISIONS 50)
   - Tests: `reducer.pause.test.ts` — paused time doesn't count towards `t`; stale timers after pause are ignored; `reducer.host.test.ts`
 
 - [ ] F29 Rematch, back to lobby and the night's totals
@@ -92,6 +87,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
     - Rematch: two taps, 3-2-1 countdown on every device, then CHOOSING with the next player in join order drawing first; Cancel leaves FINAL and the gallery untouched; fewer than 2 connected at the end of the countdown stays on FINAL with "Need 2 players"
   - Note (F20): `startCycle` builds cycles 2+ in plain join order; rotate them like cycle 1 in a rematch game (DECISIONS 43)
   - Note (F26): `TurnView.number` is `history` turns + 1 (`server/views.ts`), and the Screen's first-two-turns caption keys on it. A new game (rematch or back to lobby, then Start) must restart it at 1: clear `history` once the gallery and awards no longer need it, or count only this game's turns. Add a test that game 2's first turn has `number` 1 (DECISIONS 49)
+  - Note (F27): `inkReset` already keeps the doodles in the InkStore; keep each player's `hasDoodle` in the reducer's new-game reset too, with a test (DECISIONS 50)
   - Tests: `reducer.newgame.test.ts` — no word repeats across two games; `reducer.rematch.test.ts` — rotation over three rematches, including when last game's first drawer has left; cancel keeps scores and gallery; a stale `rematchGo` after cancel does nothing; fewer than 2 connected
 
 ## M5 — Drawing tools
@@ -101,6 +97,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
   - Depends: F11
   - Done when:
     - Two toolbar rows: 8 colour swatches (40 px, 44 px hit area); one size button cycling S/M/L, Eraser, Undo, Clear; quadratic smoothing on drawer and Screen via one shared `drawStroke`
+  - Note (F27): the lobby `DoodlePad` has only the black pen at M and ↶ Undo; give it the same tools if they fit (the server already takes `c`, and a doodle's clear doesn't free its 20 KB, DECISIONS 50)
 
 - [ ] F31 Undo and clear
   - Spec: Canvas and drawing tools (Tools); Drawing data protocol (Ops and encoding)

@@ -103,6 +103,8 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'sys:screens':
       d.screens = action.count;
       return undefined;
+    case 'sys:doodle':
+      return doodle(d, action);
     case 'player:rename':
     case 'player:react':
     case 'player:visibility':
@@ -114,7 +116,6 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'host:rematch':
     case 'host:rematchCancel':
     case 'host:backToLobby':
-    case 'sys:doodle':
       return 'notAvailable';
     default: {
       action satisfies never;
@@ -245,6 +246,7 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
   if (typeof player === 'string') return player;
   const { pid } = player;
   delete d.players[pid];
+  fx.push({ type: 'doodleDrop', pid });
 
   // Keep `turnIndex` on the turn just played, so the next turn is still `turnIndex + 1`.
   const index = d.turnOrder.indexOf(pid);
@@ -263,6 +265,15 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
     // The leaver may have been the last guesser still drawing a blank.
     else if (!d.turn?.correct.some((c) => c.pid === pid)) checkAllGuessed(d, now, fx);
   }
+  return undefined;
+}
+
+/** The ink gateway stored or dropped a lobby doodle. Only a drop (`has: false`) outside LOBBY. */
+function doodle(d: Room, a: ActionOf<'sys:doodle'>): Handled {
+  const player = d.players[a.pid];
+  if (!player) return 'unknownPlayer';
+  if (a.has && d.phase !== 'LOBBY') return 'wrongPhase';
+  player.hasDoodle = a.has;
   return undefined;
 }
 

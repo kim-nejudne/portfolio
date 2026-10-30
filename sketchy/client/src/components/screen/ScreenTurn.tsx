@@ -179,7 +179,7 @@ function PlayerList({ players }: { players: PlayerChipView[] }) {
           className={`flex min-w-0 items-center gap-[1vmin] ${p.connected ? '' : 'opacity-60'}`}
         >
           <span className="w-[1.2em] text-center">{p.isDrawer ? '✏️' : p.guessed ? '✓' : ''}</span>
-          <Avatar player={p} size="1.2em" />
+          <Avatar player={p} size="1.5em" />
           <span className="truncate font-semibold" style={{ color: p.color }}>
             {p.name}
           </span>
