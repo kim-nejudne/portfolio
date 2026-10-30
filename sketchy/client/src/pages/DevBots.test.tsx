@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes } from '../lib/router.js';
 import { describe, expect, it } from 'vitest';
 import DevBots from './DevBots.js';
 

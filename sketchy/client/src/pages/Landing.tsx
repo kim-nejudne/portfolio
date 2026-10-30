@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../lib/router.js';
 import { createRoom, roomExists } from '../lib/api.js';
 import { saveHostToken } from '../lib/hostTokens.js';
 
@@ -30,7 +30,7 @@ export function Landing() {
       const room = await roomExists(code);
       if (!room.exists) setJoinError('No game with that code. Check the TV.');
       else if (room.full) setJoinError('That game is full.');
-      else void navigate(`/play/${code}`);
+      else navigate(`/play/${code}`);
     } catch (err) {
       setJoinError((err as Error).message);
     } finally {
@@ -46,7 +46,7 @@ export function Landing() {
     try {
       const room = await createRoom();
       saveHostToken(room.code, room.hostToken);
-      void navigate(`/screen/${room.code}`);
+      navigate(`/screen/${room.code}`);
     } catch (err) {
       setStartError((err as Error).message);
       startingRef.current = false;

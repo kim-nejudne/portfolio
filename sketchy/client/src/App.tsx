@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Route, Routes } from './lib/router.js';
 import { Landing } from './pages/Landing.js';
 import { Play } from './pages/Play.js';
 

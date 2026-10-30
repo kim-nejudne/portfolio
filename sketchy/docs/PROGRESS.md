@@ -54,8 +54,95 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F36: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (one small Android if you have one, one iPhone) · on the drawer's phone, pick a word and don't draw: about 10 s in, "Start with one big shape. Anything helps!" appears just above the pad (on a small phone it sits over the pad's top edge) and the pad doesn't move; start a stroke right on that text: the line draws and the text is gone for the rest of the turn (Clear doesn't bring it back); have a guesser type a wrong guess: "Bea: sapatos" appears on the drawer's second line; have another type a near miss (the word plus "ko", or one letter off): "Cy is close!" shows there in amber for about 2 s, readable at arm's length but not from the next seat, then the wrong guess comes back; the Screen and the other phones never show the near miss; with VoiceOver/TalkBack on the drawer's phone, the nudge and "is close!" are read out
 - [ ] F37: `npm run dev` + `npm run lan CODE`, open the **Screen URL printed by `npm run lan`** (the LAN address, not localhost) on the laptop on the TV, plus a tablet or spare phone as a second Screen, and 3 real phones (one iPhone, one small Android if you have one) · on each Screen, "Click to start" (laptop) or "Tap to start" (tablet) covers the page: one tap goes fullscreen (not on an iPhone Screen) and the Screen doesn't dim or sleep for 15 minutes on battery; the lobby QR scans with each phone's camera from the sofa (≈ 2–3 m; note the farthest distance that works, see the Backlog's QR line) and opens `/play/CODE` on the LAN address; "🔌 Keep this device plugged in" shows on the tablet or phone Screen and not on the laptop (also try an Android TV or Chromecast browser if you have one: it may report no pointer and show "Click to start" with no note); during a game no phone dims or locks (lobby phones may); turn on airplane mode on one phone: the dot in its top-right corner goes amber at once, red after about 5 s, and back to green with the same name and score within a few seconds of turning it off; try Wi-Fi with no internet (unplug the router's WAN) for the amber after about 6 s
 - [ ] F38: `npm run dev` + `npm run lan CODE`, the laptop Screen on the TV with its speakers on, plus an iPad or iPhone as a second Screen with its ringer switch on silent, and 3 real phones; tap/click to start on each Screen, play a game of 2 short turns (let one run out of time), then end it · each phone joining gives a short pop; each new turn a two-note chime; each correct guess a ding; the last 10 s of a turn tick once a second, stopping while paused and picking up after; a timed-out turn gives a low double buzz, then the sting as the word pops in; FINAL plays the fanfare; nothing is cut short or doubled; the iPad/iPhone Screen plays everything with the ringer switch on silent; after locking and unlocking the iPad (or taking a call), one tap brings its sound back; `M` (or the bar's Sound button) cycles Sound on / Quiet / Muted, and the tick is still audible on Quiet from the sofa (≈ 2–3 m); only the drawer's phone buzzes on "your turn", and no phone makes a sound
+- [ ] F39: after autopilot deploys, on the **budget Android with Wi-Fi off (mobile data)**, clear Chrome's data for sketchy.kimnejudne.dev, start a game on the laptop (Screen on the TV), then scan the lobby QR with a stopwatch running · the name field shows and takes typing within 5 s of the scan, and you reach the lobby within 15 s including typing a name; the headings are the rounded Fredoka face (round dots on i and j). Repeat on the iPhone. Then once on a Wi-Fi that's known to be fussy (a café or captive portal), join and play a turn · it joins (on a network that blocks WebSockets it falls back to polling, which may take a few seconds longer to connect)
 
 <!-- entries below, newest first -->
+
+## F39 — Join budget (2026-10-31)
+**What changed:**
+- **Budget check** (`scripts/bundle.ts`, new; `npm run size`, new): builds the client in production mode in memory and measures the player page, which is the entry chunk plus its static imports, the CSS `index.html` links and the font it preloads. JS and CSS are gzipped at level 6, matching nginx; KB means 1000 bytes. Now:
+  - **JS 106.7 KB** of 120 (was 119.1 KB at level 9 before this feature);
+  - **CSS 8.1 KB + font 15.9 KB = 24.0 KB** of 30.
+  
+  The lazy chunks are the Screen (22.9 KB) and Howler (9.5 KB). `qrcode` is in the Screen chunk.
+- **`scripts/bundle.test.ts`** (new, 10 tests, part of `npm test`; about 1 s) builds in a child process with `NODE_ENV=production`. It fails when:
+  - either budget is exceeded;
+  - the Screen page, Howler or `qrcode` is on the player page or missing from the lazy chunks;
+  - a `components/screen/` module other than the shared `ScreenSettings.tsx` is on the player page, or any module with "gallery" in its path (for F49);
+  - DevBots, zod or `shared/schemas.ts` is anywhere in the production build;
+  - the build ships more than one font, an unhashed one, a preload without `as="font"`/`type`/`crossorigin`, or a face without `font-display: swap` and the Latin range.
+  
+  A static `qrcode` import in `Landing.tsx` was tried and made it fail.
+- **react-router removed** to make headroom for F45's Taglish table and M7–M9 (about 12 KB gzipped). `client/src/lib/router.tsx` (new, about 100 lines) gives the app the router pieces it used:
+  - `BrowserRouter` over `pushState`/`popstate`, and `MemoryRouter` for tests;
+  - `Routes`/`Route` with `:param` and one trailing slash;
+  - `useParams` and `useNavigate`;
+  - `Link`, which leaves modified clicks to the browser.
+  
+  App, Landing, Play, Screen and DevBots import it, and the callers drop `void navigate(…)`.
+- **Font:** Fredoka Bold, one Latin-subset woff2 (16 KB, OFL; `client/src/fonts/` with `OFL.txt`).
+  - `font-display: swap`, at the head of `--font-display`;
+  - Vite fingerprints it, and `index.html` preloads the same hashed file with `crossorigin`;
+  - one weight, since every `font-display` use is bold.
+- **Transport:** WebSocket first, falling back to long-polling only when the WebSocket can't open. On the client this is `TRANSPORT_OPTIONS` in `client/src/lib/socket.ts` (`['websocket','polling']` with `tryAllTransports`, used by both namespaces). The server (`server/sockets.ts`) now accepts polling too, and every reconnect tries the WebSocket again.
+- **Caching** (`server/http.ts`): `/assets/` gets `public, max-age=31536000, immutable`, and `index.html`, the SPA fallback, sounds and the favicon get `no-cache`.
+- **nginx** (`deploy/nginx/sketchy.conf`): `gzip_comp_level 6` (the default 1 would ship the JS at 134 KB), and the `/socket.io/` comment no longer says WebSocket only.
+- **New dependencies:** none, and `react-router` is removed. Fredoka was copied from `@fontsource/fredoka` 5.3.0, so the package isn't a dependency.
+- **Tests:**
+  - `scripts/bundle.test.ts` (10, above);
+  - `client/src/lib/router.test.tsx` (new, 9): `matchPath` statics, decoded params, a trailing slash, segment counts and a bad escape; `Routes` picks the first match, renders nothing for an unknown path, skips a falsy route and ignores the query; no params outside a route; `Link` renders a plain anchor;
+  - `client/src/lib/socket.test.ts` (new, 3): against real Socket.IO servers, a WebSocket first, polling when the server refuses the WebSocket, and both namespaces use the options;
+  - `server/sockets.test.ts` (+1): a polling client joins and gets its view;
+  - `server/http.test.ts` (+1): the cache headers.
+
+**Decisions:** DECISIONS 61 covers:
+- what the budget measures (files, gzip level 6, KB = 1000);
+- react-router's replacement;
+- the font, its weight and its fingerprinting;
+- caching;
+- what "fall back to polling" means in Socket.IO's options.
+
+The rules file `.claude/rules/client.md` (local, gitignored) now says WebSocket first.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** The Must-fixes were this entry, the Kim check and the recorded 5 s numbers, all done below. Should-fix: the client fallback is now also proven end to end (`.playtest/F39/fallback.ts`) and in `socket.test.ts`.
+- **secrets-fairness: PASS.** Polling weakens no invariant: the limits, limiters, ink routing, timing and auth are all transport-independent. Should-fix applied: the stale nginx comment.
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied:
+  - the nginx comment;
+  - caching, with the font moved under Vite so it gets a hashed name.
+  
+  Checked, no change needed: the reveal word's 0.82 em per letter. Fredoka Bold's W is 0.947 em, but the widest pack word (MANGO) averages 0.720 em per letter in Fredoka and 0.793 in the old fallback face, measured in Chromium. A pathological custom word such as "WWW" could overflow, as it could before.
+  
+  To Backlog: a metric-matched fallback face, since Roboto→Fredoka reflows headings on Android over slow networks; a catch-all route for unknown paths, which render blank as they did with react-router; and `replace` on Leave's navigate.
+
+**Playtest** (production build on :3107; `.playtest/F39/`):
+- **`join-budget.ts`:** an emulated Pixel 7 on DevTools' Slow 4G preset (562.5 ms, 1.44 Mbps) with 4× CPU slowdown, through a level-6 gzip proxy standing in for nginx, three cold loads of `/play/CODE`:
+  - the name field is usable at **2653, 2600 and 2599 ms** (budget 5000);
+  - the lobby is reached at 4174, 3702 and 3674 ms (without typing time);
+  - 133.9 KB transferred: JS 106.6, CSS 8.4, font 16.2, HTML 1.1;
+  - Fredoka loaded, and no polling requests.
+- **`fallback.ts`:** behind a proxy that refuses WebSocket upgrades, one WebSocket attempt fails, then 18 polling requests; the phone joins and sees a second player arrive live. A phone with WebSockets allowed makes 0 polling requests.
+- **`routes.ts`:** these all route:
+  - Landing Start → `/screen/CODE` (lazy Screen lobby);
+  - Landing Join → `/play/CODE`, then join;
+  - Leave → `/`;
+  - Back → `/play/CODE`, then Forward;
+  - a deep link with a trailing slash and a query;
+  - an unknown path renders nothing;
+  - the ended page's Link → home.
+- **`.playtest/F33/layouts.ts`** re-run with the new face (7 Screens, ten players, every phase): pass. The screenshots show Fredoka on the code, headings and reveal word, with nothing clipped.
+- Console errors: only the expected "WebSocket connection … failed" in the blocked run.
+
+**Notes for next session:**
+- **F40+:** run `npm run size` after any client change. Player JS is 106.7/120 KB and CSS + font 24.0/30 KB; `bundle.test.ts` fails over budget.
+- **F45:** the Taglish table lands in `copy.ts`, which is on the player page (about 2–3 KB gzipped, which fits).
+- **F49:** keep the gallery in the Screen chunk or its own `import()`. The bundle test fails if a module named `*gallery*` reaches the player page.
+- **F51/F52:** the droplet's nginx needs `gzip_comp_level 6` (in `deploy/nginx/sketchy.conf`). Hashed `/assets/` are cached for a year, so nothing changes for deploys.
+
+**How to try it:**
+- `npm run size`; `npx vitest run scripts/bundle.test.ts client/src/lib/router.test.tsx client/src/lib/socket.test.ts server/http.test.ts`.
+- Playtests: `npm run build && PORT=3107 npm start`, then `PLAYTEST_URL=http://localhost:3107 npm run playtest -- .playtest/F39/join-budget.ts` (and `fallback.ts`, `routes.ts`).
+- By hand: in Chrome DevTools on `/play/CODE`, set Network to "Slow 4G" and CPU to 4× slowdown, tick "Disable cache", and reload. Note that `npm start` doesn't gzip; nginx does in production.
 
 ## F38 — Sounds (2026-10-31)
 **What changed:**

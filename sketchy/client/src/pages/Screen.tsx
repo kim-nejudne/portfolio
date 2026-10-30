@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams } from '../lib/router.js';
 import type { ScreenView } from '../../../shared/types.js';
 import { DebugOverlay } from '../components/screen/DebugOverlay.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';

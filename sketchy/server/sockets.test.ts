@@ -81,9 +81,9 @@ async function setup() {
   await new Promise((resolve) => server!.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
 
-  async function connect(): Promise<Client> {
+  async function connect(transports = ['websocket']): Promise<Client> {
     const socket = connectClient(`http://127.0.0.1:${port}`, {
-      transports: ['websocket'],
+      transports,
       forceNew: true,
       reconnection: false,
     });
@@ -147,6 +147,19 @@ describe('Socket.IO options', () => {
     expect(SOCKET_PING_INTERVAL_MS).toBe(5000);
     expect(SOCKET_PING_TIMEOUT_MS).toBe(5000);
     expect(gateway.io.engine.opts).toMatchObject({ pingInterval: 5000, pingTimeout: 5000 });
+  });
+
+  it('accepts long-polling, the fallback when a WebSocket cannot open (F39)', async () => {
+    const s = await setup();
+    const client = await s.connect(['polling']);
+    expect(client.socket.io.engine.transport.name).toBe('polling');
+    const ack = await client.emit<{ pid: string }>('player:join', {
+      code: CODE,
+      playerKey: KEY_ANA,
+      name: 'Ana',
+    });
+    expect(ack.ok).toBe(true);
+    expect((await client.state((v) => v.role === 'player')).role).toBe('player');
   });
 });
 

@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import express, { type ErrorRequestHandler, type Express, type Response } from 'express';
 import {
   CREATE_ROOM_BODY_MAX_BYTES,
@@ -48,6 +48,9 @@ function sendError(res: Response, status: number, error: string): void {
 }
 
 /** Body-parser failures (bad JSON, too large) as JSON errors instead of Express's HTML page. */
+/** Cache-Control for fingerprinted files: a new build gives them new names. */
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+
 const apiErrors: ErrorRequestHandler = (
   err: { status?: unknown; type?: unknown },
   _req,
@@ -150,9 +153,21 @@ export function createApp({
   app.use('/api', apiErrors);
 
   if (clientDir) {
-    app.use(express.static(clientDir));
+    // Vite fingerprints everything under /assets/ (JS, CSS, the font), so a phone keeps it for
+    // good; index.html, which names the current files, is checked every time (F39).
+    app.use(
+      express.static(clientDir, {
+        setHeaders(res, path) {
+          res.setHeader(
+            'Cache-Control',
+            path.startsWith(join(clientDir, 'assets') + sep) ? IMMUTABLE : 'no-cache',
+          );
+        },
+      }),
+    );
     // Client routes (/play/:code, /screen/:code, …) load the SPA; /api and /socket.io never fall through to it.
     app.get(/^\/(?!api\/|socket\.io\/).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(join(clientDir, 'index.html'));
     });
   }

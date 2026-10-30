@@ -115,7 +115,8 @@ export function attachSockets(
   }: GatewayOptions,
 ): Gateway {
   const io: GatewayServer = new Server(httpServer, {
-    transports: ['websocket'],
+    // Clients open a WebSocket first and fall back to long-polling only when it fails (F39).
+    transports: ['websocket', 'polling'],
     pingInterval: SOCKET_PING_INTERVAL_MS,
     pingTimeout: SOCKET_PING_TIMEOUT_MS,
     // A bigger frame closes the connection.

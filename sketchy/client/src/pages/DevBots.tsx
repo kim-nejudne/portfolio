@@ -3,7 +3,7 @@
 // registers this route only in development builds, and the page is its own lazy chunk.
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams } from '../lib/router.js';
 import { MAX_PLAYERS } from '../../../shared/constants.js';
 import {
   DEFAULT_BOT_COUNT,

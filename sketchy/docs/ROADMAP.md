@@ -94,13 +94,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F38 Sounds
 
-- [ ] F39 Join budget
-  - Spec: Tech stack and architecture (Performance budget); Test plan (Manual playtest checklist)
-  - Depends: F37, F38
-  - Done when:
-    - `/play` and `/` ship ≤ 120 KB gzipped JS and ≤ 30 KB CSS and fonts; Screen, Howler, QR, gallery and DevBots are lazy chunks; no zod in the client bundle; one subset font with `font-display: swap`; WebSocket-first transport
-    - Name field usable ≤ 5 s after scanning on "Slow 4G" with 4× CPU slowdown
-  - Tests: `bundle.test.ts` — fails when the built player chunks exceed the budget
+- [x] F39 Join budget
 
 ## M7 — Resilience
 
@@ -237,3 +231,6 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Connection dot: a second cue besides colour for amber and red (a ring or a glyph), for colour-blind players (F37 review).
 - Lobby QR: a larger code on wide Screens (about 34 vmin) if the F37 Kim check finds 24 vmin too small to scan from the sofa; it needs a lobby layout that doesn't push ten players off a 1080p Screen (F37 review, DECISIONS 59).
 - Plain (no-token) Screens: an `M` key and a sound button, so a second Screen in the room can be quieted on its own (F38, DECISIONS 60).
+- Display font swap: a metric-matched fallback `@font-face` (`local('Roboto')`/`local('Arial')` with `size-adjust` and ascent/descent overrides) so headings don't reflow when Fredoka arrives on a slow Android (F39 review).
+- A catch-all route (`*` → Landing or a "No such page" with a link home); unknown paths render blank today, as they did with react-router (F39 review).
+- Play's Leave: `navigate('/', {replace: true})` so Back doesn't return to the join form of the game just left (needs `replace` in `client/src/lib/router.tsx`) (F39 review).

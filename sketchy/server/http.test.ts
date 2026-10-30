@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -44,6 +44,24 @@ describe('HTTP app', () => {
         expect(res.status).toBe(404);
         expect(await res.text()).not.toContain('Sketchy test shell');
       }
+    } finally {
+      await rm(clientDir, { recursive: true, force: true });
+    }
+  });
+
+  it('caches hashed /assets/ for good and revalidates index.html and other files (F39)', async () => {
+    const clientDir = await mkdtemp(join(tmpdir(), 'sketchy-client-'));
+    await writeFile(join(clientDir, 'index.html'), '<title>Sketchy test shell</title>');
+    await mkdir(join(clientDir, 'assets'));
+    await writeFile(join(clientDir, 'assets', 'index-AbC123.js'), 'export {};');
+    await writeFile(join(clientDir, 'favicon.svg'), '<svg/>');
+    try {
+      const base = await listen({ clientDir });
+      const cache = async (path: string) =>
+        (await fetch(`${base}${path}`)).headers.get('cache-control');
+      expect(await cache('/assets/index-AbC123.js')).toBe('public, max-age=31536000, immutable');
+      for (const path of ['/', '/index.html', '/play/ABCD', '/favicon.svg'])
+        expect(await cache(path)).toBe('no-cache');
     } finally {
       await rm(clientDir, { recursive: true, force: true });
     }

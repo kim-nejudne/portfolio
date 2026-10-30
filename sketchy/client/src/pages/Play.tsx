@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from '../lib/router.js';
 import type {
   Ack,
   ChoiceIndex,
@@ -315,7 +315,7 @@ export function Play() {
         clearPlayer(code);
         closeInk();
         identityRef.current = null;
-        void navigate('/');
+        navigate('/');
       });
   };
 
