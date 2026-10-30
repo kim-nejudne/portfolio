@@ -246,12 +246,15 @@ describe('player:guess matching (match.ts) and limits', () => {
     expect(after.turn!.correct.map((c) => c.pid)).toEqual([pids[1]]);
   });
 
-  it('answers a close guess with nearMiss to that phone only, keeps it out of the feed, scores nothing', () => {
+  it('answers a close guess with nearMiss to that phone and closeAlert to the drawer, keeps it out of the feed, scores nothing', () => {
     const { room, pids, at } = started();
     const ben = pids[1]!;
     const close = `${secretWord(room)} ko`;
     const { room: after, effects } = step(room, guess(ben, close, at + 1_000), at + 1_000);
-    expect(effects).toEqual([{ type: 'fx', to: { pid: ben }, fx: { kind: 'nearMiss' } }]);
+    expect(effects).toEqual([
+      { type: 'fx', to: { pid: ben }, fx: { kind: 'nearMiss' } },
+      { type: 'fx', to: { pid: pids[0]! }, fx: { kind: 'closeAlert', pid: ben } },
+    ]);
     expect(after.turn!.feed).toEqual([]);
     expect(after.turn!.correct).toEqual([]);
     expect(after.turn!.closeGuesses).toEqual([{ pid: ben, text: close, at: at + 1_000 }]);

@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import { welcomeTurn } from '../../lib/phone.js';
-import { DrawerTurn, TurnUpright } from './DrawerTurn.js';
+import { DrawerTurn, GuessLine, TurnUpright } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
 import { PhoneStandings } from './PhoneStandings.js';
 import { WordChoice } from './WordChoice.js';
@@ -170,6 +170,43 @@ describe('guesser phone', () => {
 });
 
 describe('drawer phone', () => {
+  const drawer = (remainingMs: number) => {
+    const base = drawingView('mika');
+    const view = { ...base, turn: { ...base.turn!, timer: { ...base.turn!.timer!, remainingMs } } };
+    return renderToStaticMarkup(
+      <DrawerTurn
+        view={view}
+        receivedAt={performance.now()}
+        ink={{ send: () => {}, bind: () => () => {} }}
+        paused={false}
+        closePid={null}
+        t={t}
+      />,
+    );
+  };
+  it('has the nudge live region in place, empty until the pad has loaded its ink (F36)', () => {
+    // 13 s in, but the turn's ink isn't in yet (no `/ink` here): no nudge, so no flash after a
+    // reload. `inkNudge` (phone.test.ts) and `.playtest/F36` cover it showing and going.
+    const html = drawer(47_000);
+    expect(html).toContain('<p role="status" class="sr-only"></p>');
+    expect(html).not.toContain('Start with one big shape');
+  });
+  it('shows "Bea is close!" in amber in place of the latest guess (F36)', () => {
+    const html = renderToStaticMarkup(
+      <GuessLine close="Bea" last={{ name: 'Ana', text: 'payong' }} t={t} />,
+    );
+    expect(html).toMatch(/aria-live="polite"/);
+    expect(html).toMatch(/<strong class="[^"]*text-\[#FFD166\][^"]*">Bea is close!<\/strong>/);
+    expect(html).not.toContain('payong');
+  });
+  it('shows the latest wrong guess with the feed masking, or nothing yet (F36)', () => {
+    const line = (last: { name: string; text: string | null } | null) =>
+      renderToStaticMarkup(<GuessLine close={null} last={last} t={t} />);
+    expect(line({ name: 'Ana', text: 'payong' })).toContain('Ana: payong');
+    expect(line({ name: 'Ana', text: null })).toContain('Ana: •••');
+    expect(line(null)).toMatch(/<p[^>]*><\/p>/);
+    expect(line({ name: 'Ana', text: 'payong' })).not.toContain('close');
+  });
   it('shows the word small (16 px) in the top bar, the clock, the got-it count and the latest guess', () => {
     const html = renderToStaticMarkup(
       <DrawerTurn
@@ -177,6 +214,7 @@ describe('drawer phone', () => {
         receivedAt={0}
         ink={{ send: () => {}, bind: () => () => {} }}
         paused={false}
+        closePid={null}
         t={t}
       />,
     );
@@ -194,6 +232,7 @@ describe('drawer phone', () => {
         receivedAt={0}
         ink={{ send: () => {}, bind: () => () => {} }}
         paused={false}
+        closePid={null}
         t={t}
       />,
     );
@@ -216,6 +255,7 @@ describe('drawer phone', () => {
           receivedAt={0}
           ink={{ send: () => {}, bind: () => () => {} }}
           paused={paused}
+          closePid={null}
           t={t}
         />,
       );

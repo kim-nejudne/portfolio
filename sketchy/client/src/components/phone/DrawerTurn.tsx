@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../../shared/types.js';
 import type { DrawerInkLink } from '../../ink/drawerSync.js';
 import type { PadState } from '../../ink/padTools.js';
 import type { Translate } from '../../lib/copy.js';
-import { DRAWER_BAR_PX, drawerPadSize, drawerSideways } from '../../lib/phone.js';
+import { DRAWER_BAR_PX, drawerPadSize, drawerSideways, inkNudge } from '../../lib/phone.js';
 import { formatClock } from '../../lib/screen.js';
 import { DEFAULT_TOOL } from '../../lib/tools.js';
 import { useCountdown } from '../../lib/useCountdown.js';
@@ -18,13 +18,16 @@ interface Props {
   ink: DrawerInkLink;
   /** A pause ends the stroke in hand and stops drawing until it lifts. */
   paused: boolean;
+  /** Who is close, while "Bea is close!" is up (`closeAlert.ts`). */
+  closePid: string | null;
   t: Translate;
 }
 
 /**
  * The drawer's phone in DRAWING (UI by role and phase, Drawer phone and Drawer layout): a 56 px
  * bar with the word (small, so the next person on the couch can't read it), the clock, "2 of 4 got
- * it" and the latest wrong guess; the square pad; two 48 px toolbar rows. Scroll, zoom and
+ * it" and the latest wrong guess (or "Bea is close!" in amber for 2 s); the square pad, with "Start
+ * with one big shape. Anything helps!" at its top edge if nothing is drawn 10 s in; two 48 px rows. Scroll, zoom and
  * pull-to-refresh are locked while it shows (`touch-none` on the whole view, so a pinch on the bar
  * or the toolbar doesn't zoom either), and the screen stays on (Wake Lock).
  *
@@ -32,7 +35,7 @@ interface Props {
  * stroke in hand ends and the tools wait. The pad stays mounted at its upright size, so the turn's
  * strokes and sender carry on when the phone turns back (Edge cases).
  */
-export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
+export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props) {
   useDrawLock(true);
   useWakeLock(true);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -40,7 +43,17 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
   const [sideways, setSideways] = useState(false);
   // Every turn starts with the black pen at M (Tools: defaults); a new turn remounts this view.
   const [tool, setTool] = useState(DEFAULT_TOOL);
-  const [padState, setPadState] = useState<PadState>({ canUndo: false, canClear: false });
+  const [padState, setPadState] = useState<PadState>({
+    ready: false,
+    canUndo: false,
+    canClear: false,
+  });
+  // Anything on the pad's stack this turn (a stroke begun, or ink from before a reload).
+  const [drew, setDrew] = useState(false);
+  const onPadState = useCallback((state: PadState) => {
+    setPadState(state);
+    if (state.canUndo) setDrew(true);
+  }, []);
   const controlsRef = useRef<PadControls | null>(null);
 
   useEffect(() => {
@@ -63,7 +76,9 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
   const left = useCountdown(turn.timer, receivedAt);
   const word = view.secret?.word?.word ?? '';
   const last = view.lastGuess;
-  const lastName = last ? (view.players.find((p) => p.pid === last.pid)?.name ?? '') : '';
+  const nameOf = (pid: string) => view.players.find((p) => p.pid === pid)?.name ?? '';
+  const nudge = inkNudge(turn.timer, left, { ready: padState.ready, drew });
+  const closeName = closePid !== null ? nameOf(closePid) : '';
 
   return (
     <div
@@ -86,11 +101,13 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
             {t('gotItCount', { guessed: turn.guessed.guessed, of: turn.guessed.of })}
           </span>
         </p>
-        <p className="h-5 truncate text-sm leading-5 text-white/70">
-          {last ? `${lastName}: ${last.text ?? '•••'}` : ''}
-        </p>
+        <GuessLine
+          close={closeName || null}
+          last={last ? { name: nameOf(last.pid), text: last.text } : null}
+          t={t}
+        />
       </header>
-      <div inert={sideways} className="grid min-h-0 w-full flex-1 place-items-center">
+      <div inert={sideways} className="relative grid min-h-0 w-full flex-1 place-items-center">
         {pad > 0 && (
           <DrawPad
             turnId={turn.id}
@@ -100,9 +117,24 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
             label={t('noInkYet')}
             tool={tool}
             controlsRef={controlsRef}
-            onState={setPadState}
+            onState={onPadState}
           />
         )}
+        {nudge && (
+          // 4 px above the centred pad (28 px tall), or over its top edge where there's no room
+          // (24 px over at 360 × 560), so nothing moves; a touch on it goes through to the pad.
+          <p
+            aria-hidden
+            style={{ top: `max(4px, calc(50% - ${pad / 2}px - 32px))` }}
+            className="pointer-events-none absolute inset-x-2 mx-auto w-fit max-w-full rounded-full bg-[#1D1B22]/90 px-3 py-1 text-center text-sm leading-5 font-semibold"
+          >
+            {t('startBigShape')}
+          </p>
+        )}
+        {/* Always mounted, so screen readers announce the nudge when it fills. */}
+        <p role="status" className="sr-only">
+          {nudge ? t('startBigShape') : ''}
+        </p>
       </div>
       <div inert={sideways} className="w-full">
         <DrawToolbar
@@ -117,6 +149,32 @@ export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
       </div>
       {sideways && <TurnUpright clock={formatClock(left)} t={t} />}
     </div>
+  );
+}
+
+/**
+ * The second line of the drawer's top bar: "Bea is close!" in amber while an alert is up, else the
+ * latest wrong guess as the view masked it ("•••" when masked). Polite, so it never interrupts.
+ */
+export function GuessLine({
+  close,
+  last,
+  t,
+}: {
+  close: string | null;
+  last: { name: string; text: string | null } | null;
+  t: Translate;
+}) {
+  return (
+    <p aria-live="polite" className="h-5 truncate text-sm leading-5 text-white/70">
+      {close !== null ? (
+        <strong className="font-bold text-[#FFD166]">{t('isClose', { name: close })}</strong>
+      ) : last ? (
+        `${last.name}: ${last.text ?? '•••'}`
+      ) : (
+        ''
+      )}
+    </p>
   );
 }
 

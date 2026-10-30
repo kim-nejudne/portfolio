@@ -51,8 +51,68 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F33: `npm run dev` + `npm run lan CODE`; Screens: the laptop on the TV in fullscreen (Start), then a tablet held upright (open the join link's `/screen/CODE`) and turned on its side mid-turn, and once a phone propped upright as the Screen; 4+ real phones playing; play two turns and a reveal on each · from 5 m on the TV and 2 m on the tablet: names, clock, blanks and the last guesses are readable; the drawing is the biggest thing on screen and nothing is cut off; turning the tablet switches between the sidebar layout and the portrait one (clock and blanks on top, drawing, then the players with ✏️/✓ and the two latest guesses) within a second, with the drawing intact; at the reveal the drawing keeps its size and the word appears under it (portrait) or beside it (landscape); the code at the bottom is always visible
 - [ ] F34: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 4+ real phones (a ≈ 360 px Android, an iPhone); also a tablet held upright as a second Screen (`/screen/CODE`); bots at `/dev/bots/CODE` can fill the room · from the sofa (5 m): three phones send wrong guesses within a second: speech bubbles in each guesser's colour pop beside their names (under the strip on the upright tablet), at most three, gone after 2 s, never over the drawing, and the guesses list under the players keeps them; one phone guesses right: "Jun got it!" in Jun's colour replaces "Mika is drawing" for 2 s (on the tablet it replaces the blanks in the top bar), and Jun's row turns green with "+N"; on Jun's phone the guess box is replaced by six emoji buttons that are easy to hit with a thumb and fit with no scroll; tap 🔥: it floats up from Jun's row on the TV, and the tapped button lights green for a second; tap fast: no more than one reaction a second shows; set Guess feed Off (G): wrong guesses show as "💬 Bea is guessing…" with no text; with Reduce motion on (phone or laptop settings) the bubbles and emoji just fade
 - [ ] F35: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 3+ real phones; also a tablet held upright as a second Screen (`/screen/CODE`) · turn 1: two phones guess right (the slower phone first if you can) and one types a near miss and a wrong guess: at the reveal the word pops in, the biggest text on the TV and readable from the sofa, "Got it" lists the guessers in the order the server credited them with their points, "Almost:" shows the near miss then the wrong guess (never more than three, never the same guess twice), and "+N for Mika’s drawing" shows; turn 2: nobody guesses right (one wrong guess) and let the time run out: "Nobody got it! 😱" heads the panel above "It was…" (in the tablet's top bar too), and below the word there is no "Got it" and no points, only "Almost:"; no "+0" anywhere, and no speech bubble lingers into the reveal; set Guess feed Off (G) and play a turn with a near miss and a wrong guess: "Almost:" lists only the near miss (say if you'd rather Off showed the wrong guesses at the reveal too, DECISIONS 57); with Reduce motion on, the word appears without growing in
+- [ ] F36: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (one small Android if you have one, one iPhone) · on the drawer's phone, pick a word and don't draw: about 10 s in, "Start with one big shape. Anything helps!" appears just above the pad (on a small phone it sits over the pad's top edge) and the pad doesn't move; start a stroke right on that text: the line draws and the text is gone for the rest of the turn (Clear doesn't bring it back); have a guesser type a wrong guess: "Bea: sapatos" appears on the drawer's second line; have another type a near miss (the word plus "ko", or one letter off): "Cy is close!" shows there in amber for about 2 s, readable at arm's length but not from the next seat, then the wrong guess comes back; the Screen and the other phones never show the near miss; with VoiceOver/TalkBack on the drawer's phone, the nudge and "is close!" are read out
 
 <!-- entries below, newest first -->
+## F36 — Drawer feedback (2026-10-31)
+**What changed:**
+- **Server** (`server/reducer.ts`): a close guess now also sends `closeAlert {pid}` (the guesser) to the drawer, next to the guesser's `nearMiss`. It carries no text and goes to no Screen. The drawer's `lastGuess` (latest wrong guess, masked like the feed, DRAWING only) was already there from F15.
+- **`client/src/lib/closeAlert.ts`** (new): a store for `useSyncExternalStore`, like `screenFx`. It holds the close guesser's pid for 2 s (`CLOSE_ALERT_MS`), and a newer alert takes over and restarts the 2 s. `Play.tsx` feeds it from the `closeAlert` fx and clears it when the phase leaves DRAWING.
+- **`DrawerTurn.tsx`:**
+  - `GuessLine` (new, exported): the top bar's second line shows "Bea is close!" (bold, amber `#FFD166`) while the alert is up, else "Bea: sapatos" ("•••" when masked). It is `aria-live="polite"`. No alert shows for a guesser who has left (empty name).
+  - The nudge, "Start with one big shape. Anything helps!", shows when `inkNudge` (`client/src/lib/phone.ts`) allows it: 10 s of the turn's clock (`totalMs − left`, so a pause holds it), the pad's ink is in, and nothing has been drawn this turn.
+    - It sits 4 px above the centred pad, or over its top edge where there's no room (24 px over at 360 × 560), so nothing moves.
+    - It is `pointer-events-none` (a stroke started on it reaches the pad) and `aria-hidden`, with an always-mounted `sr-only` `role="status"` that fills with the same text.
+    - Once a stroke is on the stack it stays gone for the turn, even after Undo or Clear.
+- **`PadState`** (`client/src/ink/padTools.ts`) gains `ready` (the turn's snapshot is in), so a reload with ink on the pad doesn't flash the nudge. `DrawPad` reports a change of it.
+- Copy: `isClose`, `startBigShape`.
+- **Tests:**
+  - `server/views.test.ts` (+4, "the drawer's latest guess (F36)"): only the latest wrong guess reaches the drawer; guessers get none, including one who already got the word, and their JSON holds neither guess; it is masked under `'clean'`/`'off'` and for a slur; close guesses are skipped and are not on the Screen; it is null after DRAWING.
+  - `reducer.guess.test.ts` and `reducer.turn.test.ts`: a close guess gives `nearMiss` to the guesser and `closeAlert` to the drawer.
+  - `sockets.test.ts` (+1): `closeAlert` reaches only the drawer's socket, and no socket's fx holds the close text.
+  - `client/src/lib/closeAlert.test.ts` (new, 4: 2 s then nothing; a newer one takes over and restarts; a repeat extends; `clear` and listeners).
+  - `phone.test.ts` (+5 `inkNudge`: the 10 s edge, drawn, not before the ink is in, the turn length, no clock).
+  - `phoneViews.test.tsx` (+3: the live region mounted and empty before the ink is in; amber "Bea is close!" in place of the guess; the guess line, masked, empty).
+  - `padTools.test.ts` and `undoClear.property.test.ts` expect `ready`.
+- No new dependencies.
+
+**Decisions:** DECISIONS 58 (the alert's payload, place, 2 s and repeats, clearing at the end of DRAWING; the nudge's clock, staying gone after the first stroke, waiting for the ink, placement and live region).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES** (no Must-fix). Applied:
+  - DECISIONS 58 and SPEC-QUESTION at `inkNudge`;
+  - this entry and the Kim check;
+  - the 2 s expiry made testable (`closeAlert.ts`, fake timers);
+  - the first stroke checked in the playtest.
+- **secrets-fairness: PASS** (no Must- or Should-fix). Applied the nit: the Screen view holds no close text. A pause doesn't bring the nudge early (`useCountdown` freezes `left`).
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied:
+  - an always-mounted live region for the nudge;
+  - no nudge before the turn's ink is in (no flash on reload);
+  - the overlap at 360 × 560 is said in the comment;
+  - no " is close!" for a guesser who has left.
+  
+  Not changed: the name is truncated with the line (16 characters fit at 360 px).
+
+**Playtest:**
+- **`.playtest/F36/scenario.ts`** (TV Screen; Ana drawing, Bea and Cy guessing, all Pixel 7). All pass:
+  - A: "Bea: zzqxv" in the drawer's bar, and the word is in no Screen or guesser text;
+  - B: "Cy is close!" in rgb(255, 209, 102), gone after 2.6 s, with "Bea: zzqxv" back;
+  - C: no nudge 3.6 s in; it shows at 10.4 s, 4 px above the pad, and the live region holds the text; a stroke started on the nudge reaches the pad (Undo enabled) and the nudge goes; after Undo it stays gone.
+- **`.playtest/F36/sizes.ts`** (Ana drawing on a 360×560 phone): "Cy is close!" fits the bar on one line. At 360×560, 390×664 and 412×780 there's no scroll, the nudge stays on one line inside its area, off the toolbar, at the pad's top edge (24 px over the pad at 360×560, 4 px above it at the others).
+- No console errors.
+- Screenshots: `.playtest/F36/C-nudge-Ana.png`, `C-after-stroke-Ana.png`, `sizes-<w>x<h>-Ana.png`.
+- Not exercised: real screen readers (Kim check).
+
+**Notes for next session:**
+- **F38:** if the close alert gets a sound, it's the `closeAlert` fx in `Play.tsx` (drawer only).
+- **F39:** `/` + `/play` is 118.8 KB gzipped (budget 120).
+- **F45:** Taglish for `isClose` ("Malapit na si {name}!"?) and `startBigShape`.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/views.test.ts server/sockets.test.ts client/src/lib client/src/components/phone`.
+- Playtests: `npm run dev`, then `npm run playtest -- .playtest/F36/scenario.ts` and `.playtest/F36/sizes.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), join at `/play/CODE` on a phone-sized window, add bots at `/dev/bots/CODE`. When you draw, wait 10 s for the nudge, then have a bot guess wrong (and type a near miss from a second phone window) to see the bar.
+
 ## F35 — The reveal (2026-10-31)
 **What changed:**
 - **Server** (`server/views.ts`): the Screen view's `closeGuesses` is now `almost` (`shared/types.ts`), built by `almost(room, turn)`.

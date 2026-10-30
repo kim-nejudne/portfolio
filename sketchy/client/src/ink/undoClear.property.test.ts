@@ -151,6 +151,7 @@ function session(seed: number) {
     }
     expect(visibleStrokes(pad).map((s) => s.id)).toEqual(visibleStrokes(server).map((s) => s.id));
     expect(padState(pad, sender)).toEqual({
+      ready: true,
       canUndo: server.actions.length > 0,
       canClear: visibleStrokes(server).length > 0,
     });

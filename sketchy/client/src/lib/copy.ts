@@ -193,6 +193,8 @@ const EN = {
   turnPoints: '+{points} this turn',
   gotItCount: '{guessed} of {of} got it',
   noInkYet: 'Draw here',
+  isClose: '{name} is close!',
+  startBigShape: 'Start with one big shape. Anything helps!',
   turnUpright: 'Turn your phone upright',
   drawingIsSafe: 'Your drawing is safe',
   // ---------- Phone: drawing tools ----------

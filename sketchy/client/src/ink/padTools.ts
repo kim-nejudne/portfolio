@@ -8,6 +8,8 @@ import { popAction, pushClear, visibleStrokes, type InkStack } from '../../../sh
 import type { InkSender } from './inkSender.js';
 
 export interface PadState {
+  /** The turn's snapshot is in: the pad holds every stroke of the turn, ink from before a reload too. */
+  ready: boolean;
   canUndo: boolean;
   canClear: boolean;
 }
@@ -15,6 +17,7 @@ export interface PadState {
 export function padState(stack: InkStack, sender: InkSender): PadState {
   const started = sender.started();
   return {
+    ready: started,
     canUndo: started && stack.actions.length > 0,
     canClear: started && visibleStrokes(stack).length > 0,
   };

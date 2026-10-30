@@ -10,6 +10,7 @@ import {
   drawerSideways,
   gainedCrown,
   guessAnswer,
+  inkNudge,
   joinOutcome,
 } from './phone.js';
 
@@ -32,6 +33,35 @@ describe('drawerPadSize', () => {
   it('floors fractional viewports and never goes negative', () => {
     expect(drawerPadSize(360.6, 900)).toBe(352);
     expect(drawerPadSize(100, 100)).toBe(0);
+  });
+});
+
+describe('inkNudge (F36)', () => {
+  const timer = { remainingMs: 80_000, totalMs: 80_000, running: true };
+  const empty = { ready: true, drew: false };
+
+  it('shows on an empty pad from 10 s into the turn, not before', () => {
+    expect(inkNudge(timer, 70_001, empty)).toBe(false);
+    expect(inkNudge(timer, 70_000, empty)).toBe(true);
+    expect(inkNudge(timer, 30_000, empty)).toBe(true);
+  });
+
+  it('is gone once the drawer has drawn this turn', () => {
+    expect(inkNudge(timer, 60_000, { ready: true, drew: true })).toBe(false);
+  });
+
+  it("waits for the turn's ink, so a reload with ink on the pad doesn't flash it", () => {
+    expect(inkNudge(timer, 30_000, { ready: false, drew: false })).toBe(false);
+  });
+
+  it('counts from the turn length, whatever the setting', () => {
+    const long = { remainingMs: 120_000, totalMs: 120_000, running: true };
+    expect(inkNudge(long, 111_000, empty)).toBe(false);
+    expect(inkNudge(long, 110_000, empty)).toBe(true);
+  });
+
+  it('waits while there is no clock', () => {
+    expect(inkNudge(null, 0, empty)).toBe(false);
   });
 });
 

@@ -113,7 +113,7 @@ export function DrawPad({ turnId, size, ink, disabled, label, tool, controlsRef,
     let reported = '';
     const report = () => {
       const state = padState(stack, sender);
-      const key = `${state.canUndo}${state.canClear}`;
+      const key = `${state.ready}${state.canUndo}${state.canClear}`;
       if (key === reported) return;
       reported = key;
       onStateRef.current(state);

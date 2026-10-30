@@ -2,7 +2,7 @@
 // answer means for the page, and the pad's first-pointer rule. Presentation only.
 
 import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
-import type { Ack, PlayerView } from '../../../shared/types.js';
+import type { Ack, PlayerView, TimerView } from '../../../shared/types.js';
 import type { CopyKey } from './copy.js';
 
 /** The top bar: the word (small), the timer, "2 of 4 got it" and the latest guess. */
@@ -34,6 +34,25 @@ const MIN_UPRIGHT_PAD_PX = drawerPadSize(360, 560);
 // SPEC-QUESTION: "keeps its square size where it fits" is read as a landscape pad at least as big as the 360 × 560 one (DECISIONS 54).
 export function drawerSideways(width: number, height: number): boolean {
   return width > height && drawerPadSize(width, height) < MIN_UPRIGHT_PAD_PX;
+}
+
+/** How far into DRAWING an empty pad gets "Start with one big shape. Anything helps!". */
+export const INK_NUDGE_AFTER_MS = 10_000;
+
+/**
+ * Whether the drawer's pad shows "Start with one big shape. Anything helps!": 10 s into the turn's
+ * clock (`left` is what `useCountdown` gives) with nothing drawn yet this turn. Once the drawer
+ * has drawn, it never comes back that turn, even if they clear. Not before the turn's ink is in
+ * (`ready`), so a reload with ink on the pad doesn't flash it.
+ */
+// SPEC-QUESTION: "10 s into DRAWING" counts on the turn's clock, and "gone on the first stroke" stays gone for the turn (DECISIONS 58).
+export function inkNudge(
+  timer: TimerView | null,
+  left: number,
+  pad: { ready: boolean; drew: boolean },
+): boolean {
+  if (!pad.ready || pad.drew || !timer) return false;
+  return timer.totalMs - left >= INK_NUDGE_AFTER_MS;
 }
 
 // ---------- Joining ----------

@@ -526,3 +526,64 @@ describe('the feed', () => {
     expect(toView(off, { kind: 'screen', isHost: false }, at).feed).toEqual([]);
   });
 });
+
+describe("the drawer's latest guess (F36)", () => {
+  const guessAt = (room: Room, pid: string, text: string, at: number) =>
+    step(room, { type: 'player:guess', by: asPlayer(pid), text, receivedAt: at, oneWayMs: 0 }, at)
+      .room;
+  /** Ben then Cy guess wrong, Cy last. */
+  function twoWrong() {
+    const { room, pids, at } = drawing();
+    const one = guessAt(room, pids[1]!, 'boat', at + 1_000);
+    return { room: guessAt(one, pids[2]!, 'kite', at + 2_000), pids, at: at + 2_000 };
+  }
+
+  it('carries only the latest wrong guess to the drawer', () => {
+    const { room, pids, at } = twoWrong();
+    expect(toView(room, { kind: 'player', pid: pids[0]! }, at).lastGuess).toEqual({
+      pid: pids[2],
+      text: 'kite',
+    });
+  });
+
+  it("never reaches a guesser's view, nor one who already got the word", () => {
+    const { room, pids, at } = twoWrong();
+    const right = guessAt(room, pids[1]!, SECRET.word, at + 1_000);
+    expect(right.turn!.correct.map((c) => c.pid)).toEqual([pids[1]]);
+    for (const pid of [pids[1]!, pids[2]!]) {
+      const view = toView(right, { kind: 'player', pid }, at + 1_000);
+      expect(view.lastGuess).toBeNull();
+      expect(json(view)).not.toContain('kite');
+      expect(json(view)).not.toContain('boat');
+    }
+  });
+
+  it('is masked as the feed is: a slur always, profanity under clean, as clean under off', () => {
+    const { room, pids, at } = drawing();
+    const rude = guessAt(room, pids[1]!, 'putangina', at + 1_000);
+    const slur = guessAt(room, pids[1]!, 'r3tard', at + 1_000);
+    const drawerView = (r: Room, mode: RoomSettings['guessFeed']) =>
+      toView(
+        { ...r, settings: { ...r.settings, guessFeed: mode } },
+        { kind: 'player', pid: pids[0]! },
+        at + 1_000,
+      ).lastGuess;
+    expect(drawerView(rude, 'all')).toEqual({ pid: pids[1], text: 'putangina' });
+    expect(drawerView(rude, 'clean')).toEqual({ pid: pids[1], text: null });
+    expect(drawerView(rude, 'off')).toEqual({ pid: pids[1], text: null });
+    expect(drawerView(slur, 'all')).toEqual({ pid: pids[1], text: null });
+  });
+
+  it('skips close guesses (the drawer hears those as an alert) and is gone after DRAWING', () => {
+    const { room, pids, at } = twoWrong();
+    const close = guessAt(room, pids[1]!, `${SECRET.word} ko`, at + 1_000);
+    expect(close.turn!.closeGuesses).toHaveLength(1);
+    expect(json(toView(close, { kind: 'screen', isHost: true }, at + 1_000))).not.toContain(' ko');
+    expect(toView(close, { kind: 'player', pid: pids[0]! }, at + 1_000).lastGuess).toEqual({
+      pid: pids[2],
+      text: 'kite',
+    });
+    const reveal: Room = { ...close, phase: 'REVEAL', turn: { ...close.turn!, endReason: 'time' } };
+    expect(toView(reveal, { kind: 'player', pid: pids[0]! }, at + 1_000).lastGuess).toBeNull();
+  });
+});

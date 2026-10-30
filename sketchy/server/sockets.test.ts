@@ -314,6 +314,21 @@ describe('state broadcast', () => {
     expect(g.ben.client.fx).toContainEqual({ kind: 'wrong' });
   });
 
+  it("sends a close guess's alert to the drawer only, without the text (F36)", async () => {
+    const g = await playing();
+    const close = `${g.word} ko`;
+    expect(await g.ben.client.emit('player:guess', { text: close })).toEqual({ ok: true });
+    // A round trip on each socket after the ack, so any fx sent with it has arrived.
+    for (const c of [g.screen, g.ana.client, g.ben.client]) await c.emit('debug:rtt');
+    expect(g.ana.client.fx).toContainEqual({ kind: 'closeAlert', pid: g.ben.pid });
+    expect(g.ben.client.fx).toContainEqual({ kind: 'nearMiss' });
+    expect(g.ben.client.fx.some((f) => f.kind === 'closeAlert')).toBe(false);
+    expect(g.screen.fx.some((f) => f.kind === 'closeAlert')).toBe(false);
+    for (const c of [g.screen, g.ana.client, g.ben.client]) {
+      expect(JSON.stringify(c.fx)).not.toContain(close);
+    }
+  });
+
   it('broadcasts nothing for a refused action', async () => {
     const g = await playing();
     const before = g.screen.states.length;

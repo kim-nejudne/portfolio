@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type {
   Ack,
@@ -18,6 +18,7 @@ import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { WordChoice } from '../components/phone/WordChoice.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
+import { createCloseAlert } from '../lib/closeAlert.js';
 import { translator, type CopyKey } from '../lib/copy.js';
 import {
   addOwnGuess,
@@ -69,6 +70,9 @@ export function Play() {
   const [misses, setMisses] = useState<OwnGuesses>({ turnId: -1, items: [] });
   // Bumped on every near miss, so the guess box shows "So close!" again for a repeat.
   const [nearMiss, setNearMiss] = useState(0);
+  // The drawer's "Bea is close!" for 2 s (F36), cleared when DRAWING ends.
+  const closeAlert = useMemo(() => createCloseAlert(), []);
+  const closePid = useSyncExternalStore(closeAlert.subscribe, closeAlert.getSnapshot);
   // A new player's first view decides whether they joined mid-turn (F23): that turn gets the
   // "You're in!" line on the guess box. A silent rejoin never sets it.
   const freshJoin = useRef(false);
@@ -172,12 +176,14 @@ export function Play() {
       if (gainedCrown(viewRef.current, view)) setCrownToast((n) => n + 1);
       // The drawer never reopens by itself on a crown regained later, or in the next game.
       if (!view.host || view.phase === 'LOBBY') setHostOpen(false);
+      if (view.phase !== 'DRAWING') closeAlert.clear();
       viewRef.current = view;
       setState({ view, at: performance.now() });
     });
     socket.on('fx', (fx) => {
       if (fx.kind === 'yourTurn') navigator.vibrate?.(YOUR_TURN_VIBRATE_MS);
       if (fx.kind === 'notEnoughPlayers') setNeedTwoToast((n) => n + 1);
+      if (fx.kind === 'closeAlert') closeAlert.push(fx.pid);
       if (fx.kind === 'wrong' || fx.kind === 'nearMiss') {
         const close = fx.kind === 'nearMiss';
         const text = pendingGuesses.current.shift();
@@ -210,7 +216,7 @@ export function Play() {
       socket.disconnect();
       closeInk();
     };
-  }, [code, validCode, socket, join, closeInk, debugClock]);
+  }, [code, validCode, socket, join, closeInk, debugClock, closeAlert]);
 
   const startJoin = (name: string) => {
     identityRef.current = { playerKey: newPlayerKey(), name };
@@ -429,6 +435,7 @@ export function Play() {
             receivedAt={state!.at}
             ink={drawerInk}
             paused={view.paused !== null}
+            closePid={closePid}
             t={t}
           />
         )}

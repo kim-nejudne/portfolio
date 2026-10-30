@@ -88,12 +88,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F35 The reveal
 
-- [ ] F36 Drawer feedback
-  - Spec: UI by role and phase (Drawer phone); Data model (Role views)
-  - Depends: F15, F30
-  - Done when:
-    - The drawer's top bar shows the latest wrong guess with the feed's masking and "Bea is close!" in amber for 2 s; "Start with one big shape. Anything helps!" if the pad has no ink 10 s in
-  - Tests: `views.test.ts` — the drawer's view carries the latest guess; guessers' views don't
+- [x] F36 Drawer feedback
 
 - [ ] F37 QR, tap-to-start, wake lock and connection dot
   - Spec: Roles and devices (Creating and joining a room); UI by role and phase (Screen, Guesser phone)

@@ -784,13 +784,16 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
 
   if (match === 'close') {
     // Never fed or shown on the Screen during the turn: it could give the word away. Kept for
-    // the reveal's "Almost:" (masked per `guessFeed` by the view) and counted for awards; only
-    // this phone hears "So close!".
+    // the reveal's "Almost:" (masked per `guessFeed` by the view) and counted for awards; this
+    // phone hears "So close!" and the drawer "Bea is close!" (who, never what).
     turn.closeGuesses = [...turn.closeGuesses, { pid, text: a.text, at: now }].slice(
       -CLOSE_GUESSES_MAX,
     );
     turn.closeCount[pid] = (turn.closeCount[pid] ?? 0) + 1;
-    fx.push({ type: 'fx', to: { pid }, fx: { kind: 'nearMiss' } });
+    fx.push(
+      { type: 'fx', to: { pid }, fx: { kind: 'nearMiss' } },
+      { type: 'fx', to: { pid: turn.drawerPid }, fx: { kind: 'closeAlert', pid } },
+    );
     return undefined;
   }
 

@@ -43,14 +43,16 @@ const screenFx = (effects: Effect[]) =>
   effects.filter((e) => e.type === 'fx' && e.to === 'screen').map((e) => e.type === 'fx' && e.fx);
 
 describe('close guesses', () => {
-  it('sends nearMiss to the guesser only and keeps the guess out of the feed and every view', () => {
+  it('sends nearMiss to the guesser and closeAlert to the drawer, and keeps the guess out of the feed and every view', () => {
     const { room: r0, pids, at } = started();
     const [drawer, ben, cy] = pids as [string, string, string];
     const close = `${secretWord(r0)} ko`;
     const { room, effects } = play(r0, at, [[ben, close]]);
 
+    // F36: the drawer hears who is close, never the text; nothing reaches the Screen.
     expect(effects.filter((e) => e.type === 'fx')).toEqual([
       { type: 'fx', to: { pid: ben }, fx: { kind: 'nearMiss' } },
+      { type: 'fx', to: { pid: drawer }, fx: { kind: 'closeAlert', pid: ben } },
     ]);
     expect(room.turn!.feed).toEqual([]);
     expect(room.turn!.closeGuesses.map((g) => g.text)).toEqual([close]);

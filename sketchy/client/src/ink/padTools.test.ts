@@ -67,7 +67,7 @@ describe('the pad’s undo and clear (F30)', () => {
     expect(padUndo(pad, sender)).toBe(true);
     expect(picture(pad)).toEqual([]);
     expect(picture(server())).toEqual([]);
-    expect(padState(pad, sender)).toEqual({ canUndo: false, canClear: false });
+    expect(padState(pad, sender)).toEqual({ ready: true, canUndo: false, canClear: false });
     const before = sent.length;
     expect(padUndo(pad, sender)).toBe(false);
     expect(sent).toHaveLength(before);
@@ -81,7 +81,7 @@ describe('the pad’s undo and clear (F30)', () => {
     expect(sent[sent.length - 1]![2]).toEqual([['c']]);
     expect(picture(pad)).toEqual([]);
     expect(picture(server())).toEqual([]);
-    expect(padState(pad, sender)).toEqual({ canUndo: true, canClear: false });
+    expect(padState(pad, sender)).toEqual({ ready: true, canUndo: true, canClear: false });
     // A clear on an empty canvas sends nothing.
     const before = sent.length;
     expect(padClear(pad, sender)).toBe(false);
@@ -106,12 +106,12 @@ describe('the pad’s undo and clear (F30)', () => {
   it('waits for the turn’s snapshot before undo or clear, so they never act on unseen ink', () => {
     const { sender, pad, sent } = setup(false);
     draw(pad, sender, 0, 1, 100);
-    expect(padState(pad, sender)).toEqual({ canUndo: false, canClear: false });
+    expect(padState(pad, sender)).toEqual({ ready: false, canUndo: false, canClear: false });
     expect(padUndo(pad, sender)).toBe(false);
     expect(padClear(pad, sender)).toBe(false);
     expect(picture(pad)).toHaveLength(1);
     sender.start(0, 0);
-    expect(padState(pad, sender)).toEqual({ canUndo: true, canClear: true });
+    expect(padState(pad, sender)).toEqual({ ready: true, canUndo: true, canClear: true });
     expect(sent.flatMap(([, , ops]) => ops).some((op) => op[0] === 'u' || op[0] === 'c')).toBe(
       false,
     );
