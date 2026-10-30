@@ -29,9 +29,15 @@ import {
   type BotState,
 } from './bots.js';
 import { doodleSteps } from './doodle.js';
-import enEveryday from '../../../data/packs/en-everyday.json';
-import tlPinoyLife from '../../../data/packs/tl-pinoy-life.json';
 import { FakeSocket } from './fakeSocket.js';
+
+interface PackFile {
+  words: { word: string; alt?: string[] }[];
+}
+/** Every shipped pack, so a new pack can't bring in a word a bot uses as a decoy. */
+const SHIPPED_PACKS = Object.values(
+  import.meta.glob<PackFile>('../../../data/packs/*.json', { eager: true, import: 'default' }),
+);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -147,10 +153,9 @@ function spawn(index = 2, { behaviour = {}, word, random = () => 0 }: SpawnOptio
 
 describe('decoy guesses', () => {
   it('are never a word or alternate of a shipped pack, nor part of one', () => {
-    const forms = [enEveryday, tlPinoyLife].flatMap((p) =>
-      p.words.flatMap((w) =>
-        [w.word, ...(('alt' in w ? w.alt : undefined) ?? [])].map((f) => f.toLowerCase()),
-      ),
+    expect(SHIPPED_PACKS.length).toBeGreaterThan(2);
+    const forms = SHIPPED_PACKS.flatMap((p) =>
+      p.words.flatMap((w) => [w.word, ...(w.alt ?? [])].map((f) => f.toLowerCase())),
     );
     for (const decoy of DECOY_WORDS)
       for (const form of forms)

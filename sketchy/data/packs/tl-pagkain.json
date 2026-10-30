@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "id": "tl-pagkain",
+  "title": "Pagkain",
+  "language": "tl",
+  "rating": "family",
+  "words": [
+    {
+      "id": "kanin",
+      "word": "kanin",
+      "alt": ["rice"],
+      "difficulty": 1
+    },
+    {
+      "id": "pansit",
+      "word": "pansit",
+      "alt": ["pancit"],
+      "difficulty": 1
+    },
+    {
+      "id": "lumpia",
+      "word": "lumpia",
+      "alt": ["lumpiang shanghai", "spring roll"],
+      "difficulty": 1
+    },
+    {
+      "id": "siopao",
+      "word": "siopao",
+      "alt": ["siyopaw", "steamed bun"],
+      "difficulty": 1
+    },
+    {
+      "id": "siomai",
+      "word": "siomai",
+      "alt": ["siumai", "shumai"],
+      "difficulty": 1
+    },
+    {
+      "id": "banana-cue",
+      "word": "banana cue",
+      "alt": ["bananacue", "banana-q"],
+      "difficulty": 1
+    },
+    {
+      "id": "calamansi",
+      "word": "calamansi",
+      "alt": ["kalamansi"],
+      "difficulty": 1
+    },
+    {
+      "id": "kwek-kwek",
+      "word": "kwek-kwek",
+      "alt": ["kwekkwek"],
+      "difficulty": 2,
+      "gloss": "orange battered quail eggs"
+    },
+    {
+      "id": "isaw",
+      "word": "isaw",
+      "difficulty": 2,
+      "gloss": "grilled chicken intestines on a stick"
+    },
+    {
+      "id": "turon",
+      "word": "turon",
+      "difficulty": 2,
+      "gloss": "banana spring roll with brown sugar"
+    },
+    {
+      "id": "puto",
+      "word": "puto",
+      "difficulty": 2,
+      "gloss": "small round steamed rice cake"
+    },
+    {
+      "id": "bibingka",
+      "word": "bibingka",
+      "difficulty": 2,
+      "gloss": "rice cake baked in banana leaf"
+    },
+    {
+      "id": "ensaymada",
+      "word": "ensaymada",
+      "alt": ["ensaimada"],
+      "difficulty": 2,
+      "gloss": "soft round bun with cheese on top"
+    },
+    {
+      "id": "sorbetes",
+      "word": "sorbetes",
+      "alt": ["dirty ice cream"],
+      "difficulty": 2,
+      "gloss": "street ice cream sold from a cart"
+    },
+    {
+      "id": "adobo",
+      "word": "adobo",
+      "difficulty": 2,
+      "gloss": "meat stewed in soy sauce and vinegar"
+    },
+    {
+      "id": "sinigang",
+      "word": "sinigang",
+      "difficulty": 2,
+      "gloss": "sour soup with pork and vegetables"
+    },
+    {
+      "id": "sisig",
+      "word": "sisig",
+      "difficulty": 2,
+      "gloss": "chopped pork sizzling on a hot plate"
+    },
+    {
+      "id": "bulalo",
+      "word": "bulalo",
+      "difficulty": 2,
+      "gloss": "beef soup with a big marrow bone"
+    },
+    {
+      "id": "longganisa",
+      "word": "longganisa",
+      "alt": ["longanisa", "longaniza"],
+      "difficulty": 2,
+      "gloss": "small sweet pork sausages"
+    },
+    {
+      "id": "tocino",
+      "word": "tocino",
+      "alt": ["tosino"],
+      "difficulty": 2,
+      "gloss": "sweet red cured pork"
+    },
+    {
+      "id": "tuyo",
+      "word": "tuyo",
+      "alt": ["daing", "dried fish"],
+      "difficulty": 2,
+      "gloss": "small dried salted fish"
+    },
+    {
+      "id": "suman",
+      "word": "suman",
+      "difficulty": 2,
+      "gloss": "sticky rice wrapped in a leaf"
+    },
+    {
+      "id": "leche-flan",
+      "word": "leche flan",
+      "alt": ["leche plan", "flan"],
+      "difficulty": 2,
+      "gloss": "caramel custard in an oval tin"
+    },
+    {
+      "id": "champorado",
+      "word": "champorado",
+      "alt": ["tsamporado"],
+      "difficulty": 2,
+      "gloss": "chocolate rice porridge"
+    },
+    {
+      "id": "lugaw",
+      "word": "lugaw",
+      "alt": ["arroz caldo", "congee"],
+      "difficulty": 2,
+      "gloss": "rice porridge in a bowl"
+    },
+    {
+      "id": "buko-juice",
+      "word": "buko juice",
+      "alt": ["coconut juice"],
+      "difficulty": 2,
+      "gloss": "coconut water drunk from the nut"
+    },
+    {
+      "id": "sago-t-gulaman",
+      "word": "sago't gulaman",
+      "alt": ["sago at gulaman", "gulaman"],
+      "difficulty": 2,
+      "gloss": "sweet jelly drink with pearls"
+    },
+    {
+      "id": "sampalok",
+      "word": "sampalok",
+      "alt": ["sampaloc", "tamarind"],
+      "difficulty": 2,
+      "gloss": "brown tamarind pods"
+    },
+    {
+      "id": "lanzones",
+      "word": "lanzones",
+      "alt": ["lansones"],
+      "difficulty": 2,
+      "gloss": "small round yellow fruits in bunches"
+    },
+    {
+      "id": "rambutan",
+      "word": "rambutan",
+      "difficulty": 2,
+      "gloss": "hairy red fruit"
+    },
+    {
+      "id": "durian",
+      "word": "durian",
+      "difficulty": 2,
+      "gloss": "big spiky smelly fruit"
+    },
+    {
+      "id": "langka",
+      "word": "langka",
+      "alt": ["jackfruit"],
+      "difficulty": 2,
+      "gloss": "huge bumpy yellow-green fruit"
+    },
+    {
+      "id": "ampalaya",
+      "word": "ampalaya",
+      "alt": ["bitter gourd", "bitter melon"],
+      "difficulty": 2,
+      "gloss": "bumpy bitter green vegetable"
+    },
+    {
+      "id": "sitaw",
+      "word": "sitaw",
+      "alt": ["string beans", "long beans"],
+      "difficulty": 2,
+      "gloss": "very long green beans"
+    },
+    {
+      "id": "ube",
+      "word": "ube",
+      "alt": ["purple yam"],
+      "difficulty": 2,
+      "gloss": "purple yam dessert"
+    },
+    {
+      "id": "kutsinta",
+      "word": "kutsinta",
+      "alt": ["cuchinta"],
+      "difficulty": 2,
+      "gloss": "small brown sticky rice cakes"
+    },
+    {
+      "id": "polvoron",
+      "word": "polvoron",
+      "difficulty": 2,
+      "gloss": "crumbly milk candy in paper wrap"
+    },
+    {
+      "id": "chicharon",
+      "word": "chicharon",
+      "alt": ["chicharron", "tsitsaron", "pork rinds"],
+      "difficulty": 2,
+      "gloss": "crispy fried pork skin"
+    },
+    {
+      "id": "mami",
+      "word": "mami",
+      "difficulty": 2,
+      "gloss": "noodle soup in a big bowl"
+    },
+    {
+      "id": "karinderya",
+      "word": "karinderya",
+      "alt": ["carinderia", "turo-turo"],
+      "difficulty": 2,
+      "gloss": "small roadside eatery with pots"
+    },
+    {
+      "id": "kare-kare",
+      "word": "kare-kare",
+      "difficulty": 3,
+      "gloss": "oxtail stew in peanut sauce"
+    },
+    {
+      "id": "tapsilog",
+      "word": "tapsilog",
+      "difficulty": 3,
+      "gloss": "beef tapa, garlic rice and fried egg"
+    },
+    {
+      "id": "bagoong",
+      "word": "bagoong",
+      "difficulty": 3,
+      "gloss": "salty shrimp paste in a jar"
+    },
+    {
+      "id": "dinuguan",
+      "word": "dinuguan",
+      "difficulty": 3,
+      "gloss": "dark pork blood stew"
+    },
+    {
+      "id": "liempo",
+      "word": "liempo",
+      "alt": ["inihaw na liempo"],
+      "difficulty": 3,
+      "gloss": "grilled pork belly"
+    },
+    {
+      "id": "baon",
+      "word": "baon",
+      "difficulty": 3,
+      "gloss": "packed lunch brought from home"
+    },
+    {
+      "id": "merienda",
+      "word": "merienda",
+      "alt": ["meryenda"],
+      "difficulty": 3,
+      "gloss": "afternoon snack time"
+    },
+    {
+      "id": "boodle-fight",
+      "word": "boodle fight",
+      "alt": ["kamayan"],
+      "difficulty": 3,
+      "gloss": "eating with hands on banana leaves"
+    },
+    {
+      "id": "salu-salo",
+      "word": "salu-salo",
+      "alt": ["salusalo"],
+      "difficulty": 3,
+      "gloss": "family feast around one table"
+    },
+    {
+      "id": "tusok-tusok",
+      "word": "tusok-tusok",
+      "difficulty": 3,
+      "gloss": "stabbing fishballs at a street cart"
+    }
+  ]
+}

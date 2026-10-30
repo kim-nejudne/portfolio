@@ -61,8 +61,51 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F43: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (at least one iPhone in Safari and one Android in Chrome) · start a game; while the drawer draws and one guesser has got it: (1) reload the TV's tab: within a couple of seconds the same code, round, clock, scores and the whole drawing are back, with the host controls, and new strokes keep arriving; (2) pull-to-refresh is locked on the pad, so reload the drawer's page from the browser menu: the word, the pad with every stroke so far, and drawing carries on (the TV shows the new strokes); (3) reload the guesser who got it: "You got it! +N" with the same points, no word, no drawing; (4) reload a guesser who hasn't: they can still guess and score; (5) on the iPhone, switch to another app for a minute and back (Safari may reload the tab itself): the same as a reload. Nothing should pause in (1)–(5) except a brief "phone reconnecting…" badge; with only 2 players a reload briefly pauses (DECISIONS 63)
 - [ ] F44: after autopilot deploys, read the Sketchy container's start-up log on the droplet: no "TRUST_PROXY is not set" warning (if it's there, set `TRUST_PROXY=1` in the container env, or every phone shares one join limit of 10 a minute for the whole site). Then with the barkada on one Wi-Fi: everyone joins, everyone reloads their phone at once, a phone switches to mobile data and back · nobody sees "Too many people joined from this network"; an 11th phone sees "That game is full."
 - [ ] F45: review the Taglish: read the `TAGLISH` table in `client/src/lib/copy.ts` (the English table above it says what each line is for), then `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), Settings → Game text → Taglish, 3 real phones (one at least as small as a 360 px-wide Android); play a turn each through lobby, choose, drawing, a close and a wrong guess, reveal, scoreboard, a pause (host Pause) and the final scores, and a rematch · every line sounds like the barkada talking, not a textbook or a machine; flag stiff ones (candidates: "Tuloy sa 3", "Game 2, simula sa", "Pang-#2 ka sa 4", "Sino’ng nandito", "Mahina" for Quiet sound, "Hirap" for Difficulty, "Itago mo ang phone 🤫" for "Hold your phone close") and the award reasons (`award*Why`, on screen from F50); check the drawer's top bar keeps a long word readable beside "2/4 nakakuha". The join form stays English until the phone has joined (DECISIONS 67)
+- [ ] F46: review the word packs: open each of `data/packs/en-*.json` and `data/packs/tl-*.json` (one theme per file; `npm run packs:check` prints the counts per level), and play a few turns with `npm run dev`, Settings → Words → Taglish, then English · every word drawable on a phone in 60 s without letters or numbers; the difficulty (1 easy object, 2 medium, 3 scene or idea) feels right; the Taglish spelling is what a barkada writes, and the alternates cover what people type (ts/ch, j/dy, e/i, o/u, the English or Tagalog name); each gloss tells the drawer what to draw. Likely cuts or fixes: English `ghosting` (a spec sample), `brownout`, `low battery`, `job interview`, `marriage proposal`, `brain freeze`, `potluck`, `work from home`; Taglish `tambay`, `liga`, `bunso`, `lamay`, `pamamanhikan`, `noche buena`, `undas`, `barker`, `white lady`, and `sabong` (cockfighting, a spec sample: fine as family?). `hangover` is out of the family pack (DECISIONS 68); edit the JSON directly and re-run `npm run packs:check`
 
 <!-- entries below, newest first -->
+
+## F46 — Full family word packs (2026-10-31)
+**What changed:**
+- **Eight new family packs** in `data/packs/`, one theme each, so Kim can review a file at a time:
+  - English: `en-home` (70), `en-food` (57), `en-outdoors` (76), `en-actions` (61).
+  - Taglish/Filipino: `tl-pagkain` (50), `tl-bahay` (56), `tl-labas` (43), `tl-gawain` (45).
+  - The spec samples stay as they were in `en-everyday` and `tl-pinoy-life`.
+- **Totals:** 293 English (easy 121 · medium 121 · hard 51) and 224 Taglish (easy 60 · medium 104 · hard 60).
+- **Alternates** cover the common spellings (tsinelas/chinelas, tsokolate, longganisa/longanisa/longaniza, kalesa/calesa, kwintas/kuwintas, paru-paro/paruparo) and the other language's name: the Tagalog name on English words, the English name on Taglish words.
+- **Glosses:** every `tl` word of difficulty 2–3 has one (164 words).
+- **Rules kept:** no brand names; no word that needs letters or numbers to draw.
+- **Overlaps:** a concept appears in only one language, so the English pack has no "boat" beside `bangka`, and no alternate equals another word (`packs:check` warns on none).
+- **`hangover` left `en-everyday`.** F47's spicy pack needs it, and a word in two packs fails `packs:check` (DECISIONS 68). `en-everyday` is now the spec's other 29 samples.
+- **Dev bots:** five decoy guesses landed on or near a new word: `siguro` (contains `guro`), `kanina` (`kanin`), `mamaya` (`maya`), `sobra` (1 edit from `sobre`) and `tuloy` (`tulog`, `tulay`). They are now `marahil`, `kahit`, `naman`, `kasi`. The other decoys were already clear, and a one-off `matchGuess` sweep over every word found none "close".
+- **New dependencies:** none. The server reads the packs at start; none of this reaches the client bundle.
+- **Tests (`server/packs.test.ts`):**
+  - ≥ 200 family words per language, with ≥ 40 at each level.
+  - The spec's spicy list stays out of the family packs.
+  - The common spellings and the other language are accepted (15 words, `isCorrect`).
+  - Every `tl` word of difficulty 2–3 has a gloss.
+  - The start summary reads "Loaded 10 word packs (517 words)".
+- **Tests (`client/src/dev/bots.test.ts`):** the decoys are checked against every shipped pack (`import.meta.glob`), not just the two sample files.
+
+**Decisions:** DECISIONS 68 (themed packs, one language per concept, `hangover` out of the family pack, the decoy swaps).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.**
+  - Must-fix done: the Kim check above, naming the doubtful words; this entry and DECISIONS 68.
+  - Should-fix done: weak Taglish words replaced (`padala`, `hele` and `karera` became `karoling`, `pagtatanim` and `luksong lubid`); English `nightmare` dropped; a spelling test added.
+  - Kept: `en-actions` has 3 easy words; the level balance is per language, not per pack.
+- **secrets-fairness, mobile-ux:** not run. No server, shared, ink or UI code changed: only pack data, a server test and the dev-only bot decoys.
+
+**Playtest:** not run, since there is no UI change. The packs load through the same start path the tests cover (`loadPacksForStart`), and the deck tests deal from packs of this shape.
+
+**Notes for next session:**
+- F47: add `data/packs/tl-pang-inuman.json` (or similar) with `rating: 'spicy'`. The family packs hold none of the spec's spicy words, and a test enforces that.
+- A new decoy or pack word must stay clear both ways: `bots.test.ts` checks substrings only. Sweep "close" with `matchGuess` over the loaded packs.
+
+**How to try it:**
+- `npm run packs:check`: counts per pack and level.
+- `npx vitest run server/packs.test.ts client/src/dev/bots.test.ts`.
+- `npm run dev`, Screen at http://localhost:5173, Settings → Words → Taglish (or English, Mixed), then `/dev/bots/CODE` for bots; the drawer sees the new words and the Taglish glosses.
 
 ## F45 — Taglish copy (2026-10-31)
 **What changed:**

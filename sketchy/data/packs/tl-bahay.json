@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "id": "tl-bahay",
+  "title": "Bahay at Pamilya",
+  "language": "tl",
+  "rating": "family",
+  "words": [
+    {
+      "id": "duyan",
+      "word": "duyan",
+      "alt": ["hammock"],
+      "difficulty": 1
+    },
+    {
+      "id": "sando",
+      "word": "sando",
+      "alt": ["tank top", "sleeveless"],
+      "difficulty": 1
+    },
+    {
+      "id": "balde",
+      "word": "balde",
+      "alt": ["timba", "bucket"],
+      "difficulty": 1
+    },
+    {
+      "id": "kama",
+      "word": "kama",
+      "alt": ["bed"],
+      "difficulty": 1
+    },
+    {
+      "id": "silya",
+      "word": "silya",
+      "alt": ["upuan", "chair"],
+      "difficulty": 1
+    },
+    {
+      "id": "mesa",
+      "word": "mesa",
+      "alt": ["lamesa", "table"],
+      "difficulty": 1
+    },
+    {
+      "id": "baso",
+      "word": "baso",
+      "alt": ["drinking glass"],
+      "difficulty": 1
+    },
+    {
+      "id": "kutsara",
+      "word": "kutsara",
+      "alt": ["spoon"],
+      "difficulty": 1
+    },
+    {
+      "id": "tinidor",
+      "word": "tinidor",
+      "alt": ["fork"],
+      "difficulty": 1
+    },
+    {
+      "id": "plato",
+      "word": "plato",
+      "alt": ["pinggan", "plate"],
+      "difficulty": 1
+    },
+    {
+      "id": "buhok",
+      "word": "buhok",
+      "alt": ["hair"],
+      "difficulty": 1
+    },
+    {
+      "id": "ngipin",
+      "word": "ngipin",
+      "alt": ["teeth", "tooth"],
+      "difficulty": 1
+    },
+    {
+      "id": "ilong",
+      "word": "ilong",
+      "alt": ["nose"],
+      "difficulty": 1
+    },
+    {
+      "id": "tenga",
+      "word": "tenga",
+      "alt": ["tainga", "ear"],
+      "difficulty": 1
+    },
+    {
+      "id": "kamay",
+      "word": "kamay",
+      "alt": ["hand"],
+      "difficulty": 1
+    },
+    {
+      "id": "paa",
+      "word": "paa",
+      "alt": ["foot", "feet"],
+      "difficulty": 1
+    },
+    {
+      "id": "mata",
+      "word": "mata",
+      "alt": ["eye", "eyes"],
+      "difficulty": 1
+    },
+    {
+      "id": "bibig",
+      "word": "bibig",
+      "alt": ["mouth"],
+      "difficulty": 1
+    },
+    {
+      "id": "tiyan",
+      "word": "tiyan",
+      "alt": ["belly", "stomach"],
+      "difficulty": 1
+    },
+    {
+      "id": "kuko",
+      "word": "kuko",
+      "alt": ["fingernail", "nail"],
+      "difficulty": 1
+    },
+    {
+      "id": "kulambo",
+      "word": "kulambo",
+      "alt": ["mosquito net"],
+      "difficulty": 2,
+      "gloss": "net hung over the bed"
+    },
+    {
+      "id": "batya",
+      "word": "batya",
+      "alt": ["washbasin"],
+      "difficulty": 2,
+      "gloss": "wide basin for washing clothes"
+    },
+    {
+      "id": "palayok",
+      "word": "palayok",
+      "alt": ["clay pot"],
+      "difficulty": 2,
+      "gloss": "round clay cooking pot"
+    },
+    {
+      "id": "kaldero",
+      "word": "kaldero",
+      "alt": ["caldero"],
+      "difficulty": 2,
+      "gloss": "metal cooking pot with a lid"
+    },
+    {
+      "id": "sandok",
+      "word": "sandok",
+      "alt": ["ladle"],
+      "difficulty": 2,
+      "gloss": "big kitchen ladle"
+    },
+    {
+      "id": "kawali",
+      "word": "kawali",
+      "alt": ["wok", "frying pan"],
+      "difficulty": 2,
+      "gloss": "wide frying pan"
+    },
+    {
+      "id": "abaniko",
+      "word": "abaniko",
+      "alt": ["pamaypay", "hand fan"],
+      "difficulty": 2,
+      "gloss": "folding hand fan"
+    },
+    {
+      "id": "kalan",
+      "word": "kalan",
+      "alt": ["stove"],
+      "difficulty": 2,
+      "gloss": "gas stove with a tank"
+    },
+    {
+      "id": "aparador",
+      "word": "aparador",
+      "alt": ["cabinet", "wardrobe"],
+      "difficulty": 2,
+      "gloss": "tall wooden clothes cabinet"
+    },
+    {
+      "id": "bakya",
+      "word": "bakya",
+      "alt": ["clogs"],
+      "difficulty": 2,
+      "gloss": "wooden clogs"
+    },
+    {
+      "id": "barong",
+      "word": "barong",
+      "alt": ["barong tagalog"],
+      "difficulty": 2,
+      "gloss": "sheer embroidered formal shirt"
+    },
+    {
+      "id": "daster",
+      "word": "daster",
+      "alt": ["duster"],
+      "difficulty": 2,
+      "gloss": "loose house dress"
+    },
+    {
+      "id": "walis-tambo",
+      "word": "walis tambo",
+      "difficulty": 2,
+      "gloss": "soft broom made of grass"
+    },
+    {
+      "id": "bunot",
+      "word": "bunot",
+      "difficulty": 2,
+      "gloss": "coconut husk for shining floors"
+    },
+    {
+      "id": "posporo",
+      "word": "posporo",
+      "alt": ["matches"],
+      "difficulty": 2,
+      "gloss": "box of matches"
+    },
+    {
+      "id": "gripo",
+      "word": "gripo",
+      "alt": ["faucet"],
+      "difficulty": 2,
+      "gloss": "water faucet"
+    },
+    {
+      "id": "poso",
+      "word": "poso",
+      "alt": ["water pump"],
+      "difficulty": 2,
+      "gloss": "hand water pump with a lever"
+    },
+    {
+      "id": "kuto",
+      "word": "kuto",
+      "alt": ["lice", "head lice"],
+      "difficulty": 2,
+      "gloss": "tiny bugs in someone's hair"
+    },
+    {
+      "id": "kulot",
+      "word": "kulot",
+      "alt": ["curly hair"],
+      "difficulty": 2,
+      "gloss": "curly hair"
+    },
+    {
+      "id": "tulog",
+      "word": "tulog",
+      "alt": ["sleep", "sleeping"],
+      "difficulty": 2,
+      "gloss": "someone asleep, snoring"
+    },
+    {
+      "id": "lolo",
+      "word": "lolo",
+      "alt": ["grandpa"],
+      "difficulty": 2,
+      "gloss": "grandfather"
+    },
+    {
+      "id": "nanay",
+      "word": "nanay",
+      "alt": ["inay", "mom", "mother"],
+      "difficulty": 2,
+      "gloss": "mother"
+    },
+    {
+      "id": "tatay",
+      "word": "tatay",
+      "alt": ["itay", "dad", "father"],
+      "difficulty": 2,
+      "gloss": "father"
+    },
+    {
+      "id": "kuya",
+      "word": "kuya",
+      "alt": ["big brother"],
+      "difficulty": 2,
+      "gloss": "older brother"
+    },
+    {
+      "id": "ate",
+      "word": "ate",
+      "alt": ["big sister"],
+      "difficulty": 2,
+      "gloss": "older sister"
+    },
+    {
+      "id": "yaya",
+      "word": "yaya",
+      "alt": ["nanny"],
+      "difficulty": 2,
+      "gloss": "nanny carrying a child"
+    },
+    {
+      "id": "terno",
+      "word": "terno",
+      "alt": ["filipiniana"],
+      "difficulty": 3,
+      "gloss": "gown with tall butterfly sleeves"
+    },
+    {
+      "id": "arinola",
+      "word": "arinola",
+      "alt": ["chamber pot"],
+      "difficulty": 3,
+      "gloss": "pot kept under the bed at night"
+    },
+    {
+      "id": "sipon",
+      "word": "sipon",
+      "alt": ["runny nose"],
+      "difficulty": 3,
+      "gloss": "runny nose"
+    },
+    {
+      "id": "lagnat",
+      "word": "lagnat",
+      "alt": ["fever"],
+      "difficulty": 3,
+      "gloss": "fever, with a thermometer"
+    },
+    {
+      "id": "bunso",
+      "word": "bunso",
+      "alt": ["youngest"],
+      "difficulty": 3,
+      "gloss": "youngest child of the family"
+    },
+    {
+      "id": "bahay",
+      "word": "bahay",
+      "alt": ["house", "home"],
+      "difficulty": 1
+    },
+    {
+      "id": "kandado",
+      "word": "kandado",
+      "alt": ["padlock", "lock"],
+      "difficulty": 1
+    },
+    {
+      "id": "bote",
+      "word": "bote",
+      "alt": ["bottle"],
+      "difficulty": 1
+    },
+    {
+      "id": "tasa",
+      "word": "tasa",
+      "alt": ["cup", "mug"],
+      "difficulty": 1
+    },
+    {
+      "id": "takure",
+      "word": "takure",
+      "alt": ["kettle"],
+      "difficulty": 1
+    }
+  ]
+}

@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 1,
+  "id": "en-actions",
+  "title": "People and Doing",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "doctor",
+      "word": "doctor",
+      "alt": ["doktor"],
+      "difficulty": 2
+    },
+    {
+      "id": "nurse",
+      "word": "nurse",
+      "difficulty": 2
+    },
+    {
+      "id": "teacher",
+      "word": "teacher",
+      "alt": ["titser", "guro"],
+      "difficulty": 2
+    },
+    {
+      "id": "police-officer",
+      "word": "police officer",
+      "alt": ["police", "pulis"],
+      "difficulty": 2
+    },
+    {
+      "id": "firefighter",
+      "word": "firefighter",
+      "alt": ["fireman", "bumbero"],
+      "difficulty": 2
+    },
+    {
+      "id": "farmer",
+      "word": "farmer",
+      "alt": ["magsasaka"],
+      "difficulty": 2
+    },
+    {
+      "id": "fisherman",
+      "word": "fisherman",
+      "alt": ["mangingisda"],
+      "difficulty": 2
+    },
+    {
+      "id": "chef",
+      "word": "chef",
+      "alt": ["cook", "kusinero"],
+      "difficulty": 2
+    },
+    {
+      "id": "barber",
+      "word": "barber",
+      "alt": ["barbero"],
+      "difficulty": 2
+    },
+    {
+      "id": "astronaut",
+      "word": "astronaut",
+      "difficulty": 2
+    },
+    {
+      "id": "pilot",
+      "word": "pilot",
+      "alt": ["piloto"],
+      "difficulty": 2
+    },
+    {
+      "id": "security-guard",
+      "word": "security guard",
+      "alt": ["guard", "sekyu"],
+      "difficulty": 2
+    },
+    {
+      "id": "delivery-rider",
+      "word": "delivery rider",
+      "alt": ["rider"],
+      "difficulty": 2
+    },
+    {
+      "id": "mechanic",
+      "word": "mechanic",
+      "alt": ["mekaniko"],
+      "difficulty": 2
+    },
+    {
+      "id": "carpenter",
+      "word": "carpenter",
+      "alt": ["karpintero"],
+      "difficulty": 2
+    },
+    {
+      "id": "painter",
+      "word": "painter",
+      "alt": ["pintor"],
+      "difficulty": 2
+    },
+    {
+      "id": "mermaid",
+      "word": "mermaid",
+      "alt": ["sirena"],
+      "difficulty": 2
+    },
+    {
+      "id": "pirate",
+      "word": "pirate",
+      "alt": ["pirata"],
+      "difficulty": 2
+    },
+    {
+      "id": "ninja",
+      "word": "ninja",
+      "difficulty": 2
+    },
+    {
+      "id": "zombie",
+      "word": "zombie",
+      "difficulty": 2
+    },
+    {
+      "id": "superhero",
+      "word": "superhero",
+      "difficulty": 2
+    },
+    {
+      "id": "dinosaur",
+      "word": "dinosaur",
+      "difficulty": 1
+    },
+    {
+      "id": "dragon",
+      "word": "dragon",
+      "difficulty": 1
+    },
+    {
+      "id": "unicorn",
+      "word": "unicorn",
+      "difficulty": 1
+    },
+    {
+      "id": "alien",
+      "word": "alien",
+      "difficulty": 2
+    },
+    {
+      "id": "clown",
+      "word": "clown",
+      "alt": ["payaso"],
+      "difficulty": 2
+    },
+    {
+      "id": "angel",
+      "word": "angel",
+      "alt": ["anghel"],
+      "difficulty": 2
+    },
+    {
+      "id": "vampire",
+      "word": "vampire",
+      "alt": ["bampira"],
+      "difficulty": 2
+    },
+    {
+      "id": "swimming",
+      "word": "swimming",
+      "alt": ["swim", "langoy"],
+      "difficulty": 2
+    },
+    {
+      "id": "running",
+      "word": "running",
+      "alt": ["run", "takbo"],
+      "difficulty": 2
+    },
+    {
+      "id": "dancing",
+      "word": "dancing",
+      "alt": ["dance", "sayaw"],
+      "difficulty": 2
+    },
+    {
+      "id": "singing",
+      "word": "singing",
+      "alt": ["sing", "kanta"],
+      "difficulty": 2
+    },
+    {
+      "id": "crying",
+      "word": "crying",
+      "alt": ["cry", "iyak"],
+      "difficulty": 2
+    },
+    {
+      "id": "sneezing",
+      "word": "sneezing",
+      "alt": ["sneeze", "bahing"],
+      "difficulty": 2
+    },
+    {
+      "id": "boxing",
+      "word": "boxing",
+      "alt": ["boksing"],
+      "difficulty": 2
+    },
+    {
+      "id": "bowling",
+      "word": "bowling",
+      "difficulty": 2
+    },
+    {
+      "id": "chess",
+      "word": "chess",
+      "alt": ["ahedres"],
+      "difficulty": 2
+    },
+    {
+      "id": "tennis",
+      "word": "tennis",
+      "difficulty": 2
+    },
+    {
+      "id": "volleyball",
+      "word": "volleyball",
+      "difficulty": 2
+    },
+    {
+      "id": "fireworks",
+      "word": "fireworks",
+      "difficulty": 2
+    },
+    {
+      "id": "yawning",
+      "word": "yawning",
+      "alt": ["yawn", "hikab"],
+      "difficulty": 3
+    },
+    {
+      "id": "laughing",
+      "word": "laughing",
+      "alt": ["laugh", "tawa"],
+      "difficulty": 3
+    },
+    {
+      "id": "cooking",
+      "word": "cooking",
+      "alt": ["cook", "luto"],
+      "difficulty": 3
+    },
+    {
+      "id": "fishing",
+      "word": "fishing",
+      "difficulty": 3
+    },
+    {
+      "id": "birthday-party",
+      "word": "birthday party",
+      "alt": ["party"],
+      "difficulty": 3
+    },
+    {
+      "id": "christmas-party",
+      "word": "christmas party",
+      "difficulty": 3
+    },
+    {
+      "id": "concert",
+      "word": "concert",
+      "difficulty": 3
+    },
+    {
+      "id": "magic-trick",
+      "word": "magic trick",
+      "alt": ["magic", "magician"],
+      "difficulty": 3
+    },
+    {
+      "id": "job-interview",
+      "word": "job interview",
+      "alt": ["interview"],
+      "difficulty": 3
+    },
+    {
+      "id": "marriage-proposal",
+      "word": "marriage proposal",
+      "alt": ["proposal"],
+      "difficulty": 3
+    },
+    {
+      "id": "baby-shower",
+      "word": "baby shower",
+      "difficulty": 3
+    },
+    {
+      "id": "surfing",
+      "word": "surfing",
+      "alt": ["surf"],
+      "difficulty": 3
+    },
+    {
+      "id": "skydiving",
+      "word": "skydiving",
+      "difficulty": 3
+    },
+    {
+      "id": "scuba-diving",
+      "word": "scuba diving",
+      "alt": ["diving"],
+      "difficulty": 3
+    },
+    {
+      "id": "sunburn",
+      "word": "sunburn",
+      "difficulty": 3
+    },
+    {
+      "id": "photobomb",
+      "word": "photobomb",
+      "difficulty": 3
+    },
+    {
+      "id": "tug-of-war",
+      "word": "tug of war",
+      "difficulty": 3
+    },
+    {
+      "id": "hiccups",
+      "word": "hiccups",
+      "alt": ["hiccup", "sinok"],
+      "difficulty": 3
+    },
+    {
+      "id": "brushing-teeth",
+      "word": "brushing teeth",
+      "difficulty": 3
+    },
+    {
+      "id": "online-shopping",
+      "word": "online shopping",
+      "difficulty": 3
+    },
+    {
+      "id": "snoring",
+      "word": "snoring",
+      "alt": ["snore"],
+      "difficulty": 3
+    }
+  ]
+}

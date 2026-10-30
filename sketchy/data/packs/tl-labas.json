@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "id": "tl-labas",
+  "title": "Sa Labas",
+  "language": "tl",
+  "rating": "family",
+  "words": [
+    {
+      "id": "bangka",
+      "word": "bangka",
+      "alt": ["banca", "boat"],
+      "difficulty": 1
+    },
+    {
+      "id": "dagat",
+      "word": "dagat",
+      "alt": ["sea", "ocean"],
+      "difficulty": 1
+    },
+    {
+      "id": "manok",
+      "word": "manok",
+      "alt": ["chicken", "hen"],
+      "difficulty": 1
+    },
+    {
+      "id": "butiki",
+      "word": "butiki",
+      "alt": ["gecko", "house lizard"],
+      "difficulty": 1
+    },
+    {
+      "id": "kalesa",
+      "word": "kalesa",
+      "alt": ["calesa", "horse carriage"],
+      "difficulty": 2,
+      "gloss": "horse-drawn carriage"
+    },
+    {
+      "id": "pedicab",
+      "word": "pedicab",
+      "alt": ["padyak", "sidecar"],
+      "difficulty": 2,
+      "gloss": "bicycle with a sidecar"
+    },
+    {
+      "id": "plaza",
+      "word": "plaza",
+      "alt": ["town plaza"],
+      "difficulty": 2,
+      "gloss": "town square with a fountain"
+    },
+    {
+      "id": "perya",
+      "word": "perya",
+      "alt": ["carnival", "fair"],
+      "difficulty": 2,
+      "gloss": "travelling carnival with rides"
+    },
+    {
+      "id": "palayan",
+      "word": "palayan",
+      "alt": ["rice field", "rice paddy"],
+      "difficulty": 2,
+      "gloss": "rice field"
+    },
+    {
+      "id": "bukid",
+      "word": "bukid",
+      "alt": ["farm"],
+      "difficulty": 2,
+      "gloss": "farm in the province"
+    },
+    {
+      "id": "puno-ng-niyog",
+      "word": "puno ng niyog",
+      "alt": ["coconut tree", "palm tree"],
+      "difficulty": 2,
+      "gloss": "coconut tree"
+    },
+    {
+      "id": "tuko",
+      "word": "tuko",
+      "alt": ["tokay gecko"],
+      "difficulty": 2,
+      "gloss": "big loud gecko on the wall"
+    },
+    {
+      "id": "tarsier",
+      "word": "tarsier",
+      "difficulty": 2,
+      "gloss": "tiny animal with huge eyes"
+    },
+    {
+      "id": "bangus",
+      "word": "bangus",
+      "alt": ["milkfish"],
+      "difficulty": 2,
+      "gloss": "silvery milkfish"
+    },
+    {
+      "id": "tilapia",
+      "word": "tilapia",
+      "difficulty": 2,
+      "gloss": "freshwater fish"
+    },
+    {
+      "id": "kalapati",
+      "word": "kalapati",
+      "alt": ["pigeon", "dove"],
+      "difficulty": 2,
+      "gloss": "pigeon"
+    },
+    {
+      "id": "maya",
+      "word": "maya",
+      "alt": ["sparrow"],
+      "difficulty": 2,
+      "gloss": "small brown sparrow"
+    },
+    {
+      "id": "ukay-ukay",
+      "word": "ukay-ukay",
+      "alt": ["ukay"],
+      "difficulty": 2,
+      "gloss": "secondhand clothes shop"
+    },
+    {
+      "id": "tiangge",
+      "word": "tiangge",
+      "alt": ["tiyangge"],
+      "difficulty": 2,
+      "gloss": "stalls selling cheap clothes"
+    },
+    {
+      "id": "kanto",
+      "word": "kanto",
+      "alt": ["street corner"],
+      "difficulty": 2,
+      "gloss": "street corner with a store"
+    },
+    {
+      "id": "kariton",
+      "word": "kariton",
+      "alt": ["pushcart"],
+      "difficulty": 2,
+      "gloss": "wooden pushcart"
+    },
+    {
+      "id": "habal-habal",
+      "word": "habal-habal",
+      "alt": ["habalhabal"],
+      "difficulty": 3,
+      "gloss": "motorbike carrying many passengers"
+    },
+    {
+      "id": "munisipyo",
+      "word": "munisipyo",
+      "alt": ["munisipiyo", "town hall"],
+      "difficulty": 3,
+      "gloss": "town hall with a flag"
+    },
+    {
+      "id": "barangay-hall",
+      "word": "barangay hall",
+      "alt": ["barangay"],
+      "difficulty": 3,
+      "gloss": "village office building"
+    },
+    {
+      "id": "tanod",
+      "word": "tanod",
+      "alt": ["barangay tanod"],
+      "difficulty": 3,
+      "gloss": "village watchman with a stick"
+    },
+    {
+      "id": "probinsya",
+      "word": "probinsya",
+      "alt": ["probinsiya", "province"],
+      "difficulty": 3,
+      "gloss": "home town in the countryside"
+    },
+    {
+      "id": "bahay-na-bato",
+      "word": "bahay na bato",
+      "difficulty": 3,
+      "gloss": "old stone-and-wood colonial house"
+    },
+    {
+      "id": "eskinita",
+      "word": "eskinita",
+      "alt": ["iskinita", "alley"],
+      "difficulty": 3,
+      "gloss": "narrow alley between houses"
+    },
+    {
+      "id": "tambay",
+      "word": "tambay",
+      "alt": ["tambayan"],
+      "difficulty": 3,
+      "gloss": "guys hanging out at a corner"
+    },
+    {
+      "id": "liga",
+      "word": "liga",
+      "alt": ["basketball league"],
+      "difficulty": 3,
+      "gloss": "neighbourhood basketball league"
+    },
+    {
+      "id": "bangketa",
+      "word": "bangketa",
+      "alt": ["sidewalk"],
+      "difficulty": 3,
+      "gloss": "sidewalk lined with vendors"
+    },
+    {
+      "id": "barker",
+      "word": "barker",
+      "difficulty": 3,
+      "gloss": "man calling out jeepney routes"
+    },
+    {
+      "id": "kundoktor",
+      "word": "kundoktor",
+      "alt": ["konduktor", "conductor"],
+      "difficulty": 3,
+      "gloss": "bus conductor with a ticket punch"
+    },
+    {
+      "id": "pasalubong",
+      "word": "pasalubong",
+      "difficulty": 3,
+      "gloss": "gifts brought home from a trip"
+    },
+    {
+      "id": "balikbayan-box",
+      "word": "balikbayan box",
+      "alt": ["balikbayan"],
+      "difficulty": 3,
+      "gloss": "big taped box sent home from abroad"
+    },
+    {
+      "id": "watawat",
+      "word": "watawat",
+      "alt": ["bandila", "flag"],
+      "difficulty": 1
+    },
+    {
+      "id": "gulong",
+      "word": "gulong",
+      "alt": ["tire", "wheel"],
+      "difficulty": 1
+    },
+    {
+      "id": "lubid",
+      "word": "lubid",
+      "alt": ["rope"],
+      "difficulty": 1
+    },
+    {
+      "id": "bato",
+      "word": "bato",
+      "alt": ["rock", "stone"],
+      "difficulty": 1
+    },
+    {
+      "id": "dahon",
+      "word": "dahon",
+      "alt": ["leaf", "leaves"],
+      "difficulty": 1
+    },
+    {
+      "id": "kabibe",
+      "word": "kabibe",
+      "alt": ["seashell", "shell"],
+      "difficulty": 1
+    },
+    {
+      "id": "kuneho",
+      "word": "kuneho",
+      "alt": ["rabbit", "bunny"],
+      "difficulty": 1
+    },
+    {
+      "id": "pusit",
+      "word": "pusit",
+      "alt": ["squid"],
+      "difficulty": 1
+    }
+  ]
+}

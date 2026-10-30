@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "id": "en-food",
+  "title": "Food and Drinks",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "banana",
+      "word": "banana",
+      "alt": ["saging"],
+      "difficulty": 1
+    },
+    {
+      "id": "apple",
+      "word": "apple",
+      "alt": ["mansanas"],
+      "difficulty": 1
+    },
+    {
+      "id": "pineapple",
+      "word": "pineapple",
+      "alt": ["pinya"],
+      "difficulty": 1
+    },
+    {
+      "id": "watermelon",
+      "word": "watermelon",
+      "alt": ["pakwan"],
+      "difficulty": 1
+    },
+    {
+      "id": "coconut",
+      "word": "coconut",
+      "alt": ["niyog", "buko"],
+      "difficulty": 1
+    },
+    {
+      "id": "egg",
+      "word": "egg",
+      "alt": ["itlog"],
+      "difficulty": 1
+    },
+    {
+      "id": "bread",
+      "word": "bread",
+      "alt": ["tinapay"],
+      "difficulty": 1
+    },
+    {
+      "id": "hotdog",
+      "word": "hotdog",
+      "alt": ["hot dog"],
+      "difficulty": 1
+    },
+    {
+      "id": "burger",
+      "word": "burger",
+      "alt": ["hamburger"],
+      "difficulty": 1
+    },
+    {
+      "id": "pizza",
+      "word": "pizza",
+      "difficulty": 1
+    },
+    {
+      "id": "french-fries",
+      "word": "french fries",
+      "alt": ["fries"],
+      "difficulty": 1
+    },
+    {
+      "id": "donut",
+      "word": "donut",
+      "alt": ["doughnut"],
+      "difficulty": 1
+    },
+    {
+      "id": "cupcake",
+      "word": "cupcake",
+      "difficulty": 1
+    },
+    {
+      "id": "lollipop",
+      "word": "lollipop",
+      "difficulty": 1
+    },
+    {
+      "id": "popcorn",
+      "word": "popcorn",
+      "difficulty": 1
+    },
+    {
+      "id": "cookie",
+      "word": "cookie",
+      "alt": ["cookies"],
+      "difficulty": 1
+    },
+    {
+      "id": "candy",
+      "word": "candy",
+      "alt": ["kendi"],
+      "difficulty": 1
+    },
+    {
+      "id": "corn",
+      "word": "corn",
+      "alt": ["mais"],
+      "difficulty": 1
+    },
+    {
+      "id": "carrot",
+      "word": "carrot",
+      "alt": ["karot"],
+      "difficulty": 1
+    },
+    {
+      "id": "grapes",
+      "word": "grapes",
+      "alt": ["ubas"],
+      "difficulty": 1
+    },
+    {
+      "id": "strawberry",
+      "word": "strawberry",
+      "difficulty": 1
+    },
+    {
+      "id": "cheese",
+      "word": "cheese",
+      "alt": ["keso"],
+      "difficulty": 1
+    },
+    {
+      "id": "noodles",
+      "word": "noodles",
+      "difficulty": 1
+    },
+    {
+      "id": "sandwich",
+      "word": "sandwich",
+      "difficulty": 1
+    },
+    {
+      "id": "chocolate",
+      "word": "chocolate",
+      "alt": ["tsokolate"],
+      "difficulty": 1
+    },
+    {
+      "id": "shrimp",
+      "word": "shrimp",
+      "alt": ["hipon"],
+      "difficulty": 1
+    },
+    {
+      "id": "coffee",
+      "word": "coffee",
+      "alt": ["kape"],
+      "difficulty": 1
+    },
+    {
+      "id": "milk",
+      "word": "milk",
+      "alt": ["gatas"],
+      "difficulty": 1
+    },
+    {
+      "id": "lemon",
+      "word": "lemon",
+      "difficulty": 1
+    },
+    {
+      "id": "eggplant",
+      "word": "eggplant",
+      "alt": ["talong"],
+      "difficulty": 1
+    },
+    {
+      "id": "tomato",
+      "word": "tomato",
+      "alt": ["kamatis"],
+      "difficulty": 1
+    },
+    {
+      "id": "onion",
+      "word": "onion",
+      "alt": ["sibuyas"],
+      "difficulty": 2
+    },
+    {
+      "id": "chili",
+      "word": "chili",
+      "alt": ["sili", "chili pepper"],
+      "difficulty": 2
+    },
+    {
+      "id": "sushi",
+      "word": "sushi",
+      "difficulty": 2
+    },
+    {
+      "id": "barbecue",
+      "word": "barbecue",
+      "alt": ["bbq", "barbeque"],
+      "difficulty": 2
+    },
+    {
+      "id": "steak",
+      "word": "steak",
+      "difficulty": 2
+    },
+    {
+      "id": "pancake",
+      "word": "pancake",
+      "alt": ["pancakes", "hotcake"],
+      "difficulty": 2
+    },
+    {
+      "id": "soup",
+      "word": "soup",
+      "alt": ["sabaw"],
+      "difficulty": 2
+    },
+    {
+      "id": "salad",
+      "word": "salad",
+      "difficulty": 2
+    },
+    {
+      "id": "sausage",
+      "word": "sausage",
+      "difficulty": 2
+    },
+    {
+      "id": "honey",
+      "word": "honey",
+      "alt": ["pulot"],
+      "difficulty": 2
+    },
+    {
+      "id": "peanut",
+      "word": "peanut",
+      "alt": ["peanuts", "mani"],
+      "difficulty": 2
+    },
+    {
+      "id": "mushroom",
+      "word": "mushroom",
+      "alt": ["kabute"],
+      "difficulty": 2
+    },
+    {
+      "id": "avocado",
+      "word": "avocado",
+      "alt": ["abokado"],
+      "difficulty": 2
+    },
+    {
+      "id": "cotton-candy",
+      "word": "cotton candy",
+      "difficulty": 2
+    },
+    {
+      "id": "crab",
+      "word": "crab",
+      "alt": ["alimango", "alimasag"],
+      "difficulty": 2
+    },
+    {
+      "id": "fruit-shake",
+      "word": "fruit shake",
+      "alt": ["shake", "smoothie"],
+      "difficulty": 2
+    },
+    {
+      "id": "lunch-box",
+      "word": "lunch box",
+      "alt": ["lunchbox"],
+      "difficulty": 2
+    },
+    {
+      "id": "food-trip",
+      "word": "food trip",
+      "alt": ["foodtrip"],
+      "difficulty": 3
+    },
+    {
+      "id": "eating-contest",
+      "word": "eating contest",
+      "difficulty": 3
+    },
+    {
+      "id": "midnight-snack",
+      "word": "midnight snack",
+      "difficulty": 3
+    },
+    {
+      "id": "brain-freeze",
+      "word": "brain freeze",
+      "difficulty": 3
+    },
+    {
+      "id": "potluck",
+      "word": "potluck",
+      "difficulty": 3
+    },
+    {
+      "id": "picnic",
+      "word": "picnic",
+      "difficulty": 3
+    },
+    {
+      "id": "buffet",
+      "word": "buffet",
+      "alt": ["eat all you can"],
+      "difficulty": 3
+    },
+    {
+      "id": "grocery-store",
+      "word": "grocery store",
+      "alt": ["grocery", "supermarket"],
+      "difficulty": 3
+    },
+    {
+      "id": "food-delivery",
+      "word": "food delivery",
+      "alt": ["delivery"],
+      "difficulty": 3
+    }
+  ]
+}

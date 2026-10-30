@@ -1,0 +1,448 @@
+{
+  "schemaVersion": 1,
+  "id": "en-outdoors",
+  "title": "Out and About",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "dog",
+      "word": "dog",
+      "alt": ["aso", "puppy"],
+      "difficulty": 1
+    },
+    {
+      "id": "cat",
+      "word": "cat",
+      "alt": ["pusa", "kitten"],
+      "difficulty": 1
+    },
+    {
+      "id": "fish",
+      "word": "fish",
+      "alt": ["isda"],
+      "difficulty": 1
+    },
+    {
+      "id": "bird",
+      "word": "bird",
+      "alt": ["ibon"],
+      "difficulty": 1
+    },
+    {
+      "id": "cow",
+      "word": "cow",
+      "alt": ["baka"],
+      "difficulty": 1
+    },
+    {
+      "id": "pig",
+      "word": "pig",
+      "alt": ["baboy"],
+      "difficulty": 1
+    },
+    {
+      "id": "duck",
+      "word": "duck",
+      "alt": ["pato", "bibe"],
+      "difficulty": 1
+    },
+    {
+      "id": "frog",
+      "word": "frog",
+      "alt": ["palaka"],
+      "difficulty": 1
+    },
+    {
+      "id": "snake",
+      "word": "snake",
+      "alt": ["ahas"],
+      "difficulty": 1
+    },
+    {
+      "id": "monkey",
+      "word": "monkey",
+      "alt": ["unggoy", "matsing"],
+      "difficulty": 1
+    },
+    {
+      "id": "elephant",
+      "word": "elephant",
+      "difficulty": 1
+    },
+    {
+      "id": "giraffe",
+      "word": "giraffe",
+      "difficulty": 1
+    },
+    {
+      "id": "lion",
+      "word": "lion",
+      "difficulty": 1
+    },
+    {
+      "id": "butterfly",
+      "word": "butterfly",
+      "alt": ["paru-paro", "paruparo"],
+      "difficulty": 1
+    },
+    {
+      "id": "spider",
+      "word": "spider",
+      "alt": ["gagamba"],
+      "difficulty": 1
+    },
+    {
+      "id": "ant",
+      "word": "ant",
+      "alt": ["langgam", "ants"],
+      "difficulty": 1
+    },
+    {
+      "id": "bee",
+      "word": "bee",
+      "alt": ["bubuyog", "honeybee"],
+      "difficulty": 1
+    },
+    {
+      "id": "turtle",
+      "word": "turtle",
+      "alt": ["pagong"],
+      "difficulty": 1
+    },
+    {
+      "id": "shark",
+      "word": "shark",
+      "alt": ["pating"],
+      "difficulty": 1
+    },
+    {
+      "id": "whale",
+      "word": "whale",
+      "difficulty": 1
+    },
+    {
+      "id": "octopus",
+      "word": "octopus",
+      "difficulty": 1
+    },
+    {
+      "id": "star",
+      "word": "star",
+      "alt": ["bituin"],
+      "difficulty": 1
+    },
+    {
+      "id": "moon",
+      "word": "moon",
+      "alt": ["buwan"],
+      "difficulty": 1
+    },
+    {
+      "id": "sun",
+      "word": "sun",
+      "alt": ["araw"],
+      "difficulty": 1
+    },
+    {
+      "id": "rainbow",
+      "word": "rainbow",
+      "alt": ["bahaghari"],
+      "difficulty": 1
+    },
+    {
+      "id": "cloud",
+      "word": "cloud",
+      "alt": ["ulap"],
+      "difficulty": 1
+    },
+    {
+      "id": "tree",
+      "word": "tree",
+      "alt": ["puno"],
+      "difficulty": 1
+    },
+    {
+      "id": "flower",
+      "word": "flower",
+      "alt": ["bulaklak"],
+      "difficulty": 1
+    },
+    {
+      "id": "mountain",
+      "word": "mountain",
+      "alt": ["bundok"],
+      "difficulty": 1
+    },
+    {
+      "id": "airplane",
+      "word": "airplane",
+      "alt": ["eroplano", "plane"],
+      "difficulty": 1
+    },
+    {
+      "id": "car",
+      "word": "car",
+      "alt": ["kotse"],
+      "difficulty": 1
+    },
+    {
+      "id": "bus",
+      "word": "bus",
+      "difficulty": 1
+    },
+    {
+      "id": "train",
+      "word": "train",
+      "alt": ["tren"],
+      "difficulty": 1
+    },
+    {
+      "id": "rain",
+      "word": "rain",
+      "alt": ["ulan"],
+      "difficulty": 1
+    },
+    {
+      "id": "beach",
+      "word": "beach",
+      "alt": ["dalampasigan"],
+      "difficulty": 2
+    },
+    {
+      "id": "island",
+      "word": "island",
+      "alt": ["isla"],
+      "difficulty": 2
+    },
+    {
+      "id": "waterfall",
+      "word": "waterfall",
+      "alt": ["waterfalls"],
+      "difficulty": 2
+    },
+    {
+      "id": "river",
+      "word": "river",
+      "alt": ["ilog"],
+      "difficulty": 2
+    },
+    {
+      "id": "forest",
+      "word": "forest",
+      "alt": ["gubat"],
+      "difficulty": 2
+    },
+    {
+      "id": "desert",
+      "word": "desert",
+      "difficulty": 2
+    },
+    {
+      "id": "cave",
+      "word": "cave",
+      "alt": ["kuweba", "kweba"],
+      "difficulty": 2
+    },
+    {
+      "id": "lighthouse",
+      "word": "lighthouse",
+      "alt": ["parola"],
+      "difficulty": 2
+    },
+    {
+      "id": "bridge",
+      "word": "bridge",
+      "alt": ["tulay"],
+      "difficulty": 2
+    },
+    {
+      "id": "church",
+      "word": "church",
+      "alt": ["simbahan"],
+      "difficulty": 2
+    },
+    {
+      "id": "hospital",
+      "word": "hospital",
+      "alt": ["ospital"],
+      "difficulty": 2
+    },
+    {
+      "id": "school",
+      "word": "school",
+      "alt": ["paaralan", "eskuwelahan"],
+      "difficulty": 2
+    },
+    {
+      "id": "jail",
+      "word": "jail",
+      "alt": ["prison", "kulungan"],
+      "difficulty": 2
+    },
+    {
+      "id": "gas-station",
+      "word": "gas station",
+      "alt": ["gasolinahan"],
+      "difficulty": 2
+    },
+    {
+      "id": "ambulance",
+      "word": "ambulance",
+      "difficulty": 2
+    },
+    {
+      "id": "fire-truck",
+      "word": "fire truck",
+      "alt": ["firetruck"],
+      "difficulty": 2
+    },
+    {
+      "id": "helicopter",
+      "word": "helicopter",
+      "difficulty": 2
+    },
+    {
+      "id": "ship",
+      "word": "ship",
+      "alt": ["barko"],
+      "difficulty": 2
+    },
+    {
+      "id": "mosquito",
+      "word": "mosquito",
+      "alt": ["lamok"],
+      "difficulty": 2
+    },
+    {
+      "id": "cockroach",
+      "word": "cockroach",
+      "alt": ["ipis"],
+      "difficulty": 2
+    },
+    {
+      "id": "crocodile",
+      "word": "crocodile",
+      "alt": ["buwaya"],
+      "difficulty": 2
+    },
+    {
+      "id": "eagle",
+      "word": "eagle",
+      "alt": ["agila"],
+      "difficulty": 2
+    },
+    {
+      "id": "owl",
+      "word": "owl",
+      "alt": ["kuwago"],
+      "difficulty": 2
+    },
+    {
+      "id": "penguin",
+      "word": "penguin",
+      "difficulty": 2
+    },
+    {
+      "id": "horse",
+      "word": "horse",
+      "alt": ["kabayo"],
+      "difficulty": 2
+    },
+    {
+      "id": "goat",
+      "word": "goat",
+      "difficulty": 2
+    },
+    {
+      "id": "lightning",
+      "word": "lightning",
+      "alt": ["kidlat"],
+      "difficulty": 2
+    },
+    {
+      "id": "flood",
+      "word": "flood",
+      "alt": ["baha"],
+      "difficulty": 2
+    },
+    {
+      "id": "tornado",
+      "word": "tornado",
+      "difficulty": 2
+    },
+    {
+      "id": "snowman",
+      "word": "snowman",
+      "difficulty": 2
+    },
+    {
+      "id": "zoo",
+      "word": "zoo",
+      "difficulty": 2
+    },
+    {
+      "id": "earthquake",
+      "word": "earthquake",
+      "alt": ["lindol"],
+      "difficulty": 3
+    },
+    {
+      "id": "sunset",
+      "word": "sunset",
+      "difficulty": 3
+    },
+    {
+      "id": "camping",
+      "word": "camping",
+      "alt": ["camp"],
+      "difficulty": 3
+    },
+    {
+      "id": "mountain-climbing",
+      "word": "mountain climbing",
+      "alt": ["hiking", "trekking"],
+      "difficulty": 3
+    },
+    {
+      "id": "road-trip",
+      "word": "road trip",
+      "alt": ["roadtrip"],
+      "difficulty": 3
+    },
+    {
+      "id": "amusement-park",
+      "word": "amusement park",
+      "alt": ["theme park"],
+      "difficulty": 3
+    },
+    {
+      "id": "car-wash",
+      "word": "car wash",
+      "alt": ["carwash"],
+      "difficulty": 3
+    },
+    {
+      "id": "parking-lot",
+      "word": "parking lot",
+      "alt": ["parking"],
+      "difficulty": 3
+    },
+    {
+      "id": "skyscraper",
+      "word": "skyscraper",
+      "difficulty": 3
+    },
+    {
+      "id": "rush-hour",
+      "word": "rush hour",
+      "difficulty": 3
+    },
+    {
+      "id": "flat-tire",
+      "word": "flat tire",
+      "alt": ["flat tyre"],
+      "difficulty": 3
+    }
+  ]
+}

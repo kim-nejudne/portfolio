@@ -112,11 +112,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F45 Taglish copy
 
-- [ ] F46 Full family word packs
-  - Spec: Words (Word pack format, Word selection)
-  - Depends: F17
-  - Done when:
-    - ≥ 200 English and ≥ 200 Taglish/Filipino family words across difficulties 1–3, every one drawable; alternates for common spellings; glosses for `tl` difficulty 2–3; `npm run packs:check` passes; Kim has reviewed them
+- [x] F46 Full family word packs
 
 - [ ] F47 Spicy pack
   - Spec: Words (Word pack format)

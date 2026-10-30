@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "id": "tl-gawain",
+  "title": "Laro at Okasyon",
+  "language": "tl",
+  "rating": "family",
+  "words": [
+    {
+      "id": "multo",
+      "word": "multo",
+      "alt": ["ghost"],
+      "difficulty": 1
+    },
+    {
+      "id": "pasko",
+      "word": "pasko",
+      "alt": ["christmas"],
+      "difficulty": 1
+    },
+    {
+      "id": "jolens",
+      "word": "jolens",
+      "alt": ["holen", "marbles"],
+      "difficulty": 2,
+      "gloss": "glass marbles"
+    },
+    {
+      "id": "piko",
+      "word": "piko",
+      "alt": ["hopscotch"],
+      "difficulty": 2,
+      "gloss": "hopscotch"
+    },
+    {
+      "id": "tagu-taguan",
+      "word": "tagu-taguan",
+      "alt": ["taguan", "hide and seek"],
+      "difficulty": 2,
+      "gloss": "hide and seek"
+    },
+    {
+      "id": "habulan",
+      "word": "habulan",
+      "alt": ["taya", "tag"],
+      "difficulty": 2,
+      "gloss": "chasing game"
+    },
+    {
+      "id": "sipa",
+      "word": "sipa",
+      "difficulty": 2,
+      "gloss": "kicking a washer with tassels"
+    },
+    {
+      "id": "tinikling",
+      "word": "tinikling",
+      "difficulty": 2,
+      "gloss": "dance between clapping bamboo poles"
+    },
+    {
+      "id": "aswang",
+      "word": "aswang",
+      "difficulty": 2,
+      "gloss": "shape-shifting monster at night"
+    },
+    {
+      "id": "kapre",
+      "word": "kapre",
+      "difficulty": 2,
+      "gloss": "giant smoking a cigar in a tree"
+    },
+    {
+      "id": "duwende",
+      "word": "duwende",
+      "alt": ["dwende", "dwarf"],
+      "difficulty": 2,
+      "gloss": "tiny goblin in a mound"
+    },
+    {
+      "id": "paputok",
+      "word": "paputok",
+      "alt": ["firecracker", "firecrackers"],
+      "difficulty": 2,
+      "gloss": "firecrackers on New Year's Eve"
+    },
+    {
+      "id": "torotot",
+      "word": "torotot",
+      "difficulty": 2,
+      "gloss": "paper party horn for New Year"
+    },
+    {
+      "id": "fiesta",
+      "word": "fiesta",
+      "alt": ["pista"],
+      "difficulty": 2,
+      "gloss": "town feast with banners and food"
+    },
+    {
+      "id": "mano",
+      "word": "mano",
+      "alt": ["mano po"],
+      "difficulty": 2,
+      "gloss": "pressing an elder's hand to forehead"
+    },
+    {
+      "id": "maligo",
+      "word": "maligo",
+      "alt": ["ligo", "bath"],
+      "difficulty": 2,
+      "gloss": "taking a bath with a tabo"
+    },
+    {
+      "id": "tumbang-preso",
+      "word": "tumbang preso",
+      "difficulty": 3,
+      "gloss": "knocking down a can with slippers"
+    },
+    {
+      "id": "patintero",
+      "word": "patintero",
+      "difficulty": 3,
+      "gloss": "tag game across chalk lines"
+    },
+    {
+      "id": "luksong-tinik",
+      "word": "luksong tinik",
+      "difficulty": 3,
+      "gloss": "jumping over stacked hands"
+    },
+    {
+      "id": "luksong-baka",
+      "word": "luksong baka",
+      "alt": ["leapfrog"],
+      "difficulty": 3,
+      "gloss": "leapfrog over a bent player"
+    },
+    {
+      "id": "palo-sebo",
+      "word": "palo sebo",
+      "difficulty": 3,
+      "gloss": "climbing a greased bamboo pole"
+    },
+    {
+      "id": "pabitin",
+      "word": "pabitin",
+      "difficulty": 3,
+      "gloss": "treats hung from a frame for kids"
+    },
+    {
+      "id": "hampas-palayok",
+      "word": "hampas palayok",
+      "alt": ["basag palayok"],
+      "difficulty": 3,
+      "gloss": "blindfolded, hitting a clay pot"
+    },
+    {
+      "id": "manananggal",
+      "word": "manananggal",
+      "difficulty": 3,
+      "gloss": "flying monster with half a body"
+    },
+    {
+      "id": "tikbalang",
+      "word": "tikbalang",
+      "difficulty": 3,
+      "gloss": "tall horse-headed forest creature"
+    },
+    {
+      "id": "tiyanak",
+      "word": "tiyanak",
+      "difficulty": 3,
+      "gloss": "baby monster crying in the woods"
+    },
+    {
+      "id": "white-lady",
+      "word": "white lady",
+      "difficulty": 3,
+      "gloss": "ghost woman in white by the road"
+    },
+    {
+      "id": "simbang-gabi",
+      "word": "simbang gabi",
+      "difficulty": 3,
+      "gloss": "Christmas dawn mass"
+    },
+    {
+      "id": "noche-buena",
+      "word": "noche buena",
+      "alt": ["nochebuena"],
+      "difficulty": 3,
+      "gloss": "Christmas Eve family dinner"
+    },
+    {
+      "id": "bagong-taon",
+      "word": "bagong taon",
+      "alt": ["new year"],
+      "difficulty": 3,
+      "gloss": "New Year's Eve with a countdown"
+    },
+    {
+      "id": "monito-monita",
+      "word": "monito monita",
+      "alt": ["kris kringle"],
+      "difficulty": 3,
+      "gloss": "secret gift exchange"
+    },
+    {
+      "id": "binyag",
+      "word": "binyag",
+      "alt": ["baptism", "christening"],
+      "difficulty": 3,
+      "gloss": "baby's baptism at church"
+    },
+    {
+      "id": "debut",
+      "word": "debut",
+      "alt": ["debutante"],
+      "difficulty": 3,
+      "gloss": "18th birthday ball with roses"
+    },
+    {
+      "id": "santacruzan",
+      "word": "santacruzan",
+      "alt": ["flores de mayo"],
+      "difficulty": 3,
+      "gloss": "May procession under flower arches"
+    },
+    {
+      "id": "prusisyon",
+      "word": "prusisyon",
+      "alt": ["procession"],
+      "difficulty": 3,
+      "gloss": "saints carried through the streets"
+    },
+    {
+      "id": "lamay",
+      "word": "lamay",
+      "alt": ["wake"],
+      "difficulty": 3,
+      "gloss": "night wake with a coffin and coffee"
+    },
+    {
+      "id": "pamamanhikan",
+      "word": "pamamanhikan",
+      "alt": ["pamanhikan"],
+      "difficulty": 3,
+      "gloss": "boy's family visiting the girl's"
+    },
+    {
+      "id": "undas",
+      "word": "undas",
+      "alt": ["all saints day"],
+      "difficulty": 3,
+      "gloss": "candles and flowers at a cemetery"
+    },
+    {
+      "id": "naglalaba",
+      "word": "naglalaba",
+      "alt": ["laba", "laundry"],
+      "difficulty": 3,
+      "gloss": "hand-washing clothes in a basin"
+    },
+    {
+      "id": "pamasko",
+      "word": "pamasko",
+      "alt": ["aguinaldo"],
+      "difficulty": 3,
+      "gloss": "Christmas money given to kids"
+    },
+    {
+      "id": "bola",
+      "word": "bola",
+      "alt": ["ball"],
+      "difficulty": 1
+    },
+    {
+      "id": "pera",
+      "word": "pera",
+      "alt": ["money", "cash"],
+      "difficulty": 1
+    },
+    {
+      "id": "luksong-lubid",
+      "word": "luksong lubid",
+      "alt": ["jump rope"],
+      "difficulty": 2,
+      "gloss": "jumping a rope two kids swing"
+    },
+    {
+      "id": "karoling",
+      "word": "karoling",
+      "alt": ["caroling", "carolling"],
+      "difficulty": 3,
+      "gloss": "kids singing carols at a gate"
+    },
+    {
+      "id": "pagtatanim",
+      "word": "pagtatanim",
+      "alt": ["planting rice", "tanim"],
+      "difficulty": 3,
+      "gloss": "farmers bent over planting rice"
+    }
+  ]
+}

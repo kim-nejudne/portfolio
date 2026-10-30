@@ -13,6 +13,7 @@ import {
   parsePack,
   type Pack,
 } from './packs.js';
+import { isCorrect } from './match.js';
 
 const SHIPPED = fileURLToPath(new URL('../data/packs', import.meta.url));
 
@@ -205,13 +206,62 @@ describe('parsePack', () => {
 });
 
 describe('loadPacks', () => {
-  it('loads the shipped packs: 30 en and 30 tl family words', () => {
+  it('loads the shipped packs: at least 200 en and 200 tl family words, every level well filled', () => {
     const packs = loadPacks(SHIPPED);
-    const byLang = (lang: string) => packs.filter((p) => p.language === lang);
-    expect(byLang('en').flatMap((p) => p.words)).toHaveLength(30);
-    expect(byLang('tl').flatMap((p) => p.words)).toHaveLength(30);
-    expect(packs.every((p) => p.rating === 'family')).toBe(true);
+    const family = packs.filter((p) => p.rating === 'family');
+    for (const lang of ['en', 'tl'] as const) {
+      const words = family.filter((p) => p.language === lang).flatMap((p) => p.words);
+      expect(words.length, lang).toBeGreaterThanOrEqual(200);
+      // 'easy' deals three level-1 words and 'mixed' one of each, so no level may run thin.
+      for (const level of [1, 2, 3])
+        expect(
+          words.filter((w) => w.difficulty === level).length,
+          `${lang} ${level}`,
+        ).toBeGreaterThanOrEqual(40);
+    }
     expect(findDuplicateWords(packs)).toEqual([]);
+  });
+
+  it('keeps the spicy list out of the family packs', () => {
+    // F47's "Pang-inuman" pack holds these; a family copy would be a duplicate word.
+    const family = loadPacks(SHIPPED)
+      .filter((p) => p.rating === 'family')
+      .flatMap((p) => p.words.flatMap((w) => [w.word, ...w.alt]));
+    for (const word of [
+      'tagay',
+      'jowa',
+      'hangover',
+      'walk of shame',
+      'pulutan',
+      'inuman',
+      'sabit',
+      'lasing',
+    ])
+      expect(family, word).not.toContain(word);
+  });
+
+  it('accepts the common spellings people type (ts/ch, j/dy, e/i, o/u) and the other language', () => {
+    const words = loadPacks(SHIPPED).flatMap((p) => p.words);
+    const byId = (id: string) => words.find((w) => w.id === id)!;
+    const typed: [string, string[]][] = [
+      ['tl-pinoy-life/tsinelas', ['chinelas', 'slippers']],
+      ['tl-pinoy-life/jeepney', ['dyip', 'jeep']],
+      ['tl-pinoy-life/lechon', ['litson']],
+      ['tl-pagkain/longganisa', ['longanisa', 'longaniza']],
+      ['tl-pagkain/chicharon', ['tsitsaron', 'chicharron', 'pork rinds']],
+      ['tl-pagkain/champorado', ['tsamporado']],
+      ['tl-pagkain/tocino', ['tosino']],
+      ['tl-pagkain/kutsinta', ['cuchinta']],
+      ['tl-labas/kalesa', ['calesa']],
+      ['tl-labas/probinsya', ['probinsiya', 'province']],
+      ['tl-gawain/duwende', ['dwende']],
+      ['tl-bahay/kaldero', ['caldero']],
+      ['en-food/chocolate', ['tsokolate']],
+      ['en-outdoors/butterfly', ['paru-paro', 'paruparo']],
+      ['en-home/necklace', ['kuwintas', 'kwintas']],
+    ];
+    for (const [id, guesses] of typed)
+      for (const guess of guesses) expect(isCorrect(guess, byId(id)), `${id}: ${guess}`).toBe(true);
   });
 
   it('ships the spec sample words as written, glosses and alternates included', () => {
@@ -230,8 +280,8 @@ describe('loadPacks', () => {
     expect(byId('en-everyday/pimple')).toMatchObject({ difficulty: 2, lang: 'en' });
     // Every tl word of difficulty 2–3 carries its gloss (the schema's rule, checked on real data).
     const tlHard = words.filter((w) => w.lang === 'tl' && w.difficulty >= 2);
-    expect(tlHard).toHaveLength(18);
-    expect(tlHard.every((w) => w.gloss)).toBe(true);
+    expect(tlHard.length).toBeGreaterThan(100);
+    expect(tlHard.filter((w) => !w.gloss)).toEqual([]);
   });
 
   it('reads every .json file in name order and ignores others', () => {
@@ -322,7 +372,7 @@ describe('server start', () => {
   it('summarises the shipped packs', () => {
     expect(loadPacksForStart(SHIPPED)).toMatchObject({
       ok: true,
-      summary: 'Loaded 2 word packs (60 words)',
+      summary: 'Loaded 10 word packs (517 words)',
     });
   });
 

@@ -1,0 +1,417 @@
+{
+  "schemaVersion": 1,
+  "id": "en-home",
+  "title": "Home and Things",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "pillow",
+      "word": "pillow",
+      "alt": ["unan"],
+      "difficulty": 1
+    },
+    {
+      "id": "blanket",
+      "word": "blanket",
+      "alt": ["kumot"],
+      "difficulty": 1
+    },
+    {
+      "id": "scissors",
+      "word": "scissors",
+      "alt": ["gunting"],
+      "difficulty": 1
+    },
+    {
+      "id": "key",
+      "word": "key",
+      "alt": ["susi", "keys"],
+      "difficulty": 1
+    },
+    {
+      "id": "lamp",
+      "word": "lamp",
+      "alt": ["desk lamp"],
+      "difficulty": 1
+    },
+    {
+      "id": "clock",
+      "word": "clock",
+      "alt": ["orasan", "wall clock"],
+      "difficulty": 1
+    },
+    {
+      "id": "broom",
+      "word": "broom",
+      "difficulty": 1
+    },
+    {
+      "id": "comb",
+      "word": "comb",
+      "alt": ["suklay"],
+      "difficulty": 1
+    },
+    {
+      "id": "towel",
+      "word": "towel",
+      "alt": ["tuwalya"],
+      "difficulty": 1
+    },
+    {
+      "id": "soap",
+      "word": "soap",
+      "alt": ["sabon"],
+      "difficulty": 1
+    },
+    {
+      "id": "toothpaste",
+      "word": "toothpaste",
+      "difficulty": 1
+    },
+    {
+      "id": "backpack",
+      "word": "backpack",
+      "alt": ["school bag", "bag"],
+      "difficulty": 1
+    },
+    {
+      "id": "wallet",
+      "word": "wallet",
+      "alt": ["pitaka"],
+      "difficulty": 1
+    },
+    {
+      "id": "eyeglasses",
+      "word": "eyeglasses",
+      "alt": ["glasses", "salamin"],
+      "difficulty": 1
+    },
+    {
+      "id": "hat",
+      "word": "hat",
+      "alt": ["sombrero", "cap"],
+      "difficulty": 1
+    },
+    {
+      "id": "socks",
+      "word": "socks",
+      "alt": ["medyas"],
+      "difficulty": 1
+    },
+    {
+      "id": "shoes",
+      "word": "shoes",
+      "alt": ["shoe", "sapatos"],
+      "difficulty": 1
+    },
+    {
+      "id": "ring",
+      "word": "ring",
+      "alt": ["singsing"],
+      "difficulty": 1
+    },
+    {
+      "id": "necklace",
+      "word": "necklace",
+      "alt": ["kuwintas", "kwintas"],
+      "difficulty": 1
+    },
+    {
+      "id": "wristwatch",
+      "word": "wristwatch",
+      "alt": ["watch", "relo"],
+      "difficulty": 1
+    },
+    {
+      "id": "cellphone",
+      "word": "cellphone",
+      "alt": ["phone", "mobile phone", "selpon"],
+      "difficulty": 1
+    },
+    {
+      "id": "laptop",
+      "word": "laptop",
+      "difficulty": 1
+    },
+    {
+      "id": "headphones",
+      "word": "headphones",
+      "alt": ["earphones", "headset"],
+      "difficulty": 1
+    },
+    {
+      "id": "television",
+      "word": "television",
+      "alt": ["telebisyon"],
+      "difficulty": 1
+    },
+    {
+      "id": "light-bulb",
+      "word": "light bulb",
+      "alt": ["bulb", "lightbulb", "bumbilya"],
+      "difficulty": 1
+    },
+    {
+      "id": "candle",
+      "word": "candle",
+      "alt": ["kandila"],
+      "difficulty": 1
+    },
+    {
+      "id": "door",
+      "word": "door",
+      "alt": ["pinto", "pintuan"],
+      "difficulty": 1
+    },
+    {
+      "id": "window",
+      "word": "window",
+      "alt": ["bintana"],
+      "difficulty": 1
+    },
+    {
+      "id": "pencil",
+      "word": "pencil",
+      "alt": ["lapis"],
+      "difficulty": 1
+    },
+    {
+      "id": "book",
+      "word": "book",
+      "alt": ["libro", "aklat"],
+      "difficulty": 1
+    },
+    {
+      "id": "bicycle",
+      "word": "bicycle",
+      "alt": ["bike", "bisikleta"],
+      "difficulty": 1
+    },
+    {
+      "id": "balloon",
+      "word": "balloon",
+      "alt": ["lobo"],
+      "difficulty": 1
+    },
+    {
+      "id": "gift",
+      "word": "gift",
+      "alt": ["present", "regalo"],
+      "difficulty": 1
+    },
+    {
+      "id": "teddy-bear",
+      "word": "teddy bear",
+      "alt": ["teddy"],
+      "difficulty": 1
+    },
+    {
+      "id": "camera",
+      "word": "camera",
+      "difficulty": 1
+    },
+    {
+      "id": "crown",
+      "word": "crown",
+      "alt": ["korona"],
+      "difficulty": 1
+    },
+    {
+      "id": "hammer",
+      "word": "hammer",
+      "alt": ["martilyo"],
+      "difficulty": 1
+    },
+    {
+      "id": "ladder",
+      "word": "ladder",
+      "difficulty": 1
+    },
+    {
+      "id": "robot",
+      "word": "robot",
+      "difficulty": 1
+    },
+    {
+      "id": "remote-control",
+      "word": "remote control",
+      "alt": ["remote"],
+      "difficulty": 2
+    },
+    {
+      "id": "refrigerator",
+      "word": "refrigerator",
+      "alt": ["ref", "fridge"],
+      "difficulty": 2
+    },
+    {
+      "id": "washing-machine",
+      "word": "washing machine",
+      "alt": ["washer"],
+      "difficulty": 2
+    },
+    {
+      "id": "flat-iron",
+      "word": "flat iron",
+      "alt": ["iron", "plantsa"],
+      "difficulty": 2
+    },
+    {
+      "id": "envelope",
+      "word": "envelope",
+      "alt": ["sobre"],
+      "difficulty": 2
+    },
+    {
+      "id": "treasure-chest",
+      "word": "treasure chest",
+      "alt": ["treasure"],
+      "difficulty": 2
+    },
+    {
+      "id": "magnet",
+      "word": "magnet",
+      "difficulty": 2
+    },
+    {
+      "id": "screwdriver",
+      "word": "screwdriver",
+      "alt": ["distornilyador"],
+      "difficulty": 2
+    },
+    {
+      "id": "paintbrush",
+      "word": "paintbrush",
+      "alt": ["paint brush"],
+      "difficulty": 2
+    },
+    {
+      "id": "blackboard",
+      "word": "blackboard",
+      "alt": ["chalkboard", "pisara"],
+      "difficulty": 2
+    },
+    {
+      "id": "trophy",
+      "word": "trophy",
+      "alt": ["tropeo"],
+      "difficulty": 2
+    },
+    {
+      "id": "medal",
+      "word": "medal",
+      "alt": ["medalya"],
+      "difficulty": 2
+    },
+    {
+      "id": "puzzle",
+      "word": "puzzle",
+      "alt": ["jigsaw puzzle", "jigsaw"],
+      "difficulty": 2
+    },
+    {
+      "id": "wheelchair",
+      "word": "wheelchair",
+      "difficulty": 2
+    },
+    {
+      "id": "mustache",
+      "word": "mustache",
+      "alt": ["moustache", "bigote"],
+      "difficulty": 2
+    },
+    {
+      "id": "beard",
+      "word": "beard",
+      "alt": ["balbas"],
+      "difficulty": 2
+    },
+    {
+      "id": "braces",
+      "word": "braces",
+      "difficulty": 2
+    },
+    {
+      "id": "bandage",
+      "word": "bandage",
+      "alt": ["band-aid", "plaster"],
+      "difficulty": 2
+    },
+    {
+      "id": "charger",
+      "word": "charger",
+      "alt": ["phone charger"],
+      "difficulty": 2
+    },
+    {
+      "id": "earrings",
+      "word": "earrings",
+      "alt": ["earring", "hikaw"],
+      "difficulty": 2
+    },
+    {
+      "id": "mirror",
+      "word": "mirror",
+      "difficulty": 2
+    },
+    {
+      "id": "hanger",
+      "word": "hanger",
+      "difficulty": 2
+    },
+    {
+      "id": "wi-fi",
+      "word": "wi-fi",
+      "alt": ["wifi signal"],
+      "difficulty": 2
+    },
+    {
+      "id": "stairs",
+      "word": "stairs",
+      "alt": ["staircase", "hagdan"],
+      "difficulty": 2
+    },
+    {
+      "id": "brownout",
+      "word": "brownout",
+      "alt": ["blackout", "power outage"],
+      "difficulty": 3
+    },
+    {
+      "id": "low-battery",
+      "word": "low battery",
+      "alt": ["lowbatt", "lobat"],
+      "difficulty": 3
+    },
+    {
+      "id": "video-call",
+      "word": "video call",
+      "alt": ["videocall"],
+      "difficulty": 3
+    },
+    {
+      "id": "online-class",
+      "word": "online class",
+      "alt": ["online classes"],
+      "difficulty": 3
+    },
+    {
+      "id": "work-from-home",
+      "word": "work from home",
+      "alt": ["wfh"],
+      "difficulty": 3
+    },
+    {
+      "id": "pillow-fight",
+      "word": "pillow fight",
+      "difficulty": 3
+    },
+    {
+      "id": "sleepwalking",
+      "word": "sleepwalking",
+      "alt": ["sleepwalker"],
+      "difficulty": 3
+    }
+  ]
+}
