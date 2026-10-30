@@ -1,6 +1,8 @@
 import type { HostView } from '../../../shared/types.js';
 import { canGoBack, inGame, UNREVEALED } from '../lib/hostControls.js';
+import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
+import { DANGER } from '../lib/ui.js';
 import { ConfirmButton } from './ConfirmButton.js';
 import { Icon } from './Icon.js';
 
@@ -9,9 +11,10 @@ interface SecondaryActionsProps {
   command: HostCommand;
 }
 
-/** A grid tile: icon above a 13px bold label, at least 64px tall. */
-const small =
-  'flex min-h-16 flex-col items-center justify-center gap-1 rounded-[14px] border-2 border-edge bg-surface px-1.5 py-2 text-[13px] leading-tight font-bold transition not-disabled:active:scale-95 disabled:opacity-40';
+/** A grid tile: icon above a 14px bold label, at least 64px tall. */
+const TILE =
+  'flex min-h-16 flex-col items-center justify-center gap-1 rounded-[14px] border-2 border-edge bg-surface px-1.5 py-2 text-sm leading-tight font-bold transition not-disabled:active:scale-95 disabled:opacity-40';
+const small = `${TILE} ${HOVER}`;
 
 /**
  * The remote's secondary actions (UI spec, Host remote): Skip question, Show/hide scoreboard,
@@ -77,7 +80,9 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           confirmLabel="Confirm end"
           onConfirm={() => run('host:end', {})}
           disabled={busy}
-          className={small}
+          // Red before it is armed, so it doesn't pass for a safe tile (FND-07).
+          className={`${TILE} ${DANGER}`}
+          cancelClassName={small}
           icon={<Icon name="flag" className="size-5" />}
           armedClassName="col-span-2 grid grid-cols-2 gap-2"
         />

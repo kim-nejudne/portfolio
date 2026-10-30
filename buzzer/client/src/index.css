@@ -1,6 +1,12 @@
 @import 'tailwindcss';
 
 /*
+ * Short screens: a phone held sideways, about 360-430px tall (FND-01). For stages and dialogs that
+ * must scroll or shrink so no button is clipped out of reach.
+ */
+@custom-variant short (@media (max-height: 500px));
+
+/*
  * "Prime Time": a TV game-show studio. Deep indigo, marquee gold, stage red.
  * Player colours are separate and come from PLAYER_PALETTE in shared/constants.
  */

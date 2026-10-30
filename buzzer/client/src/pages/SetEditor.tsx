@@ -37,6 +37,7 @@ import { type SaveStatus, useAutosave } from '../lib/autosave.js';
 import { addPasted, type PastedQuestion } from '../lib/bulkPaste.js';
 import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
+import { BUTTON_DANGER, BUTTON_SMALL, FIELD, LINK } from '../lib/ui.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
 import {
   addChoice,
@@ -74,10 +75,6 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   pending: 'Saving…',
   error: "Couldn't save. Your next change will try again.",
 };
-
-const smallButton = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
-const field =
-  'w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink aria-invalid:border-buzz';
 
 const DRAG_INSTRUCTIONS: ScreenReaderInstructions = {
   draggable:
@@ -249,7 +246,7 @@ function Editor({ setId }: { setId: string }) {
             onBlur={() => touch('title')}
             aria-invalid={titleProblem !== undefined}
             aria-describedby={titleProblem ? 'set-title-error' : undefined}
-            className={`${field} font-display text-3xl`}
+            className={`${FIELD} font-display text-3xl`}
           />
           <FieldError id="set-title-error" message={titleProblem} />
         </div>
@@ -270,7 +267,7 @@ function Editor({ setId }: { setId: string }) {
                 const trimmed = set.category?.trim();
                 if (trimmed !== set.category) change(withCategory(set, trimmed ?? ''));
               }}
-              className={field}
+              className={FIELD}
             />
             <datalist id="set-categories">
               {categories.map((category) => (
@@ -290,7 +287,7 @@ function Editor({ setId }: { setId: string }) {
                   withDifficulty(set, DIFFICULTIES.find((d) => d === event.target.value) ?? ''),
                 )
               }
-              className={`${field} w-auto`}
+              className={`${FIELD} w-auto`}
             >
               <option value="">None</option>
               {DIFFICULTIES.map((difficulty) => (
@@ -304,14 +301,14 @@ function Editor({ setId }: { setId: string }) {
 
         <Link
           to={`/sets/${encodeURIComponent(set.id)}/print`}
-          className={`${smallButton} self-start`}
+          className={`${BUTTON_SMALL} self-start`}
         >
           Print answer sheet
         </Link>
 
         {set.questions.length === 0 ? (
           <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
-            No questions yet. Tap <strong className="text-ink">Add question</strong> to write the
+            No questions yet. Use <strong className="text-ink">Add question</strong> to write the
             first, or <strong className="text-ink">Paste questions</strong> to bring in many.
           </p>
         ) : (
@@ -364,7 +361,7 @@ function Editor({ setId }: { setId: string }) {
               onClick={() => setPasting((open) => !open)}
               disabled={!canAdd}
               aria-expanded={pasting && canAdd}
-              className={smallButton}
+              className={BUTTON_SMALL}
             >
               Paste questions
             </button>
@@ -393,7 +390,7 @@ function Editor({ setId }: { setId: string }) {
 
 function BackLink() {
   return (
-    <Link to="/sets" className="text-lg text-muted underline underline-offset-4 hover:text-ink">
+    <Link to="/sets" className={`${LINK} text-lg`}>
       ← Question sets
     </Link>
   );
@@ -554,7 +551,7 @@ function QuestionCard({
             {...attributes}
             {...listeners}
             aria-label={`Drag to reorder question ${number}`}
-            className={`${smallButton} cursor-grab touch-none active:cursor-grabbing`}
+            className={`${BUTTON_SMALL} cursor-grab touch-none active:cursor-grabbing`}
           >
             ⠿
           </button>
@@ -566,7 +563,7 @@ function QuestionCard({
             aria-label={`Move question ${number} up`}
             onClick={() => onMove(-1)}
             disabled={isFirst}
-            className={smallButton}
+            className={BUTTON_SMALL}
           >
             ↑
           </button>
@@ -575,7 +572,7 @@ function QuestionCard({
             aria-label={`Move question ${number} down`}
             onClick={() => onMove(1)}
             disabled={isLast}
-            className={smallButton}
+            className={BUTTON_SMALL}
           >
             ↓
           </button>
@@ -583,7 +580,7 @@ function QuestionCard({
             type="button"
             aria-label={`Preview question ${number}`}
             onClick={onPreview}
-            className={smallButton}
+            className={BUTTON_SMALL}
           >
             Preview
           </button>
@@ -592,7 +589,7 @@ function QuestionCard({
             aria-label={`Duplicate question ${number}`}
             onClick={onDuplicate}
             disabled={!canDuplicate}
-            className={smallButton}
+            className={BUTTON_SMALL}
           >
             Duplicate
           </button>
@@ -601,7 +598,8 @@ function QuestionCard({
             confirmLabel="Confirm delete"
             ariaLabel={`Delete question ${number}`}
             onConfirm={onDelete}
-            className={smallButton}
+            className={BUTTON_DANGER}
+            cancelClassName={BUTTON_SMALL}
           />
         </div>
       </div>
@@ -637,7 +635,7 @@ function QuestionCard({
           id={`${base}-mode`}
           value={question.mode ?? 'buzz'}
           onChange={(event) => onChange(setMode(question, event.target.value as QuestionMode))}
-          className={`${field} w-auto self-start`}
+          className={`${FIELD} w-auto self-start`}
         >
           <option value="buzz">Buzz</option>
           <option value="choice">Choice</option>
@@ -693,7 +691,7 @@ function QuestionCard({
           }}
           aria-invalid={!pointsValid}
           aria-describedby={pointsValid ? undefined : `${base}-points-error`}
-          className={`${field} w-32`}
+          className={`${FIELD} w-32`}
         />
         <FieldError id={`${base}-points-error`} message={pointsValid ? undefined : POINTS_ERROR} />
       </div>
@@ -757,14 +755,14 @@ function ChoicesField({
                 onBlur={() => onTouch(index)}
                 aria-invalid={error !== undefined}
                 aria-describedby={error ? `${inputId}-error` : undefined}
-                className={`${field} min-w-0 flex-1`}
+                className={`${FIELD} min-w-0 flex-1`}
               />
               {canRemoveChoice(question) && (
                 <button
                   type="button"
                   aria-label={`Remove choice ${letter}`}
                   onClick={() => onChange(removeChoice(question, index))}
-                  className={smallButton}
+                  className={BUTTON_SMALL}
                 >
                   Remove
                 </button>
@@ -779,7 +777,7 @@ function ChoicesField({
         <button
           type="button"
           onClick={() => onChange(addChoice(question))}
-          className={`${smallButton} self-start`}
+          className={`${BUTTON_SMALL} self-start`}
         >
           Add choice
         </button>
@@ -824,7 +822,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
             aria-label={`Remove image from question ${number}`}
             onClick={onRemove}
             disabled={busy}
-            className={smallButton}
+            className={BUTTON_SMALL}
           >
             Remove
           </button>
@@ -836,7 +834,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
             onClick={() => inputRef.current?.click()}
             disabled={busy}
             aria-describedby={`${id}-hint`}
-            className={smallButton}
+            className={BUTTON_SMALL}
           >
             Add image
           </button>
@@ -918,7 +916,7 @@ function TextField({
     onBlur,
     'aria-invalid': error !== undefined,
     'aria-describedby': describedBy || undefined,
-    className: field,
+    className: FIELD,
   };
 
   return (

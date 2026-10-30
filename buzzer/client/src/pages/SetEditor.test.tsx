@@ -639,6 +639,17 @@ describe('Set editor images', () => {
     expect(await db.images.get('img-a')).toBeUndefined();
   });
 
+  it('Delete question reads as destructive before it is armed (FND-07)', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    expect(card(1).getByRole('button', { name: 'Delete question 1' }).className).toContain(
+      'text-buzz',
+    );
+    expect(card(1).getByRole('button', { name: 'Duplicate question 1' }).className).not.toContain(
+      'text-buzz',
+    );
+  });
+
   it('deleting a question deletes its image, but not while a duplicate still shows it', async () => {
     await db.images.add({ id: 'img-a', blob: new Blob(['old']) });
     await seed([q('a', { imageId: 'img-a' })]);

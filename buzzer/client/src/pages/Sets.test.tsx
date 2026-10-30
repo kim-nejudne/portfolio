@@ -337,6 +337,18 @@ describe('Set list /sets, My sets', () => {
     expect(await listSets()).toHaveLength(2);
   });
 
+  it("Delete reads as destructive before it is armed, and follows the set's other actions (FND-07)", async () => {
+    await addOwn();
+    renderSets();
+    const own = await card(OWN.title);
+    const del = own.getByRole('button', { name: 'Delete' });
+    expect(del.className).toContain('text-buzz');
+    const host = own.getByRole('button', { name: 'Host this set' });
+    expect(host.compareDocumentPosition(del) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(del);
+    expect(own.getByRole('button', { name: 'Cancel' }).className).not.toContain('text-buzz');
+  });
+
   it('Delete asks for confirmation, and Cancel keeps the set', async () => {
     await addOwn();
     renderSets();

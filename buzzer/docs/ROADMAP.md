@@ -248,19 +248,7 @@ Built-in sets move out of My sets into a read-only library, and every set picker
 
 Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.md`). Each feature closes the audit issue IDs it lists. Check every feature at the audit's device matrix (375×667, 667×375, 820×1180, 1024×768, 1440×900, 1920×1080) with `/playtest` screenshots, and keep phone layouts at least as good as today.
 
-- [ ] F92 Responsive foundations
-  - Spec: UI spec by view; see `docs/ux/00-foundations.md`
-  - Depends: F91
-  - Done when:
-    - FND-01 … FND-08 are closed
-    - A `short` custom variant is in `index.css`. `.claude/rules/client.md` names the breakpoints and the device matrix
-    - `components/PageShell.tsx` exists (narrow, content and wide widths) and `Placeholder` uses it
-    - `lib/ui.ts` has `BUTTON_SMALL`, `BUTTON_DANGER` and `FIELD`. No local `smallButton`, `PREVIEW_BUTTON` or `field` copies remain
-    - `LABEL` and every other Player, Host, Landing and set-page text is at least 14px
-    - `HOVER` is on `BUTTON_SECONDARY` and on every remaining local button class
-    - Delete, Kick and End game use `BUTTON_DANGER` and keep their confirm
-    - `usePointerFine()` chooses the Tap or Click copy, with Taglish strings for every new `copy.ts` key
-  - Tests: `PageShell.test.tsx`, `usePointerFine` test, `copy.test.ts` (new keys in both tables); the existing suites pass unchanged in behaviour
+- [x] F92 Responsive foundations
 
 - [ ] F93 Landing and host picker on every screen
   - Spec: UI spec by view (Landing page); see `docs/ux/01-landing-and-hosting.md`
@@ -393,3 +381,5 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 - Category board: the set editor keeps a set's `board`, so deleting a question that sits on a tile leaves a board the schema refuses at Host time. The editor could show the board, drop it with a warning, or refuse to delete a tile's question (F89). A `BOARD` → FINAL Next once every tile is used, if End game proves too hidden (F89).
 - Category board: the phone still reads "Question 9 of 9" (set order) on a board set, and shows nothing in BOARD; it could name the tile ("Animals · 200") as the Screen and remote do, from a board-tile field on `PlayerView` (F90). A tile-reveal sound on the pick (F90).
 - Taglish: the phone's results card image (`resultsCard.ts`) is still drawn in English; server errors in toasts stay English (they would need an error code per message); the join form and "Joining…" stay English, since the language arrives with the first snapshot — `GET /api/rooms/:code/exists` could return it (F91). Kim to review the drafted Taglish strings in `client/src/lib/copy.ts`.
+- Tests: one full `npm test` run in a few fails a single client test with `expect(document.title).toBe('Buzzr')` (seen in F84, F85, F87 and F92; the next run passes). Some suite leaves `document.title` set for the next file in the same worker; reset it in the shared jsdom setup, or find the page that changes it on unmount.
+- Responsive (F92 leftovers): the hand-written filled and outline buttons on Sets, SetEditor and PasteQuestions and the hand-written `CARD`s on Host, HostBoard, TypedMarking, ReadAloud and PasteQuestions should move to `BUTTON_PRIMARY`, `BUTTON_OUTLINE` and `CARD` as F94, F95 and F98 lay those pages out again. The editor's drag handle, ↑/↓ buttons, correct-choice radio and the join form's avatar cells are still under 44px (EDT and PLY features).

@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import type { BoardView } from '../../../shared/types.js';
 import { boardDone } from '../lib/boardCursor.js';
+import { HOVER } from '../lib/hover.js';
 import { LABEL } from '../lib/ui.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 
@@ -39,7 +40,7 @@ export function HostBoard({ board, command }: HostBoardProps) {
                 type="button"
                 onClick={() => command.run('host:pick', { questionIndex: tile.questionIndex })}
                 disabled={tile.used || command.busy}
-                className={`min-h-12 rounded-xl border-2 font-display text-lg tabular-nums transition not-disabled:active:scale-95 ${
+                className={`min-h-12 rounded-xl border-2 font-display text-lg tabular-nums transition not-disabled:active:scale-95 ${HOVER} ${
                   tile.used
                     ? 'border-edge bg-bg text-muted opacity-30'
                     : 'border-accent bg-bg text-ink'

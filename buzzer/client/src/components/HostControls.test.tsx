@@ -154,6 +154,14 @@ describe('SecondaryActions', () => {
     expect(sent).toMatchObject([{ event: 'host:end', payload: {} }]);
   });
 
+  it('End game reads as destructive before it is armed, and its Cancel does not (FND-07)', () => {
+    setup(SecondaryActions, hostView());
+    expect(button('End game').className).toContain('text-buzz');
+    expect(button('Show scoreboard').className).not.toContain('text-buzz');
+    fireEvent.click(button('End game'));
+    expect(button('Cancel').className).not.toContain('text-buzz');
+  });
+
   it('sends once on a double tap; a new snapshot enables the buttons again', () => {
     const { sent, rerender } = setup(SecondaryActions, hostView());
     fireEvent.click(button('Skip question'));
@@ -256,17 +264,17 @@ describe('HostPlayers', () => {
 
   describe('Custom', () => {
     const custom = (name: string) => button(`Custom amount for ${name}`);
-    const field = (name: string) =>
+    const fieldNamed = (name: string) =>
       screen.getByRole('textbox', { name: `Amount for ${name}` }) as HTMLInputElement;
     const type = (name: string, value: string) =>
-      fireEvent.change(field(name), { target: { value } });
+      fireEvent.change(fieldNamed(name), { target: { value } });
 
     it('opens an amount field for that player only', () => {
       setup(HostPlayers, hostView());
       expect(custom('Player 2').getAttribute('aria-expanded')).toBe('false');
       fireEvent.click(custom('Player 2'));
       expect(custom('Player 2').getAttribute('aria-expanded')).toBe('true');
-      expect(field('Player 2')).toBeTruthy();
+      expect(fieldNamed('Player 2')).toBeTruthy();
       expect(screen.queryByRole('textbox', { name: 'Amount for Player 1' })).toBeNull();
     });
 
@@ -334,6 +342,15 @@ describe('HostPlayers', () => {
     expect(within(row('Player 1')).queryByRole('button', { name: 'Confirm kick' })).toBeNull();
     fireEvent.click(within(row('Player 2')).getByRole('button', { name: 'Confirm kick' }));
     expect(sent).toMatchObject([{ event: 'host:kick', payload: { playerId: 'p2' } }]);
+  });
+
+  it('Kick reads as destructive before it is armed (FND-07)', () => {
+    setup(HostPlayers, hostView());
+    expect(button('Kick Player 2').className).toContain('text-buzz');
+    fireEvent.click(button('Kick Player 2'));
+    expect(within(row('Player 2')).getByRole('button', { name: 'Cancel' }).className).not.toContain(
+      'text-buzz',
+    );
   });
 
   it('a kicked player leaves the list with the next snapshot', () => {

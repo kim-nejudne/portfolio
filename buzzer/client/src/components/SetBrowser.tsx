@@ -9,10 +9,9 @@ import {
   type DifficultyChip,
   type SetFilter,
 } from '../lib/setFilter.js';
-import { INPUT, LABEL } from '../lib/ui.js';
+import { BUTTON_SMALL, INPUT, LABEL } from '../lib/ui.js';
 
 // The Preview button: the size of `/sets`' card buttons, so it is a 44 px target in a picker row too.
-const PREVIEW_BUTTON = `min-h-11 shrink-0 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
 
@@ -123,7 +122,7 @@ export function SetBrowser(props: SelectProps | ActionProps) {
                     type="button"
                     onClick={() => onPreview(set)}
                     aria-label={`Preview ${set.title}`}
-                    className={`${PREVIEW_BUTTON} mr-2`}
+                    className={`${BUTTON_SMALL} mr-2 shrink-0`}
                   >
                     Preview
                   </button>
@@ -165,7 +164,7 @@ export function SetBrowser(props: SelectProps | ActionProps) {
                         type="button"
                         onClick={() => onPreview(set)}
                         aria-label={`Preview ${set.title}`}
-                        className={PREVIEW_BUTTON}
+                        className={`${BUTTON_SMALL} shrink-0`}
                       >
                         Preview
                       </button>

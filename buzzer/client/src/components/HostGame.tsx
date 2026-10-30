@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_PRIMARY, CARD } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD, LINK } from '../lib/ui.js';
 import { GameBuilder } from './GameBuilder.js';
 import { RoomCreated } from './RoomCreated.js';
 import { SetBrowser } from './SetBrowser.js';
@@ -164,7 +164,7 @@ export function HostGame({ onOpenChange }: { onOpenChange?: (open: boolean) => v
             type="button"
             onClick={() => setStatus({ kind: 'idle' })}
             disabled={creating}
-            className="text-lg text-muted underline underline-offset-4 hover:text-ink"
+            className={`${LINK} text-lg`}
           >
             Cancel
           </button>

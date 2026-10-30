@@ -20,9 +20,8 @@ import {
   type GamePick,
 } from '../lib/gameBuilder.js';
 import type { LoadImage } from '../lib/hostRoom.js';
-import { HOVER } from '../lib/hover.js';
 import { DIFFICULTY_LABELS, questionCount } from '../lib/setLabels.js';
-import { BUTTON_OUTLINE, BUTTON_PRIMARY } from '../lib/ui.js';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, BUTTON_SMALL, FIELD, LINK } from '../lib/ui.js';
 
 /** A built game and where its pictures come from, for `hostSet` or `hostNextSet`. */
 export interface BuiltGame {
@@ -68,11 +67,6 @@ const COUNTS = Array.from({ length: PICK_COUNT_MAX }, (_, i) => i + 1);
 const DIFFICULTY_PICKS: readonly DifficultyPick[] = ['any', ...DIFFICULTIES];
 
 const PICK_LABELS: Record<DifficultyPick, string> = { any: 'Any difficulty', ...DIFFICULTY_LABELS };
-
-const field =
-  'min-h-11 w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink disabled:opacity-40';
-
-const smallButton = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /**
  * **Build a game** (DECISIONS F57): rows of category, difficulty and count, a running total, then
@@ -178,7 +172,7 @@ export function GameBuilder({
               setError(null);
             }}
             disabled={locked}
-            className={`${smallButton} ${mode === option.mode ? 'border-accent text-accent' : ''}`}
+            className={`${BUTTON_SMALL} ${mode === option.mode ? 'border-accent text-accent' : ''}`}
           >
             {option.label}
           </button>
@@ -211,7 +205,7 @@ export function GameBuilder({
                     value={row.category}
                     onChange={(event) => update(row.key, { category: event.target.value })}
                     disabled={locked}
-                    className={`${field} col-span-3`}
+                    className={`${FIELD} col-span-3`}
                   >
                     {categories.map((category) => (
                       <option key={category} value={category}>
@@ -229,7 +223,7 @@ export function GameBuilder({
                       })
                     }
                     disabled={locked}
-                    className={field}
+                    className={FIELD}
                   >
                     {DIFFICULTY_PICKS.map((pick) => (
                       <option key={pick} value={pick}>
@@ -242,7 +236,7 @@ export function GameBuilder({
                     value={row.count}
                     onChange={(event) => update(row.key, { count: Number(event.target.value) })}
                     disabled={locked}
-                    className={`${field} w-auto`}
+                    className={`${FIELD} w-auto`}
                   >
                     {COUNTS.map((count) => (
                       <option key={count} value={count}>
@@ -255,7 +249,7 @@ export function GameBuilder({
                     onClick={() => removeRow(row.key)}
                     disabled={locked}
                     aria-label={`Remove row ${number}`}
-                    className={smallButton}
+                    className={BUTTON_SMALL}
                   >
                     Remove
                   </button>
@@ -272,7 +266,7 @@ export function GameBuilder({
             type="button"
             onClick={addRow}
             disabled={locked || categories.length === 0}
-            className={`${smallButton} self-start`}
+            className={`${BUTTON_SMALL} self-start`}
           >
             Add a row
           </button>
@@ -310,7 +304,7 @@ export function GameBuilder({
         type="button"
         onClick={onBack}
         disabled={locked}
-        className="min-h-11 shrink-0 text-lg text-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
+        className={`${LINK} shrink-0 text-lg`}
       >
         Back to the sets
       </button>

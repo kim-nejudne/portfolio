@@ -46,6 +46,7 @@ import {
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
 import { pointsText, rankText, useCopy, type Translate } from '../lib/copy.js';
+import { HOVER } from '../lib/hover.js';
 import { ordinal } from '../lib/results.js';
 import { teamOf } from '../lib/teams.js';
 import { cardFromPlayer } from '../lib/resultsCard.js';
@@ -59,7 +60,8 @@ import {
   useAnsweringCountdown,
 } from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, PILL } from '../lib/ui.js';
+import { usePointerFine } from '../lib/usePointerFine.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, LINK, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
@@ -272,10 +274,7 @@ function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: Nam
           Join
         </button>
       </form>
-      <Link
-        to="/"
-        className="self-center py-2 text-center text-lg text-muted underline underline-offset-4"
-      >
+      <Link to="/" className={`${LINK} self-center text-lg`}>
         Back to start
       </Link>
     </main>
@@ -304,7 +303,7 @@ function AvatarPicker({
             aria-label={`Avatar ${option}`}
             aria-pressed={avatar === option}
             onClick={() => onAvatar(avatar === option ? null : option)}
-            className={`grid aspect-square place-items-center rounded-[14px] border-2 text-[26px] leading-none ${
+            className={`grid aspect-square place-items-center rounded-[14px] border-2 text-[26px] leading-none ${HOVER} ${
               avatar === option ? 'border-accent bg-accent/20' : 'border-edge bg-bg'
             }`}
           >
@@ -535,7 +534,8 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   const buzzCountdown = useBuzzCountdown(view);
   const answeringCountdown = useAnsweringCountdown(view);
   const held = useFalseStartWait(view, view.falseStartMs, view.falseStart);
-  const state = buzzerState(view, pressedAt === opening, countdown, held, picked);
+  const pointerFine = usePointerFine();
+  const state = buzzerState(view, pressedAt === opening, countdown, held, picked, pointerFine);
   // Counts test buzzes, so each one restarts the ring animation.
   const [practices, setPractices] = useState(0);
   const { toast, show } = useToast();
@@ -622,7 +622,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
 
   const inGame = view.questionIndex >= 0;
   const progress = inGame
-    ? `${t('questionOf', { n: view.questionIndex + 1, count: view.questionCount })}${state.live ? t('tapToBuzzIn') : ''}`
+    ? `${t('questionOf', { n: view.questionIndex + 1, count: view.questionCount })}${state.live ? t(pointerFine ? 'clickToBuzzIn' : 'tapToBuzzIn') : ''}`
     : view.phase === 'LOBBY'
       ? t('youreIn')
       : null;
@@ -650,7 +650,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             <span className="truncate text-lg leading-tight font-bold">{view.me.name}</span>
             {/* With teams on, their team's name and colour (UI spec, Player view: top bar; F82). */}
             {team && (
-              <span data-team className="flex items-center gap-1.5 text-[13px] font-bold">
+              <span data-team className="flex items-center gap-1.5 text-sm font-bold">
                 <span
                   aria-hidden="true"
                   data-team-color
@@ -660,7 +660,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 <span className="truncate">{t('teamName', { team: team.name })}</span>
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-[13px] text-muted">
+            <span className="flex items-center gap-1.5 text-sm text-muted">
               <ConnectionDot />
               {t('room', { code: view.code })}
             </span>
@@ -671,7 +671,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           {inGame && (
             <span
               data-rank
-              className="flex flex-col items-end text-[13px] leading-tight font-bold whitespace-nowrap text-muted"
+              className="flex flex-col items-end text-sm leading-tight font-bold whitespace-nowrap text-muted"
             >
               <span className="font-display text-lg text-accent">{ordinal(view.me.rank)}</span>{' '}
               {t('of')} {view.playerCount}
@@ -689,7 +689,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             aria-expanded={panel === 'menu'}
             aria-controls="player-menu"
             onClick={() => setPanel((open) => (open === 'menu' ? null : 'menu'))}
-            className={`${PILL} grid size-11 place-items-center text-muted`}
+            className={`${PILL} grid size-11 place-items-center text-muted ${HOVER}`}
           >
             <Icon name="more" />
           </button>
@@ -895,7 +895,7 @@ function ChoiceButtons({ choice, picked, enabled, onPick }: ChoiceButtonsProps) 
               data-correct={correct || undefined}
               onClick={() => onPick(index)}
               style={{ backgroundColor: CHOICE_COLORS[index] }}
-              className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border-4 px-3 py-2.5 text-left text-lg leading-snug font-bold text-bg transition not-disabled:active:scale-[0.98] ${
+              className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border-4 px-3 py-2.5 text-left text-lg leading-snug font-bold text-bg transition not-disabled:active:scale-[0.98] not-disabled:hover:hover-tint ${
                 mine ? 'border-ink shadow-[0_0_0_3px_var(--color-bg)]' : 'border-transparent'
               } ${correct ? 'ring-4 ring-accent ring-offset-2 ring-offset-bg' : ''} ${
                 (revealed && !correct) || (!revealed && !enabled) ? 'opacity-50' : ''
@@ -1196,7 +1196,7 @@ function PlayMessage({
       <h1 className="font-display text-4xl">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (
-        <Link to="/" className="py-2 text-lg text-muted underline underline-offset-4">
+        <Link to="/" className={`${LINK} text-lg`}>
           Back to start
         </Link>
       )}

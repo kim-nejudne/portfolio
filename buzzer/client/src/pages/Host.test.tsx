@@ -23,6 +23,7 @@ import { loadHostToken, saveHostToken } from '../lib/hostTokens.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import type { GameSocket } from '../lib/socket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
+import { buttonsWithNoHover } from '../test/hover.js';
 import { stubDownload, stubShare, unstubShare } from '../test/share.js';
 import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { Host } from './Host.js';
@@ -863,6 +864,17 @@ describe('Host remote', () => {
       const buzzed = (canJudge: boolean) =>
         hostView({ ...inPhase('BUZZED'), winnerId: 'p1', players: [player(1)], canJudge });
 
+      it('every button on the Game, Players and Settings tabs has a hover style (FND-06)', () => {
+        remote(buzzed(true));
+        // The page only: the test harness's own pairing-link button sits outside it.
+        const page = () => screen.getByRole('main');
+        expect(buttonsWithNoHover(page())).toEqual([]);
+        fireEvent.click(screen.getByRole('tab', { name: /^Players/ }));
+        expect(buttonsWithNoHover(page())).toEqual([]);
+        fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+        expect(buttonsWithNoHover(page())).toEqual([]);
+      });
+
       it.each([
         ['Correct', 'correct'],
         ['Half', 'half'],
@@ -1353,6 +1365,24 @@ describe('Host remote', () => {
       expect(toggle().getAttribute('aria-pressed')).toBe('true');
       expect(sessionStorage.getItem('buzzr:readAloud:WXYZ')).toBe('1');
       expect(screen.getByRole('button', { name: 'Tap to show answer' })).toBeTruthy();
+    });
+
+    it('says Click, not Tap, on the answer cover with a mouse (FND-08)', () => {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        value: (query: string) => ({
+          matches: query === '(hover: hover) and (pointer: fine)',
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+      });
+      try {
+        remote(inPhase('QUESTION'), `/host/WXYZ?read=1#t=${TOKEN}`);
+        expect(screen.getByRole('button', { name: 'Click to show answer' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Tap to show answer' })).toBeNull();
+      } finally {
+        Reflect.deleteProperty(window, 'matchMedia');
+      }
     });
 
     it('without ?read=1 or a stored choice the normal layout shows the answer box', () => {

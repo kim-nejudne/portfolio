@@ -74,6 +74,15 @@ describe('buzzerState', () => {
     });
   });
 
+  it("says Click or Space for the test buzz on a mouse, in the room's language (FND-08)", () => {
+    expect(buzzerState(view(), false, null, false, null, true).label).toBe(
+      'Click or press Space to test your buzzer',
+    );
+    expect(buzzerState(view({ copy: 'taglish' }), false, null, false, null, true).label).toBe(
+      'I-click o pindutin ang Space para i-test ang buzzer mo',
+    );
+  });
+
   it('stays a test buzz in the lobby after a local press', () => {
     expect(buzzerState(view(), true).kind).toBe('practice');
   });

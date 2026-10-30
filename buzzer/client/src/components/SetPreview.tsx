@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { imagesOf, type LoadImage } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_PRIMARY, LABEL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, LABEL, LINK } from '../lib/ui.js';
 
 interface SetPreviewProps {
   set: QuestionSet;
@@ -108,11 +108,7 @@ export function SetPreview({
         >
           {actionLabel}
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="min-h-11 shrink-0 text-muted underline underline-offset-4 hover:text-ink"
-        >
+        <button type="button" onClick={onClose} className={`${LINK} shrink-0`}>
           Close
         </button>
       </section>

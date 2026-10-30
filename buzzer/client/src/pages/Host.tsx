@@ -30,12 +30,13 @@ import {
   withoutReadAloud,
 } from '../lib/hostLayout.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
+import { HOVER } from '../lib/hover.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { ordinal } from '../lib/results.js';
 import { cardFromRoom } from '../lib/resultsCard.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LABEL, PILL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LABEL, LINK, PILL } from '../lib/ui.js';
 import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
@@ -191,7 +192,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
             type="button"
             aria-pressed={readAloud}
             onClick={toggleReadAloud}
-            className={`${PILL} min-h-11 px-3 text-sm ${readAloud ? 'border-accent text-accent' : 'text-muted'}`}
+            className={`${PILL} min-h-11 px-3 text-sm ${HOVER} ${readAloud ? 'border-accent text-accent' : 'text-muted'}`}
           >
             Read aloud
           </button>
@@ -222,7 +223,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
             tabIndex={tab === name ? 0 : -1}
             aria-controls={`panel-${name}`}
             onClick={() => setTab(name)}
-            className={`min-h-11 rounded-xl px-2 py-2 text-lg ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
+            className={`min-h-11 rounded-xl px-2 py-2 text-lg ${HOVER} ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
           >
             {name === 'Players' ? `Players (${view.players.length})` : name}
           </button>
@@ -483,7 +484,7 @@ function HostMessage({
       <h1 className="font-display text-4xl">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (
-        <Link to="/" className="py-2 text-lg text-muted underline underline-offset-4">
+        <Link to="/" className={`${LINK} text-lg`}>
           Back to start
         </Link>
       )}

@@ -10,6 +10,8 @@ import { useRoomStore } from './roomStore.js';
 const EN = {
   // ---------- Phone: buzzer status ----------
   tapToTest: 'Tap to test your buzzer',
+  // The pair of tapToTest on a mouse (FND-08): the lobby buzzer takes a click or Space.
+  clickToTest: 'Click or press Space to test your buzzer',
   getReady: 'Get ready…',
   lateJoiner: 'Get ready… you can buzz from the next question',
   tooEarly: 'Too early!',
@@ -32,6 +34,7 @@ const EN = {
   // ---------- Phone: around the buzzer ----------
   questionOf: 'Question {n} of {count}',
   tapToBuzzIn: ' · tap to buzz in',
+  clickToBuzzIn: ' · click or press Space to buzz in',
   youreIn: 'You’re in! Waiting for the host',
   teamName: '{team} team',
   room: 'Room {code}',
@@ -100,6 +103,7 @@ export type CopyKey = keyof typeof EN;
 const TAGLISH: Record<CopyKey, string> = {
   // ---------- Phone: buzzer status ----------
   tapToTest: 'I-tap para i-test ang buzzer mo',
+  clickToTest: 'I-click o pindutin ang Space para i-test ang buzzer mo',
   getReady: 'Humanda ka…',
   lateJoiner: 'Humanda ka… makaka-buzz ka na sa next question',
   tooEarly: 'Masyadong maaga!',
@@ -122,6 +126,7 @@ const TAGLISH: Record<CopyKey, string> = {
   // ---------- Phone: around the buzzer ----------
   questionOf: 'Tanong {n} sa {count}',
   tapToBuzzIn: ' · i-tap para mag-buzz',
+  clickToBuzzIn: ' · i-click o pindutin ang Space para mag-buzz',
   youreIn: 'Pasok ka na! Hinihintay ang host',
   teamName: 'Team {team}',
   room: 'Room {code}',

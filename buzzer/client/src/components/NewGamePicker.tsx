@@ -10,7 +10,7 @@ import {
   uploadSetImages,
 } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_PRIMARY } from '../lib/ui.js';
+import { BUTTON_PRIMARY, LINK } from '../lib/ui.js';
 import { GameBuilder, type BuiltGame } from './GameBuilder.js';
 import { SetBrowser } from './SetBrowser.js';
 import { SetPreview } from './SetPreview.js';
@@ -158,7 +158,7 @@ export function NewGamePicker({
   }
 
   const keepScoresBox = (
-    <label className="flex shrink-0 cursor-pointer items-center gap-3">
+    <label className="flex min-h-11 shrink-0 cursor-pointer items-center gap-3">
       <input
         type="checkbox"
         checked={keepScores}
@@ -287,7 +287,7 @@ export function NewGamePicker({
               type="button"
               onClick={onClose}
               disabled={starting}
-              className="shrink-0 text-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
+              className={`${LINK} shrink-0`}
             >
               Cancel
             </button>

@@ -15,6 +15,7 @@ import { toggleFullscreen } from '../lib/fullscreen.js';
 import { HOVER } from '../lib/hover.js';
 import { cardFromRoom } from '../lib/resultsCard.js';
 import { cycleSoundLevel, SOUND_LEVEL_LABEL } from '../lib/sounds.js';
+import { DANGER } from '../lib/ui.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 import { useSoundLevel } from '../lib/useSoundLevel.js';
 import { ConfirmButton } from './ConfirmButton.js';
@@ -270,7 +271,9 @@ function GameButtons({
           confirmLabel="Confirm end"
           onConfirm={() => runCall(command, { event: 'host:end', payload: {} })}
           disabled={busy}
-          className={`${barButton} border-edge`}
+          // Red before it is armed, as on the remote (FND-07).
+          className={`${BAR_BUTTON_SHAPE} border-edge ${DANGER}`}
+          cancelClassName={`${barButton} border-edge`}
         />
       )}
     </>
@@ -306,7 +309,9 @@ function BoardPick({
   );
 }
 
-const barButton = `rounded-[min(1.1vw,2vh)] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40 ${HOVER}`;
+const BAR_BUTTON_SHAPE =
+  'rounded-[min(1.1vw,2vh)] border-2 px-[1vw] py-[0.6vh] transition disabled:opacity-40';
+const barButton = `${BAR_BUTTON_SHAPE} ${HOVER}`;
 
 interface BarButtonProps {
   children: ReactNode;

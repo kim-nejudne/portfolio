@@ -48,7 +48,7 @@ export function AnswerSheet() {
         <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
           <Link
             to={`/sets/${encodeURIComponent(setId)}`}
-            className="text-lg underline underline-offset-4"
+            className="inline-flex min-h-11 items-center text-lg underline underline-offset-4"
           >
             ← Back to the editor
           </Link>

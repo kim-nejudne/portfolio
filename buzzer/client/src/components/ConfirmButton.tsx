@@ -13,6 +13,8 @@ interface ConfirmButtonProps {
   icon?: ReactNode;
   /** The box round the armed Confirm and Cancel pair. */
   armedClassName?: string;
+  /** The armed Cancel button, when `className` is a danger style that Cancel must not wear. */
+  cancelClassName?: string;
 }
 
 /**
@@ -28,6 +30,7 @@ export function ConfirmButton({
   className,
   icon,
   armedClassName = 'flex gap-2',
+  cancelClassName = className,
 }: ConfirmButtonProps) {
   const [armed, setArmed] = useState(false);
 
@@ -59,7 +62,7 @@ export function ConfirmButton({
       >
         {confirmLabel}
       </button>
-      <button type="button" onClick={() => setArmed(false)} className={className}>
+      <button type="button" onClick={() => setArmed(false)} className={cancelClassName}>
         Cancel
       </button>
     </span>

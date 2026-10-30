@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { PAIRING_PIN_LENGTH } from '../../../shared/constants.js';
 import { pairWithPin } from '../lib/api.js';
-import { BUTTON_PRIMARY, CARD, INPUT, LABEL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD, INPUT, LABEL, LINK } from '../lib/ui.js';
 import { BulbRail } from './BulbRail.js';
 
 interface HostPinEntryProps {
@@ -76,7 +76,7 @@ export function HostPinEntry({ code, onPaired }: HostPinEntryProps) {
           {busy ? 'Pairing…' : 'Pair'}
         </button>
       </form>
-      <Link to="/" className="py-2 text-lg text-muted underline underline-offset-4">
+      <Link to="/" className={`${LINK} text-lg`}>
         Back to start
       </Link>
     </main>

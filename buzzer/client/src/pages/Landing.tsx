@@ -4,7 +4,7 @@ import { APP_NAME, ROOM_CODE_LENGTH } from '../../../shared/constants.js';
 import { BulbRail } from '../components/BulbRail.js';
 import { HostGame } from '../components/HostGame.js';
 import { isCompleteRoomCode, normalizeRoomCode } from '../lib/roomCode.js';
-import { BUTTON_PRIMARY, CARD, INPUT, LABEL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD, INPUT, LABEL, LINK } from '../lib/ui.js';
 
 export function Landing() {
   const navigate = useNavigate();
@@ -64,10 +64,7 @@ export function Landing() {
 
       <HostGame onOpenChange={setHosting} />
 
-      <Link
-        to="/sets"
-        className="self-center py-2 text-center text-lg text-muted underline underline-offset-4 hover:text-ink"
-      >
+      <Link to="/sets" className={`${LINK} self-center text-lg`}>
         Question sets
       </Link>
     </main>

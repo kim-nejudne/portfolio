@@ -3,8 +3,7 @@ import { MAX_QUESTIONS_PER_SET } from '../../../shared/constants.js';
 import { type PastedQuestion, parsePaste, pasteRoom } from '../lib/bulkPaste.js';
 import { HOVER } from '../lib/hover.js';
 import { QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
-
-const button = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+import { BUTTON_SMALL, FIELD } from '../lib/ui.js';
 
 interface PasteQuestionsProps {
   /** How many questions the set holds now. */
@@ -49,7 +48,7 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
         onChange={(event) => setText(event.target.value)}
         aria-describedby="paste-help"
         placeholder="Capital of France? | Paris | 200"
-        className="w-full rounded-xl border-2 border-edge bg-bg px-3 py-2 text-lg text-ink"
+        className={FIELD}
       />
 
       {questions.length > 0 && (
@@ -99,7 +98,7 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
         >
           Add {plural(adding.length, 'question')}
         </button>
-        <button type="button" onClick={onCancel} className={button}>
+        <button type="button" onClick={onCancel} className={BUTTON_SMALL}>
           Cancel
         </button>
       </div>

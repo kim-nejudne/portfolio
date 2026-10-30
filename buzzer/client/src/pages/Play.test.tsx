@@ -26,6 +26,7 @@ import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import type { GameSocket } from '../lib/socket.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
+import { buttonsWithNoHover } from '../test/hover.js';
 import { stubDownload, stubShare, unstubShare } from '../test/share.js';
 import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { Play } from './Play.js';
@@ -508,6 +509,14 @@ describe('Play buzzer', () => {
     expect(buzzer().dataset.look).toBe('idle');
   });
 
+  it('every button has a hover style: the menu and its items (FND-06)', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(buttonsWithNoHover()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(buttonsWithNoHover()).toEqual([]);
+  });
+
   it('shows "Buzzers open!" over a bright, pulsing BUZZ button while buzzers are open', async () => {
     const socket = await joined();
     socket.fire('state', open());
@@ -518,6 +527,31 @@ describe('Play buzzer', () => {
     expect(buzzer().disabled).toBe(false);
     // Guarded, so reduced motion keeps the button still.
     expect(buzzer().className).toContain('motion-safe:animate-buzz-pulse');
+  });
+
+  it('says Click or Space, not Tap, on a mouse: the lobby test and the open buzzer (FND-08)', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === '(hover: hover) and (pointer: fine)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+    try {
+      const socket = await joined();
+      socket.fire('state', playerView());
+      expect(status().textContent).toBe('Click or press Space to test your buzzer');
+      socket.fire('state', open());
+      expect(screen.getByText('Question 1 of 10 · click or press Space to buzz in')).toBeTruthy();
+      expect(document.body.textContent).not.toMatch(/\btap\b/i);
+      socket.fire('state', playerView({ copy: 'taglish' }));
+      expect(status().textContent).toBe('I-click o pindutin ang Space para i-test ang buzzer mo');
+      socket.fire('state', open({ copy: 'taglish' }));
+      expect(screen.getByText(/i-click o pindutin ang Space para mag-buzz$/)).toBeTruthy();
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
   });
 
   it('a player who joined this opening gets a grey, disabled button and cannot buzz', async () => {

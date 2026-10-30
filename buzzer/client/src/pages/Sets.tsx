@@ -25,6 +25,7 @@ import {
   listSets,
 } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
+import { BUTTON_DANGER, BUTTON_SMALL, LINK } from '../lib/ui.js';
 import { hostSet } from '../lib/hostRoom.js';
 import {
   exportAllFile,
@@ -70,8 +71,6 @@ const TABS: { id: Tab; label: string }[] = [
 function firstTab(mine: readonly QuestionSet[]): Tab {
   return mine.length > 0 ? 'mine' : 'builtIn';
 }
-
-const smallButton = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /**
  * Set list `/sets`: two tabs, the read-only **Built-in** library from the bundle and **My sets**,
@@ -252,11 +251,7 @@ export function Sets() {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
         <RoomCreated code={hostedCode} />
-        <button
-          type="button"
-          onClick={() => setHostedCode(null)}
-          className="text-lg text-muted underline underline-offset-4 hover:text-ink"
-        >
+        <button type="button" onClick={() => setHostedCode(null)} className={`${LINK} text-lg`}>
           Back to question sets
         </button>
       </main>
@@ -419,7 +414,7 @@ export function Sets() {
                       type="button"
                       onClick={() => void duplicateToMine(set.id)}
                       disabled={busy}
-                      className={smallButton}
+                      className={BUTTON_SMALL}
                     >
                       Duplicate to My sets
                     </button>
@@ -427,7 +422,7 @@ export function Sets() {
                       type="button"
                       onClick={() => void host(set)}
                       disabled={busy}
-                      className={`${smallButton} border-accent text-accent`}
+                      className={`${BUTTON_SMALL} border-accent text-accent`}
                     >
                       Host this set
                     </button>
@@ -436,7 +431,7 @@ export function Sets() {
               />
             ) : sets.length === 0 ? (
               <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
-                No question sets yet. Tap <strong className="text-ink">New set</strong> to write
+                No question sets yet. Use <strong className="text-ink">New set</strong> to write
                 one, or duplicate a built-in set.
               </p>
             ) : (
@@ -462,7 +457,7 @@ export function Sets() {
                     type="button"
                     onClick={() => void exportAll(sets)}
                     disabled={busy}
-                    className={smallButton}
+                    className={BUTTON_SMALL}
                   >
                     Export all
                   </button>
@@ -483,14 +478,14 @@ export function Sets() {
                   )}
                   actions={(set) => (
                     <>
-                      <Link to={`/sets/${set.id}`} className={smallButton}>
+                      <Link to={`/sets/${set.id}`} className={BUTTON_SMALL}>
                         Open
                       </Link>
                       <button
                         type="button"
                         onClick={() => void duplicate(set.id)}
                         disabled={busy}
-                        className={smallButton}
+                        className={BUTTON_SMALL}
                       >
                         Duplicate
                       </button>
@@ -498,25 +493,27 @@ export function Sets() {
                         type="button"
                         onClick={() => void exportSet(set)}
                         disabled={busy}
-                        className={smallButton}
+                        className={BUTTON_SMALL}
                       >
                         Export JSON
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => void host(set)}
+                        disabled={busy}
+                        className={`${BUTTON_SMALL} border-accent text-accent`}
+                      >
+                        Host this set
+                      </button>
+                      {/* Destructive, so last in the row and red before it is armed (FND-07). */}
                       <ConfirmButton
                         label="Delete"
                         confirmLabel="Confirm delete"
                         onConfirm={() => void remove(set.id)}
                         disabled={busy}
-                        className={smallButton}
+                        className={BUTTON_DANGER}
+                        cancelClassName={BUTTON_SMALL}
                       />
-                      <button
-                        type="button"
-                        onClick={() => void host(set)}
-                        disabled={busy}
-                        className={`${smallButton} border-accent text-accent`}
-                      >
-                        Host this set
-                      </button>
                     </>
                   )}
                 />
@@ -535,10 +532,7 @@ export function Sets() {
         />
       )}
 
-      <Link
-        to="/"
-        className="text-center text-lg text-muted underline underline-offset-4 hover:text-ink"
-      >
+      <Link to="/" className={`${LINK} self-center text-lg`}>
         Back to start
       </Link>
     </main>

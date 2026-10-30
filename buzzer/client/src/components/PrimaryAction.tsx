@@ -1,5 +1,6 @@
 import type { HostView } from '../../../shared/types.js';
 import { primaryFor, type PrimaryEvent } from '../lib/hostControls.js';
+import { HOVER } from '../lib/hover.js';
 import { formatGap } from '../lib/screenQuestion.js';
 import { LABEL } from '../lib/ui.js';
 import {
@@ -18,12 +19,10 @@ interface PrimaryActionProps {
   bigWinner?: boolean;
 }
 
-const big =
-  'flex min-h-[60px] w-full items-center justify-center gap-3 rounded-2xl px-6 py-3 font-display text-xl transition not-disabled:active:scale-95 disabled:opacity-40';
+const big = `flex min-h-[60px] w-full items-center justify-center gap-3 rounded-2xl px-6 py-3 font-display text-xl transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 // Icon above the label: three side by side leave ~93px each at 375px, too narrow for both in a row.
-const JUDGE =
-  'flex h-14 flex-col items-center justify-center gap-1 rounded-[14px] font-display text-[17px] leading-none transition not-disabled:active:scale-95 disabled:opacity-40';
+const JUDGE = `flex h-14 flex-col items-center justify-center gap-1 rounded-[14px] font-display text-[17px] leading-none transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /** The icon beside each primary label. */
 const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
@@ -155,7 +154,7 @@ function SideCountdown({ countdown, label }: { countdown: AnswerCountdown; label
       <span className="font-display text-3xl leading-none text-buzz tabular-nums">
         {countdown.secondsLeft}
       </span>
-      <span className="text-xs font-bold text-muted">sec</span>
+      <span className="text-sm font-bold text-muted">sec</span>
     </div>
   );
 }

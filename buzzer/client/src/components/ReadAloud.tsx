@@ -4,8 +4,9 @@ import type { HostView } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
 import { questionHeading } from '../lib/boardCursor.js';
 import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
-import { CARD, LABEL } from '../lib/ui.js';
+import { CARD, LABEL, LINK } from '../lib/ui.js';
 import { useJoinOrigin } from '../lib/useJoinOrigin.js';
+import { usePointerFine } from '../lib/usePointerFine.js';
 
 // The remote's read-aloud layout (F69, UI spec Host remote): for a game run from one phone with no
 // Screen, so the phone shows the join QR itself and the host reads each question out.
@@ -85,6 +86,7 @@ interface AnswerCoverProps {
 
 function AnswerCover({ answer, hostNotes, revealed }: AnswerCoverProps) {
   const [shown, setShown] = useState(false);
+  const pointerFine = usePointerFine();
   if (!shown && !revealed) {
     // The answer is not in the page until the cover is lifted, so nobody reads it over a shoulder.
     return (
@@ -93,7 +95,7 @@ function AnswerCover({ answer, hostNotes, revealed }: AnswerCoverProps) {
         onClick={() => setShown(true)}
         className="min-h-14 rounded-xl border-2 border-dashed border-edge bg-bg px-3.5 py-3 text-lg text-muted"
       >
-        Tap to show answer
+        {pointerFine ? 'Click to show answer' : 'Tap to show answer'}
       </button>
     );
   }
@@ -105,11 +107,7 @@ function AnswerCover({ answer, hostNotes, revealed }: AnswerCoverProps) {
       </p>
       {hostNotes && <p className="text-muted">{hostNotes}</p>}
       {!revealed && (
-        <button
-          type="button"
-          onClick={() => setShown(false)}
-          className="min-h-11 self-start text-muted underline underline-offset-4"
-        >
+        <button type="button" onClick={() => setShown(false)} className={`${LINK} self-start`}>
           Hide answer
         </button>
       )}

@@ -10,6 +10,52 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F92 — Responsive foundations (2026-10-30)
+**What changed:**
+- Variants and rules:
+  - `index.css` has `@custom-variant short (@media (max-height: 500px))`. Its first use is `PageShell`'s `short:py-3`.
+  - `.claude/rules/client.md` names the breakpoints, `short:`, the pointer variants and the device matrix, and points at the shared pieces. `.claude/` is git-ignored, so this is local only.
+- `components/PageShell.tsx`: `narrow`, `content` (default) and `wide` map to `max-w-md`, `max-w-3xl` and `max-w-6xl`. Gutters are `px-4 md:px-8`, `py-6 md:py-10`, content is top-aligned, and an optional `header` slot sits above a `<main>`. `Placeholder` uses it, narrow.
+- `lib/ui.ts`:
+  - `LABEL` is `text-sm` (14px). `BUTTON_SECONDARY` has `HOVER`.
+  - New `BUTTON_SMALL`, `DANGER` (the red tone and hover for any shape), `BUTTON_DANGER`, `FIELD` (`min-h-11`, `aria-invalid:border-buzz`) and `LINK` (a 44px muted text link).
+  - The `smallButton` copies (Sets, SetEditor, GameBuilder), `PREVIEW_BUTTON` (SetBrowser), PasteQuestions' `button`, and both `field`s are gone.
+- 14px floor: the Play header's team, room and "of N" lines, the SecondaryActions tiles and the SideCountdown "sec".
+- Hover:
+  - `HOVER` is on the Host tabs, the Read aloud pill, SecondaryActions, HostPlayers, the primary and judge buttons, HostBoard tiles, the avatar picker and the Player menu button.
+  - The choice buttons get the tint only, because an ink border would look like "Your pick".
+- Danger:
+  - Delete set, Delete question and Kick use `BUTTON_DANGER`. The remote's End game tile and the Screen bar's End game add `DANGER` to their own shape.
+  - `ConfirmButton` takes a `cancelClassName`, so Cancel stays neutral. Delete set moved after Host this set.
+- Touch targets: every muted text link and link-style button uses `LINK`: Cancel (HostGame, NewGamePicker), Back to start, Question sets, ← Question sets, Back to question sets, Back to the sets, the preview's Close and Read aloud's Hide answer. The AnswerSheet back link and the Keep scores label are `min-h-11`.
+- Pointer copy:
+  - New `lib/usePointerFine.ts`, with `usePointerFine()` (`(hover: hover) and (pointer: fine)`, default false) and `usePointerCoarse()`.
+  - New copy keys `clickToTest` and `clickToBuzzIn`, in English and Taglish. `buzzerState` takes `pointerFine`.
+  - ReadAloud reads "Click to show answer" on a mouse. StartOverlay reads "Tap to start" on touch. The set pages say "Use **New set**" / "Use **Add question**".
+- Tests:
+  - New `PageShell.test.tsx` (7, including Placeholder), `usePointerFine.test.tsx` (6), `StartOverlay.test.tsx` (2) and `ConfirmButton.test.tsx` (3).
+  - `copy.test.ts` +1, `buzzerState.test.ts` +1, `Play.test.tsx` +2 (Click copy in English and Taglish; a hover guard), `Host.test.tsx` +2 (Click to show answer; hover on all three tabs).
+  - `HostControls.test.tsx` +2 (End game and Kick are red before arming, Cancel is not), `Sets.test.tsx` +1 and `SetEditor.test.tsx` +1 (Delete is red).
+  - `test/hover.ts` accepts `DANGER`, and has a new `buttonsWithNoHover` for the remote and the Player.
+  - 2391 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-30 for F92 (danger style and `cancelClassName`; pointer copy and its defaults; `LINK` and the FND-03 leftovers; `PageShell`'s landmarks).
+
+**Notes for next session:**
+- **F93–F101 build on these pieces.** Wrap pages in `PageShell`, and use `BUTTON_SMALL`, `BUTTON_DANGER`, `FIELD`, `LINK` and `short:`. Use `usePointerFine()` for any new Tap/Click copy, with Taglish for any new `copy.ts` key.
+- FND-03's hand-written filled and outline buttons and `CARD`s are left for F94, F95 and F98, and the editor's and avatar cells' small targets for the EDT and PLY features. Both are listed in the Backlog.
+- On `/sets`, SetBrowser's Preview still comes after Delete in a My sets row. Moving it first changes which button Enter focuses after a search (an existing test), so F94's card layout should settle the order.
+- Review: no Must-fix. I fixed its Should-fixes: hover guards for the remote and the Player, Delete danger tests, Taglish Click copy rendered on the phone, and a Backlog item for the `document.title` flake (it was seen again by the reviewer).
+- Playtest:
+  - The playtest skill ran Playwright with a Screen, the host remote and two phones, one touch-emulated. No text under 14px, `PageShell` widths right, the End game tile red with confirm and Cancel, "Click or press Space to test your buzzer" on a mouse, and no console errors.
+  - My own scripts in `.playtest/F92/`:
+    - `audit.mjs`, at 375×667: no `button`, `a`, `input` or `select` under 44px on Landing, the open Host-a-game picker (`picker-375.png`, checked) and an AnswerSheet. An input inside a label is measured by the label.
+    - `hover.mjs`, at 1440×900: all 41 enabled buttons changed look under the mouse, across the Player lobby and menu and the remote's Game (lobby and question), Players and Settings tabs.
+  - Not covered in a browser: the Tap copy on a touch lobby. Unit tests cover it.
+- Main `index` chunk 531.74 kB.
+
+**How to try it:** `npm run dev`. At 1440×900, open `http://localhost:5173/` and **Host a game** → **Create room** → **Use this phone as the host remote**. Hover the tabs and buttons, and see End game and Kick in red. Join from another window at `/play/<code>`: the lobby reads "Click or press Space to test your buzzer". On a phone (or with devtools touch emulation) it reads "Tap to test your buzzer". `/nope` shows the PageShell placeholder.
+
 ## F91 — Taglish copy (2026-10-30)
 **What changed:**
 - Shared and server: `CopyLanguage` and `RoomSettings.copy` (`'en' | 'taglish'`, default `'en'`, schema `z.enum(COPY_LANGUAGES)`), merged by `host:settings` in any phase. `PlayerView.copy` is new. The Screen reads `settings.copy`.

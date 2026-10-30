@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { SCORE_DELTA_MAX } from '../../../shared/constants.js';
 import type { HostView, TeamView } from '../../../shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
+import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
+import { BUTTON_DANGER } from '../lib/ui.js';
 import { ConfirmButton } from './ConfirmButton.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 
@@ -11,8 +13,7 @@ interface HostPlayersProps {
   command: HostCommand;
 }
 
-const small =
-  'min-h-11 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40';
+const small = `min-h-11 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons
@@ -223,7 +224,8 @@ function PlayerRow({
             ariaLabel={`Kick ${player.name}`}
             onConfirm={() => run('host:kick', { playerId: player.id })}
             disabled={busy}
-            className={small}
+            className={BUTTON_DANGER}
+            cancelClassName={small}
           />
         </span>
       </p>

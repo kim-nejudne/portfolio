@@ -43,6 +43,7 @@ export interface BuzzerState {
  * the answer countdown from `useAnswerCountdown`; only the winner's phone shows it. `held` is
  * `useFalseStartWait`: this player pressed early and the wait after the opening has not ended.
  * `picked` is this player's choice on a choice question: the local tap before the server's `mine`.
+ * `pointerFine` is `usePointerFine`: the lobby label says Click on a mouse rather than Tap.
  */
 export function buzzerState(
   view: PlayerView,
@@ -50,6 +51,7 @@ export function buzzerState(
   countdown: AnswerCountdown | null = null,
   held = false,
   picked: number | null = view.choice?.mine ?? null,
+  pointerFine = false,
 ): BuzzerState {
   // The room's language (F91): every label below comes from the copy table.
   const t = translator(view.copy);
@@ -59,7 +61,11 @@ export function buzzerState(
   switch (view.phase) {
     case 'LOBBY':
       // A test buzz: the server answers it with `fx practice` only (DECISIONS F59).
-      return { kind: 'practice', label: t('tapToTest'), live: false };
+      return {
+        kind: 'practice',
+        label: t(pointerFine ? 'clickToTest' : 'tapToTest'),
+        live: false,
+      };
     case 'BOARD':
       // The host is picking the next tile; the phone waits as before a question (DECISIONS F89).
       return idle(t('getReady'));

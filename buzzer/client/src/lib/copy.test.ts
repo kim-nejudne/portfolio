@@ -46,6 +46,18 @@ describe('translator', () => {
     expect(translator('taglish')('buzzedFirst', { name: 'Ana' })).toBe('Si Ana ang unang nag-buzz');
   });
 
+  it('pairs each Tap string with a Click one for a mouse, in both languages (FND-08)', () => {
+    expect(translator('en')('clickToTest')).toBe('Click or press Space to test your buzzer');
+    expect(translator('en')('clickToBuzzIn')).toBe(' · click or press Space to buzz in');
+    for (const language of COPY_LANGUAGES) {
+      const table = COPY_TABLES[language];
+      expect(table.clickToTest, language).not.toBe(table.tapToTest);
+      expect(table.clickToBuzzIn, language).not.toBe(table.tapToBuzzIn);
+      expect(table.clickToTest.toLowerCase(), language).not.toContain('tap');
+      expect(table.clickToBuzzIn.toLowerCase(), language).not.toContain('tap');
+    }
+  });
+
   it('leaves a placeholder with no value as written', () => {
     expect(translator('en')('buzzedFirst')).toBe('{name} buzzed first');
   });
