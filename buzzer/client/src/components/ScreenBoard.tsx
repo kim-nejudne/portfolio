@@ -1,4 +1,4 @@
-import { Fragment, type CSSProperties } from 'react';
+import { Fragment, useEffect, useRef, type CSSProperties } from 'react';
 import type { BoardView } from '../../../shared/types.js';
 import type { BoardCursor } from '../lib/boardCursor.js';
 import { HOVER } from '../lib/hover.js';
@@ -7,6 +7,8 @@ interface ScreenBoardProps {
   board: BoardView;
   /** The host's keyboard cursor, ringed; only on a Screen with host controls. */
   cursor?: BoardCursor;
+  /** Moves the cursor to a tile that takes focus (a click, Tab), so one tile is marked (SCR-16). */
+  onCursor?: (cursor: BoardCursor) => void;
   /** Picks a tile by its question index; only on a Screen with host controls. */
   onPick?: (questionIndex: number) => void;
   /** True while a host command waits for its snapshot. */
@@ -18,10 +20,22 @@ interface ScreenBoardProps {
  * under its title, a tile per question showing only its points, played tiles dimmed. No question
  * text reaches a tile: the view has none to give.
  */
-export function ScreenBoard({ board, cursor, onPick, busy = false }: ScreenBoardProps) {
+export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: ScreenBoardProps) {
   const rows = Math.max(0, ...board.columns.map((column) => column.tiles.length));
+  const grid = useRef<HTMLElement>(null);
+  // The other way round: while a tile has focus, the arrow keys carry focus with the cursor. A
+  // played tile is disabled and cannot take it; the old tile then keeps focus, unmarked.
+  useEffect(() => {
+    if (!cursor || !grid.current?.contains(document.activeElement)) return;
+    grid.current
+      .querySelector<HTMLButtonElement>(
+        `[data-tile="${cursor.column}-${cursor.row}"]:not(:disabled)`,
+      )
+      ?.focus();
+  }, [cursor]);
   return (
     <section
+      ref={grid}
       aria-label="Category board"
       // One grid for the whole board, filled column by column, so every title shares the tallest
       // title's row and the tiles line up across columns. Titles shrink as columns are added, so
@@ -61,10 +75,13 @@ export function ScreenBoard({ board, cursor, onPick, busy = false }: ScreenBoard
               <button
                 key={r}
                 type="button"
+                data-tile={`${c}-${r}`}
                 aria-current={selected || undefined}
+                onFocus={() => onCursor?.({ column: c, row: r })}
                 onClick={() => onPick(tile.questionIndex)}
                 disabled={tile.used || busy}
-                className={`${look} ${HOVER}`}
+                // The cursor's ring follows focus, so the focus ring would only mark it twice.
+                className={`${look} ${HOVER} ${onCursor ? 'focus-visible:outline-none' : ''}`}
               >
                 {content}
               </button>

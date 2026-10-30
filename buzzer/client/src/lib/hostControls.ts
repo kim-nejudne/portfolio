@@ -156,3 +156,41 @@ export function shortcutFor(
       return null;
   }
 }
+
+/**
+ * What a shortcut just did, for the Screen's short feedback chip (SCR-13): "Correct", "Show
+ * scoreboard". Read before the key acts, so a toggle names the state it moves to. Null for keys
+ * whose effect is plain to see (H, ?), for M, whose chip names the new level, and for other keys.
+ */
+export function shortcutLabel(key: string, view: ControlsView): string | null {
+  switch (key.length === 1 ? key.toLowerCase() : key) {
+    case ' ':
+      return primaryFor(view)?.label ?? null;
+    case 'c':
+      return 'Correct';
+    case 'v':
+      return 'Half';
+    case 'x':
+      return 'Wrong';
+    case 'r':
+      return 'Skip question';
+    case 'n':
+    case 'ArrowRight':
+      return 'Next question';
+    case 'ArrowLeft':
+      return 'Previous';
+    case 's':
+      return view.showScoreboard ? 'Hide scoreboard' : 'Show scoreboard';
+    case 'u':
+      return 'Undo';
+    case 'f':
+      return 'Fullscreen';
+    default:
+      return null;
+  }
+}
+
+/** A key as the Screen writes it in a hint: "Space", "→", "C". */
+export function keyName(key: string): string {
+  return { ' ': 'Space', ArrowRight: '→', ArrowLeft: '←' }[key] ?? key.toUpperCase();
+}

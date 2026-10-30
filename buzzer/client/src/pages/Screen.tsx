@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   GAME_ENDED_ERROR,
@@ -27,6 +27,7 @@ import { ScreenFlash } from '../components/ScreenFlash.js';
 import { ScreenQuestion } from '../components/ScreenQuestion.js';
 import { FinalResults, Scoreboard } from '../components/ScreenResults.js';
 import { StartOverlay } from '../components/StartOverlay.js';
+import { RAIL_HIDDEN_QUERY } from '../components/StandingsRail.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { firstUnused, tileOf, type BoardCursor } from '../lib/boardCursor.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
@@ -166,6 +167,9 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   const zoomFrom = useTileZoom(view.phase, view.questionIndex, view.board);
   // On a board set, the header names the tile instead of the set-order number (F90).
   const tile = tileOf(view.board, view.questionIndex);
+  // The host bar's measured height while it shows: the content, the toast and the shortcut chip
+  // stay above it, and take the full height when it hides (SCR-09, SCR-14).
+  const [barHeight, setBarHeight] = useState(0);
 
   return (
     // A size container, so the Screen's `cqw`/`cqh` and its `stage-*` variants follow it (F100).
@@ -181,10 +185,15 @@ function ScreenStage({ view, canHost, send }: StageProps) {
         // The lobby's body shows the join address with its QR, so the header leaves it out (F66).
         url={view.phase === 'LOBBY' ? undefined : url}
       />
+      {/* Under the header, not over it, so the join address stays readable (SCR-16). */}
+      <ReconnectingBanner />
       <PhoneNote url={url} />
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        {/* With host controls, the content stops above the bar, so it never hides the reveal or the podium. */}
-        <div className={`relative flex min-h-0 flex-1 flex-col ${canHost ? 'mb-[8vh]' : ''}`}>
+      <div
+        style={{ '--bar-reserve': `${barHeight}px` } as CSSProperties}
+        className="relative flex min-h-0 flex-1 flex-col"
+      >
+        {/* With the host bar showing, the content stops above it, so it never hides the reveal or the podium. */}
+        <div className="relative flex min-h-0 flex-1 flex-col mb-[var(--bar-reserve)]">
           {view.phase === 'LOBBY' ? (
             <Lobby
               view={view}
@@ -201,6 +210,7 @@ function ScreenStage({ view, canHost, send }: StageProps) {
             <ScreenBoard
               board={view.board}
               cursor={canHost ? cursor : undefined}
+              onCursor={canHost ? setCursor : undefined}
               onPick={
                 canHost ? (questionIndex) => command.run('host:pick', { questionIndex }) : undefined
               }
@@ -239,8 +249,10 @@ function ScreenStage({ view, canHost, send }: StageProps) {
             boardCursor={cursor}
             onBoardCursor={setCursor}
             onNewGame={() => setPickingNewGame(true)}
+            onHeight={setBarHeight}
           />
         )}
+        <Toast toast={toast} variant="screen" />
       </div>
       <ScreenRail />
       {pickingNewGame && hostToken && (
@@ -254,8 +266,6 @@ function ScreenStage({ view, canHost, send }: StageProps) {
           className={ZOOM_4K}
         />
       )}
-      <Toast toast={toast} />
-      <ReconnectingBanner />
     </main>
   );
 }
@@ -461,6 +471,7 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
 function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostCommand }) {
   const folded = view.hostDevices > 0;
   const [open, setOpen] = useState(false);
+  const standingsHidden = useMediaQuery(RAIL_HIDDEN_QUERY);
   const settingsId = useId();
   return (
     <aside
@@ -477,7 +488,8 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
         className={`${BUTTON_PRIMARY} flex items-center justify-center gap-3 text-2xl ${HOVER}`}
       >
         Start game <Icon name="arrow-right" className="size-7" />
-        <kbd aria-hidden className="ml-2 font-mono text-base opacity-70">
+        {/* No key hint on touch (SCR-12). */}
+        <kbd aria-hidden className="ml-2 font-mono text-base opacity-70 pointer-coarse:hidden">
           Space
         </kbd>
       </button>
@@ -497,7 +509,7 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
       )}
       {(!folded || open) && (
         <div id={settingsId}>
-          <HostSettings view={view} command={command} compact />
+          <HostSettings view={view} command={command} compact standingsHidden={standingsHidden} />
         </div>
       )}
     </aside>

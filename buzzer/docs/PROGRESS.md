@@ -10,6 +10,50 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F101 — Screen host bar and overlays (2026-10-30)
+**What changed:**
+- **Host bar (SCR-09, SCR-11):** `ScreenHostControls` is one row (`flex-nowrap`; it wraps only on a `stage-narrow` stage).
+  - Left: the primary action, or the judge buttons, the board's Pick, or New game. Middle: Skip question, or Download results. Right: **More ▾**, Shortcuts and Hide controls.
+  - More (`OverflowMenu`, opening upward) has Undo, Previous, Show/Hide scoreboard, the sound level, Fullscreen and End game (red, last, confirm).
+  - The bar's measured height (`ResizeObserver`) sets `--bar-reserve`, which replaces the fixed `mb-[8vh]`. It is 0 while the bar is hidden. In LOBBY the bar has no Start game.
+- **Help (SCR-10):** a modal dialog: `aria-modal`, focus on its heading and back on close. Tab stays on Close, and only Esc or `?` act while it is open. Two columns in landscape, fitting at 1280×720.
+- **Touch (SCR-12):** on `(pointer: coarse)` the bar never auto-hides, and no `kbd` hints render (bar, More, the lobby's Start). Hide leaves a **Controls** tab, and a tap anywhere brings the bar back. On a mouse, `pointerdown` shows the bar as `pointermove` does.
+- **Feedback (SCR-13):** a key that acts shows "Correct (C)" (and the like) for 600 ms (`FEEDBACK_MS`). It comes from the new `shortcutLabel` and `keyName` in `lib/hostControls.ts`. With the bar hidden on a mouse, a faint "? Shortcuts" pill in the bottom rail opens the help.
+- **Toast (SCR-14):** `Toast variant="screen"` sits at `bottom: calc(var(--bar-reserve) + 2vh)`, at couch size, up to `min(60vw, 900px)` wide.
+- **Rail (SCR-15):** `StandingsRail` shows in landscape from 1024px wide: slim (top 3, no avatars, narrower) below 1280×720, full above. Game setup's Standings row reads "Shows when the Screen is wider" when it can't show (`RAIL_HIDDEN_QUERY`, `HostSettings standingsHidden`).
+- **SCR-16:** board tiles move the cursor on focus, focus follows the arrows, and tiles drop the second (focus) ring. The Reconnecting banner is an in-flow strip under the header.
+- **Tests:**
+  - `Screen.test.tsx`: a new block "host bar and overlays (F101)", with 25 tests on groups, More, one Start, reserve, pointerdown, the help dialog, the hint, feedback, toast and touch. Plus the slim rail, board focus and banner. Nine older tests were moved to the More menu: sound, End game, Previous, hover, rail classes and reserve.
+  - `HostControls.test.tsx` +1 (the standings detail). `hostControls.test.ts` +4.
+  - 2607 tests in total. No new dependency.
+
+**Decisions:** the seven DECISIONS rows dated 2026-10-30 for F101 (bar groups and reserve; help and the single Start; touch; feedback and hint; toast and banner; rail; board focus and the menu).
+
+**Notes for next session:**
+- With F101 done, every roadmap feature is built (101/101).
+- `OverflowMenu` now takes `placement`, `itemText`, `onOpenChange` and per-item `keyHint`. Other users keep the defaults.
+- The bar's key handler ignores keys from inside `[role="menu"]`, so More's arrows and Enter don't move or pick a board tile.
+- Review: no Must-fix. Should-fixes: these records, plus the screenshots listed below.
+- Main `index` chunk 552.93 → 557.91 kB.
+
+**Playtest:** `node .playtest/F101/drive.mjs` (cached Playwright, socket host and players, a host Screen in Chromium). 0 failures and no console errors.
+- **Bar:** one row, with the content's text all above it, in lobby, question, open, buzzed, reveal, scoreboard, board and Final, at 1280×720 and 1920×1080. Bar height 55 / 77px.
+- **One Start:** exactly one Start game button in the lobby.
+- **More:** opens upward inside 1280×720.
+- **Help:** fits 1280×720 with no scroll, and focus is on its heading.
+- **Idle:** after 3 s the bar hides, the reserve drops to 0px and the hint shows. C then shows "Correct (C)".
+- **Toast:** a refused Start puts the toast above the bar, at 30px at 1080p.
+- **Rail:** 3 rows at 1366×700 and 1024×768, 5 at 1920×1080, none at 820×1180.
+- **Board:** Tab to a tile, then ↑ leaves one marked tile, focused, with no outline.
+- **Touch** (`hasTouch`, `isMobile`, and `(pointer: coarse)` matched): the bar is still up after 7 s with no key hints. Hide leaves the Controls tab, and a tap brings the bar back.
+- **Screenshots checked** (`.playtest/F101/shots/`): `A-buzzed-1280x720`, `A-more-1280x720`, `A-help-1280x720`, `A-rail-1366x700`, `A-feedback-1920x1080`, `B-board-focus-1920x1080` and `C-touch-hidden-1024x768`. Two fixes came from them: the menu's key hints were 11px (now at least 14px), and the 40%-opacity hint let the bulbs show through (now an opaque pill with faint text).
+
+**How to try it:** `npm run dev`, host a set at `http://localhost:5173`, and open the Screen at `http://localhost:5173/screen/<code>` on the same laptop. Spawn players at `/dev/bots/<code>`.
+- In a buzz, the bar is one row. **More ▾** holds Undo, Previous, Scoreboard, Sound, Fullscreen and End game.
+- Leave the mouse still for 3 s: the content takes the full height and "? Shortcuts" shows in the bottom rail. Press C to see "Correct (C)".
+- Press `?` at 1280×720 to open the help.
+- In DevTools, a touch device at 1024×768 shows no key hints and the bar stays up. At 1366×700 the slim rail shows.
+
 ## F100 — Screen legibility on any display (2026-10-30)
 **What changed:**
 - `index.css`:

@@ -34,15 +34,32 @@ export function useToast(): {
   return { toast, show };
 }
 
-/** Pinned to the bottom of the viewport, above the page. A confirmation is green and polite. */
-export function Toast({ toast }: { toast: ToastMessage | null }) {
+/**
+ * Where a toast sits and how big it is: pinned to the bottom of a phone-sized page, or on the
+ * Screen above the host bar, readable from the couch (SCR-14). The Screen variant is placed in the
+ * box that sets `--bar-reserve`.
+ */
+const VARIANTS = {
+  page: 'fixed inset-x-4 bottom-6 max-w-md rounded-2xl px-4 py-3 text-lg',
+  screen:
+    'absolute inset-x-0 bottom-[calc(var(--bar-reserve,0px)+2vh)] w-fit max-w-[min(60vw,900px)] rounded-[0.8em] px-[1em] py-[0.6em] text-[max(18px,min(1.6vw,2.8vh))]',
+};
+
+/** A brief message above the page. A confirmation is green and polite. */
+export function Toast({
+  toast,
+  variant = 'page',
+}: {
+  toast: ToastMessage | null;
+  variant?: keyof typeof VARIANTS;
+}) {
   if (!toast) return null;
   const done = toast.tone === 'done';
   return (
     <p
       key={toast.id}
       role={done ? 'status' : 'alert'}
-      className={`fixed inset-x-4 bottom-6 z-40 mx-auto max-w-md rounded-2xl border-2 bg-surface px-4 py-3 text-center text-lg shadow-lg ${done ? 'border-win' : 'border-buzz'}`}
+      className={`z-40 mx-auto border-2 bg-surface text-center shadow-lg ${VARIANTS[variant]} ${done ? 'border-win' : 'border-buzz'}`}
     >
       {toast.text}
     </p>

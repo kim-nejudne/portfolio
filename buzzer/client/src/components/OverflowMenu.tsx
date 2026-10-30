@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useRef,
   useState,
@@ -14,7 +15,13 @@ import { DANGER } from '../lib/ui.js';
 /** One entry of an `OverflowMenu`: a route, an action, or a destructive action to confirm. */
 export type MenuItem =
   | { label: string; to: string }
-  | { label: string; onSelect: () => void; disabled?: boolean }
+  | {
+      label: string;
+      onSelect: () => void;
+      disabled?: boolean;
+      /** The key that does the same, shown at the item's end, such as "U" (F101). */
+      keyHint?: string;
+    }
   | {
       label: string;
       /** The armed item's text, such as "Confirm delete". The item is red and goes last (FND-07). */
@@ -31,9 +38,15 @@ interface OverflowMenuProps {
   triggerClassName: string;
   items: readonly MenuItem[];
   disabled?: boolean;
+  /** Where the menu opens: under the trigger, or above it for a bar along the bottom edge. */
+  placement?: 'below' | 'above';
+  /** The items' text size; the Screen's host bar sizes it with the viewport. */
+  itemText?: string;
+  /** Told when the menu opens or closes, so a bar that hides itself can stay up meanwhile. */
+  onOpenChange?: (open: boolean) => void;
 }
 
-const ITEM = `flex min-h-11 w-full items-center rounded-lg border-2 border-transparent px-3 text-left text-base font-bold whitespace-nowrap focus:outline-2 focus:outline-accent aria-disabled:opacity-40`;
+const ITEM = `flex min-h-11 w-full items-center rounded-lg border-2 border-transparent px-3 text-left font-bold whitespace-nowrap focus:outline-2 focus:outline-accent aria-disabled:opacity-40`;
 
 /**
  * A button that opens a short menu of a card's or a page's less common actions (LIB-02). Arrow
@@ -46,6 +59,9 @@ export function OverflowMenu({
   triggerClassName,
   items,
   disabled,
+  placement = 'below',
+  itemText = 'text-base',
+  onOpenChange,
 }: OverflowMenuProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -81,6 +97,11 @@ export function OverflowMenu({
   useEffect(() => {
     if (open) focusable(menuRef)[focusAt]?.focus();
   }, [open, armed, focusAt]);
+
+  const reportOpen = useEffectEvent((isOpen: boolean) => onOpenChange?.(isOpen));
+  useEffect(() => {
+    reportOpen(open);
+  }, [open]);
 
   function arm(index: number | null, focus: number) {
     setArmed(index);
@@ -129,7 +150,7 @@ export function OverflowMenu({
           role="menuitem"
           tabIndex={-1}
           onClick={() => choose(item, index)}
-          className={`${ITEM} ${HOVER}`}
+          className={`${ITEM} ${itemText} ${HOVER}`}
         >
           {item.label}
         </Link>
@@ -145,7 +166,7 @@ export function OverflowMenu({
           role="menuitem"
           tabIndex={-1}
           onClick={() => choose(item, index)}
-          className={`${ITEM} border-buzz ${DANGER}`}
+          className={`${ITEM} ${itemText} border-buzz ${DANGER}`}
         >
           {item.confirmLabel}
         </button>,
@@ -156,7 +177,7 @@ export function OverflowMenu({
           tabIndex={-1}
           // Back to the item it came from, in the Confirm button's place.
           onClick={() => arm(null, index)}
-          className={`${ITEM} ${HOVER}`}
+          className={`${ITEM} ${itemText} ${HOVER}`}
         >
           Cancel
         </button>,
@@ -170,9 +191,17 @@ export function OverflowMenu({
         tabIndex={-1}
         aria-disabled={item.disabled || undefined}
         onClick={() => choose(item, index)}
-        className={`${ITEM} ${tone}`}
+        className={`${ITEM} ${itemText} ${tone}`}
       >
         {item.label}
+        {'keyHint' in item && item.keyHint && (
+          <kbd
+            aria-hidden
+            className="ml-auto pl-[1.5em] font-mono text-[max(14px,0.8em)] opacity-70"
+          >
+            {item.keyHint}
+          </kbd>
+        )}
       </button>
     );
   }
@@ -213,7 +242,7 @@ export function OverflowMenu({
           role="menu"
           aria-label={label}
           onKeyDown={onMenuKey}
-          className="absolute top-full right-0 z-30 mt-2 flex min-w-48 flex-col gap-1 rounded-xl border-2 border-edge bg-surface p-1 shadow-lg"
+          className={`absolute right-0 z-30 flex min-w-48 flex-col gap-1 rounded-xl border-2 border-edge bg-surface p-1 shadow-lg ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
         >
           {items.map(entry)}
         </div>

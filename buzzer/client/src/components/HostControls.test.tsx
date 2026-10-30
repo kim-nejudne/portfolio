@@ -779,6 +779,27 @@ describe('HostSettings', () => {
     setup(HostSettings, view);
     expect(detail().className).not.toContain('sr-only');
   });
+
+  it('on a Screen too small for the rail, the standings row says so, visibly even when compact (SCR-15)', () => {
+    const send = vi.fn<SendHost>();
+    const view = hostView();
+    function Compact() {
+      return (
+        <HostSettings
+          view={view}
+          command={useHostCommand(view, send, vi.fn())}
+          compact
+          standingsHidden
+        />
+      );
+    }
+    render(<Compact />);
+    const detail = screen.getByText('Shows when the Screen is wider');
+    expect(detail.className).not.toContain('sr-only');
+    expect(screen.queryByText('The top 5 beside each question.')).toBeNull();
+    // The other rows keep their details for screen readers only.
+    expect(screen.getByText('Set several switches at once.').className).toContain('sr-only');
+  });
 });
 
 /** `count` teams with the given members, in index order, as the server lists them. */

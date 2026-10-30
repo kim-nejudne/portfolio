@@ -266,20 +266,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F100 Screen legibility on any display
 
-- [ ] F101 Screen host bar and overlays
-  - Spec: UI spec by view (Screen host controls); see `docs/ux/06-screen.md`
-  - Depends: F100
-  - Done when:
-    - SCR-09 … SCR-16 are closed
-    - The host bar is one row with a More menu, and reserves its measured height only while visible
-    - The help overlay fits at 720p and is a modal dialog
-    - The lobby shows one Start game
-    - The bar shows on `pointerdown`; there is no auto-hide and no key hints on a coarse pointer
-    - A persistent shortcuts hint and shortcut feedback show
-    - The Screen toast variant sits above the bar
-    - A slim standings rail shows from 1024px wide or 600px tall
-    - The board cursor follows focus
-  - Tests: `Screen.test.tsx` and `HostControls.test.tsx` (More menu actions, single Start in lobby, coarse-pointer behaviour, help dialog semantics)
+- [x] F101 Screen host bar and overlays
 
 ## Bugs
 

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { BoardView, ChoiceView, Phase, TypedView } from '../../../shared/types.js';
 import {
   canGoBack,
+  keyName,
   primaryFor,
   shortcutFor,
   SHORTCUTS,
+  shortcutLabel,
   type ControlsView,
 } from './hostControls.js';
 
@@ -240,5 +242,38 @@ describe('category board (F90)', () => {
     const keys = SHORTCUTS.flatMap((s) => s.keys);
     expect(keys).toContain('Enter');
     expect(keys).toContain('← ↑ → ↓');
+  });
+});
+
+describe('shortcut feedback (F101)', () => {
+  it('names what each shortcut does, the primary key by its label in this phase', () => {
+    expect(shortcutLabel(' ', view('QUESTION'))).toBe('Open buzzers');
+    expect(shortcutLabel(' ', view('REVEAL'))).toBe('Next question');
+    expect(shortcutLabel('C', view('BUZZED'))).toBe('Correct');
+    expect(shortcutLabel('v', view('BUZZED'))).toBe('Half');
+    expect(shortcutLabel('x', view('BUZZED'))).toBe('Wrong');
+    expect(shortcutLabel('r', view('OPEN'))).toBe('Skip question');
+    expect(shortcutLabel('ArrowRight', view('REVEAL'))).toBe('Next question');
+    expect(shortcutLabel('ArrowLeft', view('OPEN'))).toBe('Previous');
+    expect(shortcutLabel('u', view('REVEAL'))).toBe('Undo');
+  });
+
+  it('names the state a toggle moves to', () => {
+    expect(shortcutLabel('s', view('REVEAL'))).toBe('Show scoreboard');
+    expect(shortcutLabel('s', view('REVEAL', { showScoreboard: true }))).toBe('Hide scoreboard');
+  });
+
+  it('says nothing for H, ?, a key that is no shortcut, or Space with no primary action', () => {
+    expect(shortcutLabel('h', view('OPEN'))).toBeNull();
+    expect(shortcutLabel('?', view('OPEN'))).toBeNull();
+    expect(shortcutLabel('q', view('OPEN'))).toBeNull();
+    expect(shortcutLabel(' ', view('BUZZED'))).toBeNull();
+  });
+
+  it('writes keys as the hints do', () => {
+    expect(keyName(' ')).toBe('Space');
+    expect(keyName('ArrowRight')).toBe('→');
+    expect(keyName('ArrowLeft')).toBe('←');
+    expect(keyName('c')).toBe('C');
   });
 });

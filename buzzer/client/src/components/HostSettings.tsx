@@ -17,6 +17,8 @@ interface HostSettingsProps {
   command: HostCommand;
   /** Tighter rows for the Screen lobby, where every row and Start game must fit at 1280×720 (F38). */
   compact?: boolean;
+  /** On a Screen too small for the standings rail: the setting says so, even in compact rows (SCR-15). */
+  standingsHidden?: boolean;
 }
 
 /** Row sizes: the remote's thumb-sized rows, or the Screen lobby's tighter ones. */
@@ -111,7 +113,12 @@ const presetButton = `rounded-xl border-2 font-display transition not-disabled:a
  * control sends only the key it changes; the values shown are always the room's, from the latest
  * snapshot.
  */
-export function HostSettings({ view, command, compact = false }: HostSettingsProps) {
+export function HostSettings({
+  view,
+  command,
+  compact = false,
+  standingsHidden = false,
+}: HostSettingsProps) {
   const { busy, run } = command;
   const size = compact ? SIZES.compact : SIZES.regular;
   const { settings } = view;
@@ -228,11 +235,14 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
       </Row>
       <Switch
         label="Standings on the Screen"
-        detail="The top 5 beside each question."
+        detail={
+          standingsHidden ? 'Shows when the Screen is wider' : 'The top 5 beside each question.'
+        }
         checked={settings.showStandings}
         disabled={busy}
         onChange={(showStandings) => change({ showStandings })}
-        size={size}
+        // Compact rows hide their details; this one matters, since the switch would seem dead.
+        size={standingsHidden ? { ...size, detail: 'block text-sm' } : size}
       />
       {/* Only in the lobby or between questions, where the server takes a new count (F83). */}
       <ChoiceStepper

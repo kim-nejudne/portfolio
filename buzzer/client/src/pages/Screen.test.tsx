@@ -25,6 +25,7 @@ import type { GameSocket } from '../lib/socket.js';
 import { playSound, resetSounds, startSounds } from '../lib/sounds.js';
 import { REORDER_DELAY_MS } from '../components/ScreenResults.js';
 import { FX_MS } from '../lib/useRecentFx.js';
+import { FEEDBACK_MS } from '../components/ScreenHostControls.js';
 import { OFFLINE_AFTER_MS } from '../lib/useRoomSocket.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { stubDownload, stubShare, unstubShare } from '../test/share.js';
@@ -380,6 +381,23 @@ describe('Screen', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Room not found');
   });
 
+  it('the Reconnecting banner sits under the header, so the join address stays readable (SCR-16)', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView([player(1)], { phase: 'OPEN', questionIndex: 0 }));
+    vi.useFakeTimers();
+    try {
+      socket.fire('disconnect', 'transport close');
+      act(() => vi.advanceTimersByTime(OFFLINE_AFTER_MS));
+      const banner = screen.getByText('Reconnecting…');
+      expect(banner.className).not.toMatch(/(^|\s)(fixed|absolute)(\s|$)/);
+      const header = joinInfo().closest('header')!;
+      expect(header.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(4);
+      expect(header.contains(banner)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows a Reconnecting banner over the last snapshot after 5 s down, and drops it on reconnect', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView([player(1)]));
@@ -722,6 +740,11 @@ describe('Screen', () => {
     const bar = () => screen.queryByRole('toolbar', { name: 'Host controls' });
     const press = (key: string, init: KeyboardEventInit = {}) =>
       fireEvent.keyDown(window, { key, ...init });
+    /** Opens the bar's More menu and returns it. */
+    const openMore = () => {
+      fireEvent.click(within(bar()!).getByRole('button', { name: 'More' }));
+      return screen.getByRole('menu', { name: 'More' });
+    };
     const sent = (socket: FakeSocket) =>
       socket.emitted.filter((e) => e.event.startsWith('host:')).map((e) => [e.event, e.payload]);
 
@@ -795,8 +818,11 @@ describe('Screen', () => {
 
     it('every bar button, the shortcuts sheet and Show controls have the hover style', () => {
       hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
-      expect(screen.getByRole('button', { name: 'Undo' })).toHaveProperty('disabled', true);
       expect(buttonsWithoutHover(bar()!)).toEqual([]);
+      const menu = openMore();
+      expect(within(menu).getByRole('menuitem', { name: 'Undo' }).ariaDisabled).toBe('true');
+      expect(buttonsWithoutHover(menu)).toEqual([]);
+      fireEvent.click(within(bar()!).getByRole('button', { name: 'More' }));
       fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' }));
       expect(
         buttonsWithoutHover(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })),
@@ -828,25 +854,32 @@ describe('Screen', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('the bar’s sound button and M cycle Sound on, Quiet and Muted, kept on this device', () => {
+    it('the More menu’s sound item and M cycle Sound on, Quiet and Muted, kept on this device', () => {
       const socket = hostScreen(inPhase('OPEN'));
-      const sound = () => within(bar()!).getByRole('button', { name: /^(Sound on|Quiet|Muted)$/ });
-      expect(sound().textContent).toBe('Sound onM');
-      expect(sound().getAttribute('aria-keyshortcuts')).toBe('M');
-      fireEvent.click(sound());
-      expect(sound().textContent).toBe('QuietM');
+      /** The sound item's text, read from a freshly opened menu, which then closes. */
+      const sound = () => {
+        const item = within(openMore()).getByRole('menuitem', {
+          name: /^(Sound on|Quiet|Muted)$/,
+        });
+        const text = item.textContent;
+        fireEvent.click(within(bar()!).getByRole('button', { name: 'More' }));
+        return text;
+      };
+      expect(sound()).toBe('Sound onM');
+      fireEvent.click(within(openMore()).getByRole('menuitem', { name: 'Sound on' }));
+      expect(sound()).toBe('QuietM');
       press('m');
-      expect(sound().textContent).toBe('MutedM');
+      expect(sound()).toBe('MutedM');
       expect(localStorage.getItem('buzzr:soundLevel')).toBe('muted');
       press('M', { shiftKey: true });
-      expect(sound().textContent).toBe('Sound onM');
+      expect(sound()).toBe('Sound onM');
       expect(sent(socket)).toEqual([]);
     });
 
-    it('the bar shows the level this device chose before', () => {
+    it('the More menu shows the level this device chose before', () => {
       localStorage.setItem('buzzr:soundLevel', 'quiet');
       hostScreen(inPhase('OPEN'));
-      expect(within(bar()!).getByRole('button', { name: 'Quiet' })).toBeTruthy();
+      expect(within(openMore()).getByRole('menuitem', { name: 'Quiet' })).toBeTruthy();
     });
 
     it('the ? help lists M for the sound level', () => {
@@ -857,10 +890,10 @@ describe('Screen', () => {
       expect(within(help).getByText('Sound on / Quiet / Muted')).toBeTruthy();
     });
 
-    it('a host Screen’s lobby has one sound button, on the bar', () => {
+    it('a host Screen’s lobby has one sound control, in the bar’s More menu', () => {
       hostScreen(inPhase('LOBBY'));
-      expect(screen.getAllByRole('button', { name: 'Sound on' })).toHaveLength(1);
-      expect(within(bar()!).getByRole('button', { name: 'Sound on' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Sound on' })).toBeNull();
+      expect(within(openMore()).getAllByRole('menuitem', { name: 'Sound on' })).toHaveLength(1);
     });
 
     it('a token-less Screen has the sound button in its lobby, and M cycles it', () => {
@@ -997,11 +1030,14 @@ describe('Screen', () => {
       expect(sent(socket)).toEqual([['host:judge', { result: 'half' }]]);
     });
 
-    it('End game needs a second click', () => {
+    it('End game, last in the More menu, needs a second click', () => {
       const socket = hostScreen(inPhase('OPEN'));
-      fireEvent.click(screen.getByRole('button', { name: 'End game' }));
+      const menu = openMore();
+      const items = within(menu).getAllByRole('menuitem');
+      expect(items.at(-1)!.textContent).toBe('End game');
+      fireEvent.click(items.at(-1)!);
       expect(sent(socket)).toEqual([]);
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm end' }));
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Confirm end' }));
       expect(sent(socket)).toEqual([['host:end', {}]]);
     });
 
@@ -1023,6 +1059,285 @@ describe('Screen', () => {
       press('F');
       expect(exit).toHaveBeenCalledOnce();
       Reflect.deleteProperty(document, 'fullscreenElement');
+    });
+
+    describe('host bar and overlays (F101)', () => {
+      const names = (root: HTMLElement) =>
+        [...root.querySelectorAll('button')].map(
+          (b) => b.getAttribute('aria-label') ?? b.firstChild?.textContent,
+        );
+      /** The box whose `--bar-reserve` the content, toast and chip keep clear. */
+      const reserve = () =>
+        document
+          .querySelector<HTMLElement>('[style*="--bar-reserve"]')!
+          .style.getPropertyValue('--bar-reserve');
+      const hint = () => screen.queryByRole('button', { name: 'Keyboard shortcuts' });
+      const feedback = () => document.querySelector('[data-shortcut-feedback]')?.textContent;
+
+      it('the bar is one row at landscape sizes; only a narrow stage lets it wrap', () => {
+        hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+        const classes = bar()!.className.split(/\s+/);
+        expect(classes).toContain('flex-nowrap');
+        expect(classes).toContain('whitespace-nowrap');
+        expect(classes).not.toContain('flex-wrap');
+        expect(classes).toContain('stage-narrow:flex-wrap');
+      });
+
+      it('judging on the left, Skip in the middle, More, Shortcuts and Hide on the right', () => {
+        hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true, canUndo: true }));
+        const groups = [...bar()!.children] as HTMLElement[];
+        expect(groups.map(names)).toEqual([
+          ['Correct', 'Half', 'Wrong'],
+          ['Skip question'],
+          ['More', 'Shortcuts', 'Hide controls'],
+        ]);
+        expect(groups[2]!.className).toContain('ml-auto');
+      });
+
+      it('More holds Undo, Previous, Scoreboard, Sound, Fullscreen and End game, opening upward', () => {
+        hostScreen(inPhase('REVEAL', { canUndo: true }));
+        const menu = openMore();
+        expect(menu.className).toContain('bottom-full');
+        expect(
+          within(menu)
+            .getAllByRole('menuitem')
+            .map((item) => item.firstChild?.textContent),
+        ).toEqual(['Undo', 'Previous', 'Show scoreboard', 'Sound on', 'Fullscreen', 'End game']);
+        // Each item shows its key, as the bar's buttons do.
+        expect(within(menu).getByRole('menuitem', { name: 'Undo' }).textContent).toBe('UndoU');
+      });
+
+      it.each([
+        ['Undo', ['host:undo', {}]],
+        ['Previous', ['host:prev', {}]],
+        ['Show scoreboard', ['host:scoreboard', { show: true }]],
+      ] as const)('More’s %s sends its host event', (item, expected) => {
+        const socket = hostScreen(inPhase('REVEAL', { canUndo: true }));
+        fireEvent.click(within(openMore()).getByRole('menuitem', { name: item }));
+        expect(sent(socket)).toEqual([expected]);
+        expect(screen.queryByRole('menu')).toBeNull();
+      });
+
+      it('More’s Fullscreen enters fullscreen', () => {
+        const request = vi.fn(() => Promise.resolve());
+        document.documentElement.requestFullscreen = request;
+        hostScreen(inPhase('OPEN'));
+        request.mockClear();
+        fireEvent.click(within(openMore()).getByRole('menuitem', { name: 'Fullscreen' }));
+        expect(request).toHaveBeenCalledOnce();
+      });
+
+      it('with the scoreboard up, More offers Hide scoreboard', () => {
+        const socket = hostScreen(inPhase('REVEAL', { showScoreboard: true }));
+        fireEvent.click(within(openMore()).getByRole('menuitem', { name: 'Hide scoreboard' }));
+        expect(sent(socket)).toEqual([['host:scoreboard', { show: false }]]);
+      });
+
+      it('an open More menu keeps the bar up past the idle time', () => {
+        vi.useFakeTimers();
+        hostScreen(inPhase('OPEN'));
+        openMore();
+        act(() => vi.advanceTimersByTime(10_000));
+        expect(bar()).toBeTruthy();
+      });
+
+      it('the lobby shows exactly one Start game, Game setup’s; Space still starts', () => {
+        const socket = hostScreen(inPhase('LOBBY'));
+        const starts = screen.getAllByRole('button', { name: /Start game/ });
+        expect(starts).toHaveLength(1);
+        expect(screen.getByRole('complementary', { name: 'Game setup' }).contains(starts[0]!)).toBe(
+          true,
+        );
+        expect(within(bar()!).queryByRole('button', { name: /Start game/ })).toBeNull();
+        press(' ');
+        expect(sent(socket)).toEqual([['host:start', {}]]);
+      });
+
+      it('the content keeps the bar’s measured height clear only while the bar shows', () => {
+        vi.useFakeTimers();
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+          this: HTMLElement,
+        ) {
+          return this.getAttribute('role') === 'toolbar' ? 64 : 0;
+        });
+        hostScreen(inPhase('OPEN'));
+        expect(reserve()).toBe('64px');
+        act(() => vi.advanceTimersByTime(3_000));
+        expect(bar()).toBeNull();
+        expect(reserve()).toBe('0px');
+        fireEvent.pointerMove(window);
+        expect(reserve()).toBe('64px');
+      });
+
+      it('a press anywhere brings an auto-hidden bar back, as mouse movement does', () => {
+        vi.useFakeTimers();
+        hostScreen(inPhase('OPEN'));
+        act(() => vi.advanceTimersByTime(3_000));
+        expect(bar()).toBeNull();
+        fireEvent.pointerDown(window);
+        expect(bar()).toBeTruthy();
+      });
+
+      describe('the shortcuts dialog', () => {
+        const help = () => screen.queryByRole('dialog', { name: 'Keyboard shortcuts' });
+
+        it('is modal, takes focus to its heading, and gives it back on Esc', () => {
+          hostScreen(inPhase('OPEN'));
+          const shortcuts = within(bar()!).getByRole('button', { name: 'Shortcuts' });
+          shortcuts.focus();
+          fireEvent.click(shortcuts);
+          expect(help()!.getAttribute('aria-modal')).toBe('true');
+          expect(document.activeElement).toBe(
+            within(help()!).getByRole('heading', { name: 'Keyboard shortcuts' }),
+          );
+          press('Escape');
+          expect(help()).toBeNull();
+          expect(document.activeElement).toBe(shortcuts);
+        });
+
+        it('? closes it as well as opening it', () => {
+          hostScreen(inPhase('OPEN'));
+          press('?', { shiftKey: true });
+          expect(help()).toBeTruthy();
+          press('?', { shiftKey: true });
+          expect(help()).toBeNull();
+        });
+
+        it('keeps Tab on its Close button and holds back every other shortcut', () => {
+          const socket = hostScreen(inPhase('REVEAL'));
+          press('?', { shiftKey: true });
+          press('Tab');
+          expect(document.activeElement).toBe(
+            within(help()!).getByRole('button', { name: 'Close' }),
+          );
+          for (const key of [' ', 's', 'n', 'h']) press(key);
+          expect(sent(socket)).toEqual([]);
+          expect(bar()).toBeTruthy();
+          fireEvent.click(within(help()!).getByRole('button', { name: 'Close' }));
+          expect(help()).toBeNull();
+        });
+
+        it('lists every shortcut in two columns on a landscape display, scrolling only as a safety net', () => {
+          hostScreen(inPhase('OPEN'));
+          press('?', { shiftKey: true });
+          const dialog = help()!;
+          expect(dialog.querySelector('dl')!.className).toContain('landscape:columns-2');
+          expect(dialog.className).toContain('max-h-full');
+          expect(dialog.className).toContain('overflow-y-auto');
+          expect(dialog.querySelectorAll('dt')).toHaveLength(15);
+        });
+      });
+
+      describe('once the bar hides', () => {
+        it('a faint ? Shortcuts hint stays, and opens the dialog', () => {
+          vi.useFakeTimers();
+          hostScreen(inPhase('OPEN'));
+          expect(hint()).toBeNull();
+          act(() => vi.advanceTimersByTime(3_000));
+          expect(hint()!.textContent).toBe('? Shortcuts');
+          expect(hint()!.className).toContain('text-ink/40');
+          fireEvent.click(hint()!);
+          expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeTruthy();
+        });
+
+        it('pressing C shows "Correct (C)" for 600 ms', () => {
+          vi.useFakeTimers();
+          const socket = hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+          act(() => vi.advanceTimersByTime(3_000));
+          press('c');
+          expect(sent(socket)).toEqual([['host:judge', { result: 'correct' }]]);
+          expect(feedback()).toBe('Correct (C)');
+          act(() => vi.advanceTimersByTime(FEEDBACK_MS));
+          expect(feedback()).toBeUndefined();
+        });
+      });
+
+      it('shortcut feedback names toggles and the new sound level, and sits above the bar', () => {
+        hostScreen(inPhase('REVEAL'));
+        press('s');
+        expect(feedback()).toBe('Show scoreboard (S)');
+        press('m');
+        expect(feedback()).toBe('Quiet (M)');
+        expect(document.querySelector('[data-shortcut-feedback]')!.className).toContain(
+          'bottom-[calc(var(--bar-reserve,0px)+2vh)]',
+        );
+      });
+
+      it('a key that waits on the last command shows no feedback', () => {
+        const socket = hostScreen(inPhase('QUESTION'));
+        press(' ');
+        expect(feedback()).toBe('Open buzzers (Space)');
+        act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+        press('r');
+        expect(feedback()).toBe('Open buzzers (Space)');
+      });
+
+      it('the toast sits above the bar, at couch size', () => {
+        const socket = hostScreen(inPhase('QUESTION'));
+        press(' ');
+        act(() => socket.emitted.at(-1)!.ack({ ok: false, error: 'Nope' }));
+        const toast = screen.getByRole('alert');
+        expect(toast.className).toContain('absolute');
+        expect(toast.className).not.toContain('fixed');
+        expect(toast.className).toContain('bottom-[calc(var(--bar-reserve,0px)+2vh)]');
+        expect(toast.className).toContain('text-[max(18px,min(1.6vw,2.8vh))]');
+        expect(toast.className).toContain('max-w-[min(60vw,900px)]');
+        expect(toast.parentElement!.style.getPropertyValue('--bar-reserve')).not.toBe('');
+      });
+
+      describe('on a touch screen', () => {
+        beforeEach(() => {
+          Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            value: (query: string) => ({
+              matches: query === '(pointer: coarse)',
+              addEventListener: () => {},
+              removeEventListener: () => {},
+            }),
+          });
+        });
+        afterEach(() => {
+          Reflect.deleteProperty(window, 'matchMedia');
+        });
+
+        function touchHostScreen(view: ScreenView) {
+          saveHostToken('WXYZ', hostToken);
+          const { socket } = renderScreen('/screen/WXYZ', { start: false });
+          fireEvent.click(screen.getByRole('button', { name: /Tap to start/ }));
+          act(() => socket.emitted[0]!.ack({ ok: true }));
+          socket.fire('state', view);
+          return socket;
+        }
+
+        it('the bar never hides on its own', () => {
+          vi.useFakeTimers();
+          touchHostScreen(inPhase('OPEN'));
+          act(() => vi.advanceTimersByTime(60_000));
+          expect(bar()).toBeTruthy();
+          expect(hint()).toBeNull();
+        });
+
+        it('shows no key hints, on the bar or in More', () => {
+          touchHostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+          expect(bar()!.querySelectorAll('kbd')).toHaveLength(0);
+          expect(openMore().querySelectorAll('kbd')).toHaveLength(0);
+        });
+
+        it('Hide leaves a Controls tab, and a tap anywhere brings the bar back', () => {
+          touchHostScreen(inPhase('OPEN'));
+          fireEvent.click(within(bar()!).getByRole('button', { name: 'Hide controls' }));
+          expect(bar()).toBeNull();
+          expect(screen.getByRole('button', { name: 'Controls' })).toBeTruthy();
+          fireEvent.pointerDown(document.body);
+          expect(bar()).toBeTruthy();
+        });
+
+        it('the lobby’s Start game hides its Space hint on touch', () => {
+          touchHostScreen(inPhase('LOBBY'));
+          const start = screen.getByRole('button', { name: /Start game/ });
+          expect(start.querySelector('kbd')!.className).toContain('pointer-coarse:hidden');
+        });
+      });
     });
 
     describe('new game', () => {
@@ -1338,13 +1653,40 @@ describe('Screen result states', () => {
       },
     );
 
-    it('sits beside the question card, not over it, and only from 1280×720', () => {
+    it('sits beside the question card, not over it, from 1024px wide in landscape (F101)', () => {
       show(questionView({ players: six }));
       const card = screen.getByRole('region', { name: 'Question' });
       expect(rail()!.contains(card)).toBe(false);
       expect(card.contains(rail())).toBe(false);
       expect(rail()!.className).toContain('hidden');
-      expect(rail()!.className).toContain('[@media(min-width:1280px)_and_(min-height:720px)]:flex');
+      expect(rail()!.className).toContain(
+        '[@media(min-width:1024px)_and_(orientation:landscape)]:flex',
+      );
+    });
+
+    it('is slim below 1280×720: narrower, the top 3, no avatars (SCR-15)', () => {
+      show(
+        questionView({
+          players: six.map((p, i) => ({ ...p, avatar: i === 0 ? AVATARS[0] : undefined })),
+        }),
+      );
+      expect(rail()!.className).toContain('w-[min(15vw,26.7vh)]');
+      expect(rail()!.className).toContain(
+        '[@media(min-width:1280px)_and_(min-height:720px)]:w-[min(17vw,30.3vh)]',
+      );
+      const rows = within(rail()!).getAllByRole('listitem');
+      const full = '[@media(min-width:1280px)_and_(min-height:720px)]:flex';
+      expect(rows.map((row) => /(^|\s)hidden(\s|$)/.test(row.className))).toEqual([
+        false,
+        false,
+        false,
+        true,
+        true,
+      ]);
+      expect(rows.slice(3).every((row) => row.className.includes(full))).toBe(true);
+      const avatar = rail()!.querySelector<HTMLElement>('[data-avatar]')!;
+      expect(avatar.className).toContain('hidden');
+      expect(avatar.className).toContain(full);
     });
 
     it('dims a disconnected player', () => {
@@ -1877,14 +2219,16 @@ describe('Screen result states', () => {
       const bar = screen.getByRole('toolbar', { name: 'Host controls' });
       // The bar comes later in the document, so it paints above the overlay.
       expect(overlay.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(4);
-      // The overlay and the question stop above the bar's 8vh.
-      expect(overlay.parentElement!.className).toContain('mb-[8vh]');
+      // The overlay and the question stop above the bar's measured height (F101).
+      expect(overlay.parentElement!.className).toContain('mb-[var(--bar-reserve)]');
     });
 
     it('a Screen without the host token keeps the full height', () => {
       show(standings({ p1: 100 }, { showScoreboard: true }));
       const overlay = screen.getByRole('region', { name: 'Scoreboard' });
-      expect(overlay.parentElement!.className).not.toContain('mb-[8vh]');
+      expect(overlay.parentElement!.parentElement!.style.getPropertyValue('--bar-reserve')).toBe(
+        '0px',
+      );
     });
 
     it('carries no answer before reveal', () => {
@@ -2461,6 +2805,23 @@ describe('category board (F90)', () => {
     );
   });
 
+  it('the cursor follows focus, so one tile is ever marked, and focus follows the arrows (SCR-16)', () => {
+    hostScreen(onBoard([0]));
+    const marked = () => within(grid()).getAllByRole('button', { current: true });
+    const history200 = within(grid()).getByRole('button', { name: 'History, 200' });
+    // A click (or Tab) focuses a tile: the cursor moves to it.
+    act(() => history200.focus());
+    expect(marked()).toEqual([history200]);
+    expect(screen.getByRole('button', { name: /Pick History 200/ })).toBeTruthy();
+    // With a tile focused, the arrows carry focus along with the cursor.
+    press('ArrowUp');
+    const history100 = within(grid()).getByRole('button', { name: 'History, 100' });
+    expect(marked()).toEqual([history100]);
+    expect(document.activeElement).toBe(history100);
+    // The cursor's ring is the one marker: the focus ring is off on host tiles.
+    expect(history100.className).toContain('focus-visible:outline-none');
+  });
+
   it('Enter on a played tile sends nothing', () => {
     const socket = hostScreen(onBoard([0, 3]));
     // The cursor starts on the first open tile: History 100.
@@ -2515,17 +2876,21 @@ describe('category board (F90)', () => {
 
   it('Previous: hidden on the board, enabled on the first tile played', () => {
     const socket = hostScreen(onBoard());
-    expect(screen.queryByRole('button', { name: /Previous/ })).toBeNull();
+    const more = () => screen.getByRole('button', { name: 'More' });
+    fireEvent.click(more());
+    expect(screen.queryByRole('menuitem', { name: 'Previous' })).toBeNull();
+    fireEvent.click(more());
     socket.fire('state', picked(0, [0]));
-    const previous = screen.getByRole<HTMLButtonElement>('button', { name: /Previous/ });
-    expect(previous.disabled).toBe(false);
+    fireEvent.click(more());
+    expect(screen.getByRole('menuitem', { name: 'Previous' }).ariaDisabled).toBeNull();
+    fireEvent.click(more());
     press('ArrowLeft');
     expect(socket.emitted.filter((e) => e.event === 'host:prev')).toHaveLength(1);
   });
 
   it('with every tile played, the bar points to End game', () => {
     hostScreen(onBoard([0, 1, 2, 3, 4, 5, 6, 7, 8]));
-    expect(screen.getByText('Every tile played: End game')).toBeTruthy();
+    expect(screen.getByText('Every tile played: End game is under More')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Pick/ })).toBeNull();
   });
 

@@ -9,6 +9,17 @@ import { useCopy } from '../lib/copy.js';
 export const STANDINGS_TOP = 5;
 /** With teams on, the teams come first and fewer players fit above the host bar at 1080p (F82). */
 export const STANDINGS_TOP_WITH_TEAMS = 3;
+/** The slim rail's players, below 1280×720 (SCR-15). */
+export const STANDINGS_TOP_SLIM = 3;
+
+/**
+ * Where the rail cannot show at all: portrait, or under 1024px wide (SCR-15). The rail itself
+ * follows the same rule in CSS; Game setup reads it to say so beside the setting.
+ */
+export const RAIL_HIDDEN_QUERY = '(max-width: 63.99rem), (orientation: portrait)';
+
+/** Rows and avatars that only the full rail shows, from 1280×720. */
+const FULL_ONLY = 'hidden [@media(min-width:1280px)_and_(min-height:720px)]:flex';
 
 /** The question phases that show the rail; the lobby, the scoreboard and the Final screen rank everyone. */
 const STANDINGS_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'];
@@ -26,8 +37,10 @@ interface StandingsRailProps {
 /**
  * The top 5 along the Screen's right edge during a question (UI spec, Screen view: Question); with
  * teams on, every team by rank, then the top 3 players (F82). It
- * takes its own column beside the question, so it never covers the card, and only at 1280×720 and
- * up, where the card keeps room beside it. Rows slide when the order changes.
+ * takes its own column beside the question, so it never covers the card. From 1280×720 it is full;
+ * on a smaller landscape display (a 1366×768 laptop under its browser bar, a 1024×768 tablet) a
+ * slim rail shows the top 3 players without avatars, narrower; in portrait or under 1024px wide
+ * there is no room beside the card and it hides (SCR-15). Rows slide when the order changes.
  */
 export function StandingsRail({ phase, players, show, teams = null }: StandingsRailProps) {
   const list = useRef<HTMLOListElement>(null);
@@ -43,7 +56,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
     <aside
       aria-label="Standings"
       // Capped by height too, so an ultrawide display does not stretch it (F100).
-      className="hidden w-[min(17vw,30.3vh)] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1280px)_and_(min-height:720px)]:flex"
+      className="hidden w-[min(15vw,26.7vh)] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1024px)_and_(orientation:landscape)]:flex [@media(min-width:1280px)_and_(min-height:720px)]:w-[min(17vw,30.3vh)]"
     >
       <p className="shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold tracking-[0.25em] text-muted uppercase">
         {t('standings')}
@@ -86,11 +99,11 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
         aria-label={teams ? 'Players' : undefined}
         className="flex min-h-0 flex-col gap-[1vh] text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
       >
-        {top.map((player) => (
+        {top.map((player, i) => (
           <li
             key={player.id}
             data-flip-key={player.id}
-            className={`flex items-center gap-[0.5em] rounded-[0.6em] border-2 border-edge bg-surface px-[0.6em] py-[0.4em] ${player.connected ? '' : 'opacity-40'}`}
+            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} items-center gap-[0.5em] rounded-[0.6em] border-2 border-edge bg-surface px-[0.6em] py-[0.4em] ${player.connected ? '' : 'opacity-40'}`}
           >
             <span className="w-[1.4em] shrink-0 text-right font-display text-muted tabular-nums">
               {player.rank}
@@ -101,7 +114,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
               style={{ backgroundColor: player.color }}
               className="size-[0.55em] shrink-0 rounded-full"
             />
-            <PlayerAvatar avatar={player.avatar} />
+            <PlayerAvatar avatar={player.avatar} className={FULL_ONLY} />
             <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
             <span className="shrink-0 font-display tabular-nums">{player.score}</span>
           </li>
