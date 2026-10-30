@@ -16,6 +16,8 @@ export const CHOICE_COUNT = 3;
  * both), `spicy` adds the spicy packs of those languages, `difficulty: 'easy'` keeps level 1.
  */
 // F48 adds the room's custom words here.
+// SPEC-QUESTION: the only spicy pack is 'tl' ("Pang-inuman"), so `spicy` adds nothing to 'en' rooms
+// (DECISIONS 69).
 export function allowedWords(
   packs: readonly WordPack[],
   settings: Pick<RoomSettings, 'words' | 'spicy' | 'difficulty'>,

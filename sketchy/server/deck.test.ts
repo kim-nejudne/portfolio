@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../shared/constants.js';
 import type { RoomSettings, WordEntry } from '../shared/types.js';
@@ -11,6 +12,7 @@ import {
   returnDealt,
   type Deck,
 } from './deck.js';
+import { loadPacks } from './packs.js';
 import { createRng } from './rng.js';
 import { EN_PACK, SPICY_PACK, TEST_PACKS, TL_PACK, testPack } from './test/packs.js';
 
@@ -44,6 +46,20 @@ describe('allowedWords: the settings filter the deck', () => {
     expect(ids(allowedWords(TEST_PACKS, settings({ words: 'taglish', spicy: true })))).toEqual(
       ids(TL_PACK.words),
     );
+  });
+
+  it('deals the shipped Pang-inuman pack only with spicy on, in Taglish or Mixed', () => {
+    const shipped = loadPacks(fileURLToPath(new URL('../data/packs', import.meta.url)));
+    const spicyIds = shipped.find((p) => p.id === 'tl-pang-inuman')!.words.map((w) => w.id);
+    const count = (s: Partial<RoomSettings>) =>
+      ids(allowedWords(shipped, settings(s))).filter((id) => spicyIds.includes(id)).length;
+    for (const words of ['en', 'taglish', 'mixed'] as const)
+      for (const difficulty of ['easy', 'mixed'] as const)
+        expect(count({ words, difficulty, spicy: false }), `${words} ${difficulty}`).toBe(0);
+    expect(count({ words: 'taglish', spicy: true })).toBe(spicyIds.length);
+    expect(count({ words: 'mixed', spicy: true })).toBe(spicyIds.length);
+    expect(count({ words: 'en', spicy: true })).toBe(0);
+    expect(count({ words: 'taglish', difficulty: 'easy', spicy: true })).toBeGreaterThan(0);
   });
 
   it("'easy' difficulty keeps difficulty 1 only", () => {

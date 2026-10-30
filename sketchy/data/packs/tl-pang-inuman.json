@@ -1,0 +1,464 @@
+{
+  "schemaVersion": 1,
+  "id": "tl-pang-inuman",
+  "title": "Pang-inuman",
+  "language": "tl",
+  "rating": "spicy",
+  "words": [
+    {
+      "id": "beer",
+      "word": "beer",
+      "alt": ["serbesa", "cerveza"],
+      "difficulty": 1
+    },
+    {
+      "id": "alak",
+      "word": "alak",
+      "alt": ["liquor", "booze", "hard drinks"],
+      "difficulty": 1
+    },
+    {
+      "id": "beer-can",
+      "word": "beer can",
+      "alt": ["can of beer", "lata ng beer"],
+      "difficulty": 1
+    },
+    {
+      "id": "kahon-ng-beer",
+      "word": "kahon ng beer",
+      "alt": ["case of beer", "beer case"],
+      "difficulty": 1
+    },
+    {
+      "id": "pitsel",
+      "word": "pitsel",
+      "alt": ["pitcher", "beer pitcher"],
+      "difficulty": 1
+    },
+    {
+      "id": "shot-glass",
+      "word": "shot glass",
+      "alt": ["shot", "shotglass"],
+      "difficulty": 1
+    },
+    {
+      "id": "kopita",
+      "word": "kopita",
+      "alt": ["wine glass", "goblet"],
+      "difficulty": 1
+    },
+    {
+      "id": "red-cup",
+      "word": "red cup",
+      "alt": ["party cup", "plastic cup"],
+      "difficulty": 1
+    },
+    {
+      "id": "tansan",
+      "word": "tansan",
+      "alt": ["bottle cap", "takip ng bote"],
+      "difficulty": 1
+    },
+    {
+      "id": "bottle-opener",
+      "word": "bottle opener",
+      "alt": ["opener", "abrebotelya"],
+      "difficulty": 1
+    },
+    {
+      "id": "kampay",
+      "word": "kampay",
+      "alt": ["cheers", "kanpai", "toast"],
+      "difficulty": 1
+    },
+    {
+      "id": "lasing",
+      "word": "lasing",
+      "alt": ["drunk", "lasheng", "nalasing"],
+      "difficulty": 1
+    },
+    {
+      "id": "beer-belly",
+      "word": "beer belly",
+      "alt": ["beer gut", "bilbil"],
+      "difficulty": 1
+    },
+    {
+      "id": "disco-ball",
+      "word": "disco ball",
+      "alt": ["mirror ball", "mirrorball"],
+      "difficulty": 1
+    },
+    {
+      "id": "tagay",
+      "word": "tagay",
+      "alt": ["pagtagay", "tagayan"],
+      "difficulty": 2,
+      "gloss": "pouring a shot for the next person"
+    },
+    {
+      "id": "inuman",
+      "word": "inuman",
+      "alt": ["inom", "drinking session", "drinking"],
+      "difficulty": 2,
+      "gloss": "friends drinking together"
+    },
+    {
+      "id": "pulutan",
+      "word": "pulutan",
+      "alt": ["bar chow", "pica-pica", "finger food"],
+      "difficulty": 2,
+      "gloss": "food eaten while drinking"
+    },
+    {
+      "id": "lambanog",
+      "word": "lambanog",
+      "alt": ["coconut wine", "coconut vodka"],
+      "difficulty": 2,
+      "gloss": "strong coconut liquor"
+    },
+    {
+      "id": "tuba",
+      "word": "tuba",
+      "alt": ["palm wine", "coconut toddy"],
+      "difficulty": 2,
+      "gloss": "fresh coconut palm wine"
+    },
+    {
+      "id": "slow-dance",
+      "word": "slow dance",
+      "alt": ["slowdance", "slow dancing"],
+      "difficulty": 3,
+      "gloss": "a couple dancing close and slow"
+    },
+    {
+      "id": "tanggero",
+      "word": "tanggero",
+      "alt": ["tanggera", "bartender"],
+      "difficulty": 2,
+      "gloss": "the one pouring everyone's shots"
+    },
+    {
+      "id": "chaser",
+      "word": "chaser",
+      "alt": ["tsaser", "pantulak"],
+      "difficulty": 2,
+      "gloss": "drink taken right after a shot"
+    },
+    {
+      "id": "bottoms-up",
+      "word": "bottoms up",
+      "alt": ["straight", "ubos-biyaya"],
+      "difficulty": 2,
+      "gloss": "finishing the glass in one go"
+    },
+    {
+      "id": "beer-tower",
+      "word": "beer tower",
+      "alt": ["beer tube", "tower"],
+      "difficulty": 2,
+      "gloss": "tall tube of draft beer with a tap"
+    },
+    {
+      "id": "beer-pong",
+      "word": "beer pong",
+      "alt": ["beerpong", "cup pong"],
+      "difficulty": 2,
+      "gloss": "throwing a ball into cups of beer"
+    },
+    {
+      "id": "lasenggo",
+      "word": "lasenggo",
+      "alt": ["lasengo", "lasenggero", "drunkard"],
+      "difficulty": 2,
+      "gloss": "someone who drinks too much"
+    },
+    {
+      "id": "kropek",
+      "word": "kropek",
+      "alt": ["kropeck", "shrimp chips", "prawn crackers"],
+      "difficulty": 2,
+      "gloss": "puffy shrimp crackers"
+    },
+    {
+      "id": "kilawin",
+      "word": "kilawin",
+      "alt": ["kinilaw", "ceviche"],
+      "difficulty": 2,
+      "gloss": "raw fish cured in vinegar"
+    },
+    {
+      "id": "tokwat-baboy",
+      "word": "tokwa't baboy",
+      "alt": ["tokwat baboy", "tofu and pork"],
+      "difficulty": 3,
+      "gloss": "fried tofu and pork in soy-vinegar"
+    },
+    {
+      "id": "crispy-pata",
+      "word": "crispy pata",
+      "alt": ["pata", "crispy pork knuckle"],
+      "difficulty": 2,
+      "gloss": "deep-fried pork leg"
+    },
+    {
+      "id": "hangover",
+      "word": "hangover",
+      "alt": ["hang over", "hungover"],
+      "difficulty": 2,
+      "gloss": "headache the morning after"
+    },
+    {
+      "id": "bagsak",
+      "word": "bagsak",
+      "alt": ["passed out", "knockout", "tumba", "bumagsak"],
+      "difficulty": 2,
+      "gloss": "passed out from drinking"
+    },
+    {
+      "id": "nagsusuka",
+      "word": "nagsusuka",
+      "alt": ["sumuka", "suka", "vomit", "throwing up"],
+      "difficulty": 2,
+      "gloss": "throwing up after drinking"
+    },
+    {
+      "id": "nahihilo",
+      "word": "nahihilo",
+      "alt": ["hilo", "dizzy", "umiikot ang paningin"],
+      "difficulty": 3,
+      "gloss": "dizzy, the room is spinning"
+    },
+    {
+      "id": "namumula",
+      "word": "namumula",
+      "alt": ["flushed", "pula ang mukha", "red face"],
+      "difficulty": 3,
+      "gloss": "face turning red from drinking"
+    },
+    {
+      "id": "puyat",
+      "word": "puyat",
+      "alt": ["napuyat", "eyebags", "sleepless"],
+      "difficulty": 2,
+      "gloss": "tired and sleepless after a late night"
+    },
+    {
+      "id": "walk-of-shame",
+      "word": "walk of shame",
+      "alt": ["walkofshame"],
+      "difficulty": 3,
+      "gloss": "going home in last night's clothes"
+    },
+    {
+      "id": "nightclub",
+      "word": "nightclub",
+      "alt": ["club", "disco", "clubbing"],
+      "difficulty": 2,
+      "gloss": "bar with loud music and dancing"
+    },
+    {
+      "id": "dance-floor",
+      "word": "dance floor",
+      "alt": ["dancefloor"],
+      "difficulty": 2,
+      "gloss": "where everyone dances at a party"
+    },
+    {
+      "id": "bouncer",
+      "word": "bouncer",
+      "alt": ["bantay sa pinto"],
+      "difficulty": 2,
+      "gloss": "guard at a club's door"
+    },
+    {
+      "id": "birit",
+      "word": "birit",
+      "alt": ["bumirit", "high note", "belting"],
+      "difficulty": 3,
+      "gloss": "belting a high note at videoke"
+    },
+    {
+      "id": "budots",
+      "word": "budots",
+      "alt": ["budots dance"],
+      "difficulty": 3,
+      "gloss": "a goofy viral street dance"
+    },
+    {
+      "id": "spin-the-bottle",
+      "word": "spin the bottle",
+      "alt": ["paikot ng bote"],
+      "difficulty": 3,
+      "gloss": "party game with a spinning bottle"
+    },
+    {
+      "id": "truth-or-dare",
+      "word": "truth or dare",
+      "alt": ["truth or consequence"],
+      "difficulty": 3,
+      "gloss": "party game: confess or do a dare"
+    },
+    {
+      "id": "ambagan",
+      "word": "ambagan",
+      "alt": ["ambag", "KKB", "chipping in", "pitch in"],
+      "difficulty": 3,
+      "gloss": "everyone chips in for the drinks"
+    },
+    {
+      "id": "libre",
+      "word": "libre",
+      "alt": ["manlibre", "treat", "my treat", "sagot ko"],
+      "difficulty": 3,
+      "gloss": "paying for everyone's drinks"
+    },
+    {
+      "id": "sabit",
+      "word": "sabit",
+      "alt": ["sumabit", "nakisabit", "gatecrasher"],
+      "difficulty": 3,
+      "gloss": "uninvited friend who tags along"
+    },
+    {
+      "id": "jowa",
+      "word": "jowa",
+      "alt": ["dyowa", "boyfriend", "girlfriend", "syota"],
+      "difficulty": 2,
+      "gloss": "boyfriend or girlfriend"
+    },
+    {
+      "id": "ex-jowa",
+      "word": "ex-jowa",
+      "alt": ["dating jowa", "ex boyfriend", "ex girlfriend"],
+      "difficulty": 3,
+      "gloss": "a former boyfriend or girlfriend"
+    },
+    {
+      "id": "crush",
+      "word": "crush",
+      "alt": ["crush ko", "crushie"],
+      "difficulty": 2,
+      "gloss": "someone you secretly like"
+    },
+    {
+      "id": "first-date",
+      "word": "first date",
+      "alt": ["date", "date night"],
+      "difficulty": 2,
+      "gloss": "a couple's first time out together"
+    },
+    {
+      "id": "blind-date",
+      "word": "blind date",
+      "alt": ["reto", "set up", "nireto"],
+      "difficulty": 3,
+      "gloss": "a date set up by friends"
+    },
+    {
+      "id": "holding-hands",
+      "word": "holding hands",
+      "alt": ["HHWW", "holding hands while walking"],
+      "difficulty": 2,
+      "gloss": "a couple holding hands"
+    },
+    {
+      "id": "beso",
+      "word": "beso",
+      "alt": ["beso-beso", "cheek kiss"],
+      "difficulty": 2,
+      "gloss": "cheek-to-cheek hello kiss"
+    },
+    {
+      "id": "love-letter",
+      "word": "love letter",
+      "alt": ["liham", "sulat", "liham pag-ibig"],
+      "difficulty": 2,
+      "gloss": "a handwritten note to a crush"
+    },
+    {
+      "id": "lumalandi",
+      "word": "lumalandi",
+      "alt": ["landi", "malandi", "flirt", "flirting"],
+      "difficulty": 3,
+      "gloss": "flirting with someone"
+    },
+    {
+      "id": "ligaw",
+      "word": "ligaw",
+      "alt": ["manliligaw", "panliligaw", "courting", "suitor"],
+      "difficulty": 3,
+      "gloss": "courting someone you like"
+    },
+    {
+      "id": "basted",
+      "word": "basted",
+      "alt": ["busted", "binasted", "rejected"],
+      "difficulty": 3,
+      "gloss": "turned down by a crush"
+    },
+    {
+      "id": "torpe",
+      "word": "torpe",
+      "alt": ["torpedo", "shy guy"],
+      "difficulty": 3,
+      "gloss": "too shy to confess to a crush"
+    },
+    {
+      "id": "pa-cute",
+      "word": "pa-cute",
+      "alt": ["pacute", "nagpapa-cute"],
+      "difficulty": 3,
+      "gloss": "acting cute to impress someone"
+    },
+    {
+      "id": "duet",
+      "word": "duet",
+      "alt": ["duweto", "dueto", "love duet"],
+      "difficulty": 2,
+      "gloss": "a couple singing one song together"
+    },
+    {
+      "id": "friend-zone",
+      "word": "friend zone",
+      "alt": ["friendzone", "friendzoned", "na-friendzone"],
+      "difficulty": 3,
+      "gloss": "liked back only as a friend"
+    },
+    {
+      "id": "third-wheel",
+      "word": "third wheel",
+      "alt": ["thirdwheel", "chaperone", "chaperon"],
+      "difficulty": 3,
+      "gloss": "friend tagging along on a date"
+    },
+    {
+      "id": "wingman",
+      "word": "wingman",
+      "alt": ["wing man", "wingwoman"],
+      "difficulty": 3,
+      "gloss": "friend who helps you flirt"
+    },
+    {
+      "id": "long-distance",
+      "word": "long distance",
+      "alt": ["LDR", "long distance relationship"],
+      "difficulty": 3,
+      "gloss": "a couple living far apart"
+    },
+    {
+      "id": "monthsary",
+      "word": "monthsary",
+      "alt": ["monthsarry", "anniversary"],
+      "difficulty": 3,
+      "gloss": "a couple's monthly anniversary"
+    },
+    {
+      "id": "hatid",
+      "word": "hatid",
+      "alt": ["ihatid", "hinatid", "walk you home"],
+      "difficulty": 3,
+      "gloss": "taking a date home at night"
+    }
+  ]
+}

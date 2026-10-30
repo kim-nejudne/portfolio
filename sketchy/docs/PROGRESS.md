@@ -62,8 +62,40 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F44: after autopilot deploys, read the Sketchy container's start-up log on the droplet: no "TRUST_PROXY is not set" warning (if it's there, set `TRUST_PROXY=1` in the container env, or every phone shares one join limit of 10 a minute for the whole site). Then with the barkada on one Wi-Fi: everyone joins, everyone reloads their phone at once, a phone switches to mobile data and back · nobody sees "Too many people joined from this network"; an 11th phone sees "That game is full."
 - [ ] F45: review the Taglish: read the `TAGLISH` table in `client/src/lib/copy.ts` (the English table above it says what each line is for), then `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), Settings → Game text → Taglish, 3 real phones (one at least as small as a 360 px-wide Android); play a turn each through lobby, choose, drawing, a close and a wrong guess, reveal, scoreboard, a pause (host Pause) and the final scores, and a rematch · every line sounds like the barkada talking, not a textbook or a machine; flag stiff ones (candidates: "Tuloy sa 3", "Game 2, simula sa", "Pang-#2 ka sa 4", "Sino’ng nandito", "Mahina" for Quiet sound, "Hirap" for Difficulty, "Itago mo ang phone 🤫" for "Hold your phone close") and the award reasons (`award*Why`, on screen from F50); check the drawer's top bar keeps a long word readable beside "2/4 nakakuha". The join form stays English until the phone has joined (DECISIONS 67)
 - [ ] F46: review the word packs: open each of `data/packs/en-*.json` and `data/packs/tl-*.json` (one theme per file; `npm run packs:check` prints the counts per level), and play a few turns with `npm run dev`, Settings → Words → Taglish, then English · every word drawable on a phone in 60 s without letters or numbers; the difficulty (1 easy object, 2 medium, 3 scene or idea) feels right; the Taglish spelling is what a barkada writes, and the alternates cover what people type (ts/ch, j/dy, e/i, o/u, the English or Tagalog name); each gloss tells the drawer what to draw. Likely cuts or fixes: English `ghosting` (a spec sample), `brownout`, `low battery`, `job interview`, `marriage proposal`, `brain freeze`, `potluck`, `work from home`; Taglish `tambay`, `liga`, `bunso`, `lamay`, `pamamanhikan`, `noche buena`, `undas`, `barker`, `white lady`, and `sabong` (cockfighting, a spec sample: fine as family?). `hangover` is out of the family pack (DECISIONS 68); edit the JSON directly and re-run `npm run packs:check`
+- [ ] F47: review the spicy pack: open `data/packs/tl-pang-inuman.json` (67 words; `npm run packs:check` prints the counts per level), then play a few turns with `npm run dev`, Screen Settings → Words → Taglish (or Mixed) and Spicy words → On, and `/dev/bots/CODE` · every word is party humour a barkada laughs at, not explicit and aimed at no group of people; each is drawable in 60 s without letters or numbers; the Taglish spelling and alternates are what people type; each gloss tells the drawer what to draw. Likely cuts or fixes: `lumalandi`, `pa-cute`, `torpe`, `basted` (the dating words that lean on feelings), `budots`, `ambagan`, `libre`, `hatid`, `long distance`, `monthsary`, `crush` (fine as spicy?), `beso`, `kopita`; alternates `syota`, `ubos-biyaya`, `pantulak`. Also decide whether English rooms need their own spicy words (today Spicy on with Words → English adds none, DECISIONS 69)
 
 <!-- entries below, newest first -->
+
+## F47 — Spicy pack (2026-10-31)
+**What changed:**
+- **New pack `data/packs/tl-pang-inuman.json`**: "Pang-inuman", `language: 'tl'`, `rating: 'spicy'`, 67 words (easy 14 · medium 28 · hard 25).
+  - Themes: drinks and the table (`beer`, `tagay`, `tanggero`, `chaser`, `beer pong`), pulutan (`kropek`, `kilawin`, `crispy pata`), the morning after (`hangover`, `bagsak`, `nagsusuka`, `walk of shame`), the party (`nightclub`, `birit`, `spin the bottle`, `ambagan`, `sabit`) and dating (`jowa`, `ex-jowa`, `first date`, `friend zone`, `third wheel`, `torpe`).
+  - The spec's eight examples are all in: `tagay`, `jowa`, `hangover`, `walk of shame`, `pulutan`, `inuman`, `sabit`, `lasing`.
+  - English loanwords people say over drinks sit in this Taglish pack, with glosses like every `tl` word of level 2–3.
+  - Nothing explicit, nothing about groups of people, no brand names.
+- **Dealt only with Spicy on**: no deck change was needed. `allowedWords` already adds spicy packs only with `spicy` on, of the chosen languages, so Taglish or Mixed. With Words → English, Spicy adds nothing (DECISIONS 69; Backlog: an English spicy pack or a hint). A `// SPEC-QUESTION:` in `server/deck.ts` points there.
+- **Clashes swept:** no word or alternate is another pack's word (`ghosting` was already an `en-everyday` sample, `proposal` matched `marriage proposal`; both dropped). No alternate is shared within the pack (`shot` only on `shot glass`). `bir` and `bar` were left out because they made many unrelated guesses "close". `basi` was dropped: the bots' decoy `kasi` was 1 edit from it. A one-off `matchGuess` sweep of every decoy over all 11 packs now finds nothing "close".
+- **New dependencies:** none.
+- **Tests:**
+  - `server/packs.test.ts`: "ships the Pang-inuman pack" checks that it is the only spicy pack, the title, language and rating, ≥ 60 words, the spec's eight examples, > 10 words per level, and six typed alternates accepted (`drunk`, `dyowa`, `hungover`, `lasengo`, `cheers`, `KKB`). The start summary is now "Loaded 11 word packs (584 words)".
+  - `server/deck.test.ts`: "deals the shipped Pang-inuman pack only with spicy on" checks the shipped packs with Spicy off, for every language and difficulty (none dealt). With Spicy on it checks the whole pack for Taglish and Mixed, none for English, and some for Easy.
+
+**Decisions:** DECISIONS 69 (one `tl` spicy pack, English rooms, loanwords, clash sweep, what stays out).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES** (no Must-fix). Should-fixes done: `wasted` removed from `hangover` (it means drunk); `sweet dance` replaced by `slow dancing`; the SPEC-QUESTION comment added at the deck filter.
+- **secrets-fairness, mobile-ux:** not run. Only pack data, tests and a comment changed; no server logic, ink or UI.
+
+**Playtest:** not run, since there is no UI change. The deck tests deal from the shipped packs with the real settings filter.
+
+**Notes for next session:**
+- F48 (custom words) adds to `allowedWords` beside this filter. Custom words are not rated, so they come in whether Spicy is on or off.
+- New pack words: re-run the decoy `matchGuess` sweep (see F46's note); short alternates (3 letters) make many guesses "close".
+
+**How to try it:**
+- `npm run packs:check` prints `tl-pang-inuman (tl, spicy): 67 words`.
+- `npx vitest run server/packs.test.ts server/deck.test.ts`.
+- `npm run dev`, Screen at http://localhost:5173 (Start), Settings → Words → Taglish, Spicy words → On, then `/dev/bots/CODE` and play a turn from a phone at `/play/CODE`: the word cards include Pang-inuman words. With Spicy off they never appear.
 
 ## F46 — Full family word packs (2026-10-31)
 **What changed:**

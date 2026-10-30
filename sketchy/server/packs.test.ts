@@ -223,7 +223,7 @@ describe('loadPacks', () => {
   });
 
   it('keeps the spicy list out of the family packs', () => {
-    // F47's "Pang-inuman" pack holds these; a family copy would be a duplicate word.
+    // The "Pang-inuman" pack (F47) holds these; a family copy would be a duplicate word.
     const family = loadPacks(SHIPPED)
       .filter((p) => p.rating === 'family')
       .flatMap((p) => p.words.flatMap((w) => [w.word, ...w.alt]));
@@ -238,6 +238,42 @@ describe('loadPacks', () => {
       'lasing',
     ])
       expect(family, word).not.toContain(word);
+  });
+
+  it("ships the Pang-inuman pack: 60+ spicy tl words, the spec's list included", () => {
+    const packs = loadPacks(SHIPPED);
+    // The only spicy pack, so 'spicy' off leaves every word of it out of the deck (deck.test.ts).
+    expect(packs.filter((p) => p.rating === 'spicy').map((p) => p.id)).toEqual(['tl-pang-inuman']);
+    const spicy = packs.find((p) => p.id === 'tl-pang-inuman')!;
+    expect(spicy).toMatchObject({ title: 'Pang-inuman', language: 'tl', rating: 'spicy' });
+    expect(spicy.words.length).toBeGreaterThanOrEqual(60);
+    const words = spicy.words.map((w) => w.word);
+    for (const word of [
+      'tagay',
+      'jowa',
+      'hangover',
+      'walk of shame',
+      'pulutan',
+      'inuman',
+      'sabit',
+      'lasing',
+    ])
+      expect(words, word).toContain(word);
+    // 'easy' with spicy on deals three level-1 words, so the pack adds some at every level.
+    for (const level of [1, 2, 3])
+      expect(spicy.words.filter((w) => w.difficulty === level).length, `${level}`).toBeGreaterThan(
+        10,
+      );
+    const byId = (id: string) => spicy.words.find((w) => w.id === `tl-pang-inuman/${id}`)!;
+    for (const [id, guess] of [
+      ['lasing', 'drunk'],
+      ['jowa', 'dyowa'],
+      ['hangover', 'hungover'],
+      ['lasenggo', 'lasengo'],
+      ['kampay', 'cheers'],
+      ['ambagan', 'KKB'],
+    ] as const)
+      expect(isCorrect(guess, byId(id)), `${id}: ${guess}`).toBe(true);
   });
 
   it('accepts the common spellings people type (ts/ch, j/dy, e/i, o/u) and the other language', () => {
@@ -372,7 +408,7 @@ describe('server start', () => {
   it('summarises the shipped packs', () => {
     expect(loadPacksForStart(SHIPPED)).toMatchObject({
       ok: true,
-      summary: 'Loaded 10 word packs (517 words)',
+      summary: 'Loaded 11 word packs (584 words)',
     });
   });
 
