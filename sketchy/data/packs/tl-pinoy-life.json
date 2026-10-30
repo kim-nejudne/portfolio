@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "id": "tl-pinoy-life",
+  "title": "Pinoy Life",
+  "language": "tl",
+  "rating": "family",
+  "words": [
+    {
+      "id": "tsinelas",
+      "word": "tsinelas",
+      "alt": ["chinelas", "slippers", "flip-flops"],
+      "difficulty": 1
+    },
+    {
+      "id": "bahay-kubo",
+      "word": "bahay kubo",
+      "alt": ["kubo", "nipa hut"],
+      "difficulty": 2,
+      "gloss": "small bamboo house on stilts"
+    },
+    {
+      "id": "halo-halo",
+      "word": "halo-halo",
+      "difficulty": 1
+    },
+    {
+      "id": "lechon",
+      "word": "lechon",
+      "alt": ["litson", "roast pig"],
+      "difficulty": 1
+    },
+    {
+      "id": "tabo",
+      "word": "tabo",
+      "alt": ["dipper"],
+      "difficulty": 1
+    },
+    {
+      "id": "sari-sari-store",
+      "word": "sari-sari store",
+      "alt": ["sari-sari", "tindahan"],
+      "difficulty": 2,
+      "gloss": "small neighbourhood corner store"
+    },
+    {
+      "id": "jeepney",
+      "word": "jeepney",
+      "alt": ["dyip", "jeep"],
+      "difficulty": 1
+    },
+    {
+      "id": "kalabaw",
+      "word": "kalabaw",
+      "alt": ["carabao", "water buffalo"],
+      "difficulty": 1
+    },
+    {
+      "id": "balut",
+      "word": "balut",
+      "difficulty": 2,
+      "gloss": "boiled duck egg with the chick inside"
+    },
+    {
+      "id": "parol",
+      "word": "parol",
+      "alt": ["christmas lantern", "lantern"],
+      "difficulty": 1
+    },
+    {
+      "id": "salakot",
+      "word": "salakot",
+      "difficulty": 2,
+      "gloss": "wide woven farmer's hat"
+    },
+    {
+      "id": "walis-tingting",
+      "word": "walis tingting",
+      "alt": ["walis"],
+      "difficulty": 2,
+      "gloss": "broom made of coconut leaf ribs"
+    },
+    {
+      "id": "sampayan",
+      "word": "sampayan",
+      "alt": ["clothesline"],
+      "difficulty": 2,
+      "gloss": "line where laundry hangs to dry"
+    },
+    {
+      "id": "kamote",
+      "word": "kamote",
+      "alt": ["sweet potato"],
+      "difficulty": 2,
+      "gloss": "sweet potato"
+    },
+    {
+      "id": "fishball",
+      "word": "fishball",
+      "alt": ["fish ball"],
+      "difficulty": 1
+    },
+    {
+      "id": "traysikel",
+      "word": "traysikel",
+      "alt": ["tricycle", "trike"],
+      "difficulty": 1
+    },
+    {
+      "id": "taho",
+      "word": "taho",
+      "difficulty": 2,
+      "gloss": "sweet tofu with syrup and pearls"
+    },
+    {
+      "id": "palengke",
+      "word": "palengke",
+      "alt": ["market", "wet market"],
+      "difficulty": 2,
+      "gloss": "wet market with stalls"
+    },
+    {
+      "id": "saranggola",
+      "word": "saranggola",
+      "alt": ["kite"],
+      "difficulty": 1
+    },
+    {
+      "id": "trumpo",
+      "word": "trumpo",
+      "alt": ["top", "spinning top"],
+      "difficulty": 2,
+      "gloss": "wooden spinning top"
+    },
+    {
+      "id": "pandesal",
+      "word": "pandesal",
+      "alt": ["pan de sal"],
+      "difficulty": 1
+    },
+    {
+      "id": "kilay",
+      "word": "kilay",
+      "alt": ["eyebrow"],
+      "difficulty": 1
+    },
+    {
+      "id": "tsismosa",
+      "word": "tsismosa",
+      "alt": ["chismosa", "marites"],
+      "difficulty": 3,
+      "gloss": "neighbour who gossips"
+    },
+    {
+      "id": "banig",
+      "word": "banig",
+      "alt": ["mat"],
+      "difficulty": 2,
+      "gloss": "woven sleeping mat"
+    },
+    {
+      "id": "sabong",
+      "word": "sabong",
+      "alt": ["cockfight"],
+      "difficulty": 3,
+      "gloss": "cockfight"
+    },
+    {
+      "id": "harana",
+      "word": "harana",
+      "alt": ["serenade"],
+      "difficulty": 3,
+      "gloss": "singing under someone's window"
+    },
+    {
+      "id": "lola",
+      "word": "lola",
+      "alt": ["grandma"],
+      "difficulty": 2,
+      "gloss": "grandmother"
+    },
+    {
+      "id": "sungka",
+      "word": "sungka",
+      "difficulty": 3,
+      "gloss": "wooden board game with shells"
+    },
+    {
+      "id": "bayanihan",
+      "word": "bayanihan",
+      "difficulty": 3,
+      "gloss": "neighbours carrying a house together"
+    },
+    {
+      "id": "pila",
+      "word": "pila",
+      "alt": ["queue", "line"],
+      "difficulty": 2,
+      "gloss": "people standing in a queue"
+    }
+  ]
+}

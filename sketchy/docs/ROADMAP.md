@@ -44,13 +44,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M3 — Game shape
 
-- [ ] F17 Word packs and loader
-  - Spec: Words (Word pack format, Sample English words, Sample Taglish and Filipino words)
-  - Depends: F02
-  - Done when:
-    - zod pack schema including `gloss` (required for `tl` words of difficulty 2–3); `data/packs/` loaded at start; an invalid pack stops the server with a readable error; the two sample packs (30 words each) ship
-    - `npm run packs:check` validates every pack with the same schema and reports duplicate words across packs
-  - Tests: `packs.test.ts` — valid packs load; duplicate ids, a long word, an unknown language and a missing required gloss each fail with a clear message
+- [x] F17 Word packs and loader
 
 - [ ] F18 Deck and word choice
   - Spec: Words (Word selection); Game flow and state machine (Transitions); UI by role and phase (Drawer phone)

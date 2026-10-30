@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lan": "tsx scripts/lan.ts",
-    "playtest": "tsx scripts/playtest/run.ts"
+    "playtest": "tsx scripts/playtest/run.ts",
+    "packs:check": "tsx scripts/packs-check.ts"
   },
   "dependencies": {
     "express": "^5.3.0",

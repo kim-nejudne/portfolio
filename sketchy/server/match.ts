@@ -30,8 +30,8 @@ type Matchable = Pick<WordEntry, 'word' | 'alt' | 'lang'>;
  * (an alternate of only fillers or punctuation) is dropped, so an empty guess can never match.
  */
 export function acceptedForms(word: Pick<WordEntry, 'word' | 'alt'>): string[] {
-  // SPEC-QUESTION: a word that normalises to nothing ("The") can't be guessed at all; packs:check
-  // (F17) and custom words should refuse it (DECISIONS 37).
+  // SPEC-QUESTION: a word that normalises to nothing ("The") can't be guessed at all. Packs refuse
+  // one (server/packs.ts, DECISIONS 40); custom words should too (DECISIONS 37).
   return [...new Set([word.word, ...word.alt].map(normalize))].filter((f) => f !== '');
 }
 

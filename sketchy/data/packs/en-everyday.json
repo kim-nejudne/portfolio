@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "id": "en-everyday",
+  "title": "Everyday",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "umbrella",
+      "word": "umbrella",
+      "alt": ["payong"],
+      "difficulty": 1
+    },
+    {
+      "id": "karaoke",
+      "word": "karaoke",
+      "alt": ["videoke"],
+      "difficulty": 2
+    },
+    {
+      "id": "rice-cooker",
+      "word": "rice cooker",
+      "difficulty": 2
+    },
+    {
+      "id": "selfie",
+      "word": "selfie",
+      "difficulty": 1
+    },
+    {
+      "id": "basketball",
+      "word": "basketball",
+      "difficulty": 1
+    },
+    {
+      "id": "typhoon",
+      "word": "typhoon",
+      "alt": ["storm", "bagyo"],
+      "difficulty": 2
+    },
+    {
+      "id": "mango",
+      "word": "mango",
+      "alt": ["mangga"],
+      "difficulty": 1
+    },
+    {
+      "id": "traffic-jam",
+      "word": "traffic jam",
+      "alt": ["traffic"],
+      "difficulty": 2
+    },
+    {
+      "id": "birthday-cake",
+      "word": "birthday cake",
+      "alt": ["cake"],
+      "difficulty": 1
+    },
+    {
+      "id": "electric-fan",
+      "word": "electric fan",
+      "alt": ["fan", "bentilador"],
+      "difficulty": 2
+    },
+    {
+      "id": "sunglasses",
+      "word": "sunglasses",
+      "alt": ["shades"],
+      "difficulty": 1
+    },
+    {
+      "id": "fried-chicken",
+      "word": "fried chicken",
+      "alt": ["chicken"],
+      "difficulty": 1
+    },
+    {
+      "id": "milk-tea",
+      "word": "milk tea",
+      "alt": ["milktea", "boba"],
+      "difficulty": 1
+    },
+    {
+      "id": "ice-cream",
+      "word": "ice cream",
+      "difficulty": 1
+    },
+    {
+      "id": "guitar",
+      "word": "guitar",
+      "alt": ["gitara"],
+      "difficulty": 1
+    },
+    {
+      "id": "airport",
+      "word": "airport",
+      "difficulty": 2
+    },
+    {
+      "id": "graduation",
+      "word": "graduation",
+      "alt": ["toga", "graduate"],
+      "difficulty": 3
+    },
+    {
+      "id": "rooster",
+      "word": "rooster",
+      "alt": ["tandang"],
+      "difficulty": 2
+    },
+    {
+      "id": "motorcycle",
+      "word": "motorcycle",
+      "alt": ["motor", "motorbike", "motorsiklo"],
+      "difficulty": 2
+    },
+    {
+      "id": "sunflower",
+      "word": "sunflower",
+      "difficulty": 1
+    },
+    {
+      "id": "dentist",
+      "word": "dentist",
+      "difficulty": 2
+    },
+    {
+      "id": "lipstick",
+      "word": "lipstick",
+      "difficulty": 1
+    },
+    {
+      "id": "haunted-house",
+      "word": "haunted house",
+      "alt": ["horror house"],
+      "difficulty": 3
+    },
+    {
+      "id": "volcano",
+      "word": "volcano",
+      "alt": ["bulkan"],
+      "difficulty": 2
+    },
+    {
+      "id": "wedding",
+      "word": "wedding",
+      "alt": ["kasal"],
+      "difficulty": 2
+    },
+    {
+      "id": "toothbrush",
+      "word": "toothbrush",
+      "difficulty": 1
+    },
+    {
+      "id": "spaghetti",
+      "word": "spaghetti",
+      "alt": ["pasta"],
+      "difficulty": 1
+    },
+    {
+      "id": "pimple",
+      "word": "pimple",
+      "alt": ["tigyawat", "taghiyawat", "zit"],
+      "difficulty": 2
+    },
+    {
+      "id": "ghosting",
+      "word": "ghosting",
+      "difficulty": 3
+    },
+    {
+      "id": "hangover",
+      "word": "hangover",
+      "difficulty": 3
+    }
+  ]
+}

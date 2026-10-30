@@ -4,6 +4,7 @@ import { DEFAULT_PORT } from '../shared/constants.js';
 import { devToolsEnabled, parseTrustProxy } from './env.js';
 import { createApp } from './http.js';
 import { attachInkGateway } from './inkGateway.js';
+import { loadPacksForStart, packsDirFor } from './packs.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
 import { attachSockets, closeRooms } from './sockets.js';
 
@@ -14,6 +15,15 @@ const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 
 // In development Vite serves the client; in production the compiled server sits in dist/server.
 const clientDir = production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
+
+// Word packs are checked before anything listens: an invalid pack stops the server here.
+const loaded = loadPacksForStart(packsDirFor(import.meta.url, production));
+if (!loaded.ok) {
+  console.error(loaded.message);
+  process.exit(1);
+}
+// Turns still deal from the v0 list until F18 builds the deck from these packs (DECISIONS 40).
+console.log(loaded.summary);
 
 const rooms = new InMemoryRoomStore();
 const httpServer = createServer(

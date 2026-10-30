@@ -33,8 +33,62 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F15: (1) read `server/slurs.ts` and `server/profanity.ts` (each entry is a whole word, `stem*` or `*part*`): add Tagalog/Taglish/Bisaya terms that are missing, and say whether to keep or drop "intsik", "bumbay" (left out) and "negro", "sex", "bobo", "tanga", "pepe", "kiki" (in); everyday or drawable words must not be listed (DECISIONS 38). (2) `npm run dev` + `npm run lan`, laptop Screen, 3 real phones; start, and as a guesser type the word plus " ko" (or the word with one letter changed) · "So close!" shows under the box on that phone only, the guess is listed as "… ≈", the TV shows nothing of it until "Almost:" at the reveal; a rude wrong guess shows as typed in the TV's sidebar (the `'clean'`/`'off'` switch needs F21's settings, so recheck it then)
 
 - [ ] F16: after autopilot deploys, open `https://sketchy.kimnejudne.dev/screen/CODE?debug=1` on the laptop (Screen on the TV, Wi-Fi) and join 3 phones; the drawer's phone on 4G opens `/play/CODE?debug=1` (add `?debug=1` to the join URL before joining). Start, wait 10 s, then (a) read the overlay at the top left; (b) film the drawer's phone and the TV together in slow motion (240 fps), draw 10 quick strokes, and count frames from finger movement to the line appearing on the TV (1 frame ≈ 4.2 ms) · (a) the overlay lists every phone with an RTT in ms (not "–"), shows "clock offset: N ms", and after the strokes shows p50 near 70–150 ms and p95 under 300 ms; (b) the video's median delay is within about 30 ms of the overlay's "+ 25 ms flush wait" p50 (the spec's ground truth)
+- [ ] F17: open `data/packs/en-everyday.json` and `data/packs/tl-pinoy-life.json` (30 words each, the spec's sample tables) and run `npm run packs:check` · every word drawable in 60 s on a phone? Taglish spellings and alternates are what a barkada types (tsinelas/chinelas, dyip/jeep, litson)? glosses short, plain English and right? difficulties fair (en has 4 hard, tl 5)?
 
 <!-- entries below, newest first -->
+
+## F17 — Word packs and loader (2026-10-30)
+**What changed:**
+- **`server/packs.ts` (new, server-only):**
+  - `packFileSchema` (zod, strict objects): `schemaVersion: 1`; pack and word ids `[a-z0-9-]` up to 40 characters; `title` 1–40; `language` `en`/`tl`; `rating` `family`/`spicy`; `word` 1–30; `alt` 0–6 (defaults to `[]`); `difficulty` 1–3; `gloss` 1–40. It also refuses:
+    - a duplicate word id in a pack;
+    - a `tl` word of difficulty 2–3 with no gloss;
+    - any word or alternate that keeps fewer than 3 letters once normalised (filler-only forms like "The", and the 1–2 letter forms F14 flagged).
+  - `parsePack` returns a frozen `Pack` of `WordEntry`s with ids `<packId>/<wordId>` and `lang` from the pack. On failure it throws `PackError`, listing every problem on its own line as `file: words.3.gloss: message ("word")`.
+  - `loadPacks(dir)` reads every `*.json` in name order. It refuses a missing or empty directory, bad JSON, and a pack id used twice.
+  - `findDuplicateWords` matches main words by normalised form, across packs and within one. `findAltClashes` finds an alternate that equals another word.
+  - `packsDirFor` finds `data/packs` from `server/` or from `dist/server`. `loadPacksForStart` returns the start summary or the "Sketchy can't start." message.
+- **`server/index.ts`:** loads the packs before listening and prints "Loaded 2 word packs (60 words)". An invalid pack prints the message and exits 1. Turns still deal from `words.v0.ts`, because F18 builds the deck.
+- **`data/packs/en-everyday.json` and `tl-pinoy-life.json`:** the spec's sample tables, 30 family words each, exactly as written. Word ids are slugs of the words.
+- **`npm run packs:check`** (`scripts/packs-check.ts`, with an optional directory argument):
+  - checks every pack with the same `loadPacks`;
+  - prints each pack's language, rating, word count and easy/medium/hard split;
+  - warns on alternate clashes;
+  - exits 1 on an invalid pack or a duplicate word.
+- `match.ts`: the F14 SPEC-QUESTION now says packs refuse filler-only words. Custom words still should.
+- **Tests:** `server/packs.test.ts` (25):
+  - the shipped packs load (30 en + 30 tl, no duplicates or clashes), spot-checked word by word, and all 18 `tl` medium/hard words carry glosses;
+  - a duplicate word id, a duplicate pack id, a 31-character word, an unknown language and a missing gloss each fail with a message naming the file, field and word;
+  - so do a bad id, rating, difficulty or schema version, more than 6 alternates, a long gloss, an empty pack, an unknown key (`glos`), a short or filler-only word or alternate, bad JSON, and an empty or missing directory;
+  - every problem is listed;
+  - duplicates and clashes are found;
+  - both build layouts resolve to `data/packs`;
+  - the start message is checked.
+  - Mutation-checked: relaxing the gloss rule fails 3 tests.
+- No new dependencies.
+
+**Decisions:** DECISIONS 40 covers:
+- the packs being server-only, with strict schemas and id formats;
+- the 3-letter minimum per form;
+- where the packs are found in a build;
+- duplicates failing `packs:check` without stopping the server, and clashes only warning;
+- the loaded packs not being dealt until F18.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: the F17 Kim check; the start path pulled into the tested `loadPacksForStart` and `packsDirFor`; a word-by-word spot-check of the shipped content. Not done: a warning for an alternate that repeats its own word, because the spec's own table has three (`milktea`, `fish ball`, `pan de sal`) and `acceptedForms` dedupes them.
+- **secrets-fairness: PASS WITH FIXES.** Applied: the `findAltClashes` warning. Noted for F18: `PackError` messages quote words. They only go to the boot log and `packs:check` today. Never pass one to an ack, and add a leak-test line when packs reach rooms. `data/` is never served (`express.static` covers only `dist/client`).
+
+**Notes for next session:**
+- **F18:** the reducer can't read files, so the loaded `Pack[]` (from `loadPacksForStart` in `index.ts`) has to reach room creation, as the room's deck source or through the gateway's deps. Then delete `words.v0.ts` and move `views.leak.test.ts`'s mock to a fake pack. The deck filter maps `settings.words` (`en`/`taglish`/`mixed`) to the pack `language` (`en`/`tl`) and `settings.spicy` to `rating`.
+- **F51:** the Docker image must copy `data/` next to `dist/`, because the production server reads `../../data/packs` from `dist/server`. With no packs it stops with a clear message, so it fails closed.
+- **M8 packs** (≥ 200 family words per language, ≥ 60 spicy): run `npm run packs:check` after every edit, and use the `word-pack` skill.
+
+**How to try it:**
+- `npm run packs:check`: both packs are listed as valid.
+- Unit tests: `npx vitest run server/packs.test.ts`.
+- Break a pack (remove `gloss` from `bahay-kubo` in `data/packs/tl-pinoy-life.json`). `npm run packs:check` and `npm run dev` then both print `data/packs/tl-pinoy-life.json: words.1.gloss: required for 'tl' words of difficulty 2–3 ("bahay kubo")`, and the server exits. Undo the change afterwards.
+- `npm start` (after `npm run build`) prints "Loaded 2 word packs (60 words)".
+- No UI change, so there is no playtest.
 
 ## F16 — Ink delay debug overlay (2026-10-30)
 **What changed:**
