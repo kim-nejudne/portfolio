@@ -117,7 +117,7 @@ describe('drawer phone', () => {
       <DrawerTurn
         view={drawingView('mika')}
         receivedAt={0}
-        sendInk={() => {}}
+        ink={{ send: () => {}, bind: () => () => {} }}
         paused={false}
         t={t}
       />,

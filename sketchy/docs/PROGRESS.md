@@ -24,7 +24,88 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F11: on a budget Android and an iPhone as the drawer (`npm run dev` + `npm run lan`), draw a fast circle, a slow wavy signature, a long straight line into a sharp corner, and a few single-tap dots, with the Screen on the TV next to the phone · the TV's lines follow the phone's closely (no visibly cut corners, no flat facets on curves, dots appear), and the pad stays smooth with no lag while drawing fast
 
+- [ ] F12: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones; start, and on the drawer's phone (a) draw half a picture, turn on airplane mode for 5 s, keep drawing two strokes, turn it off; (b) reload the drawer's page mid-turn and keep drawing; (c) reload the TV's tab mid-turn; (d) try (a) on mobile data instead of Wi-Fi · after each, within a couple of seconds the TV shows exactly the phone's picture (no missing, doubled or shifted strokes, strokes drawn offline appear), after (b) the phone's pad shows the drawing so far, and the TV never shows a half-old picture after its reload
+
 <!-- entries below, newest first -->
+
+## F12 — Ink sequence, resend and snapshots (2026-10-30)
+**What changed:**
+- **`server/inkStore.ts` (new): the InkStore.** It holds each room's latest turn log, live from `inkOpen` until `inkClose` freezes it, plus the frozen logs it keeps for the gallery (4 MB per room, oldest dropped first).
+  - **Sequence:** a duplicate `seq` is ignored. A gap is dropped and asks for a resend, at most once a second per gap.
+  - **Caps:** applied op by op, with the soft 200 KB cap on the visible picture (new strokes refused; undo and clear still work) and the hard 400 KB cap on the whole stack (only undo).
+  - **Relay:** refused ops are left out of the relayed batch, which keeps its `seq`.
+  - **Snapshots:** come from `stackOps`.
+- **`server/inkGateway.ts`:**
+  - **Batches:** they go through the store, in this order: rate limit → drawer, phase and turn checks → store → relay. A refused batch reaches neither the stack nor the Screens.
+  - **Snapshots:** a Screen's `ink:hello` gets the latest turn's snapshot, and the current drawer's hello in DRAWING gets its own.
+  - **Drawer sync:** `ink:sync` → `ink:state`. A gap gets `ink:resend {turnId, from}` and the `inkGap` ack. A full canvas gets the `inkFull` ack.
+  - **Gallery:** `ink:get` serves frozen turns to Screens only (`notScreen`, `inkNotKept`).
+  - **Invalid batches:** 20 in a turn disconnect the socket.
+- **Drawer client:**
+  - `drawerSync` also retries an unanswered hello or sync, resends 30 batches per sync, and resyncs after a `rateLimited` ack or when a pause lifts.
+  - `inkSender` keeps every batch and has `held`/`start`/`hold`/`release`/`resendAfter`.
+  - `client/src/ink/drawerSync.ts` (new) does hello → snapshot (adopted with strokeId renumbering via `mergeSnapshot`) on a fresh sender, and sync → state → resend of the unchanged kept batches on a reconnect.
+  - `Play` routes `/ink` events to it through a `DrawerInkLink`.
+  - `DrawPad` starts its sender held and merges the snapshot under its own strokes.
+- **Screen:** `createScreenInk` applies batches in `seq` order, drops repeats, says hello again on the first gap and applies `ink:snapshot`.
+- **Tests:**
+  - `server/inkStore.test.ts` (16, including the action cap).
+  - `server/inkGateway.test.ts` has 13 new tests (including the hello/sync/get rate limits). Among them: a Screen reconnecting mid-turn rebuilds the exact stack; a dropped drawer resends without duplicates; a drawer reload end to end through the real `inkSender` + `drawerSync`; gap/resend; sync refusals; `ink:get`; the soft cap over the wire; invalid-batch disconnects. The whole-game test now allows exactly the drawer's own snapshot.
+  - `client/src/ink/drawerSync.test.ts` (13: hello/snapshot, reload renumbering, drop → sync → resend, `ink:resend`, retries, paced resends, rate-limited acks), plus new tests in `inkSender.test.ts` (4) and `lib/ink.test.ts` (5).
+  - Mutation-checked: turning off strokeId renumbering or applying duplicates fails tests.
+- No new dependencies.
+
+**Decisions:** DECISIONS 35 covers:
+- the visible-picture measure for the soft cap;
+- refused ops stripped while the batch keeps its `seq`;
+- `turnId` added to `ink:resend`;
+- the resend-ask throttle;
+- snapshots of a frozen latest turn for Screens;
+- `ink:sync` allowed while paused;
+- `ink:get` acks;
+- invalid-batch counting;
+- the held drawer sender and its unrenumbered resends.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied:
+  - DECISIONS 35, superseding the F12 parts of 23 and 34;
+  - `SPEC-QUESTION`s at the cap and strip sites and at the reducer's `hasInk`;
+  - the F12 Kim check;
+  - the end-to-end drawer-reload test through the real sender and sync;
+  - the gateway opening a missing log on the drawer's hello.
+- **secrets-fairness: PASS WITH FIXES** (no leaks or routing changes). Applied:
+  - per-socket rate limits on hello, sync and get;
+  - paced resends (30 per sync);
+  - batch acks read for `rateLimited`;
+  - hello and sync retries;
+  - the action cap and the per-action overhead in the room budget.
+  - Deferred to F32: showing `inkFull` and keeping undo in step after it. Noted: an unauthenticated socket may watch as a Screen (DECISIONS 22).
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - hello retry (the pad held forever on an unanswered hello);
+  - a resync when a pause lifts and on a rate-limited ack (a lost last batch);
+  - new tests for these.
+  - The playtest's drawer-reload step then caught a real bug: `emit` detached from the timed socket in `Play`, now fixed.
+  - Deferred: undo and clear before the snapshot (F32); an uncapped `kept`; strokes pending at the buzzer while offline (DECISIONS 35).
+
+**Notes for next session:**
+- **F32:** map the `inkFull` ack to "Canvas full: undo or clear to keep drawing" (the server dropped the new strokes but kept the batch's `seq`). The pad then differs from the server, so re-sync the pad: the simplest way is a fresh `ink:hello`, which only a not-started sender adopts, so add a `resync` path or a local pop. Undo and clear before the snapshot arrives (held sender) must pop local actions only.
+- **Gallery (F-later):** `ink:get` → `{ok, turnId, actions}`. `inkNotKept` means "Drawing not kept"; `hasInk` in the reducer is still always `true` (SPEC-QUESTION at `server/reducer.ts`).
+- **Rematch/Back to lobby:** emit `inkReset` from the reducer when those land; the store's `reset` is ready.
+- **Bots:** they use an unheld sender with no resync; a bot that drops mid-turn leaves a gap until its next batch triggers `ink:resend`, which they ignore. Fine for dev.
+- The first batch of every turn waits one `/ink` round trip for the (empty) snapshot. The pad draws at once.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/inkStore.test.ts server/inkGateway.test.ts client/src/ink client/src/lib/ink.test.ts`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), and a drawer from `/dev/bots/CODE` or a phone via `npm run lan CODE`.
+  - Reload the Screen tab mid-drawing: the drawing comes straight back.
+  - On a phone drawer, reload mid-turn and keep drawing: the pad shows the drawing so far and the TV continues it.
+- Automated: `npm run playtest -- .playtest/F12/scenario.ts` (gitignored, 9 steps). It runs a Screen and 3 phones and checks:
+  - a Screen reload mid-turn restores the same ink;
+  - the drawer offline → draws → back online shows the new stroke on the TV;
+  - a second Screen reload matches the live canvas, so nothing was doubled;
+  - a drawer reload restores its own pad, its next stroke reaches the TV, and a Screen snapshot then matches the live canvas;
+  - guessers have no canvas;
+  - the word is absent from the Screen and guesser DOM.
 
 ## F11 — Ink codec and action stack (2026-10-30)
 **What changed:**

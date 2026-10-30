@@ -32,12 +32,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F11 Ink codec and action stack
 
-- [ ] F12 Ink sequence, resend and snapshots
-  - Spec: Drawing data protocol (Server relay and ink log, Reconnects and snapshots, Limits)
-  - Depends: F11
-  - Done when:
-    - `InkStore` per turn; `seq` checks with `ink:resend`; `ink:sync` and resend from the drawer's kept batches; `ink:hello` → `ink:snapshot` for Screens and the current drawer only; size caps and batch limits
-  - Tests: `inkStore.test.ts`; `inkGateway.test.ts` — a Screen reconnecting mid-turn rebuilds the exact action stack; a dropped drawer resends without duplicates
+- [x] F12 Ink sequence, resend and snapshots
 
 - [ ] F13 Latency-corrected scoring
   - Spec: Scoring and timing (Points, Worked examples, Latency correction)

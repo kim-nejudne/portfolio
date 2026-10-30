@@ -62,11 +62,16 @@ export function Screen() {
     });
     socket.connect();
 
-    // Every connect, reconnects included, rejoins the Screen's ink room.
+    // Every connect, reconnects included, rejoins the Screen's ink room and brings back the drawing
+    // with a snapshot; a gap in `seq` asks for a fresh one the same way.
     const inkSocket = createInkSocket();
-    inkSocket.on('connect', () => inkSocket.emit('ink:hello', { code }));
+    const hello = () => inkSocket.emit('ink:hello', { code });
+    inkSocket.on('connect', hello);
     inkSocket.on('ink:turn', ({ turnId }) => ink.turn(turnId));
-    inkSocket.on('ink:batch', (batch) => ink.batch(batch));
+    inkSocket.on('ink:snapshot', (snapshot) => ink.snapshot(snapshot));
+    inkSocket.on('ink:batch', (batch) => {
+      if (ink.batch(batch) === 'gap') hello();
+    });
     inkSocket.connect();
 
     return () => {

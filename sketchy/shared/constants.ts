@@ -124,6 +124,10 @@ export const ROOM_CHECK_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const;
 export const JOIN_RATE_LIMIT = { max: 10, windowMs: 60 * 1000 } as const;
 export const HOST_ACTION_RATE_LIMIT = { max: 10, windowMs: 1000 } as const;
 export const INK_BATCH_RATE_LIMIT = { max: 40, windowMs: 1000 } as const;
+/** `ink:hello` and `ink:sync` per `/ink` socket: each can make the server send a whole snapshot. */
+export const INK_HELLO_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
+/** `ink:get` per `/ink` socket: the FINAL gallery asks for every turn's drawing at once. */
+export const INK_GET_RATE_LIMIT = { max: 60, windowMs: 10 * 1000 } as const;
 
 // ---------- Drawing ----------
 
@@ -163,13 +167,26 @@ export const CANVAS_COLOR = '#FFFFFF';
 export const INK_BATCH_MAX_BYTES = 4 * 1024;
 /** Points in one `p` op. */
 export const INK_POINTS_PER_OP_MAX = 200;
-/** A turn's ink log, encoded; past it new strokes are refused ("Canvas full"). */
+/**
+ * The visible picture of a turn (every op after the last clear on the stack), encoded; past it new
+ * strokes are refused ("Canvas full"). Undo and clear still work.
+ */
 export const INK_TURN_MAX_BYTES = 200 * 1024;
 /**
- * The server never applies more than this (batches, encoded) to one turn's action stack: a hard
- * memory bound above the soft INK_TURN_MAX_BYTES, which still lets undo and clear through (F12).
+ * A turn's whole action stack (strokes under clears too), encoded: a hard memory bound above the
+ * soft INK_TURN_MAX_BYTES. Past it only undo (and ends of strokes) still apply.
  */
 export const INK_TURN_HARD_MAX_BYTES = 2 * INK_TURN_MAX_BYTES;
+/** The server asks the drawer for the same missing batches at most this often (ms). */
+export const INK_RESEND_ASK_MS = 1000;
+/** Strokes and clears on one turn's stack; a real drawing has a few hundred. */
+export const INK_TURN_MAX_ACTIONS = 5000;
+/** What one action costs in memory beyond its encoded ops, charged against INK_ROOM_MAX_BYTES. */
+export const INK_ACTION_OVERHEAD_BYTES = 64;
+/** The drawer retries an unanswered hello or sync, and a rate-limited resend, after this (ms). */
+export const INK_DRAWER_RETRY_MS = 1000;
+/** Kept batches the drawer resends per sync, under INK_BATCH_RATE_LIMIT; the rest follow. */
+export const INK_RESEND_BURST = 30;
 /** Frozen ink logs a room keeps for the gallery; past it the oldest are dropped. */
 export const INK_ROOM_MAX_BYTES = 4 * 1024 * 1024;
 /** Invalid batches in one turn before the drawer's `/ink` socket is disconnected. */

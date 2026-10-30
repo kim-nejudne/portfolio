@@ -2,8 +2,8 @@
 // Rendering). Points are absolute on the INK_GRID; each device scales them to its own canvas.
 //
 // The codec and the action stack are `shared/ink.ts`, the same code the drawer and the server use;
-// this file keeps the rendering and the Screen's feed across turns. Batches are applied in arrival
-// order with no `seq` check: a lost batch leaves a gap until F12 adds `ink:resend` and snapshots.
+// this file keeps the rendering and the Screen's feed across turns. Batches apply in `seq` order:
+// a gap means batches were lost (a dropped connection), so the Screen asks for a fresh snapshot.
 
 import {
   CANVAS_COLOR,
@@ -20,15 +20,16 @@ import {
   type InkStack,
   type InkStroke,
 } from '../../../shared/ink.js';
-import type { InkBatch } from '../../../shared/types.js';
+import type { InkBatch, InkSnapshot } from '../../../shared/types.js';
 
-/** One turn's action stack, as the Screen holds it. */
+/** One turn's action stack, as the Screen holds it, and the last `seq` applied to it. */
 export interface InkPicture extends InkStack {
   turnId: number;
+  seq: number;
 }
 
-export function createInkPicture(turnId: number): InkPicture {
-  return { ...createInkStack(), turnId };
+export function createInkPicture(turnId: number, seq = 0): InkPicture {
+  return { ...createInkStack(), turnId, seq };
 }
 
 function strokeColor(color: number): string {
@@ -88,36 +89,58 @@ export function redrawPicture(
 }
 
 /**
- * The Screen's live ink across turns: `ink:turn` clears, `ink:batch` appends. A batch for an
- * older turn is dropped; one for a newer turn starts it (the two namespaces don't share an order,
- * and a Screen that loaded mid-turn never saw that turn's `ink:turn`).
+ * The Screen's live ink across turns: `ink:turn` clears, `ink:snapshot` replaces the picture,
+ * `ink:batch` appends. A batch for an older turn is dropped; one for a newer turn starts it (the
+ * two namespaces don't share an order). Within a turn batches apply in `seq` order: a repeat is
+ * dropped, and the first gap answers `'gap'` (say `ink:hello` again); later batches wait for the
+ * snapshot, which covers them.
  */
 export interface ScreenInk {
   turn(turnId: number): void;
-  batch(batch: InkBatch): void;
+  batch(batch: InkBatch): 'ok' | 'gap' | 'ignored';
+  snapshot(snapshot: InkSnapshot): void;
   picture(): InkPicture | null;
   subscribe(listener: (change: InkChange) => void): () => void;
 }
 
 export function createScreenInk(): ScreenInk {
   let pic: InkPicture | null = null;
+  let awaitingSnapshot = false;
   const listeners = new Set<(change: InkChange) => void>();
   const emit = (change: InkChange) => {
     for (const listener of listeners) listener(change);
   };
   const start = (turnId: number) => {
     pic = createInkPicture(turnId);
+    awaitingSnapshot = false;
     emit({ dirty: [], redraw: true });
+    return pic;
   };
   return {
     turn(turnId) {
       if (pic === null || turnId > pic.turnId) start(turnId);
     },
-    batch([turnId, , ops]) {
-      if (pic !== null && turnId < pic.turnId) return;
-      if (pic === null || turnId > pic.turnId) start(turnId);
-      const change = applyInkOps(pic!, ops);
+    batch([turnId, seq, ops]) {
+      if (pic !== null && turnId < pic.turnId) return 'ignored';
+      const p = pic === null || turnId > pic.turnId ? start(turnId) : pic;
+      if (awaitingSnapshot || seq <= p.seq) return 'ignored';
+      if (seq > p.seq + 1) {
+        awaitingSnapshot = true;
+        return 'gap';
+      }
+      p.seq = seq;
+      const change = applyInkOps(p, ops);
       if (change.redraw || change.dirty.length > 0) emit(change);
+      return 'ok';
+    },
+    snapshot({ turnId, seq, actions }) {
+      if (pic !== null && turnId < pic.turnId) return;
+      // Filled before it is shown, so the one repaint draws all of it.
+      const p = createInkPicture(turnId, seq);
+      applyInkOps(p, actions);
+      pic = p;
+      awaitingSnapshot = false;
+      emit({ dirty: [], redraw: true });
     },
     picture: () => pic,
     subscribe(listener) {

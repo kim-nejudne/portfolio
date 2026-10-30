@@ -6,7 +6,13 @@
 // Each point passes the radial filter (dropped when closer than INK_RADIAL_MIN to the last kept
 // point); before a flush the stroke's pending points are simplified with RDP at INK_RDP_EPSILON,
 // keeping the first and last. The codec, filter and RDP are `shared/ink.ts`, the same code the
-// server and the Screen decode with. Kept batches for resending come with F12.
+// server and the Screen decode with.
+//
+// Every batch of the turn is kept for resending (Reconnects and snapshots): `resendAfter(lastSeq)`
+// sends the kept ones after the server's last, unchanged, so a duplicate is only ignored. A sender
+// made `held` numbers and sends nothing until `start` says where the server's log is (after a
+// reload the drawer continues its own turn), and `hold`/`release` keep ops pending while the
+// `/ink` socket is down, so a reconnect sends a few full batches rather than a burst of small ones.
 //
 // The caller (the pad) owns the DOM: call `flush()` on `visibilitychange` (hidden) and `pagehide`,
 // since background tabs throttle or freeze the timer, and `end()` on `pointercancel`.
@@ -41,11 +47,33 @@ export interface InkSender {
   flush(): void;
   /** Stops the flush timer and drops pending ops (the turn is over); every later call is a no-op. */
   dispose(): void;
+  /**
+   * Starts a `held` sender after the server's log at `seq`, whose strokes go up to
+   * `maxStrokeId`: the strokes drawn meanwhile are renumbered after them, and pending ops go out.
+   * Returns the amount added to those strokeIds (0 when already started).
+   */
+  start(seq: number, maxStrokeId: number): number;
+  /**
+   * Sends again, unchanged, the kept batches with `seq > lastSeq`, at most `max` of them (oldest
+   * first). Returns how many are left unsent.
+   */
+  resendAfter(lastSeq: number, max?: number): number;
+  /** Keeps ops pending instead of sending them (the link is down). */
+  hold(): void;
+  /** Ends `hold` and sends what is pending. */
+  release(): void;
+  started(): boolean;
+  /** The last `seq` numbered; 0 before the first batch. */
+  lastSeq(): number;
+  /** Every batch numbered this turn, in order. */
+  kept(): readonly InkBatch[];
 }
 
 export interface InkSenderOptions {
   turnId: number;
   send: (batch: InkBatch) => void;
+  /** Wait for `start` before numbering or sending anything (the drawer's pad). */
+  held?: boolean;
 }
 
 interface OpenStroke {
@@ -64,13 +92,16 @@ interface OpenStroke {
 }
 
 /** One sender per turn: `seq` and strokeIds start at 1. */
-export function createInkSender({ turnId, send }: InkSenderOptions): InkSender {
+export function createInkSender({ turnId, send, held = false }: InkSenderOptions): InkSender {
   let seq = 0;
   let strokeId = 0;
   let open: OpenStroke | null = null;
   let pending: InkOp[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
+  let started = !held;
+  let holding = false;
+  let kept: InkBatch[] = [];
 
   const schedule = () => {
     timer ??= setTimeout(() => {
@@ -111,11 +142,12 @@ export function createInkSender({ turnId, send }: InkSenderOptions): InkSender {
       timer = null;
     }
     takePoints();
-    if (pending.length === 0) return;
-    // Taken and numbered first: if `send` throws, these ops are not sent again under a new seq.
+    if (pending.length === 0 || !started || holding) return;
+    // Taken, numbered and kept first: if `send` throws, a resend sends them under the same seq.
     const batches = packBatches(turnId, seq + 1, pending);
     pending = [];
     seq += batches.length;
+    kept.push(...batches);
     for (const batch of batches) send(batch);
   }
 
@@ -169,7 +201,40 @@ export function createInkSender({ turnId, send }: InkSenderOptions): InkSender {
       if (timer) clearTimeout(timer);
       timer = null;
       pending = [];
+      kept = [];
       open = null;
     },
+    start(base, maxStrokeId) {
+      if (disposed || started) return 0;
+      // Nothing was sent yet, so the pending ops and the open stroke are all there is to renumber.
+      const offset = Math.max(0, maxStrokeId);
+      if (offset > 0) {
+        for (const op of pending)
+          if (op[0] === 'b' || op[0] === 'p' || op[0] === 'e') op[1] += offset;
+        if (open) open.id += offset;
+        strokeId += offset;
+      }
+      seq = base;
+      started = true;
+      flush();
+      return offset;
+    },
+    resendAfter(lastSeq, max = Infinity) {
+      if (disposed || !started) return 0;
+      const missing = kept.filter((batch) => batch[1] > lastSeq);
+      for (const batch of missing.slice(0, max)) send(batch);
+      return Math.max(0, missing.length - max);
+    },
+    hold() {
+      holding = true;
+    },
+    release() {
+      if (disposed) return;
+      holding = false;
+      flush();
+    },
+    started: () => started,
+    lastSeq: () => seq,
+    kept: () => kept,
   };
 }

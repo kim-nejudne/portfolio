@@ -370,7 +370,9 @@ function endTurn(d: Room, reason: TurnEndReason, now: number, fx: Effect[]): voi
     correct: turn.correct.map(({ pid, elapsedMs }) => ({ pid, elapsedMs })),
     close: { ...turn.closeCount },
     wrong,
-    hasInk: true, // the ink log is kept at inkClose; F12's InkStore may drop it later
+    // SPEC-QUESTION: the InkStore may drop this log later (4 MB per room) without the reducer
+    // knowing; `ink:get` then answers `inkNotKept` and the gallery shows "Drawing not kept".
+    hasInk: true,
   });
 
   setPhase(d, 'REVEAL');

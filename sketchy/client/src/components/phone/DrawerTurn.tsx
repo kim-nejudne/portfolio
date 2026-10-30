@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DRAW_COLORS } from '../../../../shared/constants.js';
-import type { InkBatch, PlayerView } from '../../../../shared/types.js';
+import type { PlayerView } from '../../../../shared/types.js';
+import type { DrawerInkLink } from '../../ink/drawerSync.js';
 import type { Translate } from '../../lib/copy.js';
 import { DRAWER_BAR_PX, DRAWER_TOOL_ROW_PX, drawerPadSize } from '../../lib/phone.js';
 import { formatClock } from '../../lib/screen.js';
@@ -11,7 +12,7 @@ import { DrawPad } from './DrawPad.js';
 interface Props {
   view: PlayerView;
   receivedAt: number;
-  sendInk: (batch: InkBatch) => void;
+  ink: DrawerInkLink;
   /** A pause ends the stroke in hand and stops drawing until it lifts. */
   paused: boolean;
   t: Translate;
@@ -23,7 +24,7 @@ interface Props {
  * it" and the latest wrong guess; the square pad; two 48 px toolbar rows. Scroll, zoom and
  * pull-to-refresh are locked while it shows.
  */
-export function DrawerTurn({ view, receivedAt, sendInk, paused, t }: Props) {
+export function DrawerTurn({ view, receivedAt, ink, paused, t }: Props) {
   useDrawLock(true);
   const boxRef = useRef<HTMLDivElement>(null);
   const [pad, setPad] = useState(0);
@@ -67,13 +68,7 @@ export function DrawerTurn({ view, receivedAt, sendInk, paused, t }: Props) {
       </header>
       <div className="grid min-h-0 w-full flex-1 place-items-center">
         {pad > 0 && (
-          <DrawPad
-            turnId={turn.id}
-            size={pad}
-            send={sendInk}
-            disabled={paused}
-            label={t('noInkYet')}
-          />
+          <DrawPad turnId={turn.id} size={pad} ink={ink} disabled={paused} label={t('noInkYet')} />
         )}
       </div>
       <div

@@ -341,3 +341,78 @@ describe('createInkSender', () => {
     ]);
   });
 });
+
+describe('createInkSender: kept batches, holding and starting', () => {
+  it('keeps every batch it numbers and resends those after a seq, unchanged', () => {
+    const { sent, ink } = sender();
+    for (const x of [100, 200, 300]) {
+      ink.begin(0, 1, x, 100);
+      ink.move(x + 10, 110);
+      ink.end();
+    }
+    expect(ink.kept()).toEqual(sent);
+    expect(ink.lastSeq()).toBe(3);
+    sent.length = 0;
+    ink.resendAfter(1);
+    expect(sent).toEqual(ink.kept().slice(1));
+  });
+
+  it('keeps a batch whose send threw, so a resend sends it under the same seq', () => {
+    let fail = true;
+    const sent: InkBatch[] = [];
+    const ink = createInkSender({
+      turnId: 7,
+      send: (b) => {
+        if (fail) throw new Error('down');
+        sent.push(b);
+      },
+    });
+    ink.begin(0, 1, 10, 10);
+    expect(() => ink.end()).toThrow('down');
+    fail = false;
+    ink.resendAfter(0);
+    expect(sent.map((b) => b[1])).toEqual([1]);
+  });
+
+  it('while held, keeps ops pending and unnumbered; release sends them as one batch', () => {
+    const { sent, ink } = sender();
+    ink.hold();
+    for (const x of [100, 200, 300]) {
+      ink.begin(0, 1, x, 100);
+      ink.end();
+    }
+    vi.advanceTimersByTime(INK_FLUSH_MS * 4);
+    expect(sent).toEqual([]);
+    expect(ink.lastSeq()).toBe(0);
+    ink.release();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]![1]).toBe(1);
+    expect(sent[0]![2].filter((op) => op[0] === 'b')).toHaveLength(3);
+  });
+
+  it('a held sender numbers nothing until start, then goes on after the given seq and strokeIds', () => {
+    const sent: InkBatch[] = [];
+    const ink = createInkSender({ turnId: 7, send: (b) => sent.push(b), held: true });
+    expect(ink.started()).toBe(false);
+    ink.begin(0, 1, 10, 10);
+    ink.move(20, 20);
+    ink.flush();
+    expect(sent).toEqual([]);
+    // Start sends what is pending at once, renumbered.
+    expect(ink.start(12, 5)).toBe(5);
+    expect(ink.start(99, 99)).toBe(0); // only once
+    ink.end();
+    expect(sent).toEqual([
+      [
+        7,
+        13,
+        [
+          ['b', 6, 0, 1, 10, 10],
+          ['p', 6, 10, 10],
+        ],
+      ],
+      [7, 14, [['e', 6]]],
+    ]);
+    expect(ink.begin(0, 1, 50, 50)).toBe(7);
+  });
+});

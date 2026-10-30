@@ -316,7 +316,10 @@ export type GatewayError =
   | 'notDrawer' // `/ink`: a batch from anyone but the current drawer
   | 'staleTurn' // `/ink`: a batch for a turn that is no longer current
   | 'rateLimited' // `/ink`: more than INK_BATCH_RATE_LIMIT batches from one socket
-  | 'inkFull' // `/ink`: the turn's ink passed INK_TURN_HARD_MAX_BYTES
+  | 'inkFull' // `/ink`: the canvas is full; the batch's new strokes were dropped, the rest applied
+  | 'inkGap' // `/ink`: a batch after a missing `seq`; dropped, and `ink:resend` asks for the gap
+  | 'inkNotKept' // `/ink`: `ink:get` for a drawing the room no longer keeps
+  | 'notScreen' // `/ink`: `ink:get` from a phone
   | 'serverError';
 
 export type AckError = ReduceError | GatewayError;
@@ -512,6 +515,21 @@ export interface InkClientPayloads {
 
 export type InkClientEvent = keyof InkClientPayloads;
 
+/** What a successful ack carries beyond `ok`, for the `/ink` events that answer with data. */
+export interface InkAckData {
+  'ink:get': { turnId: number; actions: InkOp[] };
+}
+
+/**
+ * A turn's whole action stack as ops that rebuild it on an empty stack (strokes under a clear
+ * included, so a later undo of the clear still works), and the last `seq` it includes.
+ */
+export interface InkSnapshot {
+  turnId: number;
+  seq: number;
+  actions: InkOp[];
+}
+
 /**
  * `/ink` handshake `auth`. A phone sends its room code and playerKey, so the gateway knows which
  * player the socket is; a Screen sends nothing and joins with `ink:hello`.
@@ -520,15 +538,30 @@ export type InkAuth = { code: string; playerKey: string } | Empty;
 
 /** `/ink` client→server events. Every one may take an ack; the drawer sends batches without. */
 export type InkClientToServerEvents = {
-  [E in InkClientEvent]: (payload: InkClientPayloads[E], ack?: (res: Ack) => void) => void;
+  [E in InkClientEvent]: (
+    payload: InkClientPayloads[E],
+    ack?: (res: Ack<E extends keyof InkAckData ? InkAckData[E] : object>) => void,
+  ) => void;
 };
 
-/** `/ink` server→client events. Only Screens get them (and, from F12, the drawer's own snapshot). */
+/**
+ * `/ink` server→client events. Only Screens get ink, except the current drawer's own snapshot;
+ * `ink:state` and `ink:resend` go to the drawer and carry only `seq` numbers.
+ */
 export interface InkServerToClientEvents {
   /** A new turn has opened: clear the canvas. */
   'ink:turn': (payload: { turnId: number }) => void;
-  /** The drawer's batch, relayed as received. */
+  /**
+   * The drawer's batch, relayed as received (without the ops a full canvas refused; possibly
+   * none, so `seq` stays contiguous).
+   */
   'ink:batch': (batch: InkBatch) => void;
+  /** The answer to `ink:hello`: the latest turn's whole stack; live batches continue after it. */
+  'ink:snapshot': (snapshot: InkSnapshot) => void;
+  /** The answer to the drawer's `ink:sync`: resend every kept batch with `seq > lastSeq`. */
+  'ink:state': (payload: { turnId: number; lastSeq: number }) => void;
+  /** A batch arrived after a gap: resend every kept batch from `from` on. */
+  'ink:resend': (payload: { turnId: number; from: number }) => void;
 }
 
 // ---------- HTTP ----------

@@ -6,7 +6,7 @@ import {
   visibleStrokes,
   type InkStroke,
 } from '../../../../shared/ink.js';
-import type { InkBatch } from '../../../../shared/types.js';
+import { mergeSnapshot, type DrawerInkLink } from '../../ink/drawerSync.js';
 import { createInkSender, toGrid } from '../../ink/inkSender.js';
 import { drawStroke, redrawPicture } from '../../lib/ink.js';
 import { createPointerGate } from '../../lib/phone.js';
@@ -21,8 +21,8 @@ interface Props {
   turnId: number;
   /** The pad's side in CSS px (Drawer layout). */
   size: number;
-  /** Sends one batch over `/ink`. */
-  send: (batch: InkBatch) => void;
+  /** The page's `/ink` socket: sends batches and keeps this turn's sender in step with the server. */
+  ink: DrawerInkLink;
   /** While true (paused), the stroke in hand ends and new ones don't start. */
   disabled: boolean;
   label: string;
@@ -34,15 +34,16 @@ interface Props {
  * Strokes go to `inkSender` on the 1024 grid and into the pad's own action stack (`shared/ink.ts`),
  * drawn with the Screen's `drawStroke`. The pad draws every point at once; the Screen gets the
  * filtered, simplified line, within a few grid units of it. One sender per turn: a new `turnId`
- * starts a blank pad.
+ * starts a blank pad. The sender waits for the turn's snapshot from the server: empty on a fresh
+ * turn, the drawing so far after a reload, which goes under anything drawn meanwhile.
  */
-export function DrawPad({ turnId, size, send, disabled, label }: Props) {
+export function DrawPad({ turnId, size, ink, disabled, label }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // The latest `send`, so a new callback doesn't restart the turn.
-  const sendRef = useRef(send);
+  // The latest link, so a new object doesn't restart the turn.
+  const inkRef = useRef(ink);
   useEffect(() => {
-    sendRef.current = send;
-  }, [send]);
+    inkRef.current = ink;
+  }, [ink]);
 
   // Canvas setup and drawing, per turn. The size is read through a ref so a resize repaints
   // without dropping the turn's strokes or its sender.
@@ -56,7 +57,7 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    const sender = createInkSender({ turnId, send: (b) => sendRef.current(b) });
+    const sender = createInkSender({ turnId, send: (b) => inkRef.current.send(b), held: true });
     // F32: the toolbar's undo and clear call `sender.undo()`/`clear()` and also `popAction` or
     // `pushClear` on this stack, then `repaint()`, so the pad and the Screen stay the same picture.
     const stack = createInkStack();
@@ -91,6 +92,10 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
     };
     repaintRef.current = repaint;
     repaint();
+    const unbind = inkRef.current.bind(turnId, sender, (snapshot, offset) => {
+      mergeSnapshot(stack, snapshot.actions, offset);
+      repaint();
+    });
 
     const gridPoint = (e: PointerEvent): [number, number] => {
       return [toGrid(e.clientX - rect.left, rect.width), toGrid(e.clientY - rect.top, rect.height)];
@@ -159,6 +164,7 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
       // The turn is over (or the pad is gone): send the stroke in hand, then stop.
       sender.end();
       sender.dispose();
+      unbind();
       repaintRef.current = () => {};
       endStrokeRef.current = () => {};
     };

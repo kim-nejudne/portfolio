@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
-import type { InkBatch, PlayerView } from '../../../shared/types.js';
+import type { Ack, InkBatch, PlayerView } from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { JoinForm } from '../components/phone/JoinForm.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
+import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { translator, type CopyKey } from '../lib/copy.js';
 import { joinOutcome } from '../lib/phone.js';
 import {
@@ -54,6 +55,8 @@ export function Play() {
   const socket = useMemo(() => createSocket(), []);
   const identityRef = useRef<PlayerIdentity | null>(stored);
   const inkRef = useRef<InkSocket | null>(null);
+  // The drawer's current turn on `/ink`, while the pad is up.
+  const drawerSyncRef = useRef<DrawerSync | null>(null);
   const viewRef = useRef<PlayerView | null>(null);
   // Guesses sent and not yet answered, oldest first: a `wrong` fx belongs to the oldest one.
   const pendingGuesses = useRef<string[]>([]);
@@ -67,7 +70,16 @@ export function Play() {
     (identity: PlayerIdentity) => {
       // The `/ink` handshake names the player, so it connects only once the join went through. A
       // refused join closes it, so a new identity always gets a new socket.
-      inkRef.current ??= createInkSocket({ code, playerKey: identity.playerKey });
+      if (!inkRef.current) {
+        const ink = createInkSocket({ code, playerKey: identity.playerKey });
+        // Only the drawer's own snapshot and `seq` numbers ever come back on it.
+        ink.on('connect', () => drawerSyncRef.current?.connected());
+        ink.on('disconnect', () => drawerSyncRef.current?.disconnected());
+        ink.on('ink:snapshot', (snapshot) => drawerSyncRef.current?.snapshot(snapshot));
+        ink.on('ink:state', (payload) => drawerSyncRef.current?.state(payload));
+        ink.on('ink:resend', (payload) => drawerSyncRef.current?.resend(payload));
+        inkRef.current = ink;
+      }
       if (!inkRef.current.connected) inkRef.current.connect();
     },
     [code],
@@ -171,12 +183,42 @@ export function Play() {
       });
   };
 
-  // Not buffered while `/ink` is down: a burst of old batches on reconnect would only count
-  // against the rate limit. F12 resends what was lost from the sender's kept batches.
-  const sendInk = useCallback((batch: InkBatch) => {
-    const ink = inkRef.current;
-    if (ink?.connected) ink.emit('ink:batch', batch);
-  }, []);
+  // Not buffered while `/ink` is down: the sender holds its ops then, and after the reconnect
+  // `ink:sync` resends from its kept batches what the server is missing.
+  const drawerInk = useMemo<DrawerInkLink>(
+    () => ({
+      send(batch: InkBatch) {
+        const ink = inkRef.current;
+        // The ack tells a rate-limited batch apart, so it is resent rather than left missing.
+        if (ink?.connected)
+          ink.emit('ink:batch', batch, (res) => drawerSyncRef.current?.batchAck(res));
+      },
+      bind(turnId, sender, onSnapshot) {
+        const sync = createDrawerSync({
+          code,
+          turnId,
+          sender,
+          onSnapshot,
+          emit: (event, payload, onAck) => {
+            const ink = inkRef.current;
+            if (!ink?.connected) return;
+            // `ink:hello` and `ink:sync` share an ack type; the cast only drops the event union.
+            const timed = ink.timeout(ACK_TIMEOUT_MS) as unknown as {
+              emit(e: string, p: unknown, cb: (err: Error | null, res: Ack) => void): void;
+            };
+            timed.emit(event, payload, (err, res) => onAck(err ? null : res));
+          },
+        });
+        drawerSyncRef.current = sync;
+        if (inkRef.current?.connected) sync.connected();
+        return () => {
+          sync.dispose();
+          if (drawerSyncRef.current === sync) drawerSyncRef.current = null;
+        };
+      },
+    }),
+    [code],
+  );
 
   const leave = () => {
     void socket
@@ -193,6 +235,14 @@ export function Play() {
 
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
+
+  // Batches sent as the pause began were refused: when it lifts, the drawer catches up.
+  const paused = view?.paused != null;
+  const wasPaused = useRef(paused);
+  useEffect(() => {
+    if (wasPaused.current && !paused) drawerSyncRef.current?.resync();
+    wasPaused.current = paused;
+  }, [paused]);
 
   if (status === 'ended' || status === 'removed') {
     return (
@@ -248,7 +298,7 @@ export function Play() {
           <DrawerTurn
             view={view}
             receivedAt={state!.at}
-            sendInk={sendInk}
+            ink={drawerInk}
             paused={view.paused !== null}
             t={t}
           />
