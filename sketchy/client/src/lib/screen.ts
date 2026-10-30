@@ -14,6 +14,11 @@ export function wordLengths(mask: readonly string[]): number[] {
     .filter((n) => n > 0);
 }
 
+/** The hint letters a mask shows, in word order, for screen readers. */
+export function hintLetters(mask: readonly string[]): string[] {
+  return mask.filter((ch) => /[\p{L}\p{N}]/u.test(ch));
+}
+
 /** Time left as `m:ss`, rounded up, so the clock reads 0:00 only when time is up. */
 export function formatClock(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));

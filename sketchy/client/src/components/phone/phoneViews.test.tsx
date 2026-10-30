@@ -151,9 +151,49 @@ describe('drawer phone', () => {
     expect(html).toContain('1 of 2 got it');
     expect(html).toContain('Ana: payong');
   });
+  it('shows hint letters in the blanks, and the hidden-letter count (F19)', () => {
+    const view = drawingView('jun', {
+      players: drawingView('jun').players.map((p) =>
+        p.pid === 'jun' ? { ...p, guessed: false, turnPoints: 0 } : p,
+      ),
+      me: { pid: 'jun', turnPoints: 0, score: null, rank: null, award: null },
+      turn: { ...drawingView('jun').turn!, mask: [...'__b___a_'] },
+    });
+    const html = renderToStaticMarkup(
+      <GuesserTurn
+        view={view}
+        receivedAt={0}
+        misses={[]}
+        nearMiss={0}
+        onGuess={async () => null}
+        t={t}
+      />,
+    );
+    expect(html).toContain('__b___a_');
+    expect(html).toContain('aria-label="6 letters to guess. Hints: b, a"');
+  });
 });
 
 describe('reveal, scoreboard and final', () => {
+  it('REVEAL says "Everyone got it!" only after an early end (F19)', () => {
+    const reveal = (endReason: 'allGuessed' | 'time') =>
+      drawingView('jun', {
+        phase: 'REVEAL',
+        turn: { ...drawingView('jun').turn!, word: WORD, mask: null, timer: null, endReason },
+        me: { pid: 'jun', turnPoints: 270, score: null, rank: null, award: null },
+        secret: null,
+        lastGuess: null,
+      });
+    const early = renderToStaticMarkup(
+      <PhoneStandings view={reveal('allGuessed')} onLeave={() => {}} t={t} />,
+    );
+    expect(early).toContain('Everyone got it!');
+    const time = renderToStaticMarkup(
+      <PhoneStandings view={reveal('time')} onLeave={() => {}} t={t} />,
+    );
+    expect(time).not.toContain('Everyone got it!');
+  });
+
   it('REVEAL shows the word to a guesser with this turn’s points, and the drawer their bonus', () => {
     const reveal = (me: 'mika' | 'jun', points: number) =>
       drawingView(me, {

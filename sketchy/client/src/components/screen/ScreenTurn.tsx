@@ -1,7 +1,7 @@
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import type { ScreenInk } from '../../lib/ink.js';
-import { formatClock, wordLengths } from '../../lib/screen.js';
+import { formatClock, hintLetters, wordLengths } from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { InkCanvas } from './InkCanvas.js';
 import { Avatar } from './PlayerChip.js';
@@ -95,8 +95,9 @@ function TurnPanel({
 }
 
 /** The blanks, one cell per character, with the letters per word after them: `(5, 4)`. */
-function Blanks({ mask }: { mask: string[] }) {
+export function Blanks({ mask }: { mask: string[] }) {
   const lengths = wordLengths(mask);
+  const hints = hintLetters(mask);
   const words = mask.join('').split(' ');
   // Shrinks with the phrase to stay on one line in the sidebar (each cell is about 0.9 em with its
   // gap, plus about 4 em for the counts), but never below 3.5 vh: a long phrase wraps between
@@ -106,7 +107,7 @@ function Blanks({ mask }: { mask: string[] }) {
     <p
       className="flex shrink-0 flex-wrap items-baseline gap-x-[0.9em] gap-y-[0.2em] font-bold"
       style={{ fontSize }}
-      aria-label={`${lengths.join(', ')} letters`}
+      aria-label={`${lengths.join(', ')} letters${hints.length ? `. Hints: ${hints.join(', ')}` : ''}`}
     >
       {words.map((word, w) => (
         <span key={w} className="flex gap-[0.3em] font-mono whitespace-nowrap">
@@ -173,12 +174,17 @@ function RevealWord({ word }: { word: string }) {
   );
 }
 
-function RevealPanel({ view, turn, t }: { view: ScreenView; turn: TurnView; t: Translate }) {
+export function RevealPanel({ view, turn, t }: { view: ScreenView; turn: TurnView; t: Translate }) {
   const byPid = new Map(view.players.map((p) => [p.pid, p]));
   const drawer = byPid.get(turn.drawerPid);
   const correct = [...turn.correct].sort((a, b) => a.order - b.order);
   return (
     <>
+      {turn.endReason === 'allGuessed' && (
+        <p className="font-display text-[max(5vmin,24px)] font-bold text-[#2DC653]">
+          {t('everyoneGotIt')} <span aria-hidden="true">🎉</span>
+        </p>
+      )}
       <p className="text-white/70">{t('itWas')}</p>
       {turn.word && <RevealWord word={turn.word} />}
       {correct.length === 0 ? (

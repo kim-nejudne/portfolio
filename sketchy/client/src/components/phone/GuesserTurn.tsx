@@ -3,7 +3,7 @@ import { GUESS_MAX } from '../../../../shared/constants.js';
 import type { Ack, PlayerView } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import { GUESS_NOTICE_MS, guessAnswer, type OwnGuess } from '../../lib/phone.js';
-import { formatClock, wordLengths } from '../../lib/screen.js';
+import { formatClock, hintLetters, wordLengths } from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 
 interface Props {
@@ -95,7 +95,7 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: 
       {drawing && (
         <p
           role="img"
-          aria-label={t('lettersLabel', { n: mask.filter((c) => c === '_').length })}
+          aria-label={blanksLabel(mask, t)}
           className="font-mono text-2xl leading-tight font-bold tracking-[0.25em] break-words"
         >
           {mask.join('')}{' '}
@@ -168,4 +168,11 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: 
       </p>
     </div>
   );
+}
+
+/** "6 letters to guess", plus the hint letters once there are any: `role="img"` hides the text. */
+function blanksLabel(mask: readonly string[], t: Translate): string {
+  const label = t('lettersLabel', { n: mask.filter((c) => c === '_').length });
+  const hints = hintLetters(mask);
+  return hints.length ? t('hintsLabel', { label, letters: hints.join(', ') }) : label;
 }

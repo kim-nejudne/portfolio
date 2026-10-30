@@ -48,12 +48,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F18 Deck and word choice
 
-- [ ] F19 Hints and early end
-  - Spec: Scoring and timing (Timing and hints)
-  - Depends: F18
-  - Done when:
-    - Hints at 50% and 75%, ⅓ cap, none under 4 letters; mask shows them; `allGuessed` ends the turn 1.5 s after the last eligible guesser; a join during that window doesn't cancel it
-  - Tests: `reducer.hints.test.ts` — caps; disconnected players don't block early end
+- [x] F19 Hints and early end
 
 - [ ] F20 Cycles, scoreboard and final
   - Spec: Game flow and state machine (Phases, Turn order); UI by role and phase (Screen)

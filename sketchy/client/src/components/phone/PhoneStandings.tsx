@@ -23,7 +23,14 @@ export function PhoneStandings({
     <div className="flex h-full flex-col items-center gap-4 overflow-y-auto px-4 pt-6 pb-3 text-center">
       {phase === 'REVEAL' && turn && (
         <>
-          <p className="text-xl text-white/70">{t('itWas')}</p>
+          <div>
+            {turn.endReason === 'allGuessed' && (
+              <p className="text-xl font-bold text-[#2DC653]">
+                {t('everyoneGotIt')} <span aria-hidden="true">🎉</span>
+              </p>
+            )}
+            <p className="text-xl text-white/70">{t('itWas')}</p>
+          </div>
           <p className="font-display text-5xl leading-tight font-bold break-words">
             {turn.word ?? ''}
           </p>

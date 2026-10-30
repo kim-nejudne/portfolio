@@ -29,6 +29,7 @@ import type {
   WordEntry,
   WordPack,
 } from '../shared/types.js';
+import { hintCount } from './hints.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
@@ -227,6 +228,14 @@ describe('word secrecy across a scripted game', () => {
       receivedAt: t + 1000,
       oneWayMs: 0,
     });
+    // F19: a hint letter goes into every view's mask, never the word.
+    act('hint', { type: 'timer', timer: 'hint', turnId: room.turn!.id, epoch: room.timerEpoch });
+    expect(room.turn!.hintIndexes).toHaveLength(hintCount(first) > 0 ? 1 : 0);
+    // Positive control: the Screen's and a guesser's mask show exactly the hinted letter.
+    for (const view of [screenView(room, t), playerView(room, cy, t)]) {
+      const shown = view.turn!.mask!.flatMap((ch, i) => (ch === '_' ? [] : [i]));
+      expect(shown).toEqual(room.turn!.hintIndexes);
+    }
     act('right guess', {
       type: 'player:guess',
       by: asPlayer(ben),

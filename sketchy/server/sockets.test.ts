@@ -5,11 +5,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CHOOSE_MS,
   GRACE_MS,
+  HINT_AT,
   PING_RATE_LIMIT,
   SOCKET_PING_INTERVAL_MS,
   SOCKET_PING_TIMEOUT_MS,
 } from '../shared/constants.js';
 import type { Ack, ClientEvent, Fx, PlayerView, ScreenView, View } from '../shared/types.js';
+import { hintCount } from './hints.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
 import { TEST_PACKS } from './test/packs.js';
@@ -346,9 +348,10 @@ describe('host actions', () => {
 describe('effects runner', () => {
   it('schedules timers and dispatches them, ending the turn when the clock runs out', async () => {
     const g = await playing();
-    // The deal's chooseUp first, then the choice's drawUp.
-    expect(g.timers.map((t) => t.delayMs)).toEqual([CHOOSE_MS, 60_000 + GRACE_MS]);
-    const drawUp = g.timers.at(-1)!;
+    // The deal's chooseUp first, then the choice's drawUp and its hints (F19).
+    const hints = HINT_AT.slice(0, hintCount(g.word)).map((f) => f * 60_000);
+    expect(g.timers.map((t) => t.delayMs)).toEqual([CHOOSE_MS, 60_000 + GRACE_MS, ...hints]);
+    const drawUp = g.timers[1]!;
     g.time.mono = MONO0 + drawUp.delayMs;
     drawUp.fn();
     expect(g.rooms.get(CODE)!.phase).toBe('REVEAL');
@@ -379,9 +382,25 @@ describe('effects runner', () => {
     expect(JSON.stringify(guesser)).not.toContain(room.turn!.word!.word);
   });
 
+  it('reveals a hint letter on every view when a hint timer fires', async () => {
+    const g = await playing();
+    const hint = g.timers[2]!;
+    expect(hint.delayMs).toBe(HINT_AT[0] * 60_000);
+    g.time.mono = MONO0 + hint.delayMs;
+    hint.fn();
+    const [index] = g.rooms.get(CODE)!.turn!.hintIndexes;
+    expect(index).toBeDefined();
+    const letter = [...g.word][index!];
+    const screen = await g.screen.state((v) => v.turn?.mask?.[index!] === letter);
+    const ben = await g.ben.client.state((v) => v.turn?.mask?.[index!] === letter);
+    expect(ben.turn!.mask).toEqual(screen.turn!.mask);
+    expect(g.ben.client.fx).toContainEqual({ kind: 'hint' });
+    expect(g.screen.fx).toContainEqual({ kind: 'hint' });
+  });
+
   it('drops a stale timer silently', async () => {
     const g = await playing();
-    const drawUp = g.timers.at(-1)!;
+    const drawUp = g.timers[1]!;
     expect(await g.screen.emit('host:skip')).toEqual({ ok: true });
     const room = g.rooms.get(CODE)!;
     const before = g.screen.states.length;

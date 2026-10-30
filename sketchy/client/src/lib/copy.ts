@@ -32,6 +32,7 @@ const EN = {
   wordsReshuffled: 'All words used, reshuffling',
   // ---------- Screen: reveal ----------
   itWas: 'It was…',
+  everyoneGotIt: 'Everyone got it!',
   gotItLabel: 'Got it',
   almost: 'Almost:',
   nobodyGotIt: 'Nobody got it!',
@@ -80,6 +81,7 @@ const EN = {
   closeGuess: '(close)',
   wrongGuess: '(wrong)',
   lettersLabel: '{n} letters to guess',
+  hintsLabel: '{label}. Hints: {letters}',
   youGotIt: '✓ You got it! +{points}',
   watchScreen: '👀 Watch the Screen',
   turnPoints: '+{points} this turn',

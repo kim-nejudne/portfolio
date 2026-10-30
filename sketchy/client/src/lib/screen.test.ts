@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerChipView } from '../../../shared/types.js';
-import { formatClock, rankPlayers, wordLengths } from './screen.js';
+import { formatClock, hintLetters, rankPlayers, wordLengths } from './screen.js';
 
 function chip(pid: string, score: number | null): PlayerChipView {
   return {
@@ -49,5 +49,12 @@ describe('Screen helpers', () => {
   it('keeps join order among tied players', () => {
     const ranked = rankPlayers([chip('x', 0), chip('y', 0)]);
     expect(ranked.map((r) => r.player.pid)).toEqual(['x', 'y']);
+  });
+});
+
+describe('hintLetters', () => {
+  it('lists the revealed letters in word order, never blanks, spaces or marks', () => {
+    expect(hintLetters([..."b_h__ _u-o'"])).toEqual(['b', 'h', 'u', 'o']);
+    expect(hintLetters([...'____'])).toEqual([]);
   });
 });

@@ -4,7 +4,7 @@
 // `schedule` effects carrying `turnId` and `timerEpoch`.
 //
 // LOBBY → CHOOSING → DRAWING → REVEAL → … → FINAL after one cycle. Cycles and SCOREBOARD (F20),
-// overlapped choosing (F21), pauses (F23) and the rest arrive with their features; their actions
+// overlapped choosing (F21), pauses (F28) and the rest arrive with their features; their actions
 // are rejected as `notAvailable` until then.
 
 import {
@@ -14,6 +14,7 @@ import {
   FEED_MAX,
   GRACE_MS,
   GUESS_INTERVAL_MS,
+  HINT_AT,
   MAX_PLAYERS,
   MIN_PLAYERS,
   NAME_OF_DISCONNECTED_ERROR,
@@ -42,6 +43,7 @@ import {
   returnChoices,
 } from './deck.js';
 import { correctedAt } from './fairness.js';
+import { hintCount, pickHint } from './hints.js';
 import { guessRejection, matchGuess } from './match.js';
 import { feedText } from './profanity.js';
 import { createRng } from './rng.js';
@@ -87,7 +89,7 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return timer(d, action, now, fx);
     case 'sys:connected':
     case 'sys:disconnected':
-      return connection(d, action);
+      return connection(d, action, now, fx);
     case 'sys:screens':
       d.screens = action.count;
       return undefined;
@@ -222,11 +224,28 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
   return undefined;
 }
 
-function connection(d: Room, a: ActionOf<'sys:connected' | 'sys:disconnected'>): Handled {
+function connection(
+  d: Room,
+  a: ActionOf<'sys:connected' | 'sys:disconnected'>,
+  now: number,
+  fx: Effect[],
+): Handled {
   const player = d.players[a.pid];
   if (!player) return 'unknownPlayer';
   // The crown stays on disconnect; it passes only on leave or kick.
   player.connected = a.type === 'sys:connected';
+  // A disconnected player doesn't hold the turn open: they may have been the last guesser without
+  // the word. A reconnect never cancels a scheduled early end.
+  // SPEC-QUESTION: the drawer disconnecting is F40's drawerAway pause; here it changes nothing.
+  const turn = d.turn;
+  if (
+    a.type === 'sys:disconnected' &&
+    d.phase === 'DRAWING' &&
+    turn &&
+    a.pid !== turn.drawerPid &&
+    !turn.correct.some((c) => c.pid === a.pid)
+  )
+    checkAllGuessed(d, now, fx);
   return undefined;
 }
 
@@ -331,7 +350,7 @@ function choose(d: Room, a: ActionOf<'drawer:choose'>, now: number, fx: Effect[]
 
 /**
  * The drawer's choice (or the auto-pick) is set: only it is used up, the other two go to the
- * bottom of the deck. **Start drawing**: the clock, `drawUp`, `inkOpen`.
+ * bottom of the deck. **Start drawing**: the clock, `drawUp`, the hints, `inkOpen`.
  */
 function startDrawing(d: Room, index: ChoiceIndex, now: number, fx: Effect[]): void {
   const turn = d.turn!;
@@ -344,6 +363,27 @@ function startDrawing(d: Room, index: ChoiceIndex, now: number, fx: Effect[]): v
     { type: 'inkOpen', turnId: turn.id, drawerPid: turn.drawerPid },
     schedule(d, 'drawUp', turn.endsAt + GRACE_MS),
   );
+  // One hint at each HINT_AT mark, as many as the word's cap allows (none under 4 letters).
+  // SPEC-QUESTION: a pause moves clockStart; F28's resumeGo must re-schedule the hints still to come.
+  if (d.settings.hints) {
+    const drawMs = d.settings.drawSeconds * 1000;
+    for (const f of HINT_AT.slice(0, hintCount(turn.word!.word)))
+      fx.push(schedule(d, 'hint', now + f * drawMs));
+  }
+}
+
+/**
+ * **Hint**: one more random unrevealed letter, the same for every view (they all read
+ * `hintIndexes`). Past the cap, nothing changes. The fx carries no letter.
+ */
+function hint(d: Room, fx: Effect[]): void {
+  const turn = d.turn!;
+  const rng = createRng(d.rngState);
+  const index = pickHint(turn.word!.word, turn.hintIndexes, rng);
+  if (index === null) return;
+  d.rngState = rng.state;
+  turn.hintIndexes = [...turn.hintIndexes, index];
+  fx.push({ type: 'fx', to: 'all', fx: { kind: 'hint' } });
 }
 
 /**
@@ -357,7 +397,7 @@ function abandonChoice(d: Room, now: number, fx: Effect[]): void {
 
 function schedule(
   d: Room,
-  timer: 'chooseUp' | 'drawUp' | 'allGuessed' | 'revealDone',
+  timer: 'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone',
   at: number,
 ): Effect {
   return { type: 'schedule', at, timer, turnId: d.turn!.id, epoch: d.timerEpoch };
@@ -434,8 +474,11 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
 }
 
 /**
- * Every connected guesser is correct (and at least one is): end the turn in 1.5 s. A second
- * schedule is harmless; whichever fires first moves the phase and the other goes stale.
+ * Every eligible guesser (connected, not the drawer, in the room now) is correct, and at least one
+ * guesser is (connected or not): end the turn in 1.5 s. With nobody connected left to guess, a turn
+ * someone got ends early too. Once scheduled it always fires: a join or reconnect in the window
+ * doesn't cancel it. A second schedule is harmless; whichever fires first moves the phase and the
+ * other goes stale.
  */
 function checkAllGuessed(d: Room, now: number, fx: Effect[]): void {
   const turn = d.turn!;
@@ -502,15 +545,23 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
   if (!d.turn || a.turnId !== d.turn.id || a.epoch !== d.timerEpoch) return 'staleTimer';
   switch (a.timer) {
     case 'chooseUp':
-      // SPEC-QUESTION: re-scheduling chooseUp for the remaining time after a pause comes with F23's resumeGo.
+      // SPEC-QUESTION: re-scheduling chooseUp for the remaining time after a pause comes with F28's resumeGo.
       if (d.phase !== 'CHOOSING' || d.turn.word) return 'wrongPhase';
-      // A pause holds the choice open; F23's resumeGo schedules the rest of the 12 s.
+      // A pause holds the choice open; F28's resumeGo schedules the rest of the 12 s.
       if (d.paused) return 'paused';
       startDrawing(d, easiestIndex(d.turn.choices), now, fx);
+      return undefined;
+    case 'hint':
+      if (d.phase !== 'DRAWING' || !d.turn.word) return 'wrongPhase';
+      // A pause holds the hint; F28's resumeGo re-schedules it.
+      if (d.paused) return 'paused';
+      hint(d, fx);
       return undefined;
     case 'drawUp':
     case 'allGuessed':
       if (d.phase !== 'DRAWING') return 'wrongPhase';
+      // A pause holds an early end too; F28's resumeGo re-runs the all-guessed check.
+      if (a.timer === 'allGuessed' && d.paused) return 'paused';
       endTurn(d, a.timer === 'drawUp' ? 'time' : 'allGuessed', now, fx);
       return undefined;
     case 'revealDone':

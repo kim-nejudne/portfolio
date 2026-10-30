@@ -35,8 +35,90 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F16: after autopilot deploys, open `https://sketchy.kimnejudne.dev/screen/CODE?debug=1` on the laptop (Screen on the TV, Wi-Fi) and join 3 phones; the drawer's phone on 4G opens `/play/CODE?debug=1` (add `?debug=1` to the join URL before joining). Start, wait 10 s, then (a) read the overlay at the top left; (b) film the drawer's phone and the TV together in slow motion (240 fps), draw 10 quick strokes, and count frames from finger movement to the line appearing on the TV (1 frame ≈ 4.2 ms) · (a) the overlay lists every phone with an RTT in ms (not "–"), shows "clock offset: N ms", and after the strokes shows p50 near 70–150 ms and p95 under 300 ms; (b) the video's median delay is within about 30 ms of the overlay's "+ 25 ms flush wait" p50 (the spec's ground truth)
 - [ ] F17: open `data/packs/en-everyday.json` and `data/packs/tl-pinoy-life.json` (30 words each, the spec's sample tables) and run `npm run packs:check` · every word drawable in 60 s on a phone? Taglish spellings and alternates are what a barkada types (tsinelas/chinelas, dyip/jeep, litson)? glosses short, plain English and right? difficulties fair (en has 4 hard, tl 5)?
 - [ ] F18: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 640, e.g. an iPhone SE or a budget Android); start, and (a) on the drawer's phone read the three cards and tap the middle one; (b) on the next turn don't tap and let the 12 s run out; (c) look at the TV and a guesser's phone while someone is choosing; (d) play one turn with the language set to Taglish (once F22 adds the setting, or with a room created with `{"settings":{"words":"taglish"}}`) · (a) three cards Easy/Medium/Hard, easiest at the top, each word large and readable, Tagalog medium/hard words show their short English gloss, "Hold your phone close 🤫" and the "Tap one…" line fit with nothing cut off and no scrolling, and the tap moves straight to the draw pad with that word in the bar; a tap the instant the cards appear (e.g. a leftover tap) doesn't pick anything; (b) the easy word is picked and the pad opens by itself; (c) the TV and guessers show "Mika is choosing a word…" and never any of the three words; (d) all three choices are Tagalog words
+- [ ] F19: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 560–640); (a) play a turn without guessing and watch the blanks on the TV and a guesser's phone at half time and three-quarter time; (b) next turn, have both guessers type the word; (c) on a third turn, one guesser gets it and the other locks their phone (or turns Wi-Fi off) · (a) one letter appears in the blanks at ~50% and a second at ~75% (only one for a 4–5 letter word, none for a 3-letter word), the same letters in the same places on the TV and every phone; (b) about 1.5 s after the last correct guess the turn ends and the TV and phones show "Everyone got it! 🎉" above "It was…", and on the small phone the reveal fits with no scrolling, even with a two-word answer; (c) the turn ends ~1.5 s after the first guesser got it, without waiting for the locked phone
 
 <!-- entries below, newest first -->
+
+## F19 — Hints and early end (2026-10-30)
+**What changed:**
+- **`server/hints.ts` (new, pure):**
+  - `letterIndexes` lists the NFC code-point positions of the letters and digits, the same ones `maskWord` blanks.
+  - `hintCap` is ⅓ of the letters, rounded down, and 0 under 4 letters.
+  - `hintCount` is `min(2, cap)`.
+  - `pickHint` picks a random unrevealed letter with the room RNG, or null at the cap.
+- **Reducer:**
+  - **Start drawing** schedules `hint` timers at 50% and 75% of `drawSeconds`, as many as `hintCount` allows, and none with hints off.
+  - `timer hint` appends one letter to `hintIndexes`, stores the RNG state and sends a letter-free `fx hint` to all. Past the cap it is a no-op. It is refused while paused.
+  - `sys:disconnected` of a guesser in DRAWING who hasn't got the word re-runs the all-guessed check, so a disconnected player doesn't hold the turn open.
+  - Once scheduled, `allGuessed` is never cancelled, by a join or a reconnect. It is refused while paused.
+  - Every view already masks from `hintIndexes`, so the Screen and every phone show the same letters.
+- **Client:**
+  - "Everyone got it! 🎉" (🎉 `aria-hidden`) shows above "It was…" on the Screen reveal and the phone reveal when `endReason` is `allGuessed`.
+  - The blanks' screen-reader labels name the hint letters ("6 letters to guess. Hints: b, a"). This uses the new `hintLetters` in `lib/screen.ts`.
+  - `RevealPanel` and `Blanks` are exported for tests.
+- **Tests:**
+  - `server/hints.test.ts` (9): letter positions match the mask, NFC, the caps, the count, picks never a space or a repeat, determinism and coverage.
+  - `server/reducer.hints.test.ts` (22):
+    - scheduling at 50%/75%, following `drawSeconds`, one hint for 4–5 letters, none under 4 or with hints off;
+    - a reveal that every view shows identically;
+    - a second, distinct letter, and the ⅓ cap including a two-word word;
+    - determinism, staleness after the turn ends, and no word in the fx;
+    - early end 1.5 s after the last eligible guesser;
+    - disconnected guessers not blocking it (before or after the guess, and everyone gone);
+    - no schedule for an early, correct-guesser or drawer disconnect;
+    - a join, a reconnect or a hint in the window not cancelling it;
+    - refused while paused;
+    - two players.
+  - `sockets.test.ts`: the timers include the hints, and a hint timer through the gateway updates both masks and sends `fx hint`.
+  - `views.leak.test.ts`: a real hint in the scripted game. The Screen and guesser masks show exactly the hinted positions, and no `qz` token leaks.
+  - `ScreenTurn.test.tsx` (new, 4): the reveal banner, and the blanks' labels.
+  - `phoneViews.test.tsx`: the hint letters and label on a guesser, and the phone banner.
+  - `screen.test.ts`: `hintLetters`.
+- No new dependencies.
+
+**Decisions:** DECISIONS 42 covers:
+- the meaning of "letter" and the cap;
+- scheduling only the hints the cap allows;
+- `hint`/`allGuessed` refused while paused;
+- the disconnect re-check, the uncancellable window, and the everyone-disconnected case;
+- the banner and the labels.
+
+DECISIONS 18's "not yet on a disconnect (F19)" now points to it.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 42, this entry, the F19 Kim check, and the leak harness checking that the masks show exactly the hinted letters. Kick during DRAWING is still `notAvailable` (F28). F28 must route kick through the same early-end check as `leave`.
+- **secrets-fairness: PASS WITH FIXES.** Applied:
+  - `allGuessed` is refused while paused, with a test;
+  - the everyone-disconnected case is tested and recorded;
+  - the pause comments now name F28.
+  - Left: hints share `rngState` with the deck. This is deterministic and leaks nothing, but a hint changes the later deal order.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - the hint letters in the blanks' aria-labels on the phone and the Screen;
+  - the Screen banner at `max(5vmin,24px)`, matching "Nobody got it!";
+  - 🎉 `aria-hidden`;
+  - the phone banner and "It was…" grouped with no gap between them;
+  - a Screen reveal render test.
+  - Left for Kim: the 360 × 560 fit of the phone reveal with a two-word answer.
+
+**Notes for next session:**
+- **F28 (pause, kick):**
+  - `resumeGo` must re-schedule the hints still to come (fire times are `clockStart + 0.5/0.75 × drawMs`, and `clockStart` moves), and re-run `checkAllGuessed`. `hint`, `allGuessed` and `chooseUp` all refuse while paused.
+  - Kick in DRAWING must call `checkAllGuessed` as `leave` does.
+  - Earlier notes and comments said F23 for pause re-scheduling. The roadmap gives pause and resume to F28, and the reducer comments now say F28.
+- **F34:** `fx hint` has no client consumer yet. Its "letter pop animation" goes there.
+- **F35:** the reveal's "Everyone got it! 🎉" line is in `RevealPanel` and `PhoneStandings`. Restyle it there.
+- **F40:** a disconnecting drawer doesn't trigger the early-end check, which is deliberate. F40's drawer away takes over.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/hints.test.ts server/reducer.hints.test.ts server/views.leak.test.ts server/sockets.test.ts client/src/components`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), 3 phones via `npm run lan CODE`. Choose a word and wait. At 0:30 left (60 s turn), a letter appears in the blanks on the TV and the guessers' phones, and a second at 0:15 for words of 6+ letters. Have every guesser type the word: 1.5 s later the reveal shows "Everyone got it! 🎉".
+- Automated: `npm run playtest -- .playtest/F19/scenario.ts` (gitignored). It runs a Screen and 3 phones plus a late joiner, and all steps pass:
+  - the word is absent from the Screen and guesser DOM;
+  - an 8-letter word showed exactly 2 hints (`_a______`, then `_a___s__`) at ~50%/75%, identical on the Screen and the guessers;
+  - one correct guesser didn't end the turn;
+  - the second did, with the reveal 1.73 s after the last guess (1.5 s plus network);
+  - a phone joining 0.95 s into the window didn't cancel it.
+  - Short words and disconnects are covered by the unit tests only.
 
 ## F18 — Deck and word choice (2026-10-30)
 **What changed:**
