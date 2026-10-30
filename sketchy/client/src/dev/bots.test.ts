@@ -296,6 +296,7 @@ describe('createBot', () => {
           { word: 'astronaut', gloss: null, difficulty: 3 },
         ],
         word: null,
+        chooseTimer: null,
       },
     });
     socket.fire('state', choosing());
@@ -304,6 +305,27 @@ describe('createBot', () => {
     expect(socket.sent('drawer:choose')).toEqual([]);
     vi.advanceTimersByTime(1);
     expect(socket.sent('drawer:choose').map((e) => e.payload)).toEqual([{ index: 2 }]);
+  });
+
+  it('picks its word as the next drawer during REVEAL (F21)', () => {
+    const { socket, joined } = spawn(2, { behaviour: { autoDraw: true }, random: () => 0 });
+    joined();
+    // Bot 1 drew turn 4; bot 2 was dealt turn 5.
+    socket.fire('state', {
+      ...view('bot2', { phase: 'REVEAL', drawer: 'bot1', turnId: 4 }),
+      secret: {
+        turnId: 5,
+        choices: [
+          { word: 'apple', gloss: null, difficulty: 1 },
+          { word: 'guitar', gloss: null, difficulty: 2 },
+          { word: 'astronaut', gloss: null, difficulty: 3 },
+        ],
+        word: null,
+        chooseTimer: null,
+      },
+    });
+    vi.advanceTimersByTime(BOT_CHOOSE_MS);
+    expect(socket.sent('drawer:choose').map((e) => e.payload)).toEqual([{ index: 0 }]);
   });
 
   it('does not pick a word when auto-draw is off or it is not the drawer', () => {

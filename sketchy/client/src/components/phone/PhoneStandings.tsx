@@ -18,9 +18,16 @@ export function PhoneStandings({
 }) {
   const { me, turn, phase } = view;
   const wasDrawer = turn?.drawerPid === me.pid;
+  // The next drawer's word is chosen (F21); it stays off this screen until the pad.
+  const drawsNext = (phase === 'REVEAL' || phase === 'SCOREBOARD') && view.secret?.word != null;
 
   return (
     <div className="flex h-full flex-col items-center gap-4 overflow-y-auto px-4 pt-6 pb-3 text-center">
+      {drawsNext && (
+        <p className="rounded-2xl bg-[#FFD166] px-4 py-1 text-lg font-bold text-[#1D1B22]">
+          <span aria-hidden="true">✏️</span> {t('youDrawNextReady')}
+        </p>
+      )}
       {phase === 'REVEAL' && turn && (
         <>
           <div>

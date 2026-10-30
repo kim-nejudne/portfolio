@@ -122,6 +122,19 @@ export function returnChoices(deck: Deck, choices: Choices): Deck {
   };
 }
 
+/**
+ * A dealt turn that is never drawn (an `upcoming` deal discarded, F21): its words go back to the
+ * bottom of the deck, and a word already chosen is no longer used up. No deal happens between the
+ * choice and the discard, so no reshuffle can have cleared `usedIds` meanwhile.
+ */
+export function returnDealt(deck: Deck, choices: Choices, chosen: WordEntry | null): Deck {
+  if (!chosen) return returnChoices(deck, choices);
+  return {
+    remaining: [...deck.remaining, chosen.id],
+    usedIds: deck.usedIds.filter((id) => id !== chosen.id),
+  };
+}
+
 /** The auto-pick: the easiest of the three, a custom word counting as medium; ties go first. */
 export function easiestIndex(choices: Choices): ChoiceIndex {
   const level = (w: WordEntry) => (w.lang === 'custom' ? 2 : w.difficulty);

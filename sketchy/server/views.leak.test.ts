@@ -6,13 +6,11 @@
 //
 // Every secret in play carries a `qz` marker (every room here deals from `LEAK_PACK`), so a token
 // search of the JSON finds any of them, wherever it hides. Every secret must therefore come from
-// `LEAK_PACK`, `upcomingFor` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
+// `LEAK_PACK` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
 // logger added later must be spied on here too.
 //
-// SPEC-QUESTION: the reducer cannot reach a pause or overlapped choosing (`upcoming`)
-// yet (F28, F21), so those states are built by hand
-// from real ones (each marked `synth`). When those features land, replace each `synth` with the
-// real action (DECISIONS 33).
+// SPEC-QUESTION: the reducer cannot reach a pause yet (F28), so that state is built by hand from a
+// real one (marked `synth`). When F28 lands, replace it with the real action (DECISIONS 33).
 
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -159,36 +157,6 @@ const playerView = (room: Room, pid: string, now: number) =>
 /** The word in play: tests only, to make right guesses and positive checks. */
 const word = (room: Room) => secretWord(room);
 
-/** Hand-built `upcoming` turn for `drawerPid`, dealt three fresh marked words. */
-function upcomingFor(room: Room, drawerPid: string, chosen: boolean): Turn {
-  const entry = (i: 1 | 2 | 3): WordEntry => ({
-    id: `up/${i}`,
-    word: `qzup${i}`,
-    alt: [`qzupalt${i}`],
-    difficulty: i,
-    lang: 'tl',
-    gloss: `qzupgloss${i}`,
-  });
-  const choices: Turn['choices'] = [entry(1), entry(2), entry(3)];
-  return {
-    ...room.turn!,
-    id: room.turnCounter + 1,
-    drawerPid,
-    choices,
-    word: chosen ? choices[1] : null,
-    clockStart: null,
-    endsAt: null,
-    correct: [],
-    feed: [],
-    closeGuesses: [],
-    closeCount: {},
-    lastGuessAt: {},
-    guessCount: {},
-    drawerPoints: 0,
-    endReason: null,
-  };
-}
-
 describe('word secrecy across a scripted game', () => {
   it('no Screen, guesser or crown view gets a word, alternate, gloss or choice before REVEAL', () => {
     visited = new Set();
@@ -290,25 +258,17 @@ describe('word secrecy across a scripted game', () => {
     expect(screenView(room, t).turn!.word).toBe(first);
     expect(screenView(room, t).closeGuesses).toEqual([{ pid: cy, text: CLOSE_TEXT }]);
 
-    // synth overlapped choosing. TODO(F21): the real deal and `drawer:choose` instead.
-    // Ben, next to draw, chooses during REVEAL and SCOREBOARD.
-    for (const chosen of [false, true]) {
-      const overlap: Room = { ...room, upcoming: upcomingFor(room, ben, chosen) };
-      audit(`reveal, upcoming ${chosen ? 'chosen' : 'choosing'}`, overlap, t);
-      // synth SCOREBOARD with `upcoming` (F21); the plain SCOREBOARD is reached for real below.
-      audit(
-        `scoreboard, upcoming ${chosen ? 'chosen' : 'choosing'}`,
-        {
-          ...overlap,
-          phase: 'SCOREBOARD',
-        },
-        t,
-      );
-      expect(tokens(playerView(overlap, ben, t))).toContain(chosen ? 'qzup2' : 'qzup3');
-    }
+    // F21: Ben, next to draw, was dealt on entering REVEAL. Positive control: his phone has the
+    // three choices and their glosses; every other view was audited above.
+    expect(room.upcoming!.drawerPid).toBe(ben);
+    expect(tokens(playerView(room, ben, t))).toEqual(
+      expect.arrayContaining(room.upcoming!.choices.flatMap(entrySecrets)),
+    );
 
-    // Turn 2: Ben draws the auto-pick; Ana, still crowned, guesses right.
-    act('turn 2 dealt', { type: 'host:next', by: SCREEN_HOST });
+    // Turn 2: Ben doesn't choose during the reveal, so CHOOSING, then the auto-pick; Ana, still
+    // crowned, guesses right.
+    act('turn 2 taken up unchosen', { type: 'host:next', by: SCREEN_HOST });
+    expect(room.phase).toBe('CHOOSING');
     expect(room.turn!.drawerPid).toBe(ben);
     act(
       'turn 2 auto-pick',
@@ -337,10 +297,13 @@ describe('word secrecy across a scripted game', () => {
     expect(room.crownPid).toBe(ben);
     act('reveal 2', { type: 'host:skip', by: SCREEN_HOST });
 
-    // Turn 3: Cy draws; Ben guesses right with the crown.
-    act('turn 3 dealt', { type: 'host:next', by: SCREEN_HOST });
+    // Turn 3: Cy chooses during the reveal and draws at once; Ben guesses right with the crown.
+    expect(room.upcoming!.drawerPid).toBe(cy);
+    act('turn 3 chosen during the reveal', { type: 'drawer:choose', by: asPlayer(cy), index: 0 });
+    expect(room.phase).toBe('REVEAL');
+    act('turn 3 starts', { type: 'host:next', by: SCREEN_HOST });
+    expect(room.phase).toBe('DRAWING');
     expect(room.turn!.drawerPid).toBe(cy);
-    act('turn 3 starts', { type: 'drawer:choose', by: asPlayer(cy), index: 0 });
     act('crown guesses right', {
       type: 'player:guess',
       by: asPlayer(ben, true),
@@ -351,11 +314,21 @@ describe('word secrecy across a scripted game', () => {
     act('reveal 3', { type: 'host:skip', by: SCREEN_HOST });
 
     // Cycle 1 is done: the totals and ranks, then cycle 2 in join order, the late joiner included.
+    // Ben was dealt cycle 2's first turn at the reveal, and chooses on the scoreboard.
     act('scoreboard', { type: 'host:next', by: SCREEN_HOST });
     expect(room.phase).toBe('SCOREBOARD');
-    act('cycle 2 dealt', { type: 'host:next', by: SCREEN_HOST });
     expect(room.turnOrder).toEqual([ben, cy, dee]);
+    expect(room.upcoming).toMatchObject({ drawerPid: ben, cycle: 2 });
+    act('cycle 2 chosen on the scoreboard', {
+      type: 'drawer:choose',
+      by: asPlayer(ben, true),
+      index: 1,
+    });
+    expect(room.phase).toBe('SCOREBOARD');
+    act('cycle 2 starts', { type: 'host:next', by: SCREEN_HOST });
+    expect(room.turn!.drawerPid).toBe(ben);
     act('cycle 2, Ben skipped', { type: 'host:skip', by: SCREEN_HOST });
+    act('cycle 2, Cy taken up', { type: 'host:next', by: SCREEN_HOST });
     act('cycle 2, Cy skipped', { type: 'host:skip', by: SCREEN_HOST });
     expect(room.turn!.drawerPid).toBe(dee);
     act('late joiner draws', { type: 'drawer:choose', by: asPlayer(dee), index: 1 });

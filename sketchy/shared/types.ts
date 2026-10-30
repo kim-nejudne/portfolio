@@ -495,6 +495,11 @@ export interface SecretView {
   turnId: number;
   choices: ChoiceView[] | null; // while the choice is open
   word: ChoiceView | null; // once chosen
+  /**
+   * The `upcoming` drawer's open choice (REVEAL, SCOREBOARD): time left until the auto-pick, 12 s
+   * after the deal. Null otherwise; in CHOOSING the turn's own timer shows it.
+   */
+  chooseTimer: TimerView | null;
 }
 
 export interface PlayerView extends BaseView {

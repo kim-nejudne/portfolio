@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALL_GUESSED_MS,
+  CHOOSE_MS,
   CLOSE_GUESSES_MAX,
   FEED_MAX,
   GRACE_MS,
@@ -343,7 +344,16 @@ describe('DRAWING → REVEAL', () => {
     expect(after.turn!.drawerPoints).toBe(235);
     expect(after.turn!.endReason).toBe('time');
     expect(after.players[pids[0]!]!.score).toBe(235);
+    // The next drawer is dealt as `upcoming` (F21) and chooses during the reveal.
     expect(effects).toEqual([
+      { type: 'fx', to: { pid: pids[1] }, fx: { kind: 'yourTurn' } },
+      {
+        type: 'schedule',
+        at: now + CHOOSE_MS,
+        timer: 'chooseUp',
+        turnId: 2,
+        epoch: after.timerEpoch,
+      },
       { type: 'inkClose', turnId: 1 },
       { type: 'fx', to: 'all', fx: { kind: 'turnEnd', reason: 'time' } },
       {
@@ -384,7 +394,8 @@ describe('DRAWING → REVEAL', () => {
       T0 + 1000,
     );
     const { effects } = step(room, timer(room, 'drawUp'), T0 + 70_000);
-    expect(effects.some((e) => e.type === 'schedule')).toBe(false);
+    // Only the upcoming deal's chooseUp (F21): REVEAL waits for Next.
+    expect(effects.filter((e) => e.type === 'schedule').map((e) => e.timer)).toEqual(['chooseUp']);
   });
 
   it('host:skip ends the turn as a skip and keeps points already earned', () => {
@@ -454,23 +465,27 @@ describe('stale timers', () => {
 });
 
 describe('REVEAL → next drawer', () => {
-  it('revealDone deals the next drawer a choice in CHOOSING', () => {
+  it('revealDone takes up the next drawer, dealt at the reveal, in CHOOSING when not chosen', () => {
     const { room, pids, at } = started();
-    const reveal = step(room, timer(room, 'drawUp'), at + DRAW_MS + GRACE_MS).room;
+    const reveal = step(room, timer(room, 'drawUp'), at + DRAW_MS + GRACE_MS);
+    expect(reveal.effects).toContainEqual({
+      type: 'fx',
+      to: { pid: pids[1] },
+      fx: { kind: 'yourTurn' },
+    });
     const now = at + DRAW_MS + GRACE_MS + REVEAL_MS;
-    const { room: after, effects } = step(reveal, timer(reveal, 'revealDone'), now);
+    const { room: after, effects } = step(reveal.room, timer(reveal.room, 'revealDone'), now);
     expect(after.phase).toBe('CHOOSING');
     expect(after.turn).toMatchObject({
       id: 2,
       cycle: 1,
       drawerPid: pids[1],
-      dealtAt: now,
+      dealtAt: at + DRAW_MS + GRACE_MS,
       word: null,
       clockStart: null,
       correct: [],
     });
-    expect(after.timerEpoch).toBe(reveal.timerEpoch + 1);
-    expect(effects).toContainEqual({ type: 'fx', to: { pid: pids[1] }, fx: { kind: 'yourTurn' } });
+    expect(after.timerEpoch).toBe(reveal.room.timerEpoch + 1);
     expect(effects.some((e) => e.type === 'inkOpen')).toBe(false);
   });
 

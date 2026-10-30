@@ -69,6 +69,8 @@ const EN = {
   isDrawingShort: '✏️ {name} drawing',
   getReady: 'Your turn to draw! Get ready…',
   yourTurnToDraw: 'Your turn to draw!',
+  youDrawNext: 'You draw next! Pick a word',
+  youDrawNextReady: 'You draw next! Get ready',
   seconds: '{n}s',
   holdPhoneClose: 'Hold your phone close 🤫',
   levelEasy: 'Easy',

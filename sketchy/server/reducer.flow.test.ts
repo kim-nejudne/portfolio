@@ -1,6 +1,6 @@
 // Cycles, SCOREBOARD and FINAL (F20): Phases and Turn order in docs/spec.md.
 import { describe, expect, it } from 'vitest';
-import { GRACE_MS, REVEAL_MS, SCOREBOARD_MS } from '../shared/constants.js';
+import { CHOOSE_MS, GRACE_MS, REVEAL_MS, SCOREBOARD_MS } from '../shared/constants.js';
 import type { Action, Phase, Room, RoomSettings, TimerName } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import {
@@ -164,7 +164,15 @@ describe('SCOREBOARD', () => {
     const { room: after, effects } = step(room, timer(room, 'revealDone'), now);
     expect(after.phase).toBe('SCOREBOARD');
     expect(after.timerEpoch).toBe(room.timerEpoch + 1);
+    // The next cycle's first deal (F21) keeps its chooseUp across the phase change.
     expect(effects).toEqual([
+      {
+        type: 'schedule',
+        timer: 'chooseUp',
+        at: room.upcoming!.dealtAt + CHOOSE_MS,
+        turnId: room.upcoming!.id,
+        epoch: after.timerEpoch,
+      },
       {
         type: 'schedule',
         timer: 'scoreboardDone',
@@ -175,17 +183,23 @@ describe('SCOREBOARD', () => {
     ]);
   });
 
-  it('scoreboardDone starts the next cycle in join order and deals its first drawer', () => {
+  it('scoreboardDone starts the next cycle in join order with the drawer dealt at the reveal', () => {
     const { room, pids } = lastReveal();
+    // The last REVEAL of cycle 1 dealt cycle 2's first drawer (F21).
+    expect(room.upcoming).toMatchObject({ id: 4, cycle: 2, drawerPid: pids[0] });
     const board = step(room, NEXT, T0 + 500_000).room;
     const now = T0 + 506_000;
-    const { room: after, effects } = step(board, timer(board, 'scoreboardDone'), now);
+    const { room: after } = step(board, timer(board, 'scoreboardDone'), now);
     expect(after.phase).toBe('CHOOSING');
     expect(after.cycle).toBe(2);
     expect(after.turnOrder).toEqual(pids);
     expect(after.turnIndex).toBe(0);
-    expect(after.turn).toMatchObject({ id: 4, cycle: 2, drawerPid: pids[0], dealtAt: now });
-    expect(effects).toContainEqual({ type: 'fx', to: { pid: pids[0] }, fx: { kind: 'yourTurn' } });
+    expect(after.turn).toMatchObject({
+      id: 4,
+      cycle: 2,
+      drawerPid: pids[0],
+      dealtAt: room.upcoming!.dealtAt,
+    });
   });
 
   it('host:next leaves SCOREBOARD at once, and the old scoreboardDone is stale', () => {

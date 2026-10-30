@@ -82,6 +82,7 @@ describe('word secrecy in DRAWING', () => {
       turnId: room.turn!.id,
       choices: null,
       word: { word: 'qzsecretword', gloss: 'qzglossy', difficulty: 2 },
+      chooseTimer: null,
     });
     const text = json(view);
     expect(text).not.toContain('qzaltone');

@@ -4,8 +4,9 @@
 // `schedule` effects carrying `turnId` and `timerEpoch`.
 //
 // LOBBY → CHOOSING → DRAWING → REVEAL → … → SCOREBOARD between cycles → … → FINAL after
-// `settings.cycles` cycles. Overlapped choosing (F21), pauses (F28) and the rest arrive with their
-// features; their actions are rejected as `notAvailable` until then.
+// `settings.cycles` cycles. From the second turn the next drawer is dealt as `upcoming` on entering
+// REVEAL and chooses during REVEAL and SCOREBOARD (overlapped choosing). Pauses (F28) and the rest
+// arrive with their features; their actions are rejected as `notAvailable` until then.
 
 import {
   ALL_GUESSED_MS,
@@ -42,6 +43,7 @@ import {
   easiestIndex,
   newDeck,
   returnChoices,
+  returnDealt,
 } from './deck.js';
 import { correctedAt } from './fairness.js';
 import { hintCount, pickHint } from './hints.js';
@@ -215,6 +217,7 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
     crown(d, heir?.pid ?? null, fx);
   }
 
+  // The upcoming drawer leaving (REVEAL, SCOREBOARD) is dealt with at take-up.
   if (d.phase === 'CHOOSING' && d.turn?.drawerPid === pid) {
     abandonChoice(d, now, fx);
   } else if (d.phase === 'DRAWING') {
@@ -252,9 +255,28 @@ function connection(
 
 // ---------- Game flow ----------
 
-function setPhase(d: Room, phase: Phase): void {
+/**
+ * Every phase change bumps `timerEpoch`, so the choice still open (CHOOSING's, or `upcoming`'s in
+ * REVEAL and SCOREBOARD) gets its `chooseUp` again, still due 12 s after its deal.
+ */
+function setPhase(d: Room, phase: Phase, fx: Effect[]): void {
   d.phase = phase;
   d.timerEpoch += 1;
+  scheduleChooseUp(d, fx);
+}
+
+/** The dealt turn whose word is still to be chosen, if any. */
+function openChoice(d: Room): Turn | null {
+  const turn = d.phase === 'CHOOSING' ? d.turn : inBetween(d.phase) ? d.upcoming : null;
+  return turn && turn.word === null ? turn : null;
+}
+
+const inBetween = (phase: Phase) => phase === 'REVEAL' || phase === 'SCOREBOARD';
+
+/** `chooseUp` for the open choice at this epoch. F28's `resumeGo` calls it after moving `dealtAt`. */
+function scheduleChooseUp(d: Room, fx: Effect[]): void {
+  const open = openChoice(d);
+  if (open) fx.push(schedule(d, 'chooseUp', open.dealtAt + CHOOSE_MS, open.id));
 }
 
 function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): Handled {
@@ -279,19 +301,68 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
 }
 
 /**
- * Deals the next connected drawer in this cycle's `turnOrder` a choice. A disconnected player is
- * skipped for this cycle. Past the last one the cycle is done: SCOREBOARD while cycles remain
- * (`scoreboardDone` in 6 s with auto-advance), else FINAL.
+ * Deals the next connected drawer in this cycle's `turnOrder` a standalone CHOOSING. A
+ * disconnected player is skipped for this cycle. Past the last one the cycle is done.
  */
 function advance(d: Room, now: number, fx: Effect[]): void {
   if (dealNext(d, now, fx)) return;
-  d.turnIndex = d.turnOrder.length;
+  endCycle(d, now, fx);
+}
+
+/**
+ * The cycle is done: SCOREBOARD while cycles remain (`scoreboardDone` in 6 s with auto-advance),
+ * else FINAL. An `upcoming` deal for the next cycle waits through SCOREBOARD; `turnOrder` is
+ * already that cycle's then.
+ */
+function endCycle(d: Room, now: number, fx: Effect[]): void {
+  if (!d.upcoming) d.turnIndex = d.turnOrder.length;
   if (d.cycle < d.settings.cycles) {
-    setPhase(d, 'SCOREBOARD');
+    setPhase(d, 'SCOREBOARD', fx);
     if (d.settings.autoAdvance) fx.push(schedule(d, 'scoreboardDone', now + SCOREBOARD_MS));
   } else {
-    setPhase(d, 'FINAL');
+    setPhase(d, 'FINAL', fx);
   }
+}
+
+/**
+ * REVEAL ends (`revealDone`, `host:next`): **take up** an `upcoming` deal of this cycle; with
+ * none, or one for the next cycle, the cycle is done.
+ */
+function afterReveal(d: Room, now: number, fx: Effect[]): void {
+  if (d.upcoming && d.upcoming.cycle === d.cycle) takeUp(d, now, fx);
+  else endCycle(d, now, fx);
+}
+
+/** SCOREBOARD ends (`scoreboardDone`, `host:next`): take up the next cycle's first deal. */
+function afterScoreboard(d: Room, now: number, fx: Effect[]): void {
+  if (d.upcoming) takeUp(d, now, fx);
+  else startCycle(d, now, fx);
+}
+
+/**
+ * **Take up** `upcoming`: drawing at once if its word is chosen, else CHOOSING until 12 s after its
+ * deal. If its drawer has left or is disconnected, the deal is discarded (its words back to the
+ * deck) and the following connected drawer gets a standalone CHOOSING; a disconnected drawer draws
+ * again from the next cycle. A discarded first deal of a new cycle starts that cycle afresh
+ * instead, so it never shows a second SCOREBOARD (DECISIONS 44).
+ */
+function takeUp(d: Room, now: number, fx: Effect[]): void {
+  const up = d.upcoming!;
+  d.upcoming = null;
+  if (!d.players[up.drawerPid]?.connected) {
+    d.deck = returnDealt(d.deck, up.choices, up.word);
+    if (up.cycle > d.cycle) {
+      startCycle(d, now, fx);
+    } else {
+      // `turnIndex` is still on the discarded deal (or just before it, if its drawer left).
+      advance(d, now, fx);
+    }
+    return;
+  }
+  d.cycle = up.cycle;
+  d.turn = up;
+  if (up.word) startDrawing(d, now, fx);
+  else setPhase(d, 'CHOOSING', fx);
 }
 
 /**
@@ -302,31 +373,63 @@ function advance(d: Room, now: number, fx: Effect[]): void {
 // SPEC-QUESTION: F29's rematch rotation must also apply to cycles 2+ of a rematch game, or a player draws twice in a row.
 function startCycle(d: Room, now: number, fx: Effect[]): void {
   d.cycle += 1;
-  d.turnOrder = Object.values(d.players)
-    .sort((x, y) => x.joinedAt - y.joinedAt)
-    .map((p) => p.pid);
+  d.turnOrder = joinOrder(d);
   d.turnIndex = -1;
   if (dealNext(d, now, fx)) return;
   d.turnIndex = d.turnOrder.length;
-  setPhase(d, 'FINAL');
+  setPhase(d, 'FINAL', fx);
 }
 
-/** Deals the first connected player after `turnIndex` in `turnOrder`; false if there is none. */
-function dealNext(d: Room, now: number, fx: Effect[]): boolean {
-  for (let i = d.turnIndex + 1; i < d.turnOrder.length; i++) {
-    if (d.players[d.turnOrder[i]!]?.connected) {
-      deal(d, i, now, fx);
-      return true;
-    }
-  }
-  return false;
+/** Every player in the room in join order: a cycle's `turnOrder`. */
+function joinOrder(d: Room): string[] {
+  return Object.values(d.players)
+    .sort((x, y) => x.joinedAt - y.joinedAt)
+    .map((p) => p.pid);
+}
+
+/** The first connected player in `order` from `from` on, or -1. */
+function nextConnected(d: Room, order: string[], from: number): number {
+  for (let i = Math.max(0, from); i < order.length; i++)
+    if (d.players[order[i]!]?.connected) return i;
+  return -1;
 }
 
 /**
- * **Deal**: three words off the deck for the drawer at `index`, CHOOSING, and `chooseUp` in 12 s.
- * The words reach only that drawer, through their view.
+ * A standalone CHOOSING for the first connected player after `turnIndex` in `turnOrder`; false if
+ * there is none.
  */
-function deal(d: Room, index: number, now: number, fx: Effect[]): void {
+function dealNext(d: Room, now: number, fx: Effect[]): boolean {
+  const index = nextConnected(d, d.turnOrder, d.turnIndex + 1);
+  if (index === -1) return false;
+  d.turn = deal(d, index, d.cycle, now, fx);
+  setPhase(d, 'CHOOSING', fx);
+  return true;
+}
+
+/**
+ * DRAWING → REVEAL: if a turn remains in the game, deal it as `upcoming`: the next connected
+ * player in this cycle, else the first connected one of the next cycle, whose order is built now
+ * (fixed from here; a player disconnected at this deal is skipped for that cycle).
+ */
+function dealUpcoming(d: Room, now: number, fx: Effect[]): void {
+  let index = nextConnected(d, d.turnOrder, d.turnIndex + 1);
+  let cycle = d.cycle;
+  if (index === -1 && d.cycle < d.settings.cycles) {
+    const order = joinOrder(d);
+    index = nextConnected(d, order, 0);
+    if (index === -1) return;
+    d.turnOrder = order;
+    cycle += 1;
+  }
+  if (index !== -1) d.upcoming = deal(d, index, cycle, now, fx);
+}
+
+/**
+ * **Deal**: three words off the deck for the drawer at `index`, and `fx yourTurn`. The caller puts
+ * the turn in `turn` or `upcoming`; `setPhase` schedules its `chooseUp` 12 s on. The words reach
+ * only that drawer, through their view.
+ */
+function deal(d: Room, index: number, cycle: number, now: number, fx: Effect[]): Turn {
   const rng = createRng(d.rngState);
   const dealt = drawChoices(d.deck, allowedWords(d.packs, d.settings), d.settings.difficulty, rng);
   d.rngState = rng.state;
@@ -337,7 +440,7 @@ function deal(d: Room, index: number, now: number, fx: Effect[]): void {
   const drawerPid = d.turnOrder[index]!;
   const turn: Turn = {
     id: ++d.turnCounter,
-    cycle: d.cycle,
+    cycle,
     drawerPid,
     choices: dealt.choices,
     dealtAt: now,
@@ -355,36 +458,38 @@ function deal(d: Room, index: number, now: number, fx: Effect[]): void {
     endReason: null,
   };
   d.turnIndex = index;
-  d.turn = turn;
-  setPhase(d, 'CHOOSING');
-  fx.push(
-    { type: 'fx', to: { pid: drawerPid }, fx: { kind: 'yourTurn' } },
-    schedule(d, 'chooseUp', turn.dealtAt + CHOOSE_MS),
-  );
-}
-
-function choose(d: Room, a: ActionOf<'drawer:choose'>, now: number, fx: Effect[]): Handled {
-  // SPEC-QUESTION: the upcoming drawer choosing during REVEAL/SCOREBOARD arrives with F21.
-  if (d.phase !== 'CHOOSING' || !d.turn || d.turn.word) return 'wrongPhase';
-  if (d.paused) return 'paused';
-  const player = senderPlayer(d, a.by);
-  if (typeof player === 'string') return player;
-  if (player.pid !== d.turn.drawerPid) return 'notDrawer';
-  startDrawing(d, a.index, now, fx);
-  return undefined;
+  fx.push({ type: 'fx', to: { pid: drawerPid }, fx: { kind: 'yourTurn' } });
+  return turn;
 }
 
 /**
- * The drawer's choice (or the auto-pick) is set: only it is used up, the other two go to the
- * bottom of the deck. **Start drawing**: the clock, `drawUp`, the hints, `inkOpen`.
+ * The drawer's choice: in CHOOSING it starts drawing; in REVEAL and SCOREBOARD the `upcoming`
+ * drawer's choice only sets `upcoming.word`, taken up when the phase ends.
  */
-function startDrawing(d: Room, index: ChoiceIndex, now: number, fx: Effect[]): void {
-  const turn = d.turn!;
+function choose(d: Room, a: ActionOf<'drawer:choose'>, now: number, fx: Effect[]): Handled {
+  const open = openChoice(d);
+  if (!open) return 'wrongPhase';
+  if (d.paused) return 'paused';
+  const player = senderPlayer(d, a.by);
+  if (typeof player === 'string') return player;
+  if (player.pid !== open.drawerPid) return 'notDrawer';
+  setWord(d, open, a.index);
+  if (d.phase === 'CHOOSING') startDrawing(d, now, fx);
+  return undefined;
+}
+
+/** The choice (or the auto-pick) is set: only it is used up, the other two go to the bottom. */
+function setWord(d: Room, turn: Turn, index: ChoiceIndex): void {
   d.deck = chooseWord(d.deck, turn.choices, index);
   turn.word = turn.choices[index];
+}
+
+/** **Start drawing** `d.turn`, its word set: the clock, `drawUp`, the hints, `inkOpen`. */
+function startDrawing(d: Room, now: number, fx: Effect[]): void {
+  const turn = d.turn!;
   turn.clockStart = now;
   turn.endsAt = now + d.settings.drawSeconds * 1000;
-  setPhase(d, 'DRAWING');
+  setPhase(d, 'DRAWING', fx);
   fx.push(
     { type: 'inkOpen', turnId: turn.id, drawerPid: turn.drawerPid },
     schedule(d, 'drawUp', turn.endsAt + GRACE_MS),
@@ -425,8 +530,9 @@ function schedule(
   d: Room,
   timer: 'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone' | 'scoreboardDone',
   at: number,
+  turnId = d.turn!.id,
 ): Effect {
-  return { type: 'schedule', at, timer, turnId: d.turn!.id, epoch: d.timerEpoch };
+  return { type: 'schedule', at, timer, turnId, epoch: d.timerEpoch };
 }
 
 function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]): Handled {
@@ -543,7 +649,8 @@ function endTurn(d: Room, reason: TurnEndReason, now: number, fx: Effect[]): voi
     hasInk: true,
   });
 
-  setPhase(d, 'REVEAL');
+  dealUpcoming(d, now, fx);
+  setPhase(d, 'REVEAL', fx);
   fx.push(
     { type: 'inkClose', turnId: turn.id },
     { type: 'fx', to: 'all', fx: { kind: 'turnEnd', reason } },
@@ -563,20 +670,31 @@ function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Han
   if (d.phase !== 'REVEAL' && d.phase !== 'SCOREBOARD') return 'wrongPhase';
   if (!isHost(d, a.by)) return 'notHost';
   if (d.paused) return 'paused';
-  if (d.phase === 'REVEAL') advance(d, now, fx);
-  else startCycle(d, now, fx);
+  if (d.phase === 'REVEAL') afterReveal(d, now, fx);
+  else afterScoreboard(d, now, fx);
   return undefined;
 }
 
 function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handled {
-  if (!d.turn || a.turnId !== d.turn.id || a.epoch !== d.timerEpoch) return 'staleTimer';
+  if (a.epoch !== d.timerEpoch) return 'staleTimer';
+  // The `upcoming` deal's auto-pick, during REVEAL or SCOREBOARD: it only sets the word.
+  if (a.timer === 'chooseUp' && d.upcoming && a.turnId === d.upcoming.id) {
+    if (!inBetween(d.phase)) return 'wrongPhase';
+    if (d.upcoming.word) return 'staleTimer';
+    // A pause holds the choice open; F28's resumeGo calls scheduleChooseUp after moving dealtAt.
+    if (d.paused) return 'paused';
+    setWord(d, d.upcoming, easiestIndex(d.upcoming.choices));
+    return undefined;
+  }
+  if (!d.turn || a.turnId !== d.turn.id) return 'staleTimer';
   switch (a.timer) {
     case 'chooseUp':
       // SPEC-QUESTION: re-scheduling chooseUp for the remaining time after a pause comes with F28's resumeGo.
       if (d.phase !== 'CHOOSING' || d.turn.word) return 'wrongPhase';
       // A pause holds the choice open; F28's resumeGo schedules the rest of the 12 s.
       if (d.paused) return 'paused';
-      startDrawing(d, easiestIndex(d.turn.choices), now, fx);
+      setWord(d, d.turn, easiestIndex(d.turn.choices));
+      startDrawing(d, now, fx);
       return undefined;
     case 'hint':
       if (d.phase !== 'DRAWING' || !d.turn.word) return 'wrongPhase';
@@ -596,8 +714,8 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
       if (d.phase !== (a.timer === 'revealDone' ? 'REVEAL' : 'SCOREBOARD')) return 'wrongPhase';
       // A pause holds the reveal and the scoreboard; F28's resumeGo re-schedules them.
       if (d.paused) return 'paused';
-      if (a.timer === 'revealDone') advance(d, now, fx);
-      else startCycle(d, now, fx);
+      if (a.timer === 'revealDone') afterReveal(d, now, fx);
+      else afterScoreboard(d, now, fx);
       return undefined;
     default:
       return 'notAvailable';

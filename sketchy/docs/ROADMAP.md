@@ -52,14 +52,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F20 Cycles, scoreboard and final
 
-- [ ] F21 Overlapped choosing
-  - Spec: Game flow and state machine (Phases, Transitions, Scheduled effects); Data model (Room state, Role views)
-  - Depends: F20
-  - Done when:
-    - Entering REVEAL deals the next turn as `upcoming`; its drawer chooses during REVEAL and SCOREBOARD; REVEAL lasts 8 s; at the end, a chosen word goes straight to DRAWING, otherwise CHOOSING until 12 s after the deal
-    - The upcoming drawer leaving, kicked or disconnected discards the deal and deals the following player; `chooseUp` survives phase changes and pauses
-    - The upcoming drawer's phone shows "You draw next! Pick a word" during the reveal
-  - Tests: `reducer.overlap.test.ts` — choose during REVEAL then DRAWING at once; no choice → CHOOSING; auto-pick during SCOREBOARD; upcoming drawer leaves; `views.leak.test.ts` covers `upcoming`
+- [x] F21 Overlapped choosing
 
 - [ ] F22 Settings and presets
   - Spec: Settings; Reducer actions and effects (Actions)
@@ -312,5 +305,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 - Server-wide cap on live rooms (503 past it), so many addresses creating rooms can't grow memory for 3 h each (F03 review).
 - PNG download of a gallery drawing: 1024 × 1024 plus a caption band "tsinelas · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
+- `drawer:choose` with an optional `turnId`, refused when it doesn't match the open choice, so a late duplicate tap from one CHOOSING can't pick the next `upcoming` deal when the sole connected player draws back-to-back (F21 review).
+- The next drawer's phone: a one-line "It was {word}" strip above the "You draw next!" cards, and focus moved to the cards' heading on mount and to the "Get ready" line after a tap (F21 review).
 - Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).

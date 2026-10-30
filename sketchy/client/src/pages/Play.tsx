@@ -297,6 +297,13 @@ export function Play() {
   const turn = view.turn;
   const isDrawer = turn !== null && turn.drawerPid === view.me.pid;
   const inTurn = view.phase === 'CHOOSING' || view.phase === 'DRAWING';
+  // Cards for this phone: the drawer's in CHOOSING, or the next drawer's during REVEAL/SCOREBOARD
+  // (F21). One element for both, keyed by the dealt turn, so it stays mounted (and armed) when an
+  // unchosen deal is taken up into CHOOSING.
+  // SPEC-QUESTION: the cards replace the phone's reveal ("It was…", points); the Screen shows it (DECISIONS 44).
+  const choosingNext =
+    (view.phase === 'REVEAL' || view.phase === 'SCOREBOARD') && view.secret?.choices != null;
+  const cards = view.secret?.choices != null && (choosingNext || view.phase === 'CHOOSING');
 
   return (
     <main className="relative flex h-dvh w-full flex-col overflow-hidden overscroll-none pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
@@ -319,15 +326,21 @@ export function Play() {
             t={t}
           />
         )}
-        {isDrawer &&
-          view.phase === 'CHOOSING' &&
-          (view.secret?.choices ? (
-            <WordChoice view={view} receivedAt={state!.at} onChoose={chooseWord} t={t} />
-          ) : (
-            <p className="grid h-full place-items-center px-6 text-center text-2xl font-bold">
-              {t('getReady')}
-            </p>
-          ))}
+        {cards && (
+          <WordChoice
+            key={view.secret!.turnId}
+            view={view}
+            receivedAt={state!.at}
+            onChoose={chooseWord}
+            next={choosingNext}
+            t={t}
+          />
+        )}
+        {isDrawer && view.phase === 'CHOOSING' && !cards && (
+          <p className="grid h-full place-items-center px-6 text-center text-2xl font-bold">
+            {t('getReady')}
+          </p>
+        )}
         {inTurn && !isDrawer && (
           <GuesserTurn
             view={view}
@@ -338,7 +351,9 @@ export function Play() {
             t={t}
           />
         )}
-        {!inTurn && view.phase !== 'LOBBY' && <PhoneStandings view={view} onLeave={leave} t={t} />}
+        {!inTurn && !choosingNext && view.phase !== 'LOBBY' && (
+          <PhoneStandings view={view} onLeave={leave} t={t} />
+        )}
       </div>
       {view.paused && (
         <div

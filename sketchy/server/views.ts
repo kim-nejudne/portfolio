@@ -106,7 +106,7 @@ function playerView(room: Room, pid: string, now: number): PlayerView {
       rank: ranks ? { rank: ranks.get(pid)!, of: ranks.size } : null,
       award: award ? { ...award } : null,
     },
-    secret: secretView(room, pid),
+    secret: secretView(room, pid, now),
     // The drawer knows the word, so the latest wrong guess leaks nothing to them.
     lastGuess:
       room.phase === 'DRAWING' && turn?.drawerPid === pid && latest
@@ -219,23 +219,32 @@ export function maskWord(word: string, hintIndexes: readonly number[]): string[]
 }
 
 /** The drawer's own choices and word: the current turn's, or the `upcoming` turn's. */
-function secretView(room: Room, pid: string): SecretView | null {
+function secretView(room: Room, pid: string, now: number): SecretView | null {
   const { phase, turn, upcoming } = room;
   if ((phase === 'CHOOSING' || phase === 'DRAWING') && turn?.drawerPid === pid) {
-    return secretOf(turn, phase === 'CHOOSING' && turn.word === null);
+    return secretOf(turn, phase === 'CHOOSING' && turn.word === null, null);
   }
   if ((phase === 'REVEAL' || phase === 'SCOREBOARD') && upcoming?.drawerPid === pid) {
-    return secretOf(upcoming, upcoming.word === null);
+    const open = upcoming.word === null;
+    return secretOf(upcoming, open, open ? choiceTimer(room, upcoming, now) : null);
   }
   return null;
 }
 
-function secretOf(turn: Turn, choosing: boolean): SecretView {
+function secretOf(turn: Turn, choosing: boolean, chooseTimer: TimerView | null): SecretView {
   return {
     turnId: turn.id,
     choices: choosing ? turn.choices.map(choiceView) : null,
     word: turn.word && choiceView(turn.word),
+    chooseTimer,
   };
+}
+
+/** Time left on an `upcoming` choice until its auto-pick; frozen at the pause while paused. */
+function choiceTimer(room: Room, turn: Turn, now: number): TimerView {
+  const at = room.paused ? room.paused.since : now;
+  const left = Math.min(CHOOSE_MS, Math.max(0, turn.dealtAt + CHOOSE_MS - at));
+  return { remainingMs: left, totalMs: CHOOSE_MS, running: room.paused === null };
 }
 
 /** A word for its drawer: never the alternates. */

@@ -64,7 +64,12 @@ function drawingView(me: 'mika' | 'jun', overrides: Partial<PlayerView> = {}): P
     },
     secret:
       me === 'mika'
-        ? { turnId: 3, choices: null, word: { word: WORD, gloss: null, difficulty: 2 } }
+        ? {
+            turnId: 3,
+            choices: null,
+            word: { word: WORD, gloss: null, difficulty: 2 },
+            chooseTimer: null,
+          }
         : null,
     lastGuess: me === 'mika' ? { pid: 'ana', text: 'payong' } : null,
     ...overrides,
@@ -75,7 +80,12 @@ describe('guesser phone', () => {
   it('after a correct guess shows "✓ You got it! +270" and never the word', () => {
     // Even a view that wrongly carried a secret must not put it on a guesser's screen.
     const view = drawingView('jun', {
-      secret: { turnId: 3, choices: null, word: { word: WORD, gloss: 'qzgloss', difficulty: 2 } },
+      secret: {
+        turnId: 3,
+        choices: null,
+        word: { word: WORD, gloss: 'qzgloss', difficulty: 2 },
+        chooseTimer: null,
+      },
     });
     const html = renderToStaticMarkup(
       <GuesserTurn
@@ -255,6 +265,7 @@ function choosingView(me: 'mika' | 'jun'): PlayerView {
               { word: 'harana', gloss: "singing under someone's window", difficulty: 3 },
             ],
             word: null,
+            chooseTimer: null,
           }
         : null,
     lastGuess: null,
@@ -300,5 +311,53 @@ describe('choosing a word', () => {
     expect(html).toContain('Mika is choosing a word…');
     expect(html).not.toContain('tsinelas');
     expect(html).not.toContain('<input');
+  });
+});
+
+describe('the next drawer during the reveal (F21)', () => {
+  const upNext = (word: boolean): PlayerView =>
+    drawingView('jun', {
+      phase: 'REVEAL',
+      turn: {
+        ...drawingView('jun').turn!,
+        word: 'kalabaw',
+        mask: null,
+        timer: null,
+        endReason: 'time',
+      },
+      me: { pid: 'jun', turnPoints: 270, score: null, rank: null, award: null },
+      secret: {
+        turnId: 4,
+        choices: word ? null : choosingView('mika').secret!.choices,
+        word: word ? { word: 'qzchosen', gloss: 'qzgloss', difficulty: 2 } : null,
+        chooseTimer: word ? null : { remainingMs: 7_000, totalMs: 12_000, running: true },
+      },
+      lastGuess: null,
+    });
+
+  it('shows "You draw next! Pick a word" over the three cards, with the choice countdown', () => {
+    const html = renderToStaticMarkup(
+      <WordChoice view={upNext(false)} receivedAt={0} onChoose={async () => null} next t={t} />,
+    );
+    expect(html).toContain('You draw next! Pick a word');
+    expect(html).not.toContain('Your turn to draw!');
+    expect(html).toContain('<span aria-hidden="true">◔</span> 7s');
+    expect(html.match(/<button/g)).toHaveLength(3);
+  });
+
+  it('once chosen, shows "You draw next! Get ready" with the reveal, and not the chosen word', () => {
+    const html = renderToStaticMarkup(
+      <PhoneStandings view={upNext(true)} onLeave={() => {}} t={t} />,
+    );
+    expect(html).toContain('You draw next! Get ready');
+    expect(html).toContain('kalabaw');
+    expect(html).not.toContain('qz');
+  });
+
+  it('shows no "draw next" line to anyone else', () => {
+    const html = renderToStaticMarkup(
+      <PhoneStandings view={{ ...upNext(true), secret: null }} onLeave={() => {}} t={t} />,
+    );
+    expect(html).not.toContain('You draw next');
   });
 });

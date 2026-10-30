@@ -224,14 +224,17 @@ export function createBot({
     }, delay);
   };
 
-  /** A drawing bot picks a random one of its three words after BOT_CHOOSE_MS. */
+  /**
+   * A drawing bot picks a random one of its three words after BOT_CHOOSE_MS: in CHOOSING, or as the
+   * next drawer during REVEAL and SCOREBOARD (F21). `turnId` is the dealt turn's.
+   */
   const choose = (turnId: number) => {
     choseTurn = turnId;
     update({ message: 'Choosing a word…' });
     chooseTimer = setTimeout(() => {
       chooseTimer = null;
       const v = view;
-      if (v?.phase !== 'CHOOSING' || v.turn?.id !== turnId || !v.secret?.choices) return;
+      if (v?.secret?.turnId !== turnId || !v.secret.choices) return;
       const index = Math.min(2, Math.floor(random() * 3)) as 0 | 1 | 2;
       socket.emit(
         'drawer:choose',
@@ -305,14 +308,7 @@ export function createBot({
     if (autoGuess && mayGuess(v)) scheduleGuess();
     else stopGuessing();
     if (autoDraw && isDrawer(v) && v.turn && drewTurn !== v.turn.id) draw();
-    if (
-      autoDraw &&
-      v.phase === 'CHOOSING' &&
-      v.turn?.drawerPid === v.me.pid &&
-      v.secret?.choices &&
-      choseTurn !== v.turn.id
-    )
-      choose(v.turn.id);
+    if (autoDraw && v.secret?.choices && choseTurn !== v.secret.turnId) choose(v.secret.turnId);
   });
   socket.on('fx', (fx) => {
     if (fx.kind === 'correct' && fx.pid === view?.me.pid)

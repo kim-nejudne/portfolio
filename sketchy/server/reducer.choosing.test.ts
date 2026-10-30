@@ -293,12 +293,15 @@ describe('ending CHOOSING without a word', () => {
 
 describe('running out of words', () => {
   it('reshuffles every allowed word, clears usedIds and tells the Screen once', () => {
-    let { room, at } = started();
-    room = step(room, { type: 'host:skip', by: SCREEN_HOST }, (at += 1_000)).room;
+    const start = started();
+    const { at } = start;
+    let { room } = start;
     // Nearly every word has been chosen this session.
     room = { ...room, deck: { remaining: room.deck.remaining.slice(0, 2), usedIds: ['x', 'y'] } };
-    const { room: after, effects } = step(room, { type: 'host:next', by: SCREEN_HOST }, at + 1_000);
-    expect(after.phase).toBe('CHOOSING');
+    // The skip's REVEAL deals the next drawer (F21).
+    const { room: after, effects } = step(room, { type: 'host:skip', by: SCREEN_HOST }, at + 1_000);
+    expect(after.phase).toBe('REVEAL');
+    expect(after.upcoming).not.toBeNull();
     expect(after.deck.usedIds).toEqual([]);
     expect(after.deck.remaining.length + 3).toBe(EN_PACK.words.length + TL_PACK.words.length);
     const notices = effects.filter((e) => e.type === 'fx' && e.fx.kind === 'wordsReshuffled');
@@ -307,8 +310,13 @@ describe('running out of words', () => {
 
   it('does not reshuffle while three words are left', () => {
     const { room, at } = started();
-    const reveal = step(room, { type: 'host:skip', by: SCREEN_HOST }, at + 1_000).room;
-    const { effects } = step(reveal, { type: 'host:next', by: SCREEN_HOST }, at + 2_000);
+    const three = { ...room, deck: { ...room.deck, remaining: room.deck.remaining.slice(0, 3) } };
+    const { room: reveal, effects } = step(
+      three,
+      { type: 'host:skip', by: SCREEN_HOST },
+      at + 1_000,
+    );
+    expect(reveal.upcoming).not.toBeNull();
     expect(effects.some((e) => e.type === 'fx' && e.fx.kind === 'wordsReshuffled')).toBe(false);
   });
 

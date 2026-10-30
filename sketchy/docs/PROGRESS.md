@@ -37,8 +37,89 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F18: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 640, e.g. an iPhone SE or a budget Android); start, and (a) on the drawer's phone read the three cards and tap the middle one; (b) on the next turn don't tap and let the 12 s run out; (c) look at the TV and a guesser's phone while someone is choosing; (d) play one turn with the language set to Taglish (once F22 adds the setting, or with a room created with `{"settings":{"words":"taglish"}}`) · (a) three cards Easy/Medium/Hard, easiest at the top, each word large and readable, Tagalog medium/hard words show their short English gloss, "Hold your phone close 🤫" and the "Tap one…" line fit with nothing cut off and no scrolling, and the tap moves straight to the draw pad with that word in the bar; a tap the instant the cards appear (e.g. a leftover tap) doesn't pick anything; (b) the easy word is picked and the pad opens by itself; (c) the TV and guessers show "Mika is choosing a word…" and never any of the three words; (d) all three choices are Tagalog words
 - [ ] F19: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 560–640); (a) play a turn without guessing and watch the blanks on the TV and a guesser's phone at half time and three-quarter time; (b) next turn, have both guessers type the word; (c) on a third turn, one guesser gets it and the other locks their phone (or turns Wi-Fi off) · (a) one letter appears in the blanks at ~50% and a second at ~75% (only one for a 4–5 letter word, none for a 3-letter word), the same letters in the same places on the TV and every phone; (b) about 1.5 s after the last correct guess the turn ends and the TV and phones show "Everyone got it! 🎉" above "It was…", and on the small phone the reveal fits with no scrolling, even with a two-word answer; (c) the turn ends ~1.5 s after the first guesser got it, without waiting for the locked phone
 - [ ] F20: `npm run dev`, laptop Screen on the TV (Start), then 10 players (3 real phones plus bots from `/dev/bots/CODE`); play a 2-round game; repeat the scoreboard part on a portrait tablet Screen · after round 1 the TV shows "Round 1 of 2 done" with all 10 players ranked in two columns and the "Next ▶" button in its own row above the footer, covering no score; each phone shows "#N of 10" and its total; tied players share a medal or number; after round 2 the TV shows "Final scores" with no Next button; during turns no phone or TV shows a total, only "+N this turn"
+- [ ] F21: `npm run dev` + `npm run lan`, laptop Screen on the TV (Start), 3 real phones (one ≈ 360 × 560–640); play a 2-round game; (a) on turn 1, as soon as it ends, look at the next drawer's phone; (b) next drawer taps a card during the reveal; (c) on another turn the next drawer taps nothing; (d) on the last turn of round 1, the next round's first drawer picks during the scoreboard; (e) once, the next drawer locks their phone/turns Wi-Fi off during the reveal · (a) it buzzes and shows "You draw next! Pick a word", three cards and a ◔ countdown from about 12 s, while the TV and the other phones show the reveal and no card word; (b) the phone shows "✏️ You draw next! Get ready" and, when the reveal ends (8 s), the pad opens at once; (c) after the reveal the TV shows "… is choosing…" for about 4 s and then the easiest word is drawn; (d) the cards stay through "Round 1 of 2 done" and drawing starts right after the scoreboard; (e) when the reveal ends, the following player gets the cards instead; on the small phone the cards fit with no scrolling, and a tap that lands as the cards appear (mid-guess) doesn't pick a word
 
 <!-- entries below, newest first -->
+
+## F21 — Overlapped choosing (2026-10-30)
+**What changed:**
+- **Reducer:**
+  - Entering REVEAL (`endTurn`) deals the next turn as `upcoming` (`dealUpcoming`): the next connected player in this cycle, else the first connected one of the next cycle, whose `turnOrder` is built at that deal. `room.cycle` moves on only at take-up. No turn left → no deal.
+  - `setPhase(d, phase, fx)` now re-schedules `chooseUp` for the open choice (CHOOSING's or `upcoming`'s) on every phase change: same `dealtAt + 12 s`, the dealt turn's id, the new epoch. `deal()` no longer schedules or sets the phase; callers put the turn in `turn` (then CHOOSING) or `upcoming`.
+  - `drawer:choose` and `chooseUp` act on `upcoming` in REVEAL/SCOREBOARD and only set its word (`setWord`). `startDrawing` no longer picks the word.
+  - `afterReveal`: a deal of this cycle is taken up, otherwise the cycle ends (`endCycle`: SCOREBOARD or FINAL). `afterScoreboard`: take up, or `startCycle` with no deal.
+  - `takeUp`: chosen → DRAWING at once (the clock starts then); unchosen → CHOOSING until 12 s after the deal; drawer gone or disconnected → `returnDealt` and a standalone CHOOSING for the following player (or the cycle ends). A discarded first deal of a new cycle starts that cycle afresh with `startCycle`.
+  - New helpers: `joinOrder`, `nextConnected`, `openChoice`, `scheduleChooseUp` (for F28's `resumeGo`).
+- **`server/deck.ts`:** `returnDealt(deck, choices, chosen)` returns an undrawn deal and un-uses a chosen word.
+- **Views:** `SecretView.chooseTimer`, the upcoming drawer's time left on the choice (frozen while paused), null otherwise.
+- **Client:**
+  - `Play.tsx` shows `WordChoice` (`next`) to the upcoming drawer in REVEAL/SCOREBOARD: "You draw next! Pick a word", the `chooseTimer` countdown, armed after 700 ms (`NEXT_CHOICE_ARM_MS`). One element keyed by turn id stays mounted into CHOOSING.
+  - Once a word is chosen, `PhoneStandings` shows "✏️ You draw next! Get ready" (emoji `aria-hidden`) without the word.
+  - Dev bots choose for whatever `secret.turnId` has open choices.
+- **Tests:**
+  - `server/reducer.overlap.test.ts` (new, 25):
+    - the deal, its `yourTurn` and `chooseUp`; `revealDone` at 8 s; a disconnected player skipped; the next cycle's deal and order; no deal after the last turn;
+    - a choice in REVEAL then DRAWING at once (also via `host:next`); refusals;
+    - no choice → CHOOSING with 4 s left and a re-scheduled auto-pick, REVEAL's schedule stale; choosing in CHOOSING;
+    - the auto-pick in REVEAL, ignored once chosen, and across SCOREBOARD (re-scheduled, the old one stale, then DRAWING in cycle 2); a SCOREBOARD choice via `host:next`;
+    - the drawer left (words back, the following player dealt), left after choosing (word un-used), disconnected (they draw next cycle), reconnected (the deal stands), nobody following → FINAL;
+    - a discarded new-cycle deal → the next player, or FINAL with nobody;
+    - the `chooseTimer` view and its pause freeze; a pause refusing the choice and the auto-pick while keeping the deal.
+  - `deck.test.ts`: `returnDealt`.
+  - `views.leak.test.ts`: the synthetic `upcoming` is gone. The scripted game now deals for real: unchosen during REVEAL then CHOOSING, chosen during REVEAL then DRAWING, chosen during SCOREBOARD, with a positive control that only the next drawer's view carries the three choices.
+  - `phoneViews.test.tsx` (+3): the cards with the heading and countdown; "Get ready" without the word; no line for anyone else.
+  - `bots.test.ts` (+1): a bot picks during REVEAL.
+  - Updated for the new flow, with no checks dropped: `reducer.turn` (the REVEAL effects now include the deal; `revealDone` takes up a deal from the reveal), `reducer.flow` (SCOREBOARD re-schedules the next cycle's `chooseUp`; cycle 2's drawer is dealt at the reveal), `reducer.choosing` (the reshuffle tests now trigger at the skip's REVEAL deal), `views.test` (`chooseTimer: null`).
+- No new dependencies.
+
+**Decisions:** DECISIONS 44 covers:
+- the next cycle's order built at the deal, with `cycle` moving on at take-up;
+- `chooseUp` following the open choice;
+- choose and the auto-pick for `upcoming`;
+- leave and disconnect handled at take-up;
+- a discarded new-cycle deal → `startCycle`;
+- kick, end and pause left for F28;
+- `chooseTimer`;
+- the phone's cards replacing its reveal.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied:
+  - the countdown on the upcoming cards (`chooseTimer`);
+  - no second SCOREBOARD after a discarded new-cycle deal;
+  - DECISIONS 44, this entry and the Kim check.
+  - Kick is still `notAvailable` (F28).
+- **secrets-fairness: PASS WITH FIXES.** No leak found. Applied: the `views.test` expectation, the `takeUp` cycle fix, and a phase guard on the upcoming `chooseUp`. To Backlog: an optional `turnId` on `drawer:choose`.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - `choosingNext` limited to REVEAL/SCOREBOARD;
+  - the 700 ms arm for the next drawer's cards;
+  - the emoji `aria-hidden` and `rounded-2xl` on the pill;
+  - a SPEC-QUESTION and a DECISIONS line on the cards replacing the phone's reveal.
+  - To Backlog: an "It was…" strip and focus management.
+  - Left for Kim: the pill with a long reveal word at 360 × 560.
+
+**Notes for next session:**
+- **F22+:** nothing new.
+- **F23 (late joiners):** append to the current `turnOrder` only while it is this cycle's. Once a next-cycle `upcoming` exists, `turnOrder` is already the next cycle's, so a joiner appended then draws next cycle. That is right, and they must not be appended twice.
+- **F28:**
+  - `resumeGo` must move `dealtAt` (of `turn` in CHOOSING and of `upcoming` in REVEAL/SCOREBOARD) by the paused time, then call `scheduleChooseUp(d, fx)`.
+  - Kick must follow `leave`: a kicked upcoming drawer is discarded at take-up.
+  - `host:end` must `returnDealt` and clear `upcoming`.
+- **F29 (rematch):** `upcoming` must be null in FINAL, as it is today; a new game starts with `startCycle`.
+- **F24:** `host:next` in REVEAL/SCOREBOARD now takes up `upcoming` (`afterReveal`/`afterScoreboard`).
+
+**How to try it:**
+- Unit tests: `npx vitest run server/reducer.overlap.test.ts server/views.leak.test.ts server/deck.test.ts client/src/components/phone client/src/dev`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), 3 phones via `npm run lan CODE`, or bots at `/dev/bots/CODE`. When a turn ends, the next drawer's phone shows "You draw next! Pick a word" with a countdown during the reveal. Tap a card: the pad opens when the reveal ends. Leave it: after the reveal the TV shows "… is choosing…" until 12 s after the deal.
+- Automated: `npm run playtest -- .playtest/F21/scenario2.ts` (gitignored), a Screen and 3 phones.
+  - Passed:
+    - the next drawer gets the cards and the heading during REVEAL, and no card word is on the Screen or the other phone;
+    - a chosen word opens the pad 8.0 s after the reveal;
+    - across a round boundary, the cards then "Get ready", then drawing after the scoreboard;
+    - with no choice mid-round, CHOOSING then the auto-pick.
+  - A disconnected next drawer's replacement is dealt at take-up, not during the reveal. That is by design (DECISIONS 44).
+  - Not run: leave from the cards (no Leave button on them, as in CHOOSING), kick, and pause (F28). The unit tests cover leave and pause.
+  - No console errors.
+
 
 ## F20 — Cycles, scoreboard and final (2026-10-30)
 **What changed:**

@@ -8,6 +8,7 @@ import {
   easiestIndex,
   newDeck,
   returnChoices,
+  returnDealt,
   type Deck,
 } from './deck.js';
 import { createRng } from './rng.js';
@@ -202,6 +203,19 @@ describe('after the choice', () => {
     const after = returnChoices(dealt, choices);
     expect(after.usedIds).toEqual([]);
     expect(after.remaining).toEqual([...dealt.remaining, ...ids(choices)]);
+  });
+
+  it('an undrawn deal goes back whole: unchosen, or chosen and then discarded (F21)', () => {
+    expect(returnDealt(dealt, choices, null)).toEqual(returnChoices(dealt, choices));
+    const chosen = chooseWord(dealt, choices, 1);
+    const back = returnDealt(chosen, choices, choices[1]);
+    expect(back.usedIds).toEqual([]);
+    expect(back.remaining).toEqual([
+      ...dealt.remaining,
+      choices[0].id,
+      choices[2].id,
+      choices[1].id,
+    ]);
   });
 });
 
