@@ -71,6 +71,10 @@ export const RESUME_COUNTDOWN_MS = 3_000;
 export const REMATCH_COUNTDOWN_MS = 3_000;
 /** Phones send a `ping` this often for RTT samples. */
 export const PING_INTERVAL_MS = 2_000;
+/** The gateway's rolling median RTT uses each socket's last this-many samples. */
+export const RTT_SAMPLES = 10;
+/** The server times RTT from `pong` to the phone's ack of it, and drops the sample after this. */
+export const PONG_ACK_TIMEOUT_MS = 5_000;
 /** Hints: one letter at each of these fractions of the drawing time. */
 export const HINT_AT = [0.5, 0.75] as const;
 /** Never more than this fraction of the letters (rounded down) is revealed. */
@@ -124,6 +128,9 @@ export const ROOM_CHECK_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const;
 export const JOIN_RATE_LIMIT = { max: 10, windowMs: 60 * 1000 } as const;
 export const HOST_ACTION_RATE_LIMIT = { max: 10, windowMs: 1000 } as const;
 export const INK_BATCH_RATE_LIMIT = { max: 40, windowMs: 1000 } as const;
+/** `ping` per main-namespace socket; phones send one every PING_INTERVAL_MS (DECISIONS 36). */
+// SPEC-QUESTION: the spec lists no limit for `ping`; Buzzr's is 5 per second.
+export const PING_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** `ink:hello` and `ink:sync` per `/ink` socket: each can make the server send a whole snapshot. */
 export const INK_HELLO_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** `ink:get` per `/ink` socket: the FINAL gallery asks for every turn's drawing at once. */

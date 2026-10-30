@@ -7,6 +7,7 @@
 import { DEFAULT_INK_SIZE, MAX_PLAYERS, PLAYER_KEY_LENGTH } from '../../../shared/constants.js';
 import type { Ack, DevWordResponse, InkAuth, InkBatch, PlayerView } from '../../../shared/types.js';
 import { createInkSender, type InkSender } from '../ink/inkSender.js';
+import { keepPinging } from '../lib/ping.js';
 import { createInkSocket, createSocket, type GameSocket, type InkSocket } from '../lib/socket.js';
 import { doodleSteps } from './doodle.js';
 
@@ -285,9 +286,12 @@ export function createBot({
   socket.on('kicked', () => update({ status: 'error', message: 'Kicked' }));
   socket.on('room:closed', () => update({ status: 'offline', message: 'Game ended' }));
 
+  // Like a phone, so a bot's guesses are latency-corrected too.
+  const stopPinging = keepPinging(socket);
   socket.connect();
 
   const disconnect = () => {
+    stopPinging();
     stopGuessing();
     stopDoodle();
     closed = true;

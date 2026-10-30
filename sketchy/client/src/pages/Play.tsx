@@ -17,6 +17,7 @@ import {
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
+import { keepPinging } from '../lib/ping.js';
 import { createInkSocket, createSocket, type InkSocket } from '../lib/socket.js';
 
 type Status = 'form' | 'joining' | 'live' | 'ended' | 'removed';
@@ -153,9 +154,12 @@ export function Play() {
       setStatus('ended');
       socket.disconnect();
     });
+    // RTT samples for the server's latency correction of guess times.
+    const stopPinging = keepPinging(socket);
     socket.connect();
 
     return () => {
+      stopPinging();
       socket.removeAllListeners();
       socket.disconnect();
       closeInk();

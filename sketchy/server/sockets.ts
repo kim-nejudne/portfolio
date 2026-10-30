@@ -10,6 +10,8 @@ import { createHash } from 'node:crypto';
 import type { Server as HttpServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import {
+  PING_RATE_LIMIT,
+  PONG_ACK_TIMEOUT_MS,
   SOCKET_MAX_BUFFER_BYTES,
   SOCKET_PING_INTERVAL_MS,
   SOCKET_PING_TIMEOUT_MS,
@@ -29,7 +31,9 @@ import type {
   ServerToClientEvents,
   SystemAction,
 } from '../shared/types.js';
+import { addRttSample, medianRtt, oneWayMs } from './fairness.js';
 import { verifyHostToken } from './hostToken.js';
+import { createRateLimiter } from './rateLimit.js';
 import { reduce } from './reducer.js';
 import type { RoomStore } from './roomStore.js';
 import { toView } from './views.js';
@@ -113,6 +117,9 @@ export function attachSockets(
     // A bigger frame closes the connection.
     maxHttpBufferSize: SOCKET_MAX_BUFFER_BYTES,
   });
+
+  // Keyed by socket id: one phone's pings can't use up another's.
+  const pingLimiter = createRateLimiter(PING_RATE_LIMIT, monotonic);
 
   // Scheduled effects still pending. A timer must not fire into a gateway that has shut down.
   const pending = new Set<{ cancel: () => void }>();
@@ -236,6 +243,9 @@ export function attachSockets(
 
   io.on('connection', (socket) => {
     socket.data = { screenHost: false };
+    // This connection's last RTT_SAMPLES round trips. Never in the room, so pings cause no
+    // broadcasts; a reconnect starts again from 0 (no correction until the first sample).
+    let rttSamples: number[] = [];
 
     /** The sender of a player or host event, or why there is none. */
     const sender = (): { code: string; by: Sender } | AckError => {
@@ -304,16 +314,22 @@ export function attachSockets(
       return { ok: true, pid };
     });
 
-    // SPEC-QUESTION: RTT samples and `oneWayMs` arrive with F13; v0 only answers (DECISIONS 20).
+    // SPEC-QUESTION: `pong {t}` alone lets only the phone time the RTT. As in Buzzr, the server
+    // times its own sample from emitting `pong` to the phone's ack of it (DECISIONS 36).
     handle(socket, 'ping', ({ t }) => {
-      socket.emit('pong', { t });
+      if (!pingLimiter.hit(socket.id)) return fail('rateLimited');
+      const sentAt = monotonic();
+      socket.timeout(PONG_ACK_TIMEOUT_MS).emit('pong', { t }, (err: Error | null) => {
+        if (!err) rttSamples = addRttSample(rttSamples, monotonic() - sentAt);
+      });
       return { ok: true };
     });
 
     handle(socket, 'player:guess', ({ text }) => {
-      // Arrival time first: scoring measures from it.
+      // Arrival time first: scoring measures from it, less the one-way latency at this moment.
       const receivedAt = monotonic();
-      return asPlayer((by) => ({ type: 'player:guess', by, text, receivedAt, oneWayMs: 0 }));
+      const latency = oneWayMs(medianRtt(rttSamples));
+      return asPlayer((by) => ({ type: 'player:guess', by, text, receivedAt, oneWayMs: latency }));
     });
 
     handle(socket, 'player:react', ({ emoji }) =>

@@ -34,12 +34,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F12 Ink sequence, resend and snapshots
 
-- [ ] F13 Latency-corrected scoring
-  - Spec: Scoring and timing (Points, Worked examples, Latency correction)
-  - Depends: F04, F05
-  - Done when:
-    - `fairness.ts` ported (cap 250 ms); phones ping every 2 s; guesses carry `receivedAt` and `oneWayMs`; `scoring.ts` implements both formulas; 300 ms grace window
-  - Tests: `scoring.test.ts` — all four worked examples exactly; cap applied; guess in the grace window accepted when corrected time ≤ `endsAt` and rejected otherwise; `fairness.test.ts` ported
+- [x] F13 Latency-corrected scoring
 
 - [ ] F14 Guess matching
   - Spec: Guess matching (Normalization, Accepting a guess, Near misses)

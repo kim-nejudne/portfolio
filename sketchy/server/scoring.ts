@@ -1,5 +1,5 @@
-// Points (spec "Scoring and timing"). Pure. F04 passes uncorrected elapsed time; F13 adds the
-// latency correction from `fairness.ts` before calling `guesserPoints`.
+// Points (spec "Scoring and timing"). Pure. The reducer passes the latency-corrected elapsed
+// time (`fairness.ts` `correctedAt`).
 import {
   DRAWER_SHARE,
   GUESSER_POINTS_MAX,

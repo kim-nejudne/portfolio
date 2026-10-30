@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   INK_FLUSH_MS,
   MAX_PLAYERS,
+  PING_INTERVAL_MS,
   PLAYER_KEY_LENGTH,
 } from '../../../shared/constants.js';
 import { playerKeySchema } from '../../../shared/schemas.js';
@@ -174,6 +175,16 @@ describe('createBot', () => {
     socket.sent('player:join')[0]!.ack!({ ok: false, error: 'roomFull' });
     expect(last()).toMatchObject({ status: 'error', message: 'roomFull' });
     expect(inks).toHaveLength(0);
+  });
+
+  it('pings every PING_INTERVAL_MS like a phone, and stops when removed', () => {
+    const { bot, socket } = spawn();
+    // One at once on connect, then one per interval.
+    vi.advanceTimersByTime(PING_INTERVAL_MS * 2);
+    expect(socket.sent('ping')).toHaveLength(3);
+    bot.disconnect();
+    vi.advanceTimersByTime(PING_INTERVAL_MS * 2);
+    expect(socket.sent('ping')).toHaveLength(3);
   });
 
   it('rejoins on every reconnect', () => {

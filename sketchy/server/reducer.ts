@@ -29,6 +29,7 @@ import type {
   TurnEndReason,
   WordEntry,
 } from '../shared/types.js';
+import { correctedAt } from './fairness.js';
 import { createRng } from './rng.js';
 import { drawerPoints, guesserPoints } from './scoring.js';
 import { V0_WORDS } from './words.v0.js';
@@ -303,8 +304,10 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
   const { pid } = player;
   if (pid === turn.drawerPid) return 'drawerCannotGuess';
   if (turn.correct.some((c) => c.pid === pid)) return 'alreadyGuessed';
-  // Uncorrected in v0; F13 applies the latency correction and the grace window.
-  if (a.receivedAt > turn.endsAt) return 'tooLate';
+  // Latency correction: when the guess was sent, as best the server can tell. The server takes
+  // guesses until `endsAt + GRACE_MS`, but only those sent by `endsAt` count.
+  const sentAt = correctedAt(a.receivedAt, a.oneWayMs);
+  if (a.receivedAt > turn.endsAt + GRACE_MS || sentAt > turn.endsAt) return 'tooLate';
 
   turn.guessCount[pid] = (turn.guessCount[pid] ?? 0) + 1;
   const accepted = [turn.word.word, ...turn.word.alt].map(normalizeV0);
@@ -320,14 +323,20 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
     return undefined;
   }
 
-  const elapsedMs = a.receivedAt - turn.clockStart;
+  // A guess sent within the latency correction of the start counts as at the start.
+  const elapsedMs = Math.max(0, sentAt - turn.clockStart);
   const points = guesserPoints(d.settings.drawSeconds * 1000, elapsedMs);
-  turn.correct.push({ pid, receivedAt: a.receivedAt, oneWayMs: a.oneWayMs, elapsedMs, points });
+  // In corrected-time order, so a slow phone that typed first is listed first; equal times keep
+  // arrival order. Earlier `correct` fx keep the order they announced (DECISIONS 36).
+  const at = turn.correct.findIndex((c) => c.elapsedMs > elapsedMs);
+  const index = at === -1 ? turn.correct.length : at;
+  const oneWayMs = Number.isFinite(a.oneWayMs) ? Math.max(0, a.oneWayMs) : 0;
+  turn.correct.splice(index, 0, { pid, receivedAt: a.receivedAt, oneWayMs, elapsedMs, points });
   player.score += points;
   fx.push({
     type: 'fx',
     to: 'all',
-    fx: { kind: 'correct', pid, points, order: turn.correct.length },
+    fx: { kind: 'correct', pid, points, order: index + 1 },
   });
 
   checkAllGuessed(d, now, fx);

@@ -315,7 +315,7 @@ export type GatewayError =
   | 'notHost'
   | 'notDrawer' // `/ink`: a batch from anyone but the current drawer
   | 'staleTurn' // `/ink`: a batch for a turn that is no longer current
-  | 'rateLimited' // `/ink`: more than INK_BATCH_RATE_LIMIT batches from one socket
+  | 'rateLimited' // over a per-socket limit (`ping`, `/ink` batches, hellos, gets)
   | 'inkFull' // `/ink`: the canvas is full; the batch's new strokes were dropped, the rest applied
   | 'inkGap' // `/ink`: a batch after a missing `seq`; dropped, and `ink:resend` asks for the gap
   | 'inkNotKept' // `/ink`: `ink:get` for a drawing the room no longer keeps
@@ -479,7 +479,8 @@ export type View = ScreenView | PlayerView;
 export interface ServerToClientEvents {
   state: (view: View) => void;
   fx: (fx: Fx) => void;
-  pong: (payload: { t: number }) => void;
+  /** The phone acks it at once: the server times its RTT sample from the emit to the ack. */
+  pong: (payload: { t: number }, ack: () => void) => void;
   kicked: (payload: Empty) => void;
   'room:closed': (payload: { reason: RoomClosedReason }) => void;
 }

@@ -26,7 +26,63 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F12: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones; start, and on the drawer's phone (a) draw half a picture, turn on airplane mode for 5 s, keep drawing two strokes, turn it off; (b) reload the drawer's page mid-turn and keep drawing; (c) reload the TV's tab mid-turn; (d) try (a) on mobile data instead of Wi-Fi · after each, within a couple of seconds the TV shows exactly the phone's picture (no missing, doubled or shifted strokes, strokes drawn offline appear), after (b) the phone's pad shows the drawing so far, and the TV never shows a half-old picture after its reload
 
+- [ ] F13: after autopilot deploys, open https://sketchy.kimnejudne.dev on the laptop (Screen on the TV), join with one phone on mobile data and one on Wi-Fi, set the drawing time to the shortest and start; (a) on a turn neither of them draws, both type the word and tap ➤ at the same moment on a count of three; (b) next turn, the mobile-data phone types the word and taps ➤ just as the timer ring reaches 0 · in (a) both get the same points (within 5) and the order looks fair (the mobile-data phone is not always second); in (b) the guess counts ("You got it!" with about +100) rather than being refused; points always sit between 100 and 300 and the drawer gets half the total
+
 <!-- entries below, newest first -->
+
+## F13 — Latency-corrected scoring (2026-10-30)
+**What changed:**
+- `server/fairness.ts` (new): `addRttSample`, `medianRtt` and `oneWayMs` ported from Buzzr, plus `correctedAt(receivedAt, oneWayMs)`, which subtracts the one-way latency capped at `MAX_LATENCY_CORRECTION_MS` (250). Buzzr's buzz ranking and collection window are not ported.
+- **Reducer `player:guess`:**
+  - The guess is timed at `sentAt` = its corrected time.
+  - `tooLate` when `receivedAt > endsAt + GRACE_MS` or `sentAt > endsAt`, before matching (300 ms grace window).
+  - `elapsedMs = max(0, sentAt − clockStart)`.
+  - `turn.correct` is kept in corrected-time order, so Example 4's Ana is listed first; the `correct` fx's `order` is the insertion position.
+  - The stored `oneWayMs` is the measured value, cleaned of NaN and negatives.
+- **Gateway (`server/sockets.ts`):**
+  - `ping` → `pong {t}` with an ack; the server times the RTT sample from the emit to the ack (timeout 5 s).
+  - Each connection keeps its last 10 samples; `player:guess` sends `oneWayMs = median / 2`.
+  - `ping` limited to 5 per second per socket (`rateLimited`).
+- **Shared:** `RTT_SAMPLES`, `PONG_ACK_TIMEOUT_MS` and `PING_RATE_LIMIT` in constants. In types, `pong` takes an ack, and `rateLimited` is no longer `/ink`-only.
+- **Phones:** `client/src/lib/ping.ts` (new) `keepPinging` pings at once on connect and then every 2 s. It acks each `pong`, pauses while the page is hidden and pings at once when it shows. Its stop function removes its listeners. It is wired into `Play.tsx` and the dev bots (bots now ping; DECISIONS 32's "bots don't ping" is superseded). `FakeSocket` gains `off`.
+- **Tests:**
+  - `server/scoring.test.ts`: all four worked examples exactly through the reducer (270/225/145/0 + 320; 290/285/275/260 + 555 with `allGuessed` 1.5 s after Carlo; all 0; Ana 30.060 s and Bea 30.085 s, both 225, Ana listed and announced 1st). Also the cap, the floor at 0, the arrival-order tie, and the grace window: accepted at ≤ `endsAt` corrected (also exactly at it), rejected after it, the cap inside the window, rejected after `endsAt + 300`, and a late wrong guess neither fed nor counted.
+  - `server/fairness.test.ts`: ported median tests plus `correctedAt` (cap, at and under the cap, bad latency).
+  - `server/sockets.test.ts`: RTT timed from `pong` to ack → median 240 → `oneWayMs` 120 on the guess; an unacked pong gives no sample; the ping rate limit.
+  - `client/src/lib/ping.test.ts` (6), plus a bot ping test.
+  - `reducer.turn.test.ts`: two tests now expect the corrected time (their 40 ms latency used to be ignored).
+  - Mutation-checked: removing the cap fails 3 tests and appending instead of ordering fails Example 4. The raw `endsAt + GRACE_MS` bound can't fail on its own, because the 250 ms cap is below the 300 ms window. It is kept as the spec's explicit limit.
+- No new dependencies.
+
+**Decisions:** DECISIONS 36 covers:
+- the server-timed RTT (pong ack);
+- per-connection samples;
+- the ping limit;
+- the hidden-page pause and the immediate ping;
+- the `tooLate` rule before matching;
+- corrected-time ordering and the fx `order`;
+- the floor at 0;
+- the uncapped stored `oneWayMs`.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 36, this entry and the F13 Kim check.
+- **secrets-fairness: PASS** (no leaks). Applied: `ack?.()`, and a note in DECISIONS 36 on inflated RTT from delayed acks, bounded by the cap. Not done: dropping `pingLimiter` keys on disconnect (they are swept every window anyway).
+- **mobile-ux: PASS WITH FIXES.** Applied: an immediate ping on connect (a reconnected phone had no sample for 2 s), the pause while hidden, and the stop function removing its listeners, each with a test. Accepted: pings start before the join succeeds (harmless; the server keys samples by connection).
+
+**Notes for next session:**
+- **F14:** `match.ts` replaces `normalizeV0`. Keep the `tooLate` check before matching, and put the 700 ms guess rate limit in the gateway or reducer, next to the latency correction.
+- **F23 (pause):** move `clockStart` (and `endsAt`) forward by the paused time. The correction already measures from `clockStart`.
+- **The debug overlay feature:** RTT per player is still only in the gateway's closures. Surfacing it needs a gateway → Screen path that causes no broadcasts on every ping.
+- The `correct` fx `order` may be stale if a later arrival slots in before it. Render the order from the view's `turn.correct`, as `views.ts` does.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/scoring.test.ts server/fairness.test.ts server/sockets.test.ts client/src/lib/ping.test.ts`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE` or bots at `/dev/bots/CODE`. Points for a correct guess now run from the latency-corrected time.
+- Automated: `npm run playtest -- .playtest/F13/scenario.ts` (gitignored). It runs a Screen and 3 phones and checks:
+  - each phone's WebSocket sends `ping` every 2 s and gets `pong`;
+  - a guess about 5 s in shows +285 on the phone and the Screen;
+  - the word is absent from the Screen and guesser DOM;
+  - there are no console errors.
 
 ## F12 — Ink sequence, resend and snapshots (2026-10-30)
 **What changed:**

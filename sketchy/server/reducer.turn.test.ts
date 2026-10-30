@@ -88,7 +88,7 @@ describe('starting a turn', () => {
 });
 
 describe('player:guess', () => {
-  it('accepts the word lowercase-trimmed and scores it with the formula on uncorrected time', () => {
+  it('accepts the word lowercase-trimmed and scores it on the latency-corrected time', () => {
     const { room, pids, at } = started();
     const ben = pids[1]!;
     const word = secretWord(room);
@@ -97,10 +97,10 @@ describe('player:guess', () => {
       guess(ben, `  ${word.toUpperCase()} `, at + 9_000),
       at + 9_000,
     );
-    const points = guesserPoints(DRAW_MS, 9_000);
+    const points = guesserPoints(DRAW_MS, 9_000 - 40);
     expect(points).toBe(270);
     expect(after.turn!.correct).toEqual([
-      { pid: ben, receivedAt: at + 9_000, oneWayMs: 40, elapsedMs: 9_000, points },
+      { pid: ben, receivedAt: at + 9_000, oneWayMs: 40, elapsedMs: 9_000 - 40, points },
     ]);
     expect(after.players[ben]!.score).toBe(points);
     expect(effects).toEqual([
@@ -148,7 +148,7 @@ describe('player:guess', () => {
     expect(second.effects).toContainEqual({
       type: 'fx',
       to: 'all',
-      fx: { kind: 'correct', pid: pids[2], points: guesserPoints(DRAW_MS, 2_000), order: 2 },
+      fx: { kind: 'correct', pid: pids[2], points: guesserPoints(DRAW_MS, 2_000 - 40), order: 2 },
     });
   });
 
@@ -171,7 +171,7 @@ describe('player:guess', () => {
     expect(effects.some((e) => e.type === 'schedule')).toBe(false);
   });
 
-  it('rejects a guess from the drawer, a repeat correct guesser, and after endsAt', () => {
+  it('rejects a guess from the drawer, a repeat correct guesser, and one sent after endsAt', () => {
     const { room, pids, at } = started();
     const word = secretWord(room);
     expect(reduce(room, guess(pids[0]!, word, at + 1), at + 1)).toEqual({
@@ -183,7 +183,8 @@ describe('player:guess', () => {
       ok: false,
       error: 'alreadyGuessed',
     });
-    const late = at + DRAW_MS + 1;
+    // Corrected by its 40 ms one-way latency, it was sent 1 ms after endsAt.
+    const late = at + DRAW_MS + 41;
     expect(reduce(room, guess(pids[2]!, word, late), late)).toEqual({
       ok: false,
       error: 'tooLate',

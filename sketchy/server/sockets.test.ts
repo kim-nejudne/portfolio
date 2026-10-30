@@ -2,7 +2,12 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { GRACE_MS, SOCKET_PING_INTERVAL_MS, SOCKET_PING_TIMEOUT_MS } from '../shared/constants.js';
+import {
+  GRACE_MS,
+  PING_RATE_LIMIT,
+  SOCKET_PING_INTERVAL_MS,
+  SOCKET_PING_TIMEOUT_MS,
+} from '../shared/constants.js';
 import type { Ack, ClientEvent, Fx, PlayerView, ScreenView, View } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
@@ -370,6 +375,48 @@ describe('ping, leave and closing', () => {
     const pong = new Promise((resolve) => client.socket.once('pong', resolve));
     expect(await client.emit('ping', { t: 123 })).toEqual({ ok: true });
     expect(await pong).toEqual({ t: 123 });
+  });
+
+  it('times RTT from pong to its ack and corrects a guess by half the median', async () => {
+    const g = await playing();
+    const ben = g.ben.client.socket;
+    // Each pong is acked `rtt` ms (server monotonic) after it was sent: 200, 260, 240 → 240.
+    const rtts = [200, 260, 240];
+    ben.on('pong', (_payload: { t: number }, ack: () => void) => {
+      g.time.mono += rtts.shift()!;
+      ack();
+    });
+    for (let i = 0; i < 3; i++)
+      expect(await g.ben.client.emit('ping', { t: i })).toEqual({ ok: true });
+    expect(rtts).toEqual([]);
+    const receivedAt = g.time.mono;
+    expect(await g.ben.client.emit('player:guess', { text: g.word })).toEqual({ ok: true });
+    expect(g.rooms.get(CODE)!.turn!.correct).toEqual([
+      expect.objectContaining({
+        pid: g.ben.pid,
+        receivedAt,
+        oneWayMs: 120,
+        elapsedMs: receivedAt - 120 - MONO0,
+      }),
+    ]);
+  });
+
+  it('takes no sample from an unacked pong, so a guess is uncorrected', async () => {
+    const g = await playing();
+    expect(await g.ben.client.emit('ping', { t: 1 })).toEqual({ ok: true });
+    g.time.mono += 5_000;
+    expect(await g.ben.client.emit('player:guess', { text: g.word })).toEqual({ ok: true });
+    expect(g.rooms.get(CODE)!.turn!.correct[0]).toMatchObject({ oneWayMs: 0, elapsedMs: 5_000 });
+  });
+
+  it(`refuses more than ${PING_RATE_LIMIT.max} pings a second from one socket`, async () => {
+    const s = await setup();
+    const { client } = await joinPlayer(s, KEY_ANA, 'Ana');
+    for (let i = 0; i < PING_RATE_LIMIT.max; i++)
+      expect(await client.emit('ping', { t: i })).toEqual({ ok: true });
+    expect(await client.emit('ping', { t: 9 })).toEqual({ ok: false, error: 'rateLimited' });
+    s.time.mono += PING_RATE_LIMIT.windowMs;
+    expect(await client.emit('ping', { t: 10 })).toEqual({ ok: true });
   });
 
   it('player:leave removes the player and lets the socket join again', async () => {
