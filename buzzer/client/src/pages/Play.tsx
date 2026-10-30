@@ -478,13 +478,14 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
   // The choice buttons or the text box replace the buzzer then; these looks are never drawn.
   choice: DEAD_BUTTON,
   typed: DEAD_BUTTON,
-  // Live but muted: no pulse, a darker red, the same press-in.
+  // Live but muted: no pulse, a darker red, the same press-in. The two live looks take an ink rim
+  // under a mouse (PLY-11); Tailwind keeps `hover:` off touch screens.
   // Amber and pressed in: the press before the opening was noted, and the wait is on (F72).
   early:
     'translate-y-1 border-warn bg-warn text-bg shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_rgb(0_0_0/0.25)]',
   practice:
-    'border-accent/60 bg-buzz-muted text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)] shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-muted-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-muted-pressed)]',
-  live: `${RED_BUTTON} shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)] motion-safe:animate-buzz-pulse`,
+    'border-accent/60 bg-buzz-muted hover:border-ink text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)] shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-muted-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-muted-pressed)]',
+  live: `${RED_BUTTON} hover:border-ink shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)] motion-safe:animate-buzz-pulse`,
   pressed: `${RED_BUTTON} translate-y-1 shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)]`,
   won: DEAD_BUTTON,
   lost: DEAD_BUTTON,
@@ -637,7 +638,9 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
       : null;
 
   return (
-    <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none]">
+    // From `md`, one centred shell holds the top bar, the stage and Who's here, so nothing sits at
+    // the window's edges; from `lg` the shell is framed like a device (PLY-07).
+    <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none] md:mx-auto md:w-full md:max-w-2xl lg:my-6 lg:h-[calc(100dvh-3rem)] lg:rounded-[28px] lg:border-2 lg:border-edge lg:bg-surface/40">
       <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2 short:pt-2 short:pb-1">
         <span className="flex min-w-0 items-center gap-3">
           <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-accent font-display text-xl text-accent-ink">
@@ -718,7 +721,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           />
           <div
             id="player-menu"
-            className={`absolute top-16 right-4 z-20 flex w-60 flex-col gap-2 ${CARD} p-3 shadow-[0_8px_24px_var(--color-bg-deep)]`}
+            className={`absolute top-16 right-4 z-20 flex w-72 flex-col gap-2 ${CARD} p-3 shadow-[0_8px_24px_var(--color-bg-deep)]`}
           >
             {inLobby && (
               <button
@@ -734,7 +737,9 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               confirmLabel={t('confirmLeave')}
               onConfirm={leaveGame}
               disabled={leaving}
-              className={`${BUTTON_SECONDARY} flex-1 text-left font-bold`}
+              className={`${BUTTON_SECONDARY} text-left font-bold`}
+              // Armed, Confirm and Cancel each take a full-width row (PLY-11).
+              armedClassName="flex flex-col gap-2"
             />
           </div>
         </>
@@ -877,7 +882,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 aria-describedby="buzzer-status"
                 onPointerDown={onPointerDown}
                 onContextMenu={(event) => event.preventDefault()}
-                className={`relative grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform ${ANSWER_CELL} short:size-[min(70dvh,42vw)] short:text-[min(60px,16dvh)] duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
+                className={`relative grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform ${ANSWER_CELL} md:size-[min(400px,60vw,44dvh)] md:text-[min(83px,12vw,9dvh)] short:size-[min(70dvh,42vw)] short:text-[min(60px,16dvh)] duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
               >
                 {state.kind === 'practice' && practices > 0 && (
                   // Keyed by the count, so every test buzz replays the ring.
@@ -891,6 +896,22 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 BUZZ
               </button>
             )}
+            {/* With a mouse and keyboard, the Space key under the buzzer (PLY-10). */}
+            {pointerFine &&
+              !view.choice &&
+              !view.typed &&
+              (state.kind === 'practice' || state.kind === 'live') && (
+                <p
+                  aria-hidden="true"
+                  data-space-hint
+                  className="flex shrink-0 items-center gap-2 text-muted short:hidden"
+                >
+                  <kbd className="rounded-lg border-2 border-b-4 border-edge bg-surface px-3 py-0.5 font-mono text-sm text-ink">
+                    Space
+                  </kbd>{' '}
+                  {t('spaceToBuzz')}
+                </p>
+              )}
             {(buzzCountdown || answeringCountdown) && (
               <div className="flex flex-col items-center gap-4 short:col-start-1 short:row-start-3">
                 {/* The buzz time left, while the buzzers are open (DECISIONS, F64). */}
@@ -961,8 +982,9 @@ function ChoiceButtons({ className, choice, picked, enabled, onPick }: ChoiceBut
   return (
     <ol
       aria-label="Choices"
-      // A 2×2 grid on a short screen, so four choices fit without the inner scroll (PLY-04).
-      className={`flex min-h-0 w-full max-w-sm shrink touch-auto flex-col gap-3 overflow-y-auto p-1 short:grid short:max-w-none short:grid-cols-2 short:gap-2 short:overflow-visible ${className}`}
+      // A 2×2 grid on a short screen, so four choices fit without the inner scroll (PLY-04), and
+      // from `md`, where it mirrors the Screen's A/B over C/D in the same tile colours (PLY-09).
+      className={`flex min-h-0 w-full max-w-sm shrink touch-auto flex-col gap-3 overflow-y-auto p-1 md:grid md:max-w-2xl md:grid-cols-2 md:overflow-visible short:grid short:max-w-none short:grid-cols-2 short:gap-2 short:overflow-visible ${className}`}
     >
       {choice.choices.map((text, index) => {
         const mine = picked === index;
@@ -976,7 +998,7 @@ function ChoiceButtons({ className, choice, picked, enabled, onPick }: ChoiceBut
               data-correct={correct || undefined}
               onClick={() => onPick(index)}
               style={{ backgroundColor: CHOICE_COLORS[index] }}
-              className={`relative flex min-h-16 w-full items-center gap-3 rounded-2xl border-4 px-3 py-2.5 text-left text-lg leading-snug short:h-full short:min-h-14 short:gap-2 short:px-2 short:py-1.5 short:text-base font-bold text-bg transition not-disabled:active:scale-[0.98] not-disabled:hover:hover-tint ${
+              className={`relative flex min-h-16 w-full items-center gap-3 rounded-2xl border-4 px-3 py-2.5 text-left text-lg leading-snug md:h-full short:h-full short:min-h-14 short:gap-2 short:px-2 short:py-1.5 short:text-base font-bold text-bg transition not-disabled:active:scale-[0.98] not-disabled:hover:hover-tint ${
                 mine ? 'border-ink shadow-[0_0_0_3px_var(--color-bg)]' : 'border-transparent'
               } ${correct ? 'ring-4 ring-accent ring-offset-2 ring-offset-bg' : ''} ${
                 (revealed && !correct) || (!revealed && !enabled) ? 'opacity-50' : ''

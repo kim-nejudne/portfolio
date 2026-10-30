@@ -10,6 +10,40 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F97 — Player on tablet and desktop (2026-10-30)
+**What changed:**
+- `pages/Play.tsx`, from `md` and `lg`. Phone portrait and `short:` are unchanged.
+  - **Shell (PLY-07):** the `<main>` is a centred `md:max-w-2xl` shell holding the top bar, the stage and Who's here. At `lg` it is framed: `my-6`, `h-[calc(100dvh-3rem)]`, `rounded-[28px]`, `border-2 border-edge` and `bg-surface/40` over the page's `bg`. The menu and the Who's here popover open inside it.
+  - **Buzzer (PLY-08):** `md:size-[min(400px,60vw,44dvh)]`, with the label at `md:text-[min(83px,12vw,9dvh)]`.
+  - **Choices (PLY-09):** a 2×2 grid from `md` (`md:grid-cols-2`, tiles `md:h-full`). The tiles already used the Screen's `CHOICE_COLORS` and letter disc.
+  - **Space hint (PLY-10):** on a fine pointer, a `kbd` "Space" and "to buzz" sit under the buzzer in the lobby and while buzzers are open. It is `aria-hidden` and `short:hidden`. The "Click or press Space" copy came with F92.
+  - **Hover and menu (PLY-11):** the practice and live buzzers take `hover:border-ink`. The menu is `w-72`, and an armed Leave stacks Confirm and Cancel full-width (`armedClassName`).
+- Copy: new key `spaceToBuzz` ("to buzz", Taglish "para mag-buzz").
+- Tests:
+  - `Play.test.tsx` gains 9 tests, "Play on tablet and desktop (F97)": the shell and frame; the buzzer size classes; the choice grid in the Screen's colours; the Space hint on a mouse (English and Taglish), its absence when nothing can buzz and on touch; the menu and armed Leave; hover on the join form; and hover across choice, typed, armed menu, rename and Final.
+  - `copy.test.ts` +1.
+  - 2474 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F97: the spec note ("the stage is one button"; the press target stays the round button and Space works anywhere); the `44dvh` buzzer size and why the rings stay; the Space hint and hover.
+
+**Notes for next session:**
+- Tailwind emits the custom `short:` rules after `md:`, so a laptop window under 500px tall keeps the two-column short layout. The playtest checked this at 1440×480.
+- Kim: the spec's Player view still says "the whole viewport is one circular button". The DECISIONS row proposes "the stage is one button". SPEC.md is locked, so the wording is yours to change.
+- Review: one Must-fix, the missing DECISIONS rows, now added. Its Should-fixes: avatar-cell hover now has a test (the join form), and the buzzer sizes are measured below.
+- Playtest: `.playtest/F97/drive.mjs` (cached Playwright 1.61, socket host and two socket players, Ana in Chromium with a mouse). 68 checks, all pass, no console errors:
+  - the shell is centred at 672px wide, with the top bar, stage and Who's here inside it, at 820×1180, 1440×900 and 1024×768, in the lobby, open, won, choice and Final states. It is framed (28px radius, 2px border, 24px margin) at `lg`, and nothing is clipped;
+  - the buzzer is measured at 400px (820×1180), 396px (1440×900) and 338px (1024×768);
+  - the choices are A/B over C/D at all three sizes;
+  - "Click or press Space to test your buzzer", and the Space hint in the lobby and while open, gone once Ana won via Space;
+  - every enabled button in the lobby, the menu and the choices changes look under the mouse;
+  - the menu is 288px, and the armed Confirm sits over Cancel at 236×52 each;
+  - 1440×480 keeps the short grid, and 375×667 is full width.
+  - I checked `lobby-1440.png`, `choice-820.png` and `won-1024.png` myself.
+  - Not covered in a browser: typed and rename at `md` (unit tests only).
+- Main `index` chunk 540.59 → 541.33 kB.
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/` on one window. Join from a desktop browser at 1440×900 at `http://localhost:5173/play/<code>`: the framed shell, the 396px buzzer and the Space hint. Resize to 820 wide for the tablet layout, and use devtools touch emulation to see the hint go. Add a Multiple-choice question to the set to see the 2×2 grid.
+
 ## F96 — Player phone: landscape and short screens (2026-10-30)
 **What changed:**
 - `pages/Play.tsx`, under `short:` (max-height 500px). Portrait is unchanged apart from PLY-05 and PLY-06.

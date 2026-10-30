@@ -2344,3 +2344,209 @@ describe('Play on short screens (F96)', () => {
     expect(screen.getByRole('button', { name: '3 nandito' })).toBeTruthy();
   });
 });
+
+describe('Play on tablet and desktop (F97)', () => {
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const socket = sockets[0]!;
+    act(() => lastJoin(socket).ack({ ok: true }));
+    return socket;
+  }
+
+  const classes = (element: Element) => element.getAttribute('class')!.split(/\s+/);
+  const buzzer = () => screen.getByRole('button', { name: 'BUZZ' });
+  const spaceHint = () => document.querySelector<HTMLElement>('[data-space-hint]');
+  const open = (overrides: Partial<PlayerView> = {}) =>
+    playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, ...overrides });
+  const choiceView = (overrides: Partial<PlayerChoiceView> = {}) =>
+    playerView({
+      phase: 'ANSWERING',
+      questionIndex: 0,
+      openingCounter: 1,
+      choice: {
+        choices: ['Sydney', 'Canberra', 'Melbourne', 'Perth'],
+        answered: 0,
+        expected: 3,
+        timer: { seconds: 10 },
+        mine: null,
+        ...overrides,
+      },
+    });
+
+  /** A mouse: `usePointerFine()` matches. */
+  function stubPointerFine() {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === '(hover: hover) and (pointer: fine)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+  }
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it('from md, one centred max-w-2xl shell holds the top bar, the stage and Who’s here, framed at lg', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    const shell = screen.getByRole('main');
+    expect(classes(shell)).toEqual(
+      expect.arrayContaining(['md:mx-auto', 'md:w-full', 'md:max-w-2xl']),
+    );
+    expect(classes(shell)).toEqual(
+      expect.arrayContaining([
+        'lg:my-6',
+        'lg:h-[calc(100dvh-3rem)]',
+        'lg:rounded-[28px]',
+        'lg:border-2',
+        'lg:border-edge',
+        'lg:bg-surface/40',
+      ]),
+    );
+    expect(shell.contains(screen.getByRole('button', { name: 'Menu' }))).toBe(true);
+    expect(shell.contains(document.querySelector('[data-stage]'))).toBe(true);
+    expect(shell.contains(screen.getByRole('region', { name: /Who’s here/ }))).toBe(true);
+    // The menu opens inside the shell, not at the window's edge.
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(shell.contains(document.getElementById('player-menu'))).toBe(true);
+  });
+
+  it('from md the buzzer grows to 400px, capped by the window, and the phone and short sizes stay', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    expect(classes(buzzer())).toEqual(
+      expect.arrayContaining([
+        'size-[min(290px,78vw,40dvh)]',
+        'md:size-[min(400px,60vw,44dvh)]',
+        'md:text-[min(83px,12vw,9dvh)]',
+        'short:size-[min(70dvh,42vw)]',
+      ]),
+    );
+  });
+
+  it('from md the choices are a 2×2 grid, A/B over C/D in the Screen’s tile colours', async () => {
+    const socket = await joined();
+    socket.fire('state', choiceView({ mine: 2 }));
+    const list = screen.getByRole('list', { name: 'Choices' });
+    expect(classes(list)).toEqual(
+      expect.arrayContaining(['md:grid', 'md:grid-cols-2', 'md:max-w-2xl']),
+    );
+    const buttons = within(list).getAllByRole('button');
+    expect(buttons.map((button) => button.textContent?.[0])).toEqual(['A', 'B', 'C', 'D']);
+    buttons.forEach((button, index) => {
+      // Normalised the same way, as jsdom reports the colour as rgb().
+      const screenColour = document.createElement('span');
+      screenColour.style.backgroundColor = CHOICE_COLORS[index]!;
+      expect(button.style.backgroundColor).toBe(screenColour.style.backgroundColor);
+      expect(classes(button)).toContain('md:h-full');
+    });
+    // The pick's badge stays.
+    expect(within(buttons[2]!).getByText('Your pick')).toBeTruthy();
+  });
+
+  it('on a mouse, the Space key shows under the buzzer in the lobby and while buzzers are open', async () => {
+    stubPointerFine();
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      'Click or press Space to test your buzzer',
+    );
+    expect(spaceHint()?.textContent).toBe('Space to buzz');
+    expect(spaceHint()?.querySelector('kbd')?.textContent).toBe('Space');
+
+    socket.fire('state', open());
+    expect(spaceHint()?.textContent).toBe('Space to buzz');
+
+    socket.fire('state', open({ copy: 'taglish' }));
+    expect(spaceHint()?.textContent).toBe('Space para mag-buzz');
+  });
+
+  it('the Space key hint is gone when there is nothing to buzz', async () => {
+    stubPointerFine();
+    const socket = await joined();
+    for (const view of [
+      playerView({ phase: 'QUESTION', questionIndex: 0 }),
+      open({ phase: 'BUZZED', hasBuzzed: true, winnerId: 'p1', winnerName: 'Ana' }),
+      open({ phase: 'BUZZED', winnerId: 'p2', winnerName: 'Ben' }),
+      choiceView(),
+    ]) {
+      socket.fire('state', view);
+      expect(spaceHint(), view.phase).toBeNull();
+    }
+  });
+
+  it('on a touch screen there is no Space key hint', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(spaceHint()).toBeNull();
+    socket.fire('state', open());
+    expect(spaceHint()).toBeNull();
+  });
+
+  it('the menu is wider, and an armed Leave stacks Confirm and Cancel full-width', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const menu = document.getElementById('player-menu')!;
+    expect(classes(menu)).toContain('w-72');
+    fireEvent.click(screen.getByRole('button', { name: 'Leave game' }));
+    const confirm = screen.getByRole('button', { name: 'Confirm leave' });
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    expect(classes(confirm.parentElement!)).toEqual(expect.arrayContaining(['flex', 'flex-col']));
+    expect(cancel.parentElement).toBe(confirm.parentElement);
+    expect(classes(confirm)).not.toContain('flex-1');
+    expect(classes(cancel)).not.toContain('flex-1');
+  });
+
+  it('the join form’s buttons respond to hover: every avatar cell and Join', async () => {
+    stubExists(true);
+    renderPlay();
+    await screen.findByRole('button', { name: `Avatar ${AVATARS[0]}` });
+    expect(buttonsWithNoHover()).toEqual([]);
+  });
+
+  it('every button responds to hover: the live buzzers, choices, typed, rename, armed menu and Final', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(classes(buzzer())).toContain('hover:border-ink');
+    socket.fire('state', open());
+    expect(classes(buzzer())).toContain('hover:border-ink');
+
+    socket.fire('state', choiceView());
+    expect(buttonsWithNoHover()).toEqual([]);
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'ANSWERING',
+        questionIndex: 1,
+        openingCounter: 1,
+        typed: { answered: 0, expected: 3, timer: { seconds: 10 }, closed: false, mine: null },
+      }),
+    );
+    expect(buttonsWithNoHover()).toEqual([]);
+
+    socket.fire('state', playerView());
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave game' }));
+    expect(buttonsWithNoHover()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change name' }));
+    expect(buttonsWithNoHover()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'FINAL',
+        questionIndex: 9,
+        results: { title: 'Pub Quiz', ranking: { rows: [], count: 0 }, tonight: null },
+      }),
+    );
+    expect(buttonsWithNoHover()).toEqual([]);
+  });
+});

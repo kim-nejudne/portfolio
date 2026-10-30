@@ -35,6 +35,8 @@ const EN = {
   questionOf: 'Question {n} of {count}',
   tapToBuzzIn: ' · tap to buzz in',
   clickToBuzzIn: ' · click or press Space to buzz in',
+  // Beside the Space key shown under the buzzer on a mouse (PLY-10).
+  spaceToBuzz: 'to buzz',
   youreIn: 'You’re in! Waiting for the host',
   teamName: '{team} team',
   room: 'Room {code}',
@@ -129,6 +131,7 @@ const TAGLISH: Record<CopyKey, string> = {
   questionOf: 'Tanong {n} sa {count}',
   tapToBuzzIn: ' · i-tap para mag-buzz',
   clickToBuzzIn: ' · i-click o pindutin ang Space para mag-buzz',
+  spaceToBuzz: 'para mag-buzz',
   youreIn: 'Pasok ka na! Hinihintay ang host',
   teamName: 'Team {team}',
   room: 'Room {code}',

@@ -58,6 +58,11 @@ describe('translator', () => {
     }
   });
 
+  it('words the Space key hint under a mouse player’s buzzer in both languages (PLY-10)', () => {
+    expect(translator('en')('spaceToBuzz')).toBe('to buzz');
+    expect(translator('taglish')('spaceToBuzz')).toBe('para mag-buzz');
+  });
+
   it('leaves a placeholder with no value as written', () => {
     expect(translator('en')('buzzedFirst')).toBe('{name} buzzed first');
   });

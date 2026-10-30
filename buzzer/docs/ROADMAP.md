@@ -258,18 +258,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F96 Player phone: landscape and short screens
 
-- [ ] F97 Player on tablet and desktop
-  - Spec: UI spec by view (Player view); see `docs/ux/04-player.md`
-  - Depends: F96
-  - Done when:
-    - PLY-07 … PLY-11 are closed
-    - At `md`, a centred `max-w-2xl` shell contains the top bar, the stage and Who's here; at `lg` the shell is framed
-    - The buzzer is 360–400px at 820×1180 and 1440×900
-    - Choices are a 2×2 grid with the Screen's letter colours
-    - The Click or Space copy and hint show on a fine pointer
-    - Hover states are added and the menu is wider
-    - The "whole viewport" spec note is recorded in DECISIONS
-  - Tests: `Play.test.tsx` (pointer-fine copy, choice grid), `copy.test.ts`
+- [x] F97 Player on tablet and desktop
 
 - [ ] F98 Host remote on the phone
   - Spec: UI spec by view (Host remote); see `docs/ux/05-host-remote.md`
