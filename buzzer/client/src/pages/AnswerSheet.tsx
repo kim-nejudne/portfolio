@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import type { QuestionSet } from '../../../shared/types.js';
+import type { Question, QuestionSet } from '../../../shared/types.js';
 import { getSet } from '../lib/db.js';
 
 const LOAD_ERROR = 'Could not load this set in this browser.';
@@ -86,43 +86,80 @@ function Sheet({ set }: { set: QuestionSet }) {
       {count === 0 ? (
         <p>This set has no questions yet.</p>
       ) : (
-        <table className="w-full border-collapse text-left align-top">
-          <thead>
-            <tr className="border-b-2 border-black">
-              <th scope="col" className="w-10 py-2 pr-3">
-                #
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Question
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Answer
-              </th>
-              <th scope="col" className="py-2">
-                Notes
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {set.questions.map((question, index) => {
-              const text = question.text.trim();
-              return (
+        <>
+          {/* A table from `sm`, and always on paper, so the printout is unchanged (LIB-07). */}
+          <table className="hidden w-full border-collapse text-left align-top sm:table print:table">
+            <thead>
+              <tr className="border-b-2 border-black">
+                <th scope="col" className="w-10 py-2 pr-3">
+                  #
+                </th>
+                <th scope="col" className="py-2 pr-3">
+                  Question
+                </th>
+                <th scope="col" className="py-2 pr-3">
+                  Answer
+                </th>
+                <th scope="col" className="py-2">
+                  Notes
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {set.questions.map((question, index) => (
                 <tr key={question.id} className="break-inside-avoid border-b border-gray-400">
                   <td className="py-2 pr-3 align-top font-bold tabular-nums">{index + 1}</td>
                   <td className="py-2 pr-3 align-top break-words whitespace-pre-line">
-                    {text || (question.imageId ? <em>(picture question)</em> : '')}
-                    {text && question.imageId && <em> (with a picture)</em>}
+                    <QuestionText question={question} />
                   </td>
                   <td className="py-2 pr-3 align-top font-bold break-words">{question.answer}</td>
                   <td className="py-2 align-top break-words whitespace-pre-line">
                     {question.hostNotes ?? ''}
                   </td>
                 </tr>
+              ))}
+            </tbody>
+          </table>
+          {/* On a phone, four columns crush the words, so each question is a block of its own. */}
+          <ol aria-label="Questions" className="flex flex-col sm:hidden print:hidden">
+            {set.questions.map((question, index) => {
+              const notes = question.hostNotes?.trim() ?? '';
+              return (
+                <li
+                  key={question.id}
+                  aria-label={`Question ${index + 1}`}
+                  className="flex flex-col gap-1 border-b border-gray-400 py-3"
+                >
+                  <p className="break-words whitespace-pre-line">
+                    <span className="font-bold tabular-nums">{index + 1}.</span>{' '}
+                    <QuestionText question={question} />
+                  </p>
+                  <p className="break-words">
+                    <span className="text-sm tracking-widest uppercase">Answer</span>{' '}
+                    <strong>{question.answer}</strong>
+                  </p>
+                  {notes !== '' && (
+                    <p className="break-words whitespace-pre-line">
+                      <span className="text-sm tracking-widest uppercase">Notes</span> {notes}
+                    </p>
+                  )}
+                </li>
               );
             })}
-          </tbody>
-        </table>
+          </ol>
+        </>
       )}
+    </>
+  );
+}
+
+/** A question's text, or a word on its picture when it has one. */
+function QuestionText({ question }: { question: Question }) {
+  const text = question.text.trim();
+  return (
+    <>
+      {text || (question.imageId ? <em>(picture question)</em> : '')}
+      {text && question.imageId && <em> (with a picture)</em>}
     </>
   );
 }

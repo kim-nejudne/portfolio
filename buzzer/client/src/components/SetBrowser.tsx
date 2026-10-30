@@ -9,7 +9,7 @@ import {
   type DifficultyChip,
   type SetFilter,
 } from '../lib/setFilter.js';
-import { BUTTON_SMALL, INPUT, LABEL } from '../lib/ui.js';
+import { INPUT, LABEL } from '../lib/ui.js';
 
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
 
@@ -37,12 +37,13 @@ interface SelectProps extends CommonProps {
 /** One card per set with its buttons, for `/sets`. */
 interface ActionProps extends CommonProps {
   mode: 'actions';
-  actions: (set: QuestionSet) => ReactNode;
   /**
-   * Adds a **Preview** button per set (DECISIONS F56). A picker previews only its picked set, from
-   * its summary (`SetPicker`), so its cards stay short (LND-02).
+   * What the card's heading holds: by default the title as text, on `/sets` a link to the set
+   * (LIB-02). Enter in the search box focuses the first link or button of the one card left.
    */
-  onPreview?: (set: QuestionSet) => void;
+  cardTitle?: (set: QuestionSet) => ReactNode;
+  /** The card's action row: Host, Preview and its `⋯` menu on `/sets`. */
+  actions: (set: QuestionSet) => ReactNode;
 }
 
 /**
@@ -127,43 +128,36 @@ export function SetBrowser(props: SelectProps | ActionProps) {
         ))}
       </fieldset>
     ) : (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         {groups.map((group, index) => (
           <section
             key={group.category}
             aria-labelledby={`${id}-group-${index}`}
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-2"
           >
             <h2 id={`${id}-group-${index}`} className={LABEL}>
               {group.category}
             </h2>
-            <ul className="flex flex-col gap-4">
+            {/* Only `/sets` lists cards, in a page of its own, so the columns follow the window (LIB-01). */}
+            <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {group.sets.map((set) => (
                 <li
                   key={set.id}
                   data-set-id={set.id}
                   aria-labelledby={`${id}-set-${set.id}`}
-                  className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
+                  // Tight enough that two full rows of three show at 1440×900 (LIB-01).
+                  className="flex flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface p-4"
                 >
                   <div className="min-w-0">
-                    <h3 id={`${id}-set-${set.id}`} className="truncate font-display text-2xl">
-                      {set.title}
+                    <h3
+                      id={`${id}-set-${set.id}`}
+                      className="line-clamp-2 font-display text-xl break-words"
+                    >
+                      {props.cardTitle ? props.cardTitle(set) : set.title}
                     </h3>
                     <p className="text-muted">{detail(set)}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {props.actions(set)}
-                    {props.onPreview && (
-                      <button
-                        type="button"
-                        onClick={() => props.onPreview?.(set)}
-                        aria-label={`Preview ${set.title}`}
-                        className={`${BUTTON_SMALL} shrink-0`}
-                      >
-                        Preview
-                      </button>
-                    )}
-                  </div>
+                  <div className="mt-auto flex items-center gap-2">{props.actions(set)}</div>
                 </li>
               ))}
             </ul>

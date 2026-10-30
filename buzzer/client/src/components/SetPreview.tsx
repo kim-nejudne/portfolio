@@ -36,7 +36,7 @@ export function SetPreview({
   const [opener] = useState(() => document.activeElement);
 
   // Focus moves into the preview, and back to whatever opened it on close. The page behind stops
-  // scrolling, so only the question list scrolls.
+  // scrolling, so only the question list scrolls (the whole dialog on a short screen).
   useEffect(() => {
     const overflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
@@ -63,19 +63,21 @@ export function SetPreview({
   const detail = [set.category, setDetail(set, false)].filter(Boolean).join(' · ');
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/85 p-4">
+    // Wider on a desktop, with two columns of questions (LIB-06). On a landscape phone the header
+    // shrinks and the whole dialog scrolls, so the list isn't squeezed under it.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/85 p-4 short:p-2">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="set-preview-heading"
-        className="flex max-h-full w-full max-w-2xl flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-6 text-lg"
+        className="flex max-h-full w-full max-w-2xl flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-6 text-lg short:gap-2 short:overflow-y-auto short:p-3 short:text-base lg:max-w-5xl"
       >
         <div className="shrink-0">
           <h2
             id="set-preview-heading"
             ref={headingRef}
             tabIndex={-1}
-            className="font-display text-3xl break-words outline-none"
+            className="font-display text-3xl break-words outline-none short:text-xl"
           >
             {set.title}
           </h2>
@@ -86,7 +88,7 @@ export function SetPreview({
         ) : (
           <ol
             aria-label="Questions"
-            className="flex min-h-0 flex-col gap-3 overflow-y-auto [scrollbar-color:var(--color-edge)_transparent]"
+            className="grid min-h-0 content-start gap-3 overflow-y-auto [scrollbar-color:var(--color-edge)_transparent] short:shrink-0 short:grid-cols-2 short:gap-2 short:overflow-visible lg:grid-cols-2"
           >
             {set.questions.map((question, index) => (
               <PreviewQuestion
@@ -104,7 +106,7 @@ export function SetPreview({
             onClose();
             onAction(set);
           }}
-          className={`${BUTTON_PRIMARY} shrink-0 text-2xl`}
+          className={`${BUTTON_PRIMARY} shrink-0 text-2xl short:text-xl`}
         >
           {actionLabel}
         </button>
@@ -132,7 +134,7 @@ function PreviewQuestion({
   return (
     <li
       aria-label={`Question ${number}`}
-      className="flex flex-col gap-2 rounded-xl border-2 border-edge bg-bg px-4 py-3"
+      className="flex flex-col gap-2 rounded-xl border-2 border-edge bg-bg px-4 py-3 short:gap-1 short:px-3 short:py-2"
     >
       <p className={LABEL}>
         Question {number} · {question.points} points

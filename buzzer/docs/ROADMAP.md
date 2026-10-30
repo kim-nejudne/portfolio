@@ -252,18 +252,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F93 Landing and host picker on every screen
 
-- [ ] F94 Set library grid
-  - Spec: Question editor and images (Set list); see `docs/ux/02-set-library.md`
-  - Depends: F92
-  - Done when:
-    - LIB-01 … LIB-08 are closed
-    - `/sets` uses a wide shell with a card grid (`md:2`, `xl:3`)
-    - Each card has Host and Preview visible, a title link, and a `⋯` menu with Delete last and in red
-    - The header puts New set first, with a Backup menu holding Import JSON and Export all
-    - Card actions give toast feedback
-    - SetPreview is wider at `lg` and scrolls at short heights
-    - AnswerSheet stacks into rows below `sm` and prints unchanged
-  - Tests: `Sets.test.tsx`, `SetBrowser.test.tsx`, `SetPreview.test.tsx`; an AnswerSheet test for the stacked layout
+- [x] F94 Set library grid
 
 - [ ] F95 Set editor toolbar and outline
   - Spec: Question editor and images (Set editor); see `docs/ux/03-set-editor.md`
@@ -372,6 +361,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 - Category board: the phone still reads "Question 9 of 9" (set order) on a board set, and shows nothing in BOARD; it could name the tile ("Animals · 200") as the Screen and remote do, from a board-tile field on `PlayerView` (F90). A tile-reveal sound on the pick (F90).
 - Taglish: the phone's results card image (`resultsCard.ts`) is still drawn in English; server errors in toasts stay English (they would need an error code per message); the join form and "Joining…" stay English, since the language arrives with the first snapshot — `GET /api/rooms/:code/exists` could return it (F91). Kim to review the drafted Taglish strings in `client/src/lib/copy.ts`.
 - Tests: one full `npm test` run in a few fails a single client test with `expect(document.title).toBe('Buzzr')` (seen in F84, F85, F87 and F92; the next run passes). Some suite leaves `document.title` set for the next file in the same worker; reset it in the shared jsdom setup, or find the page that changes it on unmount.
-- Responsive (F92 leftovers): the hand-written filled and outline buttons on Sets, SetEditor and PasteQuestions and the hand-written `CARD`s on Host, HostBoard, TypedMarking, ReadAloud and PasteQuestions should move to `BUTTON_PRIMARY`, `BUTTON_OUTLINE` and `CARD` as F94, F95 and F98 lay those pages out again. The editor's drag handle, ↑/↓ buttons, correct-choice radio and the join form's avatar cells are still under 44px (EDT and PLY features).
+- Responsive (F92 leftovers): the hand-written filled and outline buttons on SetEditor and PasteQuestions (Sets moved in F94) and the hand-written `CARD`s on Host, HostBoard, TypedMarking, ReadAloud and PasteQuestions should move to `BUTTON_PRIMARY`, `BUTTON_OUTLINE` and `CARD` as F94, F95 and F98 lay those pages out again. The editor's drag handle, ↑/↓ buttons, correct-choice radio and the join form's avatar cells are still under 44px (EDT and PLY features).
 - Responsive (F93): RoomCreated is top-aligned on a tall window. Landing centres only its hero and cards, so at 1440×900 the created room leaves the lower half empty. Centring it too would need Landing to tell the picker (top-aligned) from the created room.
 - Responsive (F93): the search box placeholder is Bungee (`INPUT`), and is cut short at 375px ("SEARCH TITLE OR CATEG…"). A shorter placeholder or a DM Sans one for search would fix it (F94 touches `SetBrowser` on `/sets`).
+- Responsive (F94): the `⋯` and Backup menus always open below. On the last card near the window's foot the menu runs past it and the page scrolls; flipping above when there is no room would avoid that. The `docs/ux/02` sketch also puts the tabs on the search row at `xl`, which would need SetBrowser to take a toolbar slot; F94 left them on their own row (7 cards still show at 1440×900).

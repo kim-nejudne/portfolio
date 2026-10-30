@@ -36,6 +36,8 @@ beforeEach(async () => {
   vi.stubGlobal('Blob', NodeBlob);
   await db.delete();
   await db.open();
+  // jsdom lays nothing out, so it has no scrollIntoView.
+  Element.prototype.scrollIntoView = vi.fn();
 });
 
 afterEach(() => {
@@ -70,10 +72,28 @@ async function card(title: string) {
   return within(await screen.findByRole('listitem', { name: title }));
 }
 
-const tab = (name: string) => screen.getByRole('tab', { name });
+/** A tab by its label; its name also carries its count ("My sets 3"). */
+const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name} \\d+$`) });
+/** The open tab's label, without its count. */
 const selectedTab = async () =>
-  (await screen.findAllByRole('tab')).find((t) => t.getAttribute('aria-selected') === 'true')!
-    .textContent;
+  (await screen.findAllByRole('tab'))
+    .find((t) => t.getAttribute('aria-selected') === 'true')!
+    .textContent.replace(/ \d+$/, '');
+/** Opens the `⋯` menu of the card titled `title`, and returns the menu. */
+async function openMenu(title: string) {
+  fireEvent.click((await card(title)).getByRole('button', { name: `More actions for ${title}` }));
+  return within(screen.getByRole('menu', { name: `More actions for ${title}` }));
+}
+
+/** Chooses `label` in the `⋯` menu of the card titled `title`. */
+async function chooseInMenu(title: string, label: string) {
+  fireEvent.click((await openMenu(title)).getByRole('menuitem', { name: label }));
+}
+
+/** The toast at the foot of the window: a confirmation is a status, a failure an alert. */
+const toast = (role: 'status' | 'alert' = 'status') =>
+  screen.findByRole(role, {}, { timeout: 2000 }).then((el) => el.textContent);
+
 const cardTitles = () =>
   screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
 
@@ -107,7 +127,7 @@ describe('Set list tabs', () => {
     await card(SAMPLE_SET.title);
     expect(cardTitles()).toEqual(BUILT_IN_SETS.map((s) => s.title));
     expect(cardTitles()).toHaveLength(61);
-    expect(screen.getByRole('tabpanel', { name: 'Built-in' })).toBeTruthy();
+    expect(screen.getByRole('tabpanel', { name: 'Built-in 61' })).toBeTruthy();
   });
 
   it('opens on My sets once this browser has a set', async () => {
@@ -134,16 +154,35 @@ describe('Set list tabs', () => {
     expect(await selectedTab()).toBe('Built-in');
   });
 
-  it('a built-in card offers only Duplicate to My sets, Host this set and Preview', async () => {
+  it('a built-in card shows Host and Preview, and its ⋯ menu only Duplicate to My sets', async () => {
     renderSets();
-    const starter = await card(STARTER_SETS[0]!.title);
+    const title = STARTER_SETS[0]!.title;
+    const starter = await card(title);
     expect(starter.getByText('15 questions · Easy')).toBeTruthy();
     expect(
-      starter
-        .getAllByRole('button')
-        .concat(starter.queryAllByRole('link'))
-        .map((b) => b.textContent),
-    ).toEqual(['Duplicate to My sets', 'Host this set', 'Preview']);
+      starter.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent),
+    ).toEqual([title, `Host ${title}`, `Preview ${title}`, `More actions for ${title}`]);
+    const menu = await openMenu(title);
+    expect(menu.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Duplicate to My sets',
+    ]);
+  });
+
+  it("a built-in card's title opens its preview (LIB-02)", async () => {
+    renderSets();
+    const title = STARTER_SETS[0]!.title;
+    fireEvent.click((await card(title)).getByRole('button', { name: title }));
+    expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
+  });
+
+  it('Host is the gold primary, and the cards form a 1/2/3-column grid (LIB-01)', async () => {
+    renderSets();
+    const sample = await card(SAMPLE_SET.title);
+    expect(sample.getByRole('button', { name: /^Host / }).className).toContain('bg-accent');
+    expect(sample.getByRole('button', { name: /^Preview / }).className).not.toContain('bg-accent');
+    const grid = screen.getByRole('listitem', { name: SAMPLE_SET.title }).parentElement!;
+    expect(grid.className).toContain('md:grid-cols-2');
+    expect(grid.className).toContain('xl:grid-cols-3');
   });
 
   it('groups the built-in cards under category headings, the sample under Other', async () => {
@@ -164,20 +203,16 @@ describe('Set list tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
     expect(cardTitles()).toEqual(['Animals – Easy']);
     fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
-    expect(document.activeElement?.textContent).toBe('Duplicate to My sets');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Animals – Easy' }));
   });
 
   it('Duplicate to My sets saves an editable copy and shows it in My sets', async () => {
     renderSets();
-    fireEvent.click(
-      (await card(STARTER_SETS[1]!.title)).getByRole('button', { name: 'Duplicate to My sets' }),
-    );
+    await chooseInMenu(STARTER_SETS[1]!.title, 'Duplicate to My sets');
     const copy = await card(`${STARTER_SETS[1]!.title} (copy)`);
     expect(await selectedTab()).toBe('My sets');
-    expect(screen.getByRole('status').textContent).toBe(
-      `Copied “${STARTER_SETS[1]!.title} (copy)” to My sets.`,
-    );
-    expect(copy.getByRole('link', { name: 'Open' })).toBeTruthy();
+    expect(await toast()).toBe(`Copied “${STARTER_SETS[1]!.title} (copy)” to My sets.`);
+    expect(copy.getByRole('link', { name: `${STARTER_SETS[1]!.title} (copy)` })).toBeTruthy();
     const [stored] = await listSets();
     expect(stored).toMatchObject({ questions: STARTER_SETS[1]!.questions, createdAt: FIRST_VISIT });
     expect(stored!.id).not.toBe(STARTER_SETS[1]!.id);
@@ -186,7 +221,7 @@ describe('Set list tabs', () => {
   it('Host this set on the built-in sample creates a room and uploads its 2 pictures', async () => {
     const fetch = stubServer();
     renderSets();
-    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: /^Host / }));
 
     expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
     expect(bodyOf(fetch)).toEqual({ set: SAMPLE_SET, settings: DEFAULT_SETTINGS });
@@ -202,7 +237,7 @@ describe('Set list tabs', () => {
     const fetch = stubServer();
     const hard = STARTER_SETS[2]!;
     renderSets();
-    fireEvent.click((await card(hard.title)).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card(hard.title)).getByRole('button', { name: /^Host / }));
 
     expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
     const { set } = bodyOf(fetch);
@@ -230,7 +265,7 @@ describe('Set list tabs', () => {
       (await card(hard.title)).getByRole('button', { name: `Preview ${hard.title}` }),
     );
     const preview = within(screen.getByRole('dialog', { name: hard.title }));
-    fireEvent.click(preview.getByRole('button', { name: 'Host this set' }));
+    fireEvent.click(preview.getByRole('button', { name: /^Host / }));
 
     expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
     expect(bodyOf(fetch).set).toEqual(hard);
@@ -267,16 +302,14 @@ describe('Set list /sets, My sets', () => {
       target: { value: 'animal' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
-    fireEvent.click(
-      (await card('Animals – Easy')).getByRole('button', { name: 'Duplicate to My sets' }),
-    );
+    await chooseInMenu('Animals – Easy', 'Duplicate to My sets');
     await card('Animals – Easy (copy)');
     expect(await selectedTab()).toBe('My sets');
     expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
     expect(screen.getByRole('button', { name: 'Easy' }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('search finds my sets by title, and Enter focuses Open on the one left', async () => {
+  it("search finds my sets by title, and Enter focuses the one left's title link", async () => {
     await addOwn();
     await db.sets.add({ ...draft('newer', 'Newer quiz', []), updatedAt: FIRST_VISIT + 1 });
     renderSets();
@@ -286,7 +319,7 @@ describe('Set list /sets, My sets', () => {
     });
     expect(cardTitles()).toEqual([OWN.title]);
     fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
-    expect(document.activeElement?.textContent).toBe('Open');
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: OWN.title }));
   });
 
   it("Preview on My sets shows the set's answers and its pictures from this browser", async () => {
@@ -311,11 +344,42 @@ describe('Set list /sets, My sets', () => {
     expect(screen.queryByRole('listitem')).toBeNull();
   });
 
-  it('Open goes to the set editor', async () => {
+  it("the card's title opens the set editor (LIB-02)", async () => {
     await addOwn();
     renderSets();
-    fireEvent.click((await card(OWN.title)).getByRole('link', { name: 'Open' }));
+    fireEvent.click((await card(OWN.title)).getByRole('link', { name: OWN.title }));
     expect(screen.getByTestId('path').textContent).toBe(`/sets/${OWN.id}`);
+  });
+
+  it('Open in the ⋯ menu goes to the set editor', async () => {
+    await addOwn();
+    renderSets();
+    await chooseInMenu(OWN.title, 'Open');
+    expect(screen.getByTestId('path').textContent).toBe(`/sets/${OWN.id}`);
+  });
+
+  it('the ⋯ menu holds Open, Duplicate, Export JSON, then Delete in red (LIB-02, FND-07)', async () => {
+    await addOwn();
+    renderSets();
+    const own = await card(OWN.title);
+    expect(own.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      `Host ${OWN.title}`,
+      `Preview ${OWN.title}`,
+      `More actions for ${OWN.title}`,
+    ]);
+    const items = (await openMenu(OWN.title)).getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Open',
+      'Duplicate',
+      'Export JSON',
+      'Delete',
+    ]);
+    expect(items.map((item) => item.className.includes('text-buzz'))).toEqual([
+      false,
+      false,
+      false,
+      true,
+    ]);
   });
 
   it('New set saves an untitled draft and opens it in the editor', async () => {
@@ -331,50 +395,47 @@ describe('Set list /sets, My sets', () => {
   it('Duplicate adds a copy card', async () => {
     await addOwn();
     renderSets();
-    fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Duplicate' }));
+    await chooseInMenu(OWN.title, 'Duplicate');
     const copy = await card(`${OWN.title} (copy)`);
     expect(copy.getByText(/^10 questions/)).toBeTruthy();
     expect(await listSets()).toHaveLength(2);
+    expect(await toast()).toBe(`Duplicated “${OWN.title}”.`);
   });
 
-  it("Delete reads as destructive before it is armed, and follows the set's other actions (FND-07)", async () => {
+  it('Delete asks for confirmation in the menu, and Cancel keeps the set', async () => {
     await addOwn();
     renderSets();
-    const own = await card(OWN.title);
-    const del = own.getByRole('button', { name: 'Delete' });
-    expect(del.className).toContain('text-buzz');
-    const host = own.getByRole('button', { name: 'Host this set' });
-    expect(host.compareDocumentPosition(del) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(del);
-    expect(own.getByRole('button', { name: 'Cancel' }).className).not.toContain('text-buzz');
-  });
-
-  it('Delete asks for confirmation, and Cancel keeps the set', async () => {
-    await addOwn();
-    renderSets();
-    const own = await card(OWN.title);
-    fireEvent.click(own.getByRole('button', { name: 'Delete' }));
-    fireEvent.click(own.getByRole('button', { name: 'Cancel' }));
+    await chooseInMenu(OWN.title, 'Delete');
+    const menu = within(screen.getByRole('menu'));
+    expect(menu.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Open',
+      'Duplicate',
+      'Export JSON',
+      'Confirm delete',
+      'Cancel',
+    ]);
+    expect(menu.getByRole('menuitem', { name: 'Cancel' }).className).not.toContain('text-buzz');
+    fireEvent.click(menu.getByRole('menuitem', { name: 'Cancel' }));
     expect(await getSet(OWN.id)).toBeDefined();
-    expect(own.getByRole('button', { name: 'Delete' })).toBeTruthy();
+    expect(menu.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
   });
 
-  it('Delete then Confirm delete removes the set', async () => {
+  it('Delete then Confirm delete removes the set and says so', async () => {
     await addOwn();
     renderSets();
-    const own = await card(OWN.title);
-    fireEvent.click(own.getByRole('button', { name: 'Delete' }));
-    fireEvent.click(own.getByRole('button', { name: 'Confirm delete' }));
+    await chooseInMenu(OWN.title, 'Delete');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Confirm delete' }));
     await waitFor(() => expect(screen.queryByRole('listitem', { name: OWN.title })).toBeNull());
     expect(await getSet(OWN.id)).toBeUndefined();
     expect(await listSets()).toHaveLength(0);
+    expect(await toast()).toBe(`Deleted “${OWN.title}”.`);
   });
 
   it('Host this set creates a room with that set and offers the Screen choices', async () => {
     await addOwn();
     const fetch = stubServer();
     renderSets();
-    fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card(OWN.title)).getByRole('button', { name: /^Host / }));
 
     expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
     expect(screen.getByText('WXYZ')).toBeTruthy();
@@ -387,7 +448,7 @@ describe('Set list /sets, My sets', () => {
     await addOwn();
     stubServer();
     renderSets();
-    fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card(OWN.title)).getByRole('button', { name: /^Host / }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Host remote' }));
     expect(screen.getByTestId('path').textContent).toBe('/host/WXYZ');
@@ -400,7 +461,9 @@ describe('Set list /sets, My sets', () => {
     renderSets();
     const own = await card(OWN.title);
     expect(buttonsWithoutHover()).toEqual([]);
-    fireEvent.click(own.getByRole('button', { name: 'Host this set' }));
+    await openMenu(OWN.title);
+    expect(buttonsWithoutHover()).toEqual([]);
+    fireEvent.click(own.getByRole('button', { name: /^Host / }));
     await screen.findByRole('heading', { name: 'Room created' });
     expect(buttonsWithoutHover()).toEqual([]);
   });
@@ -412,12 +475,12 @@ describe('Set list /sets, My sets', () => {
     );
     renderSets();
     const own = await card(OWN.title);
-    fireEvent.click(own.getByRole('button', { name: 'Host this set' }));
+    fireEvent.click(own.getByRole('button', { name: /^Host / }));
     expect((await screen.findByRole('alert')).textContent).toBe('Too many rooms');
     expect(screen.queryByRole('heading', { name: 'Room created' })).toBeNull();
     expect(localStorage.length).toBe(0);
     await waitFor(() =>
-      expect(own.getByRole('button', { name: 'Host this set' })).toHaveProperty('disabled', false),
+      expect(own.getByRole('button', { name: /^Host / })).toHaveProperty('disabled', false),
     );
   });
 
@@ -431,7 +494,7 @@ describe('Set list /sets, My sets', () => {
       ]),
     );
     renderSets();
-    fireEvent.click((await card('Draft')).getByRole('button', { name: 'Host this set' }));
+    fireEvent.click((await card('Draft')).getByRole('button', { name: /^Host / }));
     expect((await screen.findByRole('alert')).textContent).toBe('Question 2 needs an answer.');
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'New set' })).toHaveProperty('disabled', false),
@@ -471,8 +534,9 @@ describe('Set list /sets, My sets', () => {
       const downloads = captureDownloads();
       await addOwn();
       renderSets();
-      fireEvent.click((await card(OWN.title)).getByRole('button', { name: 'Export JSON' }));
+      await chooseInMenu(OWN.title, 'Export JSON');
       await waitFor(() => expect(downloads).toHaveLength(1));
+      expect(await toast()).toBe(`Exported “${OWN.title}”.`);
 
       expect(downloads[0]!.name).toBe('pub-quiz.json');
       const file = JSON.parse(await downloads[0]!.text) as QuestionSet & { images: object };
@@ -489,7 +553,7 @@ describe('Set list /sets, My sets', () => {
       const downloads = captureDownloads();
       await db.sets.add(draft('d', 'Draft', []));
       renderSets();
-      fireEvent.click((await card('Draft')).getByRole('button', { name: 'Export JSON' }));
+      await chooseInMenu('Draft', 'Export JSON');
       expect((await screen.findByRole('alert')).textContent).toBe('This set has no questions yet.');
       expect(downloads).toEqual([]);
     });
@@ -550,9 +614,7 @@ describe('Set list /sets, My sets', () => {
       await db.sets.add(draft('d', 'Draft', []));
       renderSets();
       await card(OWN.title);
-      expect(backupLine().textContent).toBe(
-        'Never exported. Your sets live only in this browser: use Export all now and then to keep a backup file.',
-      );
+      expect(backupLine().textContent).toBe('Never exported. Your sets live only in this browser.');
 
       fireEvent.click(screen.getByRole('button', { name: 'Export all' }));
       await waitFor(() => expect(downloads).toHaveLength(1));
@@ -577,6 +639,53 @@ describe('Set list /sets, My sets', () => {
       ).toEqual(['“Draft”: This set has no questions yet.']);
       expect(backupLine().textContent).toBe(`Last export: ${formatEdited(FIRST_VISIT)}`);
       expect(localStorage.getItem('buzzr:lastExport')).toBe(String(FIRST_VISIT));
+    });
+
+    it('Backup holds Import JSON and Export all; Export all there downloads the backup (LIB-03)', async () => {
+      const downloads = captureDownloads();
+      await addOwn();
+      renderSets();
+      await card(OWN.title);
+      fireEvent.click(screen.getByRole('button', { name: 'Backup' }));
+      const menu = within(screen.getByRole('menu', { name: 'Backup' }));
+      expect(menu.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+        'Import JSON',
+        'Export all',
+      ]);
+      fireEvent.click(menu.getByRole('menuitem', { name: 'Export all' }));
+      await waitFor(() => expect(downloads).toHaveLength(1));
+      expect(downloads[0]!.name).toBe(exportAllFileName(FIRST_VISIT));
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('Import JSON in Backup opens the file chooser', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const choose = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+      fireEvent.click(screen.getByRole('button', { name: 'Backup' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Import JSON' }));
+      expect(choose).toHaveBeenCalledOnce();
+      expect(choose.mock.contexts[0]).toBe(screen.getByTestId('import-file'));
+    });
+
+    it('Export all in Backup is off while this browser has no set', async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      fireEvent.click(screen.getByRole('button', { name: 'Backup' }));
+      expect(
+        screen.getByRole('menuitem', { name: 'Export all' }).getAttribute('aria-disabled'),
+      ).toBe('true');
+    });
+
+    it("an import's result is scrolled into view, as it shows at the top (LIB-04)", async () => {
+      renderSets();
+      await card(SAMPLE_SET.title);
+      const scrolled = vi.mocked(Element.prototype.scrollIntoView);
+      scrolled.mockClear();
+      chooseFile('not json', 'broken.json');
+      const alert = await screen.findByRole('alert');
+      expect(scrolled).toHaveBeenCalled();
+      expect(scrolled.mock.contexts.at(-1)).toBe(alert.parentElement);
     });
 
     it('My sets shows the last export this browser made', async () => {
@@ -701,5 +810,50 @@ describe('Set list /sets, Build a game', () => {
     expect(await screen.findByText('Saved “Mixed: Animals” to My sets.')).toBeTruthy();
     expect(await selectedTab()).toBe('My sets');
     expect((await card('Mixed: Animals')).getByText(/^4 questions/)).toBeTruthy();
+  });
+});
+
+describe('Set list /sets, header and tabs (F94)', () => {
+  it('the header starts with a home link, then New set, Build a game and Backup (LIB-03, LIB-08)', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    const header = within(screen.getByRole('banner'));
+    expect(header.getByRole('link', { name: '← Buzzr' }).getAttribute('href')).toBe('/');
+    expect(
+      header.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent),
+    ).toEqual(['New set', 'Build a game', 'Backup']);
+    expect(header.getByRole('button', { name: 'New set' }).className).toContain('bg-accent');
+  });
+
+  it('the page is the wide shell (LIB-01)', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    expect(screen.getByRole('main').parentElement!.dataset.width).toBe('wide');
+  });
+
+  it('the tabs show their counts, and look unlike the difficulty chips (LIB-05)', async () => {
+    await addOwn();
+    renderSets();
+    await card(OWN.title);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      `Built-in ${BUILT_IN_SETS.length}`,
+      'My sets 1',
+    ]);
+    const chip = screen.getByRole('button', { name: 'Easy' });
+    expect(tab('My sets').className).toContain('border-b-4');
+    expect(tab('My sets').className).not.toContain('rounded-full');
+    expect(chip.className).toContain('rounded-full');
+  });
+
+  it('a failed card action is a toast, not a message at the top of the page (LIB-04)', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(Response.json({ ok: false, error: 'Too many rooms' }, { status: 429 })),
+    );
+    await addOwn();
+    renderSets();
+    fireEvent.click((await card(OWN.title)).getByRole('button', { name: /^Host / }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Too many rooms');
+    expect(alert.className).toContain('fixed');
   });
 });

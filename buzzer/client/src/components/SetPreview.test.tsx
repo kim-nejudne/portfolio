@@ -115,4 +115,17 @@ describe('SetPreview', () => {
     expect(document.activeElement).toBe(opener);
     opener.remove();
   });
+
+  it('is wider with two columns of questions on a desktop, and scrolls whole on a short screen (LIB-06)', () => {
+    renderPreview();
+    const dialog = screen.getByRole('dialog', { name: set.title });
+    const list = screen.getByRole('list', { name: 'Questions' });
+    expect(dialog.className).toContain('lg:max-w-5xl');
+    expect(list.className).toContain('lg:grid-cols-2');
+    // On a landscape phone the dialog scrolls, not the list squeezed under the header.
+    expect(dialog.className).toContain('short:overflow-y-auto');
+    expect(list.className).toContain('short:overflow-visible');
+    expect(list.className).toContain('short:shrink-0');
+    expect(screen.getByRole('heading', { name: set.title }).className).toContain('short:text-xl');
+  });
 });

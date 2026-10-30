@@ -10,6 +10,58 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F94 — Set library grid (2026-10-30)
+**What changed:**
+- `/sets` (`pages/Sets.tsx`):
+  - It uses `PageShell width="wide"`; Room created uses the narrow one.
+  - Header: "← Buzzr", the title, **New set** (gold), **Build a game** (outline) and **Backup ▾** (Import JSON, Export all). On a phone New set has its own row. The actions sit beside the title from `lg`, with the home link on that line at `xl`.
+  - The tabs are an underline tab bar with counts ("Built-in 61", "My sets 3").
+  - Cards: the title links to the editor (My sets) or opens the preview (built-in). The row is **Host** (gold, new `BUTTON_PRIMARY_SMALL`), **Preview**, and `⋯`. The menu holds Open, Duplicate, Export JSON and a red Delete (My sets), or Duplicate to My sets (built-in).
+  - Card actions report in toasts. Success is green, a failure is red, and Host from the preview reports the same way. Import, Export all and the builder's Save keep their inline blocks, which now scroll into view.
+  - The never-exported reminder is one line with **Export all**.
+- New `components/OverflowMenu.tsx`: the menu-button pattern. Arrows, Home and End move through the items. Esc or choosing an item closes the menu and refocuses the trigger, and a press outside or Tab also closes it. A destructive item asks again in place (Confirm delete / Cancel).
+- `SetBrowser` (actions mode): a `md:grid-cols-2 xl:grid-cols-3` grid per category, a `cardTitle` render prop, and tighter gaps. `onPreview` is gone, since Sets puts Preview in its own row.
+- `Toast`: an optional `'done'` tone (green, `role="status"`). The default is unchanged, so the Host, Screen and Player toasts are as before.
+- `SetPreview`: `lg:max-w-5xl` with 2 columns at `lg`. Under `short:` the whole dialog scrolls, in 2 columns with a compact header.
+- `AnswerSheet`: below `sm`, stacked blocks (number and question, Answer, Notes). The table stays at `sm` and above, and always in print.
+- Tests:
+  - New `OverflowMenu.test.tsx` (11): opening and first focus, Esc returning focus, arrows/Home/End wrap, the trigger's arrow keys, choose and refocus, link items, disabled items, the destructive confirm, Cancel refocusing Delete, outside press and toggle, disarm on close.
+  - `Sets.test.tsx`: 53, up from 42. Every existing flow was kept, with its queries moved into the menu. New: title → preview and → editor, Open in the menu, the menu's items and red Delete, Host as the gold primary and the grid classes, the header order and home link, the wide shell, tab counts and style, the Backup menu (Export all, Import opening the chooser, Export all off with no sets), toasts for Duplicate, Delete and Export, a failed Host as a toast, and an import result scrolled into view.
+  - `SetBrowser.test.tsx` +2 (grid, `cardTitle` and Enter), `SetPreview.test.tsx` +1 (lg and short classes), `AnswerSheet.test.tsx` +1 (stacked blocks and table/print classes).
+  - `test/hover.ts` accepts the gold buttons' hover and `hover:underline`.
+  - 2429 tests in total. No new dependency.
+
+**Decisions:** the seven DECISIONS rows dated 2026-10-30 for F94:
+- the menu
+- the card and `cardTitle`
+- the header and Backup
+- toasts against inline feedback
+- the tab bar
+- SetPreview's sizes
+- AnswerSheet's two layouts and the hover helper
+
+**Notes for next session:**
+- Enter after a search on `/sets` now focuses the card's title link, not its first action.
+- Each card button is named after its set (`Host <title>`, `Preview <title>`, `More actions for <title>`). Tests scope by card and use those names.
+- The menus always open downward (Backlog). The sketch's tabs-on-the-search-row at `xl` was not built (Backlog).
+- **Review:** one Must-fix. `scrollIntoView` is missing in jsdom, so `App.test.tsx` left an unhandled error in the full run. The call is now optional, and the full run has no errors. The review's other points are covered by tests and the measurements below.
+- Measured with my Playwright script `.playtest/F94/audit.mjs` at 375×667, 667×375, 820×1180, 1024×768, 1440×900 and 1920×1080 (screenshots there; I checked sets, menu and sheet at 375, mine at 375, sets and preview at 1440, and preview at 667×375):
+  - **Cards:** at 1440×900, 7 built-in cards are fully visible in 3 columns (first try 4, so I tightened the gaps). 820 has 2 columns, phones 1. No card's action row wraps at any size, and no title is clipped.
+  - **Controls:** nothing under 44px at any size, and no horizontal overflow.
+  - **Header:** at every size the home link is visible without scrolling and the first header button is New set. At 1024 and up, title and actions share one line.
+  - **Menu and toast:** after scrolling to the 21st card, `⋯` → Esc returned focus to the trigger. Duplicate to My sets showed the green toast in view.
+  - **Preview:** 8 whole questions at 1440×900, 6 at 1024×768. At 667×375 it shows 4 (2 whole) and scrolls as a whole, and **Host this set** is reachable at every size.
+  - **Answer sheet:** at 375, the stacked list shows, no word is split across lines (every word measured as one rect) and the back link is 44px. With print media emulated, the table shows and the list is hidden at every width. The 1440 print screenshot (`sheet-print.png`) shows the same table as before.
+  - No console errors.
+- The playtest skill (Playwright, one tab) independently passed the grid, header, card menu with red Delete, the Export all notice, the preview width and short scroll, and the 390px sheet. No console errors.
+- Main `index` chunk 536.87 → 537.37 kB.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/sets` at 1440×900, then at 820 wide and on a phone.
+- Use `⋯` on a card (Esc, the arrow keys, Delete → Confirm delete) and **Backup ▾**.
+- Duplicate a set from far down the list, and see the toast.
+- **Preview** a starter at 1440 (two columns), and on a landscape phone.
+- Open a set, then **Print answer sheet** on a phone (stacked) and in Chrome print preview (table).
+
 ## F93 — Landing and host picker on every screen (2026-10-30)
 **What changed:**
 - Landing (`pages/Landing.tsx`):

@@ -91,4 +91,26 @@ describe('Print answer sheet /sets/:setId/print', () => {
     renderSheet('gone');
     expect((await screen.findByRole('alert')).textContent).toBe('This set no longer exists.');
   });
+
+  it('below sm, each question is a stacked block, and the table is kept for sm and for print (LIB-07)', async () => {
+    await seed([
+      { id: 'a', text: 'Capital of France?', answer: 'Paris', hostNotes: 'Not Lyon', points: 100 },
+      { id: 'b', text: '', imageId: 'img', answer: 'Eiffel Tower', points: 200 },
+    ]);
+    renderSheet();
+    const table = await screen.findByRole('table');
+    expect(table.className.split(' ')).toEqual(
+      expect.arrayContaining(['hidden', 'sm:table', 'print:table']),
+    );
+    const stacked = screen.getByRole('list', { name: 'Questions' });
+    expect(stacked.className.split(' ')).toEqual(
+      expect.arrayContaining(['sm:hidden', 'print:hidden']),
+    );
+    const blocks = within(stacked).getAllByRole('listitem');
+    expect(blocks.map((block) => block.textContent)).toEqual([
+      '1. Capital of France?Answer ParisNotes Not Lyon',
+      '2. (picture question)Answer Eiffel Tower',
+    ]);
+    expect(within(blocks[0]!).getByText('Paris').tagName).toBe('STRONG');
+  });
 });

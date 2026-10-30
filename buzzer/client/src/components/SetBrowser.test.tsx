@@ -221,6 +221,35 @@ describe('SetBrowser cards', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(BUILT_IN_SETS.length);
   });
 
+  it('lays each category out as a 1/2/3-column grid of cards (LIB-01)', () => {
+    renderCards();
+    const animals = within(screen.getByRole('region', { name: 'Animals' }));
+    const grid = animals.getByRole('list');
+    expect(grid.className).toContain('grid');
+    expect(grid.className).toContain('md:grid-cols-2');
+    expect(grid.className).toContain('xl:grid-cols-3');
+  });
+
+  it('cardTitle puts a link in the heading, and Enter on the one set left focuses it', () => {
+    render(
+      <SetBrowser
+        mode="actions"
+        id="linked"
+        sets={BUILT_IN_SETS}
+        detail={() => ''}
+        cardTitle={(set) => <a href={`#${set.id}`}>{set.title}</a>}
+        actions={(set) => <button type="button">Host {set.title}</button>}
+      />,
+    );
+    const heading = screen.getByRole('heading', { level: 3, name: 'Animals – Easy' });
+    const easy = BUILT_IN_SETS.find((set) => set.title === 'Animals – Easy')!;
+    expect(within(heading).getByRole('link').getAttribute('href')).toBe(`#${easy.id}`);
+    type('animal');
+    fireEvent.click(chip('Easy'));
+    fireEvent.keyDown(search(), { key: 'Enter' });
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Animals – Easy' }));
+  });
+
   it('Enter on the one set left moves focus to its first action', () => {
     renderCards();
     type('animal');

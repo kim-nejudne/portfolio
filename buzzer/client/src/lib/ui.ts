@@ -29,6 +29,10 @@ const PRESS = 'transition not-disabled:active:scale-95 disabled:opacity-40';
 export const BUTTON_PRIMARY =
   'min-h-11 rounded-2xl bg-accent px-6 py-4 font-display text-accent-ink transition not-disabled:hover:bg-accent-hover not-disabled:active:scale-95 disabled:bg-edge disabled:text-muted';
 
+/** `BUTTON_PRIMARY` at the size of the set pages' row buttons: a set card's Host (LIB-02). */
+export const BUTTON_PRIMARY_SMALL =
+  'min-h-11 rounded-xl bg-accent px-4 py-2 font-display text-base text-accent-ink transition not-disabled:hover:bg-accent-hover not-disabled:active:scale-95 disabled:bg-edge disabled:text-muted';
+
 /** A gold outline with a gold Bungee label on no fill: Save to My sets. */
 export const BUTTON_OUTLINE = `min-h-11 rounded-2xl border-2 border-accent bg-transparent px-6 py-4 font-display text-accent not-disabled:hover:border-accent-hover not-disabled:hover:text-accent-hover ${PRESS}`;
 
