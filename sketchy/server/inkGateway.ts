@@ -3,12 +3,17 @@
 // socket, in DRAWING, not paused, for the current `turnId`; everything else is dropped. Only
 // Screens ever join `ink:<code>:screen`, and nothing is sent anywhere else.
 //
-// v0 (F06): limits are the schema's 4 KB and 200 points per op and 40 batches per second per
-// socket. No ink log, `seq` checks, snapshots, resends, turn size cap or invalid-batch count yet;
-// those arrive with F11/F12.
+// Each relayed batch is applied to the turn's action stack (`shared/ink.ts`, the drawer's and the
+// Screen's code too), which clamps points to the grid. The batch goes to the Screens unchanged:
+// they decode it with the same code, so they rebuild the same picture.
+//
+// Limits so far are the schema's 4 KB and 200 points per op and 40 batches per second per player.
+// `seq` checks, snapshots, resends, freezing at `inkClose`, the turn size cap and the invalid-batch
+// count arrive with F12, which turns the per-room stack into its InkStore.
 
 import type { Namespace, Socket } from 'socket.io';
-import { INK_BATCH_RATE_LIMIT } from '../shared/constants.js';
+import { INK_BATCH_RATE_LIMIT, INK_TURN_HARD_MAX_BYTES } from '../shared/constants.js';
+import { applyInkOps, createInkStack, type InkStack } from '../shared/ink.js';
 import { inkAuthSchema, inkPayloadSchemas } from '../shared/schemas.js';
 import type {
   Ack,
@@ -52,10 +57,22 @@ export interface InkGatewayOptions {
   monotonic?: () => number;
 }
 
+/** The action stack of a room's latest turn. */
+export interface TurnInk {
+  turnId: number;
+  stack: InkStack;
+  /** Encoded bytes of the batches applied so far. */
+  bytes: number;
+}
+
 export interface InkGateway {
   ink: InkNamespace;
   /** Pass to `attachSockets` as `onInk`: runs the reducer's ink effects. */
   onInk: (code: string, effect: InkEffect) => void;
+  /** The room's latest turn's ink, if any (read-only; for F12's snapshots and tests). */
+  turnInk: (code: string) => TurnInk | undefined;
+  /** Drops a room's ink (the room expired). */
+  forget: (code: string) => void;
 }
 
 export function attachInkGateway(
@@ -66,6 +83,9 @@ export function attachInkGateway(
   const ink = io.of('/ink') as unknown as InkNamespace;
   // Keyed by player (or socket id before a phone is bound); idle keys are dropped by the limiter.
   const batchLimiter = createRateLimiter(INK_BATCH_RATE_LIMIT, monotonic);
+  // SPEC-QUESTION: one turn per room until F12's InkStore keeps frozen turns for the gallery and
+  // caps each at INK_TURN_MAX_BYTES; a new turn replaces the last one here.
+  const turns = new Map<string, TurnInk>();
 
   // A phone proves who it is with its playerKey; only the hash is compared, as on `player:join`.
   ink.use((socket, next) => {
@@ -104,7 +124,16 @@ export function attachInkGateway(
       if (!batchLimiter.hit(pid ? `${code}:${pid}` : socket.id)) return fail('rateLimited');
       const error = refuseBatch(socket.data, batch);
       if (error) return fail(error);
-      ink.to(inkScreenRoom(socket.data.code!)).emit('ink:batch', batch);
+      // `refuseBatch` passed, so the socket is bound to a live room and `turnId` is current.
+      let turn = turns.get(code!);
+      if (turn?.turnId !== batch[0]) turns.set(code!, (turn = openTurn(batch[0])));
+      // A hard memory bound: a drawer spamming clears or tiny strokes can't grow the stack past
+      // it. Refused batches are neither applied nor relayed, so the Screens keep the same stack.
+      const bytes = JSON.stringify(batch).length;
+      if (turn.bytes + bytes > INK_TURN_HARD_MAX_BYTES) return fail('inkFull');
+      turn.bytes += bytes;
+      applyInkOps(turn.stack, batch[2]);
+      ink.to(inkScreenRoom(code!)).emit('ink:batch', batch);
       return { ok: true };
     });
 
@@ -130,18 +159,30 @@ export function attachInkGateway(
   function onInk(code: string, effect: InkEffect): void {
     switch (effect.type) {
       case 'inkOpen':
+        turns.set(code, openTurn(effect.turnId));
         ink.to(inkScreenRoom(code)).emit('ink:turn', { turnId: effect.turnId });
         break;
       case 'inkClose':
+        // SPEC-QUESTION: F12 freezes the log here for the gallery; until then it stays as it is.
+        break;
       case 'inkReset':
-        // SPEC-QUESTION: no ink log in v0; F12 freezes it at inkClose and drops it at inkReset.
+        turns.delete(code);
         break;
       default:
         effect satisfies never;
     }
   }
 
-  return { ink, onInk };
+  return {
+    ink,
+    onInk,
+    turnInk: (code) => turns.get(code),
+    forget: (code) => void turns.delete(code),
+  };
+}
+
+function openTurn(turnId: number): TurnInk {
+  return { turnId, stack: createInkStack(), bytes: 0 };
 }
 
 /**

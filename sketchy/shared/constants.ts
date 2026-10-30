@@ -131,6 +131,16 @@ export const INK_BATCH_RATE_LIMIT = { max: 40, windowMs: 1000 } as const;
 export const INK_GRID = 1024;
 /** The drawer flushes a batch this often while drawing. */
 export const INK_FLUSH_MS = 50;
+/** The drawer drops a point closer than this (grid units) to the last kept point. */
+export const INK_RADIAL_MIN = 3;
+/** Ramer–Douglas–Peucker tolerance (grid units) for the drawer's pending points. */
+export const INK_RDP_EPSILON = 1;
+/**
+ * After RDP the drawer still keeps a point wherever the next kept one would be further than this
+ * (grid units). Strokes are smoothed through segment midpoints, so a long simplified run would
+ * round the following corner far more on the Screen than on the drawer's pad.
+ */
+export const INK_SEGMENT_MAX = 24;
 /** Brush widths in grid units for S, M and L (`size` 0, 1, 2). */
 export const INK_SIZES = [4, 10, 24] as const;
 export const DEFAULT_INK_SIZE = 1;
@@ -155,6 +165,11 @@ export const INK_BATCH_MAX_BYTES = 4 * 1024;
 export const INK_POINTS_PER_OP_MAX = 200;
 /** A turn's ink log, encoded; past it new strokes are refused ("Canvas full"). */
 export const INK_TURN_MAX_BYTES = 200 * 1024;
+/**
+ * The server never applies more than this (batches, encoded) to one turn's action stack: a hard
+ * memory bound above the soft INK_TURN_MAX_BYTES, which still lets undo and clear through (F12).
+ */
+export const INK_TURN_HARD_MAX_BYTES = 2 * INK_TURN_MAX_BYTES;
 /** Frozen ink logs a room keeps for the gallery; past it the oldest are dropped. */
 export const INK_ROOM_MAX_BYTES = 4 * 1024 * 1024;
 /** Invalid batches in one turn before the drawer's `/ink` socket is disconnected. */

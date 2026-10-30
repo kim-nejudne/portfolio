@@ -22,7 +22,47 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F08: on a guesser's phone, type a wrong guess and tap ➤, then lock the phone for 10 s, unlock, and pull down to refresh · the keyboard stays up after ➤ and the box stays above it; after unlocking and after the refresh the phone comes back to the same game as the same player (no name step, same points)
 - [ ] F09 (M1 acceptance): `npm run dev`, then `npm run lan CODE` after starting a game on the laptop (Screen on the TV); join from 3 real phones on the same Wi-Fi, Start, and play a full cycle (each phone draws once; guess each other's drawings) · every player gets exactly one drawing turn, each stroke appears live on the TV within a blink, correct guesses show ✓ and points on the Screen and the guesser's phone, and the game ends at Final scores. Then open `http://<laptop>:5173/dev/bots/CODE` in a laptop tab before Start, spawn 2 bots and play again · bots join, guess random words in the feed, and draw the house doodle on their turn
 
+- [ ] F11: on a budget Android and an iPhone as the drawer (`npm run dev` + `npm run lan`), draw a fast circle, a slow wavy signature, a long straight line into a sharp corner, and a few single-tap dots, with the Screen on the TV next to the phone · the TV's lines follow the phone's closely (no visibly cut corners, no flat facets on curves, dots appear), and the pad stays smooth with no lag while drawing fast
+
 <!-- entries below, newest first -->
+
+## F11 — Ink codec and action stack (2026-10-30)
+**What changed:**
+- `shared/ink.ts` (new) is the one codec and action stack for the drawer, the server and the Screen:
+  - **Codec:** `encodeDeltas`/`decodeDeltas`. Decoding clamps each point to the grid and continues from the clamped point.
+  - **Ops and batches:** `pointOps` (≤ 200 points per `p`), `strokeOps`, `stackOps` (ops that rebuild a stack exactly, for F12's snapshots), and `packBatches` (4 KB split, moved out of `inkSender`).
+  - **Simplification:** `farEnough` (radial filter, `INK_RADIAL_MIN` = 3). `simplifyIndices`/`simplify` is an iterative RDP at `INK_RDP_EPSILON` = 1 that always keeps both ends, and also splits any span longer than `INK_SEGMENT_MAX` = 24 at its middle point.
+  - **Action stack:** `createInkStack`, `pushStroke`, `popAction` (`u`), `pushClear` (`c`), `applyInkOps` (returns what to repaint), `visibleStrokes`.
+- **Drawer:**
+  - `client/src/ink/inkSender.ts` filters points as they arrive and simplifies the pending points from the last sent point at each flush. At `end` it adds the finger's last raw point.
+  - It gains `undo()` and `clear()`, which end the stroke in hand and flush at once. There is no UI for them yet (F32).
+  - `DrawPad` keeps its local picture in the shared stack and still draws every raw point.
+- **Screen:** `client/src/lib/ink.ts` keeps only rendering and `createScreenInk`, on top of the shared stack (`InkPicture` = `InkStack` + `turnId`).
+- **Server:**
+  - `server/inkGateway.ts` applies each relayed batch to the room's turn stack (`turnInk(code)`). The stack starts on `inkOpen` (or a batch for a newer turn), is dropped on `inkReset`, and is dropped on expiry through `forget`, called from the sweeper in `server/index.ts`.
+  - The batch is still relayed unchanged.
+  - Past `INK_TURN_HARD_MAX_BYTES` (400 KB applied per turn) batches are refused with the new `inkFull` code and are neither applied nor relayed.
+- **Tests:**
+  - `shared/ink.test.ts` (new, 22 tests). The v0 stack tests moved here from `client/src/lib/ink.test.ts`, each with an equivalent.
+  - `inkSender.test.ts`: radial filter, RDP per flush, the dot, undo/clear, the segment cap, and an end-to-end circle within 3 + ε of the drawn line.
+  - `inkGateway.test.ts`: the server's stack equals what the Screen rebuilds through clamping, clear, undo and undo-of-clear, and `inkFull`.
+- No new dependencies.
+
+**Decisions:** DECISIONS 34 covers clamping on decode, the filter and RDP order, the end point, `INK_SEGMENT_MAX` (it keeps smoothed corners tight; the spec's midpoint quadratics would otherwise round them far more on the Screen than on the pad), one stack per room until F12, and the hard 400 KB ceiling. Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 34, and a note that the sender test's bound is end to end.
+- **secrets-fairness: PASS WITH FIXES.** No leaks or routing changes. Applied: the hard memory bound with a test (clear spam grew the stack without limit), and a comment on reused strokeIds in `popAction`.
+- **mobile-ux: PASS WITH FIXES.** Applied: `INK_SEGMENT_MAX` with tests (corners after long simplified runs were cut on the Screen), an `F32:` note at the pad's stack, and wrapped comments. Deferred: per-frame `visibleStrokes` and per-event tuple allocations in `DrawPad` (cheap now; revisit with F32's undo/clear).
+
+**Notes for next session:**
+- **F12:** turn the gateway's `turns` map into the `InkStore`.
+  - Keep the order: validate (`seq`, the 200 KB soft cap with undo/clear allowed) → apply → relay. A refused batch must reach neither the stack nor the Screens; add a test for that.
+  - Freeze at `inkClose`, which does nothing now.
+  - `stackOps(stack)` + `packBatches` give a snapshot's batches. The 400 KB `inkFull` ceiling stays as the hard bound above the soft cap.
+  - The drawer's resend can reuse `packBatches` (kept batches).
+- **F32:** wire undo/clear to `sender.undo()`/`clear()` and to `popAction`/`pushClear` on the pad's stack, then `repaint()` (the note is in `DrawPad`). Map the `inkFull` ack to "Canvas full" alongside F12's soft cap.
+- The drawer's pad shows raw points and the Screen shows filtered ones (within 3 + 1 grid units, about 1.3 px on a 328 px pad).
+
+**How to try it:** `npx vitest run shared/ink.test.ts client/src/ink server/inkGateway.test.ts`. In the app: `npm run dev`, then http://localhost:5173 on the laptop and tap **Start**. Open http://localhost:5173/dev/bots/CODE, spawn 2 bots and Start. Bot 1's house doodle appears on the Screen through the new filter and RDP. Or join from a phone (`npm run lan CODE`) and draw. Automated: `npm run playtest -- .playtest/F11/scenario.ts` (gitignored, 5 steps). It runs a Screen and 3 phones, checks that a drawer's drag, a second stroke and a tap-dot all add ink to the Screen canvas, that guessers have no canvas, and that the word is not in the Screen's or guessers' DOM.
 
 ## F10 — Secrecy leak tests (2026-10-30)
 **What changed:**

@@ -1,71 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { InkOp } from '../../../shared/types.js';
-import { applyInkOps, createInkPicture, createScreenInk, visibleStrokes } from './ink.js';
+import { visibleStrokes } from '../../../shared/ink.js';
+import { createScreenInk } from './ink.js';
 
-function picture(...batches: InkOp[][]) {
-  const pic = createInkPicture(7);
-  for (const ops of batches) applyInkOps(pic, ops);
-  return pic;
-}
-
-describe('ink picture (Screen v0)', () => {
-  it('turns b/p/e ops into absolute points, deltas relative to the previous point', () => {
-    const pic = picture([
-      ['b', 1, 2, 1, 100, 200],
-      ['p', 1, 4, -1, 6, -2],
-      ['e', 1],
-    ]);
-    expect(visibleStrokes(pic)).toEqual([
-      { id: 1, color: 2, size: 1, points: [100, 200, 104, 199, 110, 197], ended: true },
-    ]);
-  });
-
-  it('continues a stroke across batches', () => {
-    const pic = picture(
-      [['b', 1, 0, 1, 10, 10]],
-      [['p', 1, 5, 5]],
-      [
-        ['p', 1, -1, 0],
-        ['e', 1],
-      ],
-    );
-    expect(visibleStrokes(pic)[0]?.points).toEqual([10, 10, 15, 15, 14, 15]);
-  });
-
-  it('ignores points for a stroke it never saw begin (a Screen that joined mid-stroke)', () => {
-    const result = applyInkOps(createInkPicture(7), [
-      ['p', 3, 4, 4],
-      ['e', 3],
-    ]);
-    expect(result.dirty).toEqual([]);
-  });
-
-  it('reports the strokes to draw incrementally, and asks for a redraw on undo and clear', () => {
-    const pic = createInkPicture(7);
-    expect(applyInkOps(pic, [['b', 1, 0, 1, 1, 1]])).toEqual({ dirty: [1], redraw: false });
-    expect(applyInkOps(pic, [['c']])).toEqual({ dirty: [], redraw: true });
-    expect(applyInkOps(pic, [['u']])).toEqual({ dirty: [], redraw: true });
-  });
-
-  it('a clear hides every earlier stroke; later strokes stay visible', () => {
-    const pic = picture([['b', 1, 0, 1, 1, 1], ['e', 1], ['c'], ['b', 2, 1, 1, 5, 5], ['e', 2]]);
-    expect(visibleStrokes(pic).map((s) => s.id)).toEqual([2]);
-  });
-
-  it('undo removes the last stroke, and undoing a clear brings the strokes back', () => {
-    const pic = picture([['b', 1, 0, 1, 1, 1], ['e', 1], ['b', 2, 0, 1, 2, 2], ['e', 2], ['c']]);
-    expect(visibleStrokes(pic)).toEqual([]);
-    applyInkOps(pic, [['u']]);
-    expect(visibleStrokes(pic).map((s) => s.id)).toEqual([1, 2]);
-    applyInkOps(pic, [['u']]);
-    expect(visibleStrokes(pic).map((s) => s.id)).toEqual([1]);
-  });
-
-  it('undo on an empty picture does nothing', () => {
-    const pic = picture([['u']]);
-    expect(visibleStrokes(pic)).toEqual([]);
-  });
-});
+// The action stack and codec are tested in `shared/ink.test.ts`; this is the Screen's feed.
 
 describe('Screen ink feed', () => {
   it('ink:turn clears the picture for the new turn', () => {

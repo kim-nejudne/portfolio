@@ -34,10 +34,10 @@ const { io } = attachSockets(httpServer, {
 });
 const inkGateway = attachInkGateway(io, { rooms });
 
-// SPEC-QUESTION: F11/F12 also free a swept room's ink here.
-const stopSweeper = startRoomSweeper(rooms, Date.now, undefined, (codes) =>
-  closeRooms(io, codes, 'expired'),
-);
+const stopSweeper = startRoomSweeper(rooms, Date.now, undefined, (codes) => {
+  for (const code of codes) inkGateway.forget(code);
+  closeRooms(io, codes, 'expired');
+});
 
 httpServer.listen(port, () => {
   console.log(`Sketchy server listening on http://localhost:${port}`);

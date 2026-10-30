@@ -2,7 +2,8 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { INK_BATCH_RATE_LIMIT } from '../shared/constants.js';
+import { INK_BATCH_RATE_LIMIT, INK_TURN_HARD_MAX_BYTES } from '../shared/constants.js';
+import { applyInkOps, createInkStack, visibleStrokes } from '../shared/ink.js';
 import type { Ack, InkBatch, View } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { attachInkGateway } from './inkGateway.js';
@@ -37,6 +38,7 @@ async function setup() {
   rooms.set(createRoom({ code: CODE, hostTokenHash: hashHostToken(hostToken), now: 0, seed: 7 }));
   const mono = { now: 10_000 };
   server = createServer();
+  // `io` needs the ink effects handler and the gateway needs `io`, as in `server/index.ts`.
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
   const { io } = attachSockets(server, {
     rooms,
@@ -46,7 +48,8 @@ async function setup() {
     scheduler: () => () => {},
     onInk: (code, effect) => onInk(code, effect),
   });
-  onInk = attachInkGateway(io, { rooms, monotonic: () => mono.now }).onInk;
+  const gateway = attachInkGateway(io, { rooms, monotonic: () => mono.now });
+  onInk = gateway.onInk;
   server.listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
@@ -73,7 +76,7 @@ async function setup() {
     };
   }
 
-  return { rooms, hostToken, mono, connect };
+  return { rooms, hostToken, mono, connect, gateway };
 }
 
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -126,6 +129,62 @@ describe('/ink relay', () => {
     const batch = stroke(d.turnId, 1);
     expect(await d.ana.ink.emit('ink:batch', batch)).toEqual({ ok: true });
     await expect.poll(() => inkEvents(d.screenInk)).toContainEqual(['ink:batch', batch]);
+  });
+
+  it("applies each relayed batch to the turn's action stack, the same one the Screen rebuilds", async () => {
+    const d = await drawing();
+    const batches: InkBatch[] = [
+      stroke(d.turnId, 1),
+      [
+        d.turnId,
+        2,
+        [
+          ['b', 2, 3, 2, 1020, 5],
+          ['p', 2, 10, -10, -5, 2],
+          ['e', 2],
+        ],
+      ],
+      [d.turnId, 3, [['c']]],
+      [
+        d.turnId,
+        4,
+        [
+          ['b', 3, 1, 0, 50, 50],
+          ['e', 3],
+        ],
+      ],
+      [d.turnId, 5, [['u'], ['u']]],
+    ];
+    for (const b of batches) expect(await d.ana.ink.emit('ink:batch', b)).toEqual({ ok: true });
+    // A guesser's batch is refused and never reaches the stack.
+    expect(await d.ben.ink.emit('ink:batch', [d.turnId, 1, [['c']]])).toEqual({
+      ok: false,
+      error: 'notDrawer',
+    });
+    await expect
+      .poll(() => inkEvents(d.screenInk).filter(([e]) => e === 'ink:batch').length)
+      .toBe(batches.length);
+
+    const server = d.gateway.turnInk(CODE)!;
+    expect(server.turnId).toBe(d.turnId);
+    // Undoing stroke 3 and then the clear brings strokes 1 and 2 back; stroke 2's points are
+    // clamped to the grid.
+    expect(visibleStrokes(server.stack).map((st) => [st.id, st.points])).toEqual([
+      [1, [412, 300, 416, 299, 422, 297, 427, 297]],
+      [2, [1020, 5, 1023, 0, 1018, 2]],
+    ]);
+    const screen = createInkStack();
+    for (const [e, b] of inkEvents(d.screenInk))
+      if (e === 'ink:batch') applyInkOps(screen, (b as InkBatch)[2]);
+    expect(screen.actions).toEqual(server.stack.actions);
+
+    // The next turn starts an empty stack; an expired room's ink is dropped.
+    expect(await d.screen.emit('host:skip')).toEqual({ ok: true });
+    expect(await d.screen.emit('host:next')).toEqual({ ok: true });
+    const next = d.rooms.get(CODE)!.turn!.id;
+    expect(d.gateway.turnInk(CODE)).toEqual({ turnId: next, stack: createInkStack(), bytes: 0 });
+    d.gateway.forget(CODE);
+    expect(d.gateway.turnInk(CODE)).toBeUndefined();
   });
 
   it('sends ink:turn to Screens when a turn opens, so they clear', async () => {
@@ -317,6 +376,34 @@ describe('/ink relay', () => {
     expect(await second.emit('ink:batch', stroke(d.turnId, 41))).toEqual({
       ok: false,
       error: 'rateLimited',
+    });
+  });
+
+  it(`refuses batches once a turn has applied ${INK_TURN_HARD_MAX_BYTES / 1024} KB, without applying or relaying them`, async () => {
+    const d = await drawing();
+    // About 4 KB of clears per batch: the cheapest way to grow the stack.
+    const clears = Array.from({ length: 680 }, () => ['c'] as InkBatch[2][number]);
+    let seq = 0;
+    let refused: unknown;
+    while (seq < 200) {
+      if (seq % INK_BATCH_RATE_LIMIT.max === 0) d.mono.now += 1000;
+      const ack = await d.ana.ink.emit('ink:batch', [d.turnId, ++seq, clears]);
+      if (!ack.ok) {
+        refused = ack;
+        break;
+      }
+    }
+    expect(refused).toEqual({ ok: false, error: 'inkFull' });
+    const turn = d.gateway.turnInk(CODE)!;
+    expect(turn.bytes).toBeLessThanOrEqual(INK_TURN_HARD_MAX_BYTES);
+    expect(turn.stack.actions).toHaveLength((seq - 1) * clears.length);
+    await expect
+      .poll(() => inkEvents(d.screenInk).filter(([e]) => e === 'ink:batch').length)
+      .toBe(seq - 1);
+    // Still refused afterwards: the bound holds for the rest of the turn.
+    expect(await d.ana.ink.emit('ink:batch', [d.turnId, seq, clears])).toEqual({
+      ok: false,
+      error: 'inkFull',
     });
   });
 

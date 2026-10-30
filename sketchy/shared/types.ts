@@ -316,6 +316,7 @@ export type GatewayError =
   | 'notDrawer' // `/ink`: a batch from anyone but the current drawer
   | 'staleTurn' // `/ink`: a batch for a turn that is no longer current
   | 'rateLimited' // `/ink`: more than INK_BATCH_RATE_LIMIT batches from one socket
+  | 'inkFull' // `/ink`: the turn's ink passed INK_TURN_HARD_MAX_BYTES
   | 'serverError';
 
 export type AckError = ReduceError | GatewayError;

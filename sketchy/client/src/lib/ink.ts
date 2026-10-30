@@ -1,9 +1,8 @@
 // The Screen's picture of one turn's ink, and the shared `drawStroke` (Canvas and drawing tools,
 // Rendering). Points are absolute on the INK_GRID; each device scales them to its own canvas.
 //
-// v0 (F07): a small action stack (strokes and clears, `u` pops the last one) kept here on the
-// client. F11 moves the codec and the action stack into `shared/ink.ts` for the drawer, the server
-// and the Screen alike; this file then keeps only the rendering. Batches are applied in arrival
+// The codec and the action stack are `shared/ink.ts`, the same code the drawer and the server use;
+// this file keeps the rendering and the Screen's feed across turns. Batches are applied in arrival
 // order with no `seq` check: a lost batch leaves a gap until F12 adds `ink:resend` and snapshots.
 
 import {
@@ -13,89 +12,23 @@ import {
   INK_GRID,
   INK_SIZES,
 } from '../../../shared/constants.js';
-import type { InkBatch, InkOp } from '../../../shared/types.js';
+import {
+  applyInkOps,
+  createInkStack,
+  visibleStrokes,
+  type InkChange,
+  type InkStack,
+  type InkStroke,
+} from '../../../shared/ink.js';
+import type { InkBatch } from '../../../shared/types.js';
 
-export interface InkStroke {
-  id: number;
-  color: number;
-  size: number;
-  /** Absolute grid points, flat: `[x0, y0, x1, y1, …]`. */
-  points: number[];
-  ended: boolean;
-}
-
-type InkAction = { kind: 'stroke'; stroke: InkStroke } | { kind: 'clear' };
-
-export interface InkPicture {
+/** One turn's action stack, as the Screen holds it. */
+export interface InkPicture extends InkStack {
   turnId: number;
-  actions: InkAction[];
-  /** Strokes still on the stack, by strokeId, for `p` and `e` ops. */
-  byId: Map<number, InkStroke>;
-}
-
-/** What to repaint after a batch: the strokes that grew, or everything (undo, clear). */
-export interface InkChange {
-  dirty: number[];
-  redraw: boolean;
 }
 
 export function createInkPicture(turnId: number): InkPicture {
-  return { turnId, actions: [], byId: new Map() };
-}
-
-export function applyInkOps(pic: InkPicture, ops: readonly InkOp[]): InkChange {
-  const dirty = new Set<number>();
-  let redraw = false;
-  for (const op of ops) {
-    switch (op[0]) {
-      case 'b': {
-        const [, id, color, size, x, y] = op;
-        const stroke: InkStroke = { id, color, size, points: [x, y], ended: false };
-        pic.actions.push({ kind: 'stroke', stroke });
-        pic.byId.set(id, stroke);
-        dirty.add(id);
-        break;
-      }
-      case 'p': {
-        const [, id, ...deltas] = op;
-        const stroke = pic.byId.get(id);
-        // A stroke that began before this Screen joined: nothing to anchor the deltas to.
-        if (!stroke || stroke.ended) break;
-        const pts = stroke.points;
-        for (let i = 0; i + 1 < deltas.length; i += 2) {
-          pts.push(pts[pts.length - 2]! + deltas[i]!, pts[pts.length - 1]! + deltas[i + 1]!);
-        }
-        dirty.add(id);
-        break;
-      }
-      case 'e': {
-        const stroke = pic.byId.get(op[1]);
-        if (stroke) stroke.ended = true;
-        break;
-      }
-      case 'u': {
-        const last = pic.actions.pop();
-        if (last?.kind === 'stroke') pic.byId.delete(last.stroke.id);
-        if (last) redraw = true;
-        break;
-      }
-      case 'c':
-        pic.actions.push({ kind: 'clear' });
-        redraw = true;
-        break;
-    }
-  }
-  return { dirty: redraw ? [] : [...dirty], redraw };
-}
-
-/** Every stroke after the last clear still on the stack, in drawing order. */
-export function visibleStrokes(pic: InkPicture): InkStroke[] {
-  const out: InkStroke[] = [];
-  for (const action of pic.actions) {
-    if (action.kind === 'clear') out.length = 0;
-    else out.push(action.stroke);
-  }
-  return out;
+  return { ...createInkStack(), turnId };
 }
 
 function strokeColor(color: number): string {
@@ -142,7 +75,7 @@ export function drawStroke(
 /** Paints the canvas white and draws every visible stroke. */
 export function redrawPicture(
   ctx: CanvasRenderingContext2D,
-  pic: InkPicture | null,
+  pic: InkStack | null,
   canvasPx: number,
 ): Map<number, number> {
   ctx.fillStyle = CANVAS_COLOR;

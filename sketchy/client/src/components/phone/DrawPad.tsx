@@ -1,8 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { DEFAULT_INK_SIZE } from '../../../../shared/constants.js';
+import {
+  createInkStack,
+  pushStroke,
+  visibleStrokes,
+  type InkStroke,
+} from '../../../../shared/ink.js';
 import type { InkBatch } from '../../../../shared/types.js';
 import { createInkSender, toGrid } from '../../ink/inkSender.js';
-import { drawStroke, redrawPicture, type InkStroke } from '../../lib/ink.js';
+import { drawStroke, redrawPicture } from '../../lib/ink.js';
 import { createPointerGate } from '../../lib/phone.js';
 
 /** The pad's backing store never goes past this, whatever the phone's pixel ratio. */
@@ -25,8 +31,10 @@ interface Props {
 /**
  * The drawer's square pad. Pointer Events, first pointer only (captured), so a second finger or a
  * palm is ignored until it lifts; `pointercancel` ends the stroke (Stopping scroll and zoom).
- * Strokes go to `inkSender` on the 1024 grid and are drawn here with the Screen's `drawStroke`, so
- * the drawer sees what the Screen draws. One sender per turn: a new `turnId` starts a blank pad.
+ * Strokes go to `inkSender` on the 1024 grid and into the pad's own action stack (`shared/ink.ts`),
+ * drawn with the Screen's `drawStroke`. The pad draws every point at once; the Screen gets the
+ * filtered, simplified line, within a few grid units of it. One sender per turn: a new `turnId`
+ * starts a blank pad.
  */
 export function DrawPad({ turnId, size, send, disabled, label }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,7 +57,9 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
     if (!canvas || !ctx) return;
 
     const sender = createInkSender({ turnId, send: (b) => sendRef.current(b) });
-    const strokes: InkStroke[] = [];
+    // F32: the toolbar's undo and clear call `sender.undo()`/`clear()` and also `popAction` or
+    // `pushClear` on this stack, then `repaint()`, so the pad and the Screen stay the same picture.
+    const stack = createInkStack();
     const drawn = new Map<number, number>();
     const gate = createPointerGate();
     let stroke: InkStroke | null = null;
@@ -62,7 +72,7 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
     const paint = () => {
       frame = 0;
       if (px === 0) return;
-      for (const stroke of strokes) {
+      for (const stroke of visibleStrokes(stack)) {
         const from = drawn.get(stroke.id) ?? 0;
         if (from < stroke.points.length / 2 - 1 || !drawn.has(stroke.id))
           drawn.set(stroke.id, drawStroke(ctx, stroke, px, from));
@@ -77,8 +87,7 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
       const next = Math.min(MAX_BACKING_PX, Math.round(side * (window.devicePixelRatio || 1)));
       if (next !== px) px = canvas.width = canvas.height = next;
       drawn.clear();
-      redrawPicture(ctx, null, px);
-      for (const stroke of strokes) drawn.set(stroke.id, drawStroke(ctx, stroke, px));
+      for (const [id, from] of redrawPicture(ctx, stack, px)) drawn.set(id, from);
     };
     repaintRef.current = repaint;
     repaint();
@@ -89,7 +98,8 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
 
     const addPoint = (stroke: InkStroke, [x, y]: [number, number]) => {
       const p = stroke.points;
-      // `inkSender` skips a repeat of the last point; so does the local copy.
+      // The local line keeps every new point (no radial filter or RDP); `inkSender` filters and
+      // simplifies what it sends.
       if (p[p.length - 2] === x && p[p.length - 1] === y) return;
       p.push(x, y);
       sender.move(x, y);
@@ -104,14 +114,7 @@ export function DrawPad({ turnId, size, send, disabled, label }: Props) {
       rect = canvas.getBoundingClientRect();
       const [x, y] = gridPoint(e);
       const id = sender.begin(PEN_COLOR, DEFAULT_INK_SIZE, x, y);
-      stroke = {
-        id,
-        color: PEN_COLOR,
-        size: DEFAULT_INK_SIZE,
-        points: [x, y],
-        ended: false,
-      };
-      strokes.push(stroke);
+      stroke = pushStroke(stack, id, PEN_COLOR, DEFAULT_INK_SIZE, x, y);
       schedule();
     };
     const onMove = (e: PointerEvent) => {

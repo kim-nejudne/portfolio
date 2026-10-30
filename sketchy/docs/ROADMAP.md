@@ -30,13 +30,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F10 Secrecy leak tests
 
-- [ ] F11 Ink codec and action stack
-  - Spec: Drawing data protocol (Ops and encoding, Drawer client)
-  - Depends: F06
-  - Done when:
-    - `shared/ink.ts`: encode/decode, delta encoding, 3-unit radial filter, RDP at ε = 1 keeping endpoints, action stack with `u` and `c`
-    - Drawer, server and Screen all use it
-  - Tests: `ink.test.ts` — round-trip, simplification keeps endpoints and stays within ε, undo/clear sequences, undo of a clear restores strokes
+- [x] F11 Ink codec and action stack
 
 - [ ] F12 Ink sequence, resend and snapshots
   - Spec: Drawing data protocol (Server relay and ink log, Reconnects and snapshots, Limits)
