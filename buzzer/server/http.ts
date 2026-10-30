@@ -9,6 +9,7 @@ import express, {
 } from 'express';
 import { z } from 'zod';
 import {
+  ADMIN_LOGIN_RATE_LIMIT,
   CREATE_ROOM_BODY_MAX_BYTES,
   IMAGE_MAX_BYTES,
   IMAGE_TYPES,
@@ -38,9 +39,11 @@ import type {
   RoomExistsResponse,
   UploadImageResponse,
 } from '../shared/types.js';
+import { AdminSessions } from './admin.js';
+import { adminRoutes } from './adminRoutes.js';
 import type { BuiltInStore } from './builtInStore.js';
 import { createRoomCode, type Rng } from './codes.js';
-import { lanAddress } from './env.js';
+import { lanAddress, type AdminPasswordHash } from './env.js';
 import { generateHostToken, hashHostToken, verifyHostToken } from './hostToken.js';
 import { InMemoryImageStore, type ImageStore } from './imageStore.js';
 import { PairingStore } from './pairing.js';
@@ -78,6 +81,10 @@ export interface AppOptions {
   dispatch?: Dispatch;
   /** The built-in sets file (F103). Without it, `GET /api/built-in-sets` is not served. */
   builtIns?: BuiltInStore;
+  /** `ADMIN_PASSWORD_HASH`, parsed (F105). Null or absent, every `/api/admin` route is 404. */
+  adminPassword?: AdminPasswordHash | null;
+  /** Signed-in admin sessions. Tests pass one with a short life. */
+  adminSessions?: AdminSessions;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -117,6 +124,8 @@ export function createApp({
     return result.ok ? { ok: true } : result;
   },
   builtIns,
+  adminPassword = null,
+  adminSessions = new AdminSessions(),
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -126,6 +135,7 @@ export function createApp({
   const checkLimiter = createRateLimiter(ROOM_CHECK_RATE_LIMIT, clock);
   const pairIpLimiter = createRateLimiter(PAIR_RATE_LIMIT, clock);
   const pairRoomLimiter = createRateLimiter(PAIR_RATE_LIMIT, clock);
+  const adminLoginLimiter = createRateLimiter(ADMIN_LOGIN_RATE_LIMIT, clock);
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true });
@@ -151,6 +161,13 @@ export function createApp({
       res.json({ sets, sampleHidden } satisfies BuiltInSetsResponse);
     });
   }
+
+  app.use(
+    '/api/admin',
+    adminPassword === null
+      ? (_req, res) => sendError(res, 404, 'Not found.')
+      : adminRoutes(adminPassword, adminSessions, adminLoginLimiter, clock),
+  );
 
   // Every attempt counts against the limit, valid or not, so bad bodies cannot be used to probe for free.
   app.post(

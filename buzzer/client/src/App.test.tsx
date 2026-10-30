@@ -40,6 +40,19 @@ describe('AppRoutes', () => {
     );
   });
 
+  it('/admin loads the Admin page, which first checks the session', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ ok: false, error: 'Not found.' }, { status: 404 })),
+    );
+    render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Admin');
+  });
+
   it('/play/:code renders the Player page, which first checks the room', () => {
     vi.stubGlobal(
       'fetch',

@@ -1,5 +1,5 @@
 # Droplet stack for buzzr.kimnejudne.dev. Lives at /opt/buzzr/compose.yaml beside a
-# .env that holds one key, IMAGE_TAG (README, Deploy).
+# .env that holds IMAGE_TAG and, optionally, ADMIN_PASSWORD_HASH (README, Deploy).
 #
 # The image is built on a workstation and shipped with `docker save | docker load`,
 # so there is no build context here.
@@ -22,6 +22,9 @@ services:
       # The join QR and URL on the Screen (F42). nginx passes the real Host, so this
       # only guards against a vhost that stops doing so.
       PUBLIC_URL: 'https://buzzr.kimnejudne.dev'
+      # The super-admin's scrypt hash (F105), from .env beside this file. Unset or empty,
+      # /admin cannot sign in and every /api/admin route is 404.
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
     # The built-in sets file (F103). /opt/buzzr/data must exist and be owned by 1000:1000
     # (the image's `node` user) before the first start, or the server cannot seed it and exits.
     volumes:

@@ -14,6 +14,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      // Admin writes must carry a same-origin Origin (F105). The '/api' shorthand below rewrites Host
+      // to the server's, so this entry, matched first, keeps the page's Host for the server to compare.
+      '/api/admin': { target: server, changeOrigin: false },
       '/api': server,
       '/healthz': server,
       '/socket.io': { target: server, ws: true },

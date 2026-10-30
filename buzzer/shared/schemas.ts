@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import {
+  ADMIN_PASSWORD_MAX,
   ANSWER_MAX,
   ANSWER_SECONDS_CHOICES,
   AVATARS,
@@ -40,6 +41,7 @@ import {
   TYPED_ANSWER_MAX,
 } from './constants.js';
 import type {
+  AdminLoginBody,
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
@@ -246,6 +248,11 @@ export const pairBodySchema = z.object({
   pin: z.string().regex(new RegExp(`^\\d{${PAIRING_PIN_LENGTH}}$`)),
 });
 
+// Not trimmed: spaces are part of a password.
+export const adminLoginBodySchema = z.object({
+  password: z.string().min(1).max(ADMIN_PASSWORD_MAX),
+});
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -321,4 +328,5 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof createRoomBodySchema>, CreateRoomBody>>,
   Assert<Equals<z.infer<typeof newGameBodySchema>, NewGameBody>>,
   Assert<Equals<z.infer<typeof pairBodySchema>, PairBody>>,
+  Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
 ];

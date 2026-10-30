@@ -10,6 +10,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F105 — Admin login (2026-10-30)
+**What changed:**
+- `ADMIN_PASSWORD_HASH` (`scrypt$N$r$p$salt$hash`, base64url salt and key): `parseAdminPasswordHash` in `env.ts`. A malformed value stops the server, and so do costs over 64 MB per sign-in. `npm run admin:hash` (`scripts/admin-hash.mjs`) asks twice with echo off on a TTY, or reads the first piped line. It prints only the hash (N 2^15, r 8, p 1).
+- Server:
+  - `server/admin.ts` has `verifyAdminPassword` (async scrypt, `timingSafeEqual`, NFC), `AdminSessions` (32 random bytes; a Map of SHA-256 hex to expiry, 12 h, not sliding) and `adminCookie`.
+  - `server/adminRoutes.ts`, mounted in `http.ts` only with a hash; unset, every `/api/admin` path is 404. It serves `POST /login` (IP limit 5/min, then the write check, then an 8 KB JSON body, zod and scrypt), `GET /session` (200 `{expiresAt}` or 401) and `POST /logout`.
+  - The write check: a same-origin `Origin` (403) and a JSON content type (415). The cookie `buzzr_admin` is HttpOnly, SameSite=Strict, Path=/api/admin, Max-Age 12 h, and Secure when `req.secure`. All responses are `no-store`.
+  - `index.ts` warns in production when the hash is set and `TRUST_PROXY` is not.
+- Client:
+  - `lib/adminSession.ts`: `useAdminSession()` shares one state per page (loading, disabled on 404, failed, signedOut, signedIn). `adminSignIn`, `adminSignOut` and `adminSessionEnded()` for later 401s. A timer signs out at `expiresAt`.
+  - `/admin` (`pages/Admin.tsx`, lazy) has the password form, the server's errors, "Signed in until …", **Question sets** and **Logout**, "not set up" on a 404, and Retry. Nothing links to it.
+- `vite.config.ts`: a `/api/admin` proxy entry with `changeOrigin: false`. Deploy: compose passes `ADMIN_PASSWORD_HASH`. README has an env row and a "Setting the admin password" section (single quotes in `.env`, because the hash holds `$`).
+- Tests: new `admin.test.ts` (13, including the script round-trip), `http.admin.test.ts` (22), `Admin.test.tsx` (12); `env.test.ts` +19; `App.test.tsx` +1. Helper `server/test/admin.ts` (`adminHashFor`, cheap costs). 2731 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-30 for F105 (hash format and costs; the router, limit and write check; sessions; the client state and page).
+
+**Notes for next session:**
+- **F106/F107:** add routes inside `adminRoutes` behind `requireAdmin`, and behind `requireWrite` for writes. Pass `builtIns` into `adminRoutes`. On the client, send writes as JSON POST/PUT/DELETE with a body, and call `adminSessionEnded()` on a 401. After an import, call `resetBuiltInSets(response)` (F104's note).
+- **Dev gotcha found in the playtest:** Vite's `'/api'` string shorthand sets `changeOrigin: true`, so Host became `localhost:3000` and every sign-in through :5173 got 403. That is why the `/api/admin` entry exists. Keep it first.
+- **Before using it on the droplet:** set the hash in `/opt/buzzr/.env` (README, Setting the admin password). Until then the live site answers 404 on `/api/admin`, as before.
+- `npm run admin:hash` on a TTY: checked by hand through a pty, not unit-tested. There was no echo, backspace edited ("abc⌫d" verified as "abd"), a mismatch exited 1 with "The passwords differ.", and Ctrl-C exited 1 with "Cancelled.".
+- The review found no Must-fix. I fixed its Should-fixes: the TTY check above, the `TRUST_PROXY` warning, and a prune comment.
+- Main `index` chunk 499.68 → 560.23 kB, but this is not a regression. Rolldown regrouped the chunks: before, the entry pulled `index.browser` (zod, React, 103 kB) and `sampleSet`, and now it pulls `react` and `jsx-runtime`. The first page load is 604 kB either way. `Admin` is its own 4.4 kB chunk.
+- Playtest (Playwright, :5173 with a throwaway hash):
+  - Unset gave 404 and "not set up". A garbage hash exited with the message.
+  - Wrong password gave the error and cleared the field. The right password led to "Signed in until …", and Question sets went to `/sets`. A reload stayed signed in. Logout, then a reload, stayed signed out. The 6th try in a minute showed the rate-limit error.
+  - No `/admin` link on `/` or `/sets`. Layouts were checked at 375×667 and 1440×900 (`.playtest/F105/*.png`).
+  - The only console errors were the expected 401s and 429s.
+
+**How to try it:** `H=$(npm run -s admin:hash)`, then `ADMIN_PASSWORD_HASH="$H" npm run dev`, then open `http://localhost:5173/admin`. `npm test -- server/admin.test.ts server/http.admin.test.ts server/env.test.ts client/src/pages/Admin.test.tsx`.
+
 ## F104 — Client reads built-ins from the server (2026-10-30)
 **What changed:**
 - New `client/src/lib/builtInSets.ts`: `loadBuiltInSets()` (one shared `GET /api/built-in-sets` per page load, zod-checked; a failure is not cached), `builtInList` (sample first unless `sampleHidden`), `resetBuiltInSets(next?)` and the `useBuiltInSets()` hook (loading, failed with `retry`, ready).

@@ -602,6 +602,16 @@ export interface BuiltInSetsResponse {
   sampleHidden: boolean;
 }
 
+/** Body of `POST /api/admin/login` (F105). */
+export interface AdminLoginBody {
+  password: string;
+}
+
+/** `POST /api/admin/login` and `GET /api/admin/session` when signed in: when the session ends, epoch ms. */
+export interface AdminSessionResponse {
+  expiresAt: number;
+}
+
 /** `POST /api/rooms/:code/images/:imageId`, on success (201). */
 export interface UploadImageResponse {
   ok: true;

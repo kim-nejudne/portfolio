@@ -2,7 +2,13 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PORT, ROOM_EXPIRED_REASON, ROOM_SWEEP_INTERVAL_MS } from '../shared/constants.js';
 import { openBuiltInStore } from './builtInStore.js';
-import { parseDataDir, parseImagesMaxBytes, parsePublicUrl, parseTrustProxy } from './env.js';
+import {
+  parseAdminPasswordHash,
+  parseDataDir,
+  parseImagesMaxBytes,
+  parsePublicUrl,
+  parseTrustProxy,
+} from './env.js';
 import { createApp } from './http.js';
 import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
@@ -20,6 +26,14 @@ const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 const imagesMaxBytes = parseImagesMaxBytes(process.env.IMAGES_MAX_MB);
 // The origin for the join QR and URL, such as https://buzzr.example. Unset, a Screen on localhost gets the LAN address.
 const publicUrl = parsePublicUrl(process.env.PUBLIC_URL);
+// The super-admin's password, as a scrypt hash from `npm run admin:hash`. Unset, /api/admin is 404.
+const adminPassword = parseAdminPasswordHash(process.env.ADMIN_PASSWORD_HASH);
+if (adminPassword !== null && production && trustProxy === false) {
+  // Behind a proxy every visitor would share one IP, so five bad tries by anyone lock the admin out.
+  console.warn(
+    'ADMIN_PASSWORD_HASH is set but TRUST_PROXY is not: admin sign-in tries share one limit if a proxy is in front.',
+  );
+}
 
 // The built-in sets file, seeded on first boot. A corrupt file stops the server here rather than
 // being replaced, so the curated sets are never lost to a bad write or a hand edit.
@@ -44,6 +58,7 @@ const httpServer = createServer(
     publicUrl,
     dispatch: (code, action) => gateway.dispatch(code, action),
     builtIns,
+    adminPassword,
   }),
 );
 const gateway = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });

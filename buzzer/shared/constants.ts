@@ -126,6 +126,14 @@ export const ROOM_CODE_MAX_ATTEMPTS = 100;
 /** hostToken: random bytes, sent as base64url (43 characters). */
 export const HOST_TOKEN_BYTES = 32;
 export const HOST_TOKEN_LENGTH = 43;
+/** The admin session cookie, scoped to `/api/admin` (F105). */
+export const ADMIN_COOKIE = 'buzzr_admin';
+/** An admin session lasts this long from sign-in; a server restart ends it sooner. */
+export const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
+/** An admin session token: random bytes, sent as base64url. */
+export const ADMIN_SESSION_BYTES = 32;
+/** Longest admin password the login reads, so a huge body cannot make scrypt hash it. */
+export const ADMIN_PASSWORD_MAX = 1024;
 /** The Screen's pairing QR hides itself after this long. */
 export const PAIRING_QR_TTL_MS = 60 * 1000;
 /** A pairing PIN: this many digits, valid as long as the QR shows, used once (F70). */
@@ -259,6 +267,12 @@ export const PAIR_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 } as const;
 export const PAIR_RATE_LIMITED_ERROR = 'Too many PIN tries. Wait a minute and try again.';
 /** The pair route's 401 error: wrong, expired, used or revoked PIN, or no such room. */
 export const PAIR_INVALID_PIN_ERROR = 'That PIN is wrong or has expired.';
+/** `POST /api/admin/login`, per IP: every try counts, right or wrong (F105). */
+export const ADMIN_LOGIN_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 } as const;
+/** The admin login's 429 error past `ADMIN_LOGIN_RATE_LIMIT`. */
+export const ADMIN_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
+/** The admin login's 401 error. */
+export const ADMIN_WRONG_PASSWORD_ERROR = 'That password is wrong.';
 
 // ---------- Client UI ----------
 

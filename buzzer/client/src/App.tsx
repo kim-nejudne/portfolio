@@ -16,6 +16,9 @@ const SetEditor = lazy(() =>
   import('./pages/SetEditor.js').then((m) => ({ default: m.SetEditor })),
 );
 
+// The super-admin's sign-in (F105): no link reaches it, so it never loads for anyone else.
+const Admin = lazy(() => import('./pages/Admin.js').then((m) => ({ default: m.Admin })));
+
 const AnswerSheet = lazy(() =>
   import('./pages/AnswerSheet.js').then((m) => ({ default: m.AnswerSheet })),
 );
@@ -49,6 +52,14 @@ export function AppRoutes() {
         element={
           <Suspense>
             <AnswerSheet />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <Suspense>
+            <Admin />
           </Suspense>
         }
       />

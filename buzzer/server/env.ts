@@ -57,6 +57,58 @@ export function parseDataDir(value: string | undefined, cwd = process.cwd()): st
   return resolve(cwd, value === undefined || value.trim() === '' ? 'data' : value);
 }
 
+/** A parsed `ADMIN_PASSWORD_HASH`: scrypt's cost parameters, the salt and the derived key. */
+export interface AdminPasswordHash {
+  N: number;
+  r: number;
+  p: number;
+  salt: Buffer;
+  hash: Buffer;
+}
+
+/** The memory scrypt needs for these costs (OpenSSL's own count), passed to it as `maxmem`. */
+export function scryptMaxmem({ N, r, p }: Pick<AdminPasswordHash, 'N' | 'r' | 'p'>): number {
+  return 128 * r * (N + 2 + p);
+}
+
+/** Each sign-in holds this much for scrypt, so a typo in N cannot push the container out of memory. */
+const SCRYPT_MAXMEM_CAP = 64 * MB;
+
+/** Strict base64url bytes: no padding, and only what `Buffer` would write back the same way. */
+function base64url(value: string): Buffer | null {
+  if (!/^[\w-]+$/.test(value)) return null;
+  const bytes = Buffer.from(value, 'base64url');
+  return bytes.toString('base64url') === value ? bytes : null;
+}
+
+/**
+ * `ADMIN_PASSWORD_HASH`: `scrypt$N$r$p$salt$hash` from `npm run admin:hash`, salt and hash in
+ * base64url (F105). Unset or blank, there is no admin and every `/api/admin` route is 404.
+ */
+export function parseAdminPasswordHash(value: string | undefined): AdminPasswordHash | null {
+  if (value === undefined || value.trim() === '') return null;
+  const fail = (problem: string): never => {
+    throw new Error(
+      `ADMIN_PASSWORD_HASH must be scrypt$N$r$p$salt$hash from \`npm run admin:hash\`: ${problem}`,
+    );
+  };
+  const parts = value.trim().split('$');
+  if (parts.length !== 6 || parts[0] !== 'scrypt') fail('expected 6 parts starting with "scrypt"');
+  const [, n, r, p, salt, hash] = parts as [string, string, string, string, string, string];
+  const int = (text: string, name: string, max: number) =>
+    /^\d+$/.test(text) && Number(text) >= 1 && Number(text) <= max
+      ? Number(text)
+      : fail(`${name} must be a whole number from 1 to ${max}, got "${text}"`);
+  const params = { N: int(n, 'N', 2 ** 20), r: int(r, 'r', 32), p: int(p, 'p', 16) };
+  if (params.N < 2 || (params.N & (params.N - 1)) !== 0) fail('N must be a power of 2');
+  if (scryptMaxmem(params) > SCRYPT_MAXMEM_CAP) fail('N and r need more than 64 MB per sign-in');
+  const saltBytes = base64url(salt) ?? fail('the salt is not base64url');
+  const hashBytes = base64url(hash) ?? fail('the hash is not base64url');
+  if (saltBytes.length < 16) fail('the salt must be at least 16 bytes');
+  if (hashBytes.length < 16 || hashBytes.length > 64) fail('the hash must be 16 to 64 bytes');
+  return { ...params, salt: saltBytes, hash: hashBytes };
+}
+
 /** Interfaces that never face the LAN: Docker's bridges and their veth pairs. */
 const VIRTUAL_INTERFACE = /^(docker|br-|veth)/;
 

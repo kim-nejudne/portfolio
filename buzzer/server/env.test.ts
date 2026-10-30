@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
+import { adminHashFor } from './test/admin.js';
 import {
   lanAddress,
+  parseAdminPasswordHash,
   parseDataDir,
   parseImagesMaxBytes,
   parsePublicUrl,
@@ -128,5 +130,53 @@ describe('lanAddress', () => {
       }),
     ).toBeNull();
     expect(lanAddress({})).toBeNull();
+  });
+});
+
+describe('parseAdminPasswordHash', () => {
+  const SALT = Buffer.alloc(16, 1).toString('base64url');
+  const KEY = Buffer.alloc(32, 2).toString('base64url');
+  const hash = (n = '1024', r = '8', p = '1', salt = SALT, key = KEY) =>
+    `scrypt$${n}$${r}$${p}$${salt}$${key}`;
+
+  it('is null when unset or blank: no admin', () => {
+    expect(parseAdminPasswordHash(undefined)).toBeNull();
+    expect(parseAdminPasswordHash('')).toBeNull();
+    expect(parseAdminPasswordHash('   ')).toBeNull();
+  });
+
+  it('reads the costs, the salt and the key', () => {
+    expect(parseAdminPasswordHash(hash('32768', '8', '1'))).toEqual({
+      N: 32768,
+      r: 8,
+      p: 1,
+      salt: Buffer.alloc(16, 1),
+      hash: Buffer.alloc(32, 2),
+    });
+  });
+
+  it('accepts what the test helper (shaped like admin:hash) writes, with stray whitespace', () => {
+    expect(parseAdminPasswordHash(` ${adminHashFor('secret')}\n`)).toMatchObject({ N: 1024 });
+  });
+
+  it.each([
+    ['not a hash', 'hunter2'],
+    ['another algorithm', hash().replace('scrypt', 'bcrypt')],
+    ['a missing part', `scrypt$1024$8$1$${SALT}`],
+    ['an extra part', `${hash()}$x`],
+    ['N not a power of 2', hash('1000')],
+    ['N of 1', hash('1')],
+    ['N past 2^20', hash(String(2 ** 21))],
+    ['N and r over 64 MB', hash(String(2 ** 17), '8')],
+    ['r of 0', hash('1024', '0')],
+    ['p not a number', hash('1024', '8', 'one')],
+    ['a negative cost', hash('1024', '-8')],
+    ['a salt in base64 with padding', hash('1024', '8', '1', `${SALT}==`)],
+    ['a salt with a "+"', hash('1024', '8', '1', `${SALT.slice(1)}+`)],
+    ['a short salt', hash('1024', '8', '1', Buffer.alloc(8).toString('base64url'))],
+    ['a short key', hash('1024', '8', '1', SALT, Buffer.alloc(8).toString('base64url'))],
+    ['an empty key', hash('1024', '8', '1', SALT, '')],
+  ])('throws on %s, naming the variable', (_case, value) => {
+    expect(() => parseAdminPasswordHash(value)).toThrow(/^ADMIN_PASSWORD_HASH must be/);
   });
 });

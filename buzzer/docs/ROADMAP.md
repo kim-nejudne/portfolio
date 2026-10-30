@@ -278,20 +278,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F104 Client reads built-ins from the server
 
-- [ ] F105 Admin login
-  - Spec: Security; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
-  - Depends: F103
-  - Done when:
-    - `ADMIN_PASSWORD_HASH` (`scrypt$N$r$p$salt$hash`) is parsed in `env.ts`; a malformed value stops the server
-    - `npm run admin:hash` (`scripts/admin-hash.mjs`, `node:crypto`) reads a password without echo and prints the hash
-    - Unset, every `/api/admin/*` route returns 404
-    - `POST /api/admin/login {password}`: constant-time scrypt check, 5 tries per IP per minute, sets `buzzr_admin` (HttpOnly, SameSite=Strict, Path=/api/admin, Max-Age 12 h, Secure when `req.secure`)
-    - Sessions are 32 random bytes held in memory as SHA-256 hashes with an expiry; a restart logs out
-    - `GET /api/admin/session` (200 `{expiresAt}` or 401) and `POST /api/admin/logout`
-    - Admin writes require a JSON content type and a same-origin `Origin`
-    - `/admin` page: password form, wrong-password and rate-limit errors, signed-in state with Logout and a link to Question sets; nothing links to it
-    - `useAdminSession()` for later features
-  - Tests: `server/admin.test.ts`, `server/http.admin.test.ts` (404 unset, wrong password, rate limit, expiry, cookie flags, Origin), `server/env.test.ts`, `client/src/pages/Admin.test.tsx`
+- [x] F105 Admin login
 
 - [ ] F106 Admin import, delete, hide sample, export
   - Spec: Set list `/sets`; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)

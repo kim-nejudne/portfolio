@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "smoke:docker": "bash scripts/docker-smoke.sh"
+    "smoke:docker": "bash scripts/docker-smoke.sh",
+    "admin:hash": "node scripts/admin-hash.mjs"
   },
   "dependencies": {
     "express": "^5.3.0",
