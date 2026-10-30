@@ -15,7 +15,8 @@ export type IconName =
   | 'tv'
   | 'cast'
   | 'remote'
-  | 'phone';
+  | 'phone'
+  | 'grip';
 
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
@@ -62,6 +63,8 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M12 17h.01" strokeWidth={4} />
     </>
   ),
+  // Two columns of three dots: the drag handle of a reorderable card (EDT-05).
+  grip: <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" strokeWidth={4} />,
   phone: (
     <>
       <rect x="6" y="2" width="12" height="20" rx="2.5" />

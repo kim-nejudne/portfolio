@@ -30,14 +30,18 @@ import {
   SET_TITLE_MAX,
 } from '../../../shared/constants.js';
 import type { Question, QuestionMode, QuestionSet } from '../../../shared/types.js';
-import { ConfirmButton } from '../components/ConfirmButton.js';
+import { Icon } from '../components/Icon.js';
+import { OverflowMenu } from '../components/OverflowMenu.js';
+import { PageShell } from '../components/PageShell.js';
 import { PasteQuestions } from '../components/PasteQuestions.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
 import { type SaveStatus, useAutosave } from '../lib/autosave.js';
 import { addPasted, type PastedQuestion } from '../lib/bulkPaste.js';
 import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
-import { BUTTON_DANGER, BUTTON_SMALL, FIELD, LINK } from '../lib/ui.js';
+import { BUTTON_ICON, BUTTON_PRIMARY_SMALL, BUTTON_SMALL, FIELD, LINK } from '../lib/ui.js';
+import { cardDomId, useCurrentCard } from '../lib/useCurrentCard.js';
+import { usePointerFine } from '../lib/usePointerFine.js';
 import { IMAGE_INPUT_TYPES, shrinkImage } from '../lib/imagePipeline.js';
 import {
   addChoice,
@@ -47,7 +51,10 @@ import {
   canRemoveChoice,
   categoriesInUse,
   duplicateQuestion,
+  MODE_LABELS,
   moveQuestion,
+  needsAttention,
+  outlineText,
   parsePoints,
   POINTS_ERROR,
   QUESTION_CAP_MESSAGE,
@@ -121,6 +128,14 @@ function Editor({ setId }: { setId: string }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  // Below a jumped-to card's `scroll-mt-32` (128px), so the card above it is out of the band.
+  const currentId = useCurrentCard(set?.questions.map((q) => q.id) ?? [], 136);
+  // A new card (Add, or the first pasted one) comes into view under the toolbar; its own autofocus
+  // has put the cursor in it.
+  useEffect(() => {
+    if (focusId) document.getElementById(cardDomId(focusId))?.scrollIntoView?.({ block: 'center' });
+  }, [focusId]);
+
   useEffect(() => {
     let live = true;
     getSet(setId).then(
@@ -145,7 +160,13 @@ function Editor({ setId }: { setId: string }) {
 
   if (load.state !== 'ready' || set === null) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-4 py-10">
+      <PageShell
+        header={
+          <Link to="/sets" className={`${LINK} text-lg`}>
+            ← Question sets
+          </Link>
+        }
+      >
         <h1 className="font-display text-4xl text-accent">Edit set</h1>
         {load.state === 'loading' && <p className="text-muted">Loading…</p>}
         {load.state === 'missing' && <p role="alert">This set no longer exists.</p>}
@@ -154,8 +175,7 @@ function Editor({ setId }: { setId: string }) {
             {LOAD_ERROR}
           </p>
         )}
-        <BackLink />
-      </main>
+      </PageShell>
     );
   }
 
@@ -215,158 +235,114 @@ function Editor({ setId }: { setId: string }) {
 
   const canAdd = canAddQuestion(set.questions);
   const titleProblem = touched.has('title') ? titleError(set.title) : undefined;
+  const attention = set.questions.filter(needsAttention);
+  const currentIndex = set.questions.findIndex((q) => q.id === currentId);
+  const openPaste = () => setPasting((open) => !open);
+  const openPreview = () => setPreviewIndex(Math.max(currentIndex, 0));
+  const printTo = `/sets/${encodeURIComponent(set.id)}/print`;
 
   return (
     <>
-      <main
-        inert={previewIndex !== null}
-        className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <BackLink />
-          <p
-            role="status"
-            aria-label="Save status"
-            className={status === 'error' ? 'text-buzz' : 'text-muted'}
+      {/* The preview covers the page, so `inert` keeps focus and clicks out of the editor behind it. */}
+      <div inert={previewIndex !== null}>
+        <PageShell width="wide">
+          {/* EDT-01: the status and the actions stay on screen at every scroll position. Solid, not
+              blurred: a backdrop filter would pin the phone's fixed Add button inside the bar. */}
+          <section
+            aria-label="Set toolbar"
+            className="sticky top-0 z-20 -mx-4 -mt-6 flex flex-col border-b-2 border-edge bg-bg px-4 py-2 short:-mt-3 md:-mx-8 md:-mt-10 md:px-8"
           >
-            {STATUS_TEXT[status]}
-          </p>
-        </div>
+            <div className="flex items-center gap-2 md:gap-3">
+              <Link to="/sets" aria-label="Question sets" className={`${BUTTON_ICON} text-xl`}>
+                <span aria-hidden="true">←</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  const field = document.getElementById('set-title');
+                  field?.scrollIntoView?.({ block: 'center' });
+                  field?.focus({ preventScroll: true });
+                }}
+                className={`flex min-h-11 min-w-0 flex-1 items-center rounded-xl border-2 border-transparent px-2 text-left font-display text-lg md:text-xl ${HOVER}`}
+              >
+                <span className="truncate">{set.title.trim() || 'Untitled set'}</span>
+                <span className="sr-only">, go to the set title</span>
+              </button>
+              <p
+                role="status"
+                aria-label="Save status"
+                className={`flex shrink items-center gap-1 text-right leading-tight ${
+                  status === 'error' ? 'max-w-40 text-sm text-buzz md:max-w-56' : 'text-muted'
+                }`}
+              >
+                {STATUS_TEXT[status]}
+                {status === 'saved' && <Icon name="check" className="size-5 text-win" />}
+              </p>
+              <div className="hidden items-center gap-2 md:flex">
+                <button
+                  type="button"
+                  aria-label="Paste questions"
+                  onClick={openPaste}
+                  disabled={!canAdd}
+                  aria-expanded={pasting && canAdd}
+                  className={BUTTON_SMALL}
+                >
+                  Paste
+                </button>
+                <button
+                  type="button"
+                  aria-label="Preview set"
+                  onClick={openPreview}
+                  disabled={set.questions.length === 0}
+                  className={BUTTON_SMALL}
+                >
+                  Preview
+                </button>
+                <Link to={printTo} aria-label="Print answer sheet" className={BUTTON_SMALL}>
+                  Print
+                </Link>
+              </div>
+              <div className="md:hidden">
+                <OverflowMenu
+                  label="More set actions"
+                  trigger={<Icon name="more" />}
+                  triggerClassName={BUTTON_ICON}
+                  items={[
+                    { label: 'Paste questions', onSelect: openPaste, disabled: !canAdd },
+                    {
+                      label: 'Preview set',
+                      onSelect: openPreview,
+                      disabled: set.questions.length === 0,
+                    },
+                    { label: 'Print answer sheet', to: printTo },
+                  ]}
+                />
+              </div>
+              {/* On a phone this is the sticky bottom button; from `md` it sits in the bar. */}
+              <button
+                type="button"
+                onClick={add}
+                disabled={!canAdd}
+                className={`${BUTTON_PRIMARY_SMALL} fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 py-3 text-lg shadow-lg md:static md:py-2 md:text-base md:shadow-none`}
+              >
+                Add question
+              </button>
+            </div>
+            {attention.length > 0 && (
+              // EDT-10: one click from the bar to the first question with a problem.
+              <button
+                type="button"
+                onClick={() => jumpTo(attention[0]!.id)}
+                className={`flex min-h-11 items-center gap-2 self-start rounded-xl border-2 border-transparent px-2 text-buzz ${HOVER}`}
+              >
+                <span aria-hidden="true" className="size-2.5 rounded-full bg-buzz" />
+                {attention.length === 1
+                  ? '1 question needs attention'
+                  : `${attention.length} questions need attention`}
+              </button>
+            )}
+          </section>
 
-        <div className="flex flex-col gap-2">
-          <h1 className="text-sm tracking-widest text-muted uppercase">Edit set</h1>
-          <label htmlFor="set-title" className="sr-only">
-            Set title
-          </label>
-          <input
-            id="set-title"
-            value={set.title}
-            maxLength={SET_TITLE_MAX}
-            onChange={(event) => change({ ...set, title: event.target.value })}
-            onBlur={() => touch('title')}
-            aria-invalid={titleProblem !== undefined}
-            aria-describedby={titleProblem ? 'set-title-error' : undefined}
-            className={`${FIELD} font-display text-3xl`}
-          />
-          <FieldError id="set-title-error" message={titleProblem} />
-        </div>
-
-        <div className="flex flex-wrap gap-4">
-          <div className="flex min-w-48 flex-1 flex-col gap-1">
-            <label htmlFor="set-category" className="font-semibold">
-              Category <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="set-category"
-              list="set-categories"
-              value={set.category ?? ''}
-              maxLength={SET_CATEGORY_MAX}
-              onChange={(event) => change(withCategory(set, event.target.value))}
-              // Trimmed once the field is left, so typing "Pop Culture" keeps its space.
-              onBlur={() => {
-                const trimmed = set.category?.trim();
-                if (trimmed !== set.category) change(withCategory(set, trimmed ?? ''));
-              }}
-              className={FIELD}
-            />
-            <datalist id="set-categories">
-              {categories.map((category) => (
-                <option key={category} value={category} />
-              ))}
-            </datalist>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="set-difficulty" className="font-semibold">
-              Difficulty <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <select
-              id="set-difficulty"
-              value={set.difficulty ?? ''}
-              onChange={(event) =>
-                change(
-                  withDifficulty(set, DIFFICULTIES.find((d) => d === event.target.value) ?? ''),
-                )
-              }
-              className={`${FIELD} w-auto`}
-            >
-              <option value="">None</option>
-              {DIFFICULTIES.map((difficulty) => (
-                <option key={difficulty} value={difficulty}>
-                  {DIFFICULTY_LABELS[difficulty]}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <Link
-          to={`/sets/${encodeURIComponent(set.id)}/print`}
-          className={`${BUTTON_SMALL} self-start`}
-        >
-          Print answer sheet
-        </Link>
-
-        {set.questions.length === 0 ? (
-          <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
-            No questions yet. Use <strong className="text-ink">Add question</strong> to write the
-            first, or <strong className="text-ink">Paste questions</strong> to bring in many.
-          </p>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-            accessibility={{ announcements, screenReaderInstructions: DRAG_INSTRUCTIONS }}
-          >
-            <SortableContext items={set.questions} strategy={verticalListSortingStrategy}>
-              <ol className="flex flex-col gap-4">
-                {set.questions.map((question, index) => (
-                  <QuestionCard
-                    key={question.id}
-                    question={question}
-                    number={index + 1}
-                    isFirst={index === 0}
-                    isLast={index === set.questions.length - 1}
-                    canDuplicate={canAdd}
-                    autoFocus={question.id === focusId}
-                    touched={touched}
-                    onTouch={touch}
-                    onChange={(next) =>
-                      changeQuestions(set.questions.map((q, i) => (i === index ? next : q)))
-                    }
-                    onMove={(delta) => changeQuestions(moveQuestion(set.questions, index, delta))}
-                    onDuplicate={() => changeQuestions(duplicateQuestion(set.questions, index))}
-                    onDelete={() => changeQuestions(removeQuestion(set.questions, index))}
-                    onPreview={() => setPreviewIndex(index)}
-                    onImage={(imageId) => changeImage(question.id, imageId)}
-                  />
-                ))}
-              </ol>
-            </SortableContext>
-          </DndContext>
-        )}
-
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={add}
-              disabled={!canAdd}
-              className={`rounded-2xl bg-accent px-5 py-3 font-display text-xl text-accent-ink transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`}
-            >
-              Add question
-            </button>
-            <button
-              type="button"
-              onClick={() => setPasting((open) => !open)}
-              disabled={!canAdd}
-              aria-expanded={pasting && canAdd}
-              className={BUTTON_SMALL}
-            >
-              Paste questions
-            </button>
-          </div>
-          {!canAdd && <p className="text-muted">{QUESTION_CAP_MESSAGE}</p>}
           {pasting && canAdd && (
             <PasteQuestions
               count={set.questions.length}
@@ -374,8 +350,128 @@ function Editor({ setId }: { setId: string }) {
               onCancel={() => setPasting(false)}
             />
           )}
-        </div>
-      </main>
+
+          <div className="flex flex-col gap-6 pb-20 md:pb-0 lg:grid lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+            <QuestionOutline questions={set.questions} currentId={currentId} onJump={jumpTo} />
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 lg:col-start-2 lg:max-w-none">
+              <div className="flex flex-col gap-2">
+                <h1 className="text-sm tracking-widest text-muted uppercase">Edit set</h1>
+                <label htmlFor="set-title" className="sr-only">
+                  Set title
+                </label>
+                <input
+                  id="set-title"
+                  value={set.title}
+                  maxLength={SET_TITLE_MAX}
+                  onChange={(event) => change({ ...set, title: event.target.value })}
+                  onBlur={() => touch('title')}
+                  aria-invalid={titleProblem !== undefined}
+                  aria-describedby={titleProblem ? 'set-title-error' : undefined}
+                  className={`${FIELD} scroll-mt-28 font-display text-3xl`}
+                />
+                <FieldError id="set-title-error" message={titleProblem} />
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <div className="flex min-w-48 flex-1 flex-col gap-1">
+                  <label htmlFor="set-category" className="font-semibold">
+                    Category <span className="font-normal text-muted">(optional)</span>
+                  </label>
+                  <input
+                    id="set-category"
+                    list="set-categories"
+                    value={set.category ?? ''}
+                    maxLength={SET_CATEGORY_MAX}
+                    onChange={(event) => change(withCategory(set, event.target.value))}
+                    // Trimmed once the field is left, so typing "Pop Culture" keeps its space.
+                    onBlur={() => {
+                      const trimmed = set.category?.trim();
+                      if (trimmed !== set.category) change(withCategory(set, trimmed ?? ''));
+                    }}
+                    className={FIELD}
+                  />
+                  <datalist id="set-categories">
+                    {categories.map((category) => (
+                      <option key={category} value={category} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="set-difficulty" className="font-semibold">
+                    Difficulty <span className="font-normal text-muted">(optional)</span>
+                  </label>
+                  <select
+                    id="set-difficulty"
+                    value={set.difficulty ?? ''}
+                    onChange={(event) =>
+                      change(
+                        withDifficulty(
+                          set,
+                          DIFFICULTIES.find((d) => d === event.target.value) ?? '',
+                        ),
+                      )
+                    }
+                    className={`${FIELD} w-auto`}
+                  >
+                    <option value="">None</option>
+                    {DIFFICULTIES.map((difficulty) => (
+                      <option key={difficulty} value={difficulty}>
+                        {DIFFICULTY_LABELS[difficulty]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {set.questions.length === 0 ? (
+                <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
+                  No questions yet. Use <strong className="text-ink">Add question</strong> to write
+                  the first, or <strong className="text-ink">Paste questions</strong> to bring in
+                  many.
+                </p>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={onDragEnd}
+                  accessibility={{ announcements, screenReaderInstructions: DRAG_INSTRUCTIONS }}
+                >
+                  <SortableContext items={set.questions} strategy={verticalListSortingStrategy}>
+                    <ol className="flex flex-col gap-4">
+                      {set.questions.map((question, index) => (
+                        <QuestionCard
+                          key={question.id}
+                          question={question}
+                          number={index + 1}
+                          isFirst={index === 0}
+                          isLast={index === set.questions.length - 1}
+                          canDuplicate={canAdd}
+                          autoFocus={question.id === focusId}
+                          touched={touched}
+                          onTouch={touch}
+                          onChange={(next) =>
+                            changeQuestions(set.questions.map((q, i) => (i === index ? next : q)))
+                          }
+                          onMove={(delta) =>
+                            changeQuestions(moveQuestion(set.questions, index, delta))
+                          }
+                          onDuplicate={() =>
+                            changeQuestions(duplicateQuestion(set.questions, index))
+                          }
+                          onDelete={() => changeQuestions(removeQuestion(set.questions, index))}
+                          onPreview={() => setPreviewIndex(index)}
+                          onImage={(imageId) => changeImage(question.id, imageId)}
+                        />
+                      ))}
+                    </ol>
+                  </SortableContext>
+                </DndContext>
+              )}
+              {!canAdd && <p className="text-center text-muted">{QUESTION_CAP_MESSAGE}</p>}
+            </div>
+          </div>
+        </PageShell>
+      </div>
       {previewIndex !== null && previewIndex < set.questions.length && (
         <QuestionPreview
           set={set}
@@ -388,11 +484,57 @@ function Editor({ setId }: { setId: string }) {
   );
 }
 
-function BackLink() {
+/** Scrolls question `id`'s card under the toolbar and puts the cursor in its question (EDT-02). */
+function jumpTo(id: string) {
+  document.getElementById(cardDomId(id))?.scrollIntoView?.({ block: 'start' });
+  document.getElementById(`q-${id}-text`)?.focus({ preventScroll: true });
+}
+
+interface QuestionOutlineProps {
+  questions: readonly Question[];
+  currentId: string | null;
+  onJump: (id: string) => void;
+}
+
+/**
+ * The `lg` outline (EDT-02): one entry per question with its number, its first words, its mode and
+ * a red dot when it needs attention. It only navigates; the cards stay the one list to reorder.
+ */
+function QuestionOutline({ questions, currentId, onJump }: QuestionOutlineProps) {
   return (
-    <Link to="/sets" className={`${LINK} text-lg`}>
-      ← Question sets
-    </Link>
+    <nav
+      aria-label="Question outline"
+      className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto"
+    >
+      <ol className="flex flex-col gap-1">
+        {questions.map((question, index) => {
+          const flagged = needsAttention(question);
+          return (
+            <li key={question.id}>
+              <button
+                type="button"
+                aria-current={question.id === currentId ? 'true' : undefined}
+                onClick={() => onJump(question.id)}
+                className={`flex min-h-11 w-full items-center gap-2 rounded-xl border-2 border-transparent px-2 text-left aria-[current]:border-accent aria-[current]:bg-surface ${HOVER}`}
+              >
+                <span className="w-6 shrink-0 text-right font-bold text-muted tabular-nums">
+                  {index + 1}
+                </span>
+                {flagged && (
+                  <span className="size-2.5 shrink-0 rounded-full bg-buzz">
+                    <span className="sr-only">Needs attention:</span>
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate">{outlineText(question)}</span>
+                <span className="shrink-0 rounded-full border-2 border-edge px-2 text-sm text-muted">
+                  {MODE_LABELS[question.mode ?? 'buzz']}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
@@ -526,6 +668,7 @@ function QuestionCard({
   return (
     <li
       ref={setNodeRef}
+      id={cardDomId(question.id)}
       aria-label={label}
       style={{
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
@@ -535,73 +678,50 @@ function QuestionCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       onPaste={onPaste}
-      className={`flex flex-col gap-4 rounded-[20px] border-2 bg-surface p-5 ${
+      className={`relative flex scroll-mt-32 flex-col gap-3 rounded-[20px] border-2 bg-surface p-3 sm:p-4 md:gap-4 md:p-5 ${
         isDragging
-          ? 'relative z-10 border-accent shadow-2xl'
+          ? 'z-10 border-accent shadow-2xl'
           : dropping
-            ? 'border-accent'
+            ? 'border-accent outline-2 outline-accent'
             : 'border-edge'
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <button
-            ref={setActivatorNodeRef}
-            type="button"
-            {...attributes}
-            {...listeners}
-            aria-label={`Drag to reorder question ${number}`}
-            className={`${BUTTON_SMALL} cursor-grab touch-none active:cursor-grabbing`}
-          >
-            ⠿
-          </button>
-          <h2 className="font-display text-2xl">{label}</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            aria-label={`Move question ${number} up`}
-            onClick={() => onMove(-1)}
-            disabled={isFirst}
-            className={BUTTON_SMALL}
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            aria-label={`Move question ${number} down`}
-            onClick={() => onMove(1)}
-            disabled={isLast}
-            className={BUTTON_SMALL}
-          >
-            ↓
-          </button>
-          <button
-            type="button"
-            aria-label={`Preview question ${number}`}
-            onClick={onPreview}
-            className={BUTTON_SMALL}
-          >
-            Preview
-          </button>
-          <button
-            type="button"
-            aria-label={`Duplicate question ${number}`}
-            onClick={onDuplicate}
-            disabled={!canDuplicate}
-            className={BUTTON_SMALL}
-          >
-            Duplicate
-          </button>
-          <ConfirmButton
-            label="Delete"
-            confirmLabel="Confirm delete"
-            ariaLabel={`Delete question ${number}`}
-            onConfirm={onDelete}
-            className={BUTTON_DANGER}
-            cancelClassName={BUTTON_SMALL}
-          />
-        </div>
+      {/* EDT-04: one line at 375px. The less common actions wait in the menu, Delete last. */}
+      <div className="flex items-center gap-2">
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={`Drag to reorder question ${number}`}
+          className={`${BUTTON_ICON} cursor-grab touch-none active:cursor-grabbing`}
+        >
+          <Icon name="grip" />
+        </button>
+        <h2 className="min-w-0 flex-1 truncate font-display text-lg sm:text-xl md:text-2xl">
+          {label}
+        </h2>
+        {/* An eye on a phone, so "Question N" keeps the room; the word from `sm`. */}
+        <button
+          type="button"
+          aria-label={`Preview question ${number}`}
+          onClick={onPreview}
+          className={`${BUTTON_SMALL} flex min-w-11 items-center justify-center`}
+        >
+          <Icon name="eye" className="size-6 sm:hidden" />
+          <span className="hidden sm:inline">Preview</span>
+        </button>
+        <OverflowMenu
+          label={`More actions for question ${number}`}
+          trigger={<Icon name="more" />}
+          triggerClassName={BUTTON_ICON}
+          items={[
+            { label: 'Move up', onSelect: () => onMove(-1), disabled: isFirst },
+            { label: 'Move down', onSelect: () => onMove(1), disabled: isLast },
+            { label: 'Duplicate', onSelect: onDuplicate, disabled: !canDuplicate },
+            { label: 'Delete', confirmLabel: 'Confirm delete', onSelect: onDelete },
+          ]}
+        />
       </div>
 
       <TextField
@@ -615,86 +735,109 @@ function QuestionCard({
         onChange={(text) => onChange({ ...question, text })}
         onBlur={() => onTouch(`${question.id}:text`)}
       />
-      <ImageField
-        id={`${base}-image`}
-        number={number}
-        imageId={question.imageId}
-        busy={imageBusy}
-        error={imageError}
-        onFile={(file) => void addImageFile(file)}
-        onRemove={() => {
-          setImageError(null);
-          onImage(undefined);
-        }}
-      />
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${base}-mode`} className="font-semibold">
-          Mode
-        </label>
-        <select
-          id={`${base}-mode`}
-          value={question.mode ?? 'buzz'}
-          onChange={(event) => onChange(setMode(question, event.target.value as QuestionMode))}
-          className={`${FIELD} w-auto self-start`}
-        >
-          <option value="buzz">Buzz</option>
-          <option value="choice">Choice</option>
-          <option value="typed">Typed</option>
-        </select>
-      </div>
-      {choices ? (
-        <ChoicesField
-          id={base}
-          question={question}
-          choices={choices}
-          errors={shown}
-          correctError={errors.correctChoice}
-          onChange={onChange}
-          onTouch={(index) => onTouch(`${question.id}:choice${index}`)}
-        />
-      ) : (
-        <TextField
-          id={`${base}-answer`}
-          label="Answer"
-          value={question.answer}
-          max={ANSWER_MAX}
-          error={shown.answer}
-          onChange={(answer) => onChange({ ...question, answer })}
-          onBlur={() => onTouch(`${question.id}:answer`)}
-        />
-      )}
-      <TextField
-        id={`${base}-notes`}
-        {...(question.mode === 'typed' ? TYPED_NOTES : NOTES)}
-        multiline
-        value={question.hostNotes ?? ''}
-        max={HOST_NOTES_MAX}
-        error={shown.hostNotes}
-        onChange={setNotes}
-        onBlur={() => onTouch(`${question.id}:hostNotes`)}
-      />
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${base}-points`} className="font-semibold">
-          Points
-        </label>
-        <input
-          id={`${base}-points`}
-          inputMode="numeric"
-          value={pointsText}
-          onChange={(event) => {
-            setPointsText(event.target.value);
-            const parsed = parsePoints(event.target.value);
-            if (parsed.ok && parsed.points !== question.points) {
-              onChange({ ...question, points: parsed.points });
-            }
-          }}
-          aria-invalid={!pointsValid}
-          aria-describedby={pointsValid ? undefined : `${base}-points-error`}
-          className={`${FIELD} w-32`}
-        />
-        <FieldError id={`${base}-points-error`} message={pointsValid ? undefined : POINTS_ERROR} />
+      {/* EDT-03: the short fields share a row: Mode and Points, then the image beside them at `md`. */}
+      <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-[10rem_8rem_minmax(0,1fr)] md:gap-4">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${base}-mode`} className="font-semibold">
+            Mode
+          </label>
+          <select
+            id={`${base}-mode`}
+            value={question.mode ?? 'buzz'}
+            onChange={(event) => onChange(setMode(question, event.target.value as QuestionMode))}
+            className={FIELD}
+          >
+            <option value="buzz">Buzz</option>
+            <option value="choice">Choice</option>
+            <option value="typed">Typed</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${base}-points`} className="font-semibold">
+            Points
+          </label>
+          <input
+            id={`${base}-points`}
+            inputMode="numeric"
+            value={pointsText}
+            onChange={(event) => {
+              setPointsText(event.target.value);
+              const parsed = parsePoints(event.target.value);
+              if (parsed.ok && parsed.points !== question.points) {
+                onChange({ ...question, points: parsed.points });
+              }
+            }}
+            aria-invalid={!pointsValid}
+            aria-describedby={pointsValid ? undefined : `${base}-points-error`}
+            className={FIELD}
+          />
+        </div>
+        <div className="col-span-2 md:col-span-1">
+          <ImageField
+            id={`${base}-image`}
+            number={number}
+            imageId={question.imageId}
+            busy={imageBusy}
+            error={imageError}
+            onFile={(file) => void addImageFile(file)}
+            onRemove={() => {
+              setImageError(null);
+              onImage(undefined);
+            }}
+          />
+        </div>
+        {!pointsValid && (
+          <div className="col-span-2 md:col-span-3">
+            <FieldError id={`${base}-points-error`} message={POINTS_ERROR} />
+          </div>
+        )}
       </div>
+
+      {/* The answer (or the choices) beside the notes at `lg`. */}
+      <div className="grid items-start gap-3 md:gap-4 lg:grid-cols-2">
+        {choices ? (
+          <ChoicesField
+            id={base}
+            question={question}
+            choices={choices}
+            errors={shown}
+            correctError={errors.correctChoice}
+            onChange={onChange}
+            onTouch={(index) => onTouch(`${question.id}:choice${index}`)}
+          />
+        ) : (
+          <TextField
+            id={`${base}-answer`}
+            label="Answer"
+            value={question.answer}
+            max={ANSWER_MAX}
+            error={shown.answer}
+            onChange={(answer) => onChange({ ...question, answer })}
+            onBlur={() => onTouch(`${question.id}:answer`)}
+          />
+        )}
+        <TextField
+          id={`${base}-notes`}
+          {...(question.mode === 'typed' ? TYPED_NOTES : NOTES)}
+          multiline
+          value={question.hostNotes ?? ''}
+          max={HOST_NOTES_MAX}
+          error={shown.hostNotes}
+          onChange={setNotes}
+          onBlur={() => onTouch(`${question.id}:hostNotes`)}
+        />
+      </div>
+
+      {dropping && (
+        // EDT-09: the whole card takes the file. Decorative: the drop itself reports any problem.
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-[18px] bg-bg/85 p-4 text-center font-display text-2xl text-accent"
+        >
+          Drop image for {label}
+        </div>
+      )}
     </li>
   );
 }
@@ -734,18 +877,26 @@ function ChoicesField({
         const error = errors[`choice${index}`];
         return (
           <div key={index} className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="radio"
-                name={`${id}-correct`}
-                checked={question.correctChoice === index}
-                onChange={() => onChange(setCorrectChoice(question, index))}
-                aria-label={`Choice ${letter} is correct`}
-                className="size-6 shrink-0 accent-accent"
-              />
-              <label htmlFor={inputId} className="w-5 shrink-0 font-display text-xl">
-                <span className="sr-only">Choice </span>
-                {letter}
+            {/* EDT-06: a 44px label round the radio, and a 44px ×, leave the text 220px at 375. */}
+            <div className="flex items-center gap-1">
+              <label className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg">
+                <input
+                  type="radio"
+                  name={`${id}-correct`}
+                  checked={question.correctChoice === index}
+                  onChange={() => onChange(setCorrectChoice(question, index))}
+                  aria-label={`Choice ${letter} is correct`}
+                  className="size-5 shrink-0 accent-accent"
+                />
+                <span aria-hidden="true" className="w-4 font-display text-xl">
+                  {letter}
+                </span>
+                <span aria-hidden="true" className="hidden pr-1 text-sm text-muted sm:inline">
+                  Correct
+                </span>
+              </label>
+              <label htmlFor={inputId} className="sr-only">
+                Choice {letter}
               </label>
               <input
                 id={inputId}
@@ -762,9 +913,9 @@ function ChoicesField({
                   type="button"
                   aria-label={`Remove choice ${letter}`}
                   onClick={() => onChange(removeChoice(question, index))}
-                  className={BUTTON_SMALL}
+                  className={`${BUTTON_ICON} shrink-0`}
                 >
-                  Remove
+                  <Icon name="x" className="size-5" />
                 </button>
               )}
             </div>
@@ -800,9 +951,10 @@ interface ImageFieldProps {
 function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: ImageFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const src = useStoredImageUrl(imageId);
+  const pointerFine = usePointerFine();
 
   return (
-    <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-2">
+    <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-1">
       <p id={`${id}-label`} className="font-semibold">
         Image (optional)
       </p>
@@ -812,10 +964,13 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
             <img
               src={src}
               alt={`Image for question ${number}`}
-              className="h-32 max-w-full rounded-xl border-2 border-edge bg-bg object-contain"
+              className="h-24 max-w-full rounded-xl border-2 border-edge bg-bg object-contain md:h-16"
             />
           ) : (
-            <div className="h-32 w-48 rounded-xl border-2 border-edge bg-bg" aria-hidden="true" />
+            <div
+              className="h-24 w-36 rounded-xl border-2 border-edge bg-bg md:h-16 md:w-28"
+              aria-hidden="true"
+            />
           )}
           <button
             type="button"
@@ -828,7 +983,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
           </button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed border-edge p-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -838,8 +993,9 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
           >
             Add image
           </button>
+          {/* EDT-09: the hint names the drop where there is a mouse to drag with. */}
           <p id={`${id}-hint`} className="text-sm text-muted">
-            Or drop an image on this card, or paste one. PNG, JPEG, WebP or GIF.
+            {pointerFine ? 'Drop or paste an image' : 'PNG, JPEG, WebP or GIF'}
           </p>
         </div>
       )}
@@ -930,7 +1086,14 @@ function TextField({
         </span>
       </div>
       {multiline ? (
-        <textarea rows={2} {...props} onChange={(event) => onChange(event.target.value)} />
+        // EDT-03: from `md` a text box is as tall as its text, one line when short, so a card fits
+        // in 420px; browsers without `field-sizing` keep the two rows.
+        <textarea
+          rows={2}
+          {...props}
+          className={`${FIELD} md:field-sizing-content`}
+          onChange={(event) => onChange(event.target.value)}
+        />
       ) : (
         <input {...props} onChange={(event) => onChange(event.target.value)} />
       )}

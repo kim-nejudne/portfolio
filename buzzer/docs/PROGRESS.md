@@ -10,6 +10,51 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F95 — Set editor toolbar and outline (2026-10-30)
+**What changed:**
+- `/sets/:setId` (`pages/SetEditor.tsx`), now in `PageShell width="wide"`:
+  - **Sticky toolbar** ("Set toolbar"): ← (Question sets), the set title as a button to the title field, the save status ("Saved ✓", "Saving…", or a red error), then Paste, Preview (the set, at the card in view), Print and **Add question**.
+    - Below `md`, Paste, Preview set and Print move into a `⋯` menu. Add is the same button, `fixed` at the bottom on a phone and `md:static` in the bar.
+    - "N questions need attention" appears when any question has errors and jumps to the first. Add and paste bring the new card into view.
+  - **Outline** at `lg`: a sticky `nav` (number, first words, mode badge, red dot). Clicking an entry scrolls the card under the toolbar and focuses its Question field. `aria-current` follows scroll (new `lib/useCurrentCard.ts`). The cards stay one vertical list.
+  - **Card:**
+    - Header on one line: SVG grip, "Question N", Preview (an eye below `sm`) and `⋯`. The menu holds Move up, Move down, Duplicate and a red Delete that asks to confirm.
+    - Fields: Question, then Mode | Points | Image (the image compact from `md`), then Answer/Choices | Host notes at `lg`. From `md` the text boxes size to their text (`field-sizing: content`).
+    - Choices: a 44px radio label and a × Remove.
+    - A file dragged over a card shows "Drop image for Question N", and the image hint reads "Drop or paste an image" on a mouse.
+- `PasteQuestions`: opens under the toolbar and scrolls into view. Text and result sit side by side from `md`, with no inner scroll lists.
+- `QuestionPreview`:
+  - A letterboxed 16:9 stage on black, a `[container-type:size]` box.
+  - `ScreenQuestion`, `ScreenChrome` and `lib/screenQuestion.ts` switched `vw`/`vh` to `cqw`/`cqh`. On the Screen page they fall back to the window.
+  - The bar: **Show answer** is the primary, Close is a ✕, and the bar is one row from `sm`.
+- Shared: `BUTTON_ICON` in `lib/ui.ts`, the `grip` icon, and `needsAttention`, `outlineText` and `MODE_LABELS` in `lib/setEditor.ts`. `.claude/rules/client.md` notes the `cq` units.
+- Tests:
+  - `SetEditor.test.tsx`: 57, up from 45. Move, duplicate and delete go through the card menu. New: toolbar contents and sticky class, the phone menu and fixed Add, the title button, Preview set, Add scrolling, the paste panel's place and scroll, outline entries, outline jump 25/30, `aria-current`, the attention count and jump, the header and grip, and Delete/Cancel in the menu. The drop overlay and choice controls are asserted in existing tests.
+  - `QuestionPreview.test.tsx` +3 (stage, primary and ✕, one row). `useCurrentCard.test.tsx` (4), `setEditor.test.ts` +3.
+  - 2451 tests in total. No new dependency.
+
+**Decisions:** the seven DECISIONS rows dated 2026-10-30 for F95 (toolbar and fixed Add; outline; attention count; card header and grid; choices and drop; paste panel; preview stage and `cq` units).
+
+**Notes for next session:**
+- Playtest (Playwright, a 30-question set; the scrollbar takes 15px, so "375" is 360 of content):
+  - 1440×900: a Buzz card is 408px (≤420). It was 464 before content-sized text boxes; `editor-1440.png` is from then and is stale. A Choice card is 496. A 250-character question grows the box with no inner scroll.
+  - Outline entry 25: card 25 at top 128, its Question focused, entry 25 `aria-current`, and Preview set opened question 25. The first run showed entry 24 current; the observer band now starts at 136px, below the jump's `scroll-mt-32`.
+  - 375×667:
+    - The card header is one 44px row.
+    - Nothing in a Choice card is under 44px, and the choice inputs are 252px wide.
+    - No horizontal overflow.
+    - Mid-page, the save status and Add are both on screen.
+    - The preview stage is 375×211, the whole 16:9 frame, with the bar on two rows inside the window (`preview-375.png`).
+  - 640×800: the preview bar is one row. 1440×900: the stage is 1440×810.
+  - 820×1180: Paste's text area and result are side by side, and only the textarea itself could scroll.
+  - No console errors.
+- Not checked live: the real Screen after the `cq` switch. With no size container round `ScreenQuestion`, `cqw`/`cqh` resolve to `svw`/`svh`, which equal `vw`/`vh` on a TV or laptop. Worth a glance at 1920×1080 in F100, which works on those units anyway.
+- On a phone (below `md`) the text boxes keep 2 rows and scroll inside, as before.
+- The review's Must-fix was the stale screenshot; re-measured at 408px. Its Should-fixes are done: the title button's name includes the title, and the phone card title has more room. The toolbar's set title still truncates on a phone, which is fine because the full title field is just below.
+- Main `index` chunk 537.37 → 537.80 kB.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets`, open or create a set, and paste 30 lines like `Q N | A N` with **Paste**. On a laptop (≥1024 wide) use the outline on the left and the sticky toolbar; on a phone (`http://<LAN-IP>:5173/sets/<id>`) use the `⋯` menus and the bottom **Add question**. Open **Preview** on a card at phone size to see the letterboxed TV.
+
 ## F94 — Set library grid (2026-10-30)
 **What changed:**
 - `/sets` (`pages/Sets.tsx`):

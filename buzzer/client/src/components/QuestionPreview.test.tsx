@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Question, QuestionSet } from '../../../shared/types.js';
-import { QuestionPreview } from './QuestionPreview.js';
+import { BUTTON_PRIMARY_SMALL } from '../lib/ui.js';
+import { QuestionPreview, STAGE_SIZE } from './QuestionPreview.js';
 
 afterEach(cleanup);
 
@@ -121,5 +122,34 @@ describe('QuestionPreview Show answer', () => {
     expect(toggle().getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
     expect(toggle().disabled).toBe(false);
+  });
+});
+
+describe('QuestionPreview stage and bar (F95)', () => {
+  it('draws the Screen inside a 16:9 stage that is a size container', () => {
+    render(<Harness questions={[q('a')]} />);
+    const stage = screen.getByTestId('preview-stage');
+    expect(STAGE_SIZE).toContain('aspect-video');
+    expect(stage.className).toContain(STAGE_SIZE);
+    expect(stage.className).toContain('[container-type:size]');
+    // The stage holds the question, so its cqw/cqh units are the stage's, not the window's.
+    expect(stage.contains(screen.getByRole('heading', { level: 1 }))).toBe(true);
+    // The space round it is a size container too: the stage's size comes from it.
+    expect(stage.parentElement!.className).toContain('[container-type:size]');
+  });
+
+  it('Show answer is the primary button; Close is a ✕ that does not outweigh it', () => {
+    render(<Harness questions={[q('a')]} />);
+    expect(toggle().className).toContain(BUTTON_PRIMARY_SMALL);
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close.textContent).toBe('');
+    expect(close.querySelector('svg')).not.toBeNull();
+    expect(close.className).not.toContain('bg-accent');
+    expect(document.activeElement).toBe(close);
+  });
+
+  it('the bar keeps one row from sm up', () => {
+    render(<Harness questions={[q('a'), q('b')]} />);
+    expect(toggle().parentElement!.className).toContain('sm:flex-nowrap');
   });
 });

@@ -18,8 +18,11 @@ import {
   canAddQuestion,
   categoriesInUse,
   duplicateQuestion,
+  MODE_LABELS,
   moveQuestion,
+  needsAttention,
   newQuestion,
+  outlineText,
   parsePoints,
   previewView,
   questionErrors,
@@ -336,5 +339,26 @@ describe('choice questions in the editor', () => {
       choice2: `Up to ${CHOICE_TEXT_MAX} characters.`,
     });
     expect(questionErrors(choice(['', 'B'], 1))).toEqual({ choice0: 'Write choice A.' });
+  });
+});
+
+describe('outline and attention (F95)', () => {
+  it('a question with any field error needs attention, a complete one does not', () => {
+    expect(needsAttention(q('a'))).toBe(false);
+    expect(needsAttention(q('a', { answer: ' ' }))).toBe(true);
+    expect(needsAttention(q('a', { text: '' }))).toBe(true);
+    expect(needsAttention(q('a', { text: '', imageId: 'img' }))).toBe(false);
+    expect(needsAttention(setMode(q('a'), 'choice'))).toBe(true);
+    expect(needsAttention(newQuestion('n'))).toBe(true);
+  });
+
+  it('the outline shows the question on one line, or stands in for a missing text', () => {
+    expect(outlineText(q('a', { text: '  Capital of\n  France? ' }))).toBe('Capital of France?');
+    expect(outlineText(q('a', { text: ' ', imageId: 'img' }))).toBe('Image question');
+    expect(outlineText(q('a', { text: '' }))).toBe('(no text)');
+  });
+
+  it('labels each mode for the outline badge', () => {
+    expect(MODE_LABELS).toEqual({ buzz: 'Buzz', choice: 'Choice', typed: 'Typed' });
   });
 });

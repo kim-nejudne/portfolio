@@ -44,6 +44,9 @@ const SMALL = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 tex
 /** The set pages' row buttons: Edit, Duplicate, Preview, Export JSON. */
 export const BUTTON_SMALL = `${SMALL} ${HOVER}`;
 
+/** A 44×44 square holding one `Icon`: a drag grip, a `⋯` trigger, a Remove ×. Name it with `aria-label`. */
+export const BUTTON_ICON = `flex min-h-11 min-w-11 items-center justify-center rounded-xl border-2 border-edge bg-surface ${PRESS} ${HOVER}`;
+
 /**
  * The look of an action that can't be taken back, before it is armed: red text, and a red border
  * under the pointer. For a button shape of its own; never together with `HOVER`, whose ink border

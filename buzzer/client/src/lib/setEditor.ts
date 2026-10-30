@@ -322,3 +322,21 @@ export function parsePoints(raw: string): { ok: true; points: number } | { ok: f
   const points = Number(raw.trim());
   return points >= POINTS_MIN && points <= POINTS_MAX ? { ok: true, points } : { ok: false };
 }
+
+/** True when the question has a problem the editor would show: the toolbar count and the outline's dot (EDT-10). */
+export function needsAttention(question: Question): boolean {
+  return Object.keys(questionErrors(question)).length > 0;
+}
+
+/** The outline entry's text (EDT-02): the question, or what stands in for it. CSS truncates it. */
+export function outlineText(question: Question): string {
+  const text = question.text.trim().replace(/\s+/g, ' ');
+  if (text) return text;
+  return question.imageId === undefined ? '(no text)' : 'Image question';
+}
+
+export const MODE_LABELS: Record<QuestionMode, string> = {
+  buzz: 'Buzz',
+  choice: 'Choice',
+  typed: 'Typed',
+};

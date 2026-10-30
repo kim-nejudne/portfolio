@@ -26,15 +26,15 @@ import { Icon } from './Icon.js';
 import { StandingsRail } from './StandingsRail.js';
 
 /** The gold stage ring round the hero panel: 6px of base, then 4px of gold, at 1280 wide. */
-const STAGE_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-accent)]';
+const STAGE_RING = 'shadow-[0_0_0_0.47cqw_var(--color-bg),0_0_0_0.78cqw_var(--color-accent)]';
 /** The same ring in the border colour, for a banner judged wrong. */
-const DIM_RING = 'shadow-[0_0_0_0.47vw_var(--color-bg),0_0_0_0.78vw_var(--color-edge)]';
+const DIM_RING = 'shadow-[0_0_0_0.47cqw_var(--color-bg),0_0_0_0.78cqw_var(--color-edge)]';
 
 /** The question text never shrinks below this, however squeezed the card (F52). */
 const QUESTION_MIN_PX = 12;
 
 /** A small uppercase label on the Screen (13–16px at 1280 wide). */
-const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] uppercase';
+const SCREEN_LABEL = 'text-[min(1.2cqw,2.1cqh)] font-bold tracking-[0.25em] uppercase';
 
 /**
  * The Screen during a question: its text and image in a card (the number is in the header), then
@@ -42,6 +42,8 @@ const SCREEN_LABEL = 'text-[min(1.2vw,2.1vh)] font-bold tracking-[0.25em] upperc
  * someone has won the buzz, their banner and the "also buzzed" gaps (UI spec, Screen view).
  * The answer shows only when the view carries it, which the server allows at REVEAL alone.
  * `imageSrc` replaces the room's image URL, for the set editor's preview of a stored blob.
+ * Sizes are in `cqw`/`cqh`. On the Screen no size container wraps it, so they are the window's
+ * (`svw`/`svh`); the editor's preview wraps it in a 16:9 stage, a small TV (EDT-08).
  */
 export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?: string }) {
   const { question } = view;
@@ -63,11 +65,11 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const winner = view.players.find((p) => p.id === view.winnerId);
 
   return (
-    <div className="flex min-h-0 flex-1 gap-[2vw] px-[3.75vw] pt-[1vh] pb-[3vh]">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[4vh]">
+    <div className="flex min-h-0 flex-1 gap-[2cqw] px-[3.75cqw] pt-[1cqh] pb-[3cqh]">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[4cqh]">
         <section
           aria-label="Question"
-          className="flex min-h-0 flex-1 flex-col gap-[2vh] overflow-hidden rounded-[min(1.56vw,2.8vh)] border-2 border-edge bg-surface px-[2.2vw] py-[min(2vw,3.5vh)]"
+          className="flex min-h-0 flex-1 flex-col gap-[2cqh] overflow-hidden rounded-[min(1.56cqw,2.8cqh)] border-2 border-edge bg-surface px-[2.2cqw] py-[min(2cqw,3.5cqh)]"
         >
           <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
           {/* Safe centring: text taller than a squeezed card, even at the smallest size, starts at
@@ -75,14 +77,14 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
             the text size, so the hook measures a box that its font size never changes. */}
           <div
             ref={rowRef}
-            className={`flex min-h-0 flex-1 items-center-safe gap-[4vw] overflow-hidden ${questionTextClass(text, question.imageId !== undefined)}`}
+            className={`flex min-h-0 flex-1 items-center-safe gap-[4cqw] overflow-hidden ${questionTextClass(text, question.imageId !== undefined)}`}
           >
             {text && <h1 className="min-w-0 flex-1 leading-tight font-bold break-words">{text}</h1>}
             {question.imageId && (
               <img
                 src={imageSrc ?? imageUrl(view.code, question.imageId)}
                 alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
-                className="h-full min-h-0 min-w-0 flex-1 rounded-[min(0.94vw,1.67vh)] object-contain"
+                className="h-full min-h-0 min-w-0 flex-1 rounded-[min(0.94cqw,1.67cqh)] object-contain"
               />
             )}
           </div>
@@ -142,9 +144,9 @@ function BuzzerStatus({ open }: { open: boolean }) {
   return (
     <p
       role="status"
-      className={`shrink-0 self-center rounded-full border-2 px-[4vw] py-[1.6vh] font-display text-[min(3.4vw,6vh)] ${
+      className={`shrink-0 self-center rounded-full border-2 px-[4cqw] py-[1.6cqh] font-display text-[min(3.4cqw,6cqh)] ${
         open
-          ? `border-buzz bg-buzz text-ink [text-shadow:0.25vw_0.25vw_0_var(--color-buzz-ink)] motion-safe:animate-buzz-pulse ${STAGE_RING}`
+          ? `border-buzz bg-buzz text-ink [text-shadow:0.25cqw_0.25cqw_0_var(--color-buzz-ink)] motion-safe:animate-buzz-pulse ${STAGE_RING}`
           : 'border-edge bg-surface text-muted'
       }`}
     >
@@ -165,16 +167,16 @@ function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seco
     <div
       data-buzz-ring
       style={{ '--left': left } as CSSProperties}
-      className="shrink-0 self-center rounded-full bg-[conic-gradient(var(--color-accent)_calc(var(--left)*1turn),var(--color-edge)_0)] p-[0.78vw] motion-safe:animate-buzz-pulse"
+      className="shrink-0 self-center rounded-full bg-[conic-gradient(var(--color-accent)_calc(var(--left)*1turn),var(--color-edge)_0)] p-[0.78cqw] motion-safe:animate-buzz-pulse"
     >
-      <div className="flex items-center gap-[2.4vw] rounded-full border-2 border-buzz bg-buzz px-[4vw] py-[1.6vh] font-display text-[min(3.4vw,6vh)] shadow-[0_0_0_0.47vw_var(--color-bg)]">
-        <p role="status" className="text-ink [text-shadow:0.25vw_0.25vw_0_var(--color-buzz-ink)]">
+      <div className="flex items-center gap-[2.4cqw] rounded-full border-2 border-buzz bg-buzz px-[4cqw] py-[1.6cqh] font-display text-[min(3.4cqw,6cqh)] shadow-[0_0_0_0.47cqw_var(--color-bg)]">
+        <p role="status" className="text-ink [text-shadow:0.25cqw_0.25cqw_0_var(--color-buzz-ink)]">
           {t('buzzersOpen')}
         </p>
         <p
           role="timer"
           aria-label="Buzz time"
-          className="min-w-[1.6em] rounded-full bg-buzz-ink px-[1vw] text-center leading-tight text-ink tabular-nums"
+          className="min-w-[1.6em] rounded-full bg-buzz-ink px-[1cqw] text-center leading-tight text-ink tabular-nums"
         >
           {countdown.secondsLeft}
         </p>
@@ -201,8 +203,8 @@ function ChoiceBoard({
   const revealed = choice.correctChoice !== undefined;
   const t = useCopy();
   return (
-    <section aria-label="Choices" className="flex shrink-0 flex-col gap-[2.4vh]">
-      <ol className="grid grid-cols-2 gap-x-[1.6vw] gap-y-[2vh] px-[0.8vw] pt-[0.8vw]">
+    <section aria-label="Choices" className="flex shrink-0 flex-col gap-[2.4cqh]">
+      <ol className="grid grid-cols-2 gap-x-[1.6cqw] gap-y-[2cqh] px-[0.8cqw] pt-[0.8cqw]">
         {choice.choices.map((text, index) => {
           const correct = revealed && index === choice.correctChoice;
           const count = choice.counts?.[index];
@@ -212,26 +214,26 @@ function ChoiceBoard({
               data-choice={CHOICE_LETTERS[index]}
               data-correct={correct || undefined}
               style={{ backgroundColor: CHOICE_COLORS[index] }}
-              className={`flex min-w-0 items-center gap-[1.4vw] rounded-[min(1.56vw,2.8vh)] px-[1.4vw] py-[1.4vh] text-bg transition-opacity ${
+              className={`flex min-w-0 items-center gap-[1.4cqw] rounded-[min(1.56cqw,2.8cqh)] px-[1.4cqw] py-[1.4cqh] text-bg transition-opacity ${
                 correct ? STAGE_RING : revealed ? 'opacity-35' : ''
               }`}
             >
-              <span className="grid size-[min(4.4vw,7.8vh)] shrink-0 place-items-center rounded-full bg-bg font-display text-[min(2.6vw,4.6vh)] text-ink">
+              <span className="grid size-[min(4.4cqw,7.8cqh)] shrink-0 place-items-center rounded-full bg-bg font-display text-[min(2.6cqw,4.6cqh)] text-ink">
                 {CHOICE_LETTERS[index]}
               </span>
-              <span className="min-w-0 flex-1 text-[min(2.4vw,4.3vh)] leading-tight font-bold break-words">
+              <span className="min-w-0 flex-1 text-[min(2.4cqw,4.3cqh)] leading-tight font-bold break-words">
                 {text}
               </span>
               {correct && (
                 <>
                   <span className="sr-only">, correct</span>
-                  <Icon name="check" className="size-[min(3.4vw,6vh)] shrink-0" />
+                  <Icon name="check" className="size-[min(3.4cqw,6cqh)] shrink-0" />
                 </>
               )}
               {count !== undefined && (
                 <span
                   data-count
-                  className="min-w-[1.8em] shrink-0 rounded-full bg-bg px-[0.8vw] py-[0.4vh] text-center font-display text-[min(2.4vw,4.3vh)] leading-tight text-ink tabular-nums"
+                  className="min-w-[1.8em] shrink-0 rounded-full bg-bg px-[0.8cqw] py-[0.4cqh] text-center font-display text-[min(2.4cqw,4.3cqh)] leading-tight text-ink tabular-nums"
                 >
                   {count}
                   <span className="sr-only"> picked</span>
@@ -261,17 +263,17 @@ function AnsweringProgress({
   status: string;
 }) {
   return (
-    <div className="flex shrink-0 items-center justify-center gap-[2vw]">
+    <div className="flex shrink-0 items-center justify-center gap-[2cqw]">
       {countdown && (
         <p
           role="timer"
           aria-label="Time to answer"
-          className={`min-w-[2.2em] rounded-full bg-buzz px-[1.4vw] py-[0.6vh] text-center font-display text-[min(3.4vw,6vh)] leading-tight text-ink tabular-nums ${STAGE_RING}`}
+          className={`min-w-[2.2em] rounded-full bg-buzz px-[1.4cqw] py-[0.6cqh] text-center font-display text-[min(3.4cqw,6cqh)] leading-tight text-ink tabular-nums ${STAGE_RING}`}
         >
           {countdown.secondsLeft}
         </p>
       )}
-      <p role="status" className="font-display text-[min(2.6vw,4.6vh)] text-accent">
+      <p role="status" className="font-display text-[min(2.6cqw,4.6cqh)] text-accent">
         {status}
       </p>
     </div>
@@ -283,7 +285,7 @@ function AnswersPill({ label }: { label: string }) {
   return (
     <p
       role="status"
-      className="shrink-0 self-center rounded-full border-2 border-edge bg-surface px-[3vw] py-[1.2vh] font-display text-[min(2.6vw,4.6vh)] text-muted"
+      className="shrink-0 self-center rounded-full border-2 border-edge bg-surface px-[3cqw] py-[1.2cqh] font-display text-[min(2.6cqw,4.6cqh)] text-muted"
     >
       {label}
     </p>
@@ -313,20 +315,20 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     );
     const winners = players.filter((player) => right.has(player.id));
     return (
-      <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
+      <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2cqh]">
         <p className={`text-muted ${SCREEN_LABEL}`}>{t('answer')}</p>
         <AnswerText answer={answer} />
         {winners.length > 0 ? (
           <ul
             aria-label="Got it"
-            className="flex max-w-full flex-wrap justify-center gap-[1vw] overflow-hidden"
+            className="flex max-w-full flex-wrap justify-center gap-[1cqw] overflow-hidden"
           >
             {winners.map((player) => (
               <li
                 key={player.id}
                 data-scorer
                 style={{ backgroundColor: player.color }}
-                className="flex items-center gap-[0.6vw] rounded-full px-[2vw] py-[0.8vh] font-display text-[min(2.4vw,4.6vh)] text-bg motion-safe:animate-pop-in"
+                className="flex items-center gap-[0.6cqw] rounded-full px-[2cqw] py-[0.8cqh] font-display text-[min(2.4cqw,4.6cqh)] text-bg motion-safe:animate-pop-in"
               >
                 {player.name}
                 <span className="sr-only"> ✓</span>
@@ -335,16 +337,16 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
             ))}
           </ul>
         ) : (
-          <p className="font-display text-[min(2.6vw,4.6vh)] text-muted">{t('nobodyGotIt')}</p>
+          <p className="font-display text-[min(2.6cqw,4.6cqh)] text-muted">{t('nobodyGotIt')}</p>
         )}
       </section>
     );
   }
   if (phase === 'ANSWERING' && typed.closed) {
     return (
-      <div className="flex shrink-0 items-center justify-center gap-[2vw]">
+      <div className="flex shrink-0 items-center justify-center gap-[2cqw]">
         <AnswersPill label={t('answersClosed')} />
-        <p className="font-display text-[min(2.6vw,4.6vh)] text-accent">
+        <p className="font-display text-[min(2.6cqw,4.6cqh)] text-accent">
           {t('answeredCount', { n: typed.answered })}
         </p>
       </div>
@@ -367,13 +369,13 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
   const t = useCopy();
   if (out.length === 0) return null;
   return (
-    <div className="flex max-w-full shrink-0 items-baseline justify-center gap-[1.2vw]">
+    <div className="flex max-w-full shrink-0 items-baseline justify-center gap-[1.2cqw]">
       <p className={`shrink-0 text-muted ${SCREEN_LABEL}`}>{t('lockedOut')}</p>
-      <ul aria-label="Locked out" className="flex flex-wrap gap-[1vw] overflow-hidden">
+      <ul aria-label="Locked out" className="flex flex-wrap gap-[1cqw] overflow-hidden">
         {out.map((player) => (
           <li
             key={player.id}
-            className="rounded-full border-2 border-edge bg-surface px-[1.4vw] py-[0.6vh] font-display text-[min(2vw,3.6vh)] text-muted line-through"
+            className="rounded-full border-2 border-edge bg-surface px-[1.4cqw] py-[0.6cqh] font-display text-[min(2cqw,3.6cqh)] text-muted line-through"
           >
             {player.name}
           </li>
@@ -394,17 +396,17 @@ function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] 
   return (
     <ul
       aria-label="Too early"
-      className="flex max-w-full shrink-0 flex-wrap justify-center gap-[1vw] overflow-hidden"
+      className="flex max-w-full shrink-0 flex-wrap justify-center gap-[1cqw] overflow-hidden"
     >
       {early.map((player) => (
         <li
           key={player.id}
           style={{ backgroundColor: player.color }}
-          className="flex items-center gap-[0.8vw] rounded-full py-[0.6vh] pr-[0.6vw] pl-[1.4vw] font-display text-[min(2vw,3.6vh)] text-bg motion-safe:animate-pop-in"
+          className="flex items-center gap-[0.8cqw] rounded-full py-[0.6cqh] pr-[0.6cqw] pl-[1.4cqw] font-display text-[min(2cqw,3.6cqh)] text-bg motion-safe:animate-pop-in"
         >
           {player.name}
           <span
-            className={`rounded-full bg-warn px-[0.8vw] py-[0.3vh] text-bg ${SCREEN_LABEL} tracking-[0.12em]`}
+            className={`rounded-full bg-warn px-[0.8cqw] py-[0.3cqh] text-bg ${SCREEN_LABEL} tracking-[0.12em]`}
           >
             {t('tooEarlyTag')}
           </span>
@@ -424,14 +426,14 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
     recent?.fx.kind === 'correct' && recent.fx.playerId === scorer?.id ? recent : undefined;
   const t = useCopy();
   return (
-    <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2vh]">
+    <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2cqh]">
       <p className={`text-muted ${SCREEN_LABEL}`}>{t('answer')}</p>
       <AnswerText answer={answer} />
       {scorer && (
         <p
           data-scorer
           style={{ backgroundColor: scorer.color }}
-          className="relative flex items-center gap-[0.6vw] rounded-full px-[2.4vw] py-[1vh] font-display text-[min(3vw,6vh)] text-bg"
+          className="relative flex items-center gap-[0.6cqw] rounded-full px-[2.4cqw] py-[1cqh] font-display text-[min(3cqw,6cqh)] text-bg"
         >
           {scorer.name}
           <span className="sr-only"> ✓</span>
@@ -439,7 +441,7 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
           {scored?.fx.kind === 'correct' && (
             <span
               key={scored.seq}
-              className="absolute top-1/2 left-full ml-[1.5vw] -translate-y-1/2 font-display text-[min(3.2vw,6vh)] leading-none whitespace-nowrap text-win motion-safe:animate-float-up"
+              className="absolute top-1/2 left-full ml-[1.5cqw] -translate-y-1/2 font-display text-[min(3.2cqw,6cqh)] leading-none whitespace-nowrap text-win motion-safe:animate-float-up"
             >
               {signedPoints(scored.fx.points)}
             </span>
@@ -454,7 +456,7 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
 function AnswerText({ answer }: { answer: string | undefined }) {
   return (
     <p
-      className={`max-w-full rounded-[min(1.88vw,3.3vh)] bg-surface px-[4vw] py-[2vh] text-center font-display text-[min(5vw,10vh)] leading-tight break-words text-accent ${STAGE_RING}`}
+      className={`max-w-full rounded-[min(1.88cqw,3.3cqh)] bg-surface px-[4cqw] py-[2cqh] text-center font-display text-[min(5cqw,10cqh)] leading-tight break-words text-accent ${STAGE_RING}`}
     >
       {answer}
     </p>
@@ -471,8 +473,8 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
       data-up={countdown.up || undefined}
       className={`shrink-0 self-end font-display leading-none whitespace-nowrap tabular-nums ${
         countdown.up
-          ? 'rounded-full bg-buzz-ink px-[1.6vw] py-[1vh] text-[min(2.6vw,4.6vh)] text-ink'
-          : 'text-[min(5.6vw,10vh)] text-buzz-ink'
+          ? 'rounded-full bg-buzz-ink px-[1.6cqw] py-[1cqh] text-[min(2.6cqw,4.6cqh)] text-ink'
+          : 'text-[min(5.6cqw,10cqh)] text-buzz-ink'
       }`}
     >
       {countdownText(countdown, t)}
@@ -497,24 +499,25 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
   });
   // Bungee is wide: a long name steps down so more of it fits before the ellipsis.
   const t = useCopy();
-  const nameSize = winner.name.length > 9 ? 'text-[min(5.6vw,10vh)]' : 'text-[min(8.1vw,14.4vh)]';
+  const nameSize =
+    winner.name.length > 9 ? 'text-[min(5.6cqw,10cqh)]' : 'text-[min(8.1cqw,14.4cqh)]';
   return (
     <section
       aria-label="Buzz result"
       data-judged={judgedWrong ? 'wrong' : undefined}
-      className={`mx-[0.8vw] mb-[0.8vw] flex shrink-0 items-center gap-[3vw] rounded-[min(1.88vw,3.3vh)] px-[3vw] py-[2.4vh] transition-colors ${
+      className={`mx-[0.8cqw] mb-[0.8cqw] flex shrink-0 items-center gap-[3cqw] rounded-[min(1.88cqw,3.3cqh)] px-[3cqw] py-[2.4cqh] transition-colors ${
         judgedWrong ? `bg-surface ${DIM_RING}` : `bg-buzz ${STAGE_RING}`
       }`}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-[1vh]">
+      <div className="flex min-w-0 flex-1 flex-col gap-[1cqh]">
         <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-muted' : 'text-buzz-ink'}`}>
           {t('firstToBuzz')}
         </p>
         <h2
-          className={`flex min-w-0 items-center gap-[1.4vw] font-display leading-none ${nameSize} ${
+          className={`flex min-w-0 items-center gap-[1.4cqw] font-display leading-none ${nameSize} ${
             judgedWrong
               ? 'text-muted line-through'
-              : 'text-ink [text-shadow:0.39vw_0.39vw_0_var(--color-buzz-ink)]'
+              : 'text-ink [text-shadow:0.39cqw_0.39cqw_0_var(--color-buzz-ink)]'
           }`}
         >
           {/* Their palette colour, so the player can tell it is them (DECISIONS, Prime Time). */}
@@ -528,7 +531,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
         </h2>
       </div>
       {(countdown || others.length > 0) && (
-        <div className="flex max-w-[58%] shrink-0 flex-col items-end gap-[1.2vh]">
+        <div className="flex max-w-[58%] shrink-0 flex-col items-end gap-[1.2cqh]">
           {countdown && <Countdown countdown={countdown} />}
           {others.length > 0 && (
             <>
@@ -537,12 +540,12 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
               </p>
               <ol
                 aria-label="Also buzzed"
-                className="flex flex-wrap justify-end gap-[0.8vw] overflow-hidden"
+                className="flex flex-wrap justify-end gap-[0.8cqw] overflow-hidden"
               >
                 {others.map(({ player, gapMs }) => (
                   <li
                     key={player.id}
-                    className="flex items-center gap-[0.5vw] rounded-full bg-buzz-ink px-[1vw] py-[0.6vh] text-[min(1.4vw,2.5vh)] whitespace-nowrap"
+                    className="flex items-center gap-[0.5cqw] rounded-full bg-buzz-ink px-[1cqw] py-[0.6cqh] text-[min(1.4cqw,2.5cqh)] whitespace-nowrap"
                   >
                     <span
                       aria-hidden="true"

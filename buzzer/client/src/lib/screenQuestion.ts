@@ -10,11 +10,11 @@ export function formatGap(gapMs: number): string {
  * a short or wide window still fits. Full class strings, so Tailwind can see them.
  */
 const TEXT_STEPS = [
-  'text-[min(6vw,11vh)]',
-  'text-[min(4.8vw,8.5vh)]',
-  'text-[min(3.8vw,6.8vh)]',
-  'text-[min(3vw,5.4vh)]',
-  'text-[min(2.4vw,4.3vh)]',
+  'text-[min(6cqw,11cqh)]',
+  'text-[min(4.8cqw,8.5cqh)]',
+  'text-[min(3.8cqw,6.8cqh)]',
+  'text-[min(3cqw,5.4cqh)]',
+  'text-[min(2.4cqw,4.3cqh)]',
 ] as const;
 
 /** Upper text length for each step but the last. */

@@ -254,17 +254,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F94 Set library grid
 
-- [ ] F95 Set editor toolbar and outline
-  - Spec: Question editor and images (Set editor); see `docs/ux/03-set-editor.md`
-  - Depends: F92
-  - Done when:
-    - EDT-01 … EDT-10 are closed
-    - A sticky toolbar holds save status, Add, Paste, Preview and Print; on phones Add is a sticky bottom button
-    - At `lg`, a sticky question outline jumps to and focuses a card. The cards stay one vertical list (record this in DECISIONS)
-    - Card fields use a grid at `md`; the card header is one line at 375px; every icon button is at least 44px
-    - Paste opens in view, side by side at `md`
-    - QuestionPreview is letterboxed at 16:9, with Show answer as the primary
-  - Tests: `SetEditor.test.tsx` (toolbar actions, outline jump, overflow menu reorder, delete), `QuestionPreview.test.tsx`
+- [x] F95 Set editor toolbar and outline
 
 - [ ] F96 Player phone: landscape and short screens
   - Spec: UI spec by view (Player view); see `docs/ux/04-player.md`

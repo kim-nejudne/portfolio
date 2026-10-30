@@ -86,6 +86,14 @@ const card = (number: number) =>
   within(screen.getByRole('listitem', { name: `Question ${number}` }));
 const type = (label: HTMLElement, value: string) => fireEvent.change(label, { target: { value } });
 
+/** Opens question `number`'s `⋯` menu (EDT-04) and returns its item `name`. */
+function menuItem(number: number, name: string): HTMLElement {
+  const trigger = card(number).getByRole('button', { name: `More actions for question ${number}` });
+  if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+  return card(number).getByRole('menuitem', { name });
+}
+const choose = (number: number, name: string) => fireEvent.click(menuItem(number, name));
+
 describe('Set editor /sets/:setId', () => {
   it('loads the title and a card per question with text, answer, host notes and points', async () => {
     await seed([q('a', { hostNotes: 'Also: A' }), q('b', { points: 250 })]);
@@ -295,14 +303,18 @@ describe('Set editor /sets/:setId', () => {
   it('moves a question up and down; the first cannot go up nor the last down', async () => {
     await seed([q('a'), q('b'), q('c')]);
     await renderEditor();
-    expect(
-      (card(1).getByRole('button', { name: 'Move question 1 up' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(
-      (card(3).getByRole('button', { name: 'Move question 3 down' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    fireEvent.click(card(1).getByRole('button', { name: 'Move question 1 down' }));
-    fireEvent.click(card(3).getByRole('button', { name: 'Move question 3 up' }));
+    expect(menuItem(1, 'Move up').getAttribute('aria-disabled')).toBe('true');
+    // A disabled item does nothing and leaves the menu open.
+    fireEvent.click(menuItem(1, 'Move up'));
+    expect(card(1).getByRole('menu')).toBeTruthy();
+    expect(menuItem(3, 'Move down').getAttribute('aria-disabled')).toBe('true');
+    choose(1, 'Move down');
+    // Choosing closes the menu and gives focus back to its button, on the card that moved.
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(
+      card(2).getByRole('button', { name: 'More actions for question 2' }),
+    );
+    choose(3, 'Move up');
     await settle();
     expect((await getSet('set-1'))!.questions.map((x) => x.id)).toEqual(['b', 'c', 'a']);
     expect((card(1).getByLabelText('Question') as HTMLTextAreaElement).value).toBe('Question b');
@@ -311,12 +323,12 @@ describe('Set editor /sets/:setId', () => {
   it('duplicates a question below the original and deletes one after a second tap', async () => {
     await seed([q('a'), q('b')]);
     await renderEditor();
-    fireEvent.click(card(1).getByRole('button', { name: 'Duplicate question 1' }));
+    choose(1, 'Duplicate');
     expect((card(2).getByLabelText('Question') as HTMLTextAreaElement).value).toBe('Question a');
 
-    fireEvent.click(card(3).getByRole('button', { name: 'Delete question 3' }));
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    fireEvent.click(card(3).getByRole('button', { name: 'Confirm delete' }));
+    choose(3, 'Delete');
+    expect(screen.getAllByRole('listitem', { name: /^Question \d+$/ })).toHaveLength(3);
+    choose(3, 'Confirm delete');
     await settle();
     const saved = (await getSet('set-1'))!.questions;
     expect(saved.map((x) => x.text)).toEqual(['Question a', 'Question a']);
@@ -343,9 +355,7 @@ describe('Set editor /sets/:setId', () => {
       (screen.getByRole('button', { name: 'Add question' }) as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(screen.getByText(QUESTION_CAP_MESSAGE)).toBeTruthy();
-    expect(
-      (card(1).getByRole('button', { name: 'Duplicate question 1' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(menuItem(1, 'Duplicate').getAttribute('aria-disabled')).toBe('true');
   });
 
   it('Paste questions previews the good lines and each bad one with its reason', async () => {
@@ -455,7 +465,7 @@ describe('Set editor /sets/:setId', () => {
     await seed([q('a'), q('b'), q('c')]);
     await renderEditor();
     // jsdom has no layout: give each card a 200 px tall row so the sensor can find its neighbours.
-    screen.getAllByRole('listitem').forEach((item, i) => {
+    screen.getAllByRole('listitem', { name: /^Question \d+$/ }).forEach((item, i) => {
       vi.spyOn(item, 'getBoundingClientRect').mockReturnValue(
         DOMRect.fromRect({ x: 0, y: i * 220, width: 600, height: 200 }),
       );
@@ -536,6 +546,196 @@ describe('Set editor /sets/:setId', () => {
   });
 });
 
+describe('Set editor toolbar and outline (F95)', () => {
+  const toolbar = () => within(screen.getByRole('region', { name: 'Set toolbar' }));
+  const outline = () => within(screen.getByRole('navigation', { name: 'Question outline' }));
+  const scrolled: Element[] = [];
+
+  beforeEach(() => {
+    scrolled.length = 0;
+    // jsdom does not scroll; record which element was asked to come into view.
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+  });
+
+  afterEach(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
+
+  it('a sticky toolbar holds the save status, Add, Paste, Preview and Print', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    expect(screen.getByRole('region', { name: 'Set toolbar' }).className).toContain('sticky');
+    expect(toolbar().getByRole('status', { name: 'Save status' })).toBeTruthy();
+    expect(toolbar().getByRole('button', { name: 'Add question' })).toBeTruthy();
+    expect(toolbar().getByRole('button', { name: 'Paste questions' })).toBeTruthy();
+    expect(toolbar().getByRole('button', { name: 'Preview set' })).toBeTruthy();
+    expect(toolbar().getByRole('link', { name: 'Print answer sheet' }).getAttribute('href')).toBe(
+      '/sets/set-1/print',
+    );
+    expect(toolbar().getByRole('link', { name: 'Question sets' }).getAttribute('href')).toBe(
+      '/sets',
+    );
+  });
+
+  it('on a phone Add question is a fixed bottom button and the rest wait in the ⋯ menu', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const add = toolbar().getByRole('button', { name: 'Add question' });
+    expect(add.className).toMatch(/(^|\s)fixed(\s|$)/);
+    expect(add.className).toContain('md:static');
+    fireEvent.click(toolbar().getByRole('button', { name: 'More set actions' }));
+    expect(
+      toolbar()
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Paste questions', 'Preview set', 'Print answer sheet']);
+    fireEvent.click(toolbar().getByRole('menuitem', { name: 'Paste questions' }));
+    expect(screen.getByLabelText('Questions to paste')).toBeTruthy();
+  });
+
+  it('the title in the toolbar takes the cursor to the set title field', async () => {
+    await seed([q('a')], 'Pub quiz');
+    await renderEditor();
+    // The visible title is the start of the button's name (label in name).
+    fireEvent.click(toolbar().getByRole('button', { name: 'Pub quiz, go to the set title' }));
+    expect(document.activeElement).toBe(screen.getByLabelText('Set title'));
+  });
+
+  it('Preview set opens the preview at the first question, and is off with no questions', async () => {
+    await seed([q('a'), q('b')]);
+    await renderEditor();
+    fireEvent.click(toolbar().getByRole('button', { name: 'Preview set' }));
+    expect(screen.getByRole('dialog', { name: 'Preview of question 1' })).toBeTruthy();
+    cleanup();
+    await db.sets.clear();
+    await seed([]);
+    await renderEditor();
+    expect(
+      (toolbar().getByRole('button', { name: 'Preview set' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('Add question brings the new card into view', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    fireEvent.click(toolbar().getByRole('button', { name: 'Add question' }));
+    expect(scrolled).toContain(screen.getByRole('listitem', { name: 'Question 2' }));
+    expect(document.activeElement).toBe(card(2).getByLabelText('Question'));
+  });
+
+  it('Paste opens under the toolbar, above the questions, and scrolls into view', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    fireEvent.click(toolbar().getByRole('button', { name: 'Paste questions' }));
+    const panel = screen.getByRole('region', { name: 'Paste questions' });
+    expect(scrolled).toContain(panel);
+    const first = screen.getByRole('listitem', { name: 'Question 1' });
+    expect(panel.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    type(screen.getByLabelText('Questions to paste'), 'One? | 1\nbad');
+    // EDT-07: the result lists grow with the page; neither scrolls inside it.
+    for (const name of ['Questions found', 'Lines skipped']) {
+      expect(screen.getByRole('list', { name }).className).not.toContain('overflow');
+    }
+  });
+
+  it('the outline lists each question with its number, text, mode and a dot when it needs attention', async () => {
+    await seed([
+      q('a', { text: 'Capital of France?' }),
+      q('b', { mode: 'choice', choices: ['x', ''], correctChoice: 0, answer: 'x' }),
+      q('c', { text: '', mode: 'typed' }),
+    ]);
+    await renderEditor();
+    expect(
+      outline()
+        .getAllByRole('button')
+        .map((entry) => entry.textContent),
+    ).toEqual([
+      '1Capital of France?Buzz',
+      '2Needs attention:Question bChoice',
+      '3Needs attention:(no text)Typed',
+    ]);
+  });
+
+  it('clicking entry 25 of 30 scrolls card 25 into view and focuses its question', async () => {
+    await seed(Array.from({ length: 30 }, (_, i) => q(`q${i + 1}`)));
+    await renderEditor();
+    fireEvent.click(outline().getAllByRole('button')[24]!);
+    expect(scrolled).toEqual([screen.getByRole('listitem', { name: 'Question 25' })]);
+    expect(document.activeElement).toBe(card(25).getByLabelText('Question'));
+  });
+
+  it('the outline marks the card in view', async () => {
+    let report: ((entries: { target: Element; isIntersecting: boolean }[]) => void) | null = null;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: typeof report) {
+          report = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    await seed([q('a'), q('b'), q('c')]);
+    await renderEditor();
+    // The cards are watched from an effect after they render.
+    await waitFor(() => expect(report).not.toBeNull());
+    act(() =>
+      report!([
+        { target: screen.getByRole('listitem', { name: 'Question 2' }), isIntersecting: true },
+      ]),
+    );
+    const entries = outline().getAllByRole('button');
+    expect(entries.map((entry) => entry.getAttribute('aria-current'))).toEqual([
+      null,
+      'true',
+      null,
+    ]);
+    vi.unstubAllGlobals();
+  });
+
+  it('the toolbar counts the questions that need attention and jumps to the first', async () => {
+    await seed([q('a'), q('b', { answer: '' }), q('c', { text: '' })]);
+    await renderEditor();
+    fireEvent.click(toolbar().getByRole('button', { name: '2 questions need attention' }));
+    expect(scrolled).toEqual([screen.getByRole('listitem', { name: 'Question 2' })]);
+    expect(document.activeElement).toBe(card(2).getByLabelText('Question'));
+    type(card(2).getByLabelText('Answer'), 'B');
+    expect(toolbar().getByRole('button', { name: '1 question needs attention' })).toBeTruthy();
+    type(card(3).getByLabelText('Question'), 'C?');
+    expect(toolbar().queryByRole('button', { name: /need/ })).toBeNull();
+  });
+
+  it('the card header is the grip, the title, Preview and ⋯; the grip is an icon', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const header = card(1).getByRole('heading', { name: 'Question 1' }).parentElement!;
+    expect(
+      within(header)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Drag to reorder question 1', 'Preview question 1', 'More actions for question 1']);
+    const grip = card(1).getByRole('button', { name: 'Drag to reorder question 1' });
+    expect(grip.textContent).toBe('');
+    expect(grip.querySelector('svg')).not.toBeNull();
+    expect(grip.className).toContain('min-w-11');
+  });
+
+  it('a menu of the card deletes it only after Confirm delete, and Cancel keeps it', async () => {
+    await seed([q('a'), q('b')]);
+    await renderEditor();
+    choose(2, 'Delete');
+    choose(2, 'Cancel');
+    expect(screen.getAllByRole('listitem', { name: /^Question \d+$/ })).toHaveLength(2);
+    choose(2, 'Delete');
+    choose(2, 'Confirm delete');
+    expect(screen.getAllByRole('listitem', { name: /^Question \d+$/ })).toHaveLength(1);
+    expect(outline().getAllByRole('button')).toHaveLength(1);
+  });
+});
+
 describe('Set editor images', () => {
   const SHRUNK = 'shrunk webp bytes';
   beforeEach(() => {
@@ -579,7 +779,10 @@ describe('Set editor images', () => {
     const dataTransfer = { files: [png()], types: ['Files'], dropEffect: 'none' };
     const target = screen.getByRole('listitem', { name: 'Question 1' });
     fireEvent.dragOver(target, { dataTransfer });
+    // EDT-09: the card says it will take the file while one is over it.
+    expect(card(1).getByText('Drop image for Question 1')).toBeTruthy();
     fireEvent.drop(target, { dataTransfer });
+    expect(card(1).queryByText('Drop image for Question 1')).toBeNull();
     await card(1).findByRole('img', { name: 'Image for question 1' });
     await expectStoredImage((await savedQuestion()).imageId);
   });
@@ -642,26 +845,24 @@ describe('Set editor images', () => {
   it('Delete question reads as destructive before it is armed (FND-07)', async () => {
     await seed([q('a')]);
     await renderEditor();
-    expect(card(1).getByRole('button', { name: 'Delete question 1' }).className).toContain(
-      'text-buzz',
-    );
-    expect(card(1).getByRole('button', { name: 'Duplicate question 1' }).className).not.toContain(
-      'text-buzz',
-    );
+    expect(menuItem(1, 'Delete').className).toContain('text-buzz');
+    expect(menuItem(1, 'Duplicate').className).not.toContain('text-buzz');
+    // Delete is the menu's last item (FND-07).
+    expect(card(1).getAllByRole('menuitem').at(-1)!.textContent).toBe('Delete');
   });
 
   it('deleting a question deletes its image, but not while a duplicate still shows it', async () => {
     await db.images.add({ id: 'img-a', blob: new Blob(['old']) });
     await seed([q('a', { imageId: 'img-a' })]);
     await renderEditor();
-    fireEvent.click(card(1).getByRole('button', { name: 'Duplicate question 1' }));
-    fireEvent.click(card(1).getByRole('button', { name: 'Delete question 1' }));
-    fireEvent.click(card(1).getByRole('button', { name: 'Confirm delete' }));
+    choose(1, 'Duplicate');
+    choose(1, 'Delete');
+    choose(1, 'Confirm delete');
     expect((await savedQuestion()).imageId).toBe('img-a');
     expect(await db.images.get('img-a')).toBeDefined();
 
-    fireEvent.click(card(1).getByRole('button', { name: 'Delete question 1' }));
-    fireEvent.click(card(1).getByRole('button', { name: 'Confirm delete' }));
+    choose(1, 'Delete');
+    choose(1, 'Confirm delete');
     await settle();
     expect((await getSet('set-1'))!.questions).toEqual([]);
     expect(await db.images.get('img-a')).toBeUndefined();
@@ -730,6 +931,9 @@ describe('Set editor choice questions', () => {
     expect(choiceInput('D')).toBeTruthy();
     expect(card(1).queryByRole('button', { name: 'Add choice' })).toBeNull();
 
+    // EDT-06: Remove is a × icon button, and each radio sits in a label with its letter.
+    expect(card(1).getByRole('button', { name: 'Remove choice A' }).textContent).toBe('');
+    expect(radio('B').closest('label')!.textContent).toContain('B');
     fireEvent.click(card(1).getByRole('button', { name: 'Remove choice A' }));
     expect(radio('A').checked).toBe(true);
     await settle();

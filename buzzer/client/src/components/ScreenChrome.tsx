@@ -4,9 +4,12 @@ import { displayUrl } from '../lib/joinUrl.js';
 import { PILL } from '../lib/ui.js';
 import { BulbRail } from './BulbRail.js';
 
-/** Bulbs on each Screen rail, and their size and padding: 12px bulbs and 14px padding at 1280 wide. */
+/**
+ * Bulbs on each Screen rail, and their size and padding: 12px bulbs and 14px padding at 1280 wide.
+ * In `cqw`/`cqh`, the window's on the Screen and the stage's in the editor's preview (EDT-08).
+ */
 const SCREEN_BULBS = 40;
-const SCREEN_RAIL = 'px-[3.75vw] py-[min(1.1vw,1.94vh)] [--bulb:min(0.94vw,1.67vh)]';
+const SCREEN_RAIL = 'px-[3.75cqw] py-[min(1.1cqw,1.94cqh)] [--bulb:min(0.94cqw,1.67cqh)]';
 
 /** The marquee rail along the top and bottom edge of every Screen state. */
 export function ScreenRail() {
@@ -41,10 +44,12 @@ export function ScreenHeader({
   url,
 }: ScreenHeaderProps) {
   const t = useCopy();
-  const pill = `${PILL} px-[1.6vw] py-[min(0.5vw,0.9vh)] font-display text-[min(1.56vw,2.8vh)] whitespace-nowrap tabular-nums`;
+  const pill = `${PILL} px-[1.6cqw] py-[min(0.5cqw,0.9cqh)] font-display text-[min(1.56cqw,2.8cqh)] whitespace-nowrap tabular-nums`;
   return (
-    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[2vw] px-[3.75vw] py-[min(1.72vw,3vh)]">
-      <p className="font-display text-[min(3.125vw,5.6vh)] leading-none text-accent">{APP_NAME}</p>
+    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[2cqw] px-[3.75cqw] py-[min(1.72cqw,3cqh)]">
+      <p className="font-display text-[min(3.125cqw,5.6cqh)] leading-none text-accent">
+        {APP_NAME}
+      </p>
       {numbered && tileLabel ? (
         <p className={pill}>{tileLabel}</p>
       ) : numbered ? (
@@ -58,7 +63,7 @@ export function ScreenHeader({
         <div
           role="group"
           aria-label="How to join"
-          className="min-w-0 justify-self-end text-right text-[min(1.4vw,2.5vh)] leading-snug text-muted"
+          className="min-w-0 justify-self-end text-right text-[min(1.4cqw,2.5cqh)] leading-snug text-muted"
         >
           <p className="break-all">
             {t('joinAt')} <span className="font-bold text-ink">{displayUrl(url)}</span>

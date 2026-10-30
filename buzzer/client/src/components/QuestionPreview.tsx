@@ -1,13 +1,14 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { QuestionSet, ScreenView } from '../../../shared/types.js';
-import { HOVER } from '../lib/hover.js';
 import { previewView } from '../lib/setEditor.js';
+import { BUTTON_ICON, BUTTON_PRIMARY_SMALL, BUTTON_SMALL } from '../lib/ui.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
+import { Icon } from './Icon.js';
 import { ScreenHeader, ScreenRail } from './ScreenChrome.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
-const barButtonShape = `rounded-xl border-2 px-4 py-2 text-lg transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
-const barButton = `${barButtonShape} border-edge`;
+/** The stage's size: the largest 16:9 box that fits the space above the bar. */
+export const STAGE_SIZE = 'aspect-video w-[min(100cqw,calc(100cqh*16/9))]';
 
 interface QuestionPreviewProps {
   set: QuestionSet;
@@ -18,7 +19,9 @@ interface QuestionPreviewProps {
 
 /**
  * **Preview** (Set editor): question `index` over the whole window, drawn by the Screen's own
- * `ScreenQuestion` from a view without the answer. On a laptop it looks as it will on the TV.
+ * `ScreenQuestion` from a view without the answer, in a letterboxed 16:9 stage that is the size
+ * container of the Screen's `cqw`/`cqh` units. A laptop shows it as the TV will, and a phone in
+ * portrait a small TV (EDT-08).
  * **Show answer** (or `A`) switches to the Screen's reveal; stepping to another question or
  * closing turns it off. Escape closes it; ← and → step through the set.
  */
@@ -70,27 +73,36 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
       role="dialog"
       aria-modal="true"
       aria-label={`Preview of question ${index + 1}`}
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-black"
     >
-      <ScreenRail />
-      <ScreenHeader
-        code={view.code}
-        questionIndex={view.questionIndex}
-        questionCount={view.questionCount}
-        numbered
-      />
-      <ScreenQuestion view={withoutMissingImage(view, imageSrc)} imageSrc={imageSrc} />
-      <ScreenRail />
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t-2 border-edge bg-surface px-4 py-3">
-        <p className="text-muted">Preview: how the Screen shows this question</p>
-        <div className="flex flex-wrap gap-2">
+      <div className="grid min-h-0 flex-1 place-items-center [container-type:size]">
+        <div
+          data-testid="preview-stage"
+          className={`flex flex-col overflow-hidden bg-bg [container-type:size] ${STAGE_SIZE}`}
+        >
+          <ScreenRail />
+          <ScreenHeader
+            code={view.code}
+            questionIndex={view.questionIndex}
+            questionCount={view.questionCount}
+            numbered
+          />
+          <ScreenQuestion view={withoutMissingImage(view, imageSrc)} imageSrc={imageSrc} />
+          <ScreenRail />
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-edge bg-surface px-4 py-3">
+        <p className="hidden text-muted lg:block">Preview: how the Screen shows this question</p>
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-nowrap lg:flex-none">
           <button
             type="button"
             aria-pressed={showAnswer}
             onClick={() => setAnswerOn((on) => !on)}
             disabled={!hasAnswer}
             className={
-              showAnswer ? `${barButtonShape} border-accent bg-accent/15 text-accent` : barButton
+              showAnswer
+                ? `${BUTTON_SMALL} border-accent text-accent`
+                : `${BUTTON_PRIMARY_SMALL} text-base`
             }
           >
             Show answer
@@ -99,7 +111,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             type="button"
             onClick={() => step(index - 1)}
             disabled={isFirst}
-            className={barButton}
+            className={`${BUTTON_SMALL} whitespace-nowrap`}
           >
             ← Previous
           </button>
@@ -107,17 +119,18 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             type="button"
             onClick={() => step(index + 1)}
             disabled={isLast}
-            className={barButton}
+            className={`${BUTTON_SMALL} whitespace-nowrap`}
           >
             Next →
           </button>
           <button
             ref={closeRef}
             type="button"
+            aria-label="Close"
             onClick={onClose}
-            className={`rounded-xl bg-accent px-4 py-2 text-lg text-accent-ink transition not-disabled:active:scale-95 ${HOVER}`}
+            className={BUTTON_ICON}
           >
-            Close
+            <Icon name="x" />
           </button>
         </div>
       </div>
