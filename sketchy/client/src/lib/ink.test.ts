@@ -57,6 +57,34 @@ describe('Screen ink feed', () => {
       { dirty: [9], redraw: false },
     ]);
   });
+
+  it('redraws the whole picture on undo and on clear (F31)', () => {
+    const feed = createScreenInk();
+    feed.turn(1);
+    feed.batch([
+      1,
+      1,
+      [
+        ['b', 1, 0, 1, 1, 1],
+        ['e', 1],
+        ['b', 2, 3, 1, 9, 9],
+        ['e', 2],
+      ],
+    ]);
+    const seen: unknown[] = [];
+    feed.subscribe((change) => seen.push(change));
+    feed.batch([1, 2, [['u']]]);
+    expect(visibleStrokes(feed.picture()!).map((s) => s.id)).toEqual([1]);
+    feed.batch([1, 3, [['c']]]);
+    expect(visibleStrokes(feed.picture()!)).toEqual([]);
+    feed.batch([1, 4, [['u']]]);
+    expect(visibleStrokes(feed.picture()!).map((s) => s.id)).toEqual([1]);
+    expect(seen).toEqual([
+      { dirty: [], redraw: true },
+      { dirty: [], redraw: true },
+      { dirty: [], redraw: true },
+    ]);
+  });
 });
 
 describe('Screen ink feed: seq and snapshots', () => {

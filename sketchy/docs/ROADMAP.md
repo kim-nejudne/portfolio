@@ -76,12 +76,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F30 Colours, sizes and eraser
 
-- [ ] F31 Undo and clear
-  - Spec: Canvas and drawing tools (Tools); Drawing data protocol (Ops and encoding)
-  - Depends: F30, F12
-  - Done when:
-    - Undo back to empty; Clear undoable; the Screen redraws on `u` and `c`
-  - Tests: property test — random op sequences give identical action stacks on drawer, server and Screen models
+- [x] F31 Undo and clear
 
 - [ ] F32 Draw pad hardening
   - Spec: Canvas and drawing tools (Canvas model, Stopping scroll and zoom); UI by role and phase (Drawer phone)

@@ -50,6 +50,36 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 <!-- entries below, newest first -->
 
+## F31 — Undo and clear (2026-10-31)
+**What changed:**
+- Tests only. Undo and Clear already shipped with F30: `padUndo`/`padClear` (`client/src/ink/padTools.ts`), `u`/`c` in the shared action stack (`shared/ink.ts`) and the server's ink log (`server/inkStore.ts`), and the Screen repainting on `redraw` (`InkCanvas.tsx`). F31 proves they agree everywhere.
+- `client/src/ink/undoClear.property.test.ts` (new): the roadmap's property test. 150 seeded sessions of 160 random steps each (mulberry32 `server/rng.ts`, fake timers) run through the real code paths: the pad as `DrawPad` drives it (`pushStroke` + `createInkSender`, undo or clear with a finger down included, random flush ticks), the server's `createInkStore`, and three `createScreenInk` Screens fed the relayed batches. One watches live, one joins late from a snapshot, and one drops a batch, sees the gap and recovers from a snapshot. Whenever nothing is pending, the server's and every Screen's stack are equal point for point. The pad's stack has the same actions (kind, strokeId, colour, size, ended), the same visible strokes and Undo/Clear state, and each stroke's sent points are a subsequence of the pad's, with the same first point and, once the stroke has ended, the same last point (the sender filters and simplifies). Every session ends by undoing back to an empty stack. It asserts more than 5 undos and 1 clear per session on average, so the pass isn't vacuous, and a failure names its seed. Mutation-checked: a pad Undo that skips clears, or a server `u` that refuses to pop a clear, both fail it.
+- `client/src/lib/ink.test.ts` (+1): the Screen feed asks for a full redraw on `u`, on `c` and on the `u` that undoes the clear.
+- No new dependencies (no fast-check: the project's seeded PRNG is enough).
+
+**Decisions:** none new (DECISIONS 53 covers when Undo/Clear are enabled).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: this entry; a failing seed is named. Not changed: no DOM test of `InkCanvas`'s repaint (there's no jsdom; the F30 and F31 playtests check the Screen's pixels).
+- secrets-fairness and mobile-ux not run: no server, shared, ink runtime or UI code changed.
+
+**Playtest:** `.playtest/F31/scenario.ts` (TV Screen 1920×1080, Ana on a 360×560 phone drawing, Ben on a Pixel 7, bots). All 6 steps pass:
+- 3 strokes show on the Screen;
+- Undo ×3 → 0 non-white pixels, with Undo and Clear disabled;
+- 2 strokes, Clear → white, then Undo → both back;
+- Clear, Undo ×3 → empty;
+- the Screen reloaded after a Clear comes back white from its snapshot, and Ana's Undo restores both strokes on it;
+- Ben has no canvas, and the word is in neither Ben's HTML nor the Screen's.
+- No console errors.
+
+**Notes for next session:**
+- The Backlog item on a refused batch (`inkFull`) leaving the pad ahead of the server is still open; the property test stays within the caps on purpose.
+- The F30 Kim check already covers Undo and Clear on real phones.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/ink/undoClear.property.test.ts client/src/lib/ink.test.ts`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE`; as the drawer, draw, Undo back to empty, Clear and Undo, and watch the TV.
+
 ## F30 — Colours, sizes and eraser (2026-10-31)
 **What changed:**
 - **Client (drawer):**
