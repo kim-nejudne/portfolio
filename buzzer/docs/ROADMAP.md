@@ -272,6 +272,75 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F102 Import a bare array of sets
 
+## M26 — Super-admin
+
+- [ ] F103 Built-in sets on the server
+  - Spec: Tech stack and architecture; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
+  - Depends: F102
+  - Done when:
+    - `server/builtInStore.ts` loads `built-in-sets.json` from `DATA_DIR` (`{version: 1, sets, drafts, sampleHidden}`), validated with zod
+    - A missing file is seeded once from `STARTER_SETS` (no drafts, `sampleHidden` false); a later boot never reseeds
+    - A corrupt or invalid file stops the server with a clear error and is never overwritten
+    - Writes are serialized and atomic (temp file, then rename)
+    - `GET /api/built-in-sets` returns `{sets, sampleHidden}`, never drafts
+    - `DATA_DIR` is parsed in `env.ts` (default `./data`; `/app/data` in the image); `data/` is gitignored
+    - `tsconfig.build.json` no longer excludes `shared/starterSets` and `shared/builtInSets.ts`
+    - The Dockerfile creates `/app/data` owned by `node`; `deploy/compose.deploy.yaml` mounts `./data:/app/data`
+    - README Deploy covers the volume (`chown 1000:1000 /opt/buzzr/data` on first deploy) and backing it up
+    - `npm run smoke:docker` checks `GET /api/built-in-sets` returns 60 sets
+  - Tests: `server/builtInStore.test.ts` (seed once, no reseed after deletes, corrupt file refused, atomic write, serialized writes), `server/http.builtins.test.ts`, `server/env.test.ts`
+
+- [ ] F104 Client reads built-ins from the server
+  - Spec: Set list `/sets`; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
+  - Depends: F103
+  - Done when:
+    - `client/src/lib/builtInSets.ts` fetches `/api/built-in-sets` once per page load, with a `useBuiltInSets()` hook (loading, error, Retry)
+    - The sample comes first unless `sampleHidden`
+    - The Built-in tab, the editor's category suggestions, `listHostableSets`, `duplicateBuiltIn`, **Host a game** and the **New game** picker use the server's list instead of `BUILT_IN_SETS`
+    - A failed fetch shows "Couldn't load the built-in sets." with Retry; My sets still work
+    - The Dexie v3 clean-up still compares stored copies against the bundled starters
+    - A My set and a built-in with the same id both list and host correctly (rows keyed by source and id)
+  - Tests: `builtInSets.test.ts`, `db.test.ts`, `Sets.test.tsx`, `NewGamePicker.test.tsx`, `GameBuilder.test.tsx` as touched
+
+- [ ] F105 Admin login
+  - Spec: Security; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
+  - Depends: F103
+  - Done when:
+    - `ADMIN_PASSWORD_HASH` (`scrypt$N$r$p$salt$hash`) is parsed in `env.ts`; a malformed value stops the server
+    - `npm run admin:hash` (`scripts/admin-hash.mjs`, `node:crypto`) reads a password without echo and prints the hash
+    - Unset, every `/api/admin/*` route returns 404
+    - `POST /api/admin/login {password}`: constant-time scrypt check, 5 tries per IP per minute, sets `buzzr_admin` (HttpOnly, SameSite=Strict, Path=/api/admin, Max-Age 12 h, Secure when `req.secure`)
+    - Sessions are 32 random bytes held in memory as SHA-256 hashes with an expiry; a restart logs out
+    - `GET /api/admin/session` (200 `{expiresAt}` or 401) and `POST /api/admin/logout`
+    - Admin writes require a JSON content type and a same-origin `Origin`
+    - `/admin` page: password form, wrong-password and rate-limit errors, signed-in state with Logout and a link to Question sets; nothing links to it
+    - `useAdminSession()` for later features
+  - Tests: `server/admin.test.ts`, `server/http.admin.test.ts` (404 unset, wrong password, rate limit, expiry, cookie flags, Origin), `server/env.test.ts`, `client/src/pages/Admin.test.tsx`
+
+- [ ] F106 Admin import, delete, hide sample, export
+  - Spec: Set list `/sets`; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
+  - Depends: F104, F105
+  - Done when:
+    - `POST /api/admin/built-in-sets/import` takes a single set, `{sets}` or a bare array (as F102), up to `ADMIN_IMPORT_MAX_BYTES` (2 MB); each good set goes live at once, replacing a set with its id or appending; a set with an `imageId` or past `BUILT_IN_SETS_MAX` (500) is rejected; it returns `{added, replaced, rejected}`
+    - `DELETE /api/admin/built-in-sets/:id` removes the live set and its draft
+    - `PUT /api/admin/sample-hidden {hidden}`
+    - `GET /api/admin/built-in-sets/export` downloads `buzzr-built-ins-YYYY-MM-DD.json` as `{sets: [...]}`, which re-imports as is
+    - Signed in, the Built-in tab shows **Import to built-ins** (with a result line), **Export built-ins**, **Hide sample** / **Show sample**, and per set **Delete** with confirm; the list refreshes after each
+    - Signed out, the tab looks as in F104
+  - Tests: `server/http.admin.test.ts` (add vs replace, image and limit rejections, 401 without a session, export round trip), `Sets.test.tsx` (admin toolbar)
+
+- [ ] F107 Edit built-ins with draft and publish
+  - Spec: Set editor; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
+  - Depends: F106
+  - Done when:
+    - `draftSetSchema` in `shared/schemas.ts`: the set shape with incomplete fields allowed, bounded lengths, no `imageId`
+    - `GET|PUT|DELETE /api/admin/built-in-sets/:id/draft` and `POST /api/admin/built-in-sets/:id/publish`; GET falls back to the live set; publish validates with `questionSetSchema` and replaces the live set
+    - `SetEditor` takes a store (IndexedDB or the admin draft API); `/admin/sets/:setId` opens a built-in for the signed-in admin only
+    - In admin mode the editor hides picture controls and shows **Publish** and **Discard draft**; publish errors name the bad fields
+    - Signed in, a built-in card has **Edit** and a "Draft" badge while a draft exists
+    - A draft never appears in `GET /api/built-in-sets`
+  - Tests: `server/http.admin.test.ts` (draft round trip, publish validation, discard, draft hidden from the public list), `shared/schemas.test.ts`, `SetEditor.test.tsx` (admin mode)
+
 ## Bugs
 
 ## Backlog (not scheduled)
