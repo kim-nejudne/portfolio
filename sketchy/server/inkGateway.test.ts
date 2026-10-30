@@ -164,6 +164,58 @@ describe('/ink relay', () => {
     for (const c of [d.screen, d.ana.main, d.ben.main]) expect(inkEvents(c)).toEqual([]);
   });
 
+  it('across a whole game, only the Screens get ink: no guesser, crowned guesser, late joiner or drawer', async () => {
+    const l = await lobby();
+    const plainScreen = await l.connect('');
+    expect(await plainScreen.emit('screen:join', { code: CODE })).toEqual({ ok: true });
+    const plainScreenInk = await l.connect('/ink');
+    expect(await plainScreenInk.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
+    const cy = await joinPlayer(l, 'c'.repeat(21), 'Cy');
+    const phones = { ana: l.ana, ben: l.ben, cy };
+    // Every phone also says hello, as a Screen would; it must still not be counted as one.
+    for (const p of Object.values(phones))
+      expect(await p.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
+
+    let dee: Awaited<ReturnType<typeof joinPlayer>> | undefined;
+    const sent: InkBatch[] = [];
+    for (const [n, name] of (['ana', 'ben', 'cy'] as const).entries()) {
+      expect(await l.screen.emit(n === 0 ? 'host:start' : 'host:next')).toEqual({ ok: true });
+      const room = l.rooms.get(CODE)!;
+      expect(room.turn!.drawerPid).toBe(phones[name].pid);
+      // Ana keeps the crown throughout, so turns 2 and 3 have a crowned guesser.
+      expect(room.crownPid).toBe(l.ana.pid);
+      for (const seq of [1, 2]) {
+        const batch = stroke(room.turn!.id, seq);
+        expect(await phones[name].ink.emit('ink:batch', batch)).toEqual({ ok: true });
+        sent.push(batch);
+      }
+      if (n === 0) {
+        dee = await joinPlayer(l, 'd'.repeat(21), 'Dee');
+        expect(await dee.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
+      }
+      expect(await l.screen.emit('host:skip')).toEqual({ ok: true });
+    }
+    expect(await l.screen.emit('host:next')).toEqual({ ok: true });
+    expect(l.rooms.get(CODE)!.phase).toBe('FINAL');
+
+    for (const screenInk of [l.screenInk, plainScreenInk]) {
+      await expect
+        .poll(() => inkEvents(screenInk).filter(([e]) => e === 'ink:batch'))
+        .toEqual(sent.map((b) => ['ink:batch', b]));
+    }
+    const phoneSockets = [...Object.values(phones), dee!];
+    // A round trip on each phone socket after the relays: anything sent to it would be here now.
+    for (const p of phoneSockets) await p.ink.emit('ink:hello', { code: CODE });
+    // The main namespace carries only views and fx: no ink under any event name.
+    const mainEventNames = (c: Client) => new Set(c.events.map(([e]) => e));
+    for (const p of phoneSockets) {
+      expect(p.ink.events).toEqual([]);
+      expect([...mainEventNames(p.main)].sort()).toEqual(['fx', 'state']);
+    }
+    for (const c of [l.screen, plainScreen])
+      expect([...mainEventNames(c)].every((e) => e === 'state' || e === 'fx')).toBe(true);
+  });
+
   it('drops a batch from a guesser', async () => {
     const d = await drawing();
     expect(await d.ben.ink.emit('ink:batch', stroke(d.turnId, 1))).toEqual({

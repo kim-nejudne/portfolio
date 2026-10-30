@@ -28,13 +28,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M2 — Fair and secret
 
-- [ ] F10 Secrecy leak tests
-  - Spec: Data model (Role views); Reconnects, security and edge cases (Security)
-  - Depends: F05, F06
-  - Done when:
-    - A scripted game visits every phase; every ScreenView, guesser PlayerView and crown PlayerView is serialised and checked: no word, alternate, gloss or choice before REVEAL, including for a guesser who already guessed correctly
-    - A socket test confirms `/ink` events reach only Screen sockets (and the drawer's own snapshot)
-  - Tests: `views.leak.test.ts`, `inkGateway.test.ts`
+- [x] F10 Secrecy leak tests
 
 - [ ] F11 Ink codec and action stack
   - Spec: Drawing data protocol (Ops and encoding, Drawer client)

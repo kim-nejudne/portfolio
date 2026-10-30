@@ -24,6 +24,48 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 <!-- entries below, newest first -->
 
+## F10 — Secrecy leak tests (2026-10-30)
+**What changed:**
+- `server/views.leak.test.ts` (new):
+  - **Marked words.** `vi.mock('./words.v0.js')` replaces the v0 words with `qz`-marked words (`qzwN`), alternates (`qzaN`/`qzbN`) and glosses (`qzgN`).
+  - **The audit.** `audit(label, room, now, effects)` serialises the views of both Screens and every player, then checks each `qz` token against `allowedFor(room, audience)`. A viewer may see: the public word from REVEAL on (every past word in FINAL), the drawer's own choices, word and glosses in CHOOSING/DRAWING, and the `upcoming` drawer's in REVEAL/SCOREBOARD. Screens may also see close-guess text from REVEAL on. Alternates are never allowed. `fx` effects are checked per recipient; internal effects must be public-only.
+  - **Scripted reducer game.** It runs: lobby, then turn 1 with a crowned drawer, a wrong guess, a right guess and a late joiner. Then REVEAL, and turn 2, where the crowned guesser guesses right and the crown passes on leave. Then turn 3 with the new crowned guesser right, and FINAL. CHOOSING (before and after choosing), SCOREBOARD, pause and resume, `upcoming` and close guesses are built by hand (`synth`). The test asserts that all six phases were audited. Positive controls (the drawer gets the word and gloss, the Screen gets the reveal, close guesses and the gallery, the upcoming drawer gets their cards) keep the check from passing vacuously.
+  - **Alternates test.** A second test checks that no alternate reaches anyone, the drawer included, in any phase.
+  - **Near-miss test (`it.fails`).** A real guess of the word plus "x" reaches the Screen's feed in DRAWING, because v0 feeds guesses raw (DECISIONS 18). F15 must turn this test into `it`.
+  - **Socket-level game.** Three turns through the real `attachSockets`, with a Screen with the token, a Screen without it, 3 players and a late joiner. After a `ping` round trip on every socket, it checks every `state`, `fx` and ack each socket received, and every `console.*` line. It also covers refused guesses of the word (`drawerCannotGuess`, `alreadyGuessed`, too long → `invalidPayload`, `wrongPhase` in REVEAL). A one-off store failure during the right guess forces the gateway's logged error path, and the test checks the logged line doesn't contain the guess.
+- `server/inkGateway.test.ts`: a new whole-game test. Two Screens (with and without the token), three drawers in turn, a crowned guesser and a late joiner. Every phone also sends `ink:hello`. Both Screens get every batch in order. No phone's `/ink` socket gets any event, the drawer included until F12's snapshot, and main sockets get only `state` and `fx`.
+- No production code changed. No new dependencies.
+
+**Decisions:** DECISIONS 33 covers the marker approach, the allow-list rules, and which hand-built state each later feature replaces. **Mutation-checked**: each of these deliberate leaks fails at least one test, and the files were restored afterwards:
+- the word before REVEAL;
+- secrets to a correct guesser;
+- alternates to the drawer;
+- close guesses before REVEAL;
+- `upcoming` choices to everyone;
+- the drawer's view sent to every phone by the gateway;
+- phones joining `ink:<code>:screen` on hello;
+- the gateway logging a failed event's raw payload.
+
+Reviews:
+- spec-checker: PASS WITH FIXES. Applied: DECISIONS 33, a `SPEC-QUESTION` at the `synth` note, and a header note that secrets must come from the mocked list and that logs are spied through `console.*`.
+- secrets-fairness: PASS WITH FIXES. Applied:
+  - the log check was vacuous (a clean game never logs), so a forced gateway failure now logs and is checked;
+  - refused-guess acks;
+  - the `it.fails` near-miss test;
+  - the drawer's allow-list narrowed to the chosen word once there is one;
+  - `TODO(F15/F18/F20/F21/F23)` at each `synth`;
+  - a note not to batch actions between checkpoints;
+  - Dee's `ink:hello` and the main-namespace event check.
+
+**Notes for next session:**
+- F15: flip `it.fails('keeps a near miss of the word off the Screen until REVEAL')` to `it`, and make close guesses real (drop the `synth close guess` step). Masked feed text must stay `qz`-free, and the leak test's `CLOSE_TEXT` rule (Screen only, from REVEAL) is the spec's.
+- F17/F18: `words.v0.ts` goes away. Mock the pack loader/deck with `qz` words instead (keep `LEAK_WORDS`), and replace `synth CHOOSING` with `drawer:choose` and the auto-pick. The socket test then visits CHOOSING for real.
+- F20: replace `synth SCOREBOARD`. F21: replace the `upcoming` synth (the roadmap says `views.leak.test.ts` covers `upcoming`). F23: replace the pause synth with `host:pause`/`host:resume`. F25/the crown feature: the leak test already covers the crowned guesser; extend with the `host` block's custom-word count if words get one.
+- F12: the drawer's own snapshot will make the drawer's `ink.events` non-empty after a hello. Update the whole-game ink test to allow exactly the drawer's own `ink:snapshot` for the current turn and nothing for other phones. Cover `/ink` acks and `ink:get` (Screens only) there too.
+- When a logger replaces `console.*`, spy on it in the socket leak test.
+
+**How to try it:** `npx vitest run server/views.leak.test.ts server/inkGateway.test.ts` (3 + 1 expected fail, and 16 tests). To see the leak test bite, change `word: show && turn.word ?` to `word: turn.word ?` in `server/views.ts` `turnView` and rerun (2 failures), then revert.
+
 ## F09 — Dev tool: fake players (2026-10-30)
 **What changed:**
 - `server/http.ts`: dev-only `GET /api/dev/rooms/:code/word` → `{turnId, word}` (`DevWordResponse` in `shared/types.ts`), registered only with `createApp({dev: true})`. `server/env.ts` `devToolsEnabled(NODE_ENV)` is true only for `development`, which `npm run dev` now sets on the server command; unset, `production` or anything else → 404 (fails closed).
