@@ -20,13 +20,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F06 Ink relay v0
 
-- [ ] F07 Screen page v0
-  - Spec: UI by role and phase (Landing page, Screen)
-  - Depends: F05, F06
-  - Done when:
-    - Landing **Start a game on this screen** creates a room and opens `/screen/:code`
-    - Lobby shows the code, join URL, player chips and Start (with token); Drawing shows the square canvas rendering ink live, timer, blanks and players; Reveal shows the word and points; Final shows the ranking
-    - Landscape layout only for now
+- [x] F07 Screen page v0
 
 - [ ] F08 Player page v0
   - Spec: UI by role and phase (Landing page, Drawer phone, Guesser phone); Canvas and drawing tools (Stopping scroll and zoom)

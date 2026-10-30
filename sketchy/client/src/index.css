@@ -1,1 +1,22 @@
 @import 'tailwindcss';
+
+/* Look and feel: marker on paper. The self-hosted display face arrives with the join budget (F39);
+   until then the rounded system face stands in. */
+@theme {
+  --font-display: ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif;
+}
+
+html,
+body {
+  background: #1d1b22;
+  color: #fff;
+  color-scheme: dark;
+  /* No pull-to-refresh or rubber-banding on a tablet Screen mid-game. */
+  overscroll-behavior: none;
+}
+
+button,
+input {
+  /* No double-tap zoom on controls. */
+  touch-action: manipulation;
+}
