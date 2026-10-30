@@ -442,7 +442,7 @@ describe('Host a game', () => {
         'Phone only',
       ]);
       const region = screen.getByRole('region', { name: 'Room created' });
-      expect(region.querySelector('.md\\:grid-cols-2')).toBeTruthy();
+      expect(region.querySelector('.\\@xl\\/room\\:grid-cols-2')).toBeTruthy();
       expect(screen.getByRole('button', { name: 'This is the Screen' }).className).toContain(
         'bg-accent',
       );

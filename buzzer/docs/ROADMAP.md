@@ -343,6 +343,8 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 ## Bugs
 
+- [x] B01 Room created cramped on /sets at desktop
+
 ## Backlog (not scheduled)
 
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).

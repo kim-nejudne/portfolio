@@ -245,6 +245,20 @@ describe('Set list tabs', () => {
     expect(new Set(set.questions.map((q) => q.points))).toEqual(new Set([300]));
   });
 
+  it('Room created gets a content-width page and sets its columns from its own width (B01)', async () => {
+    stubServer();
+    renderSets();
+    fireEvent.click((await card(SAMPLE_SET.title)).getByRole('button', { name: /^Host / }));
+
+    const region = await screen.findByRole('region', { name: 'Room created' });
+    expect(document.querySelector('[data-width]')?.getAttribute('data-width')).toBe('content');
+    // Two to a row only when the card itself is wide enough, not whenever the window is.
+    expect(region.className).toContain('@container/room');
+    const grid = within(region).getAllByRole('button')[0]!.parentElement!;
+    expect(grid.className).toContain('@xl/room:grid-cols-2');
+    expect(grid.className).not.toContain('md:grid-cols-2');
+  });
+
   it('Preview of the built-in sample shows its answers and its pictures from the bundle', async () => {
     Object.assign(URL, { createObjectURL: () => 'blob:sample', revokeObjectURL: () => {} });
     renderSets();

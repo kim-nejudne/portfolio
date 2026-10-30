@@ -294,7 +294,7 @@ export function Sets() {
 
   if (hostedCode !== null) {
     return (
-      <PageShell width="narrow">
+      <PageShell width="content">
         <RoomCreated code={hostedCode} />
         <button type="button" onClick={() => setHostedCode(null)} className={`${LINK} text-lg`}>
           Back to question sets

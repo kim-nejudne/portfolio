@@ -10,6 +10,18 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## B01 — Room created cramped on /sets at desktop (2026-10-30)
+**What changed:**
+- `RoomCreated`'s option grid went two to a row at the `md` viewport breakpoint, but on `/sets` the card sits in a `narrow` (448px) PageShell, so a desktop split about 330px into two 160px columns: titles broke word by word and "Screen elsewhere" ran past its card. The grid now follows the card's own width (`@container/room` on the section, `@xl/room:grid-cols-2`, 36rem of card content), as `HostSettings` does.
+- `/sets` shows Room created in a `content` (`max-w-3xl`) PageShell, so a desktop gets the same 2×2 as Landing. Landing is unchanged.
+- Tests: `Sets.test.tsx` +1 (content-width shell, container-query grid, no `md:grid-cols-2`). The Landing LND-05 test now looks for the container-query class. 2618 tests. No new dependency.
+
+**Decisions:** the DECISIONS row dated 2026-10-30 for B01.
+
+**Notes for next session:** the grid is 2×320px on `/sets` and 2×512px on Landing at 1440×900; both are 2×2, one column at 375px.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets` at a desktop width and click Host on any set. Expect four option cards in a centred 2×2 grid, each title on one line.
+
 ## F102 — Import a bare array of sets (2026-10-30)
 **What changed:**
 - `parseImportFile` (`client/src/lib/importExport.ts`) reads a top-level JSON array like an Export all file: each entry through `parseSetValue`, labelled by `entryLabel`, via a new shared `parseEntries`. `[]` is refused with "The file has no sets". `Sets.tsx` needed no change: its `many` branch imports the good sets, lists the bad ones and shows "Imported 3 sets.".

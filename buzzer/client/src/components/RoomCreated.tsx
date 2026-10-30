@@ -42,13 +42,14 @@ export function RoomCreated({ code }: { code: string }) {
   return (
     <section
       aria-labelledby="host-heading"
-      className={`flex flex-col gap-4 ${CARD} shadow-[0_0_0_6px_var(--color-bg),0_0_0_10px_var(--color-accent)]`}
+      className={`@container/room flex flex-col gap-4 ${CARD} shadow-[0_0_0_6px_var(--color-bg),0_0_0_10px_var(--color-accent)]`}
     >
       <h2 id="host-heading" className="font-display text-3xl">
         Room created
       </h2>
       <p className="text-center font-display text-6xl tracking-[0.2em] text-accent">{code}</p>
-      <div className="grid gap-3 md:grid-cols-2">
+      {/* Two to a row from the card's own width: Landing and Sets give it different widths (B01). */}
+      <div className="grid gap-3 @xl/room:grid-cols-2">
         {order.map((option, index) => {
           const { icon, title, hint } = OPTIONS[option];
           const primary = index === 0;
