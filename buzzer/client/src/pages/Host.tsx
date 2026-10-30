@@ -40,8 +40,14 @@ import { ordinal } from '../lib/results.js';
 import { cardFromRoom } from '../lib/resultsCard.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LABEL, LINK, PILL } from '../lib/ui.js';
-import { useHostCommand, useSendHost, type SendHost } from '../lib/useHostCommand.js';
+import {
+  useHostCommand,
+  useSendHost,
+  type HostCommand,
+  type SendHost,
+} from '../lib/useHostCommand.js';
 import { usePreloadImage } from '../lib/usePreloadImage.js';
+import { useDesktopLayout } from '../lib/useMediaQuery.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 
 interface HostProps {
@@ -159,6 +165,9 @@ interface HostRemoteProps {
 }
 
 const TABS = ['Game', 'Players', 'Settings'] as const;
+
+/** A dashboard pane that scrolls on its own (F99), with room for focus rings at its edges. */
+const PANE = '-m-1 overflow-y-auto p-1 [scrollbar-color:var(--color-edge)_transparent]';
 type Tab = (typeof TABS)[number];
 
 function HostRemote({ view, hostToken, send }: HostRemoteProps) {
@@ -180,17 +189,87 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   };
   usePreloadImage(view.code, view.nextQuestion?.imageId);
   useVibrateOnTimeUp();
-  const game = tab === 'Game';
+  // At `lg` the remote is a dashboard with no tabs: Game | Players and Settings (F99, HST-09).
+  const desktop = useDesktopLayout();
+  const game = desktop || tab === 'Game';
   // On the board the tiles are the action, so the bar steps aside for them.
   const hasPrimary = view.phase === 'FINAL' || view.phase === 'BUZZED' || !!primaryFor(view);
+
+  const gameContent = (
+    <>
+      {view.phase === 'FINAL' ? (
+        <GameOverCard view={view} />
+      ) : !readAloud ? (
+        <QuestionCard view={view} />
+      ) : view.phase === 'LOBBY' ? (
+        <ReadAloudJoin code={view.code} />
+      ) : (
+        <ReadAloudQuestion view={view} />
+      )}
+      {view.phase === 'BOARD' && view.board && <HostBoard board={view.board} command={command} />}
+      {view.choice && view.phase !== 'FINAL' && (
+        <ChoiceTally
+          choice={view.choice}
+          phase={view.phase}
+          showCorrect={!readAloud || view.phase === 'REVEAL'}
+        />
+      )}
+      {view.typed && view.phase !== 'FINAL' && (
+        <TypedMarking
+          typed={view.typed}
+          phase={view.phase}
+          command={command}
+          showGroups={!readAloud || view.typed.closed || view.phase === 'REVEAL'}
+        />
+      )}
+      {view.phase === 'BUZZED' && view.canJudge && <AlsoBuzzed view={view} />}
+    </>
+  );
+  const primary = game && hasPrimary && (
+    // The action that runs the game: stuck to the bottom of the Game tab in every phase (HST-01),
+    // and in place in the Game column at `lg`, which is always in view (HST-09).
+    <div
+      role="region"
+      aria-label="Primary action"
+      className={
+        desktop
+          ? ''
+          : 'sticky bottom-0 z-20 -mx-4 mt-auto border-t-2 border-edge bg-bg/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+      }
+    >
+      {view.phase === 'FINAL' ? (
+        <button
+          type="button"
+          onClick={() => setPickingNewGame(true)}
+          className={`${BUTTON_PRIMARY} w-full text-xl`}
+        >
+          New game
+        </button>
+      ) : (
+        <PrimaryAction view={view} command={command} bigWinner={readAloud} />
+      )}
+    </div>
+  );
+  const lobbyPairing = view.phase === 'LOBBY' && (
+    <PairHostPhone
+      code={view.code}
+      hostToken={hostToken}
+      className="self-start text-lg"
+      dialogClassName="text-lg"
+      qrSize="min(70vw, 20rem)"
+    />
+  );
+
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4">
+    <main
+      className={`mx-auto flex min-h-dvh w-full flex-col px-4 ${desktop ? 'h-dvh max-w-6xl lg:px-8' : 'max-w-md md:max-w-2xl'}`}
+    >
       {/* One line, so the tabs and the action bar leave the most room to the content (HST-02). */}
       <header className="flex items-center gap-2 pt-3 pb-2">
         {/* Below 360px the word goes, so the room code, the pill and Read aloud still fit. */}
         <h1 className="shrink-0 font-display text-lg text-accent">
           <span className="max-[359px]:sr-only">Host</span>
-          <span className="sr-only"> controls</span>
+          <span className={desktop ? '' : 'sr-only'}> controls</span>
         </h1>
         <p className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
           <ConnectionDot />
@@ -219,110 +298,87 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       >
         Read aloud: big question text, answer covered.
       </p>
-      {/* Stuck under the top edge, on a solid fill, so the tabs stay in reach on a long list (HST-02). */}
-      <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-2">
-        <div
-          role="tablist"
-          aria-label="Remote"
-          onKeyDown={(event) => {
-            const next = tabForKey(tab, event.key);
-            if (!next) return;
-            event.preventDefault();
-            setTab(next);
-            tabRefs.current[next]?.focus();
-          }}
-          className="grid grid-cols-3 gap-1 rounded-2xl border-2 border-edge bg-surface p-1"
-        >
-          {TABS.map((name) => (
-            <button
-              key={name}
-              ref={(button) => {
-                tabRefs.current[name] = button;
-              }}
-              type="button"
-              role="tab"
-              id={`tab-${name}`}
-              aria-selected={tab === name}
-              tabIndex={tab === name ? 0 : -1}
-              aria-controls={`panel-${name}`}
-              onClick={() => setTab(name)}
-              className={`min-h-11 rounded-xl px-1 py-2 text-base whitespace-nowrap max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
-            >
-              {name === 'Players' ? `Players (${view.players.length})` : name}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div
-        role="tabpanel"
-        id={`panel-${tab}`}
-        aria-labelledby={`tab-${tab}`}
-        className="flex flex-col gap-5 pt-3 pb-5"
-      >
-        {game && (
-          <>
-            {view.phase === 'FINAL' ? (
-              <GameOverCard view={view} />
-            ) : !readAloud ? (
-              <QuestionCard view={view} />
-            ) : view.phase === 'LOBBY' ? (
-              <ReadAloudJoin code={view.code} />
-            ) : (
-              <ReadAloudQuestion view={view} />
-            )}
-            {view.phase === 'BOARD' && view.board && (
-              <HostBoard board={view.board} command={command} />
-            )}
-            {view.choice && view.phase !== 'FINAL' && (
-              <ChoiceTally
-                choice={view.choice}
-                phase={view.phase}
-                showCorrect={!readAloud || view.phase === 'REVEAL'}
-              />
-            )}
-            {view.typed && view.phase !== 'FINAL' && (
-              <TypedMarking
-                typed={view.typed}
-                phase={view.phase}
-                command={command}
-                showGroups={!readAloud || view.typed.closed || view.phase === 'REVEAL'}
-              />
-            )}
-            {view.phase === 'BUZZED' && view.canJudge && <AlsoBuzzed view={view} />}
+      {desktop ? (
+        // Two columns that each scroll on their own, so the page never does: the host can judge,
+        // adjust a score and change a setting with everything in view (HST-09).
+        <div className="grid min-h-0 flex-1 grid-cols-5 gap-6 pt-2">
+          <section
+            aria-label="Game"
+            className={`col-span-3 flex min-h-0 flex-col gap-5 pb-6 ${PANE}`}
+          >
+            {gameContent}
+            {primary}
             <SecondaryActions view={view} command={command} />
-            {view.phase === 'LOBBY' && (
-              <PairHostPhone
-                code={view.code}
-                hostToken={hostToken}
-                className="self-start text-lg"
-                dialogClassName="text-lg"
-                qrSize="min(70vw, 20rem)"
-              />
-            )}
-          </>
-        )}
-        {tab === 'Players' && <HostPlayers view={view} command={command} />}
-        {tab === 'Settings' && <HostSettings view={view} command={command} />}
-      </div>
-      {/* The action that runs the game, stuck to the bottom of the Game tab in every phase (HST-01). */}
-      {game && hasPrimary && (
-        <div
-          role="region"
-          aria-label="Primary action"
-          className="sticky bottom-0 z-20 -mx-4 mt-auto border-t-2 border-edge bg-bg/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-        >
-          {view.phase === 'FINAL' ? (
-            <button
-              type="button"
-              onClick={() => setPickingNewGame(true)}
-              className={`${BUTTON_PRIMARY} w-full text-xl`}
-            >
-              New game
-            </button>
-          ) : (
-            <PrimaryAction view={view} command={command} bigWinner={readAloud} />
-          )}
+            {lobbyPairing}
+          </section>
+          {/* Players and Settings share the column, each scrolling in its own pane, so the
+              Settings toggle stays in view under a long list. */}
+          <div className="col-span-2 flex min-h-0 flex-col gap-5 pb-6">
+            <div className={`min-h-0 shrink ${PANE}`}>
+              <HostPlayers view={view} command={command} />
+            </div>
+            <SettingsDisclosure view={view} command={command} />
+          </div>
         </div>
+      ) : (
+        <>
+          {/* Stuck under the top edge, on a solid fill, so the tabs stay in reach on a long list (HST-02). */}
+          <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-2">
+            <div
+              role="tablist"
+              aria-label="Remote"
+              onKeyDown={(event) => {
+                const next = tabForKey(tab, event.key);
+                if (!next) return;
+                event.preventDefault();
+                setTab(next);
+                tabRefs.current[next]?.focus();
+              }}
+              className="grid grid-cols-3 gap-1 rounded-2xl border-2 border-edge bg-surface p-1"
+            >
+              {TABS.map((name) => (
+                <button
+                  key={name}
+                  ref={(button) => {
+                    tabRefs.current[name] = button;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`tab-${name}`}
+                  aria-selected={tab === name}
+                  tabIndex={tab === name ? 0 : -1}
+                  aria-controls={`panel-${name}`}
+                  onClick={() => setTab(name)}
+                  className={`min-h-11 rounded-xl px-1 py-2 text-base whitespace-nowrap max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
+                >
+                  {name === 'Players' ? `Players (${view.players.length})` : name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div
+            role="tabpanel"
+            id={`panel-${tab}`}
+            aria-labelledby={`tab-${tab}`}
+            className="flex flex-col gap-5 pt-3 pb-5"
+          >
+            {game && (
+              <>
+                {gameContent}
+                <SecondaryActions view={view} command={command} />
+                {lobbyPairing}
+              </>
+            )}
+            {tab === 'Players' && <HostPlayers view={view} command={command} />}
+            {tab === 'Settings' && (
+              // From `md` the rows sit two to a line (HST-10).
+              <div className="@container/settings">
+                <HostSettings view={view} command={command} />
+              </div>
+            )}
+          </div>
+          {primary}
+        </>
       )}
       {pickingNewGame && (
         <NewGamePicker
@@ -337,6 +393,38 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       )}
       <Toast toast={toast} />
     </main>
+  );
+}
+
+/**
+ * The dashboard's Settings, under Players (HST-09): a disclosure, open by default in the lobby and
+ * closed by default once the game has started, until the host opens or closes it.
+ */
+function SettingsDisclosure({ view, command }: { view: HostView; command: HostCommand }) {
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const open = chosen ?? view.phase === 'LOBBY';
+  return (
+    <div className={`flex min-h-0 flex-col gap-3 ${open ? 'shrink' : 'shrink-0'}`}>
+      <h2 className="font-display text-xl text-accent">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="settings-panel"
+          onClick={() => setChosen(!open)}
+          className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-1 text-left ${HOVER}`}
+        >
+          Settings
+          <span aria-hidden className={`text-base transition ${open ? 'rotate-180' : ''}`}>
+            ▾
+          </span>
+        </button>
+      </h2>
+      {open && (
+        <div id="settings-panel" className={`@container/settings min-h-0 ${PANE}`}>
+          <HostSettings view={view} command={command} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -417,18 +505,27 @@ function QuestionCard({ view }: { view: HostView }) {
         <span>{label}</span>
         <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
       </p>
-      {question.text && <p className="text-base font-bold">{question.text}</p>}
-      {question.imageId && (
-        <img
-          src={imageUrl(view.code, question.imageId)}
-          alt={question.text ? 'Question image' : 'Picture question'}
-          className="max-h-48 self-center rounded-xl object-contain"
-        />
+      {/* From `lg`, larger type with the image beside the text (HST-09). */}
+      {(question.text || question.imageId) && (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-5">
+          {question.text && (
+            <p className="text-base font-bold lg:flex-1 lg:text-2xl">{question.text}</p>
+          )}
+          {question.imageId && (
+            <img
+              src={imageUrl(view.code, question.imageId)}
+              alt={question.text ? 'Question image' : 'Picture question'}
+              className={`max-h-48 self-center rounded-xl object-contain ${question.text ? 'lg:max-h-56 lg:max-w-[45%] lg:self-start' : 'lg:max-h-72'}`}
+            />
+          )}
+        </div>
       )}
       <div aria-label="Answer" className="rounded-xl bg-bg px-3.5 py-3">
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className={LABEL}>Answer</span>
-          <span className="font-display text-xl break-words text-accent">{question.answer}</span>
+          <span className="font-display text-xl break-words text-accent lg:text-2xl">
+            {question.answer}
+          </span>
         </p>
         {question.hostNotes && <p className="mt-1.5 text-muted">{question.hostNotes}</p>}
       </div>

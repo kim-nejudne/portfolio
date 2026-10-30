@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F99 — Host remote dashboard on tablet and desktop (2026-10-30)
+**What changed:**
+- New `lib/useMediaQuery.ts`:
+  - `useMediaQuery` moved here from `usePointerFine.ts`, which now imports it.
+  - New `useDesktopLayout()` matches `(min-width: 64rem)`, Tailwind's `lg`. It is false without `matchMedia`, so phones and tests get the phone layout.
+- `pages/Host.tsx`:
+  - **Dashboard at `lg` (HST-09):** no tabs. The page is `max-w-6xl` and `h-dvh`, in two columns that never scroll the page.
+    - The "Game" region (3/5) holds the question card, board, tally or marking, also buzzed, the primary action (in place, not sticky), the secondary actions and lobby pairing.
+    - The right column (2/5) holds Players in its own scrolling pane, then a **Settings** disclosure (`aria-expanded`). It is open by default in the lobby and closed once the game has started, until the host presses it. Open, it shares the column with Players, and each pane scrolls on its own.
+    - The panes use the app's `scrollbar-color` idiom.
+  - **Question card at `lg`:** the image sits beside the text, with the text and answer at `lg:text-2xl`. The h1 reads "Host controls" in full at `lg`.
+  - Below `lg` the F98 tabs, sticky tabs and sticky action bar are unchanged; the old JSX was moved, not rewritten. The column is `md:max-w-2xl` (HST-10).
+- **Container queries (HST-10):**
+  - `HostSettings.tsx`: regular rows go two to a line inside `@container/settings` at `@xl` (36rem). The Screen's compact rows are unchanged.
+  - `HostPlayers.tsx`: the list is `@container/players`. At `@xl` a row is one line (`flex-row`, and the buttons' holder becomes `contents`, so Custom's field still wraps below). That width is reached in the tablet's 640px column, never on a phone or in the dashboard's narrower column.
+- HST-11 (laptop keyboard shortcuts) is optional in the UX doc. It moved to `## Backlog` with its full text.
+- Tests:
+  - `Host.test.tsx`: new block "tablet and desktop (F99)", 15 tests. At `lg` it checks that all three panels show with no tabs; the 3/5 grid; the primary action non-sticky in the Game column; judge, adjust and setting change without tabs; the Settings disclosure default and the host's choice; Players in its own pane under a long list; the image beside the text; the h1; and New game. Below `lg` it checks tabs and one panel at a time; `max-w-md md:max-w-2xl`; one-line player rows; and two-column settings.
+  - New `useMediaQuery.test.tsx` (3).
+  - 2516 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F99 (the dashboard and its JS breakpoint; Settings disclosure and question card; tablet container queries and HST-11 to Backlog).
+
+**Notes for next session:**
+- The layout tests check class names, because jsdom has no layout. The browser evidence is the playtest below.
+- At 1440×900 with Settings open, the Players pane (10 players) and the Settings pane each scroll. The first settings rows and the toggle stay in view, but a lower setting needs a scroll inside its pane.
+- The dashboard's Presets row is cramped in the 2/5 column: its detail wraps to 3 lines beside the two buttons.
+- At 820, the paired settings rows don't align across the pair when one is taller (Presets beside Answer time).
+- Phone, seen in the playtest and not changed by F99: at 375 in desktop Chromium (a 15px scrollbar), during a question a player row's `⋯` wraps under −100, +100 and CUSTOM. That leaves 300px of row for 307px of buttons. A phone has no layout scrollbar, so it should fit there, but it is close.
+- Review: no Must-fix. The Should-fixes were this entry and real-browser evidence; both are done.
+- Playtest (Playwright; Screen, host tab and 10 bots, room in QUESTION/OPEN):
+  - **1440×900:** no tabs, and the document doesn't scroll (900 of 900). Reveal answer is at y 268–328 and "Add 100 to Bot 1" at y 170–214. The Settings toggle is at y 832–876 closed and y 470–514 open, with Party at y 570–618. "More answer time" went Off → 3 s.
+  - **1024×768:** no tabs and no page scroll. Settings toggle (open) at y 384–428, Party at y 522–570.
+  - **820×1180:** `main` is 672px. All 10 player rows are 64px with buttons on the name's line. Settings rows are two to a line (x 90 and 416).
+  - **375×667:** tabs; the action bar's bottom is at 667; no horizontal overflow.
+  - No console errors. Screenshots are in `.playtest/F99/`: `lg-1440.png` (checked), `md-820-players.png`, `md-820-settings.png` and `phone-375.png` (checked).
+  - After the playtest the panes got `-m-1 p-1`, because a focus ring was clipped at a pane's bottom edge. I did not re-check this in the browser.
+- Main `index` chunk 545.20 → 547.29 kB.
+
+**How to try it:** `npm run dev`, host a set at `http://localhost:5173`, and open the remote on a laptop at `http://localhost:5173/host/<code>`. Join players from phones at `http://<LAN-IP>:5173/play/<code>`, or spawn bots at `/dev/bots/<code>`. Resize the window, or use DevTools at 1440×900, 1024×768, 820×1180 and 375×667. At `lg`, judge, press +100 on a player and open Settings, all without switching tabs.
+
 ## F98 — Host remote on the phone (2026-10-30)
 **What changed:**
 - `pages/Host.tsx`:

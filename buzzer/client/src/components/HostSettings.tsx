@@ -22,6 +22,8 @@ interface HostSettingsProps {
 /** Row sizes: the remote's thumb-sized rows, or the Screen lobby's tighter ones. */
 const SIZES = {
   regular: {
+    // Two rows to a line where the remote gives them room: the tablet's column (HST-10).
+    section: 'gap-3 @xl/settings:grid @xl/settings:grid-cols-2',
     // Below `@sm` (about 384px of row) the controls stack under the label, right-aligned, so the
     // label and detail keep the full width (HST-05).
     row: 'flex-col items-stretch gap-3 p-4 @sm:flex-row @sm:items-center',
@@ -38,6 +40,7 @@ const SIZES = {
     knob: 'size-6',
   },
   compact: {
+    section: 'gap-1',
     row: 'items-center gap-2 px-3 py-0.5',
     text: 'flex-1',
     controls: 'gap-2',
@@ -116,7 +119,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
   const every = settings.scoreboardEvery;
 
   return (
-    <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-1' : 'gap-3'}`}>
+    <section aria-label="Settings" className={`flex flex-col ${size.section}`}>
       <Row
         id="presets-label"
         label="Presets"

@@ -32,7 +32,8 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
   const rowProps = { view, command, unknown };
 
   return (
-    <section aria-labelledby="players-heading" className="flex flex-col gap-2">
+    // A size container: where the list has room (the tablet's column), each row is one line (HST-10).
+    <section aria-labelledby="players-heading" className="@container/players flex flex-col gap-2">
       <h2 id="players-heading" className="font-display text-xl text-accent">
         Players ({players.length})
       </h2>
@@ -134,7 +135,8 @@ function TeamGroups({
 
 /**
  * One player (HST-04). Line 1: colour, avatar, the whole name (up to two lines) with the connection
- * under it, and the score. Line 2, on the right: the adjust buttons and a `⋯` menu holding the team
+ * under it, and the score. Line 2, on the right (or on line 1 where the list is wide, HST-10): the
+ * adjust buttons and a `⋯` menu holding the team
  * moves and, last and red, Kick, so Kick never sits beside a score button. A move is off outside
  * the lobby and REVEAL, where the server refuses it (`canChangeTeams`); the row moves with the next
  * snapshot.
@@ -168,9 +170,11 @@ function PlayerRow({
   return (
     <li
       aria-label={player.name}
-      className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2"
+      className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2 @xl/players:flex-row @xl/players:flex-wrap @xl/players:items-center"
     >
-      <p className={`flex items-center gap-3 ${dim}`}>
+      <p
+        className={`flex items-center gap-3 @xl/players:min-w-0 @xl/players:flex-1 @xl/players:basis-48 ${dim}`}
+      >
         <span
           aria-hidden
           style={{ backgroundColor: player.color }}
@@ -189,7 +193,8 @@ function PlayerRow({
         </span>
         <span className="font-display text-xl">{player.score}</span>
       </p>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      {/* On one line, the buttons join the row itself, so Custom's field still takes a line below. */}
+      <div className="flex flex-wrap items-center justify-end gap-2 @xl/players:contents">
         {step > 0 && (
           <>
             <button

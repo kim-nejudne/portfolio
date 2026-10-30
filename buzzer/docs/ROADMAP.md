@@ -262,16 +262,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F98 Host remote on the phone
 
-- [ ] F99 Host remote dashboard on tablet and desktop
-  - Spec: UI spec by view (Host remote); see `docs/ux/05-host-remote.md`
-  - Depends: F98
-  - Done when:
-    - HST-09 and HST-10 are closed. HST-11 (keyboard shortcuts) is either done or moved to Backlog
-    - At `lg`, the remote is a two-column dashboard (Game | Players and Settings) with no tabs
-    - At `md`, it is a `max-w-2xl` column with one-line player rows
-    - The phone layout is unchanged
-    - The dashboard is recorded in DECISIONS
-  - Tests: `Host.test.tsx` (all three panels present at `lg`; tabs present on phone), and the shortcut tests if HST-11 is done
+- [x] F99 Host remote dashboard on tablet and desktop
 
 - [ ] F100 Screen legibility on any display
   - Spec: UI spec by view (Screen view); see `docs/ux/06-screen.md`
@@ -323,3 +314,4 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 - Responsive (F93): RoomCreated is top-aligned on a tall window. Landing centres only its hero and cards, so at 1440×900 the created room leaves the lower half empty. Centring it too would need Landing to tell the picker (top-aligned) from the created room.
 - Responsive (F93): the search box placeholder is Bungee (`INPUT`), and is cut short at 375px ("SEARCH TITLE OR CATEG…"). A shorter placeholder or a DM Sans one for search would fix it (F94 touches `SetBrowser` on `/sets`).
 - Responsive (F94): the `⋯` and Backup menus always open below. On the last card near the window's foot the menu runs past it and the page scrolls; flipping above when there is no room would avoid that. The `docs/ux/02` sketch also puts the tabs on the search row at `xl`, which would need SetBrowser to take a toolbar slot; F94 left them on their own row (7 cards still show at 1440×900).
+- Responsive (F99, HST-11): keyboard shortcuts on a laptop remote. On `pointer-fine` at `lg`, the remote accepts the Screen's keys (Space, C, V, X, R, N, ←, S, U), routed to the same `host:*` actions, with key hints on the buttons as on the Screen bar. Reuse the Screen's key map (`shortcutFor` in `ScreenHostControls.tsx`); do not write a second one. The keys are off while typing in an input. Done when: at 1440×900, Space opens buzzers and C, V and X judge, with the existing `host:*` events.

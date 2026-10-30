@@ -1754,3 +1754,203 @@ describe('Host remote: phone layout (F98)', () => {
     expect(code.className).toContain('text-[clamp(2.5rem,16vw,3.75rem)]');
   });
 });
+
+describe('Host remote: tablet and desktop (F99)', () => {
+  /** A window at least `lg` wide: only the dashboard's query matches. */
+  function stubDesktop() {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === '(min-width: 64rem)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+  }
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  function remote(view: HostView) {
+    const rendered = renderHost(`/host/WXYZ#t=${TOKEN}`);
+    act(() => rendered.socket.emitted[0]!.ack({ ok: true }));
+    rendered.socket.fire('state', view);
+    return rendered.socket;
+  }
+  const judging = () =>
+    hostView({
+      phase: 'BUZZED',
+      questionIndex: 2,
+      question: question(3),
+      players: [player(1), player(2)],
+      winnerId: 'p1',
+      canJudge: true,
+    });
+  const gameColumn = () => screen.getByRole('region', { name: 'Game' });
+  const settingsToggle = () => screen.getByRole('button', { name: 'Settings' });
+
+  describe('at lg', () => {
+    it('shows Game, Players and Settings at once, with no tabs (HST-09)', () => {
+      stubDesktop();
+      remote(hostView({ players: [player(1), player(2)] }));
+      expect(screen.queryByRole('tablist')).toBeNull();
+      expect(screen.queryByRole('tab')).toBeNull();
+      expect(within(gameColumn()).getByRole('region', { name: 'Question' })).toBeTruthy();
+      expect(within(gameColumn()).getByRole('button', { name: 'Start game' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Players (2)' })).toBeTruthy();
+      expect(screen.getByRole('listitem', { name: 'Player 1' })).toBeTruthy();
+      expect(screen.getByRole('region', { name: 'Settings' })).toBeTruthy();
+      expect(gameColumn().contains(screen.getByRole('region', { name: 'Settings' }))).toBe(false);
+    });
+
+    it('is a wide page in two columns, Game taking 3 of 5', () => {
+      stubDesktop();
+      remote(hostView());
+      const main = screen.getByRole('main');
+      expect(main.className).toContain('max-w-6xl');
+      expect(main.className).not.toContain('max-w-md');
+      expect(gameColumn().className).toContain('col-span-3');
+      expect(gameColumn().parentElement!.className).toContain('grid-cols-5');
+    });
+
+    it('the primary action sits in the Game column and is not sticky', () => {
+      stubDesktop();
+      remote(judging());
+      const primary = screen.getByRole('region', { name: 'Primary action' });
+      expect(gameColumn().contains(primary)).toBe(true);
+      expect(primary.className).not.toContain('sticky');
+      expect(within(primary).getByRole('region', { name: 'Judging' })).toBeTruthy();
+      // The secondary tiles follow the primary action in the same column.
+      expect(within(gameColumn()).getByRole('region', { name: 'More actions' })).toBeTruthy();
+    });
+
+    it('the host judges, adjusts a score and changes a setting without switching tabs', () => {
+      stubDesktop();
+      const socket = remote(judging());
+      fireEvent.click(screen.getByRole('button', { name: 'Correct' }));
+      expect(socket.emitted.at(-1)).toMatchObject({
+        event: 'host:judge',
+        payload: { result: 'correct' },
+      });
+      // The command lock lifts with the next snapshot.
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+      socket.fire('state', judging());
+      fireEvent.click(screen.getByRole('button', { name: 'Add 100 to Player 2' }));
+      expect(socket.emitted.at(-1)).toMatchObject({
+        event: 'host:adjustScore',
+        payload: { playerId: 'p2', delta: 100 },
+      });
+      act(() => socket.emitted.at(-1)!.ack({ ok: true }));
+      socket.fire('state', judging());
+      fireEvent.click(settingsToggle());
+      fireEvent.click(screen.getByRole('button', { name: 'More teams' }));
+      expect(socket.emitted.at(-1)).toMatchObject({
+        event: 'host:settings',
+        payload: { teams: 2 },
+      });
+      // Nothing was hidden along the way: the judging panel is still there.
+      expect(screen.getByRole('region', { name: 'Judging' })).toBeTruthy();
+    });
+
+    it('Settings are open in the lobby and closed by default once the game has started', () => {
+      stubDesktop();
+      const socket = remote(hostView({ players: [player(1)] }));
+      expect(settingsToggle().getAttribute('aria-expanded')).toBe('true');
+      socket.fire('state', judging());
+      expect(settingsToggle().getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByRole('region', { name: 'Settings' })).toBeNull();
+      fireEvent.click(settingsToggle());
+      expect(settingsToggle().getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getByRole('region', { name: 'Settings' })).toBeTruthy();
+    });
+
+    it('a long Players list scrolls in its own pane, so the Settings toggle stays in view', () => {
+      stubDesktop();
+      remote({ ...judging(), players: Array.from({ length: 12 }, (_, i) => player(i + 1)) });
+      const playersPane = screen.getByRole('region', { name: 'Players (12)' }).parentElement!;
+      expect(playersPane.className).toContain('overflow-y-auto');
+      expect(playersPane.className).toContain('min-h-0');
+      // Closed, the toggle never gives way to the list; open, the two panes share the column.
+      const disclosure = settingsToggle().closest('h2')!.parentElement!;
+      expect(disclosure.className).toContain('shrink-0');
+      fireEvent.click(settingsToggle());
+      expect(disclosure.className).not.toContain('shrink-0');
+      expect(screen.getByRole('region', { name: 'Settings' }).parentElement!.className).toContain(
+        'overflow-y-auto',
+      );
+    });
+
+    it("the host's own choice to close Settings outlasts the next snapshot", () => {
+      stubDesktop();
+      const socket = remote(hostView({ players: [player(1)] }));
+      fireEvent.click(settingsToggle());
+      socket.fire('state', hostView({ players: [player(1), player(2)] }));
+      expect(settingsToggle().getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('the question card puts the image beside larger text', () => {
+      stubDesktop();
+      remote({ ...judging(), question: question(3, { imageId: 'img-1' }) });
+      const card = screen.getByRole('region', { name: 'Question' });
+      const text = within(card).getByText('Question text 3');
+      expect(text.className).toContain('lg:text-2xl');
+      expect(text.parentElement!.className).toContain('lg:flex-row');
+      expect(text.parentElement!.contains(within(card).getByRole('img'))).toBe(true);
+    });
+
+    it('the header spells out Host controls', () => {
+      stubDesktop();
+      remote(hostView());
+      expect(screen.getByRole('heading', { level: 1 }).lastElementChild!.className).toBe('');
+    });
+
+    it('in the final results New game sits in the Game column', () => {
+      stubDesktop();
+      remote(hostView({ phase: 'FINAL', players: [player(1)] }));
+      expect(within(gameColumn()).getByRole('button', { name: 'New game' })).toBeTruthy();
+    });
+  });
+
+  describe('below lg', () => {
+    it('keeps the tabs and shows one panel at a time (the phone layout)', () => {
+      remote(judging());
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'Game',
+        'Players (2)',
+        'Settings',
+      ]);
+      expect(screen.queryByRole('region', { name: 'Game' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Settings' })).toBeNull();
+      expect(screen.queryByRole('heading', { name: 'Players (2)' })).toBeNull();
+      expect(screen.getByRole('region', { name: 'Primary action' }).className).toContain('sticky');
+    });
+
+    it('is a phone column that widens to max-w-2xl from md (HST-10)', () => {
+      remote(hostView());
+      const main = screen.getByRole('main');
+      expect(main.className).toContain('max-w-md');
+      expect(main.className).toContain('md:max-w-2xl');
+      expect(main.className).not.toContain('max-w-6xl');
+    });
+
+    it('player rows go on one line where the list is wide (HST-10)', () => {
+      remote(judging());
+      fireEvent.click(screen.getByRole('tab', { name: /^Players/ }));
+      const list = screen.getByRole('region', { name: 'Players (2)' });
+      expect(list.className).toContain('@container/players');
+      const row = screen.getByRole('listitem', { name: 'Player 1' });
+      expect(row.className).toContain('@xl/players:flex-row');
+      // The buttons join the row itself, so they sit on its one line.
+      const add = within(row).getByRole('button', { name: 'Add 100 to Player 1' });
+      expect(add.parentElement!.className).toContain('@xl/players:contents');
+    });
+
+    it('settings rows sit two to a line where the tab is wide (HST-10)', () => {
+      remote(hostView());
+      fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+      const settings = screen.getByRole('region', { name: 'Settings' });
+      expect(settings.parentElement!.className).toContain('@container/settings');
+      expect(settings.className).toContain('@xl/settings:grid-cols-2');
+    });
+  });
+});
