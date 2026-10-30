@@ -6,9 +6,16 @@
 #   scripts/autopilot.sh [--dry-run] [--no-deploy] [--max-attempts N]
 #
 # Sessions run with --dangerously-skip-permissions and a hard deny list (push, reset, clean,
-# checkout, rebase, gh, ssh, scp, docker, rm -rf, sudo). This script does the push and deploy
-# itself. A live-games deploy failure is forced at once (force=true ends live games).
+# checkout, rebase, gh, ssh, scp, docker, rm -rf, sudo). Their environment also points
+# origin's push URL nowhere and gives gh a dead token, so a push or gh call that slips past
+# the deny list still fails. This script does the push and deploy itself. A live-games deploy
+# failure is forced at once (force=true ends live games).
 # Logs: ~/.cache/buzzr-autopilot/<UTC timestamp>/ (run.log, status.txt, one .jsonl per session).
+#
+# Test hooks (environment; unset in a real run): AUTOPILOT_SESSION_TIMEOUT (default 3h),
+# AUTOPILOT_LIVE_URL (default https://buzzr.kimnejudne.dev), AUTOPILOT_WAIT_DIVISOR (default 1;
+# divides every fixed wait, backoff and poll interval, but not the wait for a usage-limit
+# reset), AUTOPILOT_PLAIN=1 (no pinned status area). XDG_CACHE_HOME moves the logs and lock.
 
 set -Eeuo pipefail
 
@@ -20,8 +27,9 @@ DEPLOY=1
 MAX_ATTEMPTS=3
 MAX_SESSIONS=40
 MAX_GIVEUPS_IN_A_ROW=3
-SESSION_TIMEOUT=3h
-LIVE_URL='https://buzzr.kimnejudne.dev'
+SESSION_TIMEOUT=${AUTOPILOT_SESSION_TIMEOUT:-3h}
+LIVE_URL=${AUTOPILOT_LIVE_URL:-'https://buzzr.kimnejudne.dev'}
+WAIT_DIVISOR=${AUTOPILOT_WAIT_DIVISOR:-1}
 WORKFLOW='deploy-buzzer.yml'
 # The option loop shifts them away; the systemd-inhibit re-exec below needs them all.
 ORIG_ARGS=("$@")
@@ -35,7 +43,7 @@ while (($#)); do
       shift
       ;;
     -h | --help)
-      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -45,6 +53,14 @@ while (($#)); do
   esac
   shift
 done
+[[ $MAX_ATTEMPTS =~ ^[1-9][0-9]*$ ]] || {
+  echo "--max-attempts needs a positive number" >&2
+  exit 2
+}
+[[ $WAIT_DIVISOR =~ ^[1-9][0-9]*$ ]] || {
+  echo "AUTOPILOT_WAIT_DIVISOR needs a positive number" >&2
+  exit 2
+}
 
 SELF=$(realpath -- "${BASH_SOURCE[0]}")
 BUZZER=$(dirname -- "$(dirname -- "$SELF")")
@@ -61,16 +77,18 @@ if [[ -z ${AUTOPILOT_INHIBITED:-} ]] && command -v systemd-inhibit >/dev/null &&
 fi
 
 CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/buzzr-autopilot
-RUN="$CACHE/$(date -u +%Y%m%dT%H%M%SZ)"
-STATE="$RUN/state"
-mkdir -p "$STATE"
-RUN_LOG="$RUN/run.log"
-
+mkdir -p "$CACHE"
+# Children never inherit fd 9 (see run_session), so a stray dev server cannot keep the lock.
 exec 9>"$CACHE/lock"
 if ! flock -n 9; then
   echo "Another autopilot run holds $CACHE/lock." >&2
   exit 1
 fi
+
+RUN="$CACHE/$(date -u +%Y%m%dT%H%M%SZ)"
+STATE="$RUN/state"
+mkdir -p "$STATE"
+RUN_LOG="$RUN/run.log"
 
 # ---------------------------------------------------------------------------------------------
 # Terminal UI: a scrolling timeline with a pinned 4-row status area at the bottom.
@@ -90,6 +108,12 @@ term_size() { stty size </dev/tty 2>/dev/null || echo '24 80'; }
 ui_setup() {
   ((UI_TTY)) || return 0
   read -r ROWS COLS < <(term_size)
+  if ((ROWS < 10 || COLS < 30)); then
+    # Too small for a pinned area, or a pty that reports 0 0: plain timeline from here on.
+    UI_TTY=0
+    printf '\e[r' >&3
+    return 0
+  fi
   {
     printf '\n%.0s' $(seq 1 4)
     tput csr 0 $((ROWS - 5))
@@ -102,10 +126,11 @@ ui_teardown() {
   local r c
   read -r r c < <(term_size)
   {
-    tput csr 0 $((r - 1))
-    tput cup $((r - 1)) 0
+    # \e[r resets the scroll region to the whole screen, whatever its size is now.
+    printf '\e[r'
+    ((r > 0)) && tput cup $((r - 1)) 0
     printf '\n\e]0;%s\a' 'Buzzr autopilot: stopped'
-  } >&3
+  } >&3 || true
 }
 
 ui_check_resize() {
@@ -176,13 +201,13 @@ render_status() {
     printf '%s' "$C_DIM${C_GOLD}$(printf '━%.0s' $(seq 1 "$COLS"))$C_OFF"
     tput cup $((ROWS - 3)) 0
     tput el
-    printf '%s' "$C_BOLD${l1:0:COLS}$C_OFF"
+    printf '%s' "$C_BOLD${l1:0:COLS-1}$C_OFF"
     tput cup $((ROWS - 2)) 0
     tput el
-    printf '%s' "$C_GOLD${l2:0:COLS}$C_OFF"
+    printf '%s' "$C_GOLD${l2:0:COLS-1}$C_OFF"
     tput cup $((ROWS - 1)) 0
     tput el
-    printf '%s' "$C_DIM${l3:0:COLS}$C_OFF"
+    printf '%s' "$C_DIM${l3:0:COLS-1}$C_OFF"
     tput rc
     printf '\e]0;%s\a' "Buzzr $DONE_IN_RUN/$START_TODO · ${FEATURE:-$PHASE}"
   } >&3
@@ -224,6 +249,12 @@ wait_with_status() {
   done
 }
 
+# secs N: a fixed wait or poll interval, shortened by AUTOPILOT_WAIT_DIVISOR in tests.
+secs() {
+  local s=$(($1 / WAIT_DIVISOR))
+  echo $((s > 0 ? s : 1))
+}
+
 die() {
   log err "STOP: $*"
   notify 'Autopilot stopped' "$*"
@@ -232,6 +263,7 @@ die() {
 
 cleanup() {
   local rc=$?
+  stop_session
   kill_strays
   {
     echo "Buzzr autopilot run $(basename "$RUN")"
@@ -269,6 +301,8 @@ refresh_counts() {
   RM_DONE=${line% *}
   RM_TOTAL=${line#* }
   DONE_IN_RUN=$((RM_DONE - RM_DONE_AT_START))
+  # A session may split a feature (F95 into F95a and F95b), which grows the total.
+  START_TODO=$((DONE_IN_RUN + RM_TOTAL - RM_DONE))
 }
 
 feature_title() { sed -nE "s/^- \[.\] $1 (.*)/\1/p" docs/ROADMAP.md | head -1; }
@@ -280,7 +314,7 @@ kill_strays() {
   local pid cwd
   for pid in $(ss -ltnpH '( sport = :3000 or sport = :5173 )' 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do
     cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || true)
-    if [[ $cwd == "$BUZZER"* ]]; then
+    if [[ $cwd == "$BUZZER" || $cwd == "$BUZZER"/* ]]; then
       kill "$pid" 2>/dev/null || true
     fi
   done
@@ -301,7 +335,8 @@ commit_docs() {
   done
   ((${#files[@]})) || return 0
   git add -- "${files[@]}"
-  git commit -q -m "$msg" -m "Recorded by scripts/autopilot.sh while running unattended."
+  # Only these files: a blocked session may have staged half-built code as well.
+  git commit -q -m "$msg" -m "Recorded by scripts/autopilot.sh while running unattended." -- "${files[@]}"
   log info "Committed ${files[*]}: $msg"
 }
 
@@ -340,6 +375,14 @@ DISALLOWED=(
   'Bash(git push:*)' 'Bash(git reset:*)' 'Bash(git clean:*)' 'Bash(git checkout:*)'
   'Bash(git rebase:*)' 'Bash(git restore:*)' 'Bash(gh:*)' 'Bash(ssh:*)' 'Bash(scp:*)'
   'Bash(docker:*)' 'Bash(rm -rf:*)' 'Bash(sudo:*)' 'AskUserQuestion'
+)
+# Kim's user-level RTK hook rewrites some commands to `rtk <command>` before the deny list
+# sees them (a real session ran `git push --dry-run` that way), so deny those forms too.
+DISALLOWED+=(
+  'Bash(rtk git push:*)' 'Bash(rtk git reset:*)' 'Bash(rtk git clean:*)'
+  'Bash(rtk git checkout:*)' 'Bash(rtk git rebase:*)' 'Bash(rtk git restore:*)'
+  'Bash(rtk gh:*)' 'Bash(rtk ssh:*)' 'Bash(rtk scp:*)' 'Bash(rtk docker:*)'
+  'Bash(rtk rm -rf:*)' 'Bash(rtk sudo:*)' 'Bash(rtk proxy:*)'
 )
 
 # One line per stream-json event that matters, tab-separated. Non-JSON lines are skipped.
@@ -395,6 +438,8 @@ session_reader() {
           printf '%s\n' "$b" >"$STATE/result_is_error"
           printf '%s\n' "$c" >"$STATE/result_cost"
           printf '%s\n' "$f" >"$STATE/result_text"
+          [[ $c =~ ^[0-9.eE+-]+$ ]] || c=0
+          [[ $d =~ ^[0-9]+$ ]] || d=0
           log info "  session ended: $a · turns $e · $(fmt_dur $((d / 1000))) · ≈\$$(printf '%.2f' "$c")"
           ;;
       esac
@@ -407,45 +452,89 @@ session_reader() {
 }
 
 # run_session LABEL PROMPT: one fresh claude -p session. Sets SESSION_RC.
+# The pipeline runs in the background and the shell waits for it, so Ctrl-C and SIGTERM reach
+# the traps at once instead of after the session (bash defers traps during a foreground job).
+# timeout leads a process group of its own, which the terminal's Ctrl-C never reaches, so
+# stop_session signals that group. The session gets neither the lock (fd 9) nor the UI (fd 3).
+SESSION_PIPE=''
 run_session() {
   local label=$1 prompt=$2 jsonl="$RUN/$1.jsonl" err="$RUN/$1.err"
-  rm -f "$STATE"/result_* "$STATE/rc" "$STATE/no_skill"
+  rm -f "$STATE"/result_* "$STATE/rc" "$STATE/no_skill" "$STATE/rl" "$STATE/session_pid"
   TOOLS=0 EDITS=0 LAST='starting session'
   SESSION_START=$(date +%s)
   kill_strays
   {
     local rc=0
-    timeout --kill-after=60 "$SESSION_TIMEOUT" claude -p "$prompt" \
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.pushurl \
+      GIT_CONFIG_VALUE_0=autopilot-sessions-never-push GH_TOKEN=autopilot-sessions-never-use-gh \
+      timeout --kill-after=60 "$SESSION_TIMEOUT" claude -p "$prompt" \
       --output-format stream-json --verbose \
       --dangerously-skip-permissions \
       --disallowedTools "${DISALLOWED[@]}" \
       --append-system-prompt "$UNATTENDED_RULES" \
-      </dev/null 2>"$err" || rc=$?
+      </dev/null 2>"$err" 3>&- 9>&- &
+    echo $! >"$STATE/session_pid"
+    wait $! || rc=$?
     echo "$rc" >"$STATE/rc"
-  } | tee -a "$jsonl" | jq -R -r --unbuffered "$JQ_FILTER" 2>>"$err" | session_reader || true
+  } | tee -a "$jsonl" | jq -R -r --unbuffered "$JQ_FILTER" 2>>"$err" | session_reader &
+  SESSION_PIPE=$!
+  wait || true
+  SESSION_PIPE=''
+  rm -f "$STATE/session_pid"
   SESSION_RC=$(cat "$STATE/rc" 2>/dev/null || echo 1)
   SESSION_COST=$(cat "$STATE/result_cost" 2>/dev/null || echo 0)
   TOTAL_COST=$(awk -v a="$TOTAL_COST" -v b="$SESSION_COST" 'BEGIN { printf "%.4f", a + b }')
   if [[ -f $STATE/rl ]]; then
     IFS=$'\t' read -r _ _ RL_5H RL_7D <"$STATE/rl" || true
   fi
+  # The reader's counters lived in its own subshell; keep a summary for the status line.
+  LAST="session $label ended (exit $SESSION_RC)"
   SESSION_START=0
   kill_strays
 }
 
+# Ctrl-C, SIGTERM or SIGHUP mid-session: end the session's process group, then its pipeline.
+stop_session() {
+  local pid i
+  pid=$(cat "$STATE/session_pid" 2>/dev/null) || return 0
+  if kill -0 "$pid" 2>/dev/null; then
+    log warn "Stopping the running claude session…"
+    kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    for i in $(seq 1 20); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.5
+    done
+    kill -KILL -- "-$pid" 2>/dev/null || true
+  fi
+  if [[ -n $SESSION_PIPE ]]; then
+    for i in $(seq 1 10); do
+      kill -0 "$SESSION_PIPE" 2>/dev/null || break
+      sleep 0.5
+    done
+    kill "$SESSION_PIPE" 2>/dev/null || true
+  fi
+  rm -f "$STATE/session_pid"
+}
+
 # Was the session stopped by a usage limit or an overloaded API? Echo "limit EPOCH" or "busy".
+# Only a session that errored or died counts: one that ended normally chose to stop, and its
+# last message may well mention rate limits or a 503 in the code it was working on. A timeout
+# is a failed attempt, not a blocker.
 session_blocker() {
   local text status=allowed resets=0
+  [[ $(cat "$STATE/result_is_error" 2>/dev/null) == false ]] && return 0
+  ((SESSION_RC == 124 || SESSION_RC == 137)) && return 0
   text="$(cat "$STATE/result_text" "$RUN/$1.err" 2>/dev/null || true)"
   if [[ -f $STATE/rl ]]; then
     IFS=$'\t' read -r status resets _ _ <"$STATE/rl" || true
   fi
   if [[ $status != allowed && $status != allowed_warning && -n $status ]] ||
-    grep -qiE 'usage limit|limit reached|5-hour limit|weekly limit|rate.?limit' <<<"$text"; then
+    grep -qiE 'usage limit|limit reached|hit your limit|5-hour limit|weekly limit|rate_limit_error|API Error: 429' <<<"$text"; then
     echo "limit $resets"
-  elif grep -qiE 'overloaded|529|500 internal|502|503|ECONNRESET|ETIMEDOUT|network' <<<"$text"; then
+  elif grep -qiE 'API Error|overloaded|Connection error|Request timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up' <<<"$text"; then
     echo busy
   fi
+  return 0
 }
 
 # Sleep until a usage limit resets (plus 2 min), or back off when the reset time is unknown.
@@ -454,12 +543,14 @@ wait_for_limit() {
   local resets=$1 now wait
   now=$(date +%s)
   LIMIT_WAITS=$((LIMIT_WAITS + 1))
-  if ((resets > now)); then
-    wait=$((resets - now + 120))
+  [[ $resets =~ ^[0-9]+$ ]] || resets=0
+  ((resets > 100000000000)) && resets=$((resets / 1000)) # milliseconds
+  if ((resets > now && resets < now + 8 * 86400)); then
+    wait=$((resets - now + $(secs 120)))
   else
-    wait=$((LIMIT_WAITS >= 3 ? 3600 : LIMIT_WAITS == 2 ? 1800 : 900))
+    wait=$(secs $((LIMIT_WAITS >= 3 ? 3600 : LIMIT_WAITS == 2 ? 1800 : 900)))
   fi
-  log warn "Usage limit hit. Waiting $(fmt_dur "$wait") (until $(date -d "@$((now + wait))" +%H:%M))."
+  log warn "Usage limit hit. Waiting $(fmt_dur "$wait") (until $(date -d "@$((now + wait))" '+%a %H:%M'))."
   notify 'Usage limit' "Waiting $(fmt_dur "$wait")"
   wait_with_status "$wait" 'usage limit'
 }
@@ -476,9 +567,19 @@ feature_prompt() {
 # ---------------------------------------------------------------------------------------------
 # Preflight
 
-trap cleanup EXIT
-trap 'exit 130' INT TERM
 RUN_HEAD_AT_START=$(git rev-parse HEAD)
+RM_DONE_AT_START=0
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+# errexit stops the script without a word; leave the failing command in run.log.
+# Only the main shell: inside $( ) a failing grep is routine.
+err_note() {
+  ((BASH_SUBSHELL == 0)) || return 0
+  printf '%s command failed (exit %s) at line %s: %s\n' "$(date +%T)" "$1" "$2" "$3" >>"$RUN_LOG"
+}
+trap 'err_note "$?" "$LINENO" "$BASH_COMMAND"' ERR
 ui_setup
 log info "Buzzr autopilot · logs in $RUN"
 ((DRY_RUN)) && log warn "Dry run: nothing is built, pushed or deployed."
@@ -488,16 +589,17 @@ for tool in claude node npm git gh jq curl ss timeout; do
 done
 gh auth status >/dev/null 2>&1 || die "gh is not logged in (gh auth login)"
 [[ $(git rev-parse --abbrev-ref HEAD) == main ]] || die "not on main"
-git fetch -q origin main || log warn "git fetch failed; continuing offline until the push"
+git fetch -q origin main 2>>"$RUN_LOG" || log warn "git fetch failed; continuing offline until the push"
 
-RM_DONE_AT_START=$(roadmap_next | sed -nE 's/^Done: ([0-9]+)\/.*/\1/p')
+RM_DONE_AT_START=$(roadmap_next | sed -nE 's/^Done: ([0-9]+)\/.*/\1/p') || true
 [[ -n $RM_DONE_AT_START ]] || die "roadmap.mjs did not report progress"
 refresh_counts
-START_TODO=$((RM_TOTAL - RM_DONE))
 log info "Roadmap: $RM_DONE/$RM_TOTAL done, $START_TODO to build."
 
+RESUMING=0
 if dirty; then
   if roadmap_next | grep -q '^Resume:'; then
+    RESUMING=1
     log warn "Uncommitted changes belong to the [~] feature; the first session resumes them."
   elif ((DRY_RUN)); then
     log warn "buzzer/ has uncommitted changes; a real run would refuse to start."
@@ -509,6 +611,9 @@ fi
 
 if ((DRY_RUN)); then
   log info "Skipping the baseline checks in a dry run."
+elif ((RESUMING)); then
+  # Half-built work is not expected to pass yet; the session's own verify step checks it.
+  log info "Skipping the baseline checks: they would run on the [~] feature's unfinished work."
 else
   PHASE='baseline checks'
   log info "Baseline checks before the first feature…"
@@ -562,9 +667,13 @@ while :; do
     echo 1 >"$STATE/inline_skill"
     ATTEMPTS[$FEATURE]=$((ATTEMPT - 1))
     continue
-  elif ((new_feat > 0)) && ! dirty; then
+  elif ((new_feat > 0)) && [[ $mark != '~' ]]; then
     log ok "✔ $FEATURE committed: $(git log -1 --format=%s -- .)"
     notify "$FEATURE done" "$FEATURE_TITLE"
+    # Stray files (screenshots, a scratch note) would make the next session stop and stash.
+    if dirty; then
+      stash_changes "$FEATURE leftovers after its commit"
+    fi
     GIVEUPS_IN_A_ROW=0
     BUSY_WAITS=0
     LIMIT_WAITS=0
@@ -578,20 +687,30 @@ while :; do
       ATTEMPTS[$FEATURE]=$((ATTEMPT - 1))
       BUSY_WAITS=$((BUSY_WAITS + 1))
       ((BUSY_WAITS <= 8)) || die "the API stayed unavailable through 8 retries"
-      log warn "API busy or network error; retrying in 5 min."
-      wait_with_status 300 'API busy'
+      # 5, 10, 15 … 30 min: about 2.75 h in all before giving up on the API.
+      busy_wait=$((BUSY_WAITS * 300 > 1800 ? 1800 : BUSY_WAITS * 300))
+      log warn "API busy or network error; retrying in $(fmt_dur "$busy_wait") (retry $BUSY_WAITS/8)."
+      wait_with_status "$(secs "$busy_wait")" 'API busy'
       continue
     fi
-    log err "✘ $FEATURE attempt $ATTEMPT did not finish (exit $SESSION_RC; see $RUN/$FEATURE-a$ATTEMPT.jsonl)."
+    if ((SESSION_RC == 124 || SESSION_RC == 137)); then
+      log err "✘ $FEATURE attempt $ATTEMPT timed out after $SESSION_TIMEOUT (see $RUN/$FEATURE-a$ATTEMPT.jsonl)."
+    else
+      log err "✘ $FEATURE attempt $ATTEMPT did not finish (exit $SESSION_RC; see $RUN/$FEATURE-a$ATTEMPT.jsonl)."
+    fi
     if ((ATTEMPT >= MAX_ATTEMPTS)); then
       log err "Giving up on $FEATURE after $ATTEMPT sessions."
       notify "Gave up on $FEATURE" "$FEATURE_TITLE"
       stash_changes "$FEATURE gave up after $ATTEMPT sessions"
-      "${ROADMAP_JS[@]}" mark "$FEATURE" '!' "autopilot: $ATTEMPT unattended sessions did not finish it; logs in $RUN" >/dev/null
-      commit_docs "docs(buzzer): $FEATURE blocked (autopilot)"
+      # An uncommitted split (F95 into F95a/F95b) went into the stash: mark the original.
+      target=$FEATURE
+      [[ -n $(feature_mark "$target") ]] || target=${FEATURE%[a-z]}
+      "${ROADMAP_JS[@]}" mark "$target" '!' "autopilot: $ATTEMPT unattended sessions did not finish it; logs in $RUN" >/dev/null ||
+        die "could not mark $target blocked in docs/ROADMAP.md"
+      commit_docs "docs(buzzer): $target blocked (autopilot)"
       GIVEUPS_IN_A_ROW=$((GIVEUPS_IN_A_ROW + 1))
     else
-      wait_with_status 60 'retrying soon'
+      wait_with_status "$(secs 60)" 'retrying soon'
     fi
   fi
   ((GIVEUPS_IN_A_ROW < MAX_GIVEUPS_IN_A_ROW)) || die "$GIVEUPS_IN_A_ROW features in a row were blocked; stopping before burning the rest"
@@ -605,17 +724,39 @@ if ! roadmap_next | grep -q '^Blocked: none'; then
   notify 'Autopilot finished with blocked features' "$summary"
   die "some features are blocked, so nothing is pushed or deployed (a push to buzzer/ deploys)"
 fi
+# No eligible feature but nothing blocked: a dependency is missing or circular.
+roadmap_next | grep -q '^Nothing left' || die "features remain but none is eligible: $summary"
+if ((DRY_RUN)); then
+  log info "Dry run: nothing left to build. A real run would now run the checks, push and deploy."
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------------------------
 # Final gate, push, deploy
 
+# repair LABEL CONTEXT: one session that fixes failing checks. Waits out usage limits and API
+# errors as the feature loop does, so they do not use up a repair.
 repair() {
-  local label=$1 context=$2
-  run_session "$label" "Every roadmap feature is built and committed, but these checks fail:
+  local label=$1 context=$2 try=1 name blocker
+  while :; do
+    name=$label
+    ((try == 1)) || name+="-r$try"
+    run_session "$name" "Every roadmap feature is built and committed, but these checks fail:
 
 $context
 
 Fix only what makes them fail, without weakening, skipping or deleting tests. Run the verify skill until it is green, then make one commit: fix(buzzer): <what you fixed>. Do not start any roadmap feature."
+    blocker=$(session_blocker "$name")
+    [[ -n $blocker ]] || return 0
+    ((try < 8)) || die "repair sessions kept hitting usage limits or API errors"
+    if [[ $blocker == limit* ]]; then
+      wait_for_limit "${blocker#limit }"
+    else
+      log warn "API busy or network error during a repair; retrying in 5 min."
+      wait_with_status "$(secs 300)" 'API busy'
+    fi
+    try=$((try + 1))
+  done
 }
 
 PHASE='final checks'
@@ -634,24 +775,31 @@ if ((!DEPLOY)); then
   exit 0
 fi
 
+# Fetch, rebase onto origin/main if it moved, push. Each try fetches again, so a push that
+# lost a race with another push rebases and goes again.
 push_main() {
   local i
   PHASE='pushing'
-  git fetch -q origin main
-  if ! git merge-base --is-ancestor origin/main HEAD; then
-    log warn "origin/main moved; rebasing onto it."
-    if ! git -C "$REPO" rebase --autostash origin/main >>"$RUN_LOG" 2>&1; then
-      git -C "$REPO" rebase --abort >/dev/null 2>&1 || true
-      die "rebase onto origin/main conflicted; nothing pushed"
-    fi
-  fi
   for i in 1 2 3; do
-    if git push -q origin HEAD:main >>"$RUN_LOG" 2>&1; then
-      log ok "Pushed $(git rev-parse --short HEAD) to origin/main."
-      return 0
+    if ! git fetch -q origin main >>"$RUN_LOG" 2>&1; then
+      log warn "git fetch failed (try $i)."
+    else
+      if ! git merge-base --is-ancestor origin/main HEAD; then
+        log warn "origin/main moved; rebasing onto it."
+        if ! git -C "$REPO" rebase --autostash origin/main >>"$RUN_LOG" 2>&1; then
+          git -C "$REPO" rebase --abort >/dev/null 2>&1 || true
+          die "rebase onto origin/main conflicted; nothing pushed"
+        fi
+      fi
+      if git push -q origin HEAD:main >>"$RUN_LOG" 2>&1; then
+        log ok "Pushed $(git rev-parse --short HEAD) to origin/main."
+        return 0
+      fi
+      log warn "git push failed (try $i)."
     fi
-    log warn "git push failed (try $i); retrying in $((i * 30)) s."
-    wait_with_status $((i * 30)) 'push retry'
+    ((i < 3)) || break
+    log warn "Retrying the push in $((i * 30)) s."
+    wait_with_status "$(secs $((i * 30)))" 'push retry'
   done
   die "git push failed three times"
 }
@@ -661,38 +809,52 @@ find_run() {
   local event=$1 since=$2 sha=${3:-} id='' i
   for i in $(seq 1 30); do
     id=$(gh run list --workflow "$WORKFLOW" --event "$event" --limit 10 \
-      --json databaseId,createdAt,headSha |
+      --json databaseId,createdAt,headSha 2>>"$RUN_LOG" |
       jq -r --arg sha "$sha" --argjson since "$since" \
-        '[.[] | select(($sha == "" or .headSha == $sha) and ((.createdAt | fromdateiso8601) >= $since - 60))] | .[0].databaseId // empty')
+        '[.[] | select(($sha == "" or .headSha == $sha) and ((.createdAt | fromdateiso8601) >= $since - 60))] | .[0].databaseId // empty' 2>>"$RUN_LOG")
     [[ -n $id ]] && {
       echo "$id"
       return 0
     }
     PHASE="waiting for the $WORKFLOW run to start"
     render_status
-    sleep 10
+    sleep "$(secs 10)"
   done
   return 1
 }
 
-# watch_run ID: poll until done, showing the current step. Returns 0 on success.
+# watch_run ID: poll until done, showing the current step. Returns 0 on success. On failure it
+# saves the failed log and the failed "job<TAB>step" names next to it.
 watch_run() {
-  local id=$1 json status conclusion step
-  log info "Watching deploy run $id: $(gh run view "$id" --json url --jq .url)"
+  local id=$1 json status conclusion step started unknown=0
+  started=$(date +%s)
+  log info "Watching deploy run $id: $(gh run view "$id" --json url --jq .url 2>>"$RUN_LOG")"
   while :; do
-    json=$(gh run view "$id" --json status,conclusion,jobs 2>/dev/null || echo '{}')
-    status=$(jq -r '.status // "unknown"' <<<"$json")
-    conclusion=$(jq -r '.conclusion // ""' <<<"$json")
-    step=$(jq -r '[.jobs[]?.steps[]? | select(.status == "in_progress") | .name] | first // ""' <<<"$json")
+    json=$(gh run view "$id" --json status,conclusion,jobs 2>>"$RUN_LOG") || json='{}'
+    status=$(jq -r '.status // "unknown"' <<<"$json" 2>/dev/null) || status=unknown
+    conclusion=$(jq -r '.conclusion // ""' <<<"$json" 2>/dev/null) || conclusion=''
+    step=$(jq -r '[.jobs[]?.steps[]? | select(.status == "in_progress") | .name] | first // ""' <<<"$json" 2>/dev/null) || step=''
     PHASE="deploy run $id: $status${step:+ · $step}"
     render_status
     if [[ $status == completed ]]; then
       [[ $conclusion == success ]] && return 0
       gh run view "$id" --log-failed >"$RUN/deploy-$id-failed.log" 2>&1 || true
-      log err "Deploy run $id ended: $conclusion (log: $RUN/deploy-$id-failed.log)"
+      jq -r '.jobs[]? | .name as $job | .steps[]? | select(.conclusion == "failure") | "\($job)\t\(.name)"' \
+        <<<"$json" >"$RUN/deploy-$id-failed-steps.txt" 2>/dev/null || true
+      # Without step data, the log's own "job<TAB>step<TAB>line" prefixes name them.
+      [[ -s $RUN/deploy-$id-failed-steps.txt ]] ||
+        cut -f1,2 "$RUN/deploy-$id-failed.log" | grep $'\t' | sort -u >"$RUN/deploy-$id-failed-steps.txt" || true
+      log err "Deploy run $id ended: $conclusion at $(paste -sd, "$RUN/deploy-$id-failed-steps.txt") (log: $RUN/deploy-$id-failed.log)"
       return 1
     fi
-    for _ in $(seq 1 15); do
+    if [[ $status == unknown ]]; then
+      unknown=$((unknown + 1))
+      ((unknown < 40)) || die "gh could not read deploy run $id for 10 min; check it by hand"
+    else
+      unknown=0
+    fi
+    (($(date +%s) - started < $(secs 5400))) || die "deploy run $id did not finish in 90 min; check it by hand"
+    for _ in $(seq 1 "$(secs 15)"); do
       render_status
       sleep 1
     done
@@ -700,12 +862,13 @@ watch_run() {
 }
 
 dispatch_force() {
-  local since
+  local since id
   since=$(date +%s)
   log warn "Live connections blocked the deploy; dispatching with force=true (ends any live game)."
   notify 'Forcing deploy' 'Live connections blocked it; force=true ends any live game'
   gh workflow run "$WORKFLOW" --ref main -f force=true >>"$RUN_LOG" 2>&1 || die "gh workflow run failed"
-  find_run workflow_dispatch "$since" || die "the forced deploy run never appeared"
+  id=$(find_run workflow_dispatch "$since") || die "the forced deploy run never appeared"
+  RUN_ID=$id
 }
 
 push_main
@@ -717,20 +880,27 @@ RUN_ID=$(find_run push "$PUSHED_AT" "$SHA") || {
   RUN_ID=$(find_run workflow_dispatch "$PUSHED_AT") || die "no deploy run appeared"
 }
 
+# The workflow's own checks and image smoke test. A failure there is the code's, so it gets a
+# repair session; anything else (ssh, the runner, the outside smoke check) gets one re-run.
+CI_STEPS=$'^checks\t(typecheck|lint|format check|tests)$|\tbuild and smoke-test the image$'
 REPAIRS=0
 RERUNS=0
 FORCED=0
 until watch_run "$RUN_ID"; do
   failed_log="$RUN/deploy-$RUN_ID-failed.log"
+  failed_steps=$(cat "$RUN/deploy-$RUN_ID-failed-steps.txt" 2>/dev/null || true)
   if grep -q 'live connection(s) after 10 min' "$failed_log" && ((FORCED == 0)); then
     FORCED=1
-    RUN_ID=$(dispatch_force)
-  elif grep -qiE 'vitest|eslint|prettier|tsc|typecheck|npm (run|test)|docker-smoke|smoke' "$failed_log" && ((REPAIRS < 2)); then
+    dispatch_force
+  elif grep -qE "$CI_STEPS" <<<"$failed_steps" && ((REPAIRS < 2)); then
     REPAIRS=$((REPAIRS + 1))
     log warn "CI checks failed; repair session $REPAIRS."
-    repair "repair-ci-$REPAIRS" "The GitHub Actions deploy run failed. Its failed-step log ends with:
+    before=$(git rev-parse HEAD)
+    repair "repair-ci-$REPAIRS" "The GitHub Actions deploy run failed at: $failed_steps
+Its failed-step log ends with:
 $(tail -120 "$failed_log")"
     dirty && stash_changes "CI repair $REPAIRS leftovers"
+    [[ $(git rev-parse HEAD) != "$before" ]] || die "the CI repair session committed nothing; code is pushed but not live"
     run_gate || die "local checks fail after the CI repair; not pushing again"
     push_main
     SHA=$(git rev-parse HEAD)
@@ -740,7 +910,11 @@ $(tail -120 "$failed_log")"
     RERUNS=1
     log warn "Deploy failed for another reason; re-running the failed jobs once."
     gh run rerun "$RUN_ID" --failed >>"$RUN_LOG" 2>&1 || die "gh run rerun failed"
-    sleep 15
+    # Until GitHub requeues it, the run still reads completed/failure.
+    for _ in $(seq 1 24); do
+      [[ $(gh run view "$RUN_ID" --json status --jq .status 2>>"$RUN_LOG") == completed ]] || break
+      sleep "$(secs 5)"
+    done
   else
     notify 'Deploy failed' "Run $RUN_ID"
     die "deploy run $RUN_ID failed again; code is pushed but not live"
@@ -756,6 +930,6 @@ for i in 1 2 3 4 5; do
     exit 0
   fi
   log warn "Live check $i failed; retrying in 20 s."
-  wait_with_status 20 'live check'
+  wait_with_status "$(secs 20)" 'live check'
 done
 die "the deploy succeeded but $LIVE_URL does not answer"
