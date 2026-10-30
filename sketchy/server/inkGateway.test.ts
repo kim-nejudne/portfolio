@@ -1075,3 +1075,67 @@ describe('/ink lobby doodles', () => {
     await expect.poll(() => hasDoodle(l.screen, l.ana.pid)).toBe(false);
   });
 });
+
+describe('/ink after a rejoin from another phone (F42)', () => {
+  const KEY_NEW = 'n'.repeat(21);
+  /** Ana's main socket dies but her `/ink` one lingers; a new phone takes her over. */
+  async function takenOver(d: Awaited<ReturnType<typeof lobby>>) {
+    d.ana.main.socket.disconnect();
+    await expect.poll(() => d.rooms.get(CODE)!.players[d.ana.pid]!.connected).toBe(false);
+    const main = await d.connect('');
+    expect(
+      await main.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_NEW,
+        name: 'ana',
+        takeOver: true,
+      }),
+    ).toEqual({ ok: true, pid: d.ana.pid });
+    const ink = await d.connect('/ink', { code: CODE, playerKey: KEY_NEW });
+    return { main, ink };
+  }
+
+  it('the old phone’s /ink socket can no longer draw; the new phone can', async () => {
+    // Three players, so Ana's dropping doesn't pause the game for too few players.
+    const l = await lobby();
+    const cy = await joinPlayer(l, 'c'.repeat(21), 'Cy');
+    await startTurn(l, 'host:start', [l.ana, l.ben, cy]);
+    const d = { ...l, turnId: l.rooms.get(CODE)!.turn!.id };
+    expect(l.rooms.get(CODE)!.turn!.drawerPid).toBe(l.ana.pid);
+    const fresh = await takenOver(d);
+    expect(await d.ana.ink.emit('ink:batch', stroke(d.turnId, 1))).toEqual({
+      ok: false,
+      error: 'notDrawer',
+    });
+    expect(await d.ana.ink.emit('ink:sync', { turnId: d.turnId, lastSentSeq: 0 })).toEqual({
+      ok: false,
+      error: 'notDrawer',
+    });
+    // The old socket's refused batches don't use up the new phone's budget.
+    for (let i = 0; i < INK_BATCH_RATE_LIMIT.max; i++)
+      await d.ana.ink.emit('ink:batch', stroke(d.turnId, 1));
+    expect(await fresh.ink.emit('ink:batch', stroke(d.turnId, 1))).toEqual({ ok: true });
+    await expect.poll(() => d.screenInk.events.filter(([e]) => e === 'ink:batch').length).toBe(1);
+  });
+
+  it('the old phone’s /ink socket gets no snapshot and can’t doodle', async () => {
+    const l = await lobby();
+    const fresh = await takenOver(l);
+    const ops: InkOp[] = [
+      ['b', 1, 0, 1, 200, 300],
+      ['e', 1],
+    ];
+    expect(await l.ana.ink.emit('doodle:batch', { ops })).toEqual({
+      ok: false,
+      error: 'notPlayer',
+    });
+    expect(await fresh.ink.emit('doodle:batch', { ops })).toEqual({ ok: true });
+
+    await startTurn({ ...l, ana: { ...l.ana, main: fresh.main } }, 'host:start');
+    const turnId = l.rooms.get(CODE)!.turn!.id;
+    expect(await fresh.ink.emit('ink:batch', stroke(turnId, 1))).toEqual({ ok: true });
+    l.ana.ink.events.length = 0;
+    expect(await l.ana.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
+    expect(l.ana.ink.events).toEqual([]);
+  });
+});

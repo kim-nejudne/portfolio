@@ -318,6 +318,7 @@ export function attachSockets(
           // Before the broadcast and the effects, so this socket gets its state and `crowned`.
           // A `takeOver` only succeeds for a disconnected player, and a player is marked
           // disconnected only once their last socket has gone, so no old phone shares this room.
+          // An old phone's leftover `/ink` socket is refused by its key hash (`isCurrentPhone`).
           pid = Object.values(room.players).find((p) => p.keyHash === keyHash)?.pid;
           if (!pid) return;
           void socket.join([anyRoom(code), playerRoom(code, pid)]);

@@ -36,6 +36,7 @@ import type {
   InkClientPayloads,
   InkClientToServerEvents,
   InkServerToClientEvents,
+  Room,
 } from '../shared/types.js';
 import { createInkStore, type InkStore, type TurnLog } from './inkStore.js';
 import { createRateLimiter } from './rateLimit.js';
@@ -47,6 +48,11 @@ export interface InkSocketData {
   code?: string;
   role?: 'screen' | 'player';
   pid?: string;
+  /**
+   * The key hash the phone proved at the handshake. A new phone taking the player over (F42)
+   * replaces the player's hash, so this socket no longer speaks for them.
+   */
+  keyHash?: string;
   /** Invalid batches this socket sent during the room's turn `turnId`. */
   invalid?: { turnId: number; count: number };
 }
@@ -119,7 +125,7 @@ export function attachInkGateway(
     const keyHash = hashPlayerKey(playerKey);
     const player = Object.values(room.players).find((p) => p.keyHash === keyHash);
     if (!player) return next(new Error('notPlayer'));
-    socket.data = { code, role: 'player', pid: player.pid };
+    socket.data = { code, role: 'player', pid: player.pid, keyHash };
     next();
   });
 
@@ -134,7 +140,12 @@ export function attachInkGateway(
         // Only the current drawer of the live turn gets drawing data: its own, after a reload. A
         // player socket never joins the Screen room, so no other phone can receive ink.
         const turn = room.turn;
-        if (room.phase === 'DRAWING' && turn && turn.drawerPid === pid) {
+        if (
+          room.phase === 'DRAWING' &&
+          turn &&
+          turn.drawerPid === pid &&
+          isCurrentPhone(room, socket.data)
+        ) {
           // `inkOpen` started the log with the phase; should it be missing, start it now, as a
           // first batch would, so the drawer's held sender always gets its answer.
           if ((store.turn(code)?.turnId ?? 0) < turn.id) store.open(code, turn.id);
@@ -164,9 +175,8 @@ export function attachInkGateway(
       socket,
       'ink:batch',
       (batch) => {
-        // Per player, so a second `/ink` socket with the same playerKey doesn't double the budget.
-        const { code, pid } = socket.data;
-        if (!batchLimiter.hit(pid ? `${code}:${pid}` : socket.id)) return fail('rateLimited');
+        const { code } = socket.data;
+        if (!batchLimiter.hit(batchKey(socket))) return fail('rateLimited');
         const error = refuseDrawer(socket.data, batch[0], true);
         if (error) return fail(error);
         // `refuseDrawer` passed, so the socket is bound to a live room and `turnId` is current.
@@ -217,14 +227,15 @@ export function attachInkGateway(
       'doodle:batch',
       ({ ops }) => {
         const { code, role, pid } = socket.data;
-        if (!batchLimiter.hit(pid ? `${code}:${pid}` : socket.id)) return fail('rateLimited');
+        if (!batchLimiter.hit(batchKey(socket))) return fail('rateLimited');
         if (!code || !role) return fail('notJoined');
         if (role !== 'player' || !pid) return fail('notPlayer');
         const room = rooms.get(code);
         if (!room) return fail('roomNotFound');
-        // Left or kicked: the handshake bound this socket to a pid the room no longer has.
+        // Left or kicked: the handshake bound this socket to a pid the room no longer has. Taken
+        // over by a new phone (F42): the pid is no longer this phone's.
         const player = room.players[pid];
-        if (!player) return fail('notPlayer');
+        if (!player || !isCurrentPhone(room, socket.data)) return fail('notPlayer');
         if (room.phase !== 'LOBBY') return fail('wrongPhase');
         const out = store.doodle(code, pid, ops);
         if (out.full) return fail('inkFull');
@@ -237,6 +248,23 @@ export function attachInkGateway(
       () => countInvalid(socket),
     );
   });
+
+  /**
+   * The batch rate's bucket: per player and phone, so a second `/ink` socket with the same
+   * playerKey doesn't double the budget, and a taken-over phone's leftover socket (F42) can't use
+   * up the new phone's.
+   */
+  function batchKey(socket: InkSocket): string {
+    const { code, pid, keyHash } = socket.data;
+    return pid ? `${code}:${pid}:${keyHash}` : socket.id;
+  }
+
+  // SPEC-QUESTION: the spec moves the pid to the new keyHash but says nothing of the old phone's
+  // `/ink` socket; it is refused from then on (DECISIONS 64).
+  /** Whether this phone socket still speaks for its player: not left, kicked or taken over. */
+  function isCurrentPhone(room: Room, { pid, keyHash }: InkSocketData): boolean {
+    return pid !== undefined && room.players[pid]?.keyHash === keyHash;
+  }
 
   /** Counts an invalid batch against the room's current turn; too many disconnect the socket. */
   function countInvalid(socket: InkSocket): void {
@@ -252,15 +280,13 @@ export function attachInkGateway(
    * Why this socket can't send ink for `turnId`, or null when it is the drawer of the live turn.
    * `drawing` refuses while paused too (batches); `ink:sync` is allowed then.
    */
-  function refuseDrawer(
-    { code, role, pid }: InkSocketData,
-    turnId: number,
-    drawing: boolean,
-  ): AckError | null {
+  function refuseDrawer(data: InkSocketData, turnId: number, drawing: boolean): AckError | null {
+    const { code, role, pid } = data;
     if (!code || !role) return 'notJoined';
     if (role !== 'player') return 'notDrawer';
     const room = rooms.get(code);
     if (!room) return 'roomNotFound';
+    if (!isCurrentPhone(room, data)) return 'notDrawer';
     if (room.phase !== 'DRAWING' || !room.turn) return 'wrongPhase';
     if (drawing && room.paused) return 'paused';
     if (room.turn.drawerPid !== pid) return 'notDrawer';

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { PLAYER_NAME_MAX } from '../../../../shared/constants.js';
 import type { Translate } from '../../lib/copy.js';
 
@@ -58,5 +58,59 @@ export function JoinForm({
         {error}
       </p>
     </form>
+  );
+}
+
+/**
+ * The name typed belongs to a player whose phone is disconnected (F42): "Are you Jun? · Rejoin as
+ * Jun / Pick another name". Rejoining moves that player (score, crown) to this phone.
+ */
+export function TakeOverPrompt({
+  name,
+  busy,
+  onRejoin,
+  onPickAnother,
+  t,
+}: {
+  name: string;
+  busy: boolean;
+  onRejoin: () => void;
+  onPickAnother: () => void;
+  t: Translate;
+}) {
+  // The name field it replaces had focus: the question takes it, so a screen reader reads it out.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => heading.current?.focus(), []);
+  return (
+    <section
+      aria-labelledby="take-over"
+      className="mx-auto flex w-full max-w-md flex-col gap-3 px-4 pt-6"
+    >
+      <h1
+        id="take-over"
+        ref={heading}
+        tabIndex={-1}
+        className="font-display text-3xl font-bold break-words outline-none"
+      >
+        {t('areYou', { name })}
+      </h1>
+      <p className="text-lg text-white/80">{t('areYouHint', { name })}</p>
+      <button
+        type="button"
+        onClick={onRejoin}
+        disabled={busy}
+        className="min-h-12 rounded-xl bg-[#FF6B35] px-5 text-xl font-bold break-words text-[#1D1B22] disabled:opacity-40"
+      >
+        {busy ? t('joining') : t('rejoinAs', { name })}
+      </button>
+      <button
+        type="button"
+        onClick={onPickAnother}
+        disabled={busy}
+        className="min-h-12 rounded-xl border-2 border-white/40 px-5 text-xl font-semibold disabled:opacity-40"
+      >
+        {t('pickAnotherName')}
+      </button>
+    </section>
   );
 }

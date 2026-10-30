@@ -102,12 +102,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F41 Screen away and too few players
 
-- [ ] F42 Rejoin by name from another phone
-  - Spec: Roles and devices (Creating and joining a room); Reducer actions and effects (Actions); Reconnects, security and edge cases (Reconnects)
-  - Depends: F25
-  - Done when:
-    - Joining with a disconnected player's name asks "Are you Jun? · Rejoin as Jun / Pick another name"; rejoining hands over pid, score and crown; the Screen shows "Jun is back (new phone)"; connected players' names stay blocked
-  - Tests: `reducer.join.test.ts`
+- [x] F42 Rejoin by name from another phone
 
 - [ ] F43 Reconnect every role
   - Spec: Reconnects, security and edge cases (Reconnects); Drawing data protocol (Reconnects and snapshots)

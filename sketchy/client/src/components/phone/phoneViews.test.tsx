@@ -6,6 +6,7 @@ import { translator } from '../../lib/copy.js';
 import { welcomeTurn } from '../../lib/phone.js';
 import { DrawerTurn, GuessLine, TurnUpright } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
+import { TakeOverPrompt } from './JoinForm.js';
 import { PhoneStandings } from './PhoneStandings.js';
 import { WordChoice } from './WordChoice.js';
 
@@ -525,5 +526,26 @@ describe('a mid-game joiner (F23)', () => {
     expect(welcomeTurn(drawingView('mika'))).toBeNull();
     expect(welcomeTurn({ ...fresh(), phase: 'REVEAL' })).toBeNull();
     expect(welcomeTurn({ ...fresh(), phase: 'LOBBY', turn: null })).toBeNull();
+  });
+});
+
+describe('TakeOverPrompt (F42)', () => {
+  const render = (busy: boolean) =>
+    renderToStaticMarkup(
+      <TakeOverPrompt name="Jun" busy={busy} onRejoin={() => {}} onPickAnother={() => {}} t={t} />,
+    );
+
+  it('asks "Are you Jun?" with Rejoin as Jun and Pick another name', () => {
+    const html = render(false);
+    expect(html).toContain('Are you Jun?');
+    expect(html).toContain('>Rejoin as Jun</button>');
+    expect(html).toContain('>Pick another name</button>');
+    expect(html).not.toContain('disabled=""');
+  });
+
+  it('while the rejoin is on its way, both buttons wait', () => {
+    const html = render(true);
+    expect(html).toContain('Joining…');
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
   });
 });

@@ -4,6 +4,7 @@ import type { ScreenView } from '../../../shared/types.js';
 import { DebugOverlay } from '../components/screen/DebugOverlay.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
 import { RematchOverlay } from '../components/RematchOverlay.js';
+import { REJOINED_TOAST_MS, RejoinedToast } from '../components/screen/RejoinedToast.js';
 import { HostControls } from '../components/screen/HostControls.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
@@ -46,6 +47,8 @@ export function Screen() {
   const [reshuffled, setReshuffled] = useState(false);
   // "Need 2 players", for a few seconds after a rematch countdown ends with too few connected.
   const [needTwo, setNeedTwo] = useState(false);
+  // "Jun is back (new phone)" (F42): the pid whose player moved to another phone, for a few seconds.
+  const [rejoinedPid, setRejoinedPid] = useState<string | null>(null);
   const layout = useScreenLayout();
   // "Tap to start" (F37): the tap asks for fullscreen and, from then on, a Screen Wake Lock.
   const [started, setStarted] = useState(false);
@@ -97,6 +100,7 @@ export function Screen() {
     });
     let reshuffleTimer: ReturnType<typeof setTimeout> | undefined;
     let needTwoTimer: ReturnType<typeof setTimeout> | undefined;
+    let rejoinedTimer: ReturnType<typeof setTimeout> | undefined;
     socket.on('fx', (fx) => {
       turnFx.push(fx);
       const sound = soundForFx(fx);
@@ -109,6 +113,10 @@ export function Screen() {
         setNeedTwo(true);
         clearTimeout(needTwoTimer);
         needTwoTimer = setTimeout(() => setNeedTwo(false), NEED_TWO_NOTICE_MS);
+      } else if (fx.kind === 'rejoined') {
+        setRejoinedPid(fx.pid);
+        clearTimeout(rejoinedTimer);
+        rejoinedTimer = setTimeout(() => setRejoinedPid(null), REJOINED_TOAST_MS);
       }
     });
     socket.on('room:closed', () => {
@@ -147,6 +155,7 @@ export function Screen() {
     return () => {
       clearTimeout(reshuffleTimer);
       clearTimeout(needTwoTimer);
+      clearTimeout(rejoinedTimer);
       turnFx.clear();
       stopPinging();
       socket.removeAllListeners();
@@ -230,6 +239,7 @@ export function Screen() {
           {t('needTwoPlayers')}
         </p>
       )}
+      <RejoinedToast name={view.players.find((p) => p.pid === rejoinedPid)?.name ?? null} t={t} />
       <div className="min-h-0 flex-1">
         <DoodleContext value={doodles}>
           {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}

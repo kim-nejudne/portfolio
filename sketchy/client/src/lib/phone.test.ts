@@ -111,12 +111,14 @@ describe('joinOutcome', () => {
     expect(joinOutcome({ ok: false, error: 'kicked' })).toEqual({ status: 'removed' });
   });
 
+  it('the name of a disconnected player asks "Are you Jun?" (F42)', () => {
+    expect(joinOutcome({ ok: false, error: 'nameOfDisconnected' })).toEqual({
+      status: 'takeOver',
+    });
+  });
+
   it('a taken name or a full room goes back to the name step with its message', () => {
     expect(joinOutcome({ ok: false, error: 'nameTaken' })).toEqual({
-      status: 'form',
-      error: 'nameTaken',
-    });
-    expect(joinOutcome({ ok: false, error: 'nameOfDisconnected' })).toEqual({
       status: 'form',
       error: 'nameTaken',
     });

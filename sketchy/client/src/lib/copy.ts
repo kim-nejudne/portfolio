@@ -22,6 +22,7 @@ const EN = {
   waitingForHostToStart: 'Waiting for 👑 {name} to start',
   startGame: 'Start game ▶',
   needTwoPlayers: 'Need 2 players',
+  backNewPhone: '{name} is back (new phone)',
   betterWithThree: 'Better with 3+',
   howToPlay: 'How to play',
   howToDraw: '1 · One person draws on their phone',
@@ -156,6 +157,10 @@ const EN = {
   roomFull: 'That game is full.',
   removed: 'You were removed from this game',
   joinFailed: 'Could not join. Try again.',
+  areYou: 'Are you {name}?',
+  areYouHint: '{name}’s phone is offline. Rejoin to keep their points.',
+  rejoinAs: 'Rejoin as {name}',
+  pickAnotherName: 'Pick another name',
   // ---------- Phone: lobby ----------
   youreIn: 'You’re in, {name}!',
   // ---------- Phone: the crown holder ----------

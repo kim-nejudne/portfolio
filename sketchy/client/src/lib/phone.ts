@@ -93,6 +93,8 @@ export type JoinOutcome =
   | { status: 'live' }
   | { status: 'ended' }
   | { status: 'removed' }
+  /** The name belongs to a disconnected player: "Are you Jun? · Rejoin as Jun / Pick another name". */
+  | { status: 'takeOver' }
   | { status: 'form'; error: CopyKey };
 
 /**
@@ -100,7 +102,6 @@ export type JoinOutcome =
  * that isn't a missing room or a kick goes back to the name step: a name in use, a full room, or a
  * stored player who is no longer in the room (they left, or it is a new room with the same code).
  */
-// SPEC-QUESTION: "Are you Jun? · Rejoin as Jun" for `nameOfDisconnected` is F42; until then it reads as a taken name (DECISIONS 29).
 export function joinOutcome(res: Ack): JoinOutcome {
   if (res.ok || res.error === 'alreadyJoined') return { status: 'live' };
   switch (res.error) {
@@ -108,8 +109,9 @@ export function joinOutcome(res: Ack): JoinOutcome {
       return { status: 'ended' };
     case 'kicked':
       return { status: 'removed' };
-    case 'nameTaken':
     case 'nameOfDisconnected':
+      return { status: 'takeOver' };
+    case 'nameTaken':
       return { status: 'form', error: 'nameTaken' };
     case 'roomFull':
       return { status: 'form', error: 'roomFull' };

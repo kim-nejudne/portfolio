@@ -271,6 +271,57 @@ describe('player:join', () => {
     expect(view.me.turnPoints).toBe(300);
     expect(view.players.find((p) => p.pid === g.ben.pid)!.guessed).toBe(true);
   });
+
+  it('rejoins from another phone (F42): asked first, then takeOver hands over the pid and tells the Screens', async () => {
+    const g = await playing();
+    expect(await g.ben.client.emit('player:guess', { text: g.word })).toEqual({ ok: true });
+    const scored = g.rooms.get(CODE)!.players[g.ben.pid]!.score;
+    const KEY_NEW = 'n'.repeat(21);
+    const fresh = await g.connect();
+    // Ben's phone is still connected: his name is simply taken, takeOver or not.
+    expect(
+      await fresh.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_NEW,
+        name: 'ben',
+        takeOver: true,
+      }),
+    ).toEqual({ ok: false, error: 'nameTaken' });
+    expect(
+      await fresh.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_NEW,
+        name: 'ben',
+        takeOver: 'yes',
+      }),
+    ).toEqual({ ok: false, error: 'invalidPayload' });
+
+    g.ben.client.socket.disconnect();
+    await g.screen.state((v) => v.players.some((p) => p.pid === g.ben.pid && !p.connected));
+    expect(
+      await fresh.emit('player:join', { code: CODE, playerKey: KEY_NEW, name: 'ben' }),
+    ).toEqual({ ok: false, error: 'nameOfDisconnected' });
+    expect(
+      await fresh.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_NEW,
+        name: 'ben',
+        takeOver: true,
+      }),
+    ).toEqual({ ok: true, pid: g.ben.pid });
+    const room = g.rooms.get(CODE)!;
+    expect(room.players[g.ben.pid]).toMatchObject({
+      keyHash: hashPlayerKey(KEY_NEW),
+      connected: true,
+      score: scored,
+    });
+    const view = await fresh.state<PlayerView>((v) => v.role === 'player');
+    expect(view.me.pid).toBe(g.ben.pid);
+    await g.screen.state((v) => v.players.some((p) => p.pid === g.ben.pid && p.connected));
+    expect(g.screen.fx).toContainEqual({ kind: 'rejoined', pid: g.ben.pid });
+    expect(fresh.fx.some((f) => f.kind === 'rejoined')).toBe(false);
+    expect(g.ana.client.fx.some((f) => f.kind === 'rejoined')).toBe(false);
+  });
 });
 
 describe('state broadcast', () => {

@@ -14,7 +14,7 @@ import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
 import { RematchOverlay } from '../components/RematchOverlay.js';
 import { HostDrawer } from '../components/phone/HostDrawer.js';
-import { JoinForm } from '../components/phone/JoinForm.js';
+import { JoinForm, TakeOverPrompt } from '../components/phone/JoinForm.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { WordChoice } from '../components/phone/WordChoice.js';
@@ -44,7 +44,7 @@ import { createInkSocket, createSocket, type InkSocket } from '../lib/socket.js'
 import { watchVisibility } from '../lib/visibility.js';
 import { useWakeLock } from '../lib/wakeLock.js';
 
-type Status = 'form' | 'joining' | 'live' | 'ended' | 'removed';
+type Status = 'form' | 'takeOver' | 'joining' | 'live' | 'ended' | 'removed';
 
 const ACK_TIMEOUT_MS = 5000;
 const CROWN_TOAST_MS = 4000;
@@ -71,6 +71,9 @@ export function Play() {
   const [formName, setFormName] = useState(stored?.name ?? '');
   // A stored identity rejoins without showing the name step; a typed name keeps the form up.
   const [silent, setSilent] = useState(stored !== null);
+  // The name of a disconnected player this phone typed (F42): "Are you Jun?" until answered, and
+  // while the takeover join is on its way.
+  const [takeOverName, setTakeOverName] = useState<string | null>(null);
   const [state, setState] = useState<{ view: PlayerView; at: number } | null>(null);
   const [misses, setMisses] = useState<OwnGuesses>({ turnId: -1, items: [] });
   // Bumped on every near miss, so the guess box shows "So close!" again for a repeat.
@@ -96,6 +99,8 @@ export function Play() {
   // `?debug=1` (F16): the clock offset to the server, so each ink batch carries its send time.
   const debugClock = useMemo(() => (isDebug() ? createClockOffset() : null), []);
   const identityRef = useRef<PlayerIdentity | null>(stored);
+  // The next join asks for the disconnected player's pid, score and crown (F42).
+  const takeOverRef = useRef(false);
   const inkRef = useRef<InkSocket | null>(null);
   // The drawer's current turn on `/ink`, while the pad is up.
   const drawerSyncRef = useRef<DrawerSync | null>(null);
@@ -154,6 +159,7 @@ export function Play() {
           code,
           playerKey: identity.playerKey,
           name: identity.name,
+          ...(takeOverRef.current ? { takeOver: true } : {}),
           // A locked phone reconnecting in the background stays away for the server (F40).
           hidden: document.visibilityState === 'hidden',
         })
@@ -161,6 +167,8 @@ export function Play() {
     }
     if (identityRef.current !== identity) return;
     const outcome = joinOutcome(res);
+    takeOverRef.current = false;
+    setTakeOverName(outcome.status === 'takeOver' ? identity.name : null);
     if (outcome.status === 'live') {
       savePlayer(code, identity);
       joinedRef.current = true;
@@ -171,10 +179,10 @@ export function Play() {
     freshJoin.current = false;
     clearPlayer(code);
     closeInk();
-    if (outcome.status === 'form') {
+    if (outcome.status === 'form' || outcome.status === 'takeOver') {
       identityRef.current = null;
       setFormName(identity.name);
-      setFormError(outcome.error);
+      setFormError(outcome.status === 'form' ? outcome.error : null);
     } else {
       socket.disconnect();
     }
@@ -252,6 +260,26 @@ export function Play() {
     setFormError(null);
     setStatus('joining');
     void join();
+  };
+
+  // "Rejoin as Jun": a new key for this phone, and the join takes that player over. A rejoin, not a
+  // new player, so no "You're in!" welcome.
+  const takeOver = () => {
+    if (takeOverName === null) return;
+    identityRef.current = { playerKey: newPlayerKey(), name: takeOverName };
+    takeOverRef.current = true;
+    freshJoin.current = false;
+    setSilent(false);
+    setStatus('joining');
+    void join();
+  };
+
+  const pickAnotherName = () => {
+    takeOverRef.current = false;
+    setTakeOverName(null);
+    setFormError(null);
+    setFormName('');
+    setStatus('form');
   };
 
   const guess = (text: string): Promise<Ack | null> => {
@@ -383,7 +411,21 @@ export function Play() {
     );
   }
 
-  if (status === 'form' || (status === 'joining' && !silent)) {
+  if (takeOverName !== null && (status === 'takeOver' || (status === 'joining' && !silent))) {
+    return (
+      <main className="flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+        <TakeOverPrompt
+          name={takeOverName}
+          busy={status === 'joining'}
+          onRejoin={takeOver}
+          onPickAnother={pickAnotherName}
+          t={t}
+        />
+      </main>
+    );
+  }
+
+  if (status === 'form' || status === 'takeOver' || (status === 'joining' && !silent)) {
     return (
       <main className="flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
         <JoinForm
