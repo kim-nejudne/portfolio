@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+.DS_Store
+.playtest/
+test-results/
+playwright-report/
+*.log
+graphify-out/
+# Local only: the prompt that produced the spec and the map of the Claude Code setup.
+spec-prompt.md
+docs/claude-setup.md
