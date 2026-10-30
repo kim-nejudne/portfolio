@@ -297,35 +297,35 @@ describe('/ink relay', () => {
     const plainScreenInk = await l.connect('/ink');
     expect(await plainScreenInk.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
     const cy = await joinPlayer(l, 'c'.repeat(21), 'Cy');
-    const phones = { ana: l.ana, ben: l.ben, cy };
+    const phones: Record<string, Phone> = { ana: l.ana, ben: l.ben, cy };
     // Every phone also says hello, as a Screen would; it must still not be counted as one.
     for (const p of Object.values(phones))
       expect(await p.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
 
-    let dee: Awaited<ReturnType<typeof joinPlayer>> | undefined;
     const sent: InkBatch[] = [];
     // What each phone's `/ink` socket may receive: its own drawing, while it is drawing it.
     const allowed = new Map<string, unknown[]>();
-    for (const [n, name] of (['ana', 'ben', 'cy'] as const).entries()) {
+    // Dee joins during turn 1 with turns left, so they are appended and draw turn 4 (F23).
+    for (const [n, name] of (['ana', 'ben', 'cy', 'dee'] as const).entries()) {
       await startTurn(l, n === 0 ? 'host:start' : 'host:next', Object.values(phones));
       const room = l.rooms.get(CODE)!;
-      expect(room.turn!.drawerPid).toBe(phones[name].pid);
-      // Ana keeps the crown throughout, so turns 2 and 3 have a crowned guesser.
+      expect(room.turn!.drawerPid).toBe(phones[name]!.pid);
+      // Ana keeps the crown throughout, so turns 2 to 4 have a crowned guesser.
       expect(room.crownPid).toBe(l.ana.pid);
       for (const seq of [1, 2]) {
         const batch = stroke(room.turn!.id, seq);
-        expect(await phones[name].ink.emit('ink:batch', batch)).toEqual({ ok: true });
+        expect(await phones[name]!.ink.emit('ink:batch', batch)).toEqual({ ok: true });
         sent.push(batch);
       }
       if (n === 0) {
-        dee = await joinPlayer(l, 'd'.repeat(21), 'Dee');
-        expect(await dee.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
+        phones.dee = await joinPlayer(l, 'd'.repeat(21), 'Dee');
+        expect(await phones.dee.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
       }
       // Everyone says hello mid-turn, as after a reload: only the drawer gets a snapshot.
-      for (const p of [...Object.values(phones), dee!])
+      for (const p of Object.values(phones))
         expect(await p.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
-      allowed.set(phones[name].pid, [
-        ...(allowed.get(phones[name].pid) ?? []),
+      allowed.set(phones[name]!.pid, [
+        ...(allowed.get(phones[name]!.pid) ?? []),
         ['ink:snapshot', { turnId: room.turn!.id, seq: 2, actions: stackOpsOf(sent.slice(-2)) }],
       ]);
       expect(await l.screen.emit('host:skip')).toEqual({ ok: true });
@@ -338,7 +338,7 @@ describe('/ink relay', () => {
         .poll(() => inkEvents(screenInk).filter(([e]) => e === 'ink:batch'))
         .toEqual(sent.map((b) => ['ink:batch', b]));
     }
-    const phoneSockets = [...Object.values(phones), dee!];
+    const phoneSockets = Object.values(phones);
     // A round trip on each phone socket after the relays: anything sent to it would be here now.
     for (const p of phoneSockets) await p.ink.emit('ink:hello', { code: CODE });
     // The main namespace carries only views and fx: no ink under any event name.

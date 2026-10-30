@@ -177,9 +177,25 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
     joinedAt: now,
   };
   fx.push({ type: 'fx', to: 'screen', fx: { kind: 'join', pid } });
-  // SPEC-QUESTION: a mid-game joiner is not added to this cycle's turn order until F23 (DECISIONS 18).
+  appendLateJoiner(d, pid);
   if (d.crownPid === null) crown(d, pid, fx);
   return undefined;
+}
+
+/**
+ * **Late joiners** (Turn order): a new player joining mid-game is appended to this cycle's
+ * `turnOrder` if at least one turn remains after the current one. Otherwise they draw from the next
+ * cycle, whose order is built in join order, and in the last cycle they only guess. In REVEAL and
+ * SCOREBOARD a standing `upcoming` deal decides: one of this cycle is a turn after the one just
+ * played; one of the next cycle means `turnOrder` is already that cycle's, so they draw in it. With
+ * no deal, the next cycle's order (if any) is still to be built and will include them. They can
+ * guess at once either way: guessing never reads `turnOrder`.
+ */
+// SPEC-QUESTION: "a turn remains" counts places in turnOrder, connected or not (DECISIONS 46).
+function appendLateJoiner(d: Room, pid: string): void {
+  const inTurn = d.phase === 'CHOOSING' || d.phase === 'DRAWING';
+  const remains = d.upcoming !== null || (inTurn && d.turnIndex < d.turnOrder.length - 1);
+  if (remains && !d.turnOrder.includes(pid)) d.turnOrder.push(pid);
 }
 
 /** A pid from the room's seeded RNG (DECISIONS 17), unique in the room. */

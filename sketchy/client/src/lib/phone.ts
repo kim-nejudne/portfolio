@@ -2,7 +2,7 @@
 // answer means for the page, and the pad's first-pointer rule. Presentation only.
 
 import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
-import type { Ack } from '../../../shared/types.js';
+import type { Ack, PlayerView } from '../../../shared/types.js';
 import type { CopyKey } from './copy.js';
 
 /** The top bar: the word (small), the timer, "2 of 4 got it" and the latest guess. */
@@ -24,6 +24,17 @@ export function drawerPadSize(width: number, height: number): number {
 }
 
 // ---------- Joining ----------
+
+/**
+ * The turn a phone joining mid-game is welcomed into ("You're in! Mika is drawing. Type your
+ * guess."): given the first view after a new player's join, the turn in play if they are a guesser
+ * in it (CHOOSING or DRAWING), else null. A stored player rejoining isn't asked.
+ */
+export function welcomeTurn(view: PlayerView): number | null {
+  const { phase, turn } = view;
+  if (phase !== 'CHOOSING' && phase !== 'DRAWING') return null;
+  return turn && turn.drawerPid !== view.me.pid ? turn.id : null;
+}
 
 /** What the phone shows after a `player:join` answer. */
 export type JoinOutcome =

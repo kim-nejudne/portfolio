@@ -304,7 +304,7 @@ describe('turn order across cycles', () => {
     expect(drawers).toEqual(pids);
   });
 
-  it('a mid-game joiner is in the next cycle’s order, in join order', () => {
+  it('a mid-game joiner with turns left draws this cycle and the next, in join order', () => {
     const { room, pids, at } = game({ cycles: 2 });
     const r = step(
       room,
@@ -313,8 +313,8 @@ describe('turn order across cycles', () => {
     ).room;
     const dee = Object.values(r.players).find((p) => p.name === 'Dee')!.pid;
     const { drawers } = playToFinal(r, at);
-    // F23 appends a late joiner to this cycle when turns remain; until then they wait.
-    expect(drawers).toEqual([...pids, ...pids, dee]);
+    // F23: turns remained, so Dee is appended to cycle 1; cycle 2 is built in join order.
+    expect(drawers).toEqual([...pids, dee, ...pids, dee]);
   });
 
   it('a player who leaves during SCOREBOARD is not in the next cycle', () => {

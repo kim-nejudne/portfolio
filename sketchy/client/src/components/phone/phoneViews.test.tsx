@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
+import { welcomeTurn } from '../../lib/phone.js';
 import { DrawerTurn } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
 import { PhoneStandings } from './PhoneStandings.js';
@@ -359,5 +360,51 @@ describe('the next drawer during the reveal (F21)', () => {
       <PhoneStandings view={{ ...upNext(true), secret: null }} onLeave={() => {}} t={t} />,
     );
     expect(html).not.toContain('You draw next');
+  });
+});
+
+describe('a mid-game joiner (F23)', () => {
+  /** Jun, who hasn't guessed yet, in Mika's DRAWING turn. */
+  const fresh = (): PlayerView =>
+    drawingView('jun', {
+      players: drawingView('jun').players.map((p) =>
+        p.pid === 'jun' ? { ...p, guessed: false, turnPoints: 0 } : p,
+      ),
+      me: { pid: 'jun', turnPoints: 0, score: null, rank: null, award: null },
+    });
+  const render = (view: PlayerView, welcome: boolean) =>
+    renderToStaticMarkup(
+      <GuesserTurn
+        view={view}
+        receivedAt={0}
+        misses={[]}
+        nearMiss={0}
+        onGuess={async () => null}
+        welcome={welcome}
+        t={t}
+      />,
+    );
+
+  it('lands on the guess box with "You\'re in! Mika is drawing. Type your guess."', () => {
+    const html = render(fresh(), true);
+    expect(html).toContain('You&#x27;re in! Mika is drawing. Type your guess.');
+    // The line sits under the box, which stays where it always is.
+    expect(html.indexOf('placeholder="Hula mo?"')).toBeLessThan(html.indexOf('You&#x27;re in!'));
+    // Screen readers hear it with the focused box.
+    expect(html).toContain('aria-describedby="joined-mid-game"');
+    expect(html).toContain('id="joined-mid-game"');
+  });
+
+  it('shows no welcome to a player who was already in, or once they got it', () => {
+    expect(render(fresh(), false)).not.toContain('You&#x27;re in!');
+    expect(render(drawingView('jun'), true)).not.toContain('You&#x27;re in!');
+  });
+
+  it('is welcomed into the turn in play as a guesser, never as its drawer or between turns', () => {
+    expect(welcomeTurn(fresh())).toBe(fresh().turn!.id);
+    expect(welcomeTurn(choosingView('jun'))).toBe(choosingView('jun').turn!.id);
+    expect(welcomeTurn(drawingView('mika'))).toBeNull();
+    expect(welcomeTurn({ ...fresh(), phase: 'REVEAL' })).toBeNull();
+    expect(welcomeTurn({ ...fresh(), phase: 'LOBBY', turn: null })).toBeNull();
   });
 });

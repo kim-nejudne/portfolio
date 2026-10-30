@@ -226,7 +226,7 @@ describe('word secrecy across a scripted game', () => {
     });
     const dee = Object.values(room.players).find((p) => p.name === 'Dee')!.pid;
 
-    // synth pause. TODO(F23): `host:pause` and `host:resume` instead.
+    // synth pause. TODO(F28): `host:pause` and `host:resume` instead.
     // a host pause, then the 3-2-1 countdown.
     const paused: Room = {
       ...room,
@@ -313,6 +313,21 @@ describe('word secrecy across a scripted game', () => {
     });
     act('reveal 3', { type: 'host:skip', by: SCREEN_HOST });
 
+    // Turn 4 (F23): Dee joined while turns remained, so they were appended to cycle 1. Dealt at
+    // the reveal, they choose in CHOOSING; Ben guesses right with the crown.
+    expect(room.upcoming!.drawerPid).toBe(dee);
+    act('late joiner taken up unchosen', { type: 'host:next', by: SCREEN_HOST });
+    expect([room.phase, room.turn!.drawerPid, room.cycle]).toEqual(['CHOOSING', dee, 1]);
+    act('late joiner draws in cycle 1', { type: 'drawer:choose', by: asPlayer(dee), index: 0 });
+    act('crown guesses right', {
+      type: 'player:guess',
+      by: asPlayer(ben, true),
+      text: word(room),
+      receivedAt: t,
+      oneWayMs: 0,
+    });
+    act('reveal 4', { type: 'host:skip', by: SCREEN_HOST });
+
     // Cycle 1 is done: the totals and ranks, then cycle 2 in join order, the late joiner included.
     // Ben was dealt cycle 2's first turn at the reveal, and chooses on the scoreboard.
     act('scoreboard', { type: 'host:next', by: SCREEN_HOST });
@@ -339,7 +354,7 @@ describe('word secrecy across a scripted game', () => {
       receivedAt: t,
       oneWayMs: 0,
     });
-    act('reveal 4', { type: 'host:skip', by: SCREEN_HOST });
+    act('reveal 5', { type: 'host:skip', by: SCREEN_HOST });
 
     // The last cycle is done, so the game ends.
     act('final', { type: 'host:next', by: SCREEN_HOST });
@@ -633,9 +648,15 @@ describe('word secrecy through the socket gateway', () => {
       });
       await checkpoint(`reveal ${n + 1} late guess`);
     }
-    // Cycle 1 done: SCOREBOARD, then cycle 2 (Dee included), each deal skipped, then FINAL.
+    // F23: Dee joined while turns remained, so cycle 1 has a fourth turn. Their deal is skipped,
+    // which ends cycle 1.
     expect(await screen.emit('host:next')).toEqual({ ok: true });
+    await checkpoint('late joiner dealt in cycle 1');
+    const dee = Object.values(room().players).find((p) => p.name === 'Dee')!.pid;
+    expect([room().phase, room().cycle, room().turn!.drawerPid]).toEqual(['CHOOSING', 1, dee]);
+    expect(await screen.emit('host:skip')).toEqual({ ok: true });
     await checkpoint('scoreboard');
+    // Cycle 1 done: SCOREBOARD, then cycle 2 (Dee included), each deal skipped, then FINAL.
     expect(room().phase).toBe('SCOREBOARD');
     expect(await screen.emit('host:next')).toEqual({ ok: true });
     await checkpoint('cycle 2 dealt');

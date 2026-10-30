@@ -9,7 +9,7 @@ import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { WordChoice } from '../components/phone/WordChoice.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { translator, type CopyKey } from '../lib/copy.js';
-import { addOwnGuess, joinOutcome, type OwnGuesses } from '../lib/phone.js';
+import { addOwnGuess, joinOutcome, welcomeTurn, type OwnGuesses } from '../lib/phone.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -52,6 +52,10 @@ export function Play() {
   const [misses, setMisses] = useState<OwnGuesses>({ turnId: -1, items: [] });
   // Bumped on every near miss, so the guess box shows "So close!" again for a repeat.
   const [nearMiss, setNearMiss] = useState(0);
+  // A new player's first view decides whether they joined mid-turn (F23): that turn gets the
+  // "You're in!" line on the guess box. A silent rejoin never sets it.
+  const freshJoin = useRef(false);
+  const [welcomeTurnId, setWelcomeTurnId] = useState<number | null>(null);
 
   const socket = useMemo(() => createSocket(), []);
   // `?debug=1` (F16): the clock offset to the server, so each ink batch carries its send time.
@@ -109,6 +113,7 @@ export function Play() {
       openInk(identity);
       return;
     }
+    freshJoin.current = false;
     clearPlayer(code);
     closeInk();
     if (outcome.status === 'form') {
@@ -171,6 +176,7 @@ export function Play() {
 
   const startJoin = (name: string) => {
     identityRef.current = { playerKey: newPlayerKey(), name };
+    freshJoin.current = true;
     setSilent(false);
     setFormError(null);
     setStatus('joining');
@@ -251,6 +257,12 @@ export function Play() {
 
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
+
+  useEffect(() => {
+    if (!freshJoin.current || status !== 'live' || !view) return;
+    freshJoin.current = false;
+    setWelcomeTurnId(welcomeTurn(view));
+  }, [status, view]);
 
   // Batches sent as the pause began were refused: when it lifts, the drawer catches up.
   const paused = view?.paused != null;
@@ -348,6 +360,7 @@ export function Play() {
             misses={misses.turnId === turn?.id ? misses.items : []}
             nearMiss={nearMiss}
             onGuess={guess}
+            welcome={welcomeTurnId !== null && welcomeTurnId === turn?.id}
             t={t}
           />
         )}

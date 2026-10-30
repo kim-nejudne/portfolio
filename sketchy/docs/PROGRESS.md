@@ -39,8 +39,73 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F20: `npm run dev`, laptop Screen on the TV (Start), then 10 players (3 real phones plus bots from `/dev/bots/CODE`); play a 2-round game; repeat the scoreboard part on a portrait tablet Screen · after round 1 the TV shows "Round 1 of 2 done" with all 10 players ranked in two columns and the "Next ▶" button in its own row above the footer, covering no score; each phone shows "#N of 10" and its total; tied players share a medal or number; after round 2 the TV shows "Final scores" with no Next button; during turns no phone or TV shows a total, only "+N this turn"
 - [ ] F21: `npm run dev` + `npm run lan`, laptop Screen on the TV (Start), 3 real phones (one ≈ 360 × 560–640); play a 2-round game; (a) on turn 1, as soon as it ends, look at the next drawer's phone; (b) next drawer taps a card during the reveal; (c) on another turn the next drawer taps nothing; (d) on the last turn of round 1, the next round's first drawer picks during the scoreboard; (e) once, the next drawer locks their phone/turns Wi-Fi off during the reveal · (a) it buzzes and shows "You draw next! Pick a word", three cards and a ◔ countdown from about 12 s, while the TV and the other phones show the reveal and no card word; (b) the phone shows "✏️ You draw next! Get ready" and, when the reveal ends (8 s), the pad opens at once; (c) after the reveal the TV shows "… is choosing…" for about 4 s and then the easiest word is drawn; (d) the cards stay through "Round 1 of 2 done" and drawing starts right after the scoreboard; (e) when the reveal ends, the following player gets the cards instead; on the small phone the cards fit with no scrolling, and a tap that lands as the cards appear (mid-guess) doesn't pick a word
 - [ ] F22: `npm run dev`, laptop Screen on the TV (Start), 2 phones joined; from the couch (about 3–5 m): click **Settings ⚙** (top right), pick Quick, then Barkada Night, then Drawing time 100 s, then Esc; then reopen it, pick Classic and press Done; also try it on a tablet Screen in portrait · every label and pressed (orange) button is readable from the couch; the panel fits the TV with no scrolling; the orange highlight moves to the tapped preset, and "Presets · Custom" appears once 100 s is hand-picked; after Esc the lobby line reads "80 s · 3 rounds · Mixed words" with no preset name, after Classic it reads "Classic · 60 s · 2 rounds · Mixed words"; Tab never reaches Start while the panel is open; on the tablet the panel scrolls and every button is easy to tap
+- [ ] F23: `npm run dev`, laptop Screen (Start) with 2 phones joined via `npm run lan CODE`; once Ana is drawing, scan the join QR with a third phone (an iPhone and an Android if you have both) and join as a new name · the phone lands straight on the guess box with "You're in! Ana is drawing. Type your guess." under it; on Android the keyboard may pop up by itself, on iPhone the box is focused but the keyboard waits for a tap (expected); the line goes after the first guess; refreshing the page mid-turn does not bring it back; the new player draws later in the same round (after the original players), and with a long name (e.g. 14 letters, no spaces) the line wraps instead of running off a 360 px screen
 
 <!-- entries below, newest first -->
+
+## F23 — Late join and turn order (2026-10-30)
+**What changed:**
+- **Reducer:** `join` calls the new `appendLateJoiner` for a new player (never a rejoin or a name takeover). The joiner is appended to `turnOrder` when a turn remains after the current one:
+  - in CHOOSING/DRAWING, when a place remains after `turnIndex` (connected or not);
+  - in REVEAL/SCOREBOARD, when an `upcoming` deal stands. If it is this cycle's, they go after it. If it is the next cycle's, `turnOrder` is already that cycle's, so they draw in it, once.
+  - With no deal (the game's last REVEAL), and in LOBBY/FINAL, there is no append. The next cycle, if any, is built in join order with them in it; otherwise they only guess.
+  - Disconnect skips and leave removals were already in place from F20/F21; F23 adds their tests. The old F04 SPEC-QUESTION is gone.
+- **Client:**
+  - `lib/phone.ts` `welcomeTurn(view)`: the turn a newly joined phone is welcomed into (a guesser in CHOOSING/DRAWING), else null.
+  - `Play.tsx`: `freshJoin` is set only by the name step (`startJoin`) and cleared on a refused join. The first live view sets `welcomeTurnId`.
+  - `GuesserTurn` `welcome` prop: in that turn's DRAWING, "You're in! Mika is drawing. Type your guess." sits under the guess box, the box takes focus, and it is linked by `aria-describedby`. The line wraps long names and goes after the first guess or a correct one.
+  - `copy.ts`: `joinedMidGame` (English; Taglish with F45).
+- **Tests:**
+  - `server/reducer.turnorder.test.ts` (new, 18):
+    - a joiner scores in the current turn, timed from the turn start (fewer points), at 0 and with no word in their view;
+    - a LOBBY join is left to Start;
+    - appended mid-cycle (DRAWING, CHOOSING), even when the places after are disconnected;
+    - the cycle's last turn → the next cycle; the last turn of the last cycle → only guesses;
+    - REVEAL with this cycle's deal → after it; REVEAL with the next cycle's deal and SCOREBOARD → in the next cycle, once; the game's last REVEAL → FINAL;
+    - two joiners add at most one turn each a cycle;
+    - a rejoin or a name takeover is not appended again;
+    - a disconnected player is skipped (even if back before their place) and draws next cycle; a dealt player who disconnects is skipped at take-up; leavers, including a late joiner, are removed and never drawn.
+  - `phoneViews.test.tsx` (+3): the welcome line under the box with `aria-describedby`; none for an existing player or once they got it; `welcomeTurn` for a guesser in CHOOSING/DRAWING, null for the drawer, REVEAL and LOBBY.
+  - Updated for the new rule, with no checks dropped: the `reducer.flow` mid-game joiner now draws in both cycles. Both `views.leak` scripted games gain the joiner's cycle-1 turn (the reducer game plays it with a guess; the socket game deals and skips it). The `/ink` whole game now has the late joiner draw turn 4, and checks that they get only their own snapshot.
+- No new dependencies.
+
+**Decisions:** DECISIONS 46 covers:
+- what "a turn remains" means in each phase (places counted connected or not; a standing deal between turns);
+- no append with no deal;
+- who gets the welcome and where it sits;
+- the iOS focus limit.
+
+Row 18 points to it. A mislabelled `TODO(F23)` for the pause in `views.leak.test.ts` now reads F28.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: a test for disconnected places after the current turn, the takeover note in DECISIONS 46, this entry and the Kim check.
+- **secrets-fairness: PASS.** Applied: `freshJoin` cleared on a refused join, and DECISIONS 46 now notes the REVEAL-with-no-deal case. Not applied (cosmetic): hiding the welcome only after an `ok` ack.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - `aria-describedby` on the box;
+  - `break-words` on the line;
+  - the iOS focus note in DECISIONS;
+  - the `freshJoin` reset;
+  - the test's turn id taken from the fixture.
+  - The `Play.tsx` wiring (refresh shows no welcome) is in the Kim check, because the client tests have no DOM. A welcome during CHOOSING is not added: the spec names DRAWING.
+
+**Notes for next session:**
+- **F24:** nothing new.
+- **F28:**
+  - kick must remove the player from `turnOrder` the way `leave` does, `turnIndex` adjustment included;
+  - `fewPlayers` may make the "disconnected places count" case rarer.
+- **F42:** "Rejoin as Jun" goes through the name step, so it will set `freshJoin`. A welcome line there is harmless (DECISIONS 46).
+- **F45:** add `joinedMidGame` to the Taglish table.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/reducer.turnorder.test.ts server/reducer.flow.test.ts server/views.leak.test.ts server/inkGateway.test.ts client/src/components/phone`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), 2 phones via `npm run lan CODE` or bots at `/dev/bots/CODE`. While someone draws, join from another phone: it opens on the guess box with "You're in! … is drawing. Type your guess.", can guess right away, and draws after the original players this round.
+- Automated: `npm run playtest -- .playtest/F23/scenario.ts` (gitignored). It runs a TV Screen, Ana, Ben and a late joiner, Cara, on a small phone. All steps pass:
+  - Cara joins mid-DRAWING and sees the welcome line and the guess box;
+  - the word is absent from the Screen and guesser DOM before the reveal;
+  - the drawers go Ana, Ben, Cara (appended this cycle);
+  - after Ben's browser closes, Ben is skipped.
+  - No console errors.
+  - Not covered here: the next-cycle, last-cycle and leave rules (all covered by the unit tests).
 
 ## F22 — Settings and presets (2026-10-30)
 **What changed:**

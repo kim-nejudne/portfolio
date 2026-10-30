@@ -15,6 +15,8 @@ interface Props {
   nearMiss: number;
   /** Sends the guess; resolves with the server's answer, or `null` if it was lost. */
   onGuess: (text: string) => Promise<Ack | null>;
+  /** Joined during this turn: "You're in! Mika is drawing. Type your guess." until their first guess. */
+  welcome?: boolean;
   t: Translate;
 }
 
@@ -23,7 +25,7 @@ interface Props {
  * who is drawing, the blanks, the guess box near the top (so the keyboard never covers it) and,
  * after a correct guess, "✓ You got it! +N" without the word. No drawing here, on purpose.
  */
-export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: Props) {
+export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, welcome, t }: Props) {
   const turn = view.turn!;
   const left = useCountdown(turn.timer, receivedAt);
   const [text, setText] = useState('');
@@ -56,11 +58,19 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: 
   const me = view.players.find((p) => p.pid === view.me.pid);
   const guessed = me?.guessed ?? false;
   const drawing = view.phase === 'DRAWING';
+  const [sentOne, setSentOne] = useState(false);
+  const showWelcome = welcome === true && drawing && !guessed && !sentOne;
+
+  // A mid-game joiner lands on the guess box (F23).
+  useEffect(() => {
+    if (showWelcome) inputRef.current?.focus();
+  }, [showWelcome]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const guess = text.trim();
-    if (guess)
+    if (guess) {
+      setSentOne(true);
       void onGuess(guess).then((res) => {
         const answer = guessAnswer(res);
         if (answer.notice) showNotice(answer.notice);
@@ -71,6 +81,7 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: 
           inputRef.current?.focus();
         }
       });
+    }
     setText('');
     // Keep the keyboard up for the next guess.
     inputRef.current?.focus();
@@ -128,6 +139,7 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: 
               maxLength={GUESS_MAX}
               placeholder={t('guessPlaceholder')}
               aria-label={t('guessPlaceholder')}
+              aria-describedby={showWelcome ? 'joined-mid-game' : undefined}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
@@ -148,6 +160,11 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: 
           <p role="status" aria-live="polite" className="text-lg font-bold text-[#FFD166]">
             {notice ? <span className="mt-2 block">{t(notice.key)}</span> : null}
           </p>
+          {showWelcome && (
+            <p id="joined-mid-game" className="mt-2 text-lg break-words">
+              {t('joinedMidGame', { name: turn.drawerName })}
+            </p>
+          )}
         </div>
       )}
 

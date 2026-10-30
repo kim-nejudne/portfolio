@@ -117,6 +117,7 @@ const EN = {
   lettersLabel: '{n} letters to guess',
   hintsLabel: '{label}. Hints: {letters}',
   youGotIt: '✓ You got it! +{points}',
+  joinedMidGame: "You're in! {name} is drawing. Type your guess.",
   watchScreen: '👀 Watch the Screen',
   turnPoints: '+{points} this turn',
   gotItCount: '{guessed} of {of} got it',

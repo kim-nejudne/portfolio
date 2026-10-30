@@ -56,14 +56,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F22 Settings and presets
 
-- [ ] F23 Late join and turn order
-  - Spec: Game flow and state machine (Turn order); Reconnects, security and edge cases (Edge cases); UI by role and phase (Guesser phone)
-  - Depends: F21
-  - Done when:
-    - Mid-game joiners can guess at once and land on the guess box with "You're in! Mika is drawing. Type your guess."
-    - A joiner is appended to this cycle if at least one turn remains after the current one, otherwise draws from the next cycle; in the last cycle they only guess
-    - Disconnected players are skipped when their turn comes and draw again from the next cycle; leaving removes them from the order
-  - Tests: `reducer.turnorder.test.ts`
+- [x] F23 Late join and turn order
 
 ## M4 — Host and onboarding
 
