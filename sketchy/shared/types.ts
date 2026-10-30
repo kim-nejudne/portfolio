@@ -69,7 +69,8 @@ export interface Turn {
   feed: FeedItem[]; // newest last, max FEED_MAX (8) kept
   closeGuesses: FeedItem[]; // max 3, never in a view before REVEAL
   closeCount: Record<string, number>; // per pid, for awards
-  guessCount: Record<string, number>; // per pid, for rate limiting and stats
+  guessCount: Record<string, number>; // per pid, for stats
+  lastGuessAt: Record<string, number>; // per pid, receivedAt of the last matched guess (700 ms limit)
   drawerPoints: number; // set at REVEAL
   endReason: TurnEndReason | null;
 }
@@ -245,6 +246,9 @@ export type ReduceError =
   | 'drawerCannotGuess'
   | 'alreadyGuessed'
   | 'tooLate'
+  | 'emptyGuess' // nothing left after normalisation ("!!!", "the")
+  | 'guessTooLong'
+  | 'slowDown' // more than one guess per GUESS_INTERVAL_MS; the phone shows "Slow down"
   | 'staleTimer'; // the room has moved on; the gateway drops it silently
 
 // ---------- Effects ----------

@@ -54,6 +54,29 @@ export function joinOutcome(res: Ack): JoinOutcome {
   }
 }
 
+// ---------- Guessing ----------
+
+/** How long a note under the guess box ("Slow down") stays up. */
+export const GUESS_NOTICE_MS = 1_500;
+
+/** What the guess box does with a `player:guess` answer (`null`: lost or timed out). */
+export interface GuessAnswer {
+  /** A short note under the box. */
+  notice: CopyKey | null;
+  /** Put the guess back in the box (if it's still empty), so it can be sent again. */
+  restore: boolean;
+}
+
+/**
+ * Over the 700 ms limit the server refused the guess unread: "Slow down", and the text goes
+ * back in the box. Every other answer clears it: a wrong, close or right guess is answered by
+ * `fx` and the next view, and the other refusals (too late, already got it) can't be retried.
+ */
+export function guessAnswer(res: Ack | null): GuessAnswer {
+  if (res && !res.ok && res.error === 'slowDown') return { notice: 'slowDown', restore: true };
+  return { notice: null, restore: false };
+}
+
 // ---------- The pad's pointer ----------
 
 /**

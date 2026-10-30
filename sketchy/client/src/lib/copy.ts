@@ -67,6 +67,7 @@ const EN = {
   getReady: 'Your turn to draw! Get ready…',
   guessPlaceholder: 'Hula mo?',
   send: 'Send',
+  slowDown: 'Slow down',
   lettersLabel: '{n} letters to guess',
   youGotIt: '✓ You got it! +{points}',
   watchScreen: '👀 Watch the Screen',

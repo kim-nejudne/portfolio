@@ -36,12 +36,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F13 Latency-corrected scoring
 
-- [ ] F14 Guess matching
-  - Spec: Guess matching (Normalization, Accepting a guess, Near misses)
-  - Depends: F04
-  - Done when:
-    - `match.ts` with `normalize`, `isCorrect`, `isClose`; English plural rule; the reducer uses it; rate limit 1 per 700 ms
-  - Tests: `match.test.ts` — every row of the matcher table in Test plan
+- [x] F14 Guess matching
 
 - [ ] F15 Near-miss feedback and the guess feed
   - Spec: Guess matching (After a correct guess, Guess feed and rude guesses); Data model (Role views)
@@ -351,4 +346,5 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 - Server-wide cap on live rooms (503 past it), so many addresses creating rooms can't grow memory for 3 h each (F03 review).
 - PNG download of a gallery drawing: 1024 × 1024 plus a caption band "tsinelas · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
+- Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).

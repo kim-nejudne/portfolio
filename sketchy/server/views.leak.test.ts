@@ -19,8 +19,8 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GRACE_MS } from '../shared/constants.js';
-import type { Effect, Phase, Room, Turn, View, WordEntry } from '../shared/types.js';
+import { GRACE_MS, GUESS_INTERVAL_MS } from '../shared/constants.js';
+import type { Effect, Phase, Room, ScreenView, Turn, View, WordEntry } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
@@ -158,6 +158,7 @@ function upcomingFor(room: Room, drawerPid: string, chosen: boolean): Turn {
     feed: [],
     closeGuesses: [],
     closeCount: {},
+    lastGuessAt: {},
     guessCount: {},
     drawerPoints: 0,
     endReason: null,
@@ -345,10 +346,8 @@ describe('word secrecy across a scripted game', () => {
   });
 });
 
-// TODO(F15): v0 feeds every wrong guess as typed, so a near miss of the word reaches the Screen's
-// feed during DRAWING (DECISIONS 18). F15 masks or holds it back: this test then passes, and
-// `it.fails` must become `it`.
-it.fails('keeps a near miss of the word off the Screen until REVEAL', () => {
+// A close guess is held back from the feed and fx (F14, DECISIONS 37): only its phone hears it.
+it('keeps a near miss of the word off the Screen until REVEAL', () => {
   const { room: lobby, pids } = withPlayers(['Ana', 'Ben']);
   let room = step(lobby, { type: 'host:start', by: SCREEN_HOST }, 2_000_000).room;
   const res = step(
@@ -514,6 +513,12 @@ describe('word secrecy through the socket gateway', () => {
       const guessers = [ana, ben, cy].filter((c) => c !== drawer);
       expect(await guessers[0]!.emit('player:guess', { text: 'payong' })).toEqual({ ok: true });
       await checkpoint(`turn ${n + 1} wrong guess`);
+      // A near miss: only its own phone hears about it until REVEAL.
+      const near = `${word(room())} ko`;
+      expect(await guessers[1]!.emit('player:guess', { text: near })).toEqual({ ok: true });
+      await checkpoint(`turn ${n + 1} near miss`);
+      // Past the 700 ms limit before this guesser's next guess.
+      g.mono.now += GUESS_INTERVAL_MS;
       if (n === 0) {
         // The right guess fails inside the gateway once: it is logged, without the guess.
         g.rooms.failNextSet = true;
@@ -551,6 +556,9 @@ describe('word secrecy through the socket gateway', () => {
       expect(await screen.emit('host:skip')).toEqual({ ok: true });
       await checkpoint(`reveal ${n + 1}`);
       expect(lastState(plain).turn!.word).toBe(word(room()));
+      expect((lastState(plain) as ScreenView).closeGuesses).toEqual([
+        { pid: players.get(guessers[1]!), text: near },
+      ]);
       expect(await guessers[1]!.emit('player:guess', { text: word(room()) })).toEqual({
         ok: false,
         error: 'wrongPhase',

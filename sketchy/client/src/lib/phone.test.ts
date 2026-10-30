@@ -4,6 +4,7 @@ import {
   DRAWER_BAR_PX,
   DRAWER_TOOL_ROW_PX,
   drawerPadSize,
+  guessAnswer,
   joinOutcome,
 } from './phone.js';
 
@@ -78,5 +79,25 @@ describe('createPointerGate', () => {
     expect(gate.up(7)).toBe(true);
     expect(gate.up(7)).toBe(false);
     expect(gate.owns(7)).toBe(false);
+  });
+});
+
+describe('guessAnswer', () => {
+  it('says "Slow down" and puts the guess back after a slowDown refusal', () => {
+    expect(guessAnswer({ ok: false, error: 'slowDown' })).toEqual({
+      notice: 'slowDown',
+      restore: true,
+    });
+  });
+
+  it('leaves the box alone for an accepted guess, other refusals and a lost answer', () => {
+    for (const res of [
+      { ok: true } as const,
+      { ok: false, error: 'tooLate' } as const,
+      { ok: false, error: 'alreadyGuessed' } as const,
+      { ok: false, error: 'emptyGuess' } as const,
+      null,
+    ])
+      expect(guessAnswer(res)).toEqual({ notice: null, restore: false });
   });
 });

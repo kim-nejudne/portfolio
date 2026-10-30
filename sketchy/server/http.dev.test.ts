@@ -38,6 +38,7 @@ function drawing(word: Turn['word']): Room {
     feed: [],
     closeGuesses: [],
     closeCount: {},
+    lastGuessAt: {},
     guessCount: {},
     drawerPoints: 0,
     endReason: null,

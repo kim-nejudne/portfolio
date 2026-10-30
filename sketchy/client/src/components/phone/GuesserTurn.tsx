@@ -1,7 +1,8 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { GUESS_MAX } from '../../../../shared/constants.js';
-import type { PlayerView } from '../../../../shared/types.js';
-import type { Translate } from '../../lib/copy.js';
+import type { Ack, PlayerView } from '../../../../shared/types.js';
+import type { CopyKey, Translate } from '../../lib/copy.js';
+import { GUESS_NOTICE_MS, guessAnswer } from '../../lib/phone.js';
 import { formatClock, wordLengths } from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 
@@ -10,7 +11,8 @@ interface Props {
   receivedAt: number;
   /** This phone's own wrong guesses this turn, newest last (shown "payong ✗"). */
   misses: string[];
-  onGuess: (text: string) => void;
+  /** Sends the guess; resolves with the server's answer, or `null` if it was lost. */
+  onGuess: (text: string) => Promise<Ack | null>;
   t: Translate;
 }
 
@@ -23,7 +25,15 @@ export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
   const turn = view.turn!;
   const left = useCountdown(turn.timer, receivedAt);
   const [text, setText] = useState('');
+  // `n` restarts the timer when the same note comes again.
+  const [notice, setNotice] = useState<{ key: CopyKey; n: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(null), GUESS_NOTICE_MS);
+    return () => clearTimeout(id);
+  }, [notice]);
   const me = view.players.find((p) => p.pid === view.me.pid);
   const guessed = me?.guessed ?? false;
   const drawing = view.phase === 'DRAWING';
@@ -31,7 +41,22 @@ export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const guess = text.trim();
-    if (guess) onGuess(guess);
+    if (guess)
+      void onGuess(guess).then((res) => {
+        const answer = guessAnswer(res);
+        if (answer.notice) {
+          const key = answer.notice;
+          // Cleared for a moment first, so a screen reader announces a repeat as well.
+          setNotice(null);
+          setTimeout(() => setNotice((cur) => ({ key, n: (cur?.n ?? 0) + 1 })), 50);
+        }
+        if (answer.restore) {
+          // Unless they have started typing the next one ("Slow down" still says the last one
+          // didn't go).
+          setText((cur) => (cur === '' ? guess : cur));
+          inputRef.current?.focus();
+        }
+      });
     setText('');
     // Keep the keyboard up for the next guess.
     inputRef.current?.focus();
@@ -78,31 +103,38 @@ export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
       )}
 
       {drawing && !guessed && (
-        <form onSubmit={submit} className="flex gap-2">
-          <input
-            ref={inputRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={GUESS_MAX}
-            placeholder={t('guessPlaceholder')}
-            aria-label={t('guessPlaceholder')}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            enterKeyHint="send"
-            className="min-h-12 w-full min-w-0 rounded-xl bg-white px-4 text-xl text-[#1D1B22] placeholder:text-[#1D1B22]/65"
-          />
-          <button
-            type="submit"
-            aria-label={t('send')}
-            // Tapping send must not take focus from the box, or the keyboard drops.
-            onMouseDown={(e) => e.preventDefault()}
-            className="min-h-12 min-w-12 shrink-0 rounded-xl bg-[#FF6B35] px-4 text-xl font-bold text-[#1D1B22]"
-          >
-            ➤
-          </button>
-        </form>
+        // The note lives with the box, so it takes no room (and no gap) while empty; it only
+        // nudges the misses below down while it shows.
+        <div className="flex flex-col">
+          <form onSubmit={submit} className="flex gap-2">
+            <input
+              ref={inputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={GUESS_MAX}
+              placeholder={t('guessPlaceholder')}
+              aria-label={t('guessPlaceholder')}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              enterKeyHint="send"
+              className="min-h-12 w-full min-w-0 rounded-xl bg-white px-4 text-xl text-[#1D1B22] placeholder:text-[#1D1B22]/65"
+            />
+            <button
+              type="submit"
+              aria-label={t('send')}
+              // Tapping send must not take focus from the box, or the keyboard drops.
+              onMouseDown={(e) => e.preventDefault()}
+              className="min-h-12 min-w-12 shrink-0 rounded-xl bg-[#FF6B35] px-4 text-xl font-bold text-[#1D1B22]"
+            >
+              ➤
+            </button>
+          </form>
+          <p role="status" aria-live="polite" className="text-lg font-bold text-[#FFD166]">
+            {notice ? <span className="mt-2 block">{t(notice.key)}</span> : null}
+          </p>
+        </div>
       )}
 
       {drawing && misses.length > 0 && (

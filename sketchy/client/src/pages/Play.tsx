@@ -174,9 +174,9 @@ export function Play() {
     void join();
   };
 
-  const guess = (text: string) => {
+  const guess = (text: string): Promise<Ack | null> => {
     pendingGuesses.current.push(text);
-    void socket
+    return socket
       .timeout(ACK_TIMEOUT_MS)
       .emitWithAck('player:guess', { text })
       .catch(() => null)

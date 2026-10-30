@@ -9,8 +9,10 @@
 
 import {
   ALL_GUESSED_MS,
+  CLOSE_GUESSES_MAX,
   FEED_MAX,
   GRACE_MS,
+  GUESS_INTERVAL_MS,
   MAX_PLAYERS,
   MIN_PLAYERS,
   NAME_OF_DISCONNECTED_ERROR,
@@ -30,6 +32,7 @@ import type {
   WordEntry,
 } from '../shared/types.js';
 import { correctedAt } from './fairness.js';
+import { guessRejection, matchGuess } from './match.js';
 import { createRng } from './rng.js';
 import { drawerPoints, guesserPoints } from './scoring.js';
 import { V0_WORDS } from './words.v0.js';
@@ -273,6 +276,7 @@ function startDrawing(d: Room, index: number, now: number, fx: Effect[]): void {
     closeGuesses: [],
     closeCount: {},
     guessCount: {},
+    lastGuessAt: {},
     drawerPoints: 0,
     endReason: null,
   };
@@ -291,9 +295,6 @@ function schedule(d: Room, timer: 'drawUp' | 'allGuessed' | 'revealDone', at: nu
   return { type: 'schedule', at, timer, turnId: d.turn!.id, epoch: d.timerEpoch };
 }
 
-/** Normalisation v0: lowercase and trim. F14 replaces it with `match.ts`. */
-const normalizeV0 = (text: string) => text.trim().toLocaleLowerCase();
-
 function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]): Handled {
   const turn = d.turn;
   if (d.phase !== 'DRAWING' || !turn?.word || turn.endsAt === null || turn.clockStart === null)
@@ -308,13 +309,31 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
   // guesses until `endsAt + GRACE_MS`, but only those sent by `endsAt` count.
   const sentAt = correctedAt(a.receivedAt, a.oneWayMs);
   if (a.receivedAt > turn.endsAt + GRACE_MS || sentAt > turn.endsAt) return 'tooLate';
+  const rejected = guessRejection(a.text);
+  if (rejected) return rejected;
+  // One guess per GUESS_INTERVAL_MS per player, by arrival time; refused ones don't restart it.
+  const last = turn.lastGuessAt[pid];
+  if (last !== undefined && a.receivedAt - last < GUESS_INTERVAL_MS) return 'slowDown';
+  turn.lastGuessAt[pid] = a.receivedAt;
 
   turn.guessCount[pid] = (turn.guessCount[pid] ?? 0) + 1;
-  const accepted = [turn.word.word, ...turn.word.alt].map(normalizeV0);
+  const match = matchGuess(a.text, turn.word);
 
-  if (!accepted.includes(normalizeV0(a.text))) {
-    // SPEC-QUESTION: masking per `guessFeed` and close guesses arrive with F15; v0 feeds every
-    // wrong guess as typed (DECISIONS 18).
+  if (match === 'close') {
+    // Never fed or shown on the Screen during the turn: it could give the word away. Kept for
+    // the reveal's "Almost:" and counted for awards; only this phone hears "So close!".
+    // SPEC-QUESTION: masking a close guess per `guessFeed` arrives with F15 (DECISIONS 37).
+    turn.closeGuesses = [...turn.closeGuesses, { pid, text: a.text, at: now }].slice(
+      -CLOSE_GUESSES_MAX,
+    );
+    turn.closeCount[pid] = (turn.closeCount[pid] ?? 0) + 1;
+    fx.push({ type: 'fx', to: { pid }, fx: { kind: 'nearMiss' } });
+    return undefined;
+  }
+
+  if (match === 'wrong') {
+    // SPEC-QUESTION: masking per `guessFeed` arrives with F15; v0 feeds every wrong guess as
+    // typed (DECISIONS 18).
     turn.feed = [...turn.feed, { pid, text: a.text, at: now }].slice(-FEED_MAX);
     fx.push(
       { type: 'fx', to: 'screen', fx: { kind: 'wrongGuess', pid, text: a.text } },

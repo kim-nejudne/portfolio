@@ -28,7 +28,71 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F13: after autopilot deploys, open https://sketchy.kimnejudne.dev on the laptop (Screen on the TV), join with one phone on mobile data and one on Wi-Fi, set the drawing time to the shortest and start; (a) on a turn neither of them draws, both type the word and tap ➤ at the same moment on a count of three; (b) next turn, the mobile-data phone types the word and taps ➤ just as the timer ring reaches 0 · in (a) both get the same points (within 5) and the order looks fair (the mobile-data phone is not always second); in (b) the guess counts ("You got it!" with about +100) rather than being refused; points always sit between 100 and 300 and the drawer gets half the total
 
+- [ ] F14: `npm run dev` + `npm run lan`, laptop Screen, 3 real phones (an iPhone and a budget Android among the guessers); start, and as a guesser (a) type a wrong word and tap ➤ twice very fast (or tap ➤, retype and tap again at once); (b) type the word with a capital, an accent or "ang"/"the" in front (e.g. "Ang Mangga!"); (c) on a later turn type the word plus " ko" · (a) "Slow down" shows under the box for about a second and a half, the refused word is back in the box, and the keyboard never drops; (b) counts as "You got it!"; (c) shows nothing on the TV during the turn (no bubble, no feed line), and at the reveal the TV shows "Almost: … ko"
+
 <!-- entries below, newest first -->
+
+## F14 — Guess matching (2026-10-30)
+**What changed:**
+- **`server/match.ts` (new, pure):**
+  - `normalize` follows the spec's five steps: NFKD and strip marks, lowercase, everything but letters and digits to spaces, drop leading fillers repeatedly, drop the spaces.
+  - `acceptedForms` normalises the word and each alternate, dedupes them and drops empty forms.
+  - `isCorrect` accepts an accepted form, or for `lang: 'en'` a form plus `s`/`es`, alternates included.
+  - `isClose`: Damerau–Levenshtein (optimal string alignment, by code point) of ≤ 1 for forms up to 6 letters and ≤ 2 from 7; or the guess contains a form; or the form contains a guess of at least 4 letters and 60% of its length.
+  - `matchGuess` normalises once and returns `correct`/`close`/`wrong`. `guessRejection` returns `emptyGuess`/`guessTooLong`. `editDistance` is exported for tests.
+- **Reducer `player:guess`:** `normalizeV0` is gone.
+  - Refusal order: phase → paused → player → drawer → already got it → `tooLate` → `emptyGuess`/`guessTooLong` → `slowDown` (new `ReduceError` codes).
+  - The 700 ms per-player limit uses `turn.lastGuessAt` (new `Turn` field) on arrival time. Only guesses that pass start it, and refused guesses aren't counted.
+  - **Close guesses** get `fx nearMiss` to that phone only, are kept in `closeGuesses` (the last 3) and counted in `closeCount`, and never reach the feed or a Screen fx. This pulls the reducer half of F15's first bullet forward, because feeding "tsinelas ko" would show the word.
+- **Phone:**
+  - `guess()` in `Play` returns the ack.
+  - `guessAnswer` (`lib/phone.ts`) maps `slowDown` to the "Slow down" note plus a restore.
+  - `GuesserTurn` shows the note for 1.5 s in a polite live region under the box (no room taken while empty, cleared for 50 ms before a repeat so it is announced again). It puts the guess back if the box is still empty and keeps focus.
+- **Tests:**
+  - `server/match.test.ts` (35): every row of the spec's matcher table through `matchGuess`/`isCorrect`/`isClose`, plus empty and 41-character rows, normalisation (fillers, marks, emoji, digits, other scripts), plurals on alternates only for `en`, empty forms, and the distance and 60% boundaries.
+  - `reducer.turn.test.ts` has 8 new tests: normalised and plural correct, alternates, close → `nearMiss` only with summary counts, last-3 close guesses, empty/too long refused uncounted, 699/700 ms, the window not restarted by refusals.
+  - `views.leak.test.ts`: the pending `it.fails` near-miss test is now a plain `it`. The gateway run adds a near miss per turn, audited at every checkpoint, plus `closeGuesses` at REVEAL. Its fake monotonic clock steps past 700 ms between one guesser's guesses.
+  - `phone.test.ts` covers `guessAnswer`.
+  - Mutation-checked: dropping the limit, the plural rule, the 60% bound or the close branch each fails tests.
+- No new dependencies.
+
+**Decisions:** DECISIONS 37 covers:
+- the normalisation details;
+- empty forms dropped (filler-only words can't be guessed; SPEC-QUESTION);
+- plurals on alternates;
+- the optimal-string-alignment distance;
+- the refusal order;
+- the limit's place and window;
+- close guesses held back now;
+- the phone's note and restore.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: this entry. Accepted in DECISIONS 37: empty or too-long guesses are refused before the limit. A gateway-wide `player:*` cap went to the Backlog.
+- **secrets-fairness: PASS.** It confirmed close guesses are held back and that the new codes carry no word. Noted for F17: forms of 1–2 letters make almost anything close. Noted for F15: never relax `close`, since `wrong` guesses reach the Screen as typed.
+- **mobile-ux: PASS WITH FIXES.** Applied: no reserved space for the empty note, a repeat re-announced, refocus on restore. Accepted: a guess refused after the player typed again isn't restored (the note still shows).
+
+**Notes for next session:**
+- **F15:** the reducer already sends `nearMiss` and fills `closeGuesses`/`closeCount`. What's left:
+  - "So close!" on the phone: reuse `GuesserTurn`'s note, with an `fx` listener in `Play` setting it;
+  - masking per `guessFeed` for the feed, `wrongGuess` and `closeGuesses`;
+  - the feed UI.
+  - `wrong` guesses are safe on the Screen only because anything near the word is `close`. Keep `matchGuess` as the single gate.
+- **F17:** `packs:check` should refuse words or alternates that normalise to nothing (filler-only) or to fewer than 3 letters. Custom words should be refused the same way.
+- `Turn.lastGuessAt` is per turn. Rematch and turn starts get a fresh one.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/match.test.ts server/reducer.turn.test.ts server/views.leak.test.ts client/src/lib/phone.test.ts`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE` or bots at `/dev/bots/CODE`.
+  - "The TREE!" or "trees" counts for *tree*.
+  - "tree ko" is silent on the TV until "Almost:" at the reveal.
+  - Two fast guesses show "Slow down".
+- Automated: `npm run playtest -- .playtest/F14/scenario.ts` (gitignored). It runs a Screen and 3 phones, and all 6 steps pass:
+  - a filler, case and punctuation guess, and a plural, are correct;
+  - a close guess stays off the Screen and shows at REVEAL;
+  - "Slow down" appears and the text is restored;
+  - "!!!" is refused silently;
+  - the word is not in the Screen or guesser DOM;
+  - there are no console errors.
 
 ## F13 — Latency-corrected scoring (2026-10-30)
 **What changed:**

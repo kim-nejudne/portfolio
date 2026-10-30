@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_GUESSED_MS, FEED_MAX, GRACE_MS, REVEAL_MS } from '../shared/constants.js';
+import {
+  ALL_GUESSED_MS,
+  CLOSE_GUESSES_MAX,
+  FEED_MAX,
+  GRACE_MS,
+  GUESS_INTERVAL_MS,
+  REVEAL_MS,
+} from '../shared/constants.js';
 import type { Action, Room } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import { guesserPoints } from './scoring.js';
@@ -126,7 +133,9 @@ describe('player:guess', () => {
     let { room } = started();
     const { pids, at } = started();
     for (let i = 0; i < FEED_MAX + 2; i++) {
-      room = step(room, guess(pids[1 + (i % 2)]!, `nope${i}`, at + i), at + i).room;
+      // Spaced out so neither guesser hits the 700 ms limit.
+      const t = at + i * GUESS_INTERVAL_MS;
+      room = step(room, guess(pids[1 + (i % 2)]!, `nope${i}`, t), t).room;
     }
     expect(room.turn!.feed).toHaveLength(FEED_MAX);
     expect(room.turn!.feed.at(-1)!.text).toBe(`nope${FEED_MAX + 1}`);
@@ -207,6 +216,113 @@ describe('player:guess', () => {
 
     const fromScreen = { ...guess(pids[1]!, 'x', at + 1), by: SCREEN } as Action;
     expect(reduce(room, fromScreen, at + 1)).toEqual({ ok: false, error: 'notPlayer' });
+  });
+});
+
+describe('player:guess matching (match.ts) and limits', () => {
+  it('accepts the word normalised: case, punctuation, a leading filler and an English plural', () => {
+    for (const text of [(w: string) => `The ${w.toUpperCase()}!`, (w: string) => `${w}s`]) {
+      const { room, pids, at } = started();
+      const guessed = text(secretWord(room));
+      const { room: after } = step(room, guess(pids[1]!, guessed, at + 1_000), at + 1_000);
+      expect(
+        after.turn!.correct.map((c) => c.pid),
+        guessed,
+      ).toEqual([pids[1]]);
+    }
+  });
+
+  it('accepts an alternate of the word', () => {
+    const { room, pids, at } = started();
+    const withAlt: Room = {
+      ...room,
+      turn: { ...room.turn!, word: { ...room.turn!.word!, alt: ['payong'] } },
+    };
+    const { room: after } = step(withAlt, guess(pids[1]!, 'Payong', at + 1_000), at + 1_000);
+    expect(after.turn!.correct.map((c) => c.pid)).toEqual([pids[1]]);
+  });
+
+  it('answers a close guess with nearMiss to that phone only, keeps it out of the feed, scores nothing', () => {
+    const { room, pids, at } = started();
+    const ben = pids[1]!;
+    const close = `${secretWord(room)} ko`;
+    const { room: after, effects } = step(room, guess(ben, close, at + 1_000), at + 1_000);
+    expect(effects).toEqual([{ type: 'fx', to: { pid: ben }, fx: { kind: 'nearMiss' } }]);
+    expect(after.turn!.feed).toEqual([]);
+    expect(after.turn!.correct).toEqual([]);
+    expect(after.turn!.closeGuesses).toEqual([{ pid: ben, text: close, at: at + 1_000 }]);
+    expect(after.turn!.closeCount).toEqual({ [ben]: 1 });
+    expect(after.turn!.guessCount).toEqual({ [ben]: 1 });
+    expect(after.players[ben]!.score).toBe(0);
+    // Counted as close, not wrong, in the turn's summary.
+    const reveal = step(after, timer(after, 'drawUp'), at + DRAW_MS + GRACE_MS).room;
+    expect(reveal.history.at(-1)).toMatchObject({ close: { [ben]: 1 }, wrong: {} });
+  });
+
+  it(`keeps the last ${CLOSE_GUESSES_MAX} close guesses`, () => {
+    let { room } = started();
+    const { pids, at } = started();
+    const word = secretWord(room);
+    for (let i = 0; i < CLOSE_GUESSES_MAX + 1; i++) {
+      const t = at + i * GUESS_INTERVAL_MS;
+      room = step(room, guess(pids[1]!, `${word} ${i}`, t), t).room;
+    }
+    expect(room.turn!.closeGuesses.map((g) => g.text)).toEqual(
+      Array.from({ length: CLOSE_GUESSES_MAX }, (_, i) => `${word} ${i + 1}`),
+    );
+    expect(room.turn!.closeCount[pids[1]!]).toBe(CLOSE_GUESSES_MAX + 1);
+  });
+
+  it('rejects a guess that is empty after normalisation or too long, without matching or counting it', () => {
+    const { room, pids, at } = started();
+    for (const [text, error] of [
+      ['!!! 🙂', 'emptyGuess'],
+      ['the', 'emptyGuess'],
+      ['ang mga', 'emptyGuess'],
+      ['z'.repeat(41), 'guessTooLong'],
+    ] as const) {
+      expect(reduce(room, guess(pids[1]!, text, at + 1_000), at + 1_000), text).toEqual({
+        ok: false,
+        error,
+      });
+    }
+    // Nor does it start the 700 ms window: a real guess right after goes through.
+    const { room: after } = step(room, guess(pids[1]!, secretWord(room), at + 1_001), at + 1_001);
+    expect(after.turn!.correct).toHaveLength(1);
+  });
+
+  it('allows one guess per 700 ms per player: "Slow down" for the next, unmatched and uncounted', () => {
+    const { room, pids, at } = started();
+    const [, ben, cy] = pids as [string, string, string];
+    const word = secretWord(room);
+    const first = step(room, guess(ben, 'zzz', at + 1_000), at + 1_000).room;
+    const soon = at + 1_000 + GUESS_INTERVAL_MS - 1;
+    // Even the right word is refused, and it is neither scored nor fed.
+    expect(reduce(first, guess(ben, word, soon), soon)).toEqual({ ok: false, error: 'slowDown' });
+    // Another player is not held up.
+    expect(step(first, guess(cy, 'yyy', at + 1_001), at + 1_001).room.turn!.feed).toHaveLength(2);
+    // At 700 ms the next one counts.
+    const next = at + 1_000 + GUESS_INTERVAL_MS;
+    const { room: after } = step(first, guess(ben, word, next), next);
+    expect(after.turn!.correct.map((c) => c.pid)).toEqual([ben]);
+    expect(after.turn!.guessCount[ben]).toBe(2);
+  });
+
+  it('times the 700 ms from the last guess that went through, not from refused ones', () => {
+    const { room, pids, at } = started();
+    const ben = pids[1]!;
+    const r = step(room, guess(ben, 'zzz', at + 1_000), at + 1_000).room;
+    expect(reduce(r, guess(ben, 'yyy', at + 1_500), at + 1_500)).toEqual({
+      ok: false,
+      error: 'slowDown',
+    });
+    const t = at + 1_000 + GUESS_INTERVAL_MS;
+    expect(step(r, guess(ben, 'yyy', t), t).room.turn!.lastGuessAt[ben]).toBe(t);
+  });
+
+  it('starts every turn with no guess times', () => {
+    const { room } = started();
+    expect(room.turn!.lastGuessAt).toEqual({});
   });
 });
 
