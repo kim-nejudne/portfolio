@@ -178,25 +178,25 @@ describe('the reveal (F35)', () => {
 
 describe('Screen blanks', () => {
   it('shows hint letters in place and names them in the label', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_a___s__']} />);
+    const html = renderToStaticMarkup(<Blanks mask={[...'_a___s__']} t={t} />);
     expect(html).toContain('aria-label="8 letters. Hints: a, s"');
     expect(html).toMatch(/<span class="[^"]*">a<\/span>/);
   });
 
   it('pops a hint letter in (F34), and only letters', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_a__-_']} />);
+    const html = renderToStaticMarkup(<Blanks mask={[...'_a__-_']} t={t} />);
     expect(html).toContain('<span class="inline-block motion-safe:animate-pop">a</span>');
     expect(html).toContain('<span>_</span>');
     expect(html).toContain('<span>-</span>');
   });
 
   it('puts the letter counts after the blanks', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} />);
+    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} t={t} />);
     expect(html).toMatch(/_<\/span><\/span><span[^>]*>\(5, 4\)<\/span><\/p>$/);
   });
 
   it('labels plain blanks with the letter counts only', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} />);
+    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} t={t} />);
     expect(html).toContain('aria-label="5, 4 letters"');
   });
 });

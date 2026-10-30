@@ -93,7 +93,7 @@ function Drawing({
   const drawer = view.players.find((p) => p.pid === turn.drawerPid);
   return (
     <>
-      <InkCanvas ink={ink} />
+      <InkCanvas ink={ink} label={t('liveDrawing')} />
       {view.phase === 'CHOOSING' && (
         <div className="absolute inset-0 grid place-items-center rounded-[1vmin] bg-[#1D1B22]/85 p-[4vmin] text-center">
           <p
@@ -239,7 +239,7 @@ function TopBar({
             t={t}
           />
         ) : (
-          turn.mask && <Blanks mask={turn.mask} minSize="max(3.5vmin, 16px)" />
+          turn.mask && <Blanks mask={turn.mask} minSize="max(3.5vmin, 16px)" t={t} />
         )}
       </div>
     </>
@@ -367,7 +367,7 @@ function TurnPanel({
       >
         <span aria-hidden>◔</span> {formatClock(left)}
       </p>
-      {turn.mask && <Blanks mask={turn.mask} />}
+      {turn.mask && <Blanks mask={turn.mask} t={t} />}
       <p className="text-white/70">
         {t('roundTurn', { cycle: turn.cycle, cycles: view.settings.cycles, turn: turn.number })}
       </p>
@@ -397,8 +397,21 @@ function TurnPanel({
 
 const LETTER = /[\p{L}\p{N}]/u;
 
+function blanksLabel(lengths: number[], hints: string[], t: Translate): string {
+  const label = t('wordLettersLabel', { lengths: lengths.join(', ') });
+  return hints.length ? t('hintsLabel', { label, letters: hints.join(', ') }) : label;
+}
+
 /** The blanks, one cell per character, with the letters per word after them: `(5, 4)`. */
-export function Blanks({ mask, minSize = '3.5vh' }: { mask: string[]; minSize?: string }) {
+export function Blanks({
+  mask,
+  minSize = '3.5vh',
+  t,
+}: {
+  mask: string[];
+  minSize?: string;
+  t: Translate;
+}) {
   const lengths = wordLengths(mask);
   const hints = hintLetters(mask);
   const words = mask.join('').split(' ');
@@ -410,7 +423,7 @@ export function Blanks({ mask, minSize = '3.5vh' }: { mask: string[]; minSize?: 
     <p
       className="flex shrink-0 flex-wrap items-baseline gap-x-[0.9em] gap-y-[0.2em] font-bold"
       style={{ fontSize }}
-      aria-label={`${lengths.join(', ')} letters${hints.length ? `. Hints: ${hints.join(', ')}` : ''}`}
+      aria-label={blanksLabel(lengths, hints, t)}
     >
       {words.map((word, w) => (
         <span key={w} className="flex gap-[0.3em] font-mono whitespace-nowrap">

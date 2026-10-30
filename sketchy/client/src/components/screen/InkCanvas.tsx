@@ -9,7 +9,7 @@ const MAX_BACKING_PX = 2048;
  * so lines stay sharp. New points are drawn on the next animation frame; undo, clear, a new turn
  * and a resize repaint everything from the picture (Canvas and drawing tools, Rendering).
  */
-export function InkCanvas({ ink }: { ink: ScreenInk }) {
+export function InkCanvas({ ink, label }: { ink: ScreenInk; label: string }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -76,7 +76,7 @@ export function InkCanvas({ ink }: { ink: ScreenInk }) {
       <canvas
         ref={canvasRef}
         className="block rounded-[1vmin] bg-white shadow-2xl"
-        aria-label="The live drawing"
+        aria-label={label}
       />
     </div>
   );

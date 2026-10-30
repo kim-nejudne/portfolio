@@ -110,12 +110,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M8 — Language and content
 
-- [ ] F45 Taglish copy
-  - Spec: UI by role and phase (Look and feel); Settings
-  - Depends: F34
-  - Done when:
-    - Every phone and Screen string in `copy.ts` in English and Taglish, including the How to play strip, captions and awards; `copy` set in the lobby; Kim has reviewed the Taglish (logged in PROGRESS)
-  - Tests: `copy.test.ts` — both tables have the same keys
+- [x] F45 Taglish copy
 
 - [ ] F46 Full family word packs
   - Spec: Words (Word pack format, Word selection)

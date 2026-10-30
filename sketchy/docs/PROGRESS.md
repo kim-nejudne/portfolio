@@ -60,8 +60,47 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F42: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones plus a 4th phone or a different browser · join as Jun, Bea and Cy and play a turn so Jun scores; Jun holds the crown (first to join). Turn Jun's phone off (or close the browser fully) and wait about 10 s until his chip greys out. On the 4th phone open the join link and type "Jun": it asks "Are you Jun?" with "Rejoin as Jun" and "Pick another name", both easy to hit with a thumb; tap Pick another name: back to an empty name field. Type "Jun" again and tap Rejoin as Jun: the TV shows "Jun is back (new phone)" for a few seconds, below the top bar, and Jun's chip is in colour again with his score; the 4th phone has the Host button. On another phone type "Bea" (connected): "Someone here already has that name". Turn Jun's old phone back on and open the game: it isn't Jun any more and gets the name step. Repeat while Jun is drawing: the game pauses "Waiting for Jun’s phone…", the rejoin on the new phone gives "Back in 3-2-1" and the pad there (his strokes so far come back)
 - [ ] F43: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (at least one iPhone in Safari and one Android in Chrome) · start a game; while the drawer draws and one guesser has got it: (1) reload the TV's tab: within a couple of seconds the same code, round, clock, scores and the whole drawing are back, with the host controls, and new strokes keep arriving; (2) pull-to-refresh is locked on the pad, so reload the drawer's page from the browser menu: the word, the pad with every stroke so far, and drawing carries on (the TV shows the new strokes); (3) reload the guesser who got it: "You got it! +N" with the same points, no word, no drawing; (4) reload a guesser who hasn't: they can still guess and score; (5) on the iPhone, switch to another app for a minute and back (Safari may reload the tab itself): the same as a reload. Nothing should pause in (1)–(5) except a brief "phone reconnecting…" badge; with only 2 players a reload briefly pauses (DECISIONS 63)
 - [ ] F44: after autopilot deploys, read the Sketchy container's start-up log on the droplet: no "TRUST_PROXY is not set" warning (if it's there, set `TRUST_PROXY=1` in the container env, or every phone shares one join limit of 10 a minute for the whole site). Then with the barkada on one Wi-Fi: everyone joins, everyone reloads their phone at once, a phone switches to mobile data and back · nobody sees "Too many people joined from this network"; an 11th phone sees "That game is full."
+- [ ] F45: review the Taglish: read the `TAGLISH` table in `client/src/lib/copy.ts` (the English table above it says what each line is for), then `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), Settings → Game text → Taglish, 3 real phones (one at least as small as a 360 px-wide Android); play a turn each through lobby, choose, drawing, a close and a wrong guess, reveal, scoreboard, a pause (host Pause) and the final scores, and a rematch · every line sounds like the barkada talking, not a textbook or a machine; flag stiff ones (candidates: "Tuloy sa 3", "Game 2, simula sa", "Pang-#2 ka sa 4", "Sino’ng nandito", "Mahina" for Quiet sound, "Hirap" for Difficulty, "Itago mo ang phone 🤫" for "Hold your phone close") and the award reasons (`award*Why`, on screen from F50); check the drawer's top bar keeps a long word readable beside "2/4 nakakuha". The join form stays English until the phone has joined (DECISIONS 67)
 
 <!-- entries below, newest first -->
+
+## F45 — Taglish copy (2026-10-31)
+**What changed:**
+- **Taglish table** (`TAGLISH` in `client/src/lib/copy.ts`), typed against the English table, so every key is there: every phone and Screen string, including the How to play strip, the first- and second-turn captions, the host bar and shortcuts, pause, rematch, join and takeover, drawing tools, and the reveal ("Sino’ng nakakuha?", "Ang word ay…", "Walang nakakuha!"). The spec's sample lines are used where they fit. `copy` was already a lobby setting (Settings → Game text); the Screen and every phone switch as soon as it changes.
+- **Awards:** the six award names and reasons plus `awardsTitle`, in both tables, ready for F50.
+- **Two Screen labels moved into the table:** the live drawing's `aria-label` (`liveDrawing`, now an `InkCanvas` prop) and the blanks' label (`Blanks` takes `t`; `wordLettersLabel` + `hintsLabel`).
+- **Not translated:** the landing page (spec), and anything before the phone or Screen has a room view: the join form, its errors and "Connecting…" (DECISIONS 67).
+- **New dependencies:** none. The join budget is 109.8 of 120 KB JS with both tables on the player page.
+- **Tests:** `copy.test.ts` (+6): a table for every `copy` value; both tables have the same keys; no empty Taglish string; the same `{placeholders}` and the same emoji per key; the spec's Taglish lines; the How to play strip, captions and award reasons differ from English. `ScreenTurn.test.tsx`: the `Blanks` label tests now pass `t`.
+- **Earlier "F45:" notes** in this file (the F24–F44 keys) are all covered: the typecheck refuses a Taglish table missing any key.
+
+**Decisions:** DECISIONS 67 (the Taglish style and where English stays, the spec's lines, awards ahead of F50, English before a view, `lang`).
+
+Reviews:
+- **spec-checker: PASS** (no Must-fix). Should-fixes done: DECISIONS 67 records the English join form and the pre-view flash; the Kim check for the Taglish review. Nits: the `’` apostrophe recorded; "Pang-#{rank}" and the countdown lines are flagged for Kim.
+- **mobile-ux: PASS WITH FIXES.** Must-fix done: `gotItCount` "{guessed} sa {of} ang nakakuha" squeezed the drawer's word in the top bar at 360 px; now "{guessed}/{of} nakakuha". Should-fixes done: "Tuloy sa" and "Game {n}, simula sa" for the countdowns; a shorter `tapOne`; `levelMedium` "Medium" (was "Katamtaman", which took width from the word card); `ctlEnd` "End game" so the Screen's host bar wraps less on a tablet. Nits done: "Round {cycle}/{cycles}", "i-tap ang isang pangalan", "pagkalipas ng isang minuto". Kept: "✏️ {name} nagdo-drawing" on the guesser bar (truncates the verb only for very long names, as the English does).
+- **secrets-fairness:** not run, since `server/`, `shared/` and the ink path are unchanged (`InkCanvas` only takes its label as a prop).
+
+**Playtest** (`.playtest/F45/scenario.ts`, dev server; a 1920×1080 Screen, Ana at 360×560, Bea at 390×664, Cy at 412×780), all steps pass, run again after the review fixes:
+1. The Screen shows "How to play"; three phones join.
+2. Settings → Game text → Taglish: the Screen shows "Paano laruin" and "1 · Isa ang magdo-drawing sa phone niya"; phones show "Pasok ka na, …" and "Ikaw ang host 👑".
+3. Start: the drawer sees "Ikaw ang magdo-drawing!" and "Pili ka ng isa. Bawal ang letters at numbers!"; the Screen "Pumipili si Ana ng word…".
+4. Drawing: the drawer's bar "word · 1:00 · 0/2 nakakuha"; the Screen's caption "Nagdo-drawing si Ana. Kayong iba: i-type ang hula sa phone 🤫"; guessers' placeholder "Hula mo?".
+5. A wrong guess, then the right one: "✓ Nakuha mo! +290"; the Screen "Nakuha ni Bea!"; no word on the Screen or guessers before the reveal.
+6. The drawer and guesser views at 360×560, 390×664 and 412×780 (and the choose screen, after a guess, the reveal): no overflow, nothing clipped (13 layout checks).
+7. Reveal: "Nakuha ng lahat! 🎉", "Ang word ay…", "Sino’ng nakakuha?".
+
+No console errors. Screenshots: `.playtest/F45/360-drawer-Ana.png`, `360-guesser-Bea.png`.
+
+**Notes for next session:**
+- Every new string goes into both tables; `copy.test.ts` also checks placeholders and emoji match.
+- F50: the award copy is ready (`awardsTitle`, `awardPicasso`/`awardPicassoWhy`, `awardBilis`, `awardSharpshooter`, `awardMalapitNa`, `awardMostCreative`, `awardModernArt`, each with `…Why`).
+- The playtest layout scan should skip `.sr-only` elements (they report a 1 px client width).
+
+**How to try it:**
+- Tests: `npx vitest run client/src/lib/copy.test.ts client/src/components/screen/ScreenTurn.test.tsx`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F45/scenario.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), two phone windows at `/play/CODE`; on the Screen, Settings → Game text → Taglish; play a turn.
 
 ## F44 — Rate limits and limits (2026-10-31)
 **What changed:**
