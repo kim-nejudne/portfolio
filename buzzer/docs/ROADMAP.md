@@ -256,16 +256,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F95 Set editor toolbar and outline
 
-- [ ] F96 Player phone: landscape and short screens
-  - Spec: UI spec by view (Player view); see `docs/ux/04-player.md`
-  - Depends: F92
-  - Done when:
-    - PLY-01 … PLY-06 are closed
-    - At 667×375, the lobby, open, won-with-countdown, locked, choice, typed, revealed and final states are fully reachable, with no clipping
-    - The buzzer is at least 200px under `short:`
-    - The rename overlay scrolls
-    - Avatar cells are at least 44px at 320px
-  - Tests: `Play.test.tsx` (short-layout classes present per state, Final scrolls, choices grid under `short`)
+- [x] F96 Player phone: landscape and short screens
 
 - [ ] F97 Player on tablet and desktop
   - Spec: UI spec by view (Player view); see `docs/ux/04-player.md`

@@ -10,6 +10,57 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F96 — Player phone: landscape and short screens (2026-10-30)
+**What changed:**
+- `pages/Play.tsx`, under `short:` (max-height 500px). Portrait is unchanged apart from PLY-05 and PLY-06.
+  - **Stage (PLY-01):** a grid of two columns. The bulbs, status and countdowns are on the left (rows 2 and 3, with spacer rows around them). The buzzer, the choices or the typed form are on the right (`ANSWER_CELL`, spanning all rows).
+    - The buzzer is `short:size-[min(70dvh,42vw)]`.
+    - The stage scrolls rather than clip.
+    - The header padding is tighter.
+  - **Who's here:** the card is hidden, and a "3 here ▾" pill opens the same list as a popover. The popover is a new `Panel`, `whosHere`, closed by Escape or the backdrop. `WhosHere` takes a `className` and `id`, and uses `useId` for its heading.
+  - **Typed (PLY-03):** the form is one row. Focusing the box (`typingAt`, per opening) hides the bulbs and the progress line, makes the status `text-xl`, moves the form to the top, and calls `scrollIntoView({block: 'nearest'})`.
+  - **Choices (PLY-04):** a 2×2 grid at `min-h-14`, with "Your pick" on the tile's top edge.
+  - **Final (PLY-02):** the section scrolls (`justify-center-safe`) on every size. Under `short:`, the rank and points sit side by side.
+  - **Rename (PLY-05):** the overlay scrolls, with `items-center-safe` and `short:items-start`.
+  - **Avatar picker (PLY-06):** 4, 5 or 6 across at 320, 360 and 400px.
+- Small additions:
+  - `BulbRail` takes a `className`.
+  - `Icon` has a new `chevron-down`.
+  - New copy key `hereCount` ("{n} here", Taglish "{n} nandito").
+- Tests: `Play.test.tsx` gains 12 tests, "Play on short screens (F96)":
+  - two columns in the lobby, open, won, locked out, revealed, choice and typed;
+  - the pill and popover, with Escape and the backdrop, and closing at game start;
+  - the countdown cells;
+  - the choice grid and badge;
+  - typed focus and blur, and the focus layout ending with the question;
+  - Final scrolling and the side-by-side pair;
+  - the rename overlay, the avatar grid, and the Taglish pill.
+  - 2464 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-30 for F96: the stage grid; Who's here as a pill; typed focus; choices, Final and rename; the avatar columns, which differ from the UX doc's recommendation because of the card padding.
+
+**Notes for next session:**
+- **F97 is next (PLY-07 to PLY-11, tablet and desktop).**
+  - Its `md:` buzzer size has to sit beside `short:size-[…]`. A laptop window under 500px tall still matches `short:`.
+  - The Who's here card's classes are now passed in from the call site (`mx-4 mb-4 max-h-[24dvh] shrink-0 short:hidden`).
+- Playtest: `.playtest/F96/drive.mjs`. It is a Node script, not a dependency. It uses the cached `playwright` 1.61 from `~/.npm/_npx`, a socket host and two socket players, and Ana in Chromium at 667×375 with touch.
+  - All checks pass:
+    - avatar cells: 53px at 320 and 51.8px at 375;
+    - lobby, open, won-with-countdown, locked, revealed, choice, typed and final: nothing clipped;
+    - buzzer at 263px (272px while pulsing);
+    - the pill opens 3 names, and Escape closes it;
+    - rename at 667×200: Save reachable;
+    - all four choices visible, with no list or stage overflow;
+    - typed at 667×200 with focus: box and Send at 78–134px;
+    - Share results reachable, also with teams on (`TEAMS=2`, `.playtest/F96/teams/`);
+    - Final in portrait: nothing clipped.
+  - No console errors. I checked the screenshots in `.playtest/F96/` myself. The playtest found two problems, both fixed: the winner's ring touched the window edge (fixed with `short:px-3`), and the popover filled the full height (now sized to its content).
+  - Not covered: a real on-screen keyboard; 667×200 stood in for it. The "Tonight" block on Final (game 2) was not shown in the browser, but the section scrolls either way.
+- Review: no Must-fix. Its Should-fixes were the DECISIONS rows and the screenshot coverage, which the run with teams on closes.
+- Main `index` chunk 537.80 → 540.59 kB.
+
+**How to try it:** `npm run dev`, host a game from `http://localhost:5173`, and join from a phone at `http://<LAN-IP>:5173/play/<code>` held in landscape. On a laptop, use devtools device mode at 667×375. Go through the lobby (tap "N here"), a buzz question with Buzz time and Answer time set, a choice question, a typed question (tap the box), and the end of the game. Or run `node .playtest/F96/drive.mjs ~/.npm/_npx/e41f203b7505f1fb/node_modules` with the dev server running.
+
 ## F95 — Set editor toolbar and outline (2026-10-30)
 **What changed:**
 - `/sets/:setId` (`pages/SetEditor.tsx`), now in `PageShell width="wide"`:

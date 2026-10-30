@@ -12,20 +12,21 @@ interface BulbRailProps {
    * viewport units so the rail scales to any TV.
    */
   size?: string;
+  className?: string;
 }
 
 /**
  * The marquee bulbs of the "Prime Time" theme: gold circles with a glow (10px on a 12px bulb), and a slow chase that
  * dims them in sequence. The chase is off under prefers-reduced-motion. Decorative only.
  */
-export function BulbRail({ count, variant = 'rail', size }: BulbRailProps) {
+export function BulbRail({ count, variant = 'rail', size, className = '' }: BulbRailProps) {
   const rail = variant === 'rail';
   const sizing = size ?? (rail ? 'px-6 py-[14px] [--bulb:12px]' : 'gap-3 [--bulb:10px]');
   return (
     <div
       aria-hidden="true"
       data-bulbs={variant}
-      className={`flex shrink-0 items-center ${rail ? 'justify-between bg-bg-deep' : 'justify-center'} ${sizing}`}
+      className={`flex shrink-0 items-center ${rail ? 'justify-between bg-bg-deep' : 'justify-center'} ${sizing} ${className}`}
     >
       {Array.from({ length: count }, (_, i) => (
         <span

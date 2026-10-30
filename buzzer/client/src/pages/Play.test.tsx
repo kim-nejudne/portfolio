@@ -2080,3 +2080,267 @@ describe('Play in Taglish (F91)', () => {
     expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
   });
 });
+
+describe('Play on short screens (F96)', () => {
+  async function joined() {
+    stubExists(true);
+    savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
+    const { sockets } = renderPlay();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const socket = sockets[0]!;
+    act(() => lastJoin(socket).ack({ ok: true }));
+    return socket;
+  }
+
+  const stage = () => document.querySelector<HTMLElement>('[data-stage]')!;
+  const statusColumn = () => document.querySelector<HTMLElement>('[data-status-column]')!;
+  const classes = (element: Element) => element.getAttribute('class')!.split(/\s+/);
+  const buzzer = () => screen.getByRole('button', { name: 'BUZZ' });
+  /** The two-column stage, with the status on the left and the answer cell on the right. */
+  function expectTwoColumns(answerCell: Element) {
+    expect(classes(stage())).toEqual(
+      expect.arrayContaining(['short:grid', 'short:overflow-y-auto', 'short:touch-pan-y']),
+    );
+    expect(classes(statusColumn())).toEqual(
+      expect.arrayContaining(['short:col-start-1', 'short:row-start-2']),
+    );
+    expect(statusColumn().contains(screen.getByRole('heading', { level: 1 }))).toBe(true);
+    expect(classes(answerCell)).toEqual(
+      expect.arrayContaining(['short:col-start-2', 'short:row-span-4']),
+    );
+  }
+
+  const PEOPLE = [
+    { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], connected: true },
+    { id: 'p2', name: 'Ben', color: PLAYER_PALETTE[4], connected: true },
+    { id: 'p3', name: 'Cy', color: PLAYER_PALETTE[5], connected: true },
+  ];
+
+  it('the lobby is two columns, with a buzzer sized by height', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ lobby: PEOPLE }));
+    expectTwoColumns(buzzer());
+    expect(classes(stage())).toContain('short:grid-cols-[minmax(0,1fr)_auto]');
+    expect(classes(buzzer())).toEqual(
+      expect.arrayContaining(['short:size-[min(70dvh,42vw)]', 'size-[min(290px,78vw,40dvh)]']),
+    );
+  });
+
+  it('in the lobby Who’s here folds into a "3 here" pill that opens the list', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ lobby: PEOPLE }));
+    const card = screen.getByRole('region', { name: 'Who’s here · 3' });
+    expect(classes(card)).toContain('short:hidden');
+    const pill = screen.getByRole('button', { name: '3 here' });
+    expect(classes(pill)).toEqual(expect.arrayContaining(['hidden', 'short:inline-flex']));
+    expect(statusColumn().contains(pill)).toBe(true);
+    expect(pill.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(pill);
+    expect(pill.getAttribute('aria-expanded')).toBe('true');
+    const popover = document.getElementById('whos-here-popover')!;
+    expect(within(popover).getByRole('heading').textContent).toBe('Who’s here · 3');
+    expect(
+      within(popover)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Ana(you)', 'Ben', 'Cy']);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(document.getElementById('whos-here-popover')).toBeNull();
+    fireEvent.click(pill);
+    fireEvent.pointerDown(document.querySelector('[data-menu-backdrop]')!);
+    expect(document.getElementById('whos-here-popover')).toBeNull();
+  });
+
+  it('the popover closes once the game starts, and no pill shows mid-game', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ lobby: PEOPLE }));
+    fireEvent.click(screen.getByRole('button', { name: '3 here' }));
+    socket.fire('state', playerView({ phase: 'QUESTION', questionIndex: 0 }));
+    expect(document.getElementById('whos-here-popover')).toBeNull();
+    expect(screen.queryByRole('button', { name: /here$/ })).toBeNull();
+  });
+
+  it('open with a buzz time: the countdown sits in the left column, under the status', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, buzzTimer: { seconds: 5 } }),
+    );
+    expectTwoColumns(buzzer());
+    const timer = screen.getByRole('timer', { name: 'Buzz time' });
+    expect(classes(timer.parentElement!)).toEqual(
+      expect.arrayContaining(['short:col-start-1', 'short:row-start-3']),
+    );
+  });
+
+  it('won with a countdown: the winner’s panel and seconds sit in the left column', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'BUZZED',
+        questionIndex: 0,
+        openingCounter: 1,
+        hasBuzzed: true,
+        winnerId: 'p1',
+        winnerName: 'Ana',
+        answerTimer: { seconds: 7, up: false },
+      }),
+    );
+    const panel = screen.getByRole('region', { name: 'Your turn' });
+    expect(statusColumn().contains(panel)).toBe(true);
+    expect(within(panel).getByLabelText('Seconds left').textContent).toBe('7');
+    expectTwoColumns(buzzer());
+  });
+
+  it('locked out and revealed keep the two columns', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 2, lockedOut: true }),
+    );
+    expectTwoColumns(buzzer());
+    socket.fire('state', playerView({ phase: 'REVEAL', questionIndex: 0, answer: 'Canberra' }));
+    expect(statusColumn().contains(screen.getByRole('region', { name: 'Answer' }))).toBe(true);
+    expectTwoColumns(buzzer());
+  });
+
+  it('a choice question shows the four choices as a 2×2 grid on the right', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'ANSWERING',
+        questionIndex: 0,
+        openingCounter: 1,
+        choice: {
+          choices: ['Sydney', 'Canberra', 'Melbourne', 'Perth'],
+          answered: 0,
+          expected: 3,
+          timer: { seconds: 10 },
+          mine: 1,
+        },
+      }),
+    );
+    const list = screen.getByRole('list', { name: 'Choices' });
+    expectTwoColumns(list);
+    expect(classes(stage())).toContain('short:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]');
+    expect(classes(list)).toEqual(
+      expect.arrayContaining(['short:grid', 'short:grid-cols-2', 'short:overflow-visible']),
+    );
+    const buttons = within(list).getAllByRole('button');
+    expect(buttons).toHaveLength(4);
+    for (const button of buttons) expect(classes(button)).toContain('short:min-h-14');
+    // The pick's badge moves onto the tile's top edge.
+    expect(classes(within(buttons[1]!).getByText('Your pick'))).toContain('short:absolute');
+    const timer = screen.getByRole('timer', { name: 'Time to answer' });
+    expect(classes(timer.parentElement!)).toContain('short:col-start-1');
+  });
+
+  it('a typed answer is one row, and focusing it hides the bulbs and moves the box to the top', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'ANSWERING',
+        questionIndex: 0,
+        openingCounter: 1,
+        typed: { answered: 0, expected: 3, timer: { seconds: 10 }, closed: false, mine: null },
+      }),
+    );
+    const form = screen.getByRole('form', { name: 'Your answer' });
+    expectTwoColumns(form);
+    expect(classes(form)).toContain('short:flex-row');
+    const bulbs = statusColumn().querySelector('[data-bulbs]')!;
+    const progress = screen.getByText('Question 1 of 10');
+    expect(classes(bulbs)).not.toContain('short:hidden');
+    expect(classes(stage())).toContain('short:grid-rows-[1fr_auto_auto_1fr]');
+
+    const box = screen.getByRole('textbox', { name: 'Your answer' });
+    fireEvent.focus(box);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(classes(bulbs)).toContain('short:hidden');
+    expect(classes(progress)).toContain('short:hidden');
+    expect(classes(screen.getByRole('heading', { level: 1 }))).toContain('short:text-xl');
+    expect(classes(stage())).toContain('short:grid-rows-[0_auto_auto_1fr]');
+    expect(classes(form)).toEqual(
+      expect.arrayContaining(['short:row-start-2', 'short:self-start']),
+    );
+
+    fireEvent.blur(box);
+    expect(classes(bulbs)).not.toContain('short:hidden');
+    expect(classes(stage())).toContain('short:grid-rows-[1fr_auto_auto_1fr]');
+    Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+  });
+
+  it('the typed focus layout ends with the question, even if the box never blurs', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const socket = await joined();
+    const typed = { answered: 0, expected: 3, timer: { seconds: 10 }, closed: false, mine: null };
+    socket.fire(
+      'state',
+      playerView({ phase: 'ANSWERING', questionIndex: 0, openingCounter: 1, typed }),
+    );
+    fireEvent.focus(screen.getByRole('textbox', { name: 'Your answer' }));
+    socket.fire(
+      'state',
+      playerView({ phase: 'ANSWERING', questionIndex: 1, openingCounter: 1, typed }),
+    );
+    expect(classes(stage())).toContain('short:grid-rows-[1fr_auto_auto_1fr]');
+    Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+  });
+
+  it('the final result scrolls, with rank and points side by side', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'FINAL',
+        questionIndex: 9,
+        playerCount: 4,
+        me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 300, rank: 2 },
+        tonight: { total: 500, rank: 1, count: 2 },
+        results: { title: 'Pub Quiz', ranking: { rows: [], count: 0 }, tonight: null },
+      }),
+    );
+    const result = screen.getByRole('region', { name: 'Final result' });
+    expect(classes(result)).toEqual(
+      expect.arrayContaining(['overflow-y-auto', 'min-h-0', 'touch-pan-y', 'justify-center-safe']),
+    );
+    expect(result.contains(screen.getByRole('button', { name: 'Share results' }))).toBe(true);
+    const pair = within(result).getByText('2nd of 4').parentElement!;
+    expect(pair.contains(within(result).getByText('300 points'))).toBe(true);
+    expect(classes(pair)).toContain('short:flex-row');
+  });
+
+  it('the rename overlay scrolls, starting at the top on a short screen', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change name' }));
+    const overlay = document.querySelector('[data-rename-overlay]')!;
+    expect(overlay.contains(screen.getByRole('button', { name: 'Save' }))).toBe(true);
+    expect(classes(overlay)).toEqual(
+      expect.arrayContaining(['overflow-y-auto', 'items-center-safe', 'short:items-start']),
+    );
+  });
+
+  it('the avatar picker is 4 across on a 320px phone, 5 from 360px and 6 from 400px', async () => {
+    stubExists(true);
+    renderPlay();
+    const cell = await screen.findByRole('button', { name: `Avatar ${AVATARS[0]}` });
+    expect(classes(cell.parentElement!)).toEqual(
+      expect.arrayContaining(['grid-cols-4', 'min-[360px]:grid-cols-5', 'min-[400px]:grid-cols-6']),
+    );
+  });
+
+  it('the pill reads in Taglish', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView({ copy: 'taglish', lobby: PEOPLE }));
+    expect(screen.getByRole('button', { name: '3 nandito' })).toBeTruthy();
+  });
+});

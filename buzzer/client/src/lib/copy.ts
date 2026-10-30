@@ -57,6 +57,8 @@ const EN = {
   cancel: 'Cancel',
   save: 'Save',
   whosHere: 'Who’s here · {n}',
+  // The lobby list folded into a pill on a landscape phone (PLY-01).
+  hereCount: '{n} here',
   you: '(you)',
   shareResults: 'Share results',
   downloadResults: 'Download results',
@@ -149,6 +151,7 @@ const TAGLISH: Record<CopyKey, string> = {
   cancel: 'Huwag na',
   save: 'I-save',
   whosHere: 'Nandito na · {n}',
+  hereCount: '{n} nandito',
   you: '(ikaw)',
   shareResults: 'I-share ang results',
   downloadResults: 'I-download ang results',

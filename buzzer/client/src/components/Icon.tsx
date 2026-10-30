@@ -16,7 +16,8 @@ export type IconName =
   | 'cast'
   | 'remote'
   | 'phone'
-  | 'grip';
+  | 'grip'
+  | 'chevron-down';
 
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
@@ -31,6 +32,7 @@ const PATHS: Record<IconName, ReactNode> = {
   x: <path d="M6 6l12 12M18 6L6 18" />,
   'arrow-right': <path d="M4 12h15M13 6l6 6-6 6" />,
   'arrow-left': <path d="M20 12H5M11 6l-6 6 6 6" />,
+  'chevron-down': <path d="M6 9l6 6 6-6" />,
   undo: <path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" />,
   eye: (
     <>
