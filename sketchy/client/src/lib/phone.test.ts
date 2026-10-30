@@ -10,6 +10,7 @@ import {
   drawerSideways,
   gainedCrown,
   guessAnswer,
+  phoneWakeLock,
   inkNudge,
   joinOutcome,
 } from './phone.js';
@@ -221,5 +222,34 @@ describe('gainedCrown (F25)', () => {
     expect(gainedCrown(v('jun', true), v('jun', true))).toBe(false);
     expect(gainedCrown(v('jun', true), v('jun', false))).toBe(false);
     expect(gainedCrown(v('ana', false), v('jun', true))).toBe(false);
+  });
+});
+
+describe('phoneWakeLock (F37)', () => {
+  const v = (phase: PlayerView['phase']): PlayerView => ({
+    role: 'player',
+    code: 'KPRW',
+    phase,
+    paused: null,
+    rematchInMs: null,
+    rematchFirst: null,
+    gameNumber: 1,
+    settings: { ...DEFAULT_SETTINGS },
+    players: [],
+    turn: null,
+    host: null,
+    me: { pid: 'jun', turnPoints: 0, score: null, rank: null, award: null },
+    secret: null,
+    lastGuess: null,
+  });
+
+  it('keeps the screen on from the first deal to the final scores', () => {
+    for (const phase of ['CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD', 'FINAL'] as const)
+      expect(phoneWakeLock(v(phase))).toBe(true);
+  });
+
+  it('lets the phone sleep in the lobby and with no game view', () => {
+    expect(phoneWakeLock(v('LOBBY'))).toBe(false);
+    expect(phoneWakeLock(null)).toBe(false);
   });
 });

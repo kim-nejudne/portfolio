@@ -90,11 +90,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F36 Drawer feedback
 
-- [ ] F37 QR, tap-to-start, wake lock and connection dot
-  - Spec: Roles and devices (Creating and joining a room); UI by role and phase (Screen, Guesser phone)
-  - Depends: F33
-  - Done when:
-    - Lobby QR to `/play/:code`; Tap-to-start overlay with fullscreen and Wake Lock on the Screen; "Keep this device plugged in" on tablet and phone Screens; Wake Lock on phones during a game; connection dot and auto-reconnect
+- [x] F37 QR, tap-to-start, wake lock and connection dot
 
 - [ ] F38 Sounds
   - Spec: UI by role and phase (Screen)
@@ -242,3 +238,5 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Screen layout hysteresis: switch to portrait at 0.85 but back to landscape only above about 0.9, so a mobile browser's bar resizing a Screen near 0.85 can't flip it back and forth (F33 review).
 - Screen sidebar and strip: give the ✏️ and ✓ marks an accessible label (`role="img"`, "drawing" / "got it"), and check the lighter player colours at `opacity-60` for a disconnected player still reach 4.5:1 (F33 review).
 - Standings: drive the Tonight panel's beside/under switch from the Screen's `layout` instead of its own 16:10 media query; today a 1180×820 Screen puts it under the scores (it fits, checked by `.playtest/F33`) (F33 review).
+- Connection dot: a second cue besides colour for amber and red (a ring or a glyph), for colour-blind players (F37 review).
+- Lobby QR: a larger code on wide Screens (about 34 vmin) if the F37 Kim check finds 24 vmin too small to scan from the sofa; it needs a lobby layout that doesn't push ten players off a 1080p Screen (F37 review, DECISIONS 59).

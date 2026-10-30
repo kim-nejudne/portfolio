@@ -44,8 +44,16 @@ export interface Harness {
   baseUrl: string;
   /** Where screenshots go. */
   outDir: string;
-  /** Opens a fresh, isolated context for a role and navigates it to `path`. */
-  openRole(name: string, device: DeviceName, path?: string): Promise<Role>;
+  /**
+   * Opens a fresh, isolated context for a role and navigates it to `path`. A Screen's "Tap to
+   * start" (F37) is tapped whenever it would block an action, unless `keepStart` is set.
+   */
+  openRole(
+    name: string,
+    device: DeviceName,
+    path?: string,
+    options?: { keepStart?: boolean },
+  ): Promise<Role>;
   roles: Map<string, Role>;
   /** Deduplicated console errors per role. */
   consoleErrors(): Record<string, string[]>;
@@ -74,7 +82,12 @@ export async function launch({
   const browser = await launchBrowser();
   const roles = new Map<string, Role>();
 
-  async function openRole(name: string, device: DeviceName, path = '/'): Promise<Role> {
+  async function openRole(
+    name: string,
+    device: DeviceName,
+    path = '/',
+    { keepStart = false }: { keepStart?: boolean } = {},
+  ): Promise<Role> {
     if (roles.has(name)) throw new Error(`Role "${name}" is already open.`);
     // Phone descriptors name WebKit for iPhones; everything runs in Chromium here.
     const options: BrowserContextOptions & { defaultBrowserType?: string } = { ...DEVICES[device] };
@@ -99,6 +112,14 @@ export async function launch({
       },
     };
     roles.set(name, role);
+    // A Screen opens under "Tap to start" (F37): scenarios that act on it get past it the way a
+    // person would.
+    if (!keepStart) {
+      await page.addLocatorHandler(
+        page.getByRole('button', { name: /^(Tap|Click) to start/ }),
+        (button) => button.click(),
+      );
+    }
     await page.goto(path);
     return role;
   }

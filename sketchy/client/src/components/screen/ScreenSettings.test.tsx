@@ -100,7 +100,7 @@ describe('Screen settings panel (F22)', () => {
 
   it('only the token Screen gets the Settings button; the summary names the preset', () => {
     // The lobby reads the join host from `window.location`; the tests have no DOM.
-    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    vi.stubGlobal('window', { location: { host: 'sketchy.test', origin: 'https://sketchy.test' } });
     const socket = {} as GameSocket;
     const host = renderToStaticMarkup(<ScreenLobby view={lobby(true)} socket={socket} t={t} />);
     const plain = renderToStaticMarkup(<ScreenLobby view={lobby(false)} socket={socket} t={t} />);
@@ -137,7 +137,7 @@ describe('the crown on the Screen lobby (F25)', () => {
   const players = [chip('mika', 'Mika', true), chip('jun', 'Jun')];
 
   it('with the token: "👑 Mika is hosting · tap a name to change", and the chips are buttons', () => {
-    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    vi.stubGlobal('window', { location: { host: 'sketchy.test', origin: 'https://sketchy.test' } });
     const html = renderToStaticMarkup(
       <ScreenLobby view={{ ...lobby(true), players }} socket={socket} t={t} />,
     );
@@ -148,7 +148,7 @@ describe('the crown on the Screen lobby (F25)', () => {
   });
 
   it('without the token: "Waiting for 👑 Mika to start", and the chips are not buttons', () => {
-    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    vi.stubGlobal('window', { location: { host: 'sketchy.test', origin: 'https://sketchy.test' } });
     const html = renderToStaticMarkup(
       <ScreenLobby view={{ ...lobby(false), players }} socket={socket} t={t} />,
     );
@@ -179,7 +179,7 @@ describe('How to play on the Screen lobby (F26)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('shows the three steps on every Screen, token or not', () => {
-    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    vi.stubGlobal('window', { location: { host: 'sketchy.test', origin: 'https://sketchy.test' } });
     for (const host of [true, false]) {
       const html = renderToStaticMarkup(
         <ScreenLobby view={lobby(host)} socket={{} as GameSocket} t={t} />,

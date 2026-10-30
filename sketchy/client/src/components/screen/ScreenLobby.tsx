@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
+import { joinUrl, qrPath } from '../../lib/qr.js';
 import { HOW_TO_PLAY } from '../../lib/screen.js';
 import type { GameSocket } from '../../lib/socket.js';
+import { usePointerCoarse } from '../../lib/usePointerCoarse.js';
 import { LobbyChip } from './PlayerChip.js';
 import { PlayersDialog } from './PlayersDialog.js';
 import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.js';
@@ -10,8 +12,9 @@ import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.j
 /**
  * The lobby on the Screen: where to join, the code, who's in, and, on the Screen holding the
  * token, Start, the settings (F22) and the crown (F25): tapping a chip offers Give host crown and
- * Kick. Under the join details, the How to play strip (F26). The QR (F37) and custom words (F48)
- * come later.
+ * Kick. Beside the join details, the QR to `/play/CODE` (F37), and under them the How to play
+ * strip (F26). Tablet and phone Screens say "Keep this device plugged in" (F37). Custom words
+ * (F48) come later.
  */
 export function ScreenLobby({
   view,
@@ -28,6 +31,7 @@ export function ScreenLobby({
   const connected = view.players.filter((p) => p.connected).length;
   const { settings } = view;
   const joinHost = window.location.host;
+  const coarse = usePointerCoarse();
 
   // The settings panel covers the lobby; the lobby behind it is inert, and closing the panel puts
   // focus back on its button.
@@ -83,22 +87,31 @@ export function ScreenLobby({
 
         <div className="flex min-h-0 flex-1 flex-col gap-[3vmin] [@media(max-height:480px)]:flex-row [@media(max-height:480px)]:gap-[4vmin]">
           <div className="flex flex-col gap-[3vmin] [@media(max-height:480px)]:w-[44%] [@media(max-height:480px)]:shrink-0 [@media(max-height:480px)]:gap-[2vmin]">
-            <section className="flex flex-col gap-[1vmin]">
-              <p className="text-[max(4vmin,20px)]">
-                {t('joinAt')} <strong className="text-[#FF6B35]">{joinHost}</strong>
-              </p>
-              <p className="flex items-baseline gap-[2vmin] text-[max(4vmin,20px)]">
-                {t('code')}:
-                <span
-                  className="font-display text-[max(12vmin,56px)] leading-none font-bold tracking-[0.3em]"
-                  aria-label={view.code.split('').join(' ')}
-                >
-                  {view.code}
-                </span>
-              </p>
-              <p className="text-[max(2.5vmin,14px)] text-white/60 [@media(max-height:480px)]:hidden">
-                {joinHost}/play/{view.code}
-              </p>
+            {/* The code never gives way: on a narrow or short Screen "Code:" goes above the
+                letters and the QR shrinks into what's left (DECISIONS 59). */}
+            <section className="flex items-center gap-[3vmin]">
+              <div className="flex flex-col gap-[1vmin]">
+                <p className="text-[max(4vmin,20px)]">
+                  {t('joinAt')} <strong className="text-[#FF6B35]">{joinHost}</strong>
+                </p>
+                <p className="flex items-baseline gap-[2vmin] text-[max(4vmin,20px)] max-sm:flex-col max-sm:gap-0 [@media(max-height:480px)]:flex-col [@media(max-height:480px)]:gap-0">
+                  {t('code')}:
+                  <span
+                    className="font-display text-[max(12vmin,56px)] leading-none font-bold tracking-[0.3em]"
+                    aria-label={view.code.split('').join(' ')}
+                  >
+                    {view.code}
+                  </span>
+                </p>
+                <p className="text-[max(2.5vmin,14px)] text-white/60 [@media(max-height:480px)]:hidden">
+                  {joinHost}/play/{view.code}
+                </p>
+                {coarse && <PluggedInNote t={t} />}
+              </div>
+              <JoinQr
+                url={joinUrl(window.location.origin, view.code)}
+                label={t('scanToJoin', { code: view.code })}
+              />
             </section>
 
             <HowToPlay t={t} />
@@ -189,4 +202,30 @@ export function HowToPlay({ t }: { t: Translate }) {
       </ol>
     </section>
   );
+}
+
+/**
+ * The join QR, dark on white with its quiet zone, as large as the lobby can spare: phones scan it
+ * from the sofa. Its address is this Screen's own origin, so a Screen opened on the LAN address
+ * (`npm run lan`) gives phones a QR they can reach.
+ */
+export function JoinQr({ url, label }: { url: string; label: string }) {
+  const { size, d } = useMemo(() => qrPath(url), [url]);
+  return (
+    <svg
+      role="img"
+      aria-label={label}
+      data-url={url}
+      viewBox={`0 0 ${size} ${size}`}
+      shapeRendering="crispEdges"
+      className="aspect-square w-[max(24vmin,104px)] min-w-16 shrink rounded-[1vmin] bg-white"
+    >
+      <path d={d} fill="#000" />
+    </svg>
+  );
+}
+
+/** Tablet and phone Screens only: a Screen that sleeps or dies mid-game stops the room's drawing. */
+export function PluggedInNote({ t }: { t: Translate }) {
+  return <p className="text-[max(2.5vmin,14px)] text-[#FFD166]">{t('keepPluggedIn')}</p>;
 }

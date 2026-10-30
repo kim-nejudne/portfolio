@@ -52,8 +52,88 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F34: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 4+ real phones (a ≈ 360 px Android, an iPhone); also a tablet held upright as a second Screen (`/screen/CODE`); bots at `/dev/bots/CODE` can fill the room · from the sofa (5 m): three phones send wrong guesses within a second: speech bubbles in each guesser's colour pop beside their names (under the strip on the upright tablet), at most three, gone after 2 s, never over the drawing, and the guesses list under the players keeps them; one phone guesses right: "Jun got it!" in Jun's colour replaces "Mika is drawing" for 2 s (on the tablet it replaces the blanks in the top bar), and Jun's row turns green with "+N"; on Jun's phone the guess box is replaced by six emoji buttons that are easy to hit with a thumb and fit with no scroll; tap 🔥: it floats up from Jun's row on the TV, and the tapped button lights green for a second; tap fast: no more than one reaction a second shows; set Guess feed Off (G): wrong guesses show as "💬 Bea is guessing…" with no text; with Reduce motion on (phone or laptop settings) the bubbles and emoji just fade
 - [ ] F35: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 3+ real phones; also a tablet held upright as a second Screen (`/screen/CODE`) · turn 1: two phones guess right (the slower phone first if you can) and one types a near miss and a wrong guess: at the reveal the word pops in, the biggest text on the TV and readable from the sofa, "Got it" lists the guessers in the order the server credited them with their points, "Almost:" shows the near miss then the wrong guess (never more than three, never the same guess twice), and "+N for Mika’s drawing" shows; turn 2: nobody guesses right (one wrong guess) and let the time run out: "Nobody got it! 😱" heads the panel above "It was…" (in the tablet's top bar too), and below the word there is no "Got it" and no points, only "Almost:"; no "+0" anywhere, and no speech bubble lingers into the reveal; set Guess feed Off (G) and play a turn with a near miss and a wrong guess: "Almost:" lists only the near miss (say if you'd rather Off showed the wrong guesses at the reveal too, DECISIONS 57); with Reduce motion on, the word appears without growing in
 - [ ] F36: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (one small Android if you have one, one iPhone) · on the drawer's phone, pick a word and don't draw: about 10 s in, "Start with one big shape. Anything helps!" appears just above the pad (on a small phone it sits over the pad's top edge) and the pad doesn't move; start a stroke right on that text: the line draws and the text is gone for the rest of the turn (Clear doesn't bring it back); have a guesser type a wrong guess: "Bea: sapatos" appears on the drawer's second line; have another type a near miss (the word plus "ko", or one letter off): "Cy is close!" shows there in amber for about 2 s, readable at arm's length but not from the next seat, then the wrong guess comes back; the Screen and the other phones never show the near miss; with VoiceOver/TalkBack on the drawer's phone, the nudge and "is close!" are read out
+- [ ] F37: `npm run dev` + `npm run lan CODE`, open the **Screen URL printed by `npm run lan`** (the LAN address, not localhost) on the laptop on the TV, plus a tablet or spare phone as a second Screen, and 3 real phones (one iPhone, one small Android if you have one) · on each Screen, "Click to start" (laptop) or "Tap to start" (tablet) covers the page: one tap goes fullscreen (not on an iPhone Screen) and the Screen doesn't dim or sleep for 15 minutes on battery; the lobby QR scans with each phone's camera from the sofa (≈ 2–3 m; note the farthest distance that works, see the Backlog's QR line) and opens `/play/CODE` on the LAN address; "🔌 Keep this device plugged in" shows on the tablet or phone Screen and not on the laptop (also try an Android TV or Chromecast browser if you have one: it may report no pointer and show "Click to start" with no note); during a game no phone dims or locks (lobby phones may); turn on airplane mode on one phone: the dot in its top-right corner goes amber at once, red after about 5 s, and back to green with the same name and score within a few seconds of turning it off; try Wi-Fi with no internet (unplug the router's WAN) for the amber after about 6 s
 
 <!-- entries below, newest first -->
+## F37 — QR, tap-to-start, wake lock and connection dot (2026-10-31)
+**What changed:**
+- **Lobby QR** (`client/src/lib/qr.ts`, new): `qrPath` draws the code from `qrcode`'s matrix as one SVG path (error correction M, 4-module quiet zone, 29 modules for a join URL). `JoinQr` in `ScreenLobby.tsx` sits beside the join details, before How to play, on every Screen. It points to this Screen's own origin + `/play/CODE`. Below 640 px wide or 480 px tall, "Code:" goes above the letters and the QR shrinks into what's left (min 64 px), so it never covers the code.
+- **Tap to start** (`components/screen/StartOverlay.tsx`, ported from Buzzr): a full-screen modal button over every Screen view except "game ended", "Tap to start" on a coarse pointer, else "Click to start", with "Turns on sound and fullscreen, and keeps the screen on". The tap calls `enterFullscreen` (`lib/fullscreen.ts`, new; missing, refused or throwing APIs are ignored) and sets `started`, which holds a Screen Wake Lock until the page ends. Keys stop at the overlay, and Tab stays on its button. Solid at 95 %, no blur. The Screen joins and renders underneath meanwhile.
+- **"🔌 Keep this device plugged in"** (`PluggedInNote`) under the join details on `(pointer: coarse)` Screens (`lib/usePointerCoarse.ts`, new).
+- **Phone Wake Lock:** `Play.tsx` holds it while `phoneWakeLock(view)` (`lib/phone.ts`), from CHOOSING through FINAL and not in the lobby. It replaces `DrawerTurn`'s DRAWING-only lock.
+- **Connection dot** (`lib/connection.ts` and `components/phone/ConnectionDot.tsx`, new; ported from Buzzr's `useRoomSocket` and `ConnectionDot`):
+  - The 8 px dot sits in the top-right corner of every live phone view, `pointer-events-none`, as a labelled `role="img"`.
+  - It's green on connect and on each ping ack (`keepPinging` gains `onAck`).
+  - It goes amber on a disconnect, on the browser's `offline` event, after 6 s without an ack, and before the first connect, and red after 5 s of that.
+  - `watch(socket)` runs in the page's effect, so StrictMode's second run re-attaches it.
+  - Auto-reconnect is still Socket.IO's own, and every connect rejoins silently.
+- **Playtest harness:** `openRole` taps "Tap/Click to start" whenever it blocks an action (`addLocatorHandler`); `{keepStart: true}` leaves it up for a scenario that checks it.
+- Copy: `scanToJoin`, `keepPluggedIn`, `tapToStart`, `clickToStart`, `startHint`, `connected`, `offline`.
+- **Tests:**
+  - `client/src/lib/qr.test.ts` (new, 4: the exact dark modules inside the quiet zone, version 3 with the three finder patterns, the join URL, deterministic).
+  - `client/src/lib/connection.test.ts` (new, 10: amber first, red after 5 s, disconnect/reconnect through a socket, a ping ack, a silent drop after 6 s, one red clock per outage, `offline`/`online`, subscribers and stop, StrictMode re-watch, an already connected socket).
+  - `client/src/lib/fullscreen.test.ts` (new, 3).
+  - `ScreenLobby.test.tsx` (new, 6: the QR's URL on token and plain Screens, its place, the plugged-in note on coarse Screens only, Tap vs Click, one modal button).
+  - `ConnectionDot.test.tsx` (new, 4).
+  - `phone.test.ts` (+2 `phoneWakeLock`).
+  - `ping.test.ts` (+1 `onAck`).
+  - `ScreenSettings.test.tsx` stubs gain `origin`.
+- **No new dependencies:** `qrcode` was already a dev dependency (the terminal QR of `npm run lan`), and only the lazy Screen chunk bundles it. `/` + `/play` is 119.2 KB gzipped (was 118.8; budget 120), and the Screen chunk is 21.8 KB.
+
+**Decisions:** DECISIONS 59 covers:
+- the QR's address, size and narrow-screen layout;
+- the overlay on every load, its keys and solid background;
+- what counts as a tablet or phone Screen;
+- the phone's wake lock from the first deal;
+- the dot's amber and red rules and placement;
+- auto-reconnect as Socket.IO's own.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied:
+  - the Kim check;
+  - the connection store re-attaches under StrictMode (`watch`);
+  - fullscreen pulled out and tested;
+  - the dot's socket wiring tested through `watch`.
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied:
+  - the plugged-in note moved under the join details, so it adds no height to the bottom row;
+  - Tab stays on the overlay's button;
+  - the overlay's blur dropped;
+  - the missed-ack watch (amber after 6 s).
+  
+  Not changed:
+  - the Start button half-hidden at 844×390 and 1366×560 is F24's auto-hiding host bar over the bottom row (DECISIONS 49), not F37;
+  - the QR size stays at 24 vmin (DECISIONS 59, the Kim check, Backlog);
+  - Backlog: a non-colour cue on the dot.
+- **secrets-fairness:** not run, since `server/`, `shared/` and ink code are unchanged.
+
+**Playtest:**
+- **`.playtest/F37/scenario.ts`** (playtester: TV Screen, tablet Screen, Pixel 7, iPhone 13, small phone). All 8 steps pass:
+  - "Click to start" shows, and a click removes it, requests fullscreen and requests a wake lock;
+  - the QR's `data-url` ends in `/play/CODE`, and the TV has no plugged-in note;
+  - the phones join;
+  - the dot is `connected`, leaves it offline and returns;
+  - the tablet shows "Tap to start" and then "Keep this device plugged in";
+  - the phone requests a wake lock in the game.
+- **`.playtest/F37/dot.ts`:**
+  - no phone wake lock in the lobby, one in the game;
+  - at 360×560 on the crown phone the dot (348,4, 8 px) overlaps neither the 👑 Host button nor any text, and on a Pixel 7 likewise;
+  - offline: amber at once, red after 5 s, and green again on return as the same player (one "Ben" on the Screen, no join form).
+- **`.playtest/F33/layouts.ts`** re-run (7 Screens, ten players, every phase): pass. The lobby screenshots show the QR beside the code at every size; the first version covered the code's last letter at 390×844 and 844×390, which led to the narrow layout above.
+- Console errors: none, except the expected `ERR_INTERNET_DISCONNECTED` while emulating offline.
+- Screenshots: `.playtest/F37/dot-in-game-Ana.png`, `dot-red-Ben.png`, `.playtest/F33/1-lobby-<w>x<h>.png`.
+- Not exercised: a real fullscreen, a held wake lock, and a QR scanned by a camera (Kim check).
+
+**Notes for next session:**
+- **F38:** unlock audio in `Screen.tsx`'s `start()` (the Tap to start handler); `started` says the gesture happened.
+- **F39:** `/` + `/play` is 119.2 KB gzipped (budget 120). `qrcode` and its `dijkstrajs` are in the Screen chunk only.
+- **F43:** the dot and the "Reconnecting…" pill already track reconnects on phones.
+- **F45:** Taglish for the new copy keys above.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/qr.test.ts client/src/lib/connection.test.ts client/src/lib/fullscreen.test.ts client/src/components/screen/ScreenLobby.test.tsx client/src/components/phone/ConnectionDot.test.tsx`.
+- Playtests: `npm run dev`, then `npm run playtest -- .playtest/F37/scenario.ts` and `.playtest/F37/dot.ts`.
+- By hand: `npm run dev` + `npm run lan`, open the printed Screen URL, Start, tap the overlay, and scan the QR with a phone on the same Wi-Fi. In DevTools, set a phone-sized window offline to see the dot go amber, then red, then green.
+
 ## F36 — Drawer feedback (2026-10-31)
 **What changed:**
 - **Server** (`server/reducer.ts`): a close guess now also sends `closeAlert {pid}` (the guesser) to the drawer, next to the guesser's `nearMiss`. It carries no text and goes to no Screen. The drawer's `lastGuess` (latest wrong guess, masked like the feed, DRAWING only) was already there from F15.

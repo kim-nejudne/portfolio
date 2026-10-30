@@ -25,11 +25,14 @@ export function keepPinging(
     clock = () => performance.now(),
     page = typeof document === 'undefined' ? undefined : document,
     onServerTime,
+    onAck,
   }: {
     clock?: () => number;
     page?: VisibilitySource;
     /** `?debug=1` (F16): each pong's `t`, `serverNow` and local arrival time, for the offset. */
     onServerTime?: (t: number, serverNow: number, receivedAt: number) => void;
+    /** Each ping the server acked: the phone's connection dot reads it as the link being up. */
+    onAck?: () => void;
   } = {},
 ): () => void {
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -38,7 +41,7 @@ export function keepPinging(
     timer = undefined;
   };
   // The ack only says the server took it; the RTT sample is the server's.
-  const ping = () => socket.emit('ping', { t: clock() }, () => {});
+  const ping = () => socket.emit('ping', { t: clock() }, () => onAck?.());
   const start = () => {
     // A reconnect restarts the interval, so there is only ever one.
     pause();

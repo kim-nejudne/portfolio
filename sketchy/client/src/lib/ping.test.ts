@@ -46,6 +46,17 @@ describe('keepPinging', () => {
     expect(ack).toHaveBeenCalledTimes(1);
   });
 
+  it("calls onAck when the server acks a ping (the phone's connection dot), not before", () => {
+    const socket = new FakeSocket();
+    const onAck = vi.fn();
+    keepPinging(socket as unknown as GameSocket, { page: new FakePage(), onAck });
+    socket.connect();
+    const [sent] = socket.sent('ping');
+    expect(onAck).not.toHaveBeenCalled();
+    sent!.ack!({ ok: true });
+    expect(onAck).toHaveBeenCalledTimes(1);
+  });
+
   it('hands each pong and its local arrival time to onServerTime (?debug=1)', () => {
     const socket = new FakeSocket();
     vi.setSystemTime(0);

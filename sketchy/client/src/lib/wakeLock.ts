@@ -69,7 +69,7 @@ export function holdWakeLock(
   };
 }
 
-/** Keeps the screen on while `active` (the drawer's pad). */
+/** Keeps the screen on while `active`: a phone during a game, a started Screen. */
 export function useWakeLock(active: boolean): void {
   useEffect(() => (active ? holdWakeLock() : undefined), [active]);
 }

@@ -8,7 +8,6 @@ import { formatClock } from '../../lib/screen.js';
 import { DEFAULT_TOOL } from '../../lib/tools.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { useDrawLock } from '../../lib/useDrawLock.js';
-import { useWakeLock } from '../../lib/wakeLock.js';
 import { DrawPad, type PadControls } from './DrawPad.js';
 import { DrawToolbar } from './DrawToolbar.js';
 
@@ -29,7 +28,8 @@ interface Props {
  * it" and the latest wrong guess (or "Bea is close!" in amber for 2 s); the square pad, with "Start
  * with one big shape. Anything helps!" at its top edge if nothing is drawn 10 s in; two 48 px rows. Scroll, zoom and
  * pull-to-refresh are locked while it shows (`touch-none` on the whole view, so a pinch on the bar
- * or the toolbar doesn't zoom either), and the screen stays on (Wake Lock).
+ * or the toolbar doesn't zoom either). The screen stays on through the page's game-long Wake Lock
+ * (`Play.tsx`, F37).
  *
  * Turned on its side, a phone's pad wouldn't fit: "Turn your phone upright" covers the view, the
  * stroke in hand ends and the tools wait. The pad stays mounted at its upright size, so the turn's
@@ -37,7 +37,6 @@ interface Props {
  */
 export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props) {
   useDrawLock(true);
-  useWakeLock(true);
   const boxRef = useRef<HTMLDivElement>(null);
   const [pad, setPad] = useState(0);
   const [sideways, setSideways] = useState(false);

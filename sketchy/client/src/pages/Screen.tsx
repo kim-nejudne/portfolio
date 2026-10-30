@@ -8,15 +8,19 @@ import { HostControls } from '../components/screen/HostControls.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
 import { ScreenTurn } from '../components/screen/ScreenTurn.js';
+import { StartOverlay } from '../components/screen/StartOverlay.js';
 import { createClockOffset, createDelayWindow, isDebug, recordPaint } from '../lib/clock.js';
 import { translator } from '../lib/copy.js';
+import { enterFullscreen } from '../lib/fullscreen.js';
 import { DoodleContext, createScreenDoodles } from '../lib/doodles.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
 import { keepPinging } from '../lib/ping.js';
 import { createScreenFx } from '../lib/screenFx.js';
+import { usePointerCoarse } from '../lib/usePointerCoarse.js';
 import { useScreenLayout } from '../lib/useScreenLayout.js';
 import { createInkSocket, createSocket } from '../lib/socket.js';
+import { useWakeLock } from '../lib/wakeLock.js';
 
 type Status = 'connecting' | 'live' | 'ended';
 
@@ -41,6 +45,10 @@ export function Screen() {
   // "Need 2 players", for a few seconds after a rematch countdown ends with too few connected.
   const [needTwo, setNeedTwo] = useState(false);
   const layout = useScreenLayout();
+  // "Tap to start" (F37): the tap asks for fullscreen and, from then on, a Screen Wake Lock.
+  const [started, setStarted] = useState(false);
+  const coarse = usePointerCoarse();
+  useWakeLock(started && status !== 'ended');
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
   // Lobby doodles (F27), drawn as the players' avatars on every chip.
@@ -147,6 +155,14 @@ export function Screen() {
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
 
+  // Inside the gesture, as browsers require. The wake lock follows from `started`; F38 unlocks
+  // audio here too.
+  const start = () => {
+    enterFullscreen();
+    setStarted(true);
+  };
+  const startOverlay = !started && <StartOverlay coarse={coarse} onStart={start} t={t} />;
+
   if (status === 'ended') {
     return (
       <main className="grid h-dvh place-items-center bg-[#1D1B22] p-6 text-center text-white">
@@ -164,6 +180,7 @@ export function Screen() {
     return (
       <main className="grid h-dvh place-items-center bg-[#1D1B22] text-[max(4vmin,20px)] text-white">
         {t('connecting')}
+        {startOverlay}
       </main>
     );
   }
@@ -243,6 +260,7 @@ export function Screen() {
       </footer>
       {/* The token Screen only; the server checks every host event again. */}
       {view.host && <HostControls view={view} socket={socket} t={t} />}
+      {startOverlay}
     </main>
   );
 }

@@ -69,6 +69,17 @@ export function welcomeTurn(view: PlayerView): number | null {
 }
 
 /**
+ * Whether a phone keeps its screen on (Guesser phone: "Wake Lock requested during a game"): from
+ * the first deal to the final scores, a pause and a rematch countdown included. Not in the lobby
+ * (nobody is waiting on this phone there, and a sleeping phone rejoins silently), and not with no
+ * view (joining, ended, removed).
+ */
+// SPEC-QUESTION: "during a game" read as CHOOSING through FINAL, not the lobby (DECISIONS 59).
+export function phoneWakeLock(view: PlayerView | null): boolean {
+  return view !== null && view.phase !== 'LOBBY';
+}
+
+/**
  * Whether `next` brings this phone the crown that `prev` didn't have, for the "You're the host now
  * 👑" toast. Never on the first view (the first joiner's lobby already says "You're the host 👑"),
  * and only for the same player.

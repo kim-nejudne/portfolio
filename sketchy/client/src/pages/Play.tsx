@@ -8,6 +8,7 @@ import type {
   PlayerView,
   Reaction,
 } from '../../../shared/types.js';
+import { ConnectionDot } from '../components/phone/ConnectionDot.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
@@ -19,11 +20,13 @@ import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { WordChoice } from '../components/phone/WordChoice.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { createCloseAlert } from '../lib/closeAlert.js';
+import { createConnection } from '../lib/connection.js';
 import { translator, type CopyKey } from '../lib/copy.js';
 import {
   addOwnGuess,
   gainedCrown,
   joinOutcome,
+  phoneWakeLock,
   welcomeTurn,
   type OwnGuesses,
 } from '../lib/phone.js';
@@ -37,6 +40,7 @@ import {
 import { createClockOffset, isDebug, stampBatch } from '../lib/clock.js';
 import { keepPinging } from '../lib/ping.js';
 import { createInkSocket, createSocket, type InkSocket } from '../lib/socket.js';
+import { useWakeLock } from '../lib/wakeLock.js';
 
 type Status = 'form' | 'joining' | 'live' | 'ended' | 'removed';
 
@@ -85,6 +89,9 @@ export function Play() {
   const [hostOpen, setHostOpen] = useState(false);
 
   const socket = useMemo(() => createSocket(), []);
+  // The connection dot (F37): green, amber while Socket.IO reconnects, red after 5 s of that.
+  const connection = useMemo(() => createConnection(), []);
+  const link = useSyncExternalStore(connection.subscribe, connection.getSnapshot);
   // `?debug=1` (F16): the clock offset to the server, so each ink batch carries its send time.
   const debugClock = useMemo(() => (isDebug() ? createClockOffset() : null), []);
   const identityRef = useRef<PlayerIdentity | null>(stored);
@@ -171,6 +178,7 @@ export function Play() {
       void join();
     });
     socket.on('disconnect', () => setConnected(false));
+    const stopWatching = connection.watch(socket);
     socket.on('state', (view) => {
       if (view.role !== 'player') return;
       if (gainedCrown(viewRef.current, view)) setCrownToast((n) => n + 1);
@@ -206,17 +214,19 @@ export function Play() {
     });
     // RTT samples for the server's latency correction of guess times.
     const stopPinging = keepPinging(socket, {
+      onAck: connection.up,
       ...(debugClock ? { onServerTime: debugClock.add } : {}),
     });
     socket.connect();
 
     return () => {
       stopPinging();
+      stopWatching();
       socket.removeAllListeners();
       socket.disconnect();
       closeInk();
     };
-  }, [code, validCode, socket, join, closeInk, debugClock, closeAlert]);
+  }, [code, validCode, socket, join, closeInk, debugClock, closeAlert, connection]);
 
   const startJoin = (name: string) => {
     identityRef.current = { playerKey: newPlayerKey(), name };
@@ -310,6 +320,8 @@ export function Play() {
 
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
+  // The screen stays on during a game (F37); the lobby may sleep.
+  useWakeLock(status === 'live' && phoneWakeLock(view));
 
   useEffect(() => {
     if (!freshJoin.current || status !== 'live' || !view) return;
@@ -410,6 +422,7 @@ export function Play() {
       >
         {needTwoToast ? t('needTwoPlayers') : ''}
       </p>
+      <ConnectionDot connection={link} t={t} />
       {hostBar && (
         <HostDrawer view={view} socket={socket} t={t} open={hostOpen} onOpenChange={setHostOpen} />
       )}
