@@ -357,6 +357,32 @@ describe('host actions', () => {
     expect(s.rooms.get(CODE)!.settings.cycles).toBe(3);
   });
 
+  it('host:crown: the holder passes it on, and the host rights go with it (F25)', async () => {
+    const s = await setup();
+    const screen = await s.connect();
+    await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken });
+    const ana = await joinPlayer(s, KEY_ANA, 'Ana');
+    const ben = await joinPlayer(s, KEY_BEN, 'Ben');
+    expect(await ben.client.emit('host:crown', { pid: ben.pid })).toEqual({
+      ok: false,
+      error: 'notHost',
+    });
+    expect(await ana.client.emit('host:crown', { pid: 'not a pid!' })).toEqual({
+      ok: false,
+      error: 'invalidPayload',
+    });
+    expect(await ana.client.emit('host:crown', { pid: ben.pid })).toEqual({ ok: true });
+    const benView = await ben.client.state<PlayerView>((v) => v.host !== null);
+    expect(benView.players.find((p) => p.pid === ben.pid)!.crown).toBe(true);
+    await ana.client.state<PlayerView>((v) => v.players.some((p) => p.pid === ben.pid && p.crown));
+    expect(ana.client.states.at(-1)!.host).toBeNull();
+    expect(ben.client.fx.filter((f) => f.kind === 'crowned')).toHaveLength(1);
+    // Ana's phone lost its host rights; the token Screen moves the crown back.
+    expect(await ana.client.emit('host:start')).toEqual({ ok: false, error: 'notHost' });
+    expect(await screen.emit('host:crown', { pid: ana.pid })).toEqual({ ok: true });
+    expect(s.rooms.get(CODE)!.crownPid).toBe(ana.pid);
+  });
+
   it('need a join first', async () => {
     const s = await setup();
     const stranger = await s.connect();

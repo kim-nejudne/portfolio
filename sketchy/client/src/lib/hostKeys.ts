@@ -1,7 +1,7 @@
-// The token Screen's host controls (Host controls): which controls its bar shows in each phase,
-// what each keyboard shortcut does, and the "press twice within 2 s" confirmations. Presentation
-// only: every action is a `host:*` event the server validates; the bar and keys mirror the spec's
-// tables and render whatever the next snapshot carries.
+// The host controls (Host controls): which controls the token Screen's bar and the crown phone's
+// drawer show in each phase, what each keyboard shortcut does, and the "press twice within 2 s"
+// confirmations. Presentation only: every action is a `host:*` event the server validates; the
+// bar, drawer and keys mirror the spec's tables and render whatever the next snapshot carries.
 
 import { GUESS_FEED_CHOICES } from '../../../shared/constants.js';
 import type { ClientPayloads, RoomSettings, ScreenView } from '../../../shared/types.js';
@@ -18,6 +18,9 @@ export type ControlId =
   | 'rematch'
   | 'backToLobby'
   | 'cancelRematch';
+
+/** What the controls read from a snapshot: a Screen's or the crown holder's phone's. */
+export type HostView = Pick<ScreenView, 'phase' | 'paused' | 'rematchInMs' | 'settings'>;
 
 /** The local (non-server) shortcuts. */
 export type LocalCommand = 'fullscreen' | 'sound' | 'help';
@@ -36,9 +39,26 @@ export interface Armed {
 /** The window for the second press (or tap) of a two-press control. */
 export const CONFIRM_MS = 2000;
 
+/** A first tap of a two-tap action on one target (Kick on a player), waiting for the second. */
+export interface ArmedTarget {
+  target: string;
+  at: number;
+}
+
+/** A tap of a two-tap action on `target`: the second within `CONFIRM_MS` confirms it. */
+export function twoTap(
+  target: string,
+  armed: ArmedTarget | null,
+  now: number,
+): { confirmed: boolean; armed: ArmedTarget | null } {
+  if (armed?.target === target && now - armed.at <= CONFIRM_MS)
+    return { confirmed: true, armed: null };
+  return { confirmed: false, armed: { target, at: now } };
+}
+
 const NEEDS_CONFIRM: readonly ControlId[] = ['skip', 'end', 'rematch', 'backToLobby'];
 
-type HostEvent =
+export type HostEvent =
   | 'host:start'
   | 'host:pause'
   | 'host:resume'
@@ -48,7 +68,9 @@ type HostEvent =
   | 'host:end'
   | 'host:rematch'
   | 'host:rematchCancel'
-  | 'host:backToLobby';
+  | 'host:backToLobby'
+  | 'host:crown'
+  | 'host:kick';
 
 const EVENTS: Record<Exclude<ControlId, 'guessFeed'>, HostEvent> = {
   start: 'host:start',
@@ -70,7 +92,7 @@ export function nextGuessFeed(feed: RoomSettings['guessFeed']): RoomSettings['gu
 /** The event (and payload) a control sends. `G` sends the feed after the snapshot's. */
 export function controlEvent(
   control: ControlId,
-  view: ScreenView,
+  view: HostView,
 ): { event: HostEvent; payload: ClientPayloads[HostEvent] } {
   if (control === 'guessFeed')
     return {
@@ -80,13 +102,13 @@ export function controlEvent(
   return { event: EVENTS[control], payload: {} };
 }
 
-const counting = (view: ScreenView) => view.phase === 'FINAL' && view.rematchInMs !== null;
+const counting = (view: HostView) => view.phase === 'FINAL' && view.rematchInMs !== null;
 
 /**
  * The bar's controls, as in the spec's drawer table. The lobby has none (Start is the lobby's own
  * button). Paused: Resume in place of Pause, and no Next (the server refuses it).
  */
-export function barControls(view: ScreenView): ControlId[] {
+export function barControls(view: HostView): ControlId[] {
   const pause: ControlId = view.paused ? 'resume' : 'pause';
   switch (view.phase) {
     case 'LOBBY':
@@ -102,8 +124,27 @@ export function barControls(view: ScreenView): ControlId[] {
   }
 }
 
+/**
+ * The crown phone's drawer (the spec's drawer table): the bar's controls, with the guess feed as
+ * its own All / Clean / Off row rather than a cycling button, and the players list (Give crown,
+ * Kick) in CHOOSING, DRAWING and FINAL. In LOBBY the lobby itself is the host view.
+ */
+export function drawerSections(view: HostView): {
+  controls: ControlId[];
+  feed: boolean;
+  players: boolean;
+} {
+  const controls = barControls(view).filter((c) => c !== 'guessFeed');
+  const inTurn = view.phase === 'CHOOSING' || view.phase === 'DRAWING';
+  return {
+    controls,
+    feed: inTurn,
+    players: inTurn || (view.phase === 'FINAL' && !counting(view)),
+  };
+}
+
 /** Space: Start / Next / Resume; on FINAL, Rematch; during a rematch countdown, Cancel. */
-function primaryControl(view: ScreenView): ControlId | null {
+function primaryControl(view: HostView): ControlId | null {
   if (view.phase === 'FINAL') return counting(view) ? 'cancelRematch' : 'rematch';
   if (view.paused) return 'resume';
   if (view.phase === 'LOBBY') return 'start';
@@ -112,7 +153,7 @@ function primaryControl(view: ScreenView): ControlId | null {
 }
 
 /** What a key (a `KeyboardEvent.key`) does in this snapshot, or null. Letters ignore case. */
-export function keyControl(key: string, view: ScreenView): ControlId | LocalCommand | null {
+export function keyControl(key: string, view: HostView): ControlId | LocalCommand | null {
   const shown = barControls(view);
   const ifShown = (control: ControlId) => (shown.includes(control) ? control : null);
   switch (key.length === 1 ? key.toLowerCase() : key) {
@@ -159,7 +200,7 @@ export function press(
 /** A key press. An unmapped key changes nothing; any other key disarms a first press. */
 export function pressKey(
   key: string,
-  view: ScreenView,
+  view: HostView,
   armed: Armed | null,
   now: number,
 ): { command: HostCommand | null; armed: Armed | null } {
@@ -180,6 +221,34 @@ export function dialogKey(
   if (dialog === 'help') return key === 'Escape' || key === '?' ? 'closeHelp' : 'block';
   return dialog === 'other' ? 'block' : 'pass';
 }
+
+/** Each control's button label. */
+export const LABELS: Record<ControlId, CopyKey> = {
+  start: 'startGame',
+  pause: 'ctlPause',
+  resume: 'ctlResume',
+  skip: 'ctlSkip',
+  next: 'next',
+  guessFeed: 'ctlGuessFeed',
+  end: 'ctlEnd',
+  rematch: 'ctlRematch',
+  backToLobby: 'ctlBackToLobby',
+  cancelRematch: 'ctlCancel',
+};
+
+/** A two-tap control's label while its first tap waits for the second. */
+export const CONFIRM_LABELS: Partial<Record<ControlId, CopyKey>> = {
+  skip: 'ctlSkipConfirm',
+  end: 'ctlEndConfirm',
+  rematch: 'ctlRematchConfirm',
+  backToLobby: 'ctlBackToLobbyConfirm',
+};
+
+export const FEED_LABELS: Record<RoomSettings['guessFeed'], CopyKey> = {
+  all: 'optAll',
+  clean: 'optClean',
+  off: 'optOff',
+};
 
 /** The `?` overlay, in the spec's order. */
 export const SHORTCUTS: readonly { keys: string; label: CopyKey }[] = [

@@ -1,7 +1,7 @@
 // `host:settings` (F22): Settings and the Actions table in docs/spec.md. Presets are client-side.
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, PRESETS } from '../shared/constants.js';
-import type { Action, Phase, Room, RoomSettings, Sender } from '../shared/types.js';
+import type { Action, Room, RoomSettings, Sender } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import { toView } from './views.js';
 import {
@@ -9,7 +9,7 @@ import {
   SCREEN_HOST,
   T0,
   asPlayer,
-  dealt,
+  inPhase,
   makeRoom,
   started,
   step,
@@ -21,32 +21,6 @@ const settings = (s: Partial<RoomSettings>, by: Sender = SCREEN_HOST): Action =>
   by,
   ...s,
 });
-
-/**
- * The room in `phase`, reached by playing a 2-player game with the host's Skip and Next: one cycle
- * for FINAL, two to stop at the SCOREBOARD between them.
- */
-function inPhase(phase: Exclude<Phase, 'LOBBY'>): Room {
-  const base = makeRoom({
-    settings: { ...DEFAULT_SETTINGS, cycles: phase === 'SCOREBOARD' ? 2 : 1 },
-  });
-  const { room, at } = dealt(['Ana', 'Ben'], base);
-  const host = (r: Room, type: 'host:skip' | 'host:next', t: number) =>
-    step(r, { type, by: SCREEN_HOST }, t).room;
-  const pick = (r: Room, t: number) =>
-    step(r, { type: 'drawer:choose', by: asPlayer(r.turn!.drawerPid), index: 0 }, t).room;
-  if (phase === 'CHOOSING') return room;
-  let r = pick(room, at);
-  if (phase === 'DRAWING') return r;
-  r = host(r, 'host:skip', at + 1000);
-  if (phase === 'REVEAL') return r;
-  // Turn 2 (Ben) was dealt at the reveal: take it up, choose if still open, and skip it.
-  r = host(r, 'host:next', at + 2000);
-  if (r.phase === 'CHOOSING') r = pick(r, at + 2500);
-  r = host(host(r, 'host:skip', at + 3000), 'host:next', at + 4000);
-  expect(r.phase).toBe(phase);
-  return r;
-}
 
 describe('host:settings in LOBBY', () => {
   it('starts from the defaults (60 s drawing)', () => {

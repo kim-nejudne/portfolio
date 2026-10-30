@@ -13,7 +13,7 @@ const EN = {
   code: 'Code',
   waitingForMore: '+ waiting for more…',
   waitingForPlayers: 'Waiting for players to join',
-  isHosting: '👑 {name} is hosting',
+  isHostingTapToChange: '👑 {name} is hosting · tap a name to change',
   waitingForHostToStart: 'Waiting for 👑 {name} to start',
   startGame: 'Start game ▶',
   needTwoPlayers: 'Need 2 players',
@@ -102,6 +102,12 @@ const EN = {
   guessFeedNow: 'Guess feed: {feed}',
   notYet: 'That’s coming in a later update',
   hostActionFailed: 'Could not do that. Try again.',
+  // ---------- Host: players list (token Screen and crown phone) ----------
+  ctlPlayers: 'Players',
+  playersTitle: 'Players',
+  giveCrown: 'Give host crown',
+  kick: 'Kick',
+  kickConfirm: 'Remove {name}?',
   keySpace:
     'Start / Next / Resume; on the final scores, Rematch (press twice); during a rematch countdown, Cancel',
   keyEsc: 'Cancel a rematch countdown (Space works in fullscreen too)',
@@ -132,7 +138,11 @@ const EN = {
   joinFailed: 'Could not join. Try again.',
   // ---------- Phone: lobby ----------
   youreIn: 'You’re in, {name}!',
-  youHaveCrown: 'You have the 👑. Start the game on the Screen when everyone’s in.',
+  // ---------- Phone: the crown holder ----------
+  youreHost: 'You’re the host 👑',
+  youreHostNow: 'You’re the host now 👑',
+  change: 'Change',
+  hostButton: 'Host',
   whosHere: 'Who’s here',
   you: 'you',
   leave: 'Leave',

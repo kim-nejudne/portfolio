@@ -1,4 +1,4 @@
-import { type Ref, useEffect, useRef, useState } from 'react';
+import { type ReactNode, type Ref, useEffect, useRef, useState } from 'react';
 import {
   COPY_LANGUAGES,
   CYCLES_CHOICES,
@@ -21,6 +21,23 @@ const PRESET_COPY: Record<PresetId, { label: CopyKey; note: CopyKey }> = {
 };
 
 export const presetLabel = (t: Translate, id: PresetId) => t(PRESET_COPY[id].label);
+
+function wordsLabel(t: Translate, words: RoomSettings['words']): string {
+  if (words === 'en') return t('wordsEn');
+  if (words === 'taglish') return t('wordsTaglish');
+  return t('wordsMixed');
+}
+
+/** The lobby's one-line summary: "Classic · 60 s · 2 rounds · Mixed words". */
+export function settingsLine(t: Translate, settings: RoomSettings): string {
+  const summary = t('settingsSummary', {
+    seconds: settings.drawSeconds,
+    cycles: settings.cycles === 1 ? t('roundOne') : t('rounds', { n: settings.cycles }),
+    words: wordsLabel(t, settings.words),
+  });
+  const preset = presetOf(settings);
+  return preset ? t('presetSummary', { preset: presetLabel(t, preset), summary }) : summary;
+}
 
 const ON_OFF = [true, false] as const;
 
@@ -122,11 +139,14 @@ export function ScreenSettings({
   socket,
   t,
   onClose,
+  children,
 }: {
   settings: RoomSettings;
   socket: GameSocket;
   t: Translate;
   onClose: () => void;
+  /** Below the settings: the crown phone's players list (F25). */
+  children?: ReactNode;
 }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +184,9 @@ export function ScreenSettings({
       onSend={send}
       onClose={onClose}
       t={t}
-    />
+    >
+      {children}
+    </SettingsPanel>
   );
 }
 
@@ -177,6 +199,7 @@ export function SettingsPanel({
   onSend,
   onClose,
   t,
+  children,
 }: {
   ref?: Ref<HTMLDivElement>;
   settings: RoomSettings;
@@ -185,6 +208,7 @@ export function SettingsPanel({
   onSend: (changes: Partial<RoomSettings>) => void;
   onClose: () => void;
   t: Translate;
+  children?: ReactNode;
 }) {
   const preset = presetOf(settings);
   const table = rows(t);
@@ -257,6 +281,7 @@ export function SettingsPanel({
         <p role="status" className="min-h-[1.5em] text-[#FFD166]">
           {error ?? ''}
         </p>
+        {children}
       </div>
     </div>
   );

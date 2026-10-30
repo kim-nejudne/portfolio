@@ -62,15 +62,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F24 Screen host controls and shortcuts
 
-- [ ] F25 Host crown and the host lobby
-  - Spec: Roles and devices (Host crown); UI by role and phase (Screen, Host controls)
-  - Depends: F24
-  - Done when:
-    - First joiner is crowned; `host:crown` from the Screen or the holder; the crown passes on leave or kick; crown actions authorised on the player socket
-    - The crown holder's lobby is the host view: "You're the host 👑", big Start (disabled below 2 players), settings summary with Change; "You're the host now 👑" toast when the crown moves
-    - Screen lobby with the token shows "👑 Mika is hosting · tap a name to change"
-    - The phone's controls drawer per phase once the game has started
-  - Tests: `reducer.crown.test.ts`; leak test covers the crown holder's view
+- [x] F25 Host crown and the host lobby
 
 - [ ] F26 How to play and first-turn captions
   - Spec: UI by role and phase (Screen); Overview (Goals)
@@ -94,6 +86,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
     - `host` pause reason with remaining-time restore and the 3-2-1 resume; `host:skip` in CHOOSING and DRAWING; kick (including the drawer); `host:end` from any game phase; points earned so far stay
     - Kick takes two taps ("Remove Jun?"); Leave takes two taps and mid-game says "Your points will be lost"; the kicked phone shows "You were removed from this game"
   - Note (F24): the token Screen's control bar (`HostControls`) already sends pause, resume, skip and end; add its players list with Kick (two taps) there too (DECISIONS 47)
+  - Note (F25): the players list with Kick ("Remove Jun?", two taps) already exists on the token Screen (lobby chips, the bar's Players button) and the crown phone (Change, the Host drawer), via `HostPlayerList`; it sends `host:kick`. Kicking the crown holder must call `passCrown` in `reducer.ts`, with a test that the crown passes on kick (DECISIONS 48). The Host top bar sits above the paused overlay, so the crown phone's Resume stays reachable
   - Tests: `reducer.pause.test.ts` — paused time doesn't count towards `t`; stale timers after pause are ignored; `reducer.host.test.ts`
 
 - [ ] F29 Rematch, back to lobby and the night's totals

@@ -3,13 +3,20 @@ import { Link, useNavigate, useParams } from 'react-router';
 import type { Ack, ChoiceIndex, InkBatch, PlayerView } from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
+import { HostDrawer } from '../components/phone/HostDrawer.js';
 import { JoinForm } from '../components/phone/JoinForm.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { WordChoice } from '../components/phone/WordChoice.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { translator, type CopyKey } from '../lib/copy.js';
-import { addOwnGuess, joinOutcome, welcomeTurn, type OwnGuesses } from '../lib/phone.js';
+import {
+  addOwnGuess,
+  gainedCrown,
+  joinOutcome,
+  welcomeTurn,
+  type OwnGuesses,
+} from '../lib/phone.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -25,6 +32,7 @@ type Status = 'form' | 'joining' | 'live' | 'ended' | 'removed';
 
 const ACK_TIMEOUT_MS = 5000;
 const YOUR_TURN_VIBRATE_MS = 200;
+const CROWN_TOAST_MS = 4000;
 /** Room codes are four letters from the code alphabet; anything else can't be a game. */
 const CODE_PATTERN = /^[A-Z]{4}$/;
 
@@ -56,6 +64,10 @@ export function Play() {
   // "You're in!" line on the guess box. A silent rejoin never sets it.
   const freshJoin = useRef(false);
   const [welcomeTurnId, setWelcomeTurnId] = useState<number | null>(null);
+  // "You're the host now 👑" (F25), when a view brings the crown that the one before didn't have.
+  const [crownToast, setCrownToast] = useState(0);
+  // The crown phone's Host drawer (F25): while open, the player's view behind it is inert.
+  const [hostOpen, setHostOpen] = useState(false);
 
   const socket = useMemo(() => createSocket(), []);
   // `?debug=1` (F16): the clock offset to the server, so each ink batch carries its send time.
@@ -135,6 +147,9 @@ export function Play() {
     socket.on('disconnect', () => setConnected(false));
     socket.on('state', (view) => {
       if (view.role !== 'player') return;
+      if (gainedCrown(viewRef.current, view)) setCrownToast((n) => n + 1);
+      // The drawer never reopens by itself on a crown regained later, or in the next game.
+      if (!view.host || view.phase === 'LOBBY') setHostOpen(false);
       viewRef.current = view;
       setState({ view, at: performance.now() });
     });
@@ -264,6 +279,12 @@ export function Play() {
     setWelcomeTurnId(welcomeTurn(view));
   }, [status, view]);
 
+  useEffect(() => {
+    if (!crownToast) return;
+    const timer = setTimeout(() => setCrownToast(0), CROWN_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [crownToast]);
+
   // Batches sent as the pause began were refused: when it lifts, the drawer catches up.
   const paused = view?.paused != null;
   const wasPaused = useRef(paused);
@@ -316,9 +337,24 @@ export function Play() {
   const choosingNext =
     (view.phase === 'REVEAL' || view.phase === 'SCOREBOARD') && view.secret?.choices != null;
   const cards = view.secret?.choices != null && (choosingNext || view.phase === 'CHOOSING');
+  const hostBar = view.host !== null && view.phase !== 'LOBBY';
 
   return (
     <main className="relative flex h-dvh w-full flex-col overflow-hidden overscroll-none pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
+      {/* Always mounted, so screen readers announce the toast. */}
+      <p
+        role="status"
+        className={
+          crownToast
+            ? 'pointer-events-none absolute top-[calc(env(safe-area-inset-top)+3.5rem)] left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#FFD166] px-4 py-2 text-base font-bold whitespace-nowrap text-[#1D1B22] shadow-lg'
+            : 'sr-only'
+        }
+      >
+        {crownToast ? t('youreHostNow') : ''}
+      </p>
+      {hostBar && (
+        <HostDrawer view={view} socket={socket} t={t} open={hostOpen} onOpenChange={setHostOpen} />
+      )}
       {!connected && (
         <p
           role="status"
@@ -327,8 +363,8 @@ export function Play() {
           {t('reconnecting')}
         </p>
       )}
-      <div className="min-h-0 flex-1">
-        {view.phase === 'LOBBY' && <PhoneLobby view={view} onLeave={leave} t={t} />}
+      <div inert={hostBar && hostOpen} className="min-h-0 flex-1">
+        {view.phase === 'LOBBY' && <PhoneLobby view={view} socket={socket} onLeave={leave} t={t} />}
         {isDrawer && view.phase === 'DRAWING' && (
           <DrawerTurn
             view={view}

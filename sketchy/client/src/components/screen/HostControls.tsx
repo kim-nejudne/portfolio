@@ -2,7 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { ScreenView } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import {
+  CONFIRM_LABELS,
   CONFIRM_MS,
+  FEED_LABELS,
+  LABELS,
   SHORTCUTS,
   barControls,
   controlEvent,
@@ -14,6 +17,7 @@ import {
   type HostCommand,
 } from '../../lib/hostKeys.js';
 import type { GameSocket } from '../../lib/socket.js';
+import { PlayersDialog } from './PlayersDialog.js';
 import {
   loadSoundLevel,
   nextSoundLevel,
@@ -27,39 +31,12 @@ const AUTO_HIDE_MS = 3000;
 const STATUS_MS = 3000;
 const ACK_TIMEOUT_MS = 5000;
 
-const LABELS: Record<ControlId, CopyKey> = {
-  start: 'startGame',
-  pause: 'ctlPause',
-  resume: 'ctlResume',
-  skip: 'ctlSkip',
-  next: 'next',
-  guessFeed: 'ctlGuessFeed',
-  end: 'ctlEnd',
-  rematch: 'ctlRematch',
-  backToLobby: 'ctlBackToLobby',
-  cancelRematch: 'ctlCancel',
-};
-
-/** A two-tap control's label while its first tap waits for the second. */
-const CONFIRM_LABELS: Partial<Record<ControlId, CopyKey>> = {
-  skip: 'ctlSkipConfirm',
-  end: 'ctlEndConfirm',
-  rematch: 'ctlRematchConfirm',
-  backToLobby: 'ctlBackToLobbyConfirm',
-};
-
 /** The hint after a first key press of a two-press shortcut. */
 const PRESS_AGAIN: Partial<Record<ControlId, CopyKey>> = {
   skip: 'pressAgainSkip',
   end: 'pressAgainEnd',
   rematch: 'pressAgainRematch',
   backToLobby: 'pressAgainLobby',
-};
-
-const FEED_LABELS: Record<ScreenView['settings']['guessFeed'], CopyKey> = {
-  all: 'optAll',
-  clean: 'optClean',
-  off: 'optOff',
 };
 
 const SOUND_LABELS: Record<SoundLevel, { label: CopyKey; icon: string }> = {
@@ -98,6 +75,8 @@ function TokenScreenControls({
 }) {
   const [visible, setVisible] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [playersOpen, setPlayersOpen] = useState(false);
+  const closePlayers = useCallback(() => setPlayersOpen(false), []);
   const [armedAt, setArmed] = useState<(Armed & { scope: string }) | null>(null);
   // A first press never carries over into another phase or turn: S in one turn and S in the next
   // must not skip the new one.
@@ -270,7 +249,7 @@ function TokenScreenControls({
     run(press(control, armed, now).command, false, now);
   };
 
-  const shown = visible || helpOpen;
+  const shown = visible || helpOpen || playersOpen;
   return (
     <>
       {/* The status line sits just above the bar's real height, however many rows it wraps to. */}
@@ -288,7 +267,7 @@ function TokenScreenControls({
         </p>
         <div
           ref={barRef}
-          inert={!shown}
+          inert={!shown || playersOpen}
           className={`w-full transition duration-300 motion-reduce:transition-none ${shown ? 'pointer-events-auto translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
         >
           <ControlBar
@@ -301,11 +280,21 @@ function TokenScreenControls({
             onFullscreen={toggleFullscreen}
             onSound={cycleSound}
             onHelp={() => setHelpOpen(true)}
+            onPlayers={() => setPlayersOpen(true)}
             t={t}
           />
         </div>
       </div>
       {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} t={t} />}
+      {playersOpen && !helpOpen && (
+        <PlayersDialog
+          players={view.players}
+          title={t('playersTitle')}
+          socket={socket}
+          t={t}
+          onClose={closePlayers}
+        />
+      )}
     </>
   );
 }
@@ -324,6 +313,7 @@ export function ControlBar({
   onFullscreen,
   onSound,
   onHelp,
+  onPlayers,
   t,
 }: {
   view: ScreenView;
@@ -336,6 +326,8 @@ export function ControlBar({
   onFullscreen: () => void;
   onSound: () => void;
   onHelp: () => void;
+  /** The players list (Give host crown, Kick); the lobby has its chips instead. */
+  onPlayers?: () => void;
   t: Translate;
 }) {
   const label = (control: ControlId) => {
@@ -376,6 +368,16 @@ export function ControlBar({
             {label(control)}
           </button>
         ))}
+        {onPlayers && view.phase !== 'LOBBY' && (
+          <button
+            type="button"
+            onClick={onPlayers}
+            aria-haspopup="dialog"
+            className={`${BUTTON} bg-white/15 text-white`}
+          >
+            {t('ctlPlayers')}
+          </button>
+        )}
       </div>
       <div className="flex flex-wrap gap-[1.5vmin]">
         {fullscreen !== null && (

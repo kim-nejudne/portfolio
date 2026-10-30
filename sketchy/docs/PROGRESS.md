@@ -41,8 +41,93 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F22: `npm run dev`, laptop Screen on the TV (Start), 2 phones joined; from the couch (about 3–5 m): click **Settings ⚙** (top right), pick Quick, then Barkada Night, then Drawing time 100 s, then Esc; then reopen it, pick Classic and press Done; also try it on a tablet Screen in portrait · every label and pressed (orange) button is readable from the couch; the panel fits the TV with no scrolling; the orange highlight moves to the tapped preset, and "Presets · Custom" appears once 100 s is hand-picked; after Esc the lobby line reads "80 s · 3 rounds · Mixed words" with no preset name, after Classic it reads "Classic · 60 s · 2 rounds · Mixed words"; Tab never reaches Start while the panel is open; on the tablet the panel scrolls and every button is easy to tap
 - [ ] F23: `npm run dev`, laptop Screen (Start) with 2 phones joined via `npm run lan CODE`; once Ana is drawing, scan the join QR with a third phone (an iPhone and an Android if you have both) and join as a new name · the phone lands straight on the guess box with "You're in! Ana is drawing. Type your guess." under it; on Android the keyboard may pop up by itself, on iPhone the box is focused but the keyboard waits for a tap (expected); the line goes after the first guess; refreshing the page mid-turn does not bring it back; the new player draws later in the same round (after the original players), and with a long name (e.g. 14 letters, no spaces) the line wraps instead of running off a 360 px screen
 - [ ] F24: `npm run dev`, laptop Screen on the TV with a keyboard (Start), 3 phones; also a tablet as the token Screen once · from the couch, the bar's buttons are readable; it hides 3 s after the mouse stops and returns on a mouse move (on the tablet, on a tap); `?` shows the 11 shortcuts and Esc closes it; Space starts, then during a reveal Space/N move on; `G` shows "Guess feed: Clean" (wrong guesses masked on the TV), then Off, then All; S once shows "Press S again to skip the turn" and nothing happens, S twice skips; `F` goes fullscreen and back; `M` shows "Sound: Quiet"; a second Screen opened from the join link (no token) shows no bar and ignores every key; with Wi-Fi off on the laptop, tapping Skip twice shows "Could not do that. Try again." and nothing skips after Wi-Fi returns; Pause/End/Rematch show "That's coming in a later update" until F28/F29
+- [ ] F25: `npm run dev`, laptop Screen on the TV (Start), 3 real phones (an iPhone and an Android if you have both) via `npm run lan CODE` · the first phone shows "You're the host 👑", a big Start game (greyed with "Need 2 players" until a second phone joins) and "Classic · 60 s · 2 rounds · Mixed words" with Change; Change opens the settings with the players list at the bottom; on the TV, click another player's name → Give host crown: that phone shows "You're the host now 👑" (below the Host button, not covering it) and the TV reads "👑 Jun is hosting · tap a name to change"; start from the crown phone, then while someone draws tap 👑 Host: the sheet slides up with Pause, Skip turn, End game, Guess feed All/Clean/Off and the players, never the word; with the crown phone guessing and the keyboard up, the guess box stays visible under the Host bar; with the crown phone drawing, the sheet never opens by itself and the pad still fits; the crown holder leaving passes the crown (toast on the next phone)
 
 <!-- entries below, newest first -->
+
+## F25 — Host crown and the host lobby (2026-10-30)
+**What changed:**
+- **Reducer:**
+  - `host:crown {pid}` in any phase, from the token Screen or the crown holder. The reducer checks the crown again, so a stale flag gets `notHost`.
+  - The target must be in the room (`unknownPlayer` otherwise). Giving the crown to its holder does nothing. The new holder gets `crowned`.
+  - The heir rule moved into `passCrown`: the connected earliest joiner, else the earliest joiner. Leave uses it now; F28's kick will too.
+- **Client (crown phone):**
+  - **Host lobby** (`PhoneLobby`): "You're the host 👑", a big Start game (disabled with "Need 2 players" below 2 connected), and the summary line ("Classic · 60 s · 2 rounds · Mixed words") with **Change**.
+  - Change opens the F22 `ScreenSettings` panel (it now takes `children`) with the players list below.
+  - **Host drawer** (`HostDrawer.tsx`): once the game has started, a slim top bar with 👑 Host sits above the paused overlay. It opens a bottom sheet with each phase's controls (`drawerSections` in `lib/hostKeys.ts`), a guess feed All / Clean / Off row, and the players list in CHOOSING, DRAWING and FINAL. It never opens by itself and never shows the word.
+  - **Toast** "You're the host now 👑" (`gainedCrown` in `lib/phone.ts`) when a view brings a host block the previous view lacked.
+- **Client (shared and token Screen):**
+  - `HostPlayerList`: Give host crown (not for the holder) and Kick in two taps ("Remove Jun?", `twoTap`); none on your own row. Kick answers "That's coming in a later update" until F28.
+  - `lib/hostSend.ts` (`sendHost`, `useHostSender`): the send and the status line, shared by the drawer, the lobby and the list.
+  - The control labels moved from `HostControls.tsx` to `lib/hostKeys.ts`.
+  - The token Screen lobby reads "👑 Mika is hosting · tap a name to change". Its chips are buttons that open `PlayersDialog` for that player. Mid-game the bar gets **Players**, which opens the dialog for everyone.
+  - `settingsLine` is the shared summary.
+- **Tests:**
+  - `server/reducer.crown.test.ts` (new, 20): first joiner crowned; Screen and holder give it; works in all six phases changing only the crown; refused for a non-holder, a plain Screen, a stale flag and an ex-holder; unknown pid; no-op to the holder; a disconnected target; host rights move (start); the host block moves and the holder's view is a plain view plus it; leave passes to the longest-connected (twice), mid-game too; it stays on disconnect and on takeover.
+  - `views.leak.test.ts`: the Screen crowns a guesser mid-DRAWING who hasn't guessed, who then passes the crown on; every view and fx is audited.
+  - `sockets.test.ts` (+1): `notHost` from a non-holder, `invalidPayload`, the holder passes it, both views update, `crowned` arrives once, the old holder's `host:start` gets `notHost`, and the Screen moves it back.
+  - Client:
+    - `hostPhone.test.tsx` (new, 12): host lobby, Start disabled (alone or with an offline second player), plain lobby, the Host button closed by default, the drawer per phase with no `qz` word, the players list rules, 44 px buttons.
+    - `hostKeys.test.ts` (+6): `drawerSections`, `twoTap`.
+    - `phone.test.ts` (+2): `gainedCrown`.
+    - `ScreenSettings.test.tsx` (+3): the token line, chips as buttons, the dialog.
+    - `HostControls.test.tsx` (+1): Players in the bar after the lobby.
+  - The F22 `inPhase` helper moved to `server/test/rooms.ts`.
+- No new dependencies.
+
+**Decisions:** DECISIONS 48 covers:
+- the crown in any phase, including to a disconnected player;
+- the toast from the snapshots, so the first joiner gets none;
+- the host lobby's layout, with Change reusing the F22 panel;
+- who gets Give crown and Kick;
+- the Host top bar above the paused overlay, costing the pad about 48 px;
+- the Screen's chip dialog and the bar's Players button.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: F28's roadmap entry now notes that kicking the holder must call `passCrown`, with a test (the kick half of the first bullet lands with kick itself); this entry; the Kim check. Its "an offline second player keeps Start disabled" is covered by `hostPhone.test.tsx`.
+- **secrets-fairness: PASS WITH FIXES.** Applied: the leak test also crowns the current drawer mid-DRAWING. The upcoming drawer holding the crown in REVEAL and SCOREBOARD was already audited, since Ben chooses with the crown. The drawer sheet's no-word test with a drawer-and-host view was already in `hostPhone.test.tsx`.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - the player's view and the Host bar are `inert` behind the sheet. Play holds `open`, which resets when the crown goes or in LOBBY, so the sheet never reopens by itself;
+  - the Screen bar is inert behind the Players dialog;
+  - the toast sits below the Host bar and lets taps through;
+  - the sheet has side safe-area insets;
+  - "👑 Mika" on the chips.
+  - Not changed: the players list scrolls inside the sheet at 360×560 (it is a modal), and the host lobby can scroll with many players (it is not a pad or guess screen). The guesser keeping the guess box usable with the keyboard up, 48 px lower, is a Kim check.
+
+**Notes for next session:**
+- **F27:** the doodle pad goes below Start in the host lobby too (spec: "The doodle pad sits below Start").
+- **F28:**
+  - `host:kick` is already sent by `HostPlayerList` (two taps), from the Screen chips, the bar's Players and the phone's Change and drawer;
+  - kicking the holder must call `passCrown`;
+  - the Host top bar is above the paused overlay (z-30), and the sheet (z-40) holds Resume.
+- **F29:** the drawer already shows Rematch (two taps), Back to lobby and, during a countdown, Cancel.
+- **F42:** a takeover keeps the crown (tested); the toast shows only if the crown moved meanwhile.
+- **F45:** add the F25 strings (`youreHost`, `youreHostNow`, `change`, `hostButton`, `ctlPlayers`, `playersTitle`, `giveCrown`, `kick`, `kickConfirm`, `isHostingTapToChange`) to the Taglish table.
+- **F48:** Add your own words goes into the Change panel (`ScreenSettings` `children`) and the token Screen's settings.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/reducer.crown.test.ts server/views.leak.test.ts server/sockets.test.ts client/src/components/phone/hostPhone.test.tsx client/src/lib/hostKeys.test.ts client/src/components/screen`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE`.
+  - The first phone gets the host lobby. Tap a name on the Screen and choose Give host crown.
+  - Start from the crown phone, then tap 👑 Host for the drawer.
+- Automated: `npm run playtest -- .playtest/F25/scenario.ts` and `.playtest/F25/drawer.ts` (gitignored). The setup is a TV Screen plus phones (a 360×560 small phone, a Pixel 7, an iPhone 13). All 14 steps pass:
+  - lobby, `scenario.ts`:
+    - the first joiner's host view with Start disabled alone and enabled at 2;
+    - "👑 Ana is hosting · tap a name to change";
+    - the Screen's chip → Give host crown → Ben's toast and both lobbies update;
+    - the holder leaves → the heir's toast;
+    - Change shows the settings and players;
+  - in game, `drawer.ts`:
+    - Start from the phone; only the holder has Host;
+    - the drawer's pad fits 360×560 with the Host bar;
+    - the sheet is closed until tapped, then shows the DRAWING controls with no word (checked against the dev word API);
+    - Off pressed from the snapshot; Pause → "That's coming in a later update";
+    - Kick → "Remove Ben?" lapses after 2 s;
+    - Skip twice → REVEAL with Next, Pause, End game;
+    - Next, then Give host crown from the drawer → Ben's toast, and Ana loses Host;
+    - the Screen bar's Players → Give host crown back to Ana.
+  - No console errors.
+  - Screenshots: `.playtest/F25/C-drawer-ana.png`, `D-drawer-open-ana.png`, `H-toast-ben.png`, `I-screen-screen.png`, `5-change-ana.png`.
 
 ## F24 — Screen host controls and shortcuts (2026-10-30)
 **What changed:**

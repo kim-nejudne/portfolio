@@ -7,10 +7,12 @@ import {
   barControls,
   controlEvent,
   dialogKey,
+  drawerSections,
   keyControl,
   nextGuessFeed,
   press,
   pressKey,
+  twoTap,
   type ControlId,
 } from './hostKeys.js';
 
@@ -297,5 +299,61 @@ describe('shortcuts under a dialog (F24)', () => {
   it('with no dialog open, keys pass to the shortcuts', () => {
     expect(dialogKey(' ', null)).toBe('pass');
     expect(dialogKey('?', null)).toBe('pass');
+  });
+});
+
+describe('the crown phone’s drawer (F25)', () => {
+  it('in CHOOSING and DRAWING: Pause, Skip, End, the guess feed row and the players list', () => {
+    for (const phase of ['CHOOSING', 'DRAWING'] as const) {
+      expect(drawerSections(view(phase))).toEqual({
+        controls: ['pause', 'skip', 'end'],
+        feed: true,
+        players: true,
+      });
+      expect(drawerSections(view(phase, { paused: true })).controls[0]).toBe('resume');
+    }
+  });
+
+  it('in REVEAL and SCOREBOARD: Next, Pause and End, no feed or players', () => {
+    for (const phase of ['REVEAL', 'SCOREBOARD'] as const)
+      expect(drawerSections(view(phase))).toEqual({
+        controls: ['next', 'pause', 'end'],
+        feed: false,
+        players: false,
+      });
+  });
+
+  it('in FINAL: Rematch, Back to lobby, End and the players list; a countdown only Cancel', () => {
+    expect(drawerSections(view('FINAL'))).toEqual({
+      controls: ['rematch', 'backToLobby', 'end'],
+      feed: false,
+      players: true,
+    });
+    expect(drawerSections(view('FINAL', { rematchInMs: 2000 }))).toEqual({
+      controls: ['cancelRematch'],
+      feed: false,
+      players: false,
+    });
+  });
+
+  it('in LOBBY: nothing (the lobby is the host view)', () => {
+    expect(drawerSections(view('LOBBY'))).toEqual({ controls: [], feed: false, players: false });
+  });
+});
+
+describe('two-tap actions on a target (Kick, F25)', () => {
+  it('confirms on a second tap of the same target within 2 s', () => {
+    const first = twoTap('jun', null, 1000);
+    expect(first).toEqual({ confirmed: false, armed: { target: 'jun', at: 1000 } });
+    expect(twoTap('jun', first.armed, 1000 + CONFIRM_MS)).toEqual({ confirmed: true, armed: null });
+  });
+
+  it('re-arms after 2 s, and on another target', () => {
+    const first = twoTap('jun', null, 1000);
+    expect(twoTap('jun', first.armed, 1001 + CONFIRM_MS).confirmed).toBe(false);
+    expect(twoTap('ana', first.armed, 1500)).toEqual({
+      confirmed: false,
+      armed: { target: 'ana', at: 1500 },
+    });
   });
 });

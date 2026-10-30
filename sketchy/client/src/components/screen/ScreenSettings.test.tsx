@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
-import type { RoomSettings, ScreenView } from '../../../../shared/types.js';
+import type { PlayerChipView, RoomSettings, ScreenView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
+import { PlayersDialog } from './PlayersDialog.js';
 import { ScreenLobby } from './ScreenLobby.js';
 import { SettingsPanel } from './ScreenSettings.js';
 
@@ -111,5 +112,62 @@ describe('Screen settings panel (F22)', () => {
       />,
     );
     expect(quick).toContain('Quick · 45 s · 1 round · Mixed words');
+  });
+});
+
+describe('the crown on the Screen lobby (F25)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const socket = {} as GameSocket;
+  const chip = (pid: string, name: string, crown = false): PlayerChipView => ({
+    pid,
+    name,
+    color: '#FF6B35',
+    connected: true,
+    crown,
+    isDrawer: false,
+    hasDoodle: false,
+    guessed: false,
+    turnPoints: 0,
+    score: null,
+    rank: null,
+  });
+  const players = [chip('mika', 'Mika', true), chip('jun', 'Jun')];
+
+  it('with the token: "👑 Mika is hosting · tap a name to change", and the chips are buttons', () => {
+    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    const html = renderToStaticMarkup(
+      <ScreenLobby view={{ ...lobby(true), players }} socket={socket} t={t} />,
+    );
+    expect(html).toContain('👑 Mika is hosting · tap a name to change');
+    expect(html.match(/<button[^>]*aria-haspopup="dialog"[^>]*><span aria-hidden/g)).toHaveLength(
+      2,
+    );
+  });
+
+  it('without the token: "Waiting for 👑 Mika to start", and the chips are not buttons', () => {
+    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    const html = renderToStaticMarkup(
+      <ScreenLobby view={{ ...lobby(false), players }} socket={socket} t={t} />,
+    );
+    expect(html).toContain('Waiting for 👑 Mika to start');
+    expect(html).not.toContain('tap a name');
+    expect(html).not.toContain('<button');
+  });
+
+  it('a chip’s dialog offers Give host crown and Kick; the holder only Kick', () => {
+    const jun = renderToStaticMarkup(
+      <PlayersDialog players={[players[1]!]} title="Jun" socket={socket} t={t} onClose={noop} />,
+    );
+    expect(jun).toContain('role="dialog"');
+    expect([...jun.matchAll(/<button[^>]*>([^<]*)<\/button>/g)].map((m) => m[1])).toEqual([
+      'Close',
+      'Give host crown',
+      'Kick',
+    ]);
+    const mika = renderToStaticMarkup(
+      <PlayersDialog players={[players[0]!]} title="Mika" socket={socket} t={t} onClose={noop} />,
+    );
+    expect(mika).not.toContain('Give host crown');
+    expect(mika).toContain('Kick');
   });
 });

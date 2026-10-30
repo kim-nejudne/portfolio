@@ -347,6 +347,23 @@ describe('word secrecy across a scripted game', () => {
     act('cycle 2, Cy skipped', { type: 'host:skip', by: SCREEN_HOST });
     expect(room.turn!.drawerPid).toBe(dee);
     act('late joiner draws', { type: 'drawer:choose', by: asPlayer(dee), index: 1 });
+    // F25: the token Screen crowns Cy, a guesser still without the word, who passes it back.
+    act('Screen crowns a guesser mid-turn', { type: 'host:crown', by: SCREEN_HOST, pid: cy });
+    expect(room.crownPid).toBe(cy);
+    act('crowned guesser passes the crown', {
+      type: 'host:crown',
+      by: asPlayer(cy, true),
+      pid: ben,
+    });
+    expect(room.crownPid).toBe(ben);
+    // And to the drawer mid-DRAWING, whose view then has both the host block and the word.
+    act('Screen crowns the drawer mid-turn', { type: 'host:crown', by: SCREEN_HOST, pid: dee });
+    expect(room.crownPid).toBe(dee);
+    act('crowned drawer passes the crown', {
+      type: 'host:crown',
+      by: asPlayer(dee, true),
+      pid: ben,
+    });
     act('crown guesses right', {
       type: 'player:guess',
       by: asPlayer(ben, true),

@@ -2,20 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
-import { presetOf } from '../../lib/settings.js';
 import { LobbyChip } from './PlayerChip.js';
-import { ScreenSettings, SettingsButton, presetLabel } from './ScreenSettings.js';
-
-function wordsLabel(t: Translate, words: ScreenView['settings']['words']): string {
-  if (words === 'en') return t('wordsEn');
-  if (words === 'taglish') return t('wordsTaglish');
-  return t('wordsMixed');
-}
+import { PlayersDialog } from './PlayersDialog.js';
+import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.js';
 
 /**
  * The lobby on the Screen: where to join, the code, who's in, and, on the Screen holding the
- * token, Start and the settings (F22). The QR (F37), How to play (F26), custom words (F48) and the
- * crown controls (F25) come later.
+ * token, Start, the settings (F22) and the crown (F25): tapping a chip offers Give host crown and
+ * Kick. The QR (F37), How to play (F26) and custom words (F48) come later.
  */
 export function ScreenLobby({
   view,
@@ -32,12 +26,6 @@ export function ScreenLobby({
   const connected = view.players.filter((p) => p.connected).length;
   const { settings } = view;
   const joinHost = window.location.host;
-  const preset = presetOf(settings);
-  const summary = t('settingsSummary', {
-    seconds: settings.drawSeconds,
-    cycles: settings.cycles === 1 ? t('roundOne') : t('rounds', { n: settings.cycles }),
-    words: wordsLabel(t, settings.words),
-  });
 
   // The settings panel covers the lobby; the lobby behind it is inert, and closing the panel puts
   // focus back on its button.
@@ -50,6 +38,11 @@ export function ScreenLobby({
     wasOpen.current = settingsOpen;
   }, [settingsOpen]);
   const panelOpen = settingsOpen && view.host !== null;
+
+  // A tapped chip's dialog, for as long as that player is still here.
+  const [chipPid, setChipPid] = useState<string | null>(null);
+  const closeChip = useCallback(() => setChipPid(null), []);
+  const chipPlayer = view.host ? view.players.find((p) => p.pid === chipPid) : undefined;
 
   const start = async () => {
     setStarting(true);
@@ -67,7 +60,10 @@ export function ScreenLobby({
 
   return (
     <div className="relative h-full">
-      <div inert={panelOpen} className="flex h-full flex-col gap-[3vmin] px-[5vmin] py-[4vmin]">
+      <div
+        inert={panelOpen || chipPlayer !== undefined}
+        className="flex h-full flex-col gap-[3vmin] px-[5vmin] py-[4vmin]"
+      >
         <div className="flex items-start justify-between gap-[3vmin]">
           <h1 className="font-display text-[max(5vmin,28px)] font-bold">✏️ Sketchy</h1>
           {view.host && (
@@ -100,7 +96,11 @@ export function ScreenLobby({
 
         <ul className="flex flex-wrap items-center gap-[1.5vmin] text-[max(3.5vh,18px)]">
           {view.players.map((p) => (
-            <LobbyChip key={p.pid} player={p} />
+            <LobbyChip
+              key={p.pid}
+              player={p}
+              {...(view.host ? { onSelect: () => setChipPid(p.pid) } : {})}
+            />
           ))}
           <li className="text-white/50">{t('waitingForMore')}</li>
         </ul>
@@ -109,14 +109,12 @@ export function ScreenLobby({
           <div className="flex flex-col gap-[1vmin]">
             <p>
               {view.host
-                ? host && t('isHosting', { name: host.name })
+                ? host && t('isHostingTapToChange', { name: host.name })
                 : host
                   ? t('waitingForHostToStart', { name: host.name })
                   : t('waitingForPlayers')}
             </p>
-            <p className="text-white/60">
-              {preset ? t('presetSummary', { preset: presetLabel(t, preset), summary }) : summary}
-            </p>
+            <p className="text-white/60">{settingsLine(t, settings)}</p>
           </div>
           {view.host && (
             <div className="flex flex-col items-end gap-[1vmin]">
@@ -142,6 +140,15 @@ export function ScreenLobby({
       </div>
       {panelOpen && (
         <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
+      )}
+      {chipPlayer && !panelOpen && (
+        <PlayersDialog
+          players={[chipPlayer]}
+          title={chipPlayer.name}
+          socket={socket}
+          t={t}
+          onClose={closeChip}
+        />
       )}
     </div>
   );

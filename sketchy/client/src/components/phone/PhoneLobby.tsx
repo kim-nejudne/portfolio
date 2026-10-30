@@ -1,71 +1,168 @@
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
+import { useHostSender } from '../../lib/hostSend.js';
+import type { GameSocket } from '../../lib/socket.js';
+import { HostPlayerList } from '../HostPlayerList.js';
+import { ScreenSettings, settingsLine } from '../screen/ScreenSettings.js';
 import { LeaveButton } from './LeaveButton.js';
 
 /**
  * The lobby on a phone (UI by role and phase, Guesser phone, Lobby): "You're in, Jun!", their
- * colour, who is waiting for whom, who's here, and Leave. v0: no Change name (renames land with
- * their reducer action), no doodle pad (F27) and no host lobby for the crown holder (F25).
+ * colour, who is waiting for whom, who's here, and Leave. The crown holder's lobby is the host
+ * view instead (Host controls, F25): "You're the host 👑", a big Start game, and the settings
+ * summary with Change (presets, settings and the players list with Give crown and Kick). Not yet:
+ * Change name (renames land with their reducer action), the doodle pad (F27), custom words (F48).
  */
 export function PhoneLobby({
   view,
+  socket,
   onLeave,
   t,
 }: {
   view: PlayerView;
+  socket: GameSocket;
   onLeave: () => void;
   t: Translate;
 }) {
   const me = view.players.find((p) => p.pid === view.me.pid);
   const crown = view.players.find((p) => p.crown);
   const others = view.players.filter((p) => p.pid !== view.me.pid);
+  const isHost = view.host !== null;
+
+  // Change covers the lobby with the settings; closing it puts focus back on Change.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const closePanel = useCallback(() => setPanelOpen(false), []);
+  const changeButton = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  const open = panelOpen && isHost;
+  useEffect(() => {
+    if (wasOpen.current && !open) changeButton.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto px-4 pt-4 pb-3">
-      <header className="flex items-center gap-3">
-        <span
-          aria-hidden
-          style={{ background: me?.color }}
-          className="size-10 shrink-0 rounded-full border-2 border-white/80"
-        />
-        <h1 className="font-display min-w-0 text-3xl leading-tight font-bold break-words">
-          {t('youreIn', { name: me?.name ?? '' })}
-        </h1>
-      </header>
-      <p className="text-lg text-white/80">
-        {me?.crown ? t('youHaveCrown') : t('waitingForHostToStart', { name: crown?.name ?? '' })}
-      </p>
+    <div className="relative h-full">
+      <div inert={open} className="flex h-full flex-col gap-4 overflow-y-auto px-4 pt-4 pb-3">
+        <header className="flex items-center gap-3">
+          <span
+            aria-hidden
+            style={{ background: me?.color }}
+            className="size-10 shrink-0 rounded-full border-2 border-white/80"
+          />
+          <h1 className="font-display min-w-0 text-3xl leading-tight font-bold break-words">
+            {isHost ? t('youreHost') : t('youreIn', { name: me?.name ?? '' })}
+          </h1>
+        </header>
+        {isHost ? (
+          <HostLobby
+            view={view}
+            socket={socket}
+            t={t}
+            changeRef={changeButton}
+            onChange={() => setPanelOpen(true)}
+          />
+        ) : (
+          <p className="text-lg text-white/80">
+            {t('waitingForHostToStart', { name: crown?.name ?? '' })}
+          </p>
+        )}
 
-      <section>
-        <h2 className="mb-2 text-base font-semibold text-white/70">
-          {t('whosHere')} ({view.players.length})
-        </h2>
-        <ul className="flex flex-wrap gap-2">
-          {[...(me ? [me] : []), ...others].map((p) => (
-            <li
-              key={p.pid}
-              className={`flex items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1 ${
-                p.connected ? '' : 'opacity-50'
-              }`}
-            >
-              <span
-                aria-hidden
-                style={{ background: p.color }}
-                className="size-6 shrink-0 rounded-full"
-              />
-              <span className="max-w-[12rem] truncate">
-                {p.crown ? '👑 ' : ''}
-                {p.name}
-                {p.pid === view.me.pid ? ` (${t('you')})` : ''}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <section>
+          <h2 className="mb-2 text-base font-semibold text-white/70">
+            {t('whosHere')} ({view.players.length})
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {[...(me ? [me] : []), ...others].map((p) => (
+              <li
+                key={p.pid}
+                className={`flex items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1 ${
+                  p.connected ? '' : 'opacity-50'
+                }`}
+              >
+                <span
+                  aria-hidden
+                  style={{ background: p.color }}
+                  className="size-6 shrink-0 rounded-full"
+                />
+                <span className="max-w-[12rem] truncate">
+                  {p.crown ? '👑 ' : ''}
+                  {p.name}
+                  {p.pid === view.me.pid ? ` (${t('you')})` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      <div className="mt-auto flex justify-center">
-        <LeaveButton onLeave={onLeave} inGame={false} t={t} />
+        <div className="mt-auto flex justify-center">
+          <LeaveButton onLeave={onLeave} inGame={false} t={t} />
+        </div>
       </div>
+      {open && (
+        <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
+          <section className="flex flex-col gap-2">
+            <h3 className="text-white/80">{t('playersTitle')}</h3>
+            <HostPlayerList
+              players={view.players}
+              socket={socket}
+              t={t}
+              size="phone"
+              mePid={view.me.pid}
+            />
+          </section>
+        </ScreenSettings>
+      )}
     </div>
+  );
+}
+
+/** The crown holder's part of the lobby: Start and the settings summary with Change. */
+function HostLobby({
+  view,
+  socket,
+  t,
+  changeRef,
+  onChange,
+}: {
+  view: PlayerView;
+  socket: GameSocket;
+  t: Translate;
+  changeRef: RefObject<HTMLButtonElement | null>;
+  onChange: () => void;
+}) {
+  const { sending, status, send } = useHostSender(socket, t);
+  const connected = view.players.filter((p) => p.connected).length;
+  const tooFew = connected < 2;
+
+  return (
+    <section className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={() => {
+          if (!sending && !tooFew) void send('start', 'host:start', {});
+        }}
+        disabled={tooFew}
+        aria-disabled={sending !== null}
+        className="min-h-16 w-full rounded-2xl bg-[#FF6B35] px-6 py-4 text-2xl font-bold text-[#1D1B22] disabled:opacity-40 aria-disabled:opacity-70"
+      >
+        {t('startGame')}
+      </button>
+      <p role="status" className="min-h-[1.5em] text-center text-base text-[#FFD166]">
+        {status ?? (tooFew ? t('needTwoPlayers') : '')}
+      </p>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-white/80">
+        <span>{settingsLine(t, view.settings)}</span>
+        <button
+          ref={changeRef}
+          type="button"
+          onClick={onChange}
+          aria-haspopup="dialog"
+          className="min-h-11 min-w-11 rounded-xl bg-white/15 px-3 font-bold text-white"
+        >
+          {t('change')}
+        </button>
+      </p>
+    </section>
   );
 }

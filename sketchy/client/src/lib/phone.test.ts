@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
+import { DEFAULT_SETTINGS, OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
+import type { PlayerView } from '../../../shared/types.js';
 import {
   addOwnGuess,
   createPointerGate,
   DRAWER_BAR_PX,
   DRAWER_TOOL_ROW_PX,
   drawerPadSize,
+  gainedCrown,
   guessAnswer,
   joinOutcome,
 } from './phone.js';
@@ -125,5 +127,33 @@ describe('addOwnGuess', () => {
     let list = { turnId: 1, items: [] as { text: string; close: boolean }[] };
     for (let i = 0; i < OWN_GUESSES_SHOWN + 2; i++) list = addOwnGuess(list, 1, wrong(`g${i}`));
     expect(list.items.map((g) => g.text)).toEqual(['g2', 'g3', 'g4', 'g5', 'g6']);
+  });
+});
+
+describe('gainedCrown (F25)', () => {
+  const v = (pid: string, host: boolean): PlayerView => ({
+    role: 'player',
+    code: 'KPRW',
+    phase: 'DRAWING',
+    paused: null,
+    rematchInMs: null,
+    settings: { ...DEFAULT_SETTINGS },
+    players: [],
+    turn: null,
+    host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+    me: { pid, turnPoints: 0, score: null, rank: null, award: null },
+    secret: null,
+    lastGuess: null,
+  });
+
+  it('is true when a view brings the crown the one before didn’t have', () => {
+    expect(gainedCrown(v('jun', false), v('jun', true))).toBe(true);
+  });
+
+  it('is false on the first view, while keeping it, on losing it, and for another player', () => {
+    expect(gainedCrown(null, v('jun', true))).toBe(false);
+    expect(gainedCrown(v('jun', true), v('jun', true))).toBe(false);
+    expect(gainedCrown(v('jun', true), v('jun', false))).toBe(false);
+    expect(gainedCrown(v('ana', false), v('jun', true))).toBe(false);
   });
 });

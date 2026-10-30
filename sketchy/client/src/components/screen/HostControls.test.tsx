@@ -35,7 +35,12 @@ function view(
 
 const bar = (
   v: ScreenView,
-  opts: { armed?: ControlId; sound?: SoundLevel; fullscreen?: boolean | null } = {},
+  opts: {
+    armed?: ControlId;
+    sound?: SoundLevel;
+    fullscreen?: boolean | null;
+    onPlayers?: () => void;
+  } = {},
 ) =>
   renderToStaticMarkup(
     <ControlBar
@@ -48,6 +53,7 @@ const bar = (
       onFullscreen={noop}
       onSound={noop}
       onHelp={noop}
+      {...(opts.onPlayers ? { onPlayers: opts.onPlayers } : {})}
       t={t}
     />,
   );
@@ -140,5 +146,13 @@ describe('Screen shortcuts overlay (F24)', () => {
       expect(html).toContain(`>${key}</kbd>`);
     expect(html).toContain('Guess feed All → Clean → Off');
     expect(html).toContain('Sound on / Quiet / Muted');
+  });
+});
+
+describe('the bar’s players list (F25)', () => {
+  it('has a Players button once the game has started, not in the lobby', () => {
+    for (const phase of ['CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD', 'FINAL'] as const)
+      expect(buttons(bar(view(phase), { onPlayers: noop }))).toContain('Players');
+    expect(buttons(bar(view('LOBBY'), { onPlayers: noop }))).not.toContain('Players');
   });
 });

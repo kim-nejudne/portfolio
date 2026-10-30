@@ -93,6 +93,8 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return next(d, action, now, fx);
     case 'host:settings':
       return settings(d, action);
+    case 'host:crown':
+      return giveCrown(d, action, fx);
     case 'timer':
       return timer(d, action, now, fx);
     case 'sys:connected':
@@ -107,7 +109,6 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'host:pause':
     case 'host:resume':
     case 'host:kick':
-    case 'host:crown':
     case 'host:customWords':
     case 'host:end':
     case 'host:rematch':
@@ -215,6 +216,30 @@ function crown(d: Room, pid: string | null, fx: Effect[]): void {
   if (pid) fx.push({ type: 'fx', to: { pid }, fx: { kind: 'crowned' } });
 }
 
+/**
+ * After the crown holder has gone (leave, or F28's kick): the longest-connected remaining player,
+ * i.e. the earliest joiner who is connected, else the earliest joiner; nobody in an empty room.
+ */
+function passCrown(d: Room, fx: Effect[]): void {
+  const heir = Object.values(d.players).sort(
+    (x, y) => Number(y.connected) - Number(x.connected) || x.joinedAt - y.joinedAt,
+  )[0];
+  crown(d, heir?.pid ?? null, fx);
+}
+
+/**
+ * `host:crown`, in any phase: the token Screen or the crown holder moves the crown to another
+ * player, who gets `crowned` (their "You're the host now 👑" toast). The old holder's phone loses
+ * its host block with the next view. Giving it to its holder changes nothing.
+ */
+// SPEC-QUESTION: a disconnected player may be given the crown; the Screen's controls still work (DECISIONS 48).
+function giveCrown(d: Room, a: ActionOf<'host:crown'>, fx: Effect[]): Handled {
+  if (!isHost(d, a.by)) return 'notHost';
+  if (!d.players[a.pid]) return 'unknownPlayer';
+  if (d.crownPid !== a.pid) crown(d, a.pid, fx);
+  return undefined;
+}
+
 function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]): Handled {
   const player = senderPlayer(d, a.by);
   if (typeof player === 'string') return player;
@@ -228,14 +253,7 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
     if (index <= d.turnIndex) d.turnIndex -= 1;
   }
 
-  if (d.crownPid === pid) {
-    // The longest-connected remaining player: the earliest joiner who is connected, else the
-    // earliest joiner.
-    const heir = Object.values(d.players).sort(
-      (x, y) => Number(y.connected) - Number(x.connected) || x.joinedAt - y.joinedAt,
-    )[0];
-    crown(d, heir?.pid ?? null, fx);
-  }
+  if (d.crownPid === pid) passCrown(d, fx);
 
   // The upcoming drawer leaving (REVEAL, SCOREBOARD) is dealt with at take-up.
   if (d.phase === 'CHOOSING' && d.turn?.drawerPid === pid) {

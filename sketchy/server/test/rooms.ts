@@ -1,5 +1,7 @@
 // Fixtures for reducer tests: a seeded room, senders, and helpers that unwrap a `ReduceResult`.
-import type { Action, Room, Sender } from '../../shared/types.js';
+import { expect } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../shared/constants.js';
+import type { Action, Phase, Room, Sender } from '../../shared/types.js';
 import { reduce, type ReduceResult } from '../reducer.js';
 import { createRoom } from '../room.js';
 import { TEST_PACKS } from './packs.js';
@@ -79,4 +81,30 @@ export function secretWord(room: Room): string {
   const word = room.turn?.word?.word;
   if (!word) throw new Error('No word in play');
   return word;
+}
+
+/**
+ * The room in `phase`, reached by playing a 2-player game with the host's Skip and Next: one cycle
+ * for FINAL, two to stop at the SCOREBOARD between them.
+ */
+export function inPhase(phase: Exclude<Phase, 'LOBBY'>): Room {
+  const base = makeRoom({
+    settings: { ...DEFAULT_SETTINGS, cycles: phase === 'SCOREBOARD' ? 2 : 1 },
+  });
+  const { room, at } = dealt(['Ana', 'Ben'], base);
+  const host = (r: Room, type: 'host:skip' | 'host:next', t: number) =>
+    step(r, { type, by: SCREEN_HOST }, t).room;
+  const pick = (r: Room, t: number) =>
+    step(r, { type: 'drawer:choose', by: asPlayer(r.turn!.drawerPid), index: 0 }, t).room;
+  if (phase === 'CHOOSING') return room;
+  let r = pick(room, at);
+  if (phase === 'DRAWING') return r;
+  r = host(r, 'host:skip', at + 1000);
+  if (phase === 'REVEAL') return r;
+  // Turn 2 (Ben) was dealt at the reveal: take it up, choose if still open, and skip it.
+  r = host(r, 'host:next', at + 2000);
+  if (r.phase === 'CHOOSING') r = pick(r, at + 2500);
+  r = host(host(r, 'host:skip', at + 3000), 'host:next', at + 4000);
+  expect(r.phase).toBe(phase);
+  return r;
 }

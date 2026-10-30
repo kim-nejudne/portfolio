@@ -36,6 +36,15 @@ export function welcomeTurn(view: PlayerView): number | null {
   return turn && turn.drawerPid !== view.me.pid ? turn.id : null;
 }
 
+/**
+ * Whether `next` brings this phone the crown that `prev` didn't have, for the "You're the host now
+ * 👑" toast. Never on the first view (the first joiner's lobby already says "You're the host 👑"),
+ * and only for the same player.
+ */
+export function gainedCrown(prev: PlayerView | null, next: PlayerView): boolean {
+  return prev !== null && prev.me.pid === next.me.pid && prev.host === null && next.host !== null;
+}
+
 /** What the phone shows after a `player:join` answer. */
 export type JoinOutcome =
   | { status: 'live' }
