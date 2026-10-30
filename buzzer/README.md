@@ -25,6 +25,8 @@ Open `http://localhost:5173`. Phones on the same Wi-Fi open `http://<laptop-LAN-
 | `npm start`            | Runs the build in production mode on `PORT` (default 3000)         |
 | `npm run smoke:docker` | Builds the image, runs it and checks it (see below)                |
 
+`scripts/autopilot.sh` builds every remaining roadmap feature unattended. Each feature gets one fresh `claude -p "/next-feature"` session, and failures are retried. When nothing is left and nothing is blocked, the script runs the checks, pushes `main` and watches the deploy. Use `--dry-run` to preview, or `--no-deploy` to stop before the push. Logs go to `~/.cache/buzzr-autopilot/`. Its sessions skip permission prompts, with a deny list for push, reset, gh, ssh and docker. A deploy blocked by live games is forced, which ends those games.
+
 ## Docker
 
 The `Dockerfile` is multi-stage. It installs, builds, then copies `dist/` and the runtime dependencies into a slim Node 24 image. The image runs as the unprivileged `node` user and has a `HEALTHCHECK` on `/healthz`.
