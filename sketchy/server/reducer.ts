@@ -33,6 +33,7 @@ import type {
 } from '../shared/types.js';
 import { correctedAt } from './fairness.js';
 import { guessRejection, matchGuess } from './match.js';
+import { feedText } from './profanity.js';
 import { createRng } from './rng.js';
 import { drawerPoints, guesserPoints } from './scoring.js';
 import { V0_WORDS } from './words.v0.js';
@@ -321,8 +322,8 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
 
   if (match === 'close') {
     // Never fed or shown on the Screen during the turn: it could give the word away. Kept for
-    // the reveal's "Almost:" and counted for awards; only this phone hears "So close!".
-    // SPEC-QUESTION: masking a close guess per `guessFeed` arrives with F15 (DECISIONS 37).
+    // the reveal's "Almost:" (masked per `guessFeed` by the view) and counted for awards; only
+    // this phone hears "So close!".
     turn.closeGuesses = [...turn.closeGuesses, { pid, text: a.text, at: now }].slice(
       -CLOSE_GUESSES_MAX,
     );
@@ -332,11 +333,14 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
   }
 
   if (match === 'wrong') {
-    // SPEC-QUESTION: masking per `guessFeed` arrives with F15; v0 feeds every wrong guess as
-    // typed (DECISIONS 18).
+    // Stored as typed, so the view masks it per the feed setting of the moment; the Screen's
+    // bubble is masked now, and carries no text at all under 'off' ("Bea is guessing…").
     turn.feed = [...turn.feed, { pid, text: a.text, at: now }].slice(-FEED_MAX);
+    // SPEC-QUESTION: 'off' still sends the fx, without text, for the "Bea is guessing…" pulse (DECISIONS 38).
+    const mode = d.settings.guessFeed;
+    const text = mode === 'off' ? null : feedText(a.text, mode);
     fx.push(
-      { type: 'fx', to: 'screen', fx: { kind: 'wrongGuess', pid, text: a.text } },
+      { type: 'fx', to: 'screen', fx: { kind: 'wrongGuess', pid, text } },
       { type: 'fx', to: { pid }, fx: { kind: 'wrong' } },
     );
     return undefined;

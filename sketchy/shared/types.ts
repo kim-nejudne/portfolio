@@ -49,7 +49,8 @@ export interface CorrectGuess {
 
 export interface FeedItem {
   pid: string;
-  text: string | null; // null = masked ("•••")
+  // As typed, server-only: views and fx mask it per `guessFeed` (`feedText`) when they send it.
+  text: string;
   at: number;
 }
 
@@ -261,7 +262,7 @@ export type Fx =
   | { kind: 'closeAlert'; pid: string }
   | { kind: 'correct'; pid: string; points: number; order: number }
   | { kind: 'nearMiss' }
-  | { kind: 'wrongGuess'; pid: string; text: string | null } // null when masked
+  | { kind: 'wrongGuess'; pid: string; text: string | null } // null when masked or the feed is off
   | { kind: 'wrong' }
   | { kind: 'hint' }
   | { kind: 'reaction'; pid: string; emoji: Reaction }

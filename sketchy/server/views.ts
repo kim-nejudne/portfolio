@@ -7,8 +7,10 @@
 // drawer they belong to (`secret`) until the reveal; then the word alone goes to everyone.
 
 import { CHOOSE_MS } from '../shared/constants.js';
+import { feedText } from './profanity.js';
 import type {
   ChoiceView,
+  FeedItem,
   GuessView,
   HostBlockView,
   Phase,
@@ -74,8 +76,8 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
   return {
     role: 'screen',
     ...base(room, isHost, now),
-    feed: feedShown ? turn.feed.map(guessView) : [],
-    closeGuesses: turn && revealed(room) ? turn.closeGuesses.map(guessView) : [],
+    feed: feedShown ? turn.feed.map((g) => guessView(room, g)) : [],
+    closeGuesses: turn && revealed(room) ? turn.closeGuesses.map((g) => guessView(room, g)) : [],
     awards: phase === 'FINAL' ? room.awards.map((a) => ({ ...a })) : [],
     gallery:
       phase === 'FINAL'
@@ -110,7 +112,9 @@ function playerView(room: Room, pid: string, now: number): PlayerView {
     secret: secretView(room, pid),
     // The drawer knows the word, so the latest wrong guess leaks nothing to them.
     lastGuess:
-      room.phase === 'DRAWING' && turn?.drawerPid === pid && latest ? guessView(latest) : null,
+      room.phase === 'DRAWING' && turn?.drawerPid === pid && latest
+        ? guessView(room, latest)
+        : null,
   };
 }
 
@@ -233,8 +237,14 @@ function choiceView(entry: WordEntry): ChoiceView {
   return { word: entry.word, gloss: entry.gloss ?? null, difficulty: entry.difficulty };
 }
 
-function guessView(item: { pid: string; text: string | null }): GuessView {
-  return { pid: item.pid, text: item.text };
+/**
+ * A stored guess as it may be shown: masked per the room's `guessFeed` now (not when it was typed),
+ * so switching to 'clean' masks what is already up. Under 'off' a guess still shown (the drawer's
+ * latest, the reveal's "Almost:") is masked as under 'clean'.
+ */
+// SPEC-QUESTION: the spec doesn't say how 'off' treats the drawer's latest guess and "Almost:"; masked as 'clean' (DECISIONS 38).
+function guessView(room: Room, item: FeedItem): GuessView {
+  return { pid: item.pid, text: feedText(item.text, room.settings.guessFeed) };
 }
 
 function hostBlock(room: Room): HostBlockView {

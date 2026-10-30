@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { GUESS_MAX } from '../../../../shared/constants.js';
 import type { Ack, PlayerView } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
-import { GUESS_NOTICE_MS, guessAnswer } from '../../lib/phone.js';
+import { GUESS_NOTICE_MS, guessAnswer, type OwnGuess } from '../../lib/phone.js';
 import { formatClock, wordLengths } from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 
 interface Props {
   view: PlayerView;
   receivedAt: number;
-  /** This phone's own wrong guesses this turn, newest last (shown "payong ✗"). */
-  misses: string[];
+  /** This phone's own answered guesses this turn, newest last ("payong ✗", "tsinelas ko ≈"). */
+  misses: OwnGuess[];
+  /** Counts this phone's near misses; each new one shows "So close!" under the box. */
+  nearMiss: number;
   /** Sends the guess; resolves with the server's answer, or `null` if it was lost. */
   onGuess: (text: string) => Promise<Ack | null>;
   t: Translate;
@@ -21,7 +23,7 @@ interface Props {
  * who is drawing, the blanks, the guess box near the top (so the keyboard never covers it) and,
  * after a correct guess, "✓ You got it! +N" without the word. No drawing here, on purpose.
  */
-export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
+export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, t }: Props) {
   const turn = view.turn!;
   const left = useCountdown(turn.timer, receivedAt);
   const [text, setText] = useState('');
@@ -34,6 +36,23 @@ export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
     const id = setTimeout(() => setNotice(null), GUESS_NOTICE_MS);
     return () => clearTimeout(id);
   }, [notice]);
+
+  // Cleared for a moment first, so a screen reader announces a repeat as well.
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showNotice = useCallback((key: CopyKey) => {
+    setNotice(null);
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice((cur) => ({ key, n: (cur?.n ?? 0) + 1 })), 50);
+  }, []);
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
+
+  // Only near misses after this box appeared: the count outlives the turn.
+  const seenNearMiss = useRef(nearMiss);
+  useEffect(() => {
+    if (nearMiss === seenNearMiss.current) return;
+    seenNearMiss.current = nearMiss;
+    showNotice('soClose');
+  }, [nearMiss, showNotice]);
   const me = view.players.find((p) => p.pid === view.me.pid);
   const guessed = me?.guessed ?? false;
   const drawing = view.phase === 'DRAWING';
@@ -44,12 +63,7 @@ export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
     if (guess)
       void onGuess(guess).then((res) => {
         const answer = guessAnswer(res);
-        if (answer.notice) {
-          const key = answer.notice;
-          // Cleared for a moment first, so a screen reader announces a repeat as well.
-          setNotice(null);
-          setTimeout(() => setNotice((cur) => ({ key, n: (cur?.n ?? 0) + 1 })), 50);
-        }
+        if (answer.notice) showNotice(answer.notice);
         if (answer.restore) {
           // Unless they have started typing the next one ("Slow down" still says the last one
           // didn't go).
@@ -140,8 +154,9 @@ export function GuesserTurn({ view, receivedAt, misses, onGuess, t }: Props) {
       {drawing && misses.length > 0 && (
         <p className="flex flex-wrap gap-x-4 gap-y-1 text-white/70">
           {misses.map((m, i) => (
-            <span key={i} className="max-w-full truncate">
-              {m} ✗
+            <span key={i} className={`max-w-full truncate ${m.close ? 'text-[#FFD166]' : ''}`}>
+              {m.text} <span aria-hidden>{m.close ? '≈' : '✗'}</span>
+              <span className="sr-only">{t(m.close ? 'closeGuess' : 'wrongGuess')}</span>
             </span>
           ))}
         </p>

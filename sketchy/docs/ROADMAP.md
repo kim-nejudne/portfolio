@@ -38,14 +38,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F14 Guess matching
 
-- [ ] F15 Near-miss feedback and the guess feed
-  - Spec: Guess matching (After a correct guess, Guess feed and rude guesses); Data model (Role views)
-  - Depends: F14
-  - Done when:
-    - `fx nearMiss` to the guesser only; close guesses kept in `closeGuesses` (max 3) and counted per player, never in a view before REVEAL
-    - Feed in ScreenView without close or correct guesses; `guessFeed` `'all'` masks slurs (`slurs.ts`), `'clean'` also masks profanity (`profanity.ts`), `'off'` hides it
-    - A correct guesser's phone shows ✓ and points, never the word
-  - Tests: `reducer.guess.test.ts` — close guess not in the feed; masked guess shows `null` under each mode; `profanity.test.ts`
+- [x] F15 Near-miss feedback and the guess feed
 
 - [ ] F16 Ink delay debug overlay
   - Spec: Drawing data protocol (Delay budget); Test plan (Ink delay measurement)

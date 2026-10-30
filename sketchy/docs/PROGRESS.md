@@ -30,7 +30,60 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F14: `npm run dev` + `npm run lan`, laptop Screen, 3 real phones (an iPhone and a budget Android among the guessers); start, and as a guesser (a) type a wrong word and tap ➤ twice very fast (or tap ➤, retype and tap again at once); (b) type the word with a capital, an accent or "ang"/"the" in front (e.g. "Ang Mangga!"); (c) on a later turn type the word plus " ko" · (a) "Slow down" shows under the box for about a second and a half, the refused word is back in the box, and the keyboard never drops; (b) counts as "You got it!"; (c) shows nothing on the TV during the turn (no bubble, no feed line), and at the reveal the TV shows "Almost: … ko"
 
+- [ ] F15: (1) read `server/slurs.ts` and `server/profanity.ts` (each entry is a whole word, `stem*` or `*part*`): add Tagalog/Taglish/Bisaya terms that are missing, and say whether to keep or drop "intsik", "bumbay" (left out) and "negro", "sex", "bobo", "tanga", "pepe", "kiki" (in); everyday or drawable words must not be listed (DECISIONS 38). (2) `npm run dev` + `npm run lan`, laptop Screen, 3 real phones; start, and as a guesser type the word plus " ko" (or the word with one letter changed) · "So close!" shows under the box on that phone only, the guess is listed as "… ≈", the TV shows nothing of it until "Almost:" at the reveal; a rude wrong guess shows as typed in the TV's sidebar (the `'clean'`/`'off'` switch needs F21's settings, so recheck it then)
+
 <!-- entries below, newest first -->
+
+## F15 — Near-miss feedback and the guess feed (2026-10-30)
+**What changed:**
+- **`server/slurs.ts` and `server/profanity.ts` (new, pure):**
+  - `slurs.ts` holds English and Tagalog slurs and hate terms. `profanity.ts` holds ordinary profanity, the matcher `hasListedWord`/`feedWords`, and `feedText(text, mode)`.
+  - Entries: `word` is a whole word, `stem*` a prefix, `*part*` a part of a word.
+  - Matching: NFKD, lowercase, digit look-alikes, and symbols read as letters only before a letter ("sh!t", not "hi!"). Letter runs are cut to two and to one, and the whole guess is also tried with its spaces removed ("f u c k", "puta ng ina").
+  - A listed word masks the whole guess (`null` → `•••`). Slurs are masked in every mode, and profanity unless the mode is `'all'`.
+- **Reducer:** `turn.feed` and `turn.closeGuesses` keep the text as typed. `FeedItem.text` is now `string` and server-only. The Screen's `wrongGuess` fx is masked by the mode, and under `'off'` it carries no text (for F34's "Bea is guessing…" pulse). The F14 SPEC-QUESTIONs are resolved.
+- **Views:** `guessView` masks by the room's `guessFeed` when the view is built. That covers the feed, the reveal's `closeGuesses` and the drawer's `lastGuess`, so a mid-turn switch to `'clean'` masks what is already up. Under `'off'` the feed is empty, and anything still shown is masked as under `'clean'`.
+- **Phone:**
+  - A `nearMiss` fx shows "So close!" for 1.5 s in the guess box's note (re-announced on a repeat). A near-miss count drives it, and the note only fires on a change after the box mounts.
+  - The phone's own list now shows a close guess as "tsinelas ko ≈" in amber, with screen-reader labels "(close)"/"(wrong)" behind the glyphs.
+  - The `addOwnGuess` helper (`lib/phone.ts`) keeps the last 5 per turn. The `showNotice` timer is cleared on unmount.
+  - The ✓ panel ("✓ You got it! +270", never the word) was already there. It is covered by `phoneViews.test.tsx`.
+- **Tests:**
+  - `server/profanity.test.ts` (38): look-alikes, trailing punctuation, each mode for rude, slur and everyday words (class, cocktail, shuttlecock, putahe, leche flan, Negros, shiitake, analysis, bitcoin…), stems and parts, letter runs, and the list format.
+  - `server/reducer.guess.test.ts` (11): `nearMiss` only to the guesser, and the close guess in no view before REVEAL. Close guesses are masked at the reveal. The feed and the `wrongGuess` fx under `'all'`, `'clean'` and `'off'`. A slur is in no view under any mode. The drawer's latest guess is masked per mode. A mid-turn switch re-masks. A correct guess is never fed.
+  - `phone.test.ts`: `addOwnGuess` (3).
+  - `phoneViews.test.tsx`: the ≈ and ✗ marks and their labels.
+  - Mutation-checked: leaving out masking in `guessView` fails 8 tests, and in the fx fails 3.
+- No new dependencies.
+
+**Decisions:** DECISIONS 38 covers:
+- the list format and how matching works;
+- whole-guess masking;
+- masking at view time and in the fx at send time;
+- what `'off'` does;
+- the phone's note and the ≈ marks;
+- the left-out words and the questions for Kim.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 38, the SPEC-QUESTIONs in `views.ts` and `reducer.ts`, the F15 Kim check, this entry, and more negative cases. Accepted: "So close!" has no unit test, since the client has no DOM test environment. It is proven by the playtest instead.
+- **secrets-fairness: PASS.** Noted for F34: `wrongGuess` arrives as `null` both when masked and under `'off'`, so the Screen must read `settings.guessFeed` to pick `•••` or "is guessing…". After a mid-turn mode change the bubbles (masked when sent) and the list (masked at view time) can briefly disagree, and switching `'off'` → `'all'` shows the guesses made while off. Both are accepted, since the setting may change any time.
+- **mobile-ux: PASS WITH FIXES.** Applied: screen-reader labels for ≈/✗, the timer cleared on unmount, and an amber tint on close guesses. Open: fit at 360×560 with the keyboard up and 5 long guesses, which F14's list already had. It goes to F33/F34's layout pass.
+
+**Notes for next session:**
+- **F34:** render the `wrongGuess` fx: `text` is `null` under `'off'` ("Bea is guessing…" pulse), or `•••` otherwise. The sidebar keeps its 2–4 latest guesses (DECISIONS 28), and the spec's 8 come with F34.
+- **F21 (settings) and the `G` key:** `guessFeed` changes need no extra work, because views re-mask on the next broadcast.
+- **F36:** the drawer's `lastGuess` is already masked. "Bea is close!" needs a `closeAlert` fx from the close branch in `guess()`.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/profanity.test.ts server/reducer.guess.test.ts client/src/lib/phone.test.ts client/src/components/phone`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE` or bots at `/dev/bots/CODE`. As a guesser, type the word with one letter changed: "So close!" shows under the box, the guess is listed with ≈, and the TV shows nothing until "Almost:".
+- Automated: `npm run playtest -- .playtest/F15/scenario.ts` (gitignored). It runs a Screen at 1920×1080 and 3 phones (one at 360×560), and all steps pass:
+  - "So close!" shows on the near-misser only and never on the Screen, the drawer or the other guesser;
+  - a wrong guess shows in the Screen feed;
+  - the word is in no Screen or guesser text before the reveal;
+  - a correct guesser sees "✓ You got it! +290" without the word, and the Screen chip shows ✓;
+  - there are no console errors.
+  - The `'clean'`/`'off'` modes can't be switched in the UI until F21, so they are covered only by the unit tests.
 
 ## F14 — Guess matching (2026-10-30)
 **What changed:**

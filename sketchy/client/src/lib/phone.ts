@@ -1,6 +1,7 @@
 // Phone helpers: the drawer's layout numbers (UI by role and phase, Drawer layout), what a join
 // answer means for the page, and the pad's first-pointer rule. Presentation only.
 
+import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
 import type { Ack } from '../../../shared/types.js';
 import type { CopyKey } from './copy.js';
 
@@ -75,6 +76,27 @@ export interface GuessAnswer {
 export function guessAnswer(res: Ack | null): GuessAnswer {
   if (res && !res.ok && res.error === 'slowDown') return { notice: 'slowDown', restore: true };
   return { notice: null, restore: false };
+}
+
+/** One of this phone's own guesses this turn, with what the server said about it. */
+export interface OwnGuess {
+  text: string;
+  close: boolean;
+}
+
+/** This phone's own guesses, kept for one turn. */
+export interface OwnGuesses {
+  turnId: number;
+  items: OwnGuess[];
+}
+
+/**
+ * Adds an answered guess ("payong ✗", or "tsinelas ko ≈" after a near miss) to this turn's list,
+ * starting again on a new turn and keeping the last `OWN_GUESSES_SHOWN`.
+ */
+export function addOwnGuess(prev: OwnGuesses, turnId: number, guess: OwnGuess): OwnGuesses {
+  const items = prev.turnId === turnId ? prev.items : [];
+  return { turnId, items: [...items, guess].slice(-OWN_GUESSES_SHOWN) };
 }
 
 // ---------- The pad's pointer ----------

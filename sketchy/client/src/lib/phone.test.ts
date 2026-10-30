@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
 import {
+  addOwnGuess,
   createPointerGate,
   DRAWER_BAR_PX,
   DRAWER_TOOL_ROW_PX,
@@ -99,5 +101,29 @@ describe('guessAnswer', () => {
       null,
     ])
       expect(guessAnswer(res)).toEqual({ notice: null, restore: false });
+  });
+});
+
+describe('addOwnGuess', () => {
+  const wrong = (text: string) => ({ text, close: false });
+
+  it('keeps wrong and close guesses in order for the turn', () => {
+    let list = addOwnGuess({ turnId: -1, items: [] }, 4, wrong('payong'));
+    list = addOwnGuess(list, 4, { text: 'tsinelas ko', close: true });
+    expect(list).toEqual({
+      turnId: 4,
+      items: [wrong('payong'), { text: 'tsinelas ko', close: true }],
+    });
+  });
+
+  it('starts again on a new turn', () => {
+    const list = addOwnGuess({ turnId: 4, items: [wrong('payong')] }, 5, wrong('bahay'));
+    expect(list).toEqual({ turnId: 5, items: [wrong('bahay')] });
+  });
+
+  it(`keeps the last ${OWN_GUESSES_SHOWN}`, () => {
+    let list = { turnId: 1, items: [] as { text: string; close: boolean }[] };
+    for (let i = 0; i < OWN_GUESSES_SHOWN + 2; i++) list = addOwnGuess(list, 1, wrong(`g${i}`));
+    expect(list.items.map((g) => g.text)).toEqual(['g2', 'g3', 'g4', 'g5', 'g6']);
   });
 });

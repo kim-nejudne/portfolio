@@ -76,7 +76,14 @@ describe('guesser phone', () => {
       secret: { turnId: 3, choices: null, word: { word: WORD, gloss: 'qzgloss', difficulty: 2 } },
     });
     const html = renderToStaticMarkup(
-      <GuesserTurn view={view} receivedAt={0} misses={[]} onGuess={async () => null} t={t} />,
+      <GuesserTurn
+        view={view}
+        receivedAt={0}
+        misses={[]}
+        nearMiss={0}
+        onGuess={async () => null}
+        t={t}
+      />,
     );
     expect(html).toContain('✓ You got it! +270');
     expect(html).toContain('+270 this turn');
@@ -94,7 +101,11 @@ describe('guesser phone', () => {
       <GuesserTurn
         view={view}
         receivedAt={0}
-        misses={['sapatos']}
+        misses={[
+          { text: 'sapatos', close: false },
+          { text: 'tsinelas ko', close: true },
+        ]}
+        nearMiss={0}
         onGuess={async () => null}
         t={t}
       />,
@@ -103,7 +114,9 @@ describe('guesser phone', () => {
     expect(html).toContain('✏️ Mika drawing');
     expect(html).toContain('________');
     expect(html).toContain('8 letters to guess');
-    expect(html).toContain('sapatos ✗');
+    expect(html).toContain('sapatos <span aria-hidden="true">✗</span>');
+    expect(html).toContain('tsinelas ko <span aria-hidden="true">≈</span>');
+    expect(html).toContain('(close)');
     // The polite live region for "Slow down", empty until a refusal fills it.
     expect(html).toMatch(/<p role="status"[^>]*><\/p>/);
     for (const attr of [

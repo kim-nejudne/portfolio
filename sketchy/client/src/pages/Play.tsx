@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { OWN_GUESSES_SHOWN } from '../../../shared/constants.js';
 import type { Ack, InkBatch, PlayerView } from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
@@ -9,7 +8,7 @@ import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { translator, type CopyKey } from '../lib/copy.js';
-import { joinOutcome } from '../lib/phone.js';
+import { addOwnGuess, joinOutcome, type OwnGuesses } from '../lib/phone.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -48,10 +47,9 @@ export function Play() {
   // A stored identity rejoins without showing the name step; a typed name keeps the form up.
   const [silent, setSilent] = useState(stored !== null);
   const [state, setState] = useState<{ view: PlayerView; at: number } | null>(null);
-  const [misses, setMisses] = useState<{ turnId: number; texts: string[] }>({
-    turnId: -1,
-    texts: [],
-  });
+  const [misses, setMisses] = useState<OwnGuesses>({ turnId: -1, items: [] });
+  // Bumped on every near miss, so the guess box shows "So close!" again for a repeat.
+  const [nearMiss, setNearMiss] = useState(0);
 
   const socket = useMemo(() => createSocket(), []);
   const identityRef = useRef<PlayerIdentity | null>(stored);
@@ -59,7 +57,8 @@ export function Play() {
   // The drawer's current turn on `/ink`, while the pad is up.
   const drawerSyncRef = useRef<DrawerSync | null>(null);
   const viewRef = useRef<PlayerView | null>(null);
-  // Guesses sent and not yet answered, oldest first: a `wrong` fx belongs to the oldest one.
+  // Guesses sent and not yet answered, oldest first: a `wrong` or `nearMiss` fx belongs to the
+  // oldest one.
   const pendingGuesses = useRef<string[]>([]);
 
   const closeInk = useCallback(() => {
@@ -132,14 +131,12 @@ export function Play() {
     });
     socket.on('fx', (fx) => {
       if (fx.kind === 'yourTurn') navigator.vibrate?.(YOUR_TURN_VIBRATE_MS);
-      if (fx.kind === 'wrong') {
+      if (fx.kind === 'wrong' || fx.kind === 'nearMiss') {
+        const close = fx.kind === 'nearMiss';
         const text = pendingGuesses.current.shift();
         const turnId = viewRef.current?.turn?.id ?? -1;
-        if (text !== undefined)
-          setMisses((m) => ({
-            turnId,
-            texts: [...(m.turnId === turnId ? m.texts : []), text].slice(-OWN_GUESSES_SHOWN),
-          }));
+        if (text !== undefined) setMisses((m) => addOwnGuess(m, turnId, { text, close }));
+        if (close) setNearMiss((n) => n + 1);
       }
     });
     socket.on('kicked', () => {
@@ -316,7 +313,8 @@ export function Play() {
           <GuesserTurn
             view={view}
             receivedAt={state!.at}
-            misses={misses.turnId === turn?.id ? misses.texts : []}
+            misses={misses.turnId === turn?.id ? misses.items : []}
+            nearMiss={nearMiss}
             onGuess={guess}
             t={t}
           />
