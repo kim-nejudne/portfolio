@@ -1,6 +1,7 @@
 // Display helpers for the Screen. Presentation only: the server decides everything else.
 
-import type { PlayerChipView } from '../../../shared/types.js';
+import type { PlayerChipView, ScreenView, TurnView } from '../../../shared/types.js';
+import type { CopyKey, Translate } from './copy.js';
 
 /**
  * Letters per word in a mask (`_` hidden, a hint letter as itself), for the `(5, 4)` after the
@@ -39,4 +40,35 @@ export function rankPlayers(players: readonly PlayerChipView[]): RankedPlayer[] 
   return players
     .map((player) => ({ player, rank: player.rank ?? players.length }))
     .sort((a, b) => a.rank - b.rank);
+}
+
+/**
+ * The lobby's How to play strip (Screen, Lobby): three steps of at most six words, each with an
+ * icon. The icons are decoration; the step text carries the meaning.
+ */
+export const HOW_TO_PLAY: readonly { icon: string; key: CopyKey }[] = [
+  { icon: '✏️', key: 'howToDraw' },
+  { icon: '📱', key: 'howToGuess' },
+  { icon: '⚡', key: 'howToScore' },
+];
+
+/**
+ * Whether the turn keeps a row under the drawing for the caption: the game's first two turns, in
+ * CHOOSING and REVEAL too (empty there), so the drawing doesn't change size at the reveal.
+ */
+export function hasCaptionRow(turn: Pick<TurnView, 'number'>): boolean {
+  return turn.number <= 2;
+}
+
+/**
+ * The caption under the drawing in the first two turns of every game (Screen, Drawing), which
+ * teaches that guesses are typed, not said. `turn.number` counts the game's drawn turns, so a turn
+ * skipped before a word was chosen doesn't use one up. DRAWING only: "Mika is drawing" would be
+ * wrong while she is still choosing, and the reveal has its own panel.
+ */
+export function turnCaption(view: Pick<ScreenView, 'phase' | 'turn'>, t: Translate): string | null {
+  if (view.phase !== 'DRAWING' || !view.turn || !hasCaptionRow(view.turn)) return null;
+  if (view.turn.number === 1) return t('captionFirstTurn', { name: view.turn.drawerName });
+  if (view.turn.number === 2) return t('captionSecondTurn');
+  return null;
 }

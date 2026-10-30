@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { PlayerChipView } from '../../../shared/types.js';
-import { formatClock, hintLetters, rankPlayers, wordLengths } from './screen.js';
+import type { Phase, PlayerChipView, TurnView } from '../../../shared/types.js';
+import { translator } from './copy.js';
+import {
+  formatClock,
+  hintLetters,
+  hasCaptionRow,
+  HOW_TO_PLAY,
+  rankPlayers,
+  turnCaption,
+  wordLengths,
+} from './screen.js';
 
 function chip(pid: string, score: number | null, rank: number | null = null): PlayerChipView {
   return {
@@ -62,5 +71,78 @@ describe('hintLetters', () => {
   it('lists the revealed letters in word order, never blanks, spaces or marks', () => {
     expect(hintLetters([..."b_h__ _u-o'"])).toEqual(['b', 'h', 'u', 'o']);
     expect(hintLetters([...'____'])).toEqual([]);
+  });
+});
+
+describe('turnCaption (F26)', () => {
+  const t = translator('en');
+  const turn = (number: number): TurnView => ({
+    id: number + 10,
+    number,
+    cycle: 1,
+    drawerPid: 'mika',
+    drawerName: 'Mika',
+    timer: null,
+    mask: [...'____'],
+    word: null,
+    correct: [],
+    guessed: { guessed: 0, of: 2 },
+    endReason: null,
+  });
+  const caption = (phase: Phase, number: number | null) =>
+    turnCaption({ phase, turn: number === null ? null : turn(number) }, t);
+
+  it('teaches the rule with the drawer’s name on the game’s first turn', () => {
+    expect(caption('DRAWING', 1)).toBe(
+      'Mika is drawing. Everyone else: type your guess on your phone 🤫',
+    );
+  });
+
+  it('reminds everyone not to shout on the second turn', () => {
+    expect(caption('DRAWING', 2)).toBe('Type your guess. Don’t say it! 🤫');
+  });
+
+  it('is gone from the third turn on', () => {
+    expect(caption('DRAWING', 3)).toBeNull();
+    expect(caption('DRAWING', 12)).toBeNull();
+  });
+
+  it('shows only while drawing, not while choosing or at the reveal', () => {
+    for (const phase of ['LOBBY', 'CHOOSING', 'REVEAL', 'SCOREBOARD', 'FINAL'] as const) {
+      expect(caption(phase, 1)).toBeNull();
+      expect(caption(phase, 2)).toBeNull();
+    }
+    expect(caption('DRAWING', null)).toBeNull();
+  });
+
+  it('keeps the caption’s row through the first two turns only, so the reveal doesn’t resize', () => {
+    expect(hasCaptionRow({ number: 1 })).toBe(true);
+    expect(hasCaptionRow({ number: 2 })).toBe(true);
+    expect(hasCaptionRow({ number: 3 })).toBe(false);
+  });
+});
+
+describe('How to play (F26)', () => {
+  const t = translator('en');
+
+  it('has three numbered steps of at most six words each', () => {
+    const steps = HOW_TO_PLAY.map((s) => t(s.key));
+    expect(steps).toEqual([
+      '1 · One person draws on their phone',
+      '2 · Everyone else types guesses 🤫',
+      '3 · Faster = more points',
+    ]);
+    for (const step of steps) {
+      // The number and the emoji aren't words.
+      const words = step
+        .replace(/^\d · /, '')
+        .split(/\s+/)
+        .filter((w) => /[\p{L}]/u.test(w));
+      expect(words.length).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('gives each step its own icon', () => {
+    expect(new Set(HOW_TO_PLAY.map((s) => s.icon)).size).toBe(3);
   });
 });

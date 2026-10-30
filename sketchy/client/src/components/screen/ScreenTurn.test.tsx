@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { ScreenView, TurnEndReason, TurnView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
-import { Blanks, RevealPanel } from './ScreenTurn.js';
+import { createScreenInk } from '../../lib/ink.js';
+import { Blanks, RevealPanel, ScreenTurn } from './ScreenTurn.js';
 
 const t = translator('en');
 
@@ -75,5 +76,45 @@ describe('Screen blanks', () => {
   it('labels plain blanks with the letter counts only', () => {
     const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} />);
     expect(html).toContain('aria-label="5, 4 letters"');
+  });
+});
+
+describe('first-turn captions (F26)', () => {
+  const FIRST = 'Mika is drawing. Everyone else: type your guess on your phone 🤫';
+  const SECOND = 'Type your guess. Don’t say it! 🤫';
+  const render = (phase: ScreenView['phase'], number: number) => {
+    const { view, turn } = reveal('time');
+    const live: TurnView = { ...turn, number, word: null, mask: [...'______'], endReason: null };
+    return renderToStaticMarkup(
+      <ScreenTurn
+        view={{ ...view, phase, turn: live }}
+        receivedAt={0}
+        ink={createScreenInk()}
+        t={t}
+      />,
+    );
+  };
+
+  it('shows the rule under the drawing on the first turn and the reminder on the second', () => {
+    const first = render('DRAWING', 1);
+    expect(first).toContain(FIRST);
+    // Under the square (after the canvas), not over it, and before the sidebar.
+    expect(first.indexOf(FIRST)).toBeGreaterThan(first.indexOf('<canvas'));
+    expect(first.indexOf(FIRST)).toBeLessThan(first.indexOf('<aside'));
+    expect(render('DRAWING', 2)).toContain(SECOND);
+  });
+
+  it('has no caption from the third turn on', () => {
+    const html = render('DRAWING', 3);
+    expect(html).not.toContain('🤫');
+  });
+
+  it('keeps the row but no text while choosing and at the reveal', () => {
+    for (const phase of ['CHOOSING', 'REVEAL'] as const) {
+      const html = render(phase, 1);
+      expect(html).not.toContain('🤫');
+      expect(html).toContain('line-clamp-2');
+    }
+    expect(render('REVEAL', 3)).not.toContain('line-clamp-2');
   });
 });

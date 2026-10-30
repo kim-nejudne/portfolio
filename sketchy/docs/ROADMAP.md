@@ -64,12 +64,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F25 Host crown and the host lobby
 
-- [ ] F26 How to play and first-turn captions
-  - Spec: UI by role and phase (Screen); Overview (Goals)
-  - Depends: F07
-  - Done when:
-    - Screen lobby shows the three-step How to play strip under the QR
-    - First two turns of every game show the caption under the drawing ("Mika is drawing. Everyone else: type your guess on your phone 🤫", then "Type your guess. Don't say it! 🤫")
+- [x] F26 How to play and first-turn captions
 
 - [ ] F27 Lobby doodles
   - Spec: Drawing data protocol (Lobby doodles); Roles and devices (Creating and joining a room); UI by role and phase (Screen, Guesser phone)
@@ -96,6 +91,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
     - Back to lobby: FINAL → LOBBY keeps players, settings, custom words, doodles and `usedIds`; `session.totals`; Tonight panel from game 2
     - Rematch: two taps, 3-2-1 countdown on every device, then CHOOSING with the next player in join order drawing first; Cancel leaves FINAL and the gallery untouched; fewer than 2 connected at the end of the countdown stays on FINAL with "Need 2 players"
   - Note (F20): `startCycle` builds cycles 2+ in plain join order; rotate them like cycle 1 in a rematch game (DECISIONS 43)
+  - Note (F26): `TurnView.number` is `history` turns + 1 (`server/views.ts`), and the Screen's first-two-turns caption keys on it. A new game (rematch or back to lobby, then Start) must restart it at 1: clear `history` once the gallery and awards no longer need it, or count only this game's turns. Add a test that game 2's first turn has `number` 1 (DECISIONS 49)
   - Tests: `reducer.newgame.test.ts` — no word repeats across two games; `reducer.rematch.test.ts` — rotation over three rematches, including when last game's first drawer has left; cancel keeps scores and gallery; a stale `rematchGo` after cancel does nothing; fewer than 2 connected
 
 ## M5 — Drawing tools

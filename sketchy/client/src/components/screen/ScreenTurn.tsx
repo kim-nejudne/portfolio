@@ -1,7 +1,13 @@
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import type { ScreenInk } from '../../lib/ink.js';
-import { formatClock, hintLetters, wordLengths } from '../../lib/screen.js';
+import {
+  formatClock,
+  hasCaptionRow,
+  hintLetters,
+  turnCaption,
+  wordLengths,
+} from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { InkCanvas } from './InkCanvas.js';
 import { Avatar } from './PlayerChip.js';
@@ -21,20 +27,29 @@ export function ScreenTurn({
   const turn = view.turn;
   if (!turn) return null;
   const drawer = view.players.find((p) => p.pid === turn.drawerPid);
+  const caption = turnCaption(view, t);
+  const captionRow = hasCaptionRow(turn);
   return (
     <div className="flex h-full min-h-0 gap-[2vmin] p-[2vmin]">
-      <div className="relative aspect-square h-full max-w-[72vw] shrink-0">
-        <InkCanvas ink={ink} />
-        {view.phase === 'CHOOSING' && (
-          <div className="absolute inset-0 grid place-items-center rounded-[1vmin] bg-[#1D1B22]/85 p-[4vmin] text-center">
-            <p
-              className="font-display text-[max(6vmin,28px)] font-bold"
-              style={{ color: drawer?.color }}
-            >
-              {t('isChoosing', { name: turn.drawerName })}
-            </p>
-          </div>
-        )}
+      <div className="flex h-full shrink-0 flex-col gap-[1vmin]">
+        {/* In the first two turns the square gives up the caption's row. */}
+        <div
+          className="relative aspect-square h-full max-w-[72vw] shrink-0"
+          style={captionRow ? { height: `calc(100% - ${CAPTION_HEIGHT} - 1vmin)` } : undefined}
+        >
+          <InkCanvas ink={ink} />
+          {view.phase === 'CHOOSING' && (
+            <div className="absolute inset-0 grid place-items-center rounded-[1vmin] bg-[#1D1B22]/85 p-[4vmin] text-center">
+              <p
+                className="font-display text-[max(6vmin,28px)] font-bold"
+                style={{ color: drawer?.color }}
+              >
+                {t('isChoosing', { name: turn.drawerName })}
+              </p>
+            </div>
+          )}
+        </div>
+        {captionRow && <Caption text={caption} />}
       </div>
       <aside className="@container flex min-w-[28vw] flex-1 flex-col gap-[2vmin] overflow-hidden text-[max(3.5vh,16px)]">
         {view.phase === 'REVEAL' ? (
@@ -43,6 +58,26 @@ export function ScreenTurn({
           <TurnPanel view={view} turn={turn} receivedAt={receivedAt} t={t} />
         )}
       </aside>
+    </div>
+  );
+}
+
+/** Two lines of names-sized text (3.5 vh) with their line height. */
+const CAPTION_HEIGHT = 'max(9vh, 44px)';
+
+/**
+ * The first two turns' caption, under the drawing and never over it (Screen, Drawing). As wide as
+ * the square (`w-0 min-w-full` keeps the text from widening the column) and at most two lines.
+ * Empty outside DRAWING, keeping its row.
+ */
+export function Caption({ text }: { text: string | null }) {
+  return (
+    <div className="@container w-0 min-w-full shrink-0" style={{ height: CAPTION_HEIGHT }}>
+      {/* About 32 characters a line: the text shrinks when the square is narrow (a near-square
+          Screen caps it at 72 vw), so the first turn's caption stays on two lines. */}
+      <p className="line-clamp-2 text-center text-[min(max(3.5vh,16px),5.5cqw)] leading-tight font-semibold text-[#FFD166]">
+        {text}
+      </p>
     </div>
   );
 }

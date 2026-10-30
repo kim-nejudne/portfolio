@@ -171,3 +171,21 @@ describe('the crown on the Screen lobby (F25)', () => {
     expect(mika).toContain('Kick');
   });
 });
+
+describe('How to play on the Screen lobby (F26)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('shows the three steps on every Screen, token or not', () => {
+    vi.stubGlobal('window', { location: { host: 'sketchy.test' } });
+    for (const host of [true, false]) {
+      const html = renderToStaticMarkup(
+        <ScreenLobby view={lobby(host)} socket={{} as GameSocket} t={t} />,
+      );
+      expect(html).toContain('How to play');
+      const steps = html.indexOf('1 · One person draws on their phone');
+      expect(steps).toBeGreaterThan(html.indexOf('KPRW'));
+      expect(html.indexOf('2 · Everyone else types guesses 🤫')).toBeGreaterThan(steps);
+      expect(html.indexOf('3 · Faster = more points')).toBeGreaterThan(steps);
+    }
+  });
+});

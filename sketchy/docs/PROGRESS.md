@@ -42,8 +42,44 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F23: `npm run dev`, laptop Screen (Start) with 2 phones joined via `npm run lan CODE`; once Ana is drawing, scan the join QR with a third phone (an iPhone and an Android if you have both) and join as a new name · the phone lands straight on the guess box with "You're in! Ana is drawing. Type your guess." under it; on Android the keyboard may pop up by itself, on iPhone the box is focused but the keyboard waits for a tap (expected); the line goes after the first guess; refreshing the page mid-turn does not bring it back; the new player draws later in the same round (after the original players), and with a long name (e.g. 14 letters, no spaces) the line wraps instead of running off a 360 px screen
 - [ ] F24: `npm run dev`, laptop Screen on the TV with a keyboard (Start), 3 phones; also a tablet as the token Screen once · from the couch, the bar's buttons are readable; it hides 3 s after the mouse stops and returns on a mouse move (on the tablet, on a tap); `?` shows the 11 shortcuts and Esc closes it; Space starts, then during a reveal Space/N move on; `G` shows "Guess feed: Clean" (wrong guesses masked on the TV), then Off, then All; S once shows "Press S again to skip the turn" and nothing happens, S twice skips; `F` goes fullscreen and back; `M` shows "Sound: Quiet"; a second Screen opened from the join link (no token) shows no bar and ignores every key; with Wi-Fi off on the laptop, tapping Skip twice shows "Could not do that. Try again." and nothing skips after Wi-Fi returns; Pause/End/Rematch show "That's coming in a later update" until F28/F29
 - [ ] F25: `npm run dev`, laptop Screen on the TV (Start), 3 real phones (an iPhone and an Android if you have both) via `npm run lan CODE` · the first phone shows "You're the host 👑", a big Start game (greyed with "Need 2 players" until a second phone joins) and "Classic · 60 s · 2 rounds · Mixed words" with Change; Change opens the settings with the players list at the bottom; on the TV, click another player's name → Give host crown: that phone shows "You're the host now 👑" (below the Host button, not covering it) and the TV reads "👑 Jun is hosting · tap a name to change"; start from the crown phone, then while someone draws tap 👑 Host: the sheet slides up with Pause, Skip turn, End game, Guess feed All/Clean/Off and the players, never the word; with the crown phone guessing and the keyboard up, the guess box stays visible under the Host bar; with the crown phone drawing, the sheet never opens by itself and the pad still fits; the crown holder leaving passes the crown (toast on the next phone)
+- [ ] F26: `npm run dev`, laptop Screen on the TV in fullscreen (Start), 3 phones via `npm run lan CODE` · from across the room, the lobby's three How to play steps (✏️ 1 · One person draws on their phone, 📱 2 · Everyone else types guesses 🤫, ⚡ 3 · Faster = more points) are readable under the code; start: during the first turn the yellow "Mika is drawing. Everyone else: type your guess on your phone 🤫" sits under the drawing on two lines, readable at 5 m and not cut off once the host bar hides; turn 2 reads "Type your guess. Don’t say it! 🤫"; the drawing does not jump in size when the word is revealed; from turn 3 there is no caption and the drawing is a little taller. Also try a landscape tablet as the Screen
 
 <!-- entries below, newest first -->
+
+## F26 — How to play and first-turn captions (2026-10-31)
+**What changed:**
+- **Client (Screen):**
+  - `ScreenLobby` `HowToPlay`: the three steps under the join details (the QR comes with F37), on every Screen, each with an icon (`HOW_TO_PLAY` in `lib/screen.ts`).
+  - `ScreenTurn` `Caption`: under the drawing in the game's first two turns. `turnCaption(view, t)` gives turn 1 "Mika is drawing. Everyone else: type your guess on your phone 🤫", turn 2 "Type your guess. Don’t say it! 🤫", in DRAWING only. `hasCaptionRow(turn)` keeps the row (empty) in CHOOSING and REVEAL of those turns, so the drawing keeps its size at the reveal. The row is max(9 vh, 44 px); the text is 3.5 vh, shrinking with the square's width (`5.5cqw`) so it stays on two lines.
+  - `copy.ts`: `howToPlay`, `howToDraw`, `howToGuess`, `howToScore`, `captionFirstTurn`, `captionSecondTurn` (English; Taglish with F45).
+- **Tests:**
+  - `client/src/lib/screen.test.ts` (+6): the turn-1 caption with the drawer's name, turn 2's, none from turn 3, none outside DRAWING or with no turn, the row only in turns 1–2; three steps of at most six words, three icons.
+  - `ScreenTurn.test.tsx` (+3): the caption after the canvas and before the sidebar on turns 1 and 2, none on turn 3, the row kept with no text in CHOOSING and REVEAL.
+  - `ScreenSettings.test.tsx` (+1): the strip after the code on token and plain Screens.
+- No new dependencies.
+
+**Decisions:** DECISIONS 49: the strip's place until the QR, the caption's phase and row, the width-based shrink, the host bar overlap, and the F29 dependency.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: the F29 note that `TurnView.number` must restart at 1 in a new game (`history` is never cleared yet), with a test to add there; this entry; the Kim check. Taglish waits for F45.
+- **mobile-ux: PASS WITH FIXES.** Applied: the caption shrinks with the square's width (a near-square Screen caps the square at 72 vw, which could have clamped the first caption's end); the F29 note. Checked rather than changed: the vertical budget (the square's height is relative to its column, not the viewport; the playtest measures 800×480). Not changed: the strip wrapping as 2 + 1 (the spec's sketch is 1 + 2; either reads fine), the `<ol>` with visible numbers, the host bar briefly over the caption (DECISIONS 49).
+
+**Notes for next session:**
+- **F27:** nothing new.
+- **F29:** a new game must restart `TurnView.number` at 1 (roadmap note), or the captions only teach game 1.
+- **F33:** the portrait Screen needs the caption under its square too (same `turnCaption`/`hasCaptionRow`).
+- **F37:** put the QR above `HowToPlay` ("under the QR").
+- **F45:** Taglish for the six F26 strings; the spec gives "I-type, 'wag isigaw! 🤫" for turn 2.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/screen.test.ts client/src/components/screen`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start): the strip is under the code. Add phones (`npm run lan CODE`) or bots (`/dev/bots/CODE`), start, and watch turns 1–3.
+- Automated: `npm run playtest -- .playtest/F26/scenario.ts` (gitignored). A TV Screen plus Mika (Pixel 7), Ben (iPhone 13) and Cara (small phone). All steps pass:
+  - the lobby's three steps;
+  - turn 1's caption, measured at 1920×1080, 1180×820, 1024×768, 1000×880 and 800×480: two lines, not clamped, under the square and above the code strip;
+  - turn 2's caption and not turn 1's; no caption on turn 3;
+  - each turn's word (dev API) absent from the Screen and guessers' text.
+  - No console errors. Screenshots: `.playtest/F26/lobby-screen.png`, `turn1-1000x880-screen.png`, `turn2-screen.png`, `turn3-screen.png`.
 
 ## F25 — Host crown and the host lobby (2026-10-30)
 **What changed:**

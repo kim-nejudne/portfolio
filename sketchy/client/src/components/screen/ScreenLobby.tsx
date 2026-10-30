@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
+import { HOW_TO_PLAY } from '../../lib/screen.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { LobbyChip } from './PlayerChip.js';
 import { PlayersDialog } from './PlayersDialog.js';
@@ -9,7 +10,8 @@ import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.j
 /**
  * The lobby on the Screen: where to join, the code, who's in, and, on the Screen holding the
  * token, Start, the settings (F22) and the crown (F25): tapping a chip offers Give host crown and
- * Kick. The QR (F37), How to play (F26) and custom words (F48) come later.
+ * Kick. Under the join details, the How to play strip (F26). The QR (F37) and custom words (F48)
+ * come later.
  */
 export function ScreenLobby({
   view,
@@ -94,6 +96,8 @@ export function ScreenLobby({
           </p>
         </section>
 
+        <HowToPlay t={t} />
+
         <ul className="flex flex-wrap items-center gap-[1.5vmin] text-[max(3.5vh,18px)]">
           {view.players.map((p) => (
             <LobbyChip
@@ -151,5 +155,29 @@ export function ScreenLobby({
         />
       )}
     </div>
+  );
+}
+
+/** Three steps, read from across the room: the whole rule, with typing (not saying) taught. */
+export function HowToPlay({ t }: { t: Translate }) {
+  return (
+    <section aria-labelledby="how-to-play" className="shrink-0">
+      <h2 id="how-to-play" className="sr-only">
+        {t('howToPlay')}
+      </h2>
+      <ol className="flex flex-wrap gap-x-[4vmin] gap-y-[1vmin] text-[max(3.5vmin,18px)]">
+        {HOW_TO_PLAY.map((step) => (
+          <li key={step.key} className="flex items-center gap-[1.5vmin]">
+            <span
+              aria-hidden="true"
+              className="grid size-[1.6em] shrink-0 place-items-center rounded-full bg-white/10"
+            >
+              {step.icon}
+            </span>
+            {t(step.key)}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
