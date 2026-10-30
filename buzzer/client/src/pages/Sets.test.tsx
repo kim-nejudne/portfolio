@@ -4,10 +4,12 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import Dexie from 'dexie';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ADMIN_SESSION_ENDED_ERROR } from '../lib/adminBuiltIns.js';
+import { resetAdminSession } from '../lib/adminSession.js';
 import { resetBuiltInSets } from '../lib/builtInSets.js';
 import { serveSeededBuiltIns } from '../test/builtIns.js';
 import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
-import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
+import { ADMIN_IMPORT_MAX_BYTES, DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
@@ -34,6 +36,8 @@ const OWN: QuestionSet = {
 
 beforeEach(async () => {
   serveSeededBuiltIns();
+  // Not signed in as admin, without asking a server (F106 tests sign in).
+  resetAdminSession({ kind: 'signedOut' });
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   // Stored pictures must survive fake-indexeddb's clone (see nodeBlob.ts).
   vi.stubGlobal('Blob', NodeBlob);
@@ -45,6 +49,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   resetBuiltInSets();
+  resetAdminSession();
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -295,6 +300,27 @@ describe('Set list tabs', () => {
     expect(buttonsWithoutHover()).toEqual([]);
   });
 });
+
+/** Captures what Export JSON downloads: the file name and its text. */
+function captureDownloads() {
+  const downloads: { name: string; text: Promise<string> }[] = [];
+  const blobs = new Map<string, Blob>();
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: (blob: Blob) => {
+      const url = `blob:test/${blobs.size}`;
+      blobs.set(url, blob);
+      return url;
+    },
+    revokeObjectURL: vi.fn(),
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    downloads.push({ name: this.download, text: blobs.get(this.href)!.text() });
+  });
+  return downloads;
+}
 
 describe("Built-in tab from the server's list (F104)", () => {
   /** A built-in set only the server has: a starter's questions under a new title. */
@@ -613,27 +639,6 @@ describe('Set list /sets, My sets', () => {
   });
 
   describe('Import and export JSON', () => {
-    /** Captures what Export JSON downloads: the file name and its text. */
-    function captureDownloads() {
-      const downloads: { name: string; text: Promise<string> }[] = [];
-      const blobs = new Map<string, Blob>();
-      vi.stubGlobal('URL', {
-        ...URL,
-        createObjectURL: (blob: Blob) => {
-          const url = `blob:test/${blobs.size}`;
-          blobs.set(url, blob);
-          return url;
-        },
-        revokeObjectURL: vi.fn(),
-      });
-      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
-        this: HTMLAnchorElement,
-      ) {
-        downloads.push({ name: this.download, text: blobs.get(this.href)!.text() });
-      });
-      return downloads;
-    }
-
     function chooseFile(text: string, name = 'quiz.json', size?: number) {
       const file = new File([text], name, { type: 'application/json' });
       if (size !== undefined) Object.defineProperty(file, 'size', { value: size });
@@ -1005,5 +1010,192 @@ describe('Set list /sets, header and tabs (F94)', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe('Too many rooms');
     expect(alert.className).toContain('fixed');
+  });
+});
+
+describe('Admin tools on the Built-in tab (F106)', () => {
+  const SERVER_SET: QuestionSet = { ...STARTER_SETS[2]!, id: 'server-quiz', title: 'Server quiz' };
+  const NEW_SET: QuestionSet = { ...STARTER_SETS[3]!, id: 'new-quiz', title: 'New quiz' };
+  const IMPORTED = {
+    added: 1,
+    replaced: 1,
+    rejected: [{ label: 'Set 3 “Broken”', errors: ['Title: Too small'] }],
+  };
+
+  /**
+   * A fake server with the built-ins and the admin routes. An import adds `NEW_SET` and answers
+   * `IMPORTED`; `failWith` answers every admin write with that status.
+   */
+  function serveAdmin({ failWith }: { failWith?: number } = {}) {
+    resetBuiltInSets();
+    let sets = [SERVER_SET];
+    let sampleHidden = false;
+    const fetch = vi.fn(async (url: string, init: RequestInit = {}) => {
+      const method = init.method ?? 'GET';
+      if (url === '/api/built-in-sets') return Response.json({ sets, sampleHidden });
+      if (failWith !== undefined && method !== 'GET') {
+        return Response.json({ ok: false, error: 'Nope' }, { status: failWith });
+      }
+      if (url === '/api/admin/built-in-sets/import') {
+        sets = [...sets, NEW_SET];
+        return Response.json(IMPORTED);
+      }
+      if (url === '/api/admin/sample-hidden') {
+        sampleHidden = (JSON.parse(init.body as string) as { hidden: boolean }).hidden;
+        return Response.json({ sampleHidden });
+      }
+      if (url === '/api/admin/built-in-sets/export') {
+        return new Response(JSON.stringify({ sets }), {
+          headers: {
+            'content-type': 'application/json',
+            'content-disposition': 'attachment; filename="buzzr-built-ins-2023-11-14.json"',
+          },
+        });
+      }
+      const deleted = /^\/api\/admin\/built-in-sets\/(.+)$/.exec(url);
+      if (deleted && method === 'DELETE') {
+        sets = sets.filter((s) => s.id !== deleted[1]);
+        return Response.json({ ok: true });
+      }
+      return Response.json({ ok: false, error: 'Not found.' }, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetch);
+    return fetch;
+  }
+
+  const signIn = () => resetAdminSession({ kind: 'signedIn', expiresAt: FIRST_VISIT + 3_600_000 });
+  const tools = () => screen.queryByRole('group', { name: 'Admin tools' });
+  /** The admin requests the page sent: method and path. */
+  const adminCalls = (fetch: ReturnType<typeof serveAdmin>) =>
+    fetch.mock.calls
+      .filter(([url]) => url.startsWith('/api/admin'))
+      .map(([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${url}`);
+  const menuItems = async (title: string) =>
+    (await openMenu(title)).getAllByRole('menuitem').map((item) => item.textContent);
+
+  it('signed out, the tab is as in F104: no admin tools and no Delete', async () => {
+    serveAdmin();
+    renderSets();
+    await card(SERVER_SET.title);
+    expect(tools()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Import to built-ins' })).toBeNull();
+    expect(await menuItems(SERVER_SET.title)).toEqual(['Duplicate to My sets']);
+  });
+
+  it('signed in, the tab shows Import, Export and Hide sample, and Delete on server sets only', async () => {
+    serveAdmin();
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    const row = within(tools()!);
+    for (const name of ['Import to built-ins', 'Export built-ins', 'Hide sample']) {
+      expect(row.getByRole('button', { name })).toBeTruthy();
+    }
+    expect(await menuItems(SERVER_SET.title)).toEqual(['Duplicate to My sets', 'Delete']);
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    // The sample is bundled: it is hidden, not deleted.
+    expect(await menuItems(SAMPLE_SET.title)).toEqual(['Duplicate to My sets']);
+  });
+
+  it('Import to built-ins sends the file, shows the result line and the rejected sets, and refreshes the list', async () => {
+    const fetch = serveAdmin();
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    const text = JSON.stringify({ sets: [NEW_SET, SERVER_SET] });
+    fireEvent.change(screen.getByTestId('import-built-ins-file'), {
+      target: { files: [new File([text], 'more.json', { type: 'application/json' })] },
+    });
+    expect((await screen.findByRole('status')).textContent).toBe(
+      'Built-ins from more.json: 1 added, 1 replaced, 1 rejected.',
+    );
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Rejected from more.json:');
+    expect(within(alert).getByRole('list', { name: 'Set 3 “Broken”' }).textContent).toBe(
+      'Title: Too small',
+    );
+    const posted = fetch.mock.calls.find(([url]) => url === '/api/admin/built-in-sets/import')!;
+    expect((posted[1] as RequestInit).body).toBe(text);
+    await card(NEW_SET.title);
+    expect(cardTitles()).toEqual([SAMPLE_SET.title, SERVER_SET.title, NEW_SET.title]);
+  });
+
+  it(`refuses a file over ${ADMIN_IMPORT_MAX_BYTES / 1024 / 1024} MB without sending it`, async () => {
+    const fetch = serveAdmin();
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    const file = new File(['{}'], 'huge.json', { type: 'application/json' });
+    Object.defineProperty(file, 'size', { value: ADMIN_IMPORT_MAX_BYTES + 1 });
+    fireEvent.change(screen.getByTestId('import-built-ins-file'), { target: { files: [file] } });
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Couldn't import huge.json: the file is larger than 2 MB.",
+    );
+    expect(adminCalls(fetch)).toEqual([]);
+  });
+
+  it('Delete then Confirm delete removes a server set and the list refreshes', async () => {
+    const fetch = serveAdmin();
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    await chooseInMenu(SERVER_SET.title, 'Delete');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Confirm delete' }));
+    expect(await toast()).toBe('Deleted “Server quiz” from the built-ins.');
+    await waitFor(() => expect(cardTitles()).toEqual([SAMPLE_SET.title]));
+    expect(adminCalls(fetch)).toEqual(['DELETE /api/admin/built-in-sets/server-quiz']);
+  });
+
+  it('Hide sample hides it from the list, and Show sample brings it back', async () => {
+    const fetch = serveAdmin();
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide sample' }));
+    await waitFor(() => expect(cardTitles()).toEqual([SERVER_SET.title]));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show sample' }));
+    await waitFor(() => expect(cardTitles()).toEqual([SAMPLE_SET.title, SERVER_SET.title]));
+    expect(screen.getByRole('button', { name: 'Hide sample' })).toBeTruthy();
+    const bodies = fetch.mock.calls
+      .filter(([url]) => url === '/api/admin/sample-hidden')
+      .map(([, init]) => JSON.parse((init as RequestInit).body as string) as unknown);
+    expect(bodies).toEqual([{ hidden: true }, { hidden: false }]);
+  });
+
+  it("Export built-ins downloads the server's file under the server's name", async () => {
+    serveAdmin();
+    signIn();
+    const downloads = captureDownloads();
+    renderSets();
+    await card(SERVER_SET.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Export built-ins' }));
+    expect((await screen.findByRole('status')).textContent).toBe(
+      'Exported the built-ins to buzzr-built-ins-2023-11-14.json.',
+    );
+    expect(downloads.map((d) => d.name)).toEqual(['buzzr-built-ins-2023-11-14.json']);
+    expect(JSON.parse(await downloads[0]!.text)).toEqual({ sets: [SERVER_SET] });
+  });
+
+  it('a 401 says the session ended and hides the admin tools', async () => {
+    serveAdmin({ failWith: 401 });
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide sample' }));
+    expect(await toast('alert')).toBe(ADMIN_SESSION_ENDED_ERROR);
+    await waitFor(() => expect(tools()).toBeNull());
+    expect(cardTitles()).toEqual([SAMPLE_SET.title, SERVER_SET.title]);
+  });
+
+  it("another failure shows the server's message and keeps the list", async () => {
+    serveAdmin({ failWith: 500 });
+    signIn();
+    renderSets();
+    await card(SERVER_SET.title);
+    await chooseInMenu(SERVER_SET.title, 'Delete');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Confirm delete' }));
+    expect(await toast('alert')).toBe('Nope');
+    expect(tools()).not.toBeNull();
+    expect(cardTitles()).toEqual([SAMPLE_SET.title, SERVER_SET.title]);
   });
 });

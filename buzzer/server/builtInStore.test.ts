@@ -2,6 +2,7 @@ import { mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SAMPLE_SET_ID } from '../shared/sampleSet.js';
 import { STARTER_SETS } from '../shared/starterSets/index.js';
 import { BUILT_IN_FILE, openBuiltInStore, type BuiltInFs } from './builtInStore.js';
 import { makeSet } from './test/rooms.js';
@@ -112,6 +113,19 @@ describe('openBuiltInStore', () => {
       JSON.stringify({ version: 1, sets: [set], drafts: {}, sampleHidden: false }),
     );
     await expect(openBuiltInStore(dir)).rejects.toThrow(/cannot have pictures/);
+  });
+
+  it("refuses a set with the bundled sample's id (F106)", async () => {
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        sets: [{ ...makeSet(), id: SAMPLE_SET_ID }],
+        drafts: {},
+        sampleHidden: false,
+      }),
+    );
+    await expect(openBuiltInStore(dir)).rejects.toThrow(/bundled sample's id/);
   });
 
   it('reports a DATA_DIR it cannot write', async () => {

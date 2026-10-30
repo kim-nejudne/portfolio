@@ -166,7 +166,7 @@ export function createApp({
     '/api/admin',
     adminPassword === null
       ? (_req, res) => sendError(res, 404, 'Not found.')
-      : adminRoutes(adminPassword, adminSessions, adminLoginLimiter, clock),
+      : adminRoutes(adminPassword, adminSessions, adminLoginLimiter, clock, builtIns),
   );
 
   // Every attempt counts against the limit, valid or not, so bad bodies cannot be used to probe for free.

@@ -134,6 +134,10 @@ export const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
 export const ADMIN_SESSION_BYTES = 32;
 /** Longest admin password the login reads, so a huge body cannot make scrypt hash it. */
 export const ADMIN_PASSWORD_MAX = 1024;
+/** The largest file **Import to built-ins** sends (F106). Built-ins are text only, so 2 MB is ample. */
+export const ADMIN_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+/** The most built-in sets the server keeps. An import past it is refused set by set (F106). */
+export const BUILT_IN_SETS_MAX = 500;
 /** The Screen's pairing QR hides itself after this long. */
 export const PAIRING_QR_TTL_MS = 60 * 1000;
 /** A pairing PIN: this many digits, valid as long as the QR shows, used once (F70). */

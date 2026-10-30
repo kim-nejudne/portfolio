@@ -10,6 +10,43 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F106 — Admin import, delete, hide sample, export (2026-10-30)
+**What changed:**
+- Shared: `ADMIN_IMPORT_MAX_BYTES` (2 MB), `BUILT_IN_SETS_MAX` (500), `AdminImportResponse` / `RejectedSet`, `sampleHiddenBodySchema`. New `shared/setFile.ts` holds `fillFromTitle`, `describePath` and `entryLabel`, moved from `client/src/lib/importExport.ts` (which re-exports `fillFromTitle`).
+- Server:
+  - New `server/builtInImport.ts`: `fileEntries` (one set, `{sets}` or an array) and the pure `importBuiltIns(data, entries)`. It replaces or appends, and refuses pictures, the sample's id, an id repeated in the file, and a new set past 500.
+  - `adminRoutes` takes `builtIns` and serves `POST /built-in-sets/import`, `DELETE /built-in-sets/:id` (the set and its draft), `PUT /sample-hidden` and `GET /built-in-sets/export` (`buzzr-built-ins-YYYY-MM-DD.json`, `{sets}`). All are behind `requireAdmin`, and the writes behind `requireWrite` as well. Body errors get readable 400/413s.
+  - `builtInFileSchema` also refuses the sample's id.
+- Client:
+  - `refreshBuiltInSets()` makes every `useBuiltInSets` fetch again, keeping the old list on screen meanwhile.
+  - New `lib/adminBuiltIns.ts`: `importToBuiltIns`, `deleteBuiltIn`, `setSampleHidden` and `exportBuiltIns`. A 401 calls `adminSessionEnded()`.
+  - `adminSession.ts` exports `adminWrite` and `errorFrom`, and `resetAdminSession(next?)`.
+  - `Sets.tsx`: signed in, the Built-in tab gets an "Admin:" row (Import to built-ins, Export built-ins, Hide/Show sample) and Delete with confirm in each server set's menu. Results reuse the page's notice and import-error list.
+- Tests:
+  - New `builtInImport.test.ts` (11).
+  - `http.admin.test.ts` +14: add and replace, a single set and an array, pictures, the 500 cap, 400 and 413, delete and 404, hide and show, the export round trip, 401 on all four, Origin and type, and 404 without a store.
+  - `builtInStore.test.ts` +1, `builtInSets.test.ts` +1.
+  - `Sets.test.tsx` +9: signed out as F104, the toolbar, import with the result line, the over-2 MB file, delete, hide and show, export, a 401, and a 500.
+  - 2767 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-10-30 for F106 (the import's rules; the sample id; delete, hide and export; the client).
+
+**Notes for next session:**
+- **F107 (draft editor and Publish):** add an **Edit** item next to Delete in `Sets.tsx`'s Built-in menu (`isAdmin && set.id !== SAMPLE_SET_ID`). Call `refreshBuiltInSets()` after a publish. Decide whether an import should drop a replaced set's draft; it keeps it now.
+- Every `/sets` visit sends `GET /api/admin/session`. On a server without a hash that is a 404, and signed out it is a 401; both show as console errors. This is the cost of keeping admin mode across a reload (DECISIONS).
+- `DELETE` needs `content-type: application/json` (F105's write check), so `curl -X DELETE` needs `-H 'content-type: application/json' -H 'origin: …'`.
+- Review: no Must-fix. I fixed its Should-fixes: the DECISIONS rows, the inferred `sampleHidden` (now enforced by the file schema), and I ran `smoke:docker` (PASS). The messages without a full stop ("The file has no sets") match F102's client text, so I kept them.
+- Main `index` chunk 560.23 → 560.51 kB. The `Admin` chunk went from 4.4 to 3.0 kB because `adminSession` is now shared with `Sets`.
+- Playtest (Playwright, :5173, a throwaway hash and a scratchpad `DATA_DIR`):
+  - Signed out: no tools, and 401s.
+  - A single set, `{sets}` and an array imported. A replace showed the new title. Pictures and the 500 cap were refused.
+  - The export was `buzzr-built-ins-2026-10-30.json`, and re-importing it gave 64 replaced and 0 added.
+  - Hide and Show toggled, and the count changed. UI Delete with confirm took the count from 499 to 498.
+  - A UI import showed "Built-ins from import.json: 1 added, 0 replaced, 1 rejected." and the rejected list.
+  - The admin row's layout at 375 px was not screenshotted. It is a `flex-wrap` row of small buttons.
+
+**How to try it:** `H=$(npm run -s admin:hash)`, then `ADMIN_PASSWORD_HASH="$H" npm run dev`. Sign in at `http://localhost:5173/admin`, then **Question sets**, then the **Built-in** tab. `npm test -- server/builtInImport.test.ts server/http.admin.test.ts client/src/pages/Sets.test.tsx`.
+
 ## F105 — Admin login (2026-10-30)
 **What changed:**
 - `ADMIN_PASSWORD_HASH` (`scrypt$N$r$p$salt$hash`, base64url salt and key): `parseAdminPasswordHash` in `env.ts`. A malformed value stops the server, and so do costs over 64 MB per sign-in. `npm run admin:hash` (`scripts/admin-hash.mjs`) asks twice with echo off on a TTY, or reads the first piped line. It prints only the hash (N 2^15, r 8, p 1).

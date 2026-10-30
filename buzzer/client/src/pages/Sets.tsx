@@ -8,6 +8,8 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { ADMIN_IMPORT_MAX_BYTES } from '../../../shared/constants.js';
+import { SAMPLE_SET_ID } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { BuiltInSetsError } from '../components/BuiltInSetsError.js';
 import { GameBuilder } from '../components/GameBuilder.js';
@@ -33,6 +35,13 @@ import {
   BUTTON_SMALL,
   LINK,
 } from '../lib/ui.js';
+import {
+  deleteBuiltIn,
+  exportBuiltIns,
+  importToBuiltIns,
+  setSampleHidden,
+} from '../lib/adminBuiltIns.js';
+import { useAdminSession } from '../lib/adminSession.js';
 import { useBuiltInSets } from '../lib/builtInSets.js';
 import { hostSet } from '../lib/hostRoom.js';
 import {
@@ -104,12 +113,15 @@ export function Sets() {
   const [exportSkipped, setExportSkipped] = useState<ExportAll['skipped']>([]);
   const [lastExport, setLastExport] = useState(loadLastExport);
   const fileInput = useRef<HTMLInputElement>(null);
+  const builtInFileInput = useRef<HTMLInputElement>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
   const [building, setBuilding] = useState(false);
   const { toast, show } = useToast();
   const feedbackRef = useRef<HTMLDivElement>(null);
   const builtIns = useBuiltInSets();
   const builtInSets = builtIns.kind === 'ready' ? builtIns.sets : null;
+  // Signed in at `/admin`, the Built-in tab gains the admin's tools (F106).
+  const isAdmin = useAdminSession().kind === 'signedIn';
   // One array per load, so the builder's category list and counts aren't redone on every render.
   // Without the built-ins, the builder still draws from My sets.
   const sources = useMemo(() => [...(sets ?? []), ...(builtInSets ?? [])], [sets, builtInSets]);
@@ -287,6 +299,46 @@ export function Sets() {
       setHostedCode(await hostSet(set));
     });
 
+  // The admin's tools: each change is live at once, and the Built-in list fetches again (F106).
+  const importBuiltInFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    void act(async () => {
+      if (file.size > ADMIN_IMPORT_MAX_BYTES) {
+        const limit = ADMIN_IMPORT_MAX_BYTES / 1024 / 1024;
+        throw new Error(`Couldn't import ${file.name}: the file is larger than ${limit} MB.`);
+      }
+      const { added, replaced, rejected } = await importToBuiltIns(await file.text());
+      setNotice(
+        `Built-ins from ${file.name}: ${added} added, ${replaced} replaced, ${rejected.length} rejected.`,
+      );
+      if (rejected.length > 0) {
+        const shown: ImportProblem[] = rejected.slice(0, IMPORT_ERRORS_SHOWN);
+        if (rejected.length > shown.length) {
+          shown.push(`…and ${setCount(rejected.length - shown.length)} more.`);
+        }
+        setImportErrors({ heading: `Rejected from ${file.name}:`, problems: shown });
+      }
+    });
+  };
+  const exportBuiltInFile = () =>
+    act(async () => {
+      const { text, fileName } = await exportBuiltIns();
+      download(text, fileName);
+      setNotice(`Exported the built-ins to ${fileName}.`);
+    });
+  const toggleSample = (hidden: boolean) =>
+    cardAct(async () => {
+      await setSampleHidden(hidden);
+      return hidden ? 'The sample is hidden.' : 'The sample is shown.';
+    });
+  const removeBuiltIn = (set: QuestionSet) =>
+    cardAct(async () => {
+      await deleteBuiltIn(set.id);
+      return `Deleted “${set.title}” from the built-ins.`;
+    });
+
   /** Arrow keys move between the tabs, as in the ARIA tabs pattern. */
   function onTabKey(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -362,6 +414,14 @@ export function Sets() {
             onChange={importFile}
             hidden
             data-testid="import-file"
+          />
+          <input
+            ref={builtInFileInput}
+            type="file"
+            accept="application/json,.json"
+            onChange={importBuiltInFile}
+            hidden
+            data-testid="import-built-ins-file"
           />
         </div>
       </div>
@@ -485,37 +545,59 @@ export function Sets() {
                   ) : builtIns.kind === 'failed' ? (
                     <BuiltInSetsError onRetry={builtIns.retry} />
                   ) : (
-                    <SetBrowser
-                      key="builtIn"
-                      mode="actions"
-                      id="built-in"
-                      sets={builtIns.sets}
-                      detail={(set) => setDetail(set, false)}
-                      // A built-in set is read-only, so its title opens the preview.
-                      cardTitle={(set) => (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewing(set)}
-                          className={TITLE_LINK}
-                        >
-                          {set.title}
-                        </button>
-                      )}
-                      actions={(set) => (
-                        <CardActions
-                          set={set}
+                    <>
+                      {isAdmin && (
+                        <AdminTools
                           busy={busy}
-                          onHost={(chosen) => void host(chosen)}
-                          onPreview={setPreviewing}
-                          menu={[
-                            {
-                              label: 'Duplicate to My sets',
-                              onSelect: () => void duplicateToMine(set),
-                            },
-                          ]}
+                          // Server sets never take the sample's id, so the sample is shown exactly when listed.
+                          sampleHidden={!builtIns.sets.some((s) => s.id === SAMPLE_SET_ID)}
+                          onImport={() => builtInFileInput.current?.click()}
+                          onExport={() => void exportBuiltInFile()}
+                          onToggleSample={(hidden) => void toggleSample(hidden)}
                         />
                       )}
-                    />
+                      <SetBrowser
+                        key="builtIn"
+                        mode="actions"
+                        id="built-in"
+                        sets={builtIns.sets}
+                        detail={(set) => setDetail(set, false)}
+                        // A built-in set is read-only, so its title opens the preview.
+                        cardTitle={(set) => (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewing(set)}
+                            className={TITLE_LINK}
+                          >
+                            {set.title}
+                          </button>
+                        )}
+                        actions={(set) => (
+                          <CardActions
+                            set={set}
+                            busy={busy}
+                            onHost={(chosen) => void host(chosen)}
+                            onPreview={setPreviewing}
+                            menu={[
+                              {
+                                label: 'Duplicate to My sets',
+                                onSelect: () => void duplicateToMine(set),
+                              },
+                              // The sample is bundled: the admin hides it rather than deleting it.
+                              ...(isAdmin && set.id !== SAMPLE_SET_ID
+                                ? [
+                                    {
+                                      label: 'Delete',
+                                      confirmLabel: 'Confirm delete',
+                                      onSelect: () => void removeBuiltIn(set),
+                                    },
+                                  ]
+                                : []),
+                            ]}
+                          />
+                        )}
+                      />
+                    </>
                   )
                 ) : sets.length === 0 ? (
                   <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
@@ -607,6 +689,45 @@ export function Sets() {
       )}
       <Toast toast={toast} />
     </>
+  );
+}
+
+/** The admin's row above the Built-in list (F106), as My sets has its export row (LIB-03). */
+function AdminTools({
+  busy,
+  sampleHidden,
+  onImport,
+  onExport,
+  onToggleSample,
+}: {
+  busy: boolean;
+  sampleHidden: boolean;
+  onImport: () => void;
+  onExport: () => void;
+  onToggleSample: (hidden: boolean) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Admin tools"
+      className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-muted"
+    >
+      <p>Admin:</p>
+      <button type="button" onClick={onImport} disabled={busy} className={BUTTON_SMALL}>
+        Import to built-ins
+      </button>
+      <button type="button" onClick={onExport} disabled={busy} className={BUTTON_SMALL}>
+        Export built-ins
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggleSample(!sampleHidden)}
+        disabled={busy}
+        className={BUTTON_SMALL}
+      >
+        {sampleHidden ? 'Show sample' : 'Hide sample'}
+      </button>
+    </div>
   );
 }
 

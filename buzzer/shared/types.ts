@@ -607,6 +607,24 @@ export interface AdminLoginBody {
   password: string;
 }
 
+/** One set an admin import refused: "Set 2 “Pub quiz”" and why (F106). */
+export interface RejectedSet {
+  label: string;
+  errors: string[];
+}
+
+/** `POST /api/admin/built-in-sets/import`: how many sets went live as new or as replacements. */
+export interface AdminImportResponse {
+  added: number;
+  replaced: number;
+  rejected: RejectedSet[];
+}
+
+/** Body of `PUT /api/admin/sample-hidden` (F106). */
+export interface SampleHiddenBody {
+  hidden: boolean;
+}
+
 /** `POST /api/admin/login` and `GET /api/admin/session` when signed in: when the session ends, epoch ms. */
 export interface AdminSessionResponse {
   expiresAt: number;

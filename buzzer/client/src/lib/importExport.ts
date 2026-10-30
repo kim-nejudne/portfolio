@@ -4,15 +4,15 @@
 // bare array of set files (the starter file shape, F102).
 
 import { z } from 'zod';
-import {
-  IMAGE_MAX_BYTES,
-  MAX_QUESTIONS_PER_SET,
-  SET_CATEGORY_MAX,
-} from '../../../shared/constants.js';
+import { IMAGE_MAX_BYTES, MAX_QUESTIONS_PER_SET } from '../../../shared/constants.js';
 import { idSchema, questionSetSchema } from '../../../shared/schemas.js';
-import type { Difficulty, QuestionSet } from '../../../shared/types.js';
+import { describePath, entryLabel, fillFromTitle } from '../../../shared/setFile.js';
+import type { QuestionSet } from '../../../shared/types.js';
 import type { StoredImage } from './db.js';
 import { checkPlayable } from './hostRoom.js';
+
+// The title rule now lives in `shared/`, so the server's built-in import uses it too (F106).
+export { fillFromTitle };
 
 /** Import lists at most this many errors, then "…and N more." */
 export const IMPORT_ERRORS_SHOWN = 10;
@@ -175,23 +175,6 @@ export async function exportAllFile(
   return { text: head + entries.join(',\n') + tail, exported: entries.length, skipped };
 }
 
-/** "schemaVersion" → "Schema version". */
-function sentenceCase(key: string): string {
-  const words = key.replace(/([A-Z])/g, ' $1').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/** A zod issue path as the host reads it: "Question 3 › answer", "Image img-1", "Title". */
-function describePath(path: readonly PropertyKey[]): string {
-  const [first, second, ...rest] = path.map(String);
-  if (first === undefined) return 'File';
-  if (first === 'questions' && typeof path[1] === 'number') {
-    return [`Question ${(path[1] as number) + 1}`, ...rest].join(' › ');
-  }
-  if (first === 'images' && second !== undefined) return [`Image ${second}`, ...rest].join(' › ');
-  return [sentenceCase(first), ...(second === undefined ? [] : [second]), ...rest].join(' › ');
-}
-
 /** The first `IMPORT_ERRORS_SHOWN` errors, then "…and N more." */
 function capErrors(errors: string[]): string[] {
   const shown = errors.slice(0, IMPORT_ERRORS_SHOWN);
@@ -241,26 +224,6 @@ function parseSetValue(json: unknown): ParsedSetFile {
   return { ok: true, set, images: [...images.values()] };
 }
 
-/** "Animals – Easy", "Animals - easy", "Animals — EASY": the topic, then the level (F102). */
-const TITLE_LEVEL = /^(.+?)\s+[–—-]\s+(easy|medium|hard)$/i;
-
-/**
- * A set with neither `category` nor `difficulty` gets both from a "<topic> – <level>" title, the
- * starter files' naming (F102). The category is left off when the topic is longer than allowed.
- */
-export function fillFromTitle(set: QuestionSet): QuestionSet {
-  if (set.category !== undefined || set.difficulty !== undefined) return set;
-  const match = TITLE_LEVEL.exec(set.title.trim());
-  if (!match) return set;
-  const category = match[1]!.trim();
-  const difficulty = match[2]!.toLowerCase() as Difficulty;
-  // SPEC-QUESTION: the spec has no title rule; a topic too long for a category keeps only the level
-  // (DECISIONS F102).
-  return category.length <= SET_CATEGORY_MAX
-    ? { ...set, category, difficulty }
-    : { ...set, difficulty };
-}
-
 const manyFileSchema = z.object({
   sets: z.array(z.unknown()).min(1, 'The file has no sets'),
 });
@@ -269,14 +232,6 @@ export type ParsedImportFile =
   | { kind: 'one'; parsed: ParsedSetFile }
   | { kind: 'many'; sets: { label: string; parsed: ParsedSetFile }[] }
   | { kind: 'bad'; errors: string[] };
-
-/** 'Set 2 “Pub quiz”', or 'Set 2' when the entry has no usable title. */
-function entryLabel(entry: unknown, index: number): string {
-  const title = (entry as { title?: unknown } | null)?.title;
-  return typeof title === 'string' && title.trim() !== ''
-    ? `Set ${index + 1} “${title.trim()}”`
-    : `Set ${index + 1}`;
-}
 
 /**
  * Reads a single-set file, an **Export all** file (an object with `sets` and no `questions`), or a

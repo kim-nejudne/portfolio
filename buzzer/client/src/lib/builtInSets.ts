@@ -47,6 +47,17 @@ export function resetBuiltInSets(next?: BuiltInSetsResponse): void {
   pending = next ? Promise.resolve(builtInList(next)) : null;
 }
 
+const refreshListeners = new Set<() => void>();
+
+/**
+ * After an admin change (F106): forgets the list and has every `useBuiltInSets` fetch it again.
+ * Each keeps showing the old list until the new one arrives, so a list keeps its search and scroll.
+ */
+export function refreshBuiltInSets(): void {
+  resetBuiltInSets();
+  for (const listener of refreshListeners) listener();
+}
+
 export type BuiltInSetsState =
   | { kind: 'loading' }
   | { kind: 'failed'; retry: () => void }
@@ -55,10 +66,20 @@ export type BuiltInSetsState =
 /** The built-in sets for a component: loading, then the list, or a failure with `retry`. */
 export function useBuiltInSets(): BuiltInSetsState {
   const [attempt, setAttempt] = useState(0);
+  // Bumped by `refreshBuiltInSets`. Unlike a retry, it shows the last list, not loading, meanwhile.
+  const [version, setVersion] = useState(0);
   const [result, setResult] = useState<{
     attempt: number;
     sets: readonly QuestionSet[] | null;
   } | null>(null);
+
+  useEffect(() => {
+    const listener = () => setVersion((n) => n + 1);
+    refreshListeners.add(listener);
+    return () => {
+      refreshListeners.delete(listener);
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -69,7 +90,7 @@ export function useBuiltInSets(): BuiltInSetsState {
     return () => {
       live = false;
     };
-  }, [attempt]);
+  }, [attempt, version]);
 
   // A retry shows loading until its own answer, not the last attempt's failure.
   if (result === null || result.attempt !== attempt) return { kind: 'loading' };

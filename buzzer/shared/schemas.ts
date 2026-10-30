@@ -50,6 +50,7 @@ import type {
   Question,
   QuestionSet,
   RoomSettings,
+  SampleHiddenBody,
 } from './types.js';
 
 // ---------- Building blocks ----------
@@ -253,6 +254,8 @@ export const adminLoginBodySchema = z.object({
   password: z.string().min(1).max(ADMIN_PASSWORD_MAX),
 });
 
+export const sampleHiddenBodySchema = z.object({ hidden: z.boolean() });
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -329,4 +332,5 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof newGameBodySchema>, NewGameBody>>,
   Assert<Equals<z.infer<typeof pairBodySchema>, PairBody>>,
   Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
+  Assert<Equals<z.infer<typeof sampleHiddenBodySchema>, SampleHiddenBody>>,
 ];

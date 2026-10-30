@@ -6,6 +6,7 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { SAMPLE_SET_ID } from '../shared/sampleSet.js';
 import { idSchema, questionSetSchema } from '../shared/schemas.js';
 import { STARTER_SETS } from '../shared/starterSets/index.js';
 import type { QuestionSet } from '../shared/types.js';
@@ -23,6 +24,11 @@ export const builtInFileSchema = z.object({
     // Server built-ins are text only: their pictures would have nowhere to live.
     .refine((sets) => sets.every((s) => s.questions.every((q) => q.imageId === undefined)), {
       message: 'Built-in sets cannot have pictures',
+    })
+    // The bundled sample's pictures are found by its id, and the Built-in tab reads "the sample is
+    // listed" as "the sample is shown" (F106), so no server set may take it.
+    .refine((sets) => sets.every((s) => s.id !== SAMPLE_SET_ID), {
+      message: "No built-in set may take the bundled sample's id",
     }),
   drafts: z.record(idSchema, z.unknown()),
   sampleHidden: z.boolean(),

@@ -12,7 +12,7 @@ export type AdminSessionState =
   | { kind: 'signedOut' }
   | { kind: 'signedIn'; expiresAt: number };
 
-const UNREACHABLE = 'Could not reach the server. Check your connection and try again.';
+export const UNREACHABLE = 'Could not reach the server. Check your connection and try again.';
 
 // One state for the page's life, shared by every component that asks, like the built-in list.
 let state: AdminSessionState = { kind: 'loading' };
@@ -58,20 +58,30 @@ function check(): void {
   );
 }
 
-/** A same-origin JSON POST, as every admin write must be. */
-async function adminPost(path: string, body: unknown): Promise<Response> {
+/**
+ * A same-origin JSON write, as every admin write must be. `body` is sent as is when it is already
+ * text (an import file). Throws a readable Error when the server cannot be reached.
+ */
+export async function adminWrite(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body: unknown,
+): Promise<Response> {
   try {
     return await fetch(`/api/admin${path}`, {
-      method: 'POST',
+      method,
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: typeof body === 'string' ? body : JSON.stringify(body),
     });
   } catch {
     throw new Error(UNREACHABLE);
   }
 }
 
-async function errorFrom(response: Response, fallback: string): Promise<Error> {
+const adminPost = (path: string, body: unknown) => adminWrite('POST', path, body);
+
+/** The server's `{error}` as an Error, or `fallback (status).` when the body has none. */
+export async function errorFrom(response: Response, fallback: string): Promise<Error> {
   const data = (await response.json().catch(() => null)) as HttpErrorBody | null;
   return new Error(data?.error ?? `${fallback} (${response.status}).`);
 }
@@ -123,9 +133,12 @@ export function useAdminSession(): AdminSessionState & { retry: () => void } {
   };
 }
 
-/** Forgets the session state, as a new page load would. For tests. */
-export function resetAdminSession(): void {
+/**
+ * Forgets the session state, as a new page load would, or with `next`, stands it in for the check
+ * (tests).
+ */
+export function resetAdminSession(next?: AdminSessionState): void {
   clearTimeout(expiryTimer);
-  state = { kind: 'loading' };
+  state = next ?? { kind: 'loading' };
   checking = false;
 }

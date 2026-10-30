@@ -280,17 +280,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F105 Admin login
 
-- [ ] F106 Admin import, delete, hide sample, export
-  - Spec: Set list `/sets`; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
-  - Depends: F104, F105
-  - Done when:
-    - `POST /api/admin/built-in-sets/import` takes a single set, `{sets}` or a bare array (as F102), up to `ADMIN_IMPORT_MAX_BYTES` (2 MB); each good set goes live at once, replacing a set with its id or appending; a set with an `imageId` or past `BUILT_IN_SETS_MAX` (500) is rejected; it returns `{added, replaced, rejected}`
-    - `DELETE /api/admin/built-in-sets/:id` removes the live set and its draft
-    - `PUT /api/admin/sample-hidden {hidden}`
-    - `GET /api/admin/built-in-sets/export` downloads `buzzr-built-ins-YYYY-MM-DD.json` as `{sets: [...]}`, which re-imports as is
-    - Signed in, the Built-in tab shows **Import to built-ins** (with a result line), **Export built-ins**, **Hide sample** / **Show sample**, and per set **Delete** with confirm; the list refreshes after each
-    - Signed out, the tab looks as in F104
-  - Tests: `server/http.admin.test.ts` (add vs replace, image and limit rejections, 401 without a session, export round trip), `Sets.test.tsx` (admin toolbar)
+- [x] F106 Admin import, delete, hide sample, export
 
 - [ ] F107 Edit built-ins with draft and publish
   - Spec: Set editor; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)

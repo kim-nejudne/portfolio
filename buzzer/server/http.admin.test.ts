@@ -1,18 +1,30 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ADMIN_COOKIE,
+  ADMIN_IMPORT_MAX_BYTES,
   ADMIN_LOGIN_RATE_LIMIT,
   ADMIN_RATE_LIMITED_ERROR,
   ADMIN_SESSION_MS,
   ADMIN_WRONG_PASSWORD_ERROR,
+  BUILT_IN_SETS_MAX,
 } from '../shared/constants.js';
-import type { AdminSessionResponse, HttpErrorBody } from '../shared/types.js';
+import type {
+  AdminImportResponse,
+  AdminSessionResponse,
+  BuiltInSetsResponse,
+  HttpErrorBody,
+  QuestionSet,
+} from '../shared/types.js';
+import { BUILT_IN_FILE, openBuiltInStore, type BuiltInStore } from './builtInStore.js';
 import { parseAdminPasswordHash } from './env.js';
 import { createApp, type AppOptions } from './http.js';
 import { adminHashFor } from './test/admin.js';
-import { T0 } from './test/rooms.js';
+import { makeQuestion, makeSet, T0 } from './test/rooms.js';
 
 const PASSWORD = 'open sesame';
 const ADMIN_PASSWORD = parseAdminPasswordHash(adminHashFor(PASSWORD));
@@ -282,4 +294,233 @@ describe('admin writes', () => {
 it('answers 404 for an admin path that does not exist', async () => {
   const { base } = await listen();
   expect((await fetch(`${base}/api/admin/nope`)).status).toBe(404);
+});
+
+describe('built-in set admin (F106)', () => {
+  let dir: string;
+  let builtIns: BuiltInStore;
+  const set = (id: string, title = `Set ${id}`): QuestionSet => ({ ...makeSet(2), id, title });
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'buzzr-http-admin-'));
+    builtIns = await openBuiltInStore(dir, { seed: [set('a', 'Old A'), set('b')] });
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  /** The app with the store, signed in: `cookie` goes on every admin call. */
+  async function signedIn() {
+    const app = await listen({ builtIns });
+    return { ...app, cookie: cookieOf(await login(app.base)) };
+  }
+
+  /** A same-origin JSON write with any method, as the Built-in tab sends it. */
+  function write(
+    base: string,
+    method: string,
+    path: string,
+    body: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<Response> {
+    return fetch(`${base}/api/admin${path}`, {
+      method,
+      headers: { origin: base, 'content-type': 'application/json', ...headers },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    });
+  }
+
+  const importFile = (base: string, cookie: string, file: unknown) =>
+    write(base, 'POST', '/built-in-sets/import', file, { cookie });
+
+  async function publicList(base: string): Promise<BuiltInSetsResponse> {
+    return (await (await fetch(`${base}/api/built-in-sets`)).json()) as BuiltInSetsResponse;
+  }
+
+  const ids = async (base: string) => (await publicList(base)).sets.map((s) => s.id);
+
+  describe('POST /api/admin/built-in-sets/import', () => {
+    it('adds a new id and replaces a live one, live on the next public fetch and on disk', async () => {
+      const { base, cookie } = await signedIn();
+      const res = await importFile(base, cookie, { sets: [set('c'), set('a', 'New A')] });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ added: 1, replaced: 1, rejected: [] });
+      const { sets } = await publicList(base);
+      expect(sets.map((s) => [s.id, s.title])).toEqual([
+        ['a', 'New A'],
+        ['b', 'Set b'],
+        ['c', 'Set c'],
+      ]);
+      const onDisk = JSON.parse(await readFile(join(dir, BUILT_IN_FILE), 'utf8')) as {
+        sets: QuestionSet[];
+      };
+      expect(onDisk.sets.map((s) => s.id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('takes a single set and a bare array too', async () => {
+      const { base, cookie } = await signedIn();
+      expect(await (await importFile(base, cookie, set('c'))).json()).toMatchObject({ added: 1 });
+      expect(await (await importFile(base, cookie, [set('d')])).json()).toMatchObject({ added: 1 });
+      expect(await ids(base)).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('rejects a set with a picture and imports the rest', async () => {
+      const { base, cookie } = await signedIn();
+      const pictured = {
+        ...set('p', 'Pictures'),
+        questions: [makeQuestion(1, { imageId: 'img-1' })],
+      };
+      const body = (await (
+        await importFile(base, cookie, [pictured, set('c')])
+      ).json()) as AdminImportResponse;
+      expect(body).toEqual({
+        added: 1,
+        replaced: 0,
+        rejected: [
+          {
+            label: 'Set 1 “Pictures”',
+            errors: ['Built-in sets cannot have pictures (question 1)'],
+          },
+        ],
+      });
+      expect(await ids(base)).toEqual(['a', 'b', 'c']);
+    });
+
+    it(`rejects a new set past ${BUILT_IN_SETS_MAX} built-ins`, async () => {
+      builtIns = await openBuiltInStore(join(dir, 'full'), {
+        seed: Array.from({ length: BUILT_IN_SETS_MAX }, (_, i) => set(`s${i}`)),
+      });
+      const { base, cookie } = await signedIn();
+      const body = (await (
+        await importFile(base, cookie, set('new', 'One more'))
+      ).json()) as AdminImportResponse;
+      expect(body.added).toBe(0);
+      expect(body.rejected).toEqual([
+        {
+          label: 'Set 1 “One more”',
+          errors: [`The built-ins are full (${BUILT_IN_SETS_MAX} sets). Delete some first.`],
+        },
+      ]);
+      expect((await publicList(base)).sets).toHaveLength(BUILT_IN_SETS_MAX);
+    });
+
+    it('refuses a file with no sets, or one that is not JSON, with 400', async () => {
+      const { base, cookie } = await signedIn();
+      const empty = await importFile(base, cookie, { sets: [] });
+      expect(empty.status).toBe(400);
+      expect(await errorOf(empty)).toBe('The file has no sets');
+      const broken = await importFile(base, cookie, '{"sets": [');
+      expect(broken.status).toBe(400);
+      expect(await errorOf(broken)).toBe("This file isn't valid JSON.");
+    });
+
+    it(`refuses a body over ${ADMIN_IMPORT_MAX_BYTES / 1024 / 1024} MB with 413 and changes nothing`, async () => {
+      const { base, cookie } = await signedIn();
+      const huge = { ...set('c'), title: 'x'.repeat(ADMIN_IMPORT_MAX_BYTES) };
+      const res = await importFile(base, cookie, huge);
+      expect(res.status).toBe(413);
+      expect(await errorOf(res)).toBe('The file is larger than 2 MB.');
+      expect(await ids(base)).toEqual(['a', 'b']);
+    });
+  });
+
+  describe('DELETE /api/admin/built-in-sets/:id', () => {
+    it('removes the live set and its draft', async () => {
+      await builtIns.update((data) => ({ ...data, drafts: { a: { title: 'draft' }, b: {} } }));
+      const { base, cookie } = await signedIn();
+      const res = await write(base, 'DELETE', '/built-in-sets/a', {}, { cookie });
+      expect(res.status).toBe(200);
+      expect(await ids(base)).toEqual(['b']);
+      expect(builtIns.read().drafts).toEqual({ b: {} });
+    });
+
+    it('is 404 for an id that is neither live nor a draft', async () => {
+      const { base, cookie } = await signedIn();
+      const res = await write(base, 'DELETE', '/built-in-sets/nope', {}, { cookie });
+      expect(res.status).toBe(404);
+      expect(await ids(base)).toEqual(['a', 'b']);
+    });
+  });
+
+  describe('PUT /api/admin/sample-hidden', () => {
+    it('hides and shows the sample on the public list', async () => {
+      const { base, cookie } = await signedIn();
+      const hide = await write(base, 'PUT', '/sample-hidden', { hidden: true }, { cookie });
+      expect(await hide.json()).toEqual({ sampleHidden: true });
+      expect((await publicList(base)).sampleHidden).toBe(true);
+      await write(base, 'PUT', '/sample-hidden', { hidden: false }, { cookie });
+      expect((await publicList(base)).sampleHidden).toBe(false);
+    });
+
+    it('refuses a body without a boolean with 400', async () => {
+      const { base, cookie } = await signedIn();
+      const res = await write(base, 'PUT', '/sample-hidden', { hidden: 'yes' }, { cookie });
+      expect(res.status).toBe(400);
+      expect((await publicList(base)).sampleHidden).toBe(false);
+    });
+  });
+
+  describe('GET /api/admin/built-in-sets/export', () => {
+    it('downloads buzzr-built-ins-<date>.json as {sets}, which re-imports as is', async () => {
+      const { base, cookie } = await signedIn();
+      await builtIns.update((data) => ({ ...data, drafts: { a: { title: 'draft' } } }));
+      const res = await fetch(`${base}/api/admin/built-in-sets/export`, { headers: { cookie } });
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toMatch(/^application\/json/);
+      const date = new Date(T0).toISOString().slice(0, 10);
+      expect(res.headers.get('content-disposition')).toBe(
+        `attachment; filename=buzzr-built-ins-${date}.json`,
+      );
+      const text = await res.text();
+      // The live sets only: no drafts, no sampleHidden.
+      expect(JSON.parse(text)).toEqual({ sets: builtIns.read().sets });
+
+      const before = builtIns.read().sets;
+      const again = await importFile(base, cookie, text);
+      expect(await again.json()).toEqual({ added: 0, replaced: 2, rejected: [] });
+      expect(builtIns.read().sets).toEqual(before);
+    });
+  });
+
+  it('every built-in route is 401 without a session, and changes nothing', async () => {
+    const { base } = await listen({ builtIns });
+    const responses = [
+      await importFile(base, '', set('c')),
+      await write(base, 'DELETE', '/built-in-sets/a', {}),
+      await write(base, 'PUT', '/sample-hidden', { hidden: true }),
+      await fetch(`${base}/api/admin/built-in-sets/export`),
+    ];
+    expect(responses.map((r) => r.status)).toEqual([401, 401, 401, 401]);
+    expect(await publicList(base)).toMatchObject({ sampleHidden: false });
+    expect(await ids(base)).toEqual(['a', 'b']);
+  });
+
+  it("writes need this site's Origin and a JSON type, even signed in", async () => {
+    const { base, cookie } = await signedIn();
+    const crossSite = await write(
+      base,
+      'DELETE',
+      '/built-in-sets/a',
+      {},
+      {
+        cookie,
+        origin: 'https://evil.example',
+      },
+    );
+    expect(crossSite.status).toBe(403);
+    const form = await write(base, 'POST', '/built-in-sets/import', 'x=1', {
+      cookie,
+      'content-type': 'application/x-www-form-urlencoded',
+    });
+    expect(form.status).toBe(415);
+    expect(await ids(base)).toEqual(['a', 'b']);
+  });
+
+  it('without the store, the built-in routes are 404', async () => {
+    const { base } = await listen();
+    const cookie = cookieOf(await login(base));
+    const res = await fetch(`${base}/api/admin/built-in-sets/export`, { headers: { cookie } });
+    expect(res.status).toBe(404);
+  });
 });

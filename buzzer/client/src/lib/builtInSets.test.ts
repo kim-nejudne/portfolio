@@ -8,6 +8,7 @@ import {
   BUILT_IN_LOAD_ERROR,
   builtInList,
   loadBuiltInSets,
+  refreshBuiltInSets,
   resetBuiltInSets,
   useBuiltInSets,
 } from './builtInSets.js';
@@ -107,6 +108,21 @@ describe('useBuiltInSets', () => {
     act(() => failed.retry());
     expect(result.current.kind).toBe('loading');
     await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('after refreshBuiltInSets, every hook fetches once more and shows the old list until the new one (F106)', async () => {
+    const changed: BuiltInSetsResponse = { sets: STARTER_SETS.slice(3, 4), sampleHidden: true };
+    const fetch = stubServer(ok(SERVER), ok(changed));
+    const first = renderHook(() => useBuiltInSets());
+    const second = renderHook(() => useBuiltInSets());
+    await waitFor(() => expect(first.result.current.kind).toBe('ready'));
+    act(() => refreshBuiltInSets());
+    expect(first.result.current).toEqual({ kind: 'ready', sets: builtInList(SERVER) });
+    await waitFor(() =>
+      expect(first.result.current).toEqual({ kind: 'ready', sets: changed.sets }),
+    );
+    expect(second.result.current).toEqual({ kind: 'ready', sets: changed.sets });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
