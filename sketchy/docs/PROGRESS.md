@@ -40,8 +40,61 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F21: `npm run dev` + `npm run lan`, laptop Screen on the TV (Start), 3 real phones (one ≈ 360 × 560–640); play a 2-round game; (a) on turn 1, as soon as it ends, look at the next drawer's phone; (b) next drawer taps a card during the reveal; (c) on another turn the next drawer taps nothing; (d) on the last turn of round 1, the next round's first drawer picks during the scoreboard; (e) once, the next drawer locks their phone/turns Wi-Fi off during the reveal · (a) it buzzes and shows "You draw next! Pick a word", three cards and a ◔ countdown from about 12 s, while the TV and the other phones show the reveal and no card word; (b) the phone shows "✏️ You draw next! Get ready" and, when the reveal ends (8 s), the pad opens at once; (c) after the reveal the TV shows "… is choosing…" for about 4 s and then the easiest word is drawn; (d) the cards stay through "Round 1 of 2 done" and drawing starts right after the scoreboard; (e) when the reveal ends, the following player gets the cards instead; on the small phone the cards fit with no scrolling, and a tap that lands as the cards appear (mid-guess) doesn't pick a word
 - [ ] F22: `npm run dev`, laptop Screen on the TV (Start), 2 phones joined; from the couch (about 3–5 m): click **Settings ⚙** (top right), pick Quick, then Barkada Night, then Drawing time 100 s, then Esc; then reopen it, pick Classic and press Done; also try it on a tablet Screen in portrait · every label and pressed (orange) button is readable from the couch; the panel fits the TV with no scrolling; the orange highlight moves to the tapped preset, and "Presets · Custom" appears once 100 s is hand-picked; after Esc the lobby line reads "80 s · 3 rounds · Mixed words" with no preset name, after Classic it reads "Classic · 60 s · 2 rounds · Mixed words"; Tab never reaches Start while the panel is open; on the tablet the panel scrolls and every button is easy to tap
 - [ ] F23: `npm run dev`, laptop Screen (Start) with 2 phones joined via `npm run lan CODE`; once Ana is drawing, scan the join QR with a third phone (an iPhone and an Android if you have both) and join as a new name · the phone lands straight on the guess box with "You're in! Ana is drawing. Type your guess." under it; on Android the keyboard may pop up by itself, on iPhone the box is focused but the keyboard waits for a tap (expected); the line goes after the first guess; refreshing the page mid-turn does not bring it back; the new player draws later in the same round (after the original players), and with a long name (e.g. 14 letters, no spaces) the line wraps instead of running off a 360 px screen
+- [ ] F24: `npm run dev`, laptop Screen on the TV with a keyboard (Start), 3 phones; also a tablet as the token Screen once · from the couch, the bar's buttons are readable; it hides 3 s after the mouse stops and returns on a mouse move (on the tablet, on a tap); `?` shows the 11 shortcuts and Esc closes it; Space starts, then during a reveal Space/N move on; `G` shows "Guess feed: Clean" (wrong guesses masked on the TV), then Off, then All; S once shows "Press S again to skip the turn" and nothing happens, S twice skips; `F` goes fullscreen and back; `M` shows "Sound: Quiet"; a second Screen opened from the join link (no token) shows no bar and ignores every key; with Wi-Fi off on the laptop, tapping Skip twice shows "Could not do that. Try again." and nothing skips after Wi-Fi returns; Pause/End/Rematch show "That's coming in a later update" until F28/F29
 
 <!-- entries below, newest first -->
+
+## F24 — Screen host controls and shortcuts (2026-10-30)
+**What changed:**
+- **Client (token Screen only):**
+  - `lib/hostKeys.ts` (pure): `barControls(view)` per the spec's drawer table (CHOOSING/DRAWING Pause, Skip turn, Guess feed, End game; REVEAL/SCOREBOARD Next, Pause, End game; FINAL Rematch, Back to lobby, End game; a rematch countdown only Cancel; paused → Resume, no Next). `keyControl`/`pressKey` for Space, Esc, L L, P, S S, E E, N, G, F, M, `?`. `press` arms a two-press control (Skip, End, Rematch, Back to lobby) and sends on the second within 2 s (`CONFIRM_MS`). `controlEvent` maps a control to its `host:*` event; `G` sends `host:settings {guessFeed}` after the snapshot's (All → Clean → Off). `dialogKey` blocks shortcuts under a dialog. `SHORTCUTS` feeds the `?` overlay.
+  - `lib/soundPref.ts`: Sound on / Quiet / Muted kept in localStorage (F38 plays at that level).
+  - `components/screen/HostControls.tsx`: `HostControls` renders nothing without `view.host`. The bar (`role="group"`, "Host controls") sits along the bottom edge, shows on load, mouse movement, touch or Tab, and hides (`inert`) 3 s later unless keyboard focus (`:focus-visible`) is in it or `?` is open. The status line (always-mounted `role="status"`) sits above the bar's real height: "Press S again…", "Tap again to…", "Guess feed: Clean" (from the next snapshot), "Sound: Quiet", "That's coming in a later update" (`notAvailable`), "Could not do that. Try again." (offline or no ack; offline taps are never queued). A first press never carries into another phase or turn. Keys are ignored with modifiers, on repeat, while composing, in fields, and Space on a focused button keeps its click. `ShortcutsHelp`: the dialog lists all 11 keys; Esc, `?`, Close or the backdrop close it, Tab stays on Close, and its Esc doesn't reach the settings panel (capture + `stopImmediatePropagation`).
+  - `Screen.tsx` mounts `HostControls`; F20's `NextButton` is removed (the bar's Next, `N` and Space replace it).
+  - `copy.ts`: the bar, hint and shortcut strings (English; Taglish with F45).
+- **Tests:**
+  - `client/src/lib/hostKeys.test.ts` (new, 26): the bar per phase, paused and countdown; each control's event; G's cycle and payload from the snapshot, in every phase; Space per phase (Start, Next, Resume, a two-press Rematch, Cancel); Esc; S S within and outside 2 s, disarm by another key, re-arm; E E, L L, P, N with their phases; F, M, `?` local; an unmapped key keeps the arm; the overlay's 11 keys in order; two-tap vs one-tap controls; dialogs block keys.
+  - `HostControls.test.tsx` (new, 10): nothing without the token in every phase; the bar's buttons per phase; "Tap again to…" labels; sound level and no Fullscreen without the API; every button 44 px; the overlay lists every key.
+  - `ScreenStandings.test.tsx`: the NextButton tests went with the component; the bar tests cover Next (shown in REVEAL/SCOREBOARD, not while paused, not without the token).
+- No new dependencies.
+
+**Decisions:** DECISIONS 47: the token-only mount; auto-hide as "collapsible"; the bar's controls per phase (lobby has only the utilities, Start stays the lobby's); the Screen's players list with Kick left to F28 (roadmap note added); two presses within 2 s, End two presses on FINAL too; what disarms; keys only when their control is in the bar (G, F, M, `?` always); G's line from the snapshot; `M` as a stored preference; actions built later wired now and shown as "coming in a later update".
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: shortcuts blocked under the `?` overlay and the settings panel (`dialogKey`, with tests), this entry and the Kim check. Not changed: a successful send also clears a stale status line (low stakes).
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - Space no longer starts the game behind the settings panel (it focuses a div);
+  - a clicked bar button no longer keeps the bar up (`:focus-visible` check at hide time, which also covers an unmounted focused button);
+  - offline taps and keys show "Could not do that" instead of being buffered and replayed on reconnect;
+  - the `?` dialog's Tab trap and its Esc kept from the settings panel;
+  - tap hints and `M` announced in the status line; `saveSoundLevel` out of the state updater;
+  - the status line above the bar's real height;
+  - `role="group"` (no roving focus), the `contenteditable` selector, `isComposing`, the overlay's max width;
+  - the Esc line notes Space also cancels (browsers keep Esc for leaving fullscreen).
+
+**Notes for next session:**
+- **F25:** the crown phone's drawer can reuse `barControls`/`controlEvent` from `lib/hostKeys.ts` (the spec gives the phone the same table, plus the players list).
+- **F28:** pause, resume, skip and end are already sent by the bar and keys; add the players list with Kick (two taps) to the bar.
+- **F29:** rematch, cancel and back to lobby are already wired (Space twice, Esc, L L).
+- **F38:** read `loadSoundLevel()` from `lib/soundPref.ts`.
+- **F45:** add the F24 strings to the Taglish table.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/hostKeys.test.ts client/src/components/screen`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE` or bots at `/dev/bots/CODE`. Press `?` for the shortcuts; move the mouse for the bar.
+- Automated: `npm run playtest -- .playtest/F24/scenario.ts` (gitignored). A TV Screen, 3 phones and a plain Screen. All steps pass:
+  - `?` lists every shortcut, Esc closes it;
+  - Space and `G` do nothing behind the settings panel, whose Esc still closes it;
+  - Space starts; the bar shows the DRAWING controls and hides after 3 s, also after a mouse click on it;
+  - `G` gives Clean, Off, All;
+  - `P` → "That's coming in a later update";
+  - S then E then S doesn't skip, S S skips;
+  - `M` cycles sound, `F` toggles fullscreen;
+  - no phone has the bar; the plain Screen has no bar and its G/P/?/S S do nothing;
+  - S S while drawing → REVEAL with Next, Pause, End game; `N` leaves REVEAL;
+  - E E → "coming in a later update".
+  - Screenshots: `.playtest/F24/3-hidden-screen.png`, `8c-reveal-bar-screen.png`.
+  - Not run end to end: pause, end, rematch and back to lobby (F28/F29 build them server-side).
 
 ## F23 — Late join and turn order (2026-10-30)
 **What changed:**

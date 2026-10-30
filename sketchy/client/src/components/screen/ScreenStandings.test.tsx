@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { Phase, PlayerChipView, ScreenView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
-import type { GameSocket } from '../../lib/socket.js';
-import { NextButton } from './NextButton.js';
 import { ScreenStandings } from './ScreenStandings.js';
 
 const t = translator('en');
@@ -23,7 +21,7 @@ const chip = (pid: string, score: number, rank: number): PlayerChipView => ({
   rank,
 });
 
-function view(phase: Phase, host = false): ScreenView {
+function view(phase: Phase): ScreenView {
   return {
     role: 'screen',
     code: 'KPRW',
@@ -34,7 +32,7 @@ function view(phase: Phase, host = false): ScreenView {
     // Join order; Bea and Ana tie for first.
     players: [chip('Mika', 100, 3), chip('Ana', 300, 1), chip('Bea', 300, 1), chip('Jun', 0, 4)],
     turn: null,
-    host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+    host: null,
     feed: [],
     closeGuesses: [],
     awards: [],
@@ -61,34 +59,5 @@ describe('Screen standings (F20)', () => {
     const v = { ...view('SCOREBOARD'), turn: { cycle: 1 } as ScreenView['turn'] };
     const html = renderToStaticMarkup(<ScreenStandings view={v} t={t} />);
     expect(html).toContain('Round 1 of 2 done');
-  });
-});
-
-describe('Screen Next button (F20)', () => {
-  const socket = {} as GameSocket;
-
-  it('shows on the token Screen in REVEAL and SCOREBOARD', () => {
-    for (const phase of ['REVEAL', 'SCOREBOARD'] as const)
-      expect(
-        renderToStaticMarkup(<NextButton view={view(phase, true)} socket={socket} t={t} />),
-      ).toContain('Next <span aria-hidden="true">▶</span>');
-  });
-
-  it('hides while paused, when the server would refuse host:next', () => {
-    const paused = {
-      ...view('REVEAL', true),
-      paused: { reasons: ['host' as const], resumeInMs: null },
-    };
-    expect(renderToStaticMarkup(<NextButton view={paused} socket={socket} t={t} />)).toBe('');
-  });
-
-  it('never shows without the token, or in other phases', () => {
-    expect(renderToStaticMarkup(<NextButton view={view('REVEAL')} socket={socket} t={t} />)).toBe(
-      '',
-    );
-    for (const phase of ['LOBBY', 'CHOOSING', 'DRAWING', 'FINAL'] as const)
-      expect(
-        renderToStaticMarkup(<NextButton view={view(phase, true)} socket={socket} t={t} />),
-      ).toBe('');
   });
 });

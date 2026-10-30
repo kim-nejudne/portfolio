@@ -60,11 +60,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M4 — Host and onboarding
 
-- [ ] F24 Screen host controls and shortcuts
-  - Spec: UI by role and phase (Host controls)
-  - Depends: F22
-  - Done when:
-    - Control bar (auto-hide) and every shortcut on the `?` overlay, only when the Screen holds the token; `G` cycles All → Clean → Off
+- [x] F24 Screen host controls and shortcuts
 
 - [ ] F25 Host crown and the host lobby
   - Spec: Roles and devices (Host crown); UI by role and phase (Screen, Host controls)
@@ -97,6 +93,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
   - Done when:
     - `host` pause reason with remaining-time restore and the 3-2-1 resume; `host:skip` in CHOOSING and DRAWING; kick (including the drawer); `host:end` from any game phase; points earned so far stay
     - Kick takes two taps ("Remove Jun?"); Leave takes two taps and mid-game says "Your points will be lost"; the kicked phone shows "You were removed from this game"
+  - Note (F24): the token Screen's control bar (`HostControls`) already sends pause, resume, skip and end; add its players list with Kick (two taps) there too (DECISIONS 47)
   - Tests: `reducer.pause.test.ts` — paused time doesn't count towards `t`; stale timers after pause are ignored; `reducer.host.test.ts`
 
 - [ ] F29 Rematch, back to lobby and the night's totals
