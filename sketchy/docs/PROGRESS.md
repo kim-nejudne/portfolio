@@ -49,8 +49,86 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F30: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (a small Android ≈ 360 px wide, an iPhone); start and, as the drawer: tap each of the 8 colours and draw a short line with each, cycle the size button M → L → S, turn on Eraser and rub out part of a line, tap Eraser again, then Undo three times, Clear, Undo; also tap Undo with a finger still on the pad · all 8 swatches and the 4 buttons fit in two rows with no scroll and are easy to hit with a thumb; the selected colour is obvious; the TV matches the pad after every tap (colours, thickness, the erased gap, Undo and Clear); the size dot turns white while erasing. In the lobby, doodle in two colours at L · the chip on the TV shows both colours
 - [ ] F32: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), a budget Android (Chrome) and an iPhone (Safari, and once more from a home-screen icon), plus a third phone guessing; on each as the drawer: draw with both toolbar rows in view, with the browser's bars showing; pinch and double-tap on the top bar and the toolbar; draw with two fingers (the second finger does nothing); draw a long stroke, then don't touch the phone for longer than its auto-lock time; mid-stroke, turn the phone on its side, then upright again, and draw · no scroll, overflow or zoom at any point and all 12 tools fit; the screen doesn't dim or lock while the pad shows (note it if the iPhone from the home screen does: iOS before 18.4 has no Wake Lock there); on its side the phone shows "Turn your phone upright", "Your drawing is safe" and the clock, the stroke stops, and upright again the drawing is intact on the pad and the TV and new strokes reach the TV
 - [ ] F33: `npm run dev` + `npm run lan CODE`; Screens: the laptop on the TV in fullscreen (Start), then a tablet held upright (open the join link's `/screen/CODE`) and turned on its side mid-turn, and once a phone propped upright as the Screen; 4+ real phones playing; play two turns and a reveal on each · from 5 m on the TV and 2 m on the tablet: names, clock, blanks and the last guesses are readable; the drawing is the biggest thing on screen and nothing is cut off; turning the tablet switches between the sidebar layout and the portrait one (clock and blanks on top, drawing, then the players with ✏️/✓ and the two latest guesses) within a second, with the drawing intact; at the reveal the drawing keeps its size and the word appears under it (portrait) or beside it (landscape); the code at the bottom is always visible
+- [ ] F34: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 4+ real phones (a ≈ 360 px Android, an iPhone); also a tablet held upright as a second Screen (`/screen/CODE`); bots at `/dev/bots/CODE` can fill the room · from the sofa (5 m): three phones send wrong guesses within a second: speech bubbles in each guesser's colour pop beside their names (under the strip on the upright tablet), at most three, gone after 2 s, never over the drawing, and the guesses list under the players keeps them; one phone guesses right: "Jun got it!" in Jun's colour replaces "Mika is drawing" for 2 s (on the tablet it replaces the blanks in the top bar), and Jun's row turns green with "+N"; on Jun's phone the guess box is replaced by six emoji buttons that are easy to hit with a thumb and fit with no scroll; tap 🔥: it floats up from Jun's row on the TV, and the tapped button lights green for a second; tap fast: no more than one reaction a second shows; set Guess feed Off (G): wrong guesses show as "💬 Bea is guessing…" with no text; with Reduce motion on (phone or laptop settings) the bubbles and emoji just fade
 
 <!-- entries below, newest first -->
+
+## F34 — Announcements, reactions and feed UI (2026-10-31)
+**What changed:**
+- **Server:** `player:react` lands (`react` in `server/reducer.ts`): DRAWING for players in `turn.correct` (others get the new `notGuessed`), REVEAL for anyone, refused while paused; emits `fx reaction` to Screens only and changes nothing. The gateway limits it to one a second per player (`code:pid`, `REACTION_INTERVAL_MS`, `rateLimited`) and sends no fresh views for it (`server/sockets.ts`).
+- **Screen fx** (`client/src/lib/screenFx.ts`, new): a store fed by `fx` (`correct`, `wrongGuess`, `reaction`) holding "got it" announcements (2 s each), bubbles (≤ 3, 2 s; a guesser's newer guess replaces their own; a fourth is dropped, it's in the feed) and reactions (2 s, ≤ 20). `Screen.tsx` feeds it and passes the snapshot to `ScreenTurn`.
+- **`client/src/components/screen/TurnFx.tsx`** (new):
+  - `GotItLine`: "Jun got it!" in Jun's colour, several names together.
+  - `TurnFx`: an overlay in the sidebar (landscape) or the room under the square (portrait) that measures `data-chip` rows. It clips itself, so nothing covers the drawing or makes its parent overflow.
+  - Bubbles are `max(5vh, 20px)` in the guesser's colour. Landscape puts them on the row just after the name; portrait stacks them under the strip (as many as fit). A long one slides left. A masked guess is "•••"; under `'off'` it reads "💬 Bea is guessing…" with a pulsing 💬.
+  - Reactions float up from just past the name, as far as the room allows, up to 14 vh.
+- **`ScreenTurn.tsx`:**
+  - "Got it" stands in for "✏️ Mika is drawing" (landscape) or the blanks (portrait top bar), inside a live region that stays mounted.
+  - Correct guessers' chips stay lit green, and every chip has `data-chip`.
+  - The landscape feed shows up to the last 8 right under the players and gives way first (never under two lines; 4 at 1080p with ten players); portrait keeps 2.
+  - Hint letters pop into the blanks (new key, `motion-safe:animate-pop`).
+- **`index.css`:** `pop`, `bubble`, `float-up` (rise from `--rise`) and `fade` keyframes. All are behind `motion-safe:`; reduced motion fades.
+- **Phone** (`GuesserTurn.tsx`): after a correct guess, `ReactionRow` (six ≥ 44 px buttons) under "✓ You got it! +N". It rests for a second after a tap, with the sent one lit green. `Play.tsx` sends `player:react` only while connected.
+- **Dev bots:** `bot.react()`, "Everyone: react" and a per-bot React button on `/dev/bots/CODE`.
+- Copy: `isGuessing`, `reactions`, `sendReaction` (`gotIt` already existed).
+- **Tests:**
+  - `server/reducer.react.test.ts` (new, 6: Screens-only fx and no change, `notGuessed` for the drawer and a guesser without the word, anyone at the reveal, other phases, paused, Screen/unknown sender).
+  - `sockets.test.ts` (+3: fx reaches Screens only with no new views, and one a second per player; `notGuessed`; an emoji outside `REACTIONS`).
+  - `client/src/lib/screenFx.test.ts` (new, 7).
+  - `ScreenTurn.test.tsx` (+8: banner in the sidebar and in the portrait top bar, several names, lit chips, the 8 / 2 feed, the overlay outside the canvas, hint pop, counts after the blanks).
+  - `phoneViews.test.tsx` (+1, and the not-guessed test checks there's no row).
+  - `bots.test.ts` (+1).
+- No new dependencies.
+
+**Decisions:** DECISIONS 56 (react phases, the limit and no broadcast; where "got it", bubbles and reactions go; the 8-line feed; a fourth bubble; the phone row at DRAWING only; hint pop; reduced motion).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 56 (cited in code but missing), this entry and the Kim check, a SPEC-QUESTION at the limiter.
+  - Recorded rather than changed: a refused reaction uses up the second (the phone only offers reactions when they're allowed), and no reaction row at the reveal (Backlog).
+  - The ding is F38's.
+- **secrets-fairness: PASS** (no Must- or Should-fix). Applied the nit: the `rateLimited` comment is split.
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied:
+  - the 💬 pulses instead of the text (contrast);
+  - reactions start past the name, not over it;
+  - one persistent live region for "got it";
+  - the sent reaction lights up;
+  - every chip has the padding, so lighting one moves nothing;
+  - the 360×560 phone is checked (below).
+  
+  Not changed: portrait bubbles stay ≥ 5 vh (the spec) and cover the two feed lines for 2 s (DECISIONS 56). To Backlog: re-measuring chips on a resize, measuring the bubble height, and the portrait banner hiding the blanks.
+
+**Playtest:**
+- **`.playtest/F34/scenario.ts`** (playtester: TV Screen, Ana drawing on a Pixel 7, Ben on an iPhone 13, Cara at 360×560). All 7 steps pass:
+  - blanks with counts on one line;
+  - the word is in no Screen or guesser HTML;
+  - bubbles go after about 2 s;
+  - "Ben got it!" is in the sidebar, not over the canvas;
+  - Ben's ✓ chip shows "+275" and no totals;
+  - the reaction row replaced Ben's box, 😂 floated, and the row rested after the tap;
+  - the feed list.
+- **`.playtest/F34/fx.ts`:** four Screens (1920×1080, 1180×820, 820×1180, 390×844), nine bots, and Ivy on a 360×560 phone. All pass:
+  - five wrong guesses at once give exactly 3 bubbles on every Screen, at 54/41/59/42 px (≥ 5 vh), inside the viewport and off the canvas, and none are left after 2 s;
+  - after 8 more guesses there's no scroll, overflow or clipped list, with 8 feed lines in the DOM and at least 2 shown;
+  - "Jun got it!" is off the canvas, and in portrait it's above the drawing;
+  - 🔥 floats, the second within a second gets `rateLimited`, and a player without the word gets `notGuessed`;
+  - Ivy at 360×560: "You got it" and the row with no scroll, every button ≥ 44 px, and her 👏 floats on all four Screens;
+  - under guessFeed `'off'` the text isn't on the page and "💬 Bea is guessing…" shows;
+  - the word never reaches a Screen.
+- **`.playtest/F33/layouts.ts`** re-run (7 Screens, ten players, every phase): pass. A first run failed at 820×1180 because stacked bubbles overflowed the room; the overlay now clips itself.
+- No console errors.
+- Screenshots: `.playtest/F34/<step>-<w>x<h>.png`, `3b-reactions-Ivy.png`.
+- Not exercised: reduced motion (Kim check).
+
+**Notes for next session:**
+- **F35:** the reveal's "Got it" chips carry `data-chip`, so a reaction at the reveal floats from them (from the bottom for anyone else).
+- **F38:** the "got it" ding goes on the Screen's `correct` fx (`turnFx.push` sits in `Screen.tsx`'s `fx` handler).
+- **F39:** `/` + `/play` is 118.1 KB gzipped (budget 120).
+- **F45:** Taglish for `isGuessing`, `reactions`, `sendReaction`.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/reducer.react.test.ts server/sockets.test.ts client/src/lib/screenFx.test.ts client/src/components`.
+- Playtests: `npm run dev`, then `npm run playtest -- .playtest/F34/fx.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start). At `/dev/bots/CODE` spawn bots, then use "Everyone: random guess", "Guess right" on one bot, then "Everyone: react". Resize the Screen to portrait to see the strip version.
 
 ## F33 — Responsive Screen layouts (2026-10-31)
 **What changed:**

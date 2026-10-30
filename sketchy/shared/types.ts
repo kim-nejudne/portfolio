@@ -284,6 +284,7 @@ export type ReduceError =
   | 'notEnoughWords' // the settings leave fewer than 3 words to deal
   | 'drawerCannotGuess'
   | 'alreadyGuessed'
+  | 'notGuessed' // `player:react` in DRAWING from someone who hasn't got the word (the drawer too)
   | 'tooLate'
   | 'emptyGuess' // nothing left after normalisation ("!!!", "the")
   | 'guessTooLong'
@@ -361,7 +362,8 @@ export type GatewayError =
   | 'notHost'
   | 'notDrawer' // `/ink`: a batch from anyone but the current drawer
   | 'staleTurn' // `/ink`: a batch for a turn that is no longer current
-  | 'rateLimited' // over a per-socket limit (`ping`, `/ink` batches, hellos, gets)
+  // Over a per-socket limit (`ping`, `/ink` batches, hellos, gets) or per-player (`player:react`).
+  | 'rateLimited'
   | 'inkFull' // `/ink`: the canvas is full; the batch's new strokes were dropped, the rest applied
   | 'inkGap' // `/ink`: a batch after a missing `seq`; dropped, and `ink:resend` asks for the gap
   | 'inkNotKept' // `/ink`: `ink:get` for a drawing the room no longer keeps

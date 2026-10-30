@@ -105,6 +105,26 @@ describe('guesser phone', () => {
     expect(html).not.toContain('qz');
   });
 
+  it('replaces the guess box with the six reactions after a correct guess (F34)', () => {
+    const html = renderToStaticMarkup(
+      <GuesserTurn
+        view={drawingView('jun')}
+        receivedAt={0}
+        misses={[]}
+        nearMiss={0}
+        onGuess={async () => null}
+        onReact={() => {}}
+        t={t}
+      />,
+    );
+    expect(html).not.toContain('<input');
+    expect(html).toContain('role="group" aria-label="React on the Screen"');
+    for (const emoji of ['😂', '🔥', '👏', '😱', '🤔', '💀'])
+      expect(html).toContain(`aria-label="Send ${emoji}"`);
+    // Only after the "You got it" panel, never before it.
+    expect(html.indexOf('React on the Screen')).toBeGreaterThan(html.indexOf('You got it'));
+  });
+
   it('before guessing shows the timer, the blanks and a guess box that never autocorrects', () => {
     const view = drawingView('jun', {
       players: drawingView('jun').players.map((p) =>
@@ -122,6 +142,7 @@ describe('guesser phone', () => {
         ]}
         nearMiss={0}
         onGuess={async () => null}
+        onReact={() => {}}
         t={t}
       />,
     );
@@ -144,6 +165,7 @@ describe('guesser phone', () => {
       expect(html.toLowerCase()).toContain(attr.toLowerCase());
     expect(html).not.toContain('You got it');
     expect(html).not.toContain('<canvas');
+    expect(html).not.toContain('React on the Screen');
   });
 });
 

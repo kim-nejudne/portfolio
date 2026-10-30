@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ScreenView } from '../../../shared/types.js';
 import { DebugOverlay } from '../components/screen/DebugOverlay.js';
@@ -14,6 +14,7 @@ import { DoodleContext, createScreenDoodles } from '../lib/doodles.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
 import { keepPinging } from '../lib/ping.js';
+import { createScreenFx } from '../lib/screenFx.js';
 import { useScreenLayout } from '../lib/useScreenLayout.js';
 import { createInkSocket, createSocket } from '../lib/socket.js';
 
@@ -44,6 +45,9 @@ export function Screen() {
   const ink = useMemo(() => createScreenInk(), []);
   // Lobby doodles (F27), drawn as the players' avatars on every chip.
   const doodles = useMemo(() => createScreenDoodles(), []);
+  // "Jun got it!", wrong-guess bubbles and reactions (F34), from `fx` events.
+  const turnFx = useMemo(() => createScreenFx(), []);
+  const fxState = useSyncExternalStore(turnFx.subscribe, turnFx.getSnapshot);
   // `?debug=1` (F16): this Screen's clock offset to the server and the recent ink delays.
   const debug = useMemo(
     () => (isDebug() ? { clock: createClockOffset(), delays: createDelayWindow() } : null),
@@ -84,6 +88,7 @@ export function Screen() {
     let reshuffleTimer: ReturnType<typeof setTimeout> | undefined;
     let needTwoTimer: ReturnType<typeof setTimeout> | undefined;
     socket.on('fx', (fx) => {
+      turnFx.push(fx);
       if (fx.kind === 'wordsReshuffled') {
         setReshuffled(true);
         clearTimeout(reshuffleTimer);
@@ -130,13 +135,14 @@ export function Screen() {
     return () => {
       clearTimeout(reshuffleTimer);
       clearTimeout(needTwoTimer);
+      turnFx.clear();
       stopPinging();
       socket.removeAllListeners();
       socket.disconnect();
       inkSocket.removeAllListeners();
       inkSocket.disconnect();
     };
-  }, [code, socket, ink, doodles, debug]);
+  }, [code, socket, ink, doodles, turnFx, debug]);
 
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
@@ -202,7 +208,14 @@ export function Screen() {
         <DoodleContext value={doodles}>
           {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
           {inTurn && (
-            <ScreenTurn view={view} receivedAt={state!.at} ink={ink} layout={layout} t={t} />
+            <ScreenTurn
+              view={view}
+              receivedAt={state!.at}
+              ink={ink}
+              layout={layout}
+              fx={fxState}
+              t={t}
+            />
           )}
           {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
             <ScreenStandings view={view} layout={layout} t={t} />

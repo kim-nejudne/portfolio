@@ -126,8 +126,9 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return undefined;
     case 'sys:doodle':
       return doodle(d, action);
-    case 'player:rename':
     case 'player:react':
+      return react(d, action, fx);
+    case 'player:rename':
     case 'player:visibility':
     case 'host:customWords':
       return 'notAvailable';
@@ -824,6 +825,22 @@ function guess(d: Room, a: ActionOf<'player:guess'>, now: number, fx: Effect[]):
   });
 
   checkAllGuessed(d, now, fx);
+  return undefined;
+}
+
+/**
+ * A reaction from a player who has the word (DRAWING) or from anyone (REVEAL), floated from their
+ * chip on the Screens. No free text, so nobody can hint the word, and no state change: the gateway
+ * sends no fresh views for it and keeps it to one a second per player.
+ */
+function react(d: Room, a: ActionOf<'player:react'>, fx: Effect[]): Handled {
+  if (d.phase !== 'DRAWING' && d.phase !== 'REVEAL') return 'wrongPhase';
+  if (d.paused) return 'paused';
+  const player = senderPlayer(d, a.by);
+  if (typeof player === 'string') return player;
+  const { pid } = player;
+  if (d.phase === 'DRAWING' && !d.turn?.correct.some((c) => c.pid === pid)) return 'notGuessed';
+  fx.push({ type: 'fx', to: 'screen', fx: { kind: 'reaction', pid, emoji: a.emoji } });
   return undefined;
 }
 

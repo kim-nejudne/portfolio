@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { Ack, ChoiceIndex, InkBatch, InkOp, PlayerView } from '../../../shared/types.js';
+import type {
+  Ack,
+  ChoiceIndex,
+  InkBatch,
+  InkOp,
+  PlayerView,
+  Reaction,
+} from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
@@ -227,6 +234,15 @@ export function Play() {
       });
   };
 
+  // Not buffered while offline: a reaction is only worth sending now.
+  const react = (emoji: Reaction) => {
+    if (socket.connected)
+      void socket
+        .timeout(ACK_TIMEOUT_MS)
+        .emitWithAck('player:react', { emoji })
+        .catch(() => null);
+  };
+
   const chooseWord = (index: ChoiceIndex): Promise<Ack | null> =>
     socket
       .timeout(ACK_TIMEOUT_MS)
@@ -438,6 +454,7 @@ export function Play() {
             misses={misses.turnId === turn?.id ? misses.items : []}
             nearMiss={nearMiss}
             onGuess={guess}
+            onReact={react}
             welcome={welcomeTurnId !== null && welcomeTurnId === turn?.id}
             t={t}
           />

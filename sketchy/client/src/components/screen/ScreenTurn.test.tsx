@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { ScreenView, TurnEndReason, TurnView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
+import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { createScreenInk } from '../../lib/ink.js';
 import { Blanks, RevealPanel, ScreenTurn } from './ScreenTurn.js';
 
@@ -73,7 +74,19 @@ describe('Screen blanks', () => {
   it('shows hint letters in place and names them in the label', () => {
     const html = renderToStaticMarkup(<Blanks mask={[...'_a___s__']} />);
     expect(html).toContain('aria-label="8 letters. Hints: a, s"');
-    expect(html).toContain('<span>a</span>');
+    expect(html).toMatch(/<span class="[^"]*">a<\/span>/);
+  });
+
+  it('pops a hint letter in (F34), and only letters', () => {
+    const html = renderToStaticMarkup(<Blanks mask={[...'_a__-_']} />);
+    expect(html).toContain('<span class="inline-block motion-safe:animate-pop">a</span>');
+    expect(html).toContain('<span>_</span>');
+    expect(html).toContain('<span>-</span>');
+  });
+
+  it('puts the letter counts after the blanks', () => {
+    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} />);
+    expect(html).toMatch(/_<\/span><\/span><span[^>]*>\(5, 4\)<\/span><\/p>$/);
   });
 
   it('labels plain blanks with the letter counts only', () => {
@@ -190,5 +203,88 @@ describe('portrait Screen layout (F33)', () => {
     expect(html.indexOf('It was…')).toBeLessThan(canvas);
     expect(html.indexOf('>banana<')).toBeGreaterThan(canvas);
     expect(html).toContain('Got it');
+  });
+});
+
+describe('announcements, chips and feed (F34)', () => {
+  const drawing = (feed: ScreenView['feed'] = []): ScreenView => {
+    const { view, turn } = reveal('time');
+    return {
+      ...view,
+      phase: 'DRAWING',
+      turn: { ...turn, number: 3, word: null, mask: [...'______'], endReason: null },
+      feed,
+    };
+  };
+  const render = (view: ScreenView, layout: 'landscape' | 'portrait', fx: ScreenFxState = NO_FX) =>
+    renderToStaticMarkup(
+      <ScreenTurn
+        view={view}
+        receivedAt={0}
+        ink={createScreenInk()}
+        layout={layout}
+        fx={fx}
+        t={t}
+      />,
+    );
+  const junGotIt: ScreenFxState = { ...NO_FX, gotIt: [{ id: 1, pid: 'jun' }] };
+
+  it('says "Jun got it!" in Jun’s colour in the sidebar, in place of "Mika is drawing"', () => {
+    const html = render(drawing(), 'landscape', junGotIt);
+    expect(html).toMatch(
+      /role="status"[^>]*><p[^>]*><span style="color:#FF6B35">Jun<\/span> got it!<\/p>/,
+    );
+    expect(html.indexOf('got it!')).toBeGreaterThan(html.indexOf('<aside'));
+    expect(html).not.toContain('Mika is drawing');
+    expect(render(drawing(), 'landscape')).toContain('Mika is drawing');
+  });
+
+  it('says it in the portrait top bar, above the drawing, in place of the blanks', () => {
+    const html = render(drawing(), 'portrait', junGotIt);
+    expect(html.indexOf('got it!')).toBeLessThan(html.indexOf('<canvas'));
+    expect(html).not.toContain('aria-label="6 letters"');
+  });
+
+  it('names everyone who got it within the 2 s', () => {
+    const fx = {
+      ...NO_FX,
+      gotIt: [
+        { id: 1, pid: 'jun' },
+        { id: 2, pid: 'mika' },
+      ],
+    };
+    expect(render(drawing(), 'landscape', fx)).toMatch(
+      />Jun<\/span>, <span[^>]*>Mika<\/span> got it!/,
+    );
+  });
+
+  it('keeps a correct guesser’s chip lit and marks every chip for bubbles and reactions', () => {
+    for (const layout of ['landscape', 'portrait'] as const) {
+      const html = render(drawing(), layout);
+      expect(html).toMatch(/<li data-chip="jun" class="[^"]*bg-\[#2DC653\]\/20/);
+      expect(html).toMatch(/<li data-chip="mika" class="(?![^"]*bg-\[#2DC653\])/);
+    }
+  });
+
+  it('shows the last 8 wrong guesses in the sidebar, newest last, and 2 in portrait', () => {
+    const feed = Array.from({ length: 8 }, (_, i) => ({ pid: 'jun', text: `guess${i + 2}` }));
+    const landscape = render(drawing(feed), 'landscape');
+    for (let i = 2; i < 10; i++) expect(landscape).toContain(`guess${i}<`);
+    expect(landscape.indexOf('guess2<')).toBeLessThan(landscape.indexOf('guess9<'));
+    const portrait = render(drawing(feed), 'portrait');
+    expect(portrait).not.toContain('guess7<');
+    expect(portrait).toContain('guess8<');
+    expect(portrait).toContain('guess9<');
+  });
+
+  it('draws no bubbles or reactions over the drawing: the layer sits in the sidebar or the room', () => {
+    for (const layout of ['landscape', 'portrait'] as const) {
+      const html = render(drawing(), layout);
+      const layer = html.indexOf('pointer-events-none absolute inset-0');
+      expect(layer).toBeGreaterThan(html.indexOf('<canvas'));
+      expect(html.slice(0, layer)).toMatch(
+        /<(aside|section) class="[^"]*relative[^"]*overflow-hidden/,
+      );
+    }
   });
 });

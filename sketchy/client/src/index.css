@@ -4,6 +4,68 @@
    until then the rounded system face stands in. */
 @theme {
   --font-display: ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif;
+
+  /* The Screen's turn effects (F34). Each is used behind `motion-safe:`; reduced motion gets
+     `fade`, or nothing. */
+  --animate-pop: pop 0.35s ease-out both;
+  --animate-bubble: bubble 2s ease-out both;
+  --animate-float-up: float-up 2s ease-out both;
+  --animate-fade: fade 2s linear both;
+
+  @keyframes pop {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes bubble {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    10% {
+      transform: scale(1.05);
+      opacity: 1;
+    }
+    15%,
+    85% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes float-up {
+    0% {
+      transform: translateY(0) scale(0.6);
+      opacity: 0;
+    }
+    15% {
+      transform: translateY(calc(var(--rise, 14vh) * -0.1)) scale(1.1);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(calc(var(--rise, 14vh) * -1)) scale(1);
+      opacity: 0;
+    }
+  }
+  @keyframes fade {
+    0%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
 }
 
 html,

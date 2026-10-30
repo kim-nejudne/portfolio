@@ -11,6 +11,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import {
   PING_RATE_LIMIT,
+  REACTION_INTERVAL_MS,
   PONG_ACK_TIMEOUT_MS,
   SOCKET_MAX_BUFFER_BYTES,
   SOCKET_PING_INTERVAL_MS,
@@ -123,6 +124,8 @@ export function attachSockets(
 
   // Keyed by socket id: one phone's pings can't use up another's.
   const pingLimiter = createRateLimiter(PING_RATE_LIMIT, monotonic);
+  // Keyed by room and pid: one reaction a second per player, however many phones they use.
+  const reactLimiter = createRateLimiter({ max: 1, windowMs: REACTION_INTERVAL_MS }, monotonic);
   // Each connection's RTT samples, by socket id, for the Screen's `?debug=1` overlay (F16).
   const rttBySocket = new Map<string, () => readonly number[]>();
 
@@ -230,7 +233,8 @@ export function attachSockets(
     const room: Room = { ...result.room, lastActivityAt: clock() };
     rooms.set(room);
     beforePublish?.(room);
-    broadcast(room, now);
+    // A reaction changes no state (only its `fx` goes out), so it sends no fresh views.
+    if (action.type !== 'player:react') broadcast(room, now);
     runEffects(room, result.effects, now);
     return { ok: true, room };
   }
@@ -358,9 +362,13 @@ export function attachSockets(
       return asPlayer((by) => ({ type: 'player:guess', by, text, receivedAt, oneWayMs: latency }));
     });
 
-    handle(socket, 'player:react', ({ emoji }) =>
-      asPlayer((by) => ({ type: 'player:react', by, emoji })),
-    );
+    // SPEC-QUESTION: the spec gives "reactions 1 per second" but not whether a refused one counts;
+    // here every try does, before the reducer (DECISIONS 56).
+    handle(socket, 'player:react', ({ emoji }) => {
+      const { code, pid } = socket.data;
+      if (code && pid && !reactLimiter.hit(`${code}:${pid}`)) return fail('rateLimited');
+      return asPlayer((by) => ({ type: 'player:react', by, emoji }));
+    });
     handle(socket, 'player:visibility', ({ hidden }) =>
       asPlayer((by) => ({ type: 'player:visibility', by, hidden })),
     );

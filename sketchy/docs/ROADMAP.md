@@ -84,11 +84,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F33 Responsive Screen layouts
 
-- [ ] F34 Announcements, reactions and feed UI
-  - Spec: Guess matching (After a correct guess, Guess feed and rude guesses); UI by role and phase (Screen, Guesser phone)
-  - Depends: F15, F33
-  - Done when:
-    - "Jun got it!" in the sidebar or top bar, never over the drawing; ✓ chips in turn order with this turn's points and no totals; reactions (rate-limited) floating from chips; wrong-guess speech bubbles (≤ 3 at once, 2 s); feed list; blanks with letter counts on one line
+- [x] F34 Announcements, reactions and feed UI
 
 - [ ] F35 The reveal
   - Spec: UI by role and phase (Screen); Data model (Role views)
@@ -237,6 +233,9 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 ## Backlog
 
+- Reactions on the phone at the reveal (the server already takes them from anyone in REVEAL; F34 offers them only after a correct guess in DRAWING).
+- Screen turn effects: re-measure chips on a resize or layout flip while a bubble or reaction is up, and measure a bubble's height instead of estimating it (F34 mobile-ux nits).
+- Portrait "got it!" hides the blanks for its 2 s; on a turn where many guess right in a row, consider a second top-bar line or a shorter 1 s announcement (F34 mobile-ux nit).
 - Server-wide cap on live rooms (503 past it), so many addresses creating rooms can't grow memory for 3 h each (F03 review).
 - PNG download of a gallery drawing: 1024 × 1024 plus a caption band "tsinelas · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
 - `drawer:choose` with an optional `turnId`, refused when it doesn't match the open choice, so a late duplicate tap from one CHOOSING can't pick the next `upcoming` deal when the sole connected player draws back-to-back (F21 review).

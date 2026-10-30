@@ -1,3 +1,4 @@
+import { FEED_MAX } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import type { ScreenInk } from '../../lib/ink.js';
@@ -9,9 +10,11 @@ import {
   wordLengths,
   type ScreenLayout,
 } from '../../lib/screen.js';
+import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { InkCanvas } from './InkCanvas.js';
 import { Avatar } from './PlayerChip.js';
+import { GotItLine, TurnFx } from './TurnFx.js';
 
 /**
  * CHOOSING, DRAWING and REVEAL. Landscape (near-square too): the square drawing on the left at the
@@ -23,18 +26,21 @@ export function ScreenTurn({
   receivedAt,
   ink,
   layout,
+  fx = NO_FX,
   t,
 }: {
   view: ScreenView;
   receivedAt: number;
   ink: ScreenInk;
   layout: ScreenLayout;
+  /** "Jun got it!", bubbles and reactions, from `fx` events. */
+  fx?: ScreenFxState;
   t: Translate;
 }) {
   const turn = view.turn;
   if (!turn) return null;
   if (layout === 'portrait')
-    return <PortraitTurn view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />;
+    return <PortraitTurn view={view} turn={turn} receivedAt={receivedAt} ink={ink} fx={fx} t={t} />;
   const caption = turnCaption(view, t);
   const captionRow = hasCaptionRow(turn);
   return (
@@ -49,12 +55,19 @@ export function ScreenTurn({
         </div>
         {captionRow && <Caption text={caption} />}
       </div>
-      <aside className="@container flex min-w-[28vw] flex-1 flex-col gap-[2vmin] overflow-hidden text-[max(3.5vh,16px)]">
+      <aside className="@container relative flex min-w-[28vw] flex-1 flex-col gap-[2vmin] overflow-hidden text-[max(3.5vh,16px)]">
         {view.phase === 'REVEAL' ? (
           <RevealPanel view={view} turn={turn} t={t} />
         ) : (
-          <TurnPanel view={view} turn={turn} receivedAt={receivedAt} t={t} />
+          <TurnPanel view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />
         )}
+        <TurnFx
+          fx={fx}
+          players={view.players}
+          guessFeed={view.settings.guessFeed}
+          layout="landscape"
+          t={t}
+        />
       </aside>
     </div>
   );
@@ -110,12 +123,14 @@ function PortraitTurn({
   turn,
   receivedAt,
   ink,
+  fx,
   t,
 }: {
   view: ScreenView;
   turn: TurnView;
   receivedAt: number;
   ink: ScreenInk;
+  fx: ScreenFxState;
   t: Translate;
 }) {
   const caption = turnCaption(view, t);
@@ -127,7 +142,7 @@ function PortraitTurn({
         {reveal ? (
           <RevealIntro turn={turn} t={t} />
         ) : (
-          <TopBar view={view} turn={turn} receivedAt={receivedAt} />
+          <TopBar view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />
         )}
       </header>
       {/* The square is as wide as the Screen unless the height runs out first; it takes the free
@@ -139,7 +154,7 @@ function PortraitTurn({
       </div>
       {/* The caption's row (first two turns) is part of this room, so the reveal can use it. */}
       <section
-        className="@container flex flex-[1_0_0%] flex-col gap-[1.2vmin] overflow-hidden leading-tight"
+        className="@container relative flex flex-[1_0_0%] flex-col gap-[1.2vmin] overflow-hidden leading-tight"
         style={{
           minHeight: captionRow
             ? `calc(${PORTRAIT_BELOW} + ${PORTRAIT_CAPTION_HEIGHT} + 1.2vmin)`
@@ -155,20 +170,34 @@ function PortraitTurn({
             <Feed view={view} latest={2} />
           </>
         )}
+        <TurnFx
+          fx={fx}
+          players={view.players}
+          guessFeed={view.settings.guessFeed}
+          layout="portrait"
+          t={t}
+        />
       </section>
     </div>
   );
 }
 
-/** The portrait top bar: the clock and the blanks on one line. */
+/**
+ * The portrait top bar: the clock and the blanks on one line. "Jun got it!" takes the blanks' place
+ * for its 2 s: the bar has no room for both, and the drawing must stay clear.
+ */
 function TopBar({
   view,
   turn,
   receivedAt,
+  fx,
+  t,
 }: {
   view: ScreenView;
   turn: TurnView;
   receivedAt: number;
+  fx: ScreenFxState;
+  t: Translate;
 }) {
   const left = useCountdown(turn.timer, receivedAt);
   const urgent = view.phase === 'DRAWING' && left <= 10_000;
@@ -180,8 +209,20 @@ function TopBar({
       >
         <span aria-hidden>◔</span> {formatClock(left)}
       </p>
-      <div className="@container min-w-0 flex-1">
-        {turn.mask && <Blanks mask={turn.mask} minSize="max(3.5vmin, 16px)" />}
+      {/* The live region stays mounted through the turn, so each "got it" is announced. */}
+      <div className="@container min-w-0 flex-1" role="status" aria-live="polite">
+        {/* SPEC-QUESTION: the portrait top bar holds the clock and blanks; the announcement
+            stands in for the blanks while it shows (DECISIONS 56). */}
+        {view.phase === 'DRAWING' && fx.gotIt.length > 0 ? (
+          <GotItLine
+            gotIt={fx.gotIt}
+            players={view.players}
+            className="text-[max(5vmin,22px)]"
+            t={t}
+          />
+        ) : (
+          turn.mask && <Blanks mask={turn.mask} minSize="max(3.5vmin, 16px)" />
+        )}
       </div>
     </>
   );
@@ -197,7 +238,8 @@ function PlayerStrip({ players }: { players: PlayerChipView[] }) {
       {players.map((p) => (
         <li
           key={p.pid}
-          className={`flex max-w-full min-w-0 items-center gap-[0.8vmin] ${p.connected ? '' : 'opacity-60'}`}
+          data-chip={p.pid}
+          className={`flex max-w-full min-w-0 items-center gap-[0.8vmin] rounded-[0.6vmin] px-[0.6vmin] ${p.guessed ? LIT : ''} ${p.connected ? '' : 'opacity-60'}`}
         >
           {(p.isDrawer || p.guessed) && <span>{p.isDrawer ? '✏️' : '✓'}</span>}
           <Avatar player={p} size="1.4em" />
@@ -211,14 +253,35 @@ function PlayerStrip({ players }: { players: PlayerChipView[] }) {
   );
 }
 
-/** The latest guesses, newest last, in the guesser's colour ("•••" for a masked one). */
-function Feed({ view, latest }: { view: ScreenView; latest: number }) {
+/** A correct guesser's chip stays lit for the rest of the turn (every chip has its padding, so lighting one moves nothing). */
+const LIT = 'bg-[#2DC653]/20';
+
+/**
+ * The latest guesses, newest last, in the guesser's colour ("•••" for a masked one). `fill`: up to
+ * the last 8 right under the players; when the height runs out the feed gives way first (never
+ * below two lines), the oldest cut off at the top.
+ */
+function Feed({
+  view,
+  latest,
+  fill = false,
+}: {
+  view: ScreenView;
+  latest: number;
+  fill?: boolean;
+}) {
   if (view.feed.length === 0) return null;
   const names = new Map(view.players.map((p) => [p.pid, p]));
   return (
-    <ul className="flex shrink-0 flex-col gap-[0.5vmin] text-white/80">
+    <ul
+      className={`flex flex-col gap-[0.5vmin] text-white/80 ${
+        fill
+          ? 'min-h-[calc(2lh+0.5vmin)] shrink-[100] justify-end overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,black_1.2em)]'
+          : 'shrink-0'
+      }`}
+    >
       {view.feed.slice(-latest).map((g, i) => (
-        <li key={i} className="truncate">
+        <li key={i} className="shrink-0 truncate">
           <span style={{ color: names.get(g.pid)?.color }}>{names.get(g.pid)?.name}</span>:{' '}
           {g.text ?? '•••'}
         </li>
@@ -267,11 +330,13 @@ function TurnPanel({
   view,
   turn,
   receivedAt,
+  fx,
   t,
 }: {
   view: ScreenView;
   turn: TurnView;
   receivedAt: number;
+  fx: ScreenFxState;
   t: Translate;
 }) {
   const left = useCountdown(turn.timer, receivedAt);
@@ -288,19 +353,31 @@ function TurnPanel({
       <p className="text-white/70">
         {t('roundTurn', { cycle: turn.cycle, cycles: view.settings.cycles, turn: turn.number })}
       </p>
-      {view.phase === 'DRAWING' && <p>{t('isDrawing', { name: turn.drawerName })}</p>}
+      {/* "Jun got it!" stands in for "Mika is drawing" for its 2 s, on the same line. */}
+      {view.phase === 'DRAWING' && (
+        // One live region for the whole turn, so each "got it" is announced.
+        <div role="status" aria-live="polite">
+          {fx.gotIt.length > 0 ? (
+            <GotItLine gotIt={fx.gotIt} players={view.players} t={t} />
+          ) : (
+            <p className="truncate">{t('isDrawing', { name: turn.drawerName })}</p>
+          )}
+        </div>
+      )}
       <hr className="border-white/20" />
       <PlayerList players={view.players} />
       {view.feed.length > 0 && (
         <>
           <hr className="shrink-0 border-white/20" />
-          {/* Above six players the list takes two columns and the feed keeps its two latest. */}
-          <Feed view={view} latest={view.players.length > 6 ? 2 : 4} />
+          {/* The last 8 in the height left: at least two lines under ten players in two columns. */}
+          <Feed view={view} latest={FEED_MAX} fill />
         </>
       )}
     </>
   );
 }
+
+const LETTER = /[\p{L}\p{N}]/u;
 
 /** The blanks, one cell per character, with the letters per word after them: `(5, 4)`. */
 export function Blanks({ mask, minSize = '3.5vh' }: { mask: string[]; minSize?: string }) {
@@ -319,9 +396,16 @@ export function Blanks({ mask, minSize = '3.5vh' }: { mask: string[]; minSize?: 
     >
       {words.map((word, w) => (
         <span key={w} className="flex gap-[0.3em] font-mono whitespace-nowrap">
-          {[...word].map((ch, i) => (
-            <span key={i}>{ch}</span>
-          ))}
+          {/* A hint letter replaces its blank with a new key, so it pops in. */}
+          {[...word].map((ch, i) =>
+            LETTER.test(ch) ? (
+              <span key={`${i}${ch}`} className="inline-block motion-safe:animate-pop">
+                {ch}
+              </span>
+            ) : (
+              <span key={`${i}${ch}`}>{ch}</span>
+            ),
+          )}
         </span>
       ))}
       <span
@@ -352,7 +436,8 @@ function PlayerList({ players }: { players: PlayerChipView[] }) {
       {players.map((p) => (
         <li
           key={p.pid}
-          className={`flex min-w-0 items-center gap-[1vmin] ${p.connected ? '' : 'opacity-60'}`}
+          data-chip={p.pid}
+          className={`flex min-w-0 items-center gap-[1vmin] rounded-[0.6vmin] px-[0.6vmin] ${p.guessed ? LIT : ''} ${p.connected ? '' : 'opacity-60'}`}
         >
           <span className="w-[1.2em] text-center">{p.isDrawer ? '✏️' : p.guessed ? '✓' : ''}</span>
           <Avatar player={p} size="1.5em" />
@@ -445,7 +530,7 @@ export function RevealPanel({
             {correct.map((c) => {
               const p = byPid.get(c.pid);
               return (
-                <li key={c.pid} className="flex items-center gap-[0.8vmin]">
+                <li key={c.pid} data-chip={c.pid} className="flex items-center gap-[0.8vmin]">
                   {p && <Avatar player={p} size="1.1em" />}
                   <span style={{ color: p?.color }}>{p?.name}</span>
                   <span className="tabular-nums">+{c.points}</span>

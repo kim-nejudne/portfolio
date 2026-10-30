@@ -234,6 +234,22 @@ describe('createBot', () => {
     expect(guesses()).toHaveLength(1);
   });
 
+  it('reacts only once it got the word, or at the reveal (F34)', () => {
+    const { bot, socket, joined } = spawn(2, { random: () => 0.2 });
+    const reactions = () => socket.sent('player:react').map((e) => e.payload);
+    joined();
+    socket.fire('state', view('bot2'));
+    bot.react();
+    socket.fire('state', view('bot2', { guessed: true, paused: true }));
+    bot.react();
+    expect(reactions()).toEqual([]);
+    socket.fire('state', view('bot2', { guessed: true }));
+    bot.react();
+    socket.fire('state', view('bot2', { phase: 'REVEAL' }));
+    bot.react();
+    expect(reactions()).toEqual([{ emoji: '🔥' }, { emoji: '🔥' }]);
+  });
+
   it('guesses the word from the dev endpoint on demand, without showing it', async () => {
     const { bot, socket, joined, guesses, fetchWord, states } = spawn(2, {
       word: { turnId: 1, word: 'umbrella' },

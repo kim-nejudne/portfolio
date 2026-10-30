@@ -170,6 +170,14 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
         >
           Everyone: guess right
         </button>
+        <button
+          type="button"
+          disabled={none}
+          onClick={() => everyone((b) => b.react())}
+          className={button}
+        >
+          Everyone: react
+        </button>
       </div>
 
       {none && <p className="text-white/70">No bots yet. Spawn some above.</p>}
@@ -196,6 +204,9 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
                 </button>
                 <button type="button" onClick={() => bot()?.draw()} className={button}>
                   Draw
+                </button>
+                <button type="button" onClick={() => bot()?.react()} className={button}>
+                  React
                 </button>
               </span>
             </li>

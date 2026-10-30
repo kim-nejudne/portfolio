@@ -7,6 +7,7 @@ import {
   GRACE_MS,
   HINT_AT,
   PING_RATE_LIMIT,
+  REACTION_INTERVAL_MS,
   SOCKET_PING_INTERVAL_MS,
   SOCKET_PING_TIMEOUT_MS,
 } from '../shared/constants.js';
@@ -321,6 +322,52 @@ describe('state broadcast', () => {
       error: 'drawerCannotGuess',
     });
     expect(g.screen.states.length).toBe(before);
+  });
+});
+
+describe('player:react', () => {
+  it('reaches the Screens only, sends no views, and is limited to one a second per player', async () => {
+    const g = await playing();
+    expect(await g.ben.client.emit('player:guess', { text: g.word })).toEqual({ ok: true });
+    await g.screen.state((v) => v.turn?.correct.length === 1);
+    const screenStates = g.screen.states.length;
+    const benStates = g.ben.client.states.length;
+
+    expect(await g.ben.client.emit('player:react', { emoji: '🔥' })).toEqual({ ok: true });
+    expect(await g.ben.client.emit('player:react', { emoji: '😂' })).toEqual({
+      ok: false,
+      error: 'rateLimited',
+    });
+    g.time.mono += REACTION_INTERVAL_MS;
+    expect(await g.ben.client.emit('player:react', { emoji: '👏' })).toEqual({ ok: true });
+    // A round trip after the acks, so any fx or state sent with them has arrived.
+    await g.screen.emit('debug:rtt');
+
+    const reactions = (fx: Fx[]) => fx.filter((f) => f.kind === 'reaction');
+    expect(reactions(g.screen.fx)).toEqual([
+      { kind: 'reaction', pid: g.ben.pid, emoji: '🔥' },
+      { kind: 'reaction', pid: g.ben.pid, emoji: '👏' },
+    ]);
+    expect(reactions(g.ben.client.fx)).toEqual([]);
+    expect(reactions(g.ana.client.fx)).toEqual([]);
+    expect(g.screen.states.length).toBe(screenStates);
+    expect(g.ben.client.states.length).toBe(benStates);
+  });
+
+  it('refuses a guesser who hasn’t got the word', async () => {
+    const g = await playing();
+    expect(await g.ben.client.emit('player:react', { emoji: '🔥' })).toEqual({
+      ok: false,
+      error: 'notGuessed',
+    });
+  });
+
+  it('refuses an emoji outside REACTIONS', async () => {
+    const g = await playing();
+    expect(await g.ben.client.emit('player:react', { emoji: 'tsinelas' })).toEqual({
+      ok: false,
+      error: 'invalidPayload',
+    });
   });
 });
 

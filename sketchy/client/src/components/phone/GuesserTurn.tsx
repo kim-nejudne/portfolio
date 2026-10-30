@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { GUESS_MAX } from '../../../../shared/constants.js';
-import type { Ack, PlayerView } from '../../../../shared/types.js';
+import { GUESS_MAX, REACTION_INTERVAL_MS, REACTIONS } from '../../../../shared/constants.js';
+import type { Ack, PlayerView, Reaction } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import { GUESS_NOTICE_MS, guessAnswer, type OwnGuess } from '../../lib/phone.js';
 import { formatClock, hintLetters, wordLengths } from '../../lib/screen.js';
@@ -15,6 +15,8 @@ interface Props {
   nearMiss: number;
   /** Sends the guess; resolves with the server's answer, or `null` if it was lost. */
   onGuess: (text: string) => Promise<Ack | null>;
+  /** Sends a reaction to the Screens (after a correct guess). */
+  onReact?: (emoji: Reaction) => void;
   /** Joined during this turn: "You're in! Mika is drawing. Type your guess." until their first guess. */
   welcome?: boolean;
   t: Translate;
@@ -23,9 +25,19 @@ interface Props {
 /**
  * A guesser's phone in CHOOSING and DRAWING (UI by role and phase, Guesser phone): the clock and
  * who is drawing, the blanks, the guess box near the top (so the keyboard never covers it) and,
- * after a correct guess, "✓ You got it! +N" without the word. No drawing here, on purpose.
+ * after a correct guess, "✓ You got it! +N" without the word and the reactions. No drawing here,
+ * on purpose.
  */
-export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, welcome, t }: Props) {
+export function GuesserTurn({
+  view,
+  receivedAt,
+  misses,
+  nearMiss,
+  onGuess,
+  onReact,
+  welcome,
+  t,
+}: Props) {
   const turn = view.turn!;
   const left = useCountdown(turn.timer, receivedAt);
   const [text, setText] = useState('');
@@ -127,6 +139,8 @@ export function GuesserTurn({ view, receivedAt, misses, nearMiss, onGuess, welco
         </p>
       )}
 
+      {drawing && guessed && onReact && <ReactionRow onReact={onReact} t={t} />}
+
       {drawing && !guessed && (
         // The note lives with the box, so it takes no room (and no gap) while empty; it only
         // nudges the misses below down while it shows.
@@ -192,4 +206,43 @@ function blanksLabel(mask: readonly string[], t: Translate): string {
   const label = t('lettersLabel', { n: mask.filter((c) => c === '_').length });
   const hints = hintLetters(mask);
   return hints.length ? t('hintsLabel', { label, letters: hints.join(', ') }) : label;
+}
+
+/**
+ * The reactions that replace the guess box once a guesser has the word: emoji only, no free text,
+ * so nobody can hint it. The server takes one a second; the row rests for that long after a tap.
+ */
+export function ReactionRow({ onReact, t }: { onReact: (emoji: Reaction) => void; t: Translate }) {
+  // The one just sent, lit while the row rests, so the guesser sees it went.
+  const [sent, setSent] = useState<Reaction | null>(null);
+  const resting = sent !== null;
+  useEffect(() => {
+    if (!sent) return;
+    const id = setTimeout(() => setSent(null), REACTION_INTERVAL_MS);
+    return () => clearTimeout(id);
+  }, [sent]);
+  return (
+    <div role="group" aria-label={t('reactions')} className="grid grid-cols-6 gap-1.5">
+      {REACTIONS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          aria-label={t('sendReaction', { emoji })}
+          aria-disabled={resting}
+          onClick={() => {
+            if (resting) return;
+            setSent(emoji);
+            onReact(emoji);
+          }}
+          className={`grid min-h-14 min-w-11 place-items-center rounded-xl text-3xl transition-opacity active:scale-90 ${
+            sent === emoji
+              ? 'bg-[#2DC653]/40 ring-2 ring-[#2DC653]'
+              : `bg-white/10 ${resting ? 'opacity-50' : ''}`
+          }`}
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
 }

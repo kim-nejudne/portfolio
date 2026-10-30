@@ -4,7 +4,12 @@
 // the word from the dev-only `GET /api/dev/rooms/:code/word`, and draws a scripted doodle over its
 // own `/ink` socket when it is the drawer. It reads only its role-filtered `state`.
 
-import { DEFAULT_INK_SIZE, MAX_PLAYERS, PLAYER_KEY_LENGTH } from '../../../shared/constants.js';
+import {
+  DEFAULT_INK_SIZE,
+  MAX_PLAYERS,
+  PLAYER_KEY_LENGTH,
+  REACTIONS,
+} from '../../../shared/constants.js';
 import type { Ack, DevWordResponse, InkAuth, InkBatch, PlayerView } from '../../../shared/types.js';
 import { createInkSender, type InkSender } from '../ink/inkSender.js';
 import { keepPinging } from '../lib/ping.js';
@@ -85,6 +90,8 @@ export interface Bot {
   guessRight(): Promise<void>;
   /** Draws the scripted doodle, if this bot is drawing now. */
   draw(): void;
+  /** Sends a random reaction, if this bot may react now (got it, or the reveal). */
+  react(): void;
   /** `player:leave`, then closes both sockets. */
   leave(): void;
   /** Closes both sockets; the player stays in the room as disconnected. */
@@ -198,6 +205,23 @@ export function createBot({
         if (res === null) update({ message: 'No reply' });
         else if (!res.ok) update({ message: res.error });
         else update({ message: label });
+      }),
+    );
+  };
+
+  const react = () => {
+    const v = view;
+    const may =
+      v?.phase === 'REVEAL' || (v?.phase === 'DRAWING' && v.paused === null && hasGuessed(v));
+    if (!may) return update({ message: 'Not reacting now' });
+    const emoji = REACTIONS[Math.floor(random() * REACTIONS.length)] ?? REACTIONS[0];
+    socket.emit(
+      'player:react',
+      { emoji },
+      withTimeout((res) => {
+        if (res === null) update({ message: 'No reply' });
+        else if (!res.ok) update({ message: res.error });
+        else update({ message: `Reacted ${emoji}` });
       }),
     );
   };
@@ -335,6 +359,7 @@ export function createBot({
   return {
     index,
     guessRandom,
+    react,
     async guessRight() {
       if (!mayGuess(view)) return update({ message: 'Not guessing now' });
       const turnId = view.turn?.id;
