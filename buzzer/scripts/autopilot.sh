@@ -23,6 +23,8 @@ MAX_GIVEUPS_IN_A_ROW=3
 SESSION_TIMEOUT=3h
 LIVE_URL='https://buzzr.kimnejudne.dev'
 WORKFLOW='deploy-buzzer.yml'
+# The option loop shifts them away; the systemd-inhibit re-exec below needs them all.
+ORIG_ARGS=("$@")
 
 while (($#)); do
   case $1 in
@@ -44,7 +46,8 @@ while (($#)); do
   shift
 done
 
-BUZZER=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+SELF=$(realpath -- "${BASH_SOURCE[0]}")
+BUZZER=$(dirname -- "$(dirname -- "$SELF")")
 cd "$BUZZER"
 REPO=$(git rev-parse --show-toplevel)
 ROADMAP_JS=(node .claude/scripts/roadmap.mjs)
@@ -54,7 +57,7 @@ if [[ -z ${AUTOPILOT_INHIBITED:-} ]] && command -v systemd-inhibit >/dev/null &&
   systemd-inhibit --what=idle:sleep:handle-lid-switch --who=buzzr-autopilot --why=probe true 2>/dev/null; then
   export AUTOPILOT_INHIBITED=1
   exec systemd-inhibit --what=idle:sleep:handle-lid-switch --who=buzzr-autopilot \
-    --why="Buzzr autopilot is building the roadmap" --mode=block "$0" "$@"
+    --why="Buzzr autopilot is building the roadmap" --mode=block "$SELF" "${ORIG_ARGS[@]}"
 fi
 
 CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/buzzr-autopilot
@@ -497,9 +500,10 @@ if dirty; then
   if roadmap_next | grep -q '^Resume:'; then
     log warn "Uncommitted changes belong to the [~] feature; the first session resumes them."
   elif ((DRY_RUN)); then
-    log warn "buzzer/ has uncommitted changes; a real run would stash them."
+    log warn "buzzer/ has uncommitted changes; a real run would refuse to start."
   else
-    stash_changes 'preflight leftovers'
+    # Kim is still at the keyboard at this point, so ask for a clean tree rather than stash.
+    die "buzzer/ has uncommitted changes; commit or stash them, then start again"
   fi
 fi
 
