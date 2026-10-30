@@ -155,13 +155,17 @@ describe('late joiners in the turn order', () => {
 
   it('a place after the current turn counts even if its player is disconnected', () => {
     const { room, pids, at } = game({ cycles: 1 });
-    // Ana draws; Ben and Cy, the places after her, are both away.
-    let r = step(room, { type: 'sys:disconnected', pid: pids[1]! }, at).room;
+    // Ana draws; Ben and Cy, the places after her, are both away (F41: too few players pauses).
+    let r = step(choose(room, at), { type: 'sys:disconnected', pid: pids[1]! }, at).room;
     r = step(r, { type: 'sys:disconnected', pid: pids[2]! }, at).room;
-    const { room: joined, pid: dee } = join(choose(r, at), at + 1_000);
+    expect(r.paused?.reasons).toEqual(['fewPlayers']);
+    const { room: joined, pid: dee } = join(r, at + 1_000);
     expect(joined.turnOrder).toEqual([...pids, dee]);
+    // Dee makes two: the 3-2-1, then the turn goes on.
+    const goAt = joined.paused!.resumeAt!;
+    const resumed = step(joined, timer(joined, 'resumeGo'), goAt).room;
     // Ben and Cy are skipped; Dee's is the one extra turn.
-    expect(playToFinal(joined, at + 1_000).drawers).toEqual([pids[0], dee]);
+    expect(playToFinal(resumed, goAt).drawers).toEqual([pids[0], dee]);
   });
 
   it('a join during the cycle’s last turn draws from the next cycle', () => {

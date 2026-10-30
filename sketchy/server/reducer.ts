@@ -29,6 +29,7 @@ import {
   RESUME_COUNTDOWN_MS,
   REVEAL_MS,
   SCOREBOARD_MS,
+  SCREEN_AWAY_MS,
 } from '../shared/constants.js';
 import type {
   Action,
@@ -79,7 +80,12 @@ export function reduce(room: Room, action: Action, now: number): ReduceResult {
   const d: Room = { ...structuredClone(rest), packs };
   const effects: Effect[] = [];
   const error = apply(d, action, now, effects);
-  if (!error) syncDrawerAway(d, now, effects, d.timerEpoch !== room.timerEpoch);
+  if (!error) {
+    // The away reasons follow the room after every action; each re-arms its check if the epoch moved.
+    syncFewPlayers(d, now, effects);
+    syncScreenAway(d, now, effects, d.timerEpoch !== room.timerEpoch);
+    syncDrawerAway(d, now, effects, d.timerEpoch !== room.timerEpoch);
+  }
   // Every phase timer is frozen at `since`, so what it had left is read from there.
   if (!error && d.paused) d.paused.remainingMs = phaseLeft(d, d.paused.since);
   return error ? { ok: false, error } : { ok: true, room: d, effects };
@@ -767,7 +773,8 @@ function schedule(
     | 'resumeGo'
     | 'rematchGo'
     | 'drawerAwayCheck'
-    | 'drawerGone',
+    | 'drawerGone'
+    | 'screenGone',
   at: number,
   turnId = d.turn!.id,
 ): Effect {
@@ -1085,6 +1092,45 @@ function drawerGone(d: Room, now: number, fx: Effect[]): void {
   else endTurn(d, 'drawerGone', now, fx);
 }
 
+// ---------- The Screen away and too few players ----------
+
+/**
+ * After every action: no Screen during CHOOSING or DRAWING records `screenAwaySince` and schedules
+ * `screenGone` 3 s on (re-armed on every epoch change, as `drawerAwayCheck` is), which adds
+ * `screenAway`. The count starts when the turn first finds no Screen, so one gone during REVEAL
+ * pauses 3 s into the next choice. A Screen back, or leaving those phases, clears the reason.
+ */
+// SPEC-QUESTION: the spec doesn't say what a Screen gone before CHOOSING or DRAWING does, or whether leaving them clears the reason (DECISIONS 63).
+function syncScreenAway(d: Room, now: number, fx: Effect[], epochMoved: boolean): void {
+  const inTurn = (d.phase === 'CHOOSING' || d.phase === 'DRAWING') && d.turn !== null;
+  const holding = d.paused?.reasons.includes('screenAway') ?? false;
+  if (!inTurn || d.screens > 0) {
+    d.screenAwaySince = null;
+    if (holding) clearPauseReason(d, 'screenAway', now, fx);
+    return;
+  }
+  if (holding) return;
+  let arm = epochMoved;
+  if (d.screenAwaySince === null) {
+    d.screenAwaySince = now;
+    arm = true;
+  }
+  if (arm) fx.push(schedule(d, 'screenGone', d.screenAwaySince + SCREEN_AWAY_MS));
+}
+
+/**
+ * After every action: fewer than 2 connected players during a game (any phase but LOBBY and FINAL)
+ * adds `fewPlayers` at once; 2 or more clear it. A `hidden` phone is still connected.
+ */
+// SPEC-QUESTION: "during a game" read as every phase but LOBBY and FINAL, with no debounce (DECISIONS 63).
+function syncFewPlayers(d: Room, now: number, fx: Effect[]): void {
+  const connected = Object.values(d.players).filter((p) => p.connected).length;
+  const few = pausable(d.phase) && connected < MIN_PLAYERS;
+  const holding = d.paused?.reasons.includes('fewPlayers') ?? false;
+  if (few && !holding) pause(d, 'fewPlayers', now);
+  else if (!few && holding) clearPauseReason(d, 'fewPlayers', now, fx);
+}
+
 function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Handled {
   if (d.phase !== 'REVEAL' && d.phase !== 'SCOREBOARD') return 'wrongPhase';
   if (!isHost(d, a.by)) return 'notHost';
@@ -1115,8 +1161,9 @@ function settings(d: Room, a: ActionOf<'host:settings'>): Handled {
 function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handled {
   if (a.epoch !== d.timerEpoch) return 'staleTimer';
   // A pause holds every phase timer; `resumeGo` schedules them again with what they had left. The
-  // drawer-away timers run through a pause: a host pause doesn't stop `drawerAway` being added.
-  if (d.paused && !['resumeGo', 'drawerAwayCheck', 'drawerGone'].includes(a.timer)) return 'paused';
+  // away timers run through a pause: another reason doesn't stop `drawerAway` or `screenAway` being added.
+  if (d.paused && !['resumeGo', 'drawerAwayCheck', 'drawerGone', 'screenGone'].includes(a.timer))
+    return 'paused';
   // FINAL's countdown: the epoch alone tells a cancelled one apart.
   if (a.timer === 'rematchGo') {
     if (d.phase !== 'FINAL' || d.rematchAt === null) return 'staleTimer';
@@ -1170,6 +1217,14 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
       if (!away || away.turnId !== d.turn.id || away.goneAt === null) return 'staleTimer';
       if (now + TIMER_SLACK_MS < away.goneAt) return 'staleTimer';
       drawerGone(d, now, fx);
+      return undefined;
+    }
+    case 'screenGone': {
+      const since = d.screenAwaySince;
+      // Gone if a Screen came back meanwhile; early if one came back and went again since.
+      if (since === null || d.paused?.reasons.includes('screenAway')) return 'staleTimer';
+      if (now + TIMER_SLACK_MS < since + SCREEN_AWAY_MS) return 'staleTimer';
+      pause(d, 'screenAway', now);
       return undefined;
     }
     default:

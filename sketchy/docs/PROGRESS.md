@@ -56,8 +56,56 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F38: `npm run dev` + `npm run lan CODE`, the laptop Screen on the TV with its speakers on, plus an iPad or iPhone as a second Screen with its ringer switch on silent, and 3 real phones; tap/click to start on each Screen, play a game of 2 short turns (let one run out of time), then end it · each phone joining gives a short pop; each new turn a two-note chime; each correct guess a ding; the last 10 s of a turn tick once a second, stopping while paused and picking up after; a timed-out turn gives a low double buzz, then the sting as the word pops in; FINAL plays the fanfare; nothing is cut short or doubled; the iPad/iPhone Screen plays everything with the ringer switch on silent; after locking and unlocking the iPad (or taking a call), one tap brings its sound back; `M` (or the bar's Sound button) cycles Sound on / Quiet / Muted, and the tick is still audible on Quiet from the sofa (≈ 2–3 m); only the drawer's phone buzzes on "your turn", and no phone makes a sound
 - [ ] F39: after autopilot deploys, on the **budget Android with Wi-Fi off (mobile data)**, clear Chrome's data for sketchy.kimnejudne.dev, start a game on the laptop (Screen on the TV), then scan the lobby QR with a stopwatch running · the name field shows and takes typing within 5 s of the scan, and you reach the lobby within 15 s including typing a name; the headings are the rounded Fredoka face (round dots on i and j). Repeat on the iPhone. Then once on a Wi-Fi that's known to be fussy (a café or captive portal), join and play a turn · it joins (on a network that blocks WebSockets it falls back to polling, which may take a few seconds longer to connect)
 - [ ] F40: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (an iPhone and an Android as drawers in turn) · as the drawer, pick a word and draw a few strokes, then lock the phone for about 1 s and unlock: nothing pauses (at most "Mika’s phone reconnecting…" flashes on the TV); lock it for about 5 s: within 2 s of locking the TV shows "Mika’s phone reconnecting…" over the top of the drawing (readable from the sofa), then "Paused · Waiting for Mika’s phone…" on the TV and the guessers' phones, with the clock stopped; unlock: "Back in 3-2-1" everywhere, the strokes are still on the pad and the TV, and new strokes reach the TV; switch to another app for 5 s and back: the same; lock it for more than 35 s: the turn ends with the reveal ("It was…", points earned so far kept, the drawer's half shown) and the next drawer chooses, and the locked phone, unlocked, shows the reveal; repeat once during the word choice (lock for 35 s: the next drawer chooses, no reveal); turn on airplane mode on the drawer's phone for 10 s instead of locking it: the badge comes after a few seconds (the server has to notice the drop), then the pause, and on reconnecting the 3-2-1
+- [ ] F41: `npm run dev` + `npm run lan CODE`, an **iPad or Android tablet as the Screen** (open the LAN Screen URL, tap to start) and 3 real phones · start a game; while someone draws, lock the tablet (or close its tab) for about 1 s and wake it: nothing pauses; lock it for 15 s: within about 13 s every phone shows "Paused · Waiting for the Screen…" with the clock stopped and the guess box covered; wake the tablet: it shows the drawing so far and "Back in 3-2-1", then every phone carries on with the time it had; do the same while the drawer is still choosing a word (the choice's countdown stops too); lock the tablet during the reveal for 10 s: the reveal and scoreboard carry on, and the game pauses about 3 s into the next turn until the tablet wakes. Then with 3 players, put two guessers' phones in airplane mode: within about 10 s the Screen and the drawer show "Paused · Waiting for more players…"; turn one back on: "Back in 3-2-1" and the turn goes on; with only 2 players, reload one phone's page: note whether the brief "Waiting for more players…" and 3-2-1 feel jarring (DECISIONS 63 has no debounce; a short grace is the fix if so)
 
 <!-- entries below, newest first -->
+
+## F41 — Screen away and too few players (2026-10-31)
+**What changed:**
+- **Reducer** (`server/reducer.ts`): after every successful action, the room's away reasons are reconciled in order: `syncFewPlayers`, `syncScreenAway`, then F40's `syncDrawerAway`. Each re-arms its check when the epoch moved in that action.
+  - **`screenAway`:** with no Screen connected (`screens` 0) in CHOOSING or DRAWING, `Room.screenAwaySince` (new) records when the turn first found none and `screenGone` is scheduled 3 s on (`SCREEN_AWAY_MS`), re-armed at the same time on every epoch change (the auto-pick, a host pause, another reason's pause). It adds the `screenAway` reason if the same absence is still on; a Screen back and gone again makes the old check stale (50 ms slack, as F40).
+  - A Screen back (plain or host) or leaving CHOOSING/DRAWING clears it; with no other reason, the 3-2-1. A Screen gone during REVEAL pauses 3 s into the next CHOOSING; a room no Screen ever joined pauses 3 s into its first turn.
+  - **`fewPlayers`:** fewer than 2 connected players in any phase but LOBBY and FINAL adds the reason at once, with no debounce (deliberate: the spec gives none and Socket.IO's ping timeout absorbs dead links; a Kim check asks how a 2-player reload feels). 2 or more connected clear it. Leavers and kicked players don't count; a `hidden` phone is connected. It holds REVEAL's and SCOREBOARD's auto-advance too.
+  - `screenGone` runs while paused (beside `resumeGo`, `drawerAwayCheck` and `drawerGone`), so the Screen can go missing during a host or `fewPlayers` pause. Combined reasons resume only when all clear (F28's `pause`/`clearPauseReason`).
+  - The drawer gone 30 s with `fewPlayers` holding too: the turn ends as `drawerGone` and the REVEAL stays paused (F40's limit still stops only for the host's pause).
+- **No client change:** F28's overlay already says "Waiting for the Screen…" and "Waiting for more players…" (`pausedScreenAway`, `pausedFewPlayers`), and a rejoining Screen gets its state and ink snapshot (F12, F28).
+- **Test fixture:** `makeRoom` now has `screens: 1` (a Screen makes every room), so other reducer tests don't trip `screenAway`.
+- **Older tests updated** for the new pause, none weakened: DECISIONS 43's "a new cycle with nobody connected ends the game" can no longer be reached by players dropping, so `reducer.flow` and `reducer.overlap` now assert that `fewPlayers` holds the SCOREBOARD and refuses Next (`startCycle`'s FINAL stays as a backstop). "Nobody following in the cycle" now plays to turn 3's reveal, so two players stay connected; "starts that cycle with the next connected player" adds Cy at the SCOREBOARD. `reducer.turnorder`'s disconnected-places test goes through the pause and its 3-2-1.
+- **New dependencies:** none.
+- **Tests:**
+  - `server/reducer.away.test.ts` (+30, now 58):
+    - `screenAway`: the pause at 3 s with the clock frozen; a 3 s blip pauses nothing; only the second absence's check pauses; one of two Screens leaving; a Screen back → 3-2-1 → the clock moved by the pause; the phones' view and guesses refused; CHOOSING; re-armed through the auto-pick; nothing in LOBBY, REVEAL or SCOREBOARD; gone in REVEAL → paused 3 s into CHOOSING; a skip clears it into the 3-2-1; a host pause re-arms it and Resume leaves `screenAway` holding; End game; a room no Screen joined.
+    - `fewPlayers`: down to 1 pauses at once; back to 2 → 3-2-1 → the clock moved; a new joiner; hidden counts as connected; leavers; CHOOSING, REVEAL and SCOREBOARD; not LOBBY or FINAL; nobody connected is one reason; End game; dropping again during the 3-2-1.
+    - Several reasons: `screenAway` + `fewPlayers` resume only when both clear; a Screen gone during a `fewPlayers` pause; `drawerGone` under `fewPlayers`; all four reasons, each cleared only by its own return.
+  - `server/sockets.test.ts` (+2): a real Screen socket dropping → `screenGone` → phones paused → a new Screen joins → 3-2-1; a phone dropping in a 2-player game pauses every view.
+
+**Decisions:** DECISIONS 63 (the new `Room.screenAwaySince`, the 3 s counted from when the turn finds no Screen, leaving CHOOSING/DRAWING clears `screenAway`, `fewPlayers` in every game phase with no debounce, the away timers under other reasons, DECISIONS 43's FINAL now a backstop).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Must-fixes: this entry with a Kim check, and a recorded browser playtest (it had run; `.playtest/` isn't in the diff), both done here. Should-fixes accepted as recorded choices: the 3 s from when the turn finds no Screen, no `fewPlayers` debounce (in the Kim check), `drawerGone` under `fewPlayers`.
+- **secrets-fairness: PASS** (no Must-fix; nothing secret in the new state, the reducer stays pure, stale timers hold with several reasons). Should-fixes: the 2-player blip and the 3-2-1 over a REVEAL with no Screen, both in the Kim check. Nit left: a choice abandoned during a Screen absence keeps the absence's start, so the next drawer's choice can pause at once; that is the continuous "3 s without any Screen" the spec describes.
+- **mobile-ux:** not run, since `client/` is unchanged.
+
+**Playtest** (`.playtest/F41/scenario.ts`, dev server; a 1920×1080 Screen, Ana drawing, Ben and Cara on Pixel 7s), all 7 steps pass:
+1. Ana draws a stroke and it reaches the Screen; no word in the Screen's or the guessers' HTML.
+2. Screen offline for 1 s: no phone shows "Paused".
+3. Screen offline: "Waiting for the Screen…" on all three phones at 12.4 s (Socket.IO noticing the drop, then 3 s), Ben's guess box covered.
+4. Screen back online: "Back in" 3-2-1 on the Screen, the drawing restored (758 ink px, as before), every phone resumes; no word leaked.
+5. Ben and Cara offline: "Waiting for more players…" on the Screen and Ana's phone at 9.3 s.
+6. The Screen offline for 14 s too, then back: still "Paused · Waiting for more players…", no 3-2-1.
+7. Ben back: 3-2-1, the Screen, Ana and Ben resume; no word leaked.
+
+Console errors: only the expected `ERR_INTERNET_DISCONNECTED` while offline. Screenshots: `.playtest/F41/screen-away-Ben.png`, `screen-away-Ana.png`, `screen-back-screen.png`, `few-players-screen.png`, `resumed-screen.png`.
+
+**Notes for next session:**
+- `reduce` now runs `syncFewPlayers`, `syncScreenAway` and `syncDrawerAway` after every action; a new away reason goes there, and its timer into `timer()`'s pause allow-list.
+- Reducer tests get a connected Screen from `makeRoom`; pass `makeRoom({ screens: 0 })` to test without one.
+- Tests that drop to one connected player now pause (`fewPlayers`).
+
+**How to try it:**
+- Tests: `npx vitest run server/reducer.away.test.ts server/sockets.test.ts`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F41/scenario.ts` (about 1.5 minutes).
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), three phone windows at `/play/CODE`, start and choose; close or set Offline on the Screen's window for 15 s: every phone says "Waiting for the Screen…"; bring it back: 3-2-1. Set two phone windows Offline: "Waiting for more players…"; one back: 3-2-1.
 
 ## F40 — Drawer away (2026-10-31)
 **What changed:**

@@ -9,6 +9,7 @@ import {
   HINT_AT,
   PING_RATE_LIMIT,
   REACTION_INTERVAL_MS,
+  SCREEN_AWAY_MS,
   SOCKET_PING_INTERVAL_MS,
   SOCKET_PING_TIMEOUT_MS,
   VISIBILITY_RATE_LIMIT,
@@ -672,6 +673,40 @@ describe('the drawer away (F40)', () => {
     expect(await g.ana.client.emit('player:visibility', { hidden: 'yes' })).toMatchObject({
       ok: false,
     });
+  });
+});
+
+describe('the Screen away and too few players (F41)', () => {
+  it('the last Screen gone: screenGone 3 s on pauses the phones; a Screen back gets the 3-2-1', async () => {
+    const g = await playing();
+    g.time.mono = MONO0 + 10_000;
+    const before = g.timers.length;
+    g.screen.socket.disconnect();
+    await g.ben.client.state(() => g.rooms.get(CODE)!.screens === 0);
+    const check = g.timers.slice(before).find((t) => t.delayMs === SCREEN_AWAY_MS)!;
+    expect(check).toBeDefined();
+    expect((await g.ben.client.state((v) => v.role === 'player')).paused).toBeNull();
+    g.time.mono += SCREEN_AWAY_MS;
+    check.fn();
+    const paused = await g.ben.client.state((v) => v.paused !== null);
+    expect(paused.paused!.reasons).toEqual(['screenAway']);
+    const screen = await g.connect();
+    expect(await screen.emit('screen:join', { code: CODE, hostToken: g.hostToken })).toEqual({
+      ok: true,
+    });
+    const back = await screen.state((v) => v.paused?.resumeInMs != null);
+    expect(back.paused!.reasons).toEqual([]);
+    await g.ana.client.state((v) => v.paused?.resumeInMs != null);
+  });
+
+  it('down to one connected player pauses every view at once', async () => {
+    const g = await playing();
+    g.ben.client.socket.disconnect();
+    const paused = await g.screen.state((v) => v.paused !== null);
+    expect(paused.paused!.reasons).toEqual(['fewPlayers']);
+    expect((await g.ana.client.state((v) => v.paused !== null)).paused!.reasons).toEqual([
+      'fewPlayers',
+    ]);
   });
 });
 

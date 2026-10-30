@@ -155,6 +155,8 @@ export interface Room {
   paused: Paused | null;
   // SPEC-QUESTION: not in the spec's Room; the debounce and the 30 s limit need to know when the drawer went away (DECISIONS 62).
   drawerAway: DrawerAway | null;
+  // SPEC-QUESTION: not in the spec's Room; the 3 s before `screenAway` needs to know when the last Screen went (DECISIONS 63).
+  screenAwaySince: number | null; // monotonic ms no Screen was first seen in CHOOSING or DRAWING
   timerEpoch: number; // bumped on every phase change and pause
   rngState: number; // seeded PRNG state (mulberry32), so the reducer stays pure
   cycle: number; // 0 in the lobby

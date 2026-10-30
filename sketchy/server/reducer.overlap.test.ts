@@ -5,7 +5,16 @@ import { CHOOSE_MS, GRACE_MS, REVEAL_MS, SCOREBOARD_MS } from '../shared/constan
 import type { Action, Effect, Room, RoomSettings, TimerName } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import { toView } from './views.js';
-import { SCREEN, SCREEN_HOST, T0, asPlayer, makeRoom, step, withPlayers } from './test/rooms.js';
+import {
+  NEW_PHONE,
+  SCREEN,
+  SCREEN_HOST,
+  T0,
+  asPlayer,
+  makeRoom,
+  step,
+  withPlayers,
+} from './test/rooms.js';
 
 /** A timer for the current turn at the current epoch. */
 const timer = (room: Room, name: TimerName): Action => ({
@@ -376,11 +385,15 @@ describe('the upcoming drawer gone at take-up', () => {
   });
 
   it('with nobody following in the cycle, the cycle ends instead', () => {
-    // One cycle: Cy leaves, then Ben, dealt turn 2, leaves too; nobody is left to draw.
-    const { room, pids, at } = revealOfTurn1({ cycles: 1 }, ['Ana', 'Ben', 'Cy']);
-    let r = step(room, { type: 'player:leave', by: asPlayer(pids[2]!) }, at + 500).room;
-    r = step(r, { type: 'player:leave', by: asPlayer(pids[1]!) }, at + 1000).room;
-    r = step(r, timer(r, 'revealDone'), at + REVEAL_MS).room;
+    // One cycle: Ana and Ben have drawn; Cy, dealt turn 3, leaves; nobody is left to draw.
+    const first = revealOfTurn1({ cycles: 1 }, ['Ana', 'Ben', 'Cy']);
+    const { pids } = first;
+    let r = step(first.room, pick(pids[1]!), first.at + 1000).room;
+    r = step(r, NEXT, first.at + 2000).room;
+    const reveal = timeUp(r);
+    expect(reveal.room.upcoming!.drawerPid).toBe(pids[2]);
+    r = step(reveal.room, { type: 'player:leave', by: asPlayer(pids[2]!) }, reveal.at + 500).room;
+    r = step(r, timer(r, 'revealDone'), reveal.at + REVEAL_MS).room;
     expect(r.phase).toBe('FINAL');
     expect(r.upcoming).toBeNull();
   });
@@ -402,20 +415,30 @@ describe('a discarded first deal of a new cycle', () => {
 
   it('starts that cycle with the next connected player', () => {
     const { room, pids, at } = boardWithAnaUp();
-    let r = step(room, { type: 'sys:disconnected', pid: pids[0]! }, at + 500).room;
+    // Cy joins at the SCOREBOARD, so Ana's going leaves two connected (F41: no fewPlayers pause).
+    let r = step(
+      room,
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy' },
+      at + 200,
+    ).room;
+    r = step(r, { type: 'sys:disconnected', pid: pids[0]! }, at + 500).room;
+    expect(r.paused).toBeNull();
     r = step(r, NEXT, at + 1000).room;
     expect(r.phase).toBe('CHOOSING');
     expect(r.cycle).toBe(2);
     expect(r.turn!.drawerPid).toBe(pids[1]);
   });
 
-  it('with nobody connected to draw, ends the game rather than showing another SCOREBOARD', () => {
+  // F41: nobody connected can no longer reach the take-up; `fewPlayers` holds the SCOREBOARD
+  // (`startCycle`'s FINAL with nobody to draw stays as a backstop, DECISIONS 63).
+  it('with nobody connected, too few players holds the SCOREBOARD and the deal', () => {
     const { room, pids, at } = boardWithAnaUp();
     let r = step(room, { type: 'sys:disconnected', pid: pids[0]! }, at + 500).room;
+    expect(r.paused?.reasons).toEqual(['fewPlayers']);
     r = step(r, { type: 'sys:disconnected', pid: pids[1]! }, at + 600).room;
-    r = step(r, NEXT, at + 1000).room;
-    expect(r.phase).toBe('FINAL');
-    expect(r.upcoming).toBeNull();
+    expect(reduce(r, NEXT, at + 1000)).toEqual({ ok: false, error: 'paused' });
+    expect(r.phase).toBe('SCOREBOARD');
+    expect(r.upcoming).toMatchObject({ drawerPid: pids[0] });
   });
 });
 

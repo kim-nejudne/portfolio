@@ -41,6 +41,7 @@ export function createRoom({
     phase: 'LOBBY',
     paused: null,
     drawerAway: null,
+    screenAwaySince: null,
     timerEpoch: 0,
     rngState: seed,
     cycle: 0,

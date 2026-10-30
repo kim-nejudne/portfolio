@@ -9,9 +9,11 @@ import { TEST_PACKS } from './packs.js';
 /** Monotonic ms at room creation in tests. */
 export const T0 = 1_000_000;
 
+/** A room as its Screen made it: that Screen is connected (`screens: 1`) unless overridden. */
 export function makeRoom(overrides: Partial<Room> = {}): Room {
   return {
     ...createRoom({ code: 'ABCD', hostTokenHash: 'hash', now: T0, seed: 42, packs: TEST_PACKS }),
+    screens: 1,
     ...overrides,
   };
 }

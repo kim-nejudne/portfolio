@@ -100,12 +100,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F40 Drawer away
 
-- [ ] F41 Screen away and too few players
-  - Spec: Game flow and state machine (Pausing); Reconnects, security and edge cases (Edge cases)
-  - Depends: F28
-  - Done when:
-    - `screenAway` after 3 s without a Screen in CHOOSING or DRAWING; `fewPlayers` below 2 connected; combined reasons resume only when all clear
-  - Tests: `reducer.away.test.ts`
+- [x] F41 Screen away and too few players
 
 - [ ] F42 Rejoin by name from another phone
   - Spec: Roles and devices (Creating and joining a room); Reducer actions and effects (Actions); Reconnects, security and edge cases (Reconnects)

@@ -343,13 +343,16 @@ describe('turn order across cycles', () => {
     expect(step(r, skip, at).room.phase).toBe('FINAL');
   });
 
-  it('ends the game when a new cycle has nobody connected to draw', () => {
+  // F41: nobody connected can no longer reach a new cycle; `fewPlayers` holds the SCOREBOARD
+  // (`startCycle`'s FINAL with nobody to draw stays as a backstop, DECISIONS 63).
+  it('everyone gone at the SCOREBOARD: too few players holds it there, and Next is refused', () => {
     const { room, pids, at } = game({ cycles: 2 });
     let r = room;
     for (let i = 0; i < 3; i++) r = step(playTurn(r, at), NEXT, at).room;
+    expect(r.phase).toBe('SCOREBOARD');
     for (const pid of pids) r = step(r, { type: 'sys:disconnected', pid }, at).room;
-    const after = step(r, NEXT, at).room;
-    expect(after.phase).toBe('FINAL');
+    expect(r.paused?.reasons).toEqual(['fewPlayers']);
+    expect(reduce(r, NEXT, at)).toEqual({ ok: false, error: 'paused' });
   });
 
   it('FINAL keeps the scores and history of the whole game', () => {

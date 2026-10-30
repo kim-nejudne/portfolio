@@ -1,5 +1,7 @@
 // The drawer away (F40): `player:visibility` and disconnects, the 2 s debounce, the `drawerAway`
-// pause, the drawer's return and the 30 s limit. "Pausing" and "Edge cases" in docs/spec.md.
+// pause, the drawer's return and the 30 s limit. The Screen away and too few players (F41): the
+// `screenAway` and `fewPlayers` pauses, and several reasons at once. "Pausing" and "Edge cases" in
+// docs/spec.md.
 import { describe, expect, it } from 'vitest';
 import {
   CHOOSE_MS,
@@ -8,6 +10,7 @@ import {
   GRACE_MS,
   RESUME_COUNTDOWN_MS,
   REVEAL_MS,
+  SCREEN_AWAY_MS,
 } from '../shared/constants.js';
 import type { Action, Effect, Room, TimerName } from '../shared/types.js';
 import { reduce } from './reducer.js';
@@ -19,6 +22,7 @@ import {
   asPlayer,
   dealt,
   inPhase,
+  makeRoom,
   secretWord,
   started,
   step,
@@ -45,6 +49,7 @@ const rejoin = (name: string, hidden?: boolean): Action => ({
   name,
   ...(hidden === undefined ? {} : { hidden }),
 });
+const screens = (count: number): Action => ({ type: 'sys:screens', count });
 const PAUSE: Action = { type: 'host:pause', by: SCREEN_HOST };
 const RESUME: Action = { type: 'host:resume', by: SCREEN_HOST };
 
@@ -436,5 +441,376 @@ describe('moving on while the drawer is away', () => {
     expect(res.room.phase).toBe('FINAL');
     expect(res.room.paused).toBeNull();
     expect(res.room.drawerAway).toBeNull();
+  });
+});
+
+// ---------- F41: the Screen away ----------
+
+/** DRAWING with Ana drawing; the last Screen goes at `goneAt` and `screenGone` pauses the game. */
+function screenPaused(names?: string[]) {
+  const { room, pids, at } = started(names);
+  const t = at + 10_000;
+  const gone = step(room, screens(0), t);
+  const res = fire(gone.room, only(gone.effects, 'screenGone'));
+  if (!res.ok) throw new Error(res.error);
+  return { pids, at, t, before: gone.room, room: res.room, effects: res.effects };
+}
+
+describe('screenAway', () => {
+  it('the last Screen gone 3 s in DRAWING sets the pause and freezes the clock', () => {
+    const { room, at } = started();
+    const t = at + 10_000;
+    const gone = step(room, screens(0), t);
+    expect(gone.room.paused).toBeNull();
+    expect(gone.room.screenAwaySince).toBe(t);
+    const check = only(gone.effects, 'screenGone');
+    expect(check).toMatchObject({ at: t + SCREEN_AWAY_MS, turnId: room.turn!.id });
+    const res = fire(gone.room, check);
+    if (!res.ok) throw new Error(res.error);
+    expect(res.room.paused).toEqual({
+      reasons: ['screenAway'],
+      since: t + SCREEN_AWAY_MS,
+      remainingMs: room.turn!.endsAt! - (t + SCREEN_AWAY_MS),
+      resumeAt: null,
+    });
+    expect(res.room.timerEpoch).toBe(gone.room.timerEpoch + 1);
+  });
+
+  it('a Screen back within 3 s pauses nothing', () => {
+    const { room, at } = started();
+    const gone = step(room, screens(0), at + 10_000);
+    const back = step(gone.room, screens(1), at + 12_000).room;
+    expect(back.screenAwaySince).toBeNull();
+    expect(fire(back, only(gone.effects, 'screenGone'))).toEqual({
+      ok: false,
+      error: 'staleTimer',
+    });
+    expect(back.turn!.endsAt).toBe(room.turn!.endsAt);
+  });
+
+  it('gone again after a blip: only the second absence’s check pauses, 3 s after it', () => {
+    const { room, at } = started();
+    const first = step(room, screens(0), at + 10_000);
+    const back = step(first.room, screens(1), at + 11_000).room;
+    const second = step(back, screens(0), at + 12_000);
+    // Same epoch, but it was the first absence's: too early for the second.
+    expect(fire(second.room, only(first.effects, 'screenGone'))).toEqual({
+      ok: false,
+      error: 'staleTimer',
+    });
+    const res = fire(second.room, only(second.effects, 'screenGone'));
+    expect(res.ok && res.room.paused?.since).toBe(at + 12_000 + SCREEN_AWAY_MS);
+  });
+
+  it('one of two Screens leaving pauses nothing', () => {
+    const { room, at } = started();
+    const two = step(room, screens(2), at + 1000).room;
+    const res = step(two, screens(1), at + 2000);
+    expect(scheduled(res.effects, 'screenGone')).toEqual([]);
+    expect(res.room.screenAwaySince).toBeNull();
+  });
+
+  it('a Screen rejoining: the reason clears into the 3-2-1, then the clock goes on with what it had', () => {
+    const { room, before, t } = screenPaused();
+    const backAt = t + SCREEN_AWAY_MS + 7000;
+    const back = step(room, screens(1), backAt);
+    expect(back.room.paused).toMatchObject({ reasons: [], resumeAt: backAt + RESUME_COUNTDOWN_MS });
+    expect(back.room.screenAwaySince).toBeNull();
+    const go = fire(back.room, only(back.effects, 'resumeGo'));
+    if (!go.ok) throw new Error(go.error);
+    expect(go.room.paused).toBeNull();
+    const pausedFor = backAt + RESUME_COUNTDOWN_MS - (t + SCREEN_AWAY_MS);
+    expect(go.room.turn!.endsAt).toBe(before.turn!.endsAt! + pausedFor);
+  });
+
+  it('every view says the game waits for the Screen, and guesses are refused', () => {
+    const { room, pids, t } = screenPaused();
+    const now = t + SCREEN_AWAY_MS + 1000;
+    const phone = toView(room, { kind: 'player', pid: pids[1]! }, now);
+    expect(phone.paused?.reasons).toEqual(['screenAway']);
+    expect(
+      reduce(
+        room,
+        {
+          type: 'player:guess',
+          by: asPlayer(pids[1]!),
+          text: secretWord(room),
+          receivedAt: now,
+          oneWayMs: 0,
+        },
+        now,
+      ),
+    ).toEqual({ ok: false, error: 'paused' });
+  });
+
+  it('in CHOOSING too, with the choice’s time frozen', () => {
+    const { room, at } = dealt();
+    const gone = step(room, screens(0), at + 2000);
+    const res = fire(gone.room, only(gone.effects, 'screenGone'));
+    expect(res.ok && res.room.paused).toMatchObject({
+      reasons: ['screenAway'],
+      remainingMs: CHOOSE_MS - 2000 - SCREEN_AWAY_MS,
+    });
+  });
+
+  it('survives the auto-pick: the check is re-armed at the new epoch, still 3 s after', () => {
+    const { room, at } = dealt();
+    const gone = step(room, screens(0), at + 11_000);
+    const chooseUp: Scheduled = {
+      type: 'schedule',
+      timer: 'chooseUp',
+      at: at + CHOOSE_MS,
+      turnId: room.turn!.id,
+      epoch: room.timerEpoch,
+    };
+    const picked = fire(gone.room, chooseUp);
+    if (!picked.ok) throw new Error(picked.error);
+    expect(picked.room.phase).toBe('DRAWING');
+    expect(fire(picked.room, only(gone.effects, 'screenGone'))).toEqual({
+      ok: false,
+      error: 'staleTimer',
+    });
+    const check = only(picked.effects, 'screenGone');
+    expect(check.at).toBe(at + 11_000 + SCREEN_AWAY_MS);
+    const res = fire(picked.room, check);
+    expect(res.ok && res.room.paused?.reasons).toEqual(['screenAway']);
+  });
+
+  it('nothing pauses in LOBBY, REVEAL or SCOREBOARD', () => {
+    const lobby = withPlayers(['Ana', 'Ben']).room;
+    for (const room of [lobby, inPhase('REVEAL'), inPhase('SCOREBOARD')]) {
+      const res = step(room, screens(0), 3_000_000);
+      expect(scheduled(res.effects, 'screenGone'), room.phase).toEqual([]);
+      expect(res.room.screenAwaySince, room.phase).toBeNull();
+      expect(res.room.paused, room.phase).toBeNull();
+    }
+  });
+
+  it('the 3 s count from when the turn finds no Screen: gone in REVEAL, paused 3 s into CHOOSING', () => {
+    const reveal = inPhase('REVEAL');
+    const gone = step(reveal, screens(0), 3_000_000).room;
+    const next = step(gone, { type: 'host:next', by: asPlayer(gone.crownPid!, true) }, 3_001_000);
+    expect(next.room.phase).toBe('CHOOSING');
+    expect(next.room.screenAwaySince).toBe(3_001_000);
+    const check = only(next.effects, 'screenGone');
+    expect(check.at).toBe(3_001_000 + SCREEN_AWAY_MS);
+    const res = fire(next.room, check);
+    expect(res.ok && res.room.paused?.reasons).toEqual(['screenAway']);
+  });
+
+  it('a skip during the pause: leaving DRAWING clears it into the 3-2-1', () => {
+    const { room, pids, t } = screenPaused();
+    const res = step(room, { type: 'host:skip', by: asPlayer(pids[0]!, true) }, t + 5000);
+    expect(res.room.phase).toBe('REVEAL');
+    expect(res.room.paused).toMatchObject({
+      reasons: [],
+      resumeAt: t + 5000 + RESUME_COUNTDOWN_MS,
+    });
+    expect(res.room.screenAwaySince).toBeNull();
+  });
+
+  it('a host pause during the 3 s: the check is re-armed and both reasons hold', () => {
+    const { room, pids, at } = started();
+    const t = at + 10_000;
+    const gone = step(room, screens(0), t);
+    const held = step(gone.room, { type: 'host:pause', by: asPlayer(pids[0]!, true) }, t + 1000);
+    const check = only(held.effects, 'screenGone');
+    expect(check).toMatchObject({ at: t + SCREEN_AWAY_MS, epoch: held.room.timerEpoch });
+    const res = fire(held.room, check);
+    if (!res.ok) throw new Error(res.error);
+    expect(res.room.paused?.reasons).toEqual(['host', 'screenAway']);
+    // The host's Resume leaves the Screen's reason holding the game.
+    const resumed = step(res.room, { type: 'host:resume', by: asPlayer(pids[0]!, true) }, t + 5000);
+    expect(resumed.room.paused).toMatchObject({ reasons: ['screenAway'], resumeAt: null });
+    expect(scheduled(resumed.effects, 'resumeGo')).toEqual([]);
+  });
+
+  it('host:end clears it', () => {
+    const { room, pids, t } = screenPaused();
+    const res = step(room, { type: 'host:end', by: asPlayer(pids[0]!, true) }, t + 5000);
+    expect(res.room.phase).toBe('FINAL');
+    expect(res.room.paused).toBeNull();
+    expect(res.room.screenAwaySince).toBeNull();
+  });
+
+  it('a room no Screen ever joined starts its first turn paused 3 s in', () => {
+    const { room } = withPlayers(['Ana', 'Ben'], makeRoom({ screens: 0 }));
+    const res = step(room, { type: 'host:start', by: asPlayer(room.crownPid!, true) }, 2_000_000);
+    expect(only(res.effects, 'screenGone').at).toBe(2_000_000 + SCREEN_AWAY_MS);
+  });
+});
+
+// ---------- F41: too few players ----------
+
+describe('fewPlayers', () => {
+  it('down to 1 connected mid-turn: paused at once with the clock frozen', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const t = at + 10_000;
+    const res = step(room, drop(pids[1]!), t);
+    expect(res.room.paused).toEqual({
+      reasons: ['fewPlayers'],
+      since: t,
+      remainingMs: room.turn!.endsAt! - t,
+      resumeAt: null,
+    });
+    expect(res.room.timerEpoch).toBe(room.timerEpoch + 1);
+    expect(toView(res.room, { kind: 'player', pid: pids[0]! }, t).paused?.reasons).toEqual([
+      'fewPlayers',
+    ]);
+  });
+
+  it('back to 2: the 3-2-1, then the clock goes on with what it had', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const t = at + 10_000;
+    const few = step(room, drop(pids[1]!), t).room;
+    const back = step(few, rejoin('Ben'), t + 5000);
+    expect(back.room.paused).toMatchObject({
+      reasons: [],
+      resumeAt: t + 5000 + RESUME_COUNTDOWN_MS,
+    });
+    const go = fire(back.room, only(back.effects, 'resumeGo'));
+    if (!go.ok) throw new Error(go.error);
+    expect(go.room.paused).toBeNull();
+    expect(go.room.turn!.endsAt).toBe(room.turn!.endsAt! + 5000 + RESUME_COUNTDOWN_MS);
+  });
+
+  it('a new player joining makes 2 too', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const few = step(room, drop(pids[1]!), at + 1000).room;
+    const res = step(
+      few,
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy' },
+      at + 2000,
+    );
+    expect(res.room.paused?.reasons).toEqual([]);
+  });
+
+  it('a hidden phone is still connected: no pause', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const res = step(room, hide(pids[1]!), at + 1000);
+    expect(res.room.paused).toBeNull();
+  });
+
+  it('players leaving count as well as disconnecting', () => {
+    const { room, pids, at } = started(['Ana', 'Ben', 'Cy']);
+    const left = step(room, { type: 'player:leave', by: asPlayer(pids[1]!) }, at + 1000).room;
+    expect(left.paused).toBeNull();
+    const res = step(left, drop(pids[2]!), at + 2000);
+    expect(res.room.paused?.reasons).toEqual(['fewPlayers']);
+  });
+
+  it('in CHOOSING, REVEAL and SCOREBOARD too, with their timers held', () => {
+    const choosing = dealt(['Ana', 'Ben']).room;
+    for (const room of [choosing, inPhase('REVEAL'), inPhase('SCOREBOARD')]) {
+      const other = Object.keys(room.players).find((pid) => pid !== room.crownPid)!;
+      const res = step(room, drop(other), 3_000_000);
+      expect(res.room.paused?.reasons, room.phase).toEqual(['fewPlayers']);
+      expect(res.room.paused?.remainingMs, room.phase).not.toBeNull();
+    }
+  });
+
+  it('not in LOBBY or FINAL', () => {
+    const lobby = withPlayers(['Ana', 'Ben']);
+    expect(step(lobby.room, drop(lobby.pids[1]!), 2_000_000).room.paused).toBeNull();
+    const final = inPhase('FINAL');
+    const other = Object.keys(final.players).find((pid) => pid !== final.crownPid)!;
+    expect(step(final, drop(other), 3_000_000).room.paused).toBeNull();
+  });
+
+  it('nobody connected: still one reason', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const one = step(room, drop(pids[1]!), at + 1000).room;
+    const none = step(one, drop(pids[0]!), at + 2000).room;
+    expect(none.paused?.reasons).toEqual(['fewPlayers']);
+  });
+
+  it('the host can End game during it', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const few = step(room, drop(pids[1]!), at + 1000).room;
+    const res = step(few, { type: 'host:end', by: asPlayer(pids[0]!, true) }, at + 2000);
+    expect(res.room.phase).toBe('FINAL');
+    expect(res.room.paused).toBeNull();
+  });
+
+  it('dropping again during the 3-2-1 stops it', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const few = step(room, drop(pids[1]!), at + 1000).room;
+    const back = step(few, rejoin('Ben'), at + 2000);
+    const again = step(back.room, drop(pids[1]!), at + 3000).room;
+    expect(again.paused).toMatchObject({ reasons: ['fewPlayers'], resumeAt: null });
+    expect(fire(again, only(back.effects, 'resumeGo'))).toEqual({
+      ok: false,
+      error: 'staleTimer',
+    });
+  });
+});
+
+// ---------- F41: several reasons ----------
+
+describe('several pause reasons', () => {
+  it('screenAway and fewPlayers: the game resumes only when both clear', () => {
+    const { room, pids, before, t } = screenPaused();
+    const few = step(step(room, drop(pids[1]!), t + 4000).room, drop(pids[2]!), t + 4500).room;
+    expect(few.paused?.reasons).toEqual(['screenAway', 'fewPlayers']);
+    const screenBack = step(few, screens(1), t + 6000);
+    expect(screenBack.room.paused).toMatchObject({ reasons: ['fewPlayers'], resumeAt: null });
+    expect(scheduled(screenBack.effects, 'resumeGo')).toEqual([]);
+    const benBack = step(screenBack.room, rejoin('Ben'), t + 8000);
+    expect(benBack.room.paused).toMatchObject({
+      reasons: [],
+      resumeAt: t + 8000 + RESUME_COUNTDOWN_MS,
+    });
+    const go = fire(benBack.room, only(benBack.effects, 'resumeGo'));
+    if (!go.ok) throw new Error(go.error);
+    expect(go.room.paused).toBeNull();
+    const pausedFor = t + 8000 + RESUME_COUNTDOWN_MS - (t + SCREEN_AWAY_MS);
+    expect(go.room.turn!.endsAt).toBe(before.turn!.endsAt! + pausedFor);
+  });
+
+  it('a Screen gone during a fewPlayers pause still adds screenAway 3 s on', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const few = step(room, drop(pids[1]!), at + 1000).room;
+    const gone = step(few, screens(0), at + 2000);
+    const res = fire(gone.room, only(gone.effects, 'screenGone'));
+    if (!res.ok) throw new Error(res.error);
+    expect(res.room.paused?.reasons).toEqual(['fewPlayers', 'screenAway']);
+    // Ben back: the Screen still holds it.
+    const ben = step(res.room, rejoin('Ben'), at + 6000).room;
+    expect(ben.paused).toMatchObject({ reasons: ['screenAway'], resumeAt: null });
+  });
+
+  it('the drawer gone for 30 s with too few players: the turn ends but the game stays paused', () => {
+    const { room, pids, at } = started(['Ana', 'Ben']);
+    const t = at + 10_000;
+    const gone = step(room, drop(pids[0]!), t);
+    expect(gone.room.paused?.reasons).toEqual(['fewPlayers']);
+    const away = fire(gone.room, only(gone.effects, 'drawerAwayCheck'));
+    if (!away.ok) throw new Error(away.error);
+    expect(away.room.paused?.reasons).toEqual(['fewPlayers', 'drawerAway']);
+    const res = fire(away.room, only(away.effects, 'drawerGone'));
+    if (!res.ok) throw new Error(res.error);
+    expect(res.room.phase).toBe('REVEAL');
+    expect(res.room.turn!.endReason).toBe('drawerGone');
+    expect(res.room.paused).toMatchObject({ reasons: ['fewPlayers'], resumeAt: null });
+    expect(scheduled(res.effects, 'revealDone')).toEqual([]);
+  });
+
+  it('all four: Resume and each return clear only their own', () => {
+    const { room, pids, t } = awayPaused();
+    const held = step(room, PAUSE, t + 3000).room;
+    const gone = step(held, screens(0), t + 3500);
+    const screenOff = fire(gone.room, only(gone.effects, 'screenGone'));
+    if (!screenOff.ok) throw new Error(screenOff.error);
+    const few = step(screenOff.room, drop(pids[1]!), t + 7000);
+    const all = step(few.room, drop(pids[2]!), t + 7100).room;
+    expect([...all.paused!.reasons].sort()).toEqual(
+      ['drawerAway', 'fewPlayers', 'host', 'screenAway'].sort(),
+    );
+    let r = step(all, RESUME, t + 8000).room;
+    r = step(r, hide(pids[0]!, false), t + 9000).room;
+    r = step(r, screens(1), t + 10_000).room;
+    expect(r.paused).toMatchObject({ reasons: ['fewPlayers'], resumeAt: null });
+    const last = step(r, rejoin('Cy'), t + 11_000).room;
+    expect(last.paused).toMatchObject({ reasons: [], resumeAt: t + 11_000 + RESUME_COUNTDOWN_MS });
   });
 });
