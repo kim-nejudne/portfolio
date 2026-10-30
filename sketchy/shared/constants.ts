@@ -13,6 +13,9 @@ export const DEV_CLIENT_PORT = 5173;
 
 /** Socket.IO `maxHttpBufferSize`: the largest socket message, as in Buzzr. */
 export const SOCKET_MAX_BUFFER_BYTES = 100 * 1024;
+/** Socket.IO heartbeat: a dead phone is noticed within about 10 s. */
+export const SOCKET_PING_INTERVAL_MS = 5_000;
+export const SOCKET_PING_TIMEOUT_MS = 5_000;
 
 // ---------- Rooms and players ----------
 

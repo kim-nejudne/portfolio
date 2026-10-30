@@ -16,14 +16,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F04 Reducer v0: lobby and a basic turn
 
-- [ ] F05 Views and socket gateway
-  - Spec: Data model (Role views); Realtime events and HTTP API (Client to server, Server to client); Reducer actions and effects (Effects)
-  - Depends: F04
-  - Done when:
-    - `toView` builds ScreenView and PlayerView; the word is only in the drawer's view before REVEAL, never in a guesser's
-    - `screen:join` (token makes the socket a host), `player:join` with a hashed `playerKey`, `state` broadcast after every action, effects runner for `schedule` and `fx`
-    - Socket.IO `pingInterval` and `pingTimeout` 5000
-  - Tests: `views.test.ts` — word absent from Screen and guesser views in DRAWING; `sockets.test.ts` — join, rejoin with the same key keeps score
+- [x] F05 Views and socket gateway
 
 - [ ] F06 Ink relay v0
   - Spec: Drawing data protocol (Why a separate channel, Ops and encoding)

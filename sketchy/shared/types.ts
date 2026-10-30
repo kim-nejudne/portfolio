@@ -1,5 +1,5 @@
-// The room model, reducer actions and effects, and every client→server payload. Views (what
-// `toView` sends) arrive with F05, the ink action stack with F11.
+// The room model, reducer actions and effects, every client→server payload, and the role views
+// (`toView` output) the server sends back. The ink action stack arrives with F11.
 //
 // `Room` and `Turn` hold the word, its alternates, gloss and choices: server state only. Never emit
 // them or any part of them; every client gets `toView` output.
@@ -305,8 +305,20 @@ export type Effect =
 
 // ---------- Client → server events (main namespace) ----------
 
+/** Why the gateway refused an event before the reducer saw it. A closed set, like `ReduceError`. */
+export type GatewayError =
+  | 'invalidPayload' // failed its zod schema; the input is never echoed back
+  | 'roomNotFound'
+  | 'alreadyJoined' // this socket already joined a room
+  | 'notJoined' // a player or host event before a successful join
+  | 'badHostToken'
+  | 'notHost'
+  | 'serverError';
+
+export type AckError = ReduceError | GatewayError;
+
 /** Every client→server event acknowledges with this. */
-export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; error: string };
+export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; error: AckError };
 
 /** Client→server payloads, keyed by Socket.IO event name. */
 export interface ClientPayloads {
@@ -340,6 +352,132 @@ export type ClientEvent = keyof ClientPayloads;
 export type ClientToServerEvents = {
   [E in ClientEvent]: (payload: ClientPayloads[E], ack: (res: Ack) => void) => void;
 };
+
+// ---------- Role views (server → client `state`) ----------
+//
+// Built only by `toView` in `server/views.ts`, which is where the secrecy rules live (Role views).
+// Nothing here may carry `keyHash`, `hostTokenHash`, `rngState`, the deck, custom words, RTTs,
+// alternates, or (before the reveal) the word, a gloss or a choice, except in `secret` for the
+// drawer it belongs to.
+
+/** A phase timer at send time. Clients count down locally and resync on every `state`. */
+export interface TimerView {
+  remainingMs: number;
+  totalMs: number;
+  running: boolean; // false while paused
+}
+
+export interface PlayerChipView {
+  pid: string;
+  name: string;
+  color: string;
+  connected: boolean;
+  crown: boolean;
+  isDrawer: boolean;
+  hasDoodle: boolean;
+  guessed: boolean; // correct this turn
+  turnPoints: number; // points this turn (the drawer's once the turn ends)
+  score: number | null; // the game total: SCOREBOARD and FINAL only
+}
+
+export interface CorrectView {
+  pid: string;
+  points: number;
+  order: number; // 1-based
+}
+
+export interface TurnView {
+  id: number;
+  number: number; // 1-based turn of this game
+  cycle: number;
+  drawerPid: string;
+  drawerName: string;
+  timer: TimerView | null; // CHOOSING and DRAWING
+  /** DRAWING: one entry per character, `_` for a hidden letter, spaces, hyphens etc. as themselves. */
+  mask: string[] | null;
+  word: string | null; // REVEAL and later, for everyone
+  correct: CorrectView[];
+  guessed: { guessed: number; of: number };
+  endReason: TurnEndReason | null;
+}
+
+/** A wrong guess as shown on the Screen; `text` null when masked ("•••"). */
+export interface GuessView {
+  pid: string;
+  text: string | null;
+}
+
+export interface HostBlockView {
+  code: string;
+  customWordCount: number; // a count only: the words themselves are never sent
+}
+
+export interface PausedView {
+  reasons: PauseReason[];
+  resumeInMs: number | null; // during the 3-2-1 countdown
+}
+
+interface BaseView {
+  code: string;
+  phase: Phase;
+  paused: PausedView | null;
+  rematchInMs: number | null; // FINAL, while a rematch countdown runs
+  settings: RoomSettings;
+  players: PlayerChipView[]; // in join order
+  turn: TurnView | null;
+  /** The Screen holding the token, or the crown holder's phone. */
+  host: HostBlockView | null;
+}
+
+export interface ScreenView extends BaseView {
+  role: 'screen';
+  feed: GuessView[]; // this turn's wrong guesses; empty when `guessFeed` is 'off'
+  closeGuesses: GuessView[]; // REVEAL and later only
+  awards: Award[]; // FINAL
+  gallery: { turnId: number; drawerPid: string; word: string }[]; // FINAL
+}
+
+export interface ChoiceView {
+  word: string;
+  gloss: string | null;
+  difficulty: WordEntry['difficulty'];
+}
+
+/**
+ * Drawer-only: the current drawer's choices and word (CHOOSING, DRAWING), or the `upcoming`
+ * drawer's (REVEAL, SCOREBOARD). Never alternates.
+ */
+export interface SecretView {
+  turnId: number;
+  choices: ChoiceView[] | null; // while the choice is open
+  word: ChoiceView | null; // once chosen
+}
+
+export interface PlayerView extends BaseView {
+  role: 'player';
+  me: {
+    pid: string;
+    turnPoints: number;
+    score: number | null; // SCOREBOARD and FINAL only
+    rank: { rank: number; of: number } | null; // SCOREBOARD and FINAL only; shared ranks
+    award: Award | null; // FINAL
+  };
+  secret: SecretView | null;
+  lastGuess: GuessView | null; // the drawer, in DRAWING: the latest wrong guess
+}
+
+export type View = ScreenView | PlayerView;
+
+/** Server→client events on the main namespace. */
+export interface ServerToClientEvents {
+  state: (view: View) => void;
+  fx: (fx: Fx) => void;
+  pong: (payload: { t: number }) => void;
+  kicked: (payload: Empty) => void;
+  'room:closed': (payload: { reason: RoomClosedReason }) => void;
+}
+
+export type RoomClosedReason = 'expired';
 
 // ---------- Ink (`/ink` namespace) ----------
 

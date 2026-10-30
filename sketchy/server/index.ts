@@ -4,6 +4,7 @@ import { DEFAULT_PORT } from '../shared/constants.js';
 import { parseTrustProxy } from './env.js';
 import { createApp } from './http.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
+import { attachSockets, closeRooms } from './sockets.js';
 
 const production = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || DEFAULT_PORT;
@@ -16,7 +17,12 @@ const clientDir = production ? fileURLToPath(new URL('../client', import.meta.ur
 const rooms = new InMemoryRoomStore();
 const httpServer = createServer(createApp({ clientDir, rooms, clock: Date.now, trustProxy }));
 
-const stopSweeper = startRoomSweeper(rooms, Date.now);
+const { io } = attachSockets(httpServer, { rooms });
+
+// SPEC-QUESTION: F11/F12 also free a swept room's ink here.
+const stopSweeper = startRoomSweeper(rooms, Date.now, undefined, (codes) =>
+  closeRooms(io, codes, 'expired'),
+);
 
 httpServer.listen(port, () => {
   console.log(`Sketchy server listening on http://localhost:${port}`);
@@ -26,7 +32,8 @@ httpServer.listen(port, () => {
 const shutdown = (signal: NodeJS.Signals) => {
   console.log(`${signal}: shutting down`);
   stopSweeper();
-  httpServer.close();
+  // Closes every socket and the HTTP server with it.
+  void io.close();
   process.exit(0);
 };
 process.on('SIGTERM', shutdown);
