@@ -104,12 +104,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F42 Rejoin by name from another phone
 
-- [ ] F43 Reconnect every role
-  - Spec: Reconnects, security and edge cases (Reconnects); Drawing data protocol (Reconnects and snapshots)
-  - Depends: F40, F41
-  - Done when:
-    - Refreshing the Screen, the drawer and a guesser mid-turn each return to the right state, score, crown and drawing
-  - Tests: `sockets.reconnect.test.ts`
+- [x] F43 Reconnect every role
 
 - [ ] F44 Rate limits and limits
   - Spec: Reconnects, security and edge cases (Security); Drawing data protocol (Limits)

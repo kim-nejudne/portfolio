@@ -58,8 +58,50 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F40: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (an iPhone and an Android as drawers in turn) · as the drawer, pick a word and draw a few strokes, then lock the phone for about 1 s and unlock: nothing pauses (at most "Mika’s phone reconnecting…" flashes on the TV); lock it for about 5 s: within 2 s of locking the TV shows "Mika’s phone reconnecting…" over the top of the drawing (readable from the sofa), then "Paused · Waiting for Mika’s phone…" on the TV and the guessers' phones, with the clock stopped; unlock: "Back in 3-2-1" everywhere, the strokes are still on the pad and the TV, and new strokes reach the TV; switch to another app for 5 s and back: the same; lock it for more than 35 s: the turn ends with the reveal ("It was…", points earned so far kept, the drawer's half shown) and the next drawer chooses, and the locked phone, unlocked, shows the reveal; repeat once during the word choice (lock for 35 s: the next drawer chooses, no reveal); turn on airplane mode on the drawer's phone for 10 s instead of locking it: the badge comes after a few seconds (the server has to notice the drop), then the pause, and on reconnecting the 3-2-1
 - [ ] F41: `npm run dev` + `npm run lan CODE`, an **iPad or Android tablet as the Screen** (open the LAN Screen URL, tap to start) and 3 real phones · start a game; while someone draws, lock the tablet (or close its tab) for about 1 s and wake it: nothing pauses; lock it for 15 s: within about 13 s every phone shows "Paused · Waiting for the Screen…" with the clock stopped and the guess box covered; wake the tablet: it shows the drawing so far and "Back in 3-2-1", then every phone carries on with the time it had; do the same while the drawer is still choosing a word (the choice's countdown stops too); lock the tablet during the reveal for 10 s: the reveal and scoreboard carry on, and the game pauses about 3 s into the next turn until the tablet wakes. Then with 3 players, put two guessers' phones in airplane mode: within about 10 s the Screen and the drawer show "Paused · Waiting for more players…"; turn one back on: "Back in 3-2-1" and the turn goes on; with only 2 players, reload one phone's page: note whether the brief "Waiting for more players…" and 3-2-1 feel jarring (DECISIONS 63 has no debounce; a short grace is the fix if so)
 - [ ] F42: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones plus a 4th phone or a different browser · join as Jun, Bea and Cy and play a turn so Jun scores; Jun holds the crown (first to join). Turn Jun's phone off (or close the browser fully) and wait about 10 s until his chip greys out. On the 4th phone open the join link and type "Jun": it asks "Are you Jun?" with "Rejoin as Jun" and "Pick another name", both easy to hit with a thumb; tap Pick another name: back to an empty name field. Type "Jun" again and tap Rejoin as Jun: the TV shows "Jun is back (new phone)" for a few seconds, below the top bar, and Jun's chip is in colour again with his score; the 4th phone has the Host button. On another phone type "Bea" (connected): "Someone here already has that name". Turn Jun's old phone back on and open the game: it isn't Jun any more and gets the name step. Repeat while Jun is drawing: the game pauses "Waiting for Jun’s phone…", the rejoin on the new phone gives "Back in 3-2-1" and the pad there (his strokes so far come back)
+- [ ] F43: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (at least one iPhone in Safari and one Android in Chrome) · start a game; while the drawer draws and one guesser has got it: (1) reload the TV's tab: within a couple of seconds the same code, round, clock, scores and the whole drawing are back, with the host controls, and new strokes keep arriving; (2) pull-to-refresh is locked on the pad, so reload the drawer's page from the browser menu: the word, the pad with every stroke so far, and drawing carries on (the TV shows the new strokes); (3) reload the guesser who got it: "You got it! +N" with the same points, no word, no drawing; (4) reload a guesser who hasn't: they can still guess and score; (5) on the iPhone, switch to another app for a minute and back (Safari may reload the tab itself): the same as a reload. Nothing should pause in (1)–(5) except a brief "phone reconnecting…" badge; with only 2 players a reload briefly pauses (DECISIONS 63)
 
 <!-- entries below, newest first -->
+
+## F43 — Reconnect every role (2026-10-31)
+**What changed:**
+- **No production code.** The reconnect paths were built by F04 (rejoin by `playerKey`), F12 (`ink:hello` snapshots, `ink:sync`), F25 (the crown stays with a disconnected holder), F40 and F41 (the away debounces). F43 proves them end to end over real sockets on both namespaces, with a page reload modelled as new main and `/ink` sockets carrying only what the page keeps (the Screen its hostToken, a phone its playerKey and name).
+- **New dependencies:** none.
+- **Tests:** `server/sockets.reconnect.test.ts` (new, 10), each refreshed view deep-equal to the one before the reload (time standing still), and a leak check (`expectNoSecrets`: the word, alternates, glosses and other choices in every event on both sockets):
+  - The **Screen** with its token: host controls, DRAWING, clock, scores, crown and Ben's guess back; `ink:snapshot` first with both strokes, then live batches; no secrets; the `screenGone` check fired late pauses nothing.
+  - A **tokenless TV**: the same game as a plain Screen, with the drawing.
+  - The **drawer**: the word, its own snapshot only after `ink:hello`, drawing continues at `snapshot.seq + 1` and the TV's stack equals the server's; the `drawerAwayCheck` fired late pauses nothing. A drawer **holding the crown** keeps the host controls.
+  - A **guesser who got it** (holding the crown): pid, points, `guessed`, crown and host controls; `alreadyGuessed`; no word; their new `/ink` socket gets nothing while Ana draws.
+  - A **guesser who hasn't**: guesses after the reload and keeps the points into REVEAL; `ink:hello` gets nothing and `ink:get` is `notScreen`.
+  - **Overlapping sockets** (the new page connects before the old socket drops): never disconnected, no `drawerAway`, the Screen's view unchanged.
+  - **CHOOSING**: the drawer gets the same three choices back and chooses; the refreshed Screen and guesser get none.
+  - **REVEAL**: the next drawer gets their deal back; the refreshed guesser and the Screen get none of it.
+  - **All at once** (Screen, drawer and a guesser): `fewPlayers`, back in 3-2-1, the same turn, scores and drawing; every timer armed before the resume, fired late, leaves the room byte-identical.
+
+**Decisions:** DECISIONS 65 (no production change; the reloaded phone's first moments without latency correction; a 2-player reload pauses).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Must-fixes: this entry, and a recorded browser playtest (re-run below with a stroke drawn after the drawer's reload; the stale failure screenshots were from a scenario bug and are gone); the client paths (hostToken from `localStorage`, the pad's resume at `seq + 1`) are covered by playtest steps 2–3, and real phones by the Kim check. Should-fixes done: the full leak check, the 3-2-1 timer picked by its length; the `ink:sync` resend and the Screen's gap re-hello were already covered (`inkGateway.test.ts`, `client/src/lib/ink.test.ts`).
+- **secrets-fairness: PASS** (no Must-fix). Should-fixes done: the full leak check on every refreshed page, Cy's `/ink` refused, the CHOOSING and REVEAL refreshes, every stale timer fired after the resume, the overlapping-socket reload. Not done: its frozen wall clock point (the reducer runs on the monotonic clock, which the tests move); exact points for a guess just after a reload (DECISIONS 65). Nit left for F44: `player:join` has no per-IP limit yet.
+- **mobile-ux:** not run, since `client/` is unchanged.
+
+**Playtest** (`.playtest/F43/scenario.ts`, dev server; a 1920×1080 Screen, ana, ben and cara on Pixel 7s), all 6 steps pass:
+1. ana starts, picks and draws; ben guesses right (+300), cara wrong; the Screen shows ink; guessers have no canvas.
+2. The Screen reloads: code, "Round 1/2", the clock, the drawing, ben's +300 and cara's guess, the host controls; no word.
+3. ana reloads: still the drawer with "Host", "1 of 2 got it", her word and her strokes on the pad; a new stroke after the reload reaches the Screen.
+4. ben reloads: "You got it! +300", the same points, no crown, no canvas.
+5. cara reloads: the guess box, +0, no word, no canvas.
+6. cara guesses the word and the turn moves on.
+
+No console errors.
+
+**Notes for next session:**
+- `server/sockets.reconnect.test.ts` has `openScreen`/`openPhone`/`closePage` helpers for both namespaces and `expectNoSecrets`; reuse them for later edge-case tests.
+- F44: the per-IP `player:join` limit must not lock out a barkada reloading together behind one NAT; consider exempting rejoins by a known `keyHash` (secrets-fairness nit).
+
+**How to try it:**
+- Tests: `npx vitest run server/sockets.reconnect.test.ts`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F43/scenario.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), three phone windows at `/play/CODE`; start, draw a little, guess once; then reload the Screen, the drawer and each guesser in turn: each comes back as it was.
 
 ## F42 — Rejoin by name from another phone (2026-10-31)
 **What changed:**
