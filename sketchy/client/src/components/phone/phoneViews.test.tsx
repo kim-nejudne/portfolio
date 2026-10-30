@@ -72,7 +72,7 @@ function drawingView(me: 'mika' | 'jun', overrides: Partial<PlayerView> = {}): P
         ? {
             turnId: 3,
             choices: null,
-            word: { word: WORD, gloss: null, difficulty: 2 },
+            word: { word: WORD, gloss: null, difficulty: 2, custom: false },
             chooseTimer: null,
           }
         : null,
@@ -88,7 +88,7 @@ describe('guesser phone', () => {
       secret: {
         turnId: 3,
         choices: null,
-        word: { word: WORD, gloss: 'qzgloss', difficulty: 2 },
+        word: { word: WORD, gloss: 'qzgloss', difficulty: 2, custom: false },
         chooseTimer: null,
       },
     });
@@ -380,9 +380,14 @@ function choosingView(me: 'mika' | 'jun'): PlayerView {
         ? {
             turnId: 3,
             choices: [
-              { word: 'tsinelas', gloss: null, difficulty: 1 },
-              { word: 'salakot', gloss: "wide woven farmer's hat", difficulty: 2 },
-              { word: 'harana', gloss: "singing under someone's window", difficulty: 3 },
+              { word: 'tsinelas', gloss: null, difficulty: 1, custom: false },
+              { word: 'salakot', gloss: "wide woven farmer's hat", difficulty: 2, custom: false },
+              {
+                word: 'harana',
+                gloss: "singing under someone's window",
+                difficulty: 3,
+                custom: false,
+              },
             ],
             word: null,
             chooseTimer: null,
@@ -414,6 +419,20 @@ describe('choosing a word', () => {
     expect(at.every((i) => i >= 0)).toBe(true);
     expect(at).toEqual([...at].sort((a, b) => a - b));
     expect(html.match(/<button/g)).toHaveLength(3);
+  });
+
+  it('tags a custom word "Ours" instead of its level', () => {
+    const view = choosingView('mika');
+    view.secret!.choices![1] = { word: 'Tita Baby', gloss: null, difficulty: 2, custom: true };
+    const html = renderToStaticMarkup(
+      <WordChoice view={view} receivedAt={0} onChoose={async () => null} t={t} />,
+    );
+    const at = ['tsinelas', 'Easy', 'Tita Baby', 'Ours', 'harana', 'Hard'].map((s) =>
+      html.indexOf(s),
+    );
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    expect(html).not.toContain('Medium');
   });
 
   it('shows a guesser "Mika is choosing a word…" and no word', () => {
@@ -450,7 +469,7 @@ describe('the next drawer during the reveal (F21)', () => {
       secret: {
         turnId: 4,
         choices: word ? null : choosingView('mika').secret!.choices,
-        word: word ? { word: 'qzchosen', gloss: 'qzgloss', difficulty: 2 } : null,
+        word: word ? { word: 'qzchosen', gloss: 'qzgloss', difficulty: 2, custom: false } : null,
         chooseTimer: word ? null : { remainingMs: 7_000, totalMs: 12_000, running: true },
       },
       lastGuess: null,

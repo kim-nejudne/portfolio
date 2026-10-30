@@ -74,7 +74,7 @@ function view(
         ? {
             turnId: 3,
             choices: null,
-            word: { word: WORD, gloss: 'qzgloss', difficulty: 2 },
+            word: { word: WORD, gloss: 'qzgloss', difficulty: 2, custom: false },
             chooseTimer: null,
           }
         : null,
@@ -113,9 +113,21 @@ describe('the crown holder’s lobby', () => {
     const html = lobby(view('LOBBY'));
     expect(html).toContain('You’re the host 👑');
     expect(html).toContain('Classic · 60 s · 2 rounds · Mixed words');
-    expect(buttons(html)).toEqual(['Start game ▶', 'Change', ...DOODLE, 'Leave']);
+    expect(buttons(html)).toEqual([
+      'Start game ▶',
+      'Change',
+      'Add your own words',
+      ...DOODLE,
+      'Leave',
+    ]);
     expect(html).not.toContain('Waiting for');
     expect(html).toMatch(/<button type="button" aria-disabled="false"[^>]*>Start game/);
+  });
+
+  it('shows how many custom words are in on "Add your own words", and never a word', () => {
+    const html = lobby({ ...view('LOBBY'), host: { ...HOST, customWordCount: 12 } });
+    expect(buttons(html)).toContain('Add your own words  · 12');
+    expect(lobby(view('LOBBY', { host: false }))).not.toContain('Add your own words');
   });
 
   it('disables Start with "Need 2 players" below 2 connected players', () => {

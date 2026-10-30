@@ -315,9 +315,9 @@ describe('createBot', () => {
       secret: {
         turnId: 4,
         choices: [
-          { word: 'apple', gloss: null, difficulty: 1 },
-          { word: 'guitar', gloss: null, difficulty: 2 },
-          { word: 'astronaut', gloss: null, difficulty: 3 },
+          { word: 'apple', gloss: null, difficulty: 1, custom: false },
+          { word: 'guitar', gloss: null, difficulty: 2, custom: false },
+          { word: 'astronaut', gloss: null, difficulty: 3, custom: false },
         ],
         word: null,
         chooseTimer: null,
@@ -340,9 +340,9 @@ describe('createBot', () => {
       secret: {
         turnId: 5,
         choices: [
-          { word: 'apple', gloss: null, difficulty: 1 },
-          { word: 'guitar', gloss: null, difficulty: 2 },
-          { word: 'astronaut', gloss: null, difficulty: 3 },
+          { word: 'apple', gloss: null, difficulty: 1, custom: false },
+          { word: 'guitar', gloss: null, difficulty: 2, custom: false },
+          { word: 'astronaut', gloss: null, difficulty: 3, custom: false },
         ],
         word: null,
         chooseTimer: null,

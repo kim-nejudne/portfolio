@@ -13,22 +13,26 @@ export const CHOICE_COUNT = 3;
 
 /**
  * Every word the settings allow, in pack order: `words` picks the pack languages ('mixed' is
- * both), `spicy` adds the spicy packs of those languages, `difficulty: 'easy'` keeps level 1.
+ * both), `spicy` adds the spicy packs of those languages, `difficulty: 'easy'` keeps level 1. The
+ * room's custom words come last, whatever the settings: the barkada typed them for this night.
  */
-// F48 adds the room's custom words here.
 // SPEC-QUESTION: the only spicy pack is 'tl' ("Pang-inuman"), so `spicy` adds nothing to 'en' rooms
 // (DECISIONS 69).
 export function allowedWords(
   packs: readonly WordPack[],
   settings: Pick<RoomSettings, 'words' | 'spicy' | 'difficulty'>,
+  customWords: readonly WordEntry[] = [],
 ): WordEntry[] {
   const languages: WordPack['language'][] =
     settings.words === 'en' ? ['en'] : settings.words === 'taglish' ? ['tl'] : ['en', 'tl'];
   return packs
     .filter((p) => languages.includes(p.language) && (p.rating === 'family' || settings.spicy))
     .flatMap((p) => p.words)
-    .filter((w) => settings.difficulty === 'mixed' || w.difficulty === 1);
+    .filter((w) => settings.difficulty === 'mixed' || w.difficulty === 1)
+    .concat(customWords);
 }
+
+const isCustom = (w: WordEntry) => w.lang === 'custom';
 
 /** Every allowed word, shuffled, with a fresh `usedIds`. */
 function reshuffle(allowed: readonly WordEntry[], rng: SeededRng): Deck {
@@ -63,7 +67,9 @@ const NEAREST: Record<WordEntry['difficulty'], WordEntry['difficulty'][]> = {
 /**
  * Deals three words off the deck, easiest first: the topmost easy, medium and hard word for
  * 'mixed' (a missing level filled from the nearest one), the top three for 'easy' (an easy deck
- * holds only level 1). When fewer than three are left, the deck is rebuilt from every allowed word
+ * holds only level 1). While the deck holds a custom word, the topmost one takes the medium slot
+ * ('mixed') or the last easy one ('easy'), and the other slots take pack words only; custom words
+ * fill in only when too few pack words are left. A custom word sorts as medium. When fewer than three are left, the deck is rebuilt from every allowed word
  * and `usedIds` is cleared (`reshuffled`). Throws if fewer than three words are allowed at all:
  * `host:start` refuses that room first.
  */
@@ -85,22 +91,29 @@ export function drawChoices(
     reshuffled = true;
   }
 
-  const targets: WordEntry['difficulty'][] = difficulty === 'mixed' ? [1, 2, 3] : [1, 1, 1];
   const taken = new Set<number>();
+  const ours = remaining.findIndex((id) => isCustom(byId.get(id)!));
+  if (ours !== -1) taken.add(ours);
+  const targets: WordEntry['difficulty'][] =
+    difficulty === 'mixed' ? (ours === -1 ? [1, 2, 3] : [1, 3]) : ours === -1 ? [1, 1, 1] : [1, 1];
   for (const target of targets) {
     for (const level of NEAREST[target]) {
-      const at = remaining.findIndex(
-        (id, i) => !taken.has(i) && byId.get(id)!.difficulty === level,
-      );
+      const at = remaining.findIndex((id, i) => {
+        const w = byId.get(id)!;
+        return !taken.has(i) && !isCustom(w) && w.difficulty === level;
+      });
       if (at !== -1) {
         taken.add(at);
         break;
       }
     }
   }
+  // Too few pack words left: the topmost custom words fill the deal.
+  for (let i = 0; taken.size < CHOICE_COUNT; i++) taken.add(i);
+  const level = (w: WordEntry) => (isCustom(w) ? 2 : w.difficulty);
   const choices = [...taken]
     .map((i) => byId.get(remaining[i]!)!)
-    .sort((a, b) => a.difficulty - b.difficulty) as Choices;
+    .sort((a, b) => level(a) - level(b)) as Choices;
   return {
     deck: { remaining: remaining.filter((_, i) => !taken.has(i)), usedIds: [...usedIds] },
     choices,
@@ -139,7 +152,7 @@ export function returnDealt(deck: Deck, choices: Choices, chosen: WordEntry | nu
 
 /** The auto-pick: the easiest of the three, a custom word counting as medium; ties go first. */
 export function easiestIndex(choices: Choices): ChoiceIndex {
-  const level = (w: WordEntry) => (w.lang === 'custom' ? 2 : w.difficulty);
+  const level = (w: WordEntry) => (isCustom(w) ? 2 : w.difficulty);
   let best: ChoiceIndex = 0;
   for (const i of [1, 2] as const) if (level(choices[i]) < level(choices[best])) best = i;
   return best;

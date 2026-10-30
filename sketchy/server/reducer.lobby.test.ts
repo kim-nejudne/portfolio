@@ -30,10 +30,10 @@ describe('reduce: general', () => {
   });
 
   it('rejects an action whose feature has not landed yet', () => {
-    const { room } = withPlayers(['Ana', 'Ben']);
+    const { room, pids } = withPlayers(['Ana', 'Ben']);
     const result = reduce(
       room,
-      { type: 'host:customWords', by: SCREEN_HOST, words: ['adobo'] },
+      { type: 'player:rename', by: asPlayer(pids[0]!), name: 'Anna' },
       T0,
     );
     expect(result).toEqual({ ok: false, error: 'notAvailable' });

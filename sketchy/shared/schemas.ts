@@ -203,14 +203,15 @@ export const clientPayloadSchemas = {
   'host:kick': z.object({ pid: idSchema }),
   'host:crown': z.object({ pid: idSchema }),
   'host:settings': partialSettingsSchema,
-  // Duplicates (by normalised form) are removed by the reducer, which owns normalisation.
   // Blank entries (a trailing comma or newline) are dropped. Duplicates (by normalised form) are
-  // removed by the reducer, which owns normalisation.
+  // removed by the reducer, which owns normalisation. `clear` empties the list before the words are
+  // added; without it, a batch that is empty (or blank) changes nothing.
   'host:customWords': z.object({
     words: z
       .array(z.string().trim().max(CUSTOM_WORD_MAX))
       .max(CUSTOM_WORDS_MAX)
       .transform((words) => words.filter((w) => w.length >= CUSTOM_WORD_MIN)),
+    clear: z.literal(true).optional(),
   }),
   'host:end': emptySchema,
   'host:rematch': emptySchema,

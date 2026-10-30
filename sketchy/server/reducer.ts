@@ -55,6 +55,7 @@ import {
   returnChoices,
   returnDealt,
 } from './deck.js';
+import { addCustomWords } from './customWords.js';
 import { correctedAt } from './fairness.js';
 import { hintCount, pickHint } from './hints.js';
 import { guessRejection, matchGuess } from './match.js';
@@ -139,8 +140,9 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return react(d, action, fx);
     case 'player:visibility':
       return visibility(d, action);
-    case 'player:rename':
     case 'host:customWords':
+      return customWords(d, action);
+    case 'player:rename':
       return 'notAvailable';
     default: {
       action satisfies never;
@@ -426,7 +428,8 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
   if (!isHost(d, a.by)) return 'notHost';
   if (Object.values(d.players).filter((p) => p.connected).length < MIN_PLAYERS)
     return 'notEnoughPlayers';
-  if (allowedWords(d.packs, d.settings).length < CHOICE_COUNT) return 'notEnoughWords';
+  if (allowedWords(d.packs, d.settings, d.customWords).length < CHOICE_COUNT)
+    return 'notEnoughWords';
   // A game started from the lobby always begins with the earliest joiner.
   d.rotateAfter = null;
   beginGame(d, now, fx);
@@ -441,7 +444,7 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
 function beginGame(d: Room, now: number, fx: Effect[]): void {
   // A new game's deck: every allowed word not chosen yet this session (Word selection).
   const rng = createRng(d.rngState);
-  const built = newDeck(allowedWords(d.packs, d.settings), d.deck.usedIds, rng);
+  const built = newDeck(allowedWords(d.packs, d.settings, d.customWords), d.deck.usedIds, rng);
   d.rngState = rng.state;
   d.deck = built.deck;
   if (built.reshuffled) fx.push({ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } });
@@ -480,7 +483,10 @@ function rematchGo(d: Room, now: number, fx: Effect[]): void {
   d.rematchAt = null;
   const connected = Object.values(d.players).filter((p) => p.connected).length;
   // The words can't run short: the settings and custom words haven't changed since this game began.
-  if (connected < MIN_PLAYERS || allowedWords(d.packs, d.settings).length < CHOICE_COUNT) {
+  if (
+    connected < MIN_PLAYERS ||
+    allowedWords(d.packs, d.settings, d.customWords).length < CHOICE_COUNT
+  ) {
     fx.push({ type: 'fx', to: 'all', fx: { kind: 'notEnoughPlayers' } });
     return;
   }
@@ -661,7 +667,12 @@ function dealUpcoming(d: Room, now: number, fx: Effect[]): void {
  */
 function deal(d: Room, index: number, cycle: number, now: number, fx: Effect[]): Turn {
   const rng = createRng(d.rngState);
-  const dealt = drawChoices(d.deck, allowedWords(d.packs, d.settings), d.settings.difficulty, rng);
+  const dealt = drawChoices(
+    d.deck,
+    allowedWords(d.packs, d.settings, d.customWords),
+    d.settings.difficulty,
+    rng,
+  );
   d.rngState = rng.state;
   d.deck = dealt.deck;
   // "All words used, reshuffling", once, on the Screen; it names no word.
@@ -1155,6 +1166,20 @@ function settings(d: Room, a: ActionOf<'host:settings'>): Handled {
   const midGame: readonly string[] = MID_GAME_SETTINGS;
   if (d.phase !== 'LOBBY' && changes.some((key) => !midGame.includes(key))) return 'wrongPhase';
   d.settings = { ...d.settings, ...Object.fromEntries(changes.map((key) => [key, a[key]])) };
+  return undefined;
+}
+
+/**
+ * `host:customWords` (Custom words), LOBBY only: adds the words to the room's list, emptied first
+ * with `clear`. The deck picks them up when the next game starts. No effect: views carry
+ * only the new count.
+ */
+function customWords(d: Room, a: ActionOf<'host:customWords'>): Handled {
+  if (!isHost(d, a.by)) return 'notHost';
+  if (d.phase !== 'LOBBY') return 'wrongPhase';
+  const list = addCustomWords(d.customWords, a.words, a.clear === true);
+  if (list === 'tooManyWords') return list;
+  d.customWords = list;
   return undefined;
 }
 

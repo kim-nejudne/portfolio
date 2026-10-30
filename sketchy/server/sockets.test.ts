@@ -364,6 +364,7 @@ describe('state broadcast', () => {
       word: 'qzsecret',
       gloss: 'qzgloss',
       difficulty: secret.difficulty,
+      custom: false,
     });
     expect(JSON.stringify(g.ana.client.states)).not.toContain('qzalt');
   });
@@ -484,6 +485,29 @@ describe('host actions', () => {
       error: 'notHost',
     });
     expect(s.rooms.get(CODE)!.settings.cycles).toBe(3);
+  });
+
+  it('host:customWords: added and cleared by the hosts, only a count in any view (F48)', async () => {
+    const s = await setup();
+    const screen = await s.connect();
+    await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken });
+    const ana = await joinPlayer(s, KEY_ANA, 'Ana');
+    const ben = await joinPlayer(s, KEY_BEN, 'Ben');
+    expect(await ben.client.emit('host:customWords', { words: ['qzlola'] })).toEqual({
+      ok: false,
+      error: 'notHost',
+    });
+    expect(await screen.emit('host:customWords', { words: ['qzlola', 'qzlolo'] })).toEqual({
+      ok: true,
+    });
+    expect(await ana.client.emit('host:customWords', { words: ['qztita'] })).toEqual({ ok: true });
+    const counted = await screen.state<ScreenView>((v) => v.host?.customWordCount === 3);
+    expect(JSON.stringify(counted)).not.toContain('qz');
+    const crown = await ana.client.state<PlayerView>((v) => v.host?.customWordCount === 3);
+    expect(JSON.stringify(crown)).not.toContain('qz');
+    expect(JSON.stringify(ben.client.states)).not.toContain('qz');
+    expect(await screen.emit('host:customWords', { words: [], clear: true })).toEqual({ ok: true });
+    expect(s.rooms.get(CODE)!.customWords).toEqual([]);
   });
 
   it('host:crown: the holder passes it on, and the host rights go with it (F25)', async () => {

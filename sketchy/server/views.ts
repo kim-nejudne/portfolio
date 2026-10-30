@@ -257,7 +257,12 @@ function choiceTimer(room: Room, turn: Turn, now: number): TimerView {
 
 /** A word for its drawer: never the alternates. */
 function choiceView(entry: WordEntry): ChoiceView {
-  return { word: entry.word, gloss: entry.gloss ?? null, difficulty: entry.difficulty };
+  return {
+    word: entry.word,
+    gloss: entry.gloss ?? null,
+    difficulty: entry.difficulty,
+    custom: entry.lang === 'custom',
+  };
 }
 
 /**

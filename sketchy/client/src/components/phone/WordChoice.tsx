@@ -89,7 +89,7 @@ export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Prop
                     {choice.word}
                   </span>
                   <span className="shrink-0 text-sm font-bold text-[#1D1B22]">
-                    {t(LEVEL[choice.difficulty])}
+                    {t(choice.custom ? 'levelOurs' : LEVEL[choice.difficulty])}
                   </span>
                 </span>
                 {choice.gloss && (

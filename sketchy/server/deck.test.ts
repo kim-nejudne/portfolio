@@ -204,6 +204,38 @@ describe('drawChoices', () => {
   });
 });
 
+describe('drawChoices with custom words', () => {
+  const custom = (word: string): WordEntry => ({
+    id: `custom/${word}`,
+    word,
+    alt: [],
+    difficulty: 2,
+    lang: 'custom',
+  });
+  const ours = [custom('lola'), custom('lolo'), custom('tita')];
+
+  it('takes the topmost custom word and pack words for the other slots', () => {
+    const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }), ours);
+    const deck: Deck = { remaining: ids([...ours, ...EN_PACK.words]), usedIds: [] };
+    const { choices, deck: after } = drawChoices(deck, allowed, 'mixed', createRng(1));
+    expect(choices.map((c) => c.word)).toEqual(['apple', 'lola', 'lighthouse']);
+    expect(after.remaining.slice(0, 2)).toEqual(['custom/lolo', 'custom/tita']);
+  });
+
+  it('fills from custom words when too few pack words are left', () => {
+    const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }), ours);
+    const deck: Deck = { remaining: ['custom/lola', 'test-en/apple', 'custom/lolo'], usedIds: [] };
+    const { choices } = drawChoices(deck, allowed, 'mixed', createRng(1));
+    expect(choices.map((c) => c.word)).toEqual(['apple', 'lola', 'lolo']);
+  });
+
+  it('allowedWords adds the custom words last, even in an Easy room', () => {
+    expect(ids(allowedWords(TEST_PACKS, settings({ difficulty: 'easy' }), ours)).slice(-3)).toEqual(
+      ids(ours),
+    );
+  });
+});
+
 describe('after the choice', () => {
   const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }));
   const { deck } = newDeck(allowed, [], createRng(3));

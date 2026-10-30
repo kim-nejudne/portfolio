@@ -5,6 +5,7 @@ import { joinUrl, qrPath } from '../../lib/qr.js';
 import { HOW_TO_PLAY } from '../../lib/screen.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { usePointerCoarse } from '../../lib/usePointerCoarse.js';
+import { CustomWordsButton, CustomWordsPanel } from '../CustomWords.js';
 import { LobbyChip } from './PlayerChip.js';
 import { PlayersDialog } from './PlayersDialog.js';
 import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.js';
@@ -13,8 +14,8 @@ import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.j
  * The lobby on the Screen: where to join, the code, who's in, and, on the Screen holding the
  * token, Start, the settings (F22) and the crown (F25): tapping a chip offers Give host crown and
  * Kick. Beside the join details, the QR to `/play/CODE` (F37), and under them the How to play
- * strip (F26). Tablet and phone Screens say "Keep this device plugged in" (F37). Custom words
- * (F48) come later.
+ * strip (F26). Tablet and phone Screens say "Keep this device plugged in" (F37). Beside Settings,
+ * "Add your own words" (F48).
  */
 export function ScreenLobby({
   view,
@@ -44,6 +45,17 @@ export function ScreenLobby({
     wasOpen.current = settingsOpen;
   }, [settingsOpen]);
   const panelOpen = settingsOpen && view.host !== null;
+
+  // "Add your own words" likewise covers the lobby, and gives focus back to its button.
+  const [wordsOpen, setWordsOpen] = useState(false);
+  const wordsButton = useRef<HTMLButtonElement>(null);
+  const wordsWasOpen = useRef(false);
+  const closeWords = useCallback(() => setWordsOpen(false), []);
+  useEffect(() => {
+    if (wordsWasOpen.current && !wordsOpen) wordsButton.current?.focus();
+    wordsWasOpen.current = wordsOpen;
+  }, [wordsOpen]);
+  const wordsPanelOpen = wordsOpen && view.host !== null && !panelOpen;
 
   // A tapped chip's dialog, for as long as that player is still here.
   const [chipPid, setChipPid] = useState<string | null>(null);
@@ -78,18 +90,28 @@ export function ScreenLobby({
           side by side, so Start stays on screen; otherwise they stack.
           SPEC-QUESTION: the spec draws one lobby for every landscape Screen (DECISIONS 55). */}
       <div
-        inert={panelOpen || chipPlayer !== undefined}
+        inert={panelOpen || wordsPanelOpen || chipPlayer !== undefined}
         className="flex h-full flex-col gap-[3vmin] px-[5vmin] py-[4vmin] [@media(max-height:480px)]:gap-[2vmin] [@media(max-height:480px)]:py-[2.5vmin]"
       >
         <div className="flex items-start justify-between gap-[3vmin]">
           <h1 className="font-display text-[max(5vmin,28px)] font-bold">✏️ Sketchy</h1>
           {view.host && (
-            <SettingsButton
-              ref={settingsButton}
-              open={panelOpen}
-              onOpen={() => setSettingsOpen(true)}
-              t={t}
-            />
+            <div className="flex flex-wrap justify-end gap-[2vmin]">
+              <CustomWordsButton
+                ref={wordsButton}
+                count={view.host.customWordCount}
+                open={wordsPanelOpen}
+                onOpen={() => setWordsOpen(true)}
+                t={t}
+                className="min-h-11 min-w-11 rounded-[2vmin] bg-white/10 px-[3vmin] py-[1vmin] text-[max(3vmin,16px)] font-bold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+              />
+              <SettingsButton
+                ref={settingsButton}
+                open={panelOpen}
+                onOpen={() => setSettingsOpen(true)}
+                t={t}
+              />
+            </div>
           )}
         </div>
 
@@ -175,7 +197,16 @@ export function ScreenLobby({
       {panelOpen && (
         <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
       )}
-      {chipPlayer && !panelOpen && (
+      {wordsPanelOpen && (
+        <CustomWordsPanel
+          count={view.host!.customWordCount}
+          socket={socket}
+          t={t}
+          onClose={closeWords}
+          onScreen
+        />
+      )}
+      {chipPlayer && !panelOpen && !wordsPanelOpen && (
         <PlayersDialog
           players={[chipPlayer]}
           title={chipPlayer.name}

@@ -100,9 +100,10 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
     ],
   },
   'host:customWords': {
-    valid: [{ words: [] }, { words: ['lechon', 'jollibee'] }],
+    valid: [{ words: [] }, { words: ['lechon', 'jollibee'] }, { words: [], clear: true }],
     invalid: [
       {},
+      { words: [], clear: false },
       { words: ['x'.repeat(CUSTOM_WORD_MAX + 1)] },
       { words: Array.from({ length: CUSTOM_WORDS_MAX + 1 }, (_, i) => `w${i}`) },
     ],

@@ -81,7 +81,7 @@ describe('word secrecy in DRAWING', () => {
     expect(view.secret).toEqual({
       turnId: room.turn!.id,
       choices: null,
-      word: { word: 'qzsecretword', gloss: 'qzglossy', difficulty: 2 },
+      word: { word: 'qzsecretword', gloss: 'qzglossy', difficulty: 2, custom: false },
       chooseTimer: null,
     });
     const text = json(view);

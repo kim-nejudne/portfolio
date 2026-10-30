@@ -19,7 +19,7 @@ import type {
 export type Phase = 'LOBBY' | 'CHOOSING' | 'DRAWING' | 'REVEAL' | 'SCOREBOARD' | 'FINAL';
 
 export interface WordEntry {
-  id: string; // '<packId>/<wordId>', or 'custom/<n>'
+  id: string; // '<packId>/<wordId>', or 'custom/<normalised form>'
   word: string; // as shown at the reveal, e.g. 'bahay kubo'
   alt: string[]; // other accepted answers, e.g. ['kubo', 'nipa hut']
   difficulty: 1 | 2 | 3;
@@ -245,7 +245,7 @@ export interface ClientActionPayloads {
   'host:kick': { pid: string };
   'host:crown': { pid: string };
   'host:settings': Partial<RoomSettings>;
-  'host:customWords': { words: string[] };
+  'host:customWords': { words: string[]; clear?: true }; // `clear` empties the list first
   'host:end': NoPayload;
   'host:rematch': NoPayload;
   'host:rematchCancel': NoPayload;
@@ -296,6 +296,7 @@ export type ReduceError =
   | 'cannotKickSelf' // the crown holder kicking their own pid (Leave is for that)
   | 'notDrawer' // `drawer:choose` from anyone but the turn's drawer
   | 'notEnoughWords' // the settings leave fewer than 3 words to deal
+  | 'tooManyWords' // `host:customWords` would take the list over CUSTOM_WORDS_MAX
   | 'drawerCannotGuess'
   | 'alreadyGuessed'
   | 'notGuessed' // `player:react` in DRAWING from someone who hasn't got the word (the drawer too)
@@ -415,7 +416,7 @@ export interface ClientPayloads {
   'host:kick': { pid: string };
   'host:crown': { pid: string };
   'host:settings': Partial<RoomSettings>;
-  'host:customWords': { words: string[] };
+  'host:customWords': { words: string[]; clear?: true }; // `clear` empties the list first
   'host:end': Empty;
   'host:rematch': Empty;
   'host:rematchCancel': Empty;
@@ -548,6 +549,7 @@ export interface ChoiceView {
   word: string;
   gloss: string | null;
   difficulty: WordEntry['difficulty'];
+  custom: boolean; // one of the room's own words, shown as "Ours" instead of its level
 }
 
 /**

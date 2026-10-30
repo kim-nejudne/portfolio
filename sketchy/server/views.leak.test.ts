@@ -456,6 +456,41 @@ it('keeps an abandoned deal out of every view, through to FINAL', () => {
   expect(res.room.turn!.word).toBeNull();
 });
 
+// F48: custom words reach their drawer as a choice, and anyone else only as a count, never a word.
+it('keeps custom words out of every view and effect but their drawer’s, through to FINAL', () => {
+  const { room: lobby } = withPlayers(['Ana', 'Ben', 'Cy'], leakRoom({ cycles: 1 }));
+  let t = 3_500_000;
+  let room = lobby;
+  const act = (label: string, action: Parameters<typeof step>[1]) => {
+    t += 1000;
+    const res = step(room, action, t);
+    room = res.room;
+    audit(label, room, t, res.effects);
+  };
+  act('custom words added', {
+    type: 'host:customWords',
+    by: SCREEN_HOST,
+    words: ['qzcustomone', 'qzcustomtwo', 'qzcustomthree', 'qzcustomfour'],
+  });
+  expect(toView(room, { kind: 'screen', isHost: true }, t).host?.customWordCount).toBe(4);
+  act('dealt', { type: 'host:start', by: SCREEN_HOST });
+  for (let turn = 1; room.phase !== 'FINAL'; turn++) {
+    expect(room.turn!.choices.filter((c) => c.lang === 'custom')).toHaveLength(1);
+    const ours = room.turn!.choices.findIndex((c) => c.lang === 'custom') as 0 | 1 | 2;
+    act(`turn ${turn} chosen`, {
+      type: 'drawer:choose',
+      by: asPlayer(room.turn!.drawerPid),
+      index: ours,
+    });
+    act(`turn ${turn} skipped`, { type: 'host:skip', by: SCREEN_HOST });
+    while (room.phase === 'REVEAL' || room.phase === 'SCOREBOARD')
+      act(`turn ${turn} next`, { type: 'host:next', by: SCREEN_HOST });
+  }
+  expect(room.history.map((h) => h.word)).toEqual(
+    expect.arrayContaining([expect.stringMatching(/^qzcustom/)]),
+  );
+});
+
 // F28: a kicked drawer, a pause across a skip, and the game ended with a word chosen for the next
 // turn. The kicked drawer's turn is revealed; the discarded `upcoming` word never is.
 it('keeps the words secret through kick, pause, skip and end', () => {

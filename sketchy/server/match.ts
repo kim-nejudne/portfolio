@@ -31,7 +31,7 @@ type Matchable = Pick<WordEntry, 'word' | 'alt' | 'lang'>;
  */
 export function acceptedForms(word: Pick<WordEntry, 'word' | 'alt'>): string[] {
   // SPEC-QUESTION: a word that normalises to nothing ("The") can't be guessed at all. Packs refuse
-  // one (server/packs.ts, DECISIONS 40); custom words should too (DECISIONS 37).
+  // one (server/packs.ts, DECISIONS 40); custom words drop one (server/customWords.ts, DECISIONS 70).
   return [...new Set([word.word, ...word.alt].map(normalize))].filter((f) => f !== '');
 }
 

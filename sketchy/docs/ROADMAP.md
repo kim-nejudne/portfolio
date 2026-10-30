@@ -116,12 +116,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F47 Spicy pack
 
-- [ ] F48 Custom words
-  - Spec: Words (Custom words, Word selection)
-  - Depends: F18, F25
-  - Done when:
-    - Lobby box on the token Screen and the crown phone; limits; one custom word in each set of three choices while any remain; never in a view except as a count
-  - Tests: `reducer.customwords.test.ts`
+- [x] F48 Custom words
 
 ## M9 — Gallery and awards
 

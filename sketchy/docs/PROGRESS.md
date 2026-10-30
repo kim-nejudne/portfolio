@@ -63,8 +63,50 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F45: review the Taglish: read the `TAGLISH` table in `client/src/lib/copy.ts` (the English table above it says what each line is for), then `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), Settings → Game text → Taglish, 3 real phones (one at least as small as a 360 px-wide Android); play a turn each through lobby, choose, drawing, a close and a wrong guess, reveal, scoreboard, a pause (host Pause) and the final scores, and a rematch · every line sounds like the barkada talking, not a textbook or a machine; flag stiff ones (candidates: "Tuloy sa 3", "Game 2, simula sa", "Pang-#2 ka sa 4", "Sino’ng nandito", "Mahina" for Quiet sound, "Hirap" for Difficulty, "Itago mo ang phone 🤫" for "Hold your phone close") and the award reasons (`award*Why`, on screen from F50); check the drawer's top bar keeps a long word readable beside "2/4 nakakuha". The join form stays English until the phone has joined (DECISIONS 67)
 - [ ] F46: review the word packs: open each of `data/packs/en-*.json` and `data/packs/tl-*.json` (one theme per file; `npm run packs:check` prints the counts per level), and play a few turns with `npm run dev`, Settings → Words → Taglish, then English · every word drawable on a phone in 60 s without letters or numbers; the difficulty (1 easy object, 2 medium, 3 scene or idea) feels right; the Taglish spelling is what a barkada writes, and the alternates cover what people type (ts/ch, j/dy, e/i, o/u, the English or Tagalog name); each gloss tells the drawer what to draw. Likely cuts or fixes: English `ghosting` (a spec sample), `brownout`, `low battery`, `job interview`, `marriage proposal`, `brain freeze`, `potluck`, `work from home`; Taglish `tambay`, `liga`, `bunso`, `lamay`, `pamamanhikan`, `noche buena`, `undas`, `barker`, `white lady`, and `sabong` (cockfighting, a spec sample: fine as family?). `hangover` is out of the family pack (DECISIONS 68); edit the JSON directly and re-run `npm run packs:check`
 - [ ] F47: review the spicy pack: open `data/packs/tl-pang-inuman.json` (67 words; `npm run packs:check` prints the counts per level), then play a few turns with `npm run dev`, Screen Settings → Words → Taglish (or Mixed) and Spicy words → On, and `/dev/bots/CODE` · every word is party humour a barkada laughs at, not explicit and aimed at no group of people; each is drawable in 60 s without letters or numbers; the Taglish spelling and alternates are what people type; each gloss tells the drawer what to draw. Likely cuts or fixes: `lumalandi`, `pa-cute`, `torpe`, `basted` (the dating words that lean on feelings), `budots`, `ambagan`, `libre`, `hatid`, `long distance`, `monthsary`, `crush` (fine as spicy?), `beso`, `kopita`; alternates `syota`, `ubos-biyaya`, `pantulak`. Also decide whether English rooms need their own spicy words (today Spicy on with Words → English adds none, DECISIONS 69)
+- [ ] F48: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (an iPhone in Safari and a ≤ 360 px-wide Android in Chrome; the first to join holds the crown). On the crown phone tap "Add your own words ✍️", type 5 words on the keyboard (one per line, then a comma-separated line), tap Add words; on the Screen add 2 more and see "· 7" on both; tap Clear all twice on one of them, then add 4 again; Start and play 4 turns · the phone keyboard never hides Add words or the status line, nothing sits under the iPhone home indicator, the count matches on both host devices, each drawer's cards show one "Ours" until the 4 are drawn, and no custom word shows on the TV or a guesser phone before its reveal. Also read the Taglish: "Magdagdag ng sariling words", "Atin" on the card, "Kita ng lahat ang screen na ’to…" (Settings → Game text → Taglish)
 
 <!-- entries below, newest first -->
+
+## F48 — Custom words (2026-10-31)
+**What changed:**
+- **`host:customWords {words, clear?: true}`** now works (it answered `notAvailable` before). It needs the host (the token Screen or the crown phone) and the LOBBY, and **adds** the words to the room's list. `clear` empties the list first, and an empty batch without it changes nothing, so a blank submit can't wipe the list.
+  - Each word: trimmed, spaces collapsed, difficulty 2, no alternates, `lang: 'custom'`, id `custom/<normalised form>` (stable across Clear, so `usedIds` still knows a drawn word).
+  - Duplicates by normalised form, in the batch or already in, are dropped silently, as is a word that normalises to nothing ("the", "a", "!!!").
+  - Over 100 in total, the batch is refused whole with the new `tooManyWords`.
+  - Pure helper `server/customWords.ts` (`addCustomWords`); no effect, since views carry the new count.
+- **The deck** (`server/deck.ts`): `allowedWords` adds the custom words last, whatever the Words, Spicy and Difficulty settings. `drawChoices` puts the topmost custom word in every deal while the deck holds one: easy, Ours, hard in 'mixed'; two easy and Ours in 'easy'. The other slots take pack words only, and custom words fill in only when too few pack words are left. A custom word sorts as medium (the auto-pick already counted it so). Custom words alone (3+) are enough to start.
+- **Views:** only `host.customWordCount`, as before. `ChoiceView` gains `custom: boolean` (drawer only), and the card shows "Ours" ("Atin") in place of the level.
+- **UI** (`client/src/components/CustomWords.tsx`): "Add your own words ✍️ · N" beside Settings on the token Screen and under the settings summary on the crown phone opens a full-cover panel. It has the rules, Add words (above the box, so a phone keyboard can't cover it), the box (one per line or comma-separated), "Our words: N" and Clear all (tap twice). `parseCustomWords` (`client/src/lib/customWords.ts`) catches a word over 30 characters (named in the error) or over 100 at once before sending. On the Screen the panel says everyone can see it and points secret words to the host's phone. Copy in both tables.
+- **New dependencies:** none. Join budget 111.2 of 120 KB JS.
+- **Tests:**
+  - `server/reducer.customwords.test.ts` (16): the word shape; host-only (token Screen, crown phone; refused from a plain Screen, a guesser, a phone claiming host); adds; dedupe by normalised form; filler-only dropped; clear vs a blank batch; the 100 limit; LOBBY only; no effect; views carry only the count (lobby) and only the drawer gets the custom choice, flagged; one custom per deal while any remain, then none (8 turns); the slot order in 'mixed' and 'easy'; every Words/Spicy/Difficulty setting; custom-only start and `notEnoughWords`; the auto-pick in an Easy room; guessing a custom word (no plural rule); a drawn custom word not dealt in the next game, the list kept.
+  - `server/deck.test.ts` (+3), `server/views.leak.test.ts` (+1: a scripted game with `qzcustom*` words audits every view and effect through to FINAL), `server/sockets.test.ts` (+1: through the gateway, counts only, `clear`), `shared/schemas.test.ts` (`clear`), `client/src/lib/customWords.test.ts` (3), `client/src/components/CustomWords.test.tsx` (3), the "Ours" card in `phoneViews.test.tsx`, the count on the crown phone's button in `hostPhone.test.tsx`.
+
+**Decisions:** DECISIONS 70 (adds vs replaces, `clear`, dropped words, the limit, the slot, settings, the Screen note).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Must-fix done: DECISIONS 70, this entry and the Kim check. Should-fix kept: the 30-character limit stays in UTF-16 units like every other text limit since F02 (recorded in DECISIONS 70); a custom word equal to a pack word isn't checked (recorded).
+- **secrets-fairness: PASS WITH FIXES** (no leak, purity kept). Should-fix done: a blank-only batch became `[]` and cleared the list; Clear is now the explicit `clear` flag, with a test. Nit done: the doubled schema comment.
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Should-fixes done: Add moved above the box (keyboard), safe-area padding, the error clears as you type, 48 px buttons in the panel; nit done: focus ring on the phone's button. Kept: the button is `aria-disabled` on an empty box with no message; the panel stays in the `/play` chunk (budget still passes).
+
+**Playtest** (`.playtest/F48/scenario.ts`, dev server), all steps pass, run again after the review fixes:
+1. The Screen adds "Tita Baby, lola / lolo": "Our words: 3", and the button reads "· 3".
+2. The crown phone adds "Mang Kanor": 4 on the phone and on the Screen's button.
+3. A 31-character word shows "Too long" and nothing is sent.
+4. Start: the drawer's cards are e.g. "rain · Easy", "Tita Baby · Ours", "white lady · Hard"; no custom word in the Screen's or the guessers' page text.
+5. The phone panel at 360×560: no horizontal overflow, Add words in view.
+6. Clear all on the Screen: "Tap again to clear", then "Our words: 0".
+
+No console errors. Screenshot: `.playtest/F48/5-panel-360-Ana.png`.
+
+**Notes for next session:**
+- A custom word that equals a pack word can come up twice in one night (DECISIONS 70); dedupe against the packs if Kim sees it.
+- The dev bots pick custom words like any card.
+
+**How to try it:**
+- Tests: `npx vitest run server/reducer.customwords.test.ts server/deck.test.ts server/views.leak.test.ts`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F48/scenario.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), "Add your own words ✍️", type a few words, Done; two phone windows at `/play/CODE`; Start: the drawer's cards have one "Ours".
 
 ## F47 — Spicy pack (2026-10-31)
 **What changed:**

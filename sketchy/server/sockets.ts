@@ -447,8 +447,8 @@ export function attachSockets(
     handle(socket, 'host:settings', (settings) =>
       asHost((by) => ({ type: 'host:settings', by, ...settings })),
     );
-    handle(socket, 'host:customWords', ({ words }) =>
-      asHost((by) => ({ type: 'host:customWords', by, words })),
+    handle(socket, 'host:customWords', ({ words, clear }) =>
+      asHost((by) => ({ type: 'host:customWords', by, words, ...(clear && { clear }) })),
     );
 
     socket.on('disconnect', () => {

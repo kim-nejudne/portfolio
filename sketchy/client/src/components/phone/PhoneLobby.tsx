@@ -4,6 +4,7 @@ import { doodleKey, type SendDoodle } from '../../ink/doodle.js';
 import type { Translate } from '../../lib/copy.js';
 import { useHostSender } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
+import { CustomWordsButton, CustomWordsPanel } from '../CustomWords.js';
 import { HostPlayerList } from '../HostPlayerList.js';
 import { ScreenSettings, settingsLine } from '../screen/ScreenSettings.js';
 import { DoodlePad } from './DoodlePad.js';
@@ -13,9 +14,9 @@ import { LeaveButton } from './LeaveButton.js';
  * The lobby on a phone (UI by role and phase, Guesser phone, Lobby): "You're in, Jun!", their
  * colour, who is waiting for whom, who's here, and Leave. The crown holder's lobby is the host
  * view instead (Host controls, F25): "You're the host 👑", a big Start game, and the settings
- * summary with Change (presets, settings and the players list with Give crown and Kick). Both
- * have the doodle pad (F27) under that, the host's below Start. Not yet: Change name (renames land
- * with their reducer action), custom words (F48).
+ * summary with Change (presets, settings and the players list with Give crown and Kick), and
+ * "Add your own words" (F48). Both have the doodle pad (F27) under that, the host's below Start.
+ * Not yet: Change name (renames land with their reducer action).
  */
 export function PhoneLobby({
   view,
@@ -47,10 +48,21 @@ export function PhoneLobby({
     wasOpen.current = open;
   }, [open]);
 
+  // "Add your own words" likewise, back to its button.
+  const [wordsOpen, setWordsOpen] = useState(false);
+  const closeWords = useCallback(() => setWordsOpen(false), []);
+  const wordsButton = useRef<HTMLButtonElement>(null);
+  const wordsWasOpen = useRef(false);
+  const words = wordsOpen && isHost && !open;
+  useEffect(() => {
+    if (wordsWasOpen.current && !words) wordsButton.current?.focus();
+    wordsWasOpen.current = words;
+  }, [words]);
+
   return (
     <div className="relative h-full">
       <div
-        inert={open}
+        inert={open || words}
         className="flex h-full flex-col gap-4 overflow-y-auto overscroll-contain px-4 pt-4 pb-3"
       >
         <header className="flex items-center gap-3">
@@ -70,6 +82,9 @@ export function PhoneLobby({
             t={t}
             changeRef={changeButton}
             onChange={() => setPanelOpen(true)}
+            wordsRef={wordsButton}
+            wordsOpen={words}
+            onWords={() => setWordsOpen(true)}
           />
         ) : (
           <p className="text-lg text-white/80">
@@ -111,6 +126,15 @@ export function PhoneLobby({
           <LeaveButton onLeave={onLeave} inGame={false} t={t} />
         </div>
       </div>
+      {words && (
+        <CustomWordsPanel
+          count={view.host!.customWordCount}
+          socket={socket}
+          t={t}
+          onClose={closeWords}
+          onScreen={false}
+        />
+      )}
       {open && (
         <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
           <section className="flex flex-col gap-2">
@@ -129,19 +153,28 @@ export function PhoneLobby({
   );
 }
 
-/** The crown holder's part of the lobby: Start and the settings summary with Change. */
+/**
+ * The crown holder's part of the lobby: Start, the settings summary with Change, and "Add your own
+ * words".
+ */
 function HostLobby({
   view,
   socket,
   t,
   changeRef,
   onChange,
+  wordsRef,
+  wordsOpen,
+  onWords,
 }: {
   view: PlayerView;
   socket: GameSocket;
   t: Translate;
   changeRef: RefObject<HTMLButtonElement | null>;
   onChange: () => void;
+  wordsRef: RefObject<HTMLButtonElement | null>;
+  wordsOpen: boolean;
+  onWords: () => void;
 }) {
   const { sending, status, send } = useHostSender(socket, t);
   const connected = view.players.filter((p) => p.connected).length;
@@ -175,6 +208,14 @@ function HostLobby({
           {t('change')}
         </button>
       </p>
+      <CustomWordsButton
+        ref={wordsRef}
+        count={view.host?.customWordCount ?? 0}
+        open={wordsOpen}
+        onOpen={onWords}
+        t={t}
+        className="min-h-11 w-full rounded-xl bg-white/15 px-3 py-2 text-left text-base font-bold text-white focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+      />
     </section>
   );
 }
