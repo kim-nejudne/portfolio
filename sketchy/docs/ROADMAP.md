@@ -8,18 +8,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M1 — Thin slice
 
-- [ ] F01 Project skeleton and tooling
-  - Spec: Tech stack and architecture (Folder layout); Ported from Buzzr
-  - Depends: none
-  - Done when:
-    - `npm run dev` starts the server on :3000 and Vite on :5173 (listening on `0.0.0.0`, proxying `/api`, `/socket.io`, `/healthz`)
-    - `npm test`, `typecheck`, `lint`, `format`, `format:check` and `build` exist and pass; `npm start` serves the built client; `GET /healthz` returns `{ok: true}`
-    - `npm run lan` prints the LAN Screen URL (and a join URL for a code) with terminal QR codes; `npm run playtest` runs a Playwright scenario with one isolated browser context per role; the smoke scenario opens a Screen and 3 phones
-    - `scripts/autopilot.sh` ported from Buzzr: done and committed in the bootstrap (2026-10-30); do not edit it
-    - CI job for `sketchy/` in `.github/workflows/ci.yml`: format check, lint, typecheck, test, build
-    - `CLAUDE.md` and the `.claude/` workflow (local only, gitignored) adapted from Buzzr: done in the bootstrap (2026-10-30); adjust only if needed (e.g. the playtest skill once the harness exists)
-  - Tests: `http.test.ts` — `/healthz`
-  - Blocked: npm install is an 'ask' rule in .claude/settings.json and no one could approve it in the unattended run; all F01 files are written (uncommitted) with pinned deps in package.json. Unblock: run 'npm install' in sketchy/ (creates package-lock.json), then npm run verify stages, lan, playtest smoke, and commit.
+- [x] F01 Project skeleton and tooling
 
 - [ ] F02 Shared types, schemas and constants
   - Spec: Data model (Room state); Settings; Reducer actions and effects (Actions)
