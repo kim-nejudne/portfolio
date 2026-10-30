@@ -140,7 +140,13 @@ function encodedBytes(value: unknown): number {
 }
 
 export const inkBatchSchema = z
-  .tuple([positiveIntSchema, positiveIntSchema, z.array(inkOpSchema).min(1)])
+  .tuple([
+    positiveIntSchema,
+    positiveIntSchema,
+    z.array(inkOpSchema).min(1),
+    // `?debug=1` only (F16): the drawer's send time in server time. Relayed, never trusted.
+    z.number().min(0).optional(),
+  ])
   .refine((batch) => encodedBytes(batch) <= INK_BATCH_MAX_BYTES, {
     message: `A batch is at most ${INK_BATCH_MAX_BYTES} bytes`,
   });
@@ -209,6 +215,7 @@ export const clientPayloadSchemas = {
   'host:rematch': emptySchema,
   'host:rematchCancel': emptySchema,
   'host:backToLobby': emptySchema,
+  'debug:rtt': emptySchema,
 } satisfies { [E in ClientEvent]: z.ZodType<ClientPayloads[E]> };
 
 // ---------- Compile-time checks: schemas and types.ts agree both ways ----------

@@ -32,7 +32,76 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F15: (1) read `server/slurs.ts` and `server/profanity.ts` (each entry is a whole word, `stem*` or `*part*`): add Tagalog/Taglish/Bisaya terms that are missing, and say whether to keep or drop "intsik", "bumbay" (left out) and "negro", "sex", "bobo", "tanga", "pepe", "kiki" (in); everyday or drawable words must not be listed (DECISIONS 38). (2) `npm run dev` + `npm run lan`, laptop Screen, 3 real phones; start, and as a guesser type the word plus " ko" (or the word with one letter changed) · "So close!" shows under the box on that phone only, the guess is listed as "… ≈", the TV shows nothing of it until "Almost:" at the reveal; a rude wrong guess shows as typed in the TV's sidebar (the `'clean'`/`'off'` switch needs F21's settings, so recheck it then)
 
+- [ ] F16: after autopilot deploys, open `https://sketchy.kimnejudne.dev/screen/CODE?debug=1` on the laptop (Screen on the TV, Wi-Fi) and join 3 phones; the drawer's phone on 4G opens `/play/CODE?debug=1` (add `?debug=1` to the join URL before joining). Start, wait 10 s, then (a) read the overlay at the top left; (b) film the drawer's phone and the TV together in slow motion (240 fps), draw 10 quick strokes, and count frames from finger movement to the line appearing on the TV (1 frame ≈ 4.2 ms) · (a) the overlay lists every phone with an RTT in ms (not "–"), shows "clock offset: N ms", and after the strokes shows p50 near 70–150 ms and p95 under 300 ms; (b) the video's median delay is within about 30 ms of the overlay's "+ 25 ms flush wait" p50 (the spec's ground truth)
+
 <!-- entries below, newest first -->
+
+## F16 — Ink delay debug overlay (2026-10-30)
+**What changed:**
+- **Shared:**
+  - `pong` is now `{t, serverNow}`, where `serverNow` is the server's wall clock.
+  - `InkBatch` takes an optional 4th element, `sentAt`. It is zod-checked as `number ≥ 0`.
+  - New `debug:rtt {}` event. Its ack is `{rtt: {pid: medianMs}}`, typed by `ClientAckData`.
+- **Server:**
+  - `sockets.ts` stamps `serverNow` on every pong.
+  - `debug:rtt` answers Screens only (`notScreen`/`notJoined`). It shares the ping limiter. It reads each connection's samples from an `rttBySocket` map that is cleared on disconnect, so pings still cause no broadcasts.
+  - `inkStore` keeps `sentAt` when it relays a batch with its refused strokes trimmed.
+- **Client:**
+  - `lib/clock.ts` (new, pure):
+    - `offsetSample` is `serverNow − (t + rtt/2)`;
+    - `createClockOffset` takes the median of the last 10 samples and offers `toServer`;
+    - `percentile` is nearest-rank;
+    - `createDelayWindow` keeps the last 200;
+    - `stampBatch`, `recordPaint` and `isDebug` are here too.
+  - `keepPinging` has a new `onServerTime` hook.
+  - **Drawer** (`/play/CODE?debug=1`): each batch goes out stamped with its send time in server time. Nothing is stamped before the first pong. A resend is stamped afresh, and the kept batch is never changed.
+  - **Screen** (`/screen/CODE?debug=1`):
+    - pings for its own offset;
+    - records "send → paint" on the animation frame after each applied batch;
+    - shows `DebugOverlay` at the top left: p50/p95 over the last 200 batches, the same plus the 25 ms average flush wait, its clock offset, and each player's RTT. RTTs are polled every 2 s.
+  - Without `?debug=1`, nothing changes except the extra `serverNow` field.
+- **Tests:**
+  - `client/src/lib/clock.test.ts` (16): the offset estimate (formula, true offset at any symmetric RTT, median that ignores a lopsided trip, last 10 only, bad samples), percentiles, the 200 window, `stampBatch` and `recordPaint`.
+  - `ping.test.ts`: the `onServerTime` hook.
+  - `sockets.test.ts`: pong `serverNow`; `debug:rtt` medians, its refusals and its limit.
+  - `inkGateway.test.ts`: `sentAt` relayed to Screens.
+  - `inkStore.test.ts`: `sentAt` kept on a trimmed relay.
+  - `schemas.test.ts`: `sentAt` and `debug:rtt` cases.
+  - `DebugOverlay.test.tsx`: the readout.
+- No new dependencies.
+
+**Decisions:** DECISIONS 39 covers:
+- the `sentAt` tuple element;
+- `serverNow` sent always;
+- the Screen pinging only in debug mode;
+- paint timed on the rAF after the canvas's;
+- `debug:rtt` as a pull, ungated, sharing the ping limit.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: DECISIONS 39, this entry and the F16 Kim check. The stamping and paint recording are now pure helpers with tests.
+- **secrets-fairness: PASS.** It noted that `debug:rtt` is ungated in production, which DECISIONS 39 makes deliberate. The shared limiter is now explained in a comment. Left open: `sentAt` has no upper bound (it is only relayed, inside the 4 KB batch cap), and the `pingLimiter` key purge carried over from F13.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - the p50/p95 headline is larger (`max(3.2vmin,16px)`, the rest `max(2.2vmin,13px)`);
+  - the overlay is capped at 45 vh × 45 vw, with the RTTs as a wrapping row;
+  - one `debug:rtt` request is in flight at a time, and none is sent while the page is hidden;
+  - no sample is taken while the tab is hidden (throttled frames);
+  - the offset shows in ms.
+  - Not done: choosing samples by lowest RTT. The spec says the median of the last 10, and the bias is in Notes below.
+
+**Notes for next session:**
+- The overlay is the spec's delay-budget measurement. The ground truth (240 fps video) is a Kim check.
+- **F33's Screen layout pass:** the overlay sits at the top left at `z-20`. Keep that corner free of anything important, or move the overlay.
+- The offset assumes the server stamps `serverNow` halfway through the round trip. It actually stamps it on receipt, so asymmetric links bias the number by up to half the difference between the two legs.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/clock.test.ts client/src/lib/ping.test.ts server/sockets.test.ts server/inkGateway.test.ts server/inkStore.test.ts client/src/components/screen`.
+- In the app: `npm run dev`, Screen at http://localhost:5173/screen/CODE?debug=1, phones at `/play/CODE?debug=1` (via `npm run lan CODE`; add `?debug=1`). Draw on the drawer's phone and watch the top-left overlay.
+- Automated: `npm run playtest -- .playtest/F16/scenario.ts` (gitignored). It runs a debug Screen and 2 debug phones, and all 5 steps pass:
+  - the overlay shows;
+  - an RTT row appears per player, and its ms value arrives;
+  - the clock offset shows in ms;
+  - after 6 strokes, p50/p95 appear (loopback: 1/2 ms);
+  - there are no console errors.
 
 ## F15 — Near-miss feedback and the guess feed (2026-10-30)
 **What changed:**

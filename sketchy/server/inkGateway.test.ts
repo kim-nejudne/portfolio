@@ -153,6 +153,14 @@ describe('/ink relay', () => {
     await expect.poll(() => inkEvents(d.screenInk)).toContainEqual(['ink:batch', batch]);
   });
 
+  it("relays a ?debug=1 batch with the drawer's send time on it (F16)", async () => {
+    const d = await drawing();
+    const [turnId, seq, ops] = stroke(d.turnId, 1);
+    const batch: InkBatch = [turnId, seq, ops, 1_800_000_000_042];
+    expect(await d.ana.ink.emit('ink:batch', batch)).toEqual({ ok: true });
+    await expect.poll(() => inkEvents(d.screenInk)).toContainEqual(['ink:batch', batch]);
+  });
+
   it("applies each relayed batch to the turn's action stack, the same one the Screen rebuilds", async () => {
     const d = await drawing();
     const batches: InkBatch[] = [

@@ -242,7 +242,13 @@ export function createInkStore(limits: Partial<InkStoreLimits> = {}): InkStore {
       // `seq` and is relayed without them, so undo and clear in it still apply (DECISIONS 35).
       return {
         kind: 'applied',
-        relay: kept.length === ops.length ? batch : [turnId, seq, kept],
+        // A `?debug=1` send time (F16) stays on, so the Screen still measures the batch.
+        relay:
+          kept.length === ops.length
+            ? batch
+            : batch[3] === undefined
+              ? [turnId, seq, kept]
+              : [turnId, seq, kept, batch[3]],
         full,
       };
     },

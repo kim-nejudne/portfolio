@@ -42,8 +42,22 @@ describe('keepPinging', () => {
   it('acks every pong at once, so the server can time the round trip', () => {
     const { socket } = setup();
     const ack = vi.fn();
-    socket.fire('pong', { t: 1 }, ack);
+    socket.fire('pong', { t: 1, serverNow: 9 }, ack);
     expect(ack).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands each pong and its local arrival time to onServerTime (?debug=1)', () => {
+    const socket = new FakeSocket();
+    vi.setSystemTime(0);
+    const seen: number[][] = [];
+    keepPinging(socket as unknown as GameSocket, {
+      clock: () => Date.now(),
+      page: new FakePage(),
+      onServerTime: (...args) => seen.push(args),
+    });
+    vi.setSystemTime(1_140);
+    socket.fire('pong', { t: 1_000, serverNow: 1_800_000_000_000 }, () => {});
+    expect(seen).toEqual([[1_000, 1_800_000_000_000, 1_140]]);
   });
 
   it('stops while disconnected and keeps one interval across reconnects', () => {

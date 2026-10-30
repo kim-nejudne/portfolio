@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ScreenView } from '../../../shared/types.js';
+import { DebugOverlay } from '../components/screen/DebugOverlay.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
 import { ScreenTurn } from '../components/screen/ScreenTurn.js';
+import { createClockOffset, createDelayWindow, isDebug, recordPaint } from '../lib/clock.js';
 import { translator } from '../lib/copy.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
+import { keepPinging } from '../lib/ping.js';
 import { createInkSocket, createSocket } from '../lib/socket.js';
 
 type Status = 'connecting' | 'live' | 'ended';
@@ -24,6 +27,11 @@ export function Screen() {
   const [state, setState] = useState<{ view: ScreenView; at: number } | null>(null);
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
+  // `?debug=1` (F16): this Screen's clock offset to the server and the recent ink delays.
+  const debug = useMemo(
+    () => (isDebug() ? { clock: createClockOffset(), delays: createDelayWindow() } : null),
+    [],
+  );
 
   useEffect(() => {
     const join = async (withToken: boolean) => {
@@ -60,6 +68,8 @@ export function Screen() {
       setStatus('ended');
       socket.disconnect();
     });
+    // A Screen pings only in debug mode, for its clock offset.
+    const stopPinging = debug ? keepPinging(socket, { onServerTime: debug.clock.add }) : () => {};
     socket.connect();
 
     // Every connect, reconnects included, rejoins the Screen's ink room and brings back the drawing
@@ -70,17 +80,27 @@ export function Screen() {
     inkSocket.on('ink:turn', ({ turnId }) => ink.turn(turnId));
     inkSocket.on('ink:snapshot', (snapshot) => ink.snapshot(snapshot));
     inkSocket.on('ink:batch', (batch) => {
-      if (ink.batch(batch) === 'gap') hello();
+      const applied = ink.batch(batch);
+      if (applied === 'gap') hello();
+      const sentAt = batch[3];
+      if (!debug || applied !== 'ok' || sentAt === undefined) return;
+      // The canvas asked for its frame while the batch applied (or earlier), and frame callbacks
+      // run in the order asked, so this one runs in the same frame just after the paint.
+      // A hidden tab's frames are throttled, which would only measure the throttling.
+      requestAnimationFrame(() => {
+        if (!document.hidden) recordPaint(debug.delays, debug.clock, sentAt, performance.now());
+      });
     });
     inkSocket.connect();
 
     return () => {
+      stopPinging();
       socket.removeAllListeners();
       socket.disconnect();
       inkSocket.removeAllListeners();
       inkSocket.disconnect();
     };
-  }, [code, socket, ink]);
+  }, [code, socket, ink, debug]);
 
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
@@ -116,6 +136,14 @@ export function Screen() {
         >
           {t('reconnecting')}
         </p>
+      )}
+      {debug && (
+        <DebugOverlay
+          socket={socket}
+          clock={debug.clock}
+          delays={debug.delays}
+          players={view.players}
+        />
       )}
       <div className="min-h-0 flex-1">
         {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}

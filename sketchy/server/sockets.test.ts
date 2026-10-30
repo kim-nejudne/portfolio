@@ -369,12 +369,40 @@ describe('effects runner', () => {
 });
 
 describe('ping, leave and closing', () => {
-  it('answers ping with pong {t}', async () => {
+  it('answers ping with pong {t, serverNow}, the server wall clock for the debug offset', async () => {
     const s = await setup();
     const { client } = await joinPlayer(s, KEY_ANA, 'Ana');
+    s.time.wall = WALL0 + 4_321;
     const pong = new Promise((resolve) => client.socket.once('pong', resolve));
     expect(await client.emit('ping', { t: 123 })).toEqual({ ok: true });
-    expect(await pong).toEqual({ t: 123 });
+    expect(await pong).toEqual({ t: 123, serverNow: WALL0 + 4_321 });
+  });
+
+  it('debug:rtt gives a Screen each player median RTT, players without samples left out', async () => {
+    const g = await playing();
+    const rtts = [100, 140, 120];
+    g.ben.client.socket.on('pong', (_payload: unknown, ack: () => void) => {
+      g.time.mono += rtts.shift()!;
+      ack();
+    });
+    for (let i = 0; i < 3; i++) await g.ben.client.emit('ping', { t: i });
+    // Ana's pongs go unacked: no sample.
+    await g.ana.client.emit('ping', { t: 1 });
+    expect(await g.screen.emit('debug:rtt', {})).toEqual({ ok: true, rtt: { [g.ben.pid]: 120 } });
+  });
+
+  it('debug:rtt is refused to a phone and before a join', async () => {
+    const g = await playing();
+    expect(await g.ben.client.emit('debug:rtt', {})).toEqual({ ok: false, error: 'notScreen' });
+    const lone = await g.connect();
+    expect(await lone.emit('debug:rtt', {})).toEqual({ ok: false, error: 'notJoined' });
+  });
+
+  it('debug:rtt shares the per-socket ping limit', async () => {
+    const g = await playing();
+    for (let i = 0; i < PING_RATE_LIMIT.max; i++)
+      expect(await g.screen.emit('debug:rtt', {})).toMatchObject({ ok: true });
+    expect(await g.screen.emit('debug:rtt', {})).toEqual({ ok: false, error: 'rateLimited' });
   });
 
   it('times RTT from pong to its ack and corrects a guess by half the median', async () => {

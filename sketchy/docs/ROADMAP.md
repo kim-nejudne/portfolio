@@ -40,12 +40,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F15 Near-miss feedback and the guess feed
 
-- [ ] F16 Ink delay debug overlay
-  - Spec: Drawing data protocol (Delay budget); Test plan (Ink delay measurement)
-  - Depends: F12, F13
-  - Done when:
-    - With `?debug=1` on the drawer and the Screen, batches carry the drawer's send time; `pong` carries server time; the Screen shows p50/p95 delay over the last 200 batches and each player's RTT
-  - Tests: unit test of the clock-offset estimate
+- [x] F16 Ink delay debug overlay
 
 ## M3 — Game shape
 

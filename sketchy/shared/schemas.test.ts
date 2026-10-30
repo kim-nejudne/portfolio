@@ -109,6 +109,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
   'host:rematch': { valid: [{}], invalid: [null] },
   'host:rematchCancel': { valid: [{}], invalid: [null] },
   'host:backToLobby': { valid: [{}], invalid: [null] },
+  'debug:rtt': { valid: [{}], invalid: [null, 'all'] },
 };
 
 describe('clientPayloadSchemas', () => {
@@ -215,8 +216,12 @@ describe('inkPayloadSchemas', () => {
 
   const inkCases: { [E in InkClientEvent]: { valid: unknown[]; invalid: unknown[] } } = {
     'ink:batch': {
-      valid: [example, [1, 1, [['u']]]],
+      // F16: `?debug=1` adds the drawer's send time in server time.
+      valid: [example, [1, 1, [['u']]], [1, 1, [['u']], 1_800_000_000_123.5]],
       invalid: [
+        [1, 1, [['u']], -1],
+        [1, 1, [['u']], '1800000000000'],
+        [1, 1, [['u']], 1, 2],
         [0, 1, [['u']]], // turnId starts at 1
         [1, 0, [['u']]], // seq starts at 1
         [1, 1, []],

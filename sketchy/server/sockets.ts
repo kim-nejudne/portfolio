@@ -120,6 +120,8 @@ export function attachSockets(
 
   // Keyed by socket id: one phone's pings can't use up another's.
   const pingLimiter = createRateLimiter(PING_RATE_LIMIT, monotonic);
+  // Each connection's RTT samples, by socket id, for the Screen's `?debug=1` overlay (F16).
+  const rttBySocket = new Map<string, () => readonly number[]>();
 
   // Scheduled effects still pending. A timer must not fire into a gateway that has shut down.
   const pending = new Set<{ cancel: () => void }>();
@@ -246,6 +248,7 @@ export function attachSockets(
     // This connection's last RTT_SAMPLES round trips. Never in the room, so pings cause no
     // broadcasts; a reconnect starts again from 0 (no correction until the first sample).
     let rttSamples: number[] = [];
+    rttBySocket.set(socket.id, () => rttSamples);
 
     /** The sender of a player or host event, or why there is none. */
     const sender = (): { code: string; by: Sender } | AckError => {
@@ -319,10 +322,29 @@ export function attachSockets(
     handle(socket, 'ping', ({ t }) => {
       if (!pingLimiter.hit(socket.id)) return fail('rateLimited');
       const sentAt = monotonic();
-      socket.timeout(PONG_ACK_TIMEOUT_MS).emit('pong', { t }, (err: Error | null) => {
+      const pong = { t, serverNow: clock() };
+      socket.timeout(PONG_ACK_TIMEOUT_MS).emit('pong', pong, (err: Error | null) => {
         if (!err) rttSamples = addRttSample(rttSamples, monotonic() - sentAt);
       });
       return { ok: true };
+    });
+
+    // SPEC-QUESTION: the spec wants every player's RTT on the `?debug=1` overlay but names no event
+    // for it. The Screen asks with `debug:rtt` (DECISIONS 39), so pings cause no broadcasts.
+    // Shares the ping limit: a Screen in debug mode asks every PING_INTERVAL_MS and pings as often,
+    // well under it; a burst only costs that Screen its own pings. Not gated: see DECISIONS 39.
+    handle(socket, 'debug:rtt', () => {
+      if (!pingLimiter.hit(socket.id)) return fail('rateLimited');
+      const { code, role } = socket.data;
+      if (!code || !role) return fail('notJoined');
+      if (role !== 'screen') return fail('notScreen');
+      const rtt: Record<string, number> = {};
+      for (const other of socketsIn(anyRoom(code))) {
+        const samples = rttBySocket.get(other.id)?.() ?? [];
+        if (other.data.role === 'player' && other.data.pid && samples.length > 0)
+          rtt[other.data.pid] = medianRtt(samples);
+      }
+      return { ok: true, rtt };
     });
 
     handle(socket, 'player:guess', ({ text }) => {
@@ -379,6 +401,7 @@ export function attachSockets(
     );
 
     socket.on('disconnect', () => {
+      rttBySocket.delete(socket.id);
       const { code, role, pid } = socket.data;
       if (!code) return;
       // Socket.IO has already taken the socket out of its rooms, so counts leave it out.

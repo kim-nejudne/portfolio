@@ -324,7 +324,7 @@ export type GatewayError =
   | 'inkFull' // `/ink`: the canvas is full; the batch's new strokes were dropped, the rest applied
   | 'inkGap' // `/ink`: a batch after a missing `seq`; dropped, and `ink:resend` asks for the gap
   | 'inkNotKept' // `/ink`: `ink:get` for a drawing the room no longer keeps
-  | 'notScreen' // `/ink`: `ink:get` from a phone
+  | 'notScreen' // `ink:get` or `debug:rtt` from a phone
   | 'serverError';
 
 export type AckError = ReduceError | GatewayError;
@@ -356,9 +356,19 @@ export interface ClientPayloads {
   'host:rematch': Empty;
   'host:rematchCancel': Empty;
   'host:backToLobby': Empty;
+  'debug:rtt': Empty;
 }
 
 export type ClientEvent = keyof ClientPayloads;
+
+/**
+ * What a successful ack carries beyond `ok`, for the main-namespace events that answer with data.
+ * `debug:rtt` (Screens only, F16): each connected player's median RTT in ms, by pid, for players
+ * with at least one sample.
+ */
+export interface ClientAckData {
+  'debug:rtt': { rtt: Record<string, number> };
+}
 
 /** Typed Socket.IO map for the main namespace's client→server side. */
 export type ClientToServerEvents = {
@@ -484,8 +494,11 @@ export type View = ScreenView | PlayerView;
 export interface ServerToClientEvents {
   state: (view: View) => void;
   fx: (fx: Fx) => void;
-  /** The phone acks it at once: the server times its RTT sample from the emit to the ack. */
-  pong: (payload: { t: number }, ack: () => void) => void;
+  /**
+   * The phone acks it at once: the server times its RTT sample from the emit to the ack.
+   * `serverNow` is the server's wall clock, for the `?debug=1` clock-offset estimate (F16).
+   */
+  pong: (payload: { t: number; serverNow: number }, ack: () => void) => void;
   kicked: (payload: Empty) => void;
   'room:closed': (payload: { reason: RoomClosedReason }) => void;
 }
@@ -507,8 +520,11 @@ export type InkClearOp = ['c'];
 
 export type InkOp = InkBeginOp | InkPointsOp | InkEndOp | InkUndoOp | InkClearOp;
 
-/** `[turnId, seq, ops]`; `seq` starts at 1 each turn, +1 per batch. */
-export type InkBatch = [number, number, InkOp[]];
+/**
+ * `[turnId, seq, ops]`; `seq` starts at 1 each turn, +1 per batch. Under `?debug=1` the drawer
+ * adds `sentAt`, its send time in server time (ms), for the Screen's ink delay overlay (F16).
+ */
+export type InkBatch = [turnId: number, seq: number, ops: InkOp[], sentAt?: number];
 
 /** `/ink` client→server payloads, keyed by event name. */
 export interface InkClientPayloads {

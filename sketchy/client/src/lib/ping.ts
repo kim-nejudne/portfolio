@@ -16,6 +16,7 @@ export interface VisibilitySource {
  * server times its RTT sample from the `pong` to that ack (DECISIONS 36). The first ping goes at
  * once, so a reconnected phone has a sample before its first guess. Pings pause while the page is
  * hidden (nobody guesses then; it saves the radio) and resume with one at once when it shows.
+ * A Screen in `?debug=1` mode pings too, for its clock offset (F16).
  * Call it before `connect()`. Returns a stop function that clears the interval and the listeners.
  */
 export function keepPinging(
@@ -23,7 +24,13 @@ export function keepPinging(
   {
     clock = () => performance.now(),
     page = typeof document === 'undefined' ? undefined : document,
-  }: { clock?: () => number; page?: VisibilitySource } = {},
+    onServerTime,
+  }: {
+    clock?: () => number;
+    page?: VisibilitySource;
+    /** `?debug=1` (F16): each pong's `t`, `serverNow` and local arrival time, for the offset. */
+    onServerTime?: (t: number, serverNow: number, receivedAt: number) => void;
+  } = {},
 ): () => void {
   let timer: ReturnType<typeof setInterval> | undefined;
   const pause = () => {
@@ -40,7 +47,10 @@ export function keepPinging(
     timer = setInterval(ping, PING_INTERVAL_MS);
   };
   const onVisibility = () => (page?.hidden ? pause() : start());
-  const onPong = (_payload: { t: number }, ack?: () => void) => ack?.();
+  const onPong = ({ t, serverNow }: { t: number; serverNow: number }, ack?: () => void) => {
+    ack?.();
+    onServerTime?.(t, serverNow, clock());
+  };
 
   socket.on('connect', start);
   socket.on('disconnect', pause);

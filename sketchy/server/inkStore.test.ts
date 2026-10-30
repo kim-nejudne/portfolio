@@ -115,6 +115,17 @@ describe('InkStore caps', () => {
     expect(visibleStrokes(store.turn(CODE)!.stack).map((s) => s.id)).toEqual([6]);
   });
 
+  it('keeps a debug send time on a batch relayed without its refused strokes', () => {
+    const { store, send } = live({ turnMax: 40 });
+    send(stroke(1));
+    const out = store.apply(CODE, [T, 2, [...stroke(2), ['u']], 1_800_000_000_050], 0);
+    expect(out).toEqual({
+      kind: 'applied',
+      relay: [T, 2, [['u']], 1_800_000_000_050],
+      full: true,
+    });
+  });
+
   it('cuts a stroke in progress where it passes the cap', () => {
     const { store, send } = live({ turnMax: 50 });
     send([

@@ -16,6 +16,7 @@ import {
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
+import { createClockOffset, isDebug, stampBatch } from '../lib/clock.js';
 import { keepPinging } from '../lib/ping.js';
 import { createInkSocket, createSocket, type InkSocket } from '../lib/socket.js';
 
@@ -52,6 +53,8 @@ export function Play() {
   const [nearMiss, setNearMiss] = useState(0);
 
   const socket = useMemo(() => createSocket(), []);
+  // `?debug=1` (F16): the clock offset to the server, so each ink batch carries its send time.
+  const debugClock = useMemo(() => (isDebug() ? createClockOffset() : null), []);
   const identityRef = useRef<PlayerIdentity | null>(stored);
   const inkRef = useRef<InkSocket | null>(null);
   // The drawer's current turn on `/ink`, while the pad is up.
@@ -152,7 +155,9 @@ export function Play() {
       socket.disconnect();
     });
     // RTT samples for the server's latency correction of guess times.
-    const stopPinging = keepPinging(socket);
+    const stopPinging = keepPinging(socket, {
+      ...(debugClock ? { onServerTime: debugClock.add } : {}),
+    });
     socket.connect();
 
     return () => {
@@ -161,7 +166,7 @@ export function Play() {
       socket.disconnect();
       closeInk();
     };
-  }, [code, validCode, socket, join, closeInk]);
+  }, [code, validCode, socket, join, closeInk, debugClock]);
 
   const startJoin = (name: string) => {
     identityRef.current = { playerKey: newPlayerKey(), name };
@@ -191,8 +196,11 @@ export function Play() {
       send(batch: InkBatch) {
         const ink = inkRef.current;
         // The ack tells a rate-limited batch apart, so it is resent rather than left missing.
-        if (ink?.connected)
-          ink.emit('ink:batch', batch, (res) => drawerSyncRef.current?.batchAck(res));
+        if (!ink?.connected) return;
+        // `?debug=1`: stamp the send time in server time for the Screen's delay overlay. A resend
+        // is stamped afresh; the kept batch itself is never changed.
+        const out = stampBatch(batch, debugClock, performance.now());
+        ink.emit('ink:batch', out, (res) => drawerSyncRef.current?.batchAck(res));
       },
       bind(turnId, sender, onSnapshot) {
         const sync = createDrawerSync({
@@ -218,7 +226,7 @@ export function Play() {
         };
       },
     }),
-    [code],
+    [code, debugClock],
   );
 
   const leave = () => {
