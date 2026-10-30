@@ -8,7 +8,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M1 — Thin slice
 
-- [!] F01 Project skeleton and tooling
+- [ ] F01 Project skeleton and tooling
   - Spec: Tech stack and architecture (Folder layout); Ported from Buzzr
   - Depends: none
   - Done when:
