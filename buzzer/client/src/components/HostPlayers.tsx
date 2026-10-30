@@ -4,8 +4,8 @@ import type { HostView, TeamView } from '../../../shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
-import { BUTTON_DANGER } from '../lib/ui.js';
-import { ConfirmButton } from './ConfirmButton.js';
+import { BUTTON_ICON } from '../lib/ui.js';
+import { OverflowMenu, type MenuItem } from './OverflowMenu.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 
 interface HostPlayersProps {
@@ -17,14 +17,14 @@ const small = `min-h-11 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-dis
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons
- * that adjust the score by the current question's value, a Custom amount, and Kick. Without a
- * current question (the lobby, or a game ended from it) there is no value to adjust by, so those
- * buttons are hidden; Custom stays.
+ * that adjust the score by the current question's value, a Custom amount, and Kick in a `⋯` menu.
+ * Without a current question (the lobby, or a game ended from it) there is no value to adjust by,
+ * so those buttons are hidden; Custom stays.
  *
  * While the remote's own socket is not connected, the last snapshot's statuses may be stale, so
  * every row says "status unknown", dimmed, until it reconnects (F41).
  *
- * With teams on, the rows are grouped by team, each with a team select (F83).
+ * With teams on, the rows are grouped by team; each row's `⋯` menu moves the player (F83, F98).
  */
 export function HostPlayers({ view, command }: HostPlayersProps) {
   const { players, teams } = view;
@@ -133,9 +133,11 @@ function TeamGroups({
 }
 
 /**
- * One player: score and connection, the adjust buttons, Kick and, with teams on, a team select.
- * The select shows the snapshot's team until the server moves the player; it is off outside the
- * lobby and REVEAL, where the server refuses a move (`canChangeTeams`).
+ * One player (HST-04). Line 1: colour, avatar, the whole name (up to two lines) with the connection
+ * under it, and the score. Line 2, on the right: the adjust buttons and a `⋯` menu holding the team
+ * moves and, last and red, Kick, so Kick never sits beside a score button. A move is off outside
+ * the lobby and REVEAL, where the server refuses it (`canChangeTeams`); the row moves with the next
+ * snapshot.
  */
 function PlayerRow({
   player,
@@ -147,31 +149,47 @@ function PlayerRow({
 }: RowProps & { player: HostPlayer; team?: TeamView | null; teams?: TeamView[] }) {
   const { busy, run } = command;
   const step = view.question?.points ?? 0;
+  // Greyed while offline or unknown; the buttons below stay full strength, since they still work.
+  const dim = player.connected && !unknown ? '' : 'opacity-40';
+  const moves: MenuItem[] = (teams ?? [])
+    .filter((option) => option.index !== team?.index)
+    .map((option) => ({
+      label: `Move to ${option.name}`,
+      onSelect: () => run('host:setTeam', { playerId: player.id, team: option.index }),
+      disabled: busy || !view.canChangeTeams,
+    }));
+  const kick: MenuItem = {
+    label: 'Kick',
+    confirmLabel: 'Confirm kick',
+    onSelect: () => run('host:kick', { playerId: player.id }),
+    disabled: busy,
+  };
 
   return (
     <li
       aria-label={player.name}
       className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2"
     >
-      {/* Greyed while offline or unknown; the buttons below stay full strength, since they still work. */}
-      <p className={`flex items-center gap-3 ${player.connected && !unknown ? '' : 'opacity-40'}`}>
+      <p className={`flex items-center gap-3 ${dim}`}>
         <span
           aria-hidden
           style={{ backgroundColor: player.color }}
           className="size-4 shrink-0 rounded-full"
         />
         <PlayerAvatar avatar={player.avatar} className="text-xl" />
-        <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
-        <span className="text-sm text-muted">
-          {unknown
-            ? 'status unknown'
-            : player.connected
-              ? `online · ${Math.round(player.rttMs)} ms`
-              : 'offline'}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="line-clamp-2 font-bold break-words">{player.name}</span>
+          <span className="text-sm text-muted">
+            {unknown
+              ? 'status unknown'
+              : player.connected
+                ? `online · ${Math.round(player.rttMs)} ms`
+                : 'offline'}
+          </span>
         </span>
         <span className="font-display text-xl">{player.score}</span>
       </p>
-      <p className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         {step > 0 && (
           <>
             <button
@@ -195,40 +213,13 @@ function PlayerRow({
           </>
         )}
         <CustomAdjust player={player} command={command} />
-        {teams && (
-          <select
-            aria-label={`Team for ${player.name}`}
-            value={team?.index ?? ''}
-            onChange={(e) =>
-              run('host:setTeam', { playerId: player.id, team: Number(e.target.value) })
-            }
-            disabled={busy || !view.canChangeTeams}
-            className={`${small} text-ink`}
-          >
-            {!team && (
-              <option value="" disabled>
-                No team
-              </option>
-            )}
-            {teams.map((option) => (
-              <option key={option.index} value={option.index}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <span className="ml-auto">
-          <ConfirmButton
-            label="Kick"
-            confirmLabel="Confirm kick"
-            ariaLabel={`Kick ${player.name}`}
-            onConfirm={() => run('host:kick', { playerId: player.id })}
-            disabled={busy}
-            className={BUTTON_DANGER}
-            cancelClassName={small}
-          />
-        </span>
-      </p>
+        <OverflowMenu
+          label={`More for ${player.name}`}
+          trigger={<span aria-hidden>⋯</span>}
+          triggerClassName={`${BUTTON_ICON} bg-bg font-bold`}
+          items={[...moves, kick]}
+        />
+      </div>
     </li>
   );
 }
@@ -273,7 +264,8 @@ function CustomAdjust({
         Custom
       </button>
       {open && (
-        <span className="flex w-full items-center gap-2">
+        // Its own line, under the row's buttons.
+        <span className="order-last flex w-full items-center gap-2">
           <input
             type="text"
             inputMode="numeric"

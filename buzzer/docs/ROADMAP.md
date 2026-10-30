@@ -260,19 +260,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F97 Player on tablet and desktop
 
-- [ ] F98 Host remote on the phone
-  - Spec: UI spec by view (Host remote); see `docs/ux/05-host-remote.md`
-  - Depends: F92
-  - Done when:
-    - HST-01 … HST-08 are closed
-    - The primary action, including the judging panel, sits in a sticky bottom bar, visible in every phase at 375×667
-    - The tablist is sticky
-    - End game is a separate danger row, and arming it does not reflow the tiles
-    - Player rows show full names; Kick and team are in a `⋯` menu
-    - Settings rows stack below about 384px
-    - The read-aloud code fits at 320px
-    - PIN entry is top-aligned on short screens
-  - Tests: `Host.test.tsx` and `HostControls.test.tsx` (sticky bar holds the primary in each phase, End game confirm, kick through the menu), `PairHostPhone.test.tsx` if touched
+- [x] F98 Host remote on the phone
 
 - [ ] F99 Host remote dashboard on tablet and desktop
   - Spec: UI spec by view (Host remote); see `docs/ux/05-host-remote.md`

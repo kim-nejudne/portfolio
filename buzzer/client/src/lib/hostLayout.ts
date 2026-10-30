@@ -37,3 +37,25 @@ export function withoutReadAloud(search: string): string {
   const rest = params.toString();
   return rest ? `?${rest}` : '';
 }
+
+const HINT_KEY = 'buzzr:readAloudHintSeen';
+
+/**
+ * True once this browser's host has pressed **Read aloud**, after which its one-line hint is kept
+ * for screen readers only (HST-08). In localStorage: the hint is for a first-time host, not a new tab.
+ */
+export function loadReadAloudHintSeen(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveReadAloudHintSeen(): void {
+  try {
+    localStorage.setItem(HINT_KEY, '1');
+  } catch {
+    // Without storage the hint shows again next time; harmless.
+  }
+}

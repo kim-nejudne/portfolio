@@ -155,6 +155,8 @@ async function flushNavigation() {
 }
 
 const heading = () => screen.getByRole('heading', { level: 1 }).textContent;
+/** The bar stuck to the bottom of the Game tab that holds the primary action (F98). */
+const bar = () => screen.getByRole('region', { name: 'Primary action' });
 
 describe('Host remote', () => {
   describe('pairing link', () => {
@@ -528,11 +530,10 @@ describe('Host remote', () => {
         });
       });
 
-      it('New game on the card opens the picker over the remote', () => {
+      it('New game in the action bar opens the picker over the remote', () => {
         remote(final([player(1)]));
-        const card = screen.getByRole('region', { name: 'Game over' });
         expect(screen.queryByRole('dialog', { name: 'New game' })).toBeNull();
-        fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
+        fireEvent.click(within(bar()).getByRole('button', { name: 'New game' }));
         const picker = screen.getByRole('dialog', { name: 'New game' });
         expect(within(picker).getByRole('checkbox', { name: 'Keep scores' })).toBeTruthy();
         fireEvent.click(within(picker).getByRole('button', { name: 'Cancel' }));
@@ -541,8 +542,7 @@ describe('Host remote', () => {
 
       it("the remote's picker offers Preview of the picked set", async () => {
         remote(final([player(1)]));
-        const card = screen.getByRole('region', { name: 'Game over' });
-        fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
+        fireEvent.click(within(bar()).getByRole('button', { name: 'New game' }));
         const picker = screen.getByRole('dialog', { name: 'New game' });
         const radios = await within(picker).findAllByRole<HTMLInputElement>('radio');
         const picked = radios.find((radio) => radio.checked)!;
@@ -556,8 +556,7 @@ describe('Host remote', () => {
 
       it("the remote's picker offers Build a game", async () => {
         remote(final([player(1)]));
-        const card = screen.getByRole('region', { name: 'Game over' });
-        fireEvent.click(within(card).getByRole('button', { name: 'New game' }));
+        fireEvent.click(within(bar()).getByRole('button', { name: 'New game' }));
         const picker = screen.getByRole('dialog', { name: 'New game' });
         await within(picker).findAllByRole('radio');
         fireEvent.click(within(picker).getByRole('button', { name: 'Build a game' }));
@@ -677,7 +676,7 @@ describe('Host remote', () => {
       expect(screen.getByRole('region', { name: 'Players (1)' })).toBeTruthy();
     });
 
-    it('with teams, the Players tab groups by team and a team select moves a player', () => {
+    it('with teams, the Players tab groups by team and the ⋯ menu moves a player', () => {
       const team = (index: number, memberIds: string[]): TeamView => ({
         ...TEAMS[index]!,
         index,
@@ -700,9 +699,8 @@ describe('Host remote', () => {
           .map((row) => row.getAttribute('aria-label'));
       expect(members(/^Red/)).toEqual(['Player 1', 'Player 3']);
       expect(members(/^Blue/)).toEqual(['Player 2']);
-      fireEvent.change(screen.getByRole('combobox', { name: 'Team for Player 1' }), {
-        target: { value: '1' },
-      });
+      fireEvent.click(screen.getByRole('button', { name: 'More for Player 1' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Move to Blue' }));
       expect(socket.emitted.at(-1)).toMatchObject({
         event: 'host:setTeam',
         payload: { playerId: 'p1', team: 1 },
@@ -1569,13 +1567,14 @@ describe('Host remote: category board (F90)', () => {
     expect(sent(socket, 'host:pick')).toEqual([{ questionIndex: 4 }]);
   });
 
-  it('played tiles are dimmed and cannot be picked', () => {
+  it('played tiles are struck through, not faded, and cannot be picked', () => {
     const socket = remote(onBoard([0]));
     const played = within(grid()).getByRole<HTMLButtonElement>('button', {
       name: 'Animals, 100, played',
     });
     expect(played.disabled).toBe(true);
-    expect(played.className).toContain('opacity-30');
+    expect(played.className).toContain('line-through');
+    expect(played.className).not.toContain('opacity');
     fireEvent.click(played);
     expect(sent(socket, 'host:pick')).toEqual([]);
   });
@@ -1621,5 +1620,137 @@ describe('Host remote: category board (F90)', () => {
   it('read aloud keeps the grid on the board', () => {
     remote(onBoard(), `/host/WXYZ?read=1#t=${TOKEN}`);
     expect(within(grid()).getAllByRole('button')).toHaveLength(6);
+  });
+});
+
+describe('Host remote: phone layout (F98)', () => {
+  function remote(view: HostView, path = `/host/WXYZ#t=${TOKEN}`) {
+    const rendered = renderHost(path);
+    act(() => rendered.socket.emitted[0]!.ack({ ok: true }));
+    rendered.socket.fire('state', view);
+    return rendered.socket;
+  }
+  const inPhase = (phase: HostView['phase'], overrides: Partial<HostView> = {}) =>
+    hostView({
+      phase,
+      questionIndex: 2,
+      question: question(3, { imageId: 'img-1' }),
+      players: [player(1), player(2)],
+      ...overrides,
+    });
+  const stuck = (element: HTMLElement) => {
+    expect(element.className).toContain('sticky');
+    expect(element.className).toContain('bottom-0');
+  };
+
+  it.each<[string, HostView, string]>([
+    ['the lobby', hostView({ players: [player(1)] }), 'Start game'],
+    ['a question with an image', inPhase('QUESTION'), 'Open buzzers'],
+    ['open buzzers', inPhase('OPEN'), 'Reveal answer'],
+    ['the reveal', inPhase('REVEAL'), 'Next question'],
+    [
+      'typed marking',
+      inPhase('ANSWERING', {
+        question: question(3, { mode: 'typed' }),
+        typed: {
+          answered: 1,
+          expected: 2,
+          timer: null,
+          closed: true,
+          groups: [{ key: 'a', text: 'A', playerIds: ['p1'], correct: false, preMarked: false }],
+        },
+      }),
+      'Reveal and score',
+    ],
+    ['the final results', hostView({ phase: 'FINAL', players: [player(1)] }), 'New game'],
+  ])('in %s the primary action sits in the sticky bottom bar', (_, view, label) => {
+    remote(view);
+    stuck(bar());
+    expect(within(bar()).getByRole('button', { name: label })).toBeTruthy();
+    // The bar holds only the primary action; the secondary tiles stay in the content above.
+    expect(within(bar()).queryByRole('button', { name: 'Show scoreboard' })).toBeNull();
+  });
+
+  it('while judging, the bar holds the red panel and the other buzzes stay above it', () => {
+    remote(
+      inPhase('BUZZED', {
+        winnerId: 'p1',
+        canJudge: true,
+        alsoBuzzed: [{ playerId: 'p2', gapMs: 120 }],
+      }),
+    );
+    stuck(bar());
+    const judging = within(bar()).getByRole('region', { name: 'Judging' });
+    for (const name of ['Correct', 'Half', 'Wrong']) {
+      expect(within(judging).getByRole('button', { name })).toBeTruthy();
+    }
+    const also = screen.getByRole('region', { name: 'also buzzed' });
+    expect(bar().contains(also)).toBe(false);
+  });
+
+  it('on the board the tiles are the action, so there is no bar', () => {
+    remote(
+      hostView({
+        phase: 'BOARD',
+        players: [player(1)],
+        board: {
+          columns: [
+            { title: 'A', tiles: [{ questionIndex: 0, points: 100, used: false }] },
+            { title: 'B', tiles: [{ questionIndex: 1, points: 100, used: false }] },
+          ],
+        },
+        nextQuestion: null,
+      }),
+    );
+    expect(screen.queryByRole('region', { name: 'Primary action' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Category board' })).toBeTruthy();
+  });
+
+  it('the bar shows on the Game tab only', () => {
+    remote(inPhase('QUESTION'));
+    fireEvent.click(screen.getByRole('tab', { name: /^Players/ }));
+    expect(screen.queryByRole('region', { name: 'Primary action' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Game' }));
+    expect(bar()).toBeTruthy();
+  });
+
+  it('the tablist is stuck to the top on a solid fill (HST-02)', () => {
+    remote(inPhase('QUESTION'));
+    const holder = screen.getByRole('tablist').parentElement!;
+    expect(holder.className).toContain('sticky top-0');
+    expect(holder.className).toContain('bg-bg');
+  });
+
+  it('the header is one line: room, players count, question pill and Read aloud', () => {
+    remote(inPhase('QUESTION'));
+    const header = screen.getByRole('banner');
+    expect(header.className).toContain('items-center');
+    expect(header.textContent).toContain('WXYZ');
+    expect(header.textContent).toContain('2 players');
+    expect(within(header).getByLabelText('Question 3 of 10')).toBeTruthy();
+    expect(within(header).getByRole('button', { name: 'Read aloud' })).toBeTruthy();
+  });
+
+  it('Read aloud is described by a hint, shown until the host first presses it (HST-08)', () => {
+    remote(inPhase('QUESTION'));
+    const toggle = screen.getByRole('button', { name: 'Read aloud' });
+    const hint = document.getElementById(toggle.getAttribute('aria-describedby')!)!;
+    expect(hint.textContent).toBe('Read aloud: big question text, answer covered.');
+    expect(hint.className).not.toContain('sr-only');
+    fireEvent.click(toggle);
+    expect(hint.className).toContain('sr-only');
+    expect(localStorage.getItem('buzzr:readAloudHintSeen')).toBe('1');
+  });
+
+  it('a host who has used Read aloud before gets the hint for screen readers only', () => {
+    localStorage.setItem('buzzr:readAloudHintSeen', '1');
+    remote(inPhase('QUESTION'));
+    expect(document.getElementById('read-aloud-hint')!.className).toBe('sr-only');
+  });
+
+  it('the read-aloud room code shrinks with the screen, so it fits at 320px (HST-06)', () => {
+    remote(hostView(), `/host/WXYZ?read=1#t=${TOKEN}`);
+    const code = within(screen.getByRole('region', { name: 'Join' })).getByText('WXYZ');
+    expect(code.className).toContain('text-[clamp(2.5rem,16vw,3.75rem)]');
   });
 });

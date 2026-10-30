@@ -34,10 +34,11 @@ const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
 
 /**
  * The remote's full-width primary action (UI spec, Host remote). Its label and event follow the
- * phase; after a buzz it becomes the red judging panel: who buzzed first, the answer countdown
- * right above Correct / Wrong when an answer time is set, then the other buzzes. While the buzzers
- * are open with a buzz time, or a choice question takes answers, the seconds left sit beside it.
- * The server decides whether it is allowed.
+ * phase; after a buzz it becomes the red judging panel: who buzzed first, then the answer countdown
+ * right above Correct / Wrong when an answer time is set. The remote keeps it in a bar stuck to the
+ * bottom of the Game tab, and the other buzzes (`AlsoBuzzed`) in the content above (F98). While
+ * the buzzers are open with a buzz time, or a choice question takes answers, the seconds left sit
+ * beside it. The server decides whether it is allowed.
  */
 export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActionProps) {
   const { busy, run } = command;
@@ -56,62 +57,57 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
     }
     const winner = view.players.find((p) => p.id === view.winnerId);
     return (
-      <div className="flex flex-col gap-3">
-        <section
-          aria-label="Judging"
-          className="flex flex-col gap-3 rounded-[18px] bg-buzz p-4 shadow-[0_0_0_4px_var(--color-bg),0_0_0_7px_var(--color-accent)]"
-        >
-          <p className={`${LABEL} text-buzz-ink!`}>Buzzed first</p>
-          {winner && (
-            <p
-              className={`flex min-w-0 items-center gap-3 font-display ${bigWinner ? 'text-[56px]' : 'text-[44px]'} leading-none text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]`}
-            >
-              <span
-                aria-hidden="true"
-                style={{ backgroundColor: winner.color }}
-                className="size-4 shrink-0 rounded-full ring-2 ring-buzz-ink"
-              />
-              {/* Read aloud wraps a long name instead of cutting it, so the host can call it out whole. */}
-              <span
-                className={`min-w-0 pb-1 ${bigWinner ? '[overflow-wrap:anywhere]' : 'truncate'}`}
-              >
-                {winner.name}
-              </span>
-            </p>
-          )}
-          {countdown && <JudgeCountdown countdown={countdown} />}
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => run('host:judge', { result: 'correct' })}
-              disabled={busy}
-              className={`${JUDGE} bg-win text-win-ink`}
-            >
-              <Icon name="check" className="size-5" />
-              Correct
-            </button>
-            <button
-              type="button"
-              onClick={() => run('host:judge', { result: 'half' })}
-              disabled={busy}
-              className={`${JUDGE} bg-accent text-accent-ink`}
-            >
-              <Icon name="half" className="size-5" />
-              Half
-            </button>
-            <button
-              type="button"
-              onClick={() => run('host:judge', { result: 'wrong' })}
-              disabled={busy}
-              className={`${JUDGE} bg-buzz-ink text-ink`}
-            >
-              <Icon name="x" className="size-5" />
-              Wrong
-            </button>
-          </div>
-        </section>
-        <AlsoBuzzed view={view} />
-      </div>
+      <section
+        aria-label="Judging"
+        className="flex flex-col gap-3 rounded-[18px] bg-buzz p-4 shadow-[0_0_0_4px_var(--color-bg),0_0_0_7px_var(--color-accent)]"
+      >
+        <p className={`${LABEL} text-buzz-ink!`}>Buzzed first</p>
+        {winner && (
+          <p
+            className={`flex min-w-0 items-center gap-3 font-display ${bigWinner ? 'text-[56px]' : 'text-[44px]'} leading-none text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]`}
+          >
+            <span
+              aria-hidden="true"
+              style={{ backgroundColor: winner.color }}
+              className="size-4 shrink-0 rounded-full ring-2 ring-buzz-ink"
+            />
+            {/* Read aloud wraps a long name instead of cutting it, so the host can call it out whole. */}
+            <span className={`min-w-0 pb-1 ${bigWinner ? '[overflow-wrap:anywhere]' : 'truncate'}`}>
+              {winner.name}
+            </span>
+          </p>
+        )}
+        {countdown && <JudgeCountdown countdown={countdown} />}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => run('host:judge', { result: 'correct' })}
+            disabled={busy}
+            className={`${JUDGE} bg-win text-win-ink`}
+          >
+            <Icon name="check" className="size-5" />
+            Correct
+          </button>
+          <button
+            type="button"
+            onClick={() => run('host:judge', { result: 'half' })}
+            disabled={busy}
+            className={`${JUDGE} bg-accent text-accent-ink`}
+          >
+            <Icon name="half" className="size-5" />
+            Half
+          </button>
+          <button
+            type="button"
+            onClick={() => run('host:judge', { result: 'wrong' })}
+            disabled={busy}
+            className={`${JUDGE} bg-buzz-ink text-ink`}
+          >
+            <Icon name="x" className="size-5" />
+            Wrong
+          </button>
+        </div>
+      </section>
     );
   }
 
@@ -160,7 +156,7 @@ function SideCountdown({ countdown, label }: { countdown: AnswerCountdown; label
 }
 
 /** The other buzzes of this opening, slowest last, with their gap to the winner. */
-function AlsoBuzzed({ view }: { view: HostView }) {
+export function AlsoBuzzed({ view }: { view: HostView }) {
   const others = view.alsoBuzzed.flatMap((gap) => {
     const player = view.players.find((p) => p.id === gap.playerId);
     return player ? [{ player, gapMs: gap.gapMs }] : [];

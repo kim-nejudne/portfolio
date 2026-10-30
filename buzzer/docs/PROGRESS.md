@@ -10,6 +10,52 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F98 — Host remote on the phone (2026-10-30)
+**What changed:**
+- `pages/Host.tsx`:
+  - **Header (HST-02):** one line: `Host`, the connection dot and room code, "· N players" from 400px, the question pill and Read aloud. The set title left the header.
+  - **Tabs:** the tablist sits in a `sticky top-0` holder on a solid fill.
+  - **Action bar (HST-01):** a sticky bottom region, "Primary action", on the Game tab. It holds the primary button, the red judging panel in BUZZED, and **New game** in FINAL. There is no bar on the board.
+  - **Also buzzed** moved out of `PrimaryAction` into the content (it is now exported).
+  - **Read aloud hint (HST-08):** shown until the host first presses Read aloud, then kept sr-only (`hostLayout.ts`: `loadReadAloudHintSeen` and `saveReadAloudHintSeen`, in localStorage).
+- `SecondaryActions.tsx` (HST-03): one row of equal tiles labelled Skip, Undo, Previous and Scoreboard, with the full names as `aria-label`. End game is a full-width red row below, and its armed Confirm and Cancel split that row.
+- `HostPlayers.tsx` (HST-04): names show on up to 2 lines, with the status under the name. Line 2 is right-aligned: −N, +N, Custom and `⋯`. The `⋯` (`OverflowMenu`) holds "Move to <team>", then Kick, last and red. The team select is gone.
+- Smaller fixes:
+  - `HostSettings.tsx` (HST-05): a shared `@container` `Row` stacks the controls under the label below `@sm`. Switches and the compact Screen lobby are unchanged.
+  - `ReadAloud.tsx` (HST-06): the code is `text-[clamp(2.5rem,16vw,3.75rem)]`.
+  - `HostPinEntry.tsx` (HST-08): top-aligned, centred from `md`, tighter on `short:`.
+  - `HostBoard.tsx` (HST-07): played tiles are struck through in muted ink, not 30% opacity.
+- Tests:
+  - `Host.test.tsx`: a new block "phone layout (F98)" with 14 tests. It checks the bar in lobby, question with image, open, reveal, typed marking and final; the judging panel in the bar, with also buzzed outside it; no bar on the board; the bar on the Game tab only; the sticky tabs; the header; the hint, twice; and the code clamp. New game now comes from the bar, a team move goes through the menu, and played tiles are struck through.
+  - `HostControls.test.tsx`: tests for End game's own row and no reflow, and for equal tiles with no empty cells. Kick is in the `⋯` menu, last and red, and works through it; the menu's team moves, disabled state, refusal and the no-team case are covered; long names show whole; Settings rows stack, and the compact rows don't.
+  - 2499 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-10-30 for F98: the action bar and board, the header, tabs and hint, the secondary tiles, the player rows, and settings, PIN and played tiles.
+
+**Notes for next session:**
+- **F99 (tablet and desktop) builds on this.**
+  - The bar is plain `sticky`, so at `lg` it can drop to static in the Game column.
+  - The tabs' holder is the element to `lg:hidden`.
+  - `Row` in HostSettings already makes a two-column settings grid easy.
+- The judging panel kept its layout, about 206px tall at 375×667. Its label and name could share a line if the bar needs to shrink.
+- At 320px with a two-digit player count, "Players (12)" in `text-sm` is close to the tab width. This is unchecked; "Players (2)" fits at 84 of 84px.
+- The review found no Must-fix. Its Should-fixes were the DECISIONS rows and the board fit and contrast notes, all recorded there.
+- Playtest (Playwright; one host tab, one player, four bots, then a re-check with two players):
+  - The bar was pinned at 375×667 in the lobby, question, open and judging phases (judging at y 461–667).
+  - The tabs stayed put on scroll. Arming End game left the tiles where they were.
+  - "Bartholomew Jone" showed whole. Kick appeared only in the menu, and Confirm kick took 5 players to 4.
+  - Settings rows stacked with no overflow (Competitive ends at 341 against a row edge of 357).
+  - The read-aloud code fit at 320 (scrollWidth 305). PIN entry was top-aligned at 375×480. The header at 320 and 375 was one line with no overflow.
+  - No console errors, only the usual WebSocket "closed before established" warning.
+  - Screenshots are in `.playtest/F98/` (judging, read-aloud 320, PIN, re-check of game 320, players and settings). I checked judging, read-aloud and players.
+- Main `index` chunk is 545.20 kB.
+
+**How to try it:** `npm run dev`. Host a set at `http://localhost:5173` and open the remote on a phone (or DevTools at 375×667 and 320×568). Join 2+ phones at `http://<LAN-IP>:5173/play/<code>`. Then:
+- Step through a game and check that the action stays at the bottom.
+- Scroll the Players tab and check that the tabs stay.
+- Arm End game.
+- Use a player's `⋯` to kick, or, with teams on, to move them.
+
 ## F97 — Player on tablet and desktop (2026-10-30)
 **What changed:**
 - `pages/Play.tsx`, from `md` and `lg`. Phone portrait and `short:` are unchanged.

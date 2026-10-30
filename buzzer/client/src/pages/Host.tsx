@@ -15,7 +15,7 @@ import { HostSettings } from '../components/HostSettings.js';
 import { NewGamePicker } from '../components/NewGamePicker.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ChoiceTally } from '../components/ChoiceTally.js';
-import { PrimaryAction } from '../components/PrimaryAction.js';
+import { AlsoBuzzed, PrimaryAction } from '../components/PrimaryAction.js';
 import { ReadAloudJoin, ReadAloudQuestion } from '../components/ReadAloud.js';
 import { SecondaryActions } from '../components/SecondaryActions.js';
 import { ShareResults } from '../components/ShareResults.js';
@@ -25,12 +25,15 @@ import { imageUrl } from '../lib/api.js';
 import { questionHeading, tileOf } from '../lib/boardCursor.js';
 import {
   loadReadAloud,
+  loadReadAloudHintSeen,
   readAloudRequested,
   saveReadAloud,
+  saveReadAloudHintSeen,
   withoutReadAloud,
 } from '../lib/hostLayout.js';
 import { clearHostToken, loadHostToken, saveHostToken, tokenFromHash } from '../lib/hostTokens.js';
 import { HOVER } from '../lib/hover.js';
+import { primaryFor } from '../lib/hostControls.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { ordinal } from '../lib/results.js';
@@ -168,77 +171,98 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
   const closeNewGame = useCallback(() => setPickingNewGame(false), []);
   // Read aloud: the layout for a game with no Screen (F69), kept for this tab.
   const [readAloud, setReadAloud] = useState(() => loadReadAloud(view.code));
+  const [hintSeen, setHintSeen] = useState(loadReadAloudHintSeen);
   const toggleReadAloud = () => {
     saveReadAloud(view.code, !readAloud);
     setReadAloud(!readAloud);
+    saveReadAloudHintSeen();
+    setHintSeen(true);
   };
   usePreloadImage(view.code, view.nextQuestion?.imageId);
   useVibrateOnTimeUp();
+  const game = tab === 'Game';
+  // On the board the tiles are the action, so the bar steps aside for them.
+  const hasPrimary = view.phase === 'FINAL' || view.phase === 'BUZZED' || !!primaryFor(view);
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-5">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h1 className="font-display text-[22px] leading-tight text-accent">Host controls</h1>
-          <p className="flex items-center gap-2 text-muted">
-            <ConnectionDot />
-            Room {view.code} · {view.players.length}{' '}
-            {view.players.length === 1 ? 'player' : 'players'}
-          </p>
-          <p className="truncate text-sm text-muted">{view.title}</p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4">
+      {/* One line, so the tabs and the action bar leave the most room to the content (HST-02). */}
+      <header className="flex items-center gap-2 pt-3 pb-2">
+        {/* Below 360px the word goes, so the room code, the pill and Read aloud still fit. */}
+        <h1 className="shrink-0 font-display text-lg text-accent">
+          <span className="max-[359px]:sr-only">Host</span>
+          <span className="sr-only"> controls</span>
+        </h1>
+        <p className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
+          <ConnectionDot />
+          <span className="shrink-0">{view.code}</span>
+          <span className="hidden truncate min-[400px]:inline">
+            · {view.players.length} {view.players.length === 1 ? 'player' : 'players'}
+          </span>
+        </p>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {view.question && view.phase !== 'FINAL' && <QuestionPill view={view} />}
           <button
             type="button"
             aria-pressed={readAloud}
+            aria-describedby="read-aloud-hint"
             onClick={toggleReadAloud}
-            className={`${PILL} min-h-11 px-3 text-sm ${HOVER} ${readAloud ? 'border-accent text-accent' : 'text-muted'}`}
+            className={`${PILL} min-h-11 px-3 text-sm whitespace-nowrap ${HOVER} ${readAloud ? 'border-accent text-accent' : 'text-muted'}`}
           >
             Read aloud
           </button>
         </div>
       </header>
-      <div
-        role="tablist"
-        aria-label="Remote"
-        onKeyDown={(event) => {
-          const next = tabForKey(tab, event.key);
-          if (!next) return;
-          event.preventDefault();
-          setTab(next);
-          tabRefs.current[next]?.focus();
-        }}
-        className="grid grid-cols-3 gap-1 rounded-2xl border-2 border-edge bg-surface p-1"
+      {/* Shown until the host first tries the toggle, then kept for screen readers only (HST-08). */}
+      <p
+        id="read-aloud-hint"
+        className={hintSeen ? 'sr-only' : 'pb-2 text-right text-sm text-muted'}
       >
-        {TABS.map((name) => (
-          <button
-            key={name}
-            ref={(button) => {
-              tabRefs.current[name] = button;
-            }}
-            type="button"
-            role="tab"
-            id={`tab-${name}`}
-            aria-selected={tab === name}
-            tabIndex={tab === name ? 0 : -1}
-            aria-controls={`panel-${name}`}
-            onClick={() => setTab(name)}
-            className={`min-h-11 rounded-xl px-2 py-2 text-lg ${HOVER} ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
-          >
-            {name === 'Players' ? `Players (${view.players.length})` : name}
-          </button>
-        ))}
+        Read aloud: big question text, answer covered.
+      </p>
+      {/* Stuck under the top edge, on a solid fill, so the tabs stay in reach on a long list (HST-02). */}
+      <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-2">
+        <div
+          role="tablist"
+          aria-label="Remote"
+          onKeyDown={(event) => {
+            const next = tabForKey(tab, event.key);
+            if (!next) return;
+            event.preventDefault();
+            setTab(next);
+            tabRefs.current[next]?.focus();
+          }}
+          className="grid grid-cols-3 gap-1 rounded-2xl border-2 border-edge bg-surface p-1"
+        >
+          {TABS.map((name) => (
+            <button
+              key={name}
+              ref={(button) => {
+                tabRefs.current[name] = button;
+              }}
+              type="button"
+              role="tab"
+              id={`tab-${name}`}
+              aria-selected={tab === name}
+              tabIndex={tab === name ? 0 : -1}
+              aria-controls={`panel-${name}`}
+              onClick={() => setTab(name)}
+              className={`min-h-11 rounded-xl px-1 py-2 text-base whitespace-nowrap max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
+            >
+              {name === 'Players' ? `Players (${view.players.length})` : name}
+            </button>
+          ))}
+        </div>
       </div>
       <div
         role="tabpanel"
         id={`panel-${tab}`}
         aria-labelledby={`tab-${tab}`}
-        className="flex flex-col gap-5"
+        className="flex flex-col gap-5 pt-3 pb-5"
       >
-        {tab === 'Game' && (
+        {game && (
           <>
             {view.phase === 'FINAL' ? (
-              <GameOverCard view={view} onNewGame={() => setPickingNewGame(true)} />
+              <GameOverCard view={view} />
             ) : !readAloud ? (
               <QuestionCard view={view} />
             ) : view.phase === 'LOBBY' ? (
@@ -264,7 +288,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
                 showGroups={!readAloud || view.typed.closed || view.phase === 'REVEAL'}
               />
             )}
-            <PrimaryAction view={view} command={command} bigWinner={readAloud} />
+            {view.phase === 'BUZZED' && view.canJudge && <AlsoBuzzed view={view} />}
             <SecondaryActions view={view} command={command} />
             {view.phase === 'LOBBY' && (
               <PairHostPhone
@@ -280,6 +304,26 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
         {tab === 'Players' && <HostPlayers view={view} command={command} />}
         {tab === 'Settings' && <HostSettings view={view} command={command} />}
       </div>
+      {/* The action that runs the game, stuck to the bottom of the Game tab in every phase (HST-01). */}
+      {game && hasPrimary && (
+        <div
+          role="region"
+          aria-label="Primary action"
+          className="sticky bottom-0 z-20 -mx-4 mt-auto border-t-2 border-edge bg-bg/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        >
+          {view.phase === 'FINAL' ? (
+            <button
+              type="button"
+              onClick={() => setPickingNewGame(true)}
+              className={`${BUTTON_PRIMARY} w-full text-xl`}
+            >
+              New game
+            </button>
+          ) : (
+            <PrimaryAction view={view} command={command} bigWinner={readAloud} />
+          )}
+        </div>
+      )}
       {pickingNewGame && (
         <NewGamePicker
           code={view.code}
@@ -393,12 +437,12 @@ function QuestionCard({ view }: { view: HostView }) {
 }
 
 /**
- * The Game tab in FINAL: "Game over", the final ranking and **New game** (DECISIONS F50). The view
+ * The Game tab in FINAL: "Game over" and the final ranking, with **New game** (DECISIONS F50). The view
  * lists players in join order with each one's rank, so this orders by rank; tied players share it
  * and keep join order. From game 2, the night's totals follow under **Tonight** (F77). **Share
- * results** shares the results card (F78).
+ * results** shares the results card (F78). **New game** sits in the action bar below (F98).
  */
-function GameOverCard({ view, onNewGame }: { view: HostView; onNewGame: () => void }) {
+function GameOverCard({ view }: { view: HostView }) {
   const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
   const tonight = view.session?.totals ?? [];
   return (
@@ -431,9 +475,6 @@ function GameOverCard({ view, onNewGame }: { view: HostView; onNewGame: () => vo
         mode="share"
         className={`${BUTTON_SECONDARY} font-bold`}
       />
-      <button type="button" onClick={onNewGame} className={`${BUTTON_PRIMARY} text-xl`}>
-        New game
-      </button>
     </section>
   );
 }

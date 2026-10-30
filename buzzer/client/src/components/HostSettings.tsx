@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   ANSWER_SECONDS_CHOICES,
   BUZZ_SECONDS_CHOICES,
@@ -21,7 +22,13 @@ interface HostSettingsProps {
 /** Row sizes: the remote's thumb-sized rows, or the Screen lobby's tighter ones. */
 const SIZES = {
   regular: {
-    row: 'gap-3 p-4',
+    // Below `@sm` (about 384px of row) the controls stack under the label, right-aligned, so the
+    // label and detail keep the full width (HST-05).
+    row: 'flex-col items-stretch gap-3 p-4 @sm:flex-row @sm:items-center',
+    text: '@sm:flex-1',
+    // A switch row stays on one line: its track is narrow enough to leave the label room.
+    switchRow: 'gap-3 p-4',
+    controls: 'gap-3 self-end @sm:self-auto',
     label: 'text-lg',
     detail: 'text-sm',
     stepper: 'size-12 text-2xl',
@@ -31,7 +38,10 @@ const SIZES = {
     knob: 'size-6',
   },
   compact: {
-    row: 'gap-2 px-3 py-0.5',
+    row: 'items-center gap-2 px-3 py-0.5',
+    text: 'flex-1',
+    controls: 'gap-2',
+    switchRow: 'gap-2 px-3 py-0.5',
     label: 'text-base',
     // One line per row, and steppers and presets a little shorter than 2rem, so the presets, all
     // nine rows and Start game fit at 1280×720 with no scroll (F65, F73, F83, F91).
@@ -87,7 +97,8 @@ function matches(settings: RoomSettings, preset: Preset) {
 /** The language choices' names, each in its own language (F91). */
 const LANGUAGE_NAMES: Record<CopyLanguage, string> = { en: 'English', taglish: 'Taglish' };
 
-const row = 'flex items-center rounded-2xl border-2 border-edge bg-surface';
+const box = 'rounded-2xl border-2 border-edge bg-surface';
+const row = `flex items-center ${box}`;
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
 const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
 const presetButton = `rounded-xl border-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
@@ -106,13 +117,13 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
 
   return (
     <section aria-label="Settings" className={`flex flex-col ${compact ? 'gap-1' : 'gap-3'}`}>
-      <div role="group" aria-labelledby="presets-label" className={`${row} ${size.row}`}>
-        <p className="flex-1">
-          <span id="presets-label" className={`block font-bold ${size.label}`}>
-            Presets
-          </span>
-          <span className={`${size.detail} text-muted`}>Set several switches at once.</span>
-        </p>
+      <Row
+        id="presets-label"
+        label="Presets"
+        detail="Set several switches at once."
+        size={size}
+        group
+      >
         {PRESETS.map((preset) => {
           const active = matches(settings, preset.settings);
           return (
@@ -130,7 +141,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
             </button>
           );
         })}
-      </div>
+      </Row>
       <Switch
         label="Wrong-answer penalty"
         detail="A wrong answer loses the question's points."
@@ -181,15 +192,12 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         size={size}
         format={(ms) => `${ms / 1000} s`}
       />
-      <div className={`${row} ${size.row}`}>
-        <p className="flex-1">
-          <span id="scoreboard-every-label" className={`block font-bold ${size.label}`}>
-            Scoreboard every
-          </span>
-          <span className={`${size.detail} text-muted`}>
-            Shown on the Screen after that many questions.
-          </span>
-        </p>
+      <Row
+        id="scoreboard-every-label"
+        label="Scoreboard every"
+        detail="Shown on the Screen after that many questions."
+        size={size}
+      >
         <button
           type="button"
           aria-label="Fewer questions between scoreboards"
@@ -214,7 +222,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         >
           +
         </button>
-      </div>
+      </Row>
       <Switch
         label="Standings on the Screen"
         detail="The top 5 beside each question."
@@ -238,13 +246,13 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
         format={String}
       />
       {/* Any phase: the phones and the Screen switch on the next snapshot (F91). */}
-      <div role="group" aria-labelledby="language-label" className={`${row} ${size.row}`}>
-        <p className="flex-1">
-          <span id="language-label" className={`block font-bold ${size.label}`}>
-            Phone and Screen language
-          </span>
-          <span className={`${size.detail} text-muted`}>What the players and the TV read.</span>
-        </p>
+      <Row
+        id="language-label"
+        label="Phone and Screen language"
+        detail="What the players and the TV read."
+        size={size}
+        group
+      >
         {COPY_LANGUAGES.map((copy) => {
           const active = settings.copy === copy;
           return (
@@ -262,7 +270,7 @@ export function HostSettings({ view, command, compact = false }: HostSettingsPro
             </button>
           );
         })}
-      </div>
+      </Row>
     </section>
   );
 }
@@ -306,13 +314,7 @@ function ChoiceStepper<T extends number>({
   const shorter = choices[step - 1];
   const longer = choices[step + 1];
   return (
-    <div className={`${row} ${size.row}`}>
-      <p className="flex-1">
-        <span id={id} className={`block font-bold ${size.label}`}>
-          {label}
-        </span>
-        <span className={`${size.detail} text-muted`}>{detail}</span>
-      </p>
+    <Row id={id} label={label} detail={detail} size={size}>
       <button
         type="button"
         aria-label={less}
@@ -334,6 +336,41 @@ function ChoiceStepper<T extends number>({
       >
         +
       </button>
+    </Row>
+  );
+}
+
+interface RowProps {
+  id: string;
+  label: string;
+  detail: string;
+  size: Sizes;
+  /** Names the row a group by its label: a row of choice buttons. */
+  group?: boolean;
+  /** The row's controls, kept together on the right. */
+  children: ReactNode;
+}
+
+/**
+ * A settings row: the label and its detail, then the controls. The box is a size container, so a
+ * regular row stacks its controls under the label when it is narrow, whatever the page width.
+ */
+function Row({ id, label, detail, size, group = false, children }: RowProps) {
+  return (
+    <div
+      role={group ? 'group' : undefined}
+      aria-labelledby={group ? id : undefined}
+      className={`@container ${box}`}
+    >
+      <div className={`flex ${size.row}`}>
+        <p className={size.text}>
+          <span id={id} className={`block font-bold ${size.label}`}>
+            {label}
+          </span>
+          <span className={`${size.detail} text-muted`}>{detail}</span>
+        </p>
+        <div className={`flex shrink-0 items-center ${size.controls}`}>{children}</div>
+      </div>
     </div>
   );
 }
@@ -355,7 +392,7 @@ function Switch({ label, detail, checked, disabled, onChange, size }: SwitchProp
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       disabled={disabled}
-      className={`${row} ${size.row} text-left transition disabled:opacity-40 ${HOVER}`}
+      className={`${row} ${size.switchRow} text-left transition disabled:opacity-40 ${HOVER}`}
     >
       <span className="flex-1">
         <span className={`block font-bold ${size.label}`}>{label}</span>

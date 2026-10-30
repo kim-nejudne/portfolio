@@ -94,7 +94,8 @@ describe('SecondaryActions', () => {
   const labels = () =>
     within(screen.getByRole('region', { name: 'More actions' }))
       .getAllByRole('button')
-      .map((b) => b.textContent);
+      // A tile shows a short label and is named by the full one.
+      .map((b) => b.getAttribute('aria-label') ?? b.textContent);
 
   it.each<[Phase, string[]]>([
     ['LOBBY', ['Show scoreboard', 'End game']],
@@ -171,6 +172,31 @@ describe('SecondaryActions', () => {
     expect(isDisabled('Show scoreboard')).toBe(false);
   });
 
+  it('End game sits in its own row under the tiles, and arming it moves no tile (HST-03)', () => {
+    setup(SecondaryActions, hostView());
+    const tiles = button('Skip question').parentElement!;
+    const before = [...tiles.children];
+    expect(tiles.contains(button('End game'))).toBe(false);
+    fireEvent.click(button('End game'));
+    expect([...tiles.children]).toEqual(before);
+    expect(tiles.contains(button('Confirm end'))).toBe(false);
+    expect(tiles.contains(button('Cancel'))).toBe(false);
+  });
+
+  it.each<[Phase, number]>([
+    ['LOBBY', 1],
+    ['QUESTION', 4],
+    ['REVEAL', 3],
+  ])('in %s the %i tiles share one row equally, leaving no empty cell', (phase, count) => {
+    setup(SecondaryActions, hostView({ phase }));
+    const tiles = button(
+      phase === 'LOBBY' ? 'Show scoreboard' : 'Undo last judgement',
+    ).parentElement!;
+    expect(tiles.children).toHaveLength(count);
+    expect(tiles.className).not.toContain('grid');
+    for (const tile of tiles.children) expect(tile.className).toContain('flex-1 basis-0');
+  });
+
   it('End game disarms when the game moves on', () => {
     const { rerender } = setup(SecondaryActions, hostView());
     fireEvent.click(button('End game'));
@@ -190,7 +216,11 @@ describe('SecondaryActions', () => {
 
 describe('HostPlayers', () => {
   const row = (name: string) => screen.getByRole('listitem', { name });
-  const nameLine = (name: string) => within(row(name)).getByText(name).parentElement!;
+  const nameLine = (name: string) => within(row(name)).getByText(name).closest('p')!;
+  const openMenu = (name: string) => {
+    fireEvent.click(button(`More for ${name}`));
+    return screen.getByRole('menu', { name: `More for ${name}` });
+  };
 
   // The remote's own socket is up unless a test says otherwise.
   beforeEach(() => useRoomStore.setState({ connection: 'connected' }));
@@ -219,8 +249,9 @@ describe('HostPlayers', () => {
     setup(HostPlayers, hostView({ players: [player(1), player(2, { connected: false })] }));
     expect(nameLine('Player 1').className).not.toContain('opacity-40');
     expect(nameLine('Player 2').className).toContain('opacity-40');
-    const kick = within(row('Player 2')).getByRole('button', { name: /Kick/ });
-    expect(kick.closest('.opacity-40')).toBeNull();
+    const more = within(row('Player 2')).getByRole('button', { name: 'More for Player 2' });
+    expect(more.closest('.opacity-40')).toBeNull();
+    expect(within(row('Player 2')).getByText('offline').closest('.opacity-40')).not.toBeNull();
   });
 
   it.each(['connecting', 'offline'] as const)(
@@ -259,7 +290,7 @@ describe('HostPlayers', () => {
   it('hides the question-value buttons when there is no current question', () => {
     setup(HostPlayers, hostView({ phase: 'LOBBY', questionIndex: -1, question: null }));
     expect(screen.queryByRole('button', { name: /^(Add|Subtract) \d/ })).toBeNull();
-    expect(button('Kick Player 1')).toBeTruthy();
+    expect(button('More for Player 1')).toBeTruthy();
   });
 
   describe('Custom', () => {
@@ -335,22 +366,41 @@ describe('HostPlayers', () => {
     });
   });
 
-  it('Kick needs a second tap on that player, then sends host:kick', () => {
+  it("Kick is in the row's ⋯ menu, never beside a score button (HST-04)", () => {
+    setup(HostPlayers, hostView());
+    expect(within(row('Player 2')).queryByRole('button', { name: /Kick/ })).toBeNull();
+    const line = within(row('Player 2')).getByRole('button', {
+      name: 'Add 200 to Player 2',
+    }).parentElement!;
+    expect(line.lastElementChild!.textContent).toBe('⋯');
+  });
+
+  it('Kick through the menu needs a second press on that player, then sends host:kick', () => {
     const { sent } = setup(HostPlayers, hostView());
-    fireEvent.click(button('Kick Player 2'));
+    const menu = openMenu('Player 2');
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Kick' }));
     expect(sent).toEqual([]);
-    expect(within(row('Player 1')).queryByRole('button', { name: 'Confirm kick' })).toBeNull();
-    fireEvent.click(within(row('Player 2')).getByRole('button', { name: 'Confirm kick' }));
+    expect(within(row('Player 1')).queryByRole('menuitem', { name: 'Confirm kick' })).toBeNull();
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Confirm kick' }));
     expect(sent).toMatchObject([{ event: 'host:kick', payload: { playerId: 'p2' } }]);
   });
 
-  it('Kick reads as destructive before it is armed (FND-07)', () => {
+  it("Kick is the menu's last item and reads as destructive before it is armed (FND-07)", () => {
     setup(HostPlayers, hostView());
-    expect(button('Kick Player 2').className).toContain('text-buzz');
-    fireEvent.click(button('Kick Player 2'));
-    expect(within(row('Player 2')).getByRole('button', { name: 'Cancel' }).className).not.toContain(
-      'text-buzz',
-    );
+    const items = within(openMenu('Player 2')).getAllByRole('menuitem');
+    expect(items.at(-1)!.textContent).toBe('Kick');
+    expect(items.at(-1)!.className).toContain('text-buzz');
+    fireEvent.click(items.at(-1)!);
+    expect(
+      within(row('Player 2')).getByRole('menuitem', { name: 'Cancel' }).className,
+    ).not.toContain('text-buzz');
+  });
+
+  it('shows a long name whole, on up to two lines, not cut to one (HST-04)', () => {
+    setup(HostPlayers, hostView({ players: [player(1, { name: 'Bartholomew Jones' })] }));
+    const name = within(row('Bartholomew Jones')).getByText('Bartholomew Jones');
+    expect(name.className).toContain('line-clamp-2');
+    expect(name.className).not.toContain('truncate');
   });
 
   it('a kicked player leaves the list with the next snapshot', () => {
@@ -390,6 +440,31 @@ describe('HostSettings', () => {
     );
     fireEvent.click(toggle(/^Wrong-answer penalty/));
     expect(sent[0]?.payload).toEqual({ wrongPenalty: false });
+  });
+
+  it.each(['Presets', 'Answer time', 'Scoreboard every', 'Phone and Screen language'])(
+    'the %s row is a size container that stacks its controls when narrow (HST-05)',
+    (label) => {
+      setup(HostSettings, hostView());
+      const box = screen.getByText(label).closest('.\\@container')!;
+      const layout = box.firstElementChild!;
+      expect(layout.className).toContain('flex-col');
+      expect(layout.className).toContain('@sm:flex-row');
+      // The controls go under the label, on the right.
+      expect(layout.lastElementChild!.className).toContain('self-end');
+    },
+  );
+
+  it('the Screen lobby (compact) keeps every row on one line', () => {
+    const send = vi.fn<SendHost>();
+    const view = hostView({ phase: 'LOBBY' });
+    function Compact() {
+      return <HostSettings view={view} command={useHostCommand(view, send, vi.fn())} compact />;
+    }
+    render(<Compact />);
+    const layout = screen.getByText('Answer time').closest('.\\@container')!.firstElementChild!;
+    expect(layout.className).not.toContain('flex-col');
+    expect(layout.className).toContain('items-center');
   });
 
   it('standings that are off show off and send true', () => {
@@ -795,8 +870,12 @@ describe('HostSettings: teams stepper', () => {
 
 describe('HostPlayers: teams', () => {
   const group = (name: RegExp) => screen.getByRole('region', { name });
-  const select = (name: string) =>
-    screen.getByRole('combobox', { name: `Team for ${name}` }) as HTMLSelectElement;
+  const menuItems = (name: string) => {
+    fireEvent.click(screen.getByRole('button', { name: `More for ${name}` }));
+    return within(screen.getByRole('menu', { name: `More for ${name}` })).getAllByRole('menuitem');
+  };
+  const moveTo = (name: string, team: string) =>
+    menuItems(name).find((item) => item.textContent === `Move to ${team}`)!;
   const names = (region: HTMLElement) =>
     within(region)
       .queryAllByRole('listitem')
@@ -832,35 +911,42 @@ describe('HostPlayers: teams', () => {
     expect(within(group(/^Green/)).getByText('No players yet')).toBeTruthy();
   });
 
-  it('each row has a team select showing its team and offering every team', () => {
-    setup(HostPlayers, teamView());
-    expect(select('Player 3').value).toBe('0');
-    expect(select('Player 2').value).toBe('1');
-    expect([...select('Player 2').options].map((o) => o.textContent)).toEqual(['Red', 'Blue']);
+  it("each row's ⋯ menu offers a move to every other team, then Kick", () => {
+    setup(
+      HostPlayers,
+      teamView({
+        settings: { ...DEFAULT_SETTINGS, teams: 3 },
+        teams: teams(3, [['p1', 'p3'], ['p2'], []]),
+      }),
+    );
+    expect(menuItems('Player 2').map((item) => item.textContent)).toEqual([
+      'Move to Red',
+      'Move to Green',
+      'Kick',
+    ]);
   });
 
   it('picking a team sends host:setTeam and moves the row only with the next snapshot', () => {
     const { sent, rerender } = setup(HostPlayers, teamView());
-    fireEvent.change(select('Player 3'), { target: { value: '1' } });
+    fireEvent.click(moveTo('Player 3', 'Blue'));
     expect(sent).toMatchObject([{ event: 'host:setTeam', payload: { playerId: 'p3', team: 1 } }]);
     expect(names(group(/^Red/))).toEqual(['Player 1', 'Player 3']);
-    expect(select('Player 3').value).toBe('0');
     act(() => sent[0]!.ack({ ok: true }));
     rerender(teamView({ teams: teams(2, [['p1'], ['p2', 'p3']]) }));
     expect(names(group(/^Blue/))).toEqual(['Player 2', 'Player 3']);
-    expect(select('Player 3').value).toBe('1');
+    expect(moveTo('Player 3', 'Red')).toBeTruthy();
   });
 
   it('a refused move shows the error and leaves the player where they were', () => {
     const { sent, onRejected } = setup(HostPlayers, teamView());
-    fireEvent.change(select('Player 1'), { target: { value: '1' } });
+    fireEvent.click(moveTo('Player 1', 'Blue'));
     act(() => sent[0]!.ack({ ok: false, error: 'No such team' }));
     expect(onRejected).toHaveBeenCalledWith('No such team');
-    expect(select('Player 1').value).toBe('0');
+    expect(names(group(/^Red/))).toEqual(['Player 1', 'Player 3']);
   });
 
-  it('the select is off while the view says teams cannot change', () => {
-    setup(
+  it('the moves are off while the view says teams cannot change', () => {
+    const { sent } = setup(
       HostPlayers,
       teamView({
         phase: 'QUESTION',
@@ -869,20 +955,27 @@ describe('HostPlayers: teams', () => {
         canChangeTeams: false,
       }),
     );
-    expect(select('Player 1').disabled).toBe(true);
+    const move = moveTo('Player 1', 'Blue');
+    expect(move.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(move);
+    expect(sent).toEqual([]);
     expect(isDisabled('Add 200 to Player 1')).toBe(false);
   });
 
-  it('with teams off there are no groups and no team select', () => {
+  it('with teams off there are no groups and no team moves', () => {
     setup(HostPlayers, hostView());
     expect(screen.queryAllByRole('heading', { level: 3 })).toEqual([]);
-    expect(screen.queryByRole('combobox')).toBeNull();
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(menuItems('Player 1').map((item) => item.textContent)).toEqual(['Kick']);
   });
 
   it('a player on no team still shows, under No team', () => {
     setup(HostPlayers, teamView({ teams: teams(2, [['p1'], ['p2']]) }));
     expect(names(group(/^No team/))).toEqual(['Player 3']);
-    expect(select('Player 3').value).toBe('');
+    expect(menuItems('Player 3').map((item) => item.textContent)).toEqual([
+      'Move to Red',
+      'Move to Blue',
+      'Kick',
+    ]);
   });
 });

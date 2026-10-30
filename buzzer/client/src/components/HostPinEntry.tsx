@@ -35,12 +35,14 @@ export function HostPinEntry({ code, onPaired }: HostPinEntryProps) {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
-      <BulbRail count={9} variant="row" />
+    // Top-aligned on a phone, so an on-screen keyboard leaves Pair in view; centred from `md`. On a
+    // short screen (a phone with the keyboard up, or sideways) the bulbs go and the card tightens (HST-08).
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center gap-6 px-4 py-6 text-center md:justify-center short:gap-3 short:py-3">
+      <BulbRail count={9} variant="row" className="short:hidden" />
       <form
         onSubmit={submit}
         aria-labelledby="pin-heading"
-        className={`flex w-full flex-col gap-4 ${CARD}`}
+        className={`flex w-full flex-col gap-4 ${CARD} short:gap-3 short:p-4`}
       >
         <h1 id="pin-heading" className="font-display text-3xl">
           Pair this phone
