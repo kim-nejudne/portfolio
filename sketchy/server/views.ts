@@ -6,7 +6,8 @@
 // (a count only), RTTs and every alternate. The word, its gloss and the choices go only to the
 // drawer they belong to (`secret`) until the reveal; then the word alone goes to everyone.
 
-import { CHOOSE_MS } from '../shared/constants.js';
+import { ALMOST_MAX, CHOOSE_MS } from '../shared/constants.js';
+import { normalize } from './match.js';
 import { feedText } from './profanity.js';
 import { rankPlayers } from './ranking.js';
 import { cycleOrder } from './turnOrder.js';
@@ -81,7 +82,7 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
     role: 'screen',
     ...base(room, isHost, now),
     feed: feedShown ? turn.feed.map((g) => guessView(room, g)) : [],
-    closeGuesses: turn && revealed(room) ? turn.closeGuesses.map((g) => guessView(room, g)) : [],
+    almost: turn && revealed(room) ? almost(room, turn).map((g) => guessView(room, g)) : [],
     awards: phase === 'FINAL' ? room.awards.map((a) => ({ ...a })) : [],
     gallery:
       phase === 'FINAL'
@@ -265,6 +266,28 @@ function choiceView(entry: WordEntry): ChoiceView {
 // SPEC-QUESTION: the spec doesn't say how 'off' treats the drawer's latest guess and "Almost:"; masked as 'clean' (DECISIONS 38).
 function guessView(room: Room, item: FeedItem): GuessView {
   return { pid: item.pid, text: feedText(item.text, room.settings.guessFeed) };
+}
+
+/**
+ * The reveal's "Almost:": close guesses first (they came nearest), then the most recent wrong ones,
+ * so a turn nobody came close in still shows what people tried. A guess typed twice ("Payong!",
+ * "payong") is listed once, by its matcher form, keeping the close one or else the newer one. A
+ * guess of only fillers or punctuation ("ang", "?") says nothing and is skipped. Under `'off'` the
+ * host hid the wrong guesses, so only the close ones are listed.
+ */
+// SPEC-QUESTION: the spec says neither whether repeats count, how wrong ones are ordered, nor what 'off' does to them here (DECISIONS 57).
+function almost(room: Room, turn: Turn): FeedItem[] {
+  const wrong = room.settings.guessFeed === 'off' ? [] : [...turn.feed].reverse();
+  const seen = new Set<string>();
+  const out: FeedItem[] = [];
+  for (const g of [...turn.closeGuesses, ...wrong]) {
+    const key = normalize(g.text);
+    if (key === '' || seen.has(key)) continue;
+    seen.add(key);
+    out.push(g);
+    if (out.length === ALMOST_MAX) break;
+  }
+  return out;
 }
 
 /**

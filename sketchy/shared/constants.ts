@@ -96,6 +96,8 @@ export const REACTION_INTERVAL_MS = 1_000;
 export const FEED_MAX = 8;
 /** Close guesses kept per turn, shown at the reveal. */
 export const CLOSE_GUESSES_MAX = 3;
+/** Guesses in the reveal's "Almost:": close ones first, then the most recent wrong ones. */
+export const ALMOST_MAX = 3;
 /** A guesser's own last guesses shown on their phone. */
 export const OWN_GUESSES_SHOWN = 5;
 /** The only reactions a guesser can send: no free text, so nobody can hint the word. */

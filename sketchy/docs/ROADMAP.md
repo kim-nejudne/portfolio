@@ -86,11 +86,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F34 Announcements, reactions and feed UI
 
-- [ ] F35 The reveal
-  - Spec: UI by role and phase (Screen); Data model (Role views)
-  - Depends: F34
-  - Done when:
-    - The word as the largest text on screen with the reveal sting; "Got it" chips in corrected order; "Almost:" up to three close and wrong guesses; "Walang nakakuha! 😱" with no points rows when nobody got it; no "+0" rows
+- [x] F35 The reveal
 
 - [ ] F36 Drawer feedback
   - Spec: UI by role and phase (Drawer phone); Data model (Role views)
@@ -109,7 +105,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
   - Spec: UI by role and phase (Screen)
   - Depends: F34
   - Done when:
-    - Screen sounds for join, your turn, correct, last 10 s, time up, reveal, final; Sound on / Quiet / Muted with `M`; phones vibrate on "your turn" only; Howler is a lazy chunk
+    - Screen sounds for join, your turn, correct, last 10 s, time up, reveal (the sting as F35's word pops in), final; Sound on / Quiet / Muted with `M`; phones vibrate on "your turn" only; Howler is a lazy chunk
 
 - [ ] F39 Join budget
   - Spec: Tech stack and architecture (Performance budget); Test plan (Manual playtest checklist)

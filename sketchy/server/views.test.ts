@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHOOSE_MS, REVEAL_MS } from '../shared/constants.js';
-import type { Action, Room, Turn, View, WordEntry } from '../shared/types.js';
+import type { Action, Room, RoomSettings, Turn, View, WordEntry } from '../shared/types.js';
 import { maskWord, toView, type Viewer } from './views.js';
 import { SCREEN_HOST, asPlayer, choose, started, step } from './test/rooms.js';
 import { testPack } from './test/packs.js';
@@ -117,11 +117,130 @@ describe('the reveal', () => {
     const { room, at } = drawing();
     const close = [{ pid: 'pclose', text: 'qzsecretwor', at }];
     const withClose = { ...room, turn: { ...room.turn!, closeGuesses: close } };
-    expect(toView(withClose, { kind: 'screen', isHost: true }, at).closeGuesses).toEqual([]);
+    expect(toView(withClose, { kind: 'screen', isHost: true }, at).almost).toEqual([]);
     const reveal = step(withClose, { type: 'host:skip', by: SCREEN_HOST }, at + 1).room;
-    expect(toView(reveal, { kind: 'screen', isHost: true }, at + 1).closeGuesses).toEqual([
+    expect(toView(reveal, { kind: 'screen', isHost: true }, at + 1).almost).toEqual([
       { pid: 'pclose', text: 'qzsecretwor' },
     ]);
+  });
+});
+
+describe('"Almost:" at the reveal (F35)', () => {
+  /** The reveal of a turn with these close guesses and wrong guesses (oldest first). */
+  function almost(
+    close: [string, string][],
+    wrong: [string, string][],
+    guessFeed: RoomSettings['guessFeed'] = 'all',
+  ) {
+    const { room, at } = drawing();
+    const item = ([pid, text]: [string, string], i: number) => ({ pid, text, at: at + i });
+    const turn = { ...room.turn!, closeGuesses: close.map(item), feed: wrong.map(item) };
+    const settings = { ...room.settings, guessFeed };
+    const before: Room = { ...room, settings, turn };
+    const reveal = step(before, { type: 'host:skip', by: SCREEN_HOST }, at + 100).room;
+    return toView(reveal, { kind: 'screen', isHost: false }, at + 100);
+  }
+
+  it('lists close guesses first, then the most recent wrong ones, up to three', () => {
+    const view = almost(
+      [['ben', 'qzsecretwor']],
+      [
+        ['cy', 'payong'],
+        ['ben', 'sapatos'],
+        ['cy', 'tsinelas'],
+      ],
+    );
+    expect(view.role === 'screen' && view.almost).toEqual([
+      { pid: 'ben', text: 'qzsecretwor' },
+      { pid: 'cy', text: 'tsinelas' },
+      { pid: 'ben', text: 'sapatos' },
+    ]);
+  });
+
+  it('fills all three from wrong guesses when nobody came close', () => {
+    const view = almost(
+      [],
+      [
+        ['cy', 'a'],
+        ['cy', 'b'],
+        ['cy', 'c'],
+        ['cy', 'd'],
+      ],
+    );
+    expect(view.role === 'screen' && view.almost.map((g) => g.text)).toEqual(['d', 'c', 'b']);
+  });
+
+  it('lists the same guess once, however it was typed', () => {
+    const view = almost(
+      [['ben', 'qzsecretwor']],
+      [
+        ['cy', 'Payong!'],
+        ['ben', 'payong'],
+        ['cy', 'QZ secret wor'],
+      ],
+    );
+    expect(view.role === 'screen' && view.almost).toEqual([
+      { pid: 'ben', text: 'qzsecretwor' },
+      { pid: 'ben', text: 'payong' },
+    ]);
+  });
+
+  it('masks a wrong guess as the feed does: a slur always, profanity under clean', () => {
+    const all = almost(
+      [],
+      [
+        ['cy', 'r3tard'],
+        ['cy', 'putangina'],
+      ],
+    );
+    expect(all.role === 'screen' && all.almost).toEqual([
+      { pid: 'cy', text: 'putangina' },
+      { pid: 'cy', text: null },
+    ]);
+    const clean = almost([], [['cy', 'putangina']], 'clean');
+    expect(clean.role === 'screen' && clean.almost).toEqual([{ pid: 'cy', text: null }]);
+  });
+
+  it('lists only the close guesses under guessFeed off, masked as under clean', () => {
+    const off = almost(
+      [
+        ['ben', 'qzsecretwor'],
+        ['cy', 'qzsecretword putangina'],
+      ],
+      [['cy', 'payong']],
+      'off',
+    );
+    expect(off.role === 'screen' && off.almost).toEqual([
+      { pid: 'ben', text: 'qzsecretwor' },
+      { pid: 'cy', text: null },
+    ]);
+  });
+
+  it('is empty before the reveal, whatever the turn holds', () => {
+    const { room, at } = drawing();
+    const item = (text: string) => ({ pid: 'cy', text, at });
+    const turn = { ...room.turn!, closeGuesses: [item('qzsecretwor')], feed: [item('payong')] };
+    for (const phase of ['CHOOSING', 'DRAWING'] as const) {
+      const view = toView({ ...room, phase, turn }, { kind: 'screen', isHost: true }, at);
+      expect(view.role === 'screen' && view.almost, phase).toEqual([]);
+    }
+  });
+
+  it('skips a guess of only fillers or punctuation', () => {
+    const view = almost(
+      [],
+      [
+        ['cy', 'payong'],
+        ['cy', 'ang'],
+        ['cy', '?!'],
+      ],
+    );
+    expect(view.role === 'screen' && view.almost.map((g) => g.text)).toEqual(['payong']);
+  });
+
+  it('is empty when nobody guessed at all', () => {
+    const view = almost([], []);
+    expect(view.role === 'screen' && view.almost).toEqual([]);
   });
 });
 

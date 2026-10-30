@@ -29,7 +29,7 @@ function view(
     turn: null,
     host: opts.host === false ? null : { code: 'KPRW', customWordCount: 0 },
     feed: [],
-    closeGuesses: [],
+    almost: [],
     awards: [],
     gallery: [],
     tonight: null,

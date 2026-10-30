@@ -35,7 +35,7 @@ function view(
     turn: null,
     host: { code: 'KPRW', customWordCount: 0 },
     feed: [],
-    closeGuesses: [],
+    almost: [],
     awards: [],
     gallery: [],
     tonight: null,

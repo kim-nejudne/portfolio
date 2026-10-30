@@ -49,7 +49,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     turn,
     host: null,
     feed: [],
-    closeGuesses: [],
+    almost: [],
     awards: [],
     gallery: [],
     tonight: null,
@@ -67,6 +67,111 @@ describe('Screen reveal (F19)', () => {
   it('says nothing of the kind when time ran out', () => {
     const html = renderToStaticMarkup(<RevealPanel {...reveal('time')} t={t} />);
     expect(html).not.toContain('Everyone got it!');
+  });
+});
+
+describe('the reveal (F35)', () => {
+  const html = (view: ScreenView, layout: 'landscape' | 'portrait' = 'landscape') =>
+    renderToStaticMarkup(
+      <ScreenTurn view={view} receivedAt={0} ink={createScreenInk()} layout={layout} t={t} />,
+    );
+  const text = (markup: string) => markup.replace(/<[^>]+>/g, '');
+
+  it('grows the word in, motion permitting', () => {
+    const markup = renderToStaticMarkup(<RevealPanel {...reveal('time')} t={t} />);
+    expect(markup).toMatch(/<p class="[^"]*motion-safe:animate-reveal[^"]*"[^>]*>banana<\/p>/);
+  });
+
+  it('ends the turn’s speech bubbles, since "Almost:" lists the guesses', () => {
+    const { view } = reveal('time');
+    const fx: ScreenFxState = { ...NO_FX, bubbles: [{ id: 1, pid: 'jun', text: 'kahapon' }] };
+    for (const layout of ['landscape', 'portrait'] as const) {
+      const markup = renderToStaticMarkup(
+        <ScreenTurn
+          view={view}
+          receivedAt={0}
+          ink={createScreenInk()}
+          layout={layout}
+          fx={fx}
+          t={t}
+        />,
+      );
+      expect(markup, layout).not.toContain('kahapon');
+    }
+  });
+
+  it('lists who got it in corrected order, with their points', () => {
+    const { view, turn } = reveal('time');
+    const correct = [
+      { pid: 'ana', points: 225, order: 2 },
+      { pid: 'jun', points: 270, order: 1 },
+    ];
+    const ana = { ...view.players[1]!, pid: 'ana', name: 'Ana', turnPoints: 225 };
+    const out = text(
+      renderToStaticMarkup(
+        <RevealPanel
+          view={{ ...view, players: [...view.players, ana] }}
+          turn={{ ...turn, correct }}
+          t={t}
+        />,
+      ),
+    );
+    expect(out).toContain('Got itJJun+270AAna+225'); // each name after its avatar's initial
+  });
+
+  it('says "Almost:" with up to three guesses, masked ones as •••', () => {
+    const { view } = reveal('time');
+    const almost = [
+      { pid: 'jun', text: 'bananas ko' },
+      { pid: 'jun', text: null },
+      { pid: 'jun', text: 'mango' },
+    ];
+    expect(text(html({ ...view, almost }))).toContain('Almost: bananas ko · ••• · mango');
+    expect(text(html({ ...view, almost }, 'portrait'))).toContain('Almost: bananas ko');
+    expect(html(view)).not.toContain('Almost:');
+  });
+
+  describe('when nobody got it', () => {
+    const nobody = (): ScreenView => {
+      const { view, turn } = reveal('time');
+      return {
+        ...view,
+        turn: { ...turn, correct: [], guessed: { guessed: 0, of: 1 } },
+        players: view.players.map((p) => ({ ...p, guessed: false, turnPoints: 0 })),
+        almost: [{ pid: 'jun', text: 'mango' }],
+      };
+    };
+
+    it('heads the reveal with "Nobody got it! 😱", above "It was…" and the word', () => {
+      for (const layout of ['landscape', 'portrait'] as const) {
+        const out = text(html(nobody(), layout));
+        expect(out, layout).toMatch(/Nobody got it! 😱It was…/);
+        expect(out.indexOf('banana'), layout).toBeGreaterThan(out.indexOf('It was…'));
+      }
+    });
+
+    it('shows no points rows, but still what people tried', () => {
+      for (const layout of ['landscape', 'portrait'] as const) {
+        const out = text(html(nobody(), layout));
+        expect(out, layout).not.toContain('Got it');
+        expect(out, layout).not.toMatch(/\+\d/);
+        expect(out, layout).toContain('Almost: mango');
+      }
+    });
+  });
+
+  it('shows the drawer line only above 0, and never a "+0"', () => {
+    const { view, turn } = reveal('time');
+    expect(text(html(view))).toContain('+135 for Mika’s drawing');
+    const zero: ScreenView = {
+      ...view,
+      turn: { ...turn, correct: [{ pid: 'jun', points: 0, order: 1 }] },
+      players: view.players.map((p) => ({ ...p, turnPoints: 0 })),
+    };
+    const out = text(html(zero));
+    expect(out).toContain('Jun');
+    expect(out).not.toContain('+0');
+    expect(out).not.toContain('drawing');
   });
 });
 

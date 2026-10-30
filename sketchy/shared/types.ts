@@ -80,7 +80,7 @@ export interface Turn {
   hintIndexes: number[]; // letter positions revealed so far
   correct: CorrectGuess[]; // in arrival order
   feed: FeedItem[]; // newest last, max FEED_MAX (8) kept
-  closeGuesses: FeedItem[]; // max 3, never in a view before REVEAL
+  closeGuesses: FeedItem[]; // max 3, as typed; the Screen's `almost` from REVEAL on
   closeCount: Record<string, number>; // per pid, for awards
   guessCount: Record<string, number>; // per pid, for stats
   lastGuessAt: Record<string, number>; // per pid, receivedAt of the last matched guess (700 ms limit)
@@ -501,7 +501,11 @@ interface BaseView {
 export interface ScreenView extends BaseView {
   role: 'screen';
   feed: GuessView[]; // this turn's wrong guesses; empty when `guessFeed` is 'off'
-  closeGuesses: GuessView[]; // REVEAL and later only
+  /**
+   * The reveal's "Almost:" (REVEAL and later only): the turn's close guesses, then its most recent
+   * wrong ones, each guess once, at most `ALMOST_MAX`, masked like the feed.
+   */
+  almost: GuessView[];
   awards: Award[]; // FINAL
   gallery: { turnId: number; drawerPid: string; word: string }[]; // FINAL
   /** FINAL from game 2: the night's totals, this game included, players who left too. */

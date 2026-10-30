@@ -36,7 +36,7 @@ function view(phase: Phase): ScreenView {
     turn: null,
     host: null,
     feed: [],
-    closeGuesses: [],
+    almost: [],
     awards: [],
     gallery: [],
     tonight: null,

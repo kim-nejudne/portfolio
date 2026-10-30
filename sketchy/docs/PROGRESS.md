@@ -50,8 +50,68 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F32: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), a budget Android (Chrome) and an iPhone (Safari, and once more from a home-screen icon), plus a third phone guessing; on each as the drawer: draw with both toolbar rows in view, with the browser's bars showing; pinch and double-tap on the top bar and the toolbar; draw with two fingers (the second finger does nothing); draw a long stroke, then don't touch the phone for longer than its auto-lock time; mid-stroke, turn the phone on its side, then upright again, and draw · no scroll, overflow or zoom at any point and all 12 tools fit; the screen doesn't dim or lock while the pad shows (note it if the iPhone from the home screen does: iOS before 18.4 has no Wake Lock there); on its side the phone shows "Turn your phone upright", "Your drawing is safe" and the clock, the stroke stops, and upright again the drawing is intact on the pad and the TV and new strokes reach the TV
 - [ ] F33: `npm run dev` + `npm run lan CODE`; Screens: the laptop on the TV in fullscreen (Start), then a tablet held upright (open the join link's `/screen/CODE`) and turned on its side mid-turn, and once a phone propped upright as the Screen; 4+ real phones playing; play two turns and a reveal on each · from 5 m on the TV and 2 m on the tablet: names, clock, blanks and the last guesses are readable; the drawing is the biggest thing on screen and nothing is cut off; turning the tablet switches between the sidebar layout and the portrait one (clock and blanks on top, drawing, then the players with ✏️/✓ and the two latest guesses) within a second, with the drawing intact; at the reveal the drawing keeps its size and the word appears under it (portrait) or beside it (landscape); the code at the bottom is always visible
 - [ ] F34: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 4+ real phones (a ≈ 360 px Android, an iPhone); also a tablet held upright as a second Screen (`/screen/CODE`); bots at `/dev/bots/CODE` can fill the room · from the sofa (5 m): three phones send wrong guesses within a second: speech bubbles in each guesser's colour pop beside their names (under the strip on the upright tablet), at most three, gone after 2 s, never over the drawing, and the guesses list under the players keeps them; one phone guesses right: "Jun got it!" in Jun's colour replaces "Mika is drawing" for 2 s (on the tablet it replaces the blanks in the top bar), and Jun's row turns green with "+N"; on Jun's phone the guess box is replaced by six emoji buttons that are easy to hit with a thumb and fit with no scroll; tap 🔥: it floats up from Jun's row on the TV, and the tapped button lights green for a second; tap fast: no more than one reaction a second shows; set Guess feed Off (G): wrong guesses show as "💬 Bea is guessing…" with no text; with Reduce motion on (phone or laptop settings) the bubbles and emoji just fade
+- [ ] F35: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV in fullscreen (Start), 3+ real phones; also a tablet held upright as a second Screen (`/screen/CODE`) · turn 1: two phones guess right (the slower phone first if you can) and one types a near miss and a wrong guess: at the reveal the word pops in, the biggest text on the TV and readable from the sofa, "Got it" lists the guessers in the order the server credited them with their points, "Almost:" shows the near miss then the wrong guess (never more than three, never the same guess twice), and "+N for Mika’s drawing" shows; turn 2: nobody guesses right (one wrong guess) and let the time run out: "Nobody got it! 😱" heads the panel above "It was…" (in the tablet's top bar too), and below the word there is no "Got it" and no points, only "Almost:"; no "+0" anywhere, and no speech bubble lingers into the reveal; set Guess feed Off (G) and play a turn with a near miss and a wrong guess: "Almost:" lists only the near miss (say if you'd rather Off showed the wrong guesses at the reveal too, DECISIONS 57); with Reduce motion on, the word appears without growing in
 
 <!-- entries below, newest first -->
+## F35 — The reveal (2026-10-31)
+**What changed:**
+- **Server** (`server/views.ts`): the Screen view's `closeGuesses` is now `almost` (`shared/types.ts`), built by `almost(room, turn)`.
+  - It lists the turn's close guesses first, then its wrong guesses newest first, up to `ALMOST_MAX` (3, `shared/constants.ts`).
+  - Each guess is listed once by its matcher form (`normalize`); fillers-only and punctuation-only guesses are skipped.
+  - Under `guessFeed: 'off'` only the close ones are listed.
+  - It is still sent only from REVEAL on and masked at view time like the feed. The room keeps `turn.closeGuesses`.
+- **`ScreenTurn.tsx`:**
+  - `RevealIntro`: "Nobody got it! 😱" (😱 `aria-hidden`) is the headline above "It was…" when nobody got it, in the sidebar and in the portrait top bar, as "Everyone got it! 🎉" already was.
+  - `RevealPanel`: with nobody right, there's no Got-it or drawer row, only "Almost:". A Got-it chip never shows "+0". The chips stay in the server's corrected order.
+  - `RevealWord` remounts for each word and grows in from its left edge (`motion-safe:animate-reveal`, new in `index.css`). It has no overshoot, so a word sized to its column isn't clipped.
+  - F34's speech bubbles end at the reveal, both layouts; reactions still float.
+- The reveal sting is F38's (its Done-when now says so).
+- **Tests:**
+  - `server/views.test.ts` (+8 "Almost:": close first then newest wrong, filled from wrong ones, repeats once, mask, `'off'` close only, empty before the reveal, fillers skipped, empty).
+  - `views.leak.test.ts` and `reducer.guess.test.ts` use the renamed field and expect the wrong guess after the close one.
+  - `ScreenTurn.test.tsx` (+7: grow-in class, bubbles end, corrected order, "Almost:" with •••, the nobody headline above "It was…" in both layouts, no points rows, no "+0" and no drawer line at 0).
+- No new dependencies.
+
+**Decisions:** DECISIONS 57 ("Almost:" contents, order, repeats and `'off'`; the nobody headline; no "+0"; the grow-in; bubbles end at the reveal; the sting is F38's).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: this entry, the Kim check (entrance and reduced motion), and the sting named in F38's Done-when.
+- **secrets-fairness: PASS** (no Must-fix). Applied:
+  - a test that `almost` is empty in CHOOSING and DRAWING with close and wrong guesses held;
+  - the masking tests under `'clean'`/`'off'` (in `views.test.ts`);
+  - fillers-only guesses skipped;
+  - the doc comments.
+  
+  The `'off'` question is in the Kim check.
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied:
+  - no-overshoot grow-in (the 1.15 pop clipped in the 28 % sidebar);
+  - the screenshot is taken after the entrance;
+  - bubbles end at the reveal (a "kahapon" bubble duplicated "Almost:");
+  - `'off'` lists close guesses only.
+  
+  Not changed: the white "Nobody got it!" (the spec gives no colour); no live region for the headline (Backlog-sized, a TV).
+
+**Playtest:**
+- **`.playtest/F35/scenario.ts`** (playtester: 1920×1080 TV Screen; Ana drawing and Ben and Cara guessing, as a Pixel 7 and an iPhone 13). All steps pass:
+  - the word is on the reveal and is the largest text (129.6 px);
+  - Got-it shows Ben +260 then Cara +225, in corrected order;
+  - "Almost: mangq · zzqx one", the close one first, at most 3;
+  - no "+0" anywhere, and "Everyone got it! 🎉" shows;
+  - turn 2 was skipped with nobody right: "Nobody got it! 😱", the word, "Almost: kahapon", no Got-it and no points, and "kahapon" appears exactly once (no bubble).
+- No console errors.
+- Screenshots: `.playtest/F35/reveal-some-screen.png`, `reveal-none-screen.png`.
+- `.playtest/F33/layouts.ts` re-run (7 Screens, every phase): pass.
+- Not exercised: reduced motion (Kim check).
+
+**Notes for next session:**
+- **F38:** play the reveal sting when the Screen enters REVEAL (the word grows in over 0.4 s).
+- **F45:** Taglish `nobodyGotIt` is "Walang nakakuha!" (the 😱 is outside the string).
+
+**How to try it:**
+- Unit tests: `npx vitest run server/views.test.ts client/src/components/screen/ScreenTurn.test.tsx`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F35/scenario.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), bots at `/dev/bots/CODE`. Have one bot guess right and others guess wrong, then reveal. On the next turn press S twice on the Screen for a nobody-got-it reveal.
+
 
 ## F34 — Announcements, reactions and feed UI (2026-10-31)
 **What changed:**

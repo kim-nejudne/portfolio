@@ -43,7 +43,7 @@ function lobby(host: boolean, settings: RoomSettings = DEFAULT_SETTINGS): Screen
     turn: null,
     host: host ? { code: 'KPRW', customWordCount: 0 } : null,
     feed: [],
-    closeGuesses: [],
+    almost: [],
     awards: [],
     gallery: [],
     tonight: null,

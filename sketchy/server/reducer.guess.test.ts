@@ -74,7 +74,7 @@ describe('close guesses', () => {
     ]);
     const reveal = step(room, drawUp(room), room.turn!.endsAt! + 300).room;
     const view = toView(reveal, { kind: 'screen', isHost: false }, reveal.turn!.endsAt! + 400);
-    expect(view.closeGuesses).toEqual([
+    expect(view.almost).toEqual([
       { pid: pids[1], text: null },
       { pid: pids[2], text: `${word} ko` },
     ]);

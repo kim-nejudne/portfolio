@@ -26,7 +26,7 @@ export function ScreenTurn({
   receivedAt,
   ink,
   layout,
-  fx = NO_FX,
+  fx: allFx = NO_FX,
   t,
 }: {
   view: ScreenView;
@@ -39,6 +39,8 @@ export function ScreenTurn({
 }) {
   const turn = view.turn;
   if (!turn) return null;
+  // The reveal's "Almost:" lists the last guesses, so DRAWING's bubbles end with it (F35).
+  const fx = view.phase === 'REVEAL' ? { ...allFx, bubbles: [] } : allFx;
   if (layout === 'portrait')
     return <PortraitTurn view={view} turn={turn} receivedAt={receivedAt} ink={ink} fx={fx} t={t} />;
   const caption = turnCaption(view, t);
@@ -465,7 +467,8 @@ function RevealWord({ word, oneLine = false }: { word: string; oneLine?: boolean
     : Math.max(...word.split(/\s+/).map((w) => [...w].length));
   return (
     <p
-      className="font-display leading-none font-bold text-[#FF6B35] uppercase"
+      key={word}
+      className="font-display origin-left leading-none font-bold text-[#FF6B35] uppercase motion-safe:animate-reveal"
       style={{
         fontSize: `min(${oneLine ? '9vh' : '12vh'}, calc(100cqw / ${(letters * 0.82).toFixed(2)}))`,
       }}
@@ -475,14 +478,23 @@ function RevealWord({ word, oneLine = false }: { word: string; oneLine?: boolean
   );
 }
 
-/** "🎉 Everyone got it!" when they did, then "It was…". In the portrait top bar, on one line. */
+/**
+ * The headline, "Everyone got it! 🎉" or "Nobody got it! 😱", when there is one, then "It was…".
+ * In the portrait top bar, on one line.
+ */
 function RevealIntro({ turn, t }: { turn: TurnView; t: Translate }) {
   return (
     <>
-      {turn.endReason === 'allGuessed' && (
-        <p className="font-display text-[max(5vmin,24px)] font-bold text-[#2DC653]">
-          {t('everyoneGotIt')} <span aria-hidden="true">🎉</span>
+      {turn.correct.length === 0 ? (
+        <p className="font-display text-[max(5vmin,24px)] font-bold">
+          {t('nobodyGotIt')} <span aria-hidden="true">😱</span>
         </p>
+      ) : (
+        turn.endReason === 'allGuessed' && (
+          <p className="font-display text-[max(5vmin,24px)] font-bold text-[#2DC653]">
+            {t('everyoneGotIt')} <span aria-hidden="true">🎉</span>
+          </p>
+        )
       )}
       <p className="text-white/70">{t('itWas')}</p>
     </>
@@ -490,8 +502,10 @@ function RevealIntro({ turn, t }: { turn: TurnView; t: Translate }) {
 }
 
 /**
- * The reveal: "It was…", the word, who got it, and more. Portrait has "It was…" in its top bar and
- * puts "Got it" on the line with the chips, to fit under the square.
+ * The reveal: the headline and "It was…", the word, who got it (corrected order, from the server),
+ * "Almost:" and the drawer's points. Nobody got it: no points rows at all. No "+0" anywhere. Portrait
+ * has the headline and "It was…" in its top bar and puts "Got it" on the line with the chips, to fit
+ * under the square.
  */
 export function RevealPanel({
   view,
@@ -512,9 +526,7 @@ export function RevealPanel({
     <>
       {!portrait && <RevealIntro turn={turn} t={t} />}
       {turn.word && <RevealWord word={turn.word} oneLine={portrait} />}
-      {correct.length === 0 ? (
-        <p className="font-display text-[max(5vmin,24px)] font-bold">{t('nobodyGotIt')}</p>
-      ) : (
+      {correct.length > 0 && (
         <div
           className={
             portrait
@@ -533,19 +545,19 @@ export function RevealPanel({
                 <li key={c.pid} data-chip={c.pid} className="flex items-center gap-[0.8vmin]">
                   {p && <Avatar player={p} size="1.1em" />}
                   <span style={{ color: p?.color }}>{p?.name}</span>
-                  <span className="tabular-nums">+{c.points}</span>
+                  {c.points > 0 && <span className="tabular-nums">+{c.points}</span>}
                 </li>
               );
             })}
           </ul>
         </div>
       )}
-      {view.closeGuesses.length > 0 && (
+      {view.almost.length > 0 && (
         <p className="text-white/80">
-          {t('almost')} {view.closeGuesses.map((g) => g.text ?? '•••').join(' · ')}
+          {t('almost')} {view.almost.map((g) => g.text ?? '•••').join(' · ')}
         </p>
       )}
-      {drawer && drawer.turnPoints > 0 && (
+      {correct.length > 0 && drawer && drawer.turnPoints > 0 && (
         <p>{t('drawerPoints', { points: drawer.turnPoints, name: drawer.name })}</p>
       )}
     </>

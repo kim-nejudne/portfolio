@@ -255,7 +255,11 @@ describe('word secrecy across a scripted game', () => {
     );
     expect(room.phase).toBe('REVEAL');
     expect(screenView(room, t).turn!.word).toBe(first);
-    expect(screenView(room, t).closeGuesses).toEqual([{ pid: cy, text: CLOSE_TEXT }]);
+    // "Almost:": the close guess, then the wrong one (F35).
+    expect(screenView(room, t).almost).toEqual([
+      { pid: cy, text: CLOSE_TEXT },
+      { pid: ben, text: 'payong' },
+    ]);
 
     // F21: Ben, next to draw, was dealt on entering REVEAL. Positive control: his phone has the
     // three choices and their glosses; every other view was audited above.
@@ -743,8 +747,9 @@ describe('word secrecy through the socket gateway', () => {
       expect(await screen.emit('host:skip')).toEqual({ ok: true });
       await checkpoint(`reveal ${n + 1}`);
       expect(lastState(plain).turn!.word).toBe(word(room()));
-      expect((lastState(plain) as ScreenView).closeGuesses).toEqual([
+      expect((lastState(plain) as ScreenView).almost).toEqual([
         { pid: players.get(guessers[1]!), text: near },
+        { pid: players.get(guessers[0]!), text: 'payong' },
       ]);
       expect(await guessers[1]!.emit('player:guess', { text: word(room()) })).toEqual({
         ok: false,
