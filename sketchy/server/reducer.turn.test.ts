@@ -453,7 +453,7 @@ describe('stale timers', () => {
   });
 });
 
-describe('REVEAL → next drawer → FINAL', () => {
+describe('REVEAL → next drawer', () => {
   it('revealDone deals the next drawer a choice in CHOOSING', () => {
     const { room, pids, at } = started();
     const reveal = step(room, timer(room, 'drawUp'), at + DRAW_MS + GRACE_MS).room;
@@ -485,8 +485,14 @@ describe('REVEAL → next drawer → FINAL', () => {
     expect(after.turn!.drawerPid).toBe(pids[1]);
   });
 
-  it('plays every player once, then FINAL', () => {
-    const { room, pids, at } = started();
+  it('plays every player once, then FINAL, in a one-cycle game', () => {
+    const one = makeRoom();
+    const { room: lobby, pids } = withPlayers(['Ana', 'Ben', 'Cy'], {
+      ...one,
+      settings: { ...one.settings, cycles: 1 },
+    });
+    const at = T0 + 1000;
+    const room = choose(step(lobby, { type: 'host:start', by: SCREEN_HOST }, at).room, at);
     const drawers: string[] = [];
     let r = room;
     let now = at;

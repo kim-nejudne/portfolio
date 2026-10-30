@@ -271,8 +271,12 @@ describe('ending CHOOSING without a word', () => {
     expect(after.deck.remaining.slice(-3)).toEqual(dealtIds);
   });
 
-  it('skipping the last drawer’s choice ends the game', () => {
-    const { room, at } = dealt(['Ana', 'Ben']);
+  it('skipping the last drawer’s choice of the last cycle ends the game', () => {
+    const one = makeRoom();
+    const { room, at } = dealt(['Ana', 'Ben'], {
+      ...one,
+      settings: { ...one.settings, cycles: 1 },
+    });
     const second = step(room, { type: 'host:skip', by: SCREEN_HOST }, at + 1_000).room;
     expect(second.phase).toBe('CHOOSING');
     const after = step(second, { type: 'host:skip', by: SCREEN_HOST }, at + 2_000).room;
@@ -310,9 +314,10 @@ describe('running out of words', () => {
 
   it('never deals a chosen word again in the same session until the reshuffle', () => {
     const names = ['Ana', 'Ben', 'Cy', 'Dee', 'Eve', 'Fay', 'Gus', 'Hal', 'Ida', 'Jo'];
-    let { room, at } = dealt(names);
+    const one = makeRoom();
+    let { room, at } = dealt(names, { ...one, settings: { ...one.settings, cycles: 1 } });
     const chosen: string[] = [];
-    // One game of ten turns, each choosing the hardest.
+    // One game of one cycle, ten turns, each choosing the hardest.
     while (room.phase === 'CHOOSING') {
       room = choose(room, (at += 1_000), 2);
       chosen.push(room.turn!.word!.id);

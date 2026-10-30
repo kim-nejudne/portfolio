@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlayerChipView } from '../../../shared/types.js';
 import { formatClock, hintLetters, rankPlayers, wordLengths } from './screen.js';
 
-function chip(pid: string, score: number | null): PlayerChipView {
+function chip(pid: string, score: number | null, rank: number | null = null): PlayerChipView {
   return {
     pid,
     name: pid,
@@ -14,6 +14,7 @@ function chip(pid: string, score: number | null): PlayerChipView {
     guessed: false,
     turnPoints: 0,
     score,
+    rank,
   };
 }
 
@@ -36,8 +37,13 @@ describe('Screen helpers', () => {
     expect(formatClock(-5)).toBe('0:00');
   });
 
-  it('ranks players by score with shared ranks for ties', () => {
-    const ranked = rankPlayers([chip('a', 100), chip('b', 300), chip('c', 100), chip('d', 50)]);
+  it('orders players by the server’s shared ranks', () => {
+    const ranked = rankPlayers([
+      chip('a', 100, 2),
+      chip('b', 300, 1),
+      chip('c', 100, 2),
+      chip('d', 50, 4),
+    ]);
     expect(ranked.map((r) => [r.player.pid, r.rank])).toEqual([
       ['b', 1],
       ['a', 2],
@@ -46,8 +52,8 @@ describe('Screen helpers', () => {
     ]);
   });
 
-  it('keeps join order among tied players', () => {
-    const ranked = rankPlayers([chip('x', 0), chip('y', 0)]);
+  it('keeps the view’s join order among tied players', () => {
+    const ranked = rankPlayers([chip('x', 0, 1), chip('y', 0, 1)]);
     expect(ranked.map((r) => r.player.pid)).toEqual(['x', 'y']);
   });
 });

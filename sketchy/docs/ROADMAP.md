@@ -50,13 +50,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F19 Hints and early end
 
-- [ ] F20 Cycles, scoreboard and final
-  - Spec: Game flow and state machine (Phases, Turn order); UI by role and phase (Screen)
-  - Depends: F18
-  - Done when:
-    - `cycles` setting; SCOREBOARD between cycles; `autoAdvance` and `host:next`; FINAL with shared ranks (ported `ranking.ts`)
-    - Total scores and ranks appear only in SCOREBOARD and FINAL views; during a turn views carry this turn's points
-  - Tests: `reducer.flow.test.ts` — 3 players × 2 cycles visits the right phases in order
+- [x] F20 Cycles, scoreboard and final
 
 - [ ] F21 Overlapped choosing
   - Spec: Game flow and state machine (Phases, Transitions, Scheduled effects); Data model (Room state, Role views)
@@ -130,6 +124,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
   - Done when:
     - Back to lobby: FINAL → LOBBY keeps players, settings, custom words, doodles and `usedIds`; `session.totals`; Tonight panel from game 2
     - Rematch: two taps, 3-2-1 countdown on every device, then CHOOSING with the next player in join order drawing first; Cancel leaves FINAL and the gallery untouched; fewer than 2 connected at the end of the countdown stays on FINAL with "Need 2 players"
+  - Note (F20): `startCycle` builds cycles 2+ in plain join order; rotate them like cycle 1 in a rematch game (DECISIONS 43)
   - Tests: `reducer.newgame.test.ts` — no word repeats across two games; `reducer.rematch.test.ts` — rotation over three rematches, including when last game's first drawer has left; cancel keeps scores and gallery; a stale `rematchGo` after cancel does nothing; fewer than 2 connected
 
 ## M5 — Drawing tools

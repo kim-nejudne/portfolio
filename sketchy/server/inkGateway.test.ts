@@ -289,6 +289,9 @@ describe('/ink relay', () => {
 
   it("across a whole game, only the Screens get ink: no guesser, crowned guesser or late joiner, and the drawer only its own turn's snapshot", async () => {
     const l = await lobby();
+    // A one-cycle game, so it ends after the three turns.
+    const before = l.rooms.get(CODE)!;
+    l.rooms.set({ ...before, settings: { ...before.settings, cycles: 1 } });
     const plainScreen = await l.connect('');
     expect(await plainScreen.emit('screen:join', { code: CODE })).toEqual({ ok: true });
     const plainScreenInk = await l.connect('/ink');

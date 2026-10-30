@@ -36,8 +36,91 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F17: open `data/packs/en-everyday.json` and `data/packs/tl-pinoy-life.json` (30 words each, the spec's sample tables) and run `npm run packs:check` · every word drawable in 60 s on a phone? Taglish spellings and alternates are what a barkada types (tsinelas/chinelas, dyip/jeep, litson)? glosses short, plain English and right? difficulties fair (en has 4 hard, tl 5)?
 - [ ] F18: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 640, e.g. an iPhone SE or a budget Android); start, and (a) on the drawer's phone read the three cards and tap the middle one; (b) on the next turn don't tap and let the 12 s run out; (c) look at the TV and a guesser's phone while someone is choosing; (d) play one turn with the language set to Taglish (once F22 adds the setting, or with a room created with `{"settings":{"words":"taglish"}}`) · (a) three cards Easy/Medium/Hard, easiest at the top, each word large and readable, Tagalog medium/hard words show their short English gloss, "Hold your phone close 🤫" and the "Tap one…" line fit with nothing cut off and no scrolling, and the tap moves straight to the draw pad with that word in the bar; a tap the instant the cards appear (e.g. a leftover tap) doesn't pick anything; (b) the easy word is picked and the pad opens by itself; (c) the TV and guessers show "Mika is choosing a word…" and never any of the three words; (d) all three choices are Tagalog words
 - [ ] F19: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 560–640); (a) play a turn without guessing and watch the blanks on the TV and a guesser's phone at half time and three-quarter time; (b) next turn, have both guessers type the word; (c) on a third turn, one guesser gets it and the other locks their phone (or turns Wi-Fi off) · (a) one letter appears in the blanks at ~50% and a second at ~75% (only one for a 4–5 letter word, none for a 3-letter word), the same letters in the same places on the TV and every phone; (b) about 1.5 s after the last correct guess the turn ends and the TV and phones show "Everyone got it! 🎉" above "It was…", and on the small phone the reveal fits with no scrolling, even with a two-word answer; (c) the turn ends ~1.5 s after the first guesser got it, without waiting for the locked phone
+- [ ] F20: `npm run dev`, laptop Screen on the TV (Start), then 10 players (3 real phones plus bots from `/dev/bots/CODE`); play a 2-round game; repeat the scoreboard part on a portrait tablet Screen · after round 1 the TV shows "Round 1 of 2 done" with all 10 players ranked in two columns and the "Next ▶" button in its own row above the footer, covering no score; each phone shows "#N of 10" and its total; tied players share a medal or number; after round 2 the TV shows "Final scores" with no Next button; during turns no phone or TV shows a total, only "+N this turn"
 
 <!-- entries below, newest first -->
+
+## F20 — Cycles, scoreboard and final (2026-10-30)
+**What changed:**
+- **Reducer:**
+  - `advance` deals the next connected drawer in this cycle's `turnOrder` (`dealNext`). Past the last one the cycle is done: **SCOREBOARD** while `cycle < settings.cycles`, with `scoreboardDone` at +6 s under auto-advance, else **FINAL**. A skipped last CHOOSING takes the same path.
+  - `startCycle` (from `host:start`, `scoreboardDone` and `host:next` in SCOREBOARD) bumps `cycle`, rebuilds `turnOrder` from every player in the room in join order, and deals. With nobody connected to draw it ends the game.
+  - `host:next` now works in REVEAL and SCOREBOARD (host only, refused while paused).
+  - `revealDone` and `scoreboardDone` are refused while paused, like the other timers.
+- **`server/ranking.ts`:** ported from Buzzr (`rankPlayers`, players only): shared ranks (1, 1, 3), ties in join order.
+- **Views:**
+  - New `PlayerChipView.rank`; it and `score` are set only in SCOREBOARD and FINAL. `me.rank` comes from `rankPlayers`.
+  - Chips mark no drawer in SCOREBOARD.
+  - During a turn, views carry only this turn's points (unchanged, now tested across real phases).
+- **Client:**
+  - `ScreenStandings` orders by the server's `rank`. `rankPlayers` in `lib/screen.ts` now only sorts. Medals are `aria-hidden` with an `sr-only` rank.
+  - New `NextButton.tsx`: the token Screen's "Next ▶" in REVEAL and SCOREBOARD, in its own row above the footer, hidden while paused. F24's control bar replaces it.
+- **Tests:**
+  - `server/reducer.flow.test.ts` (new, 19):
+    - 3 players × 2 cycles visits CHOOSING/DRAWING/REVEAL ×3, SCOREBOARD, ×3, FINAL, and every player draws once a cycle in join order;
+    - 1 cycle has no SCOREBOARD and 3 cycles have two;
+    - totals carry across cycles;
+    - `scoreboardDone` is scheduled at +6 s and starts cycle 2;
+    - `host:next` from SCOREBOARD, stale timers after it, host-only, refused in other phases;
+    - no auto-advance (no timers, `host:next` drives);
+    - paused timers;
+    - a disconnected drawer is skipped and draws next cycle, a mid-game joiner draws next cycle, a SCOREBOARD leaver is dropped;
+    - a skipped last CHOOSING goes to SCOREBOARD or FINAL;
+    - nobody connected ends the game.
+  - `server/ranking.test.ts` (new, 7): ported from Buzzr.
+  - `views.test.ts` (+4): no totals or ranks in CHOOSING/DRAWING/REVEAL for any viewer; shared ranks in SCOREBOARD and FINAL for every viewer; no drawer on the scoreboard; totals hidden again in cycle 2.
+  - `views.leak.test.ts`: both scripted games now reach a real SCOREBOARD and play cycle 2, with the late joiner drawing in the reducer game. The visited phases include SCOREBOARD. The two short games use `cycles: 1`.
+  - `ScreenStandings.test.tsx` (new, 5): shared-rank order and medals, the scoreboard title, and the Next button's visibility.
+  - These older tests assumed one cycle and now set `cycles: 1` explicitly: `reducer.turn`, `reducer.choosing` (2) and the `inkGateway` whole game.
+- No new dependencies.
+
+**Decisions:** DECISIONS 43 covers:
+- what ends a cycle;
+- the per-cycle join-order rebuild;
+- nobody connected → FINAL;
+- `host:next` and paused timers;
+- ranks on chips;
+- the interim Next button;
+- the F29 rotation note.
+
+Rows 18, 20, 25 and 33 now point to it.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied:
+  - DECISIONS 43 and the amended rows;
+  - the F29 roadmap note;
+  - a comment on the client's rank fallback.
+  - Its NextButton-test item was already covered by `ScreenStandings.test.tsx`. Clicking it is covered by the playtest, because the client tests have no DOM.
+- **secrets-fairness: PASS.** Applied: the `paused` guard on `revealDone`/`scoreboardDone`, with a test, and the everyone-disconnected-in-SCOREBOARD note in DECISIONS 43.
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - Next moved out of the overlay into its own row, hidden while paused;
+  - a focus-visible outline, `min-w-11`, the ▶ `aria-hidden`, and a milder disabled state with `aria-busy`;
+  - medals `aria-hidden` with an `sr-only` rank.
+  - Left for Kim: the 10-player fit at 16:9 and 9:16.
+
+**Notes for next session:**
+- **F21:**
+  - `endTurn` should deal `upcoming` with `dealNext`-style logic. Remember that at the end of a cycle the next cycle's order is built first (`startCycle` does this today at SCOREBOARD's end).
+  - Taking up `upcoming` replaces `dealNext`/`startCycle`'s deal.
+  - Every `setPhase` while a choice is open must re-schedule `chooseUp`.
+- **F23:** a late joiner is appended to this cycle's `turnOrder` if a turn remains. `startCycle` already includes them from the next cycle.
+- **F24:** replace `NextButton` with the control bar, the `N` key and Space.
+- **F28:** `resumeGo` must re-schedule `revealDone`/`scoreboardDone` (both refuse while paused). `host:end` → FINAL.
+- **F29:** rotate cycles 2+ of a rematch game (the SPEC-QUESTION in `startCycle`).
+- **F50 awards:** compute them where `advance`/`startCycle` set FINAL.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/reducer.flow.test.ts server/ranking.test.ts server/views.test.ts server/views.leak.test.ts client/src/components/screen`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), 3 phones via `npm run lan CODE` or bots at `/dev/bots/CODE`. Play three turns: the TV shows "Round 1 of 2 done" with ranked totals, and each phone shows "#N of 3". After 6 s (or "Next ▶"), round 2 starts with the first player drawing. After three more turns: "Final scores".
+- Automated: `npm run playtest -- .playtest/F20/scenario.ts` (gitignored). It runs a Screen and 3 phones, and all steps pass:
+  - the phases are in order (6 turns, one SCOREBOARD, FINAL);
+  - no totals appear mid-turn;
+  - "Round 1 of 2 done";
+  - FINAL ranks on the Screen and the phones match;
+  - the word is absent from the Screen and guesser DOM;
+  - Next works in REVEAL and SCOREBOARD.
+  - Not covered: the auto-advance timers on their own, and ties (both are covered by unit tests).
+  - Screenshot: `.playtest/F20/final-screen.png`.
 
 ## F19 — Hints and early end (2026-10-30)
 **What changed:**

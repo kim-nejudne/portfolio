@@ -32,6 +32,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     guessed: pid === 'jun',
     turnPoints: pid === 'jun' ? 270 : 135,
     score: null,
+    rank: null,
   });
   const view: ScreenView = {
     role: 'screen',

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ScreenView } from '../../../shared/types.js';
 import { DebugOverlay } from '../components/screen/DebugOverlay.js';
+import { NextButton } from '../components/screen/NextButton.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
 import { ScreenTurn } from '../components/screen/ScreenTurn.js';
@@ -174,6 +175,7 @@ export function Screen() {
           <ScreenStandings view={view} t={t} />
         )}
       </div>
+      <NextButton view={view} socket={socket} t={t} />
       <footer className="shrink-0 px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
         {window.location.host} · <strong className="tracking-widest text-white">{view.code}</strong>
       </footer>

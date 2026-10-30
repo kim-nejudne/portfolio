@@ -5,7 +5,10 @@ import { Avatar } from './PlayerChip.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-/** SCOREBOARD and FINAL: the full ranking. The podium, gallery and awards arrive with F20/F29+. */
+/**
+ * SCOREBOARD and FINAL: the full ranking, in the server's shared ranks. The gallery and awards
+ * arrive with F29+.
+ */
 export function ScreenStandings({ view, t }: { view: ScreenView; t: Translate }) {
   const ranked = rankPlayers(view.players);
   // Above six players, two columns (ranks run down the first, then the second) so ten fit a TV.
@@ -32,7 +35,14 @@ export function ScreenStandings({ view, t }: { view: ScreenView; t: Translate })
             }`}
           >
             <span className="w-[2em] text-center tabular-nums">
-              {MEDALS[rank - 1] ?? `${rank}.`}
+              {MEDALS[rank - 1] ? (
+                <>
+                  <span aria-hidden="true">{MEDALS[rank - 1]}</span>
+                  <span className="sr-only">{rank}.</span>
+                </>
+              ) : (
+                `${rank}.`
+              )}
             </span>
             <Avatar player={player} size="1.2em" />
             <span className="truncate font-semibold" style={{ color: player.color }}>

@@ -8,12 +8,12 @@
 
 import { CHOOSE_MS } from '../shared/constants.js';
 import { feedText } from './profanity.js';
+import { rankPlayers } from './ranking.js';
 import type {
   ChoiceView,
   FeedItem,
   GuessView,
   HostBlockView,
-  Phase,
   PlayerChipView,
   PlayerView,
   Room,
@@ -91,8 +91,7 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
 function playerView(room: Room, pid: string, now: number): PlayerView {
   const me = room.players[pid];
   if (!me) throw new Error('toView: unknown player');
-  const totals = totalsShown(room.phase);
-  const players = Object.values(room.players);
+  const ranks = ranksShown(room);
   const award = room.phase === 'FINAL' ? room.awards.find((a) => a.pid === pid) : undefined;
   const { turn } = room;
   const latest = turn?.feed.at(-1);
@@ -102,11 +101,9 @@ function playerView(room: Room, pid: string, now: number): PlayerView {
     me: {
       pid,
       turnPoints: turnPoints(room, pid),
-      score: totals ? me.score : null,
+      score: ranks ? me.score : null,
       // Shared ranks: everyone on the same score shares the better place.
-      rank: totals
-        ? { rank: 1 + players.filter((p) => p.score > me.score).length, of: players.length }
-        : null,
+      rank: ranks ? { rank: ranks.get(pid)!, of: ranks.size } : null,
       award: award ? { ...award } : null,
     },
     secret: secretView(room, pid),
@@ -120,9 +117,13 @@ function playerView(room: Room, pid: string, now: number): PlayerView {
 
 // ---------- Pieces ----------
 
-/** Totals and ranks only between cycles and at the end; during a turn, this turn's points. */
-function totalsShown(phase: Phase): boolean {
-  return phase === 'SCOREBOARD' || phase === 'FINAL';
+/**
+ * Totals and ranks only between cycles and at the end (shared ranks, `ranking.ts`): each pid's
+ * rank, or null during a turn, when views carry only this turn's points.
+ */
+function ranksShown(room: Room): Map<string, number> | null {
+  if (room.phase !== 'SCOREBOARD' && room.phase !== 'FINAL') return null;
+  return new Map(rankPlayers(Object.values(room.players)).map((p) => [p.pid, p.rank]));
 }
 
 /** The current turn's word is public once the turn has ended and the room is past DRAWING. */
@@ -134,7 +135,7 @@ function revealed(room: Room): boolean {
 }
 
 function chips(room: Room): PlayerChipView[] {
-  const totals = totalsShown(room.phase);
+  const ranks = ranksShown(room);
   const turn = room.turn;
   return Object.values(room.players)
     .sort((a, b) => a.joinedAt - b.joinedAt)
@@ -144,11 +145,16 @@ function chips(room: Room): PlayerChipView[] {
       color: p.color,
       connected: p.connected,
       crown: room.crownPid === p.pid,
-      isDrawer: turn !== null && turn.drawerPid === p.pid && room.phase !== 'FINAL',
+      isDrawer:
+        turn !== null &&
+        turn.drawerPid === p.pid &&
+        room.phase !== 'SCOREBOARD' &&
+        room.phase !== 'FINAL',
       hasDoodle: p.hasDoodle,
       guessed: turn?.correct.some((c) => c.pid === p.pid) ?? false,
       turnPoints: turnPoints(room, p.pid),
-      score: totals ? p.score : null,
+      score: ranks ? p.score : null,
+      rank: ranks?.get(p.pid) ?? null,
     }));
 }
 

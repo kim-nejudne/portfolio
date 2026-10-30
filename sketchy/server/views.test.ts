@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CHOOSE_MS, REVEAL_MS } from '../shared/constants.js';
-import type { Room, Turn, View, WordEntry } from '../shared/types.js';
+import type { Action, Room, Turn, View, WordEntry } from '../shared/types.js';
 import { maskWord, toView, type Viewer } from './views.js';
-import { SCREEN_HOST, asPlayer, started, step } from './test/rooms.js';
+import { SCREEN_HOST, asPlayer, choose, started, step } from './test/rooms.js';
 import { testPack } from './test/packs.js';
 
 // Every secret starts with `qz`, so a substring search of the serialised view finds any of them.
@@ -189,6 +189,100 @@ describe('scores and ranks', () => {
     const cy = toView(final, { kind: 'player', pid: pids[2]! }, at);
     expect(cy.me.rank).toEqual({ rank: 2, of: 3 });
     expect(ben.players.find((p) => p.pid === pids[1])!.score).toBe(300);
+  });
+});
+
+describe('totals and ranks across a game (F20)', () => {
+  const NEXT = { type: 'host:next', by: SCREEN_HOST } as const;
+  const viewers = (room: Room): Viewer[] => [
+    { kind: 'screen', isHost: true },
+    { kind: 'screen', isHost: false },
+    ...Object.keys(room.players).map((pid): Viewer => ({ kind: 'player', pid })),
+  ];
+  const noTotals = (room: Room, now: number) => {
+    for (const viewer of viewers(room)) {
+      const view = toView(room, viewer, now);
+      expect(view.players.map((p) => [p.score, p.rank])).toEqual(
+        view.players.map(() => [null, null]),
+      );
+      if (view.role === 'player') expect(view.me).toMatchObject({ score: null, rank: null });
+    }
+  };
+
+  /** Ana, Ben and Cy play cycle 1 of 2; Ben guesses turn 1. Returns each phase it passed. */
+  function cycleOne() {
+    const game = started(['Ana', 'Ben', 'Cy']);
+    const { pids, at } = game;
+    let room = game.room;
+    const seen: Room[] = [room];
+    const go = (r: Room) => {
+      room = r;
+      seen.push(r);
+    };
+    const word = room.turn!.word!.word;
+    const guess: Action = {
+      type: 'player:guess',
+      by: asPlayer(pids[1]!),
+      text: word,
+      receivedAt: at + 1_000,
+      oneWayMs: 0,
+    };
+    go(step(room, guess, at + 1_000).room);
+    for (let i = 0; i < 3; i++) {
+      if (room.phase === 'CHOOSING') go(choose(room, at));
+      go(step(room, { type: 'host:skip', by: SCREEN_HOST }, at).room);
+      go(step(room, NEXT, at).room);
+    }
+    return { room, pids, at, seen };
+  }
+
+  it('no view carries totals or ranks in CHOOSING, DRAWING or REVEAL; this turn’s points do show', () => {
+    const { seen, pids, at } = cycleOne();
+    const during = seen.filter((r) => r.phase !== 'SCOREBOARD');
+    expect(new Set(during.map((r) => r.phase))).toEqual(new Set(['DRAWING', 'REVEAL', 'CHOOSING']));
+    for (const r of during) noTotals(r, at);
+    const reveal = seen.find((r) => r.phase === 'REVEAL')!;
+    expect(toView(reveal, { kind: 'player', pid: pids[1]! }, at).me.turnPoints).toBeGreaterThan(0);
+  });
+
+  it('SCOREBOARD and FINAL carry every total, with shared ranks for ties', () => {
+    const { room, pids, at } = cycleOne();
+    expect(room.phase).toBe('SCOREBOARD');
+    const [ana, ben, cy] = pids as [string, string, string];
+    // Ana and Ben tie on 300, Cy has 100: ranks 1, 1, 3.
+    const scores: Record<string, number> = { [ana]: 300, [ben]: 300, [cy]: 100 };
+    const players = Object.fromEntries(
+      Object.entries(room.players).map(([pid, p]) => [pid, { ...p, score: scores[pid]! }]),
+    );
+    for (const phase of ['SCOREBOARD', 'FINAL'] as const) {
+      const r: Room = { ...room, phase, players };
+      for (const viewer of viewers(r)) {
+        const view = toView(r, viewer, at);
+        expect(view.players.map((p) => [p.pid, p.score, p.rank])).toEqual([
+          [ana, 300, 1],
+          [ben, 300, 1],
+          [cy, 100, 3],
+        ]);
+      }
+      expect(toView(r, { kind: 'player', pid: ben }, at).me).toMatchObject({
+        score: 300,
+        rank: { rank: 1, of: 3 },
+      });
+      expect(toView(r, { kind: 'player', pid: cy }, at).me.rank).toEqual({ rank: 3, of: 3 });
+    }
+  });
+
+  it('marks no drawer on the scoreboard', () => {
+    const { room, at } = cycleOne();
+    const view = toView(room, { kind: 'screen', isHost: false }, at);
+    expect(view.players.some((p) => p.isDrawer)).toBe(false);
+  });
+
+  it('the next cycle hides the totals again', () => {
+    const { room, at } = cycleOne();
+    const cycle2 = step(room, NEXT, at).room;
+    expect(cycle2.phase).toBe('CHOOSING');
+    noTotals(cycle2, at);
   });
 });
 

@@ -421,6 +421,7 @@ export interface PlayerChipView {
   guessed: boolean; // correct this turn
   turnPoints: number; // points this turn (the drawer's once the turn ends)
   score: number | null; // the game total: SCOREBOARD and FINAL only
+  rank: number | null; // shared rank by `score` (1, 1, 3): SCOREBOARD and FINAL only
 }
 
 export interface CorrectView {
@@ -466,7 +467,7 @@ interface BaseView {
   paused: PausedView | null;
   rematchInMs: number | null; // FINAL, while a rematch countdown runs
   settings: RoomSettings;
-  players: PlayerChipView[]; // in join order
+  players: PlayerChipView[]; // in join order; ranked by the client with `rank` where shown
   turn: TurnView | null;
   /** The Screen holding the token, or the crown holder's phone. */
   host: HostBlockView | null;

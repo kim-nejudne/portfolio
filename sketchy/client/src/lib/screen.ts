@@ -31,16 +31,12 @@ export interface RankedPlayer {
 }
 
 /**
- * Players by score, highest first, with shared ranks (1, 2, 2, 4); ties keep join order. Only for
- * SCOREBOARD and FINAL, where views carry scores.
+ * Players in the server's shared-rank order (1, 2, 2, 4), ties in join order (the view's order).
+ * Only for SCOREBOARD and FINAL, where every chip carries a rank (DECISIONS 43); display only, the
+ * server ranks. A chip without one would sort last rather than break the list.
  */
-// SPEC-QUESTION: ScreenView has no ranks; the Screen sorts the scores it is sent (DECISIONS 25).
 export function rankPlayers(players: readonly PlayerChipView[]): RankedPlayer[] {
-  const score = (p: PlayerChipView) => p.score ?? 0;
-  return [...players]
-    .sort((a, b) => score(b) - score(a))
-    .map((player, _i, sorted) => ({
-      player,
-      rank: 1 + sorted.filter((p) => score(p) > score(player)).length,
-    }));
+  return players
+    .map((player) => ({ player, rank: player.rank ?? players.length }))
+    .sort((a, b) => a.rank - b.rank);
 }

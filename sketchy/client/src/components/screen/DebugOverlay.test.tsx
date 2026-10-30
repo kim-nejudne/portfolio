@@ -14,6 +14,7 @@ const chip = (pid: string, name: string): PlayerChipView => ({
   guessed: false,
   turnPoints: 0,
   score: null,
+  rank: null,
 });
 
 describe('DebugReadout', () => {

@@ -3,9 +3,9 @@
 // monotonic ms, randomness comes from the seeded RNG in `room.rngState`, and timers go out as
 // `schedule` effects carrying `turnId` and `timerEpoch`.
 //
-// LOBBY → CHOOSING → DRAWING → REVEAL → … → FINAL after one cycle. Cycles and SCOREBOARD (F20),
-// overlapped choosing (F21), pauses (F28) and the rest arrive with their features; their actions
-// are rejected as `notAvailable` until then.
+// LOBBY → CHOOSING → DRAWING → REVEAL → … → SCOREBOARD between cycles → … → FINAL after
+// `settings.cycles` cycles. Overlapped choosing (F21), pauses (F28) and the rest arrive with their
+// features; their actions are rejected as `notAvailable` until then.
 
 import {
   ALL_GUESSED_MS,
@@ -20,6 +20,7 @@ import {
   NAME_OF_DISCONNECTED_ERROR,
   PLAYER_COLORS,
   REVEAL_MS,
+  SCOREBOARD_MS,
 } from '../shared/constants.js';
 import type {
   Action,
@@ -259,8 +260,8 @@ function setPhase(d: Room, phase: Phase): void {
 function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): Handled {
   if (d.phase !== 'LOBBY') return 'wrongPhase';
   if (!isHost(d, a.by)) return 'notHost';
-  const players = Object.values(d.players).sort((x, y) => x.joinedAt - y.joinedAt);
-  if (players.filter((p) => p.connected).length < MIN_PLAYERS) return 'notEnoughPlayers';
+  if (Object.values(d.players).filter((p) => p.connected).length < MIN_PLAYERS)
+    return 'notEnoughPlayers';
   const allowed = allowedWords(d.packs, d.settings);
   if (allowed.length < CHOICE_COUNT) return 'notEnoughWords';
 
@@ -271,29 +272,54 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
   d.deck = built.deck;
   if (built.reshuffled) fx.push({ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } });
 
-  d.turnOrder = players.map((p) => p.pid);
-  d.turnIndex = -1;
-  d.cycle = 1;
-  advance(d, now, fx);
+  d.cycle = 0;
+  startCycle(d, now, fx);
   d.session.firstDrawerJoinedAt = d.players[d.turn!.drawerPid]!.joinedAt;
   return undefined;
 }
 
 /**
- * Deals the next connected drawer in `turnOrder` a choice, or ends the game. A disconnected player
- * is skipped for this cycle.
+ * Deals the next connected drawer in this cycle's `turnOrder` a choice. A disconnected player is
+ * skipped for this cycle. Past the last one the cycle is done: SCOREBOARD while cycles remain
+ * (`scoreboardDone` in 6 s with auto-advance), else FINAL.
  */
-// SPEC-QUESTION: v0 plays one cycle whatever `settings.cycles` says; F20 adds cycles and SCOREBOARD (DECISIONS 18).
 function advance(d: Room, now: number, fx: Effect[]): void {
-  for (let i = d.turnIndex + 1; i < d.turnOrder.length; i++) {
-    const pid = d.turnOrder[i]!;
-    if (d.players[pid]?.connected) {
-      deal(d, i, now, fx);
-      return;
-    }
+  if (dealNext(d, now, fx)) return;
+  d.turnIndex = d.turnOrder.length;
+  if (d.cycle < d.settings.cycles) {
+    setPhase(d, 'SCOREBOARD');
+    if (d.settings.autoAdvance) fx.push(schedule(d, 'scoreboardDone', now + SCOREBOARD_MS));
+  } else {
+    setPhase(d, 'FINAL');
   }
+}
+
+/**
+ * The next cycle (the first, from `host:start`): `turnOrder` is every player in the room in join
+ * order, fixed for the cycle, and its first connected drawer is dealt. With nobody connected to
+ * draw, the game ends (DECISIONS 43).
+ */
+// SPEC-QUESTION: F29's rematch rotation must also apply to cycles 2+ of a rematch game, or a player draws twice in a row.
+function startCycle(d: Room, now: number, fx: Effect[]): void {
+  d.cycle += 1;
+  d.turnOrder = Object.values(d.players)
+    .sort((x, y) => x.joinedAt - y.joinedAt)
+    .map((p) => p.pid);
+  d.turnIndex = -1;
+  if (dealNext(d, now, fx)) return;
   d.turnIndex = d.turnOrder.length;
   setPhase(d, 'FINAL');
+}
+
+/** Deals the first connected player after `turnIndex` in `turnOrder`; false if there is none. */
+function dealNext(d: Room, now: number, fx: Effect[]): boolean {
+  for (let i = d.turnIndex + 1; i < d.turnOrder.length; i++) {
+    if (d.players[d.turnOrder[i]!]?.connected) {
+      deal(d, i, now, fx);
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -397,7 +423,7 @@ function abandonChoice(d: Room, now: number, fx: Effect[]): void {
 
 function schedule(
   d: Room,
-  timer: 'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone',
+  timer: 'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone' | 'scoreboardDone',
   at: number,
 ): Effect {
   return { type: 'schedule', at, timer, turnId: d.turn!.id, epoch: d.timerEpoch };
@@ -534,10 +560,11 @@ function skip(d: Room, a: ActionOf<'host:skip'>, now: number, fx: Effect[]): Han
 }
 
 function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Handled {
-  if (d.phase !== 'REVEAL') return 'wrongPhase';
+  if (d.phase !== 'REVEAL' && d.phase !== 'SCOREBOARD') return 'wrongPhase';
   if (!isHost(d, a.by)) return 'notHost';
   if (d.paused) return 'paused';
-  advance(d, now, fx);
+  if (d.phase === 'REVEAL') advance(d, now, fx);
+  else startCycle(d, now, fx);
   return undefined;
 }
 
@@ -565,8 +592,12 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
       endTurn(d, a.timer === 'drawUp' ? 'time' : 'allGuessed', now, fx);
       return undefined;
     case 'revealDone':
-      if (d.phase !== 'REVEAL') return 'wrongPhase';
-      advance(d, now, fx);
+    case 'scoreboardDone':
+      if (d.phase !== (a.timer === 'revealDone' ? 'REVEAL' : 'SCOREBOARD')) return 'wrongPhase';
+      // A pause holds the reveal and the scoreboard; F28's resumeGo re-schedules them.
+      if (d.paused) return 'paused';
+      if (a.timer === 'revealDone') advance(d, now, fx);
+      else startCycle(d, now, fx);
       return undefined;
     default:
       return 'notAvailable';

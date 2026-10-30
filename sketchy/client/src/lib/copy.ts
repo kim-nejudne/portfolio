@@ -40,6 +40,7 @@ const EN = {
   // ---------- Screen: scoreboard and final ----------
   roundDone: 'Round {cycle} of {cycles} done',
   finalTitle: 'Final scores',
+  next: 'Next',
   // ---------- Screen: connection ----------
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',

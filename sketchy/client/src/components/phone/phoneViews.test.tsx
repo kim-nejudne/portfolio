@@ -23,6 +23,7 @@ const chip = (pid: string, name: string, extra: Partial<PlayerChipView> = {}): P
   guessed: false,
   turnPoints: 0,
   score: null,
+  rank: null,
   ...extra,
 });
 

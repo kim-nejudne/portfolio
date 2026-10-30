@@ -9,8 +9,8 @@
 // `LEAK_PACK`, `upcomingFor` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
 // logger added later must be spied on here too.
 //
-// SPEC-QUESTION: the reducer cannot reach SCOREBOARD, a pause or overlapped choosing (`upcoming`)
-// yet (F20, F23, F21), so those states are built by hand
+// SPEC-QUESTION: the reducer cannot reach a pause or overlapped choosing (`upcoming`)
+// yet (F28, F21), so those states are built by hand
 // from real ones (each marked `synth`). When those features land, replace each `synth` with the
 // real action (DECISIONS 33).
 
@@ -59,7 +59,10 @@ const LEAK_PACK: WordPack = {
     gloss: `qzg${i}`,
   })),
 };
-const leakRoom = () => makeRoom({ packs: [LEAK_PACK] });
+const leakRoom = (settings: Partial<Room['settings']> = {}) => {
+  const room = makeRoom({ packs: [LEAK_PACK] });
+  return { ...room, settings: { ...room.settings, ...settings } };
+};
 
 const ALL_PHASES: Phase[] = ['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD', 'FINAL'];
 /** A close guess's text (a near miss of the word): Screen only, and only from REVEAL on. */
@@ -292,7 +295,7 @@ describe('word secrecy across a scripted game', () => {
     for (const chosen of [false, true]) {
       const overlap: Room = { ...room, upcoming: upcomingFor(room, ben, chosen) };
       audit(`reveal, upcoming ${chosen ? 'chosen' : 'choosing'}`, overlap, t);
-      // synth SCOREBOARD. TODO(F20): reach it by finishing a cycle.
+      // synth SCOREBOARD with `upcoming` (F21); the plain SCOREBOARD is reached for real below.
       audit(
         `scoreboard, upcoming ${chosen ? 'chosen' : 'choosing'}`,
         {
@@ -347,7 +350,25 @@ describe('word secrecy across a scripted game', () => {
     });
     act('reveal 3', { type: 'host:skip', by: SCREEN_HOST });
 
-    // Dee joined after the order was set (v0), so the game ends.
+    // Cycle 1 is done: the totals and ranks, then cycle 2 in join order, the late joiner included.
+    act('scoreboard', { type: 'host:next', by: SCREEN_HOST });
+    expect(room.phase).toBe('SCOREBOARD');
+    act('cycle 2 dealt', { type: 'host:next', by: SCREEN_HOST });
+    expect(room.turnOrder).toEqual([ben, cy, dee]);
+    act('cycle 2, Ben skipped', { type: 'host:skip', by: SCREEN_HOST });
+    act('cycle 2, Cy skipped', { type: 'host:skip', by: SCREEN_HOST });
+    expect(room.turn!.drawerPid).toBe(dee);
+    act('late joiner draws', { type: 'drawer:choose', by: asPlayer(dee), index: 1 });
+    act('crown guesses right', {
+      type: 'player:guess',
+      by: asPlayer(ben, true),
+      text: word(room),
+      receivedAt: t,
+      oneWayMs: 0,
+    });
+    act('reveal 4', { type: 'host:skip', by: SCREEN_HOST });
+
+    // The last cycle is done, so the game ends.
     act('final', { type: 'host:next', by: SCREEN_HOST });
     expect(room.phase).toBe('FINAL');
     expect(screenView(room, t).gallery.map((g) => g.word)).toEqual(room.history.map((h) => h.word));
@@ -356,7 +377,7 @@ describe('word secrecy across a scripted game', () => {
   });
 
   it('never sends alternates, even to the drawer, at the reveal or in FINAL', () => {
-    let { room } = withPlayers(['Ana', 'Ben'], leakRoom());
+    let { room } = withPlayers(['Ana', 'Ben'], leakRoom({ cycles: 1 }));
     let t = 2_000_000;
     room = step(room, { type: 'host:start', by: SCREEN_HOST }, t).room;
     expect(room.turn!.choices.every((c) => c.alt.length > 0)).toBe(true);
@@ -384,7 +405,7 @@ describe('word secrecy across a scripted game', () => {
 
 // The last drawer's choice skipped: FINAL keeps the unchosen turn in state, never in a view.
 it('keeps an abandoned deal out of every view, through to FINAL', () => {
-  const { room: lobby } = withPlayers(['Ana', 'Ben'], leakRoom());
+  const { room: lobby } = withPlayers(['Ana', 'Ben'], leakRoom({ cycles: 1 }));
   let t = 3_000_000;
   let res = step(lobby, { type: 'host:start', by: SCREEN_HOST }, t);
   audit('dealt', res.room, t, res.effects);
@@ -639,9 +660,18 @@ describe('word secrecy through the socket gateway', () => {
       });
       await checkpoint(`reveal ${n + 1} late guess`);
     }
+    // Cycle 1 done: SCOREBOARD, then cycle 2 (Dee included), each deal skipped, then FINAL.
     expect(await screen.emit('host:next')).toEqual({ ok: true });
-    await checkpoint('final');
+    await checkpoint('scoreboard');
+    expect(room().phase).toBe('SCOREBOARD');
+    expect(await screen.emit('host:next')).toEqual({ ok: true });
+    await checkpoint('cycle 2 dealt');
+    expect(room().turnOrder).toHaveLength(4);
+    for (let n = 1; n <= 4; n++) {
+      expect(await screen.emit('host:skip')).toEqual({ ok: true });
+      await checkpoint(`cycle 2 deal ${n} skipped`);
+    }
     expect(room().phase).toBe('FINAL');
-    expect([...visited]).toEqual(['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'FINAL']);
+    expect([...visited]).toEqual(['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD', 'FINAL']);
   });
 });
