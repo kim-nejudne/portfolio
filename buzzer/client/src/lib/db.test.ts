@@ -6,6 +6,7 @@ import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
+import { resetBuiltInSets } from './builtInSets.js';
 import { sampleImages } from './sampleImages.js';
 import {
   addImage,
@@ -45,6 +46,8 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  resetBuiltInSets();
 });
 
 /** The sample's two picture ids. */
@@ -96,16 +99,29 @@ describe('built-in sets', () => {
     expect(await db.images.count()).toBe(0);
   });
 
-  it("Host a game's list is this browser's sets, last edited first, then the built-ins", async () => {
+  it("Host a game's list is this browser's sets, last edited first, then the server's built-ins", async () => {
+    resetBuiltInSets({ sets: STARTER_SETS.slice(0, 2), sampleHidden: false });
     await db.sets.bulkAdd([set('old', 10), set('new', 20)]);
     const { mine, builtIn } = await listHostableSets();
     expect(mine.map((s) => s.id)).toEqual(['new', 'old']);
-    expect(builtIn).toBe(BUILT_IN_SETS);
+    expect(builtIn).toEqual([SAMPLE_SET, ...STARTER_SETS.slice(0, 2)]);
+  });
+
+  it("Host a game's list still has this browser's sets when the built-ins fail to load", async () => {
+    resetBuiltInSets();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ error: 'down' }, { status: 503 })),
+    );
+    await db.sets.add(set('mine', 10));
+    const { mine, builtIn } = await listHostableSets();
+    expect(mine.map((s) => s.id)).toEqual(['mine']);
+    expect(builtIn).toBeNull();
   });
 
   it('Duplicate to My sets stores an editable "(copy)" of a starter under a fresh id', async () => {
     const starter = STARTER_SETS[4]!;
-    const copy = await duplicateBuiltIn(starter.id, 99);
+    const copy = await duplicateBuiltIn(starter, 99);
     expect(copy).toEqual({
       ...starter,
       id: expect.not.stringMatching(starter.id),
@@ -117,7 +133,7 @@ describe('built-in sets', () => {
   });
 
   it("Duplicate to My sets copies the sample's pictures under fresh ids", async () => {
-    const copy = await duplicateBuiltIn(SAMPLE_SET.id, 99);
+    const copy = await duplicateBuiltIn(SAMPLE_SET, 99);
     const copied = copy.questions.flatMap((q) => (q.imageId ? [q.imageId] : []));
     expect(copied).toHaveLength(2);
     for (const id of copied) expect(SAMPLE_IMAGE_IDS).not.toContain(id);
@@ -128,8 +144,14 @@ describe('built-in sets', () => {
     }
   });
 
-  it('Duplicate to My sets of an unknown id fails with a readable error', async () => {
-    await expect(duplicateBuiltIn('gone')).rejects.toThrow('That set no longer exists.');
+  it('Duplicate to My sets copies a server set that shares an id with a My set, not the My set', async () => {
+    const mine = set('shared-id', 10);
+    await db.sets.add(mine);
+    const server = { ...STARTER_SETS[0]!, id: 'shared-id' };
+    const copy = await duplicateBuiltIn(server, 99);
+    expect(copy.id).not.toBe('shared-id');
+    expect(copy.questions).toEqual(server.questions);
+    expect(await getSet('shared-id')).toEqual(mine);
   });
 });
 

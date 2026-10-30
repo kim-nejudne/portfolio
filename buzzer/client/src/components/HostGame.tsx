@@ -1,8 +1,11 @@
-import { useLayoutEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
+import { loadBuiltInSets } from '../lib/builtInSets.js';
+import { hostableRows } from '../lib/hostable.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_PRIMARY, CARD } from '../lib/ui.js';
+import { BuiltInSetsError } from './BuiltInSetsError.js';
 import { GameBuilder } from './GameBuilder.js';
 import { RoomCreated } from './RoomCreated.js';
 import { SetBrowser } from './SetBrowser.js';
@@ -12,8 +15,14 @@ import { SetPreview } from './SetPreview.js';
 type Status =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  // `sets` lists this browser's sets, then the built-ins from index `firstBuiltIn` on.
-  | { kind: 'picking'; sets: QuestionSet[]; firstBuiltIn: number; creating: boolean }
+  // `builtIn` is null when the server's built-ins could not be fetched (DECISIONS F104).
+  | {
+      kind: 'picking';
+      mine: QuestionSet[];
+      builtIn: readonly QuestionSet[] | null;
+      creating: boolean;
+      retrying: boolean;
+    }
   | { kind: 'created'; code: string };
 
 /**
@@ -30,11 +39,15 @@ export function HostGame({
   children?: ReactNode;
 }) {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The picked row's key (`hostableRows`): a My set and a built-in may share an id.
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<QuestionSet | null>(null);
   const [building, setBuilding] = useState(false);
   const open = status.kind === 'picking' || status.kind === 'created';
+  const mine = status.kind === 'picking' ? status.mine : null;
+  const builtInSets = status.kind === 'picking' ? status.builtIn : null;
+  const rows = useMemo(() => hostableRows(mine ?? [], builtInSets), [mine, builtInSets]);
 
   // Before paint, so no frame shows the picker and the Join card together.
   useLayoutEffect(() => {
@@ -48,18 +61,37 @@ export function HostGame({
       // Dexie loads only once a host opens the picker, not on every player's phone.
       const { listHostableSets } = await import('../lib/db.js');
       const { mine, builtIn } = await listHostableSets();
-      const sets = [...mine, ...builtIn];
-      setSelectedId(sets[0]?.id ?? null);
+      const first = hostableRows(mine, builtIn);
+      setSelectedKey(first.sets[0] ? first.keyOf(first.sets[0]) : null);
       setBuilding(false);
-      setStatus({ kind: 'picking', sets, firstBuiltIn: mine.length, creating: false });
+      setStatus({ kind: 'picking', mine, builtIn, creating: false, retrying: false });
     } catch {
       setError('Could not load the saved sets in this browser.');
       setStatus({ kind: 'idle' });
     }
   }
 
+  /** **Retry** after the built-ins failed to load: My sets stay listed meanwhile. */
+  function retryBuiltIns() {
+    const picking = (retrying: boolean, builtIn?: readonly QuestionSet[]) =>
+      setStatus((current) =>
+        current.kind === 'picking'
+          ? { ...current, retrying, builtIn: builtIn ?? current.builtIn }
+          : current,
+      );
+    picking(true);
+    loadBuiltInSets().then(
+      (builtIn) => {
+        picking(false, builtIn);
+        // A browser with no sets of its own now has something picked, as on opening.
+        setSelectedKey((key) => key ?? (builtIn[0] ? `built-in:${builtIn[0].id}` : null));
+      },
+      () => picking(false),
+    );
+  }
+
   async function create(picking: Extract<Status, { kind: 'picking' }>) {
-    const set = picking.sets.find((s) => s.id === selectedId);
+    const set = rows.sets.find((s) => rows.keyOf(s) === selectedKey);
     if (!set) return;
     setStatus({ ...picking, creating: true });
     setError(null);
@@ -104,9 +136,9 @@ export function HostGame({
     );
   }
 
-  const { sets, firstBuiltIn, creating } = status;
-  const builtIn = (set: QuestionSet) => sets.indexOf(set) >= firstBuiltIn;
-  const selected = sets.find((set) => set.id === selectedId);
+  const { creating } = status;
+  const { sets, keyOf, isBuiltIn } = rows;
+  const selected = sets.find((set) => keyOf(set) === selectedKey);
 
   return (
     <section
@@ -129,8 +161,8 @@ export function HostGame({
             }
             onSaved={(saved) => {
               // The saved game joins this browser's sets, first and picked, ready for Create room.
-              setStatus({ ...status, sets: [saved, ...sets], firstBuiltIn: firstBuiltIn + 1 });
-              setSelectedId(saved.id);
+              setStatus({ ...status, mine: [saved, ...status.mine] });
+              setSelectedKey(`mine:${saved.id}`);
               setBuilding(false);
             }}
             onBack={() => setBuilding(false)}
@@ -150,18 +182,26 @@ export function HostGame({
           }}
           buildDisabled={creating}
           browser={
-            <SetBrowser
-              mode="select"
-              id="host"
-              legend="Question set"
-              sets={sets}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              detail={(set) => setDetail(set, builtIn(set))}
-              className="text-lg"
-            />
+            <>
+              {status.builtIn === null && (
+                <BuiltInSetsError onRetry={retryBuiltIns} retrying={status.retrying} />
+              )}
+              {sets.length > 0 && (
+                <SetBrowser
+                  mode="select"
+                  id="host"
+                  legend="Question set"
+                  sets={sets}
+                  keyOf={keyOf}
+                  selectedId={selectedKey}
+                  onSelect={setSelectedKey}
+                  detail={(set) => setDetail(set, isBuiltIn(set))}
+                  className="text-lg"
+                />
+              )}
+            </>
           }
-          selected={selected && { set: selected, detail: setDetail(selected, builtIn(selected)) }}
+          selected={selected && { set: selected, detail: setDetail(selected, isBuiltIn(selected)) }}
           onPreview={creating ? undefined : setPreviewing}
           message={
             error && (
@@ -173,7 +213,7 @@ export function HostGame({
           action={{
             label: creating ? 'Creating room…' : 'Create room',
             onClick: () => void create(status),
-            disabled: creating || selectedId === null,
+            disabled: creating || selected === undefined,
           }}
         >
           {previewing && (

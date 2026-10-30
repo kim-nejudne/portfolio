@@ -10,6 +10,30 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F104 — Client reads built-ins from the server (2026-10-30)
+**What changed:**
+- New `client/src/lib/builtInSets.ts`: `loadBuiltInSets()` (one shared `GET /api/built-in-sets` per page load, zod-checked; a failure is not cached), `builtInList` (sample first unless `sampleHidden`), `resetBuiltInSets(next?)` and the `useBuiltInSets()` hook (loading, failed with `retry`, ready).
+- The Built-in tab and its count, Build a game's sources, `duplicateBuiltIn(set)`, the editor's category suggestions, `listHostableSets`, **Host a game** and the **New game** picker all use the server's list. `BUILT_IN_SETS` is left only for the Dexie v3 clean-up and tests.
+- New `BuiltInSetsError` ("Couldn't load the built-in sets." and **Retry**) on `/sets` and in both pickers. My sets keep working.
+- New `lib/hostable.ts` (`hostableRows`) and a `keyOf` prop on `SetBrowser`. Picker rows are keyed `mine:<id>` / `built-in:<id>`, so a My set and a built-in with the same id both list and host.
+- Tests:
+  - New `builtInSets.test.ts` (9) and `hostable.test.ts` (3).
+  - `Sets.test.tsx` +5: the server's list, hidden sample, failure with Retry, a same-id host and a same-id duplicate.
+  - `NewGamePicker.test.tsx` +3, `Landing.test.tsx` +2, `SetEditor.test.tsx` +1, `db.test.ts` (+1, and the unknown-id test replaced by a same-id one).
+  - The pages' tests seed the list with `serveSeededBuiltIns()` (`client/src/test/builtIns.ts`: the 60 starters, so the list matches `BUILT_IN_SETS`).
+  - 2664 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F104 (the cache and hook; the failure in each list; keys by source and id).
+
+**Notes for next session:**
+- **F105 (admin import, delete, hide):** after a change, call `resetBuiltInSets(response)` with the new list, or `resetBuiltInSets()` and reload. `useBuiltInSets()` does not re-read on its own; it would need a subscribe, or a bumped `retry`.
+- F105 should refuse a server set with `SAMPLE_SET_ID`: `imagesOf` picks the sample's pictures by that id.
+- Review Should-fix, not changed: `retryBuiltIns` is repeated in `HostGame` and `NewGamePicker` (see DECISIONS). There is no test of Build a game during a failed fetch; it draws from My sets alone.
+- Main `index` chunk 557.93 → 499.68 kB. The pages no longer import the bundled starters.
+- Playtest (Playwright, `/sets`, `/` and the editor): one fetch per page load; 61 on the Built-in tab, the sample first; the Host a game picker lists the built-ins and hosted the built-in sample next to a My set copy; 20 server categories offered; with the request aborted, the message and Retry showed, My sets stayed, and Retry restored the list. The same-id case is covered by the unit tests only. The only console error was the deliberate abort.
+
+**How to try it:** `npm run dev`, then `http://localhost:5173/sets` (Built-in tab) and **Host a game** on `http://localhost:5173/`. To see the failure, block `/api/built-in-sets` in the browser's devtools (Network, Block request URL) and reload. `npm test -- client/src/lib/builtInSets.test.ts client/src/pages/Sets.test.tsx client/src/components/NewGamePicker.test.tsx`.
+
 ## F103 — Built-in sets on the server (2026-10-30)
 **What changed:**
 - New `server/builtInStore.ts`: `openBuiltInStore(DATA_DIR)` loads `built-in-sets.json` (`{version: 1, sets, drafts, sampleHidden}`, zod-checked: unique ids, no pictures). A missing file is seeded once from `STARTER_SETS`; a bad file stops the server with its path and the problem, and is never overwritten. `update(change)` is serialized and writes temp-then-rename.

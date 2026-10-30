@@ -2,7 +2,9 @@
 import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetBuiltInSets } from '../lib/builtInSets.js';
+import { serveSeededBuiltIns } from '../test/builtIns.js';
 import {
   DEFAULT_SETTINGS,
   GAME_ENDED_ERROR,
@@ -47,7 +49,12 @@ vi.mock('../lib/resultsCard.js', async (importOriginal) => ({
   },
 }));
 
+beforeEach(() => {
+  serveSeededBuiltIns();
+});
+
 afterEach(() => {
+  resetBuiltInSets();
   cleanup();
   cards.length = 0;
   unstubShare();

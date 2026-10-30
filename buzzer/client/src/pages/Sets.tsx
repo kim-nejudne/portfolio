@@ -8,8 +8,8 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import type { QuestionSet } from '../../../shared/types.js';
+import { BuiltInSetsError } from '../components/BuiltInSetsError.js';
 import { GameBuilder } from '../components/GameBuilder.js';
 import { OverflowMenu, type MenuItem } from '../components/OverflowMenu.js';
 import { PageShell } from '../components/PageShell.js';
@@ -33,6 +33,7 @@ import {
   BUTTON_SMALL,
   LINK,
 } from '../lib/ui.js';
+import { useBuiltInSets } from '../lib/builtInSets.js';
 import { hostSet } from '../lib/hostRoom.js';
 import {
   exportAllFile,
@@ -84,8 +85,8 @@ function firstTab(mine: readonly QuestionSet[]): Tab {
 }
 
 /**
- * Set list `/sets`: two tabs, the read-only **Built-in** library from the bundle and **My sets**,
- * this browser's saved sets, last edited first (DECISIONS F54).
+ * Set list `/sets`: two tabs, the read-only **Built-in** library (the bundled sample and the
+ * server's sets) and **My sets**, this browser's saved sets, last edited first (DECISIONS F54, F104).
  */
 export function Sets() {
   const navigate = useNavigate();
@@ -107,8 +108,11 @@ export function Sets() {
   const [building, setBuilding] = useState(false);
   const { toast, show } = useToast();
   const feedbackRef = useRef<HTMLDivElement>(null);
+  const builtIns = useBuiltInSets();
+  const builtInSets = builtIns.kind === 'ready' ? builtIns.sets : null;
   // One array per load, so the builder's category list and counts aren't redone on every render.
-  const sources = useMemo(() => [...(sets ?? []), ...BUILT_IN_SETS], [sets]);
+  // Without the built-ins, the builder still draws from My sets.
+  const sources = useMemo(() => [...(sets ?? []), ...(builtInSets ?? [])], [sets, builtInSets]);
 
   const reload = useCallback(async () => {
     try {
@@ -189,9 +193,9 @@ export function Sets() {
       await reload();
       return `Duplicated “${set.title}”.`;
     });
-  const duplicateToMine = (id: string) =>
+  const duplicateToMine = (set: QuestionSet) =>
     cardAct(async () => {
-      const copy = await duplicateBuiltIn(id);
+      const copy = await duplicateBuiltIn(set);
       await reload();
       setTab('mine');
       return `Copied “${copy.title}” to My sets.`;
@@ -304,7 +308,7 @@ export function Sets() {
   }
 
   const counts: Record<Tab, number | null> = {
-    builtIn: BUILT_IN_SETS.length,
+    builtIn: builtInSets === null ? null : builtInSets.length,
     mine: sets === null ? null : sets.length,
   };
 
@@ -476,37 +480,43 @@ export function Sets() {
               </div>
               <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
                 {tab === 'builtIn' ? (
-                  <SetBrowser
-                    key="builtIn"
-                    mode="actions"
-                    id="built-in"
-                    sets={BUILT_IN_SETS}
-                    detail={(set) => setDetail(set, false)}
-                    // A built-in set is read-only, so its title opens the preview.
-                    cardTitle={(set) => (
-                      <button
-                        type="button"
-                        onClick={() => setPreviewing(set)}
-                        className={TITLE_LINK}
-                      >
-                        {set.title}
-                      </button>
-                    )}
-                    actions={(set) => (
-                      <CardActions
-                        set={set}
-                        busy={busy}
-                        onHost={(chosen) => void host(chosen)}
-                        onPreview={setPreviewing}
-                        menu={[
-                          {
-                            label: 'Duplicate to My sets',
-                            onSelect: () => void duplicateToMine(set.id),
-                          },
-                        ]}
-                      />
-                    )}
-                  />
+                  builtIns.kind === 'loading' ? (
+                    <p className="text-muted">Loading…</p>
+                  ) : builtIns.kind === 'failed' ? (
+                    <BuiltInSetsError onRetry={builtIns.retry} />
+                  ) : (
+                    <SetBrowser
+                      key="builtIn"
+                      mode="actions"
+                      id="built-in"
+                      sets={builtIns.sets}
+                      detail={(set) => setDetail(set, false)}
+                      // A built-in set is read-only, so its title opens the preview.
+                      cardTitle={(set) => (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewing(set)}
+                          className={TITLE_LINK}
+                        >
+                          {set.title}
+                        </button>
+                      )}
+                      actions={(set) => (
+                        <CardActions
+                          set={set}
+                          busy={busy}
+                          onHost={(chosen) => void host(chosen)}
+                          onPreview={setPreviewing}
+                          menu={[
+                            {
+                              label: 'Duplicate to My sets',
+                              onSelect: () => void duplicateToMine(set),
+                            },
+                          ]}
+                        />
+                      )}
+                    />
+                  )
                 ) : sets.length === 0 ? (
                   <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
                     No question sets yet. Use <strong className="text-ink">New set</strong> to write

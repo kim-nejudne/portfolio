@@ -1,6 +1,6 @@
-// The built-in library (Set list `/sets`, Built-in tab): the sample, then the 60 starter sets. Read
-// from the bundle and never written to IndexedDB, so they stay read-only and every browser, a
-// paired phone included, has the same ones (DECISIONS F54).
+// The bundled built-in library as F54 shipped it: the sample, then the 60 starter sets. Since F104
+// the pages list the server's built-ins (`client/src/lib/builtInSets.ts`); this list stays for the
+// Dexie v3 clean-up, which compares stored copies against the bundled sets they were seeded from.
 
 import { SAMPLE_SET } from './sampleSet.js';
 import { STARTER_SETS } from './starterSets/index.js';

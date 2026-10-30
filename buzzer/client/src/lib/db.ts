@@ -3,10 +3,11 @@
 
 import Dexie, { type EntityTable } from 'dexie';
 import { nanoid } from 'nanoid';
-import { builtInSet, BUILT_IN_SETS } from '../../../shared/builtInSets.js';
+import { builtInSet } from '../../../shared/builtInSets.js';
 import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET, SAMPLE_SET_ID } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
+import { loadBuiltInSets } from './builtInSets.js';
 import { sampleImages } from './sampleImages.js';
 
 /** One image, referenced from a question by `imageId`. The editor stores it already shrunk (F29). */
@@ -64,11 +65,12 @@ class BuzzrDb extends Dexie {
 
   constructor() {
     super('buzzr');
-    // v1 seeded the sample and v2 the starters (F25, F48). Built-in sets now come from the bundle
-    // (DECISIONS F54), so a new database starts empty and neither seed runs any more.
+    // v1 seeded the sample and v2 the starters (F25, F48). Built-in sets are never stored (DECISIONS
+    // F54; from the server since F104), so a new database starts empty and neither seed runs any more.
     this.version(1).stores(STORES);
     this.version(2).stores(STORES);
-    // v3 removes the seeded copies of built-in sets. A copy the host edited stays in My sets under
+    // v3 removes the seeded copies of built-in sets, compared against the bundled ones they were
+    // seeded from. A copy the host edited stays in My sets under
     // a fresh id, so no stored id collides with a built-in one. The sample's pictures go with it
     // unless another set still uses them. Chained on Dexie's own promises: a native `await` here
     // can let the transaction close.
@@ -108,13 +110,15 @@ export async function listSets(): Promise<QuestionSet[]> {
 
 /**
  * **Host a game** and the **New game** picker: this browser's sets, last edited first, and the
- * built-in library after them.
+ * server's built-in library after them. `builtIn` is null when it could not be fetched, so the
+ * picker still lists My sets (DECISIONS F104).
  */
 export async function listHostableSets(): Promise<{
   mine: QuestionSet[];
-  builtIn: readonly QuestionSet[];
+  builtIn: readonly QuestionSet[] | null;
 }> {
-  return { mine: await listSets(), builtIn: BUILT_IN_SETS };
+  const [mine, builtIn] = await Promise.all([listSets(), loadBuiltInSets().catch(() => null)]);
+  return { mine, builtIn };
 }
 
 export async function getSet(id: string): Promise<QuestionSet | undefined> {
@@ -195,12 +199,13 @@ export async function duplicateSet(id: string, now = Date.now()): Promise<Questi
 
 /**
  * **Duplicate to My sets**: an editable copy of a built-in set, titled like Duplicate's, with its
- * own copy of the sample's pictures under fresh ids.
+ * own copy of the sample's pictures under fresh ids. The server's built-ins have no pictures.
  */
-export async function duplicateBuiltIn(id: string, now = Date.now()): Promise<QuestionSet> {
-  const source = builtInSet(id);
-  if (!source) throw new Error('That set no longer exists.');
-  const images = id === SAMPLE_SET_ID ? sampleImages() : [];
+export async function duplicateBuiltIn(
+  source: QuestionSet,
+  now = Date.now(),
+): Promise<QuestionSet> {
+  const images = source.id === SAMPLE_SET_ID ? sampleImages() : [];
   return importSet({ ...source, title: copyTitle(source.title) }, images, now);
 }
 

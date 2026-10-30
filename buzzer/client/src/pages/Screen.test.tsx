@@ -3,6 +3,8 @@ import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetBuiltInSets } from '../lib/builtInSets.js';
+import { serveSeededBuiltIns } from '../test/builtIns.js';
 import {
   CHOICE_COLORS,
   AVATARS,
@@ -70,7 +72,12 @@ vi.mock('../lib/resultsCard.js', async (importOriginal) => ({
   },
 }));
 
+beforeEach(() => {
+  serveSeededBuiltIns();
+});
+
 afterEach(() => {
+  resetBuiltInSets();
   cleanup();
   vi.useRealTimers();
   localStorage.clear();

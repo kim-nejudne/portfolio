@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import Dexie from 'dexie';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetBuiltInSets } from '../lib/builtInSets.js';
+import { serveSeededBuiltIns } from '../test/builtIns.js';
 import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
@@ -31,6 +33,7 @@ const OWN: QuestionSet = {
 };
 
 beforeEach(async () => {
+  serveSeededBuiltIns();
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   // Stored pictures must survive fake-indexeddb's clone (see nodeBlob.ts).
   vi.stubGlobal('Blob', NodeBlob);
@@ -41,6 +44,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  resetBuiltInSets();
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -289,6 +293,98 @@ describe('Set list tabs', () => {
     renderSets();
     await card(SAMPLE_SET.title);
     expect(buttonsWithoutHover()).toEqual([]);
+  });
+});
+
+describe("Built-in tab from the server's list (F104)", () => {
+  /** A built-in set only the server has: a starter's questions under a new title. */
+  const SERVER_SET: QuestionSet = { ...STARTER_SETS[2]!, id: 'server-quiz', title: 'Server quiz' };
+
+  /** Clears the seeded list, so the page asks the fake server for the built-ins. */
+  function serveBuiltIns(...answers: (() => Response)[]) {
+    resetBuiltInSets();
+    const fetch = vi.fn(async (url: string) => {
+      if (url === '/api/built-in-sets') {
+        const answer = answers.shift();
+        if (answer) return answer();
+        throw new TypeError('Failed to fetch');
+      }
+      return url === '/api/rooms'
+        ? Response.json({ code: 'WXYZ', hostToken }, { status: 201 })
+        : Response.json({ ok: true }, { status: 201 });
+    });
+    vi.stubGlobal('fetch', fetch);
+    return fetch;
+  }
+  const list =
+    (sets: QuestionSet[], sampleHidden = false) =>
+    () =>
+      Response.json({ sets, sampleHidden });
+  const down = () => Response.json({ error: 'Down' }, { status: 503 });
+
+  it("lists the sample, then the server's sets, with the server's count", async () => {
+    serveBuiltIns(list([SERVER_SET]));
+    renderSets();
+    await card(SERVER_SET.title);
+    expect(cardTitles()).toEqual([SAMPLE_SET.title, SERVER_SET.title]);
+    expect(tab('Built-in').textContent).toBe('Built-in 2');
+  });
+
+  it('leaves the sample out when the admin hid it', async () => {
+    serveBuiltIns(list([SERVER_SET], true));
+    renderSets();
+    await card(SERVER_SET.title);
+    expect(cardTitles()).toEqual([SERVER_SET.title]);
+  });
+
+  it("a failed fetch says so with Retry, My sets still work, and Retry lists the server's sets", async () => {
+    await addOwn();
+    serveBuiltIns(down, list([SERVER_SET]));
+    renderSets();
+    await card(OWN.title);
+    const builtInTab = () => screen.getByRole('tab', { name: /^Built-in/ });
+    fireEvent.click(builtInTab());
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain("Couldn't load the built-in sets.");
+    // No count while the server's list is unknown.
+    expect(builtInTab().textContent).toBe('Built-in ');
+
+    fireEvent.keyDown(builtInTab(), { key: 'ArrowRight' });
+    await card(OWN.title);
+    expect(cardTitles()).toEqual([OWN.title]);
+    fireEvent.keyDown(tab('My sets'), { key: 'ArrowLeft' });
+
+    fireEvent.click(
+      within(await screen.findByRole('alert')).getByRole('button', { name: 'Retry' }),
+    );
+    await card(SERVER_SET.title);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('a My set and a built-in with the same id both list, and each hosts its own questions', async () => {
+    const mine: QuestionSet = { ...STARTER_SETS[5]!, id: SERVER_SET.id, title: 'My twin' };
+    await db.sets.add(mine);
+    const fetch = serveBuiltIns(list([SERVER_SET]));
+    renderSets();
+    await card(mine.title);
+    fireEvent.click(tab('Built-in'));
+    fireEvent.click((await card(SERVER_SET.title)).getByRole('button', { name: /^Host / }));
+    expect(await screen.findByRole('heading', { name: 'Room created' })).toBeTruthy();
+    const posted = fetch.mock.calls.findIndex(([url]) => url === '/api/rooms');
+    expect(bodyOf(fetch, posted).set.questions).toEqual(SERVER_SET.questions);
+  });
+
+  it("Duplicate to My sets copies a server set that shares a My set's id, and keeps the My set", async () => {
+    const mine: QuestionSet = { ...STARTER_SETS[5]!, id: SERVER_SET.id, title: 'My twin' };
+    await db.sets.add(mine);
+    serveBuiltIns(list([SERVER_SET]));
+    renderSets();
+    await card(mine.title);
+    fireEvent.click(tab('Built-in'));
+    await chooseInMenu(SERVER_SET.title, 'Duplicate to My sets');
+    await card(`${SERVER_SET.title} (copy)`);
+    expect(cardTitles()).toEqual([`${SERVER_SET.title} (copy)`, mine.title]);
+    expect(await getSet(SERVER_SET.id)).toEqual(mine);
   });
 });
 

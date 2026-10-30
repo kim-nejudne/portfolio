@@ -2,6 +2,8 @@
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetBuiltInSets } from '../lib/builtInSets.js';
+import { serveSeededBuiltIns } from '../test/builtIns.js';
 import { SAMPLE_FLAG_ID, SAMPLE_HEXAGON_ID, SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
@@ -21,6 +23,7 @@ const roundTwo: QuestionSet = {
 const draft: QuestionSet = { ...roundTwo, id: 'set-draft', title: 'Half done', questions: [] };
 
 beforeEach(async () => {
+  serveSeededBuiltIns();
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   await db.delete();
   await db.open();
@@ -30,6 +33,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  resetBuiltInSets();
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -85,6 +89,60 @@ describe('NewGamePicker', () => {
       ),
     ]);
     expect(radios[0]!.checked).toBe(true);
+  });
+
+  it("lists the server's built-ins after this browser's sets, without the sample when it is hidden", async () => {
+    const server: QuestionSet = { ...STARTER_SETS[3]!, id: 'server-quiz', title: 'Server quiz' };
+    resetBuiltInSets({ sets: [server], sampleHidden: true });
+    renderPicker();
+    const radios = await options();
+    expect(radios.map((radio) => radio.closest('label')!.textContent)).toEqual([
+      'Half done0 questions · Not playable yet',
+      'Round two1 question',
+      'Server quiz15 questions · Easy · Built-in',
+    ]);
+  });
+
+  it("when the built-ins fail to load, lists this browser's sets with Retry, which adds them", async () => {
+    resetBuiltInSets();
+    const fetch = vi.fn(async () => Response.json({ error: 'Down' }, { status: 503 }));
+    vi.stubGlobal('fetch', fetch);
+    renderPicker();
+    const alert = await within(dialog()).findByRole('alert');
+    expect(alert.textContent).toContain("Couldn't load the built-in sets.");
+    expect((await options()).map((radio) => radio.closest('label')!.textContent)).toEqual([
+      'Half done0 questions · Not playable yet',
+      'Round two1 question',
+    ]);
+    expect(startButton().disabled).toBe(false);
+
+    fetch.mockImplementation(async () =>
+      Response.json({ sets: [STARTER_SETS[0]], sampleHidden: false }),
+    );
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await waitFor(async () => expect(await options()).toHaveLength(4));
+    expect(within(dialog()).queryByRole('alert')).toBeNull();
+    // The pick made before stays picked.
+    expect((await options())[0]!.checked).toBe(true);
+  });
+
+  it('a My set and a built-in with the same id both list, and the built-in one is sent', async () => {
+    const twin: QuestionSet = { ...STARTER_SETS[3]!, id: roundTwo.id, title: 'Server twin' };
+    resetBuiltInSets({ sets: [twin], sampleHidden: true });
+    const { fetch, release } = stubPut();
+    renderPicker();
+    const radios = await options();
+    expect(radios.map((radio) => radio.value)).toEqual([
+      `mine:${draft.id}`,
+      `mine:${roundTwo.id}`,
+      `built-in:${roundTwo.id}`,
+    ]);
+    fireEvent.click(radios[2]!);
+    expect(radios[1]!.checked).toBe(false);
+    fireEvent.click(startButton());
+    release();
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(putBody(fetch).set.title).toBe('Server twin');
   });
 
   it('starting the built-in sample sends it and uploads its pictures from the bundle', async () => {

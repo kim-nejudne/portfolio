@@ -276,17 +276,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F103 Built-in sets on the server
 
-- [ ] F104 Client reads built-ins from the server
-  - Spec: Set list `/sets`; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
-  - Depends: F103
-  - Done when:
-    - `client/src/lib/builtInSets.ts` fetches `/api/built-in-sets` once per page load, with a `useBuiltInSets()` hook (loading, error, Retry)
-    - The sample comes first unless `sampleHidden`
-    - The Built-in tab, the editor's category suggestions, `listHostableSets`, `duplicateBuiltIn`, **Host a game** and the **New game** picker use the server's list instead of `BUILT_IN_SETS`
-    - A failed fetch shows "Couldn't load the built-in sets." with Retry; My sets still work
-    - The Dexie v3 clean-up still compares stored copies against the bundled starters
-    - A My set and a built-in with the same id both list and host correctly (rows keyed by source and id)
-  - Tests: `builtInSets.test.ts`, `db.test.ts`, `Sets.test.tsx`, `NewGamePicker.test.tsx`, `GameBuilder.test.tsx` as touched
+- [x] F104 Client reads built-ins from the server
 
 - [ ] F105 Admin login
   - Spec: Security; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)

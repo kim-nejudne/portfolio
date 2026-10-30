@@ -19,6 +19,8 @@ interface CommonProps {
   id: string;
   /** The line under a set's title. */
   detail: (set: QuestionSet) => ReactNode;
+  /** A set's key in the list, its id by default. The pickers key by source too (DECISIONS F104). */
+  keyOf?: (set: QuestionSet) => string;
   /** Extra classes for the list's box under the search and chips. */
   listClassName?: string;
   className?: string;
@@ -28,9 +30,10 @@ interface CommonProps {
 interface SelectProps extends CommonProps {
   mode: 'select';
   legend: string;
+  /** The selected set's key (`keyOf`). */
   selectedId: string | null;
   /** Null when the search or chips hide the selected set. */
-  onSelect: (id: string | null) => void;
+  onSelect: (key: string | null) => void;
   disabled?: boolean;
 }
 
@@ -51,7 +54,7 @@ interface ActionProps extends CommonProps {
  * by category in the order given. Enter in the search box picks the one set left.
  */
 export function SetBrowser(props: SelectProps | ActionProps) {
-  const { sets, id, detail, listClassName = '', className = '' } = props;
+  const { sets, id, detail, keyOf = (set) => set.id, listClassName = '', className = '' } = props;
   const [filter, setFilter] = useState<SetFilter>({ query: '', difficulties: [] });
   const listRef = useRef<HTMLDivElement>(null);
   const shown = filterSets(sets, filter);
@@ -62,7 +65,8 @@ export function SetBrowser(props: SelectProps | ActionProps) {
     setFilter(next);
     // A selection the host can no longer see is not one they meant to start.
     if (props.mode !== 'select' || props.selectedId === null) return;
-    if (!filterSets(sets, next).some((set) => set.id === props.selectedId)) props.onSelect(null);
+    if (!filterSets(sets, next).some((set) => keyOf(set) === props.selectedId))
+      props.onSelect(null);
   }
 
   function toggle(chip: DifficultyChip) {
@@ -78,11 +82,11 @@ export function SetBrowser(props: SelectProps | ActionProps) {
     event.preventDefault();
     const only = shown[0]!;
     if (props.mode === 'select') {
-      props.onSelect(only.id);
+      props.onSelect(keyOf(only));
       return;
     }
     listRef.current
-      ?.querySelector<HTMLElement>(`[data-set-id="${CSS.escape(only.id)}"] :is(a, button)`)
+      ?.querySelector<HTMLElement>(`[data-set-id="${CSS.escape(keyOf(only))}"] :is(a, button)`)
       ?.focus();
   }
 
@@ -103,16 +107,16 @@ export function SetBrowser(props: SelectProps | ActionProps) {
             <div className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-3">
               {group.sets.map((set) => (
                 <div
-                  key={set.id}
+                  key={keyOf(set)}
                   className="flex rounded-xl border-2 border-edge bg-bg has-checked:border-accent"
                 >
                   <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 px-4 py-3 @2xl:gap-2 @2xl:px-3">
                     <input
                       type="radio"
                       name={`${id}-set`}
-                      value={set.id}
-                      checked={props.selectedId === set.id}
-                      onChange={() => props.onSelect(set.id)}
+                      value={keyOf(set)}
+                      checked={props.selectedId === keyOf(set)}
+                      onChange={() => props.onSelect(keyOf(set))}
                       className="mt-1 size-5 shrink-0 accent-accent"
                     />
                     <span className="flex min-w-0 flex-col">
@@ -142,15 +146,15 @@ export function SetBrowser(props: SelectProps | ActionProps) {
             <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {group.sets.map((set) => (
                 <li
-                  key={set.id}
-                  data-set-id={set.id}
-                  aria-labelledby={`${id}-set-${set.id}`}
+                  key={keyOf(set)}
+                  data-set-id={keyOf(set)}
+                  aria-labelledby={`${id}-set-${keyOf(set)}`}
                   // Tight enough that two full rows of three show at 1440×900 (LIB-01).
                   className="flex flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface p-4"
                 >
                   <div className="min-w-0">
                     <h3
-                      id={`${id}-set-${set.id}`}
+                      id={`${id}-set-${keyOf(set)}`}
                       className="line-clamp-2 font-display text-xl break-words"
                     >
                       {props.cardTitle ? props.cardTitle(set) : set.title}

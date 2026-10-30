@@ -3,6 +3,8 @@ import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetBuiltInSets } from '../lib/builtInSets.js';
+import { serveSeededBuiltIns } from '../test/builtIns.js';
 import { DEFAULT_SETTINGS } from '../../../shared/constants.js';
 import { SAMPLE_SET } from '../../../shared/sampleSet.js';
 import { STARTER_SETS } from '../../../shared/starterSets/index.js';
@@ -15,12 +17,14 @@ import { Landing } from './Landing.js';
 const FIRST_VISIT = 1_700_000_000_000;
 
 beforeEach(async () => {
+  serveSeededBuiltIns();
   vi.spyOn(Date, 'now').mockReturnValue(FIRST_VISIT);
   await db.delete();
   await db.open();
 });
 
 afterEach(() => {
+  resetBuiltInSets();
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -169,6 +173,45 @@ describe('Host a game', () => {
       ),
     ]);
     expect(radios.map((r) => r.checked)).toEqual([true, ...STARTER_SETS.map(() => false), false]);
+  });
+
+  it('a My set and a built-in with the same id both list, and Create room hosts the picked one', async () => {
+    await db.sets.add(quiz);
+    const twin: QuestionSet = { ...STARTER_SETS[0]!, id: quiz.id, title: 'Server twin' };
+    resetBuiltInSets({ sets: [twin], sampleHidden: true });
+    const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
+    renderLanding();
+    await openPicker();
+    const radios = screen.getAllByRole<HTMLInputElement>('radio');
+    expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
+      'Pub quiz8 questions',
+      'Server twin15 questions · Easy · Built-in',
+    ]);
+    fireEvent.click(radios[1]!);
+    expect(radios.map((r) => r.checked)).toEqual([false, true]);
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await screen.findByRole('heading', { name: 'Room created' });
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect((JSON.parse(init.body as string) as { set: QuestionSet }).set).toEqual(twin);
+  });
+
+  it("when the built-ins fail to load, the picker still hosts this browser's set", async () => {
+    await db.sets.add(quiz);
+    resetBuiltInSets();
+    const fetch = vi.fn(async (url: string) =>
+      url === '/api/built-in-sets'
+        ? Response.json({ error: 'Down' }, { status: 503 })
+        : Response.json({ code: 'WXYZ', hostToken }, { status: 201 }),
+    );
+    vi.stubGlobal('fetch', fetch);
+    renderLanding();
+    await openPicker();
+    expect(screen.getByRole('alert').textContent).toContain("Couldn't load the built-in sets.");
+    expect(screen.getAllByRole('radio').map((r) => (r as HTMLInputElement).checked)).toEqual([
+      true,
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await screen.findByRole('heading', { name: 'Room created' });
   });
 
   it('creates a room with the picked set and default settings', async () => {

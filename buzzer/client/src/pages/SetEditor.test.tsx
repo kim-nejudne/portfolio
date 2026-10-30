@@ -3,6 +3,8 @@ import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetBuiltInSets } from '../lib/builtInSets.js';
+import { serveSeededBuiltIns } from '../test/builtIns.js';
 import {
   CHOICE_TEXT_MAX,
   MAX_QUESTIONS_PER_SET,
@@ -29,6 +31,7 @@ vi.mock('../lib/imagePipeline.js', async (importOriginal) => ({
 const NOW = 1_700_000_000_000;
 
 beforeEach(async () => {
+  serveSeededBuiltIns();
   // Dexie and fake-indexeddb schedule with timers too, so faked time also follows real time.
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.spyOn(Date, 'now').mockReturnValue(NOW);
@@ -38,6 +41,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  resetBuiltInSets();
   // Unmounting flushes a change still waiting. Close first, so that write fails instead of racing
   // the next test's db.delete(), which hung that test's settle().
   db.close();
@@ -202,6 +206,29 @@ describe('Set editor /sets/:setId', () => {
       ),
     );
     expect(builtIn).toHaveLength(20);
+  });
+
+  it("suggests the server's built-in categories, and this browser's alone when they fail to load", async () => {
+    const server = { ...STARTER_SETS[0]!, id: 'server-quiz', category: 'Server only' };
+    resetBuiltInSets({ sets: [server], sampleHidden: false });
+    await seed([q('a')]);
+    const view = await renderEditor();
+    const options = () => {
+      const input = screen.getByLabelText('Category (optional)');
+      const list = document.getElementById(input.getAttribute('list')!)!;
+      return [...list.querySelectorAll('option')].map((o) => o.value);
+    };
+    await waitFor(() => expect(options()).toEqual(['Server only']));
+
+    view.unmount();
+    resetBuiltInSets();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ error: 'Down' }, { status: 503 })),
+    );
+    await db.sets.add({ ...server, id: 'mine', category: 'Mine only' });
+    await renderEditor();
+    await waitFor(() => expect(options()).toEqual(['Mine only']));
   });
 
   it('edits survive closing and reopening the editor', async () => {

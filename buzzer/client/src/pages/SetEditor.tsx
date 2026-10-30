@@ -18,7 +18,6 @@ import {
 } from '@dnd-kit/sortable';
 import { type ClipboardEvent, type DragEvent, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { BUILT_IN_SETS } from '../../../shared/builtInSets.js';
 import {
   ANSWER_MAX,
   CHOICE_LETTERS,
@@ -36,6 +35,7 @@ import { PageShell } from '../components/PageShell.js';
 import { PasteQuestions } from '../components/PasteQuestions.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
 import { type SaveStatus, useAutosave } from '../lib/autosave.js';
+import { loadBuiltInSets } from '../lib/builtInSets.js';
 import { addPasted, type PastedQuestion } from '../lib/bulkPaste.js';
 import { addImage, deleteImages, getSet, listSets, saveSet } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
@@ -148,9 +148,10 @@ function Editor({ setId }: { setId: string }) {
       () => live && setLoad({ state: 'error' }),
     );
     // Without suggestions the field still takes any category, so a failed read is ignored. The
-    // built-in sets' categories are suggested too, though they are not stored (DECISIONS F54).
-    listSets().then(
-      (sets) => live && setCategories(categoriesInUse([...sets, ...BUILT_IN_SETS])),
+    // built-in sets' categories are suggested too, though they are not stored (DECISIONS F54); a
+    // failed fetch of them leaves this browser's own.
+    Promise.all([listSets(), loadBuiltInSets().catch(() => [])]).then(
+      ([sets, builtIn]) => live && setCategories(categoriesInUse([...sets, ...builtIn])),
       () => {},
     );
     return () => {
