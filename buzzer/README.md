@@ -44,19 +44,21 @@ curl -i http://localhost:3000/healthz     # 200 {"ok":true}
 - `/healthz` answers 200.
 - `/` and a client route serve the app.
 - A Socket.IO WebSocket connects.
+- `/api/built-in-sets` returns the 60 starters, seeded into `/app/data` on first boot.
 - With `TRUST_PROXY`, `IMAGES_MAX_MB` and `PUBLIC_URL` read from `deploy/compose.deploy.yaml`, the room-creation limit keys on the forwarded client IP, and `/api/config` returns `PUBLIC_URL`.
 - The process runs as `node`.
 - `docker stop` takes under 5 s.
 
 ### Environment
 
-| Variable        | Default                     | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`          | `3000`                      | Port the server listens on inside the container                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `NODE_ENV`      | `production` (in the image) | Serves the built client, and leaves out `/dev/bots`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `TRUST_PROXY`   | off                         | **Set this behind a reverse proxy.** A hop count such as `1`, or an Express trust string. Unset, every player behind the proxy shares one IP in the rate limits, so the whole site gets 10 new rooms per hour. Never set it without a proxy: then anyone can fake `X-Forwarded-For` and get around the limits                                                                                                                                                                                                                                                                                               |
-| `IMAGES_MAX_MB` | `500`                       | Server-wide cap on uploaded images, which are held in memory. Lower it on a small host, and keep the container's memory limit above it                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `PUBLIC_URL`    | unset                       | The origin for the Screen's join QR and URL, such as `https://buzzr.example`: an http(s) origin with no path, or the server will not start. Unset, a Screen on `localhost` gets this machine's first private IPv4 with its own page port, and any other Screen uses its own address. **Set it when running the image for a LAN**: inside Docker the private address is the container's, which phones cannot reach. One catch: a port-less `http://` value takes the port of an `http://` Screen page, so `http://quiz.lan` seen from `http://localhost:3000` becomes `http://quiz.lan:3000` (DECISIONS F42) |
+| Variable        | Default                             | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`          | `3000`                              | Port the server listens on inside the container                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `NODE_ENV`      | `production` (in the image)         | Serves the built client, and leaves out `/dev/bots`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `TRUST_PROXY`   | off                                 | **Set this behind a reverse proxy.** A hop count such as `1`, or an Express trust string. Unset, every player behind the proxy shares one IP in the rate limits, so the whole site gets 10 new rooms per hour. Never set it without a proxy: then anyone can fake `X-Forwarded-For` and get around the limits                                                                                                                                                                                                                                                                                               |
+| `IMAGES_MAX_MB` | `500`                               | Server-wide cap on uploaded images, which are held in memory. Lower it on a small host, and keep the container's memory limit above it                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `PUBLIC_URL`    | unset                               | The origin for the Screen's join QR and URL, such as `https://buzzr.example`: an http(s) origin with no path, or the server will not start. Unset, a Screen on `localhost` gets this machine's first private IPv4 with its own page port, and any other Screen uses its own address. **Set it when running the image for a LAN**: inside Docker the private address is the container's, which phones cannot reach. One catch: a port-less `http://` value takes the port of an `http://` Screen page, so `http://quiz.lan` seen from `http://localhost:3000` becomes `http://quiz.lan:3000` (DECISIONS F42) |
+| `DATA_DIR`      | `./data` (`/app/data` in the image) | Directory for `built-in-sets.json`, the built-in sets. Seeded from the 60 starters when the file is missing, and never again. A file that is not valid stops the server with an error naming it; restore it from a backup. Mount a volume here, or a new container starts from the starters again                                                                                                                                                                                                                                                                                                           |
 
 ## Deploy
 
@@ -69,6 +71,7 @@ Buzzr runs on Kim's DigitalOcean droplet at **https://buzzr.kimnejudne.dev**. It
 | Stack   | `/opt/buzzr/compose.yaml` and `/opt/buzzr/.env` (mode 600, one key: `IMAGE_TAG`), both owned by `deploy`; `/opt/buzzr` is `root:deploy` 1775 |
 | nginx   | `/etc/nginx/sites-available/buzzr`, from `deploy/nginx/buzzr.conf`. Proxies everything, including the WebSocket upgrade on `/socket.io/`     |
 | TLS     | certbot, webroot method against `/var/www/certbot`                                                                                           |
+| Data    | `/opt/buzzr/data`, owned by `1000:1000`, mounted at `/app/data`. Holds `built-in-sets.json`, the only copy of the built-in sets              |
 | Memory  | `mem_limit: 384m`, `IMAGES_MAX_MB=200`. The box has about 700 MB free next to its other apps                                                 |
 
 Two placeholders run through these steps, and neither is recorded in this repository. `$DEPLOY_HOST` is the droplet as `user@host`, for ssh and scp. `$DROPLET_IP` is its IPv4 address, for DNS. Run every command from `buzzer/`.
@@ -110,8 +113,10 @@ dig +short buzzr.kimnejudne.dev A                                # $DROPLET_IP, 
 **2. Directories.**
 
 ```sh
-ssh $DEPLOY_HOST 'mkdir -p /opt/buzzr /var/www/certbot'
+ssh $DEPLOY_HOST 'mkdir -p /opt/buzzr/data /var/www/certbot && chown 1000:1000 /opt/buzzr/data'
 ```
+
+The container runs as `node` (uid 1000) and writes the built-in sets to `/opt/buzzr/data`. If Docker creates that directory itself, it belongs to root, the server cannot seed the file, and it exits. A droplet set up before the built-in sets moved to the server (F103) needs this `mkdir` and `chown` once, before the next deploy.
 
 **3. Bootstrap vhost.** `buzzr.conf` names the certificate files, so `nginx -t` fails until they exist. Install the HTTP-only bootstrap vhost first:
 
@@ -207,6 +212,24 @@ ssh $DEPLOY_HOST "sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<good-tag>/' /opt/buzzr/.env
 ```
 
 Prune old tags now and then with `docker image rm buzzr:<old-tag>`. The disk is shared.
+
+### Backing up the built-in sets
+
+`/opt/buzzr/data/built-in-sets.json` is the only copy of the built-in sets once they have been edited. A new image never replaces it. Copy it off the box before any risky change and now and then:
+
+```sh
+scp $DEPLOY_HOST:/opt/buzzr/data/built-in-sets.json "built-in-sets-$(date -u +%Y%m%d).json"
+```
+
+Keep backups out of the repository (`data/` is gitignored). To restore one, stop the stack first, so the running server cannot write over the copy, then copy the file back, keep it owned by `1000:1000` and start the stack:
+
+```sh
+ssh $DEPLOY_HOST 'cd /opt/buzzr && docker compose stop'               # ends any live games
+scp built-in-sets-<date>.json $DEPLOY_HOST:/opt/buzzr/data/built-in-sets.json
+ssh $DEPLOY_HOST 'chown 1000:1000 /opt/buzzr/data/built-in-sets.json && cd /opt/buzzr && docker compose up -d'
+```
+
+If the file is not valid, the server will not start and its log names the file and the problem (`docker compose logs app`). It never writes over a bad file.
 
 ### Health checks
 

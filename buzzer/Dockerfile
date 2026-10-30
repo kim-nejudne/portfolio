@@ -30,11 +30,16 @@ RUN npm ci --omit=dev --no-audit --no-fund
 FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    DATA_DIR=/app/data
 
 COPY --chown=node:node package.json ./
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
 COPY --chown=node:node --from=build /app/dist ./dist
+
+# The built-in sets file lives here (F103). On the droplet it is a bind mount, which must be
+# owned by uid 1000 too (README, Deploy).
+RUN mkdir /app/data && chown node:node /app/data
 
 # The official image ships an unprivileged `node` user (uid 1000).
 USER node

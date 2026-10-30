@@ -7,11 +7,5 @@
     "noEmit": false
   },
   "include": ["server", "shared"],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "server/test",
-    "shared/starterSets",
-    "shared/builtInSets.ts"
-  ]
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "server/test"]
 }

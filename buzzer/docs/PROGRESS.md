@@ -10,6 +10,24 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F103 — Built-in sets on the server (2026-10-30)
+**What changed:**
+- New `server/builtInStore.ts`: `openBuiltInStore(DATA_DIR)` loads `built-in-sets.json` (`{version: 1, sets, drafts, sampleHidden}`, zod-checked: unique ids, no pictures). A missing file is seeded once from `STARTER_SETS`; a bad file stops the server with its path and the problem, and is never overwritten. `update(change)` is serialized and writes temp-then-rename.
+- `GET /api/built-in-sets` → `{sets, sampleHidden}` (`BuiltInSetsResponse`), never drafts, `no-cache`. `parseDataDir` in `env.ts`; `index.ts` opens the store before listening.
+- Image: `DATA_DIR=/app/data`, created owned by `node`; the server build now carries `shared/starterSets` and `shared/builtInSets.ts`. Compose mounts `./data:/app/data`. `data/` gitignored and dockerignored. README: `DATA_DIR` row, the Data line, step 2's `mkdir`/`chown 1000:1000`, and a backup and restore section. `smoke:docker` checks 60 sets, no drafts, and the file in `/app/data`.
+- Tests: `builtInStore.test.ts` (15), `http.builtins.test.ts` (4), `env.test.ts` +3. 2640 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-10-30 for F103 (store shape and writes; file schema and refusals; the route, `DATA_DIR` and ignores).
+
+**Notes for next session:**
+- **Before the next deploy, on the droplet:** `mkdir -p /opt/buzzr/data && chown 1000:1000 /opt/buzzr/data`. The push-to-deploy workflow does not create it; Docker would make it root-owned, the server would exit, and the health gate would roll back.
+- The client still lists the bundled starters; F104 switches it to `GET /api/built-in-sets`.
+- `drafts` values are `unknown` until F107's `draftSetSchema`. F106/F107 write through `builtIns.update`; `createApp`'s `builtIns` is already wired in `index.ts`.
+- The `index.ts` exit-on-bad-file path is not unit-tested; checked by hand (a truncated file exits 1 with the message, file unchanged).
+- Review: no Must-fix. Fixed its Should-fixes: DECISIONS rows, a reopen-the-seed test, temp file removed on a failed write.
+
+**How to try it:** `npm run dev`, then `curl -s localhost:3000/api/built-in-sets | head -c 300`; `data/built-in-sets.json` appears on first start. `npm test -- server/builtInStore.test.ts server/http.builtins.test.ts server/env.test.ts`. `npm run smoke:docker`.
+
 ## B01 — Room created cramped on /sets at desktop (2026-10-30)
 **What changed:**
 - `RoomCreated`'s option grid went two to a row at the `md` viewport breakpoint, but on `/sets` the card sits in a `narrow` (448px) PageShell, so a desktop split about 330px into two 160px columns: titles broke word by word and "Screen elsewhere" ran past its card. The grid now follows the card's own width (`@container/room` on the section, `@xl/room:grid-cols-2`, 36rem of card content), as `HostSettings` does.

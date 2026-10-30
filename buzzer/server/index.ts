@@ -1,7 +1,8 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PORT, ROOM_EXPIRED_REASON, ROOM_SWEEP_INTERVAL_MS } from '../shared/constants.js';
-import { parseImagesMaxBytes, parsePublicUrl, parseTrustProxy } from './env.js';
+import { openBuiltInStore } from './builtInStore.js';
+import { parseDataDir, parseImagesMaxBytes, parsePublicUrl, parseTrustProxy } from './env.js';
 import { createApp } from './http.js';
 import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
@@ -20,6 +21,14 @@ const imagesMaxBytes = parseImagesMaxBytes(process.env.IMAGES_MAX_MB);
 // The origin for the join QR and URL, such as https://buzzr.example. Unset, a Screen on localhost gets the LAN address.
 const publicUrl = parsePublicUrl(process.env.PUBLIC_URL);
 
+// The built-in sets file, seeded on first boot. A corrupt file stops the server here rather than
+// being replaced, so the curated sets are never lost to a bad write or a hand edit.
+const dataDir = parseDataDir(process.env.DATA_DIR);
+const builtIns = await openBuiltInStore(dataDir).catch((err: unknown) => {
+  console.error((err as Error).message);
+  process.exit(1);
+});
+
 const rooms = new InMemoryRoomStore();
 const images = new InMemoryImageStore(undefined, imagesMaxBytes);
 
@@ -34,6 +43,7 @@ const httpServer = createServer(
     trustProxy,
     publicUrl,
     dispatch: (code, action) => gateway.dispatch(code, action),
+    builtIns,
   }),
 );
 const gateway = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });

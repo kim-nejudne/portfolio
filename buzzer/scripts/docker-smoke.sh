@@ -56,6 +56,18 @@ config=$(curl -fsS "$BASE/api/config")
 [ "$config" = "{\"joinOrigin\":\"$PUBLIC_URL\"}" ] || fail "/api/config answered $config"
 echo "ok   /api/config returns PUBLIC_URL"
 
+# The image seeds DATA_DIR on first boot (F103), so a fresh container serves the 60 starters.
+builtins=$(curl -fsS "$BASE/api/built-in-sets" | node -e "
+let body = '';
+process.stdin.on('data', (chunk) => (body += chunk)).on('end', () => {
+  const { sets, sampleHidden, drafts } = JSON.parse(body);
+  process.stdout.write(sets.length + ' ' + sampleHidden + ' ' + (drafts === undefined));
+});
+") || fail "/api/built-in-sets did not answer JSON"
+[ "$builtins" = "60 false true" ] || fail "/api/built-in-sets answered sets, sampleHidden, no drafts: $builtins"
+docker exec "$NAME" test -s /app/data/built-in-sets.json || fail "no /app/data/built-in-sets.json"
+echo "ok   /api/built-in-sets returns the 60 seeded starters"
+
 # The gateway accepts the WebSocket transport only, so open a real one with the project's client.
 node --input-type=module -e "
 import { io } from 'socket.io-client';

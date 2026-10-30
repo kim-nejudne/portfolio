@@ -274,21 +274,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 ## M26 — Super-admin
 
-- [ ] F103 Built-in sets on the server
-  - Spec: Tech stack and architecture; HTTP; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)
-  - Depends: F102
-  - Done when:
-    - `server/builtInStore.ts` loads `built-in-sets.json` from `DATA_DIR` (`{version: 1, sets, drafts, sampleHidden}`), validated with zod
-    - A missing file is seeded once from `STARTER_SETS` (no drafts, `sampleHidden` false); a later boot never reseeds
-    - A corrupt or invalid file stops the server with a clear error and is never overwritten
-    - Writes are serialized and atomic (temp file, then rename)
-    - `GET /api/built-in-sets` returns `{sets, sampleHidden}`, never drafts
-    - `DATA_DIR` is parsed in `env.ts` (default `./data`; `/app/data` in the image); `data/` is gitignored
-    - `tsconfig.build.json` no longer excludes `shared/starterSets` and `shared/builtInSets.ts`
-    - The Dockerfile creates `/app/data` owned by `node`; `deploy/compose.deploy.yaml` mounts `./data:/app/data`
-    - README Deploy covers the volume (`chown 1000:1000 /opt/buzzr/data` on first deploy) and backing it up
-    - `npm run smoke:docker` checks `GET /api/built-in-sets` returns 60 sets
-  - Tests: `server/builtInStore.test.ts` (seed once, no reseed after deletes, corrupt file refused, atomic write, serialized writes), `server/http.builtins.test.ts`, `server/env.test.ts`
+- [x] F103 Built-in sets on the server
 
 - [ ] F104 Client reads built-ins from the server
   - Spec: Set list `/sets`; DECISIONS Proposed spec changes (Super-admin, 2026-10-30)

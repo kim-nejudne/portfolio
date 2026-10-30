@@ -28,6 +28,7 @@ import {
   roomCodeSchema,
 } from '../shared/schemas.js';
 import type {
+  BuiltInSetsResponse,
   ConfigResponse,
   CreateRoomResponse,
   HttpErrorBody,
@@ -37,6 +38,7 @@ import type {
   RoomExistsResponse,
   UploadImageResponse,
 } from '../shared/types.js';
+import type { BuiltInStore } from './builtInStore.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { lanAddress } from './env.js';
 import { generateHostToken, hashHostToken, verifyHostToken } from './hostToken.js';
@@ -74,6 +76,8 @@ export interface AppOptions {
    * tests) the action is reduced and stored, and nobody is told.
    */
   dispatch?: Dispatch;
+  /** The built-in sets file (F103). Without it, `GET /api/built-in-sets` is not served. */
+  builtIns?: BuiltInStore;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -112,6 +116,7 @@ export function createApp({
     if (result.ok) rooms.set(result.room);
     return result.ok ? { ok: true } : result;
   },
+  builtIns,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -136,6 +141,16 @@ export function createApp({
     }
     res.json({ joinOrigin } satisfies ConfigResponse);
   });
+
+  // The live built-ins for the Built-in tab and the pickers. Drafts stay admin-only. An admin
+  // change shows on the next fetch, so caches must revalidate.
+  if (builtIns) {
+    app.get('/api/built-in-sets', (_req, res) => {
+      const { sets, sampleHidden } = builtIns.read();
+      res.set('Cache-Control', 'no-cache');
+      res.json({ sets, sampleHidden } satisfies BuiltInSetsResponse);
+    });
+  }
 
   // Every attempt counts against the limit, valid or not, so bad bodies cannot be used to probe for free.
   app.post(

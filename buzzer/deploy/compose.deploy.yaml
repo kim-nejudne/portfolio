@@ -22,6 +22,10 @@ services:
       # The join QR and URL on the Screen (F42). nginx passes the real Host, so this
       # only guards against a vhost that stops doing so.
       PUBLIC_URL: 'https://buzzr.kimnejudne.dev'
+    # The built-in sets file (F103). /opt/buzzr/data must exist and be owned by 1000:1000
+    # (the image's `node` user) before the first start, or the server cannot seed it and exits.
+    volumes:
+      - ./data:/app/data
     # Loopback only: nginx terminates TLS in front and is the sole way in.
     ports:
       - '127.0.0.1:3005:3000'

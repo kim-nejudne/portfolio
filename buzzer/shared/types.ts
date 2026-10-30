@@ -595,6 +595,13 @@ export interface ConfigResponse {
   joinOrigin: string | null;
 }
 
+/** `GET /api/built-in-sets`: the server's live built-in sets, never drafts (F103). */
+export interface BuiltInSetsResponse {
+  sets: QuestionSet[];
+  /** The admin hid the bundled sample from the Built-in tab and the pickers. */
+  sampleHidden: boolean;
+}
+
 /** `POST /api/rooms/:code/images/:imageId`, on success (201). */
 export interface UploadImageResponse {
   ok: true;

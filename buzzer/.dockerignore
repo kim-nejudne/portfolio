@@ -1,6 +1,7 @@
 # Keep the build context to what `npm run build` needs.
 node_modules/
 dist/
+data/
 coverage/
 .git
 .env

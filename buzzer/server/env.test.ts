@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
-import { lanAddress, parseImagesMaxBytes, parsePublicUrl, parseTrustProxy } from './env.js';
+import {
+  lanAddress,
+  parseDataDir,
+  parseImagesMaxBytes,
+  parsePublicUrl,
+  parseTrustProxy,
+} from './env.js';
 
 describe('parseTrustProxy', () => {
   it('is off when unset or empty', () => {
@@ -16,6 +22,22 @@ describe('parseTrustProxy', () => {
   it('passes any other value through as an Express trust string', () => {
     expect(parseTrustProxy('loopback')).toBe('loopback');
     expect(parseTrustProxy('10.0.0.0/8, 172.16.0.0/12')).toBe('10.0.0.0/8, 172.16.0.0/12');
+  });
+});
+
+describe('parseDataDir', () => {
+  it('defaults to ./data in the working directory when unset or blank', () => {
+    expect(parseDataDir(undefined, '/srv/buzzr')).toBe('/srv/buzzr/data');
+    expect(parseDataDir('', '/srv/buzzr')).toBe('/srv/buzzr/data');
+    expect(parseDataDir('  ', '/srv/buzzr')).toBe('/srv/buzzr/data');
+  });
+
+  it('keeps an absolute path, as the image sets it', () => {
+    expect(parseDataDir('/app/data', '/srv/buzzr')).toBe('/app/data');
+  });
+
+  it('resolves a relative path against the working directory', () => {
+    expect(parseDataDir('state/sets', '/srv/buzzr')).toBe('/srv/buzzr/state/sets');
   });
 });
 

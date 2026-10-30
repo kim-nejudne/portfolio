@@ -1,4 +1,5 @@
 import type { NetworkInterfaceInfo } from 'node:os';
+import { resolve } from 'node:path';
 import { GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
 
 const MB = 1024 * 1024;
@@ -46,6 +47,14 @@ export function parsePublicUrl(value: string | undefined): string | null {
     );
   }
   return url.origin;
+}
+
+/**
+ * `DATA_DIR`: where the server keeps `built-in-sets.json` (F103), resolved against the working
+ * directory. Defaults to `./data`; the image sets `/app/data`, a volume on the droplet.
+ */
+export function parseDataDir(value: string | undefined, cwd = process.cwd()): string {
+  return resolve(cwd, value === undefined || value.trim() === '' ? 'data' : value);
 }
 
 /** Interfaces that never face the LAN: Docker's bridges and their veth pairs. */
