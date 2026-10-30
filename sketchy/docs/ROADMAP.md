@@ -15,7 +15,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
     - `npm run dev` starts the server on :3000 and Vite on :5173 (listening on `0.0.0.0`, proxying `/api`, `/socket.io`, `/healthz`)
     - `npm test`, `typecheck`, `lint`, `format`, `format:check` and `build` exist and pass; `npm start` serves the built client; `GET /healthz` returns `{ok: true}`
     - `npm run lan` prints the LAN Screen URL (and a join URL for a code) with terminal QR codes; `npm run playtest` runs a Playwright scenario with one isolated browser context per role; the smoke scenario opens a Screen and 3 phones
-    - `scripts/autopilot.sh` ported from Buzzr: done in the bootstrap (2026-10-30), already present and protected; commit it with F01 and do not edit it
+    - `scripts/autopilot.sh` ported from Buzzr: done and committed in the bootstrap (2026-10-30); do not edit it
     - CI job for `sketchy/` in `.github/workflows/ci.yml`: format check, lint, typecheck, test, build
     - `CLAUDE.md` and the `.claude/` workflow (local only, gitignored) adapted from Buzzr: done in the bootstrap (2026-10-30); adjust only if needed (e.g. the playtest skill once the harness exists)
   - Tests: `http.test.ts` — `/healthz`
@@ -417,12 +417,12 @@ The first real barkada night needs everything in M1–M9. The review's must-have
   - Done when:
     - DNS already done: Namecheap A record `sketchy` → `165.245.189.5` (Oct 30, 2026)
     - `deploy/compose.deploy.yaml` and the nginx vhost (WebSocket upgrade for `/socket.io`, covering the `/ink` namespace; TLS via certbot) for `sketchy.kimnejudne.dev`; separate container, port and env from Buzzr
-    - `.github/workflows/deploy-sketchy.yml` modelled on `deploy-buzzer.yml`: runs only on pushes touching `sketchy/`; checks on the runner; ships the verified image over ssh as the unprivileged `deploy` user; keeps the previous release for rollback; smoke checks the live URL (`/healthz`, the client, both Socket.IO namespaces)
+    - `.github/workflows/deploy-sketchy.yml` modelled on `deploy-buzzer.yml`, keeping its job names (`checks`, `droplet`), step names (`typecheck`, `lint`, `format check`, `tests`, `build and smoke-test the image`) and the `ABORT: N live connection(s) after 10 min` message, which autopilot matches on: runs only on pushes touching `sketchy/`; checks on the runner; ships the verified image over ssh as the unprivileged `deploy` user; keeps the previous release for rollback; smoke checks the live URL (`/healthz`, the client, both Socket.IO namespaces)
     - Rooms live in memory, so the deploy waits until no game is live, with a `force` input to override (as Buzzr's "wait for live games" step)
     - `sketchy/README.md` runbook: deploy, rollback, port, env and the break-glass manual steps
     - Root `README.md`: a Sketchy row in the table and "Three" becomes "Four"; no hub link yet (see Backlog)
     - Autopilot push and deploy: already in `scripts/autopilot.sh` (it pushes and watches `deploy-sketchy.yml` once nothing is left to build)
-    - Droplet root setup done in the bootstrap (2026-10-30): `/opt/sketchy` (root:deploy, sticky) with `.env` (`IMAGE_TAG=`), the nginx vhost and the certbot certificate; commit the live vhost, already at `deploy/nginx/sketchy.conf`, unchanged
+    - Droplet root setup done in the bootstrap (2026-10-30): `/opt/sketchy` (root:deploy, sticky) with `.env` (`IMAGE_TAG=`), the nginx vhost and the certbot certificate; the live vhost is committed at `deploy/nginx/sketchy.conf` (with `sketchy-bootstrap.conf`); keep them in step with the box
     - The full Manual playtest checklist passes on the deployed URL with phones on mobile data
 
 ## Bugs
