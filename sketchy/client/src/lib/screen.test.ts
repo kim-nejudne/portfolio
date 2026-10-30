@@ -7,6 +7,7 @@ import {
   hasCaptionRow,
   HOW_TO_PLAY,
   rankPlayers,
+  screenLayout,
   turnCaption,
   wordLengths,
 } from './screen.js';
@@ -144,5 +145,41 @@ describe('How to play (F26)', () => {
 
   it('gives each step its own icon', () => {
     expect(new Set(HOW_TO_PLAY.map((s) => s.icon)).size).toBe(3);
+  });
+});
+
+describe('screenLayout', () => {
+  it.each([
+    [1920, 1080],
+    [1366, 768],
+    [1180, 820],
+    [844, 390],
+    [1024, 768],
+  ])('is landscape at %i×%i', (w, h) => {
+    expect(screenLayout(w, h)).toBe('landscape');
+  });
+
+  it.each([
+    [820, 1180],
+    [390, 844],
+    [768, 1024],
+  ])('is portrait at %i×%i', (w, h) => {
+    expect(screenLayout(w, h)).toBe('portrait');
+  });
+
+  it('keeps near-square Screens on the landscape layout', () => {
+    expect(screenLayout(1000, 1000)).toBe('landscape');
+    expect(screenLayout(1100, 1000)).toBe('landscape');
+    expect(screenLayout(860, 1000)).toBe('landscape');
+  });
+
+  it('turns portrait at a width/height of 0.85', () => {
+    expect(screenLayout(850, 1000)).toBe('portrait');
+    expect(screenLayout(851, 1000)).toBe('landscape');
+  });
+
+  it('falls back to landscape before the window has a size', () => {
+    expect(screenLayout(0, 0)).toBe('landscape');
+    expect(screenLayout(800, 0)).toBe('landscape');
   });
 });

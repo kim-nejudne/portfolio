@@ -48,8 +48,64 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F29: `npm run dev`, laptop Screen on the TV (Start), 3 real phones via `npm run lan CODE` (one holds the crown); play a short game (Quick preset) to the final scores · on the crown phone open 👑 Host, tap Rematch once ("Tap again to rematch: the gallery will be cleared"), tap again: the TV and every phone show "Game 2 starts in 3… 2… 1…" at the same moment with "<the 2nd joiner> draws first" under it, readable from the sofa, and that phone then gets "Your turn to draw!" and a vibrate; end game 2, rematch again from the TV (Space twice) and press Cancel (or Esc) during the countdown: everyone stays on the final scores; the TV's final scores now show the "Tonight · 2 games" panel with sensible totals; rematch once more and close two phones' browsers before it ends: "Need 2 players" on the TV and the remaining phone, the final scores unchanged; finally Back to lobby (two taps): everyone is in the lobby with their doodles, settings and names kept, and a new Start begins with the first joiner and no word from earlier games
 - [ ] F30: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (a small Android ≈ 360 px wide, an iPhone); start and, as the drawer: tap each of the 8 colours and draw a short line with each, cycle the size button M → L → S, turn on Eraser and rub out part of a line, tap Eraser again, then Undo three times, Clear, Undo; also tap Undo with a finger still on the pad · all 8 swatches and the 4 buttons fit in two rows with no scroll and are easy to hit with a thumb; the selected colour is obvious; the TV matches the pad after every tap (colours, thickness, the erased gap, Undo and Clear); the size dot turns white while erasing. In the lobby, doodle in two colours at L · the chip on the TV shows both colours
 - [ ] F32: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), a budget Android (Chrome) and an iPhone (Safari, and once more from a home-screen icon), plus a third phone guessing; on each as the drawer: draw with both toolbar rows in view, with the browser's bars showing; pinch and double-tap on the top bar and the toolbar; draw with two fingers (the second finger does nothing); draw a long stroke, then don't touch the phone for longer than its auto-lock time; mid-stroke, turn the phone on its side, then upright again, and draw · no scroll, overflow or zoom at any point and all 12 tools fit; the screen doesn't dim or lock while the pad shows (note it if the iPhone from the home screen does: iOS before 18.4 has no Wake Lock there); on its side the phone shows "Turn your phone upright", "Your drawing is safe" and the clock, the stroke stops, and upright again the drawing is intact on the pad and the TV and new strokes reach the TV
+- [ ] F33: `npm run dev` + `npm run lan CODE`; Screens: the laptop on the TV in fullscreen (Start), then a tablet held upright (open the join link's `/screen/CODE`) and turned on its side mid-turn, and once a phone propped upright as the Screen; 4+ real phones playing; play two turns and a reveal on each · from 5 m on the TV and 2 m on the tablet: names, clock, blanks and the last guesses are readable; the drawing is the biggest thing on screen and nothing is cut off; turning the tablet switches between the sidebar layout and the portrait one (clock and blanks on top, drawing, then the players with ✏️/✓ and the two latest guesses) within a second, with the drawing intact; at the reveal the drawing keeps its size and the word appears under it (portrait) or beside it (landscape); the code at the bottom is always visible
 
 <!-- entries below, newest first -->
+
+## F33 — Responsive Screen layouts (2026-10-31)
+**What changed:**
+- `client/src/lib/screen.ts`: `screenLayout(w, h)` is portrait at width/height ≤ 0.85, landscape otherwise (near-square included). `client/src/lib/useScreenLayout.ts` (new) follows window resizes with `useSyncExternalStore`. `Screen.tsx` passes `layout` to the turn and standings views.
+- **Landscape** is F07's: the square at full height, capped at 72 vw, so near-square Screens get the 28 % minimum sidebar.
+- **Portrait** (`PortraitTurn` in `ScreenTurn.tsx`):
+  - The top bar has the clock and the blanks on one line (blanks floor at `max(3.5vmin, 16px)`).
+  - The square is as wide as the Screen unless the height runs out. Flex weights give it the free height first, up to its width.
+  - Below it is a room of at least `max(25vh, 180px)`, plus the caption row in turns 1–2. It holds the players strip (turn order, ✏️, ✓ with this turn's points, wrapped) and the two latest guesses (`Feed`, shared with the sidebar).
+  - Round and turn numbers are dropped. The room's height never depends on its contents, so the square keeps its size through the turn.
+- **Portrait reveal:** "🎉 Everyone got it! · It was…" is in the top bar. The word sits under the drawing, on one line, capped at 9 vh. "Got it" shares a line with its chips (0.85 em, so nine fit).
+- **Landscape reveal word:** the per-letter estimate goes from 0.75 to 0.82 em, since MANGO overflowed a 28 % sidebar at 1180×820.
+- **Standings:** one column in portrait (two cut names to "M…" at 390 px).
+- **Footer:** portrait leads with the code and truncates the address.
+- **Lobby:** under 480 px tall (a phone on its side), the join details sit left and the players, host line and Start sit right, with tighter gaps and 16 px chips. Before this, Start fell off screen with ten players at 844×390.
+- **Tests:**
+  - `lib/screen.test.ts` (+5 `screenLayout`: the six sizes, near-square, the 0.85 edge, no size yet).
+  - `ScreenTurn.test.tsx` (+7 portrait: timer and blanks above the canvas, players and guesses under it; ✏️ and ✓ +points; two latest guesses only; ••• for a masked one; no round/turn in portrait but there in landscape; caption under the drawing; "It was…" above and the word under it at the reveal).
+  - `ScreenStandings.test.tsx` (+2: two columns landscape, one portrait).
+  - No test of `useScreenLayout` reacting to a resize (no jsdom; the sweep resizes nothing, so it's covered only by the Kim check).
+- No new dependencies.
+
+**Decisions:** DECISIONS 55 (the switch, portrait sizes and reserve, the portrait reveal, the 0.82 em estimate, one-column portrait standings, the footer, the short-landscape lobby).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: this entry, the Kim check, DECISIONS 55 with SPEC-QUESTIONs at the reserve, the standings and the lobby, a recorded clean sweep, a test of the portrait ••• feed. Not changed: no resize test of the hook (above).
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied: the sweep covers game 2's final with the Tonight panel and a short 1366×560 laptop window; the portrait word comment is corrected. To Backlog: layout hysteresis near 0.85, labels for ✏️/✓ and the dimmed-name contrast, driving the Tonight switch from `layout`. Not changed: the strip has no "+N" (the room cap is 10, all checked).
+- secrets-fairness not run: no server, shared or ink code changed.
+
+**Playtest:** `.playtest/F33/layouts.ts` (+ `check.js`). There are 7 Screens, all holding the host token: 1920×1080, 1366×768, 820×1180, 1180×820, 390×844, 844×390 and 1366×560. Ten bot players go through the lobby, CHOOSING, DRAWING (turn 1 with the caption, and turn 3 without it), the reveal (2 got it with a close guess; and all 9 got it), the scoreboard, the final, and game 2's final with Tonight. On every Screen at every step:
+- No document scroll.
+- No visible element outside the viewport (the idle host bar is excluded).
+- No clipped list or panel.
+- The smallest text is ≥ 14 px (27 px on the TV, 19–20 px on 1366/tablets, 14 px only for the footer on phone-sized Screens).
+
+All pass. The square sizes in turns 1–2 / 3+:
+- 1920×1080: 878/986
+- 1366×768: 624/701
+- 820×1180: 648/731
+- 1180×820: 666/748
+- 390×844: 374/374 (full width)
+- 844×390: 302/350
+- 1366×560: 455/511
+
+Screenshots: `.playtest/F33/<step>-<w>x<h>.png`. No console errors.
+
+**Notes for next session:**
+- **F34:** "Jun got it!" goes in the portrait top bar (`TopBar` in `ScreenTurn.tsx`), never over the drawing. Wrong-guess bubbles come from the portrait `PlayerStrip` chips. The portrait room under the square is fixed (`PORTRAIT_BELOW`), so new rows must fit it; re-run `.playtest/F33/layouts.ts` (restart `npm run dev` first if room creation hits the rate limit).
+- **F35:** the portrait reveal is `RevealPanel layout="portrait"` plus `RevealIntro` in the top bar.
+- **F37:** the lobby's QR has to fit the short-landscape two-column lobby too.
+
+**How to try it:**
+- Unit tests: `npx vitest run client/src/lib/screen.test.ts client/src/components/screen`.
+- Sweep: `npm run dev`, then `npm run playtest -- .playtest/F33/layouts.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), bots at `/dev/bots/CODE`. Resize the window, or use device emulation in Chrome at 820×1180 and 390×844, to see portrait.
 
 ## F32 — Draw pad hardening (2026-10-31)
 **What changed:**

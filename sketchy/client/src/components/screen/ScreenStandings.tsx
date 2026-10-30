@@ -1,6 +1,6 @@
 import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
-import { rankPlayers } from '../../lib/screen.js';
+import { rankPlayers, type ScreenLayout } from '../../lib/screen.js';
 import { Avatar } from './PlayerChip.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -9,12 +9,22 @@ const MEDALS = ['🥇', '🥈', '🥉'];
  * SCOREBOARD and FINAL: the full ranking, in the server's shared ranks. From game 2, FINAL adds
  * the Tonight panel beside it. The gallery and awards arrive with F49 and F50.
  */
-export function ScreenStandings({ view, t }: { view: ScreenView; t: Translate }) {
+export function ScreenStandings({
+  view,
+  layout,
+  t,
+}: {
+  view: ScreenView;
+  layout: ScreenLayout;
+  t: Translate;
+}) {
   const ranked = rankPlayers(view.players);
   // Above six players, two columns (ranks run down the first, then the second) so ten fit a TV.
   const tonight = view.phase === 'FINAL' ? view.tonight : null;
   // With the Tonight panel beside or under it, from four players, so both fit a 4:3 Screen too.
-  const twoColumns = ranked.length > (tonight ? 3 : 6);
+  // Portrait has the height for one column, and two would cut the names short.
+  // SPEC-QUESTION: the spec draws standings for landscape only (DECISIONS 55).
+  const twoColumns = layout === 'landscape' && ranked.length > (tonight ? 3 : 6);
   const rows = Math.ceil(ranked.length / 2);
   const title =
     view.phase === 'FINAL'

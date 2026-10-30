@@ -62,9 +62,12 @@ export function ScreenLobby({
 
   return (
     <div className="relative h-full">
+      {/* On a short landscape Screen (a phone on its side) the join details and the players sit
+          side by side, so Start stays on screen; otherwise they stack.
+          SPEC-QUESTION: the spec draws one lobby for every landscape Screen (DECISIONS 55). */}
       <div
         inert={panelOpen || chipPlayer !== undefined}
-        className="flex h-full flex-col gap-[3vmin] px-[5vmin] py-[4vmin]"
+        className="flex h-full flex-col gap-[3vmin] px-[5vmin] py-[4vmin] [@media(max-height:480px)]:gap-[2vmin] [@media(max-height:480px)]:py-[2.5vmin]"
       >
         <div className="flex items-start justify-between gap-[3vmin]">
           <h1 className="font-display text-[max(5vmin,28px)] font-bold">✏️ Sketchy</h1>
@@ -78,68 +81,74 @@ export function ScreenLobby({
           )}
         </div>
 
-        <section className="flex flex-col gap-[1vmin]">
-          <p className="text-[max(4vmin,20px)]">
-            {t('joinAt')} <strong className="text-[#FF6B35]">{joinHost}</strong>
-          </p>
-          <p className="flex items-baseline gap-[2vmin] text-[max(4vmin,20px)]">
-            {t('code')}:
-            <span
-              className="font-display text-[max(12vmin,56px)] leading-none font-bold tracking-[0.3em]"
-              aria-label={view.code.split('').join(' ')}
-            >
-              {view.code}
-            </span>
-          </p>
-          <p className="text-[max(2.5vmin,14px)] text-white/60 [@media(max-height:480px)]:hidden">
-            {joinHost}/play/{view.code}
-          </p>
-        </section>
-
-        <HowToPlay t={t} />
-
-        <ul className="flex flex-wrap items-center gap-[1.5vmin] text-[max(3.5vh,18px)]">
-          {view.players.map((p) => (
-            <LobbyChip
-              key={p.pid}
-              player={p}
-              {...(view.host ? { onSelect: () => setChipPid(p.pid) } : {})}
-            />
-          ))}
-          <li className="text-white/50">{t('waitingForMore')}</li>
-        </ul>
-
-        <div className="mt-auto flex flex-wrap items-end justify-between gap-[3vmin] text-[max(3vmin,16px)]">
-          <div className="flex flex-col gap-[1vmin]">
-            <p>
-              {view.host
-                ? host && t('isHostingTapToChange', { name: host.name })
-                : host
-                  ? t('waitingForHostToStart', { name: host.name })
-                  : t('waitingForPlayers')}
-            </p>
-            <p className="text-white/60">{settingsLine(t, settings)}</p>
-          </div>
-          {view.host && (
-            <div className="flex flex-col items-end gap-[1vmin]">
-              <button
-                type="button"
-                onClick={start}
-                disabled={starting || connected < 2}
-                className="min-h-11 rounded-[2vmin] bg-[#FF6B35] px-[4vmin] py-[2vmin] text-[max(4.5vmin,22px)] font-bold text-[#1D1B22] disabled:opacity-40"
-              >
-                {t('startGame')}
-              </button>
-              <p className="text-white/70" role="status">
-                {error ??
-                  (connected < 2
-                    ? t('needTwoPlayers')
-                    : connected === 2
-                      ? t('betterWithThree')
-                      : '')}
+        <div className="flex min-h-0 flex-1 flex-col gap-[3vmin] [@media(max-height:480px)]:flex-row [@media(max-height:480px)]:gap-[4vmin]">
+          <div className="flex flex-col gap-[3vmin] [@media(max-height:480px)]:w-[44%] [@media(max-height:480px)]:shrink-0 [@media(max-height:480px)]:gap-[2vmin]">
+            <section className="flex flex-col gap-[1vmin]">
+              <p className="text-[max(4vmin,20px)]">
+                {t('joinAt')} <strong className="text-[#FF6B35]">{joinHost}</strong>
               </p>
+              <p className="flex items-baseline gap-[2vmin] text-[max(4vmin,20px)]">
+                {t('code')}:
+                <span
+                  className="font-display text-[max(12vmin,56px)] leading-none font-bold tracking-[0.3em]"
+                  aria-label={view.code.split('').join(' ')}
+                >
+                  {view.code}
+                </span>
+              </p>
+              <p className="text-[max(2.5vmin,14px)] text-white/60 [@media(max-height:480px)]:hidden">
+                {joinHost}/play/{view.code}
+              </p>
+            </section>
+
+            <HowToPlay t={t} />
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-[3vmin] [@media(max-height:480px)]:gap-[2vmin]">
+            <ul className="flex flex-wrap items-center gap-[1.5vmin] text-[max(3.5vh,18px)] [@media(max-height:480px)]:text-[16px]">
+              {view.players.map((p) => (
+                <LobbyChip
+                  key={p.pid}
+                  player={p}
+                  {...(view.host ? { onSelect: () => setChipPid(p.pid) } : {})}
+                />
+              ))}
+              <li className="text-white/50">{t('waitingForMore')}</li>
+            </ul>
+
+            <div className="mt-auto flex flex-wrap items-end justify-between gap-[3vmin] text-[max(3vmin,16px)] [@media(max-height:480px)]:gap-[2vmin]">
+              <div className="flex flex-col gap-[1vmin]">
+                <p>
+                  {view.host
+                    ? host && t('isHostingTapToChange', { name: host.name })
+                    : host
+                      ? t('waitingForHostToStart', { name: host.name })
+                      : t('waitingForPlayers')}
+                </p>
+                <p className="text-white/60">{settingsLine(t, settings)}</p>
+              </div>
+              {view.host && (
+                <div className="flex flex-col items-end gap-[1vmin]">
+                  <button
+                    type="button"
+                    onClick={start}
+                    disabled={starting || connected < 2}
+                    className="min-h-11 rounded-[2vmin] bg-[#FF6B35] px-[4vmin] py-[2vmin] text-[max(4.5vmin,22px)] font-bold text-[#1D1B22] disabled:opacity-40"
+                  >
+                    {t('startGame')}
+                  </button>
+                  <p className="text-white/70" role="status">
+                    {error ??
+                      (connected < 2
+                        ? t('needTwoPlayers')
+                        : connected === 2
+                          ? t('betterWithThree')
+                          : '')}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
       {panelOpen && (

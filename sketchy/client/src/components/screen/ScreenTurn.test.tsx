@@ -93,6 +93,7 @@ describe('first-turn captions (F26)', () => {
         view={{ ...view, phase, turn: live }}
         receivedAt={0}
         ink={createScreenInk()}
+        layout="landscape"
         t={t}
       />,
     );
@@ -119,5 +120,75 @@ describe('first-turn captions (F26)', () => {
       expect(html).toContain('line-clamp-2');
     }
     expect(render('REVEAL', 3)).not.toContain('line-clamp-2');
+  });
+});
+
+describe('portrait Screen layout (F33)', () => {
+  const drawing = (number = 3): ScreenView => {
+    const { view, turn } = reveal('time');
+    return {
+      ...view,
+      phase: 'DRAWING',
+      turn: { ...turn, number, word: null, mask: [...'______'], endReason: null },
+      feed: [
+        { pid: 'jun', text: 'payong' },
+        { pid: 'jun', text: 'sapatos' },
+        { pid: 'jun', text: 'tsinelas' },
+      ],
+    };
+  };
+  const render = (view: ScreenView, layout: 'landscape' | 'portrait') =>
+    renderToStaticMarkup(
+      <ScreenTurn view={view} receivedAt={0} ink={createScreenInk()} layout={layout} t={t} />,
+    );
+
+  it('puts the timer and blanks above the drawing, and the players and guesses under it', () => {
+    const html = render(drawing(), 'portrait');
+    const canvas = html.indexOf('<canvas');
+    expect(html).not.toContain('<aside');
+    expect(html.indexOf('role="timer"')).toBeLessThan(canvas);
+    expect(html.indexOf('aria-label="6 letters"')).toBeLessThan(canvas);
+    expect(html.indexOf('>Mika<')).toBeGreaterThan(canvas);
+    expect(html.indexOf('>Jun<')).toBeGreaterThan(canvas);
+  });
+
+  it('marks the drawer with ✏️ and a correct guesser with ✓ and this turn’s points', () => {
+    const html = render(drawing(), 'portrait');
+    expect(html).toMatch(/✏️<\/span>.*>Mika</);
+    expect(html).toMatch(/✓<\/span>.*>Jun<\/span><span class="tabular-nums">\+270</);
+  });
+
+  it('keeps only the two latest guesses', () => {
+    const html = render(drawing(), 'portrait');
+    expect(html).not.toContain('payong');
+    expect(html).toContain('sapatos');
+    expect(html).toContain('tsinelas');
+  });
+
+  it('shows a masked guess as ••• in the portrait feed', () => {
+    const view = drawing();
+    const html = render({ ...view, feed: [...view.feed, { pid: 'jun', text: null }] }, 'portrait');
+    expect(html).toContain('•••');
+    expect(html).not.toContain('sapatos');
+  });
+
+  it('drops the round and turn numbers in portrait only', () => {
+    expect(render(drawing(), 'portrait')).not.toContain('Round 1/');
+    expect(render(drawing(), 'landscape')).toContain('Round 1/');
+  });
+
+  it('keeps the caption under the drawing in portrait', () => {
+    const html = render(drawing(1), 'portrait');
+    const caption = html.indexOf('Mika is drawing. Everyone else');
+    expect(caption).toBeGreaterThan(html.indexOf('<canvas'));
+  });
+
+  it('says "It was…" above the drawing and shows the word under it at the reveal', () => {
+    const { view } = reveal('time');
+    const html = render(view, 'portrait');
+    const canvas = html.indexOf('<canvas');
+    expect(html.indexOf('It was…')).toBeLessThan(canvas);
+    expect(html.indexOf('>banana<')).toBeGreaterThan(canvas);
+    expect(html).toContain('Got it');
   });
 });

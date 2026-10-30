@@ -14,6 +14,7 @@ import { DoodleContext, createScreenDoodles } from '../lib/doodles.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
 import { keepPinging } from '../lib/ping.js';
+import { useScreenLayout } from '../lib/useScreenLayout.js';
 import { createInkSocket, createSocket } from '../lib/socket.js';
 
 type Status = 'connecting' | 'live' | 'ended';
@@ -27,8 +28,8 @@ const NEED_TWO_NOTICE_MS = 4000;
 
 /**
  * The Screen at `/screen/:code`: joins as a Screen (with this device's hostToken, if it created the
- * room), renders the latest `state`, and draws the `/ink` relay live. Landscape layout only (F33
- * adds portrait). Lazy-loaded, so phones never download it.
+ * room), renders the latest `state`, and draws the `/ink` relay live, in the landscape or portrait
+ * layout its window's shape asks for. Lazy-loaded, so phones never download it.
  */
 export function Screen() {
   const code = (useParams().code ?? '').toUpperCase();
@@ -38,6 +39,7 @@ export function Screen() {
   const [reshuffled, setReshuffled] = useState(false);
   // "Need 2 players", for a few seconds after a rematch countdown ends with too few connected.
   const [needTwo, setNeedTwo] = useState(false);
+  const layout = useScreenLayout();
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
   // Lobby doodles (F27), drawn as the players' avatars on every chip.
@@ -199,9 +201,11 @@ export function Screen() {
       <div className="min-h-0 flex-1">
         <DoodleContext value={doodles}>
           {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
-          {inTurn && <ScreenTurn view={view} receivedAt={state!.at} ink={ink} t={t} />}
+          {inTurn && (
+            <ScreenTurn view={view} receivedAt={state!.at} ink={ink} layout={layout} t={t} />
+          )}
           {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
-            <ScreenStandings view={view} t={t} />
+            <ScreenStandings view={view} layout={layout} t={t} />
           )}
         </DoodleContext>
       </div>
@@ -209,8 +213,20 @@ export function Screen() {
       {view.phase === 'FINAL' && view.rematchInMs !== null && (
         <RematchOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />
       )}
-      <footer className="shrink-0 px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
-        {window.location.host} · <strong className="tracking-widest text-white">{view.code}</strong>
+      {/* Always visible. Portrait leads with the code and lets the address run out ("KPRW ·
+          sketchy.kimn…"), so the code is never the part cut off. */}
+      <footer className="shrink-0 truncate px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
+        {layout === 'portrait' ? (
+          <>
+            <strong className="tracking-widest text-white">{view.code}</strong> ·{' '}
+            {window.location.host}
+          </>
+        ) : (
+          <>
+            {window.location.host} ·{' '}
+            <strong className="tracking-widest text-white">{view.code}</strong>
+          </>
+        )}
       </footer>
       {/* The token Screen only; the server checks every host event again. */}
       {view.host && <HostControls view={view} socket={socket} t={t} />}

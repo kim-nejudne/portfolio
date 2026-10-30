@@ -82,11 +82,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M6 — Screen and phone polish
 
-- [ ] F33 Responsive Screen layouts
-  - Spec: UI by role and phase (Screen)
-  - Depends: F20
-  - Done when:
-    - Landscape and portrait layouts with the largest square canvas (near-square uses landscape with the minimum sidebar); portrait priority as specified; `/playtest` screenshots at 1920×1080, 1366×768, 820×1180, 1180×820, 390×844 and 844×390 show no overflow and legible text
+- [x] F33 Responsive Screen layouts
 
 - [ ] F34 Announcements, reactions and feed UI
   - Spec: Guess matching (After a correct guess, Guess feed and rude guesses); UI by role and phase (Screen, Guesser phone)
@@ -253,3 +249,6 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Drawer ink after a refused batch (`inkFull`, an unrecovered `rateLimited`): the pad keeps a stroke the server lacks, so a later Undo pops different strokes on the pad and the Screen. Disable the tools, or rebuild the pad from a fresh snapshot, on such a refusal (F30 review).
 - Drawer phone: announce the new brush size in a live region after a tap (F30 review; the pinch-zoom lock on the bars landed in F32).
 - Ask to turn upright on the other phone views too (guesser, lobby, choosing); F32 covers the drawer's pad only (DECISIONS 54).
+- Screen layout hysteresis: switch to portrait at 0.85 but back to landscape only above about 0.9, so a mobile browser's bar resizing a Screen near 0.85 can't flip it back and forth (F33 review).
+- Screen sidebar and strip: give the ✏️ and ✓ marks an accessible label (`role="img"`, "drawing" / "got it"), and check the lighter player colours at `opacity-60` for a disconnected player still reach 4.5:1 (F33 review).
+- Standings: drive the Tonight panel's beside/under switch from the Screen's `layout` instead of its own 16:10 media query; today a 1180×820 Screen puts it under the scores (it fits, checked by `.playtest/F33`) (F33 review).

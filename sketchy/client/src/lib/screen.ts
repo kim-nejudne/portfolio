@@ -3,6 +3,22 @@
 import type { PlayerChipView, ScreenView, TurnView } from '../../../shared/types.js';
 import type { CopyKey, Translate } from './copy.js';
 
+/** The Screen's two layouts (UI by role and phase, Screen). */
+export type ScreenLayout = 'landscape' | 'portrait';
+
+/** At or below this width/height the Screen is portrait. */
+export const PORTRAIT_MAX_RATIO = 0.85;
+
+/**
+ * Which layout a Screen of this size gets: portrait at a width/height of 0.85 or less, landscape
+ * otherwise. Near-square Screens (between 0.85 and 1.2) take the landscape layout, whose sidebar is
+ * at its 28 % minimum there. A window with no size yet counts as landscape.
+ */
+export function screenLayout(width: number, height: number): ScreenLayout {
+  if (width <= 0 || height <= 0) return 'landscape';
+  return width / height <= PORTRAIT_MAX_RATIO ? 'portrait' : 'landscape';
+}
+
 /**
  * Letters per word in a mask (`_` hidden, a hint letter as itself), for the `(5, 4)` after the
  * blanks. Words are split on spaces; hyphens and punctuation don't count as letters.

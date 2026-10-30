@@ -49,7 +49,9 @@ const order = (html: string) =>
 
 describe('Screen standings (F20)', () => {
   it('lists players in the server’s shared ranks, ties in join order, with two gold medals', () => {
-    const html = renderToStaticMarkup(<ScreenStandings view={view('FINAL')} t={t} />);
+    const html = renderToStaticMarkup(
+      <ScreenStandings view={view('FINAL')} layout="landscape" t={t} />,
+    );
     expect(order(html)).toEqual(['Ana', 'Bea', 'Mika', 'Jun']);
     expect(html.match(/🥇/g)).toHaveLength(2);
     expect(html).not.toContain('🥈');
@@ -60,7 +62,7 @@ describe('Screen standings (F20)', () => {
 
   it('titles the scoreboard with the round just done', () => {
     const v = { ...view('SCOREBOARD'), turn: { cycle: 1 } as ScreenView['turn'] };
-    const html = renderToStaticMarkup(<ScreenStandings view={v} t={t} />);
+    const html = renderToStaticMarkup(<ScreenStandings view={v} layout="landscape" t={t} />);
     expect(html).toContain('Round 1 of 2 done');
   });
 });
@@ -73,7 +75,7 @@ describe('Tonight panel (F29)', () => {
 
   it('shows the night’s totals beside the final scores from game 2', () => {
     const v = { ...view('FINAL'), gameNumber: 2, tonight };
-    const html = renderToStaticMarkup(<ScreenStandings view={v} t={t} />);
+    const html = renderToStaticMarkup(<ScreenStandings view={v} layout="landscape" t={t} />);
     expect(html).toContain('Tonight · 2 games');
     expect(html).toContain('2,400');
     // Cy left after game 1; the panel still lists him.
@@ -90,24 +92,46 @@ describe('Tonight panel (F29)', () => {
       rank: i + 1,
     }));
     const html = renderToStaticMarkup(
-      <ScreenStandings view={{ ...view('FINAL'), gameNumber: 3, tonight: many }} t={t} />,
+      <ScreenStandings
+        view={{ ...view('FINAL'), gameNumber: 3, tonight: many }}
+        layout="landscape"
+        t={t}
+      />,
     );
     expect(html).toContain('>P7<');
     expect(html).not.toContain('>P8<');
     expect(html).toContain('+3 more');
     expect(html).toContain('grid-cols-2');
-    expect(renderToStaticMarkup(<ScreenStandings view={view('FINAL')} t={t} />)).not.toContain(
-      'grid-cols-2',
-    );
+    expect(
+      renderToStaticMarkup(<ScreenStandings view={view('FINAL')} layout="landscape" t={t} />),
+    ).not.toContain('grid-cols-2');
   });
 
   it('is not shown in game 1, nor on the scoreboard', () => {
-    expect(renderToStaticMarkup(<ScreenStandings view={view('FINAL')} t={t} />)).not.toContain(
-      'Tonight',
-    );
+    expect(
+      renderToStaticMarkup(<ScreenStandings view={view('FINAL')} layout="landscape" t={t} />),
+    ).not.toContain('Tonight');
     const scoreboard = { ...view('SCOREBOARD'), gameNumber: 2, tonight };
-    expect(renderToStaticMarkup(<ScreenStandings view={scoreboard} t={t} />)).not.toContain(
-      'Tonight',
-    );
+    expect(
+      renderToStaticMarkup(<ScreenStandings view={scoreboard} layout="landscape" t={t} />),
+    ).not.toContain('Tonight');
+  });
+});
+
+describe('portrait standings (F33)', () => {
+  const ten = (): ScreenView => ({
+    ...view('FINAL'),
+    players: Array.from({ length: 10 }, (_, i) => chip(`P${i}`, 100 - i, i + 1)),
+  });
+
+  it('lists ten players in two columns on a landscape Screen', () => {
+    const html = renderToStaticMarkup(<ScreenStandings view={ten()} layout="landscape" t={t} />);
+    expect(html).toContain('grid-cols-2');
+  });
+
+  it('keeps one column in portrait, so names aren’t cut short', () => {
+    const html = renderToStaticMarkup(<ScreenStandings view={ten()} layout="portrait" t={t} />);
+    expect(html).not.toContain('grid-cols-2');
+    expect(html).toContain('>P9<');
   });
 });
