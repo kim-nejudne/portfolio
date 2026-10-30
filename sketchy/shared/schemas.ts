@@ -179,6 +179,7 @@ export const clientPayloadSchemas = {
     playerKey: playerKeySchema,
     name: playerNameSchema,
     takeOver: z.boolean().optional(),
+    hidden: z.boolean().optional(), // the page is hidden as it joins (F40)
   }),
   ping: z.object({ t: z.number() }),
   'player:guess': z.object({

@@ -45,6 +45,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
     valid: [
       { code: 'ABCD', playerKey: KEY, name: 'Bea' },
       { code: 'ABCD', playerKey: KEY, name: 'Jun', takeOver: true },
+      { code: 'ABCD', playerKey: KEY, name: 'Jun', hidden: true },
       { code: 'ABCD', playerKey: KEY, name: 'x'.repeat(PLAYER_NAME_MAX) },
     ],
     invalid: [
@@ -55,6 +56,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
       { code: 'ABCD', playerKey: KEY, name: '   ' },
       { code: 'ABCD', playerKey: KEY, name: 'x'.repeat(PLAYER_NAME_MAX + 1) },
       { code: 'ABCD', playerKey: KEY, name: 'Bea', takeOver: 'yes' },
+      { code: 'ABCD', playerKey: KEY, name: 'Bea', hidden: 'yes' },
     ],
   },
   ping: { valid: [{ t: 123.5 }], invalid: [{}, { t: '1' }, { t: Infinity }] },

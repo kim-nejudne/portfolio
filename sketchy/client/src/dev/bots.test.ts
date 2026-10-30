@@ -91,6 +91,7 @@ function view(
           correct: [],
           guessed: { guessed: 0, of: 1 },
           endReason: null,
+          drawerReconnecting: false,
         }
       : null,
     host: null,

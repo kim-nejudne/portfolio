@@ -4,12 +4,14 @@ import { io as connectClient, type Socket as ClientSocket } from 'socket.io-clie
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   CHOOSE_MS,
+  DRAWER_AWAY_DEBOUNCE_MS,
   GRACE_MS,
   HINT_AT,
   PING_RATE_LIMIT,
   REACTION_INTERVAL_MS,
   SOCKET_PING_INTERVAL_MS,
   SOCKET_PING_TIMEOUT_MS,
+  VISIBILITY_RATE_LIMIT,
 } from '../shared/constants.js';
 import type { Ack, ClientEvent, Fx, PlayerView, ScreenView, View } from '../shared/types.js';
 import { hintCount } from './hints.js';
@@ -610,6 +612,66 @@ describe('effects runner', () => {
     await new Promise((resolve) => server!.close(resolve));
     server = undefined;
     expect(pending.every((t) => t.cancelled)).toBe(true);
+  });
+});
+
+describe('the drawer away (F40)', () => {
+  it('a hidden drawer shows "reconnecting", then the 2 s check pauses every view', async () => {
+    const g = await playing();
+    g.time.mono = MONO0 + 10_000;
+    expect(await g.ana.client.emit('player:visibility', { hidden: true })).toEqual({ ok: true });
+    const badge = await g.screen.state((v) => v.turn?.drawerReconnecting === true);
+    expect(badge.paused).toBeNull();
+    const check = g.timers.at(-1)!;
+    expect(check.delayMs).toBe(DRAWER_AWAY_DEBOUNCE_MS);
+    g.time.mono += DRAWER_AWAY_DEBOUNCE_MS;
+    check.fn();
+    const paused = await g.ben.client.state((v) => v.paused !== null);
+    expect(paused.paused!.reasons).toEqual(['drawerAway']);
+    expect(paused.turn!.drawerReconnecting).toBe(false);
+    // Visible again: the 3-2-1 on every view.
+    expect(await g.ana.client.emit('player:visibility', { hidden: false })).toEqual({ ok: true });
+    await g.screen.state((v) => v.paused?.resumeInMs != null);
+  });
+
+  it('a dropped drawer socket schedules the check too', async () => {
+    const g = await playing();
+    const before = g.timers.length;
+    g.ana.client.socket.disconnect();
+    await g.screen.state((v) => v.turn?.drawerReconnecting === true);
+    expect(g.timers.slice(before).map((t) => t.delayMs)).toEqual([DRAWER_AWAY_DEBOUNCE_MS]);
+  });
+
+  it(`refuses more than ${VISIBILITY_RATE_LIMIT.max} reports a second per player`, async () => {
+    const g = await playing();
+    for (let i = 0; i < VISIBILITY_RATE_LIMIT.max; i++)
+      expect(await g.ben.client.emit('player:visibility', { hidden: i % 2 === 0 })).toEqual({
+        ok: true,
+      });
+    expect(await g.ben.client.emit('player:visibility', { hidden: false })).toEqual({
+      ok: false,
+      error: 'rateLimited',
+    });
+    g.time.mono += VISIBILITY_RATE_LIMIT.windowMs;
+    expect(await g.ben.client.emit('player:visibility', { hidden: false })).toEqual({ ok: true });
+  });
+
+  it('a join carries the page’s visibility', async () => {
+    const s = await setup();
+    const screen = await s.connect();
+    await screen.emit('screen:join', { code: CODE });
+    const ana = await s.connect();
+    expect(
+      await ana.emit('player:join', { code: CODE, playerKey: KEY_ANA, name: 'Ana', hidden: true }),
+    ).toMatchObject({ ok: true });
+    expect(Object.values(s.rooms.get(CODE)!.players)[0]!.hidden).toBe(true);
+  });
+
+  it('refuses a bad payload', async () => {
+    const g = await playing();
+    expect(await g.ana.client.emit('player:visibility', { hidden: 'yes' })).toMatchObject({
+      ok: false,
+    });
   });
 });
 

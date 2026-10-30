@@ -89,6 +89,7 @@ describe('turnCaption (F26)', () => {
     correct: [],
     guessed: { guessed: 0, of: 2 },
     endReason: null,
+    drawerReconnecting: false,
   });
   const caption = (phase: Phase, number: number | null) =>
     turnCaption({ phase, turn: number === null ? null : turn(number) }, t);

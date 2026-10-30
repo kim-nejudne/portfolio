@@ -98,12 +98,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M7 — Resilience
 
-- [ ] F40 Drawer away
-  - Spec: Game flow and state machine (Pausing); Reconnects, security and edge cases (Edge cases)
-  - Depends: F28, F12
-  - Done when:
-    - `player:visibility` and disconnects schedule `drawerAwayCheck`; after 2 s still away sets `drawerAway`, with a "Mika's phone reconnecting…" badge before that; 30 s limit skips the turn; the pad is restored on return
-  - Tests: `reducer.away.test.ts` — a 1 s blip pauses nothing
+- [x] F40 Drawer away
 
 - [ ] F41 Screen away and too few players
   - Spec: Game flow and state machine (Pausing); Reconnects, security and edge cases (Edge cases)

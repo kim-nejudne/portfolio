@@ -56,6 +56,7 @@ function drawingView(me: 'mika' | 'jun', overrides: Partial<PlayerView> = {}): P
       correct: [{ pid: 'jun', points: 270, order: 1 }],
       guessed: { guessed: 1, of: 2 },
       endReason: null,
+      drawerReconnecting: false,
     },
     host: null,
     me: {
@@ -442,6 +443,7 @@ describe('the next drawer during the reveal (F21)', () => {
         mask: null,
         timer: null,
         endReason: 'time',
+        drawerReconnecting: false,
       },
       me: { pid: 'jun', turnPoints: 270, score: null, rank: null, award: null },
       secret: {

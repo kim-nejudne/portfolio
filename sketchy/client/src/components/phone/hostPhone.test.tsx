@@ -64,6 +64,7 @@ function view(
             correct: [],
             guessed: { guessed: 0, of: 2 },
             endReason: null,
+            drawerReconnecting: false,
           },
     host: host ? HOST : null,
     me: { pid: 'mika', turnPoints: 0, score: null, rank: null, award: null },

@@ -114,6 +114,16 @@ export interface Paused {
   resumeAt: number | null; // set during the 3-2-1 countdown
 }
 
+/**
+ * The current drawer's phone is away (disconnected or `hidden`) in CHOOSING or DRAWING: since when,
+ * and once the `drawerAway` pause holds the game alone, when its 30 s limit runs out.
+ */
+export interface DrawerAway {
+  turnId: number;
+  since: number; // monotonic ms the phone went away; `drawerAwayCheck` is due 2 s later
+  goneAt: number | null; // `drawerGone` is due; null before the pause, or while the host holds it too
+}
+
 export interface RoomSettings {
   drawSeconds: (typeof DRAW_SECONDS_CHOICES)[number]; // default 60
   cycles: (typeof CYCLES_CHOICES)[number]; // default 2
@@ -143,6 +153,8 @@ export interface Room {
   screens: number; // connected Screen sockets, kept by the gateway
   phase: Phase;
   paused: Paused | null;
+  // SPEC-QUESTION: not in the spec's Room; the debounce and the 30 s limit need to know when the drawer went away (DECISIONS 62).
+  drawerAway: DrawerAway | null;
   timerEpoch: number; // bumped on every phase change and pause
   rngState: number; // seeded PRNG state (mulberry32), so the reducer stays pure
   cycle: number; // 0 in the lobby
@@ -216,7 +228,7 @@ type NoPayload = Record<never, never>;
 
 /** Payloads of the actions a client causes, before the gateway adds `by`. */
 export interface ClientActionPayloads {
-  'player:join': { keyHash: string; name: string; takeOver?: boolean }; // gateway hashes the key
+  'player:join': { keyHash: string; name: string; takeOver?: boolean; hidden?: boolean }; // gateway hashes the key
   'player:leave': NoPayload;
   'player:rename': { name: string };
   'player:guess': { text: string; receivedAt: number; oneWayMs: number }; // timing from the gateway
@@ -378,7 +390,13 @@ export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; e
 /** Client→server payloads, keyed by Socket.IO event name. */
 export interface ClientPayloads {
   'screen:join': { code: string; hostToken?: string };
-  'player:join': { code: string; playerKey: string; name: string; takeOver?: boolean };
+  'player:join': {
+    code: string;
+    playerKey: string;
+    name: string;
+    takeOver?: boolean;
+    hidden?: boolean; // the page is hidden as it joins (a locked phone reconnecting), F40
+  };
   ping: { t: number };
   'player:guess': { text: string };
   'player:react': { emoji: Reaction };
@@ -465,6 +483,8 @@ export interface TurnView {
   correct: CorrectView[];
   guessed: { guessed: number; of: number };
   endReason: TurnEndReason | null;
+  /** The drawer's phone is away, in the 2 s before a `drawerAway` pause: "Mika's phone reconnecting…". */
+  drawerReconnecting: boolean;
 }
 
 /** A wrong guess as shown on the Screen; `text` null when masked ("•••"). */

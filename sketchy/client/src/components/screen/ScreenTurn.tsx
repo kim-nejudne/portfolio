@@ -75,7 +75,10 @@ export function ScreenTurn({
   );
 }
 
-/** The live drawing, and over it while the drawer is still choosing, who is choosing. */
+/**
+ * The live drawing, and over it while the drawer is still choosing, who is choosing. In the 2 s
+ * before a `drawerAway` pause, a small "Mika's phone reconnecting…" pill along its top edge.
+ */
 function Drawing({
   view,
   turn,
@@ -101,6 +104,19 @@ function Drawing({
           </p>
         </div>
       )}
+      {/* Always mounted, so the pill is announced when it appears. The ring keeps it apart from
+          the CHOOSING overlay's dark background. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none absolute inset-x-0 top-[2vmin] flex justify-center px-[2vmin]"
+      >
+        {turn.drawerReconnecting && (
+          <p className="max-w-[90%] rounded-[3vmin] bg-[#1D1B22]/90 px-[3vmin] py-[1vmin] text-center text-[max(4.5vmin,22px)] leading-tight font-bold text-white ring-[0.4vmin] ring-white/70">
+            {t('drawerReconnecting', { name: turn.drawerName })}
+          </p>
+        )}
+      </div>
     </>
   );
 }

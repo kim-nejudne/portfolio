@@ -41,6 +41,7 @@ import {
 import { createClockOffset, isDebug, stampBatch } from '../lib/clock.js';
 import { keepPinging } from '../lib/ping.js';
 import { createInkSocket, createSocket, type InkSocket } from '../lib/socket.js';
+import { watchVisibility } from '../lib/visibility.js';
 import { useWakeLock } from '../lib/wakeLock.js';
 
 type Status = 'form' | 'joining' | 'live' | 'ended' | 'removed';
@@ -99,6 +100,8 @@ export function Play() {
   // The drawer's current turn on `/ink`, while the pad is up.
   const drawerSyncRef = useRef<DrawerSync | null>(null);
   const viewRef = useRef<PlayerView | null>(null);
+  // Joined on this connection: page-visibility changes are reported to the server only then (F40).
+  const joinedRef = useRef(false);
   // Guesses sent and not yet answered, oldest first: a `wrong` or `nearMiss` fx belongs to the
   // oldest one.
   const pendingGuesses = useRef<string[]>([]);
@@ -147,13 +150,20 @@ export function Play() {
       if (!socket.connected || identityRef.current !== identity) return;
       res = await socket
         .timeout(ACK_TIMEOUT_MS)
-        .emitWithAck('player:join', { code, playerKey: identity.playerKey, name: identity.name })
+        .emitWithAck('player:join', {
+          code,
+          playerKey: identity.playerKey,
+          name: identity.name,
+          // A locked phone reconnecting in the background stays away for the server (F40).
+          hidden: document.visibilityState === 'hidden',
+        })
         .catch(() => undefined);
     }
     if (identityRef.current !== identity) return;
     const outcome = joinOutcome(res);
     if (outcome.status === 'live') {
       savePlayer(code, identity);
+      joinedRef.current = true;
       setStatus('live');
       openInk(identity);
       return;
@@ -177,8 +187,12 @@ export function Play() {
       setConnected(true);
       void join();
     });
-    socket.on('disconnect', () => setConnected(false));
+    socket.on('disconnect', () => {
+      joinedRef.current = false;
+      setConnected(false);
+    });
     const stopWatching = connection.watch(socket);
+    const stopVisibility = watchVisibility(socket, () => joinedRef.current);
     socket.on('state', (view) => {
       if (view.role !== 'player') return;
       if (gainedCrown(viewRef.current, view)) setCrownToast((n) => n + 1);
@@ -223,6 +237,8 @@ export function Play() {
     return () => {
       stopPinging();
       stopWatching();
+      stopVisibility();
+      joinedRef.current = false;
       socket.removeAllListeners();
       socket.disconnect();
       closeInk();

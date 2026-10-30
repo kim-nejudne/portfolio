@@ -14,6 +14,8 @@ import {
   CHOOSE_MS,
   DEFAULT_SETTINGS,
   CLOSE_GUESSES_MAX,
+  DRAWER_AWAY_DEBOUNCE_MS,
+  DRAWER_AWAY_MS,
   FEED_MAX,
   GRACE_MS,
   GUESS_INTERVAL_MS,
@@ -77,6 +79,7 @@ export function reduce(room: Room, action: Action, now: number): ReduceResult {
   const d: Room = { ...structuredClone(rest), packs };
   const effects: Effect[] = [];
   const error = apply(d, action, now, effects);
+  if (!error) syncDrawerAway(d, now, effects, d.timerEpoch !== room.timerEpoch);
   // Every phase timer is frozen at `since`, so what it had left is read from there.
   if (!error && d.paused) d.paused.remainingMs = phaseLeft(d, d.paused.since);
   return error ? { ok: false, error } : { ok: true, room: d, effects };
@@ -128,8 +131,9 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return doodle(d, action);
     case 'player:react':
       return react(d, action, fx);
-    case 'player:rename':
     case 'player:visibility':
+      return visibility(d, action);
+    case 'player:rename':
     case 'host:customWords':
       return 'notAvailable';
     default: {
@@ -161,7 +165,9 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
   const players = Object.values(d.players);
   const same = players.find((p) => p.keyHash === a.keyHash);
   if (same) {
+    // The join says whether the page is hidden, so a locked phone reconnecting stays away.
     same.connected = true;
+    same.hidden = a.hidden ?? false;
     return undefined;
   }
 
@@ -173,7 +179,7 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
     // A new phone takes over a disconnected player: their pid, score and crown.
     holder.keyHash = a.keyHash;
     holder.connected = true;
-    holder.hidden = false;
+    holder.hidden = a.hidden ?? false;
     fx.push({ type: 'fx', to: 'screen', fx: { kind: 'rejoined', pid: holder.pid } });
     return undefined;
   }
@@ -189,7 +195,7 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
     color: PLAYER_COLORS.find((c) => !used.has(c)) ?? PLAYER_COLORS[0],
     score: 0,
     connected: true,
-    hidden: false,
+    hidden: a.hidden ?? false,
     hasDoodle: false,
     // Strictly after everyone here: the turn order and the rematch rotation read join order from it.
     // SPEC-QUESTION: the spec stores `now`; two joins in one ms would tie (DECISIONS 52).
@@ -319,6 +325,14 @@ function doodle(d: Room, a: ActionOf<'sys:doodle'>): Handled {
   return undefined;
 }
 
+/** `player:visibility`: the page was hidden (phone locked, app switched) or shown again. */
+function visibility(d: Room, a: ActionOf<'player:visibility'>): Handled {
+  const player = senderPlayer(d, a.by);
+  if (typeof player === 'string') return player;
+  player.hidden = a.hidden;
+  return undefined;
+}
+
 function connection(
   d: Room,
   a: ActionOf<'sys:connected' | 'sys:disconnected'>,
@@ -331,7 +345,7 @@ function connection(
   player.connected = a.type === 'sys:connected';
   // A disconnected player doesn't hold the turn open: they may have been the last guesser without
   // the word. A reconnect never cancels a scheduled early end.
-  // SPEC-QUESTION: the drawer disconnecting is F40's drawerAway pause; here it changes nothing.
+  // The drawer disconnecting is `syncDrawerAway`'s, after every action.
   const turn = d.turn;
   if (
     a.type === 'sys:disconnected' &&
@@ -751,7 +765,9 @@ function schedule(
     | 'revealDone'
     | 'scoreboardDone'
     | 'resumeGo'
-    | 'rematchGo',
+    | 'rematchGo'
+    | 'drawerAwayCheck'
+    | 'drawerGone',
   at: number,
   turnId = d.turn!.id,
 ): Effect {
@@ -1007,6 +1023,68 @@ function resume(d: Room, now: number, fx: Effect[]): void {
   }
 }
 
+// ---------- The drawer away ----------
+
+/**
+ * A timer may run a ms or so before its due time by the monotonic clock; a drawer-away timer that
+ * early is still the one due, not one from an earlier absence (those are at least that much older).
+ */
+const TIMER_SLACK_MS = 50;
+
+/**
+ * After every action: is the drawer of the CHOOSING or DRAWING turn away (disconnected or
+ * `hidden`)? Going away schedules `drawerAwayCheck` 2 s on (the clock runs meanwhile, and views say
+ * "reconnecting"), and every epoch change re-arms it, as with `chooseUp`. Once the `drawerAway`
+ * pause holds the game, its 30 s `drawerGone` runs, but not while the host holds it too: then it
+ * starts afresh from the host's resume. Back (connected and visible), or a turn with another
+ * drawer, or out of those phases: the reason clears, and with no other the 3-2-1 starts.
+ */
+function syncDrawerAway(d: Room, now: number, fx: Effect[], epochMoved: boolean): void {
+  const turn = d.phase === 'CHOOSING' || d.phase === 'DRAWING' ? d.turn : null;
+  const drawer = turn ? d.players[turn.drawerPid] : undefined;
+  const holding = d.paused?.reasons.includes('drawerAway') ?? false;
+  if (!turn || !drawer || (drawer.connected && !drawer.hidden)) {
+    d.drawerAway = null;
+    if (holding) clearPauseReason(d, 'drawerAway', now, fx);
+    return;
+  }
+  let away = d.drawerAway;
+  let arm = epochMoved;
+  if (away?.turnId !== turn.id) {
+    away = d.drawerAway = { turnId: turn.id, since: now, goneAt: null };
+    arm = true;
+  }
+  if (!holding) {
+    if (arm) fx.push(schedule(d, 'drawerAwayCheck', away.since + DRAWER_AWAY_DEBOUNCE_MS));
+    return;
+  }
+  // SPEC-QUESTION: the spec's 30 s limit doesn't say what a host pause does to it (DECISIONS 62).
+  if (d.paused!.reasons.includes('host')) {
+    away.goneAt = null;
+    return;
+  }
+  if (away.goneAt === null) {
+    away.goneAt = now + DRAWER_AWAY_MS;
+    arm = true;
+  }
+  if (arm) fx.push(schedule(d, 'drawerGone', away.goneAt));
+}
+
+/**
+ * `drawerGone`: 30 s of `drawerAway`. The reason clears without a 3-2-1 (nobody needs to get ready
+ * for a reveal or a new choice); then the drawing turn ends as `drawerGone` (points stay, the drawer
+ * gets half), or an open choice is abandoned and the next drawer chooses. The drawer isn't dealt
+ * again this cycle: their place in `turnOrder` is passed.
+ */
+function drawerGone(d: Room, now: number, fx: Effect[]): void {
+  const paused = d.paused!;
+  paused.reasons = paused.reasons.filter((r) => r !== 'drawerAway');
+  if (paused.reasons.length === 0) d.paused = null;
+  d.drawerAway = null;
+  if (d.phase === 'CHOOSING') abandonChoice(d, now, fx);
+  else endTurn(d, 'drawerGone', now, fx);
+}
+
 function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Handled {
   if (d.phase !== 'REVEAL' && d.phase !== 'SCOREBOARD') return 'wrongPhase';
   if (!isHost(d, a.by)) return 'notHost';
@@ -1036,8 +1114,9 @@ function settings(d: Room, a: ActionOf<'host:settings'>): Handled {
 
 function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handled {
   if (a.epoch !== d.timerEpoch) return 'staleTimer';
-  // A pause holds every phase timer; `resumeGo` schedules them again with what they had left.
-  if (d.paused && a.timer !== 'resumeGo') return 'paused';
+  // A pause holds every phase timer; `resumeGo` schedules them again with what they had left. The
+  // drawer-away timers run through a pause: a host pause doesn't stop `drawerAway` being added.
+  if (d.paused && !['resumeGo', 'drawerAwayCheck', 'drawerGone'].includes(a.timer)) return 'paused';
   // FINAL's countdown: the epoch alone tells a cancelled one apart.
   if (a.timer === 'rematchGo') {
     if (d.phase !== 'FINAL' || d.rematchAt === null) return 'staleTimer';
@@ -1077,6 +1156,22 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
       if (!d.paused || d.paused.resumeAt === null) return 'staleTimer';
       resume(d, now, fx);
       return undefined;
+    case 'drawerAwayCheck': {
+      const away = d.drawerAway;
+      // Gone if the drawer came back meanwhile; early if they came back and left again since.
+      if (!away || away.turnId !== d.turn.id || d.paused?.reasons.includes('drawerAway'))
+        return 'staleTimer';
+      if (now + TIMER_SLACK_MS < away.since + DRAWER_AWAY_DEBOUNCE_MS) return 'staleTimer';
+      pause(d, 'drawerAway', now);
+      return undefined;
+    }
+    case 'drawerGone': {
+      const away = d.drawerAway;
+      if (!away || away.turnId !== d.turn.id || away.goneAt === null) return 'staleTimer';
+      if (now + TIMER_SLACK_MS < away.goneAt) return 'staleTimer';
+      drawerGone(d, now, fx);
+      return undefined;
+    }
     default:
       return 'notAvailable';
   }

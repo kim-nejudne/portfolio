@@ -40,6 +40,7 @@ export function createRoom({
     screens: 0,
     phase: 'LOBBY',
     paused: null,
+    drawerAway: null,
     timerEpoch: 0,
     rngState: seed,
     cycle: 0,

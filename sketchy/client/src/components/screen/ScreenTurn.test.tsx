@@ -22,6 +22,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     correct: [{ pid: 'jun', points: 270, order: 1 }],
     guessed: { guessed: 1, of: 1 },
     endReason,
+    drawerReconnecting: false,
   };
   const chip = (pid: string, name: string) => ({
     pid,
@@ -391,5 +392,48 @@ describe('announcements, chips and feed (F34)', () => {
         /<(aside|section) class="[^"]*relative[^"]*overflow-hidden/,
       );
     }
+  });
+});
+
+describe('drawer reconnecting (F40)', () => {
+  const BADGE = 'Mika’s phone reconnecting…';
+  const render = (
+    phase: 'CHOOSING' | 'DRAWING',
+    drawerReconnecting: boolean,
+    layout: 'landscape' | 'portrait',
+  ) => {
+    const { view, turn } = reveal('time');
+    const live: TurnView = {
+      ...turn,
+      number: 3,
+      word: null,
+      mask: [...'______'],
+      endReason: null,
+      drawerReconnecting,
+    };
+    return renderToStaticMarkup(
+      <ScreenTurn
+        view={{ ...view, phase, turn: live }}
+        receivedAt={0}
+        ink={createScreenInk()}
+        layout={layout}
+        t={t}
+      />,
+    );
+  };
+
+  it('shows a small status badge over the drawing in both layouts and phases', () => {
+    for (const layout of ['landscape', 'portrait'] as const)
+      for (const phase of ['CHOOSING', 'DRAWING'] as const) {
+        const html = render(phase, true, layout);
+        expect(html, `${layout} ${phase}`).toContain(BADGE);
+        expect(html).toMatch(/role="status"[^>]*><p[^>]*>Mika’s phone reconnecting…/);
+      }
+  });
+
+  it('shows nothing while the drawer is here, with the status region already in place', () => {
+    const html = render('DRAWING', false, 'landscape');
+    expect(html).not.toContain('reconnecting');
+    expect(html).toMatch(/<div role="status" aria-live="polite"[^>]*><\/div>/);
   });
 });

@@ -55,8 +55,57 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F37: `npm run dev` + `npm run lan CODE`, open the **Screen URL printed by `npm run lan`** (the LAN address, not localhost) on the laptop on the TV, plus a tablet or spare phone as a second Screen, and 3 real phones (one iPhone, one small Android if you have one) · on each Screen, "Click to start" (laptop) or "Tap to start" (tablet) covers the page: one tap goes fullscreen (not on an iPhone Screen) and the Screen doesn't dim or sleep for 15 minutes on battery; the lobby QR scans with each phone's camera from the sofa (≈ 2–3 m; note the farthest distance that works, see the Backlog's QR line) and opens `/play/CODE` on the LAN address; "🔌 Keep this device plugged in" shows on the tablet or phone Screen and not on the laptop (also try an Android TV or Chromecast browser if you have one: it may report no pointer and show "Click to start" with no note); during a game no phone dims or locks (lobby phones may); turn on airplane mode on one phone: the dot in its top-right corner goes amber at once, red after about 5 s, and back to green with the same name and score within a few seconds of turning it off; try Wi-Fi with no internet (unplug the router's WAN) for the amber after about 6 s
 - [ ] F38: `npm run dev` + `npm run lan CODE`, the laptop Screen on the TV with its speakers on, plus an iPad or iPhone as a second Screen with its ringer switch on silent, and 3 real phones; tap/click to start on each Screen, play a game of 2 short turns (let one run out of time), then end it · each phone joining gives a short pop; each new turn a two-note chime; each correct guess a ding; the last 10 s of a turn tick once a second, stopping while paused and picking up after; a timed-out turn gives a low double buzz, then the sting as the word pops in; FINAL plays the fanfare; nothing is cut short or doubled; the iPad/iPhone Screen plays everything with the ringer switch on silent; after locking and unlocking the iPad (or taking a call), one tap brings its sound back; `M` (or the bar's Sound button) cycles Sound on / Quiet / Muted, and the tick is still audible on Quiet from the sofa (≈ 2–3 m); only the drawer's phone buzzes on "your turn", and no phone makes a sound
 - [ ] F39: after autopilot deploys, on the **budget Android with Wi-Fi off (mobile data)**, clear Chrome's data for sketchy.kimnejudne.dev, start a game on the laptop (Screen on the TV), then scan the lobby QR with a stopwatch running · the name field shows and takes typing within 5 s of the scan, and you reach the lobby within 15 s including typing a name; the headings are the rounded Fredoka face (round dots on i and j). Repeat on the iPhone. Then once on a Wi-Fi that's known to be fussy (a café or captive portal), join and play a turn · it joins (on a network that blocks WebSockets it falls back to polling, which may take a few seconds longer to connect)
+- [ ] F40: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (an iPhone and an Android as drawers in turn) · as the drawer, pick a word and draw a few strokes, then lock the phone for about 1 s and unlock: nothing pauses (at most "Mika’s phone reconnecting…" flashes on the TV); lock it for about 5 s: within 2 s of locking the TV shows "Mika’s phone reconnecting…" over the top of the drawing (readable from the sofa), then "Paused · Waiting for Mika’s phone…" on the TV and the guessers' phones, with the clock stopped; unlock: "Back in 3-2-1" everywhere, the strokes are still on the pad and the TV, and new strokes reach the TV; switch to another app for 5 s and back: the same; lock it for more than 35 s: the turn ends with the reveal ("It was…", points earned so far kept, the drawer's half shown) and the next drawer chooses, and the locked phone, unlocked, shows the reveal; repeat once during the word choice (lock for 35 s: the next drawer chooses, no reveal); turn on airplane mode on the drawer's phone for 10 s instead of locking it: the badge comes after a few seconds (the server has to notice the drop), then the pause, and on reconnecting the 3-2-1
 
 <!-- entries below, newest first -->
+
+## F40 — Drawer away (2026-10-31)
+**What changed:**
+- **Reducer** (`server/reducer.ts`): after every successful action `syncDrawerAway` checks whether the CHOOSING or DRAWING turn's drawer is away (disconnected or `hidden`).
+  - Going away records `Room.drawerAway {turnId, since, goneAt}` (new) and schedules `drawerAwayCheck` 2 s on; the clock keeps running and guesses count meanwhile. Every epoch change re-arms the check at the same time (the auto-pick, a host pause).
+  - The check adds the `drawerAway` pause reason if the same absence is still on. Back and away again makes the old check stale.
+  - The pause schedules `drawerGone` 30 s on, but not while the host's pause holds the game too; then it starts afresh from Resume.
+  - Back (connected and visible), a skip, a kick or leaving the phase clears the reason; with no other reason, the 3-2-1.
+  - `drawerGone`: the reason drops without a 3-2-1, then a drawing turn ends as `drawerGone` (points stay, the drawer's half; they aren't dealt again this cycle) or an open choice is abandoned and the next drawer chooses.
+  - `drawerAwayCheck` and `drawerGone` are the only timers besides `resumeGo` that run while paused.
+- **`player:visibility`** (was `notAvailable`) sets `hidden` for any player, any phase; at most 5 a second per player (`VISIBILITY_RATE_LIMIT`). **`player:join` gains an optional `hidden`**, so a locked phone whose socket reconnects in the background stays away (no 3-2-1 flash, and the 30 s runs on).
+- **Phones** (`client/src/lib/visibility.ts`, new, wired in `Play.tsx`): report `visibilitychange` while joined and connected, and send `hidden` with every join.
+- **Screen:** `TurnView.drawerReconnecting` (new) shows "Mika’s phone reconnecting…" (`drawerReconnecting` copy key) as a ringed pill along the drawing's top edge, in both layouts and over the CHOOSING overlay, inside an always-mounted `role="status"` region. The pause itself is F28's overlay ("Waiting for Mika’s phone…").
+- **Pad restored on return:** no new code. The pad stays mounted under the pause; when it lifts the drawer resyncs (F28), and a reload gets its own snapshot (F12). Proven by the playtest below.
+- **New dependencies:** none.
+- **Tests:**
+  - `server/reducer.away.test.ts` (new, 28): visibility for any player and its senders; the join's `hidden`; a guesser away and the drawer away outside CHOOSING/DRAWING schedule nothing; **a 1 s blip pauses nothing**; the clock runs and the badge shows during the debounce; hidden and disconnected each pause after 2 s with the clock frozen; one check for hidden-then-dropped; only the second absence's check pauses after a blip; CHOOSING; the check re-armed through the auto-pick; a hidden player dealt a turn; back visible → 3-2-1 → the clock moved by the pause; back by rejoin; a locked phone reconnecting stays away and still hits the limit; away again during the 3-2-1; guesses refused while paused; the 30 s limit in DRAWING (drawerGone, points, half, `inkClose`, `turnEnd`, `revealDone`, the drawer passed over) and CHOOSING (no reveal, words back, next drawer); the limit stale on return, waiting through a host pause and restarting at Resume, stopped by a host pause; skip, kick and end during the pause.
+  - `server/sockets.test.ts` (+5): hidden → badge → the check pauses every view → visible → 3-2-1; a dropped socket schedules the check; the rate limit; a join's `hidden`; a bad payload.
+  - `client/src/lib/visibility.test.ts` (new, 3); `ScreenTurn.test.tsx` (+2: the pill in both layouts and phases, the empty status region); `schemas.test.ts` (+2); turn fixtures gain `drawerReconnecting`.
+- `npm run size`: player JS 106.9/120 KB, CSS + font 24.1/30 KB.
+
+**Decisions:** DECISIONS 62 (the new `Room.drawerAway`, re-arming on epoch changes, the 50 ms timer slack, the 30 s limit under a host pause, `drawerGone` with no 3-2-1, the join's `hidden`, the visibility rate limit, guesses in flight refused as for a host pause, the badge).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES** (no Must-fix). Applied: this entry and the Kim check; the DRAWING `drawerGone` test now asserts the drawer is passed over this cycle. Pad restore is F12/F28's mechanism, proven by the playtest (no unit test added).
+- **secrets-fairness: PASS WITH FIXES** (no Must-fix; nothing secret in the new view field, the reducer stays pure, the stale-timer paths hold). Applied: a rate limit on `player:visibility`; the join carries `hidden` (was: a rejoin reset it, so a locked phone reconnecting flashed a 3-2-1 and restarted the 30 s). Recorded, not changed: a guess in flight as the pause begins is refused, as under a host pause.
+- **mobile-ux: PASS WITH FIXES** (no Must-fix). Applied: the pill at `max(4.5vmin,22px)`, wrapping rather than truncating a long name; an always-mounted status region; a ring so it shows over the CHOOSING overlay; a comment on why `pagehide` isn't needed (the disconnect is the backstop). Left: the pill covers the drawing's top edge for up to 2 s (transient), and it can show under a host pause's overlay (covered by it).
+
+**Playtest** (`.playtest/F40/scenario.ts`, dev server; a 1920×1080 Screen, Ana drawing, Ben and Cara guessing), re-run after the review fixes, all 6 steps pass:
+1. Ana draws a stroke and it reaches the Screen; no word in the Screen's or Ben's HTML.
+2. Ana offline for 1 s: never "Paused".
+3. Ana offline: the `role=status` pill after 6.4 s (Socket.IO noticing the drop), "Paused" + "Waiting for Ana’s phone…" on the Screen and Ben's phone at 8.7 s, and Ben's guess box covered.
+4. Back online: "Back in" 3-2-1, Ana's pad still holds her stroke, and a second stroke reaches the Screen (ink pixels 729 → 1463).
+5. Page hidden (`visibilityState` overridden): the pill after 8 ms, "Paused" at 2.3 s; visible again → 3-2-1.
+6. Hidden for 30 s: the reveal with the word at 32.1 s and no "Paused".
+
+Console errors: only Ana's expected `ERR_INTERNET_DISCONNECTED` while offline. Screenshots: `.playtest/F40/badge-screen.png`, `paused-screen.png`, `paused-Ben.png`, `backin-screen.png`, `reveal-screen.png`.
+
+**Notes for next session:**
+- **F41:** `screenAway` and `fewPlayers` are separate reasons; `drawerGone` keeps the pause if one of them still holds it. `syncDrawerAway` (after every action) is the pattern to copy for `screenGone`; remember to let its timer run while paused (the gate at the top of `timer`).
+- **F43:** a reconnecting phone sends `hidden` in `player:join`; keep that when the join path changes.
+- **F44:** `VISIBILITY_RATE_LIMIT` already exists.
+- **F45:** new copy key `drawerReconnecting`.
+
+**How to try it:**
+- Tests: `npx vitest run server/reducer.away.test.ts server/sockets.test.ts client/src/lib/visibility.test.ts client/src/components/screen/ScreenTurn.test.tsx`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F40/scenario.ts` (about 1.5 minutes: it waits out the 30 s limit).
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), two phone windows at `/play/CODE`, start; on the drawer's window, switch tabs (hidden) for 3 s, or set DevTools' Network to Offline: the badge, then "Paused", then the 3-2-1 on return; stay away 30 s for the reveal.
 
 ## F39 — Join budget (2026-10-31)
 **What changed:**

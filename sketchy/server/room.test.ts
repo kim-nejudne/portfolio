@@ -24,6 +24,7 @@ describe('createRoom', () => {
       screens: 0,
       phase: 'LOBBY',
       paused: null,
+      drawerAway: null,
       timerEpoch: 0,
       rngState: 42,
       cycle: 0,

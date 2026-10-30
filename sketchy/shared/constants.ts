@@ -133,6 +133,9 @@ export const INK_BATCH_RATE_LIMIT = { max: 40, windowMs: 1000 } as const;
 /** `ping` per main-namespace socket; phones send one every PING_INTERVAL_MS (DECISIONS 36). */
 // SPEC-QUESTION: the spec lists no limit for `ping`; Buzzr's is 5 per second.
 export const PING_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
+/** `player:visibility` per player: a page flapping hidden and visible costs a reduce and a broadcast each time. */
+// SPEC-QUESTION: the spec lists no limit for `player:visibility` (DECISIONS 62).
+export const VISIBILITY_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** `ink:hello` and `ink:sync` per `/ink` socket: each can make the server send a whole snapshot. */
 export const INK_HELLO_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** `ink:get` per `/ink` socket: the FINAL gallery asks for every turn's drawing at once. */

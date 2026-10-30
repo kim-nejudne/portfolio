@@ -12,6 +12,7 @@ import { Server, type Socket } from 'socket.io';
 import {
   PING_RATE_LIMIT,
   REACTION_INTERVAL_MS,
+  VISIBILITY_RATE_LIMIT,
   PONG_ACK_TIMEOUT_MS,
   SOCKET_MAX_BUFFER_BYTES,
   SOCKET_PING_INTERVAL_MS,
@@ -127,6 +128,7 @@ export function attachSockets(
   const pingLimiter = createRateLimiter(PING_RATE_LIMIT, monotonic);
   // Keyed by room and pid: one reaction a second per player, however many phones they use.
   const reactLimiter = createRateLimiter({ max: 1, windowMs: REACTION_INTERVAL_MS }, monotonic);
+  const visibilityLimiter = createRateLimiter(VISIBILITY_RATE_LIMIT, monotonic);
   // Each connection's RTT samples, by socket id, for the Screen's `?debug=1` overlay (F16).
   const rttBySocket = new Map<string, () => readonly number[]>();
 
@@ -298,7 +300,7 @@ export function attachSockets(
       return { ok: true };
     });
 
-    handle(socket, 'player:join', ({ code, playerKey, name, takeOver }) => {
+    handle(socket, 'player:join', ({ code, playerKey, name, takeOver, hidden }) => {
       if (socket.data.role) return fail('alreadyJoined');
       const keyHash = hashPlayerKey(playerKey);
       let pid: string | undefined;
@@ -310,6 +312,7 @@ export function attachSockets(
           keyHash,
           name,
           ...(takeOver === undefined ? {} : { takeOver }),
+          ...(hidden === undefined ? {} : { hidden }),
         },
         (room) => {
           // Before the broadcast and the effects, so this socket gets its state and `crowned`.
@@ -370,9 +373,11 @@ export function attachSockets(
       if (code && pid && !reactLimiter.hit(`${code}:${pid}`)) return fail('rateLimited');
       return asPlayer((by) => ({ type: 'player:react', by, emoji }));
     });
-    handle(socket, 'player:visibility', ({ hidden }) =>
-      asPlayer((by) => ({ type: 'player:visibility', by, hidden })),
-    );
+    handle(socket, 'player:visibility', ({ hidden }) => {
+      const { code, pid } = socket.data;
+      if (code && pid && !visibilityLimiter.hit(`${code}:${pid}`)) return fail('rateLimited');
+      return asPlayer((by) => ({ type: 'player:visibility', by, hidden }));
+    });
     handle(socket, 'player:rename', ({ name }) =>
       asPlayer((by) => ({ type: 'player:rename', by, name })),
     );

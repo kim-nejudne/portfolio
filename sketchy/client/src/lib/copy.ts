@@ -230,6 +230,7 @@ const EN = {
   // ---------- Pause (Screen and phone) ----------
   paused: 'Paused',
   pausedByHost: 'The host paused the game',
+  drawerReconnecting: '{name}’s phone reconnecting…',
   pausedDrawerAway: 'Waiting for {name}’s phone…',
   pausedScreenAway: 'Waiting for the Screen…',
   pausedFewPlayers: 'Waiting for more players…',

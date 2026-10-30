@@ -189,6 +189,8 @@ function turnView(room: Room, turn: Turn, now: number): TurnView {
     correct: turn.correct.map((c, i) => ({ pid: c.pid, points: c.points, order: i + 1 })),
     guessed: { guessed: turn.correct.length, of: guessers.length },
     endReason: turn.endReason,
+    drawerReconnecting:
+      room.drawerAway?.turnId === turn.id && !room.paused?.reasons.includes('drawerAway'),
   };
 }
 
