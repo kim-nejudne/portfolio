@@ -70,16 +70,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F28 Pause, skip, kick and end
 
-- [ ] F29 Rematch, back to lobby and the night's totals
-  - Spec: Game flow and state machine (Transitions, Scheduled effects, Turn order); UI by role and phase (Screen, Host controls)
-  - Depends: F28
-  - Done when:
-    - Back to lobby: FINAL → LOBBY keeps players, settings, custom words, doodles and `usedIds`; `session.totals`; Tonight panel from game 2
-    - Rematch: two taps, 3-2-1 countdown on every device, then CHOOSING with the next player in join order drawing first; Cancel leaves FINAL and the gallery untouched; fewer than 2 connected at the end of the countdown stays on FINAL with "Need 2 players"
-  - Note (F20): `startCycle` builds cycles 2+ in plain join order; rotate them like cycle 1 in a rematch game (DECISIONS 43)
-  - Note (F26): `TurnView.number` is `history` turns + 1 (`server/views.ts`), and the Screen's first-two-turns caption keys on it. A new game (rematch or back to lobby, then Start) must restart it at 1: clear `history` once the gallery and awards no longer need it, or count only this game's turns. Add a test that game 2's first turn has `number` 1 (DECISIONS 49)
-  - Note (F27): `inkReset` already keeps the doodles in the InkStore; keep each player's `hasDoodle` in the reducer's new-game reset too, with a test (DECISIONS 50)
-  - Tests: `reducer.newgame.test.ts` — no word repeats across two games; `reducer.rematch.test.ts` — rotation over three rematches, including when last game's first drawer has left; cancel keeps scores and gallery; a stale `rematchGo` after cancel does nothing; fewer than 2 connected
+- [x] F29 Rematch, back to lobby and the night's totals
 
 ## M5 — Drawing tools
 
@@ -271,5 +262,6 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - The next drawer's phone: a one-line "It was {word}" strip above the "You draw next!" cards, and focus moved to the cards' heading on mount and to the "Get ready" line after a tap (F21 review).
 - A per-socket rate limit on `host:settings` (host-only and a cheap merge, but each one broadcasts every view) (F22 review).
 - A permanently mounted `role="status"` region on the Screen and phone for the pause reason, so "Paused" is announced reliably rather than mounting with its text; and a way out (Leave) for a guesser stuck in a long `drawerAway`/`fewPlayers` pause (F28 review).
+- Screen: dim the Tonight rows of players who have left; on a 4:3 Screen the host bar wraps to two rows and covers the Tonight strip until it auto-hides; the rematch countdown should use the same permanently mounted status region as "Paused" (F29 review).
 - Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).

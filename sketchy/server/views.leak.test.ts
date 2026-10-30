@@ -377,6 +377,36 @@ describe('word secrecy across a scripted game', () => {
     expect(room.phase).toBe('FINAL');
     expect(screenView(room, t).gallery.map((g) => g.word)).toEqual(room.history.map((h) => h.word));
 
+    // F29: a rematch. The countdown names the next first drawer (Ben, who joined after Ana), and
+    // game 2's deal and drawing are audited like game 1's.
+    act('rematch countdown', { type: 'host:rematch', by: SCREEN_HOST });
+    expect(screenView(room, t).rematchFirst).toMatchObject({ pid: ben });
+    act(
+      'game 2 dealt',
+      { type: 'timer', timer: 'rematchGo', turnId: room.turn!.id, epoch: room.timerEpoch },
+      3000,
+    );
+    expect([room.phase, room.turn!.drawerPid, room.session.gameNumber]).toEqual([
+      'CHOOSING',
+      ben,
+      2,
+    ]);
+    act('game 2 drawing', { type: 'drawer:choose', by: asPlayer(ben, true), index: 0 });
+    act('game 2 guess', {
+      type: 'player:guess',
+      by: asPlayer(cy),
+      text: word(room),
+      receivedAt: t,
+      oneWayMs: 0,
+    });
+    act('game 2 reveal', { type: 'host:skip', by: SCREEN_HOST });
+    act('game 2 ended', { type: 'host:end', by: SCREEN_HOST });
+    expect(
+      screenView(room, t)
+        .tonight!.map((r) => r.pid)
+        .sort(),
+    ).toEqual(Object.keys(room.players).sort());
+
     expect([...visited].sort()).toEqual([...ALL_PHASES].sort());
   });
 

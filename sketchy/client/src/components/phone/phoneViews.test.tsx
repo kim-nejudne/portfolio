@@ -36,6 +36,8 @@ function drawingView(me: 'mika' | 'jun', overrides: Partial<PlayerView> = {}): P
     phase: 'DRAWING',
     paused: null,
     rematchInMs: null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings: { ...DEFAULT_SETTINGS },
     players: [
       chip('mika', 'Mika', { isDrawer: true, crown: true }),

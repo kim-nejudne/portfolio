@@ -4,6 +4,7 @@ import type { Ack, ChoiceIndex, InkBatch, InkOp, PlayerView } from '../../../sha
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
+import { RematchOverlay } from '../components/RematchOverlay.js';
 import { HostDrawer } from '../components/phone/HostDrawer.js';
 import { JoinForm } from '../components/phone/JoinForm.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
@@ -67,6 +68,8 @@ export function Play() {
   const [welcomeTurnId, setWelcomeTurnId] = useState<number | null>(null);
   // "You're the host now 👑" (F25), when a view brings the crown that the one before didn't have.
   const [crownToast, setCrownToast] = useState(0);
+  // "Need 2 players" after a rematch countdown ran out with too few connected (F29).
+  const [needTwoToast, setNeedTwoToast] = useState(0);
   // The crown phone's Host drawer (F25): while open, the player's view behind it is inert.
   const [hostOpen, setHostOpen] = useState(false);
 
@@ -167,6 +170,7 @@ export function Play() {
     });
     socket.on('fx', (fx) => {
       if (fx.kind === 'yourTurn') navigator.vibrate?.(YOUR_TURN_VIBRATE_MS);
+      if (fx.kind === 'notEnoughPlayers') setNeedTwoToast((n) => n + 1);
       if (fx.kind === 'wrong' || fx.kind === 'nearMiss') {
         const close = fx.kind === 'nearMiss';
         const text = pendingGuesses.current.shift();
@@ -297,6 +301,12 @@ export function Play() {
     return () => clearTimeout(timer);
   }, [crownToast]);
 
+  useEffect(() => {
+    if (!needTwoToast) return;
+    const timer = setTimeout(() => setNeedTwoToast(0), CROWN_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [needTwoToast]);
+
   // Batches sent as the pause began were refused: when it lifts, the drawer catches up.
   const paused = view?.paused != null;
   const wasPaused = useRef(paused);
@@ -352,6 +362,8 @@ export function Play() {
     (view.phase === 'REVEAL' || view.phase === 'SCOREBOARD') && view.secret?.choices != null;
   const cards = view.secret?.choices != null && (choosingNext || view.phase === 'CHOOSING');
   const hostBar = view.host !== null && view.phase !== 'LOBBY';
+  // The rematch 3-2-1 covers the final scores; the crown phone's Host button keeps Cancel in reach.
+  const counting = view.phase === 'FINAL' && view.rematchInMs !== null;
 
   return (
     <main className="relative flex h-dvh w-full flex-col overflow-hidden overscroll-none pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
@@ -366,6 +378,16 @@ export function Play() {
       >
         {crownToast ? t('youreHostNow') : ''}
       </p>
+      <p
+        role="status"
+        className={
+          needTwoToast
+            ? 'pointer-events-none absolute top-[calc(env(safe-area-inset-top)+6.5rem)] left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#FFD166] px-4 py-2 text-base font-bold whitespace-nowrap text-[#1D1B22] shadow-lg'
+            : 'sr-only'
+        }
+      >
+        {needTwoToast ? t('needTwoPlayers') : ''}
+      </p>
       {hostBar && (
         <HostDrawer view={view} socket={socket} t={t} open={hostOpen} onOpenChange={setHostOpen} />
       )}
@@ -378,7 +400,10 @@ export function Play() {
         </p>
       )}
       {/* While paused, the covered guess box and pad are out of reach of focus and the keyboard too. */}
-      <div inert={(hostBar && hostOpen) || view.paused !== null} className="min-h-0 flex-1">
+      <div
+        inert={(hostBar && hostOpen) || view.paused !== null || counting}
+        className="min-h-0 flex-1"
+      >
         {view.phase === 'LOBBY' && (
           <PhoneLobby view={view} socket={socket} onLeave={leave} sendDoodle={sendDoodle} t={t} />
         )}
@@ -422,6 +447,7 @@ export function Play() {
         )}
       </div>
       {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
+      {counting && <RematchOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
     </main>
   );
 }

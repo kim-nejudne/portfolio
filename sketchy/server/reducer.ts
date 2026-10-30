@@ -6,7 +6,8 @@
 // LOBBY → CHOOSING → DRAWING → REVEAL → … → SCOREBOARD between cycles → … → FINAL after
 // `settings.cycles` cycles. From the second turn the next drawer is dealt as `upcoming` on entering
 // REVEAL and chooses during REVEAL and SCOREBOARD (overlapped choosing). A pause freezes every
-// phase timer. Actions of features still to come are rejected as `notAvailable` until then.
+// phase timer. FINAL → a new game by Rematch (after a 3-2-1) or Back to lobby. Actions of features
+// still to come are rejected as `notAvailable` until then.
 
 import {
   ALL_GUESSED_MS,
@@ -22,6 +23,7 @@ import {
   MIN_PLAYERS,
   NAME_OF_DISCONNECTED_ERROR,
   PLAYER_COLORS,
+  REMATCH_COUNTDOWN_MS,
   RESUME_COUNTDOWN_MS,
   REVEAL_MS,
   SCOREBOARD_MS,
@@ -56,6 +58,7 @@ import { guessRejection, matchGuess } from './match.js';
 import { feedText } from './profanity.js';
 import { createRng } from './rng.js';
 import { drawerPoints, guesserPoints } from './scoring.js';
+import { cycleOrder } from './turnOrder.js';
 
 export type ReduceResult =
   { ok: true; room: Room; effects: Effect[] } | { ok: false; error: ReduceError };
@@ -107,6 +110,12 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return kick(d, action, now, fx);
     case 'host:end':
       return end(d, action, now, fx);
+    case 'host:rematch':
+      return rematch(d, action, now, fx);
+    case 'host:rematchCancel':
+      return rematchCancel(d, action);
+    case 'host:backToLobby':
+      return backToLobby(d, action, now, fx);
     case 'timer':
       return timer(d, action, now, fx);
     case 'sys:connected':
@@ -121,9 +130,6 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'player:react':
     case 'player:visibility':
     case 'host:customWords':
-    case 'host:rematch':
-    case 'host:rematchCancel':
-    case 'host:backToLobby':
       return 'notAvailable';
     default: {
       action satisfies never;
@@ -184,7 +190,9 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
     connected: true,
     hidden: false,
     hasDoodle: false,
-    joinedAt: now,
+    // Strictly after everyone here: the turn order and the rematch rotation read join order from it.
+    // SPEC-QUESTION: the spec stores `now`; two joins in one ms would tie (DECISIONS 52).
+    joinedAt: Math.max(now, ...players.map((p) => p.joinedAt + 1)),
   };
   fx.push({ type: 'fx', to: 'screen', fx: { kind: 'join', pid } });
   appendLateJoiner(d, pid);
@@ -277,6 +285,8 @@ function kick(d: Room, a: ActionOf<'host:kick'>, now: number, fx: Effect[]): Han
  * crown passed on, and their turn ended as a skip if they were drawing.
  */
 function removePlayer(d: Room, pid: string, now: number, fx: Effect[]): void {
+  // A finished game's points stay in the night's totals; mid-game they are lost, as Leave warns.
+  if (d.phase === 'FINAL') bankScore(d, d.players[pid]!);
   delete d.players[pid];
   fx.push({ type: 'doodleDrop', pid });
 
@@ -395,12 +405,22 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
   if (!isHost(d, a.by)) return 'notHost';
   if (Object.values(d.players).filter((p) => p.connected).length < MIN_PLAYERS)
     return 'notEnoughPlayers';
-  const allowed = allowedWords(d.packs, d.settings);
-  if (allowed.length < CHOICE_COUNT) return 'notEnoughWords';
+  if (allowedWords(d.packs, d.settings).length < CHOICE_COUNT) return 'notEnoughWords';
+  // A game started from the lobby always begins with the earliest joiner.
+  d.rotateAfter = null;
+  beginGame(d, now, fx);
+  return undefined;
+}
 
+/**
+ * LOBBY → CHOOSING, or FINAL → CHOOSING by Rematch: the new game's deck, then cycle 1's first
+ * deal. At least one player is connected, so there is a drawer; their `joinedAt` is recorded for
+ * the next rematch's rotation.
+ */
+function beginGame(d: Room, now: number, fx: Effect[]): void {
   // A new game's deck: every allowed word not chosen yet this session (Word selection).
   const rng = createRng(d.rngState);
-  const built = newDeck(allowed, d.deck.usedIds, rng);
+  const built = newDeck(allowedWords(d.packs, d.settings), d.deck.usedIds, rng);
   d.rngState = rng.state;
   d.deck = built.deck;
   if (built.reshuffled) fx.push({ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } });
@@ -408,7 +428,87 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
   d.cycle = 0;
   startCycle(d, now, fx);
   d.session.firstDrawerJoinedAt = d.players[d.turn!.drawerPid]!.joinedAt;
+}
+
+// ---------- The next game ----------
+
+/** `host:rematch` on FINAL: the 3-2-1 starts. Nothing is reset yet, so a cancel loses nothing. */
+function rematch(d: Room, a: ActionOf<'host:rematch'>, now: number, fx: Effect[]): Handled {
+  if (d.phase !== 'FINAL' || d.rematchAt !== null) return 'wrongPhase';
+  if (!isHost(d, a.by)) return 'notHost';
+  d.rematchAt = now + REMATCH_COUNTDOWN_MS;
+  fx.push(schedule(d, 'rematchGo', d.rematchAt, d.turn?.id ?? 0));
   return undefined;
+}
+
+/** `host:rematchCancel`: FINAL as it was; the new epoch makes the countdown's `rematchGo` stale. */
+function rematchCancel(d: Room, a: ActionOf<'host:rematchCancel'>): Handled {
+  if (d.phase !== 'FINAL' || d.rematchAt === null) return 'wrongPhase';
+  if (!isHost(d, a.by)) return 'notHost';
+  d.rematchAt = null;
+  d.timerEpoch += 1;
+  return undefined;
+}
+
+/**
+ * The countdown ran out: with at least 2 connected, the new-game reset and cycle 1 of the next
+ * game, begun after last game's first drawer (Rematch rotation), as are its later cycles. With
+ * fewer, FINAL stays as it was and everyone hears "Need 2 players".
+ */
+function rematchGo(d: Room, now: number, fx: Effect[]): void {
+  d.rematchAt = null;
+  const connected = Object.values(d.players).filter((p) => p.connected).length;
+  // The words can't run short: the settings and custom words haven't changed since this game began.
+  if (connected < MIN_PLAYERS || allowedWords(d.packs, d.settings).length < CHOICE_COUNT) {
+    fx.push({ type: 'fx', to: 'all', fx: { kind: 'notEnoughPlayers' } });
+    return;
+  }
+  const after = d.session.firstDrawerJoinedAt;
+  newGame(d, fx);
+  d.rotateAfter = after;
+  beginGame(d, now, fx);
+}
+
+/** `host:backToLobby` on FINAL (a running countdown too): the new-game reset, then LOBBY. */
+function backToLobby(d: Room, a: ActionOf<'host:backToLobby'>, now: number, fx: Effect[]): Handled {
+  if (d.phase !== 'FINAL') return 'wrongPhase';
+  if (!isHost(d, a.by)) return 'notHost';
+  newGame(d, fx);
+  setPhase(d, 'LOBBY', now, fx);
+  return undefined;
+}
+
+/** Adds a player's game score to the night's totals and records who they are. */
+function bankScore(d: Room, p: Player): void {
+  const { session } = d;
+  session.totals[p.pid] = (session.totals[p.pid] ?? 0) + p.score;
+  session.players[p.pid] = { name: p.name, color: p.color, joinedAt: p.joinedAt };
+}
+
+/**
+ * **New-game reset**: each player's score goes into the night's totals (with who they are, for
+ * the Tonight panel after they leave) and back to 0; the game's turns, gallery and awards are
+ * cleared, so the next game's turns count from 1; `inkReset` drops the drawings (the doodles stay,
+ * and so does `hasDoodle`). Players, crown, settings, custom words and `usedIds` stay. Turn ids
+ * keep rising, so nothing of the last game matches the next.
+ */
+function newGame(d: Room, fx: Effect[]): void {
+  for (const p of Object.values(d.players)) {
+    bankScore(d, p);
+    p.score = 0;
+  }
+  d.session.gameNumber += 1;
+  d.history = [];
+  d.awards = [];
+  d.turn = null;
+  d.upcoming = null;
+  d.cycle = 0;
+  d.turnOrder = [];
+  d.turnIndex = 0;
+  d.advanceAt = null;
+  d.rematchAt = null;
+  d.rotateAfter = null;
+  fx.push({ type: 'inkReset' });
 }
 
 /**
@@ -477,11 +577,11 @@ function takeUp(d: Room, now: number, fx: Effect[]): void {
 }
 
 /**
- * The next cycle (the first, from `host:start`): `turnOrder` is every player in the room in join
- * order, fixed for the cycle, and its first connected drawer is dealt. With nobody connected to
- * draw, the game ends (DECISIONS 43).
+ * The next cycle (the first, from `host:start` or Rematch): `turnOrder` is every player in the
+ * room in join order (rotated in a rematch game), fixed for the cycle, and its first connected
+ * drawer is dealt. With nobody connected to draw, the game ends (DECISIONS 43).
  */
-// SPEC-QUESTION: F29's rematch rotation must also apply to cycles 2+ of a rematch game, or a player draws twice in a row.
+// SPEC-QUESTION: the spec rotates a rematch game's first cycle only; its later cycles rotate too, or a player could draw twice in a row (DECISIONS 52).
 function startCycle(d: Room, now: number, fx: Effect[]): void {
   d.cycle += 1;
   d.turnOrder = joinOrder(d);
@@ -491,11 +591,9 @@ function startCycle(d: Room, now: number, fx: Effect[]): void {
   setPhase(d, 'FINAL', now, fx);
 }
 
-/** Every player in the room in join order: a cycle's `turnOrder`. */
+/** Every player in the room in join order, rotated in a rematch game: a cycle's `turnOrder`. */
 function joinOrder(d: Room): string[] {
-  return Object.values(d.players)
-    .sort((x, y) => x.joinedAt - y.joinedAt)
-    .map((p) => p.pid);
+  return cycleOrder(Object.values(d.players), d.rotateAfter);
 }
 
 /** The first connected player in `order` from `from` on, or -1. */
@@ -645,7 +743,14 @@ function abandonChoice(d: Room, now: number, fx: Effect[]): void {
 function schedule(
   d: Room,
   timer:
-    'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone' | 'scoreboardDone' | 'resumeGo',
+    | 'chooseUp'
+    | 'drawUp'
+    | 'hint'
+    | 'allGuessed'
+    | 'revealDone'
+    | 'scoreboardDone'
+    | 'resumeGo'
+    | 'rematchGo',
   at: number,
   turnId = d.turn!.id,
 ): Effect {
@@ -913,6 +1018,12 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
   if (a.epoch !== d.timerEpoch) return 'staleTimer';
   // A pause holds every phase timer; `resumeGo` schedules them again with what they had left.
   if (d.paused && a.timer !== 'resumeGo') return 'paused';
+  // FINAL's countdown: the epoch alone tells a cancelled one apart.
+  if (a.timer === 'rematchGo') {
+    if (d.phase !== 'FINAL' || d.rematchAt === null) return 'staleTimer';
+    rematchGo(d, now, fx);
+    return undefined;
+  }
   // The `upcoming` deal's auto-pick, during REVEAL or SCOREBOARD: it only sets the word.
   if (a.timer === 'chooseUp' && d.upcoming && a.turnId === d.upcoming.id) {
     if (!inBetween(d.phase)) return 'wrongPhase';

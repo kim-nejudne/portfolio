@@ -39,7 +39,8 @@ describe('createRoom', () => {
       packs: TEST_PACKS,
       customWords: [],
       rematchAt: null,
-      session: { gameNumber: 1, totals: {}, firstDrawerJoinedAt: null },
+      rotateAfter: null,
+      session: { gameNumber: 1, totals: {}, players: {}, firstDrawerJoinedAt: null },
       createdAt: T0,
       lastActivityAt: T0,
     });

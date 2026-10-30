@@ -9,6 +9,7 @@
 import { CHOOSE_MS } from '../shared/constants.js';
 import { feedText } from './profanity.js';
 import { rankPlayers } from './ranking.js';
+import { cycleOrder } from './turnOrder.js';
 import type {
   ChoiceView,
   FeedItem,
@@ -20,6 +21,7 @@ import type {
   ScreenView,
   SecretView,
   TimerView,
+  TonightRow,
   Turn,
   TurnView,
   WordEntry,
@@ -60,6 +62,8 @@ function base(room: Room, isHost: boolean, now: number) {
     },
     rematchInMs:
       room.phase === 'FINAL' && room.rematchAt !== null ? Math.max(0, room.rematchAt - now) : null,
+    rematchFirst: rematchFirst(room),
+    gameNumber: room.session.gameNumber,
     settings: { ...room.settings },
     players: chips(room),
     turn: room.turn && turnView(room, room.turn, now),
@@ -85,6 +89,7 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
             .filter((h) => h.hasInk)
             .map(({ turnId, drawerPid, word }) => ({ turnId, drawerPid, word }))
         : [],
+    tonight: tonight(room),
   };
 }
 
@@ -260,6 +265,51 @@ function choiceView(entry: WordEntry): ChoiceView {
 // SPEC-QUESTION: the spec doesn't say how 'off' treats the drawer's latest guess and "Almost:"; masked as 'clean' (DECISIONS 38).
 function guessView(room: Room, item: FeedItem): GuessView {
   return { pid: item.pid, text: feedText(item.text, room.settings.guessFeed) };
+}
+
+/**
+ * During the rematch countdown: who draws first if it ran out now, the first connected player of
+ * the rotated order (the reducer's own rule). Null otherwise, or with nobody connected.
+ */
+function rematchFirst(room: Room): ScreenView['rematchFirst'] {
+  if (room.phase !== 'FINAL' || room.rematchAt === null) return null;
+  const order = cycleOrder(Object.values(room.players), room.session.firstDrawerJoinedAt);
+  const first = order.map((pid) => room.players[pid]!).find((p) => p.connected);
+  return first ? { pid: first.pid, name: first.name, color: first.color } : null;
+}
+
+/**
+ * The night's totals on FINAL from game 2 (Tonight panel, as in Buzzr): every finished game's
+ * total plus this game's score, ranked with shared ranks; players who left are listed with the
+ * total they had. Null in the first game and outside FINAL.
+ */
+function tonight(room: Room): TonightRow[] | null {
+  if (room.phase !== 'FINAL' || room.session.gameNumber < 2) return null;
+  const { totals, players } = room.session;
+  const rows = new Map<
+    string,
+    { pid: string; name: string; color: string; score: number; joinedAt: number }
+  >();
+  for (const [pid, total] of Object.entries(totals)) {
+    const who = players[pid];
+    if (who) rows.set(pid, { pid, ...who, score: total });
+  }
+  for (const p of Object.values(room.players)) {
+    rows.set(p.pid, {
+      pid: p.pid,
+      name: p.name,
+      color: p.color,
+      joinedAt: p.joinedAt,
+      score: (totals[p.pid] ?? 0) + p.score,
+    });
+  }
+  return rankPlayers([...rows.values()]).map((r) => ({
+    pid: r.pid,
+    name: r.name,
+    color: r.color,
+    total: r.score,
+    rank: r.rank,
+  }));
 }
 
 function hostBlock(room: Room): HostBlockView {

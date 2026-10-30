@@ -74,6 +74,8 @@ function view(
     phase,
     paused: paused ? { reasons: ['host'], resumeInMs: null } : null,
     rematchInMs: null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings: { ...DEFAULT_SETTINGS },
     players: [chip('mika', { isDrawer: drawer === 'mika' }), chip(me, { guessed })],
     turn: inTurn

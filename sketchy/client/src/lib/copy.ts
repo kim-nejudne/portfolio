@@ -77,6 +77,12 @@ const EN = {
   // ---------- Screen: scoreboard and final ----------
   roundDone: 'Round {cycle} of {cycles} done',
   finalTitle: 'Final scores',
+  tonight: 'Tonight · {n} games',
+  andMore: '+{n} more',
+  // ---------- Rematch countdown (Screen and phones) ----------
+  gameStartsIn: 'Game {n} starts in',
+  inSeconds: '{n} seconds',
+  drawsFirst: '{name} draws first',
   next: 'Next',
   // ---------- Screen: host control bar and shortcuts (token Screen) ----------
   hostControls: 'Host controls',

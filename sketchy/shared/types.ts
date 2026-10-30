@@ -126,6 +126,13 @@ export interface RoomSettings {
   autoAdvance: boolean; // default true
 }
 
+/** Who a night total belongs to, recorded when it is added to. */
+export interface SessionPlayer {
+  name: string;
+  color: string;
+  joinedAt: number;
+}
+
 export interface Room {
   code: string;
   hostTokenHash: string;
@@ -155,10 +162,19 @@ export interface Room {
   packs: readonly WordPack[]; // every loaded pack, frozen and shared by every room; never cloned
   customWords: WordEntry[]; // session only
   rematchAt: number | null; // FINAL only: when a rematch countdown ends
+  /**
+   * This game's cycles begin with the first player who joined after this time, wrapping to the
+   * earliest joiner: the last game's first drawer for a game started by Rematch, null (the
+   * earliest joiner) for one started from the lobby (Turn order).
+   */
+  // SPEC-QUESTION: not in the spec's Room; every cycle of a rematch game is rotated (DECISIONS 52).
+  rotateAfter: number | null;
   session: {
     // the night's games
     gameNumber: number;
-    totals: Record<string, number>;
+    totals: Record<string, number>; // pid → points over every finished game, added at the new-game reset
+    // SPEC-QUESTION: not in the spec's session; who each total belongs to, so a player who left still has a name (DECISIONS 52).
+    players: Record<string, SessionPlayer>; // pid → identity at their last tally
     firstDrawerJoinedAt: number | null; // for the rematch rotation (Turn order)
   };
   createdAt: number;
@@ -470,6 +486,9 @@ interface BaseView {
   phase: Phase;
   paused: PausedView | null;
   rematchInMs: number | null; // FINAL, while a rematch countdown runs
+  /** FINAL, while a rematch countdown runs: who draws first in the next game, as things stand. */
+  rematchFirst: { pid: string; name: string; color: string } | null;
+  gameNumber: number; // 1-based game of the night in this room
   settings: RoomSettings;
   players: PlayerChipView[]; // in join order; ranked by the client with `rank` where shown
   turn: TurnView | null;
@@ -483,6 +502,17 @@ export interface ScreenView extends BaseView {
   closeGuesses: GuessView[]; // REVEAL and later only
   awards: Award[]; // FINAL
   gallery: { turnId: number; drawerPid: string; word: string }[]; // FINAL
+  /** FINAL from game 2: the night's totals, this game included, players who left too. */
+  tonight: TonightRow[] | null;
+}
+
+/** A night total as the Screen's Tonight panel lists it. Equal totals share a rank. */
+export interface TonightRow {
+  pid: string;
+  name: string;
+  color: string;
+  total: number;
+  rank: number;
 }
 
 export interface ChoiceView {

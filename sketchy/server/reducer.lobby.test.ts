@@ -31,7 +31,11 @@ describe('reduce: general', () => {
 
   it('rejects an action whose feature has not landed yet', () => {
     const { room } = withPlayers(['Ana', 'Ben']);
-    const result = reduce(room, { type: 'host:rematch', by: SCREEN_HOST }, T0);
+    const result = reduce(
+      room,
+      { type: 'host:customWords', by: SCREEN_HOST, words: ['adobo'] },
+      T0,
+    );
     expect(result).toEqual({ ok: false, error: 'notAvailable' });
   });
 

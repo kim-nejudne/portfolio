@@ -434,6 +434,24 @@ describe('host actions', () => {
     });
   });
 
+  it('host:rematch: a 3-2-1 for everyone, then game 2 with Ben drawing first (F29)', async () => {
+    const g = await playing();
+    expect(await g.screen.emit('host:end')).toEqual({ ok: true });
+    await g.ben.client.state((v) => v.phase === 'FINAL');
+    expect(await g.ana.client.emit('host:rematch')).toEqual({ ok: true });
+    const counting = await g.ben.client.state((v) => v.rematchInMs !== null);
+    expect(counting.rematchInMs).toBe(3000);
+    expect(counting.rematchFirst?.name).toBe('Ben');
+    const go = g.timers.at(-1)!;
+    expect(go.delayMs).toBe(3000);
+    g.time.mono += 3000;
+    go.fn();
+    const game2 = await g.ben.client.state((v) => v.phase === 'CHOOSING' && v.gameNumber === 2);
+    expect(game2.turn!.drawerPid).toBe(g.ben.pid);
+    expect(game2.turn!.number).toBe(1);
+    expect(g.ben.client.fx).toContainEqual({ kind: 'yourTurn' });
+  });
+
   it('need a join first', async () => {
     const s = await setup();
     const stranger = await s.connect();

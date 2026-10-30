@@ -36,6 +36,8 @@ function lobby(host: boolean, settings: RoomSettings = DEFAULT_SETTINGS): Screen
     phase: 'LOBBY',
     paused: null,
     rematchInMs: null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings,
     players: [],
     turn: null,
@@ -44,6 +46,7 @@ function lobby(host: boolean, settings: RoomSettings = DEFAULT_SETTINGS): Screen
     closeGuesses: [],
     awards: [],
     gallery: [],
+    tonight: null,
   };
 }
 

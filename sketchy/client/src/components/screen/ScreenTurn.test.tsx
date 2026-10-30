@@ -41,6 +41,8 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     phase: 'REVEAL',
     paused: null,
     rematchInMs: null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings: { ...DEFAULT_SETTINGS },
     players: [chip('mika', 'Mika'), chip('jun', 'Jun')],
     turn,
@@ -49,6 +51,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     closeGuesses: [],
     awards: [],
     gallery: [],
+    tonight: null,
   };
   return { view, turn };
 }

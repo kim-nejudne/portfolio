@@ -42,6 +42,8 @@ function view(
     phase,
     paused: null,
     rematchInMs: opts.rematchInMs ?? null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings: { ...DEFAULT_SETTINGS, guessFeed: 'clean' },
     players: [
       chip('mika', 'Mika', { crown: host, isDrawer: phase === 'DRAWING' }),

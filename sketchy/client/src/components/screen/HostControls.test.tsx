@@ -22,6 +22,8 @@ function view(
     phase,
     paused: opts.paused ? { reasons: ['host'], resumeInMs: null } : null,
     rematchInMs: opts.rematchInMs ?? null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings: { ...DEFAULT_SETTINGS },
     players: [],
     turn: null,
@@ -30,6 +32,7 @@ function view(
     closeGuesses: [],
     awards: [],
     gallery: [],
+    tonight: null,
   };
 }
 

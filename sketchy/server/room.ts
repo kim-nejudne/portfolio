@@ -55,7 +55,8 @@ export function createRoom({
     packs,
     customWords: [],
     rematchAt: null,
-    session: { gameNumber: 1, totals: {}, firstDrawerJoinedAt: null },
+    rotateAfter: null,
+    session: { gameNumber: 1, totals: {}, players: {}, firstDrawerJoinedAt: null },
     createdAt: now,
     lastActivityAt: now,
   };

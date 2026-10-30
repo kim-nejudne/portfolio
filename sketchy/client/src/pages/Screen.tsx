@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import type { ScreenView } from '../../../shared/types.js';
 import { DebugOverlay } from '../components/screen/DebugOverlay.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
+import { RematchOverlay } from '../components/RematchOverlay.js';
 import { HostControls } from '../components/screen/HostControls.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
@@ -21,6 +22,8 @@ const JOIN_ACK_TIMEOUT_MS = 5000;
 
 /** How long the Screen shows "All words used, reshuffling". */
 const RESHUFFLE_NOTICE_MS = 4000;
+/** How long the Screen shows "Need 2 players" after a rematch countdown ran out. */
+const NEED_TWO_NOTICE_MS = 4000;
 
 /**
  * The Screen at `/screen/:code`: joins as a Screen (with this device's hostToken, if it created the
@@ -33,6 +36,8 @@ export function Screen() {
   const [state, setState] = useState<{ view: ScreenView; at: number } | null>(null);
   // "All words used, reshuffling", for a few seconds after the deck runs out.
   const [reshuffled, setReshuffled] = useState(false);
+  // "Need 2 players", for a few seconds after a rematch countdown ends with too few connected.
+  const [needTwo, setNeedTwo] = useState(false);
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
   // Lobby doodles (F27), drawn as the players' avatars on every chip.
@@ -75,11 +80,17 @@ export function Screen() {
       if (view.role === 'screen') setState({ view, at: performance.now() });
     });
     let reshuffleTimer: ReturnType<typeof setTimeout> | undefined;
+    let needTwoTimer: ReturnType<typeof setTimeout> | undefined;
     socket.on('fx', (fx) => {
-      if (fx.kind !== 'wordsReshuffled') return;
-      setReshuffled(true);
-      clearTimeout(reshuffleTimer);
-      reshuffleTimer = setTimeout(() => setReshuffled(false), RESHUFFLE_NOTICE_MS);
+      if (fx.kind === 'wordsReshuffled') {
+        setReshuffled(true);
+        clearTimeout(reshuffleTimer);
+        reshuffleTimer = setTimeout(() => setReshuffled(false), RESHUFFLE_NOTICE_MS);
+      } else if (fx.kind === 'notEnoughPlayers') {
+        setNeedTwo(true);
+        clearTimeout(needTwoTimer);
+        needTwoTimer = setTimeout(() => setNeedTwo(false), NEED_TWO_NOTICE_MS);
+      }
     });
     socket.on('room:closed', () => {
       setStatus('ended');
@@ -116,6 +127,7 @@ export function Screen() {
 
     return () => {
       clearTimeout(reshuffleTimer);
+      clearTimeout(needTwoTimer);
       stopPinging();
       socket.removeAllListeners();
       socket.disconnect();
@@ -176,6 +188,14 @@ export function Screen() {
           {t('wordsReshuffled')}
         </p>
       )}
+      {needTwo && view.phase === 'FINAL' && (
+        <p
+          role="status"
+          className="absolute top-[16vmin] left-1/2 z-20 -translate-x-1/2 rounded-full bg-[#FFD166] px-[3vmin] py-[1vmin] text-[max(4vmin,20px)] font-bold text-[#1D1B22]"
+        >
+          {t('needTwoPlayers')}
+        </p>
+      )}
       <div className="min-h-0 flex-1">
         <DoodleContext value={doodles}>
           {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
@@ -186,6 +206,9 @@ export function Screen() {
         </DoodleContext>
       </div>
       {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />}
+      {view.phase === 'FINAL' && view.rematchInMs !== null && (
+        <RematchOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />
+      )}
       <footer className="shrink-0 px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
         {window.location.host} · <strong className="tracking-widest text-white">{view.code}</strong>
       </footer>

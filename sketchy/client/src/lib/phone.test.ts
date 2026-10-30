@@ -137,6 +137,8 @@ describe('gainedCrown (F25)', () => {
     phase: 'DRAWING',
     paused: null,
     rematchInMs: null,
+    rematchFirst: null,
+    gameNumber: 1,
     settings: { ...DEFAULT_SETTINGS },
     players: [],
     turn: null,
