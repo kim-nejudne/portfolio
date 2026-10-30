@@ -144,6 +144,7 @@ export interface Room {
   turnCounter: number; // last Turn.id used
   turn: Turn | null;
   upcoming: Turn | null; // dealt during REVEAL/SCOREBOARD; the next drawer chooses meanwhile
+  advanceAt: number | null; // REVEAL/SCOREBOARD with auto-advance: when `revealDone`/`scoreboardDone` is due
   history: TurnSummary[]; // this game, oldest first
   awards: Award[]; // computed on entering FINAL
   /**
@@ -261,6 +262,8 @@ export type ReduceError =
   | 'nameOfDisconnected' // NAME_OF_DISCONNECTED_ERROR: the phone offers to take over
   | 'notEnoughPlayers'
   | 'paused'
+  | 'notPaused' // `host:resume` with no `host` pause reason to clear
+  | 'cannotKickSelf' // the crown holder kicking their own pid (Leave is for that)
   | 'notDrawer' // `drawer:choose` from anyone but the turn's drawer
   | 'notEnoughWords' // the settings leave fewer than 3 words to deal
   | 'drawerCannotGuess'

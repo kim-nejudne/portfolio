@@ -68,16 +68,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F27 Lobby doodles
 
-- [ ] F28 Pause, skip, kick and end
-  - Spec: Game flow and state machine (Pausing, Transitions); Reducer actions and effects (Actions); UI by role and phase (Guesser phone, Host controls)
-  - Depends: F25
-  - Done when:
-    - `host` pause reason with remaining-time restore and the 3-2-1 resume; `host:skip` in CHOOSING and DRAWING; kick (including the drawer); `host:end` from any game phase; points earned so far stay
-    - Kick takes two taps ("Remove Jun?"); Leave takes two taps and mid-game says "Your points will be lost"; the kicked phone shows "You were removed from this game"
-  - Note (F24): the token Screen's control bar (`HostControls`) already sends pause, resume, skip and end; add its players list with Kick (two taps) there too (DECISIONS 47)
-  - Note (F25): the players list with Kick ("Remove Jun?", two taps) already exists on the token Screen (lobby chips, the bar's Players button) and the crown phone (Change, the Host drawer), via `HostPlayerList`; it sends `host:kick`. Kicking the crown holder must call `passCrown` in `reducer.ts`, with a test that the crown passes on kick (DECISIONS 48). The Host top bar sits above the paused overlay, so the crown phone's Resume stays reachable
-  - Note (F27): kick must also emit `{type: 'doodleDrop', pid}` as `leave` does (the ink gateway drops the doodle), with a test (DECISIONS 50)
-  - Tests: `reducer.pause.test.ts` — paused time doesn't count towards `t`; stale timers after pause are ignored; `reducer.host.test.ts`
+- [x] F28 Pause, skip, kick and end
 
 - [ ] F29 Rematch, back to lobby and the night's totals
   - Spec: Game flow and state machine (Transitions, Scheduled effects, Turn order); UI by role and phase (Screen, Host controls)
@@ -279,5 +270,6 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - `drawer:choose` with an optional `turnId`, refused when it doesn't match the open choice, so a late duplicate tap from one CHOOSING can't pick the next `upcoming` deal when the sole connected player draws back-to-back (F21 review).
 - The next drawer's phone: a one-line "It was {word}" strip above the "You draw next!" cards, and focus moved to the cards' heading on mount and to the "Get ready" line after a tap (F21 review).
 - A per-socket rate limit on `host:settings` (host-only and a cheap merge, but each one broadcasts every view) (F22 review).
+- A permanently mounted `role="status"` region on the Screen and phone for the pause reason, so "Paused" is announced reliably rather than mounting with its text; and a way out (Leave) for a guesser stuck in a long `drawerAway`/`fewPlayers` pause (F28 review).
 - Per-socket cap on all `player:*` events in the gateway, so refused actions (empty guesses, `alreadyGuessed`) can't be spammed at the reducer's clone cost (F14 review).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).

@@ -192,7 +192,13 @@ const EN = {
   points: '{points} points',
   finalRank: 'You finished #{rank} of {of}',
   seeGallery: 'See the gallery on the Screen',
+  // ---------- Pause (Screen and phone) ----------
   paused: 'Paused',
+  pausedByHost: 'The host paused the game',
+  pausedDrawerAway: 'Waiting for {name}’s phone…',
+  pausedScreenAway: 'Waiting for the Screen…',
+  pausedFewPlayers: 'Waiting for more players…',
+  resuming: 'Back in',
 };
 
 export type CopyKey = keyof typeof EN;

@@ -5,8 +5,8 @@
 //
 // LOBBY → CHOOSING → DRAWING → REVEAL → … → SCOREBOARD between cycles → … → FINAL after
 // `settings.cycles` cycles. From the second turn the next drawer is dealt as `upcoming` on entering
-// REVEAL and chooses during REVEAL and SCOREBOARD (overlapped choosing). Pauses (F28) and the rest
-// arrive with their features; their actions are rejected as `notAvailable` until then.
+// REVEAL and chooses during REVEAL and SCOREBOARD (overlapped choosing). A pause freezes every
+// phase timer. Actions of features still to come are rejected as `notAvailable` until then.
 
 import {
   ALL_GUESSED_MS,
@@ -22,6 +22,7 @@ import {
   MIN_PLAYERS,
   NAME_OF_DISCONNECTED_ERROR,
   PLAYER_COLORS,
+  RESUME_COUNTDOWN_MS,
   REVEAL_MS,
   SCOREBOARD_MS,
 } from '../shared/constants.js';
@@ -29,6 +30,7 @@ import type {
   Action,
   ChoiceIndex,
   Effect,
+  PauseReason,
   Phase,
   Player,
   ReduceError,
@@ -72,6 +74,8 @@ export function reduce(room: Room, action: Action, now: number): ReduceResult {
   const d: Room = { ...structuredClone(rest), packs };
   const effects: Effect[] = [];
   const error = apply(d, action, now, effects);
+  // Every phase timer is frozen at `since`, so what it had left is read from there.
+  if (!error && d.paused) d.paused.remainingMs = phaseLeft(d, d.paused.since);
   return error ? { ok: false, error } : { ok: true, room: d, effects };
 }
 
@@ -95,6 +99,14 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return settings(d, action);
     case 'host:crown':
       return giveCrown(d, action, fx);
+    case 'host:pause':
+      return hostPause(d, action, now);
+    case 'host:resume':
+      return hostResume(d, action, now, fx);
+    case 'host:kick':
+      return kick(d, action, now, fx);
+    case 'host:end':
+      return end(d, action, now, fx);
     case 'timer':
       return timer(d, action, now, fx);
     case 'sys:connected':
@@ -108,11 +120,7 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'player:rename':
     case 'player:react':
     case 'player:visibility':
-    case 'host:pause':
-    case 'host:resume':
-    case 'host:kick':
     case 'host:customWords':
-    case 'host:end':
     case 'host:rematch':
     case 'host:rematchCancel':
     case 'host:backToLobby':
@@ -218,7 +226,7 @@ function crown(d: Room, pid: string | null, fx: Effect[]): void {
 }
 
 /**
- * After the crown holder has gone (leave, or F28's kick): the longest-connected remaining player,
+ * After the crown holder has gone (leave or kick): the longest-connected remaining player,
  * i.e. the earliest joiner who is connected, else the earliest joiner; nobody in an empty room.
  */
 function passCrown(d: Room, fx: Effect[]): void {
@@ -244,7 +252,31 @@ function giveCrown(d: Room, a: ActionOf<'host:crown'>, fx: Effect[]): Handled {
 function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]): Handled {
   const player = senderPlayer(d, a.by);
   if (typeof player === 'string') return player;
-  const { pid } = player;
+  removePlayer(d, player.pid, now, fx);
+  return undefined;
+}
+
+/**
+ * `host:kick`, in any phase: removed as on leave, and their `keyHash` can't join this room again.
+ * The gateway sends them `kicked` and disconnects them. Not their own pid: Leave is for that.
+ */
+function kick(d: Room, a: ActionOf<'host:kick'>, now: number, fx: Effect[]): Handled {
+  if (!isHost(d, a.by)) return 'notHost';
+  const target = d.players[a.pid];
+  if (!target) return 'unknownPlayer';
+  // SPEC-QUESTION: the spec allows any pid; the crown holder's own is refused (DECISIONS 51).
+  if (a.by.kind === 'player' && a.by.pid === a.pid) return 'cannotKickSelf';
+  d.kickedKeyHashes.push(target.keyHash);
+  removePlayer(d, a.pid, now, fx);
+  fx.push({ type: 'kick', pid: a.pid });
+  return undefined;
+}
+
+/**
+ * A player leaves or is kicked: out of the room and the turn order, their doodle dropped, the
+ * crown passed on, and their turn ended as a skip if they were drawing.
+ */
+function removePlayer(d: Room, pid: string, now: number, fx: Effect[]): void {
   delete d.players[pid];
   fx.push({ type: 'doodleDrop', pid });
 
@@ -265,7 +297,6 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
     // The leaver may have been the last guesser still drawing a blank.
     else if (!d.turn?.correct.some((c) => c.pid === pid)) checkAllGuessed(d, now, fx);
   }
-  return undefined;
 }
 
 /** The ink gateway stored or dropped a lobby doodle. Only a drop (`has: false`) outside LOBBY. */
@@ -306,12 +337,43 @@ function connection(
 
 /**
  * Every phase change bumps `timerEpoch`, so the choice still open (CHOOSING's, or `upcoming`'s in
- * REVEAL and SCOREBOARD) gets its `chooseUp` again, still due 12 s after its deal.
+ * REVEAL and SCOREBOARD) gets its `chooseUp` again, still due 12 s after its deal. A pause ends
+ * with the game (FINAL, LOBBY); otherwise it holds the new phase too (a skip or kick while
+ * paused): its timers count from now and wait for `resumeGo`, and a running 3-2-1 is re-armed.
  */
-function setPhase(d: Room, phase: Phase, fx: Effect[]): void {
+function setPhase(d: Room, phase: Phase, now: number, fx: Effect[]): void {
   d.phase = phase;
   d.timerEpoch += 1;
+  d.advanceAt = null;
+  if (phase === 'LOBBY' || phase === 'FINAL') d.paused = null;
+  if (d.paused) {
+    d.paused.since = now;
+    if (d.paused.resumeAt !== null) fx.push(schedule(d, 'resumeGo', d.paused.resumeAt));
+    return;
+  }
   scheduleChooseUp(d, fx);
+}
+
+/** REVEAL or SCOREBOARD with auto-advance: due at `at`, held (and moved) by a pause. */
+function autoAdvance(
+  d: Room,
+  timer: 'revealDone' | 'scoreboardDone',
+  at: number,
+  fx: Effect[],
+): void {
+  d.advanceAt = at;
+  if (!d.paused) fx.push(schedule(d, timer, at));
+}
+
+/** What the current phase's timer has left at `at`: the clock, the choice or the auto-advance. */
+function phaseLeft(d: Room, at: number): number | null {
+  const due =
+    d.phase === 'DRAWING'
+      ? (d.turn?.endsAt ?? null)
+      : d.phase === 'CHOOSING' && d.turn
+        ? d.turn.dealtAt + CHOOSE_MS
+        : d.advanceAt;
+  return due === null ? null : Math.max(0, due - at);
 }
 
 /** The dealt turn whose word is still to be chosen, if any. */
@@ -322,7 +384,7 @@ function openChoice(d: Room): Turn | null {
 
 const inBetween = (phase: Phase) => phase === 'REVEAL' || phase === 'SCOREBOARD';
 
-/** `chooseUp` for the open choice at this epoch. F28's `resumeGo` calls it after moving `dealtAt`. */
+/** `chooseUp` for the open choice at this epoch. `resumeGo` calls it after moving `dealtAt`. */
 function scheduleChooseUp(d: Room, fx: Effect[]): void {
   const open = openChoice(d);
   if (open) fx.push(schedule(d, 'chooseUp', open.dealtAt + CHOOSE_MS, open.id));
@@ -366,10 +428,10 @@ function advance(d: Room, now: number, fx: Effect[]): void {
 function endCycle(d: Room, now: number, fx: Effect[]): void {
   if (!d.upcoming) d.turnIndex = d.turnOrder.length;
   if (d.cycle < d.settings.cycles) {
-    setPhase(d, 'SCOREBOARD', fx);
-    if (d.settings.autoAdvance) fx.push(schedule(d, 'scoreboardDone', now + SCOREBOARD_MS));
+    setPhase(d, 'SCOREBOARD', now, fx);
+    if (d.settings.autoAdvance) autoAdvance(d, 'scoreboardDone', now + SCOREBOARD_MS, fx);
   } else {
-    setPhase(d, 'FINAL', fx);
+    setPhase(d, 'FINAL', now, fx);
   }
 }
 
@@ -411,7 +473,7 @@ function takeUp(d: Room, now: number, fx: Effect[]): void {
   d.cycle = up.cycle;
   d.turn = up;
   if (up.word) startDrawing(d, now, fx);
-  else setPhase(d, 'CHOOSING', fx);
+  else setPhase(d, 'CHOOSING', now, fx);
 }
 
 /**
@@ -426,7 +488,7 @@ function startCycle(d: Room, now: number, fx: Effect[]): void {
   d.turnIndex = -1;
   if (dealNext(d, now, fx)) return;
   d.turnIndex = d.turnOrder.length;
-  setPhase(d, 'FINAL', fx);
+  setPhase(d, 'FINAL', now, fx);
 }
 
 /** Every player in the room in join order: a cycle's `turnOrder`. */
@@ -451,7 +513,7 @@ function dealNext(d: Room, now: number, fx: Effect[]): boolean {
   const index = nextConnected(d, d.turnOrder, d.turnIndex + 1);
   if (index === -1) return false;
   d.turn = deal(d, index, d.cycle, now, fx);
-  setPhase(d, 'CHOOSING', fx);
+  setPhase(d, 'CHOOSING', now, fx);
   return true;
 }
 
@@ -538,18 +600,23 @@ function startDrawing(d: Room, now: number, fx: Effect[]): void {
   const turn = d.turn!;
   turn.clockStart = now;
   turn.endsAt = now + d.settings.drawSeconds * 1000;
-  setPhase(d, 'DRAWING', fx);
+  setPhase(d, 'DRAWING', now, fx);
   fx.push(
     { type: 'inkOpen', turnId: turn.id, drawerPid: turn.drawerPid },
     schedule(d, 'drawUp', turn.endsAt + GRACE_MS),
   );
-  // One hint at each HINT_AT mark, as many as the word's cap allows (none under 4 letters).
-  // SPEC-QUESTION: a pause moves clockStart; F28's resumeGo must re-schedule the hints still to come.
-  if (d.settings.hints) {
-    const drawMs = d.settings.drawSeconds * 1000;
-    for (const f of HINT_AT.slice(0, hintCount(turn.word!.word)))
-      fx.push(schedule(d, 'hint', now + f * drawMs));
-  }
+  scheduleHints(d, turn, fx);
+}
+
+/**
+ * One hint at each HINT_AT mark of the clock, as many as the word's cap allows (none under 4
+ * letters), from the first not yet given: all of them at the start, the rest after a pause.
+ */
+function scheduleHints(d: Room, turn: Turn, fx: Effect[]): void {
+  if (!d.settings.hints) return;
+  const drawMs = d.settings.drawSeconds * 1000;
+  for (const f of HINT_AT.slice(turn.hintIndexes.length, hintCount(turn.word!.word)))
+    fx.push(schedule(d, 'hint', turn.clockStart! + f * drawMs));
 }
 
 /**
@@ -577,7 +644,8 @@ function abandonChoice(d: Room, now: number, fx: Effect[]): void {
 
 function schedule(
   d: Room,
-  timer: 'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone' | 'scoreboardDone',
+  timer:
+    'chooseUp' | 'drawUp' | 'hint' | 'allGuessed' | 'revealDone' | 'scoreboardDone' | 'resumeGo',
   at: number,
   turnId = d.turn!.id,
 ): Effect {
@@ -671,6 +739,18 @@ function checkAllGuessed(d: Room, now: number, fx: Effect[]): void {
 
 /** DRAWING → REVEAL: the drawer's half, the summary, `inkClose`, `turnEnd`, maybe `revealDone`. */
 function endTurn(d: Room, reason: TurnEndReason, now: number, fx: Effect[]): void {
+  const turn = closeTurn(d, reason);
+  dealUpcoming(d, now, fx);
+  setPhase(d, 'REVEAL', now, fx);
+  fx.push(
+    { type: 'inkClose', turnId: turn.id },
+    { type: 'fx', to: 'all', fx: { kind: 'turnEnd', reason } },
+  );
+  if (d.settings.autoAdvance) autoAdvance(d, 'revealDone', now + REVEAL_MS, fx);
+}
+
+/** The drawing turn is over: the drawer gets their half and the turn goes into `history`. */
+function closeTurn(d: Room, reason: TurnEndReason): Turn {
   const turn = d.turn!;
   turn.drawerPoints = drawerPoints(turn.correct.map((c) => c.points));
   turn.endReason = reason;
@@ -697,14 +777,7 @@ function endTurn(d: Room, reason: TurnEndReason, now: number, fx: Effect[]): voi
     // knowing; `ink:get` then answers `inkNotKept` and the gallery shows "Drawing not kept".
     hasInk: true,
   });
-
-  dealUpcoming(d, now, fx);
-  setPhase(d, 'REVEAL', fx);
-  fx.push(
-    { type: 'inkClose', turnId: turn.id },
-    { type: 'fx', to: 'all', fx: { kind: 'turnEnd', reason } },
-  );
-  if (d.settings.autoAdvance) fx.push(schedule(d, 'revealDone', now + REVEAL_MS));
+  return turn;
 }
 
 function skip(d: Room, a: ActionOf<'host:skip'>, now: number, fx: Effect[]): Handled {
@@ -713,6 +786,100 @@ function skip(d: Room, a: ActionOf<'host:skip'>, now: number, fx: Effect[]): Han
   if (d.phase === 'CHOOSING') abandonChoice(d, now, fx);
   else endTurn(d, 'skip', now, fx);
   return undefined;
+}
+
+/**
+ * `host:end` → FINAL from any game phase. A turn being drawn ends as a skip, so every point earned
+ * stays; a choice still open and an `upcoming` deal put their words back in the deck.
+ */
+function end(d: Room, a: ActionOf<'host:end'>, now: number, fx: Effect[]): Handled {
+  if (!pausable(d.phase)) return 'wrongPhase';
+  if (!isHost(d, a.by)) return 'notHost';
+  if (d.phase === 'CHOOSING') {
+    d.deck = returnChoices(d.deck, d.turn!.choices);
+  } else if (d.phase === 'DRAWING') {
+    const turn = closeTurn(d, 'skip');
+    fx.push({ type: 'inkClose', turnId: turn.id });
+  }
+  if (d.upcoming) {
+    d.deck = returnDealt(d.deck, d.upcoming.choices, d.upcoming.word);
+    d.upcoming = null;
+  }
+  setPhase(d, 'FINAL', now, fx);
+  return undefined;
+}
+
+// ---------- Pausing ----------
+
+/** The phases a game can be paused (and ended) in. */
+const pausable = (phase: Phase) => phase !== 'LOBBY' && phase !== 'FINAL';
+
+function hostPause(d: Room, a: ActionOf<'host:pause'>, now: number): Handled {
+  if (!pausable(d.phase)) return 'wrongPhase';
+  if (!isHost(d, a.by)) return 'notHost';
+  if (d.paused?.reasons.includes('host')) return 'paused';
+  pause(d, 'host', now);
+  return undefined;
+}
+
+function hostResume(d: Room, a: ActionOf<'host:resume'>, now: number, fx: Effect[]): Handled {
+  if (!isHost(d, a.by)) return 'notHost';
+  if (!d.paused?.reasons.includes('host')) return 'notPaused';
+  clearPauseReason(d, 'host', now, fx);
+  return undefined;
+}
+
+/**
+ * Adds a pause reason. The first one freezes the phase: `since` is now and the epoch moves, so
+ * every timer in flight is ignored. One added during the 3-2-1 stops it.
+ */
+function pause(d: Room, reason: PauseReason, now: number): void {
+  if (!d.paused) {
+    d.paused = { reasons: [reason], since: now, remainingMs: null, resumeAt: null };
+    d.timerEpoch += 1;
+    return;
+  }
+  if (!d.paused.reasons.includes(reason)) d.paused.reasons.push(reason);
+  if (d.paused.resumeAt !== null) {
+    d.paused.resumeAt = null;
+    d.timerEpoch += 1;
+  }
+}
+
+/** Clears a pause reason; with none left, the 3-2-1 starts and `resumeGo` is due at its end. */
+function clearPauseReason(d: Room, reason: PauseReason, now: number, fx: Effect[]): void {
+  const paused = d.paused!;
+  paused.reasons = paused.reasons.filter((r) => r !== reason);
+  if (paused.reasons.length > 0 || paused.resumeAt !== null) return;
+  paused.resumeAt = now + RESUME_COUNTDOWN_MS;
+  fx.push(schedule(d, 'resumeGo', paused.resumeAt));
+}
+
+/**
+ * `resumeGo`: the phase runs again. Everything timed in it moves forward by the paused time (the
+ * 3-2-1 included), so the clock, a guess's `t`, an open choice and the auto-advance each keep what
+ * they had left; its timers are scheduled again at a fresh epoch.
+ */
+function resume(d: Room, now: number, fx: Effect[]): void {
+  const paused = now - d.paused!.since;
+  d.paused = null;
+  d.timerEpoch += 1;
+  const turn = d.turn;
+  if (d.phase === 'DRAWING' && turn && turn.clockStart !== null && turn.endsAt !== null) {
+    turn.clockStart += paused;
+    turn.endsAt += paused;
+    fx.push(schedule(d, 'drawUp', turn.endsAt + GRACE_MS));
+    scheduleHints(d, turn, fx);
+    // An early end due during the pause was dropped with its epoch.
+    checkAllGuessed(d, now, fx);
+  }
+  const open = openChoice(d);
+  if (open) open.dealtAt += paused;
+  scheduleChooseUp(d, fx);
+  if (d.advanceAt !== null) {
+    d.advanceAt += paused;
+    fx.push(schedule(d, d.phase === 'REVEAL' ? 'revealDone' : 'scoreboardDone', d.advanceAt));
+  }
 }
 
 function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Handled {
@@ -744,45 +911,40 @@ function settings(d: Room, a: ActionOf<'host:settings'>): Handled {
 
 function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handled {
   if (a.epoch !== d.timerEpoch) return 'staleTimer';
+  // A pause holds every phase timer; `resumeGo` schedules them again with what they had left.
+  if (d.paused && a.timer !== 'resumeGo') return 'paused';
   // The `upcoming` deal's auto-pick, during REVEAL or SCOREBOARD: it only sets the word.
   if (a.timer === 'chooseUp' && d.upcoming && a.turnId === d.upcoming.id) {
     if (!inBetween(d.phase)) return 'wrongPhase';
     if (d.upcoming.word) return 'staleTimer';
-    // A pause holds the choice open; F28's resumeGo calls scheduleChooseUp after moving dealtAt.
-    if (d.paused) return 'paused';
     setWord(d, d.upcoming, easiestIndex(d.upcoming.choices));
     return undefined;
   }
   if (!d.turn || a.turnId !== d.turn.id) return 'staleTimer';
   switch (a.timer) {
     case 'chooseUp':
-      // SPEC-QUESTION: re-scheduling chooseUp for the remaining time after a pause comes with F28's resumeGo.
       if (d.phase !== 'CHOOSING' || d.turn.word) return 'wrongPhase';
-      // A pause holds the choice open; F28's resumeGo schedules the rest of the 12 s.
-      if (d.paused) return 'paused';
       setWord(d, d.turn, easiestIndex(d.turn.choices));
       startDrawing(d, now, fx);
       return undefined;
     case 'hint':
       if (d.phase !== 'DRAWING' || !d.turn.word) return 'wrongPhase';
-      // A pause holds the hint; F28's resumeGo re-schedules it.
-      if (d.paused) return 'paused';
       hint(d, fx);
       return undefined;
     case 'drawUp':
     case 'allGuessed':
       if (d.phase !== 'DRAWING') return 'wrongPhase';
-      // A pause holds an early end too; F28's resumeGo re-runs the all-guessed check.
-      if (a.timer === 'allGuessed' && d.paused) return 'paused';
       endTurn(d, a.timer === 'drawUp' ? 'time' : 'allGuessed', now, fx);
       return undefined;
     case 'revealDone':
     case 'scoreboardDone':
       if (d.phase !== (a.timer === 'revealDone' ? 'REVEAL' : 'SCOREBOARD')) return 'wrongPhase';
-      // A pause holds the reveal and the scoreboard; F28's resumeGo re-schedules them.
-      if (d.paused) return 'paused';
       if (a.timer === 'revealDone') afterReveal(d, now, fx);
       else afterScoreboard(d, now, fx);
+      return undefined;
+    case 'resumeGo':
+      if (!d.paused || d.paused.resumeAt === null) return 'staleTimer';
+      resume(d, now, fx);
       return undefined;
     default:
       return 'notAvailable';

@@ -8,9 +8,6 @@
 // search of the JSON finds any of them, wherever it hides. Every secret must therefore come from
 // `LEAK_PACK` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
 // logger added later must be spied on here too.
-//
-// SPEC-QUESTION: the reducer cannot reach a pause yet (F28), so that state is built by hand from a
-// real one (marked `synth`). When F28 lands, replace it with the real action (DECISIONS 33).
 
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -29,6 +26,7 @@ import type {
 } from '../shared/types.js';
 import { hintCount } from './hints.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
+import { reduce } from './reducer.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets } from './sockets.js';
@@ -226,14 +224,15 @@ describe('word secrecy across a scripted game', () => {
     });
     const dee = Object.values(room.players).find((p) => p.name === 'Dee')!.pid;
 
-    // synth pause. TODO(F28): `host:pause` and `host:resume` instead.
-    // a host pause, then the 3-2-1 countdown.
-    const paused: Room = {
-      ...room,
-      paused: { reasons: ['host'], since: t, remainingMs: 30_000, resumeAt: null },
-    };
-    audit('paused', paused, t + 5000);
-    audit('resuming', { ...paused, paused: { ...paused.paused!, resumeAt: t + 8000 } }, t + 6000);
+    // A host pause, the 3-2-1, and drawing again (F28).
+    act('paused', { type: 'host:pause', by: SCREEN_HOST });
+    act('resuming', { type: 'host:resume', by: asPlayer(ana, true) });
+    act(
+      'resumed',
+      { type: 'timer', timer: 'resumeGo', turnId: room.turn!.id, epoch: room.timerEpoch },
+      3000,
+    );
+    expect(room.paused).toBeNull();
 
     // synth close guess. TODO(F15): a real near-miss guess instead.
     // kept from the Screen until REVEAL, never sent to a phone.
@@ -421,6 +420,64 @@ it('keeps an abandoned deal out of every view, through to FINAL', () => {
   }
   expect(res.room.phase).toBe('FINAL');
   expect(res.room.turn!.word).toBeNull();
+});
+
+// F28: a kicked drawer, a pause across a skip, and the game ended with a word chosen for the next
+// turn. The kicked drawer's turn is revealed; the discarded `upcoming` word never is.
+it('keeps the words secret through kick, pause, skip and end', () => {
+  const { room: lobby, pids } = withPlayers(['Ana', 'Ben', 'Cy', 'Dee'], leakRoom());
+  const [ana, ben, cy] = pids as [string, string, string];
+  let room = lobby;
+  let t = 4_000_000;
+  const act = (label: string, action: Parameters<typeof step>[1]) => {
+    t += 1000;
+    const res = step(room, action, t);
+    room = res.room;
+    audit(label, room, t, res.effects);
+  };
+  act('dealt', { type: 'host:start', by: SCREEN_HOST });
+  act('drawing', { type: 'drawer:choose', by: asPlayer(ana, true), index: 1 });
+  act('paused', { type: 'host:pause', by: asPlayer(ana, true) });
+  act('kick the drawer', { type: 'host:kick', by: SCREEN_HOST, pid: ana });
+  expect(room.phase).toBe('REVEAL');
+  expect(room.paused).not.toBeNull();
+  act('resuming', { type: 'host:resume', by: asPlayer(ben, true) });
+  act('resumed', {
+    type: 'timer',
+    timer: 'resumeGo',
+    turnId: room.turn!.id,
+    epoch: room.timerEpoch,
+  });
+  act('upcoming chosen', { type: 'drawer:choose', by: asPlayer(ben, true), index: 0 });
+  expect(room.upcoming!.word).not.toBeNull();
+  act('next', { type: 'host:next', by: SCREEN_HOST });
+  expect(room.turn!.drawerPid).toBe(ben);
+  act('guess', {
+    type: 'player:guess',
+    by: asPlayer(cy),
+    text: word(room),
+    receivedAt: t + 1000,
+    oneWayMs: 0,
+  });
+  act('skip while paused', { type: 'host:pause', by: SCREEN_HOST });
+  act('skipped', { type: 'host:skip', by: SCREEN_HOST });
+  // Cy, dealt next, can't choose until the pause is over.
+  expect(room.upcoming!.drawerPid).toBe(cy);
+  expect(reduce(room, { type: 'drawer:choose', by: asPlayer(cy), index: 2 }, t)).toEqual({
+    ok: false,
+    error: 'paused',
+  });
+  act('resuming again', { type: 'host:resume', by: SCREEN_HOST });
+  act('resumed again', {
+    type: 'timer',
+    timer: 'resumeGo',
+    turnId: room.turn!.id,
+    epoch: room.timerEpoch,
+  });
+  act('upcoming chosen again', { type: 'drawer:choose', by: asPlayer(cy), index: 2 });
+  act('ended', { type: 'host:end', by: SCREEN_HOST });
+  expect(room.phase).toBe('FINAL');
+  expect(room.upcoming).toBeNull();
 });
 
 // A close guess is held back from the feed and fx (F14, DECISIONS 37): only its phone hears it.

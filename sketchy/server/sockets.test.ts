@@ -383,6 +383,57 @@ describe('host actions', () => {
     expect(s.rooms.get(CODE)!.crownPid).toBe(ana.pid);
   });
 
+  it('host:kick: the phone hears `kicked`, is disconnected, and its key can’t rejoin (F28)', async () => {
+    const g = await playing();
+    const kicked = new Promise<void>((resolve) =>
+      g.ben.client.socket.once('kicked', () => resolve()),
+    );
+    const gone = new Promise<void>((resolve) =>
+      g.ben.client.socket.once('disconnect', () => resolve()),
+    );
+    expect(await g.ana.client.emit('host:kick', { pid: g.ana.pid })).toEqual({
+      ok: false,
+      error: 'cannotKickSelf',
+    });
+    expect(await g.ana.client.emit('host:kick', { pid: g.ben.pid })).toEqual({ ok: true });
+    await kicked;
+    await gone;
+    const seen = await g.screen.state<ScreenView>((v) => v.players.length === 1);
+    expect(seen.players.map((p) => p.name)).toEqual(['Ana']);
+    const again = await g.connect();
+    expect(
+      await again.emit('player:join', { code: CODE, playerKey: KEY_BEN, name: 'Benji' }),
+    ).toEqual({ ok: false, error: 'kicked' });
+  });
+
+  it('host:pause and host:resume: frozen clock, 3-2-1, then drawing again (F28)', async () => {
+    const g = await playing();
+    g.time.mono = MONO0 + 10_000;
+    expect(await g.screen.emit('host:pause')).toEqual({ ok: true });
+    const paused = await g.ben.client.state((v) => v.paused !== null);
+    expect(paused.paused).toEqual({ reasons: ['host'], resumeInMs: null });
+    expect(paused.turn!.timer).toEqual({ remainingMs: 50_000, totalMs: 60_000, running: false });
+    expect(await g.ben.client.emit('player:guess', { text: g.word })).toEqual({
+      ok: false,
+      error: 'paused',
+    });
+    g.time.mono = MONO0 + 20_000;
+    expect(await g.ana.client.emit('host:resume')).toEqual({ ok: true });
+    const counting = await g.ben.client.state((v) => v.paused?.resumeInMs != null);
+    expect(counting.paused!.resumeInMs).toBe(3000);
+    const go = g.timers.at(-1)!;
+    expect(go.delayMs).toBe(3000);
+    g.time.mono = MONO0 + 23_000;
+    go.fn();
+    // The latest state, not the first DRAWING one: running again with the 50 s it had left.
+    await g.ben.client.state((v) => v.paused === null && v.turn?.timer?.remainingMs === 50_000);
+    expect(g.ben.client.states.at(-1)!.turn!.timer).toEqual({
+      remainingMs: 50_000,
+      totalMs: 60_000,
+      running: true,
+    });
+  });
+
   it('need a join first', async () => {
     const s = await setup();
     const stranger = await s.connect();

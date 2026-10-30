@@ -25,8 +25,7 @@ const SIZES = {
 /**
  * The host's players list (Host controls), on the token Screen and the crown phone: each player
  * with **Give host crown** (`host:crown`) and **Kick** (`host:kick`, two taps: "Remove Jun?").
- * The crown and the list come from the latest snapshot; nothing is predicted. Kick lands with
- * F28; until then the server answers "That's coming in a later update".
+ * The crown and the list come from the latest snapshot; nothing is predicted.
  */
 export function HostPlayerList({
   players,

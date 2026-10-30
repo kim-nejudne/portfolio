@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ScreenView } from '../../../shared/types.js';
 import { DebugOverlay } from '../components/screen/DebugOverlay.js';
+import { PausedOverlay } from '../components/PausedOverlay.js';
 import { HostControls } from '../components/screen/HostControls.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
@@ -153,7 +154,7 @@ export function Screen() {
       {status === 'connecting' && (
         <p
           role="status"
-          className="absolute top-[2vmin] right-[2vmin] z-10 rounded-full bg-[#FF6B35] px-[2vmin] py-[0.5vmin] text-[max(2.5vmin,14px)] font-bold text-[#1D1B22]"
+          className="absolute top-[2vmin] right-[2vmin] z-20 rounded-full bg-[#FF6B35] px-[2vmin] py-[0.5vmin] text-[max(2.5vmin,14px)] font-bold text-[#1D1B22]"
         >
           {t('reconnecting')}
         </p>
@@ -184,6 +185,7 @@ export function Screen() {
           )}
         </DoodleContext>
       </div>
+      {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />}
       <footer className="shrink-0 px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
         {window.location.host} · <strong className="tracking-widest text-white">{view.code}</strong>
       </footer>

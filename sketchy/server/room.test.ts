@@ -32,6 +32,7 @@ describe('createRoom', () => {
       turnCounter: 0,
       turn: null,
       upcoming: null,
+      advanceAt: null,
       history: [],
       awards: [],
       deck: { remaining: [], usedIds: [] },

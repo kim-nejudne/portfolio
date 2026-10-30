@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import type { Ack, ChoiceIndex, InkBatch, InkOp, PlayerView } from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
+import { PausedOverlay } from '../components/PausedOverlay.js';
 import { HostDrawer } from '../components/phone/HostDrawer.js';
 import { JoinForm } from '../components/phone/JoinForm.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
@@ -301,6 +302,8 @@ export function Play() {
   const wasPaused = useRef(paused);
   useEffect(() => {
     if (wasPaused.current && !paused) drawerSyncRef.current?.resync();
+    // The guess box under the overlay lets go of focus, so the keyboard doesn't cover "Paused".
+    if (paused && document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
     wasPaused.current = paused;
   }, [paused]);
 
@@ -369,12 +372,13 @@ export function Play() {
       {!connected && (
         <p
           role="status"
-          className="absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-1/2 z-10 -translate-x-1/2 rounded-full bg-[#FF6B35] px-3 py-1 text-sm font-bold text-[#1D1B22]"
+          className="absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-1/2 z-[25] -translate-x-1/2 rounded-full bg-[#FF6B35] px-3 py-1 text-sm font-bold text-[#1D1B22]"
         >
           {t('reconnecting')}
         </p>
       )}
-      <div inert={hostBar && hostOpen} className="min-h-0 flex-1">
+      {/* While paused, the covered guess box and pad are out of reach of focus and the keyboard too. */}
+      <div inert={(hostBar && hostOpen) || view.paused !== null} className="min-h-0 flex-1">
         {view.phase === 'LOBBY' && (
           <PhoneLobby view={view} socket={socket} onLeave={leave} sendDoodle={sendDoodle} t={t} />
         )}
@@ -417,14 +421,7 @@ export function Play() {
           <PhoneStandings view={view} onLeave={leave} t={t} />
         )}
       </div>
-      {view.paused && (
-        <div
-          role="status"
-          className="absolute inset-0 z-20 grid place-items-center bg-[#1D1B22]/95 text-3xl font-bold"
-        >
-          {t('paused')}
-        </div>
-      )}
+      {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
     </main>
   );
 }

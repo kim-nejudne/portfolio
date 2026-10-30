@@ -5,7 +5,15 @@ import { ALL_GUESSED_MS, HINT_AT } from '../shared/constants.js';
 import type { Action, Effect, Room, RoomSettings, WordEntry } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import { toView } from './views.js';
-import { NEW_PHONE, asPlayer, dealt, makeRoom, step, withPlayers } from './test/rooms.js';
+import {
+  NEW_PHONE,
+  SCREEN_HOST,
+  asPlayer,
+  dealt,
+  makeRoom,
+  step,
+  withPlayers,
+} from './test/rooms.js';
 
 const DRAW_MS = 60_000;
 
@@ -270,11 +278,7 @@ describe('early end (allGuessed)', () => {
     const { room, pids, at } = drawing('banana');
     let r = step(room, guess(pids[1]!, 'banana', at + 5_000), at + 5_000).room;
     r = step(r, { type: 'sys:disconnected', pid: pids[2]! }, at + 6_000).room;
-    // synth pause. TODO(F28): `host:pause` instead.
-    const paused: Room = {
-      ...r,
-      paused: { reasons: ['host'], since: at + 6_500, remainingMs: 50_000, resumeAt: null },
-    };
+    const paused = step(r, { type: 'host:pause', by: SCREEN_HOST }, at + 6_500).room;
     expect(reduce(paused, timer(paused, 'allGuessed'), at + 7_500)).toEqual({
       ok: false,
       error: 'paused',

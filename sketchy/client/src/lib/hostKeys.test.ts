@@ -61,6 +61,18 @@ describe('host control bar (F24)', () => {
     expect(barControls(view('FINAL'))).toEqual(['rematch', 'backToLobby', 'end']);
   });
 
+  it('shows Pause, not Resume, during the 3-2-1 and for a pause the host didn’t make', () => {
+    const counting = { ...view('DRAWING'), paused: { reasons: [], resumeInMs: 2000 } };
+    expect(barControls(counting)[0]).toBe('pause');
+    const away: ScreenView = {
+      ...view('REVEAL'),
+      paused: { reasons: ['drawerAway'], resumeInMs: null },
+    };
+    expect(barControls(away)).toEqual(['pause', 'end']);
+    expect(keyControl(' ', counting)).toBeNull();
+    expect(keyControl('p', counting)).toBe('pause');
+  });
+
   it('swaps Pause for Resume while paused, and drops Next', () => {
     expect(barControls(view('DRAWING', { paused: true }))).toEqual([
       'resume',

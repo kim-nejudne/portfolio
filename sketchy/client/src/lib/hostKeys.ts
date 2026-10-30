@@ -105,11 +105,18 @@ export function controlEvent(
 const counting = (view: HostView) => view.phase === 'FINAL' && view.rematchInMs !== null;
 
 /**
+ * Resume clears the host's own pause reason only. During the 3-2-1, or a pause for another reason
+ * (F40, F41), the control is Pause, which holds the game for the host.
+ */
+const hostPaused = (view: HostView) => view.paused?.reasons.includes('host') ?? false;
+
+/**
  * The bar's controls, as in the spec's drawer table. The lobby has none (Start is the lobby's own
- * button). Paused: Resume in place of Pause, and no Next (the server refuses it).
+ * button). Paused by the host: Resume in place of Pause. Paused at all: no Next (the server
+ * refuses it).
  */
 export function barControls(view: HostView): ControlId[] {
-  const pause: ControlId = view.paused ? 'resume' : 'pause';
+  const pause: ControlId = hostPaused(view) ? 'resume' : 'pause';
   switch (view.phase) {
     case 'LOBBY':
       return [];
@@ -118,7 +125,7 @@ export function barControls(view: HostView): ControlId[] {
       return [pause, 'skip', 'guessFeed', 'end'];
     case 'REVEAL':
     case 'SCOREBOARD':
-      return view.paused ? ['resume', 'end'] : ['next', 'pause', 'end'];
+      return view.paused ? [pause, 'end'] : ['next', 'pause', 'end'];
     case 'FINAL':
       return counting(view) ? ['cancelRematch'] : ['rematch', 'backToLobby', 'end'];
   }
@@ -146,7 +153,8 @@ export function drawerSections(view: HostView): {
 /** Space: Start / Next / Resume; on FINAL, Rematch; during a rematch countdown, Cancel. */
 function primaryControl(view: HostView): ControlId | null {
   if (view.phase === 'FINAL') return counting(view) ? 'cancelRematch' : 'rematch';
-  if (view.paused) return 'resume';
+  if (hostPaused(view)) return 'resume';
+  if (view.paused) return null;
   if (view.phase === 'LOBBY') return 'start';
   if (view.phase === 'REVEAL' || view.phase === 'SCOREBOARD') return 'next';
   return null;

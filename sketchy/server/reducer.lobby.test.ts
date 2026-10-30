@@ -30,8 +30,8 @@ describe('reduce: general', () => {
   });
 
   it('rejects an action whose feature has not landed yet', () => {
-    const { room, pids } = withPlayers(['Ana', 'Ben']);
-    const result = reduce(room, { type: 'host:kick', by: SCREEN_HOST, pid: pids[1]! }, T0);
+    const { room } = withPlayers(['Ana', 'Ben']);
+    const result = reduce(room, { type: 'host:rematch', by: SCREEN_HOST }, T0);
     expect(result).toEqual({ ok: false, error: 'notAvailable' });
   });
 
