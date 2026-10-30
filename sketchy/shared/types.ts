@@ -170,30 +170,36 @@ export type TimerName =
   | 'resumeGo'
   | 'rematchGo';
 
+/** An empty wire payload: `{}` with no keys allowed. */
 type Empty = Record<string, never>;
+/**
+ * An action with no payload. Not `Empty`: `{type, by} & Record<string, never>` makes `type` and
+ * `by` `never`, so the action could never be built.
+ */
+type NoPayload = Record<never, never>;
 
 /** Payloads of the actions a client causes, before the gateway adds `by`. */
 export interface ClientActionPayloads {
   'player:join': { keyHash: string; name: string; takeOver?: boolean }; // gateway hashes the key
-  'player:leave': Empty;
+  'player:leave': NoPayload;
   'player:rename': { name: string };
   'player:guess': { text: string; receivedAt: number; oneWayMs: number }; // timing from the gateway
   'player:react': { emoji: Reaction };
   'player:visibility': { hidden: boolean };
   'drawer:choose': { index: ChoiceIndex };
-  'host:start': Empty;
-  'host:pause': Empty;
-  'host:resume': Empty;
-  'host:skip': Empty;
-  'host:next': Empty;
+  'host:start': NoPayload;
+  'host:pause': NoPayload;
+  'host:resume': NoPayload;
+  'host:skip': NoPayload;
+  'host:next': NoPayload;
   'host:kick': { pid: string };
   'host:crown': { pid: string };
   'host:settings': Partial<RoomSettings>;
   'host:customWords': { words: string[] };
-  'host:end': Empty;
-  'host:rematch': Empty;
-  'host:rematchCancel': Empty;
-  'host:backToLobby': Empty;
+  'host:end': NoPayload;
+  'host:rematch': NoPayload;
+  'host:rematchCancel': NoPayload;
+  'host:backToLobby': NoPayload;
 }
 
 /** Payloads of the actions the gateway itself dispatches. */
@@ -218,6 +224,28 @@ export type SystemAction = {
 
 /** Every action is `{type, ...payload}`: the input of `reduce(room, action, now)`. */
 export type Action = ClientAction | SystemAction;
+
+/**
+ * Why the reducer rejected an action. A closed set of codes, so no error can echo a word or a
+ * guess; the client maps each to friendly copy.
+ */
+export type ReduceError =
+  | 'unknownAction'
+  | 'wrongPhase' // not listed for the current phase in the Transitions table
+  | 'notAvailable' // a known action whose feature hasn't landed yet
+  | 'notHost'
+  | 'notPlayer' // a player action without a player sender
+  | 'unknownPlayer'
+  | 'kicked'
+  | 'roomFull'
+  | 'nameTaken'
+  | 'nameOfDisconnected' // NAME_OF_DISCONNECTED_ERROR: the phone offers to take over
+  | 'notEnoughPlayers'
+  | 'paused'
+  | 'drawerCannotGuess'
+  | 'alreadyGuessed'
+  | 'tooLate'
+  | 'staleTimer'; // the room has moved on; the gateway drops it silently
 
 // ---------- Effects ----------
 

@@ -14,14 +14,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F03 Rooms, codes and RoomStore
 
-- [ ] F04 Reducer v0: lobby and a basic turn
-  - Spec: Game flow and state machine (Phases, Transitions, Scheduled effects, Turn order); Scoring and timing (Points)
-  - Depends: F03
-  - Done when:
-    - `player:join` / `player:leave`, `host:start` with ≥ 2 players
-    - Each turn goes straight to DRAWING with a random word from a hard-coded 20-word list (CHOOSING comes in F18); guesses match on lowercase-trimmed equality; points use the formula with uncorrected time
-    - `drawUp` → REVEAL → `revealDone` → next drawer; FINAL after one cycle; timers carry `turnId` and `timerEpoch` and stale ones are ignored
-  - Tests: `reducer.lobby.test.ts`, `reducer.turn.test.ts` — one test per transition used, invalid actions rejected, stale timer ignored
+- [x] F04 Reducer v0: lobby and a basic turn
 
 - [ ] F05 Views and socket gateway
   - Spec: Data model (Role views); Realtime events and HTTP API (Client to server, Server to client); Reducer actions and effects (Effects)
