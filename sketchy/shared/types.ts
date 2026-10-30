@@ -27,6 +27,18 @@ export interface WordEntry {
   gloss?: string; // drawer-only description, e.g. "wide woven farmer's hat"
 }
 
+/**
+ * A loaded word pack (Word pack format), frozen. The server reads them at start; every room shares
+ * the same ones by reference. Server state only.
+ */
+export interface WordPack {
+  id: string;
+  title: string;
+  language: 'en' | 'tl';
+  rating: 'family' | 'spicy';
+  words: readonly WordEntry[];
+}
+
 export interface Player {
   pid: string; // public id, server-generated, appears in views
   keyHash: string; // SHA-256 of the device's private playerKey; never in a view
@@ -134,7 +146,12 @@ export interface Room {
   upcoming: Turn | null; // dealt during REVEAL/SCOREBOARD; the next drawer chooses meanwhile
   history: TurnSummary[]; // this game, oldest first
   awards: Award[]; // computed on entering FINAL
-  deck: { remaining: WordEntry[]; usedIds: string[] }; // usedIds survives every new game
+  /**
+   * The word ids still to deal, top first, and the ids chosen this session. Ids, not entries, so
+   * cloning the room stays cheap; they resolve through `packs`. `usedIds` survives every new game.
+   */
+  deck: { remaining: string[]; usedIds: string[] };
+  packs: readonly WordPack[]; // every loaded pack, frozen and shared by every room; never cloned
   customWords: WordEntry[]; // session only
   rematchAt: number | null; // FINAL only: when a rematch countdown ends
   session: {
@@ -244,6 +261,8 @@ export type ReduceError =
   | 'nameOfDisconnected' // NAME_OF_DISCONNECTED_ERROR: the phone offers to take over
   | 'notEnoughPlayers'
   | 'paused'
+  | 'notDrawer' // `drawer:choose` from anyone but the turn's drawer
+  | 'notEnoughWords' // the settings leave fewer than 3 words to deal
   | 'drawerCannotGuess'
   | 'alreadyGuessed'
   | 'tooLate'
@@ -268,7 +287,8 @@ export type Fx =
   | { kind: 'reaction'; pid: string; emoji: Reaction }
   | { kind: 'join'; pid: string }
   | { kind: 'turnEnd'; reason: TurnEndReason }
-  | { kind: 'notEnoughPlayers' };
+  | { kind: 'notEnoughPlayers' }
+  | { kind: 'wordsReshuffled' }; // the deck ran out: "All words used, reshuffling"
 
 export type FxKind = Fx['kind'];
 
@@ -293,6 +313,7 @@ export interface FxTargets {
   join: 'screen';
   turnEnd: 'all';
   notEnoughPlayers: 'all';
+  wordsReshuffled: 'screen';
 }
 
 export type FxEffect = {

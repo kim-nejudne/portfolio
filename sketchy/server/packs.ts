@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import type { WordEntry } from '../shared/types.js';
+import type { WordEntry, WordPack } from '../shared/types.js';
 import { normalize } from './match.js';
 
 export const PACK_WORD_MAX = 30;
@@ -69,13 +69,8 @@ export const packFileSchema = z
     });
   });
 
-export interface Pack {
-  id: string;
-  title: string;
-  language: 'en' | 'tl';
-  rating: 'family' | 'spicy';
-  words: readonly WordEntry[];
-}
+/** A loaded pack: `WordPack` (shared/types.ts), which rooms hold and the deck deals from. */
+export type Pack = WordPack;
 
 /** A pack that can't be used. The message names the file, the field and the word, one per line. */
 export class PackError extends Error {

@@ -4,14 +4,13 @@
 // guesser and the crown holder included. A second game runs the same check end to end through the
 // socket gateway: every `state`, `fx` and ack a socket receives, and every console line.
 //
-// Every secret in play carries a `qz` marker (the v0 word list is mocked below), so a token search
-// of the JSON finds any of them, wherever it hides. Every secret must therefore come from
-// `LEAK_WORDS`, `upcomingFor` or `CLOSE_TEXT`; when F17/F18 replace `words.v0.ts` with packs and the
-// deck, mock those instead. Logs are checked through `console.*`, the server's only logger; a
+// Every secret in play carries a `qz` marker (every room here deals from `LEAK_PACK`), so a token
+// search of the JSON finds any of them, wherever it hides. Every secret must therefore come from
+// `LEAK_PACK`, `upcomingFor` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
 // logger added later must be spied on here too.
 //
-// SPEC-QUESTION: the v0 reducer cannot reach CHOOSING, SCOREBOARD, a pause, overlapped choosing
-// (`upcoming`) or close guesses yet (F18, F20, F23, F21, F15), so those states are built by hand
+// SPEC-QUESTION: the reducer cannot reach SCOREBOARD, a pause or overlapped choosing (`upcoming`)
+// yet (F20, F23, F21), so those states are built by hand
 // from real ones (each marked `synth`). When those features land, replace each `synth` with the
 // real action (DECISIONS 33).
 
@@ -20,16 +19,37 @@ import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GRACE_MS, GUESS_INTERVAL_MS } from '../shared/constants.js';
-import type { Effect, Phase, Room, ScreenView, Turn, View, WordEntry } from '../shared/types.js';
+import type {
+  Effect,
+  Phase,
+  Room,
+  ScreenView,
+  Turn,
+  View,
+  WordEntry,
+  WordPack,
+} from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets } from './sockets.js';
-import { SCREEN_HOST, asPlayer, secretWord, step, withPlayers } from './test/rooms.js';
+import {
+  SCREEN_HOST,
+  asPlayer,
+  choose,
+  makeRoom,
+  secretWord,
+  step,
+  withPlayers,
+} from './test/rooms.js';
 import { toView, type Viewer } from './views.js';
 
-const LEAK_WORDS = vi.hoisted(() =>
-  Array.from({ length: 30 }, (_, i) => ({
+const LEAK_PACK: WordPack = {
+  id: 'leak',
+  title: 'Leak',
+  language: 'tl',
+  rating: 'family',
+  words: Array.from({ length: 30 }, (_, i) => ({
     id: `leak/${i}`,
     word: `qzw${i}`,
     alt: [`qza${i}`, `qzb${i}`],
@@ -37,8 +57,8 @@ const LEAK_WORDS = vi.hoisted(() =>
     lang: 'tl' as const,
     gloss: `qzg${i}`,
   })),
-);
-vi.mock('./words.v0.js', () => ({ V0_WORDS: LEAK_WORDS }));
+};
+const leakRoom = () => makeRoom({ packs: [LEAK_PACK] });
 
 const ALL_PHASES: Phase[] = ['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD', 'FINAL'];
 /** A close guess's text (a near miss of the word): Screen only, and only from REVEAL on. */
@@ -169,7 +189,7 @@ describe('word secrecy across a scripted game', () => {
   it('no Screen, guesser or crown view gets a word, alternate, gloss or choice before REVEAL', () => {
     visited = new Set();
     let t = 1_000_000;
-    const players = withPlayers(['Ana', 'Ben', 'Cy']);
+    const players = withPlayers(['Ana', 'Ben', 'Cy'], leakRoom());
     let room = players.room;
     const [ana, ben, cy] = players.pids as [string, string, string];
     const act = (label: string, action: Parameters<typeof step>[1], dt = 1000) => {
@@ -183,31 +203,22 @@ describe('word secrecy across a scripted game', () => {
     audit('lobby', room, t);
     expect(room.crownPid).toBe(ana);
 
-    // Turn 1: Ana draws and holds the crown.
-    act('turn 1 starts', { type: 'host:start', by: SCREEN_HOST });
-    expect(room.phase).toBe('DRAWING');
+    // Turn 1: Ana is dealt three words and holds the crown.
+    act('turn 1 dealt', { type: 'host:start', by: SCREEN_HOST });
+    expect(room.phase).toBe('CHOOSING');
     expect(room.turn!.drawerPid).toBe(ana);
+    // Positive control: the drawer does get all three choices and their glosses.
+    expect(tokens(playerView(room, ana, t))).toEqual(
+      expect.arrayContaining(room.turn!.choices.flatMap(entrySecrets)),
+    );
+    act('turn 1 starts', { type: 'drawer:choose', by: asPlayer(ana, true), index: 2 });
+    expect(room.phase).toBe('DRAWING');
     const first = word(room);
-    // Positive control: the drawer does get the word and its gloss, so the check isn't vacuous.
+    // Positive control: the drawer keeps the word and its gloss, and loses the other two.
     expect(tokens(playerView(room, ana, t))).toEqual(
       expect.arrayContaining([first, room.turn!.word!.gloss]),
     );
-
-    // synth CHOOSING. TODO(F18): `drawer:choose` and the auto-pick instead.
-    // the drawer's three choices, then the choice made and the clock not
-    // yet running.
-    const choosing: Room = {
-      ...room,
-      phase: 'CHOOSING',
-      turn: { ...room.turn!, word: null, clockStart: null, endsAt: null, dealtAt: t },
-    };
-    audit('choosing', choosing, t + 500);
-    expect(playerView(choosing, ana, t).secret!.choices).toHaveLength(3);
-    audit(
-      'choosing, chosen',
-      { ...choosing, turn: { ...choosing.turn!, word: room.turn!.word } },
-      t,
-    );
+    expect(tokens(playerView(room, ana, t))).not.toContain(room.turn!.choices[0].word);
 
     act('wrong guess', {
       type: 'player:guess',
@@ -284,9 +295,15 @@ describe('word secrecy across a scripted game', () => {
       expect(tokens(playerView(overlap, ben, t))).toContain(chosen ? 'qzup2' : 'qzup3');
     }
 
-    // Turn 2: Ben draws; Ana, still crowned, guesses right.
-    act('turn 2 starts', { type: 'host:next', by: SCREEN_HOST });
+    // Turn 2: Ben draws the auto-pick; Ana, still crowned, guesses right.
+    act('turn 2 dealt', { type: 'host:next', by: SCREEN_HOST });
     expect(room.turn!.drawerPid).toBe(ben);
+    act(
+      'turn 2 auto-pick',
+      { type: 'timer', timer: 'chooseUp', turnId: room.turn!.id, epoch: room.timerEpoch },
+      12_000,
+    );
+    expect(room.phase).toBe('DRAWING');
     expect(room.crownPid).toBe(ana);
     act('crown guesses right', {
       type: 'player:guess',
@@ -309,8 +326,9 @@ describe('word secrecy across a scripted game', () => {
     act('reveal 2', { type: 'host:skip', by: SCREEN_HOST });
 
     // Turn 3: Cy draws; Ben guesses right with the crown.
-    act('turn 3 starts', { type: 'host:next', by: SCREEN_HOST });
+    act('turn 3 dealt', { type: 'host:next', by: SCREEN_HOST });
     expect(room.turn!.drawerPid).toBe(cy);
+    act('turn 3 starts', { type: 'drawer:choose', by: asPlayer(cy), index: 0 });
     act('crown guesses right', {
       type: 'player:guess',
       by: asPlayer(ben, true),
@@ -329,14 +347,23 @@ describe('word secrecy across a scripted game', () => {
   });
 
   it('never sends alternates, even to the drawer, at the reveal or in FINAL', () => {
-    let { room } = withPlayers(['Ana', 'Ben']);
+    let { room } = withPlayers(['Ana', 'Ben'], leakRoom());
     let t = 2_000_000;
     room = step(room, { type: 'host:start', by: SCREEN_HOST }, t).room;
-    const alts = room.turn!.word!.alt;
-    expect(alts.length).toBeGreaterThan(0);
-    for (const action of ['host:skip', 'host:next', 'host:skip', 'host:next'] as const) {
+    expect(room.turn!.choices.every((c) => c.alt.length > 0)).toBe(true);
+    for (const action of [
+      'choose',
+      'host:skip',
+      'host:next',
+      'choose',
+      'host:skip',
+      'host:next',
+    ] as const) {
       t += 1000;
-      room = step(room, { type: action, by: SCREEN_HOST }, t).room;
+      room =
+        action === 'choose'
+          ? choose(room, t, 1)
+          : step(room, { type: action, by: SCREEN_HOST }, t).room;
       for (const [name, viewer] of VIEWERS(room)) {
         const found = tokens(toView(room, viewer, t)).filter((tok) => /^qz[ab]\d/.test(tok));
         expect(found, `${room.phase}: ${name}`).toEqual([]);
@@ -346,10 +373,28 @@ describe('word secrecy across a scripted game', () => {
   });
 });
 
+// The last drawer's choice skipped: FINAL keeps the unchosen turn in state, never in a view.
+it('keeps an abandoned deal out of every view, through to FINAL', () => {
+  const { room: lobby } = withPlayers(['Ana', 'Ben'], leakRoom());
+  let t = 3_000_000;
+  let res = step(lobby, { type: 'host:start', by: SCREEN_HOST }, t);
+  audit('dealt', res.room, t, res.effects);
+  for (const label of ['skip 1', 'skip 2']) {
+    t += 1000;
+    res = step(res.room, { type: 'host:skip', by: SCREEN_HOST }, t);
+    audit(label, res.room, t, res.effects);
+  }
+  expect(res.room.phase).toBe('FINAL');
+  expect(res.room.turn!.word).toBeNull();
+});
+
 // A close guess is held back from the feed and fx (F14, DECISIONS 37): only its phone hears it.
 it('keeps a near miss of the word off the Screen until REVEAL', () => {
-  const { room: lobby, pids } = withPlayers(['Ana', 'Ben']);
-  let room = step(lobby, { type: 'host:start', by: SCREEN_HOST }, 2_000_000).room;
+  const { room: lobby, pids } = withPlayers(['Ana', 'Ben'], leakRoom());
+  let room = choose(
+    step(lobby, { type: 'host:start', by: SCREEN_HOST }, 2_000_000).room,
+    2_000_000,
+  );
   const res = step(
     room,
     {
@@ -403,7 +448,15 @@ class FlakyRoomStore extends InMemoryRoomStore {
 async function gateway() {
   const rooms = new FlakyRoomStore();
   const hostToken = generateHostToken();
-  rooms.set(createRoom({ code: CODE, hostTokenHash: hashHostToken(hostToken), now: 0, seed: 11 }));
+  rooms.set(
+    createRoom({
+      code: CODE,
+      hostTokenHash: hashHostToken(hostToken),
+      now: 0,
+      seed: 11,
+      packs: [LEAK_PACK],
+    }),
+  );
   const mono = { now: 10_000 };
   server = createServer();
   attachSockets(server, {
@@ -506,6 +559,18 @@ describe('word secrecy through the socket gateway', () => {
     for (const [n, drawer] of [ana, ben, cy].entries()) {
       expect(await screen.emit(n === 0 ? 'host:start' : 'host:next')).toEqual({ ok: true });
       expect(room().turn!.drawerPid).toBe(players.get(drawer));
+      await checkpoint(`turn ${n + 1} dealt`);
+      // Positive control: the drawer's socket did get the three choices.
+      expect(tokens(lastState(drawer))).toEqual(
+        expect.arrayContaining(room().turn!.choices.map((c) => c.word)),
+      );
+      // A guesser can't choose for the drawer.
+      const other = [ana, ben, cy].find((c) => c !== drawer)!;
+      expect(await other.emit('drawer:choose', { index: 0 })).toEqual({
+        ok: false,
+        error: 'notDrawer',
+      });
+      expect(await drawer.emit('drawer:choose', { index: n })).toEqual({ ok: true });
       await checkpoint(`turn ${n + 1} starts`);
       // Positive control: the drawer's socket did get the word.
       expect(tokens(lastState(drawer))).toContain(word(room()));
@@ -568,6 +633,6 @@ describe('word secrecy through the socket gateway', () => {
     expect(await screen.emit('host:next')).toEqual({ ok: true });
     await checkpoint('final');
     expect(room().phase).toBe('FINAL');
-    expect([...visited]).toEqual(['LOBBY', 'DRAWING', 'REVEAL', 'FINAL']);
+    expect([...visited]).toEqual(['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'FINAL']);
   });
 });

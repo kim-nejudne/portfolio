@@ -23,6 +23,7 @@ import { createInkSender } from '../client/src/ink/inkSender.js';
 import { attachInkGateway } from './inkGateway.js';
 import { createInkStore, type InkStore } from './inkStore.js';
 import { createRoom } from './room.js';
+import { TEST_PACKS } from './test/packs.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets } from './sockets.js';
 
@@ -50,7 +51,15 @@ afterEach(async () => {
 async function setup(store?: InkStore) {
   const rooms = new InMemoryRoomStore();
   const hostToken = generateHostToken();
-  rooms.set(createRoom({ code: CODE, hostTokenHash: hashHostToken(hostToken), now: 0, seed: 7 }));
+  rooms.set(
+    createRoom({
+      code: CODE,
+      hostTokenHash: hashHostToken(hostToken),
+      now: 0,
+      seed: 7,
+      packs: TEST_PACKS,
+    }),
+  );
   const mono = { now: 10_000 };
   server = createServer();
   // `io` needs the ink effects handler and the gateway needs `io`, as in `server/index.ts`.
@@ -96,12 +105,30 @@ async function setup(store?: InkStore) {
 
 type Setup = Awaited<ReturnType<typeof setup>>;
 
+type Phone = Awaited<ReturnType<typeof joinPlayer>>;
+
 async function joinPlayer(s: Setup, playerKey: string, name: string) {
   const main = await s.connect('');
   const ack = await main.emit<{ pid: string }>('player:join', { code: CODE, playerKey, name });
   if (!ack.ok) throw new Error(`join failed: ${ack.error}`);
   const ink = await s.connect('/ink', { code: CODE, playerKey });
   return { main, ink, pid: ack.pid };
+}
+
+/**
+ * `host:start` or `host:next`; then, if that dealt a turn, its drawer takes the first word, so the
+ * room is in DRAWING. `phones` are the players who may be dealt.
+ */
+async function startTurn(
+  l: { screen: Client; rooms: InMemoryRoomStore; ana: Phone; ben: Phone },
+  event: 'host:start' | 'host:next',
+  phones: Phone[] = [l.ana, l.ben],
+) {
+  expect(await l.screen.emit(event)).toEqual({ ok: true });
+  const room = l.rooms.get(CODE)!;
+  if (room.phase !== 'CHOOSING') return;
+  const drawer = phones.find((p) => p.pid === room.turn!.drawerPid)!;
+  expect(await drawer.main.emit('drawer:choose', { index: 0 })).toEqual({ ok: true });
 }
 
 /** A token Screen (main and `/ink`), Ana (crown, first drawer) and Ben, both with `/ink` sockets. */
@@ -120,7 +147,7 @@ async function lobby(store?: InkStore) {
 
 async function drawing(store?: InkStore) {
   const l = await lobby(store);
-  expect(await l.screen.emit('host:start')).toEqual({ ok: true });
+  await startTurn(l, 'host:start');
   const turn = l.rooms.get(CODE)!.turn!;
   expect(turn.drawerPid).toBe(l.ana.pid);
   return { ...l, turnId: turn.id };
@@ -210,7 +237,7 @@ describe('/ink relay', () => {
 
     // The next turn starts an empty stack; an expired room's ink is dropped.
     expect(await d.screen.emit('host:skip')).toEqual({ ok: true });
-    expect(await d.screen.emit('host:next')).toEqual({ ok: true });
+    await startTurn(d, 'host:next');
     const next = d.rooms.get(CODE)!.turn!.id;
     expect(d.gateway.turnInk(CODE)).toMatchObject({
       turnId: next,
@@ -224,13 +251,13 @@ describe('/ink relay', () => {
 
   it('sends ink:turn to Screens when a turn opens, so they clear', async () => {
     const l = await lobby();
-    expect(await l.screen.emit('host:start')).toEqual({ ok: true });
+    await startTurn(l, 'host:start');
     const firstTurn = l.rooms.get(CODE)!.turn!.id;
     await expect.poll(() => inkEvents(l.screenInk)).toEqual([['ink:turn', { turnId: firstTurn }]]);
 
     // Skip to REVEAL, then on to Ben's turn.
     expect(await l.screen.emit('host:skip')).toEqual({ ok: true });
-    expect(await l.screen.emit('host:next')).toEqual({ ok: true });
+    await startTurn(l, 'host:next');
     const secondTurn = l.rooms.get(CODE)!.turn!.id;
     expect(secondTurn).not.toBe(firstTurn);
     await expect
@@ -277,7 +304,7 @@ describe('/ink relay', () => {
     // What each phone's `/ink` socket may receive: its own drawing, while it is drawing it.
     const allowed = new Map<string, unknown[]>();
     for (const [n, name] of (['ana', 'ben', 'cy'] as const).entries()) {
-      expect(await l.screen.emit(n === 0 ? 'host:start' : 'host:next')).toEqual({ ok: true });
+      await startTurn(l, n === 0 ? 'host:start' : 'host:next', Object.values(phones));
       const room = l.rooms.get(CODE)!;
       expect(room.turn!.drawerPid).toBe(phones[name].pid);
       // Ana keeps the crown throughout, so turns 2 and 3 have a crowned guesser.
@@ -300,7 +327,7 @@ describe('/ink relay', () => {
       ]);
       expect(await l.screen.emit('host:skip')).toEqual({ ok: true });
     }
-    expect(await l.screen.emit('host:next')).toEqual({ ok: true });
+    await startTurn(l, 'host:next');
     expect(l.rooms.get(CODE)!.phase).toBe('FINAL');
 
     for (const screenInk of [l.screenInk, plainScreenInk]) {
@@ -346,10 +373,10 @@ describe('/ink relay', () => {
 
   it('drops a batch for an old turnId', async () => {
     const l = await lobby();
-    expect(await l.screen.emit('host:start')).toEqual({ ok: true });
+    await startTurn(l, 'host:start');
     const oldTurn = l.rooms.get(CODE)!.turn!.id;
     expect(await l.screen.emit('host:skip')).toEqual({ ok: true });
-    expect(await l.screen.emit('host:next')).toEqual({ ok: true });
+    await startTurn(l, 'host:next');
     const room = l.rooms.get(CODE)!;
     expect(room.phase).toBe('DRAWING');
     // Ben draws now; a batch tagged with Ana's finished turn is stale even from the new drawer.
@@ -370,7 +397,7 @@ describe('/ink relay', () => {
       ok: false,
       error: 'wrongPhase',
     });
-    expect(await l.screen.emit('host:start')).toEqual({ ok: true });
+    await startTurn(l, 'host:start');
     const turnId = l.rooms.get(CODE)!.turn!.id;
     expect(await l.screen.emit('host:skip')).toEqual({ ok: true });
     expect(l.rooms.get(CODE)!.phase).toBe('REVEAL');
@@ -483,7 +510,12 @@ describe('/ink relay', () => {
   it("does not relay to another room's Screens", async () => {
     const d = await drawing();
     d.rooms.set(
-      createRoom({ code: 'WXYZ', hostTokenHash: hashHostToken(generateHostToken()), now: 0 }),
+      createRoom({
+        code: 'WXYZ',
+        hostTokenHash: hashHostToken(generateHostToken()),
+        now: 0,
+        packs: TEST_PACKS,
+      }),
     );
     const otherScreen = await d.connect('/ink');
     expect(await otherScreen.emit('ink:hello', { code: 'WXYZ' })).toEqual({ ok: true });
@@ -517,7 +549,12 @@ describe('/ink handshake and hello', () => {
     });
     expect(await l.screenInk.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
     l.rooms.set(
-      createRoom({ code: 'WXYZ', hostTokenHash: hashHostToken(generateHostToken()), now: 0 }),
+      createRoom({
+        code: 'WXYZ',
+        hostTokenHash: hashHostToken(generateHostToken()),
+        now: 0,
+        packs: TEST_PACKS,
+      }),
     );
     expect(await l.screenInk.emit('ink:hello', { code: 'WXYZ' })).toEqual({
       ok: false,
@@ -764,7 +801,7 @@ describe('/ink sequence, snapshots and resends', () => {
     expect(d.ana.ink.events).toEqual([]);
     expect(d.ben.ink.events).toEqual([]);
     // Ben draws next: his hello mid-turn gets his own (empty) turn, never Ana's drawing.
-    expect(await d.screen.emit('host:next')).toEqual({ ok: true });
+    await startTurn(d, 'host:next');
     const next = d.rooms.get(CODE)!.turn!.id;
     expect(await d.ben.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
     expect(d.ben.ink.events).toEqual([['ink:snapshot', { turnId: next, seq: 0, actions: [] }]]);
@@ -849,7 +886,7 @@ describe('/ink sequence, snapshots and resends', () => {
     const l = await lobby();
     const bad = [1, 1, [['b', 1, 0, 1, 5000, 300]]];
     for (let i = 1; i < INK_INVALID_BATCHES_MAX; i++) await l.ana.ink.emit('ink:batch', bad);
-    expect(await l.screen.emit('host:start')).toEqual({ ok: true });
+    await startTurn(l, 'host:start');
     // A new turn: the count starts again.
     for (let i = 1; i < INK_INVALID_BATCHES_MAX; i++)
       expect(await l.ana.ink.emit('ink:batch', bad)).toEqual({

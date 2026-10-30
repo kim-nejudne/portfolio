@@ -193,10 +193,10 @@ describe('player:leave', () => {
 });
 
 describe('host:start', () => {
-  it('goes to DRAWING, turn 1 of cycle 1, with the turn order in join order', () => {
+  it('goes to CHOOSING, turn 1 of cycle 1, with the turn order in join order', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben', 'Cy']);
     const { room: after } = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
-    expect(after.phase).toBe('DRAWING');
+    expect(after.phase).toBe('CHOOSING');
     expect(after.cycle).toBe(1);
     expect(after.turnOrder).toEqual(pids);
     expect(after.turn).toMatchObject({ id: 1, cycle: 1, drawerPid: pids[0] });

@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../shared/constants.js';
 import { createRoom } from './room.js';
+import { TEST_PACKS } from './test/packs.js';
 
 const T0 = 1_800_000_000_000;
 
 describe('createRoom', () => {
   it('makes an empty LOBBY room with default settings, stamped with now', () => {
-    const room = createRoom({ code: 'ABCD', hostTokenHash: 'hash', now: T0, seed: 42 });
+    const room = createRoom({
+      code: 'ABCD',
+      hostTokenHash: 'hash',
+      now: T0,
+      seed: 42,
+      packs: TEST_PACKS,
+    });
     expect(room).toEqual({
       code: 'ABCD',
       hostTokenHash: 'hash',
@@ -28,12 +35,15 @@ describe('createRoom', () => {
       history: [],
       awards: [],
       deck: { remaining: [], usedIds: [] },
+      packs: TEST_PACKS,
       customWords: [],
       rematchAt: null,
       session: { gameNumber: 1, totals: {}, firstDrawerJoinedAt: null },
       createdAt: T0,
       lastActivityAt: T0,
     });
+    // Shared, not copied: every room deals from the same frozen packs.
+    expect(room.packs).toBe(TEST_PACKS);
   });
 
   it('applies partial settings over the defaults without changing DEFAULT_SETTINGS', () => {
@@ -44,6 +54,7 @@ describe('createRoom', () => {
       now: T0,
       seed: 1,
       settings: { drawSeconds: 60, hints: false },
+      packs: TEST_PACKS,
     });
     expect(room.settings).toEqual({ ...DEFAULT_SETTINGS, drawSeconds: 60, hints: false });
     expect(DEFAULT_SETTINGS).toEqual(before);
@@ -54,7 +65,7 @@ describe('createRoom', () => {
     const seeds = new Set(
       Array.from(
         { length: 5 },
-        () => createRoom({ code: 'ABCD', hostTokenHash: 'h', now: T0 }).rngState,
+        () => createRoom({ code: 'ABCD', hostTokenHash: 'h', now: T0, packs: TEST_PACKS }).rngState,
       ),
     );
     for (const seed of seeds) {

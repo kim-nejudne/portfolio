@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { Ack, InkBatch, PlayerView } from '../../../shared/types.js';
+import type { Ack, ChoiceIndex, InkBatch, PlayerView } from '../../../shared/types.js';
 import { DrawerTurn } from '../components/phone/DrawerTurn.js';
 import { GuesserTurn } from '../components/phone/GuesserTurn.js';
 import { JoinForm } from '../components/phone/JoinForm.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
+import { WordChoice } from '../components/phone/WordChoice.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { translator, type CopyKey } from '../lib/copy.js';
 import { addOwnGuess, joinOutcome, type OwnGuesses } from '../lib/phone.js';
@@ -189,6 +190,12 @@ export function Play() {
       });
   };
 
+  const chooseWord = (index: ChoiceIndex): Promise<Ack | null> =>
+    socket
+      .timeout(ACK_TIMEOUT_MS)
+      .emitWithAck('drawer:choose', { index })
+      .catch(() => null);
+
   // Not buffered while `/ink` is down: the sender holds its ops then, and after the reconnect
   // `ink:sync` resends from its kept batches what the server is missing.
   const drawerInk = useMemo<DrawerInkLink>(
@@ -312,11 +319,15 @@ export function Play() {
             t={t}
           />
         )}
-        {isDrawer && view.phase === 'CHOOSING' && (
-          <p className="grid h-full place-items-center px-6 text-center text-2xl font-bold">
-            {t('getReady')}
-          </p>
-        )}
+        {isDrawer &&
+          view.phase === 'CHOOSING' &&
+          (view.secret?.choices ? (
+            <WordChoice view={view} receivedAt={state!.at} onChoose={chooseWord} t={t} />
+          ) : (
+            <p className="grid h-full place-items-center px-6 text-center text-2xl font-bold">
+              {t('getReady')}
+            </p>
+          ))}
         {inTurn && !isDrawer && (
           <GuesserTurn
             view={view}

@@ -13,6 +13,7 @@ import type {
   HealthResponse,
   HttpErrorBody,
   RoomExistsResponse,
+  WordPack,
 } from '../shared/types.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
@@ -21,6 +22,8 @@ import { createRoom } from './room.js';
 import { InMemoryRoomStore, type RoomStore } from './roomStore.js';
 
 export interface AppOptions {
+  /** The word packs loaded at start; every new room deals from them. */
+  packs: readonly WordPack[];
   /** Built client (dist/client). When set, the app serves it, with index.html for client routes. */
   clientDir?: string;
   rooms?: RoomStore;
@@ -61,13 +64,14 @@ const apiErrors: ErrorRequestHandler = (
 };
 
 export function createApp({
+  packs,
   clientDir,
   rooms = new InMemoryRoomStore(),
   clock = Date.now,
   rng = Math.random,
   trustProxy = false,
   dev = false,
-}: AppOptions = {}): Express {
+}: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
@@ -106,6 +110,7 @@ export function createApp({
           hostTokenHash: hashHostToken(hostToken),
           settings: parsed.data.settings,
           now: clock(),
+          packs,
         }),
       );
       res.status(201).json({ code, hostToken } satisfies CreateRoomResponse);

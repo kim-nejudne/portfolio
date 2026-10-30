@@ -6,6 +6,7 @@ import { translator } from '../../lib/copy.js';
 import { DrawerTurn } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
 import { PhoneStandings } from './PhoneStandings.js';
+import { WordChoice } from './WordChoice.js';
 
 const t = translator('en');
 // Every secret starts with `qz`, so a substring search of the markup finds any of them.
@@ -187,5 +188,76 @@ describe('reveal, scoreboard and final', () => {
     expect(html).toContain('You finished #1 of 3');
     expect(html).toContain('820 points');
     expect(html).toContain('See the gallery on the Screen');
+  });
+});
+
+/** CHOOSING with Mika's three choices, 10 s left. */
+function choosingView(me: 'mika' | 'jun'): PlayerView {
+  const base = drawingView(me);
+  return {
+    ...base,
+    phase: 'CHOOSING',
+    turn: {
+      ...base.turn!,
+      timer: { remainingMs: 10_000, totalMs: 12_000, running: true },
+      mask: null,
+      correct: [],
+      guessed: { guessed: 0, of: 2 },
+    },
+    secret:
+      me === 'mika'
+        ? {
+            turnId: 3,
+            choices: [
+              { word: 'tsinelas', gloss: null, difficulty: 1 },
+              { word: 'salakot', gloss: "wide woven farmer's hat", difficulty: 2 },
+              { word: 'harana', gloss: "singing under someone's window", difficulty: 3 },
+            ],
+            word: null,
+          }
+        : null,
+    lastGuess: null,
+  };
+}
+
+describe('choosing a word', () => {
+  it('shows the drawer three cards, easiest first, with level, gloss and "Hold your phone close 🤫"', () => {
+    const html = renderToStaticMarkup(
+      <WordChoice view={choosingView('mika')} receivedAt={0} onChoose={async () => null} t={t} />,
+    );
+    expect(html).toContain('Your turn to draw!');
+    expect(html).toContain('<span aria-hidden="true">◔</span> 10s');
+    expect(html).toContain('Hold your phone close 🤫');
+    expect(html).toContain('Tap one. No letters or numbers in your drawing!');
+    const order = [
+      'tsinelas',
+      'Easy',
+      'salakot',
+      'Medium',
+      'wide woven farmer&#x27;s hat',
+      'harana',
+      'Hard',
+    ];
+    const at = order.map((s) => html.indexOf(s));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    expect(html.match(/<button/g)).toHaveLength(3);
+  });
+
+  it('shows a guesser "Mika is choosing a word…" and no word', () => {
+    const view = choosingView('jun');
+    const html = renderToStaticMarkup(
+      <GuesserTurn
+        view={view}
+        receivedAt={0}
+        misses={[]}
+        nearMiss={0}
+        onGuess={async () => null}
+        t={t}
+      />,
+    );
+    expect(html).toContain('Mika is choosing a word…');
+    expect(html).not.toContain('tsinelas');
+    expect(html).not.toContain('<input');
   });
 });

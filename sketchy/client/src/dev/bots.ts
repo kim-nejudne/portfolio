@@ -17,28 +17,32 @@ export const BOT_GUESS_MIN_MS = 3000;
 export const BOT_GUESS_MAX_MS = 8000;
 /** One doodle step (a pen move) per tick: the doodle takes a few seconds, like a quick sketch. */
 export const DOODLE_STEP_MS = 20;
+/** A drawing bot takes this long to pick one of its three words (the auto-pick is 12 s). */
+export const BOT_CHOOSE_MS = 1500;
 /** Socket.IO acks never time out by themselves. */
 export const BOT_ACK_TIMEOUT_MS = 5000;
 const PEN_COLOR = 0;
 
-/** Wrong-on-purpose guesses: none of them is in the v0 word list. */
+/**
+ * Wrong-on-purpose guesses: everyday Tagalog words nobody could draw, so none is a pack word or
+ * close to one (`bots.test.ts` checks the shipped packs).
+ */
 export const DECOY_WORDS = [
-  'bahay',
-  'aso',
-  'pusa',
-  'kotse',
-  'bulaklak',
-  'bundok',
-  'ulan',
-  'tsinelas',
-  'ibon',
-  'buwan',
-  'bituin',
-  'barko',
-  'lapis',
-  'kandila',
-  'jeepney',
-  'kalabaw',
+  'kahapon',
+  'bukas',
+  'ngayon',
+  'siguro',
+  'talaga',
+  'palagi',
+  'minsan',
+  'kanina',
+  'mamaya',
+  'pwede',
+  'ganito',
+  'ganyan',
+  'sobra',
+  'medyo',
+  'grabe',
 ] as const;
 
 /** The count input as a whole number of bots in [1, MAX_PLAYERS]; junk falls back to 1. */
@@ -125,6 +129,8 @@ export function createBot({
   let doodle: { turnId: number; sender: InkSender; timer: ReturnType<typeof setTimeout> } | null =
     null;
   let drewTurn = -1;
+  let choseTurn = -1;
+  let chooseTimer: ReturnType<typeof setTimeout> | null = null;
   let state: BotState = {
     index,
     name: botName(index),
@@ -218,6 +224,27 @@ export function createBot({
     }, delay);
   };
 
+  /** A drawing bot picks a random one of its three words after BOT_CHOOSE_MS. */
+  const choose = (turnId: number) => {
+    choseTurn = turnId;
+    update({ message: 'Choosing a word…' });
+    chooseTimer = setTimeout(() => {
+      chooseTimer = null;
+      const v = view;
+      if (v?.phase !== 'CHOOSING' || v.turn?.id !== turnId || !v.secret?.choices) return;
+      const index = Math.min(2, Math.floor(random() * 3)) as 0 | 1 | 2;
+      socket.emit(
+        'drawer:choose',
+        { index },
+        withTimeout((res) => {
+          if (res === null) update({ message: 'No reply' });
+          else if (!res.ok) update({ message: res.error });
+          else update({ message: 'Chose a word' });
+        }),
+      );
+    }, BOT_CHOOSE_MS);
+  };
+
   const stopDoodle = () => {
     if (!doodle) return;
     clearTimeout(doodle.timer);
@@ -278,6 +305,14 @@ export function createBot({
     if (autoGuess && mayGuess(v)) scheduleGuess();
     else stopGuessing();
     if (autoDraw && isDrawer(v) && v.turn && drewTurn !== v.turn.id) draw();
+    if (
+      autoDraw &&
+      v.phase === 'CHOOSING' &&
+      v.turn?.drawerPid === v.me.pid &&
+      v.secret?.choices &&
+      choseTurn !== v.turn.id
+    )
+      choose(v.turn.id);
   });
   socket.on('fx', (fx) => {
     if (fx.kind === 'correct' && fx.pid === view?.me.pid)
@@ -293,6 +328,7 @@ export function createBot({
   const disconnect = () => {
     stopPinging();
     stopGuessing();
+    if (chooseTimer) clearTimeout(chooseTimer);
     stopDoodle();
     closed = true;
     socket.removeAllListeners();

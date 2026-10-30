@@ -7,6 +7,7 @@ import {
   SCREEN_HOST,
   T0,
   asPlayer,
+  choose,
   makeRoom,
   secretWord,
   step,
@@ -61,7 +62,7 @@ function barkada() {
     makeRoom({ settings: { ...makeRoom().settings, drawSeconds: 80 } }),
   );
   const at = T0 + 1000;
-  const room = step(joined, { type: 'host:start', by: SCREEN_HOST }, at).room;
+  const room = choose(step(joined, { type: 'host:start', by: SCREEN_HOST }, at).room, at);
   const [mika, jun, ana, bea, carlo] = pids as [string, string, string, string, string];
   expect(room.turn!.drawerPid).toBe(mika);
   return { room, at, mika, jun, ana, bea, carlo, word: secretWord(room) };

@@ -3,12 +3,13 @@
 // monotonic ms, randomness comes from the seeded RNG in `room.rngState`, and timers go out as
 // `schedule` effects carrying `turnId` and `timerEpoch`.
 //
-// v0 (F04): LOBBY → DRAWING → REVEAL → … → FINAL after one cycle. CHOOSING and the deck (F18),
-// cycles and SCOREBOARD (F20), overlapped choosing (F21), corrected timing (F13), matching (F14)
-// and the rest arrive with their features; their actions are rejected as `notAvailable` until then.
+// LOBBY → CHOOSING → DRAWING → REVEAL → … → FINAL after one cycle. Cycles and SCOREBOARD (F20),
+// overlapped choosing (F21), pauses (F23) and the rest arrive with their features; their actions
+// are rejected as `notAvailable` until then.
 
 import {
   ALL_GUESSED_MS,
+  CHOOSE_MS,
   CLOSE_GUESSES_MAX,
   FEED_MAX,
   GRACE_MS,
@@ -21,6 +22,7 @@ import {
 } from '../shared/constants.js';
 import type {
   Action,
+  ChoiceIndex,
   Effect,
   Phase,
   Player,
@@ -29,14 +31,21 @@ import type {
   Sender,
   Turn,
   TurnEndReason,
-  WordEntry,
 } from '../shared/types.js';
+import {
+  allowedWords,
+  CHOICE_COUNT,
+  chooseWord,
+  drawChoices,
+  easiestIndex,
+  newDeck,
+  returnChoices,
+} from './deck.js';
 import { correctedAt } from './fairness.js';
 import { guessRejection, matchGuess } from './match.js';
 import { feedText } from './profanity.js';
 import { createRng } from './rng.js';
 import { drawerPoints, guesserPoints } from './scoring.js';
-import { V0_WORDS } from './words.v0.js';
 
 export type ReduceResult =
   { ok: true; room: Room; effects: Effect[] } | { ok: false; error: ReduceError };
@@ -50,7 +59,9 @@ const PID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const PID_LENGTH = 8;
 
 export function reduce(room: Room, action: Action, now: number): ReduceResult {
-  const d = structuredClone(room);
+  // The packs are frozen and shared by every room, so they are passed on, never copied.
+  const { packs, ...rest } = room;
+  const d: Room = { ...structuredClone(rest), packs };
   const effects: Effect[] = [];
   const error = apply(d, action, now, effects);
   return error ? { ok: false, error } : { ok: true, room: d, effects };
@@ -64,6 +75,8 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return leave(d, action, now, fx);
     case 'player:guess':
       return guess(d, action, now, fx);
+    case 'drawer:choose':
+      return choose(d, action, now, fx);
     case 'host:start':
       return start(d, action, now, fx);
     case 'host:skip':
@@ -81,7 +94,6 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'player:rename':
     case 'player:react':
     case 'player:visibility':
-    case 'drawer:choose':
     case 'host:pause':
     case 'host:resume':
     case 'host:kick':
@@ -200,7 +212,9 @@ function leave(d: Room, a: ActionOf<'player:leave'>, now: number, fx: Effect[]):
     crown(d, heir?.pid ?? null, fx);
   }
 
-  if (d.phase === 'DRAWING') {
+  if (d.phase === 'CHOOSING' && d.turn?.drawerPid === pid) {
+    abandonChoice(d, now, fx);
+  } else if (d.phase === 'DRAWING') {
     if (d.turn?.drawerPid === pid) endTurn(d, 'skip', now, fx);
     // The leaver may have been the last guesser still drawing a blank.
     else if (!d.turn?.correct.some((c) => c.pid === pid)) checkAllGuessed(d, now, fx);
@@ -228,6 +242,15 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
   if (!isHost(d, a.by)) return 'notHost';
   const players = Object.values(d.players).sort((x, y) => x.joinedAt - y.joinedAt);
   if (players.filter((p) => p.connected).length < MIN_PLAYERS) return 'notEnoughPlayers';
+  const allowed = allowedWords(d.packs, d.settings);
+  if (allowed.length < CHOICE_COUNT) return 'notEnoughWords';
+
+  // A new game's deck: every allowed word not chosen yet this session (Word selection).
+  const rng = createRng(d.rngState);
+  const built = newDeck(allowed, d.deck.usedIds, rng);
+  d.rngState = rng.state;
+  d.deck = built.deck;
+  if (built.reshuffled) fx.push({ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } });
 
   d.turnOrder = players.map((p) => p.pid);
   d.turnIndex = -1;
@@ -238,15 +261,15 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
 }
 
 /**
- * The next connected drawer in `turnOrder` draws, or the game ends. A disconnected player is
- * skipped for this cycle.
+ * Deals the next connected drawer in `turnOrder` a choice, or ends the game. A disconnected player
+ * is skipped for this cycle.
  */
 // SPEC-QUESTION: v0 plays one cycle whatever `settings.cycles` says; F20 adds cycles and SCOREBOARD (DECISIONS 18).
 function advance(d: Room, now: number, fx: Effect[]): void {
   for (let i = d.turnIndex + 1; i < d.turnOrder.length; i++) {
     const pid = d.turnOrder[i]!;
     if (d.players[pid]?.connected) {
-      startDrawing(d, i, now, fx);
+      deal(d, i, now, fx);
       return;
     }
   }
@@ -254,23 +277,28 @@ function advance(d: Room, now: number, fx: Effect[]): void {
   setPhase(d, 'FINAL');
 }
 
-/** v0 deal and start in one: three random words, the first one chosen, the clock running. */
-function startDrawing(d: Room, index: number, now: number, fx: Effect[]): void {
+/**
+ * **Deal**: three words off the deck for the drawer at `index`, CHOOSING, and `chooseUp` in 12 s.
+ * The words reach only that drawer, through their view.
+ */
+function deal(d: Room, index: number, now: number, fx: Effect[]): void {
   const rng = createRng(d.rngState);
-  const [first, second, third] = rng.shuffle(V0_WORDS) as [WordEntry, WordEntry, WordEntry];
+  const dealt = drawChoices(d.deck, allowedWords(d.packs, d.settings), d.settings.difficulty, rng);
   d.rngState = rng.state;
+  d.deck = dealt.deck;
+  // "All words used, reshuffling", once, on the Screen; it names no word.
+  if (dealt.reshuffled) fx.push({ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } });
 
   const drawerPid = d.turnOrder[index]!;
-  const endsAt = now + d.settings.drawSeconds * 1000;
   const turn: Turn = {
     id: ++d.turnCounter,
     cycle: d.cycle,
     drawerPid,
-    choices: [first, second, third],
+    choices: dealt.choices,
     dealtAt: now,
-    word: first,
-    clockStart: now,
-    endsAt,
+    word: null,
+    clockStart: null,
+    endsAt: null,
     hintIndexes: [],
     correct: [],
     feed: [],
@@ -283,16 +311,55 @@ function startDrawing(d: Room, index: number, now: number, fx: Effect[]): void {
   };
   d.turnIndex = index;
   d.turn = turn;
-  setPhase(d, 'DRAWING');
-
+  setPhase(d, 'CHOOSING');
   fx.push(
     { type: 'fx', to: { pid: drawerPid }, fx: { kind: 'yourTurn' } },
-    { type: 'inkOpen', turnId: turn.id, drawerPid },
-    schedule(d, 'drawUp', endsAt + GRACE_MS),
+    schedule(d, 'chooseUp', turn.dealtAt + CHOOSE_MS),
   );
 }
 
-function schedule(d: Room, timer: 'drawUp' | 'allGuessed' | 'revealDone', at: number): Effect {
+function choose(d: Room, a: ActionOf<'drawer:choose'>, now: number, fx: Effect[]): Handled {
+  // SPEC-QUESTION: the upcoming drawer choosing during REVEAL/SCOREBOARD arrives with F21.
+  if (d.phase !== 'CHOOSING' || !d.turn || d.turn.word) return 'wrongPhase';
+  if (d.paused) return 'paused';
+  const player = senderPlayer(d, a.by);
+  if (typeof player === 'string') return player;
+  if (player.pid !== d.turn.drawerPid) return 'notDrawer';
+  startDrawing(d, a.index, now, fx);
+  return undefined;
+}
+
+/**
+ * The drawer's choice (or the auto-pick) is set: only it is used up, the other two go to the
+ * bottom of the deck. **Start drawing**: the clock, `drawUp`, `inkOpen`.
+ */
+function startDrawing(d: Room, index: ChoiceIndex, now: number, fx: Effect[]): void {
+  const turn = d.turn!;
+  d.deck = chooseWord(d.deck, turn.choices, index);
+  turn.word = turn.choices[index];
+  turn.clockStart = now;
+  turn.endsAt = now + d.settings.drawSeconds * 1000;
+  setPhase(d, 'DRAWING');
+  fx.push(
+    { type: 'inkOpen', turnId: turn.id, drawerPid: turn.drawerPid },
+    schedule(d, 'drawUp', turn.endsAt + GRACE_MS),
+  );
+}
+
+/**
+ * CHOOSING ends with no word (host skip, the drawer left): no reveal and no points; the dealt words
+ * go back to the bottom of the deck and the next drawer is dealt.
+ */
+function abandonChoice(d: Room, now: number, fx: Effect[]): void {
+  d.deck = returnChoices(d.deck, d.turn!.choices);
+  advance(d, now, fx);
+}
+
+function schedule(
+  d: Room,
+  timer: 'chooseUp' | 'drawUp' | 'allGuessed' | 'revealDone',
+  at: number,
+): Effect {
   return { type: 'schedule', at, timer, turnId: d.turn!.id, epoch: d.timerEpoch };
 }
 
@@ -416,9 +483,10 @@ function endTurn(d: Room, reason: TurnEndReason, now: number, fx: Effect[]): voi
 }
 
 function skip(d: Room, a: ActionOf<'host:skip'>, now: number, fx: Effect[]): Handled {
-  if (d.phase !== 'DRAWING') return 'wrongPhase';
+  if (d.phase !== 'CHOOSING' && d.phase !== 'DRAWING') return 'wrongPhase';
   if (!isHost(d, a.by)) return 'notHost';
-  endTurn(d, 'skip', now, fx);
+  if (d.phase === 'CHOOSING') abandonChoice(d, now, fx);
+  else endTurn(d, 'skip', now, fx);
   return undefined;
 }
 
@@ -433,6 +501,13 @@ function next(d: Room, a: ActionOf<'host:next'>, now: number, fx: Effect[]): Han
 function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handled {
   if (!d.turn || a.turnId !== d.turn.id || a.epoch !== d.timerEpoch) return 'staleTimer';
   switch (a.timer) {
+    case 'chooseUp':
+      // SPEC-QUESTION: re-scheduling chooseUp for the remaining time after a pause comes with F23's resumeGo.
+      if (d.phase !== 'CHOOSING' || d.turn.word) return 'wrongPhase';
+      // A pause holds the choice open; F23's resumeGo schedules the rest of the 12 s.
+      if (d.paused) return 'paused';
+      startDrawing(d, easiestIndex(d.turn.choices), now, fx);
+      return undefined;
     case 'drawUp':
     case 'allGuessed':
       if (d.phase !== 'DRAWING') return 'wrongPhase';

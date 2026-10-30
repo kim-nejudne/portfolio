@@ -46,13 +46,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F17 Word packs and loader
 
-- [ ] F18 Deck and word choice
-  - Spec: Words (Word selection); Game flow and state machine (Transitions); UI by role and phase (Drawer phone)
-  - Depends: F17, F04
-  - Done when:
-    - CHOOSING phase: 3 choices (easy, medium, hard in Mixed; three easy in Easy), `drawer:choose {index: 0|1|2}`, `chooseUp` after 12 s picks the easiest; only the chosen word goes into `usedIds`, the others to the bottom of the deck; reshuffle when empty; the language and difficulty settings filter the deck
-    - Drawer phone shows three word cards with their gloss and "Hold your phone close 🤫"; Screen and guessers show "Mika is choosing…"
-  - Tests: `deck.test.ts` — no repeats until exhausted, choice levels, filters; `reducer.choosing.test.ts` — auto-pick is the easiest
+- [x] F18 Deck and word choice
 
 - [ ] F19 Hints and early end
   - Spec: Scoring and timing (Timing and hints)

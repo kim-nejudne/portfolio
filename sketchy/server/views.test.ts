@@ -3,6 +3,7 @@ import { CHOOSE_MS, REVEAL_MS } from '../shared/constants.js';
 import type { Room, Turn, View, WordEntry } from '../shared/types.js';
 import { maskWord, toView, type Viewer } from './views.js';
 import { SCREEN_HOST, asPlayer, started, step } from './test/rooms.js';
+import { testPack } from './test/packs.js';
 
 // Every secret starts with `qz`, so a substring search of the serialised view finds any of them.
 const SECRET: WordEntry = {
@@ -124,13 +125,14 @@ describe('the reveal', () => {
 });
 
 describe('server-only fields', () => {
-  it('never sends keys, the token hash, RNG state, the deck or custom words', () => {
+  it('never sends keys, the token hash, RNG state, the deck, the packs or custom words', () => {
     const { room, pids, at } = drawing();
     const custom: WordEntry = { ...SECRET, id: 'custom/1', word: 'qzcustom' };
     const full = {
       ...room,
       customWords: [custom],
-      deck: { remaining: [custom], usedIds: ['qzused'] },
+      deck: { remaining: ['qzdeck'], usedIds: ['qzused'] },
+      packs: [testPack('qzpack', 'en', 'spicy', [['qzpackword', 2, 'qzpackgloss']])],
       kickedKeyHashes: ['qzkicked'],
     };
     const views: View[] = [
@@ -139,13 +141,22 @@ describe('server-only fields', () => {
     ];
     for (const view of views) {
       const text = json(view);
-      for (const field of ['keyHash', 'hostTokenHash', 'rngState', 'deck', 'customWords']) {
+      for (const field of [
+        'keyHash',
+        'hostTokenHash',
+        'rngState',
+        'deck',
+        'packs',
+        'customWords',
+      ]) {
         expect(text).not.toContain(`"${field}`);
       }
       expect(text).not.toContain('key-Ana');
       expect(text).not.toContain('qzcustom');
       expect(text).not.toContain('qzkicked');
       expect(text).not.toContain('qzused');
+      expect(text).not.toContain('qzdeck');
+      expect(text).not.toContain('qzpack');
     }
     expect(toView(full, { kind: 'screen', isHost: true }, at).host).toEqual({
       code: room.code,

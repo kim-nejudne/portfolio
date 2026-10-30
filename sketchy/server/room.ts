@@ -1,7 +1,7 @@
 // Adapted from Buzzr (buzzer/server/room.ts): Sketchy's room shape and a PRNG seed.
 import { randomInt } from 'node:crypto';
 import { DEFAULT_SETTINGS } from '../shared/constants.js';
-import type { Room, RoomSettings } from '../shared/types.js';
+import type { Room, RoomSettings, WordPack } from '../shared/types.js';
 
 export interface NewRoom {
   code: string;
@@ -12,6 +12,8 @@ export interface NewRoom {
   now: number;
   /** `Room.rngState`. Tests pass one; otherwise it comes from the CSPRNG. */
   seed?: number;
+  /** The packs loaded at server start (frozen), shared by reference: the deck deals from them. */
+  packs: readonly WordPack[];
 }
 
 /** A fresh `Room.rngState` from the CSPRNG. Never call it from the reducer. */
@@ -26,6 +28,7 @@ export function createRoom({
   settings,
   now,
   seed = newSeed(),
+  packs,
 }: NewRoom): Room {
   return {
     code,
@@ -48,6 +51,7 @@ export function createRoom({
     history: [],
     awards: [],
     deck: { remaining: [], usedIds: [] },
+    packs,
     customWords: [],
     rematchAt: null,
     session: { gameNumber: 1, totals: {}, firstDrawerJoinedAt: null },

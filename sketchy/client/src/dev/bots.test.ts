@@ -16,6 +16,7 @@ import type {
 } from '../../../shared/types.js';
 import type { GameSocket, InkSocket } from '../lib/socket.js';
 import {
+  BOT_CHOOSE_MS,
   BOT_GUESS_MAX_MS,
   BOT_GUESS_MIN_MS,
   DECOY_WORDS,
@@ -28,6 +29,8 @@ import {
   type BotState,
 } from './bots.js';
 import { doodleSteps } from './doodle.js';
+import enEveryday from '../../../data/packs/en-everyday.json';
+import tlPinoyLife from '../../../data/packs/tl-pinoy-life.json';
 import { FakeSocket } from './fakeSocket.js';
 
 beforeEach(() => {
@@ -137,6 +140,19 @@ function spawn(index = 2, { behaviour = {}, word, random = () => 0 }: SpawnOptio
     last: () => states.at(-1)!,
   };
 }
+
+describe('decoy guesses', () => {
+  it('are never a word or alternate of a shipped pack, nor part of one', () => {
+    const forms = [enEveryday, tlPinoyLife].flatMap((p) =>
+      p.words.flatMap((w) =>
+        [w.word, ...(('alt' in w ? w.alt : undefined) ?? [])].map((f) => f.toLowerCase()),
+      ),
+    );
+    for (const decoy of DECOY_WORDS)
+      for (const form of forms)
+        expect(form.includes(decoy) || decoy.includes(form), form).toBe(false);
+  });
+});
 
 describe('bot helpers', () => {
   it('gives each bot a fixed, valid player key and name', () => {
@@ -264,6 +280,41 @@ describe('createBot', () => {
     const ops = sent.flatMap(([, , o]) => o);
     expect(ops.filter((op) => op[0] === 'b')).toHaveLength(4);
     expect(ops.filter((op) => op[0] === 'e')).toHaveLength(4);
+  });
+
+  it('picks one of its three words once per turn when auto-draw is on', () => {
+    const { socket, joined } = spawn(2, { behaviour: { autoDraw: true }, random: () => 0.7 });
+    joined();
+    const choosing = (): PlayerView => ({
+      ...view('bot2', { phase: 'CHOOSING', drawer: 'bot2', turnId: 4 }),
+      secret: {
+        turnId: 4,
+        choices: [
+          { word: 'apple', gloss: null, difficulty: 1 },
+          { word: 'guitar', gloss: null, difficulty: 2 },
+          { word: 'astronaut', gloss: null, difficulty: 3 },
+        ],
+        word: null,
+      },
+    });
+    socket.fire('state', choosing());
+    socket.fire('state', choosing());
+    vi.advanceTimersByTime(BOT_CHOOSE_MS - 1);
+    expect(socket.sent('drawer:choose')).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(socket.sent('drawer:choose').map((e) => e.payload)).toEqual([{ index: 2 }]);
+  });
+
+  it('does not pick a word when auto-draw is off or it is not the drawer', () => {
+    const { socket, joined } = spawn(2);
+    joined();
+    socket.fire('state', view('bot2', { phase: 'CHOOSING', drawer: 'bot2' }));
+    const other = spawn(3, { behaviour: { autoDraw: true } });
+    other.joined();
+    other.socket.fire('state', view('bot3', { phase: 'CHOOSING' }));
+    vi.advanceTimersByTime(BOT_CHOOSE_MS * 2);
+    expect(socket.sent('drawer:choose')).toEqual([]);
+    expect(other.socket.sent('drawer:choose')).toEqual([]);
   });
 
   it('never draws as a guesser', () => {

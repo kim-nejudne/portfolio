@@ -2,13 +2,14 @@
 import type { Action, Room, Sender } from '../../shared/types.js';
 import { reduce, type ReduceResult } from '../reducer.js';
 import { createRoom } from '../room.js';
+import { TEST_PACKS } from './packs.js';
 
 /** Monotonic ms at room creation in tests. */
 export const T0 = 1_000_000;
 
 export function makeRoom(overrides: Partial<Room> = {}): Room {
   return {
-    ...createRoom({ code: 'ABCD', hostTokenHash: 'hash', now: T0, seed: 42 }),
+    ...createRoom({ code: 'ABCD', hostTokenHash: 'hash', now: T0, seed: 42, packs: TEST_PACKS }),
     ...overrides,
   };
 }
@@ -45,11 +46,32 @@ export function withPlayers(names: string[], room = makeRoom()): { room: Room; p
   return { room, pids };
 }
 
-/** A room with these players in DRAWING, turn 1, started at `T0 + 1000`. */
-export function started(names = ['Ana', 'Ben', 'Cy']): { room: Room; pids: string[]; at: number } {
-  const { room, pids } = withPlayers(names);
+/** A room with these players in CHOOSING, turn 1, dealt at `T0 + 1000`. */
+export function dealt(
+  names = ['Ana', 'Ben', 'Cy'],
+  room?: Room,
+): { room: Room; pids: string[]; at: number } {
+  const joined = withPlayers(names, room);
   const at = T0 + 1000;
-  return { room: step(room, { type: 'host:start', by: SCREEN_HOST }, at).room, pids, at };
+  return {
+    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST }, at).room,
+    pids: joined.pids,
+    at,
+  };
+}
+
+/** The current drawer picks choice `index` at `now`. */
+export function choose(room: Room, now: number, index: 0 | 1 | 2 = 0): Room {
+  return step(room, { type: 'drawer:choose', by: asPlayer(room.turn!.drawerPid), index }, now).room;
+}
+
+/**
+ * A room with these players in DRAWING, turn 1: dealt at `T0 + 1000` and chosen at once, so the
+ * clock starts at `at`.
+ */
+export function started(names = ['Ana', 'Ben', 'Cy']): { room: Room; pids: string[]; at: number } {
+  const { room, pids, at } = dealt(names);
+  return { room: choose(room, at), pids, at };
 }
 
 /** The current turn's word. Tests only: the reducer never hands this to a view. */

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp, type AppOptions } from './http.js';
+import { TEST_PACKS } from './test/packs.js';
 
 let server: Server | undefined;
 
@@ -13,8 +14,8 @@ afterEach(async () => {
   server = undefined;
 });
 
-async function listen(options?: AppOptions): Promise<string> {
-  server = createApp(options).listen(0);
+async function listen(options: Partial<AppOptions> = {}): Promise<string> {
+  server = createApp({ packs: TEST_PACKS, ...options }).listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
   return `http://127.0.0.1:${port}`;

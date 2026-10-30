@@ -22,12 +22,13 @@ if (!loaded.ok) {
   console.error(loaded.message);
   process.exit(1);
 }
-// Turns still deal from the v0 list until F18 builds the deck from these packs (DECISIONS 40).
 console.log(loaded.summary);
 
 const rooms = new InMemoryRoomStore();
 const httpServer = createServer(
   createApp({
+    // Every room deals from these, shared and frozen.
+    packs: loaded.packs,
     clientDir,
     rooms,
     clock: Date.now,

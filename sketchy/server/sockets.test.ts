@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  CHOOSE_MS,
   GRACE_MS,
   PING_RATE_LIMIT,
   SOCKET_PING_INTERVAL_MS,
@@ -11,6 +12,7 @@ import {
 import type { Ack, ClientEvent, Fx, PlayerView, ScreenView, View } from '../shared/types.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
+import { TEST_PACKS } from './test/packs.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets, closeRooms, hashPlayerKey, type Gateway } from './sockets.js';
 
@@ -49,7 +51,13 @@ async function setup() {
   const rooms = new InMemoryRoomStore();
   const hostToken = generateHostToken();
   rooms.set(
-    createRoom({ code: CODE, hostTokenHash: hashHostToken(hostToken), now: WALL0, seed: 7 }),
+    createRoom({
+      code: CODE,
+      hostTokenHash: hashHostToken(hostToken),
+      now: WALL0,
+      seed: 7,
+      packs: TEST_PACKS,
+    }),
   );
   const time = { wall: WALL0, mono: MONO0 };
   const timers: Pending[] = [];
@@ -124,6 +132,8 @@ async function playing() {
   const ana = await joinPlayer(s, KEY_ANA, 'Ana');
   const ben = await joinPlayer(s, KEY_BEN, 'Ben');
   expect(await screen.emit('host:start')).toEqual({ ok: true });
+  // Ana is dealt three words and takes the first.
+  expect(await ana.client.emit('drawer:choose', { index: 0 })).toEqual({ ok: true });
   const word = s.rooms.get(CODE)!.turn!.word!.word;
   return { ...s, screen, ana, ben, word };
 }
@@ -319,7 +329,7 @@ describe('host actions', () => {
     const ben = await joinPlayer(s, KEY_BEN, 'Ben');
     expect(await ben.client.emit('host:start')).toEqual({ ok: false, error: 'notHost' });
     expect(await ana.client.emit('host:start')).toEqual({ ok: true });
-    expect(s.rooms.get(CODE)!.phase).toBe('DRAWING');
+    expect(s.rooms.get(CODE)!.phase).toBe('CHOOSING');
   });
 
   it('need a join first', async () => {
@@ -336,8 +346,9 @@ describe('host actions', () => {
 describe('effects runner', () => {
   it('schedules timers and dispatches them, ending the turn when the clock runs out', async () => {
     const g = await playing();
-    const drawUp = g.timers.find((t) => !t.cancelled)!;
-    expect(drawUp.delayMs).toBe(60_000 + GRACE_MS);
+    // The deal's chooseUp first, then the choice's drawUp.
+    expect(g.timers.map((t) => t.delayMs)).toEqual([CHOOSE_MS, 60_000 + GRACE_MS]);
+    const drawUp = g.timers.at(-1)!;
     g.time.mono = MONO0 + drawUp.delayMs;
     drawUp.fn();
     expect(g.rooms.get(CODE)!.phase).toBe('REVEAL');
@@ -346,9 +357,31 @@ describe('effects runner', () => {
     expect(g.ben.client.fx).toContainEqual({ kind: 'turnEnd', reason: 'time' });
   });
 
+  it('auto-picks a word when chooseUp fires, and the drawer alone hears which', async () => {
+    const s = await setup();
+    const screen = await s.connect();
+    expect(await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken })).toEqual({
+      ok: true,
+    });
+    const ana = await joinPlayer(s, KEY_ANA, 'Ana');
+    const ben = await joinPlayer(s, KEY_BEN, 'Ben');
+    expect(await screen.emit('host:start')).toEqual({ ok: true });
+    const chooseUp = s.timers.at(-1)!;
+    expect(chooseUp.delayMs).toBe(CHOOSE_MS);
+    s.time.mono = MONO0 + CHOOSE_MS;
+    chooseUp.fn();
+    const room = s.rooms.get(CODE)!;
+    expect(room.phase).toBe('DRAWING');
+    expect(room.turn!.word).toEqual(room.turn!.choices[0]);
+    const drawer = await ana.client.state<PlayerView>((v) => v.phase === 'DRAWING');
+    expect(drawer.secret!.word!.word).toBe(room.turn!.word!.word);
+    const guesser = await ben.client.state((v) => v.phase === 'DRAWING');
+    expect(JSON.stringify(guesser)).not.toContain(room.turn!.word!.word);
+  });
+
   it('drops a stale timer silently', async () => {
     const g = await playing();
-    const drawUp = g.timers[0]!;
+    const drawUp = g.timers.at(-1)!;
     expect(await g.screen.emit('host:skip')).toEqual({ ok: true });
     const room = g.rooms.get(CODE)!;
     const before = g.screen.states.length;

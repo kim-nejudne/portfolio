@@ -34,8 +34,99 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 - [ ] F16: after autopilot deploys, open `https://sketchy.kimnejudne.dev/screen/CODE?debug=1` on the laptop (Screen on the TV, Wi-Fi) and join 3 phones; the drawer's phone on 4G opens `/play/CODE?debug=1` (add `?debug=1` to the join URL before joining). Start, wait 10 s, then (a) read the overlay at the top left; (b) film the drawer's phone and the TV together in slow motion (240 fps), draw 10 quick strokes, and count frames from finger movement to the line appearing on the TV (1 frame ≈ 4.2 ms) · (a) the overlay lists every phone with an RTT in ms (not "–"), shows "clock offset: N ms", and after the strokes shows p50 near 70–150 ms and p95 under 300 ms; (b) the video's median delay is within about 30 ms of the overlay's "+ 25 ms flush wait" p50 (the spec's ground truth)
 - [ ] F17: open `data/packs/en-everyday.json` and `data/packs/tl-pinoy-life.json` (30 words each, the spec's sample tables) and run `npm run packs:check` · every word drawable in 60 s on a phone? Taglish spellings and alternates are what a barkada types (tsinelas/chinelas, dyip/jeep, litson)? glosses short, plain English and right? difficulties fair (en has 4 hard, tl 5)?
+- [ ] F18: `npm run dev` + `npm run lan`, laptop Screen on the TV, 3 real phones including a small one (≈ 360 × 640, e.g. an iPhone SE or a budget Android); start, and (a) on the drawer's phone read the three cards and tap the middle one; (b) on the next turn don't tap and let the 12 s run out; (c) look at the TV and a guesser's phone while someone is choosing; (d) play one turn with the language set to Taglish (once F22 adds the setting, or with a room created with `{"settings":{"words":"taglish"}}`) · (a) three cards Easy/Medium/Hard, easiest at the top, each word large and readable, Tagalog medium/hard words show their short English gloss, "Hold your phone close 🤫" and the "Tap one…" line fit with nothing cut off and no scrolling, and the tap moves straight to the draw pad with that word in the bar; a tap the instant the cards appear (e.g. a leftover tap) doesn't pick anything; (b) the easy word is picked and the pad opens by itself; (c) the TV and guessers show "Mika is choosing a word…" and never any of the three words; (d) all three choices are Tagalog words
 
 <!-- entries below, newest first -->
+
+## F18 — Deck and word choice (2026-10-30)
+**What changed:**
+- **`server/deck.ts` (new, pure):**
+  - `allowedWords` filters the packs by the `words`, `spicy` and `difficulty` settings.
+  - `newDeck` builds a new game's deck: every allowed word not used yet this session, shuffled with the room RNG.
+  - `drawChoices` deals the topmost easy, medium and hard word in Mixed, filling a missing level from the nearest one, or three easy in Easy, easiest first. It reshuffles every allowed word and clears `usedIds` when fewer than 3 are left.
+  - `chooseWord` puts only the chosen word in `usedIds` and the other two at the bottom of the deck. `returnChoices` puts all three at the bottom.
+  - `easiestIndex` is the auto-pick; a custom word counts as medium.
+- **Reducer:**
+  - A deal now goes LOBBY/REVEAL → **CHOOSING** with `fx yourTurn` and `chooseUp` at `dealtAt + 12 s`.
+  - `drawer:choose {index}` (new error `notDrawer`) and `chooseUp` (the easiest) set the word and start drawing (`inkOpen`, `drawUp`). `chooseUp` is refused while paused.
+  - `host:skip` or the drawer leaving during CHOOSING returns the words and deals the next drawer, with no reveal or points (FINAL if nobody is left).
+  - `host:start` builds the deck and refuses with the new `notEnoughWords` when fewer than 3 words are allowed.
+  - New Screen-only `fx wordsReshuffled`.
+- **Packs reach rooms:**
+  - `Room.packs` holds the loaded, frozen packs. `index.ts` → `createApp({packs})` → `createRoom({packs})`.
+  - `reduce` passes them by reference and never clones them.
+  - `deck.remaining` is now word ids.
+  - `words.v0.ts` is deleted. Tests deal from `server/test/packs.ts`.
+- **Client:**
+  - `WordChoice.tsx` shows the drawer three cards (word large, level tag, 2-line gloss), "Your turn to draw! ◔ 10s", "Hold your phone close 🤫" and "Tap one. No letters or numbers in your drawing!".
+  - A tap locks the cards until the ack; a refusal unlocks them. Taps in the first 400 ms are ignored.
+  - Guessers and the Screen keep "Mika is choosing a word…".
+  - The Screen shows "All words used, reshuffling" for 4 s on `wordsReshuffled`, never over a drawing.
+- **Dev bots** pick a random card after 1.5 s when auto-draw is on. Their decoy guesses are now abstract Tagalog words, because the old ones (tsinelas, jeepney) are now pack words; a test checks this against the shipped packs.
+- **Tests:**
+  - `server/deck.test.ts` (21): the filters, the new deck, choice levels and nearest-level fill, no repeats until exhausted, reshuffle, choose and return, auto-pick.
+  - `server/reducer.choosing.test.ts` (25):
+    - the deal and its effects;
+    - Easy, the language filter, used words left out, `notEnoughWords`, packs shared;
+    - choose and its refusals;
+    - the auto-pick at any position, custom words as medium, refused while paused, stale after a choice or skip;
+    - skip and leave in CHOOSING;
+    - reshuffle with one Screen fx;
+    - ten chosen words with no repeats.
+  - `sockets.test.ts`: the auto-pick through the gateway.
+  - `views.leak.test.ts`: now a `qz` pack and the real CHOOSING, with choose, auto-pick and a guesser's refused choose, plus an abandoned deal through to FINAL.
+  - `phoneViews.test.tsx`: the cards and the guesser's "is choosing".
+  - `bots.test.ts`: the choice and the decoys.
+  - Existing tests now choose after `host:start` (`dealt`/`choose`/`started` helpers in `server/test/rooms.ts`, `startTurn` in `inkGateway.test.ts`).
+  - Mutation-checked: an auto-pick of index 0 fails 2 tests; putting all three words in `usedIds` fails 4.
+- No new dependencies.
+
+**Decisions:** DECISIONS 41 covers:
+- the packs on the room, shared and not cloned;
+- id-only `deck.remaining` (measured: 0.9 ms → 0.04 ms a clone at 700 words);
+- the filter, deal order and nearest-level fill;
+- "runs out" meaning fewer than 3 left;
+- `notEnoughWords` and `notDrawer`;
+- `wordsReshuffled`;
+- CHOOSING skip and leave;
+- the 400 ms tap guard;
+- bot choosing and the new decoys.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Applied: this entry, DECISIONS 41, the F18 Kim check, the reducer header rewrap, and the F23 SPEC-QUESTION on `chooseUp`. Not done: a Screen render test for the reshuffle notice, because `Screen.tsx` is socket-driven with no render harness; the Kim check covers it.
+- **secrets-fairness: PASS WITH FIXES.** Applied: `chooseUp` refused while paused, and the leak audit for an abandoned deal → FINAL. Left:
+  - a drawer who *disconnects* in CHOOSING is auto-picked after 12 s, as in DRAWING (F40's drawer away);
+  - `drawer:choose` has no per-socket cap (the existing Backlog item for `player:*` caps covers it).
+- **mobile-ux: PASS WITH FIXES.** Applied:
+  - gloss `line-clamp-2` and `overflow-hidden`, the word size `clamp(1.25rem, 7vw, 1.75rem)`, cards capped at `max-h-48`;
+  - the 400 ms ghost-tap guard;
+  - the timer hidden when null, with an `aria-hidden` ◔;
+  - a bold, full-contrast level tag;
+  - the Screen notice at `max(4vmin, 20px)` and never over DRAWING.
+  - Left: the next drawer choosing during REVEAL (F21), and a fallback "Get ready…" text that only shows if a CHOOSING view has no choices (it never should).
+
+**Notes for next session:**
+- **F19:** nothing new. Hints start from `startDrawing` in `reducer.ts` (schedule them next to `drawUp`).
+- **F20:** `advance` deals with `deal()`; the next cycle's order is built before dealing. An abandoned deal leaves `room.turn` holding the unchosen turn in FINAL; views gate choices on phase, so keep that gate.
+- **F21:**
+  - deal `upcoming` with the same `drawChoices`;
+  - `choose` must also accept the upcoming drawer in REVEAL/SCOREBOARD (currently `wrongPhase`);
+  - `WordChoice` already takes any view with `secret.choices`, so render it during REVEAL/SCOREBOARD with "You draw next! Pick a word";
+  - discarding `upcoming` uses `returnChoices`.
+- **F23:** pausing in CHOOSING must re-schedule `chooseUp` for the remaining time on `resumeGo` (move `dealtAt` forward). `chooseUp` already refuses while paused.
+- **F29 (Rematch):** call `newDeck(allowedWords(...), d.deck.usedIds, rng)` as `start()` does; `usedIds` survives.
+- **F48 (custom words):** add them in `allowedWords` and make one of three a custom word while any remain. `easiestIndex` already treats `lang: 'custom'` as medium.
+
+**How to try it:**
+- Unit tests: `npx vitest run server/deck.test.ts server/reducer.choosing.test.ts server/views.leak.test.ts client/src/components/phone client/src/dev`.
+- In the app: `npm run dev`, Screen at http://localhost:5173 (Start), phones via `npm run lan CODE`, or bots at `/dev/bots/CODE` (a bot drawer picks a word after 1.5 s). The drawer's phone shows three cards; tap one to draw. Leave them for 12 s and the easy word is picked. The Screen and guessers show "… is choosing a word…".
+- Automated: `npm run playtest -- .playtest/F18/scenario.ts` (gitignored). It runs a Screen at 1920×1080 and 3 phones, and all steps pass:
+  - the drawer gets 3 cards, Easy/Medium/Hard in order, with "Hold your phone close 🤫";
+  - the Screen and both guessers show "Mika is choosing…";
+  - none of the three words is in the Screen's or guessers' HTML;
+  - tapping card 2 opens the pad and the Screen shows "Mika is drawing";
+  - there are no console errors.
+  - Screenshot: `.playtest/F18/cards-mika.png`.
 
 ## F17 — Word packs and loader (2026-10-30)
 **What changed:**

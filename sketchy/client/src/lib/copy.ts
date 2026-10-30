@@ -29,6 +29,7 @@ const EN = {
   isDrawing: '✏️ {name} is drawing',
   roundTurn: 'Round {cycle}/{cycles} · Turn {turn}',
   gotIt: '{name} got it!',
+  wordsReshuffled: 'All words used, reshuffling',
   // ---------- Screen: reveal ----------
   itWas: 'It was…',
   gotItLabel: 'Got it',
@@ -65,6 +66,13 @@ const EN = {
   // ---------- Phone: turn ----------
   isDrawingShort: '✏️ {name} drawing',
   getReady: 'Your turn to draw! Get ready…',
+  yourTurnToDraw: 'Your turn to draw!',
+  seconds: '{n}s',
+  holdPhoneClose: 'Hold your phone close 🤫',
+  levelEasy: 'Easy',
+  levelMedium: 'Medium',
+  levelHard: 'Hard',
+  tapOne: 'Tap one. No letters or numbers in your drawing!',
   guessPlaceholder: 'Hula mo?',
   send: 'Send',
   slowDown: 'Slow down',

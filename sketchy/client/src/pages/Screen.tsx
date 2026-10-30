@@ -16,6 +16,9 @@ type Status = 'connecting' | 'live' | 'ended';
 
 const JOIN_ACK_TIMEOUT_MS = 5000;
 
+/** How long the Screen shows "All words used, reshuffling". */
+const RESHUFFLE_NOTICE_MS = 4000;
+
 /**
  * The Screen at `/screen/:code`: joins as a Screen (with this device's hostToken, if it created the
  * room), renders the latest `state`, and draws the `/ink` relay live. Landscape layout only (F33
@@ -25,6 +28,8 @@ export function Screen() {
   const code = (useParams().code ?? '').toUpperCase();
   const [status, setStatus] = useState<Status>('connecting');
   const [state, setState] = useState<{ view: ScreenView; at: number } | null>(null);
+  // "All words used, reshuffling", for a few seconds after the deck runs out.
+  const [reshuffled, setReshuffled] = useState(false);
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
   // `?debug=1` (F16): this Screen's clock offset to the server and the recent ink delays.
@@ -64,6 +69,13 @@ export function Screen() {
     socket.on('state', (view) => {
       if (view.role === 'screen') setState({ view, at: performance.now() });
     });
+    let reshuffleTimer: ReturnType<typeof setTimeout> | undefined;
+    socket.on('fx', (fx) => {
+      if (fx.kind !== 'wordsReshuffled') return;
+      setReshuffled(true);
+      clearTimeout(reshuffleTimer);
+      reshuffleTimer = setTimeout(() => setReshuffled(false), RESHUFFLE_NOTICE_MS);
+    });
     socket.on('room:closed', () => {
       setStatus('ended');
       socket.disconnect();
@@ -94,6 +106,7 @@ export function Screen() {
     inkSocket.connect();
 
     return () => {
+      clearTimeout(reshuffleTimer);
       stopPinging();
       socket.removeAllListeners();
       socket.disconnect();
@@ -144,6 +157,15 @@ export function Screen() {
           delays={debug.delays}
           players={view.players}
         />
+      )}
+      {/* Over the CHOOSING panel only, never over a drawing in progress. */}
+      {reshuffled && view.phase !== 'DRAWING' && (
+        <p
+          role="status"
+          className="absolute bottom-[6vmin] left-1/2 z-10 -translate-x-1/2 rounded-full bg-[#FFD166] px-[3vmin] py-[1vmin] text-[max(4vmin,20px)] font-bold text-[#1D1B22]"
+        >
+          {t('wordsReshuffled')}
+        </p>
       )}
       <div className="min-h-0 flex-1">
         {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}

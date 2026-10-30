@@ -2,7 +2,7 @@
 // (Role views in docs/spec.md). Ported from Buzzr (buzzer/server/views.ts): one pure function per
 // role, built field by field so nothing from `Room` slips through. The secret here is the word.
 //
-// Server-only, never in any view: `keyHash`, `hostTokenHash`, `rngState`, the deck, custom words
+// Server-only, never in any view: `keyHash`, `hostTokenHash`, `rngState`, the deck, the packs, custom words
 // (a count only), RTTs and every alternate. The word, its gloss and the choices go only to the
 // drawer they belong to (`secret`) until the reveal; then the word alone goes to everyone.
 

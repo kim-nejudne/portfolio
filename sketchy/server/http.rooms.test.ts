@@ -15,6 +15,7 @@ import { createApp, type AppOptions } from './http.js';
 import { createRoom } from './room.js';
 import { createRng } from './rng.js';
 import { InMemoryRoomStore } from './roomStore.js';
+import { TEST_PACKS } from './test/packs.js';
 
 const T0 = 1_800_000_000_000;
 
@@ -31,11 +32,17 @@ interface Setup {
   advance: (ms: number) => void;
 }
 
-async function setup(options: AppOptions = {}): Promise<Setup> {
+async function setup(options: Partial<AppOptions> = {}): Promise<Setup> {
   let now = T0;
   const rooms = new InMemoryRoomStore();
   const rng = createRng(1);
-  server = createApp({ rooms, clock: () => now, rng: () => rng.next(), ...options }).listen(0);
+  server = createApp({
+    packs: TEST_PACKS,
+    rooms,
+    clock: () => now,
+    rng: () => rng.next(),
+    ...options,
+  }).listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
   return {
@@ -194,7 +201,7 @@ describe('POST /api/rooms', () => {
     await new Promise((resolve) => server!.close(resolve));
 
     const rooms = new InMemoryRoomStore();
-    rooms.set(createRoom({ code, hostTokenHash: 'taken', now: T0, seed: 1 }));
+    rooms.set(createRoom({ code, hostTokenHash: 'taken', now: T0, seed: 1, packs: TEST_PACKS }));
     const second = await setup({ rooms });
     const res = (await (await postRoom(second.base, {})).json()) as CreateRoomResponse;
     expect(res.code).not.toBe(code);
@@ -203,7 +210,9 @@ describe('POST /api/rooms', () => {
 
   it('answers 503 when no code is free', async () => {
     const { base, rooms } = await setup({ rng: () => 0 }); // always draws AAAA
-    rooms.set(createRoom({ code: 'AAAA', hostTokenHash: 'taken', now: T0, seed: 1 }));
+    rooms.set(
+      createRoom({ code: 'AAAA', hostTokenHash: 'taken', now: T0, seed: 1, packs: TEST_PACKS }),
+    );
     const res = await postRoom(base, {});
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ ok: false });
@@ -230,7 +239,13 @@ describe('GET /api/rooms/:code/exists', () => {
 
   it('reports the phase and whether the room is full', async () => {
     const { base, rooms } = await setup();
-    const room = createRoom({ code: 'ABCD', hostTokenHash: 'h', now: T0, seed: 1 });
+    const room = createRoom({
+      code: 'ABCD',
+      hostTokenHash: 'h',
+      now: T0,
+      seed: 1,
+      packs: TEST_PACKS,
+    });
     rooms.set(withPlayers(room, MAX_PLAYERS - 1));
     expect(await exists(base, 'ABCD')).toEqual({ exists: true, phase: 'LOBBY', full: false });
     rooms.set({ ...withPlayers(room, MAX_PLAYERS), phase: 'DRAWING' });

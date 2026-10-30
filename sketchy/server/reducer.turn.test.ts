@@ -10,12 +10,13 @@ import {
 import type { Action, Room } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import { guesserPoints } from './scoring.js';
-import { V0_WORDS } from './words.v0.js';
 import {
   SCREEN,
   SCREEN_HOST,
   T0,
   asPlayer,
+  choose,
+  dealt,
   makeRoom,
   secretWord,
   started,
@@ -40,41 +41,43 @@ const timer = (room: Room, name: 'drawUp' | 'allGuessed' | 'revealDone'): Action
   epoch: room.timerEpoch,
 });
 
-/** Ends the current turn by time and moves on: REVEAL, then the next turn or FINAL. */
+/**
+ * Ends the current turn by time and moves on: REVEAL, then FINAL or the next turn, whose drawer
+ * takes the first choice at once.
+ */
 function playOut(room: Room, now: number): Room {
   const reveal = step(room, timer(room, 'drawUp'), now).room;
-  return step(reveal, timer(reveal, 'revealDone'), now + REVEAL_MS).room;
+  const next = step(reveal, timer(reveal, 'revealDone'), now + REVEAL_MS).room;
+  return next.phase === 'CHOOSING' ? choose(next, now + REVEAL_MS) : next;
 }
 
 describe('starting a turn', () => {
-  it('goes straight to DRAWING with a word from the v0 list and three distinct choices', () => {
+  it('draws with the chosen one of the three choices', () => {
     const { room } = started();
     const turn = room.turn!;
-    expect(turn.word).not.toBeNull();
-    expect(V0_WORDS).toContainEqual(turn.word);
-    expect(new Set(turn.choices.map((c) => c.id)).size).toBe(3);
-    expect(turn.choices).toContainEqual(turn.word);
+    expect(room.phase).toBe('DRAWING');
+    expect(turn.word).toEqual(turn.choices[0]);
   });
 
-  it('starts the clock now, ends after drawSeconds and schedules drawUp after the grace window', () => {
-    const { room, at, pids } = started();
-    const turn = room.turn!;
-    expect(turn.clockStart).toBe(at);
-    expect(turn.endsAt).toBe(at + DRAW_MS);
-    const { effects } = step(
-      withPlayers(['Ana', 'Ben', 'Cy']).room,
-      { type: 'host:start', by: SCREEN_HOST },
-      at,
+  it('starts the clock on the choice, ends after drawSeconds and schedules drawUp after the grace window', () => {
+    const { room: choosing, at, pids } = dealt();
+    const chosenAt = at + 4_000;
+    const { room, effects } = step(
+      choosing,
+      { type: 'drawer:choose', by: asPlayer(pids[0]!), index: 1 },
+      chosenAt,
     );
+    const turn = room.turn!;
+    expect(turn.clockStart).toBe(chosenAt);
+    expect(turn.endsAt).toBe(chosenAt + DRAW_MS);
     expect(effects).toContainEqual({
       type: 'schedule',
-      at: at + DRAW_MS + GRACE_MS,
+      at: chosenAt + DRAW_MS + GRACE_MS,
       timer: 'drawUp',
       turnId: turn.id,
       epoch: room.timerEpoch,
     });
     expect(effects).toContainEqual({ type: 'inkOpen', turnId: turn.id, drawerPid: pids[0] });
-    expect(effects).toContainEqual({ type: 'fx', to: { pid: pids[0] }, fx: { kind: 'yourTurn' } });
   });
 
   it('draws the word from the seeded RNG and stores the advanced state', () => {
@@ -90,7 +93,7 @@ describe('starting a turn', () => {
       makeRoom({ settings: { ...makeRoom().settings, drawSeconds: 45 } }),
     );
     const { room } = step(joined, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000);
-    expect(room.turn!.endsAt).toBe(T0 + 1000 + 45_000);
+    expect(choose(room, T0 + 2000).turn!.endsAt).toBe(T0 + 2000 + 45_000);
   });
 });
 
@@ -376,7 +379,10 @@ describe('DRAWING → REVEAL', () => {
       ['Ana', 'Ben'],
       makeRoom({ settings: { ...makeRoom().settings, autoAdvance: false } }),
     );
-    const room = step(joined, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    const room = choose(
+      step(joined, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room,
+      T0 + 1000,
+    );
     const { effects } = step(room, timer(room, 'drawUp'), T0 + 70_000);
     expect(effects.some((e) => e.type === 'schedule')).toBe(false);
   });
@@ -448,21 +454,24 @@ describe('stale timers', () => {
 });
 
 describe('REVEAL → next drawer → FINAL', () => {
-  it('revealDone starts the next drawer’s turn in DRAWING', () => {
+  it('revealDone deals the next drawer a choice in CHOOSING', () => {
     const { room, pids, at } = started();
     const reveal = step(room, timer(room, 'drawUp'), at + DRAW_MS + GRACE_MS).room;
     const now = at + DRAW_MS + GRACE_MS + REVEAL_MS;
     const { room: after, effects } = step(reveal, timer(reveal, 'revealDone'), now);
-    expect(after.phase).toBe('DRAWING');
+    expect(after.phase).toBe('CHOOSING');
     expect(after.turn).toMatchObject({
       id: 2,
       cycle: 1,
       drawerPid: pids[1],
-      clockStart: now,
+      dealtAt: now,
+      word: null,
+      clockStart: null,
       correct: [],
     });
     expect(after.timerEpoch).toBe(reveal.timerEpoch + 1);
-    expect(effects).toContainEqual({ type: 'inkOpen', turnId: 2, drawerPid: pids[1] });
+    expect(effects).toContainEqual({ type: 'fx', to: { pid: pids[1] }, fx: { kind: 'yourTurn' } });
+    expect(effects.some((e) => e.type === 'inkOpen')).toBe(false);
   });
 
   it('host:next advances REVEAL at once and is rejected in DRAWING', () => {
