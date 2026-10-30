@@ -12,13 +12,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 - [x] F02 Shared types, schemas and constants
 
-- [ ] F03 Rooms, codes and RoomStore
-  - Spec: Roles and devices (Creating and joining a room); Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security)
-  - Depends: F02
-  - Done when:
-    - `codes.ts`, `hostToken.ts`, `rateLimit.ts`, `roomStore.ts` ported from Buzzr; `rng.ts` seeded PRNG
-    - `POST /api/rooms` returns `{code, hostToken}`; `GET /api/rooms/:code/exists` works; rooms expire after 3 h idle
-  - Tests: `codes.test.ts`, `hostToken.test.ts`, `rng.test.ts` (same seed → same sequence), `http.rooms.test.ts`
+- [x] F03 Rooms, codes and RoomStore
 
 - [ ] F04 Reducer v0: lobby and a basic turn
   - Spec: Game flow and state machine (Phases, Transitions, Scheduled effects, Turn order); Scoring and timing (Points)
@@ -414,5 +408,6 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 ## Backlog
 
+- Server-wide cap on live rooms (503 past it), so many addresses creating rooms can't grow memory for 3 h each (F03 review).
 - PNG download of a gallery drawing: 1024 × 1024 plus a caption band "tsinelas · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
 - Case study and the kimnejudne.dev hub link, after the Barkada night (as Buzzr: live first, listed on the hub once its case study is written).

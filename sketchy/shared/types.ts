@@ -361,6 +361,12 @@ export interface RoomExistsResponse {
   full: boolean;
 }
 
+/** Body of every HTTP error response, shaped like a failed `Ack`. */
+export interface HttpErrorBody {
+  ok: false;
+  error: string;
+}
+
 /** `GET /healthz`. */
 export interface HealthResponse {
   ok: true;

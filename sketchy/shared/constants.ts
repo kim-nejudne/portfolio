@@ -21,6 +21,12 @@ export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 export const ROOM_CODE_LENGTH = 4;
 /** Rooms are deleted after this long without activity. */
 export const ROOM_IDLE_TTL_MS = 3 * 60 * 60 * 1000;
+/** How often the server looks for idle rooms to delete. */
+export const ROOM_SWEEP_INTERVAL_MS = 60 * 1000;
+/** Fresh codes to draw before `POST /api/rooms` gives up with 503 (23^4 codes, so only on a near-full server). */
+export const ROOM_CODE_MAX_ATTEMPTS = 100;
+/** `POST /api/rooms` body: `{settings?}` is a few hundred bytes at most. */
+export const CREATE_ROOM_BODY_MAX_BYTES = 4 * 1024;
 /** hostToken: random bytes, sent as base64url (43 characters). */
 export const HOST_TOKEN_BYTES = 32;
 export const HOST_TOKEN_LENGTH = 43;
@@ -109,6 +115,9 @@ export const CUSTOM_WORD_MAX = 30;
 // ---------- Rate limits ----------
 
 export const ROOM_CREATE_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+/** `GET /api/rooms/:code/exists`, so one address cannot walk the code space (DECISIONS #13). */
+// SPEC-QUESTION: the spec lists no limit for the room check; see DECISIONS (F03).
+export const ROOM_CHECK_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const;
 export const JOIN_RATE_LIMIT = { max: 10, windowMs: 60 * 1000 } as const;
 export const HOST_ACTION_RATE_LIMIT = { max: 10, windowMs: 1000 } as const;
 export const INK_BATCH_RATE_LIMIT = { max: 40, windowMs: 1000 } as const;
