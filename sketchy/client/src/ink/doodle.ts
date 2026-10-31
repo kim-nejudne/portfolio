@@ -1,12 +1,10 @@
-// The phone's lobby doodle (Lobby doodles): the player's own action stack, sent to the server as
-// one `doodle:batch` per finished stroke or undo (no 50 ms flushes). The stroke is simplified with
-// the drawer's RDP when the finger lifts, and the pad keeps that simplified line, so the pad, the
-// server and the Screens hold the same stack. A stroke the server refuses (the doodle is full, the
-// game started, the link is down) is taken off the pad again, and a refused undo is put back. With
-// no answer at all (`null`, a timeout) the pad keeps what it shows: the server most likely took it.
+// The phone's lobby doodle (F55): a warm-up that stays on the phone. Nothing is sent, so it works
+// with `/ink` down. The stroke is simplified with the drawer's RDP when the finger lifts, which
+// keeps the saved stack small. The whole stack stays within `DOODLE_MAX_BYTES` encoded: a stroke
+// that would pass it is taken off again ("Your doodle is full"), and only Undo makes room.
 //
-// The stack is kept in sessionStorage per room and player, so a reload shows the doodle the
-// Screens still have and new strokes continue its strokeIds.
+// The stack is kept in sessionStorage per room and player, so a reload shows the same doodle and
+// new strokes continue its strokeIds.
 
 import {
   applyInkOps,
@@ -15,49 +13,38 @@ import {
   pushStroke,
   simplify,
   stackOps,
-  strokeOps,
   type InkStack,
   type InkStroke,
 } from '../../../shared/ink.js';
-import type { Ack, InkOp } from '../../../shared/types.js';
+import type { InkOp } from '../../../shared/types.js';
 
-/** `ok`: on the Screens; `full`: the doodle has no room left; `refused`: anything else. */
-export type DoodleResult = 'ok' | 'full' | 'refused';
+/** The doodle's whole stack, encoded, never passes this. */
+export const DOODLE_MAX_BYTES = 20 * 1024;
+
+/** `ok`: on the pad; `full`: the stroke would pass the size cap, so it was taken off. */
+export type DoodleResult = 'ok' | 'full';
 
 export interface PhoneDoodle {
   stack: InkStack;
   /** Starts a stroke at grid point (x, y) on the pad's stack; push its points as the finger moves. */
   begin(color: number, size: number, x: number, y: number): InkStroke;
-  /** The finger lifted: simplify, send, and take the stroke off again if the server refuses it. */
-  end(stroke: InkStroke): Promise<DoodleResult>;
-  /**
-   * Undoes the last stroke and sends it; put back if refused. Null (nothing done) with nothing to
-   * undo, a stroke in hand, or a send still unanswered, so the server never undoes a different one.
-   */
-  undo(): Promise<DoodleResult> | null;
+  /** The finger lifted: simplify, and take the stroke off again if the doodle is full. */
+  end(stroke: InkStroke): DoodleResult;
+  /** Undoes the last stroke; false (nothing done) with nothing to undo or a stroke in hand. */
+  undo(): boolean;
   /** Whether `undo` would do something now. */
   canUndo(): boolean;
 }
 
-/** Sends ops on `/ink`: the ack, or null when none came (timeout). */
-export type SendDoodle = (ops: InkOp[]) => Promise<Ack | null>;
-
-export function createPhoneDoodle(initial: readonly InkOp[], send: SendDoodle): PhoneDoodle {
+export function createPhoneDoodle(
+  initial: readonly InkOp[],
+  maxBytes = DOODLE_MAX_BYTES,
+): PhoneDoodle {
   const stack = createInkStack();
   applyInkOps(stack, initial);
   let lastId = Math.max(0, ...stack.byId.keys());
   let open = false;
-  let inFlight = 0;
-
-  const sendOps = async (ops: InkOp[]) => {
-    inFlight += 1;
-    try {
-      return await send(ops);
-    } finally {
-      inFlight -= 1;
-    }
-  };
-  const canUndo = () => !open && inFlight === 0 && stack.actions.length > 0;
+  const canUndo = () => !open && stack.actions.length > 0;
 
   return {
     stack,
@@ -65,25 +52,18 @@ export function createPhoneDoodle(initial: readonly InkOp[], send: SendDoodle): 
       open = true;
       return pushStroke(stack, ++lastId, color, size, x, y);
     },
-    async end(stroke) {
+    end(stroke) {
       open = false;
       stroke.points = simplify(stroke.points);
       stroke.ended = true;
-      const res = await sendOps(strokeOps(stroke));
-      if (res === null || res.ok) return 'ok';
+      if (JSON.stringify(stackOps(stack)).length <= maxBytes) return 'ok';
       removeStroke(stack, stroke);
-      return res.error === 'inkFull' ? 'full' : 'refused';
+      return 'full';
     },
     undo() {
-      if (!canUndo()) return null;
-      const last = stack.actions[stack.actions.length - 1]!;
+      if (!canUndo()) return false;
       popAction(stack);
-      return sendOps([['u']]).then((res): DoodleResult => {
-        if (res === null || res.ok) return 'ok';
-        stack.actions.push(last);
-        if (last.kind === 'stroke') stack.byId.set(last.stroke.id, last.stroke);
-        return 'refused';
-      });
+      return true;
     },
     canUndo,
   };
@@ -114,7 +94,7 @@ export function loadDoodle(key: string, store = defaultStore()): InkOp[] {
     const raw = store?.getItem(key);
     if (!raw) return [];
     const ops: unknown = JSON.parse(raw);
-    // Checked by hand (no zod on the join path); the server validates whatever is sent anyway.
+    // Checked by hand (no zod on the join path).
     return Array.isArray(ops) && ops.every(isOp) ? (ops as InkOp[]) : [];
   } catch {
     return [];
@@ -132,6 +112,6 @@ export function saveDoodle(key: string, stack: InkStack, store = defaultStore())
   try {
     store?.setItem(key, JSON.stringify(stackOps(stack)));
   } catch {
-    // Full or blocked storage: the doodle still lives on the Screens.
+    // Full or blocked storage: the doodle stays on the pad until the page goes.
   }
 }

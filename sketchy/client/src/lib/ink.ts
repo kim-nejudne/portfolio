@@ -40,14 +40,13 @@ function strokeColor(color: number): string {
  * Draws `stroke` onto a canvas `canvasPx` wide, smoothed with quadratic curves through the
  * midpoints of consecutive points. `fromPoint` (a point index) draws only the part from there on:
  * the curve up to the midpoint before it is final, so live strokes are drawn incrementally.
- * `lineScale` thickens the line (doodle avatars, drawn tiny). Returns the index to pass next time.
+ * Returns the index to pass next time.
  */
 export function drawStroke(
   ctx: CanvasRenderingContext2D,
   stroke: InkStroke,
   canvasPx: number,
   fromPoint = 0,
-  lineScale = 1,
 ): number {
   const s = canvasPx / INK_GRID;
   const p = stroke.points;
@@ -59,7 +58,7 @@ export function drawStroke(
   const midY = (i: number) => (y(i) + y(i + 1)) / 2;
 
   ctx.strokeStyle = strokeColor(stroke.color);
-  ctx.lineWidth = (INK_SIZES[stroke.size] ?? INK_SIZES[1]) * s * lineScale;
+  ctx.lineWidth = (INK_SIZES[stroke.size] ?? INK_SIZES[1]) * s;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
@@ -79,14 +78,13 @@ export function redrawPicture(
   ctx: CanvasRenderingContext2D,
   pic: InkStack | null,
   canvasPx: number,
-  lineScale = 1,
 ): Map<number, number> {
   ctx.fillStyle = CANVAS_COLOR;
   ctx.fillRect(0, 0, canvasPx, canvasPx);
   const drawn = new Map<number, number>();
   if (pic)
     for (const stroke of visibleStrokes(pic))
-      drawn.set(stroke.id, drawStroke(ctx, stroke, canvasPx, 0, lineScale));
+      drawn.set(stroke.id, drawStroke(ctx, stroke, canvasPx));
   return drawn;
 }
 

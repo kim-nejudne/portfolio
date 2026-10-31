@@ -121,7 +121,7 @@ async function gateway({ trustProxy }: { trustProxy?: number } = {}) {
   const mono = { now: 10_000 };
   server = createServer();
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
-  const { io, dispatch } = attachSockets(server, {
+  const { io } = attachSockets(server, {
     rooms,
     clock: () => 1_800_000_000_000,
     monotonic: () => mono.now,
@@ -129,7 +129,7 @@ async function gateway({ trustProxy }: { trustProxy?: number } = {}) {
     onInk: (code, effect) => onInk(code, effect),
     ...(trustProxy === undefined ? {} : { trustProxy }),
   });
-  onInk = attachInkGateway(io, { rooms, dispatch, monotonic: () => mono.now }).onInk;
+  onInk = attachInkGateway(io, { rooms, monotonic: () => mono.now }).onInk;
   server.listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
   const { port } = server.address() as AddressInfo;

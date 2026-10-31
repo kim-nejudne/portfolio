@@ -15,7 +15,6 @@ const chip = (pid: string, score: number, rank: number): PlayerChipView => ({
   crown: false,
   isDrawer: false,
   avatar: '🦊',
-  hasDoodle: false,
   guessed: false,
   turnPoints: 0,
   score,

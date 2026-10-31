@@ -3,7 +3,6 @@ import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  DOODLE_MAX_BYTES,
   INK_BATCH_RATE_LIMIT,
   INK_GET_RATE_LIMIT,
   INK_HELLO_RATE_LIMIT,
@@ -65,7 +64,7 @@ async function setup(store?: InkStore) {
   server = createServer();
   // `io` needs the ink effects handler and the gateway needs `io`, as in `server/index.ts`.
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
-  const { io, dispatch } = attachSockets(server, {
+  const { io } = attachSockets(server, {
     rooms,
     clock: () => 1_800_000_000_000,
     monotonic: () => mono.now,
@@ -73,7 +72,7 @@ async function setup(store?: InkStore) {
     scheduler: () => () => {},
     onInk: (code, effect) => onInk(code, effect),
   });
-  const gateway = attachInkGateway(io, { rooms, dispatch, monotonic: () => mono.now, store });
+  const gateway = attachInkGateway(io, { rooms, monotonic: () => mono.now, store });
   onInk = gateway.onInk;
   server.listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
@@ -972,106 +971,38 @@ describe('/ink sequence, snapshots and resends', () => {
   });
 });
 
-describe('/ink lobby doodles', () => {
-  const doodleOps = (id = 1, x = 200): InkOp[] => [
-    ['b', id, 0, 1, x, 300],
-    ['p', id, 4, -1, 6, -2, 5, 0],
-    ['e', id],
+describe('/ink and the lobby doodle (F55)', () => {
+  const doodleOps: InkOp[] = [
+    ['b', 1, 0, 1, 200, 300],
+    ['p', 1, 4, -1, 6, -2, 5, 0],
+    ['e', 1],
   ];
-  /** The latest `state` a main-namespace socket received. */
-  const lastState = (c: Client) =>
-    c.events.filter(([e]) => e === 'state').at(-1)?.[1] as View | undefined;
-  const hasDoodle = (c: Client, pid: string) =>
-    lastState(c)?.players.find((p) => p.pid === pid)?.hasDoodle;
 
-  it('relays a doodle to the Screens only, and every view shows hasDoodle', async () => {
+  /**
+   * Sends `doodle:batch` as an old client would and records any answer. Events on one socket are
+   * handled in order, so an answer would land before the `ink:hello` round trip after it.
+   */
+  async function sendDoodle(c: Client): Promise<unknown[]> {
+    const answers: unknown[] = [];
+    c.socket.emit('doodle:batch', { ops: doodleOps }, (res: unknown) => answers.push(res));
+    await c.emit('ink:hello', { code: CODE });
+    return answers;
+  }
+
+  it('refuses doodle:batch: no answer, nothing to the Screens, nothing in the views', async () => {
     const l = await lobby();
-    const plainScreenInk = await l.connect('/ink');
-    expect(await plainScreenInk.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
-    // Ben says hello as a Screen would; he still must not get Ana's doodle.
-    expect(await l.ben.ink.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
-    expect(await l.ana.ink.emit('doodle:batch', { ops: doodleOps() })).toEqual({ ok: true });
-
-    for (const screenInk of [l.screenInk, plainScreenInk])
-      await expect
-        .poll(() => screenInk.events.filter(([e]) => e === 'doodle'))
-        .toEqual([['doodle', { pid: l.ana.pid, ops: doodleOps() }]]);
-    await expect.poll(() => hasDoodle(l.screen, l.ana.pid)).toBe(true);
-    await expect.poll(() => hasDoodle(l.ben.main, l.ana.pid)).toBe(true);
-    expect(hasDoodle(l.screen, l.ben.pid)).toBe(false);
-
-    // A round trip on each phone socket after the relay: anything sent to it would be here now.
-    for (const p of [l.ana, l.ben]) {
-      await p.ink.emit('ink:hello', { code: CODE });
-      expect(p.ink.events).toEqual([]);
-      expect(p.main.events.some(([e]) => e !== 'state' && e !== 'fx')).toBe(false);
-    }
+    for (const phone of [l.ana, l.ben]) expect(await sendDoodle(phone.ink)).toEqual([]);
+    await l.screenInk.emit('ink:hello', { code: CODE });
+    expect(l.screenInk.events.map(([e]) => e)).not.toContain('doodle');
+    expect(JSON.stringify(l.screen.events)).not.toMatch(/doodle/i);
   });
 
-  it('refuses doodles outside LOBBY, from a Screen, and from a socket that never said who it is', async () => {
-    const d = await drawing();
-    for (const phone of [d.ana, d.ben])
-      expect(await phone.ink.emit('doodle:batch', { ops: doodleOps() })).toEqual({
-        ok: false,
-        error: 'wrongPhase',
-      });
-    expect(await d.screenInk.emit('doodle:batch', { ops: doodleOps() })).toEqual({
-      ok: false,
-      error: 'notPlayer',
-    });
-    const stranger = await d.connect('/ink');
-    expect(await stranger.emit('doodle:batch', { ops: doodleOps() })).toEqual({
-      ok: false,
-      error: 'notJoined',
-    });
-    await d.screenInk.emit('ink:hello', { code: CODE });
-    expect(d.screenInk.events.filter(([e]) => e === 'doodle')).toEqual([]);
-    expect(d.gateway.store.doodles(CODE)).toEqual({});
-  });
-
-  it(`caps a doodle at ${DOODLE_MAX_BYTES / 1024} KB per player: past it, a batch is refused and not relayed`, async () => {
-    const l = await lobby(createInkStore({ doodleMax: 80 }));
-    expect(await l.ana.ink.emit('doodle:batch', { ops: doodleOps(1) })).toEqual({ ok: true });
-    expect(await l.ana.ink.emit('doodle:batch', { ops: doodleOps(2) })).toEqual({ ok: true });
-    expect(await l.ana.ink.emit('doodle:batch', { ops: doodleOps(3) })).toEqual({
-      ok: false,
-      error: 'inkFull',
-    });
-    // Ben's budget is his own.
-    expect(await l.ben.ink.emit('doodle:batch', { ops: doodleOps(1) })).toEqual({ ok: true });
-    await expect.poll(() => l.screenInk.events.filter(([e]) => e === 'doodle').length).toBe(3);
-    expect(
-      l.screenInk.events.some(([e, p]) => e === 'doodle' && JSON.stringify(p).includes('"b",3')),
-    ).toBe(false);
-    // One batch over the cap fails its schema.
-    const big: InkOp[] = [];
-    for (let id = 1; JSON.stringify(big).length <= DOODLE_MAX_BYTES; id++)
-      big.push(['b', id, 0, 1, 500, 500], ['p', id, ...Array<number>(200).fill(1)] as InkOp);
-    expect(await l.ben.ink.emit('doodle:batch', { ops: big })).toEqual({
-      ok: false,
-      error: 'invalidPayload',
-    });
-  });
-
-  it('gives a Screen that connects later every doodle in its snapshot, in the lobby and mid-game', async () => {
+  it('gives a Screen no doodle in its snapshot: none in the lobby, only the turn mid-game', async () => {
     const l = await lobby();
-    await l.ana.ink.emit('doodle:batch', { ops: doodleOps(1) });
-    await l.ben.ink.emit('doodle:batch', { ops: doodleOps(1, 700) });
+    await sendDoodle(l.ana.ink);
     const late = await l.connect('/ink');
     expect(await late.emit('ink:hello', { code: CODE })).toEqual({ ok: true });
-    await expect
-      .poll(() => late.events)
-      .toEqual([
-        [
-          'ink:snapshot',
-          {
-            turnId: 0,
-            seq: 0,
-            actions: [],
-            doodles: { [l.ana.pid]: doodleOps(1), [l.ben.pid]: doodleOps(1, 700) },
-          },
-        ],
-      ]);
+    expect(late.events).toEqual([]);
 
     await startTurn(l, 'host:start');
     const turnId = l.rooms.get(CODE)!.turn!.id;
@@ -1079,40 +1010,8 @@ describe('/ink lobby doodles', () => {
     const later = await l.connect('/ink');
     await later.emit('ink:hello', { code: CODE });
     await expect.poll(() => later.events.length).toBe(1);
-    expect(later.events[0]![1]).toMatchObject({
-      turnId,
-      seq: 1,
-      doodles: { [l.ana.pid]: doodleOps(1), [l.ben.pid]: doodleOps(1, 700) },
-    });
-    // The drawer's own snapshot carries no doodles.
-    await l.ana.ink.emit('ink:hello', { code: CODE });
-    await expect.poll(() => l.ana.ink.events.length).toBe(1);
-    expect(l.ana.ink.events[0]![1]).not.toHaveProperty('doodles');
-  });
-
-  it("drops a player's doodle when they leave, and refuses their /ink socket after", async () => {
-    const l = await lobby();
-    await l.ana.ink.emit('doodle:batch', { ops: doodleOps(1) });
-    await l.ben.ink.emit('doodle:batch', { ops: doodleOps(1, 700) });
-    expect(await l.ben.main.emit('player:leave')).toEqual({ ok: true });
-    expect(Object.keys(l.gateway.store.doodles(CODE))).toEqual([l.ana.pid]);
-    expect(await l.ben.ink.emit('doodle:batch', { ops: doodleOps(2) })).toEqual({
-      ok: false,
-      error: 'notPlayer',
-    });
-    const late = await l.connect('/ink');
-    await late.emit('ink:hello', { code: CODE });
-    await expect.poll(() => late.events.length).toBe(1);
-    expect(late.events[0]![1]).toMatchObject({ doodles: { [l.ana.pid]: doodleOps(1) } });
-    expect(Object.keys((late.events[0]![1] as InkSnapshot).doodles!)).toEqual([l.ana.pid]);
-  });
-
-  it('marks hasDoodle false again when every stroke is undone', async () => {
-    const l = await lobby();
-    await l.ana.ink.emit('doodle:batch', { ops: doodleOps(1) });
-    await expect.poll(() => hasDoodle(l.screen, l.ana.pid)).toBe(true);
-    expect(await l.ana.ink.emit('doodle:batch', { ops: [['u']] })).toEqual({ ok: true });
-    await expect.poll(() => hasDoodle(l.screen, l.ana.pid)).toBe(false);
+    expect(later.events[0]).toEqual(['ink:snapshot', expect.objectContaining({ turnId, seq: 1 })]);
+    expect(later.events[0]![1]).not.toHaveProperty('doodles');
   });
 });
 
@@ -1159,19 +1058,9 @@ describe('/ink after a rejoin from another phone (F42)', () => {
     await expect.poll(() => d.screenInk.events.filter(([e]) => e === 'ink:batch').length).toBe(1);
   });
 
-  it('the old phone’s /ink socket gets no snapshot and can’t doodle', async () => {
+  it('the old phone’s /ink socket gets no snapshot', async () => {
     const l = await lobby();
     const fresh = await takenOver(l);
-    const ops: InkOp[] = [
-      ['b', 1, 0, 1, 200, 300],
-      ['e', 1],
-    ];
-    expect(await l.ana.ink.emit('doodle:batch', { ops })).toEqual({
-      ok: false,
-      error: 'notPlayer',
-    });
-    expect(await fresh.ink.emit('doodle:batch', { ops })).toEqual({ ok: true });
-
     await startTurn({ ...l, ana: { ...l.ana, main: fresh.main } }, 'host:start');
     const turnId = l.rooms.get(CODE)!.turn!.id;
     expect(await fresh.ink.emit('ink:batch', stroke(turnId, 1))).toEqual({ ok: true });

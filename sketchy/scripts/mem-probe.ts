@@ -6,7 +6,6 @@
 // It starts `dist/server/index.js` as a child (NODE_ENV=production, TRUST_PROXY=1), then plays
 // N games at once over real sockets. Each game has a token Screen (main and /ink) and 10 players,
 // each on one WebSocket for both namespaces, as a phone is:
-// - every player sends a lobby doodle of nearly DOODLE_MAX_BYTES;
 // - 3 cycles (30 turns), each drawer sending ink until the canvas is full (INK_TURN_MAX_BYTES),
 //   which overflows the room's gallery budget (INK_ROOM_MAX_BYTES), while the guessers type
 //   wrong guesses; the host skips each turn once the drawing is in;
@@ -20,7 +19,6 @@ import { fileURLToPath } from 'node:url';
 import { Manager, type Socket } from 'socket.io-client';
 import {
   CYCLES_CHOICES,
-  DOODLE_MAX_BYTES,
   INK_BATCH_RATE_LIMIT,
   INK_GRID,
   INK_TURN_MAX_BYTES,
@@ -149,13 +147,6 @@ async function playGame(base: string, g: number): Promise<{ turns: number; kept:
     const name = `Player ${i + 1}`;
     const ack = await must(client.main, 'player:join', { code, playerKey, name, avatar: '🦊' });
     const ink = client.ink({ code, playerKey });
-    // A doodle just under the limit.
-    const ops: InkOp[] = [];
-    for (const stroke of scribble(1000 * g + i)) {
-      if (JSON.stringify([...ops, ...stroke]).length > DOODLE_MAX_BYTES) break;
-      ops.push(...stroke);
-    }
-    await must(ink, 'doodle:batch', { ops });
     phones.push({ client, ink, pid: ack.pid as string, name });
   }
   await screen.waitFor('10 players', (v) => v.players.length === MAX_PLAYERS);

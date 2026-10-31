@@ -1,17 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyInkOps, createInkStack, stackOps, visibleStrokes } from '../../../shared/ink.js';
-import type { Ack, InkOp } from '../../../shared/types.js';
-import { createPhoneDoodle, loadDoodle, saveDoodle } from './doodle.js';
-
-/** A send that records each batch and answers with the next queued ack (ok by default). */
-function fakeSend(...answers: (Ack | null)[]) {
-  const sent: InkOp[][] = [];
-  const send = (ops: InkOp[]) => {
-    sent.push(ops);
-    return Promise.resolve<Ack | null>(answers.length > 0 ? answers.shift()! : { ok: true });
-  };
-  return { sent, send };
-}
+// The lobby doodle stays on the phone (F55): drawn, capped and undone locally, with no socket.
+import { describe, expect, it } from 'vitest';
+import { createInkStack, stackOps, visibleStrokes } from '../../../shared/ink.js';
+import { DOODLE_MAX_BYTES, createPhoneDoodle, loadDoodle, saveDoodle } from './doodle.js';
 
 /** Draws a stroke through `points` (grid pairs) and lifts the finger. */
 function draw(doodle: ReturnType<typeof createPhoneDoodle>, points: number[]) {
@@ -20,112 +10,83 @@ function draw(doodle: ReturnType<typeof createPhoneDoodle>, points: number[]) {
   return doodle.end(stroke);
 }
 
-afterEach(() => {
-  vi.useRealTimers();
-});
+/** A zigzag RDP can't thin: `n` points far apart. */
+const zigzag = (n: number, y = 0) =>
+  Array.from({ length: n }, (_, i) => [i * 6, y + (i % 2) * 300]).flat();
 
 function memoryStore() {
   const items = new Map<string, string>();
   return {
     getItem: (k: string) => items.get(k) ?? null,
     setItem: (k: string, v: string) => void items.set(k, v),
-    removeItem: (k: string) => void items.delete(k),
   };
 }
 
 describe('the phone doodle', () => {
-  it('sends nothing while the finger moves, then one batch at stroke end: the stroke as the server will hold it', async () => {
-    vi.useFakeTimers();
-    const { sent, send } = fakeSend();
-    const doodle = createPhoneDoodle([], send);
+  it('draws with no socket at all: a finished stroke stays on the pad, simplified', () => {
+    const doodle = createPhoneDoodle([]);
     const stroke = doodle.begin(0, 1, 100, 100);
     for (let x = 101; x < 400; x++) stroke.points.push(x, 100 + (x % 2));
-    vi.advanceTimersByTime(1000);
-    expect(sent).toEqual([]);
-    expect(await doodle.end(stroke)).toBe('ok');
-    expect(sent).toHaveLength(1);
-    // The local line is simplified to what was sent, so the pad and the Screen agree.
-    const server = createInkStack();
-    applyInkOps(server, sent[0]!);
-    expect(stackOps(server)).toEqual(stackOps(doodle.stack));
-    expect(sent[0]![0]).toEqual(['b', 1, 0, 1, 100, 100]);
-    expect(sent[0]!.at(-1)).toEqual(['e', 1]);
+    expect(doodle.end(stroke)).toBe('ok');
+    expect(visibleStrokes(doodle.stack)).toHaveLength(1);
+    expect(stackOps(doodle.stack)[0]).toEqual(['b', 1, 0, 1, 100, 100]);
     // RDP kept far fewer than the 300 raw points.
     expect(stroke.points.length / 2).toBeLessThan(20);
   });
 
-  it('drops a stroke the server refused (a full doodle, the game started) and says why', async () => {
-    const { send } = fakeSend(
-      { ok: true },
-      { ok: false, error: 'inkFull' },
-      { ok: false, error: 'wrongPhase' },
-    );
-    const doodle = createPhoneDoodle([], send);
-    expect(await draw(doodle, [10, 10, 50, 50])).toBe('ok');
-    expect(await draw(doodle, [60, 60, 90, 90])).toBe('full');
-    expect(await draw(doodle, [70, 70, 95, 95])).toBe('refused');
-    expect(visibleStrokes(doodle.stack).map((s) => s.points.slice(0, 2))).toEqual([[10, 10]]);
-  });
-
-  it('keeps a stroke that got no answer (timeout): the server most likely has it', async () => {
-    const doodle = createPhoneDoodle([], fakeSend(null).send);
-    expect(await draw(doodle, [10, 10, 50, 50])).toBe('ok');
-    expect(visibleStrokes(doodle.stack)).toHaveLength(1);
-  });
-
-  it('undoes the last stroke and sends one undo; a refused undo puts it back', async () => {
-    const { sent, send } = fakeSend(
-      { ok: true },
-      { ok: true },
-      { ok: true },
-      {
-        ok: false,
-        error: 'wrongPhase',
-      },
-    );
-    const doodle = createPhoneDoodle([], send);
-    expect(doodle.canUndo()).toBe(false);
-    expect(doodle.undo()).toBeNull();
-    await draw(doodle, [10, 10, 50, 50]);
-    await draw(doodle, [20, 20, 60, 60]);
-    expect(await doodle.undo()).toBe('ok');
-    expect(sent.at(-1)).toEqual([['u']]);
+  it(`takes a stroke off again when the doodle would pass ${DOODLE_MAX_BYTES / 1024} KB, and says it is full`, () => {
+    const doodle = createPhoneDoodle([], 400);
+    expect(draw(doodle, zigzag(20))).toBe('ok');
+    expect(draw(doodle, zigzag(40, 10))).toBe('full');
     expect(visibleStrokes(doodle.stack).map((s) => s.id)).toEqual([1]);
-    expect(await doodle.undo()).toBe('refused');
-    expect(visibleStrokes(doodle.stack).map((s) => s.id)).toEqual([1]);
+    expect(JSON.stringify(stackOps(doodle.stack)).length).toBeLessThanOrEqual(400);
+    // A smaller stroke still fits.
+    expect(draw(doodle, [5, 5, 9, 9])).toBe('ok');
   });
 
-  it('never undoes with a stroke in hand or a send unanswered, so the server undoes the same stroke', async () => {
-    let answer: (a: Ack) => void = () => {};
-    const sent: InkOp[][] = [];
-    const doodle = createPhoneDoodle([], (ops) => {
-      sent.push(ops);
-      return new Promise<Ack>((resolve) => (answer = resolve));
-    });
-    const stroke = doodle.begin(0, 1, 10, 10);
-    expect(doodle.undo()).toBeNull();
-    const ended = doodle.end(stroke);
+  it('makes room again with Undo', () => {
+    const doodle = createPhoneDoodle([], 400);
+    draw(doodle, zigzag(40));
+    expect(draw(doodle, zigzag(40, 5))).toBe('full');
+    expect(doodle.undo()).toBe(true);
+    expect(visibleStrokes(doodle.stack)).toEqual([]);
+    expect(draw(doodle, zigzag(40, 5))).toBe('ok');
+  });
+
+  it('caps at 20 KB by default', () => {
+    expect(DOODLE_MAX_BYTES).toBe(20 * 1024);
+    const doodle = createPhoneDoodle([]);
+    let result = 'ok';
+    for (let i = 0; i < 200 && result === 'ok'; i++) result = draw(doodle, zigzag(150, i));
+    expect(result).toBe('full');
+    expect(JSON.stringify(stackOps(doodle.stack)).length).toBeLessThanOrEqual(DOODLE_MAX_BYTES);
+  });
+
+  it('undoes the last stroke, and never with a stroke in hand or nothing to undo', () => {
+    const doodle = createPhoneDoodle([]);
     expect(doodle.canUndo()).toBe(false);
-    expect(doodle.undo()).toBeNull();
-    answer({ ok: true });
-    await ended;
-    expect(doodle.canUndo()).toBe(true);
-    expect(sent).toHaveLength(1);
+    expect(doodle.undo()).toBe(false);
+    draw(doodle, [10, 10, 50, 50]);
+    draw(doodle, [20, 20, 60, 60]);
+    const stroke = doodle.begin(0, 1, 30, 30);
+    expect(doodle.canUndo()).toBe(false);
+    expect(doodle.undo()).toBe(false);
+    doodle.end(stroke);
+    expect(doodle.undo()).toBe(true);
+    expect(visibleStrokes(doodle.stack).map((s) => s.id)).toEqual([1, 2]);
   });
 
-  it('continues a saved doodle after a reload, with strokeIds after the saved ones', async () => {
-    const first = createPhoneDoodle([], fakeSend().send);
-    await draw(first, [10, 10, 50, 50]);
-    await draw(first, [20, 20, 60, 60]);
+  it('continues a saved doodle after a reload, with strokeIds after the saved ones', () => {
+    const first = createPhoneDoodle([]);
+    draw(first, [10, 10, 50, 50]);
+    draw(first, [20, 20, 60, 60]);
     const store = memoryStore();
     saveDoodle('k', first.stack, store);
 
-    const { sent, send } = fakeSend();
-    const again = createPhoneDoodle(loadDoodle('k', store), send);
+    const again = createPhoneDoodle(loadDoodle('k', store));
     expect(stackOps(again.stack)).toEqual(stackOps(first.stack));
-    await draw(again, [30, 30, 70, 70]);
-    expect(sent[0]![0]).toEqual(['b', 3, 0, 1, 30, 30]);
-    expect(visibleStrokes(again.stack)).toHaveLength(3);
+    draw(again, [30, 30, 70, 70]);
+    expect(visibleStrokes(again.stack).map((s) => s.id)).toEqual([1, 2, 3]);
   });
 
   it('loads nothing from a missing or broken entry, or without storage', () => {

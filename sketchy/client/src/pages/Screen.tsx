@@ -14,7 +14,6 @@ import { createClockOffset, createDelayWindow, isDebug, recordPaint } from '../l
 import { translator } from '../lib/copy.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { createScreenGallery } from '../lib/gallery.js';
-import { DoodleContext, createScreenDoodles } from '../lib/doodles.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
 import { keepPinging } from '../lib/ping.js';
@@ -59,8 +58,6 @@ export function Screen() {
   useWakeLock(started && status !== 'ended');
   const socket = useMemo(() => createSocket(), []);
   const ink = useMemo(() => createScreenInk(), []);
-  // Lobby doodles (F27), drawn as the players' avatars on every chip.
-  const doodles = useMemo(() => createScreenDoodles(), []);
   // "Jun got it!", wrong-guess bubbles and reactions (F34), from `fx` events.
   const turnFx = useMemo(() => createScreenFx(), []);
   const inkSocket = useMemo(() => createInkSocket(), []);
@@ -148,11 +145,7 @@ export function Screen() {
       });
     inkSocket.on('connect', hello);
     inkSocket.on('ink:turn', ({ turnId }) => ink.turn(turnId));
-    inkSocket.on('ink:snapshot', (snapshot) => {
-      ink.snapshot(snapshot);
-      doodles.replace(snapshot.doodles);
-    });
-    inkSocket.on('doodle', ({ pid, ops }) => doodles.apply(pid, ops));
+    inkSocket.on('ink:snapshot', (snapshot) => ink.snapshot(snapshot));
     inkSocket.on('ink:batch', (batch) => {
       const applied = ink.batch(batch);
       if (applied === 'gap') hello();
@@ -178,7 +171,7 @@ export function Screen() {
       inkSocket.removeAllListeners();
       inkSocket.disconnect();
     };
-  }, [code, socket, inkSocket, ink, doodles, turnFx, debug, gallery]);
+  }, [code, socket, inkSocket, ink, turnFx, debug, gallery]);
 
   // Howler starts downloading at once, so the tap can unlock audio without waiting for it.
   useEffect(preloadSounds, []);
@@ -264,22 +257,20 @@ export function Screen() {
       )}
       <RejoinedToast name={view.players.find((p) => p.pid === rejoinedPid)?.name ?? null} t={t} />
       <div className="min-h-0 flex-1">
-        <DoodleContext value={doodles}>
-          {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
-          {inTurn && (
-            <ScreenTurn
-              view={view}
-              receivedAt={state!.at}
-              ink={ink}
-              layout={layout}
-              fx={fxState}
-              t={t}
-            />
-          )}
-          {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
-            <ScreenStandings view={view} layout={layout} gallery={gallery} t={t} />
-          )}
-        </DoodleContext>
+        {view.phase === 'LOBBY' && <ScreenLobby view={view} socket={socket} t={t} />}
+        {inTurn && (
+          <ScreenTurn
+            view={view}
+            receivedAt={state!.at}
+            ink={ink}
+            layout={layout}
+            fx={fxState}
+            t={t}
+          />
+        )}
+        {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
+          <ScreenStandings view={view} layout={layout} gallery={gallery} t={t} />
+        )}
       </div>
       {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />}
       {view.phase === 'FINAL' && view.rematchInMs !== null && (

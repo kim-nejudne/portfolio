@@ -129,7 +129,6 @@ describe('the crown on the Screen lobby (F25)', () => {
     crown,
     isDrawer: false,
     avatar: '🦊',
-    hasDoodle: false,
     guessed: false,
     turnPoints: 0,
     score: null,

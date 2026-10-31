@@ -135,8 +135,6 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
     case 'sys:screens':
       d.screens = action.count;
       return undefined;
-    case 'sys:doodle':
-      return doodle(d, action);
     case 'player:react':
       return react(d, action, fx);
     case 'player:visibility':
@@ -211,7 +209,6 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
     score: 0,
     connected: true,
     hidden: a.hidden ?? false,
-    hasDoodle: false,
     // Strictly after everyone here: the turn order and the rematch rotation read join order from it.
     // SPEC-QUESTION: the spec stores `now`; two joins in one ms would tie (DECISIONS 52).
     joinedAt: Math.max(now, ...players.map((p) => p.joinedAt + 1)),
@@ -303,14 +300,13 @@ function kick(d: Room, a: ActionOf<'host:kick'>, now: number, fx: Effect[]): Han
 }
 
 /**
- * A player leaves or is kicked: out of the room and the turn order, their doodle dropped, the
- * crown passed on, and their turn ended as a skip if they were drawing.
+ * A player leaves or is kicked: out of the room and the turn order, the crown passed on, and their
+ * turn ended as a skip if they were drawing.
  */
 function removePlayer(d: Room, pid: string, now: number, fx: Effect[]): void {
   // A finished game's points stay in the night's totals; mid-game they are lost, as Leave warns.
   if (d.phase === 'FINAL') bankScore(d, d.players[pid]!);
   delete d.players[pid];
-  fx.push({ type: 'doodleDrop', pid });
 
   // Keep `turnIndex` on the turn just played, so the next turn is still `turnIndex + 1`.
   const index = d.turnOrder.indexOf(pid);
@@ -329,15 +325,6 @@ function removePlayer(d: Room, pid: string, now: number, fx: Effect[]): void {
     // The leaver may have been the last guesser still drawing a blank.
     else if (!d.turn?.correct.some((c) => c.pid === pid)) checkAllGuessed(d, now, fx);
   }
-}
-
-/** The ink gateway stored or dropped a lobby doodle. Only a drop (`has: false`) outside LOBBY. */
-function doodle(d: Room, a: ActionOf<'sys:doodle'>): Handled {
-  const player = d.players[a.pid];
-  if (!player) return 'unknownPlayer';
-  if (a.has && d.phase !== 'LOBBY') return 'wrongPhase';
-  player.hasDoodle = a.has;
-  return undefined;
 }
 
 /** `player:visibility`: the page was hidden (phone locked, app switched) or shown again. */
@@ -533,9 +520,9 @@ function bankScore(d: Room, p: Player): void {
 /**
  * **New-game reset**: each player's score goes into the night's totals (with who they are, for
  * the Tonight panel after they leave) and back to 0; the game's turns, gallery and awards are
- * cleared, so the next game's turns count from 1; `inkReset` drops the drawings (the doodles stay,
- * and so does `hasDoodle`). Players, crown, settings, custom words and `usedIds` stay. Turn ids
- * keep rising, so nothing of the last game matches the next.
+ * cleared, so the next game's turns count from 1; `inkReset` drops the drawings. Players, crown,
+ * settings, custom words and `usedIds` stay. Turn ids keep rising, so nothing of the last game
+ * matches the next.
  */
 function newGame(d: Room, fx: Effect[]): void {
   for (const p of Object.values(d.players)) {

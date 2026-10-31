@@ -78,13 +78,12 @@ describe('host:skip', () => {
 });
 
 describe('host:kick', () => {
-  it('removes the player, bars their key, and tells the gateway to kick and drop the doodle', () => {
+  it('removes the player, bars their key, and tells the gateway to kick them', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben', 'Cy']);
     const res = step(room, kick(pids[2]!), 2_000_000);
     expect(res.room.players[pids[2]!]).toBeUndefined();
     expect(res.room.kickedKeyHashes).toEqual(['key-Cy']);
     expect(ofType(res.effects, 'kick')).toEqual([{ type: 'kick', pid: pids[2] }]);
-    expect(ofType(res.effects, 'doodleDrop')).toEqual([{ type: 'doodleDrop', pid: pids[2] }]);
     const back = reduce(
       res.room,
       { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy', avatar: '🦊' },

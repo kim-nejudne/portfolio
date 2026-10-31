@@ -49,7 +49,6 @@ export interface Player {
   score: number; // this game
   connected: boolean;
   hidden: boolean; // page hidden (phone locked or app switched), from player:visibility
-  hasDoodle: boolean; // the InkStore holds a lobby doodle for this player (Screen avatar)
   joinedAt: number;
 }
 
@@ -268,7 +267,6 @@ export interface ClientActionPayloads {
 export interface SystemActionPayloads {
   'sys:connected': { pid: string };
   'sys:disconnected': { pid: string };
-  'sys:doodle': { pid: string; has: boolean };
   'sys:screens': { count: number };
   timer: { timer: TimerName; turnId: number; epoch: number };
 }
@@ -374,7 +372,6 @@ export type Effect =
   | { type: 'inkOpen'; turnId: number; drawerPid: string }
   | { type: 'inkClose'; turnId: number }
   | { type: 'inkReset' }
-  | { type: 'doodleDrop'; pid: string }
   | { type: 'kick'; pid: string };
 
 // ---------- Client → server events (main namespace) ----------
@@ -476,7 +473,6 @@ export interface PlayerChipView {
   connected: boolean;
   crown: boolean;
   isDrawer: boolean;
-  hasDoodle: boolean;
   guessed: boolean; // correct this turn
   turnPoints: number; // points this turn (the drawer's once the turn ends)
   score: number | null; // the game total: SCOREBOARD and FINAL only
@@ -639,7 +635,6 @@ export interface InkClientPayloads {
   'ink:hello': { code: string };
   'ink:sync': { turnId: number; lastSentSeq: number };
   'ink:get': { turnId: number };
-  'doodle:batch': { ops: InkOp[] };
 }
 
 export type InkClientEvent = keyof InkClientPayloads;
@@ -657,11 +652,6 @@ export interface InkSnapshot {
   turnId: number;
   seq: number;
   actions: InkOp[];
-  /**
-   * Screens only: every player's lobby doodle as the ops that rebuild it, by pid; left out when
-   * nobody has one. A Screen gets a snapshot with no turn yet (turnId and seq 0) for doodles alone.
-   */
-  doodles?: Record<string, InkOp[]>;
 }
 
 /**
@@ -696,8 +686,6 @@ export interface InkServerToClientEvents {
   'ink:state': (payload: { turnId: number; lastSeq: number }) => void;
   /** A batch arrived after a gap: resend every kept batch from `from` on. */
   'ink:resend': (payload: { turnId: number; from: number }) => void;
-  /** Screens only: a player's lobby doodle batch, as the store applied it. */
-  doodle: (payload: { pid: string; ops: InkOp[] }) => void;
 }
 
 // ---------- HTTP ----------

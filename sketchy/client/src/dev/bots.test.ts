@@ -56,7 +56,6 @@ const chip = (pid: string, extra: Partial<PlayerChipView> = {}): PlayerChipView 
   crown: false,
   isDrawer: false,
   avatar: '🦊',
-  hasDoodle: false,
   guessed: false,
   turnPoints: 0,
   score: null,

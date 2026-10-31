@@ -67,7 +67,7 @@ function gameOne() {
 }
 
 describe('host:backToLobby', () => {
-  it('keeps players, crown, settings, custom words, doodles and used words; clears the game', () => {
+  it('keeps players, crown, settings, custom words and used words; clears the game', () => {
     const base = gameOne();
     let r = base.room;
     const final = r;
@@ -98,23 +98,6 @@ describe('host:backToLobby', () => {
     }
     expect(res.effects).toContainEqual({ type: 'inkReset' });
     expect(r.timerEpoch).toBeGreaterThan(final.timerEpoch);
-  });
-
-  it('keeps each player’s hasDoodle through the reset (the InkStore keeps the doodles)', () => {
-    const game = dealt();
-    const { pids } = game;
-    // Doodles are drawn in the lobby; go back to it after game 1 and doodle there.
-    let room = playOut(game.room, game.at).room;
-    room = step(room, LOBBY, 5_000_000).room;
-    room = step(room, { type: 'sys:doodle', pid: pids[0]!, has: true }, 5_000_001).room;
-    room = step(room, START, 5_000_002).room;
-    room = playOut(room, 5_000_002).room;
-    expect(room.players[pids[0]!]!.hasDoodle).toBe(true);
-    const back = step(room, LOBBY, 6_000_000).room;
-    expect(back.players[pids[0]!]!.hasDoodle).toBe(true);
-    expect(back.players[pids[1]!]!.hasDoodle).toBe(false);
-    const again = rematch(room, 6_000_000);
-    expect(again.players[pids[0]!]!.hasDoodle).toBe(true);
   });
 
   it('a game started from the lobby again begins with the earliest joiner', () => {

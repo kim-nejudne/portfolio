@@ -134,19 +134,6 @@ describe('Screen ink feed: seq and snapshots', () => {
     expect(feed.picture()).toMatchObject({ turnId: 5, seq: 0 });
   });
 
-  it('a doodles-only snapshot with no turn yet (turnId 0) leaves the first turn to draw as usual (F27)', () => {
-    const feed = createScreenInk();
-    feed.snapshot({ turnId: 0, seq: 0, actions: [], doodles: { ana: dot(1) } });
-    expect(visibleStrokes(feed.picture()!)).toEqual([]);
-    feed.turn(1);
-    expect(feed.batch([1, 1, dot(1)])).toBe('ok');
-    expect(feed.picture()).toMatchObject({ turnId: 1, seq: 1 });
-    // After a game (Back to lobby), it leaves the last drawing alone.
-    feed.snapshot({ turnId: 0, seq: 0, actions: [], doodles: { ana: dot(2) } });
-    expect(feed.picture()).toMatchObject({ turnId: 1, seq: 1 });
-    expect(visibleStrokes(feed.picture()!)).toHaveLength(1);
-  });
-
   it('a newer turn met mid-way (seq past 1) asks for a snapshot', () => {
     const feed = createScreenInk();
     feed.turn(1);

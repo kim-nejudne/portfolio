@@ -52,9 +52,9 @@ describe('player:join with the name of a disconnected player', () => {
     }
   });
 
-  it('takeOver hands the new phone that pid, score, colour and doodle, under the stored name', () => {
+  it('takeOver hands the new phone that pid, score, colour and avatar, under the stored name', () => {
     const { room: gone, jun } = junGone();
-    const before = { ...gone.players[jun]!, score: 420, hasDoodle: true };
+    const before = { ...gone.players[jun]!, score: 420 };
     const room = { ...gone, players: { ...gone.players, [jun]: before } };
     const { room: after, effects } = step(room, join('new-phone', 'jun', true), T0 + 200);
 

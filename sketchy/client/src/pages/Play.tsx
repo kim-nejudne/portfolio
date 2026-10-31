@@ -5,7 +5,6 @@ import type {
   Avatar,
   ChoiceIndex,
   InkBatch,
-  InkOp,
   PlayerView,
   Reaction,
 } from '../../../shared/types.js';
@@ -140,17 +139,6 @@ export function Play() {
     },
     [code],
   );
-
-  // A finished lobby doodle stroke or undo (F27). Not buffered while `/ink` is down: the pad takes
-  // it back. No answer in time is null, and the pad keeps it (the server most likely took it).
-  const sendDoodle = useCallback(async (ops: InkOp[]): Promise<Ack | null> => {
-    const ink = inkRef.current;
-    if (!ink?.connected) return { ok: false, error: 'notJoined' };
-    return ink
-      .timeout(ACK_TIMEOUT_MS)
-      .emitWithAck('doodle:batch', { ops })
-      .catch(() => null);
-  }, []);
 
   const join = useCallback(async (): Promise<void> => {
     const identity = identityRef.current;
@@ -522,7 +510,6 @@ export function Play() {
             socket={socket}
             onLeave={leave}
             onAvatarSaved={avatarSaved}
-            sendDoodle={sendDoodle}
             t={t}
           />
         )}

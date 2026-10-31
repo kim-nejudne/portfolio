@@ -39,11 +39,11 @@ async function start(withClient: boolean, dev = false): Promise<string> {
   const rooms = new InMemoryRoomStore();
   server = createServer(createApp({ packs: TEST_PACKS, clientDir, rooms, dev }));
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
-  const { io, dispatch } = attachSockets(server, {
+  const { io } = attachSockets(server, {
     rooms,
     onInk: (code, effect) => onInk(code, effect),
   });
-  onInk = attachInkGateway(io, { rooms, dispatch }).onInk;
+  onInk = attachInkGateway(io, { rooms }).onInk;
   server.listen(0, '127.0.0.1');
   await new Promise((resolve) => server!.once('listening', resolve));
   closeIo = () => io.close();

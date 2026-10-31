@@ -69,10 +69,7 @@ type GatewaySocket = Socket<
 >;
 
 /** Ink effects, handed to the `/ink` gateway (F06). */
-export type InkEffect = Extract<
-  Effect,
-  { type: 'inkOpen' | 'inkClose' | 'inkReset' | 'doodleDrop' }
->;
+export type InkEffect = Extract<Effect, { type: 'inkOpen' | 'inkClose' | 'inkReset' }>;
 
 /** Runs `fn` after `delayMs`; returns a cancel function. Tests pass a manual scheduler. */
 export type Scheduler = (fn: () => void, delayMs: number) => () => void;
@@ -84,7 +81,7 @@ export interface GatewayOptions {
   /** Monotonic ms (`performance.now`): the reducer's `now` and guess arrival times. */
   monotonic?: () => number;
   scheduler?: Scheduler;
-  /** Receives `inkOpen`, `inkClose`, `inkReset` and `doodleDrop` for the room `code`. */
+  /** Receives `inkOpen`, `inkClose` and `inkReset` for the room `code`. */
   onInk?: (code: string, effect: InkEffect) => void;
   /** Express's `trust proxy` value, so the join limit sees the same client address as HTTP. */
   trustProxy?: boolean | number | string;
@@ -213,7 +210,6 @@ export function attachSockets(
         case 'inkOpen':
         case 'inkClose':
         case 'inkReset':
-        case 'doodleDrop':
           onInk(code, effect);
           break;
         default:

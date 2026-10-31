@@ -74,7 +74,6 @@ describe('player:join', () => {
       score: 0,
       connected: true,
       hidden: false,
-      hasDoodle: false,
       joinedAt: T0 + 5,
     });
     expect(ana.pid).toMatch(/^[\w-]{1,64}$/);

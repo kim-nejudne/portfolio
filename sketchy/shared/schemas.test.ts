@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   CUSTOM_WORD_MAX,
   CUSTOM_WORDS_MAX,
-  DOODLE_MAX_BYTES,
   GUESS_MAX,
   INK_BATCH_MAX_BYTES,
   INK_GRID,
@@ -251,19 +250,6 @@ describe('inkPayloadSchemas', () => {
       invalid: [{ turnId: 3 }, { turnId: 0, lastSentSeq: 1 }, { turnId: 3, lastSentSeq: -1 }],
     },
     'ink:get': { valid: [{ turnId: 2 }], invalid: [{}, { turnId: 'two' }] },
-    'doodle:batch': {
-      valid: [
-        {
-          ops: [
-            ['b', 1, 2, 1, 10, 10],
-            ['p', 1, 1, 1],
-            ['e', 1],
-          ],
-        },
-        { ops: [['c']] },
-      ],
-      invalid: [{}, { ops: [] }, { ops: [['b', 1]] }],
-    },
   };
 
   it('has a schema for every /ink client event and a test case for every schema', () => {
@@ -296,15 +282,6 @@ describe('inkPayloadSchemas', () => {
     while (batchOf(n + 1).bytes <= INK_BATCH_MAX_BYTES) n++;
     expect(accepts(inkBatchSchema, batchOf(n).batch)).toBe(true);
     expect(accepts(inkBatchSchema, batchOf(n + 1).batch)).toBe(false);
-  });
-
-  it(`rejects a doodle batch over ${DOODLE_MAX_BYTES} bytes`, () => {
-    const op = ['p', 1, ...Array.from({ length: INK_POINTS_PER_OP_MAX * 2 }, () => -9)];
-    const ops = (n: number) => Array.from({ length: n }, () => op);
-    let n = 1;
-    while (JSON.stringify(ops(n + 1)).length <= DOODLE_MAX_BYTES) n++;
-    expect(accepts(inkPayloadSchemas['doodle:batch'], { ops: ops(n) })).toBe(true);
-    expect(accepts(inkPayloadSchemas['doodle:batch'], { ops: ops(n + 1) })).toBe(false);
   });
 });
 

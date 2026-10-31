@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
-import type { Ack, Phase, PlayerChipView, PlayerView } from '../../../../shared/types.js';
+import type { Phase, PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { HostPlayerList } from '../HostPlayerList.js';
@@ -23,7 +23,6 @@ const chip = (pid: string, name: string, extra: Partial<PlayerChipView> = {}): P
   crown: false,
   isDrawer: false,
   avatar: '🦊',
-  hasDoodle: false,
   guessed: false,
   turnPoints: 0,
   score: null,
@@ -101,17 +100,9 @@ const DOODLE = [
   ...['Black', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Brown'],
 ];
 
-const sendDoodle = () => Promise.resolve<Ack>({ ok: true });
 const lobby = (v: PlayerView) =>
   renderToStaticMarkup(
-    <PhoneLobby
-      view={v}
-      socket={socket}
-      onLeave={noop}
-      onAvatarSaved={noop}
-      sendDoodle={sendDoodle}
-      t={t}
-    />,
+    <PhoneLobby view={v} socket={socket} onLeave={noop} onAvatarSaved={noop} t={t} />,
   );
 const sheet = (v: PlayerView) =>
   renderToStaticMarkup(<DrawerSheet view={v} socket={socket} t={t} onClose={noop} />);
@@ -190,16 +181,17 @@ describe('Change avatar in the phone lobby (F54)', () => {
         socket={socket}
         onLeave={noop}
         onAvatarSaved={noop}
-        sendDoodle={sendDoodle}
         t={translator('taglish')}
       />,
     );
     expect(html).toContain('aria-label="Palitan ang avatar"');
+    expect(html).toContain('Warm up: mag-doodle habang naghihintay!');
+    expect(html).toContain('aria-label="Ang doodle mo. Sa phone mo lang ito."');
   });
 });
 
-describe('the lobby doodle pad (F27)', () => {
-  const PAD = 'Doodle yourself while you wait!';
+describe('the lobby doodle pad (F27, F55)', () => {
+  const PAD = 'Warm up: doodle while you wait!';
 
   it('sits below Start and the summary in the host lobby', () => {
     const html = lobby(view('LOBBY'));
@@ -207,7 +199,7 @@ describe('the lobby doodle pad (F27)', () => {
     expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Start game'));
     expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Change'));
     expect(html).toMatch(
-      /<canvas role="img" aria-label="Your doodle\. It shows on the Screen\."[^>]*touch-none/,
+      /<canvas role="img" aria-label="Your doodle\. It stays on your phone\."[^>]*touch-none/,
     );
     // Undo starts disabled: nothing drawn yet.
     expect(html).toMatch(/<button type="button" disabled=""[^>]*>↶ Undo<\/button>/);

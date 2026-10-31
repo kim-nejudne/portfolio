@@ -140,14 +140,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 - [x] F54 Change avatar in the lobby
 
-- [ ] F55 Lobby doodle stays on the phone
-  - Spec: Drawing data protocol (Lobby doodles); Data model (Room state); DECISIONS "Proposed spec changes" 2026-10-31
-  - Depends: F53
-  - Done when:
-    - `doodle:batch`, the InkStore doodles, the `doodle` relay, `doodles` in `ink:snapshot`, `sys:doodle`, `hasDoodle`, the `doodleDrop` effect, `client/src/lib/doodles.ts`, the Screen's doodle wiring and `drawStroke`/`redrawPicture`'s `lineScale` (doodle avatars only) are gone; `/ink` refuses `doodle:batch`
-    - `DoodlePad` draws and undoes locally with its sessionStorage stack and a local size cap, sends nothing; copy "Warm up: doodle while you wait!" in both languages (supersedes DECISIONS 50, Phone pad)
-    - `npm run mem:probe` and `npm run size` re-run
-  - Tests: removed-behaviour tests deleted (listed in PROGRESS); `/ink` refuses `doodle:batch`; no doodle in a Screen snapshot; the pad works offline of `/ink`
+- [x] F55 Lobby doodle stays on the phone
 
 ## Bugs
 
@@ -185,3 +178,4 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Screen FINAL: let the gallery take the leftover height in landscape (thumbnails sized to it) instead of the fixed 17/28 vmin, which leaves a gap under the scores with few players (F49 mobile-ux should-fix).
 - Screen FINAL with 10 players: the Tonight column on a 16:9 TV fits by shrinking to ~2 vmin, and a 4:3 Screen in game 2 shows the score rows at 18 px. Fold the night totals into the score rows, or page the standings and the gallery, to keep TV sizes (F50).
 - Press feedback on live buttons: a motion-safe `:active` shrink (`not-disabled:active:scale-95`, as Buzzr), beyond the reactions' existing `active:scale-90` (B01, DECISIONS 75).
+- Lobby doodle pad: Eraser and Clear, now that the 20 KB cap is the phone's own and a clear could free room locally (F55, DECISIONS 78).

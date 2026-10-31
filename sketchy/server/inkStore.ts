@@ -10,15 +10,9 @@
 // clears too), past which nothing but undo grows or changes it. Refused ops are left out of the
 // batch the gateway relays, so every Screen rebuilds the store's stack exactly.
 //
-// Each player's lobby doodle is a log of its own, outside the turns ("Lobby doodles"): its whole
-// stack, strokes under clears included, stays within `doodleMax`, and a batch that would pass it
-// is refused whole, so the player's phone can drop exactly that stroke. Doodles outlive `reset`
-// (Rematch, Back to lobby); `dropDoodle` removes one when its player leaves or is kicked.
-//
 // Pure data and functions of their inputs: the gateway passes a monotonic `now` for resend asks.
 
 import {
-  DOODLE_MAX_BYTES,
   INK_ACTION_OVERHEAD_BYTES,
   INK_RESEND_ASK_MS,
   INK_ROOM_MAX_BYTES,
@@ -30,7 +24,6 @@ import {
   applyInkOps,
   createInkStack,
   stackOps,
-  visibleStrokes,
   type InkStack,
   type InkStroke,
 } from '../shared/ink.js';
@@ -47,8 +40,6 @@ export interface InkStoreLimits {
   roomMax: number;
   /** The same gap is asked for again at most this often (ms). */
   resendAskMs: number;
-  /** One player's lobby doodle: the whole stack's encoded bytes it never passes. */
-  doodleMax: number;
 }
 
 const DEFAULT_LIMITS: InkStoreLimits = {
@@ -57,7 +48,6 @@ const DEFAULT_LIMITS: InkStoreLimits = {
   maxActions: INK_TURN_MAX_ACTIONS,
   roomMax: INK_ROOM_MAX_BYTES,
   resendAskMs: INK_RESEND_ASK_MS,
-  doodleMax: DOODLE_MAX_BYTES,
 };
 
 /** What `applyOp` checks an op against. */
@@ -100,14 +90,6 @@ export type BatchOutcome =
   /** The turn is frozen, or older than the room's latest. */
   | { kind: 'closed' };
 
-/** A doodle batch: `relay` holds the ops applied (none when `full` refused the batch); `has` says
- * whether the doodle now shows any stroke. */
-export interface DoodleOutcome {
-  relay: InkOp[];
-  full: boolean;
-  has: boolean;
-}
-
 export interface InkStore {
   /** Starts a turn's live log (freezing a live one left open). */
   open(code: string, turnId: number): void;
@@ -129,36 +111,27 @@ export interface InkStore {
   turn(code: string): TurnLog | undefined;
   /** What the room's frozen logs count against its budget. */
   keptBytes(code: string): number;
-  /** Applies a player's lobby doodle batch, all of it or (past `doodleMax`) none of it. */
-  doodle(code: string, pid: string, ops: readonly InkOp[]): DoodleOutcome;
-  /** The player left or was kicked. */
-  dropDoodle(code: string, pid: string): void;
-  /** Every player's doodle as the ops that rebuild it, by pid. */
-  doodles(code: string): Record<string, InkOp[]>;
 }
 
 interface RoomInk {
   latest?: TurnLog;
   /** Frozen logs still kept, oldest first; the latest is here once frozen. */
   kept: TurnLog[];
-  /** Lobby doodles by pid (a log each, `turnId` 0), for the session. */
-  doodles: Map<string, TurnLog>;
 }
 
 const CLEAR_BYTES = JSON.stringify(['c']).length;
 
 export function createInkStore(limits: Partial<InkStoreLimits> = {}): InkStore {
-  const { turnMax, hardMax, maxActions, roomMax, resendAskMs, doodleMax } = {
+  const { turnMax, hardMax, maxActions, roomMax, resendAskMs } = {
     ...DEFAULT_LIMITS,
     ...limits,
   };
   const turnCaps: Caps = { turnMax, hardMax, maxActions };
-  const doodleCaps: Caps = { turnMax: doodleMax, hardMax: doodleMax, maxActions };
   const rooms = new Map<string, RoomInk>();
 
   const room = (code: string): RoomInk => {
     let r = rooms.get(code);
-    if (!r) rooms.set(code, (r = { kept: [], doodles: new Map() }));
+    if (!r) rooms.set(code, (r = { kept: [] }));
     return r;
   };
 
@@ -330,36 +303,6 @@ export function createInkStore(limits: Partial<InkStoreLimits> = {}): InkStore {
     keptBytes(code) {
       const r = rooms.get(code);
       return r ? keptBytes(r) : 0;
-    },
-
-    doodle(code, pid, ops) {
-      const r = room(code);
-      const current = r.doodles.get(pid) ?? newLog(0);
-      // SPEC-QUESTION: "at most 20 KB per player" is the whole stack, and a batch past it is
-      // refused whole, so the phone drops exactly that stroke (DECISIONS 50).
-      // Applied to a copy (at most `doodleMax` of ops), so a refused batch leaves no trace.
-      const log = structuredClone(current);
-      const relay: InkOp[] = [];
-      for (const op of ops) {
-        const res = applyOp(log, op, doodleCaps);
-        if (res.refused) {
-          const has = visibleStrokes(current.stack).length > 0;
-          return { relay: [], full: true, has };
-        }
-        if (res.kept) relay.push(op);
-      }
-      r.doodles.set(pid, log);
-      return { relay, full: false, has: visibleStrokes(log.stack).length > 0 };
-    },
-
-    dropDoodle(code, pid) {
-      rooms.get(code)?.doodles.delete(pid);
-    },
-
-    doodles(code) {
-      const out: Record<string, InkOp[]> = {};
-      for (const [pid, log] of rooms.get(code)?.doodles ?? []) out[pid] = stackOps(log.stack);
-      return out;
     },
   };
 }

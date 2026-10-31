@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { Avatar as AvatarEmoji, PlayerView } from '../../../../shared/types.js';
-import { doodleKey, type SendDoodle } from '../../ink/doodle.js';
+import { doodleKey } from '../../ink/doodle.js';
 import type { Translate } from '../../lib/copy.js';
 import { useHostSender } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
@@ -17,16 +17,15 @@ import { LeaveButton } from './LeaveButton.js';
  * avatar in their colour (F53), who is waiting for whom, who's here, and Leave. The crown holder's
  * lobby is the host view instead (Host controls, F25): "You're the host 👑", a big Start game, and
  * the settings summary with Change (presets, settings and the players list with Give crown and
- * Kick), and "Add your own words" (F48). Both have the doodle pad (F27) under that, the host's
- * below Start. In both, the avatar by the heading opens Change avatar (F54). Not yet: Change name
- * (renames land with their reducer action).
+ * Kick), and "Add your own words" (F48). Both have the warm-up doodle pad (F27, F55) under that,
+ * the host's below Start. In both, the avatar by the heading opens Change avatar (F54). Not yet:
+ * Change name (renames land with their reducer action).
  */
 export function PhoneLobby({
   view,
   socket,
   onLeave,
   onAvatarSaved,
-  sendDoodle,
   t,
 }: {
   view: PlayerView;
@@ -34,8 +33,6 @@ export function PhoneLobby({
   onLeave: () => void;
   /** The server took a new avatar: the phone stores it for its next join. */
   onAvatarSaved: (avatar: AvatarEmoji) => void;
-  /** Sends a finished doodle stroke on the page's `/ink` socket. */
-  sendDoodle: SendDoodle;
   t: Translate;
 }) {
   const me = view.players.find((p) => p.pid === view.me.pid);
@@ -126,7 +123,7 @@ export function PhoneLobby({
         )}
 
         {/* SPEC-QUESTION: the spec puts a guesser's pad below the list; it goes above it, so it is on screen at 360×560 (DECISIONS 50). */}
-        <DoodlePad storageKey={doodleKey(view.code, view.me.pid)} send={sendDoodle} t={t} />
+        <DoodlePad storageKey={doodleKey(view.code, view.me.pid)} t={t} />
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-white/70">

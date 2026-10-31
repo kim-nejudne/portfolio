@@ -237,8 +237,6 @@ export const INK_RESEND_BURST = 30;
 export const INK_ROOM_MAX_BYTES = 4 * 1024 * 1024;
 /** Invalid batches in one turn before the drawer's `/ink` socket is disconnected. */
 export const INK_INVALID_BATCHES_MAX = 20;
-/** One player's lobby doodle, encoded. */
-export const DOODLE_MAX_BYTES = 20 * 1024;
 
 // ---------- Look and feel ----------
 

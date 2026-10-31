@@ -10,7 +10,6 @@ import {
   CUSTOM_WORDS_MAX,
   CYCLES_CHOICES,
   DIFFICULTY_CHOICES,
-  DOODLE_MAX_BYTES,
   DRAW_COLORS,
   DRAW_SECONDS_CHOICES,
   ERASER_COLOR_INDEX,
@@ -163,12 +162,6 @@ export const inkPayloadSchemas = {
   'ink:hello': z.object({ code: roomCodeSchema }),
   'ink:sync': z.object({ turnId: positiveIntSchema, lastSentSeq: z.int().min(0) }),
   'ink:get': z.object({ turnId: positiveIntSchema }),
-  // Sent on stroke end, undo and clear; the InkStore enforces the per-player total.
-  'doodle:batch': z
-    .object({ ops: z.array(inkOpSchema).min(1) })
-    .refine((b) => encodedBytes(b.ops) <= DOODLE_MAX_BYTES, {
-      message: `A doodle is at most ${DOODLE_MAX_BYTES} bytes`,
-    }),
 } satisfies { [E in InkClientEvent]: z.ZodType<InkClientPayloads[E]> };
 
 // ---------- Client → server events (main namespace) ----------

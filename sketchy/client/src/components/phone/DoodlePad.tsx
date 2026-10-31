@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { visibleStrokes, type InkStroke } from '../../../../shared/ink.js';
-import {
-  createPhoneDoodle,
-  loadDoodle,
-  saveDoodle,
-  type DoodleResult,
-  type PhoneDoodle,
-  type SendDoodle,
-} from '../../ink/doodle.js';
+import { createPhoneDoodle, loadDoodle, saveDoodle, type PhoneDoodle } from '../../ink/doodle.js';
 import { toGrid } from '../../ink/inkSender.js';
 import type { Translate } from '../../lib/copy.js';
 import { drawStroke, redrawPicture } from '../../lib/ink.js';
@@ -21,28 +14,23 @@ const MAX_BACKING_PX = 1536;
 interface Props {
   /** sessionStorage key for this room and player (`doodleKey`). */
   storageKey: string;
-  send: SendDoodle;
   t: Translate;
 }
 
 /**
- * The lobby doodle pad (Lobby doodles): "Doodle yourself while you wait!" and a square pad. Same
- * pointer handling as the drawer's pad (first pointer only, captured, `pointercancel` ends the
- * stroke, `touch-action: none` so a stroke never scrolls the lobby). Each finished stroke goes to
- * the Screens as one batch; it never comes back to any phone. Undo takes the last stroke off.
- * The drawer's colours and size button, but no Eraser or Clear: a doodle's 20 KB counts every
- * stroke, erased or cleared ones too, and only Undo makes room (DECISIONS 53).
+ * The lobby doodle pad (F55): "Warm up: doodle while you wait!" and a square pad. Same pointer
+ * handling as the drawer's pad (first pointer only, captured, `pointercancel` ends the stroke,
+ * `touch-action: none` so a stroke never scrolls the lobby). It stays on the phone: nothing is
+ * sent. Undo takes the last stroke off. The drawer's colours and size button, but no Eraser or
+ * Clear: the doodle's 20 KB counts every stroke, so only Undo makes room, which keeps the cap
+ * simple (DECISIONS 53, 78).
  * Optional and pointer-only: nothing waits on it. A stroke in hand when the game starts is dropped
  * with the pad.
  */
-export function DoodlePad({ storageKey, send, t }: Props) {
+export function DoodlePad({ storageKey, t }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sendRef = useRef(send);
-  useEffect(() => {
-    sendRef.current = send;
-  }, [send]);
-  const [note, setNote] = useState<DoodleResult | null>(null);
+  const [full, setFull] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const doodleRef = useRef<PhoneDoodle | null>(null);
   const repaintRef = useRef<() => void>(() => {});
@@ -58,7 +46,7 @@ export function DoodlePad({ storageKey, send, t }: Props) {
     const ctx = canvas?.getContext('2d');
     if (!box || !canvas || !ctx) return;
 
-    const doodle = createPhoneDoodle(loadDoodle(storageKey), (ops) => sendRef.current(ops));
+    const doodle = createPhoneDoodle(loadDoodle(storageKey));
     doodleRef.current = doodle;
     setCanUndo(doodle.canUndo());
     const drawn = new Map<number, number>();
@@ -67,7 +55,6 @@ export function DoodlePad({ storageKey, send, t }: Props) {
     let rect = canvas.getBoundingClientRect();
     let px = 0;
     let frame = 0;
-    let live = true;
 
     const repaint = () => {
       drawn.clear();
@@ -131,16 +118,12 @@ export function DoodlePad({ storageKey, send, t }: Props) {
       const done = stroke;
       stroke = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      const sent = doodle.end(done);
-      // The simplified line replaces the raw one.
+      const result = doodle.end(done);
+      // The simplified line replaces the raw one (or a full doodle drops it).
       repaint();
-      void sent.then((result) => {
-        saveDoodle(storageKey, doodle.stack);
-        if (!live) return;
-        if (result !== 'ok') repaint();
-        setNote(result === 'full' ? 'full' : null);
-        setCanUndo(doodle.canUndo());
-      });
+      saveDoodle(storageKey, doodle.stack);
+      setFull(result === 'full');
+      setCanUndo(doodle.canUndo());
     };
 
     canvas.addEventListener('pointerdown', onDown);
@@ -149,7 +132,6 @@ export function DoodlePad({ storageKey, send, t }: Props) {
     canvas.addEventListener('pointercancel', onEnd);
     canvas.addEventListener('lostpointercapture', onEnd);
     return () => {
-      live = false;
       doodleRef.current = null;
       repaintRef.current = () => {};
       canvas.removeEventListener('pointerdown', onDown);
@@ -164,23 +146,17 @@ export function DoodlePad({ storageKey, send, t }: Props) {
 
   const undo = () => {
     const doodle = doodleRef.current;
-    const sent = doodle?.undo();
-    if (!doodle || !sent) return;
+    if (!doodle?.undo()) return;
     repaintRef.current();
-    setNote(null);
-    setCanUndo(false);
-    void sent.then(() => {
-      saveDoodle(storageKey, doodle.stack);
-      if (doodleRef.current !== doodle) return;
-      repaintRef.current();
-      setCanUndo(doodle.canUndo());
-    });
+    saveDoodle(storageKey, doodle.stack);
+    setFull(false);
+    setCanUndo(doodle.canUndo());
   };
 
   return (
     <section className="flex flex-col items-center gap-2">
       <div className="flex w-full items-center gap-2">
-        <h2 className="text-lg font-semibold">{t('doodleYourself')}</h2>
+        <h2 className="text-lg font-semibold">{t('doodleWarmUp')}</h2>
         <SizeButton tool={tool} onTool={setTool} t={t} className="ml-auto shrink-0" />
         <button
           type="button"
@@ -210,7 +186,7 @@ export function DoodlePad({ storageKey, send, t }: Props) {
         />
       </div>
       <p role="status" className="min-h-[1.5em] text-center text-base text-[#FFD166]">
-        {note === 'full' ? t('doodleFull') : ''}
+        {full ? t('doodleFull') : ''}
       </p>
     </section>
   );

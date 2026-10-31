@@ -32,7 +32,6 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     crown: false,
     isDrawer: pid === 'mika',
     avatar: '🦊' as const,
-    hasDoodle: false,
     guessed: pid === 'jun',
     turnPoints: pid === 'jun' ? 270 : 135,
     score: null,

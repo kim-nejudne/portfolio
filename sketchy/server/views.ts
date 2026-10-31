@@ -157,7 +157,6 @@ function chips(room: Room): PlayerChipView[] {
         turn.drawerPid === p.pid &&
         room.phase !== 'SCOREBOARD' &&
         room.phase !== 'FINAL',
-      hasDoodle: p.hasDoodle,
       guessed: turn?.correct.some((c) => c.pid === p.pid) ?? false,
       turnPoints: turnPoints(room, p.pid),
       score: ranks ? p.score : null,

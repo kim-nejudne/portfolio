@@ -83,7 +83,7 @@ async function setup() {
   const timers: Pending[] = [];
   server = createServer();
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
-  const { io, dispatch } = attachSockets(server, {
+  const { io } = attachSockets(server, {
     rooms,
     clock: () => WALL0,
     monotonic: () => time.mono,
@@ -96,7 +96,7 @@ async function setup() {
     },
     onInk: (code, effect) => onInk(code, effect),
   });
-  const gateway = attachInkGateway(io, { rooms, dispatch, monotonic: () => time.mono });
+  const gateway = attachInkGateway(io, { rooms, monotonic: () => time.mono });
   onInk = gateway.onInk;
   server.listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
