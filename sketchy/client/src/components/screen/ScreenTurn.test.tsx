@@ -65,6 +65,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     awards: [],
     gallery: [],
     tonight: null,
+    nextDrawer: null,
   };
   return { view, turn };
 }
@@ -275,26 +276,30 @@ describe('portrait Screen layout (F33)', () => {
       <ScreenTurn view={view} receivedAt={0} ink={createScreenInk()} layout={layout} t={t} />,
     );
 
-  it('puts the timer and blanks above the drawing, and the players and guesses under it', () => {
+  // F65: the top bar holds the timer, blanks, drawer line and latest guess; the players are the
+  // index tabs along the bottom (was a strip and two guesses under the drawing).
+  it('puts the timer, blanks, drawer line and latest guess above the drawing, the players under it', () => {
     const html = render(drawing(), 'portrait');
     const canvas = html.indexOf('<canvas');
     expect(html).not.toContain('<aside');
     expect(html.indexOf('role="timer"')).toBeLessThan(canvas);
     expect(html.indexOf('aria-label="6 letters"')).toBeLessThan(canvas);
-    expect(html.indexOf('>Mika<')).toBeGreaterThan(canvas);
-    expect(html.indexOf('>Jun<')).toBeGreaterThan(canvas);
+    expect(html.indexOf('Mika is drawing')).toBeLessThan(canvas);
+    expect(html.indexOf('tsinelas')).toBeLessThan(canvas);
+    expect(html.indexOf('data-tab="mika"')).toBeGreaterThan(canvas);
+    expect(html.indexOf('data-tab="jun"')).toBeGreaterThan(canvas);
   });
 
   it('marks the drawer with ✏️ and a correct guesser with ✓ and this turn’s points', () => {
     const html = render(drawing(), 'portrait');
-    expect(html).toMatch(/✏️<\/span>.*>Mika</);
-    expect(html).toMatch(/✓<\/span>.*>Jun<\/span><span class="tabular-nums">\+270</);
+    expect(html).toMatch(/<li data-tab="mika"[^]*?data-status="true" class="[^"]*">✏️</);
+    expect(html).toMatch(/<li data-tab="jun"[^]*?data-status="true" class="[^"]*">✓ \+270</);
   });
 
-  it('keeps only the two latest guesses', () => {
+  it('keeps only the latest guess', () => {
     const html = render(drawing(), 'portrait');
     expect(html).not.toContain('payong');
-    expect(html).toContain('sapatos');
+    expect(html).not.toContain('sapatos');
     expect(html).toContain('tsinelas');
   });
 
@@ -316,13 +321,15 @@ describe('portrait Screen layout (F33)', () => {
     expect(caption).toBeGreaterThan(html.indexOf('<canvas'));
   });
 
-  it('says "It was…" above the drawing and shows the word under it at the reveal', () => {
+  // F65: the word joins "It was…" in the top bar (the mockup's portrait reveal); who got it goes
+  // in the lane under the drawing (was the word under the drawing, DECISIONS 55).
+  it('says "It was…" and the word above the drawing at the reveal, and who got it under it', () => {
     const { view } = reveal('time');
     const html = render(view, 'portrait');
     const canvas = html.indexOf('<canvas');
-    expect(html.indexOf('It was…')).toBeLessThan(canvas);
-    expect(html.indexOf('>banana<')).toBeGreaterThan(canvas);
-    expect(html).toContain('Got it');
+    expect(html.indexOf('It was…')).toBeLessThan(html.indexOf('>banana<'));
+    expect(html.indexOf('>banana<')).toBeLessThan(canvas);
+    expect(html.indexOf('Got it')).toBeGreaterThan(canvas);
   });
 });
 
@@ -359,10 +366,12 @@ describe('announcements, chips and feed (F34)', () => {
     expect(render(drawing(), 'landscape')).toContain('Mika is drawing');
   });
 
-  it('says it in the portrait top bar, above the drawing, in place of the blanks', () => {
+  it('says it in the portrait top bar, above the drawing, in place of "Mika is drawing" (F65)', () => {
     const html = render(drawing(), 'portrait', junGotIt);
     expect(html.indexOf('got it!')).toBeLessThan(html.indexOf('<canvas'));
-    expect(html).not.toContain('aria-label="6 letters"');
+    expect(html).toContain('aria-label="6 letters"');
+    expect(html).not.toContain('Mika is drawing');
+    expect(render(drawing(), 'portrait')).toContain('Mika is drawing');
   });
 
   it('names everyone who got it within the 2 s', () => {
@@ -384,20 +393,21 @@ describe('announcements, chips and feed (F34)', () => {
       /<li data-tab="jun"[^]*?data-status="true" class="[^"]*text-success[^"]*">✓ \+270</,
     );
     expect(html).toMatch(/<li data-tab="mika"[^]*?data-status="true" class="[^"]*">✏️</);
-    // Portrait (until F65): the strip's chips, a correct guesser's lit.
+    // Portrait (F65): the same tabs, along the bottom.
     const portrait = render(drawing(), 'portrait');
-    expect(portrait).toMatch(/<li data-chip="jun" class="[^"]*bg-success\/15/);
-    expect(portrait).toMatch(/<li data-chip="mika" class="(?![^"]*bg-success)/);
+    expect(portrait).toContain('data-tabs="portrait"');
+    expect(portrait).toMatch(
+      /<li data-tab="jun"[^]*?data-status="true" class="[^"]*text-success[^"]*">✓ \+270</,
+    );
   });
 
-  it('shows the last 8 wrong guesses in the sidebar, newest last, and 2 in portrait', () => {
+  it('shows the last 8 wrong guesses in the sidebar, newest last, and the latest in portrait', () => {
     const feed = Array.from({ length: 8 }, (_, i) => ({ pid: 'jun', text: `guess${i + 2}` }));
     const landscape = render(drawing(feed), 'landscape');
     for (let i = 2; i < 10; i++) expect(landscape).toContain(`guess${i}<`);
     expect(landscape.indexOf('guess2<')).toBeLessThan(landscape.indexOf('guess9<'));
     const portrait = render(drawing(feed), 'portrait');
-    expect(portrait).not.toContain('guess7<');
-    expect(portrait).toContain('guess8<');
+    expect(portrait).not.toContain('guess8<');
     expect(portrait).toContain('guess9<');
   });
 
@@ -407,11 +417,12 @@ describe('announcements, chips and feed (F34)', () => {
     const land = render(drawing(), 'landscape');
     expect(land.indexOf('data-fx="tabs"')).toBeGreaterThan(land.indexOf('data-page="right"'));
     expect(land.indexOf('data-fx="tabs"')).toBeGreaterThan(land.indexOf('<canvas'));
-    // Portrait: the layer sits in the room under the drawing, which clips it.
+    // Portrait (F65): the layer lies over the desk too and puts bubbles in the lane between the
+    // drawing and the tabs (placeLaneBubble keeps every bubble in it: TurnFx.test).
     const html = render(drawing(), 'portrait');
-    const layer = html.indexOf('pointer-events-none absolute inset-0');
-    expect(layer).toBeGreaterThan(html.indexOf('<canvas'));
-    expect(html.slice(0, layer)).toMatch(/<section class="[^"]*relative[^"]*overflow-hidden/);
+    const lane = html.indexOf('data-bubble-lane');
+    expect(lane).toBeGreaterThan(html.indexOf('<canvas'));
+    expect(html.indexOf('data-fx="tabs"')).toBeGreaterThan(lane);
   });
 });
 

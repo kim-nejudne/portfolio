@@ -545,6 +545,11 @@ export interface ScreenView extends BaseView {
   gallery: { turnId: number; drawerPid: string; word: string }[]; // FINAL
   /** FINAL from game 2: the night's totals, this game included, players who left too. */
   tonight: TonightRow[] | null;
+  /**
+   * REVEAL: who draws next ("Next: Jun draws"), the `upcoming` deal's drawer; null with no turn
+   * left in the game, and outside REVEAL. Never the word or anything about it.
+   */
+  nextDrawer: { pid: string; name: string; color: string } | null;
 }
 
 /** A night total as the Screen's Tonight panel lists it. Equal totals share a rank. */

@@ -39,6 +39,7 @@ function view(
     awards: [],
     gallery: [],
     tonight: null,
+    nextDrawer: null,
   };
 }
 

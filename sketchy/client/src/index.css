@@ -71,8 +71,9 @@
   --animate-bubble: sk-bubble 2s ease-out both;
   --animate-float-up: sk-float 2s ease-out both;
   --animate-fade: fade 2s linear both;
-  /* The reveal's word (F35): grows in without overshoot, since it is sized to fill its column. */
-  --animate-reveal: reveal 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  /* The reveal's word (F35, F65): the mockup's sk-reveal-big pop, 0.5 → 1.06 → 1 from its left
+     edge; the word is sized with room for the overshoot. */
+  --animate-reveal: sk-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
   /* The laptop landing's drawing draws itself on (F57): a stroke with `pathLength=1` and a
      `1 2` dash, from hidden to drawn. Transparent until its turn, so no round cap shows as a dot
      while it waits. Used behind `motion-safe:` only. */
@@ -112,16 +113,6 @@
     }
     100% {
       transform: scale(1);
-    }
-  }
-  @keyframes reveal {
-    0% {
-      transform: scale(0.5);
-      opacity: 0;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
     }
   }
   /* scale .6 → 1, hold, fade (the mockup's sk-bubble). */

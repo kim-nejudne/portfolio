@@ -36,6 +36,7 @@ function view(phase: Phase, paused = false): ScreenView {
     awards: [],
     gallery: [],
     tonight: null,
+    nextDrawer: null,
   };
 }
 

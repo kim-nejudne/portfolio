@@ -1,3 +1,4 @@
+import { Fragment, useRef, type CSSProperties, type ReactNode } from 'react';
 import { FEED_MAX, LAST_SECONDS_MS } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
@@ -11,6 +12,7 @@ import {
   wordLengths,
   type ScreenLayout,
 } from '../../lib/screen.js';
+import { useNunitoEm, useShrinkToFit } from '../../lib/fit.js';
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { Avatar } from '../Avatar.js';
@@ -23,14 +25,15 @@ import { ScreenDesk } from './ScreenDesk.js';
 import { GotItLine, TurnFx } from './TurnFx.js';
 
 /**
- * CHOOSING, DRAWING and REVEAL, in the notebook on the desk (Sketchbook look, F64). Landscape (and
- * near-square): a spread whose left page holds the drawing, taped on by two corners, as the
+ * CHOOSING, DRAWING and REVEAL, in the notebook on the desk (Sketchbook look, F64, F65). Landscape
+ * (and near-square): a spread whose left page holds the drawing, taped on by two corners, as the
  * largest square that fits (while choosing, who is choosing, large, with the ring); the right page
  * is the sidebar (clock, round and turn, blanks, the drawer line or "Jun got it!", the feed on
- * dashed rules), and the players are index tabs outside the right edge, with ✏️ and "✓ +270".
- * Wrong-guess bubbles pop from the tabs over the right page, never over the drawing. Portrait: one
- * page with a top bar, the full-width square, then the players strip and the two latest guesses
- * (F65 makes it the spread's portrait form).
+ * dashed rules; at the reveal the word and who got it), and the players are index tabs outside the
+ * right edge, with ✏️ and "✓ +270". Portrait: the right page becomes a top bar over the drawing's
+ * page (clock and blanks, the drawer line, the latest guess; at the reveal "It was…" and the word),
+ * the rings run across, and the tabs stand along the bottom. Wrong-guess bubbles pop from the
+ * tabs, never over the drawing.
  */
 export function ScreenTurn({
   view,
@@ -53,14 +56,34 @@ export function ScreenTurn({
   // The reveal's "Almost:" lists the last guesses, so DRAWING's bubbles end with it (F35).
   const fx = view.phase === 'REVEAL' ? { ...allFx, bubbles: [] } : allFx;
   const code = codeStripCode(view);
+  const overlay = (
+    <>
+      <TurnFx
+        fx={fx}
+        players={view.players}
+        guessFeed={view.settings.guessFeed}
+        layout="tabs"
+        t={t}
+      />
+      {/* Mounted all turn long, so screen readers hear the word when it comes. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {view.phase === 'REVEAL' && turn.word ? `${t('itWas')} ${turn.word}` : ''}
+      </p>
+    </>
+  );
   if (layout === 'portrait')
     return (
       <ScreenDesk
         layout="portrait"
         code={code}
-        single={
-          <PortraitTurn view={view} turn={turn} receivedAt={receivedAt} ink={ink} fx={fx} t={t} />
+        players={view.players}
+        turn
+        // Portrait stacks the spread: the first page is the top bar, the second the drawing's.
+        left={<TopBar view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />}
+        right={
+          <PortraitDrawingPage view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />
         }
+        overlay={overlay}
       />
     );
   return (
@@ -80,15 +103,7 @@ export function ScreenTurn({
           )}
         </aside>
       }
-      overlay={
-        <TurnFx
-          fx={fx}
-          players={view.players}
-          guessFeed={view.settings.guessFeed}
-          layout="tabs"
-          t={t}
-        />
-      }
+      overlay={overlay}
     />
   );
 }
@@ -225,87 +240,27 @@ function drawerChip(
 }
 
 /**
- * The least room under the portrait square, for the players strip and two guesses, and at the
- * reveal for the reveal panel. It never depends on what's in it, so the drawing keeps its size
+ * The portrait top bar's height, the same through CHOOSING, DRAWING and REVEAL, so the drawing
+ * under it keeps its size: room for the reveal's "It was…" line and the word at 12 vh, or for the
+ * clock, the drawer line and the latest guess, whichever is taller.
+ */
+// SPEC-QUESTION: the spec doesn't size the portrait top bar; one height for the whole turn keeps
+// the drawing where it is at the reveal (DECISIONS 88).
+const TOP_BAR_HEIGHT =
+  'max(calc(max(4.4vmin, 20px) + 12vh + 1vmin), calc(max(8vmin, 36px) + max(4.4vmin, 20px) + max(5vmin, 23px) + 2vmin))';
+
+/**
+ * The lane between the portrait square and the tabs: tall enough for a wrong-guess bubble (≥ 5 vh
+ * text), the first two turns' caption and three lines of the reveal's rows. It keeps its height
  * through the turn.
  */
-// SPEC-QUESTION: the spec doesn't size the portrait strip or say where the reveal goes; a fixed
-// reserve under the square holds both (DECISIONS 55).
-const PORTRAIT_BELOW = 'max(25vh, 180px)';
+export const PORTRAIT_LANE = 'max(12vmin, 6.6vh, 64px)';
 
 /**
- * Portrait (a portrait tablet or a propped-up phone): the timer and blanks in a top bar, the
- * full-width square (smaller only when the height runs out), then the players with ✏️ and ✓ and
- * the two latest guesses. Round and turn numbers are dropped. At the reveal the top bar says
- * "It was…" and the word takes the strip's place under the drawing.
- */
-function PortraitTurn({
-  view,
-  turn,
-  receivedAt,
-  ink,
-  fx,
-  t,
-}: {
-  view: ScreenView;
-  turn: TurnView;
-  receivedAt: number;
-  ink: ScreenInk;
-  fx: ScreenFxState;
-  t: Translate;
-}) {
-  const caption = turnCaption(view, t);
-  const captionRow = hasCaptionRow(turn);
-  const reveal = view.phase === 'REVEAL';
-  return (
-    <div className="@container flex h-full min-h-0 flex-col gap-[1.5vmin] px-[2vmin] pt-[2vmin] text-[max(3.5vmin,16px)]">
-      <header className="flex min-h-[max(9vmin,40px)] shrink-0 items-center gap-[3vmin]">
-        {reveal ? (
-          <RevealIntro turn={turn} t={t} />
-        ) : (
-          <TopBar view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />
-        )}
-      </header>
-      {/* The square is as wide as the Screen unless the height runs out first; it takes the free
-          height before the strip does (the weights), up to its width (100cqw). */}
-      <div className="grid max-h-[100cqw] min-h-0 flex-[1000_1_0%] place-items-center [container-type:size]">
-        <div className="relative aspect-square w-[min(100cqw,100cqh)]">
-          <Drawing view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />
-        </div>
-      </div>
-      {/* The caption's row (first two turns) is part of this room, so the reveal can use it. */}
-      <section
-        className="@container relative flex flex-[1_0_0%] flex-col gap-[1.2vmin] overflow-hidden leading-tight"
-        style={{
-          minHeight: captionRow
-            ? `calc(${PORTRAIT_BELOW} + ${PORTRAIT_CAPTION_HEIGHT} + 1.2vmin)`
-            : PORTRAIT_BELOW,
-        }}
-      >
-        {reveal ? (
-          <RevealPanel view={view} turn={turn} t={t} layout="portrait" />
-        ) : (
-          <>
-            {captionRow && <Caption text={caption} layout="portrait" />}
-            <PlayerStrip players={view.players} />
-            <Feed view={view} latest={2} />
-          </>
-        )}
-        <TurnFx
-          fx={fx}
-          players={view.players}
-          guessFeed={view.settings.guessFeed}
-          layout="portrait"
-          t={t}
-        />
-      </section>
-    </div>
-  );
-}
-
-/**
- * The portrait top bar: the clock and the blanks on one line. "Jun got it!" takes the blanks' place
- * for its 2 s: the bar has no room for both, and the drawing must stay clear.
+ * The portrait top bar (the right page's portrait form): the clock and blanks on one line, then
+ * "✏️ Mika is drawing" (or, for 2 s, "Jun got it!" in its place), then the latest guess. Round and
+ * turn numbers are dropped (the spec's portrait priority). While choosing, "Next up: ✏️ Mika" (the
+ * ring is on the drawing's page). At the reveal, the headline and "It was…", then the word.
  */
 function TopBar({
   view,
@@ -320,29 +275,56 @@ function TopBar({
   fx: ScreenFxState;
   t: Translate;
 }) {
+  const reveal = view.phase === 'REVEAL';
+  return (
+    <header
+      data-top-bar
+      className="@container flex flex-col gap-[1vmin] overflow-hidden text-[max(3.5vmin,16px)] leading-tight"
+      style={{ height: TOP_BAR_HEIGHT }}
+    >
+      {reveal ? (
+        <PortraitReveal turn={turn} t={t} />
+      ) : (
+        <TopBarTurn view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />
+      )}
+    </header>
+  );
+}
+
+function TopBarTurn({
+  view,
+  turn,
+  receivedAt,
+  fx,
+  t,
+}: {
+  view: ScreenView;
+  turn: TurnView;
+  receivedAt: number;
+  fx: ScreenFxState;
+  t: Translate;
+}) {
   const left = useCountdown(turn.timer, receivedAt);
-  const urgent = view.phase === 'DRAWING' && left <= LAST_SECONDS_MS;
+  const drawing = view.phase === 'DRAWING';
+  const urgent = drawing && left <= LAST_SECONDS_MS;
+  const drawer = drawerChip(view, turn);
+  if (!drawing)
+    return (
+      <p className="line-clamp-2 shrink-0 break-words text-[max(4.4vmin,20px)]">
+        <NameInColour say={(name) => t('nextUp', { name })} player={drawer} />
+      </p>
+    );
   return (
     <>
-      <p
-        className={`shrink-0 font-num text-[max(8vmin,36px)] leading-none font-black tabular-nums ${urgent ? 'text-red' : ''}`}
-        role="timer"
-      >
-        {formatClock(left)}
-      </p>
-      {/* The live region stays mounted through the turn, so each "got it" is announced. */}
-      <div className="@container min-w-0 flex-1" role="status" aria-live="polite">
-        {/* SPEC-QUESTION: the portrait top bar holds the clock and blanks; the announcement
-            stands in for the blanks while it shows (DECISIONS 56). */}
-        {view.phase === 'DRAWING' && fx.gotIt.length > 0 ? (
-          <GotItLine
-            gotIt={fx.gotIt}
-            players={view.players}
-            className="text-[max(5vmin,22px)]"
-            t={t}
-          />
-        ) : (
-          turn.mask && (
+      <div className="flex shrink-0 items-center gap-[3vmin]">
+        <p
+          className={`shrink-0 font-num text-[max(8vmin,36px)] leading-none font-black tabular-nums ${urgent ? 'text-red' : ''}`}
+          role="timer"
+        >
+          {formatClock(left)}
+        </p>
+        <div className="@container min-w-0 flex-1">
+          {turn.mask && (
             <Blanks
               mask={turn.mask}
               label={blanksLabel(turn.mask, t)}
@@ -350,40 +332,68 @@ function TopBar({
               countMin={BLANKS_COUNT_MIN}
               pop
             />
-          )
+          )}
+        </div>
+      </div>
+      {/* One live region for the whole turn, so each "got it" is announced. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex h-[max(4.4vmin,20px)] shrink-0 items-center"
+      >
+        {fx.gotIt.length > 0 ? (
+          <GotItLine gotIt={fx.gotIt} players={view.players} t={t} />
+        ) : (
+          <p className="truncate">
+            <NameInColour say={(name) => t('isDrawing', { name })} player={drawer} />
+          </p>
         )}
       </div>
+      <Feed view={view} latest={1} />
     </>
   );
 }
 
 /**
- * Portrait players: one wrapped strip in turn order, ✏️ on the drawer, ✓ and this turn's points
- * after a correct guess, no totals.
+ * The portrait drawing's page: the drawing as the largest square that fits, then the lane above
+ * the tabs, where the bubbles pop up from the tabs, the first two turns' caption sits, and at the
+ * reveal who got it, "Almost:", the drawer's points and who draws next.
  */
-function PlayerStrip({ players }: { players: PlayerChipView[] }) {
+function PortraitDrawingPage({
+  view,
+  turn,
+  receivedAt,
+  ink,
+  t,
+}: {
+  view: ScreenView;
+  turn: TurnView;
+  receivedAt: number;
+  ink: ScreenInk;
+  t: Translate;
+}) {
+  const reveal = view.phase === 'REVEAL';
   return (
-    <ul className="flex min-h-0 flex-wrap content-start gap-x-[3vmin] gap-y-[1vmin] overflow-hidden">
-      {players.map((p) => (
-        <li
-          key={p.pid}
-          data-chip={p.pid}
-          className={`flex max-w-full min-w-0 items-center gap-[0.8vmin] rounded-[0.6vmin] px-[0.6vmin] ${p.guessed ? LIT : ''} ${p.connected ? '' : 'opacity-60'}`}
-        >
-          {(p.isDrawer || p.guessed) && <span>{p.isDrawer ? '✏️' : '✓'}</span>}
-          <Avatar player={p} size="1.4em" />
-          <span className="truncate" style={{ color: p.color }}>
-            {p.name}
-          </span>
-          {p.guessed && p.turnPoints > 0 && <span className="tabular-nums">+{p.turnPoints}</span>}
-        </li>
-      ))}
-    </ul>
+    <div className="flex size-full min-h-0 flex-col items-center gap-[1vmin]">
+      <div className="grid min-h-0 w-full flex-1 place-items-center [container-type:size]">
+        <div className="relative aspect-square w-[min(100cqw,100cqh)]">
+          <Drawing view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />
+        </div>
+      </div>
+      <div
+        data-bubble-lane
+        className="@container relative w-0 min-w-full shrink-0 overflow-hidden"
+        style={{ height: PORTRAIT_LANE }}
+      >
+        {reveal ? (
+          <RevealDetails view={view} turn={turn} t={t} compact />
+        ) : (
+          hasCaptionRow(turn) && <Caption text={turnCaption(view, t)} layout="portrait" />
+        )}
+      </div>
+    </div>
   );
 }
-
-/** A correct guesser's portrait chip stays lit for the rest of the turn (every chip has its padding, so lighting one moves nothing). */
-const LIT = 'bg-success/15';
 
 /**
  * The latest wrong guesses, newest last, each on a dashed rule, the name in the guesser's colour
@@ -551,42 +561,96 @@ export function blanksLabel(mask: readonly string[], t: Translate): string {
 }
 
 /**
- * The word, as the largest text on screen: 12 vh, scaled down only as far as its longest word
- * needs to fit the sidebar on one line (an uppercase bold letter is up to about 0.82 em: M, W, O).
- * It wraps between words, never inside one. Portrait (`oneLine`) caps it at 9 vh and fits the whole phrase
- * on one line, to fit under the square; a long phrase (12+ letters) ends up smaller than the timer.
+ * The word on the highlighter in Nunito 900, the largest text on screen: 12 vh, scaled down only as
+ * far as its longest word needs to fit the page on one line (an uppercase black letter is up to
+ * about 0.82 em: M, W, O; with room for the pop's 1.06 overshoot and the swash's ends). Landscape
+ * wraps between words, never inside one; portrait (`oneLine`) fits the whole phrase on one line
+ * in the top bar. It pops in (the mockup's sk-pop), each time a new word comes.
  */
-function RevealWord({ word, oneLine = false }: { word: string; oneLine?: boolean }) {
-  const letters = oneLine
+function RevealWord({
+  word,
+  size,
+  oneLine = false,
+}: {
+  word: string;
+  size: string;
+  oneLine?: boolean;
+}) {
+  return (
+    <div className="shrink-0 px-[0.2em]" style={{ fontSize: size }}>
+      <p
+        key={word}
+        className={`highlight inline-block max-w-full origin-left font-num leading-none font-black text-ink uppercase motion-safe:animate-reveal ${oneLine ? '' : 'whitespace-normal'}`}
+        data-reveal-word
+      >
+        {word}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The portrait reveal in the top bar: the headline and "It was…" on one line at the bar's size
+ * (never more than 0.75 of the word's), then the word, the whole phrase on one line.
+ */
+function PortraitReveal({ turn, t }: { turn: TurnView; t: Translate }) {
+  const size = useWordSize(turn.word ?? '', true);
+  return (
+    <div className="contents" style={{ '--word': turn.word ? size : '100vh' } as CSSProperties}>
+      <div className="flex shrink-0 flex-wrap items-baseline gap-x-[2vmin] text-[min(max(3.5vmin,16px),calc(var(--word)*0.75))]">
+        <RevealIntro turn={turn} t={t} inline />
+      </div>
+      {turn.word && <RevealWord word={turn.word} size="var(--word)" oneLine />}
+    </div>
+  );
+}
+
+/** The letters the reveal word must fit on one line: the whole phrase, or its longest word. */
+function wordLetters(word: string, oneLine: boolean): number {
+  return oneLine
     ? [...word.trim()].length
     : Math.max(...word.split(/\s+/).map((w) => [...w].length));
-  return (
-    <p
-      key={word}
-      className="origin-left font-num leading-none font-black text-ink uppercase motion-safe:animate-reveal"
-      style={{
-        fontSize: `min(${oneLine ? '9vh' : '12vh'}, calc(100cqw / ${(letters * 0.82).toFixed(2)}))`,
-      }}
-    >
-      {word}
-    </p>
-  );
+}
+
+/**
+ * The reveal word's size: 12 vh unless the page is too narrow for it. `em` is its measured width
+ * (`useNunitoEm`); until then, about 0.82 em a letter (M, W, O), its longest run of `letters`.
+ */
+export function wordSize(letters: number, em: number | null = null): string {
+  return `min(12vh, calc(100cqw / ${((em ?? letters * 0.82) * 1.06 + 0.4).toFixed(2)}))`;
+}
+
+/** The reveal word's size on this page, from its measured width once the font is in. */
+function useWordSize(word: string, oneLine: boolean): string {
+  return wordSize(wordLetters(word, oneLine), useNunitoEm(word, oneLine));
 }
 
 /**
  * The headline, "Everyone got it! 🎉" or "Nobody got it! 😱", when there is one, then "It was…".
  * In the portrait top bar, on one line.
  */
-function RevealIntro({ turn, t }: { turn: TurnView; t: Translate }) {
+function RevealIntro({
+  turn,
+  t,
+  inline = false,
+}: {
+  turn: TurnView;
+  t: Translate;
+  /** Portrait: the headline at the line's own size, beside "It was…". */
+  inline?: boolean;
+}) {
+  // Never more than 0.75 of the word (`--word`): Patrick Hand's letters stand taller than Nunito
+  // capitals at the same size, and the word must read as the largest text.
+  const headline = inline ? '' : 'text-[min(max(5vmin,24px),calc(var(--word,100vh)*0.75))]';
   return (
     <>
       {turn.correct.length === 0 ? (
-        <p className="text-[max(5vmin,24px)] leading-tight">
+        <p className={`${headline} leading-tight`}>
           {t('nobodyGotIt')} <span aria-hidden="true">😱</span>
         </p>
       ) : (
         turn.endReason === 'allGuessed' && (
-          <p className="text-[max(5vmin,24px)] leading-tight text-success">
+          <p className={`${headline} leading-tight text-success`}>
             {t('everyoneGotIt')} <span aria-hidden="true">🎉</span>
           </p>
         )
@@ -597,66 +661,155 @@ function RevealIntro({ turn, t }: { turn: TurnView; t: Translate }) {
 }
 
 /**
- * The reveal: the headline and "It was…", the word, who got it (corrected order, from the server),
- * "Almost:" and the drawer's points. Nobody got it: no points rows at all. No "+0" anywhere. Portrait
- * has the headline and "It was…" in its top bar and puts "Got it" on the line with the chips, to fit
- * under the square.
+ * The landscape reveal on the right page: the headline and "It was…", the word on the highlighter,
+ * then who got it and the rest (`RevealDetails`). The word stays the largest text: on a narrow page
+ * (a 4:3 Screen) a long word shrinks to fit, and the rest of the page shrinks with it (`--word`).
  */
-export function RevealPanel({
+export function RevealPanel({ view, turn, t }: { view: ScreenView; turn: TurnView; t: Translate }) {
+  const size = useWordSize(turn.word ?? '', false);
+  const box = useRef<HTMLDivElement>(null);
+  // Measured again for a new word or a change in who got it.
+  useShrinkToFit(box, `${turn.word}:${detailsKey(view, turn)}`);
+  return (
+    // The page's own box (the aside's size), so a full room's rows shrink rather than run off.
+    <div
+      ref={box}
+      className="flex h-full min-h-0 flex-col gap-[1.8vmin] overflow-hidden"
+      style={
+        {
+          '--word': turn.word ? size : '100vh',
+          fontSize: 'calc(min(max(3.5vh, 16px), var(--word) * 0.75) * var(--fit, 1))',
+        } as CSSProperties
+      }
+    >
+      <RevealIntro turn={turn} t={t} />
+      {turn.word && <RevealWord word={turn.word} size="var(--word)" />}
+      <RevealDetails view={view} turn={turn} t={t} />
+    </div>
+  );
+}
+
+/**
+ * Who got it (corrected order, from the server) with their points, "Almost:" with each guess
+ * struck in red pen, the drawer's points (only above 0) and "Next: Jun draws". Nobody got it: no
+ * points rows at all. No "+0" anywhere. Landscape: one got-it row each on a dashed rule. `compact`
+ * (the portrait lane): everything runs on as wrapped lines at a smaller size, so a full room fits.
+ */
+function RevealDetails({
   view,
   turn,
   t,
-  layout = 'landscape',
+  compact = false,
 }: {
   view: ScreenView;
   turn: TurnView;
   t: Translate;
-  layout?: ScreenLayout;
+  compact?: boolean;
 }) {
-  const portrait = layout === 'portrait';
   const byPid = new Map(view.players.map((p) => [p.pid, p]));
   const drawer = byPid.get(turn.drawerPid);
   const correct = [...turn.correct].sort((a, b) => a.order - b.order);
+  const drawerLine = correct.length > 0 && drawer && drawer.turnPoints > 0 && (
+    <p data-drawer-points>
+      <NameInColour
+        say={(name) => t('drawerPoints', { points: drawer.turnPoints, name })}
+        player={drawer}
+      />
+    </p>
+  );
+  const next = view.nextDrawer && (
+    <p data-next>
+      <NameInColour say={(name) => t('nextDraws', { name })} player={view.nextDrawer} />
+    </p>
+  );
+  const almost = view.almost.length > 0 && (
+    <p>
+      <span className="text-soft">{t('almost')}</span>{' '}
+      {view.almost.map((g, i) => (
+        <Fragment key={i}>
+          {i > 0 && ' · '}
+          {/* The strike is decoration, so only the line tilts; the guess stays level. */}
+          <s className="relative text-red no-underline after:absolute after:inset-x-[-0.1em] after:top-[55%] after:h-[max(2px,0.3vmin)] after:-rotate-[4deg] after:bg-red">
+            {g.text ?? '•••'}
+          </s>
+        </Fragment>
+      ))}
+    </p>
+  );
+  const rows = correct.map((c) => {
+    const p = byPid.get(c.pid);
+    return (
+      <li
+        key={c.pid}
+        data-chip={c.pid}
+        className={
+          compact
+            ? 'flex items-center gap-[0.6vmin]'
+            : 'flex items-center gap-[1vmin] border-b-[1.5px] border-dashed border-dot py-[0.5vmin]'
+        }
+      >
+        {p && <Avatar player={p} size="1.1em" />}
+        <span className={compact ? '' : 'min-w-0 flex-1 truncate'} style={{ color: p?.color }}>
+          {p?.name}
+        </span>
+        {c.points > 0 && <span className="font-num font-black tabular-nums">+{c.points}</span>}
+      </li>
+    );
+  });
+  if (compact)
+    return (
+      <CompactDetails fitKey={detailsKey(view, turn)}>
+        {correct.length > 0 && (
+          <>
+            <p className="text-soft">{t('gotItLabel')}</p>
+            <ul className="contents">{rows}</ul>
+          </>
+        )}
+        {almost}
+        {drawerLine}
+        {next}
+      </CompactDetails>
+    );
   return (
     <>
-      {!portrait && <RevealIntro turn={turn} t={t} />}
-      {turn.word && <RevealWord word={turn.word} oneLine={portrait} />}
       {correct.length > 0 && (
-        <div
-          className={
-            portrait
-              ? 'flex flex-wrap items-baseline gap-x-[2vmin] gap-y-[0.8vmin]'
-              : 'flex flex-col gap-[0.8vmin]'
-          }
-        >
+        <div className="flex shrink-0 flex-col gap-[0.4vmin]">
           <p className="text-soft">{t('gotItLabel')}</p>
-          {/* Portrait's chips run smaller, so nine of them still fit under the square. */}
-          <ul
-            className={`flex min-w-0 flex-wrap gap-x-[2vmin] gap-y-[0.8vmin] ${portrait ? 'flex-1 text-[max(0.85em,16px)]' : ''}`}
-          >
-            {correct.map((c) => {
-              const p = byPid.get(c.pid);
-              return (
-                <li key={c.pid} data-chip={c.pid} className="flex items-center gap-[0.8vmin]">
-                  {p && <Avatar player={p} size="1.1em" />}
-                  <span style={{ color: p?.color }}>{p?.name}</span>
-                  {c.points > 0 && (
-                    <span className="font-num font-black tabular-nums">+{c.points}</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <ul className="flex flex-col">{rows}</ul>
         </div>
       )}
-      {view.almost.length > 0 && (
-        <p className="text-soft">
-          {t('almost')} {view.almost.map((g) => g.text ?? '•••').join(' · ')}
-        </p>
-      )}
-      {correct.length > 0 && drawer && drawer.turnPoints > 0 && (
-        <p>{t('drawerPoints', { points: drawer.turnPoints, name: drawer.name })}</p>
-      )}
+      {almost}
+      {drawerLine}
+      {next}
     </>
+  );
+}
+
+/** Everything the reveal rows show, so they are fitted again whenever any of it changes. */
+function detailsKey(view: ScreenView, turn: TurnView): string {
+  return JSON.stringify([
+    turn.correct,
+    view.almost,
+    view.nextDrawer?.pid,
+    view.players.find((p) => p.pid === turn.drawerPid)?.turnPoints,
+  ]);
+}
+
+/**
+ * The portrait lane's reveal rows, run on as wrapped lines, scaled down when a full room's would
+ * not fit its three lines.
+ */
+function CompactDetails({ fitKey, children }: { fitKey: string; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useShrinkToFit(box, fitKey);
+  return (
+    <div
+      ref={box}
+      data-reveal-details
+      className="flex h-full flex-wrap content-start items-baseline gap-x-[2.2vmin] gap-y-[0.4vmin] overflow-hidden leading-tight"
+      style={{ fontSize: 'calc(max(3vmin, 14px) * var(--fit, 1))' }}
+    >
+      {children}
+    </div>
   );
 }

@@ -147,7 +147,8 @@ export function IndexTab({
         {status && (
           <span
             data-status
-            className={`font-num text-[max(2.8vmin,14px)] leading-none font-black whitespace-nowrap ${
+            // Two rows of portrait tabs are a sixth of the width each: smaller, so "✓ +285" fits.
+            className={`font-num ${compact ? 'text-[max(2.2vmin,12px)]' : 'text-[max(2.8vmin,14px)]'} leading-none font-black whitespace-nowrap ${
               player.guessed ? 'origin-left text-success motion-safe:animate-pop' : ''
             }`}
           >

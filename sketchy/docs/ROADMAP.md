@@ -169,15 +169,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F64 Sketchbook Screen turn, landscape
 
-- [ ] F65 Sketchbook Screen portrait and reveal
-  - Spec: UI by role and phase (Screen); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Portrait, Reveal)
-  - Depends: F64
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The portrait turn (`#sketch-drawing` with `O`) puts a top bar over the square: timer, blanks, drawer line and the latest guess, following the spec's portrait priority (round and turn dropped). Then come the horizontal rings, the square and the tabs. It fits 3:4 and 9:16.
-    - Reveal (`#sketch-reveal`, both orientations) shows "It was…" and the word in Nunito 900 on the highlighter. The word is the largest text, ≥ 12 vh, with the pop.
-    - The reveal continues with the "Got it" rows in corrected order, "Almost:" struck in red (close guesses first), the drawer line only when above 0, and "Next: Jun draws". "Nobody got it!" has no point rows.
-  - Tests: existing ScreenTurn reveal tests stay green
+- [x] F65 Sketchbook Screen portrait and reveal
 
 - [ ] F66 Sketchbook Screen scoreboard and final
   - Spec: UI by role and phase (Screen); Scoring; docs/design/SKETCHBOOK.md (Surfaces: Scoreboard / Final, Motion)

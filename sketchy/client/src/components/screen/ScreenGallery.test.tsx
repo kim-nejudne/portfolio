@@ -43,6 +43,7 @@ function view(phase: Phase, gallery: ScreenView['gallery']): ScreenView {
     gallery,
     // Bea left after drawing; the night's totals still name her.
     tonight: [{ pid: 'Bea', name: 'Bea', color: '#8338EC', total: 50, rank: 3 }],
+    nextDrawer: null,
   };
 }
 

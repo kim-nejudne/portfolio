@@ -52,10 +52,12 @@ export interface Box {
 }
 
 interface Boxes {
-  /** Each player's chip (portrait strip) or index tab (landscape). */
-  chips: Map<string, ChipBox>;
+  /** Each player's index tab. */
+  chips: Map<string, Box>;
   /** The right page, where a tab's bubbles go (landscape). */
   page: Box | null;
+  /** The lane between the drawing and the tabs, where a tab's bubbles go (portrait). */
+  lane: Box | null;
   w: number;
   h: number;
   bubbleHeight: number;
@@ -64,11 +66,6 @@ interface Boxes {
   rise: number;
   /** The room between a bubble and its tab, and the page's edge. */
   gap: number;
-}
-
-interface ChipBox extends Box {
-  /** Where the chip's contents end (a strip chip is wider than its name). */
-  end: number;
 }
 
 /**
@@ -93,13 +90,36 @@ export function placeTabBubble(
 }
 
 /**
+ * Where a wrong-guess bubble from a portrait index tab goes: in the lane between the drawing and
+ * the tabs, at its foot, just above the tab, never over the drawing. A tab in the lane's left half
+ * starts the bubble at its own left edge (`align: 'start'`, the bubble runs right); one in the
+ * right half ends it at its right edge (`'end'`, it runs left). A long guess is cut short at the
+ * lane's edge. `null` when the lane can't hold one.
+ */
+export function placeLaneBubble(
+  tab: Box,
+  lane: Box,
+  height: number,
+): { left: number; width: number; top: number; align: 'start' | 'end' } | null {
+  if (lane.bottom - lane.top < height || lane.right - lane.left < height) return null;
+  const top = lane.bottom - height;
+  const centre = (tab.left + tab.right) / 2;
+  if (centre <= (lane.left + lane.right) / 2) {
+    const left = Math.max(tab.left, lane.left);
+    return { left, width: lane.right - left, top, align: 'start' };
+  }
+  const right = Math.min(tab.right, lane.right);
+  return { left: lane.left, width: right - lane.left, top, align: 'end' };
+}
+
+/**
  * Wrong-guess speech bubbles and floating reactions (the mockup's sk-bubble and sk-float), drawn
- * from each player's chip in the parent. `tabs` (landscape): the layer lies over the whole desk;
- * a bubble pops out left of the guesser's index tab (`data-tab`) over the right page, never over
- * the drawing, and a reaction rises from the tab's top corner. `portrait`: the chips (`data-chip`)
- * sit side by side in the room under the drawing, which clips the layer; the bubbles stack under
- * the strip, each starting under its chip, or sit on the chip's row when there is no room. A
- * bubble is paper with a border in the guesser's colour; under reduced motion everything fades.
+ * from each player's index tab (`data-tab`). The layer lies over the whole desk. Landscape: a
+ * bubble pops out left of the guesser's tab over the right page (`placeTabBubble`); portrait: up
+ * from the tab into the lane under the drawing (`data-bubble-lane`, `placeLaneBubble`). Either way
+ * never over the drawing. A reaction rises from the tab's top corner, in portrait only as far as
+ * the lane's top. A bubble is paper with a border in the guesser's colour; under reduced motion
+ * everything fades.
  */
 export function TurnFx({
   fx,
@@ -111,13 +131,12 @@ export function TurnFx({
   fx: ScreenFxState;
   players: PlayerChipView[];
   guessFeed: RoomSettings['guessFeed'];
-  layout: 'tabs' | 'portrait';
+  layout: 'tabs';
   t: Translate;
 }) {
   const layer = useRef<HTMLDivElement>(null);
   const [boxes, setBoxes] = useState<Boxes | null>(null);
   const active = fx.bubbles.length > 0 || fx.floats.length > 0;
-  const tabs = layout === 'tabs';
 
   // Measured when a bubble or reaction comes, and again whenever the layer changes size while one
   // is up (a window resized, fullscreen entered, a tablet turned), so none is drawn from an old
@@ -133,27 +152,18 @@ export function TurnFx({
         right: r.right - origin.left,
         bottom: r.bottom - origin.top,
       });
-      const chips = new Map<string, ChipBox>();
+      const chips = new Map<string, Box>();
       const parent = el.parentElement;
-      for (const chip of parent?.querySelectorAll<HTMLElement>(
-        tabs ? '[data-tab]' : '[data-chip]',
-      ) ?? []) {
-        const r = chip.getBoundingClientRect();
-        const end = Math.max(
-          r.left,
-          ...[...chip.children].map((c) => c.getBoundingClientRect().right),
-        );
-        chips.set((tabs ? chip.dataset.tab : chip.dataset.chip)!, {
-          ...local(r),
-          end: end - origin.left,
-        });
-      }
-      const page = tabs ? parent?.querySelector<HTMLElement>('[data-page="right"]') : null;
+      for (const chip of parent?.querySelectorAll<HTMLElement>('[data-tab]') ?? [])
+        chips.set(chip.dataset.tab!, local(chip.getBoundingClientRect()));
+      const lane = parent?.querySelector<HTMLElement>('[data-bubble-lane]');
+      const page = lane ? null : parent?.querySelector<HTMLElement>('[data-page="right"]');
       const vh = window.innerHeight / 100;
       const vmin = Math.min(window.innerWidth, window.innerHeight) / 100;
       setBoxes({
         chips,
         page: page ? local(page.getBoundingClientRect()) : null,
+        lane: lane ? local(lane.getBoundingClientRect()) : null,
         w: origin.width,
         h: origin.height,
         // Bubble text is at least 5 vh; with its padding and border a bubble is about 1.3 of that.
@@ -168,17 +178,11 @@ export function TurnFx({
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [active, fx.bubbles, fx.floats, tabs]);
+  }, [active, fx.bubbles, fx.floats]);
 
   const byPid = new Map(players.map((p) => [p.pid, p]));
-  const gap = 4;
-  // Only bubbles whose chip is on show. Portrait stacks them from just under the strip's lowest
-  // chip, as many as fit the room (the rest are in the feed); with no room at all, on the row.
-  const stackTop = boxes ? Math.max(0, ...[...boxes.chips.values()].map((c) => c.bottom)) + gap : 0;
-  const slots = boxes ? Math.floor((boxes.h - stackTop) / (boxes.bubbleHeight + gap)) : 0;
-  const stack = !tabs && slots > 0;
-  const shown = boxes ? fx.bubbles.filter((b) => boxes.chips.has(b.pid) && byPid.has(b.pid)) : [];
-  const bubbles = stack ? shown.slice(-slots) : shown;
+  // Only bubbles whose tab is on show.
+  const bubbles = boxes ? fx.bubbles.filter((b) => boxes.chips.has(b.pid) && byPid.has(b.pid)) : [];
 
   const bubbleText = (b: (typeof bubbles)[number], name: string) =>
     b.text !== null ? (
@@ -206,26 +210,25 @@ export function TurnFx({
       ref={layer}
       aria-hidden="true"
       data-fx={layout}
-      className={`pointer-events-none absolute inset-0 overflow-hidden ${tabs ? 'z-[3]' : ''}`}
+      className="pointer-events-none absolute inset-0 z-[3] overflow-hidden"
     >
       {boxes &&
-        bubbles.map((b, i) => {
+        bubbles.map((b) => {
           const chip = boxes.chips.get(b.pid)!;
           const p = byPid.get(b.pid)!;
-          if (tabs) {
-            const at = boxes.page
-              ? placeTabBubble(chip, boxes.page, boxes.bubbleHeight, boxes.gap, boxes.h)
-              : null;
+          if (boxes.lane) {
+            const at = placeLaneBubble(chip, boxes.lane, boxes.bubbleHeight);
             if (!at) return null;
+            const start = at.align === 'start';
             return (
               <div
                 key={b.id}
-                className="absolute flex justify-end"
+                className={`absolute flex ${start ? 'justify-start' : 'justify-end'}`}
                 style={{ left: at.left, top: at.top, width: at.width, height: boxes.bubbleHeight }}
               >
-                {/* The tail points at the tab, down and right. */}
+                {/* The tail points down at the tab. */}
                 <p
-                  className={`${BUBBLE} origin-right rounded-[0.7em_0.7em_0.15em_0.7em]`}
+                  className={`${BUBBLE} ${start ? 'origin-bottom-left rounded-[0.7em_0.7em_0.7em_0.15em]' : 'origin-bottom-right rounded-[0.7em_0.7em_0.15em_0.7em]'}`}
                   style={bubbleStyle(p.color)}
                 >
                   {bubbleText(b, p.name)}
@@ -233,28 +236,19 @@ export function TurnFx({
               </div>
             );
           }
-          const half = boxes.bubbleHeight / 2;
-          let top: number;
-          if (stack) {
-            top = stackTop + i * (boxes.bubbleHeight + gap);
-          } else {
-            // Centred on the row, kept inside the parent top and bottom.
-            const centre = (chip.top + chip.bottom) / 2;
-            top = Math.min(Math.max(centre, half), Math.max(boxes.h - half, half)) - half;
-          }
+          const at = boxes.page
+            ? placeTabBubble(chip, boxes.page, boxes.bubbleHeight, boxes.gap, boxes.h)
+            : null;
+          if (!at) return null;
           return (
             <div
               key={b.id}
-              className="absolute left-0 flex w-full"
-              style={{ top, height: boxes.bubbleHeight }}
+              className="absolute flex justify-end"
+              style={{ left: at.left, top: at.top, width: at.width, height: boxes.bubbleHeight }}
             >
-              {/* Shrinks first, so a long bubble slides left rather than run off the edge. */}
-              <span
-                className="min-w-0 shrink"
-                style={{ flexBasis: stack ? chip.left : chip.end + 6 }}
-              />
+              {/* The tail points at the tab, down and right. */}
               <p
-                className={`${BUBBLE} ${stack ? 'origin-top-left rounded-[0.15em_0.7em_0.7em_0.7em]' : 'origin-left rounded-[0.7em_0.7em_0.7em_0.15em]'}`}
+                className={`${BUBBLE} origin-right rounded-[0.7em_0.7em_0.15em_0.7em]`}
                 style={bubbleStyle(p.color)}
               >
                 {bubbleText(b, p.name)}
@@ -267,16 +261,15 @@ export function TurnFx({
           const chip = boxes.chips.get(f.pid);
           // A little sideways spread, so a burst doesn't stack into one emoji.
           const jitter = ((f.id * 37) % 5) - 2;
-          // Tabs: from the tab's top corner (the mockup's). Portrait: just past the chip's name
-          // (and points), from its top edge, so it rises away from the chip rather than cover it.
-          // Either way kept inside the layer.
+          // From the tab's top corner (the mockup's), kept inside the layer.
           const x = chip
-            ? Math.min(tabs ? chip.right - boxes.emoji * 1.2 : chip.end + 4, boxes.w - boxes.emoji)
+            ? Math.min(chip.right - boxes.emoji * 1.2, boxes.w - boxes.emoji)
             : boxes.w / 2;
           const y = Math.min(boxes.h - boxes.emoji / 2, chip ? chip.top : boxes.h);
-          // Rises as far as the layer lets it, up to the full 12.5 vmin, so it never runs into the
-          // clipped edge.
-          const rise = Math.max(0, Math.min(boxes.rise, y - boxes.emoji / 2));
+          // Rises up to the full 12.5 vmin, as far as the layer lets it (never into the clipped
+          // edge) and, in portrait, no higher than the lane, so it never crosses the drawing.
+          const ceiling = boxes.lane ? boxes.lane.top : 0;
+          const rise = Math.max(0, Math.min(boxes.rise, y - ceiling - boxes.emoji / 2));
           return (
             <span
               key={f.id}

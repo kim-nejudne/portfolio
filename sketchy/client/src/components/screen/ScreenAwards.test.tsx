@@ -48,6 +48,7 @@ function view(phase: Phase, awards = AWARDS, copy: 'en' | 'taglish' = 'en'): Scr
     ],
     // Bea left after the game; the night's totals still name her.
     tonight: [{ pid: 'Bea', name: 'Bea', color: '#8338EC', total: 50, rank: 3 }],
+    nextDrawer: null,
   };
 }
 

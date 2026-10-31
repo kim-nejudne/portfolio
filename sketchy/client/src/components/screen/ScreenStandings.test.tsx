@@ -40,6 +40,7 @@ function view(phase: Phase): ScreenView {
     awards: [],
     gallery: [],
     tonight: null,
+    nextDrawer: null,
   };
 }
 

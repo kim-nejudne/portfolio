@@ -81,6 +81,7 @@ function view(
     awards: [],
     gallery: [],
     tonight: null,
+    nextDrawer: null,
     ...extra,
   };
 }
@@ -345,12 +346,19 @@ describe('the restyled turn files', () => {
     expect(screen.indexOf('legacy-night"')).toBeGreaterThan(screen.indexOf('<ScreenTurn'));
   });
 
-  it('puts the portrait turn on a dot-grid paper page too (F65 makes it the spread’s portrait form)', () => {
+  it('puts the portrait turn in the spread’s portrait form: top bar, rings across, drawing (F65)', () => {
     const html = renderToStaticMarkup(
       <ScreenTurn view={view()} receivedAt={0} ink={createScreenInk()} layout="portrait" t={t} />,
     );
     expect(html).toContain('data-desk="portrait"');
-    expect(html).toMatch(/<section class="size-full min-h-0 min-w-0 paper-dots/);
+    const top = html.indexOf('data-page="left"');
+    const rings = html.indexOf('data-rings="row"');
+    const page = html.indexOf('data-page="right"');
+    expect(top).toBeGreaterThan(-1);
+    expect(html.indexOf('data-top-bar')).toBeGreaterThan(top);
+    expect(html.indexOf('data-top-bar')).toBeLessThan(rings);
+    expect(rings).toBeLessThan(page);
+    expect(html.indexOf('<canvas')).toBeGreaterThan(page);
     expect(html).not.toContain('legacy');
   });
 });

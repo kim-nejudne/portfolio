@@ -93,8 +93,79 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F64: review the Taglish `nextUp` ("Susunod: ✏️ {name}", the right page while the drawer is choosing): set the copy to Taglish, start a game and look at the Screen during CHOOSING · reads naturally next to "Pumipili si Mika ng word…" on the left page
 - [ ] F64: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3+ real phones; play two turns, sitting ~5 m back · the clock, blanks, "✏️ Mika is drawing", the feed and every tab name read from the couch; wrong-guess bubbles pop beside the guesser's tab and never over the drawing; "Jun got it!" sits on a yellow swash; ✓ +points appears on the tab; reactions rise from the tabs
 - [ ] F64: the same room on a 4:3 tablet held sideways as the Screen, from ~2 m · the drawing is smaller than the page's height but still the largest thing; a long word's blanks and their "(8, 4)" count are still readable (if not, say so: the right page's minimum or the blanks' floor needs raising)
+- [ ] F65: review the Taglish `nextDraws` ("Susunod mag-drawing: {name}", the last line of the Screen's reveal): set the copy to Taglish, play a turn to the reveal · reads naturally under "Muntik na:" and "+320 para sa drawing ni Mika"
+- [ ] F65: `npm run dev` + `npm run lan CODE`, a tablet held upright as the Screen (Start), 3+ real phones; play two turns from ~2 m · the clock, blanks, "✏️ Mika is drawing" and the latest guess read in the top bar; wrong-guess bubbles pop up from the guesser's tab into the strip under the drawing and never cover it; "Jun got it!" takes the drawer line's place; at the reveal the drawing doesn't move, the word is big on the yellow swash above it, and "Got it … Next: Jun draws" is readable under it
+- [ ] F65: the same room with the tablet sideways (4:3), playing until a long word (8+ letters) comes up · the reveal word fits the right page and is still the largest text, but is well under 12 vh (DECISIONS 88); say whether the right page's rows (capped under the word) are still readable from 2 m, or whether a long word should get two lines instead
 
 <!-- entries below, newest first -->
+
+## F65 — Sketchbook Screen portrait and reveal (2026-11-01)
+**What changed:**
+- **Portrait turn** (`ScreenTurn.tsx`): the `ScreenDesk` portrait spread. Top page = the top bar (`data-top-bar`): the Nunito clock (`red` at ≤ 10 s) and the blanks on one line, "✏️ Mika is drawing" (name in colour; "Jun got it!" on the highlighter in its place for 2 s), then the latest guess on a dashed rule; no round or turn. CHOOSING: "Next up: ✏️ Mika" (the ring is on the drawing). Then the rings across, then the drawing's page: the largest square, taped, and a lane (`data-bubble-lane`, `PORTRAIT_LANE`) above the tabs for the bubbles, the first two turns' caption and the reveal's rows. The players are the index tabs along the bottom with ✏️ and "✓ +270". The top bar keeps one height (`TOP_BAR_HEIGHT`) from CHOOSING to REVEAL, so the drawing never moves. The old strip (`PlayerStrip`, `data-chip`, `bg-success/15`) is gone.
+- **Bubbles in portrait** (`TurnFx.tsx`): one `tabs` layer over the desk for both orientations (the `portrait` mode is gone); new `placeLaneBubble` pops a bubble up from its tab into the lane's foot (from a left-half tab running right, a right-half one running left), never over the drawing. Reactions rise from the tab no higher than the lane.
+- **Reveal, both orientations:** "It was…" (headline before it), the word in Nunito 900 uppercase on the highlighter with the mockup's pop (`animate-reveal` is now `sk-pop` 0.5 s, 1.25 curve), then "Got it" with a row each (avatar, name in colour, Nunito +points, on dashed rules) in corrected order, "Almost:" with each guess in `red` struck by a tilted red-pen line, the drawer line (name in colour) only above 0, and "Next: Jun draws" (new copy `nextDraws`). Portrait: the word in the top bar on one line, the rows wrapped in the lane. "Nobody got it! 😱" has no point rows.
+- **Word size** (new `lib/fit.ts`): 12 vh unless the page is too narrow; the width is measured in Nunito 900 with canvas once the font is in (`useNunitoEm`), not guessed per letter. The rest of the reveal's text is capped at 0.75 of the word (`--word`), so the word is always the largest text. `useShrinkToFit` scales a full room's rows down (to 0.6) rather than cut them. A live region announces "It was… payong".
+- **Server/shared:** `ScreenView.nextDrawer` (`{pid, name, color}` of `room.upcoming`'s drawer at REVEAL, else null), Screen only, never the deal's words.
+- **Tabs:** two-row portrait tabs' status at `max(2.2vmin, 12px)`, so "✓ +290" fits a sixth of the width.
+- **Tests:** new `components/screen/revealLook.test.tsx` (31): the top bar's order (timer, blanks, drawer line, latest guess), no round, the drawer's name in colour, one bar height through the three phases, "Next up" while choosing, rings → drawing → lane → tabs, the caption in the lane; per layout: "It was…" then the word (highlight, Nunito 900, `animate-reveal`, `--word`), the rest capped at 0.75, the live region, corrected order, the struck red "Almost:", the drawer line and "Next: Jun draws" (both absent when they should be), nobody got it; the portrait word above the drawing and rows under it; the taped drawing kept; `wordSize`; the keyframe; `placeLaneBubble` (left/right tab, inside the lane, dropped when too short). New `lib/fit.test.ts` (5): `fitScale`, the measured `wordSize`, 12 vh reached by a short word in both layouts. `server/views.test.ts` (2): `nextDrawer` at REVEAL only, without the choices, and null with no turn left. **Changed:** in `ScreenTurn.test.tsx`, 8 portrait tests now pin the new layout:
+  - "two latest guesses" → the latest;
+  - the word under the drawing → above it;
+  - "got it" in place of the blanks → in place of the drawer line;
+  - strip chips → tabs;
+  - the bubble layer in the room → over the desk after the lane.
+
+  Every reveal test (F19, F35) passes unchanged: "Everyone got it", corrected order, "Almost:", nobody got it, no "+0", the word growing in. `turnLook.test.tsx`'s portrait test now pins the spread's portrait form. Fixtures gained `nextDrawer: null`.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 88.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fixes done: this entry, the Taglish Kim check, and the playtest and mobile-ux runs recorded below.
+  - Should-fixes done: DECISIONS 88 now says it deviates from the Done-when's "≥ 12 vh" for long words, and a Kim check is queued; a test that a short word reaches 12 vh; the DOM-measuring hooks covered by the 10-player playtest. The one-guess portrait feed (Done-when) is called out in the Changed list above.
+- **secrets-fairness-reviewer: PASS**, no Must or Should. Nit done: the SPEC-QUESTION comment moved above `nextDrawer`'s doc comment. Not taken: naming a disconnected next drawer (the reducer decides at take-up, DECISIONS 44).
+- **mobile-ux-reviewer: PASS WITH FIXES.**
+  - Must-fixes done:
+    - Tab points clipped in two rows: those shots predated the fix; the status is now 2.2 vmin, and the playtest checks every "✓ +points" sits inside its tab at all six sizes.
+    - Word not the largest at 4:3: the other text is capped at 0.75 × the word.
+    - The portrait headline vs the word: the portrait bar sets `--word` too.
+  - Should-fixes done:
+    - Portrait rows raised to `max(3vmin, 14px)` in a 12 vmin lane.
+    - A live region announces the reveal.
+    - The shrink key covers everything the rows show.
+    - One cached canvas context.
+  - Not taken:
+    - The got-it region re-announcing the drawer line (as in landscape since F34; Backlog-sized).
+    - A bubble gap (the lane's foot is already above the page padding).
+    - A same-scale early exit.
+
+**Verification:**
+- `.playtest/F65/scenario.ts` (token Screen, 3 phones, 83 checks pass). Portrait at 768×1024, 576×1024 (9:16), 810×1080 and 360×640:
+  - CHOOSING: "Next up: ✏️ Ana" in the bar.
+  - DRAWING: no document or page scroll and nothing outside; the square stays the same size as in CHOOSING (456 / 503 / 502 / 295 px). The bar shows the clock, blanks, "✏️ Ana is drawing" and "Ben: payong", with no Round. The lane sits between the square and the tabs, holding the caption; the tabs show ✏️.
+  - Two bubbles at 768×1024: each in the lane, clear of the drawing, ≥ 5 vh.
+  - "Ben got it!" takes the drawer line's place; a reaction stays under the drawing; the word is in no Screen DOM before REVEAL.
+  - REVEAL at all four sizes: the square is unchanged; the word is Nunito 900 on `rgb(255, 225, 77)` with `sk-pop` and is the largest text (KALABAW 111 px at 768×1024, 12 vh = 123); "It was…" and the word sit above the drawing; the lane reads "Got it … Next: Ben draws".
+  - Landscape REVEAL at 1920×1080, 1280×720 and 1024×768: no scroll; the word is the largest text (81 / 54 / 30 px vs 54 / 36 / 28); the right page carries the rows and "Next: Ben draws".
+  - No console errors.
+- `.playtest/F65/scenario2.ts` (10 players with 8 DevBots, 9 got it, "jeepney"), at 768×1024, 576×1024, 810×1080, 1920×1080, 1280×720 and 1024×768:
+  - No scroll and all 10 tabs.
+  - Every "✓ +points" sits inside its tab; no reveal row is cut off (the rows shrink to fit).
+  - The word is the largest text (123 / 101 / 130 / 99 / 66 / 36 px).
+  - No console errors.
+- Side by side with the mockup (`.playtest/F65/mockup-{drawing,gotit,reveal}-port.png`, `mockup-reveal-land.png`): `port-{choosing,drawing,reveal}-*`, `port-bubbles-768x1024`, `port-gotit-768x1024`, `land-reveal-*`, `full-drawing-768x1024`, `full-reveal-*` (all `-screen.png`).
+- **Still differs from the mockup:**
+  - Portrait: the top bar is taller (it holds a 12 vh word at the reveal), so the square is smaller than the mockup's 540 px. The mockup's portrait reveal puts the rows beside the word; here they sit in the lane under the drawing. Bubbles pop from the tab into the lane, where the mockup lets one overlap the drawing's corner. The latest guess gets its own line.
+  - Landscape: a 7+ letter word is under 12 vh on the right page (the mockup clips "UMBREL…"); "+320 for Mika's drawing" and "Next: Jun draws" are two lines (the mockup puts them on one, with "·").
+  - Both: "Almost:" lists up to three guesses, not one; uppercase in both orientations.
+- `npm run size`: JS 118.8 KB of 120 (F64: 118.8), CSS and fonts 69.6 KB of 72.
+- `/verify`: format, lint, typecheck, 1624 tests and build all green.
+
+**Notes for next session:**
+- F66: the scoreboard and final are the last `legacy-night` pages (`Screen.tsx`). `useShrinkToFit` (`lib/fit.ts`) fits a list into a fixed box through a `--fit` multiplier on its font size; `useNunitoEm` measures a Nunito 900 string.
+- `ScreenView.nextDrawer` exists now; the phone's reveal could use it too (F61 left "Next: Jun draws" off phones).
+
+**How to try it:** `npm run dev`, open `/` and Start, join `/play/CODE` from three phone windows, Start; resize the Screen window to portrait (e.g. 768×1024) and play a turn: wrong guesses, a right one, a reaction, then the reveal; then widen it to 16:9 and 4:3 for the landscape reveal. `/dev/bots/CODE` fills the room.
 
 ## F64 — Sketchbook Screen turn, landscape (2026-11-01)
 **What changed:**

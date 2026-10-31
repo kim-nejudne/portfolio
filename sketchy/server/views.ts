@@ -91,6 +91,7 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
             .map(({ turnId, drawerPid, word }) => ({ turnId, drawerPid, word }))
         : [],
     tonight: tonight(room),
+    nextDrawer: nextDrawer(room),
   };
 }
 
@@ -295,6 +296,18 @@ function almost(room: Room, turn: Turn): FeedItem[] {
     if (out.length === ALMOST_MAX) break;
   }
   return out;
+}
+
+// SPEC-QUESTION: the spec's Reveal shows "Next: Jun draws" but no view carried the next drawer (DECISIONS 88).
+/**
+ * At the reveal, who the `upcoming` deal is for (the reducer's own deal, F21), so the Screen can
+ * say "Next: Jun draws". The name and colour only: the deal's words stay on that drawer's phone.
+ * Null outside REVEAL, with nothing dealt (the last turn) or if the drawer has left.
+ */
+function nextDrawer(room: Room): ScreenView['nextDrawer'] {
+  if (room.phase !== 'REVEAL' || !room.upcoming) return null;
+  const p = room.players[room.upcoming.drawerPid];
+  return p ? { pid: p.pid, name: p.name, color: p.color } : null;
 }
 
 /**

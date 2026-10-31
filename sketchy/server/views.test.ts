@@ -125,6 +125,34 @@ describe('the reveal', () => {
   });
 });
 
+describe('"Next: Jun draws" at the reveal (F65)', () => {
+  const screen = (room: Room, at: number) => toView(room, { kind: 'screen', isHost: false }, at);
+
+  it('names the next drawer on the Screen at the reveal only, without their words', () => {
+    const { room, pids, at } = drawing();
+    expect(screen(room, at).nextDrawer).toBeNull();
+    const reveal = step(room, { type: 'host:skip', by: SCREEN_HOST }, at + 1000).room;
+    const up = reveal.upcoming!;
+    expect(up.drawerPid).toBe(pids[1]);
+    const view = screen(reveal, at + 1000);
+    expect(view.nextDrawer).toEqual({
+      pid: pids[1],
+      name: 'Ben',
+      color: reveal.players[pids[1]!]!.color,
+    });
+    for (const c of up.choices) expect(json(view)).not.toContain(c.word);
+    const next = step(reveal, { type: 'host:next', by: SCREEN_HOST }, at + 2000).room;
+    expect(next.phase).not.toBe('REVEAL');
+    expect(screen(next, at + 2000).nextDrawer).toBeNull();
+  });
+
+  it('names nobody when no turn is left', () => {
+    const { room, at } = drawing();
+    const reveal = step(room, { type: 'host:skip', by: SCREEN_HOST }, at + 1000).room;
+    expect(screen({ ...reveal, upcoming: null }, at + 1000).nextDrawer).toBeNull();
+  });
+});
+
 describe('"Almost:" at the reveal (F35)', () => {
   /** The reveal of a turn with these close guesses and wrong guesses (oldest first). */
   function almost(

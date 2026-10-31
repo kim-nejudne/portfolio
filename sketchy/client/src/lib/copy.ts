@@ -97,6 +97,7 @@ const EN = {
   almost: 'Almost:',
   nobodyGotIt: 'Nobody got it!',
   drawerPoints: '+{points} for {name}’s drawing',
+  nextDraws: 'Next: {name} draws',
   // ---------- Screen: scoreboard and final ----------
   roundDone: 'Round {cycle} of {cycles} done',
   finalTitle: 'Final scores',
@@ -389,6 +390,7 @@ const TAGLISH: Record<CopyKey, string> = {
   almost: 'Muntik na:',
   nobodyGotIt: 'Walang nakakuha!',
   drawerPoints: '+{points} para sa drawing ni {name}',
+  nextDraws: 'Susunod mag-drawing: {name}',
   // ---------- Screen: scoreboard and final ----------
   roundDone: 'Tapos na ang Round {cycle}/{cycles}',
   finalTitle: 'Final scores',

@@ -67,6 +67,7 @@ const lobby = (host: boolean, n = 3): ScreenView => ({
   awards: [],
   gallery: [],
   tonight: null,
+  nextDrawer: null,
 });
 
 beforeEach(() => {

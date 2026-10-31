@@ -30,6 +30,7 @@ const lobby = (host: boolean): ScreenView => ({
   awards: [],
   gallery: [],
   tonight: null,
+  nextDrawer: null,
 });
 
 const render = (host = false) =>

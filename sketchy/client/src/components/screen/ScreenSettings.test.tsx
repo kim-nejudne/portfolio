@@ -47,6 +47,7 @@ function lobby(host: boolean, settings: RoomSettings = DEFAULT_SETTINGS): Screen
     awards: [],
     gallery: [],
     tonight: null,
+    nextDrawer: null,
   };
 }
 
