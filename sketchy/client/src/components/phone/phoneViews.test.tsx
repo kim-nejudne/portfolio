@@ -359,6 +359,34 @@ describe('reveal, scoreboard and final', () => {
     expect(html).toContain('You finished #1 of 3');
     expect(html).toContain('820 points');
     expect(html).toContain('See the gallery on the Screen');
+    expect(html).not.toContain('Your award');
+  });
+
+  it('FINAL leads with the player’s own award, in the room’s language', () => {
+    const final = (copy: 'en' | 'taglish') =>
+      drawingView('jun', {
+        phase: 'FINAL',
+        settings: { ...DEFAULT_SETTINGS, copy },
+        me: {
+          pid: 'jun',
+          turnPoints: 0,
+          score: 820,
+          rank: { rank: 1, of: 3 },
+          award: { kind: 'bilis', pid: 'jun' },
+        },
+      });
+    const html = renderToStaticMarkup(
+      <PhoneStandings view={final('en')} onLeave={() => {}} t={t} />,
+    );
+    expect(html).toContain('Your award');
+    expect(html).toContain('⚡ Bilis!');
+    expect(html).toContain('Fastest guess of the night');
+    expect(html.indexOf('⚡ Bilis!')).toBeLessThan(html.indexOf('Final scores'));
+    expect(html.indexOf('⚡ Bilis!')).toBeLessThan(html.indexOf('You finished #1 of 3'));
+    const tl = renderToStaticMarkup(
+      <PhoneStandings view={final('taglish')} onLeave={() => {}} t={translator('taglish')} />,
+    );
+    expect(tl).toContain('Pinakamabilis na hula ngayong gabi');
   });
 });
 

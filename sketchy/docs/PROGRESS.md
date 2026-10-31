@@ -65,8 +65,71 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F47: review the spicy pack: open `data/packs/tl-pang-inuman.json` (67 words; `npm run packs:check` prints the counts per level), then play a few turns with `npm run dev`, Screen Settings → Words → Taglish (or Mixed) and Spicy words → On, and `/dev/bots/CODE` · every word is party humour a barkada laughs at, not explicit and aimed at no group of people; each is drawable in 60 s without letters or numbers; the Taglish spelling and alternates are what people type; each gloss tells the drawer what to draw. Likely cuts or fixes: `lumalandi`, `pa-cute`, `torpe`, `basted` (the dating words that lean on feelings), `budots`, `ambagan`, `libre`, `hatid`, `long distance`, `monthsary`, `crush` (fine as spicy?), `beso`, `kopita`; alternates `syota`, `ubos-biyaya`, `pantulak`. Also decide whether English rooms need their own spicy words (today Spicy on with Words → English adds none, DECISIONS 69)
 - [ ] F48: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (an iPhone in Safari and a ≤ 360 px-wide Android in Chrome; the first to join holds the crown). On the crown phone tap "Add your own words ✍️", type 5 words on the keyboard (one per line, then a comma-separated line), tap Add words; on the Screen add 2 more and see "· 7" on both; tap Clear all twice on one of them, then add 4 again; Start and play 4 turns · the phone keyboard never hides Add words or the status line, nothing sits under the iPhone home indicator, the count matches on both host devices, each drawer's cards show one "Ours" until the 4 are drawn, and no custom word shows on the TV or a guesser phone before its reveal. Also read the Taglish: "Magdagdag ng sariling words", "Atin" on the card, "Kita ng lahat ang screen na ’to…" (Settings → Game text → Taglish)
 - [ ] F49: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones; play a game with 2 rounds where every phone draws something different, then Rematch and finish game 2 so the Tonight panel shows too · from the sofa (≈ 5 m) the gallery's words and "by Name" lines are readable, every final score row and the Tonight panel fit above the gallery with nothing cut off, each thumbnail matches what was drawn; tapping a thumbnail (or ← →) opens it large with the word whole (try a long one, e.g. "refrigerator"), Esc closes it; the room code strip along the bottom is gone while the gallery is up
+- [ ] F50: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3–4 real phones (one ≤ 360 px wide); play a 2-round game where one drawing goes unguessed to the end of its time, then Rematch and finish game 2 · after the podium the Screen shows "Tonight's awards" cards, nobody twice, every winner's name readable from the sofa (≈ 5 m), all score rows, the Tonight column and the gallery visible with nothing cut off; each phone whose player won something leads its FINAL with the "Your award" card (try Settings → Game text → Taglish for one game: the card still fits on the small phone without pushing Leave off the screen); a player with no award sees no card. Also open the Screen on a 4:3 tablet in game 2 and check the scores and the one-line Tonight strip are readable at 2 m
 
 <!-- entries below, newest first -->
+
+## F50 — Tonight's awards (2026-10-31)
+**What changed:**
+- **Server `server/awards.ts`** (`computeAwards`), run by `setPhase` on every way into FINAL (the last cycle, End game, nobody left to draw); the views already carried `awards` (Screen: all; phone: its own; FINAL only), and a rematch already cleared them.
+  - Players are taken lowest-ranked first. Each takes the first award, in spec order, that they lead among the players still without one; a tie on the stat goes to the lower-ranked player. After each award the lowest-ranked are asked again. An award is skipped when nobody qualifies, or every qualifier already has one. Only players still in the room are awarded.
+  - Stats: Picasso (drawer points), Bilis! (fastest corrected `elapsedMs`), Sharpshooter (correct guesses), Malapit na! (close guesses), Most creative (wrong guesses), Modern art (turns nobody got that ran out of time, `turnId` = the latest).
+- **`TurnSummary`** gains `endReason` (not in the spec's type; Modern art ignores skipped, ended and abandoned turns). Its `wrong` count now subtracts the correct guess by `turn.correct` membership instead of by points.
+- **Screen** (`client/src/components/screen/ScreenAwards.tsx`): one card per award between the scores (and Tonight) and the gallery. Each card has the award, the winner in their colour (a winner who left is named from the night's totals), and the reason; Modern art adds its word. The cards pop in one after another (`motion-safe`), as many per row as fit at ≥ 26 vmin. The heading sits left of the cards in landscape, above them in portrait.
+- **Fitting it all** (`ScreenStandings.tsx`):
+  - The score rows size their text to the height left over (`fitRows`, `cqh`; the size class stays as the fallback), with em padding, down to max(2 vmin, 13 px).
+  - The Tonight column on a wide Screen sizes its text to its height (`fitTonight`); before, from F49, it ran into the gallery with 10 players.
+  - On a narrower landscape Screen with the gallery up, Tonight is one line: the top 3 and "+N more".
+  - Small gallery thumbnails went from 20 to 17 vmin, and the title's line height tightened.
+- **Phone** (`PhoneStandings.tsx`): FINAL leads with a "Your award" card (award name as a heading and the reason), above "Final scores".
+- **Copy:** `yourAward` ("Your award" / "Award mo"). Bilis!'s reason is now the spec's "Fastest guess of the night" ("Pinakamabilis na hula ngayong gabi"). `client/src/lib/awards.ts` maps kinds to copy keys.
+- **New dependencies:** none. JS 111.6 of 120 KB, CSS and font 24.8 of 30 KB.
+- **Tests:**
+  - `server/awards.test.ts` (25):
+    - each award's rule, including Modern art's latest turn and only timed-out turns;
+    - a Bilis! tie at 0 ms;
+    - skipped when nobody qualifies, no history, a departed player, zero counts;
+    - one per player; lowest-ranked first; ties; a score tie ranking the later joiner lower; skipped when only award holders qualify; spec order; ten players;
+    - through the reducer: the summary's corrected times, close, wrong and `endReason`; the awards at the end of the last cycle and by End game; cleared by a rematch;
+    - the Screen view gets every award, each phone only its own, and none before FINAL.
+  - `client/src/components/screen/ScreenAwards.test.tsx` (7): one card per award, after the scores and before the gallery; winners in colour, one who left too; Modern art's word; none on SCOREBOARD or with no awards; Taglish; the `fitRows` style plus fallback class; the Tonight sizing and strip.
+  - `phoneViews.test.tsx` (+1): the award leads the FINAL, in English and Taglish; no card without one.
+
+**Decisions:** DECISIONS 72 (assignment, qualifying, Modern art's timed-out turns, the layout and its sizes).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES** (no Must-fix).
+  - Done: Bilis!'s copy matches the spec; the Kim check is added.
+  - Kept: a cut-short turn is now excluded from Modern art (from the fairness review); a correct guess at 0 points can't happen (`GUESSER_POINTS_MIN` > 0), so it has no test.
+  - Recorded in DECISIONS 72: names at 3.45 vh on a 16:9 TV with 10 players and the gallery.
+- **secrets-fairness: PASS WITH FIXES.**
+  - Should-fix done: Modern art went to a drawer whose turn was skipped, ended or abandoned; it now counts only turns that ran out of time (`TurnSummary.endReason`).
+  - Nit done: a test for a Bilis! tie at 0 ms.
+  - Nit kept: `awards` stays in the room after FINAL until the next game resets it; views gate on FINAL.
+- **mobile-ux: FAIL → fixed.**
+  - Must-fix done: at 1024×768 in game 2 the scores box scrolled and showed 2 rows; the 16:9 Tonight column was clipped. Now the rows fit (em padding, lower floor), the Tonight column fits its height, and the narrow strip is one line.
+  - Should-fixes done: heading padding and width; award text sizes up (name 3.6 vmin, reason 2.4 vmin at 80 % white); the phone card is a labelled section with an `h2`, says "Your award", and breaks long words.
+  - Nit done: a fallback class without container units.
+  - Kept: 17 vmin thumbnails (the price of the room); the Taglish phone card at 360 px is a Kim check.
+
+**Playtest:**
+- `.playtest/F50/scenario.ts` (playtester agent; Ana + 9 bots, 2 rounds): 3 award cards with distinct winners between the scores and the gallery; Ana won Picasso, and her phone shows it above "Final scores"; no horizontal overflow at 360×560; no console errors. Its overlap check was missing, and the screenshots showed the cards over the scores, which led to the layout work above.
+- `.playtest/F50b/scenario.ts` (Ana + 9 bots; game 1 ended by the host after ~45 s, then a rematch and game 2 with Tonight), after the fixes, all pass at 1920×1080, 1024×768 and 1080×1920:
+  - no page overflow;
+  - the score rows end above the award cards, and the cards end above the gallery;
+  - the scores box doesn't scroll;
+  - Tonight isn't clipped (and "+N more" is in view);
+  - the heading doesn't overlap a card.
+  - Row text: 37 px at 1080p, 26 / 18 px at 4:3 in games 1 / 2. Screenshots: `game2-1920x1080.png`, `game2-1024x768.png`.
+
+**Notes for next session:**
+- Awards depend on `history`; if an InkStore drop ever sets `hasInk` false, Modern art still names the turn (the gallery shows "Drawing not kept").
+- Backlog: fold the night totals into the score rows, or page the standings, to keep TV sizes with 10 players (F50).
+
+**How to try it:**
+- Tests: `npx vitest run server/awards.test.ts client/src/components/screen/ScreenAwards.test.tsx client/src/components/phone/phoneViews.test.tsx`.
+- Playtest: `npm run dev`, then `npm run playtest -- .playtest/F50b/scenario.ts`.
+- By hand: `npm run dev`, Screen at http://localhost:5173 (Start), `/dev/bots/CODE` (Spawn 3), a phone window at `/play/CODE`, Start, and press "Everyone: guess right" until Final scores: the award cards sit under the scores, and the phone leads with "Your award" if it won one.
 
 ## F49 — Gallery on the Screen (2026-10-31)
 **What changed:**

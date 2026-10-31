@@ -1,11 +1,13 @@
 import type { PlayerView } from '../../../../shared/types.js';
+import { AWARD_COPY } from '../../lib/awards.js';
 import type { Translate } from '../../lib/copy.js';
 import { LeaveButton } from './LeaveButton.js';
 
 /**
  * REVEAL, SCOREBOARD and FINAL on a phone (UI by role and phase, Guesser phone; the drawer's is the
  * same plus "+N for your drawing"). During REVEAL only this turn's points, never a rank; the rank
- * and score come with SCOREBOARD and FINAL, where the view carries them. Awards arrive with F50.
+ * and score come with SCOREBOARD and FINAL, where the view carries them. FINAL leads with this
+ * player's award, when they won one (F50).
  */
 export function PhoneStandings({
   view,
@@ -73,6 +75,20 @@ export function PhoneStandings({
 
       {phase === 'FINAL' && (
         <>
+          {me.award && (
+            <section
+              aria-labelledby="my-award"
+              className="w-full max-w-sm rounded-2xl bg-[#FFD166] px-4 py-3 break-words text-[#1D1B22] motion-safe:animate-pop"
+            >
+              <p className="text-sm font-bold tracking-wide uppercase opacity-70">
+                {t('yourAward')}
+              </p>
+              <h2 id="my-award" className="font-display text-3xl leading-tight font-bold">
+                {t(AWARD_COPY[me.award.kind].name)}
+              </h2>
+              <p className="text-lg leading-snug">{t(AWARD_COPY[me.award.kind].why)}</p>
+            </section>
+          )}
           <h1 className="font-display text-3xl font-bold">{t('finalTitle')}</h1>
           {me.rank && (
             <p className="font-display text-5xl leading-tight font-bold">

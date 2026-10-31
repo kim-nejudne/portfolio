@@ -55,6 +55,7 @@ import {
   returnChoices,
   returnDealt,
 } from './deck.js';
+import { computeAwards } from './awards.js';
 import { addCustomWords } from './customWords.js';
 import { correctedAt } from './fairness.js';
 import { hintCount, pickHint } from './hints.js';
@@ -379,6 +380,8 @@ function setPhase(d: Room, phase: Phase, now: number, fx: Effect[]): void {
   d.timerEpoch += 1;
   d.advanceAt = null;
   if (phase === 'LOBBY' || phase === 'FINAL') d.paused = null;
+  // Every way into FINAL (the last cycle, End game, nobody left to draw) comes through here.
+  if (phase === 'FINAL') d.awards = computeAwards(Object.values(d.players), d.history);
   if (d.paused) {
     d.paused.since = now;
     if (d.paused.resumeAt !== null) fx.push(schedule(d, 'resumeGo', d.paused.resumeAt));
@@ -921,7 +924,8 @@ function closeTurn(d: Room, reason: TurnEndReason): Turn {
   if (turn.drawerPoints > 0) points[turn.drawerPid] = turn.drawerPoints;
   const wrong: Record<string, number> = {};
   for (const [pid, count] of Object.entries(turn.guessCount)) {
-    const misses = count - (points[pid] ? 1 : 0) - (turn.closeCount[pid] ?? 0);
+    const right = turn.correct.some((c) => c.pid === pid) ? 1 : 0;
+    const misses = count - right - (turn.closeCount[pid] ?? 0);
     if (misses > 0) wrong[pid] = misses;
   }
   d.history.push({
@@ -935,6 +939,7 @@ function closeTurn(d: Room, reason: TurnEndReason): Turn {
     // SPEC-QUESTION: the InkStore may drop this log later (4 MB per room) without the reducer
     // knowing; `ink:get` then answers `inkNotKept` and the gallery shows "Drawing not kept".
     hasInk: true,
+    endReason: reason,
   });
   return turn;
 }

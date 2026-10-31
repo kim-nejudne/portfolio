@@ -205,7 +205,7 @@ function GalleryStrip({
             <li
               key={d.turnId}
               id={`gallery-${d.turnId}`}
-              className={`shrink-0 snap-start ${large ? 'w-[max(28vmin,96px)]' : 'w-[max(20vmin,96px)]'}`}
+              className={`shrink-0 snap-start ${large ? 'w-[max(28vmin,96px)]' : 'w-[max(17vmin,96px)]'}`}
             >
               <button
                 type="button"

@@ -97,6 +97,8 @@ export interface TurnSummary {
   close: Record<string, number>; // close guesses per pid
   wrong: Record<string, number>; // wrong guesses per pid
   hasInk: boolean; // the InkStore still has this drawing for the gallery
+  // SPEC-QUESTION: not in the spec's TurnSummary; Modern art counts only turns that ran out of time (DECISIONS 72).
+  endReason: TurnEndReason;
 }
 
 export interface Award {
