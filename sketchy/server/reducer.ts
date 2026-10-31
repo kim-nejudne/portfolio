@@ -143,6 +143,8 @@ function apply(d: Room, action: Action, now: number, fx: Effect[]): Handled {
       return visibility(d, action);
     case 'host:customWords':
       return customWords(d, action);
+    case 'player:avatar':
+      return avatar(d, action);
     case 'player:rename':
       return 'notAvailable';
     default: {
@@ -343,6 +345,15 @@ function visibility(d: Room, a: ActionOf<'player:visibility'>): Handled {
   const player = senderPlayer(d, a.by);
   if (typeof player === 'string') return player;
   player.hidden = a.hidden;
+  return undefined;
+}
+
+/** `player:avatar` (F54): the sender's own avatar, in LOBBY only. */
+function avatar(d: Room, a: ActionOf<'player:avatar'>): Handled {
+  const player = senderPlayer(d, a.by);
+  if (typeof player === 'string') return player;
+  if (d.phase !== 'LOBBY') return 'wrongPhase';
+  player.avatar = a.avatar;
   return undefined;
 }
 

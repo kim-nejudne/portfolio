@@ -83,6 +83,10 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
   },
   'player:visibility': { valid: [{ hidden: true }], invalid: [{}, { hidden: 'true' }] },
   'player:rename': { valid: [{ name: 'Mika' }], invalid: [{}, { name: '' }, { name: 'a​b' }] },
+  'player:avatar': {
+    valid: [{ avatar: '🦊' }, { avatar: '🚀' }],
+    invalid: [{}, { avatar: '💩' }, { avatar: '🦊🐼' }, { avatar: '👨‍🎨' }, { avatar: '' }],
+  },
   'player:leave': { valid: [{}], invalid: [null, 'leave'] },
   'drawer:choose': {
     valid: [{ index: 0 }, { index: 1 }, { index: 2 }],

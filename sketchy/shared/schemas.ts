@@ -195,6 +195,7 @@ export const clientPayloadSchemas = {
   'player:react': z.object({ emoji: z.enum(REACTIONS) }),
   'player:visibility': z.object({ hidden: z.boolean() }),
   'player:rename': z.object({ name: playerNameSchema }),
+  'player:avatar': z.object({ avatar: z.enum(AVATARS) }),
   'player:leave': emptySchema,
   'drawer:choose': z.object({ index: z.literal([0, 1, 2]) }),
   'host:start': emptySchema,

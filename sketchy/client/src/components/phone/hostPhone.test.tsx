@@ -104,7 +104,14 @@ const DOODLE = [
 const sendDoodle = () => Promise.resolve<Ack>({ ok: true });
 const lobby = (v: PlayerView) =>
   renderToStaticMarkup(
-    <PhoneLobby view={v} socket={socket} onLeave={noop} sendDoodle={sendDoodle} t={t} />,
+    <PhoneLobby
+      view={v}
+      socket={socket}
+      onLeave={noop}
+      onAvatarSaved={noop}
+      sendDoodle={sendDoodle}
+      t={t}
+    />,
   );
 const sheet = (v: PlayerView) =>
   renderToStaticMarkup(<DrawerSheet view={v} socket={socket} t={t} onClose={noop} />);
@@ -115,6 +122,7 @@ describe('the crown holder’s lobby', () => {
     expect(html).toContain('You’re the host 👑');
     expect(html).toContain('Classic · 60 s · 2 rounds · Mixed words');
     expect(buttons(html)).toEqual([
+      'Change avatar',
       'Start game ▶',
       'Change',
       'Add your own words',
@@ -146,7 +154,7 @@ describe('the crown holder’s lobby', () => {
     const html = lobby(view('LOBBY', { host: false }));
     expect(html).toContain('You’re in, Mika!');
     expect(html).toContain('Waiting for 👑 Jun to start');
-    expect(buttons(html)).toEqual([...DOODLE, 'Leave']);
+    expect(buttons(html)).toEqual(['Change avatar', ...DOODLE, 'Leave']);
   });
 });
 
@@ -160,6 +168,33 @@ describe('avatars in the phone lobby (F53)', () => {
       // Mika first: the header, then the list (her own chip first).
       expect(avatars(lobby(view('LOBBY', { host, others })))).toEqual(['🦊', '🦊', '🚀', '🐙']);
     }
+  });
+});
+
+describe('Change avatar in the phone lobby (F54)', () => {
+  it('is the avatar by the heading, a button that opens a dialog, in both lobbies', () => {
+    for (const host of [true, false]) {
+      const html = lobby(view('LOBBY', { host }));
+      expect(html).toMatch(
+        /<button type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Change avatar"[^>]*><span aria-hidden="true" data-avatar[^>]*>🦊<\/span>/,
+      );
+      // Closed until tapped.
+      expect(html).not.toContain('role="dialog"');
+    }
+  });
+
+  it('says it in Taglish too', () => {
+    const html = renderToStaticMarkup(
+      <PhoneLobby
+        view={view('LOBBY', { host: false })}
+        socket={socket}
+        onLeave={noop}
+        onAvatarSaved={noop}
+        sendDoodle={sendDoodle}
+        t={translator('taglish')}
+      />,
+    );
+    expect(html).toContain('aria-label="Palitan ang avatar"');
   });
 });
 
@@ -182,8 +217,8 @@ describe('the lobby doodle pad (F27)', () => {
     const html = lobby(view('LOBBY', { host: false }));
     expect(html.indexOf(PAD)).toBeGreaterThan(html.indexOf('Waiting for 👑 Jun to start'));
     expect(html.indexOf(PAD)).toBeLessThan(html.indexOf('Who’s here'));
-    // Optional: only its tools, then Leave.
-    expect(buttons(html)).toEqual([...DOODLE, 'Leave']);
+    // Optional: only its tools, then Leave (Change avatar sits by the heading).
+    expect(buttons(html)).toEqual(['Change avatar', ...DOODLE, 'Leave']);
   });
 });
 

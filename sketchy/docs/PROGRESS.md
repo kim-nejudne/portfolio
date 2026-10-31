@@ -72,8 +72,35 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F52: the live-game wait, once: leave the Screen open on https://sketchy.kimnejudne.dev, then run `gh workflow run deploy-sketchy.yml -f tag=<current tag>` (a re-point, no build) · the "wait for live games" step logs "N live connection(s); waiting (1/20)"; close the Screen tab and it carries on with "no live games" within 30 s and re-points. Then a rollback: `gh workflow run deploy-sketchy.yml -f tag=<previous tag>` (from `docker images sketchy` on the box) and back again · each ends healthy and the smoke step passes
 - [ ] F53: review the Taglish: `yourAvatar` ("Avatar mo") and `avatarOption` ("Avatar {emoji}") in the `TAGLISH` table of `client/src/lib/copy.ts` · natural for the join form's grid heading and a screen reader's button label?
 - [ ] F53: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), an iPhone in Safari, a budget Android in Chrome and a ≤ 360 px-wide phone; join each with a different avatar (tap one other than the pre-picked one), then pull to refresh one phone · on every phone's join form the name box and Join are on screen with the 24 emoji below (4 rows of 6, each a colour emoji, none a box or a black-and-white glyph), the pre-picked one outlined in orange; the TV's lobby chips, the turn sidebar, the reveal's "Got it" and the scoreboard show each player's emoji on a disc in their colour, readable from the sofa (≈ 5 m), the reveal's small "Got it" avatars included; the refreshed phone comes back with the same emoji
+- [ ] F54: review the Taglish: `changeAvatar` ("Palitan ang avatar") and `avatarFailed` ("Hindi napalitan ang avatar mo. Subukan ulit.") in the `TAGLISH` table of `client/src/lib/copy.ts` · natural for a button label and an error line?
+- [ ] F54: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, a ≤ 360 px phone (or devtools 360×560), an iPhone in Safari and a budget Android in Chrome; join all, one as host · in both the host's and a plain player's lobby the heading's avatar has a small ✏️ badge and tapping it opens "Change avatar" with the whole grid and Done on screen, no scrolling; tapping another emoji closes it and the new emoji shows by the heading, in "Who's here" on every phone and on the TV chip within a moment; Done closes it unchanged; after Leave, the join form pre-picks the new emoji; with Wi-Fi off a tap shows "Could not change your avatar. Try again." and the dialog stays open; the lobby still scrolls to the doodle pad and Leave as before
 
 <!-- entries below, newest first -->
+## F54 — Change avatar in the lobby (2026-10-31)
+**What changed:**
+- **Shared:** `player:avatar {avatar}` in both payload maps; zod `z.object({avatar: z.enum(AVATARS)})`; `AVATAR_RATE_LIMIT` (= `VISIBILITY_RATE_LIMIT`, 5 a second).
+- **Server:** reducer `avatar()`: sender first (`notPlayer` for a Screen, `unknownPlayer`), then LOBBY only (`wrongPhase`), sets the sender's own `avatar`; no effects. `sockets.ts`: its own limiter keyed `code:pid`, every try counted before the reducer; the commit broadcasts fresh views before the ack.
+- **Client:** the lobby heading's avatar is now a button (`aria-label` "Change avatar", ✏️ badge, focus ring) in both the plain and host lobbies; it opens `components/phone/ChangeAvatar.tsx`'s `ChangeAvatarDialog` (full-cover, `AvatarPicker`, Done, Esc; lobby `inert` underneath; focus back to the avatar on close). A tap sends at once (`chooseAvatar` → `sendAvatar`); `ok` closes it and `saveAvatar` (`lib/playerIdentity.ts`) writes the avatar into the page's identity in place and storage, so the join form after Leave pre-picks it, also after a takeover. Refusals: `tooFast` over the limit, else `avatarFailed` (also offline, sending nothing, and on a 5 s timeout); copy in both languages.
+- **Tests:** `reducer.avatar.test.ts` (own avatar only, shared, every non-LOBBY phase, Screen with/without token, unknown pid); schema cases; socket (broadcast to Screen and phones, rate limit per player and window, Screen `notPlayer`, `invalidPayload`, `wrongPhase` after start); `ChangeAvatar.test.tsx` (dialog markup, `sendAvatar` per ack, `chooseAvatar` saves only on `ok`, same avatar sends nothing, both languages); `playerIdentity.test.ts` (`saveAvatar`); `hostPhone.test.tsx` lobby button lists gain "Change avatar" first.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 77.
+
+Reviews:
+- **review-feature: PASS WITH FIXES.** Must-fix done: the 360×560 Kim check. Should-fix done: `chooseAvatar` and `saveAvatar` extracted and tested.
+- **secrets-fairness-reviewer: PASS**, no Must- or Should-fix. Nit not taken: limiter keys are never purged (as for ping and visibility; Backlog-worthy only with a sweep for all).
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix. Taken: focus rings on the avatar button and Done. Not taken: "stale avatar after the ack" (the state broadcast goes out on the same socket before the ack, so it never shows); resetting `avatarOpen` (the button is `inert` while another panel is open, and `me` gone means the lobby unmounts).
+
+**Verification:**
+- `/playtest F54` (`.playtest/F54/scenario.ts`, `offline.ts`): both lobbies offer Change avatar; a pick closes the dialog, updates the phone heading, the Screen chip and `localStorage`; the host dialog at 360×560 shows all 24 and Done with no scroll; offline, the dialog stays open with "Could not change your avatar. Try again." No console errors. The lobby at 360×560 scrolls to the doodle pad as in F53 (the avatar button adds no height). Screenshots: `.playtest/F54/lobby-host.png`, `dialog-host.png`, `offline-ben.png`.
+- `npm run size`: JS 112.7 KB of 120, CSS and fonts 25.1 KB of 30.
+- `/verify`: format, lint, typecheck, 1447 tests, build all green.
+
+**Notes for next session:**
+- F55: the doodle still flows to Screens; `DoodleContext` in `pages/Screen.tsx` and `lineScale` in `lib/ink.ts` are unused; the pad's copy is stale (see F53 notes).
+
+**How to try it:** `npm run dev`, open `/` and Start, join `/play/CODE` from a phone, tap your avatar by the heading.
+
 ## F53 — Emoji avatars (2026-10-31)
 **What changed:**
 - **Planned first** (`docs(sketchy): plan emoji avatars`): Kim asked for Buzzr's emoji avatars and chose emoji over doodle avatars, a random pre-pick, a lobby change (F54) and a phone-only doodle pad (F55). M11 holds F53–F55; the proposed spec text is under "Proposed spec changes" in DECISIONS for Kim to apply.

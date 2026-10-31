@@ -12,6 +12,7 @@ import express from 'express';
 import proxyaddr from 'proxy-addr';
 import { Server, type Socket } from 'socket.io';
 import {
+  AVATAR_RATE_LIMIT,
   HOST_ACTION_RATE_LIMIT,
   JOIN_RATE_LIMIT,
   MAX_PLAYERS,
@@ -151,6 +152,7 @@ export function attachSockets(
   // Keyed by room and pid: one reaction a second per player, however many phones they use.
   const reactLimiter = createRateLimiter({ max: 1, windowMs: REACTION_INTERVAL_MS }, monotonic);
   const visibilityLimiter = createRateLimiter(VISIBILITY_RATE_LIMIT, monotonic);
+  const avatarLimiter = createRateLimiter(AVATAR_RATE_LIMIT, monotonic);
   // Each connection's RTT samples, by socket id, for the Screen's `?debug=1` overlay (F16).
   const rttBySocket = new Map<string, () => readonly number[]>();
 
@@ -411,6 +413,12 @@ export function attachSockets(
       const { code, pid } = socket.data;
       if (code && pid && !visibilityLimiter.hit(`${code}:${pid}`)) return fail('rateLimited');
       return asPlayer((by) => ({ type: 'player:visibility', by, hidden }));
+    });
+    // Every try counts, before the reducer, as for reactions and visibility (DECISIONS 77).
+    handle(socket, 'player:avatar', ({ avatar }) => {
+      const { code, pid } = socket.data;
+      if (code && pid && !avatarLimiter.hit(`${code}:${pid}`)) return fail('rateLimited');
+      return asPlayer((by) => ({ type: 'player:avatar', by, avatar }));
     });
     handle(socket, 'player:rename', ({ name }) =>
       asPlayer((by) => ({ type: 'player:rename', by, name })),

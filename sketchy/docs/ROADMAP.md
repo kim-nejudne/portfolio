@@ -138,14 +138,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 - [x] F53 Emoji avatars
 
-- [ ] F54 Change avatar in the lobby
-  - Spec: UI by role and phase (Guesser phone, Host controls); Reducer actions and effects (Actions); DECISIONS "Proposed spec changes" 2026-10-31
-  - Depends: F53
-  - Done when:
-    - `player:avatar {avatar}` (zod `z.enum(AVATARS)`), the socket's own player, LOBBY only (`wrongPhase` otherwise, `notPlayer` for a Screen), rate-limited per player like `player:visibility`; fresh views broadcast
-    - Plain and host phone lobbies offer Change avatar, opening a dialog with `AvatarPicker`; the stored identity updates on `ok`; a failed ack shows a message in both languages
-    - Fits 360×560 with the doodle pad
-  - Tests: schema, reducer (happy path, every non-LOBBY phase, non-player), socket rate limit, phone dialog
+- [x] F54 Change avatar in the lobby
 
 - [ ] F55 Lobby doodle stays on the phone
   - Spec: Drawing data protocol (Lobby doodles); Data model (Room state); DECISIONS "Proposed spec changes" 2026-10-31

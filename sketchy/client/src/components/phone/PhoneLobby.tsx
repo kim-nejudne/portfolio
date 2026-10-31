@@ -1,5 +1,5 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
-import type { PlayerView } from '../../../../shared/types.js';
+import type { Avatar as AvatarEmoji, PlayerView } from '../../../../shared/types.js';
 import { doodleKey, type SendDoodle } from '../../ink/doodle.js';
 import type { Translate } from '../../lib/copy.js';
 import { useHostSender } from '../../lib/hostSend.js';
@@ -8,6 +8,7 @@ import { CustomWordsButton, CustomWordsPanel } from '../CustomWords.js';
 import { HostPlayerList } from '../HostPlayerList.js';
 import { Avatar } from '../Avatar.js';
 import { ScreenSettings, settingsLine } from '../screen/ScreenSettings.js';
+import { ChangeAvatarDialog } from './ChangeAvatar.js';
 import { DoodlePad } from './DoodlePad.js';
 import { LeaveButton } from './LeaveButton.js';
 
@@ -17,18 +18,22 @@ import { LeaveButton } from './LeaveButton.js';
  * lobby is the host view instead (Host controls, F25): "You're the host 👑", a big Start game, and
  * the settings summary with Change (presets, settings and the players list with Give crown and
  * Kick), and "Add your own words" (F48). Both have the doodle pad (F27) under that, the host's
- * below Start. Not yet: Change name (renames land with their reducer action).
+ * below Start. In both, the avatar by the heading opens Change avatar (F54). Not yet: Change name
+ * (renames land with their reducer action).
  */
 export function PhoneLobby({
   view,
   socket,
   onLeave,
+  onAvatarSaved,
   sendDoodle,
   t,
 }: {
   view: PlayerView;
   socket: GameSocket;
   onLeave: () => void;
+  /** The server took a new avatar: the phone stores it for its next join. */
+  onAvatarSaved: (avatar: AvatarEmoji) => void;
   /** Sends a finished doodle stroke on the page's `/ink` socket. */
   sendDoodle: SendDoodle;
   t: Translate;
@@ -60,14 +65,45 @@ export function PhoneLobby({
     wordsWasOpen.current = words;
   }, [words]);
 
+  // Change avatar likewise, back to the avatar.
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const closeAvatar = useCallback(() => setAvatarOpen(false), []);
+  const avatarButton = useRef<HTMLButtonElement>(null);
+  const avatarWasOpen = useRef(false);
+  const avatars = avatarOpen && me !== undefined && !open && !words;
+  useEffect(() => {
+    if (avatarWasOpen.current && !avatars) avatarButton.current?.focus();
+    avatarWasOpen.current = avatars;
+  }, [avatars]);
+
   return (
     <div className="relative h-full">
       <div
-        inert={open || words}
+        inert={open || words || avatars}
         className="flex h-full flex-col gap-4 overflow-y-auto overscroll-contain px-4 pt-4 pb-3"
       >
         <header className="flex items-center gap-3">
-          {me && <Avatar player={me} size="2.75rem" />}
+          {me && (
+            // SPEC-QUESTION: the spec doesn't place Change avatar; the avatar itself is the button,
+            // with a pencil badge, so the lobby gets no taller at 360×560 (DECISIONS 77).
+            <button
+              ref={avatarButton}
+              type="button"
+              onClick={() => setAvatarOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={avatars}
+              aria-label={t('changeAvatar')}
+              className="relative shrink-0 rounded-full focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <Avatar player={me} size="2.75rem" />
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -bottom-1 grid size-6 place-items-center rounded-full border-2 border-[#1D1B22] bg-white text-xs leading-none"
+              >
+                ✏️
+              </span>
+            </button>
+          )}
           <h1 className="font-display min-w-0 text-3xl leading-tight font-bold break-words">
             {isHost ? t('youreHost') : t('youreIn', { name: me?.name ?? '' })}
           </h1>
@@ -119,6 +155,15 @@ export function PhoneLobby({
           <LeaveButton onLeave={onLeave} inGame={false} t={t} />
         </div>
       </div>
+      {avatars && (
+        <ChangeAvatarDialog
+          avatar={me.avatar}
+          socket={socket}
+          t={t}
+          onSaved={onAvatarSaved}
+          onClose={closeAvatar}
+        />
+      )}
       {words && (
         <CustomWordsPanel
           count={view.host!.customWordCount}

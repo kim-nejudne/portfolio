@@ -61,6 +61,22 @@ export function savePlayer(
 }
 
 /**
+ * Change avatar (F54): the server took `avatar`, so the stored identity, and the next join's form,
+ * start from it. `identity` is changed in place: a join in flight compares the page's identity by
+ * reference, and a rejoin keeps the server's avatar anyway. This also replaces a takeover's
+ * leftover pick (DECISIONS 76).
+ */
+export function saveAvatar(
+  code: string,
+  identity: PlayerIdentity,
+  avatar: Avatar,
+  store: KeyValueStore | null = defaultStore(),
+): void {
+  identity.avatar = avatar;
+  savePlayer(code, identity, store);
+}
+
+/**
  * The identity this device joined `code` with, or null when it never joined or the entry is
  * unreadable. An entry from before avatars, or with one this build no longer offers, keeps the
  * identity and gets a random avatar: a rejoin keeps the server's avatar anyway (F53).

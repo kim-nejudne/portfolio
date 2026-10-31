@@ -12,6 +12,7 @@ import {
   SCREEN_AWAY_MS,
   SOCKET_PING_INTERVAL_MS,
   SOCKET_PING_TIMEOUT_MS,
+  AVATAR_RATE_LIMIT,
   VISIBILITY_RATE_LIMIT,
 } from '../shared/constants.js';
 import type { Ack, ClientEvent, Fx, PlayerView, ScreenView, View } from '../shared/types.js';
@@ -474,6 +475,62 @@ describe('player:react', () => {
     expect(await g.ben.client.emit('player:react', { emoji: 'tsinelas' })).toEqual({
       ok: false,
       error: 'invalidPayload',
+    });
+  });
+});
+
+describe('player:avatar (F54)', () => {
+  async function lobby() {
+    const s = await setup();
+    const screen = await s.connect();
+    expect(await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken })).toEqual({
+      ok: true,
+    });
+    const ana = await joinPlayer(s, KEY_ANA, 'Ana');
+    const ben = await joinPlayer(s, KEY_BEN, 'Ben');
+    return { ...s, screen, ana, ben };
+  }
+  const avatarOf = (v: View, pid: string) => v.players.find((p) => p.pid === pid)?.avatar;
+
+  it('changes the sender’s avatar and sends every view the new one', async () => {
+    const g = await lobby();
+    expect(await g.ana.client.emit('player:avatar', { avatar: '🐙' })).toEqual({ ok: true });
+    await g.screen.state((v) => avatarOf(v, g.ana.pid) === '🐙');
+    await g.ben.client.state((v) => avatarOf(v, g.ana.pid) === '🐙');
+    await g.ana.client.state((v) => avatarOf(v, g.ana.pid) === '🐙');
+    expect(avatarOf(g.ben.client.states.at(-1)!, g.ben.pid)).toBe('🦊');
+  });
+
+  it(`refuses more than ${AVATAR_RATE_LIMIT.max} changes a second per player`, async () => {
+    const g = await lobby();
+    const picks = ['🐙', '🚀', '🐸', '🐼', '🦊'] as const;
+    expect(picks).toHaveLength(AVATAR_RATE_LIMIT.max);
+    for (const avatar of picks)
+      expect(await g.ana.client.emit('player:avatar', { avatar })).toEqual({ ok: true });
+    expect(await g.ana.client.emit('player:avatar', { avatar: '🐙' })).toEqual({
+      ok: false,
+      error: 'rateLimited',
+    });
+    // Ben has his own allowance.
+    expect(await g.ben.client.emit('player:avatar', { avatar: '🐙' })).toEqual({ ok: true });
+    g.time.mono += AVATAR_RATE_LIMIT.windowMs;
+    expect(await g.ana.client.emit('player:avatar', { avatar: '🐙' })).toEqual({ ok: true });
+  });
+
+  it('refuses a Screen, a game in progress and an avatar outside AVATARS', async () => {
+    const g = await lobby();
+    expect(await g.screen.emit('player:avatar', { avatar: '🐙' })).toEqual({
+      ok: false,
+      error: 'notPlayer',
+    });
+    expect(await g.ana.client.emit('player:avatar', { avatar: '💩' })).toEqual({
+      ok: false,
+      error: 'invalidPayload',
+    });
+    expect(await g.screen.emit('host:start')).toEqual({ ok: true });
+    expect(await g.ana.client.emit('player:avatar', { avatar: '🐙' })).toEqual({
+      ok: false,
+      error: 'wrongPhase',
     });
   });
 });

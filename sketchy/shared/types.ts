@@ -244,6 +244,7 @@ export interface ClientActionPayloads {
   };
   'player:leave': NoPayload;
   'player:rename': { name: string };
+  'player:avatar': { avatar: Avatar };
   'player:guess': { text: string; receivedAt: number; oneWayMs: number }; // timing from the gateway
   'player:react': { emoji: Reaction };
   'player:visibility': { hidden: boolean };
@@ -418,6 +419,7 @@ export interface ClientPayloads {
   'player:react': { emoji: Reaction };
   'player:visibility': { hidden: boolean };
   'player:rename': { name: string };
+  'player:avatar': { avatar: Avatar };
   'player:leave': Empty;
   'drawer:choose': { index: ChoiceIndex };
   'host:start': Empty;

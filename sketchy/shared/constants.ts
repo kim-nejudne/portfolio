@@ -167,6 +167,9 @@ export const PING_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** `player:visibility` per player: a page flapping hidden and visible costs a reduce and a broadcast each time. */
 // SPEC-QUESTION: the spec lists no limit for `player:visibility` (DECISIONS 62).
 export const VISIBILITY_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
+/** `player:avatar` per player (F54): each change costs a reduce and a broadcast, as a visibility report does. */
+// SPEC-QUESTION: the spec lists no limit for `player:avatar`; it takes `player:visibility`'s (DECISIONS 77).
+export const AVATAR_RATE_LIMIT = VISIBILITY_RATE_LIMIT;
 /** `ink:hello` and `ink:sync` per `/ink` socket: each can make the server send a whole snapshot. */
 export const INK_HELLO_RATE_LIMIT = { max: 5, windowMs: 1000 } as const;
 /** `ink:get` per `/ink` socket: the FINAL gallery asks for every turn's drawing at once. */

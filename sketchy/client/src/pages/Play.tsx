@@ -37,6 +37,7 @@ import {
   loadPlayer,
   newPlayerKey,
   randomAvatar,
+  saveAvatar,
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
@@ -372,6 +373,13 @@ export function Play() {
       });
   };
 
+  const avatarSaved = useCallback(
+    (avatar: Avatar) => {
+      if (identityRef.current) saveAvatar(code, identityRef.current, avatar);
+    },
+    [code],
+  );
+
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
   // The screen stays on during a game (F37); the lobby may sleep.
@@ -509,7 +517,14 @@ export function Play() {
         className="min-h-0 flex-1"
       >
         {view.phase === 'LOBBY' && (
-          <PhoneLobby view={view} socket={socket} onLeave={leave} sendDoodle={sendDoodle} t={t} />
+          <PhoneLobby
+            view={view}
+            socket={socket}
+            onLeave={leave}
+            onAvatarSaved={avatarSaved}
+            sendDoodle={sendDoodle}
+            t={t}
+          />
         )}
         {isDrawer && view.phase === 'DRAWING' && (
           <DrawerTurn

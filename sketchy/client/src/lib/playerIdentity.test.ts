@@ -6,6 +6,7 @@ import {
   loadPlayer,
   newPlayerKey,
   randomAvatar,
+  saveAvatar,
   savePlayer,
 } from './playerIdentity.js';
 
@@ -85,5 +86,19 @@ describe('playerIdentity', () => {
     };
     expect(loadPlayer('KPRW', throwing)).toBeNull();
     expect(() => clearPlayer('KPRW', throwing)).not.toThrow();
+  });
+
+  it('stores a changed avatar in the identity the page holds and in storage (F54)', () => {
+    const store = memoryStore();
+    const identity = {
+      playerKey: newPlayerKey(),
+      name: 'Jun',
+      avatar: '🐙' as (typeof AVATARS)[number],
+    };
+    savePlayer('KPRW', identity, store);
+    saveAvatar('KPRW', identity, '🚀', store);
+    // The same object: a join in flight still recognises it.
+    expect(identity.avatar).toBe('🚀');
+    expect(loadPlayer('KPRW', store)).toEqual({ ...identity, avatar: '🚀' });
   });
 });
