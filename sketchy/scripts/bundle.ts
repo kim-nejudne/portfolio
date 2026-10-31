@@ -12,8 +12,12 @@ import { fileURLToPath } from 'node:url';
 export const BUDGET = {
   /** Gzipped JavaScript of `/` and `/play` together. */
   playerJsGzip: 120_000,
-  /** Gzipped CSS plus the fonts (already compressed woff2) of `/` and `/play`. */
-  playerCssAndFonts: 30_000,
+  /**
+   * Gzipped CSS plus the fonts (already compressed woff2) of `/` and `/play`: the measured 67.2 KB
+   * with Patrick Hand, Nunito 900 and Fredoka (F56), plus about 5 KB. F67 tightens it once Fredoka
+   * is gone (DECISIONS 79).
+   */
+  playerCssAndFonts: 72_000,
 };
 
 /**

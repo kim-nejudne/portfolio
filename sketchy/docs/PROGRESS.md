@@ -76,8 +76,50 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F54: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, a ≤ 360 px phone (or devtools 360×560), an iPhone in Safari and a budget Android in Chrome; join all, one as host · in both the host's and a plain player's lobby the heading's avatar has a small ✏️ badge and tapping it opens "Change avatar" with the whole grid and Done on screen, no scrolling; tapping another emoji closes it and the new emoji shows by the heading, in "Who's here" on every phone and on the TV chip within a moment; Done closes it unchanged; after Leave, the join form pre-picks the new emoji; with Wi-Fi off a tap shows "Could not change your avatar. Try again." and the dialog stays open; the lobby still scrolls to the doodle pad and Leave as before
 - [ ] F55: review the Taglish: `doodleWarmUp` ("Warm up: mag-doodle habang naghihintay!") and `doodlePad` ("Ang doodle mo. Sa phone mo lang ito.", the pad's screen-reader label) in `client/src/lib/copy.ts` · natural barkada Taglish
 - [ ] F55: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, a real phone joined; doodle a few strokes in the lobby, tap ↶ Undo, lock and unlock the phone, then reload · the strokes stay on the phone (back after the reload), Undo takes one off, the Screen chips show only the emoji, and nothing doodle-like ever appears on the TV
+- [ ] F56: `npm run dev`, open `http://<laptop-ip>:5173/dev/sketch` on an iPhone in Safari and a budget Android in Chrome, and `docs/design/sketchbook.html#sketch-drawing` beside it on the laptop · Patrick Hand and Nunito 900 load (not Comic Sans or the system face); dots, ruled lines with the red margin, rings, tape, highlighter, buttons (the press collapses the shadow) and the 12 crayon names read like the mockup's look
+- [ ] F56: until F58 restyles the pages, the game still has its dark background, and the new crayon colours (names on the Screen chips, the phone lobby lists) read dark on it (2.2–3.3:1) · decide whether F56 may deploy alone or should wait for F58
 
 <!-- entries below, newest first -->
+
+## F56 — Sketchbook foundation (2026-10-31)
+**What changed:**
+- **Fonts:** `client/src/fonts/patrick-hand-latin-400.woff2` (23 944 B) and `nunito-latin-900.woff2` (16 676 B), Google Fonts' own files from the css2 API's latin block, with `OFL-PatrickHand.txt` and `OFL-Nunito.txt`; Fredoka's licence is renamed `OFL-Fredoka.txt`. `index.css` has their `@font-face` rules (Fredoka's `unicode-range`, `swap`); `index.html` preloads all three faces; `@theme` has `--font-hand` and `--font-num`. Fredoka stays until F67.
+- **Tokens:** every SKETCHBOOK.md token as `--color-*` under `@theme` (`paper`, `dot`, `rule`, `margin`, `ink`, `soft`, `pen`, `red`, `hl`, `sticky`, `amber`, `tape`, `tape-edge`, `ring`, `desk`, `canvas`), plus `@utility` `paper-dots`, `paper-ruled`, `sketch-border`, `wobbly` and `highlight`. The body and `theme-color` stay dark until F58.
+- **Colours:** `PLAYER_COLORS` is 12 crayons (vermilion, green, blue, magenta, ochre, teal, violet, crimson, olive, slate, cyan, raspberry), and `BACKGROUND_COLOR` is paper `#F8F8F3`.
+- **Primitives** in `client/src/components/sketch/`: `Paper` (dots | ruled), `SpiralRings` (row | column), `Tape` (tl, tr, br, top, wide), `Highlight`, `SketchButton` (primary | ghost, `full`, `:active` press, `pen` focus outline, hover dims instead of the white wash), `Blanks` (`blankCells`, `blanksWidthEm`; fits one line through `cqw`), `CountdownRing` (`ringState`). None is wired into a page yet; F57–F66 use them.
+- **`Avatar`:** the emoji on `paper` in a wobbly ring in the player colour, ring `calc(1.5px + size × 0.025)`, emoji 0.56×.
+- **`/dev/sketch`** (`pages/DevSketch.tsx`, dev builds only): every primitive on one page, for side-by-side checks with the mockup in M12.
+- **Budget:** `BUDGET.playerCssAndFonts` 30 000 → 72 000. `bundle.test.ts` now expects the three faces, one preload each, every face `swap` and Latin, and no `DevSketch` in production.
+- **Tests:** `constants.test.ts` (paper background, ≥ 4.5:1 on paper, ΔE ≥ 15 from draw colours and ≥ 20 between crayons), `sketch/Blanks.test.tsx`, `sketch/CountdownRing.test.tsx`, `sketch/primitives.test.tsx`, `Avatar.test.tsx` (paper and ring at four sizes), `bundle.test.ts`.
+- **New dependencies:** none (the font files are copied in, as Fredoka was).
+
+**Decisions:** DECISIONS 79 (supersedes 8).
+
+Reviews:
+- **review-feature: FAIL** before the docs. Its Must-fixes were DECISIONS 79 and this entry; both are now done. Should-fix taken: the Avatar ring is tested at 34, 64, 132 px and a vmin size; DECISIONS 79 notes `theme-color`. Not taken: a test that maps preload hrefs to built files, because `bundle.ts` already throws when a preloaded file isn't built.
+- **secrets-fairness-reviewer: PASS**, with no Must-fix or Should-fix. Nit taken: the dev page's sample Blanks label no longer contains a word. Nit for F60/F64: build the `Blanks` label from the mask only, and add a leak case when it goes on the views.
+- **mobile-ux-reviewer: PASS WITH FIXES**, with no Must-fix. Should-fixes taken: `wide` tape no longer carries the 74×22 size; the button has a focus outline and its own hover (no gradient wash). Should-fixes left open:
+  - Dark-body contrast of the new crayons: a Kim check.
+  - Unused preloads until F57: accepted in DECISIONS 79.
+  - The counts' minimum size on the TV: F64 sets the size it uses.
+  Nits taken: no trailing spaces in the class strings, the column-rings note, aligned ring widths. For F59/F64: give the timer an accessible label where the page uses `CountdownRing`.
+
+**Verification:**
+- `/playtest F56` (`.playtest/F56/scenario.ts`, `blanks-fit.ts`, `mockup.ts`):
+  - `/dev/sketch` renders both sheets. Patrick Hand and Nunito load, the three font preloads are present, and `--color-paper`, `--font-hand` and `--font-num` resolve.
+  - No horizontal overflow at 360×560, 390×664 and 412×780.
+  - At 360 px every Blanks row fits its container (17.9–20.6 px type; 7.6 px in the deliberately 160 px-wide case).
+  - Wide tape covers its strip, the Join button shows a solid focus outline, and Landing still works with the dark body. No console errors.
+  - Screenshots: `.playtest/F56/full-dev.png`, `dev-360.png`, beside `mockup-drawing.png` and `mockup-choosing.png`.
+- **Still differs from the mockup:** the player colours are darker than the mockup's five crayons so that names reach 4.5:1 on paper. No page is restyled yet, by design (F57–F66).
+- `npm run size`: JS 112.5 KB of 120, CSS and fonts 67.3 KB of 72 (CSS 10.7, Patrick Hand 23.9, Nunito 16.7, Fredoka 15.9).
+- `/verify`: format, lint, typecheck, 1445 tests, build all green.
+
+**Notes for next session:**
+- Fredoka and `ACCENT_COLOR` stay until F67, and the body stays dark until F58. Re-check the rings' punched holes (`desk`, the mockup's `--hole`) once F57 puts rings on a page.
+- Use `font-num font-black` for numbers and `font-hand` for words; Patrick Hand has no bold.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/dev/sketch` (and `docs/design/sketchbook.html` beside it).
 
 ## F55 — Lobby doodle stays on the phone (2026-10-31)
 **What changed:**

@@ -1,9 +1,32 @@
 @import 'tailwindcss';
 
-/* Look and feel: marker on paper. The display face is Fredoka Bold, self-hosted as one Latin
-   subset (16 KB, hashed by Vite and preloaded by index.html; licence in fonts/OFL.txt). Every
-   `font-display` use is bold. Until it arrives, `swap` shows the rounded system face (spec:
-   Performance budget). */
+/* Fonts, self-hosted as Google Fonts' own Latin-subset woff2 files (the css2 API's "latin" block),
+   hashed by Vite and preloaded by index.html; licences beside them in fonts/. Until one arrives,
+   `swap` shows the fallback (spec: Performance budget). */
+
+/* Sketchbook look (F56): Patrick Hand for words, Nunito 900 for numbers. */
+@font-face {
+  font-family: 'Patrick Hand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/patrick-hand-latin-400.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('./fonts/nunito-latin-900.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* The old look's display face, Fredoka Bold, until every page is restyled (F67 removes it). */
 @font-face {
   font-family: 'Fredoka';
   font-style: normal;
@@ -18,6 +41,28 @@
 @theme {
   --font-display:
     'Fredoka', ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  /* Words (one weight: hierarchy comes from size) and numbers (use with `font-black`). */
+  --font-hand: 'Patrick Hand', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  --font-num: 'Nunito', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+
+  /* The sketchbook's tokens (docs/design/SKETCHBOOK.md). Components use these as Tailwind
+     colours (`bg-paper`, `text-ink`, `border-pen`), never a literal hex. */
+  --color-paper: #f8f8f3; /* every page and sheet (= BACKGROUND_COLOR) */
+  --color-dot: #c3c7d2; /* dot grid, dashed rules, ring track */
+  --color-rule: #b9cbea; /* ruled lines */
+  --color-margin: #e8978f; /* the red margin line on ruled pages */
+  --color-ink: #26282e; /* text, outlines, hard shadows */
+  --color-soft: #6a6e79; /* secondary text */
+  --color-pen: #2846c8; /* ballpoint: underlines, guess line, send, ordinals, countdown ring */
+  --color-red: #d2372c; /* red pen: strikes, ✗, stamps, level tags, the low timer */
+  --color-hl: #ffe14d; /* highlighter, primary sketch button */
+  --color-sticky: #fff3a6; /* sticky notes */
+  --color-amber: #ffb547; /* "Jun is close!" on the drawer phone */
+  --color-tape: rgb(236 222 170 / 0.82); /* masking tape */
+  --color-tape-edge: rgb(190 172 110 / 0.55); /* its dotted ends */
+  --color-ring: #6f737c; /* spiral wire */
+  --color-desk: #dcdfe6; /* behind the Screen's notebook, and the rings' punched holes */
+  --color-canvas: #ffffff; /* the drawing stays pure white (= CANVAS_COLOR) */
 
   /* The Screen's turn effects (F34). Each is used behind `motion-safe:`; reduced motion gets
      `fade`, or nothing. */
@@ -94,6 +139,50 @@
   }
 }
 
+/* Sketchbook patterns and shapes (F56). Flat patterns, not gradient fills. */
+@utility paper-dots {
+  background-image: radial-gradient(circle, var(--color-dot) 1.1px, transparent 1.5px);
+  background-size: 22px 22px;
+  background-position: 11px 11px;
+}
+@utility paper-ruled {
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 46px,
+      var(--color-margin) 46px,
+      var(--color-margin) 48px,
+      transparent 48px
+    ),
+    repeating-linear-gradient(transparent 0 33px, var(--color-rule) 33px 34px);
+}
+/* The hand-drawn border of sketch buttons and cards. */
+@utility sketch-border {
+  border: 2.5px solid var(--color-ink);
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+}
+/* The avatar's and swatches' wobbly circle. */
+@utility wobbly {
+  border-radius: 52% 48% 55% 45% / 47% 55% 45% 53%;
+}
+/* A highlighter swash behind the text; only the swash tilts. */
+@utility highlight {
+  position: relative;
+  z-index: 0;
+  white-space: nowrap;
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0.18em -0.18em 0.02em;
+    background: var(--color-hl);
+    border-radius: 3px 10px 4px 12px;
+    transform: rotate(-1.2deg);
+    opacity: 0.85;
+  }
+}
+
+/* The page stays dark until the lobby and the turn pages are restyled (F58). */
 html,
 body {
   background: #1d1b22;

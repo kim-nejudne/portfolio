@@ -25,6 +25,25 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/** CIE L*a*b* (D65) of a `#RRGGBB` colour. */
+function lab(hex: string): [number, number, number] {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t) / 116 + 16 / 116);
+  const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+  const y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  const z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+/** CIE76 colour difference: about 2 is just noticeable, 15+ reads as a different colour. */
+function deltaE(a: string, b: string): number {
+  const [p, q] = [lab(a), lab(b)];
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+}
+
 describe('fixed constants', () => {
   it('match the spec', () => {
     expect({
@@ -147,9 +166,26 @@ describe('palettes', () => {
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it('player colours are readable on the dark background (≥ 4.5:1)', () => {
+  it('the background is the sketchbook paper', () => {
+    expect(BACKGROUND_COLOR).toBe('#F8F8F3');
+  });
+
+  it('player colours are readable on paper (≥ 4.5:1), since names are written in them', () => {
     for (const color of PLAYER_COLORS) {
       expect(contrast(color, BACKGROUND_COLOR), color).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('player colours stay distinct from every drawing colour and from each other', () => {
+    for (const color of PLAYER_COLORS) {
+      for (const draw of DRAW_COLORS) {
+        expect(deltaE(color, draw), `${color} vs ${draw}`).toBeGreaterThanOrEqual(15);
+      }
+      for (const other of PLAYER_COLORS) {
+        if (other !== color) {
+          expect(deltaE(color, other), `${color} vs ${other}`).toBeGreaterThanOrEqual(20);
+        }
+      }
     }
   });
 });

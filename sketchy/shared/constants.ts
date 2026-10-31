@@ -240,28 +240,29 @@ export const INK_INVALID_BATCHES_MAX = 20;
 
 // ---------- Look and feel ----------
 
-/** The dark ink background around the drawing square. */
-export const BACKGROUND_COLOR = '#1D1B22';
-/** The one accent: marker orange. */
+/** The sketchbook paper behind everything (Look and feel; `paper` in `client/src/index.css`). */
+export const BACKGROUND_COLOR = '#F8F8F3';
+/** The old dark look's accent, marker orange; goes with the dark look (F67). */
 export const ACCENT_COLOR = '#FF6B35';
 /**
- * Players' colours, in join order. Distinct from the drawing colours and at least 4.5:1 against
- * BACKGROUND_COLOR, so names stay readable on the dark background (`constants.test.ts`).
+ * Players' colours, in join order: 12 crayons. Names are written in them on paper, so each is at
+ * least 4.5:1 against BACKGROUND_COLOR, and each stays clearly apart from the drawing colours and
+ * the other crayons (`constants.test.ts`). The first five are the mockup's crayons, darkened.
  */
-// SPEC-QUESTION: the spec asks for 12 colours tuned for the dark background but names none; see DECISIONS (F02).
+// SPEC-QUESTION: the spec names no player colours; see DECISIONS (F02, F56).
 export const PLAYER_COLORS = [
-  '#FF8FA3', // pink
-  '#FFB067', // apricot
-  '#FFE45E', // lemon
-  '#9BE564', // lime
-  '#4FD6C2', // teal
-  '#6CC4FF', // sky
-  '#A3A8FF', // periwinkle
-  '#D59CFF', // lavender
-  '#FF9EE8', // orchid
-  '#F2D2A9', // sand
-  '#C4E8F2', // ice
-  '#E8F28C', // pear
+  '#C2410C', // vermilion
+  '#1A7A4A', // green
+  '#2457B8', // blue
+  '#B0307F', // magenta
+  '#8F6508', // ochre
+  '#0F766E', // teal
+  '#6D28D9', // violet
+  '#B91C3C', // crimson
+  '#5F7A12', // olive
+  '#475569', // slate
+  '#0E7490', // cyan
+  '#9D174D', // raspberry
 ] as const;
 
 // ---------- Settings ----------

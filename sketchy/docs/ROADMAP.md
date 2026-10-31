@@ -151,18 +151,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 - `/playtest` screenshots compared with the mockup;
 - a `mobile-ux-reviewer` run.
 
-- [ ] F56 Sketchbook foundation
-  - Spec: UI by role and phase (Look and feel); Tech stack and architecture (Performance budget); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Tokens, Type, Primitives)
-  - Depends: none
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The SKETCHBOOK.md tokens are Tailwind colours under `@theme` in `client/src/index.css`. The body stays dark until F58.
-    - Patrick Hand and Nunito 900 are self-hosted as Google Fonts' own Latin-subset woff2 files, from the `/* latin */` block of the css2 API, as Fredoka was. Measured 2026-10-31: Patrick Hand 23.9 KB, Nunito 900 16.7 KB. No subsetting tool or new dependency is needed.
-    - The files live in `client/src/fonts/` with their OFL texts, use the same `unicode-range` as Fredoka and `font-display: swap`, are preloaded in `client/index.html`, and are exposed as `--font-hand` and `--font-num`. Fredoka stays until F67.
-    - `npm run size` passes after `BUDGET.playerCssAndFonts` in `scripts/bundle.ts` is raised to the measured CSS+fonts, with all three faces counted, plus about 5 KB. DECISIONS records the measured bytes and the new budget; F67 tightens it once Fredoka is gone.
-    - `PLAYER_COLORS` is 12 crayon colours, each ≥ 4.5:1 on paper and distinct from the 8 draw colours, and `BACKGROUND_COLOR` is paper. This supersedes DECISIONS 8's dark-background tuning.
-    - `client/src/components/sketch/` holds `Paper` (dots | ruled), `SpiralRings` (row | column), `Tape`, `Highlight`, `SketchButton` (primary | ghost, `:active` press), `Blanks` and `CountdownRing`. `Avatar` draws the wobbly ring in the player colour on paper.
-  - Tests: `constants.test.ts` (contrast on paper, distinct from draw colours), `Blanks` (letter counts, spaces, revealed letters), `CountdownRing` (fraction, the 10 s low state, the 12 s choosing total), `Avatar`, `bundle.test.ts` against the new budget
+- [x] F56 Sketchbook foundation
 
 - [ ] F57 Sketchbook landing and join form
   - Spec: UI by role and phase (Landing page, Look and feel); Roles and devices (Creating and joining a room); docs/design/SKETCHBOOK.md (Surfaces: Landing)

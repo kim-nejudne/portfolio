@@ -8,6 +8,8 @@ const Screen = lazy(() => import('./pages/Screen.js').then((m) => ({ default: m.
 // Dev tool: fake players. `vite build` folds `import.meta.env.DEV` to false, so a production bundle
 // has neither this route nor the bots chunk.
 const DevBots = import.meta.env.DEV ? lazy(() => import('./pages/DevBots.js')) : null;
+// Dev tool: every Sketchbook primitive on one page (F56), to compare with the mockup.
+const DevSketch = import.meta.env.DEV ? lazy(() => import('./pages/DevSketch.js')) : null;
 
 /** The route table, without a router, so tests can mount it in a MemoryRouter. */
 export function AppRoutes() {
@@ -29,6 +31,16 @@ export function AppRoutes() {
           element={
             <Suspense fallback={null}>
               <DevBots />
+            </Suspense>
+          }
+        />
+      )}
+      {DevSketch && (
+        <Route
+          path="/dev/sketch"
+          element={
+            <Suspense fallback={null}>
+              <DevSketch />
             </Suspense>
           }
         />

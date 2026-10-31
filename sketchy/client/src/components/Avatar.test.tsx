@@ -1,5 +1,5 @@
-// Emoji avatars (F53), which replace F27's doodle avatars: every chip shows the player's emoji on a
-// disc in their colour, on the Screen and the phone alike.
+// Emoji avatars (F53), which replace F27's doodle avatars: every chip shows the player's emoji, on
+// paper inside a wobbly ring in their colour (F56), on the Screen and the phone alike.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { PlayerChipView } from '../../../shared/types.js';
@@ -21,12 +21,23 @@ const chip: PlayerChipView = {
 };
 
 describe('the avatar', () => {
-  it('is the emoji on a disc in the player’s colour, sized as asked', () => {
+  it('is the emoji on paper in a wobbly ring in the player’s colour, sized as asked', () => {
     const html = renderToStaticMarkup(<Avatar player={chip} size="2em" />);
     expect(html).toContain('>🐙</span>');
-    expect(html).toContain('background:#FF6B35');
+    expect(html).toContain('bg-paper');
+    expect(html).toContain('wobbly');
+    expect(html).toContain('border-color:#FF6B35');
+    expect(html).not.toContain('background:#FF6B35');
     expect(html).toContain('width:2em');
     expect(html).toContain('aria-hidden');
+  });
+
+  it('thickens the ring with the avatar (2.4, 3.1 and 4.8 px at 34, 64 and 132 px)', () => {
+    for (const size of ['34px', '64px', '132px', '9vmin']) {
+      const html = renderToStaticMarkup(<Avatar player={chip} size={size} />);
+      expect(html).toContain(`border-width:calc(1.5px + ${size} * 0.025)`);
+      expect(html).toContain(`font-size:calc(${size} * 0.56)`);
+    }
   });
 
   it('shows on the lobby chip beside the name', () => {

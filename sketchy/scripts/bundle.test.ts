@@ -33,7 +33,11 @@ describe('the player page (/ and /play)', () => {
 
   it(`ships at most ${BUDGET.playerCssAndFonts / 1000} KB of CSS and fonts`, () => {
     expect(report.playerCss.length).toBe(1);
-    expect(report.fonts.length).toBe(1);
+    expect(report.fonts.map((f) => f.file.replace(/-[\w-]{8}\.woff2$/, ''))).toEqual([
+      'assets/patrick-hand-latin-400',
+      'assets/nunito-latin-900',
+      'assets/fredoka-latin-700',
+    ]);
     expect(report.playerCssAndFonts).toBeLessThanOrEqual(BUDGET.playerCssAndFonts);
   });
 
@@ -55,8 +59,10 @@ describe('the player page (/ and /play)', () => {
     expect(inPlayer(/gallery/i)).toEqual([]);
   });
 
-  it('has no dev bots in a production build', () => {
-    expect(report.allModules.filter((m) => /DevBots|client\/src\/dev\//.test(m))).toEqual([]);
+  it('has no dev bots or dev sketch page in a production build', () => {
+    expect(report.allModules.filter((m) => /DevBots|DevSketch|client\/src\/dev\//.test(m))).toEqual(
+      [],
+    );
   });
 
   it('bundles no zod anywhere (schemas are checked on the server)', () => {
@@ -66,30 +72,37 @@ describe('the player page (/ and /play)', () => {
   });
 });
 
-describe('the display font', () => {
-  it('is one preloaded woff2 file, the only font shipped', () => {
-    expect(report.assetFiles.filter((f) => /\.(woff2?|ttf|otf|eot)$/.test(f))).toEqual([
-      report.fonts[0]!.file,
-    ]);
-    // Hashed, so it can be cached for good.
-    expect(report.fonts[0]!.file).toMatch(/^assets\/fredoka-latin-700-[\w-]+\.woff2$/);
+describe('the fonts', () => {
+  it('are the preloaded woff2 files and the only fonts shipped', () => {
+    expect(report.assetFiles.filter((f) => /\.(woff2?|ttf|otf|eot)$/.test(f)).sort()).toEqual(
+      report.fonts.map((f) => f.file).sort(),
+    );
+    // Hashed, so they can be cached for good.
+    for (const font of report.fonts)
+      expect(font.file).toMatch(/^assets\/[a-z-]+\d{3}-[\w-]+\.woff2$/);
     // Nothing unhashed in client/public either.
     const publicFiles = readdirSync(`${ROOT}client/public`, { recursive: true }).map(String);
     expect(publicFiles.filter((f) => /\.(woff2?|ttf|otf|eot)$/.test(f))).toEqual([]);
-    const preload = report.indexHtml.match(/<link\b[^>]*rel="preload"[^>]*>/)![0];
-    expect(preload).toMatch(/as="font"/);
-    expect(preload).toMatch(/type="font\/woff2"/);
-    // Fonts load in CORS mode: without it the preload is wasted and the font downloads twice.
-    expect(preload).toMatch(/\bcrossorigin\b/);
+    const preloads = report.indexHtml.match(/<link\b[^>]*rel="preload"[^>]*>/g) ?? [];
+    expect(preloads).toHaveLength(report.fonts.length);
+    for (const preload of preloads) {
+      expect(preload).toMatch(/as="font"/);
+      expect(preload).toMatch(/type="font\/woff2"/);
+      // Fonts load in CORS mode: without it the preload is wasted and the font downloads twice.
+      expect(preload).toMatch(/\bcrossorigin\b/);
+    }
   });
 
-  it('is one face with font-display: swap and a Latin unicode-range', () => {
+  it('preloads every face, each with font-display: swap and a Latin unicode-range', () => {
     const faces = report.playerCssText.match(/@font-face\{[^}]*\}/g) ?? [];
-    expect(faces).toHaveLength(1);
-    expect(faces[0]).toContain(`/${report.fonts[0]!.file}`);
-    expect(faces[0]).toMatch(/font-display:\s*swap/);
-    // The minifier writes U+0000-00FF as U+??.
-    expect(faces[0]).toMatch(/unicode-range:\s*U\+(0+-0*FF|\?\?)[,;}]/i);
+    expect(faces).toHaveLength(report.fonts.length);
+    for (const font of report.fonts) {
+      const face = faces.find((f) => f.includes(`/${font.file}`));
+      expect(face, font.file).toBeDefined();
+      expect(face).toMatch(/font-display:\s*swap/);
+      // The minifier writes U+0000-00FF as U+??.
+      expect(face).toMatch(/unicode-range:\s*U\+(0+-0*FF|\?\?)[,;}]/i);
+    }
   });
 });
 
