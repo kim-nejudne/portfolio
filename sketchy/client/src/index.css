@@ -230,15 +230,7 @@ body {
   overscroll-behavior: none;
 }
 
-/* The old dark page, for the surfaces not restyled yet: the phone lobby's settings and
-   custom-words panels (F63) and the dev pages (F67). Each feature drops it as its surface moves to
-   paper; F67 deletes both. `legacy-ink` only sets the text, for elements that paint their own dark
-   background. */
-@utility legacy-ink {
-  color: #fff;
-  color-scheme: dark;
-  font-family: var(--font-sans);
-}
+/* The old dark page, for the one surface not restyled yet: the dev pages (F67 deletes it). */
 @utility legacy-night {
   background-color: #1d1b22;
   color: #fff;

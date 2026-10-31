@@ -19,6 +19,8 @@ import {
 import { hostRefusalCopy } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { PlayersDialog } from './PlayersDialog.js';
+import { sketchButtonClass, type SketchVariant } from '../sketch/SketchButton.js';
+import { Tape } from '../sketch/Tape.js';
 import {
   loadSoundLevel,
   nextSoundLevel,
@@ -253,14 +255,16 @@ function TokenScreenControls({
   const shown = visible || helpOpen || playersOpen;
   return (
     <>
-      {/* The status line sits just above the bar's real height, however many rows it wraps to. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-[1.5vmin]">
+      {/* The status line sits just above the bar's real height, however many rows it wraps to.
+          The bar lies in the desk's margin under the book, over the code strip while it shows
+          (DECISIONS 86). */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-[1.5vmin] pb-[max(0.8vmin,4px)]">
         {/* Always mounted, so screen readers announce each new line. */}
         <p
           role="status"
           className={
             status
-              ? 'mx-[3vmin] rounded-full bg-[#FFD166] px-[3vmin] py-[1vmin] text-center text-[max(3vmin,16px)] font-bold text-[#1D1B22]'
+              ? 'mx-[3vmin] sketch-border bg-sticky px-[3vmin] py-[1vmin] text-center text-[max(3vmin,16px)] text-ink shadow-[0.42vmin_0.56vmin_0_var(--color-ink)]'
               : 'sr-only'
           }
         >
@@ -300,8 +304,12 @@ function TokenScreenControls({
   );
 }
 
-const BUTTON =
-  'min-h-11 min-w-11 rounded-[1.5vmin] px-[2.5vmin] py-[1vmin] text-[max(2.6vmin,16px)] font-bold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white';
+/**
+ * A control on the bar or the `?` card: a small sketch button (hand-drawn border, hard shadow) in
+ * vmin with a 44 px floor. `primary` is the highlighter, `ghost` paper, `armed` red pen.
+ */
+export const barButton = (variant: SketchVariant) =>
+  `min-h-11 min-w-11 ${sketchButtonClass(variant)} min-h-11! gap-[0.5ch] px-[2.2vmin]! py-[0.6vmin]! text-[max(2.6vmin,16px)]! shadow-[0.28vmin_0.42vmin_0_var(--color-ink)]! not-disabled:active:shadow-none! aria-disabled:opacity-75`;
 
 /** The bar itself: the phase's controls on the left, fullscreen, sound and `?` on the right. */
 export function ControlBar({
@@ -349,22 +357,23 @@ export function ControlBar({
     <div
       role="group"
       aria-label={t('hostControls')}
-      className="flex flex-wrap items-center justify-between gap-[1.5vmin] bg-[#1D1B22]/90 px-[3vmin] py-[1.5vmin] backdrop-blur"
+      data-host-bar
+      className="relative mx-[2vmin] flex flex-wrap items-center justify-between gap-[1.5vmin] px-[3vmin] py-[1vmin]"
     >
-      <div className="flex flex-wrap gap-[1.5vmin]">
+      {/* A strip of masking tape stuck along the bottom edge; only the tape tilts. The desk under
+          it is opaque, so the code strip it lies over doesn't show through while it is up. The backing tilts with the tape: it is part of the strip. */}
+      <span aria-hidden className="pointer-events-none absolute inset-0 -rotate-[0.6deg] bg-desk" />
+      <Tape place="wide" />
+      <div className="relative z-[4] flex flex-wrap gap-[1.5vmin]">
         {barControls(view).map((control) => (
           <button
             key={control}
             type="button"
             onClick={() => onControl(control)}
             aria-disabled={sending === control}
-            className={`${BUTTON} ${
-              armed === control
-                ? 'bg-[#FFD166] text-[#1D1B22]'
-                : primary(control)
-                  ? 'bg-[#FF6B35] text-[#1D1B22]'
-                  : 'bg-white/15 text-white'
-            } aria-disabled:opacity-75`}
+            className={barButton(
+              armed === control ? 'armed' : primary(control) ? 'primary' : 'ghost',
+            )}
           >
             {label(control)}
           </button>
@@ -374,26 +383,26 @@ export function ControlBar({
             type="button"
             onClick={onPlayers}
             aria-haspopup="dialog"
-            className={`${BUTTON} bg-white/15 text-white`}
+            className={barButton('ghost')}
           >
             {t('ctlPlayers')}
           </button>
         )}
       </div>
-      <div className="flex flex-wrap gap-[1.5vmin]">
+      <div className="relative z-[4] flex flex-wrap gap-[1.5vmin]">
         {fullscreen !== null && (
-          <button type="button" onClick={onFullscreen} className={`${BUTTON} bg-white/15`}>
+          <button type="button" onClick={onFullscreen} className={barButton('ghost')}>
             {t(fullscreen ? 'ctlExitFullscreen' : 'ctlFullscreen')}
           </button>
         )}
-        <button type="button" onClick={onSound} className={`${BUTTON} bg-white/15`}>
+        <button type="button" onClick={onSound} className={barButton('ghost')}>
           <span aria-hidden="true">{soundLabel.icon}</span> {t(soundLabel.label)}
         </button>
         <button
           type="button"
           onClick={onHelp}
           aria-haspopup="dialog"
-          className={`${BUTTON} bg-white/15`}
+          className={barButton('ghost')}
         >
           <span aria-hidden="true">?</span> {t('ctlShortcuts')}
         </button>
@@ -402,7 +411,11 @@ export function ControlBar({
   );
 }
 
-/** The `?` overlay: every shortcut, in the spec's order. Esc, `?`, Close or the backdrop close it. */
+/**
+ * The `?` overlay: every shortcut, in the spec's order, on a ruled index card taped to a paper veil
+ * (F63): a red header line under the title, then one shortcut to a blue rule. Esc, `?`, Close or
+ * the veil close it.
+ */
 export function ShortcutsHelp({ onClose, t }: { onClose: () => void; t: Translate }) {
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -413,7 +426,7 @@ export function ShortcutsHelp({ onClose, t }: { onClose: () => void; t: Translat
 
   return (
     <div
-      className="absolute inset-0 z-40 grid cursor-pointer place-items-center bg-black/80 p-[3vmin]"
+      className="absolute inset-0 z-40 flex cursor-pointer items-center justify-center bg-paper/80 p-[4vmin]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -428,40 +441,46 @@ export function ShortcutsHelp({ onClose, t }: { onClose: () => void; t: Translat
           closeButton.current?.focus();
         }}
         aria-labelledby="shortcuts-title"
-        className="max-h-full max-w-[min(96vw,1200px)] cursor-auto overflow-y-auto rounded-[2vmin] bg-[#2A2730] p-[4vmin] text-[max(2.8vmin,16px)]"
+        data-index-card
+        className="relative flex max-h-full max-w-[min(96vw,1200px)] cursor-auto flex-col rounded-[0.6vmin] border-[length:max(2px,0.28vmin)] border-ink bg-paper text-[max(2.8vmin,16px)] text-ink shadow-[0.8vmin_1vmin_0_var(--color-ink)]"
       >
+        <Tape place="top" />
         <h2
           id="shortcuts-title"
-          className="font-display mb-[2vmin] text-[max(4vmin,22px)] font-bold"
+          className="shrink-0 border-b-[length:max(2px,0.3vmin)] border-margin px-[4vmin] pt-[3vmin] pb-[1vmin] text-[max(4.4vmin,22px)] leading-tight"
         >
           {t('shortcutsTitle')}
         </h2>
-        <table>
-          <tbody>
-            {SHORTCUTS.map((s) => (
-              <tr key={s.keys}>
-                <th
-                  scope="row"
-                  className="py-[0.6vmin] pr-[3vmin] text-left align-top whitespace-nowrap"
-                >
-                  {s.keys.split(', ').map((k, i) => (
-                    <span key={i}>
-                      {i > 0 && ', '}
-                      <kbd className="rounded-[0.8vmin] bg-white/15 px-[1vmin] font-mono">{k}</kbd>
-                    </span>
-                  ))}
-                </th>
-                <td className="py-[0.6vmin] text-white/85">{t(s.label)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="mt-[3vmin] flex justify-end">
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-[4vmin]">
+          <table className="w-full">
+            <tbody>
+              {SHORTCUTS.map((s) => (
+                <tr key={s.keys} className="border-b border-rule">
+                  <th
+                    scope="row"
+                    className="py-[0.8vmin] pr-[3vmin] text-left align-top font-normal whitespace-nowrap"
+                  >
+                    {s.keys.split(', ').map((k, i) => (
+                      <span key={i}>
+                        {i > 0 && ', '}
+                        <kbd className="inline-block min-w-[1.6em] rounded-[0.6vmin_0.3vmin_0.7vmin_0.3vmin] border-2 border-ink bg-paper px-[1vmin] text-center font-hand leading-snug shadow-[0.2vmin_0.3vmin_0_var(--color-ink)]">
+                          {k}
+                        </kbd>
+                      </span>
+                    ))}
+                  </th>
+                  <td className="py-[0.8vmin] align-top">{t(s.label)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex shrink-0 justify-end px-[4vmin] pt-[2vmin] pb-[3vmin]">
           <button
             ref={closeButton}
             type="button"
             onClick={onClose}
-            className={`${BUTTON} bg-[#FF6B35] text-[#1D1B22]`}
+            className={barButton('primary')}
           >
             {t('close')}
           </button>

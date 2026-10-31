@@ -13,7 +13,7 @@ import { ScreenDesk } from './ScreenDesk.js';
 import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.js';
 
 /** The Screen's small hand-bordered buttons beside "Who's here" (Settings, Add your own words). */
-export const SMALL_GHOST = `${sketchButtonClass('ghost')} min-h-11! px-[2vmin]! text-[max(2.8vmin,16px)]! shadow-[0.28vmin_0.42vmin_0_var(--color-ink)]!`;
+export const SMALL_GHOST = `${sketchButtonClass('ghost')} min-h-11! px-[2vmin]! text-[max(2.8vmin,16px)]! shadow-[0.28vmin_0.42vmin_0_var(--color-ink)]! not-disabled:active:shadow-none!`;
 
 /**
  * The lobby on the Screen, a spread of the notebook (F62): the left page has the logo, where to
@@ -163,7 +163,7 @@ export function ScreenLobby({
               disabled={starting || connected < 2}
               className={`${sketchButtonClass('primary', layout === 'landscape')} ${
                 layout === 'portrait' ? 'min-w-[16rem] flex-1' : ''
-              } min-h-[max(9vmin,48px)]! text-[max(4.4vmin,22px)]! shadow-[0.42vmin_0.56vmin_0_var(--color-ink)]!`}
+              } min-h-[max(9vmin,48px)]! text-[max(4.4vmin,22px)]! shadow-[0.42vmin_0.56vmin_0_var(--color-ink)]! not-disabled:active:shadow-none!`}
             >
               {t('startGame')}
             </button>
@@ -189,33 +189,26 @@ export function ScreenLobby({
           right={right}
         />
       </div>
-      {/* The panels keep the old dark look until F63 restyles them (`legacy-ink`, DECISIONS 85). */}
       {panelOpen && (
-        <div className="legacy-ink">
-          <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
-        </div>
+        <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
       )}
       {wordsPanelOpen && (
-        <div className="legacy-ink">
-          <CustomWordsPanel
-            count={view.host!.customWordCount}
-            socket={socket}
-            t={t}
-            onClose={closeWords}
-            onScreen
-          />
-        </div>
+        <CustomWordsPanel
+          count={view.host!.customWordCount}
+          socket={socket}
+          t={t}
+          onClose={closeWords}
+          onScreen
+        />
       )}
       {chipPlayer && !panelOpen && !wordsPanelOpen && (
-        <div className="legacy-ink">
-          <PlayersDialog
-            players={[chipPlayer]}
-            title={chipPlayer.name}
-            socket={socket}
-            t={t}
-            onClose={closeChip}
-          />
-        </div>
+        <PlayersDialog
+          players={[chipPlayer]}
+          title={chipPlayer.name}
+          socket={socket}
+          t={t}
+          onClose={closeChip}
+        />
       )}
     </div>
   );

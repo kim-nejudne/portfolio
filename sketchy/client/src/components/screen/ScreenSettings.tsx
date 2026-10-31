@@ -13,6 +13,7 @@ import type { RoomSettings } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import { PRESET_IDS, presetOf } from '../../lib/settings.js';
 import type { GameSocket } from '../../lib/socket.js';
+import { FULL_SHEET, OPTION, SHEET_TITLE, sheetButton } from '../sketch/sheet.js';
 
 const PRESET_COPY: Record<PresetId, { label: CopyKey; note: CopyKey }> = {
   quick: { label: 'presetQuick', note: 'presetQuickNote' },
@@ -97,9 +98,6 @@ const SETTING_KEYS = [
   'copy',
   'autoAdvance',
 ] as const satisfies readonly (keyof RoomSettings)[];
-
-const pill =
-  'min-h-11 min-w-11 rounded-[1.5vmin] px-[2vmin] py-[0.8vmin] font-bold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white aria-pressed:bg-[#FF6B35] aria-pressed:text-[#1D1B22] bg-white/10 aria-disabled:opacity-60';
 
 /** The token Screen's lobby button that opens the settings panel. */
 export function SettingsButton({
@@ -222,24 +220,21 @@ export function SettingsPanel({
       aria-modal="true"
       aria-labelledby="settings-title"
       tabIndex={-1}
-      className="absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-[#1D1B22] px-[5vmin] py-[3vmin] text-[max(3.2vmin,16px)] outline-none"
+      data-sheet="settings"
+      className={`${FULL_SHEET} px-[max(5vmin,env(safe-area-inset-left))] pt-[max(3vmin,env(safe-area-inset-top))] pb-[max(3vmin,env(safe-area-inset-bottom))] text-[max(3.2vmin,16px)] outline-none`}
     >
       <div className="mx-auto flex max-w-[150vmin] flex-col gap-[2vmin]">
         <div className="flex items-center justify-between gap-[3vmin]">
-          <h2 id="settings-title" className="font-display text-[max(5vmin,26px)] font-bold">
+          <h2 id="settings-title" className={`${SHEET_TITLE} text-[max(5vmin,26px)]`}>
             {t('settings')} <span aria-hidden="true">⚙</span>
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 min-w-11 rounded-[2vmin] bg-[#FF6B35] px-[4vmin] py-[1vmin] text-[max(3.5vmin,18px)] font-bold text-[#1D1B22] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
+          <button type="button" onClick={onClose} className={sheetButton('primary')}>
             {t('settingsDone')}
           </button>
         </div>
 
         <fieldset className="flex flex-col gap-[1vmin]">
-          <legend className="mb-[1vmin] text-white/80">
+          <legend className="mb-[1vmin] text-soft">
             {t('presets')}
             {preset === null && <> · {t('presetCustom')}</>}
           </legend>
@@ -253,16 +248,16 @@ export function SettingsPanel({
                 onClick={() => {
                   if (!sending) onSend(PRESETS[id].settings);
                 }}
-                className={`${pill} flex flex-col items-center py-[1.5vmin]`}
+                className={`${OPTION} flex flex-col items-center py-[1.5vmin]`}
               >
                 <span className="text-[max(3.5vmin,18px)]">{t(PRESET_COPY[id].label)}</span>
-                <span className="font-normal">
+                <span>
                   {t('secondsShort', { n: PRESETS[id].settings.drawSeconds })} ·{' '}
                   {PRESETS[id].settings.cycles === 1
                     ? t('roundOne')
                     : t('rounds', { n: PRESETS[id].settings.cycles })}
                 </span>
-                <span className="font-normal">{t(PRESET_COPY[id].note)}</span>
+                <span>{t(PRESET_COPY[id].note)}</span>
               </button>
             ))}
           </div>
@@ -281,7 +276,7 @@ export function SettingsPanel({
           ))}
         </div>
 
-        <p role="status" className="min-h-[1.5em] text-[#FFD166]">
+        <p role="status" className="min-h-[1.5em] text-red">
           {error ?? ''}
         </p>
         {children}
@@ -305,7 +300,7 @@ function SettingRow<K extends keyof RoomSettings>({
 }) {
   return (
     <fieldset className="flex flex-col gap-[1vmin]">
-      <legend className="mb-[1vmin] text-white/80">{label}</legend>
+      <legend className="mb-[1vmin] text-soft">{label}</legend>
       <div className="flex flex-wrap gap-[1.2vmin]">
         {options.map((option) => (
           <button
@@ -316,7 +311,7 @@ function SettingRow<K extends keyof RoomSettings>({
             onClick={() => {
               if (!disabled && option.value !== value) onPick(option.value);
             }}
-            className={pill}
+            className={OPTION}
           >
             {option.label}
           </button>

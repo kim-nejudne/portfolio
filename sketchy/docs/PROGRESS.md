@@ -92,6 +92,44 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F62: the same room on a tablet as the Screen, first sideways, then upright · sideways as above with "Keep this device plugged in" on a small yellow note; upright the pages stack with a row of rings between and the tabs run along the bottom over the code strip; nothing is cut off, Start is reachable without scrolling; tapping a tab on the token Screen opens Give host crown / Kick
 
 <!-- entries below, newest first -->
+## F63 — Sketchbook Screen host UI (2026-11-01)
+**What changed:**
+- **Control bar** (`HostControls.tsx`): a strip of masking tape over an opaque `desk` backing, tilted −0.6° (only the strip), along the bottom edge in the desk's margin. Controls are small sketch buttons (new `barButton`): Next / Resume / Rematch / Cancel on the highlighter, the rest paper, a first tap red pen (`armed`, "Tap again to skip"). The status line is a sticky note above the bar. Auto-hide (3 s), the keyboard shortcuts, two-press confirms, Players, Fullscreen and Sound are unchanged. The icon and label keep their space (`gap-[0.5ch]`: an inline-flex button drops the text space).
+- **`?` overlay** (`ShortcutsHelp`): a ruled index card on a paper 80 % veil: `ink` border and hard shadow, tape on top, a `margin` red line under "Keyboard shortcuts", a `rule` line under every shortcut, keys as hand-bordered paper caps, Close a primary sketch button. The list scrolls inside the card if a short Screen needs it.
+- **Sheets** (new `components/sketch/sheet.ts`: `SHEET_DOTS`, `FULL_SHEET`, `SHEET_TITLE`, `sheetButton`, `OPTION`, `HAND_INPUT`): Settings and Add your own words are full-page dot-grid sheets (dots `max(3.3vmin, 22px)`, so the crown phone's are the same), titles with a `pen` underline, legends in `soft`, Done / Add words on the highlighter, Clear all paper then red pen when armed; each setting's choice is a hand-bordered paper button, the room's value on the highlighter with a hard shadow; the box is a hand-bordered paper input with a `pen` caret; refusals in `red`; "Everyone can see this screen" is a sticky note. The players dialog (tab or bar's Players) is a dot-grid sheet with a hard shadow on a paper 80 % veil.
+- **Gone:** the `legacy-ink` wrappers in `ScreenLobby.tsx` (3 panels), `Screen.tsx` (the bar) and `PhoneLobby.tsx` (settings, custom words), and the `legacy-ink` utility itself; `legacy-night` stays for the turn/standings pages (F64–F66) and DevBots (F67).
+- **Tests:** new `components/screen/hostLook.test.tsx` (13): the bar is a tape strip before its buttons, no blur; every control a sketch button with a hard shadow and a 44 px floor; Next / Resume / Rematch on the highlighter and the rest paper; an armed Skip red pen; the `?` card on a paper veil, tape before the title, the red header line and 11 ruled rows, paper key caps, Close a sketch button; the settings sheet's dot grid, title, Done, choices (pressed on `hl`), `soft` legends and red refusal; the custom words sheet's dot grid, hand-bordered box, buttons and sticky note; the players sheet on a paper veil with a hard shadow; no hex / `white/` / `bg-black` / `font-display` / `legacy-ink` in the 9 touched files and no `legacy-ink` in `index.css`. The HostControls, ScreenSettings, CustomWords and PlayersDialog tests stay green unchanged.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 86.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.** Must-fix done: this entry's review and verify lines. Should-fix done: the mockup line below (no host UI in the mockup; the nearest comparison is F62's lobby shots, `.playtest/F62/mockup-lobby-*.png`, with these sheets laid over that lobby). Nits done: a comment on why the bar's backing tilts with the tape. Not taken: a `size` variant on `SketchButton` (the `!` overrides stay in `barButton` / `sheetButton`).
+- **mobile-ux-reviewer: PASS WITH FIXES, no Must-fix.** Should-fixes done: the press now drops the small `!` shadow (`not-disabled:active:shadow-none!` on `barButton`, `sheetButton` and F62's `SMALL_GHOST` / Start; tested); the sizes are measured (below); 740×360 and 360×640 checked (`scenario3.ts`), which found the `?` card overflowing above a 360 px tall viewport (the veils now centre with flex, so `max-h-full` binds and the list scrolls inside the card); the bar over F64's portrait tabs is in the notes below. Nits done: disabled sheet buttons at 70 %. Not taken: the duplicate `min-h-11` (the F24 test pins `min-h-11 min-w-11`); the phone's rings over a scrolled sheet (a page's wire, as before); `duration-75` on the press (a 3 px translate).
+- **secrets-fairness-reviewer:** not needed (no `server/`, `shared/` or ink change; the diff is client styling only).
+
+**Verification:**
+- `.playtest/F63/scenario.ts` (a 1920×1080 token Screen, 3 Pixel 7 phones): settings and custom words open as dot-grid sheets and close on Esc; after Start the bar sits along the bottom edge (y 998–1071 of 1080), hides after 3 s (inert) and comes back on mouse move; `?` opens the card, Esc closes it; the players dialog lists all three with Kick / Give host crown; a first Skip tap reads "Tap again to skip"; no document scroll at 1920×1080, 1024×768, 768×1024.
+- `.playtest/F63/scenario2.ts` (token Screen, 3 phones at 360×560):
+  - The crown phone's Change sheet at 360×560, 390×664 and 412×780: no document scroll, Done in view, 80 s pressed after the tap (from the snapshot), back to 60 s.
+  - The phone's custom words: "lechon, jeepney" added ("Our words: 2"), Clear all armed red ("Tap again…"), no scroll. On the Screen: a word added ("Our words: 3"), Clear all armed red.
+  - A tab's dialog in the lobby.
+  - The bar after Start at 1920×1080 (1 row), 1280×720 (1 row), 1024×768, 768×1024 and 810×1080 (2 rows): no document scroll, every button inside the viewport, none under 44 px.
+  - Skip armed red with the sticky status note at 1280×720; Players dialog; the `?` card at 768×1024 and 1024×768 with no scroll.
+  - No console errors on any role.
+- `.playtest/F63/scenario3.ts` (the token Screen at 740×360 and 360×640): Settings and Add your own words, then the bar, the `?` card and the players dialog: no document scroll, no button off the sides, Done / Close in view (the `?` list scrolls inside the card). No console errors.
+- Shots: `small-{settings,words,bar,shortcuts,players}-{740x360,360x640}-screen.png`, `1-settings-screen.png`, `2-customwords-screen.png`, `3-bar-screen.png`, `4-shortcuts-screen.png`, `5-players-screen.png`, `s-bar-{1920x1080,1280x720,1024x768,768x1024,810x1080}-screen.png`, `s-bar-armed-1280x720-screen.png`, `s-status-1280x720-screen.png`, `s-players-1280x720-screen.png`, `s-shortcuts-{768x1024,1024x768}-screen.png`, `s-words-armed-screen.png`, `s-tab-dialog-screen.png`, `p-settings-*-Ana.png`, `p-settings-bottom-*-Ana.png`, `p-words-armed-360x560-Ana.png`.
+- **Still differs from the mockup:** the mockup (`sketchbook.html`) draws no host UI (no bar, no `?` card, no settings, custom words or players sheets), so there is no side-by-side shot; the look follows SKETCHBOOK.md's Host UI line and the F56 primitives (DECISIONS 86). Also:
+  - While shown, the bar lies over the code strip (back when the bar hides).
+  - The turn behind the bar is still the dark page (F64).
+  - The players sheet writes names in `ink`, not the player's colour (`HostPlayerList`, unchanged from F61).
+- `npm run size`: JS 118.6 KB of 120 (F62: 118.6), CSS and fonts 69.7 KB of 72.
+- `/verify`: format, lint, typecheck, 1562 tests and build all green.
+
+**Notes for next session:**
+- F64: the turn and standings are the last dark pages (`legacy-night` in `Screen.tsx`). The bar is opaque and, in portrait, wraps to 2 rows (about 115 px at 768×1024, 3 rows on a 360 px phone-as-Screen), so while shown it covers the bottom of the book, where F64 puts the portrait tabs. It hides after 3 s; if that is too much, lift it or reserve its height while shown. `barButton` (HostControls) and `sheet.ts` are the Screen's small sketch button and sheet classes.
+
+**How to try it:** `npm run dev`, open `/` on a laptop and Start, join `/play/CODE` from two phone windows; on the Screen open Settings and Add your own words, then Start; move the mouse to see the bar, press `?`, tap Skip once, open Players. On the first phone (the crown) tap Change.
 
 ## F62 — Sketchbook Screen frame and lobby (2026-11-01)
 **What changed:**

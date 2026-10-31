@@ -290,12 +290,7 @@ export function Screen() {
         <RematchOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />
       )}
       {/* The token Screen only; the server checks every host event again. */}
-      {/* The control bar keeps its dark look until F63 (`legacy-ink`, DECISIONS 85). */}
-      {view.host && (
-        <div className="legacy-ink">
-          <HostControls view={view} socket={socket} t={t} />
-        </div>
-      )}
+      {view.host && <HostControls view={view} socket={socket} t={t} />}
       {startOverlay}
     </main>
   );

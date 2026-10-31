@@ -165,15 +165,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F62 Sketchbook Screen frame and lobby
 
-- [ ] F63 Sketchbook Screen host UI
-  - Spec: UI by role and phase (Host controls); Settings; Words (Custom words); docs/design/SKETCHBOOK.md (Surfaces: Host UI)
-  - Depends: F62
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The host control bar is a taped strip along the bottom edge. Auto-hide and the keyboard shortcuts are unchanged.
-    - The `?` shortcuts overlay is a ruled index card.
-    - Settings, custom words and the players dialog are dot-grid sheets with sketch buttons and hand-bordered inputs. Every control and two-tap state behaves as before.
-  - Tests: existing HostControls, ScreenSettings, CustomWords and PlayersDialog tests stay green
+- [x] F63 Sketchbook Screen host UI
 
 - [ ] F64 Sketchbook Screen turn, landscape
   - Spec: UI by role and phase (Screen); Guess feed and rude guesses; DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Turn, Motion)

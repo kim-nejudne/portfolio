@@ -179,32 +179,29 @@ export function PhoneLobby({
           onClose={closeAvatar}
         />
       )}
-      {/* Still the dark panels until F63 restyles them; they paint their own background. */}
-      <div className="legacy-ink contents">
-        {words && (
-          <CustomWordsPanel
-            count={view.host!.customWordCount}
-            socket={socket}
-            t={t}
-            onClose={closeWords}
-            onScreen={false}
-          />
-        )}
-        {open && (
-          <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
-            <section className="flex flex-col gap-2">
-              <h3 className="opacity-80">{t('playersTitle')}</h3>
-              <HostPlayerList
-                players={view.players}
-                socket={socket}
-                t={t}
-                size="phone"
-                mePid={view.me.pid}
-              />
-            </section>
-          </ScreenSettings>
-        )}
-      </div>
+      {words && (
+        <CustomWordsPanel
+          count={view.host!.customWordCount}
+          socket={socket}
+          t={t}
+          onClose={closeWords}
+          onScreen={false}
+        />
+      )}
+      {open && (
+        <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
+          <section className="flex flex-col gap-2">
+            <h3 className="text-soft">{t('playersTitle')}</h3>
+            <HostPlayerList
+              players={view.players}
+              socket={socket}
+              t={t}
+              size="phone"
+              mePid={view.me.pid}
+            />
+          </section>
+        </ScreenSettings>
+      )}
     </div>
   );
 }

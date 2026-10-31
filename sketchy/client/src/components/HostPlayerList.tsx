@@ -24,8 +24,8 @@ const SIZES = {
   },
 } as const;
 
-/** Hand-bordered paper buttons (F61): they read on the paper sheet and on the dark panels F63
- * still has to restyle. Armed ("Remove Jun?") is red pen. */
+/** Hand-bordered paper buttons (F61), on the Host sheet and the host's dot-grid sheets (F63).
+ * Armed ("Remove Jun?") is red pen. */
 const BUTTON = 'border-ink bg-paper text-ink';
 const ARMED = 'border-ink bg-red text-paper';
 
@@ -79,8 +79,7 @@ export function HostPlayerList({
           return (
             <li
               key={p.pid}
-              // Dashed rules between rows (the sketchbook's roster), in `dot`, which reads on paper
-              // and on the dark panels it still sits in until F63.
+              // Dashed rules between rows (the sketchbook's roster), in `dot`.
               className={`flex flex-wrap items-center justify-between gap-2 border-b-[1.5px] border-dashed border-dot pb-1 ${p.connected ? '' : 'opacity-60'}`}
             >
               <span className={`flex min-w-0 items-center gap-2 ${sz.name}`}>
@@ -119,7 +118,7 @@ export function HostPlayerList({
           );
         })}
       </ul>
-      {/* In the panel's own text colour: ink on the paper sheet, white on the dark panels left. */}
+      {/* In the sheet's own text colour (ink). */}
       <p role="status" className={`min-h-[1.5em] ${sz.status}`}>
         {status ?? ''}
       </p>

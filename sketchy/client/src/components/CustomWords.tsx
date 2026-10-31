@@ -4,6 +4,7 @@ import type { Translate } from '../lib/copy.js';
 import { parseCustomWords } from '../lib/customWords.js';
 import { STATUS_MS } from '../lib/hostSend.js';
 import type { GameSocket } from '../lib/socket.js';
+import { FULL_SHEET, HAND_INPUT, SHEET_TITLE, sheetButton } from './sketch/sheet.js';
 
 /**
  * The lobby button that opens "Add your own words", on the token Screen and the crown phone, with
@@ -137,46 +138,41 @@ export function CustomWordsPanel({
     await send([], true);
   };
 
-  const pill =
-    'min-h-12 min-w-12 rounded-[2vmin] px-[4vmin] py-[1vmin] font-bold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white aria-disabled:opacity-60';
-
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="custom-words-title"
-      className="absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-[#1D1B22] px-[max(5vmin,env(safe-area-inset-left))] pt-[max(3vmin,env(safe-area-inset-top))] pb-[max(3vmin,env(safe-area-inset-bottom))] text-[max(3.2vmin,16px)]"
+      data-sheet="custom-words"
+      className={`${FULL_SHEET} px-[max(5vmin,env(safe-area-inset-left))] pt-[max(3vmin,env(safe-area-inset-top))] pb-[max(3vmin,env(safe-area-inset-bottom))] text-[max(3.2vmin,16px)]`}
     >
       <div className="mx-auto flex max-w-[150vmin] flex-col gap-[2vmin]">
         <div className="flex items-center justify-between gap-[3vmin]">
-          <h2
-            id="custom-words-title"
-            className="font-display text-[max(5vmin,24px)] leading-tight font-bold"
-          >
+          <h2 id="custom-words-title" className={`${SHEET_TITLE} text-[max(5vmin,24px)]`}>
             {t('customWords')}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${pill} shrink-0 bg-[#FF6B35] text-[max(3.5vmin,18px)] text-[#1D1B22]`}
-          >
+          <button type="button" onClick={onClose} className={sheetButton('primary')}>
             {t('settingsDone')}
           </button>
         </div>
 
-        <p className="text-white/80">{t('customWordsHint', { max: CUSTOM_WORDS_MAX })}</p>
-        {onScreen && <p className="text-[#FFD166]">{t('customWordsScreenNote')}</p>}
+        <p className="text-soft">{t('customWordsHint', { max: CUSTOM_WORDS_MAX })}</p>
+        {onScreen && (
+          <p className="self-start sketch-border bg-sticky px-[2.5vmin] py-[0.8vmin] shadow-[0.28vmin_0.42vmin_0_var(--color-ink)]">
+            {t('customWordsScreenNote')}
+          </p>
+        )}
 
         {/* Add sits above the box: an on-screen keyboard opening under the box can't cover it. */}
         <div className="flex flex-wrap items-center justify-between gap-[2vmin]">
-          <p role="status" className="min-h-[1.5em] text-[#FFD166]">
+          <p role="status" className="min-h-[1.5em] text-red">
             {error ?? (clearArmed ? t('customWordsClearConfirm') : '')}
           </p>
           <button
             type="button"
             onClick={add}
             aria-disabled={sending || text.trim() === ''}
-            className={`${pill} bg-[#FF6B35] text-[#1D1B22]`}
+            className={sheetButton('primary')}
           >
             {t('customWordsAdd')}
           </button>
@@ -196,18 +192,18 @@ export function CustomWordsPanel({
             autoCorrect="off"
             autoCapitalize="none"
             spellCheck={false}
-            className="w-full resize-none rounded-[1.5vmin] bg-white px-3 py-2 text-[max(3.2vmin,16px)] text-[#1D1B22]"
+            className={`${HAND_INPUT} resize-none text-[max(3.2vmin,16px)]`}
           />
         </label>
 
-        <div className="flex flex-wrap items-center justify-between gap-[2vmin] border-t border-white/15 pt-[2vmin]">
-          <p className="font-bold">{t('customWordsCount', { n: count })}</p>
+        <div className="flex flex-wrap items-center justify-between gap-[2vmin] border-t-[1.5px] border-dashed border-dot pt-[2vmin]">
+          <p>{t('customWordsCount', { n: count })}</p>
           {count > 0 && (
             <button
               type="button"
               onClick={clear}
               aria-disabled={sending}
-              className={`${pill} ${clearArmed ? 'bg-[#E63946] text-white' : 'bg-white/10'}`}
+              className={sheetButton(clearArmed ? 'armed' : 'ghost')}
             >
               {clearArmed ? t('customWordsClearConfirm') : t('customWordsClear')}
             </button>
