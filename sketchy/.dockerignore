@@ -1,0 +1,19 @@
+# Keep the build context to what `npm run build` and the image need (data/packs is copied in).
+node_modules/
+dist/
+coverage/
+.git
+.env
+.env.*
+*.log
+.claude/
+.playtest/
+.playwright-mcp/
+test-results/
+playwright-report/
+graphify-out/
+docs/
+deploy/
+spec-prompt.md
+Dockerfile
+.dockerignore

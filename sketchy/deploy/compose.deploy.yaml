@@ -1,0 +1,33 @@
+# Droplet stack for sketchy.kimnejudne.dev. Lives at /opt/sketchy/compose.yaml beside a .env that
+# holds IMAGE_TAG. Ported from Buzzr (buzzer/deploy/compose.deploy.yaml): own container, port, env
+# and mem_limit; nothing is shared with Buzzr.
+#
+# The image is built off the droplet and shipped with `docker save | docker load`, so there is no
+# build context here. scripts/docker-smoke.sh reads TRUST_PROXY, NODE_OPTIONS and mem_limit from
+# this file, so a dropped key fails the smoke test.
+#
+#   docker compose up -d
+
+name: sketchy
+
+services:
+  app:
+    image: sketchy:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      # nginx on the host is the one proxy hop. Without this every phone shares nginx's address
+      # in the per-IP limits (10 joins a minute, 10 new games an hour).
+      TRUST_PROXY: '1'
+      # Caps V8's heap well under mem_limit, so it collects before the container is killed.
+      # A 10-player game with a full gallery played through with a 48 MB cap (DECISIONS 73).
+      NODE_OPTIONS: '--max-old-space-size=128'
+    # Rooms live in memory and nothing is written, so there is no volume.
+    # Loopback only: nginx terminates TLS in front and is the sole way in. Buzzr has 3005,
+    # PokéTrack 3004.
+    ports:
+      - '127.0.0.1:3006:3000'
+    # Measured with `npm run mem:probe -- --heap 128` (F51): a 10-player game of 3 cycles with a
+    # full gallery peaks at 166 MB resident (114 MB anonymous); two at once, 243 MB (186 MB).
+    # Two full games at once are the ceiling; a kill here ends every live room. With Buzzr's
+    # 384m it fits the droplet's ~700 MB free.
+    mem_limit: 256m

@@ -130,13 +130,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 ## M10 — Deploy
 
-- [ ] F51 Docker image and smoke test
-  - Spec: Tech stack and architecture; Ported from Buzzr
-  - Depends: F44
-  - Done when:
-    - Dockerfile ported; `npm run smoke:docker` builds, runs and checks `/healthz`, the client and a WebSocket (including `/ink`)
-    - The container listens on 3000 and binds `127.0.0.1:3006` on the host (PokéTrack has 3004, Buzzr 3005); 3006 confirmed free on the droplet (`ss -ltn`, 2026-10-30)
-    - `mem_limit` set from the peak memory measured in a 10-player game with a full gallery, plus headroom; it must fit in the droplet's ~700 MB free alongside Buzzr's `384m`
+- [x] F51 Docker image and smoke test
 
 - [ ] F52 Deploy to sketchy.kimnejudne.dev
   - Spec: Overview (Scope decisions); Ported from Buzzr

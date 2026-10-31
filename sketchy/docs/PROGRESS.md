@@ -66,8 +66,54 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F48: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones (an iPhone in Safari and a ≤ 360 px-wide Android in Chrome; the first to join holds the crown). On the crown phone tap "Add your own words ✍️", type 5 words on the keyboard (one per line, then a comma-separated line), tap Add words; on the Screen add 2 more and see "· 7" on both; tap Clear all twice on one of them, then add 4 again; Start and play 4 turns · the phone keyboard never hides Add words or the status line, nothing sits under the iPhone home indicator, the count matches on both host devices, each drawer's cards show one "Ours" until the 4 are drawn, and no custom word shows on the TV or a guesser phone before its reveal. Also read the Taglish: "Magdagdag ng sariling words", "Atin" on the card, "Kita ng lahat ang screen na ’to…" (Settings → Game text → Taglish)
 - [ ] F49: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones; play a game with 2 rounds where every phone draws something different, then Rematch and finish game 2 so the Tonight panel shows too · from the sofa (≈ 5 m) the gallery's words and "by Name" lines are readable, every final score row and the Tonight panel fit above the gallery with nothing cut off, each thumbnail matches what was drawn; tapping a thumbnail (or ← →) opens it large with the word whole (try a long one, e.g. "refrigerator"), Esc closes it; the room code strip along the bottom is gone while the gallery is up
 - [ ] F50: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3–4 real phones (one ≤ 360 px wide); play a 2-round game where one drawing goes unguessed to the end of its time, then Rematch and finish game 2 · after the podium the Screen shows "Tonight's awards" cards, nobody twice, every winner's name readable from the sofa (≈ 5 m), all score rows, the Tonight column and the gallery visible with nothing cut off; each phone whose player won something leads its FINAL with the "Your award" card (try Settings → Game text → Taglish for one game: the card still fits on the small phone without pushing Leave off the screen); a player with no award sees no card. Also open the Screen on a 4:3 tablet in game 2 and check the scores and the one-line Tonight strip are readable at 2 m
+- [ ] F51: on the laptop, with Docker running: `cd sketchy && npm ci && npm run smoke:docker` · it ends with `PASS`, after `ok   deploy/compose.deploy.yaml: 127.0.0.1:3006 -> 3000, mem_limit 256m`, every `scripts/smoke.ts` line (`/healthz`, the client, `/play/ABCD`, a room, the dev word route off, both namespaces), "the server started with the word packs", "runs as node", "HEALTHCHECK is starting" (or "healthy") and "stops on SIGTERM in Ns" with N < 5. Once F52 has deployed, run `docker stats sketchy-app-1` on the droplet during a real 10-player game · memory stays well under the 256MiB limit (the probe measured ~166 MB resident outside Docker for a full game)
 
 <!-- entries below, newest first -->
+
+## F51 — Docker image and smoke test (2026-10-31)
+**What changed:**
+- **`Dockerfile`** (ported from Buzzr): four stages on `node:24-slim` (deps, build, prod-deps, runtime), `NODE_ENV=production`, `PORT=3000`, runs as `node`, `HEALTHCHECK` on `/healthz`. The word packs are baked in at `/app/data/packs`, where `packsDirFor` looks from `dist/server`; no `DATA_DIR`, no volume. `.dockerignore` keeps the context to what the build needs (`data/packs` stays in).
+- **`deploy/compose.deploy.yaml`** (created here, not in F52, since the port and `mem_limit` are this feature's): `sketchy:${IMAGE_TAG}`, `TRUST_PROXY: '1'`, `NODE_OPTIONS: '--max-old-space-size=128'`, `127.0.0.1:3006:3000`, `mem_limit: 256m`.
+- **`scripts/smoke.ts <url>`** (`npm run smoke -- <url>`): `/healthz` 200 `{"ok":true}`; `/` serves the client and its `/assets/*.js` entry; `/play/ABCD` falls back to it; `POST /api/rooms` 201; the dev word route is 404; on `/` a token Screen joins and gets its LOBBY state, and a player joins and the Screen sees them; on `/ink` the Screen's hello, the phone's hello on a `playerKey`-bound handshake, and an unknown `playerKey` refused `notPlayer`. Works against any URL, so F52's live check can reuse it.
+- **`scripts/docker-smoke.sh`** (`npm run smoke:docker`, ported from Buzzr): reads `TRUST_PROXY`, `NODE_OPTIONS`, `mem_limit` and the `127.0.0.1:3006:3000` binding from the compose file (a dropped key fails), builds the image, runs it with those and `--memory`, runs `smoke.ts`, then checks the packs loaded, the user is `node`, the `HEALTHCHECK` isn't unhealthy and `docker stop` takes < 5 s.
+- **`scripts/mem-probe.ts`** (`npm run mem:probe [-- --games N --heap MB]`): starts `dist/server/index.js` and plays N games over real sockets (one WebSocket per phone for both namespaces, each from its own `X-Forwarded-For`): 10 players with full lobby doodles, 3 cycles (30 turns), each drawer filling the canvas (~194 KB), 3 wrong guesses per guesser per turn, the host skipping each turn once the ink is in, and the Screen fetching the whole gallery at FINAL. Samples `/proc` RSS and `RssAnon` every 50 ms.
+- **Measured** (this laptop, Node 24):
+
+  | Run | Peak RSS | Peak anonymous |
+  | --- | --- | --- |
+  | 1 game, default heap | 228 MB | — |
+  | 1 game, `--heap 48` | 136 MB | — |
+  | 1 game, `--heap 128` | 166 MB | 114 MB |
+  | 2 games, `--heap 128` | 243 MB | 186 MB |
+  | 3 games, `--heap 128` | 304 MB | — |
+
+  Idle is ~93 MB. Each game kept 19 of its 30 drawings (the 4 MB room budget). Hence `mem_limit: 256m` with the 128 MB heap cap: ~2× headroom for one game, two full games are the ceiling; 256m + Buzzr's 384m = 640 MB of the ~700 MB free.
+- **New dependencies:** none.
+- **Tests:** `scripts/smoke.test.ts` (3): every check passes against an in-process server wired like `server/index.ts` with a stand-in client build; it fails without a client; it fails with the dev route on.
+
+**Decisions:** DECISIONS 73 (packs in the image, compose here, the memory figures and the limit, the smoke checks, Docker not run in autopilot sessions).
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.**
+  - Must-fix done: this entry and the Kim check for `npm run smoke:docker`.
+  - Should-fixes done: the smoke checks the dev word route is 404 (the word's one guard is `NODE_ENV`); the compose file states two full games are the ceiling.
+  - Kept: `mem-probe.ts` has no test (a measuring tool, ~75 s a run).
+- secrets-fairness and mobile-ux not run: no `server/`, `shared/`, ink or `client/` code changed.
+
+**Verification without Docker** (autopilot sessions may not run it):
+- `npm run smoke -- http://127.0.0.1:3997` against `npm start`'s build with the compose env: PASS.
+- The image rehearsed stage by stage: the context copied through `.dockerignore` (`rsync --exclude-from`), `npm ci` and `npm run build` in it, a prod-only `npm ci --omit=dev` in a fresh dir with `dist` and `data/packs` copied in, `node dist/server/index.js` there: "Loaded 11 word packs (584 words)", smoke PASS, SIGTERM shuts it down.
+- The script's compose parsing gives `1`, `--max-old-space-size=128`, `256m`, `3006`; `shellcheck` clean.
+
+**Notes for next session:**
+- F52: run `npm run smoke:docker` in the workflow's "build and smoke-test the image" step (the runner needs `npm ci` first, since `smoke.ts` runs on the host), and `npm run smoke -- https://sketchy.kimnejudne.dev` for the live check (it creates one room, swept after 3 h).
+- The probe's numbers are outside a container; if `docker stats` on the droplet shows more than ~200 MiB in one game, raise `mem_limit` and recheck the droplet's free memory.
+
+**How to try it:**
+- Tests: `npx vitest run scripts/smoke.test.ts`.
+- Smoke without Docker: `npm run build && PORT=3997 TRUST_PROXY=1 npm start`, then `npm run smoke -- http://127.0.0.1:3997`.
+- With Docker: `npm run smoke:docker`.
+- Memory: `npm run build && npm run mem:probe -- --heap 128` (~75 s).
 
 ## F50 — Tonight's awards (2026-10-31)
 **What changed:**
