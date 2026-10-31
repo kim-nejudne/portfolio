@@ -78,8 +78,37 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F55: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, a real phone joined; doodle a few strokes in the lobby, tap ↶ Undo, lock and unlock the phone, then reload · the strokes stay on the phone (back after the reload), Undo takes one off, the Screen chips show only the emoji, and nothing doodle-like ever appears on the TV
 - [ ] F56: `npm run dev`, open `http://<laptop-ip>:5173/dev/sketch` on an iPhone in Safari and a budget Android in Chrome, and `docs/design/sketchbook.html#sketch-drawing` beside it on the laptop · Patrick Hand and Nunito 900 load (not Comic Sans or the system face); dots, ruled lines with the red margin, rings, tape, highlighter, buttons (the press collapses the shadow) and the 12 crayon names read like the mockup's look
 - [ ] F56: until F58 restyles the pages, the game still has its dark background, and the new crayon colours (names on the Screen chips, the phone lobby lists) read dark on it (2.2–3.3:1) · decide whether F56 may deploy alone or should wait for F58
+- [ ] F57: `npm run dev` + `npm run lan`, open `http://<laptop-ip>:5173/` on an iPhone in Safari and a budget Android in Chrome, tap the four code underlines and type a real room's code in lowercase · the keyboard opens with no page zoom, the letters appear uppercase one per cell with the blue caret blinking in the next, long-press shows no stray selection or IME underline over the cells, Join takes you to the name step, and the landing and name step fit with no scroll
+- [ ] F57: open `/` on the laptop (Chrome, ≥ 1024 px wide) and once more with the OS's reduce-motion setting on · the umbrella draws itself on stroke by stroke beside the cards with no dots before each stroke starts; with reduce motion it is simply there
 
 <!-- entries below, newest first -->
+
+## F57 — Sketchbook landing and join form (2026-10-31)
+**What changed:**
+- **Landing** (`pages/Landing.tsx`): dot-grid paper; on phones the spiral rings across the top, the "Sketchy" logo in Patrick Hand with a `pen` scribble under it, "Draw it. Guess it. **Laugh.**" with "Laugh." on the highlighter, then two taped cards. **Join a game:** the code as 4 Nunito cells on `pen` underlines (`CodeCells`), the real `#code` input transparent over them (same filter, now the tested `cleanCode`; same `/exists` check and copy), a full-width primary Join. **Start a game on this screen:** the hint in `soft` on a 20 % highlighter wash, a ghost Start. Refusals are `ink` after a red ✗ (`ErrorLine`), and one shows at a time. At `lg` it's two columns: logo, tag line and the ink replay on the left, the cards on the right, no rings.
+- **`components/sketch/InkReplay.tsx`:** the mockup's umbrella in `DRAW_COLORS`, drawn on stroke by stroke once (`animate-ink-draw` in `index.css`); every animation class behind `motion-safe:`, so it's static under reduced motion; `aria-hidden`. `index.css` also gains `animate-blink` (the code caret, the mockup's `sk-blink`).
+- **Join step:** `JoinForm` on dot-grid paper with rings (`Play.tsx` wraps it and `TakeOverPrompt` in a paper `main`), a hand-bordered name input, a primary sketch Join; `TakeOverPrompt` gets sketch buttons and now scrolls rather than clipping. `AvatarPicker`'s 24 cells are wobbly `soft` rings, the picked one `hl` with an `ink` ring (≥ 44 px; 49.7 px at 360 wide). The Change avatar dialog (same picker) is now a paper sheet with a sketch Done. `SketchButton` takes a `ref`.
+- **Tests:** `pages/Landing.test.tsx` (logo, highlighted "Laugh.", two taped cards, rings; one labelled uppercase input over 4 hidden cells; primary Join waits for 4 letters, ghost Start; the replay only in the laptop column; `cleanCode`; cells and caret; InkReplay hidden and motion-safe only). The JoinForm, TakeOverPrompt and ChangeAvatar tests stay green unchanged.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 80.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.** Must-fixes: the playtest at the named sizes with the mockup beside it (done, below) and the mobile-ux review (done). Should-fixes taken: `cleanCode` extracted and tested; the dropped placeholder is in DECISIONS 80. Not taken: rendering InkReplay only at `lg` with a media hook (it is `display:none` below `lg`, so its animations don't run; six paths in the DOM).
+- **mobile-ux-reviewer: PASS WITH FIXES.** Must-fixes done: refusals are `ink` with a red ✗ and the Start wash is 20 % (red and `soft` missed 4.5:1 on 30 %); the alerts stay in the DOM (no `empty:hidden`). Should-fixes done: the error states were probed (both refusals together overflowed 360×560 by 20 px, so each action now clears the other's); TakeOverPrompt scrolls; the 48 px Join is recorded in DECISIONS 80; no dot before a stroke starts (`1 2` dash, transparent until its turn); unselected avatar rings in `soft`. Nits done: right safe-area inset. Not taken: `md:justify-center` for portrait tablets (it would pull the rings off the top edge); `maxLength` (it would cut a pasted code with spaces); long-press and IME on real phones are a Kim check. Not needed: `secrets-fairness-reviewer` (no `server/`, `shared/` or ink-transport change).
+
+**Verification:**
+- `/playtest F57` (`.playtest/F57/scenario.ts`): at 360×560 typing `kp1rw` shows KPRW and enables Join; an unknown code says "No game with that code. Check the TV."; a tablet's Start opens `/screen/CODE`; a Pixel 7 and a 360×560 phone type the code at `/`, reach the join form on paper (24 cells, smallest 49.7 px, Join's bottom at y 175, no scroll) and join (the lobby lists both); on a 1280×720 laptop the umbrella's paths run 0 animations under `reduce` and draw on with `no-preference`; focusing `#code` shows the blinking caret. No console errors.
+- `.playtest/F57/fit.ts`: no document or `main` scroll and no horizontal overflow for `/` and `/play/CODE` at 360×560, 390×664, 412×780, 1280×720, 1366×650 and 768×1024. `.playtest/F57/errors.ts`: with a refusal showing, still no scroll at the three phone sizes.
+- Side by side with the mockup (`.playtest/F57/mockup-landing.png`, from `sketchbook.html#sketch-landing`): `fit-landing-360x560.png`, `fit-landing-1280x720.png`, `landing-360-small.png`, `laptop.png`, `join-360-small2.png`, `errors-360x560.png`. **Still differs:** the cells are empty until you type (the mockup shows KPRW); the scribble is a flatter arc; the Start wash is lighter (20 %); the hint keeps the spec's wording ("a laptop on the TV, a tablet, or a spare phone"); the landing buttons are 48 px; the laptop's Join is full width in its card, as in the mockup.
+- `npm run size`: JS 114.4 KB of 120 (F56: 112.5; the sketch primitives are now used on `/` and `/play`), CSS and fonts 68.2 KB of 72.
+- `/verify`: format, lint, typecheck, 1453 tests, build all green.
+
+**Notes for next session:**
+- F58: the lobby, the "game ended" page, `<body>` and `theme-color` are still dark; the Change avatar dialog is already a paper sheet. Reuse `ErrorLine`'s pattern (ink + red ✗) wherever an error sits on a tinted card.
+- The rings' punched holes (`desk`) read fine on phone paper.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/` on a phone-sized window and a laptop-wide one; type a code, or Start and join `/play/CODE` from a second window.
 
 ## F56 — Sketchbook foundation (2026-10-31)
 **What changed:**

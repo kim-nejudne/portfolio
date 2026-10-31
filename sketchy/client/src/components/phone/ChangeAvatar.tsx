@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Avatar } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
+import { SketchButton } from '../sketch/SketchButton.js';
 import { AvatarPicker } from './AvatarPicker.js';
 
 const ACK_TIMEOUT_MS = 5000;
@@ -89,23 +90,18 @@ export function ChangeAvatarDialog({
       aria-modal="true"
       aria-labelledby="change-avatar-title"
       aria-busy={sending}
-      className="absolute inset-0 z-20 flex flex-col gap-3 overflow-y-auto overscroll-contain bg-[#1D1B22] px-4 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="absolute inset-0 z-20 flex flex-col gap-3 overflow-y-auto overscroll-contain paper-dots bg-paper px-4 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] font-hand text-ink"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 id="change-avatar-title" className="font-display text-2xl leading-tight font-bold">
+        <h2 id="change-avatar-title" className="text-[28px] leading-tight font-normal">
           {t('changeAvatar')}
         </h2>
-        <button
-          ref={done}
-          type="button"
-          onClick={onClose}
-          className="min-h-11 min-w-11 shrink-0 rounded-xl bg-[#FF6B35] px-4 text-lg font-bold text-[#1D1B22] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
+        <SketchButton ref={done} onClick={onClose} className="shrink-0">
           {t('settingsDone')}
-        </button>
+        </SketchButton>
       </div>
       <AvatarPicker avatar={avatar} onAvatar={(next) => void pick(next)} t={t} />
-      <p role="status" className="min-h-[1.5em] text-center text-base text-[#FFD166]">
+      <p role="status" className="min-h-[1.5em] text-center text-lg text-red">
         {error ?? ''}
       </p>
     </div>

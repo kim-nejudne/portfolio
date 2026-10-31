@@ -153,15 +153,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F56 Sketchbook foundation
 
-- [ ] F57 Sketchbook landing and join form
-  - Spec: UI by role and phase (Landing page, Look and feel); Roles and devices (Creating and joining a room); docs/design/SKETCHBOOK.md (Surfaces: Landing)
-  - Depends: F56
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The phone landing (`#sketch-landing`) has spiral rings, the logo with its pen scribble, the tag line with "Laugh." highlighted, and two taped cards. The Join card shows the code as 4 Nunito cells on pen underlines, with the auto-uppercase and exists-check behaviour unchanged; the Start card has a ghost button.
-    - The laptop landing has two columns, with the umbrella-style ink replay. It is decorative and static under reduced motion.
-    - The join form (name, avatar grid with cells ≥ 44 px, Join) is on paper with the sketch button. It fits 360×560 with Join on screen.
-  - Tests: existing Landing and JoinForm tests stay green
+- [x] F57 Sketchbook landing and join form
 
 - [ ] F58 Sketchbook phone shell and lobby
   - Spec: UI by role and phase (Guesser phone, Host controls, Look and feel); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Lobby)

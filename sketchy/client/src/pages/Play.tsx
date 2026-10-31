@@ -15,6 +15,7 @@ import { PausedOverlay } from '../components/PausedOverlay.js';
 import { RematchOverlay } from '../components/RematchOverlay.js';
 import { HostDrawer } from '../components/phone/HostDrawer.js';
 import { JoinForm, TakeOverPrompt } from '../components/phone/JoinForm.js';
+import { SpiralRings } from '../components/sketch/SpiralRings.js';
 import { PhoneLobby } from '../components/phone/PhoneLobby.js';
 import { PhoneStandings } from '../components/phone/PhoneStandings.js';
 import { WordChoice } from '../components/phone/WordChoice.js';
@@ -418,7 +419,8 @@ export function Play() {
 
   if (takeOverName !== null && (status === 'takeOver' || (status === 'joining' && !silent))) {
     return (
-      <main className="flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+      <main className="paper-dots flex h-dvh flex-col overflow-y-auto bg-paper pt-[env(safe-area-inset-top)] font-hand text-ink">
+        <SpiralRings />
         <TakeOverPrompt
           name={takeOverName}
           busy={status === 'joining'}
@@ -432,7 +434,8 @@ export function Play() {
 
   if (status === 'form' || status === 'takeOver' || (status === 'joining' && !silent)) {
     return (
-      <main className="flex h-dvh flex-col overflow-y-auto pt-[env(safe-area-inset-top)]">
+      <main className="paper-dots flex h-dvh flex-col overflow-y-auto bg-paper pt-[env(safe-area-inset-top)] font-hand text-ink">
+        <SpiralRings />
         <JoinForm
           code={code}
           initialName={formName}

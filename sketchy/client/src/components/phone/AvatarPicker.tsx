@@ -17,7 +17,7 @@ export function AvatarPicker({
 }) {
   return (
     <fieldset className="flex min-w-0 flex-col gap-2">
-      <legend className="mb-2 text-lg font-semibold">{t('yourAvatar')}</legend>
+      <legend className="mb-2 font-hand text-xl leading-tight">{t('yourAvatar')}</legend>
       {/* At least 44 px a cell: 4 across below 360 px (6 rows), 6 from 360 px (4 rows). */}
       <div className="grid grid-cols-4 gap-1.5 min-[360px]:grid-cols-6">
         {AVATARS.map((option) => (
@@ -27,8 +27,8 @@ export function AvatarPicker({
             aria-label={t('avatarOption', { emoji: option })}
             aria-pressed={avatar === option}
             onClick={() => onAvatar(option)}
-            className={`grid aspect-square min-h-11 place-items-center rounded-xl border-2 text-[26px] leading-none ${
-              avatar === option ? 'border-[#FF6B35] bg-[#FF6B35]/25' : 'border-white/15 bg-white/5'
+            className={`wobbly grid aspect-square min-h-11 place-items-center border-[2.5px] text-[26px] leading-none focus-visible:outline-3 focus-visible:outline-offset-1 focus-visible:outline-pen ${
+              avatar === option ? 'border-ink bg-hl' : 'border-soft bg-paper'
             }`}
           >
             {option}

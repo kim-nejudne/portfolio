@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef } from 'react';
+import type { ComponentProps } from 'react';
 
 /**
  * The sketch button (Sketchbook primitives): a hand-drawn `ink` border with a hard 3×4 px shadow,
@@ -15,7 +15,7 @@ export function SketchButton({
 }: {
   variant?: 'primary' | 'ghost';
   full?: boolean;
-} & ComponentPropsWithoutRef<'button'>) {
+} & ComponentProps<'button'>) {
   return (
     <button
       type={type}
