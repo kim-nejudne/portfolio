@@ -84,8 +84,60 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F58: on a 360×560-class phone the host lobby scrolls to reach its doodle pad (eyebrow, roster, Start, settings line and "Add your own words" fill the screen) · decide whether that is fine (DECISIONS 53, 81) or the host lobby should drop something so it fits
 - [ ] F59: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, the host on an iPhone (Safari) and a second drawer on a budget Android (Chrome); play a turn each · the cards are ruled, taped index cards with the red level tag and the ring counting 12 s; while drawing, the bar shows the word small and grey, the clock goes red at 0:10, "Bea is close!" sits on an orange-yellow swash; the pad has a black frame and shadow and no tape; on the iPhone the 👑 Host pill opens the sheet with one tap (no zoom), and Resume is reachable from it while paused
 - [ ] F59: in Change → custom words, add a long one (e.g. "pinakamahabang salita dito") and play until it is dealt on a 360-wide phone · the word wraps under the level tag with nothing cut off (a long gloss may lose its last line first)
+- [ ] F60: review the Taglish: `gotItHeading` ("Nakuha mo!", the big line on the got-it page) and `closeNote` ("malapit!", circled after a close try) in the `TAGLISH` table of `client/src/lib/copy.ts` · natural for barkada, short enough for a 44 px line on a 360-wide phone
+- [ ] F60: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), the host on an iPhone (Safari) and a guest on a budget Android (Chrome), one ≤ 360 px wide; while someone else draws, tap the guess line, send a wrong guess, a close one (change one letter of the word) and the word · the keyboard stays up after each send and never covers the guess line; the caret is blue and blinks; the wrong try is struck through in red with ✗, the close one circled "close!" under a yellow "So close!"; then a big green ✓, "Got it!", a red +points stamp and six round reaction buttons, "+N this turn" in the red margin, and no word anywhere; a reaction floats up on the Screen
 
 <!-- entries below, newest first -->
+
+## F60 — Sketchbook guesser phone (2026-10-31)
+**What changed:**
+- **Ruled page:** the guesser's CHOOSING and DRAWING are a ruled page with the red margin (`Play.tsx`: `paper-ruled` on the page); `legacy-night` is now only on the results area (F61). On a ruled page (this one and the guest lobby) the margin line moves in with a left safe-area inset (`RULED_INSET`), so text stays right of it.
+- **`GuesserTurn`**, text from 62 px:
+  - Top line: the Nunito 24 px clock (`red` at ≤ 10 s, no ◔) and "✏️ Mika drawing" with the name in their colour (new `NameInColour`; F58's `WaitingLine` now uses it).
+  - The `Blanks` primitive at 25 px.
+  - The guess line: a 3 px `pen` underline (thicker while focused, by a shadow), 26 px type, a `pen` caret, and a 48 px wobbly `pen` send button with the mockup's arrow. Same input, attributes, `maxLength` and focus handling as before; the line sits at 110 px (158 px with the Host bar).
+  - "So close!" pops on the highlighter (`motion-safe:`); "Slow down" stays plain.
+  - Tries one to a 34 px line, newest first: wrong ones struck through in `red` (only the line tilts) with a red ✗, close ones circled "close!". A wrapping column, so a short page drops the oldest whole.
+  - This turn's points in the left margin: "+270" in `red` Nunito over "this turn" (split from `turnPoints`, so Taglish follows). Left out at 0; never a rank.
+  - Got it: a big ✓ in the new `success` token, "Got it!" at 44 px and a `Stamp` with the points; the blanks and tries leave; screen readers still hear "✓ You got it! +270". Then "React on the Screen" and the reactions as 56 px wobbly `paper` circles with an `ink` ring and a hard shadow, 3×2, the one just sent on `hl`.
+  - Choosing: the drawer's 64 px avatar, "Mika is choosing a word…" at 30 px with the name in colour, and the 96 px `CountdownRing` (`role="timer"`).
+  - "👀 Watch the Screen" in `soft` at the foot of every guesser page; the mid-game welcome sits under the line in `ink`.
+- **New:** `components/sketch/Stamp.tsx` (red Nunito in a red oval, optional caption, `big` for F61), `components/phone/NameInColour.tsx` (+ `copyAround`), token `--color-success` (`#1A7A4A`, 5.0:1 on paper), copy `gotItHeading` ("Got it!" / "Nakuha mo!") and `closeNote` ("close!" / "malapit!"); Taglish is a Kim check.
+- **Tests:**
+  - New `components/phone/guesserLook.test.tsx` (17): the margin padding; the clock, the coloured name and the blanks in order; the clock red at 10 s, not at 11 s; the pen guess line, caret and send button with all five input attributes, above the tries; struck/circled tries, newest first, on 34 px rows; "Watch the Screen" in `soft`; margin points in red Nunito, never "+0" (DRAWING or CHOOSING) and never the rank or score, Taglish split; got-it ✓ in `success`, "Got it!" 44 px, the stamp, no word with a secret attached, no blanks or input, 6 wobbly 56 px reactions after the panel, "Nakuha mo!"; choosing avatar, coloured heading, 96 px ring, no word; `NameInColour` without a player; `Stamp`; no hex or `white` classes; the ruled guesser page in `Play.tsx`.
+  - In `phoneViews.test.tsx`, the assertions that pinned the old look now pin the new one: ◔ in the clock, the mask as one string, ≈ after a close try, the glyph right after a wrong one. Every behaviour assertion is unchanged; the `lobbyLook`, `hostPhone` and `drawerLook` tests stay green unchanged.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 83.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.** Must-fixes: this entry with the fit proof and the mockup comparison (below; the reviewer didn't see `.playtest/F60/`), the Taglish Kim check (added), the mobile-ux run (done). Should-fixes done: DECISIONS 83 (close note, `success`, no "+0", newest first); the reactions heading is inside the fit checks; the got-it and choosing views are rendered with a secret attached and checked for no word (`guesserLook.test.tsx`).
+- **mobile-ux-reviewer: PASS WITH FIXES, no Must-fix.** Should-fixes done: the margin line follows a left safe-area inset (`RULED_INSET`); a try is never cut in half (wrapping column); "12 tries" means no overflow, and the list holds the last 5 anyway (`OWN_GUESSES_SHOWN`). Not taken: pinning tries to the page's rules (the rows above vary; as F58, DECISIONS 81/83); a drawn caret (the native one blinks and is `pen`; DECISIONS 83). Nits done: a comment on the missing-drawer fallback. Not taken: 14 px margin caption (Taglish "ngayong" would crowd the 46 px margin); a thicker focus cue (the shadow is visible).
+- **secrets-fairness-reviewer:** not needed (no `server/`, `shared/` or ink change). The playtest found no word in either guesser's DOM or the Screen's, before or after the correct guess.
+
+**Verification:**
+- `.playtest/F60/scenario2.ts` (a Screen, 3 phones at 360×560 and a late joiner):
+  - Choosing: "Mika is choosing a word…", the ring and the avatar; no document, `main` or sideways scroll at 360×560, 390×664 and 412×780.
+  - Drawing: clock and "✏️ Mika drawing"; no canvas; the input's attributes; `caret-color` `rgb(40, 70, 200)`; the page's ruled background.
+  - A wrong try is struck through with ✗; the box clears and keeps focus; a close try (one letter changed) is circled "close!" with "So close!"; no "+0". No overflow at the three sizes; the guess line's top at 110 px at all three.
+  - Got it: ✓, "Got it!", "+285"; no word on the panel, in either guesser's DOM or on the Screen; margin points only on that phone; the box replaced by the reactions; no overflow at the three sizes.
+  - Mid-game join: "You're in! Mika is drawing. Type your guess.", no overflow. No console errors on any role.
+- `.playtest/F60/scenario3.ts` (the crown holder Mika guessing in turn 2; also with `LANG_MODE=taglish`): the 👑 Host pill on the guesser page; no sideways overflow while the toast pops (sampled every 20 ms); 12 tries: no overflow at the three sizes, the newest first and in view, the line at 158 px; got-it with the Host bar fits all three sizes; the margin points inside the 46 px margin ("ngayong turn" in Taglish); reactions 56×56; the sent one on `hl`; the Host sheet opens over the page.
+- Side by side with the mockup (`.playtest/F60/mockup-choosing.png`, `mockup-drawing.png`, `mockup-close.png`, `mockup-gotit.png`): `choosing-{360x560,390x664,412x780}-Jun.png`, `close-try-Jun.png`, `toast-Jun.png`, `gotit-*-Jun.png`, `midjoin-Late.png`, `toast-host-Mika.png`, `tries12-host-*-Mika.png`, `gotit-host-*-Mika.png`, `hostsheet-guesser-Mika.png` and the `-tg` Taglish shots.
+- **Still differs from the mockup:**
+  - Six reactions in a 3×2 grid (the mockup has four in a row).
+  - The tries are newest first and sit between the page's rules rather than on them.
+  - The caret is the input's own (`pen`), not the drawn 2 px bar.
+  - "👀 Watch the Screen" (emoji, existing copy) instead of the eye icon, and it shows while choosing too (the mockup says "Eyes on the Screen next").
+  - "So close!" has no "keep going" after it.
+  - The margin caption is Patrick Hand, not Nunito.
+- `npm run size`: JS 117.3 KB of 120 (F59: 116.1), CSS and fonts 69.1 KB of 72.
+- `/verify`: format, lint, typecheck, 1500 tests and build all green.
+
+**Notes for next session:**
+- F61: the results (`PhoneStandings`) are the last area under `legacy-night` in `Play.tsx` (`resultsPage`); drop it there, and the `legacy-ink` wrappers around `DrawerSheet` (`HostDrawer.tsx`) and the paused/rematch veils. `Stamp` has a `big` size with a caption for "+320 / for your drawing"; `NameInColour` writes a name in its colour inside any copy line.
+
+**How to try it:** `npm run dev`, open `/` and Start on a laptop, join `/play/CODE` from three 360×560 windows (the first is the host) and Start. In a guesser's window, send a wrong guess, a close one and the word.
 
 ## F59 — Sketchbook drawer phone (2026-10-31)
 **What changed:**

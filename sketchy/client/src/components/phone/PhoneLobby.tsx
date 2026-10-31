@@ -16,6 +16,7 @@ import { ChangeAvatarDialog } from './ChangeAvatar.js';
 import { DoodlePad } from './DoodlePad.js';
 import { sketchButtonClass } from '../sketch/SketchButton.js';
 import { LeaveButton } from './LeaveButton.js';
+import { NameInColour } from './NameInColour.js';
 
 /**
  * The lobby on a phone (UI by role and phase, Guesser phone, Lobby): "You're in, Jun!", their
@@ -213,22 +214,9 @@ export function PhoneLobby({
  * sentence in one piece; the coloured copy beside it is hidden from them.
  */
 function WaitingLine({ crown, t }: { crown: PlayerChipView | undefined; t: Translate }) {
-  const plain = t('waitingForHostToStart', { name: crown?.name ?? '' });
-  const parts = t('waitingForHostToStart', { name: '\u0000' }).split('\u0000');
   return (
     <p className="mt-1 text-base leading-snug text-soft">
-      {crown && parts.length === 2 ? (
-        <>
-          <span className="sr-only">{plain}</span>
-          <span aria-hidden="true">
-            {parts[0]}
-            <span style={{ color: crown.color }}>{crown.name}</span>
-            {parts[1]}
-          </span>
-        </>
-      ) : (
-        plain
-      )}
+      <NameInColour say={(name) => t('waitingForHostToStart', { name })} player={crown} />
     </p>
   );
 }

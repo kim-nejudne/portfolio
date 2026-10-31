@@ -159,20 +159,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F59 Sketchbook drawer phone
 
-- [ ] F60 Sketchbook guesser phone
-  - Spec: UI by role and phase (Guesser phone); Guess matching (Near misses); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Guesser)
-  - Depends: F58
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The page is ruled with a red margin.
-    - The top line is the Nunito timer and "✏️ Mika drawing", then the blanks.
-    - The guess field is a pen underline with a blinking caret and a round pen send button. It stays near the top, keeps focus after a send, and keeps its input attributes.
-    - Wrong tries are written on the lines and struck through in red pen with ✗. A close guess is circled "close!", with the "So close!" highlighter toast.
-    - This turn's points sit in the left margin. They are never "+0" and never a rank.
-    - Got it (`#sketch-gotit`) shows a big ✓, "Got it!" and a +points stamp, never the word, then the reaction buttons as wobbly circles.
-    - Choosing shows the drawer's avatar, "Mika is choosing a word…" and the ring. Mid-game join and "👀 Watch the Screen" are restyled.
-    - No overflow at 360×560, 390×664 or 412×780, with the keyboard-safe guess position kept.
-  - Tests: existing GuesserTurn and `phoneViews` tests stay green; no word on the got-it panel (existing secrecy tests)
+- [x] F60 Sketchbook guesser phone
 
 - [ ] F61 Sketchbook phone results and overlays
   - Spec: UI by role and phase (Guesser phone, Drawer phone, Host controls); Game flow and state machine (Pausing); docs/design/SKETCHBOOK.md (Surfaces: Results)

@@ -148,12 +148,12 @@ describe('guesser phone', () => {
         t={t}
       />,
     );
-    expect(html).toContain('◔ 0:47');
+    expect(html).toMatch(/role="timer"[^>]*>0:47</);
     expect(html).toContain('✏️ Mika drawing');
-    expect(html).toContain('________');
+    expect(html.match(/data-blank="letter"/g)).toHaveLength(8);
     expect(html).toContain('8 letters to guess');
-    expect(html).toContain('sapatos <span aria-hidden="true">✗</span>');
-    expect(html).toContain('tsinelas ko <span aria-hidden="true">≈</span>');
+    expect(html).toMatch(/>sapatos<\/span><span aria-hidden="true"[^>]*>✗<\/span>/);
+    expect(html).toMatch(/>tsinelas ko<\/span><span aria-hidden="true"[^>]*>close!<\/span>/);
     expect(html).toContain('(close)');
     // The polite live region for "Slow down", empty until a refusal fills it.
     expect(html).toMatch(/<p role="status"[^>]*><\/p>/);
@@ -308,7 +308,8 @@ describe('drawer phone', () => {
         t={t}
       />,
     );
-    expect(html).toContain('__b___a_');
+    const cells = [...html.matchAll(/data-blank="letter"[^>]*>([^<]*)</g)].map((m) => m[1]);
+    expect(cells).toEqual(['', '', 'b', '', '', '', 'a', '']);
     expect(html).toContain('aria-label="6 letters to guess. Hints: b, a"');
   });
 });

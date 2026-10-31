@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { GUESS_MAX, REACTION_INTERVAL_MS, REACTIONS } from '../../../../shared/constants.js';
+import {
+  GUESS_MAX,
+  LAST_SECONDS_MS,
+  REACTION_INTERVAL_MS,
+  REACTIONS,
+} from '../../../../shared/constants.js';
 import type { Ack, PlayerView, Reaction } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import { GUESS_NOTICE_MS, guessAnswer, type OwnGuess } from '../../lib/phone.js';
-import { formatClock, hintLetters, wordLengths } from '../../lib/screen.js';
+import { formatClock, hintLetters } from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
+import { Avatar } from '../Avatar.js';
+import { Blanks } from '../sketch/Blanks.js';
+import { CountdownRing } from '../sketch/CountdownRing.js';
+import { Highlight } from '../sketch/Highlight.js';
+import { Stamp } from '../sketch/Stamp.js';
+import { copyAround, NameInColour } from './NameInColour.js';
 
 interface Props {
   view: PlayerView;
@@ -23,10 +34,13 @@ interface Props {
 }
 
 /**
- * A guesser's phone in CHOOSING and DRAWING (UI by role and phase, Guesser phone): the clock and
- * who is drawing, the blanks, the guess box near the top (so the keyboard never covers it) and,
- * after a correct guess, "✓ You got it! +N" without the word and the reactions. No drawing here,
- * on purpose.
+ * A guesser's phone in CHOOSING and DRAWING (UI by role and phase, Guesser phone; Sketchbook
+ * Guesser), a ruled page with a red margin: the Nunito clock and "✏️ Mika drawing", the blanks,
+ * the guess line near the top (so the keyboard never covers it), "So close!" on the highlighter,
+ * then this phone's tries on the lines. After a correct guess: a big ✓, "Got it!" and a +points
+ * stamp, never the word, then the reactions. This turn's points sit in the margin. While the
+ * drawer chooses: their avatar, "Mika is choosing a word…" and the ring. No drawing here, on
+ * purpose.
  */
 export function GuesserTurn({
   view,
@@ -100,104 +114,228 @@ export function GuesserTurn({
   };
 
   const mask = turn.mask ?? [];
-  const lengths = wordLengths(mask);
+  // A drawer missing from the list (never expected) still gets the line, without an avatar.
+  const drawer = view.players.find((p) => p.pid === turn.drawerPid) ?? {
+    name: turn.drawerName,
+    color: 'currentColor',
+    avatar: '',
+  };
+  const points = view.me.turnPoints;
 
   return (
-    <div className="flex h-full flex-col gap-3 px-4 pt-3">
-      <p className="flex items-center justify-between gap-3 text-lg">
-        <span className={`tabular-nums ${left <= 10_000 ? 'text-[#FF8F5E]' : ''}`}>
-          ◔ {formatClock(left)}
-        </span>
-        <span className="min-w-0 truncate">
-          {drawing
-            ? t('isDrawingShort', { name: turn.drawerName })
-            : t('isChoosing', { name: turn.drawerName })}
-        </span>
-      </p>
-
-      {drawing && (
-        <p
-          role="img"
-          aria-label={blanksLabel(mask, t)}
-          className="font-mono text-2xl leading-tight font-bold tracking-[0.25em] break-words"
-        >
-          {mask.join('')}{' '}
-          {lengths.length > 1 && (
-            <span className="text-base font-normal tracking-normal text-white/60">
-              ({lengths.join(', ')})
-            </span>
-          )}
-        </p>
-      )}
-
-      {drawing && guessed && (
-        <p
-          role="status"
-          className="rounded-2xl bg-[#2DC653] px-4 py-4 text-2xl font-bold text-[#1D1B22]"
-        >
-          {t('youGotIt', { points: view.me.turnPoints })}
-        </p>
-      )}
-
-      {drawing && guessed && onReact && <ReactionRow onReact={onReact} t={t} />}
-
-      {drawing && !guessed && (
-        // The note lives with the box, so it takes no room (and no gap) while empty; it only
-        // nudges the misses below down while it shows.
-        <div className="flex flex-col">
-          <form onSubmit={submit} className="flex gap-2">
-            <input
-              ref={inputRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={GUESS_MAX}
-              placeholder={t('guessPlaceholder')}
-              aria-label={t('guessPlaceholder')}
-              aria-describedby={showWelcome ? 'joined-mid-game' : undefined}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              enterKeyHint="send"
-              className="min-h-12 w-full min-w-0 rounded-xl bg-white px-4 text-xl text-[#1D1B22] placeholder:text-[#1D1B22]/65"
-            />
-            <button
-              type="submit"
-              aria-label={t('send')}
-              // Tapping send must not take focus from the box, or the keyboard drops.
-              onMouseDown={(e) => e.preventDefault()}
-              className="min-h-12 min-w-12 shrink-0 rounded-xl bg-[#FF6B35] px-4 text-xl font-bold text-[#1D1B22]"
+    // A ruled page (the page's `paper-ruled`): everything sits right of the red margin, where only
+    // this turn's points are written.
+    <div className="relative flex h-full flex-col pt-1 pr-[22px] pb-3 pl-[62px]">
+      {drawing ? (
+        <>
+          <p className="flex min-h-[34px] items-center gap-3 text-lg leading-tight">
+            <span
+              role="timer"
+              className={`shrink-0 font-num text-2xl font-black tabular-nums ${
+                left <= LAST_SECONDS_MS ? 'text-red' : 'text-ink'
+              }`}
             >
-              ➤
-            </button>
-          </form>
-          <p role="status" aria-live="polite" className="text-lg font-bold text-[#FFD166]">
-            {notice ? <span className="mt-2 block">{t(notice.key)}</span> : null}
+              {formatClock(left)}
+            </span>
+            <span className="min-w-0 truncate">
+              <NameInColour say={(name) => t('isDrawingShort', { name })} player={drawer} />
+            </span>
           </p>
-          {showWelcome && (
-            <p id="joined-mid-game" className="mt-2 text-lg break-words">
-              {t('joinedMidGame', { name: turn.drawerName })}
-            </p>
+
+          {guessed ? (
+            <>
+              <GotIt points={points} t={t} />
+              {onReact && <ReactionRow onReact={onReact} t={t} />}
+            </>
+          ) : (
+            <>
+              <Blanks mask={mask} label={blanksLabel(mask, t)} size="25px" className="mt-1" />
+              {/* The note lives with the box, so it takes no room while empty. */}
+              <div className="mt-1 flex shrink-0 flex-col">
+                <form
+                  onSubmit={submit}
+                  // The pen underline is the box; focused, it thickens (a shadow, so nothing moves).
+                  className="flex h-14 items-center gap-2 border-b-[3px] border-pen focus-within:shadow-[0_2px_0_var(--color-pen)]"
+                >
+                  <input
+                    ref={inputRef}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    maxLength={GUESS_MAX}
+                    placeholder={t('guessPlaceholder')}
+                    aria-label={t('guessPlaceholder')}
+                    aria-describedby={showWelcome ? 'joined-mid-game' : undefined}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    enterKeyHint="send"
+                    className="h-full w-full min-w-0 bg-transparent text-[26px] text-ink caret-pen outline-none placeholder:text-soft"
+                  />
+                  <button
+                    type="submit"
+                    aria-label={t('send')}
+                    // Tapping send must not take focus from the box, or the keyboard drops.
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="wobbly grid size-12 shrink-0 place-items-center bg-pen text-paper focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-95"
+                  >
+                    <SendIcon />
+                  </button>
+                </form>
+                <p role="status" aria-live="polite" className="text-[22px] leading-tight">
+                  {notice ? (
+                    // Only as wide as its words, so the pop's overshoot stays on the page.
+                    <span
+                      key={notice.n}
+                      className="mt-2 inline-block origin-left motion-safe:animate-pop"
+                    >
+                      {notice.key === 'soClose' ? (
+                        <Highlight>{t(notice.key)}</Highlight>
+                      ) : (
+                        t(notice.key)
+                      )}
+                    </span>
+                  ) : null}
+                </p>
+                {showWelcome && (
+                  <p id="joined-mid-game" className="mt-2 text-lg leading-snug break-words">
+                    {t('joinedMidGame', { name: turn.drawerName })}
+                  </p>
+                )}
+              </div>
+              <Tries misses={misses} t={t} />
+            </>
+          )}
+        </>
+      ) : (
+        <div className="mt-6 grid justify-items-center gap-4 text-center">
+          {drawer.avatar && <Avatar player={drawer} size="64px" />}
+          <p className="text-[30px] leading-tight break-words">
+            <NameInColour say={(name) => t('isChoosing', { name })} player={drawer} />
+          </p>
+          {turn.timer && (
+            <span role="timer" aria-label={t('seconds', { n: Math.ceil(left / 1000) })}>
+              <CountdownRing remainingMs={left} totalMs={turn.timer.totalMs} choosing size="96px" />
+            </span>
           )}
         </div>
       )}
 
-      {drawing && misses.length > 0 && (
-        <p className="flex flex-wrap gap-x-4 gap-y-1 text-white/70">
-          {misses.map((m, i) => (
-            <span key={i} className={`max-w-full truncate ${m.close ? 'text-[#FFD166]' : ''}`}>
-              {m.text} <span aria-hidden>{m.close ? '≈' : '✗'}</span>
-              <span className="sr-only">{t(m.close ? 'closeGuess' : 'wrongGuess')}</span>
-            </span>
-          ))}
-        </p>
-      )}
-
-      <p className="mt-auto pb-2 text-center text-lg text-white/80">{t('watchScreen')}</p>
-      <p className="pb-3 text-center text-white/70">
-        {t('turnPoints', { points: view.me.turnPoints })}
-      </p>
+      <p className="mt-auto pt-2 text-lg leading-tight text-soft">{t('watchScreen')}</p>
+      {/* SPEC-QUESTION: the spec's sketch has "+0 this turn"; F60's Done-when says never "+0" (DECISIONS 83). */}
+      {points > 0 && <MarginPoints points={points} t={t} />}
     </div>
+  );
+}
+
+/**
+ * This phone's own wrong and close tries (the last `OWN_GUESSES_SHOWN`), one to a ruled line,
+ * newest first, so the latest sits by the "So close!" note: a wrong one struck through in red pen
+ * with ✗, a close one circled "close!". On a page too short for all of them, the oldest drop off
+ * the bottom.
+ */
+function Tries({ misses, t }: { misses: OwnGuess[]; t: Translate }) {
+  if (misses.length === 0) return null;
+  return (
+    // A column that wraps: a row that doesn't fit whole moves to a second column, off to the
+    // right where the list clips it, so no try is ever cut in half.
+    <ul className="mt-1 flex min-h-0 flex-1 flex-col flex-wrap content-start overflow-hidden">
+      {misses
+        .map((m, i) => ({ ...m, i }))
+        .reverse()
+        .map((m) => (
+          <li
+            key={m.i}
+            data-try={m.close ? 'close' : 'wrong'}
+            className="flex h-[34px] w-full shrink-0 items-center gap-2.5 text-[22px] leading-none"
+          >
+            {m.close ? (
+              <>
+                <span className="min-w-0 truncate py-1">{m.text}</span>
+                <span
+                  aria-hidden
+                  className="shrink-0 rounded-[50%] border-2 border-red px-2 py-0.5 text-base leading-none text-red"
+                >
+                  {t('closeNote')}
+                </span>
+              </>
+            ) : (
+              <>
+                {/* The strike is decoration, so only the line tilts; the word stays level. */}
+                <span className="relative min-w-0 truncate py-1 text-soft after:absolute after:inset-x-0 after:top-[52%] after:h-[2.5px] after:-rotate-[4deg] after:bg-red">
+                  {m.text}
+                </span>
+                <span aria-hidden className="shrink-0 text-red">
+                  ✗
+                </span>
+              </>
+            )}
+            <span className="sr-only">{t(m.close ? 'closeGuess' : 'wrongGuess')}</span>
+          </li>
+        ))}
+    </ul>
+  );
+}
+
+/**
+ * After a correct guess: a big ✓ in the success colour, "Got it!" and the points on a red stamp,
+ * never the word. Screen readers hear "✓ You got it! +270" in one piece.
+ */
+function GotIt({ points, t }: { points: number; t: Translate }) {
+  return (
+    <div
+      role="status"
+      data-gotit
+      className="mx-auto mt-2 grid w-fit max-w-full shrink-0 justify-items-center gap-1 text-center motion-safe:animate-pop"
+    >
+      <span className="sr-only">{t('youGotIt', { points })}</span>
+      <span aria-hidden className="text-[clamp(3.5rem,12dvh,5.625rem)] leading-none text-success">
+        ✓
+      </span>
+      <span aria-hidden className="text-[44px] leading-none">
+        {t('gotItHeading')}
+      </span>
+      <span aria-hidden>
+        <Stamp value={`+${points}`} />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * This turn's points, written in red pen in the left margin: "+270" in Nunito over "this turn".
+ * Never "+0" (the caller leaves it out) and never a rank.
+ */
+function MarginPoints({ points, t }: { points: number; t: Translate }) {
+  const around = copyAround((marker) => t('turnPoints', { points: marker }));
+  return (
+    <p
+      data-margin-points
+      className="absolute bottom-[26px] left-0 w-[46px] text-center leading-tight text-red"
+    >
+      <span className="sr-only">{t('turnPoints', { points })}</span>
+      <span aria-hidden className="block font-num text-sm font-black tabular-nums">
+        {around ? `${around[0]}${points}` : `+${points}`}
+      </span>
+      {around && (
+        <span aria-hidden className="block text-[13px] break-words">
+          {around[1].trim()}
+        </span>
+      )}
+    </p>
+  );
+}
+
+/** The send button's pen arrow (the mockup's `icon.send`). */
+function SendIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      className="size-6 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2.4]"
+    >
+      <path d="M3 12 L20 12 M13 5 L20 12 L13 19" />
+    </svg>
   );
 }
 
@@ -222,27 +360,35 @@ export function ReactionRow({ onReact, t }: { onReact: (emoji: Reaction) => void
     return () => clearTimeout(id);
   }, [sent]);
   return (
-    <div role="group" aria-label={t('reactions')} className="grid grid-cols-6 gap-1.5">
-      {REACTIONS.map((emoji) => (
-        <button
-          key={emoji}
-          type="button"
-          aria-label={t('sendReaction', { emoji })}
-          aria-disabled={resting}
-          onClick={() => {
-            if (resting) return;
-            setSent(emoji);
-            onReact(emoji);
-          }}
-          className={`grid min-h-14 min-w-11 place-items-center rounded-xl text-3xl transition-opacity active:scale-90 ${
-            sent === emoji
-              ? 'bg-[#2DC653]/40 ring-2 ring-[#2DC653]'
-              : `bg-white/10 ${resting ? 'opacity-50' : ''}`
-          }`}
-        >
-          {emoji}
-        </button>
-      ))}
+    <div className="mt-3 flex shrink-0 flex-col items-center gap-2">
+      {/* The group's name, written; screen readers get it from the group. */}
+      <p aria-hidden className="text-lg leading-tight text-soft">
+        {t('reactions')}
+      </p>
+      <div
+        role="group"
+        aria-label={t('reactions')}
+        className="grid grid-cols-3 justify-items-center gap-x-3 gap-y-2.5"
+      >
+        {REACTIONS.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            aria-label={t('sendReaction', { emoji })}
+            aria-disabled={resting}
+            onClick={() => {
+              if (resting) return;
+              setSent(emoji);
+              onReact(emoji);
+            }}
+            className={`wobbly grid size-14 place-items-center border-[2.5px] border-ink text-[28px] leading-none shadow-[2px_3px_0_var(--color-ink)] transition-opacity active:translate-x-px active:translate-y-0.5 active:shadow-none ${
+              sent === emoji ? 'bg-hl' : `bg-paper ${resting ? 'opacity-50' : ''}`
+            }`}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

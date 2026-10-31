@@ -57,6 +57,7 @@
   --color-red: #d2372c; /* red pen: strikes, ✗, stamps, level tags, the low timer */
   --color-hl: #ffe14d; /* highlighter, primary sketch button */
   --color-sticky: #fff3a6; /* sticky notes */
+  --color-success: #1a7a4a; /* the got-it ✓ (the crayon green, 5.0:1 on paper) */
   --color-amber: #ffb547; /* "Jun is close!" on the drawer phone */
   --color-tape: rgb(236 222 170 / 0.82); /* masking tape */
   --color-tape-edge: rgb(190 172 110 / 0.55); /* its dotted ends */
