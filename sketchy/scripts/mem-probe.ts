@@ -147,7 +147,7 @@ async function playGame(base: string, g: number): Promise<{ turns: number; kept:
     const client = new Client(base, `203.0.${g}.${i + 1}`);
     const playerKey = `${g}p${i}`.padEnd(PLAYER_KEY_LENGTH, 'k');
     const name = `Player ${i + 1}`;
-    const ack = await must(client.main, 'player:join', { code, playerKey, name });
+    const ack = await must(client.main, 'player:join', { code, playerKey, name, avatar: '🦊' });
     const ink = client.ink({ code, playerKey });
     // A doodle just under the limit.
     const ops: InkOp[] = [];

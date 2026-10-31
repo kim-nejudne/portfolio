@@ -87,7 +87,7 @@ describe('host:kick', () => {
     expect(ofType(res.effects, 'doodleDrop')).toEqual([{ type: 'doodleDrop', pid: pids[2] }]);
     const back = reduce(
       res.room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy', avatar: '🦊' },
       2_000_001,
     );
     expect(back).toEqual({ ok: false, error: 'kicked' });

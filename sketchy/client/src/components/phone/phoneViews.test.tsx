@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
+import { AVATARS, DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import { welcomeTurn } from '../../lib/phone.js';
 import { DrawerTurn, GuessLine, TurnUpright } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
-import { TakeOverPrompt } from './JoinForm.js';
+import { JoinForm, TakeOverPrompt } from './JoinForm.js';
 import { PhoneStandings } from './PhoneStandings.js';
 import { WordChoice } from './WordChoice.js';
 
@@ -21,6 +21,7 @@ const chip = (pid: string, name: string, extra: Partial<PlayerChipView> = {}): P
   connected: true,
   crown: false,
   isDrawer: false,
+  avatar: '🦊',
   hasDoodle: false,
   guessed: false,
   turnPoints: 0,
@@ -573,6 +574,34 @@ describe('a mid-game joiner (F23)', () => {
     expect(welcomeTurn(drawingView('mika'))).toBeNull();
     expect(welcomeTurn({ ...fresh(), phase: 'REVEAL' })).toBeNull();
     expect(welcomeTurn({ ...fresh(), phase: 'LOBBY', turn: null })).toBeNull();
+  });
+});
+
+describe('the join form’s avatar grid (F53)', () => {
+  const form = () =>
+    renderToStaticMarkup(
+      <JoinForm
+        code="KPRW"
+        initialName=""
+        initialAvatar="🐙"
+        busy={false}
+        error={null}
+        onJoin={() => {}}
+        t={t}
+      />,
+    );
+
+  it('offers all 24 avatars as toggle buttons, with the pre-picked one pressed', () => {
+    const html = form();
+    const options = [...html.matchAll(/aria-label="Avatar ([^"]+)" aria-pressed="(true|false)"/g)];
+    expect(options.map((m) => m[1])).toEqual([...AVATARS]);
+    expect(options.filter((m) => m[2] === 'true').map((m) => m[1])).toEqual(['🐙']);
+    expect(html).toContain('Your avatar');
+  });
+
+  it('keeps the name and Join above the grid, so Join stays on screen', () => {
+    const html = form();
+    expect(html.indexOf('type="submit"')).toBeLessThan(html.indexOf('aria-pressed'));
   });
 });
 

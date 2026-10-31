@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_PLAYERS, NAME_OF_DISCONNECTED_ERROR, PLAYER_COLORS } from '../shared/constants.js';
-import type { Action } from '../shared/types.js';
+import type { Action, Avatar } from '../shared/types.js';
 import { reduce } from './reducer.js';
 import {
   NEW_PHONE,
@@ -14,11 +14,17 @@ import {
   withPlayers,
 } from './test/rooms.js';
 
-const join = (keyHash: string, name: string, takeOver?: boolean): Action => ({
+const join = (
+  keyHash: string,
+  name: string,
+  takeOver?: boolean,
+  avatar: Avatar = '🦊',
+): Action => ({
   type: 'player:join',
   by: NEW_PHONE,
   keyHash,
   name,
+  avatar,
   ...(takeOver === undefined ? {} : { takeOver }),
 });
 
@@ -64,6 +70,7 @@ describe('player:join', () => {
       name: 'Ana',
       keyHash: 'k1',
       color: PLAYER_COLORS[0],
+      avatar: '🦊',
       score: 0,
       connected: true,
       hidden: false,
@@ -106,6 +113,31 @@ describe('player:join', () => {
     const { room: after } = step(scored, join('key-Ana', 'Ana'), T0 + 100);
     expect(Object.keys(after.players)).toHaveLength(2);
     expect(after.players[ana]).toMatchObject({ connected: true, score: 270 });
+  });
+
+  it('stores the avatar each new player picked; two players may share one (F53)', () => {
+    const first = step(makeRoom(), join('k1', 'Ana', undefined, '🐙'), T0).room;
+    const { room } = step(first, join('k2', 'Ben', undefined, '🐙'), T0 + 1);
+    expect(Object.values(room.players).map((p) => [p.name, p.avatar])).toEqual([
+      ['Ana', '🐙'],
+      ['Ben', '🐙'],
+    ]);
+  });
+
+  it('a reconnect keeps the stored avatar and ignores the one it sends (F53)', () => {
+    const { room, pids } = withPlayers(['Ana', 'Ben']);
+    const ana = pids[0]!;
+    const away = step(room, { type: 'sys:disconnected', pid: ana }, T0 + 10).room;
+    const { room: after } = step(away, join('key-Ana', 'Ana', undefined, '🚀'), T0 + 20);
+    expect(after.players[ana]).toMatchObject({ connected: true, avatar: '🦊' });
+  });
+
+  it('a takeover keeps the disconnected player’s avatar, not the new phone’s pick (F53)', () => {
+    const { room: joined, pids } = withPlayers(['Ana', 'Ben']);
+    const ana = pids[0]!;
+    const room = step(joined, { type: 'sys:disconnected', pid: ana }, T0 + 10).room;
+    const { room: after } = step(room, join('new-key', 'Ana', true, '🚀'), T0 + 20);
+    expect(after.players[ana]).toMatchObject({ keyHash: 'new-key', avatar: '🦊' });
   });
 
   it('rejects a name a connected player holds, ignoring case', () => {

@@ -123,7 +123,12 @@ type Setup = Awaited<ReturnType<typeof setup>>;
 
 async function joinPlayer(s: Setup, playerKey: string, name: string) {
   const client = await s.connect();
-  const ack = await client.emit<{ pid: string }>('player:join', { code: CODE, playerKey, name });
+  const ack = await client.emit<{ pid: string }>('player:join', {
+    code: CODE,
+    playerKey,
+    name,
+    avatar: '🦊',
+  });
   if (!ack.ok) throw new Error(`join failed: ${ack.error}`);
   return { client, pid: ack.pid };
 }
@@ -160,6 +165,7 @@ describe('Socket.IO options', () => {
       code: CODE,
       playerKey: KEY_ANA,
       name: 'Ana',
+      avatar: '🦊',
     });
     expect(ack.ok).toBe(true);
     expect((await client.state((v) => v.role === 'player')).role).toBe('player');
@@ -238,7 +244,12 @@ describe('player:join', () => {
     const s = await setup();
     const { client } = await joinPlayer(s, KEY_ANA, 'Ana');
     expect(
-      await client.emit('player:join', { code: CODE, playerKey: KEY_BEN, name: 'Ben' }),
+      await client.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_BEN,
+        name: 'Ben',
+        avatar: '🦊',
+      }),
     ).toEqual({ ok: false, error: 'alreadyJoined' });
   });
 
@@ -247,7 +258,12 @@ describe('player:join', () => {
     await joinPlayer(s, KEY_ANA, 'Ana');
     const other = await s.connect();
     expect(
-      await other.emit('player:join', { code: CODE, playerKey: KEY_BEN, name: 'ana' }),
+      await other.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_BEN,
+        name: 'ana',
+        avatar: '🦊',
+      }),
     ).toEqual({ ok: false, error: 'nameTaken' });
   });
 
@@ -284,6 +300,7 @@ describe('player:join', () => {
         code: CODE,
         playerKey: KEY_NEW,
         name: 'ben',
+        avatar: '🦊',
         takeOver: true,
       }),
     ).toEqual({ ok: false, error: 'nameTaken' });
@@ -292,6 +309,7 @@ describe('player:join', () => {
         code: CODE,
         playerKey: KEY_NEW,
         name: 'ben',
+        avatar: '🦊',
         takeOver: 'yes',
       }),
     ).toEqual({ ok: false, error: 'invalidPayload' });
@@ -299,13 +317,19 @@ describe('player:join', () => {
     g.ben.client.socket.disconnect();
     await g.screen.state((v) => v.players.some((p) => p.pid === g.ben.pid && !p.connected));
     expect(
-      await fresh.emit('player:join', { code: CODE, playerKey: KEY_NEW, name: 'ben' }),
+      await fresh.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_NEW,
+        name: 'ben',
+        avatar: '🦊',
+      }),
     ).toEqual({ ok: false, error: 'nameOfDisconnected' });
     expect(
       await fresh.emit('player:join', {
         code: CODE,
         playerKey: KEY_NEW,
         name: 'ben',
+        avatar: '🦊',
         takeOver: true,
       }),
     ).toEqual({ ok: true, pid: g.ben.pid });
@@ -555,7 +579,12 @@ describe('host actions', () => {
     expect(seen.players.map((p) => p.name)).toEqual(['Ana']);
     const again = await g.connect();
     expect(
-      await again.emit('player:join', { code: CODE, playerKey: KEY_BEN, name: 'Benji' }),
+      await again.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_BEN,
+        name: 'Benji',
+        avatar: '🦊',
+      }),
     ).toEqual({ ok: false, error: 'kicked' });
   });
 
@@ -738,7 +767,13 @@ describe('the drawer away (F40)', () => {
     await screen.emit('screen:join', { code: CODE });
     const ana = await s.connect();
     expect(
-      await ana.emit('player:join', { code: CODE, playerKey: KEY_ANA, name: 'Ana', hidden: true }),
+      await ana.emit('player:join', {
+        code: CODE,
+        playerKey: KEY_ANA,
+        name: 'Ana',
+        avatar: '🦊',
+        hidden: true,
+      }),
     ).toMatchObject({ ok: true });
     expect(Object.values(s.rooms.get(CODE)!.players)[0]!.hidden).toBe(true);
   });
@@ -877,6 +912,7 @@ describe('ping, leave and closing', () => {
       code: CODE,
       playerKey: KEY_ANA,
       name: 'Ana',
+      avatar: '🦊',
     });
     expect(again.ok).toBe(true);
   });

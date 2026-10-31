@@ -13,7 +13,7 @@ import {
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { InkCanvas } from './InkCanvas.js';
-import { Avatar } from './PlayerChip.js';
+import { Avatar } from '../Avatar.js';
 import { GotItLine, TurnFx } from './TurnFx.js';
 
 /**

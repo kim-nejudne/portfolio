@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Link, useNavigate, useParams } from '../lib/router.js';
 import type {
   Ack,
+  Avatar,
   ChoiceIndex,
   InkBatch,
   InkOp,
@@ -35,6 +36,7 @@ import {
   clearPlayer,
   loadPlayer,
   newPlayerKey,
+  randomAvatar,
   savePlayer,
   type PlayerIdentity,
 } from '../lib/playerIdentity.js';
@@ -53,9 +55,10 @@ const CODE_PATTERN = /^[A-Z]{4}$/;
 
 /**
  * The phone at `/play/:code`: the name step, then whatever the latest `state` says (lobby, the
- * guess box, the draw pad, reveal, scores). The phone keeps `{playerKey, name}` per room, so every
- * connect (a refresh, a re-scan, a dropped connection) rejoins silently as the same player.
- * The drawer's ink goes out on its own `/ink` socket; nothing on this page ever receives ink.
+ * guess box, the draw pad, reveal, scores). The phone keeps `{playerKey, name, avatar}` per room,
+ * so every connect (a refresh, a re-scan, a dropped connection) rejoins silently as the same
+ * player. The drawer's ink goes out on its own `/ink` socket; nothing on this page ever receives
+ * ink.
  */
 export function Play() {
   const code = (useParams().code ?? '').toUpperCase();
@@ -69,6 +72,8 @@ export function Play() {
   const [connected, setConnected] = useState(false);
   const [formError, setFormError] = useState<CopyKey | null>(null);
   const [formName, setFormName] = useState(stored?.name ?? '');
+  // The join form's pre-picked avatar (F53): the one this phone last used here, else a random one.
+  const [formAvatar, setFormAvatar] = useState<Avatar>(() => stored?.avatar ?? randomAvatar());
   // A stored identity rejoins without showing the name step; a typed name keeps the form up.
   const [silent, setSilent] = useState(stored !== null);
   // The name of a disconnected player this phone typed (F42): "Are you Jun?" until answered, and
@@ -159,6 +164,7 @@ export function Play() {
           code,
           playerKey: identity.playerKey,
           name: identity.name,
+          avatar: identity.avatar,
           ...(takeOverRef.current ? { takeOver: true } : {}),
           // A locked phone reconnecting in the background stays away for the server (F40).
           hidden: document.visibilityState === 'hidden',
@@ -182,6 +188,7 @@ export function Play() {
     if (outcome.status === 'form' || outcome.status === 'takeOver') {
       identityRef.current = null;
       setFormName(identity.name);
+      setFormAvatar(identity.avatar);
       setFormError(outcome.status === 'form' ? outcome.error : null);
     } else {
       socket.disconnect();
@@ -253,8 +260,9 @@ export function Play() {
     };
   }, [code, validCode, socket, join, closeInk, debugClock, closeAlert, connection]);
 
-  const startJoin = (name: string) => {
-    identityRef.current = { playerKey: newPlayerKey(), name };
+  const startJoin = (name: string, avatar: Avatar) => {
+    identityRef.current = { playerKey: newPlayerKey(), name, avatar };
+    setFormAvatar(avatar);
     freshJoin.current = true;
     setSilent(false);
     setFormError(null);
@@ -266,7 +274,8 @@ export function Play() {
   // new player, so no "You're in!" welcome.
   const takeOver = () => {
     if (takeOverName === null) return;
-    identityRef.current = { playerKey: newPlayerKey(), name: takeOverName };
+    // The server keeps that player's avatar; the form's pick only fills the form again later.
+    identityRef.current = { playerKey: newPlayerKey(), name: takeOverName, avatar: formAvatar };
     takeOverRef.current = true;
     freshJoin.current = false;
     setSilent(false);
@@ -427,10 +436,11 @@ export function Play() {
 
   if (status === 'form' || status === 'takeOver' || (status === 'joining' && !silent)) {
     return (
-      <main className="flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+      <main className="flex h-dvh flex-col overflow-y-auto pt-[env(safe-area-inset-top)]">
         <JoinForm
           code={code}
           initialName={formName}
+          initialAvatar={formAvatar}
           busy={status === 'joining'}
           error={formError && t(formError)}
           onJoin={startJoin}

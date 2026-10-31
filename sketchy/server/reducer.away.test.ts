@@ -47,6 +47,7 @@ const rejoin = (name: string, hidden?: boolean): Action => ({
   by: NEW_PHONE,
   keyHash: `key-${name}`,
   name,
+  avatar: '🦊',
   ...(hidden === undefined ? {} : { hidden }),
 });
 const screens = (count: number): Action => ({ type: 'sys:screens', count });
@@ -117,7 +118,14 @@ describe('player:visibility', () => {
     const { room } = withPlayers(['Ana']);
     const res = step(
       room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Ben', name: 'Ben', hidden: true },
+      {
+        type: 'player:join',
+        by: NEW_PHONE,
+        keyHash: 'key-Ben',
+        name: 'Ben',
+        avatar: '🦊',
+        hidden: true,
+      },
       2_000_000,
     ).room;
     expect(Object.values(res.players).find((p) => p.name === 'Ben')!.hidden).toBe(true);
@@ -679,7 +687,7 @@ describe('fewPlayers', () => {
     const few = step(room, drop(pids[1]!), at + 1000).room;
     const res = step(
       few,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy', avatar: '🦊' },
       at + 2000,
     );
     expect(res.room.paused?.reasons).toEqual([]);

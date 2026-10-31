@@ -6,17 +6,18 @@ import { useHostSender } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { CustomWordsButton, CustomWordsPanel } from '../CustomWords.js';
 import { HostPlayerList } from '../HostPlayerList.js';
+import { Avatar } from '../Avatar.js';
 import { ScreenSettings, settingsLine } from '../screen/ScreenSettings.js';
 import { DoodlePad } from './DoodlePad.js';
 import { LeaveButton } from './LeaveButton.js';
 
 /**
  * The lobby on a phone (UI by role and phase, Guesser phone, Lobby): "You're in, Jun!", their
- * colour, who is waiting for whom, who's here, and Leave. The crown holder's lobby is the host
- * view instead (Host controls, F25): "You're the host 👑", a big Start game, and the settings
- * summary with Change (presets, settings and the players list with Give crown and Kick), and
- * "Add your own words" (F48). Both have the doodle pad (F27) under that, the host's below Start.
- * Not yet: Change name (renames land with their reducer action).
+ * avatar in their colour (F53), who is waiting for whom, who's here, and Leave. The crown holder's
+ * lobby is the host view instead (Host controls, F25): "You're the host 👑", a big Start game, and
+ * the settings summary with Change (presets, settings and the players list with Give crown and
+ * Kick), and "Add your own words" (F48). Both have the doodle pad (F27) under that, the host's
+ * below Start. Not yet: Change name (renames land with their reducer action).
  */
 export function PhoneLobby({
   view,
@@ -66,11 +67,7 @@ export function PhoneLobby({
         className="flex h-full flex-col gap-4 overflow-y-auto overscroll-contain px-4 pt-4 pb-3"
       >
         <header className="flex items-center gap-3">
-          <span
-            aria-hidden
-            style={{ background: me?.color }}
-            className="size-10 shrink-0 rounded-full border-2 border-white/80"
-          />
+          {me && <Avatar player={me} size="2.75rem" />}
           <h1 className="font-display min-w-0 text-3xl leading-tight font-bold break-words">
             {isHost ? t('youreHost') : t('youreIn', { name: me?.name ?? '' })}
           </h1>
@@ -107,11 +104,7 @@ export function PhoneLobby({
                   p.connected ? '' : 'opacity-50'
                 }`}
               >
-                <span
-                  aria-hidden
-                  style={{ background: p.color }}
-                  className="size-6 shrink-0 rounded-full"
-                />
+                <Avatar player={p} size="1.75rem" />
                 <span className="max-w-[12rem] truncate">
                   {p.crown ? '👑 ' : ''}
                   {p.name}

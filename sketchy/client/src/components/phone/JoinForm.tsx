@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { PLAYER_NAME_MAX } from '../../../../shared/constants.js';
+import type { Avatar } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
+import { AvatarPicker } from './AvatarPicker.js';
 
-/** The name step at `/play/:code`, for a phone that has never joined this room. */
+/**
+ * The name step at `/play/:code`, for a phone that has never joined this room, with the avatar
+ * grid under it (F53): the last avatar this phone used here, else a random one, already picked.
+ */
 export function JoinForm({
   code,
   initialName,
+  initialAvatar,
   busy,
   error,
   onJoin,
@@ -13,21 +19,26 @@ export function JoinForm({
 }: {
   code: string;
   initialName: string;
+  initialAvatar: Avatar;
   busy: boolean;
   error: string | null;
-  onJoin: (name: string) => void;
+  onJoin: (name: string, avatar: Avatar) => void;
   t: Translate;
 }) {
   const [name, setName] = useState(initialName);
+  const [avatar, setAvatar] = useState(initialAvatar);
   const trimmed = name.trim();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (trimmed && !busy) onJoin(trimmed);
+    if (trimmed && !busy) onJoin(trimmed, avatar);
   };
 
   return (
-    <form onSubmit={submit} className="mx-auto flex w-full max-w-md flex-col gap-3 px-4 pt-6">
+    <form
+      onSubmit={submit}
+      className="mx-auto flex w-full max-w-md flex-col gap-3 px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
+    >
       <h1 className="font-display text-3xl font-bold">{t('joinTitle', { code })}</h1>
       <label htmlFor="name" className="text-lg font-semibold">
         {t('yourName')}
@@ -57,6 +68,7 @@ export function JoinForm({
       <p id="join-error" role="alert" className="min-h-6 text-[#FF8FA3]">
         {error}
       </p>
+      <AvatarPicker avatar={avatar} onAvatar={setAvatar} t={t} />
     </form>
   );
 }

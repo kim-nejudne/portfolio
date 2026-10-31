@@ -171,7 +171,7 @@ describe('timer rematchGo', () => {
     r = step(r, { type: 'player:leave', by: asPlayer(pids[3]!) }, at + 10_002).room;
     r = step(
       r,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Eve', name: 'Eve' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Eve', name: 'Eve', avatar: '🦊' },
       at + 10_003,
     ).room;
     r = rematch(r, at + 11_000).room;
@@ -205,7 +205,7 @@ describe('timer rematchGo', () => {
     const counting = step(room, REMATCH, at);
     const joined = step(
       counting.room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Dee', name: 'Dee' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Dee', name: 'Dee', avatar: '🦊' },
       at + 1000,
     ).room;
     expect(joined.turnOrder).toEqual(room.turnOrder);
@@ -301,7 +301,7 @@ describe('join order', () => {
     const t = room.players[Object.keys(room.players)[0]!]!.joinedAt;
     room = step(
       room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Ben', name: 'Ben' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Ben', name: 'Ben', avatar: '🦊' },
       t,
     ).room;
     const [ana, ben] = Object.values(room.players);
@@ -312,7 +312,7 @@ describe('join order', () => {
     let room = withPlayers(['Ana']).room;
     room = step(
       room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Ben', name: 'Ben' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Ben', name: 'Ben', avatar: '🦊' },
       2_000_000,
     ).room;
     expect(Object.values(room.players)[1]!.joinedAt).toBe(2_000_000);

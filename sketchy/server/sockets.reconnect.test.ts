@@ -159,7 +159,12 @@ async function openScreen(s: Setup, hostToken?: string) {
 /** A phone page: `player:join` with what it kept, then its `/ink` socket. */
 async function openPhone(s: Setup, playerKey: string, name: string) {
   const main = await s.connect('');
-  const ack = await main.emit<{ pid: string }>('player:join', { code: CODE, playerKey, name });
+  const ack = await main.emit<{ pid: string }>('player:join', {
+    code: CODE,
+    playerKey,
+    name,
+    avatar: '🦊',
+  });
   if (!ack.ok) throw new Error(`join failed: ${ack.error}`);
   const ink = await s.connect('/ink', { code: CODE, playerKey });
   return { main, ink, pid: ack.pid };

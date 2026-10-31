@@ -221,6 +221,7 @@ describe('word secrecy across a scripted game', () => {
       by: { kind: 'player', isHost: false },
       keyHash: 'key-Dee',
       name: 'Dee',
+      avatar: '🦊',
     });
     const dee = Object.values(room.players).find((p) => p.name === 'Dee')!.pid;
 
@@ -682,6 +683,7 @@ describe('word secrecy through the socket gateway', () => {
         code: CODE,
         playerKey: letter.repeat(21),
         name,
+        avatar: '🦊',
       })) as { ok: boolean; pid: string };
       expect(ack.ok).toBe(true);
       players.set(c, ack.pid);

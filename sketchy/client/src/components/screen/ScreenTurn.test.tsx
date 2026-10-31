@@ -31,6 +31,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     connected: true,
     crown: false,
     isDrawer: pid === 'mika',
+    avatar: '🦊' as const,
     hasDoodle: false,
     guessed: pid === 'jun',
     turnPoints: pid === 'jun' ? 270 : 135,
@@ -117,7 +118,7 @@ describe('the reveal (F35)', () => {
         />,
       ),
     );
-    expect(out).toContain('Got itJJun+270AAna+225'); // each name after its avatar's initial
+    expect(out).toContain('Got it🦊Jun+270🦊Ana+225'); // each name after its avatar (F53)
   });
 
   it('says "Almost:" with up to three guesses, masked ones as •••', () => {

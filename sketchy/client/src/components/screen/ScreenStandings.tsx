@@ -2,7 +2,7 @@ import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import type { ScreenGallery as GalleryStore } from '../../lib/gallery.js';
 import { rankPlayers, type ScreenLayout } from '../../lib/screen.js';
-import { Avatar } from './PlayerChip.js';
+import { Avatar } from '../Avatar.js';
 import { ScreenAwards } from './ScreenAwards.js';
 import { ScreenGallery } from './ScreenGallery.js';
 

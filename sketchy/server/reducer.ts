@@ -175,6 +175,8 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
   const same = players.find((p) => p.keyHash === a.keyHash);
   if (same) {
     // The join says whether the page is hidden, so a locked phone reconnecting stays away.
+    // SPEC-QUESTION: the spec says nothing of a reconnect's avatar; it keeps the stored one, as the
+    // name, and ignores the payload's (DECISIONS 76).
     same.connected = true;
     same.hidden = a.hidden ?? false;
     return undefined;
@@ -185,7 +187,8 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
   if (holder) {
     if (holder.connected) return 'nameTaken';
     if (!a.takeOver) return NAME_OF_DISCONNECTED_ERROR;
-    // A new phone takes over a disconnected player: their pid, score and crown.
+    // A new phone takes over a disconnected player: their pid, score and crown, and their avatar
+    // (SPEC-QUESTION, DECISIONS 76): the new phone's pick is ignored, as its name's case is.
     holder.keyHash = a.keyHash;
     holder.connected = true;
     holder.hidden = a.hidden ?? false;
@@ -202,6 +205,7 @@ function join(d: Room, a: ActionOf<'player:join'>, now: number, fx: Effect[]): H
     keyHash: a.keyHash,
     name: a.name,
     color: PLAYER_COLORS.find((c) => !used.has(c)) ?? PLAYER_COLORS[0],
+    avatar: a.avatar,
     score: 0,
     connected: true,
     hidden: a.hidden ?? false,

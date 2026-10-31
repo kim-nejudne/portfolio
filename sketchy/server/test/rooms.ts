@@ -41,7 +41,7 @@ export function withPlayers(names: string[], room = makeRoom()): { room: Room; p
   for (const [i, name] of names.entries()) {
     const res = step(
       room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: `key-${name}`, name },
+      { type: 'player:join', by: NEW_PHONE, keyHash: `key-${name}`, name, avatar: '🦊' },
       T0 + i,
     );
     room = res.room;

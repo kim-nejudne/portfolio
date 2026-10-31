@@ -102,6 +102,37 @@ export const ALMOST_MAX = 3;
 export const OWN_GUESSES_SHOWN = 5;
 /** The only reactions a guesser can send: no free text, so nobody can hint the word. */
 export const REACTIONS = ['😂', '🔥', '👏', '😱', '🤔', '💀'] as const;
+/**
+ * The avatars a player picks from on joining (F53). Ported from Buzzr (buzzer/shared/constants.ts):
+ * each is a single code point with emoji presentation (no variation selector, no ZWJ sequence), so
+ * it is one glyph on every device and `z.enum` matches it exactly. Two players may share one.
+ */
+export const AVATARS = [
+  '🦊',
+  '🐼',
+  '🐸',
+  '🐙',
+  '🦄',
+  '🐯',
+  '🐵',
+  '🐧',
+  '🦉',
+  '🐢',
+  '🦁',
+  '🐨',
+  '🐷',
+  '🐮',
+  '🐰',
+  '🐻',
+  '🐳',
+  '🦖',
+  '👻',
+  '🤖',
+  '👽',
+  '🍕',
+  '🌵',
+  '🚀',
+] as const;
 
 // ---------- Scoring ----------
 

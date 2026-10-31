@@ -1,14 +1,16 @@
-// The `{playerKey, name}` this device joined each room with, kept in localStorage per room code so
-// a refresh or a re-scan rejoins silently as the same player (Creating and joining a room, step 4).
-// Ported from Buzzr (buzzer/client/src/lib/playerIdentity.ts), without nanoid or zod: the key comes
-// from `crypto.getRandomValues` and the stored entry is checked by hand. Storage can be unavailable
-// (private mode, blocked site data), so every access is guarded.
+// The `{playerKey, name, avatar}` this device joined each room with, kept in localStorage per room
+// code so a refresh or a re-scan rejoins silently as the same player (Creating and joining a room,
+// step 4). Ported from Buzzr (buzzer/client/src/lib/playerIdentity.ts), without nanoid or zod: the
+// key comes from `crypto.getRandomValues` and the stored entry is checked by hand. Storage can be
+// unavailable (private mode, blocked site data), so every access is guarded.
 
-import { PLAYER_KEY_LENGTH, PLAYER_NAME_MAX } from '../../../shared/constants.js';
+import { AVATARS, PLAYER_KEY_LENGTH, PLAYER_NAME_MAX } from '../../../shared/constants.js';
+import type { Avatar } from '../../../shared/types.js';
 
 export interface PlayerIdentity {
   playerKey: string;
   name: string;
+  avatar: Avatar;
 }
 
 const KEY_PREFIX = 'sketchy:player:';
@@ -37,6 +39,15 @@ export function newPlayerKey(): string {
   return key;
 }
 
+/** The join form's pre-picked avatar (F53): any of the 24, so the room gets a mix. */
+export function randomAvatar(random: () => number = Math.random): Avatar {
+  return AVATARS[Math.floor(random() * AVATARS.length)] ?? AVATARS[0];
+}
+
+function isAvatar(value: unknown): value is Avatar {
+  return (AVATARS as readonly unknown[]).includes(value);
+}
+
 export function savePlayer(
   code: string,
   identity: PlayerIdentity,
@@ -49,7 +60,11 @@ export function savePlayer(
   }
 }
 
-/** The identity this device joined `code` with, or null when it never joined or the entry is unreadable. */
+/**
+ * The identity this device joined `code` with, or null when it never joined or the entry is
+ * unreadable. An entry from before avatars, or with one this build no longer offers, keeps the
+ * identity and gets a random avatar: a rejoin keeps the server's avatar anyway (F53).
+ */
 export function loadPlayer(
   code: string,
   store: KeyValueStore | null = defaultStore(),
@@ -58,11 +73,11 @@ export function loadPlayer(
     const raw = store?.getItem(KEY_PREFIX + code);
     if (raw == null) return null;
     const data = JSON.parse(raw) as Partial<PlayerIdentity> | null;
-    const { playerKey, name } = data ?? {};
+    const { playerKey, name, avatar } = data ?? {};
     if (typeof playerKey !== 'string' || !KEY_PATTERN.test(playerKey)) return null;
     if (typeof name !== 'string' || name.trim() === '' || name.length > PLAYER_NAME_MAX)
       return null;
-    return { playerKey, name };
+    return { playerKey, name, avatar: isAvatar(avatar) ? avatar : randomAvatar() };
   } catch {
     return null;
   }

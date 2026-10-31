@@ -4,19 +4,20 @@ import type { Translate } from '../lib/copy.js';
 import { CONFIRM_MS, twoTap, type ArmedTarget } from '../lib/hostKeys.js';
 import { useHostSender } from '../lib/hostSend.js';
 import type { GameSocket } from '../lib/socket.js';
+import { Avatar } from './Avatar.js';
 
 const SIZES = {
   phone: {
     list: 'gap-2 text-lg',
     name: 'text-lg',
-    dot: 'size-6',
+    avatar: '1.75rem',
     button: 'min-h-11 min-w-11 rounded-xl px-3 py-1 text-base',
     status: 'text-base',
   },
   screen: {
     list: 'gap-[1.5vmin] text-[max(3vmin,16px)]',
     name: 'text-[max(3.2vmin,18px)]',
-    dot: 'size-[max(3vmin,20px)]',
+    avatar: 'max(5vmin, 32px)',
     button: 'min-h-11 min-w-11 rounded-[1.5vmin] px-[2.5vmin] py-[1vmin] text-[max(2.6vmin,16px)]',
     status: 'text-[max(2.8vmin,16px)]',
   },
@@ -75,11 +76,7 @@ export function HostPlayerList({
               className={`flex flex-wrap items-center justify-between gap-2 ${p.connected ? '' : 'opacity-60'}`}
             >
               <span className={`flex min-w-0 items-center gap-2 font-semibold ${sz.name}`}>
-                <span
-                  aria-hidden
-                  style={{ background: p.color }}
-                  className={`${sz.dot} shrink-0 rounded-full`}
-                />
+                <Avatar player={p} size={sz.avatar} />
                 <span className="truncate">
                   {p.crown && '👑 '}
                   {p.name}

@@ -110,7 +110,12 @@ type Phone = Awaited<ReturnType<typeof joinPlayer>>;
 
 async function joinPlayer(s: Setup, playerKey: string, name: string) {
   const main = await s.connect('');
-  const ack = await main.emit<{ pid: string }>('player:join', { code: CODE, playerKey, name });
+  const ack = await main.emit<{ pid: string }>('player:join', {
+    code: CODE,
+    playerKey,
+    name,
+    avatar: '🦊',
+  });
   if (!ack.ok) throw new Error(`join failed: ${ack.error}`);
   const ink = await s.connect('/ink', { code: CODE, playerKey });
   return { main, ink, pid: ack.pid };
@@ -1123,6 +1128,7 @@ describe('/ink after a rejoin from another phone (F42)', () => {
         code: CODE,
         playerKey: KEY_NEW,
         name: 'ana',
+        avatar: '🦊',
         takeOver: true,
       }),
     ).toEqual({ ok: true, pid: d.ana.pid });

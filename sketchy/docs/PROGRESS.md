@@ -70,8 +70,43 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F52: once autopilot reports the deploy green, check the GitHub run "Deploy Sketchy" (Actions tab): `checks` ran typecheck, lint, format check and tests; `droplet` ran "build and smoke-test the image" ending `PASS`, shipped `sketchy:<tag>`, printed "no live games", "healthy after N attempt(s)", and the final "smoke" step ended `PASS` against https://sketchy.kimnejudne.dev. Then on the droplet: `docker ps --filter name=sketchy` (Up, healthy), `cat /opt/sketchy/.env` (`IMAGE_TAG=<that tag>`), `tail /var/log/nginx/sketchy.access.log` (`/socket.io/` lines answer 101) · all as described; if `deploy` lacks permission for anything in `/opt/sketchy`, fix ownership as in sketchy/README.md "Rebuilding the box's setup" step 2
 - [ ] F52: the spec's Manual playtest checklist (`node .claude/scripts/spec.mjs "Manual playtest checklist"`) on https://sketchy.kimnejudne.dev: a laptop Screen on the TV, a portrait tablet, the budget Android, a mid-range Android and an iPhone, at least two phones on mobile data with Wi-Fi off · every box ticks; in particular the name field is usable within 5 s of scanning on the budget Android over mobile data, ink delay median ≤ 150 ms with the drawer on mobile data, and the drawer's data use for a game is under 1 MB
 - [ ] F52: the live-game wait, once: leave the Screen open on https://sketchy.kimnejudne.dev, then run `gh workflow run deploy-sketchy.yml -f tag=<current tag>` (a re-point, no build) · the "wait for live games" step logs "N live connection(s); waiting (1/20)"; close the Screen tab and it carries on with "no live games" within 30 s and re-points. Then a rollback: `gh workflow run deploy-sketchy.yml -f tag=<previous tag>` (from `docker images sketchy` on the box) and back again · each ends healthy and the smoke step passes
+- [ ] F53: review the Taglish: `yourAvatar` ("Avatar mo") and `avatarOption` ("Avatar {emoji}") in the `TAGLISH` table of `client/src/lib/copy.ts` · natural for the join form's grid heading and a screen reader's button label?
+- [ ] F53: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), an iPhone in Safari, a budget Android in Chrome and a ≤ 360 px-wide phone; join each with a different avatar (tap one other than the pre-picked one), then pull to refresh one phone · on every phone's join form the name box and Join are on screen with the 24 emoji below (4 rows of 6, each a colour emoji, none a box or a black-and-white glyph), the pre-picked one outlined in orange; the TV's lobby chips, the turn sidebar, the reveal's "Got it" and the scoreboard show each player's emoji on a disc in their colour, readable from the sofa (≈ 5 m), the reveal's small "Got it" avatars included; the refreshed phone comes back with the same emoji
 
 <!-- entries below, newest first -->
+## F53 — Emoji avatars (2026-10-31)
+**What changed:**
+- **Planned first** (`docs(sketchy): plan emoji avatars`): Kim asked for Buzzr's emoji avatars and chose emoji over doodle avatars, a random pre-pick, a lobby change (F54) and a phone-only doodle pad (F55). M11 holds F53–F55; the proposed spec text is under "Proposed spec changes" in DECISIONS for Kim to apply.
+- **Shared/server:** `AVATARS` (Buzzr's 24) in `shared/constants.ts`; `player:join` requires `avatar` (`z.enum`); `Player.avatar` and `PlayerChipView.avatar`. `join()` stores it for a new player; a same-key reconnect and a takeover keep the stored one.
+- **Join form:** `components/phone/AvatarPicker.tsx` (adapted from Buzzr's), 24 toggle buttons under the name and Join, one always picked: the phone's last one for the room, else `randomAvatar()`. `playerIdentity` stores `avatar`; an old or unknown entry gets a random one. The form now scrolls (`overflow-y-auto`) and pads for the home indicator.
+- **`components/Avatar.tsx`** (moved from `screen/PlayerChip.tsx`): the emoji at 0.62× on a disc in the player's colour. It replaces the initials and the doodle avatars on every Screen chip (lobby, sidebar, reveal, standings) and the colour dots in the phone lobby (heading, "Who's here") and both host players lists (Screen size up to max(5 vmin, 32 px)).
+- **Bots** join as `AVATARS[n - 1]`. `scripts/smoke.ts` and `scripts/mem-probe.ts` send an avatar.
+- **Tests:** `PlayerChip.test.tsx` became `components/Avatar.test.tsx`; its F27 doodle-avatar cases are replaced by "never a canvas, even with a doodle". The `ScreenTurn.test.tsx` reveal assertion now expects emoji instead of initials. Every `player:join` in tests carries `avatar: '🦊'`, and the old invalid schema cases keep a valid avatar so they still fail for their own reason. New: constants (24, one code point each), schema (missing, unlisted, two emoji, ZWJ, empty), reducer (stores, shared, reconnect, takeover), views (Screen and every phone), identity, join form grid and the phone lobby's avatars.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 76.
+
+**Notes for next session:**
+- F54 adds `player:avatar` and Change avatar in the lobby; save the identity's avatar on `ok`, which also fixes the stored pick after a takeover (DECISIONS 76).
+- F55: the doodle still flows to Screens but nothing draws it; `DoodleContext` in `pages/Screen.tsx` and `lineScale` in `lib/ink.ts` are now unused. The pad's "Doodle yourself while you wait!" is stale until F55's copy.
+
+Reviews:
+- **mobile-ux-reviewer: PASS WITH FIXES.**
+  - Must-fix taken: 8 columns from 400 px made 42 px cells at 412; the grid is now 4 / 6 columns.
+  - Should-fixes taken: `min-w-0` on the fieldset, safe-area bottom padding on the form, and a larger Screen host-list avatar.
+  - Not taken: an explicit emoji `font-family` (all 24 are Emoji ≤ 11 single code points, so the system emoji font is used), a larger 1.1 em avatar on the reveal's "got it" line (the same size the initials had; queued for the Kim check), and a non-colour selected cue.
+- **secrets-fairness-reviewer: PASS.** No must- or should-fix. Nit not taken: a `❤️` variation-selector case, which `z.enum` already rejects.
+- **review-feature: PASS WITH FIXES.** The 360×560 fit is queued as a Kim check (the playtest measured it).
+
+**Verification:**
+- `/playtest F53` (`.playtest/F53/scenario.ts`): the join form at 360×560 has 24 options with one pressed, 49.7 px cells and Join at y = 112. A picked 🐙 shows on the Screen chip and in the phone heading and list. A third phone may share 🐙. After a lobby doodle the Screen has no `canvas[data-doodle]`. A reload rejoins with the same emoji. The turn sidebar shows 6 emoji avatars. Bots join as 🦊 🐼 🐸. No console errors.
+- Not reached in the playtest: the reveal's Got-it list and the standings. Both use `Avatar`, and the reveal is covered by `ScreenTurn.test.tsx`.
+- Screenshots: `.playtest/F53/01-join-form-p1.png`, `02-phone-lobby-p1.png`, `04-screen-lobby-full-screen.png`, `05-turn-sidebar-screen.png`.
+- `npm run size`: JS 112.2 KB of 120, CSS and fonts 25.0 KB of 30.
+- `/verify`: format, lint, typecheck, 1423 tests, build all green.
+
+**How to try it:** `npm run dev`, open `/` and Start, then join `/play/CODE` from phones (or `/dev/bots/CODE`).
+
 ## B01 — Pointer cursor and hover on live controls (2026-10-31)
 **What changed:**
 - **Bug:** Tailwind v4 Preflight resets `button` to `cursor: default` and nothing restored it: every button (the whole mouse-driven Screen, Landing, phones on a desktop) showed the arrow, and none reacted on hover.

@@ -5,6 +5,7 @@
 // own `/ink` socket when it is the drawer. It reads only its role-filtered `state`.
 
 import {
+  AVATARS,
   DEFAULT_INK_SIZE,
   MAX_PLAYERS,
   PLAYER_KEY_LENGTH,
@@ -57,6 +58,8 @@ export function clampBotCount(raw: string): number {
 }
 
 export const botName = (index: number) => `Bot ${index}`;
+/** Bot n's avatar: a different one each, in list order, so a room of bots shows a mix (F53). */
+export const botAvatar = (index: number) => AVATARS[(index - 1) % AVATARS.length]!;
 
 /** Bot k's fixed player key, so a re-spawn rejoins as the same player. */
 export function botKey(index: number): string {
@@ -181,7 +184,7 @@ export function createBot({
   const join = () => {
     socket.emit(
       'player:join',
-      { code, playerKey, name: state.name },
+      { code, playerKey, name: state.name, avatar: botAvatar(index) },
       withTimeout((res) => {
         if (res === null) {
           update({ status: 'error', message: 'No reply' });

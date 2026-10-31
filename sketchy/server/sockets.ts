@@ -324,7 +324,7 @@ export function attachSockets(
       return { ok: true };
     });
 
-    handle(socket, 'player:join', ({ code, playerKey, name, takeOver, hidden }) => {
+    handle(socket, 'player:join', ({ code, playerKey, name, avatar, takeOver, hidden }) => {
       if (socket.data.role) return fail('alreadyJoined');
       const keyHash = hashPlayerKey(playerKey);
       // SPEC-QUESTION: a rejoin by a key the room knows never counts, so a barkada reloading
@@ -343,6 +343,7 @@ export function attachSockets(
           by: { kind: 'player', isHost: false },
           keyHash,
           name,
+          avatar,
           ...(takeOver === undefined ? {} : { takeOver }),
           ...(hidden === undefined ? {} : { hidden }),
         },

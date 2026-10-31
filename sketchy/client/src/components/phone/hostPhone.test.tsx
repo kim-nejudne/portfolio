@@ -22,6 +22,7 @@ const chip = (pid: string, name: string, extra: Partial<PlayerChipView> = {}): P
   connected: true,
   crown: false,
   isDrawer: false,
+  avatar: '🦊',
   hasDoodle: false,
   guessed: false,
   turnPoints: 0,
@@ -146,6 +147,19 @@ describe('the crown holder’s lobby', () => {
     expect(html).toContain('You’re in, Mika!');
     expect(html).toContain('Waiting for 👑 Jun to start');
     expect(buttons(html)).toEqual([...DOODLE, 'Leave']);
+  });
+});
+
+describe('avatars in the phone lobby (F53)', () => {
+  const others = [chip('jun', 'Jun', { avatar: '🚀' }), chip('ana', 'Ana', { avatar: '🐙' })];
+  const avatars = (html: string) =>
+    [...html.matchAll(/data-avatar[^>]*>([^<]+)</g)].map((m) => m[1]);
+
+  it('shows the player’s own avatar by the heading, then every avatar in "Who’s here"', () => {
+    for (const host of [true, false]) {
+      // Mika first: the header, then the list (her own chip first).
+      expect(avatars(lobby(view('LOBBY', { host, others })))).toEqual(['🦊', '🦊', '🚀', '🐙']);
+    }
   });
 });
 

@@ -237,7 +237,7 @@ describe('early end (allGuessed)', () => {
     const windowTimer = timer(r, 'allGuessed');
     r = step(
       r,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Eve', name: 'Eve' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Eve', name: 'Eve', avatar: '🦊' },
       at + 6_500,
     ).room;
     expect(r.phase).toBe('DRAWING');

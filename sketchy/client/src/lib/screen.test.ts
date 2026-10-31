@@ -20,6 +20,7 @@ function chip(pid: string, score: number | null, rank: number | null = null): Pl
     connected: true,
     crown: false,
     isDrawer: false,
+    avatar: '🦊',
     hasDoodle: false,
     guessed: false,
     turnPoints: 0,

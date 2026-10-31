@@ -28,6 +28,7 @@ const join = (keyHash: string, name: string, takeOver?: boolean): Action => ({
   by: NEW_PHONE,
   keyHash,
   name,
+  avatar: '🦊',
   ...(takeOver === undefined ? {} : { takeOver }),
 });
 const drop = (pid: string): Action => ({ type: 'sys:disconnected', pid });

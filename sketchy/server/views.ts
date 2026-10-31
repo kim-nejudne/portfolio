@@ -149,6 +149,7 @@ function chips(room: Room): PlayerChipView[] {
       pid: p.pid,
       name: p.name,
       color: p.color,
+      avatar: p.avatar,
       connected: p.connected,
       crown: room.crownPid === p.pid,
       isDrawer:

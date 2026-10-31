@@ -114,6 +114,15 @@ describe('fixed constants', () => {
     });
     expect(C.REACTIONS).toEqual(['😂', '🔥', '👏', '😱', '🤔', '💀']);
   });
+
+  it('offers 24 distinct avatars, each one emoji-presentation code point (F53)', () => {
+    expect(C.AVATARS).toHaveLength(24);
+    expect(new Set(C.AVATARS).size).toBe(24);
+    for (const avatar of C.AVATARS) {
+      expect([...avatar], avatar).toHaveLength(1);
+      expect(avatar, avatar).toMatch(/^\p{Emoji_Presentation}$/u);
+    }
+  });
 });
 
 describe('settings', () => {

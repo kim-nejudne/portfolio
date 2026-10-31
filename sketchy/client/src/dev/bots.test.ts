@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AVATARS,
   DEFAULT_SETTINGS,
   INK_FLUSH_MS,
   MAX_PLAYERS,
@@ -54,6 +55,7 @@ const chip = (pid: string, extra: Partial<PlayerChipView> = {}): PlayerChipView 
   connected: true,
   crown: false,
   isDrawer: false,
+  avatar: '🦊',
   hasDoodle: false,
   guessed: false,
   turnPoints: 0,
@@ -185,7 +187,7 @@ describe('createBot', () => {
   it('joins as a player on connect and opens /ink only after the join is accepted', () => {
     const { socket, inks, joined, last } = spawn(2);
     expect(socket.sent('player:join').map((e) => e.payload)).toEqual([
-      { code: 'KPRW', playerKey: botKey(2), name: 'Bot 2' },
+      { code: 'KPRW', playerKey: botKey(2), name: 'Bot 2', avatar: AVATARS[1] },
     ]);
     expect(inks).toHaveLength(0);
     joined();

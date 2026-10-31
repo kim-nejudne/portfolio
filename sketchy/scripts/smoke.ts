@@ -127,7 +127,12 @@ export async function runSmoke(base: string, log: (line: string) => void = conso
     const phone = await open('/');
     const phoneState = nextState(phone, (v) => v.role === 'player' && v.code === code);
     const seen = nextState(screen, (v) => v.players.some((p) => p.name === 'Smoke'));
-    const playerJoin = await emit(phone, 'player:join', { code, playerKey, name: 'Smoke' });
+    const playerJoin = await emit(phone, 'player:join', {
+      code,
+      playerKey,
+      name: 'Smoke',
+      avatar: '🦊',
+    });
     check(playerJoin.ok, `player:join answered ${JSON.stringify(playerJoin)}`);
     await Promise.all([phoneState, seen]);
     log('ok   main namespace: a player joins, and the Screen sees them');

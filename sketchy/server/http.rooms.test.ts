@@ -77,6 +77,7 @@ function player(pid: string): Player {
     score: 0,
     connected: true,
     hidden: false,
+    avatar: '🦊',
     hasDoodle: false,
     joinedAt: T0,
   };

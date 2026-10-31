@@ -13,6 +13,7 @@ const chip = (pid: string, color: string, score: number, rank: number): PlayerCh
   connected: true,
   crown: false,
   isDrawer: false,
+  avatar: '🦊',
   hasDoodle: false,
   guessed: false,
   turnPoints: 0,

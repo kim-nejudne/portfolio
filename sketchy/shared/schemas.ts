@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import {
+  AVATARS,
   COPY_LANGUAGES,
   CUSTOM_WORD_MAX,
   CUSTOM_WORD_MIN,
@@ -178,6 +179,7 @@ export const clientPayloadSchemas = {
     code: roomCodeSchema,
     playerKey: playerKeySchema,
     name: playerNameSchema,
+    avatar: z.enum(AVATARS),
     takeOver: z.boolean().optional(),
     hidden: z.boolean().optional(), // the page is hidden as it joins (F40)
   }),

@@ -418,7 +418,7 @@ describe('a discarded first deal of a new cycle', () => {
     // Cy joins at the SCOREBOARD, so Ana's going leaves two connected (F41: no fewPlayers pause).
     let r = step(
       room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Cy', name: 'Cy', avatar: '🦊' },
       at + 200,
     ).room;
     r = step(r, { type: 'sys:disconnected', pid: pids[0]! }, at + 500).room;

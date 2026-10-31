@@ -46,7 +46,7 @@ function game(settings: Partial<RoomSettings> = {}) {
 function join(room: Room, at: number, name = 'Dee') {
   const r = step(
     room,
-    { type: 'player:join', by: NEW_PHONE, keyHash: `key-${name}`, name },
+    { type: 'player:join', by: NEW_PHONE, keyHash: `key-${name}`, name, avatar: '🦊' },
     at,
   ).room;
   return { room: r, pid: Object.values(r.players).find((p) => p.name === name)!.pid };
@@ -248,13 +248,20 @@ describe('late joiners in the turn order', () => {
     // The same phone again (a refresh), and Ben's name taken over from a new phone.
     let r = step(
       r1,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Dee', name: 'Dee' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Dee', name: 'Dee', avatar: '🦊' },
       at + 600,
     ).room;
     r = step(r, { type: 'sys:disconnected', pid: pids[1]! }, at + 700).room;
     r = step(
       r,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-new', name: 'Ben', takeOver: true },
+      {
+        type: 'player:join',
+        by: NEW_PHONE,
+        keyHash: 'key-new',
+        name: 'Ben',
+        avatar: '🦊',
+        takeOver: true,
+      },
       at + 800,
     ).room;
     expect(r.turnOrder).toEqual([...pids, dee]);

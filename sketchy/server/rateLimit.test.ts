@@ -168,6 +168,7 @@ async function gateway({ trustProxy }: { trustProxy?: number } = {}) {
       code: opts.code ?? CODE,
       playerKey,
       name,
+      avatar: '🦊',
     });
     return { main, ack };
   }
@@ -294,6 +295,7 @@ describe(`player:join: ${JOIN_RATE_LIMIT.max} per address per minute`, () => {
         code: CODE,
         playerKey: keyOf(70),
         name: 'P3',
+        avatar: '🦊',
         takeOver: true,
       });
     };

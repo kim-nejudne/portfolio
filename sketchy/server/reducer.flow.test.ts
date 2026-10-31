@@ -308,7 +308,7 @@ describe('turn order across cycles', () => {
     const { room, pids, at } = game({ cycles: 2 });
     const r = step(
       room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Dee', name: 'Dee' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'key-Dee', name: 'Dee', avatar: '🦊' },
       at,
     ).room;
     const dee = Object.values(r.players).find((p) => p.name === 'Dee')!.pid;

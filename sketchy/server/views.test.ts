@@ -285,6 +285,25 @@ describe('server-only fields', () => {
   });
 });
 
+describe('avatars (F53)', () => {
+  it('every chip carries its player’s avatar, on the Screen and on every phone', () => {
+    const { room, pids, at } = drawing();
+    const avatars = { [pids[0]!]: '🐙', [pids[1]!]: '🚀', [pids[2]!]: '🐙' } as const;
+    const players = Object.fromEntries(
+      Object.entries(room.players).map(([pid, p]) => [pid, { ...p, avatar: avatars[pid]! }]),
+    );
+    const withAvatars: Room = { ...room, players };
+    const viewers: Viewer[] = [
+      { kind: 'screen', isHost: false },
+      ...pids.map((pid) => ({ kind: 'player' as const, pid })),
+    ];
+    for (const viewer of viewers) {
+      const view = toView(withAvatars, viewer, at);
+      expect(Object.fromEntries(view.players.map((c) => [c.pid, c.avatar]))).toEqual(avatars);
+    }
+  });
+});
+
 describe('scores and ranks', () => {
   it('carries this turn points during a turn and totals only in FINAL', () => {
     const { room, pids, at } = drawing();

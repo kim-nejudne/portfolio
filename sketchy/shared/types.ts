@@ -10,6 +10,7 @@ import type {
   DIFFICULTY_CHOICES,
   DRAW_SECONDS_CHOICES,
   GUESS_FEED_CHOICES,
+  AVATARS,
   REACTIONS,
   WORDS_CHOICES,
 } from './constants.js';
@@ -44,6 +45,7 @@ export interface Player {
   keyHash: string; // SHA-256 of the device's private playerKey; never in a view
   name: string;
   color: string; // from PLAYER_COLORS
+  avatar: Avatar; // picked on the join form (F53)
   score: number; // this game
   connected: boolean;
   hidden: boolean; // page hidden (phone locked or app switched), from player:visibility
@@ -198,6 +200,7 @@ export interface Room {
 }
 
 export type Reaction = (typeof REACTIONS)[number];
+export type Avatar = (typeof AVATARS)[number];
 export type ChoiceIndex = 0 | 1 | 2;
 
 // ---------- Reducer actions ----------
@@ -232,7 +235,13 @@ type NoPayload = Record<never, never>;
 
 /** Payloads of the actions a client causes, before the gateway adds `by`. */
 export interface ClientActionPayloads {
-  'player:join': { keyHash: string; name: string; takeOver?: boolean; hidden?: boolean }; // gateway hashes the key
+  'player:join': {
+    keyHash: string; // the gateway hashes the key
+    name: string;
+    avatar: Avatar;
+    takeOver?: boolean;
+    hidden?: boolean;
+  };
   'player:leave': NoPayload;
   'player:rename': { name: string };
   'player:guess': { text: string; receivedAt: number; oneWayMs: number }; // timing from the gateway
@@ -400,6 +409,7 @@ export interface ClientPayloads {
     code: string;
     playerKey: string;
     name: string;
+    avatar: Avatar;
     takeOver?: boolean;
     hidden?: boolean; // the page is hidden as it joins (a locked phone reconnecting), F40
   };
@@ -460,6 +470,7 @@ export interface PlayerChipView {
   pid: string;
   name: string;
   color: string;
+  avatar: Avatar;
   connected: boolean;
   crown: boolean;
   isDrawer: boolean;

@@ -136,17 +136,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 ## M11 — Avatars
 
-- [ ] F53 Emoji avatars
-  - Spec: Ported from Buzzr; Roles and devices (Creating and joining a room); UI by role and phase (Screen, Guesser phone); DECISIONS "Proposed spec changes" 2026-10-31
-  - Depends: none
-  - Done when:
-    - `AVATARS` (Buzzr's 24, single code point each) in `shared/constants.ts`; `player:join` requires `avatar` (`z.enum(AVATARS)`); `Player.avatar` and `PlayerChipView.avatar`
-    - A new player stores the payload's avatar; a same-key rejoin and a takeover keep the stored one
-    - Join form: a grid of the 24 under the name (toggle buttons, cells ≥ 44 px, `aria-pressed`), one always picked: the last stored one or a random one; fits 360×560 with Join on screen
-    - The identity in localStorage carries `avatar`; an entry without one or with an unknown one keeps the identity and gets a random avatar
-    - `Avatar` (moved to `components/Avatar.tsx`) shows the emoji on a disc in the player's colour on every Screen chip (lobby, sidebar, reveal, standings); doodles are no longer drawn as avatars (supersedes DECISIONS 50, Avatars)
-    - The phone's "Who's here" shows each avatar instead of the colour dot; dev bots join with a random avatar
-  - Tests: schemas (accept a listed emoji; reject missing, unlisted, ZWJ), reducer join/rejoin/takeover, views, playerIdentity, Avatar, join form and lobby list, bots
+- [x] F53 Emoji avatars
 
 - [ ] F54 Change avatar in the lobby
   - Spec: UI by role and phase (Guesser phone, Host controls); Reducer actions and effects (Actions); DECISIONS "Proposed spec changes" 2026-10-31
@@ -161,7 +151,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
   - Spec: Drawing data protocol (Lobby doodles); Data model (Room state); DECISIONS "Proposed spec changes" 2026-10-31
   - Depends: F53
   - Done when:
-    - `doodle:batch`, the InkStore doodles, the `doodle` relay, `doodles` in `ink:snapshot`, `sys:doodle`, `hasDoodle`, the `doodleDrop` effect, `client/src/lib/doodles.ts` and the Screen's doodle wiring are gone; `/ink` refuses `doodle:batch`
+    - `doodle:batch`, the InkStore doodles, the `doodle` relay, `doodles` in `ink:snapshot`, `sys:doodle`, `hasDoodle`, the `doodleDrop` effect, `client/src/lib/doodles.ts`, the Screen's doodle wiring and `drawStroke`/`redrawPicture`'s `lineScale` (doodle avatars only) are gone; `/ink` refuses `doodle:batch`
     - `DoodlePad` draws and undoes locally with its sessionStorage stack and a local size cap, sends nothing; copy "Warm up: doodle while you wait!" in both languages (supersedes DECISIONS 50, Phone pad)
     - `npm run mem:probe` and `npm run size` re-run
   - Tests: removed-behaviour tests deleted (listed in PROGRESS); `/ink` refuses `doodle:batch`; no doodle in a Screen snapshot; the pad works offline of `/ink`

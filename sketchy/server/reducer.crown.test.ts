@@ -25,7 +25,7 @@ describe('the first joiner', () => {
     const empty = withPlayers([]).room;
     const first = step(
       empty,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'k-ana', name: 'Ana' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'k-ana', name: 'Ana', avatar: '🦊' },
       T0,
     );
     const ana = pidOf(first.room, 'Ana');
@@ -33,7 +33,7 @@ describe('the first joiner', () => {
     expect(first.effects).toContainEqual(crowned(ana));
     const second = step(
       first.room,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'k-ben', name: 'Ben' },
+      { type: 'player:join', by: NEW_PHONE, keyHash: 'k-ben', name: 'Ben', avatar: '🦊' },
       T0 + 1,
     );
     expect(second.room.crownPid).toBe(ana);
@@ -188,7 +188,14 @@ describe('the crown on leave, disconnect and takeover', () => {
     const off = step(room, { type: 'sys:disconnected', pid: pids[0]! }, T0 + 5).room;
     const res = step(
       off,
-      { type: 'player:join', by: NEW_PHONE, keyHash: 'new-phone', name: 'ana', takeOver: true },
+      {
+        type: 'player:join',
+        by: NEW_PHONE,
+        keyHash: 'new-phone',
+        name: 'ana',
+        avatar: '🦊',
+        takeOver: true,
+      },
       T0 + 10,
     );
     expect(res.room.crownPid).toBe(pids[0]);
