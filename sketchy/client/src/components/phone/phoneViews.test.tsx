@@ -198,7 +198,10 @@ describe('drawer phone', () => {
       <GuessLine close="Bea" last={{ name: 'Ana', text: 'payong' }} t={t} />,
     );
     expect(html).toMatch(/aria-live="polite"/);
-    expect(html).toMatch(/<strong class="[^"]*text-\[#FFD166\][^"]*">Bea is close!<\/strong>/);
+    // On the amber highlighter swash (F59: the `highlight` swash switched to `amber`).
+    expect(html).toMatch(
+      /<strong class="[^"]*\bhighlight\b[^"]*\[--color-hl:var\(--color-amber\)\][^"]*">Bea is close!<\/strong>/,
+    );
     expect(html).not.toContain('payong');
   });
   it('shows the latest wrong guess with the feed masking, or nothing yet (F36)', () => {
@@ -223,7 +226,8 @@ describe('drawer phone', () => {
     expect(html).toMatch(
       new RegExp(`<p class="[^"]*text-base[^"]*"><strong[^>]*>${WORD}</strong>`),
     );
-    expect(html).toContain('◔ 0:47');
+    // F59: the clock in Nunito, no ◔.
+    expect(html).toMatch(/<span role="timer" class="[^"]*\bfont-num\b[^"]*">0:47<\/span>/);
     expect(html).toContain('1 of 2 got it');
     expect(html).toContain('Ana: payong');
   });
@@ -269,12 +273,16 @@ describe('drawer phone', () => {
     expect(swatches).toHaveLength(9);
     expect(html).toMatch(/aria-label="Black" aria-pressed="true"/);
     expect(html.match(/class="(?:group )?grid size-11 [^"]*"/g)).toHaveLength(8);
-    expect(html.match(/class="block size-10 rounded-full[^"]*"/g)).toHaveLength(8);
+    // F59: wobbly crayons in an ink ring (the sketchbook swatches).
+    expect(
+      html.match(/class="wobbly block size-10 border-\[2\.5px\] border-ink[^"]*"/g),
+    ).toHaveLength(8);
     expect(html).toContain('aria-label="Brush size: medium. Tap to change"');
-    expect(html).toMatch(/aria-pressed="false"[^>]*>Eraser<\/button>/);
+    expect(html).toMatch(/aria-pressed="false"[^>]*><svg[^>]*>.*?<\/svg>Eraser<\/button>/);
     // Nothing drawn yet: Undo and Clear do nothing.
-    expect(html).toMatch(/disabled=""[^>]*>↶ Undo<\/button>/);
-    expect(html).toMatch(/disabled=""[^>]*>✕ Clear<\/button>/);
+    // F59: a pen icon before each label.
+    expect(html).toMatch(/disabled=""[^>]*><svg[^>]*>.*?<\/svg>Undo<\/button>/);
+    expect(html).toMatch(/disabled=""[^>]*><svg[^>]*>.*?<\/svg>Clear<\/button>/);
     expect(html).not.toContain('coming soon');
     expect(html.match(/style="height:48px"/g)).toHaveLength(2);
     // Paused: every tool waits.
@@ -431,7 +439,8 @@ describe('choosing a word', () => {
       <WordChoice view={choosingView('mika')} receivedAt={0} onChoose={async () => null} t={t} />,
     );
     expect(html).toContain('Your turn to draw!');
-    expect(html).toContain('<span aria-hidden="true">◔</span> 10s');
+    // F59: the countdown ring, labelled with the seconds left.
+    expect(html).toMatch(/<span role="timer" aria-label="10s">.*?>10<\/span><\/span><\/span>/);
     expect(html).toContain('Hold your phone close 🤫');
     expect(html).toContain('Tap one. No letters or numbers in your drawing!');
     const order = [
@@ -509,7 +518,7 @@ describe('the next drawer during the reveal (F21)', () => {
     );
     expect(html).toContain('You draw next! Pick a word');
     expect(html).not.toContain('Your turn to draw!');
-    expect(html).toContain('<span aria-hidden="true">◔</span> 7s');
+    expect(html).toMatch(/<span role="timer" aria-label="7s">.*?>7<\/span><\/span><\/span>/);
     expect(html.match(/<button/g)).toHaveLength(3);
   });
 

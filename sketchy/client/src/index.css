@@ -182,6 +182,17 @@
     ),
     repeating-linear-gradient(transparent 0 33px, var(--color-rule) 33px 34px);
 }
+/* A ruled index card (the drawer's word cards, F59): a red header line, then faint rules. */
+@utility index-card {
+  background-image:
+    linear-gradient(
+      transparent 30px,
+      var(--color-margin) 30px,
+      var(--color-margin) 32px,
+      transparent 32px
+    ),
+    repeating-linear-gradient(transparent 0 25px, var(--color-rule) 25px 26px);
+}
 /* The hand-drawn border of sketch buttons and cards. */
 @utility sketch-border {
   border: 2.5px solid var(--color-ink);

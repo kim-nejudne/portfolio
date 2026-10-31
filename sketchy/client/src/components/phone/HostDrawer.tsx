@@ -16,6 +16,7 @@ import {
 import { useHostSender } from '../../lib/hostSend.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { HostPlayerList } from '../HostPlayerList.js';
+import { RINGS_ROW_PX } from '../sketch/SpiralRings.js';
 
 /**
  * The crown holder's phone once the game has started (Host controls): a 👑 Host button in a slim
@@ -30,6 +31,7 @@ export function HostDrawer({
   t,
   open,
   onOpenChange,
+  placement = 'bar',
 }: {
   view: PlayerView;
   socket: GameSocket;
@@ -37,7 +39,13 @@ export function HostDrawer({
   /** Held by the page, which makes the player's view behind the sheet inert. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * `bar`: a slim bar of its own above the view. `drawer`: over the right end of the drawer's top
+   * bar, first row (Sketchbook Drawer); the page positions it, `DrawerTurn` keeps the room free.
+   */
+  placement?: 'bar' | 'drawer';
 }) {
+  const inBar = placement === 'drawer';
   const button = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
   // Closing puts focus back on Host, once the bar is no longer inert.
@@ -50,19 +58,39 @@ export function HostDrawer({
   return (
     <>
       {/* Above the paused overlay, so Resume stays in reach. */}
-      <div inert={open} className="relative z-30 flex shrink-0 justify-end px-3 pt-1">
+      <div
+        inert={open}
+        // In the drawer's bar: just under the page's rings, at the bar's right end.
+        style={inBar ? { top: `calc(env(safe-area-inset-top) + ${RINGS_ROW_PX}px)` } : undefined}
+        className={
+          inBar
+            ? 'absolute right-[calc(env(safe-area-inset-right)+0.25rem)] z-30'
+            : 'relative z-30 flex shrink-0 justify-end px-3 pt-1'
+        }
+      >
+        {/* A 44 px tap area around a small hand-bordered pill; in the drawer's bar the pill sits
+            in the first row and the tap area hangs below it. */}
         <button
           ref={button}
           type="button"
           onClick={() => onOpenChange(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
-          className="min-h-11 min-w-11 rounded-full bg-white/15 px-4 text-base font-bold"
+          className={`flex min-h-11 min-w-11 touch-manipulation justify-center px-1 font-hand text-ink ${
+            inBar ? 'items-start pt-[3px]' : 'items-center'
+          }`}
         >
-          <span aria-hidden="true">👑</span> {t('hostButton')}
+          <span className="rounded-[12px_4px_12px_4px] border-2 border-ink bg-paper px-2 py-px text-[15px] leading-5 whitespace-nowrap">
+            <span aria-hidden="true">👑</span> {t('hostButton')}
+          </span>
         </button>
       </div>
-      {open && <DrawerSheet view={view} socket={socket} t={t} onClose={close} />}
+      {/* The sheet stays the dark one until F61 puts it on paper. */}
+      {open && (
+        <div className="legacy-ink contents">
+          <DrawerSheet view={view} socket={socket} t={t} onClose={close} />
+        </div>
+      )}
     </>
   );
 }

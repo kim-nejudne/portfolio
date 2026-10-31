@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LAST_SECONDS_MS } from '../../../../shared/constants.js';
 import type { PlayerView } from '../../../../shared/types.js';
 import type { DrawerInkLink } from '../../ink/drawerSync.js';
 import type { PadState } from '../../ink/padTools.js';
@@ -19,14 +20,24 @@ interface Props {
   paused: boolean;
   /** Who is close, while "Bea is close!" is up (`closeAlert.ts`). */
   closePid: string | null;
+  /**
+   * The crown holder's 👑 Host pill sits at the end of the bar's first row. The page places it
+   * (outside this view, so it stays in reach while paused); the bar keeps its room free.
+   */
+  hostButton?: boolean;
   t: Translate;
 }
 
+/** Room the bar leaves at its right end for the page's 👑 Host pill (`HostDrawer` "drawer"). */
+export const HOST_PILL_ROOM = 'pr-[5.5rem]';
+
 /**
- * The drawer's phone in DRAWING (UI by role and phase, Drawer phone and Drawer layout): a 56 px
- * bar with the word (small, so the next person on the couch can't read it), the clock, "2 of 4 got
- * it" and the latest wrong guess (or "Bea is close!" in amber for 2 s); the square pad, with "Start
- * with one big shape. Anything helps!" at its top edge if nothing is drawn 10 s in; two 48 px rows. Scroll, zoom and
+ * The drawer's phone in DRAWING (UI by role and phase, Drawer phone and Drawer layout; Sketchbook
+ * Drawer), on the page's dot grid: a 56 px bar with the word (16 px in `soft`, so the next person
+ * on the couch can't read it), the Nunito clock (`red` in the last 10 s), "2 of 4 got it", room
+ * for the 👑 Host pill, and the latest wrong guess (or "Bea is close!" on an amber swash for 2 s);
+ * the square pad in its ink frame, with "Start with one big shape. Anything helps!" in `pen` at
+ * its top edge if nothing is drawn 10 s in; two 48 px rows. Scroll, zoom and
  * pull-to-refresh are locked while it shows (`touch-none` on the whole view, so a pinch on the bar
  * or the toolbar doesn't zoom either). The screen stays on through the page's game-long Wake Lock
  * (`Play.tsx`, F37).
@@ -35,7 +46,15 @@ interface Props {
  * stroke in hand ends and the tools wait. The pad stays mounted at its upright size, so the turn's
  * strokes and sender carry on when the phone turns back (Edge cases).
  */
-export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props) {
+export function DrawerTurn({
+  view,
+  receivedAt,
+  ink,
+  paused,
+  closePid,
+  hostButton = false,
+  t,
+}: Props) {
   useDrawLock(true);
   const boxRef = useRef<HTMLDivElement>(null);
   const [pad, setPad] = useState(0);
@@ -78,6 +97,7 @@ export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props
   const nameOf = (pid: string) => view.players.find((p) => p.pid === pid)?.name ?? '';
   const nudge = inkNudge(turn.timer, left, { ready: padState.ready, drew });
   const closeName = closePid !== null ? nameOf(closePid) : '';
+  const low = left <= LAST_SECONDS_MS;
 
   return (
     <div
@@ -87,15 +107,20 @@ export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props
       <header
         inert={sideways}
         style={{ height: DRAWER_BAR_PX }}
-        className="flex w-full shrink-0 flex-col justify-center px-3"
+        className="flex w-full shrink-0 flex-col justify-center px-1.5"
       >
-        <p className="flex items-baseline gap-2 text-base leading-6">
-          <strong className="min-w-0 truncate font-semibold">{word}</strong>
-          <span aria-hidden>·</span>
-          <span className={`tabular-nums ${left <= 10_000 ? 'text-[#FF8F5E]' : ''}`}>
-            ◔ {formatClock(left)}
+        {/* Only the first row makes room for the pill; its tap area hangs over row 2's end, which
+            is text only. */}
+        <p
+          className={`flex h-7 items-center gap-2.5 text-base leading-7 ${hostButton ? HOST_PILL_ROOM : ''}`}
+        >
+          <strong className="min-w-0 truncate font-normal text-soft">{word}</strong>
+          <span
+            role="timer"
+            className={`shrink-0 font-num text-xl font-black tabular-nums ${low ? 'text-red' : 'text-ink'}`}
+          >
+            {formatClock(left)}
           </span>
-          <span aria-hidden>·</span>
           <span className="truncate">
             {t('gotItCount', { guessed: turn.guessed.guessed, of: turn.guessed.of })}
           </span>
@@ -125,7 +150,7 @@ export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props
           <p
             aria-hidden
             style={{ top: `max(4px, calc(50% - ${pad / 2}px - 32px))` }}
-            className="pointer-events-none absolute inset-x-2 mx-auto w-fit max-w-full rounded-full bg-[#1D1B22]/90 px-3 py-1 text-center text-sm leading-5 font-semibold"
+            className="pointer-events-none absolute inset-x-2 mx-auto w-fit max-w-full rounded-full bg-paper px-3 py-1 text-center text-base leading-5 text-pen"
           >
             {t('startBigShape')}
           </p>
@@ -152,8 +177,9 @@ export function DrawerTurn({ view, receivedAt, ink, paused, closePid, t }: Props
 }
 
 /**
- * The second line of the drawer's top bar: "Bea is close!" in amber while an alert is up, else the
- * latest wrong guess as the view masked it ("•••" when masked). Polite, so it never interrupts.
+ * The second line of the drawer's top bar: "Bea is close!" on an amber highlighter swash while an
+ * alert is up, else the latest wrong guess as the view masked it ("•••" when masked). Polite, so it
+ * never interrupts.
  */
 export function GuessLine({
   close,
@@ -165,9 +191,12 @@ export function GuessLine({
   t: Translate;
 }) {
   return (
-    <p aria-live="polite" className="h-5 truncate text-sm leading-5 text-white/70">
+    <p aria-live="polite" className="h-6 truncate text-[17px] leading-6 text-ink">
       {close !== null ? (
-        <strong className="font-bold text-[#FFD166]">{t('isClose', { name: close })}</strong>
+        // The swash is the `highlight` utility with its colour switched to `amber`.
+        <strong className="highlight font-normal [--color-hl:var(--color-amber)]">
+          {t('isClose', { name: close })}
+        </strong>
       ) : last ? (
         `${last.name}: ${last.text ?? '•••'}`
       ) : (

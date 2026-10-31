@@ -82,8 +82,80 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F57: open `/` on the laptop (Chrome, ≥ 1024 px wide) and once more with the OS's reduce-motion setting on · the umbrella draws itself on stroke by stroke beside the cards with no dots before each stroke starts; with reduce motion it is simply there
 - [ ] F58: `npm run dev` + `npm run lan CODE`, join from an iPhone (Safari) and a budget Android (Chrome), the first phone is the host; set the copy to Taglish in Change · the host reads "Room KPRW" (Taglish keeps "Room"), the guest's waiting line shows the host's name in their colour, both lobbies are paper (ruled for the guest, dots for the host) with the rings, doodling works with no page scroll, and the status bar is light
 - [ ] F58: on a 360×560-class phone the host lobby scrolls to reach its doodle pad (eyebrow, roster, Start, settings line and "Add your own words" fill the screen) · decide whether that is fine (DECISIONS 53, 81) or the host lobby should drop something so it fits
+- [ ] F59: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, the host on an iPhone (Safari) and a second drawer on a budget Android (Chrome); play a turn each · the cards are ruled, taped index cards with the red level tag and the ring counting 12 s; while drawing, the bar shows the word small and grey, the clock goes red at 0:10, "Bea is close!" sits on an orange-yellow swash; the pad has a black frame and shadow and no tape; on the iPhone the 👑 Host pill opens the sheet with one tap (no zoom), and Resume is reachable from it while paused
+- [ ] F59: in Change → custom words, add a long one (e.g. "pinakamahabang salita dito") and play until it is dealt on a 360-wide phone · the word wraps under the level tag with nothing cut off (a long gloss may lose its last line first)
 
 <!-- entries below, newest first -->
+
+## F59 — Sketchbook drawer phone (2026-10-31)
+**What changed:**
+- **Paper drawer pages:** the drawer's CHOOSING, "Get ready" and DRAWING, and the next drawer's cards during REVEAL/SCOREBOARD, are dot-grid paper with no `legacy-night` (`Play.tsx`). The guesser's turn and the results stay dark (F60/F61).
+- **Choosing** (`WordChoice`): the heading at 30 px over "Hold your phone close 🤫" in `soft`, with the 58 px `CountdownRing` (12 s, `role="timer"` labelled "10s"). Then three ruled index cards (new `index-card` utility) on white, with a 2 px `ink` border, a hard shadow and `Tape top`. Each card has the level tag in `red` pen at the top right, the word at 34 px (a float keeps only its first line clear of the tag) and the gloss in `soft` (it gives way first on a short card). The tapped card turns `hl` and the others fade. "You draw next! Pick a word" gets the same cards.
+- **Drawing bar** (`DrawerTurn`), 56 px tall:
+  - Row 1: the word at 16 px in `soft`, the Nunito 20 px clock (`red` at ≤ 10 s), and "N of 4 got it".
+  - Row 2 (17 px): the latest guess, or "Bea is close!" on the `highlight` swash switched to `amber`.
+  - The "Start with one big shape" hint is in `pen` on paper.
+- **Host pill:** while the crown holder draws, `HostDrawer placement="drawer"` puts a hand-bordered "👑 Host" pill in a 44 px tap area over the bar's first row. It sits under the rings (shared `RINGS_ROW_PX`) and outside the view, which goes inert while paused, so Resume stays in reach. The bar keeps `HOST_PILL_ROOM` free on row 1. Everywhere else the Host bar shows the same paper pill, and its sheet keeps the dark look in a `legacy-ink` wrapper until F61. Because the bar no longer needs a row of its own, the host's pad grows by 48 px and now matches the formula.
+- **Pad** (`DrawPad`): `bg-canvas` with the ink frame and hard shadow drawn as `box-shadow`, so the canvas box, the pointer mapping and the size formula are unchanged. No tape.
+- **Toolbar** (`DrawToolbar`): two 48 px rows.
+  - Row 1: the 8 wobbly crayons in an `ink` ring (40 px in 44 px), the picked one outlined in `pen`.
+  - Row 2: Size (a dot and S/M/L in Nunito), Eraser, Undo and Clear as 44 px `sketch-border` buttons with `pen` line icons. The eraser is on `hl` while it's on.
+  - Labels are `clamp(0.875rem, 4.4vw, 1.0625rem)`, so Taglish "Pambura" fits at 360 px.
+  - `ColourSwatches`/`SizeButton` lose their `look` prop: the `night` look is gone, and the lobby doodle uses the same swatches.
+- **Copy:** `undo`/`clear` drop their ↶/✕ glyphs ("Undo"/"Clear" in both tables, the words the Taglish already used), since the icons replace them. No new copy keys and no new Taglish.
+- **Tests:**
+  - New `components/phone/drawerLook.test.tsx`: the heading, ring and 12 s arc; three taped, ruled cards with the red tag, the large word and the `soft` gloss, including for "You draw next!"; the 56 px bar with the `soft` word and the Nunito clock (red at 10 s, not at 11 s); the pill room only for the crown holder; the amber swash; the pad frame with no tape; the pad formula at the measured boxes; the `pen` hint; two 48 px rows with 8 crayons and one outline; four hand-bordered buttons with 3 pen icons; the eraser on `hl`; the pill's place under the rings; no hex or `white` classes in the four restyled files.
+  - In `phoneViews.test.tsx`, the assertions that pinned the old look now pin the new one: the `#FFD166` close line, ◔ in the drawer clock and the choosing timer, the night swatch class, and the glyphs in Undo/Clear. Every behaviour assertion is unchanged.
+  - The `padTools`, `hostPhone` and `lobbyLook` tests stay green unchanged.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 82.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - The Must-fixes were this entry, the DECISIONS row and recording the mobile-ux run. All three are done.
+  - Should-fixes done: the pill's 30 px offset now comes from `RINGS_ROW_PX`, which `SpiralRings` also uses, and a test ties the two together; a pad-formula test is added.
+  - Checked: `role="timer"` isn't live by default, so the clock doesn't announce every tick.
+- **mobile-ux-reviewer: PASS WITH FIXES, no Must-fix.**
+  - Should-fixes done: a long word no longer clips its card (the float spacer replaces the 4.5rem padding, the word never shrinks and the gloss gives way); the shared rings constant; the comment on the shadow's last pixel (DECISIONS 82).
+  - Nits done: pill room on row 1 only; `touch-manipulation` on the pill; a comment on the label fit.
+  - Nit not taken: the class-string checks in `drawerLook.test.tsx`. They pin the look this feature is about, as in F58.
+- **secrets-fairness-reviewer:** not needed. Nothing in `server/`, `shared/` or the ink transport changed. The playtest found the word absent from the Screen and from every guesser's DOM in both turns.
+
+**Verification:**
+- `.playtest/F59/scenario.ts` (a Screen and 4 phones over two turns: the host Mika draws, then the guest Jun; `LANG_MODE=taglish` for the Taglish run):
+  - CHOOSING at 360×560, 390×664 and 412×780: no document, `main` or sideways scroll; 3 cards, 3 tapes and 3 tags in view; the ring 58×58.
+  - DRAWING at the same three sizes:
+    - The header is 56 px. The canvas is 352, 382 and 404 px square, equal to `min(w − 8, h − 56 − 96 − 16)` of the view box. The rows are 48 and 48 px.
+    - There is no scroll or overflow. The canvas, its frame and every button are in view, and no label clips in English or Taglish.
+    - The swatches are 44 px with 40 px dots.
+  - Host pill: 74×44 at the bar's top. It opens the sheet and is still on top and working while paused. A non-host drawer has no pill.
+  - Guesses and drawing:
+    - A wrong guess shows "Jun: zzqqxx" in row 2, and a close guess shows "Mika is close!" on `#ffb547`.
+    - At 0:08 the clock is `rgb(210, 55, 44)`.
+    - A mouse stroke shows on the Screen (0 → 6001 dark pixels).
+    - The eraser's fill is `rgb(255, 225, 77)`.
+  - No console errors on any role.
+- Side by side with the mockup (`.playtest/F59/mockup-choosing.png`, `mockup-drawing.png`, `mockup-close.png`): `choosing-t1-host-Mika-{360x560,390x664,412x780}.png`, `drawing-t1-host-Mika-*.png`, `drawing-t2-guest-Jun-*.png`, `close-t1-host-Mika.png`, `clock-red-t1-host-Mika.png`, `hostsheet-paused-t1-host-Mika.png`, `tg-drawing-t1-host-Mika-360x560.png`.
+- **Still differs from the mockup:**
+  - The pad is centred in the room the formula leaves, and the toolbar sits at the bottom. The mockup's fixed 382 px pad sits right under the bar with the tools under it.
+  - The cards stretch to share the page, so tall phones get empty ruled lines.
+  - Row 2's guesser name isn't in their colour.
+  - The ink outline is `pen` on the picked swatch (as in the lobby), not `ink`.
+  - The pen icons are `pen` blue, not `ink`.
+  - There is no "✓ Jun got it!" line in row 2 (the mockup's got-it phase; the spec's row 2 is the latest wrong guess).
+  - Off the drawer's DRAWING page, the Host pill keeps a bar of its own.
+  - At full width the shadow's last pixel falls past the edge.
+- **Not covered automatically:** a long custom word on the cards (a Kim check above; the float and the shrinking gloss handle it by design).
+- `npm run size`: JS 116.1 KB of 120 (F58: 115.1), CSS and fonts 68.8 KB of 72.
+- `/verify`: format, lint, typecheck, 1483 tests and build all green.
+
+**Notes for next session:**
+- F60: drop `legacy-night` for the guesser's turn in `Play.tsx`. Once the view area has no dark pages left, the class can go from it entirely (the results go in F61). The Host bar already has the paper pill.
+- F61: drop the `legacy-ink` wrapper around `DrawerSheet` in `HostDrawer.tsx` when the sheet moves to paper, along with the paused/rematch veils' wrapper in `Play.tsx`.
+- `RINGS_ROW_PX` (`components/sketch/SpiralRings.tsx`) is the rings' row height. Use it for anything placed under the rings.
+
+**How to try it:** `npm run dev`, open `/` and Start on a laptop, then join `/play/CODE` from two 360×560 windows (the first is the host) and Start. The host sees the cards, then the drawing page with the 👑 pill in the bar. Guess from the other window.
 
 ## F58 — Sketchbook phone shell and lobby (2026-10-31)
 **What changed:**

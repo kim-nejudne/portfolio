@@ -481,6 +481,10 @@ export function Play() {
     (view.phase === 'REVEAL' || view.phase === 'SCOREBOARD') && view.secret?.choices != null;
   const cards = view.secret?.choices != null && (choosingNext || view.phase === 'CHOOSING');
   const hostBar = view.host !== null && view.phase !== 'LOBBY';
+  // The drawer's pages are on paper (F59); the guesser's and the results stay dark until F60/F61.
+  const drawerPage = cards || (isDrawer && inTurn);
+  // While the crown holder draws, the Host pill sits in the drawer's top bar (Sketchbook Drawer).
+  const hostInDrawerBar = hostBar && isDrawer && view.phase === 'DRAWING';
   // The rematch 3-2-1 covers the final scores; the crown phone's Host button keeps Cancel in reach.
   const counting = view.phase === 'FINAL' && view.rematchInMs !== null;
 
@@ -489,7 +493,13 @@ export function Play() {
       className={`relative flex h-dvh w-full flex-col overflow-hidden overscroll-none bg-paper pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] font-hand text-ink ${
         // The guest lobby is a ruled page, the host's dot grid; the turn pages bring their own
         // paper from F59.
-        view.phase === 'LOBBY' ? (view.host ? 'paper-dots' : 'paper-ruled') : ''
+        view.phase === 'LOBBY'
+          ? view.host
+            ? 'paper-dots'
+            : 'paper-ruled'
+          : drawerPage
+            ? 'paper-dots'
+            : ''
       }`}
     >
       {/* Always mounted, so screen readers announce the toast. */}
@@ -510,16 +520,14 @@ export function Play() {
       <ConnectionDot connection={link} t={t} />
       <SpiralRings />
       {hostBar && (
-        // The Host bar and drawer stay dark until F59/F61 restyle them.
-        <div className="legacy-night shrink-0">
-          <HostDrawer
-            view={view}
-            socket={socket}
-            t={t}
-            open={hostOpen}
-            onOpenChange={setHostOpen}
-          />
-        </div>
+        <HostDrawer
+          view={view}
+          socket={socket}
+          t={t}
+          open={hostOpen}
+          onOpenChange={setHostOpen}
+          placement={hostInDrawerBar ? 'drawer' : 'bar'}
+        />
       )}
       {!connected && (
         <p
@@ -532,8 +540,8 @@ export function Play() {
       {/* While paused, the covered guess box and pad are out of reach of focus and the keyboard too. */}
       <div
         inert={(hostBar && hostOpen) || view.paused !== null || counting}
-        // The turn and results pages are still the dark ones until F59–F61 move them to paper.
-        className={`min-h-0 flex-1 ${view.phase === 'LOBBY' ? '' : 'legacy-night'}`}
+        // The guesser's turn and the results are still the dark pages until F60/F61.
+        className={`min-h-0 flex-1 ${view.phase === 'LOBBY' || drawerPage ? '' : 'legacy-night'}`}
       >
         {view.phase === 'LOBBY' && (
           <PhoneLobby
@@ -551,6 +559,7 @@ export function Play() {
             ink={drawerInk}
             paused={view.paused !== null}
             closePid={closePid}
+            hostButton={hostInDrawerBar}
             t={t}
           />
         )}
@@ -565,7 +574,7 @@ export function Play() {
           />
         )}
         {isDrawer && view.phase === 'CHOOSING' && !cards && (
-          <p className="grid h-full place-items-center px-6 text-center text-2xl font-bold">
+          <p className="grid h-full place-items-center px-6 text-center text-[30px] leading-tight">
             {t('getReady')}
           </p>
         )}

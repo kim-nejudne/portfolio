@@ -180,7 +180,7 @@ export function DoodlePad({ storageKey, t }: Props) {
           tools take no row of their own. */}
       <div className="@container flex w-full items-center justify-center gap-2">
         <div className="flex shrink-0 flex-col gap-1">
-          <SizeButton tool={tool} onTool={setTool} t={t} look="paper" />
+          <SizeButton tool={tool} onTool={setTool} t={t} />
           <button
             type="button"
             onClick={undo}
@@ -194,7 +194,6 @@ export function DoodlePad({ storageKey, t }: Props) {
           tool={tool}
           onTool={setTool}
           t={t}
-          look="paper"
           className="grid grid-cols-4 justify-items-center @min-[28rem]:grid-cols-8"
         />
       </div>

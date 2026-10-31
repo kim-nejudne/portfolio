@@ -25,27 +25,14 @@ interface SwatchProps {
   disabled?: boolean;
   t: Translate;
   className?: string;
-  /**
-   * `paper` is the sketchbook look (F58: the lobby doodle pad): wobbly swatches in an `ink` ring,
-   * the picked one outlined in `pen`; a hand-bordered size button. The drawer's toolbar keeps
-   * `night` until F59 restyles it.
-   */
-  look?: 'night' | 'paper';
 }
 
 /**
- * The 8 colour swatches: 40 px circles in 44 px buttons. The pen's colour is ringed, none while
- * the eraser is on. A thin light border keeps the black swatch visible on the dark page.
+ * The 8 colour swatches (Sketchbook): wobbly 40 px crayons in a 2.5 px `ink` ring, in 44 px
+ * buttons. The pen's colour gets a `pen` outline, none while the eraser is on. Shared by the
+ * drawer's toolbar and the lobby doodle pad.
  */
-export function ColourSwatches({
-  tool,
-  onTool,
-  disabled,
-  t,
-  className = '',
-  look = 'night',
-}: SwatchProps) {
-  const paper = look === 'paper';
+export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: SwatchProps) {
   return (
     <div role="group" aria-label={t('colours')} className={className}>
       {DRAW_COLORS.map((colour, i) => {
@@ -64,17 +51,9 @@ export function ColourSwatches({
             <span
               aria-hidden
               style={{ background: colour }}
-              className={
-                paper
-                  ? `wobbly block size-10 border-[2.5px] border-ink ${
-                      on ? 'outline-[3px] outline-offset-[1px] outline-pen' : ''
-                    }`
-                  : `block size-10 rounded-full ${
-                      on
-                        ? 'border-[3px] border-white outline-2 outline-[#FF6B35]'
-                        : 'border-2 border-white/35 group-enabled:group-hover:border-white/80'
-                    }`
-              }
+              className={`wobbly block size-10 border-[2.5px] border-ink ${
+                on ? 'outline-[3px] outline-offset-[1px] outline-pen' : ''
+              }`}
             />
           </button>
         );
@@ -83,16 +62,11 @@ export function ColourSwatches({
   );
 }
 
-/** One button that cycles S → M → L, shown as a dot of that size: the pen's colour, white while erasing. */
-export function SizeButton({
-  tool,
-  onTool,
-  disabled,
-  t,
-  className = '',
-  look = 'night',
-}: SwatchProps) {
-  const paper = look === 'paper';
+/**
+ * One hand-bordered button that cycles S → M → L, shown as a dot of that size (the pen's colour,
+ * the canvas's while erasing) and the letter in Nunito.
+ */
+export function SizeButton({ tool, onTool, disabled, t, className = '' }: SwatchProps) {
   const dot = SIZE_DOT_PX[tool.size] ?? SIZE_DOT_PX[1];
   return (
     <button
@@ -100,11 +74,7 @@ export function SizeButton({
       aria-label={t('brushSize', { size: t(SIZE_NAMES[tool.size] ?? 'sizeMedium') })}
       disabled={disabled}
       onClick={() => onTool(cycleSize(tool))}
-      className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 px-2 disabled:opacity-40 ${
-        paper
-          ? 'sketch-border bg-paper font-num font-black text-ink hover:bg-none'
-          : 'rounded-xl bg-white/15 font-bold text-white'
-      } ${className}`}
+      className={`sketch-border flex min-h-11 min-w-11 items-center justify-center gap-1.5 bg-paper px-2 font-num font-black text-ink hover:bg-none disabled:opacity-40 ${className}`.trim()}
     >
       <span className="grid size-6 place-items-center" aria-hidden>
         <span
@@ -113,7 +83,7 @@ export function SizeButton({
             height: dot,
             background: tool.eraser ? CANVAS_COLOR : DRAW_COLORS[tool.color],
           }}
-          className={`block rounded-full border ${paper ? 'border-ink' : 'border-white/70'}`}
+          className="block rounded-full border border-ink"
         />
       </span>
       <span aria-hidden>{SIZE_LETTERS[tool.size]}</span>
@@ -132,55 +102,91 @@ interface ToolbarProps {
   t: Translate;
 }
 
+/** The toolbar's line icons, drawn in `pen` (the mockup's eraser, undo and clear). */
+const ICONS = {
+  eraser: 'M4 16 L12 8 L18 14 L12 20 L7 20 Z M9 11 L15 17 M12 20 L20 20',
+  undo: 'M9 7 L4 11 L9 15 M4 11 L14 11 Q20 11 20 16 Q20 20 15 20',
+  clear: 'M5 5 L19 19 M19 5 L5 19',
+} as const;
+
+function PenIcon({ name }: { name: keyof typeof ICONS }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-5 shrink-0 text-pen"
+    >
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
+
 /**
- * The drawer's two 48 px toolbar rows under the pad (Drawer layout): the 8 colours, then the size
- * button, Eraser, Undo and Clear. Undo and Clear are greyed out when they would do nothing.
+ * The drawer's two 48 px toolbar rows under the pad (Drawer layout, Sketchbook Drawer): the 8
+ * crayons, then the hand-bordered Size, Eraser, Undo and Clear, each with a `pen` icon. The eraser
+ * is on the highlighter while it's on. Undo and Clear are greyed out when they would do nothing.
  */
 export function DrawToolbar({ tool, onTool, pad, onUndo, onClear, disabled, t }: ToolbarProps) {
+  // Four equal shares of the row: the labels scale with the width so Taglish "Pambura" still fits
+  // its share at 360 px (as long as the Size button stays this small).
   const button =
-    'min-h-11 min-w-0 flex-1 rounded-xl px-1 font-bold whitespace-nowrap disabled:opacity-40';
+    'sketch-border flex h-11 min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden px-0.5 text-[clamp(0.875rem,4.4vw,1.0625rem)] leading-none whitespace-nowrap text-ink hover:bg-none disabled:opacity-40';
   return (
     <>
       <div
         style={{ height: DRAWER_TOOL_ROW_PX }}
-        className="flex w-full shrink-0 items-center justify-center"
+        className="flex w-full shrink-0 items-center justify-center px-1"
       >
         <ColourSwatches
           tool={tool}
           onTool={onTool}
           disabled={disabled}
           t={t}
-          className="flex w-full max-w-md items-center justify-evenly"
+          className="flex w-full max-w-md items-center justify-between"
         />
       </div>
       <div
         style={{ height: DRAWER_TOOL_ROW_PX }}
-        className="flex w-full max-w-md shrink-0 items-center gap-2 px-1"
+        className="mx-auto flex w-full max-w-md shrink-0 items-center gap-1.5 px-1"
       >
-        <SizeButton tool={tool} onTool={onTool} disabled={disabled} t={t} className="flex-1" />
+        <SizeButton
+          tool={tool}
+          onTool={onTool}
+          disabled={disabled}
+          t={t}
+          className="h-11 min-w-0 flex-1"
+        />
         <button
           type="button"
           aria-pressed={tool.eraser}
           disabled={disabled}
           onClick={() => onTool(toggleEraser(tool))}
-          className={`${button} ${tool.eraser ? 'bg-[#FF6B35] text-[#1D1B22]' : 'bg-white/15 text-white'}`}
+          className={`${button} ${tool.eraser ? 'bg-hl' : 'bg-paper'}`}
         >
+          <PenIcon name="eraser" />
           {t('eraser')}
         </button>
         <button
           type="button"
           disabled={disabled || !pad.canUndo}
           onClick={onUndo}
-          className={`${button} bg-white/15 text-white`}
+          className={`${button} bg-paper`}
         >
+          <PenIcon name="undo" />
           {t('undo')}
         </button>
         <button
           type="button"
           disabled={disabled || !pad.canClear}
           onClick={onClear}
-          className={`${button} bg-white/15 text-white`}
+          className={`${button} bg-paper`}
         >
+          <PenIcon name="clear" />
           {t('clear')}
         </button>
       </div>

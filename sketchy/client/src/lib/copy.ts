@@ -274,8 +274,8 @@ const EN = {
   sizeMedium: 'medium',
   sizeLarge: 'large',
   eraser: 'Eraser',
-  undo: '↶ Undo',
-  clear: '✕ Clear',
+  undo: 'Undo',
+  clear: 'Clear',
   // ---------- Phone: reveal, scoreboard, final ----------
   yourDrawingPoints: '+{points} for your drawing',
   rankOf: '#{rank} of {of}',
@@ -563,8 +563,8 @@ const TAGLISH: Record<CopyKey, string> = {
   sizeMedium: 'katamtaman',
   sizeLarge: 'malaki',
   eraser: 'Pambura',
-  undo: '↶ Undo',
-  clear: '✕ Clear',
+  undo: 'Undo',
+  clear: 'Clear',
   // ---------- Phone: reveal, scoreboard, final ----------
   yourDrawingPoints: '+{points} para sa drawing mo',
   rankOf: '#{rank} sa {of}',

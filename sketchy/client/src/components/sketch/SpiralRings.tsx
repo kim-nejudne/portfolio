@@ -1,3 +1,6 @@
+/** The height of a row of rings across the top of a phone page (the drawer's Host pill sits under it). */
+export const RINGS_ROW_PX = 30;
+
 /**
  * The spiral wire (Sketchbook primitives): rounded `ring` loops half off the page edge, each over a
  * punched hole. Phones have a row across the top; the Screen spread has a column in its centre
@@ -18,8 +21,9 @@ export function SpiralRings({
     <div
       aria-hidden
       data-rings={direction}
+      style={row ? { height: RINGS_ROW_PX } : undefined}
       className={`pointer-events-none relative z-[2] flex shrink-0 justify-around ${
-        row ? 'h-[30px] items-start px-[18px]' : 'h-full w-[34px] flex-col items-center py-[14px]'
+        row ? 'items-start px-[18px]' : 'h-full w-[34px] flex-col items-center py-[14px]'
       } ${className}`.trim()}
     >
       {Array.from({ length: count }, (_, i) => (

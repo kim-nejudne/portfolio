@@ -157,17 +157,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F58 Sketchbook phone shell and lobby
 
-- [ ] F59 Sketchbook drawer phone
-  - Spec: UI by role and phase (Drawer phone); Canvas and drawing tools (Tools); docs/design/SKETCHBOOK.md (Surfaces: Drawer)
-  - Depends: F58
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - Choosing (`#sketch-choosing`) shows the heading and a countdown ring (12 s total), then three ruled index cards with tape, a red-pen level tag, the word large and the gloss. "You draw next!" during the reveal gets the same cards.
-    - Drawing (`#sketch-drawing`, `#sketch-close`, `#sketch-gotit`) has a 56 px top bar. Row 1: the word at about 16 px in `soft`, the Nunito timer turning red at ≤ 10 s, "N of 4 got it", the 👑 Host button. Row 2: the latest wrong guess, or "Bea is close!" on an amber swash for 2 s.
-    - The pad has an ink border and a hard shadow, and no tape. The "Start with one big shape" hint is in pen.
-    - The toolbar keeps exactly two 48 px rows. Row 1 has 8 crayon swatches (40 px circles, 44 px hit areas, a visible active ring). Row 2 has hand-bordered Size (a dot plus S/M/L), Eraser, Undo and Clear with pen icons.
-    - The pad size formula is unchanged, with no overflow at 360×560, 390×664 or 412×780.
-  - Tests: existing DrawerTurn, WordChoice, DrawToolbar and `padTools` tests stay green
+- [x] F59 Sketchbook drawer phone
 
 - [ ] F60 Sketchbook guesser phone
   - Spec: UI by role and phase (Guesser phone); Guess matching (Near misses); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Guesser)

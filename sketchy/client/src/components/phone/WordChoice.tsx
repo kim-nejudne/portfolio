@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Ack, ChoiceIndex, ChoiceView, PlayerView } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
 import { useCountdown } from '../../lib/useCountdown.js';
+import { CountdownRing } from '../sketch/CountdownRing.js';
+import { Tape } from '../sketch/Tape.js';
 
 interface Props {
   view: PlayerView;
@@ -26,9 +28,9 @@ const LEVEL: Record<ChoiceView['difficulty'], CopyKey> = {
 
 /**
  * The drawer's phone in CHOOSING, and the next drawer's during REVEAL and SCOREBOARD (UI by role
- * and phase, Drawer phone): three word cards, easiest
- * first, each with its level and gloss, the 12 s countdown and "Hold your phone close 🤫". The
- * words are large here, unlike the small word in the drawing bar. The server auto-picks the
+ * and phase, Drawer phone; Sketchbook Drawer): the heading, "Hold your phone close 🤫" and the 12 s
+ * countdown ring, then three ruled index cards, easiest first, taped on top, each with its red-pen
+ * level tag, the word large (unlike the small word in the drawing bar) and the gloss in `soft`. The server auto-picks the
  * easiest when the time runs out; the phone only sends the tap.
  */
 export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Props) {
@@ -56,44 +58,53 @@ export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Prop
   };
 
   return (
-    <div className="flex h-full flex-col gap-2 px-4 pt-3 pb-3 select-none">
-      <p className="flex items-baseline justify-between gap-3 text-xl font-bold">
-        <span>{t(next ? 'youDrawNext' : 'yourTurnToDraw')}</span>
+    <div className="flex h-full flex-col gap-3 px-4 pt-1 pb-3 select-none">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[clamp(1.5rem,8vw,1.875rem)] leading-[1.05]">
+            {t(next ? 'youDrawNext' : 'yourTurnToDraw')}
+          </h2>
+          <p className="text-base text-soft">{t('holdPhoneClose')}</p>
+        </div>
         {timer && (
-          <span role="timer" className={`tabular-nums ${left <= 3_000 ? 'text-[#FF8F5E]' : ''}`}>
-            <span aria-hidden>◔</span> {t('seconds', { n: Math.ceil(left / 1000) })}
+          <span role="timer" aria-label={t('seconds', { n: Math.ceil(left / 1000) })}>
+            <CountdownRing remainingMs={left} totalMs={timer.totalMs} choosing size="58px" />
           </span>
         )}
-      </p>
-      <p className="text-base text-[#FFD166]">{t('holdPhoneClose')}</p>
-      <ul className="flex min-h-0 flex-1 flex-col gap-2">
+      </div>
+      <ul className="flex min-h-0 flex-1 flex-col gap-3.5 pt-1">
         {choices.map((choice, i) => {
           const index = i as ChoiceIndex;
           return (
-            <li key={index} className="flex max-h-48 min-h-0 flex-1">
+            // The tape sits on the card's top edge, outside the button, so the button can clip.
+            <li key={index} className="relative flex max-h-48 min-h-0 flex-1">
+              <Tape place="top" />
               <button
                 type="button"
                 onClick={() => choose(index)}
                 disabled={sent !== null}
                 aria-pressed={sent === index}
-                className={`flex min-h-16 w-full flex-col justify-center gap-1 overflow-hidden rounded-2xl px-4 py-2 text-left text-[#1D1B22] transition-colors ${
+                className={`index-card relative flex min-h-16 w-full flex-col justify-start gap-0.5 overflow-hidden rounded-[4px] border-2 border-ink px-4 pt-5 pb-2 text-left text-ink shadow-[3px_3px_0_var(--color-ink)] transition-colors ${
                   sent === index
-                    ? 'bg-[#FFD166]'
+                    ? 'bg-hl'
                     : sent !== null
-                      ? 'bg-white/40'
-                      : 'bg-white active:bg-[#FFD166]'
+                      ? 'bg-canvas opacity-50'
+                      : 'bg-canvas active:bg-hl'
                 }`}
               >
-                <span className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 text-[clamp(1.25rem,7vw,1.75rem)] leading-tight font-bold break-words">
-                    {choice.word}
-                  </span>
-                  <span className="shrink-0 text-sm font-bold text-[#1D1B22]">
-                    {t(choice.custom ? 'levelOurs' : LEVEL[choice.difficulty])}
-                  </span>
+                <span className="min-w-0 shrink-0 text-[clamp(1.625rem,9vw,2.125rem)] leading-[1.1] break-words">
+                  {/* Keeps the first line clear of the level tag; a long word's next lines get the
+                      card's full width. */}
+                  <span aria-hidden className="float-right h-5 w-[4.5rem]" />
+                  {choice.word}
+                </span>
+                {/* The red-pen level tag, written in the card's top-right corner. */}
+                <span className="absolute top-2.5 right-3 rounded-[10px_4px_10px_4px] border-2 border-red px-[7px] text-[15px] leading-5 text-red">
+                  {t(choice.custom ? 'levelOurs' : LEVEL[choice.difficulty])}
                 </span>
                 {choice.gloss && (
-                  <span className="line-clamp-2 text-base leading-snug text-[#1D1B22]/80">
+                  // On a short card the gloss gives way first, never the word.
+                  <span className="line-clamp-2 min-h-0 shrink text-base leading-snug text-soft">
                     {choice.gloss}
                   </span>
                 )}
@@ -102,7 +113,7 @@ export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Prop
           );
         })}
       </ul>
-      <p className="text-center text-sm text-white/70">{t('tapOne')}</p>
+      <p className="text-center text-base leading-tight text-soft">{t('tapOne')}</p>
     </div>
   );
 }

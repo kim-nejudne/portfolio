@@ -225,7 +225,11 @@ export function DrawPad({ turnId, size, ink, disabled, label, tool, controlsRef,
       ref={canvasRef}
       aria-label={label}
       style={{ width: size, height: size }}
-      className={`block touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none] ${
+      // The sketchbook frame (a 2 px `ink` border and a 3 px hard shadow, no tape) is drawn with
+      // box-shadow, so the canvas's box, its pointer mapping and the pad formula stay the same.
+      // The formula leaves 4 px a side and the shadow reaches 5 px right, so at its full width the
+      // shadow's last pixel falls past the edge: a shadow makes no overflow (DECISIONS 82).
+      className={`block touch-none bg-canvas shadow-[0_0_0_2px_var(--color-ink),3px_3px_0_2px_var(--color-ink)] select-none [-webkit-touch-callout:none] ${
         disabled ? '' : 'cursor-crosshair'
       }`}
     />
