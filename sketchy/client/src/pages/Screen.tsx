@@ -258,31 +258,25 @@ export function Screen() {
       <RejoinedToast name={view.players.find((p) => p.pid === rejoinedPid)?.name ?? null} t={t} />
       {view.phase === 'LOBBY' ? (
         <ScreenLobby view={view} socket={socket} t={t} layout={layout} />
+      ) : inTurn ? (
+        // Its own spread: the drawing on the left page, the sidebar on the right, the tabs (F64).
+        <ScreenTurn
+          view={view}
+          receivedAt={state!.at}
+          ink={ink}
+          layout={layout}
+          fx={fxState}
+          t={t}
+        />
       ) : (
         <ScreenDesk
           layout={layout}
           code={codeStripCode(view)}
-          // The turn and the standings keep their dark page inside the book until F64–F66
-          // restyle them (`legacy-night`, DECISIONS 85).
+          // The standings keep their dark page inside the book until F66 restyles them
+          // (`legacy-night`, DECISIONS 85).
           singleClassName="legacy-night"
           plain
-          single={
-            <>
-              {inTurn && (
-                <ScreenTurn
-                  view={view}
-                  receivedAt={state!.at}
-                  ink={ink}
-                  layout={layout}
-                  fx={fxState}
-                  t={t}
-                />
-              )}
-              {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
-                <ScreenStandings view={view} layout={layout} gallery={gallery} t={t} />
-              )}
-            </>
-          }
+          single={<ScreenStandings view={view} layout={layout} gallery={gallery} t={t} />}
         />
       )}
       {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />}

@@ -65,11 +65,11 @@
   --color-desk: #dcdfe6; /* behind the Screen's notebook, and the rings' punched holes */
   --color-canvas: #ffffff; /* the drawing stays pure white (= CANVAS_COLOR) */
 
-  /* The Screen's turn effects (F34). Each is used behind `motion-safe:`; reduced motion gets
-     `fade`, or nothing. */
-  --animate-pop: pop 0.35s ease-out both;
-  --animate-bubble: bubble 2s ease-out both;
-  --animate-float-up: float-up 2s ease-out both;
+  /* The Screen's turn effects (F34), in the mockup's motion (F64: sk-pop, sk-bubble, sk-float).
+     Each is used behind `motion-safe:`; reduced motion gets `fade`, or nothing. */
+  --animate-pop: sk-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+  --animate-bubble: sk-bubble 2s ease-out both;
+  --animate-float-up: sk-float 2s ease-out both;
   --animate-fade: fade 2s linear both;
   /* The reveal's word (F35): grows in without overshoot, since it is sized to fill its column. */
   --animate-reveal: reveal 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
@@ -100,13 +100,14 @@
     }
   }
 
-  @keyframes pop {
+  /* scale .5 → 1.06 → 1 (the mockup's sk-pop). */
+  @keyframes sk-pop {
     0% {
-      transform: scale(0.4);
+      transform: scale(0.5);
       opacity: 0;
     }
     70% {
-      transform: scale(1.15);
+      transform: scale(1.06);
       opacity: 1;
     }
     100% {
@@ -123,17 +124,14 @@
       opacity: 1;
     }
   }
-  @keyframes bubble {
+  /* scale .6 → 1, hold, fade (the mockup's sk-bubble). */
+  @keyframes sk-bubble {
     0% {
       transform: scale(0.6);
       opacity: 0;
     }
-    10% {
-      transform: scale(1.05);
-      opacity: 1;
-    }
-    15%,
-    85% {
+    10%,
+    80% {
       transform: scale(1);
       opacity: 1;
     }
@@ -141,17 +139,19 @@
       opacity: 0;
     }
   }
-  @keyframes float-up {
+  /* Rise about 90 px on a 720 px frame (12.5 vmin; `--rise` caps it near an edge) and fade (the
+     mockup's sk-float). */
+  @keyframes sk-float {
     0% {
       transform: translateY(0) scale(0.6);
       opacity: 0;
     }
     15% {
-      transform: translateY(calc(var(--rise, 14vh) * -0.1)) scale(1.1);
+      transform: translateY(calc(var(--rise, 12.5vmin) * -0.11)) scale(1.1);
       opacity: 1;
     }
     100% {
-      transform: translateY(calc(var(--rise, 14vh) * -1)) scale(1);
+      transform: translateY(calc(var(--rise, 12.5vmin) * -1)) scale(1);
       opacity: 0;
     }
   }

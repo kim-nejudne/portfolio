@@ -33,6 +33,7 @@ export function PlayerTabs({
   layout,
   onSelect,
   crowns = true,
+  turn = false,
   className = '',
   style,
 }: {
@@ -41,6 +42,8 @@ export function PlayerTabs({
   onSelect?: (pid: string) => void;
   /** 👑 after the crown holder's name (the lobby). */
   crowns?: boolean;
+  /** During a turn: ✏️ on the drawer's tab and "✓ +270" on a correct guesser's (F64). */
+  turn?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -71,6 +74,7 @@ export function PlayerTabs({
           compact={twoRows}
           twoLines={!portrait && players.length <= TWO_LINE_TABS_MAX}
           crown={crowns && p.crown}
+          turn={turn}
           {...(onSelect ? { onSelect: () => onSelect(p.pid) } : {})}
         />
       ))}
@@ -89,6 +93,7 @@ export function IndexTab({
   compact = false,
   twoLines = false,
   crown = false,
+  turn = false,
   onSelect,
 }: {
   player: PlayerChipView;
@@ -98,8 +103,11 @@ export function IndexTab({
   /** Landscape with room: a long name ("Marcus Aurelio") wraps to a second line, not an ellipsis. */
   twoLines?: boolean;
   crown?: boolean;
+  /** Show the turn's status line under the name: ✏️ for the drawer, ✓ and this turn's points. */
+  turn?: boolean;
   onSelect?: () => void;
 }) {
+  const status = turn ? turnStatus(player) : null;
   const portrait = layout === 'portrait';
   const edge: CSSProperties = portrait
     ? { borderTopColor: player.color }
@@ -126,12 +134,26 @@ export function IndexTab({
           </span>
         )}
       </span>
-      <span
-        data-name
-        className={`max-w-full min-w-0 ${twoLines ? 'line-clamp-2 leading-[0.95] wrap-anywhere' : 'truncate'}`}
-      >
-        {player.name}
-        {crown && <span className="sr-only"> 👑</span>}
+      {/* With a turn's status, it takes a line of its own under the name (as the mockup's tabs
+          wrap), so the name keeps the tab's width; "✓ +270" pops in when the guess lands. */}
+      <span className="flex max-w-full min-w-0 flex-col gap-[0.6vmin]">
+        <span
+          data-name
+          className={`max-w-full min-w-0 ${twoLines && !status ? 'line-clamp-2 leading-[0.95] wrap-anywhere' : 'truncate'}`}
+        >
+          {player.name}
+          {crown && <span className="sr-only"> 👑</span>}
+        </span>
+        {status && (
+          <span
+            data-status
+            className={`font-num text-[max(2.8vmin,14px)] leading-none font-black whitespace-nowrap ${
+              player.guessed ? 'origin-left text-success motion-safe:animate-pop' : ''
+            }`}
+          >
+            {status}
+          </span>
+        )}
       </span>
     </>
   );
@@ -154,4 +176,11 @@ export function IndexTab({
       )}
     </li>
   );
+}
+
+/** A tab's status during a turn: ✏️ for the drawer, ✓ and this turn's points (never "+0"). */
+function turnStatus(p: PlayerChipView): string | null {
+  if (p.isDrawer) return '✏️';
+  if (!p.guessed) return null;
+  return p.turnPoints > 0 ? `✓ +${p.turnPoints}` : '✓';
 }

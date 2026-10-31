@@ -1,13 +1,24 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { ScreenView, TurnEndReason, TurnView } from '../../../../shared/types.js';
 import { translator } from '../../lib/copy.js';
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { createScreenInk } from '../../lib/ink.js';
-import { Blanks, RevealPanel, ScreenTurn } from './ScreenTurn.js';
+import { Blanks } from '../sketch/Blanks.js';
+import { blanksLabel, RevealPanel, ScreenTurn } from './ScreenTurn.js';
 
 const t = translator('en');
+
+// The turn sits in the notebook (F64), whose code strip reads the address from `window`.
+beforeAll(() => {
+  vi.stubGlobal('window', {
+    location: { host: 'sketchy.kimnejudne.dev', origin: 'https://sketchy.kimnejudne.dev' },
+  });
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } {
   const turn: TurnView = {
@@ -177,27 +188,30 @@ describe('the reveal (F35)', () => {
 });
 
 describe('Screen blanks', () => {
+  // The Screen's blanks are the sketch primitive with `pop` and this label (F64).
+  const blanks = (mask: string[]) =>
+    renderToStaticMarkup(<Blanks mask={mask} label={blanksLabel(mask, t)} pop />);
+
   it('shows hint letters in place and names them in the label', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_a___s__']} t={t} />);
+    const html = blanks([...'_a___s__']);
     expect(html).toContain('aria-label="8 letters. Hints: a, s"');
     expect(html).toMatch(/<span class="[^"]*">a<\/span>/);
   });
 
   it('pops a hint letter in (F34), and only letters', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_a__-_']} t={t} />);
+    const html = blanks([...'_a__-_']);
     expect(html).toContain('<span class="inline-block motion-safe:animate-pop">a</span>');
-    expect(html).toContain('<span>_</span>');
-    expect(html).toContain('<span>-</span>');
+    expect(html.match(/animate-pop/g)).toHaveLength(1);
+    expect(html).toMatch(/data-blank="mark"[^>]*>-<\/span>/);
   });
 
   it('puts the letter counts after the blanks', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} t={t} />);
-    expect(html).toMatch(/_<\/span><\/span><span[^>]*>\(5, 4\)<\/span><\/p>$/);
+    const html = blanks([...'_____ ____']);
+    expect(html).toMatch(/<span[^>]*>\(5, 4\)<\/span><\/p><\/div>$/);
   });
 
   it('labels plain blanks with the letter counts only', () => {
-    const html = renderToStaticMarkup(<Blanks mask={[...'_____ ____']} t={t} />);
-    expect(html).toContain('aria-label="5, 4 letters"');
+    expect(blanks([...'_____ ____'])).toContain('aria-label="5, 4 letters"');
   });
 });
 
@@ -364,12 +378,16 @@ describe('announcements, chips and feed (F34)', () => {
     );
   });
 
-  it('keeps a correct guesser’s chip lit and marks every chip for bubbles and reactions', () => {
-    for (const layout of ['landscape', 'portrait'] as const) {
-      const html = render(drawing(), layout);
-      expect(html).toMatch(/<li data-chip="jun" class="[^"]*bg-\[#2DC653\]\/20/);
-      expect(html).toMatch(/<li data-chip="mika" class="(?![^"]*bg-\[#2DC653\])/);
-    }
+  it('marks the drawer’s tab with ✏️ and a correct guesser’s with ✓ and points, for the turn', () => {
+    const html = render(drawing(), 'landscape');
+    expect(html).toMatch(
+      /<li data-tab="jun"[^]*?data-status="true" class="[^"]*text-success[^"]*">✓ \+270</,
+    );
+    expect(html).toMatch(/<li data-tab="mika"[^]*?data-status="true" class="[^"]*">✏️</);
+    // Portrait (until F65): the strip's chips, a correct guesser's lit.
+    const portrait = render(drawing(), 'portrait');
+    expect(portrait).toMatch(/<li data-chip="jun" class="[^"]*bg-success\/15/);
+    expect(portrait).toMatch(/<li data-chip="mika" class="(?![^"]*bg-success)/);
   });
 
   it('shows the last 8 wrong guesses in the sidebar, newest last, and 2 in portrait', () => {
@@ -383,15 +401,17 @@ describe('announcements, chips and feed (F34)', () => {
     expect(portrait).toContain('guess9<');
   });
 
-  it('draws no bubbles or reactions over the drawing: the layer sits in the sidebar or the room', () => {
-    for (const layout of ['landscape', 'portrait'] as const) {
-      const html = render(drawing(), layout);
-      const layer = html.indexOf('pointer-events-none absolute inset-0');
-      expect(layer).toBeGreaterThan(html.indexOf('<canvas'));
-      expect(html.slice(0, layer)).toMatch(
-        /<(aside|section) class="[^"]*relative[^"]*overflow-hidden/,
-      );
-    }
+  it('draws no bubbles or reactions over the drawing', () => {
+    // Landscape: the layer lies over the desk, after the book, and measures the tabs and the
+    // right page (placeTabBubble keeps every bubble on that page: TurnFx.test).
+    const land = render(drawing(), 'landscape');
+    expect(land.indexOf('data-fx="tabs"')).toBeGreaterThan(land.indexOf('data-page="right"'));
+    expect(land.indexOf('data-fx="tabs"')).toBeGreaterThan(land.indexOf('<canvas'));
+    // Portrait: the layer sits in the room under the drawing, which clips it.
+    const html = render(drawing(), 'portrait');
+    const layer = html.indexOf('pointer-events-none absolute inset-0');
+    expect(layer).toBeGreaterThan(html.indexOf('<canvas'));
+    expect(html.slice(0, layer)).toMatch(/<section class="[^"]*relative[^"]*overflow-hidden/);
   });
 });
 

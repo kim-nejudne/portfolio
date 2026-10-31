@@ -18,6 +18,16 @@ const TAB_LIFT = '0.8vmin';
 /** How far the portrait tabs tuck under the book's bottom edge. */
 const TAB_TUCK = '2vmin';
 
+/** The spine between the landscape pages. */
+const GUTTER = '4.7vmin';
+/**
+ * The least a turn's right page keeps (the clock, blanks, drawer line and feed) when the square
+ * page would take more: a 4:3 Screen gives the drawing a little less than its full height.
+ */
+export const RIGHT_PAGE_MIN = '31vmin';
+/** The book's border. */
+const BORDER = 'max(2px, 0.28vmin)';
+
 /** The dot grid on a Screen page, in vmin like everything on the Screen (24 px on a 720 px frame). */
 const PAGE_DOTS: CSSProperties = {
   backgroundSize: '3.3vmin 3.3vmin',
@@ -41,6 +51,9 @@ export function ScreenDesk({
   plain = false,
   code,
   players,
+  turn = false,
+  square = false,
+  overlay,
   onSelectPlayer,
 }: {
   layout: ScreenLayout;
@@ -54,6 +67,15 @@ export function ScreenDesk({
   code: string | null;
   /** Index tabs, in turn order; none while omitted. */
   players?: PlayerChipView[];
+  /** During a turn the tabs show ✏️ and "✓ +270" (F64). */
+  turn?: boolean;
+  /**
+   * Landscape spread whose left page is the largest square that fits (the turn, F64): the book's
+   * height, or less where the right page would drop under `RIGHT_PAGE_MIN`.
+   */
+  square?: boolean;
+  /** Over the whole desk, tabs included (the turn's bubbles and reactions). */
+  overlay?: ReactNode;
   onSelectPlayer?: (pid: string) => void;
 }) {
   const portrait = layout === 'portrait';
@@ -68,43 +90,56 @@ export function ScreenDesk({
   // A page scrolls rather than clips if a small portrait phone, used as the Screen, runs out of
   // height; at 16:9, 4:3 and 3:4 nothing scrolls.
   const page = 'paper-dots relative min-h-0 min-w-0 overflow-y-auto overscroll-contain p-[3vmin]';
+  const squareSpread = square && spread && !portrait;
+  // The book's size, from the container round it (`cqw`/`cqh`), less its border.
+  const columns: CSSProperties | undefined = squareSpread
+    ? {
+        gridTemplateColumns: `min(calc(100cqh - 2 * ${BORDER}), calc(100cqw - 2 * ${BORDER} - ${GUTTER} - ${RIGHT_PAGE_MIN})) ${GUTTER} minmax(0, 1fr)`,
+      }
+    : undefined;
   return (
     <div data-desk={layout} className="relative size-full" style={desk}>
-      <div
-        data-book
-        className={`relative z-[1] size-full overflow-hidden rounded-[0.6vmin] border-[length:max(2px,0.28vmin)] border-ink bg-paper text-ink shadow-[0.8vmin_1vmin_0_var(--color-ink)] ${
-          spread
-            ? `grid ${portrait ? 'grid-rows-[auto_4.2vmin_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1.1fr)_4.7vmin_minmax(0,1fr)]'}`
-            : ''
-        }`}
-      >
-        {spread ? (
-          <>
-            <section className={page} style={PAGE_DOTS}>
-              {left}
-            </section>
-            <Gutter layout={layout} />
-            {/* Clear of the tabs that stand over the book's right edge. */}
+      {/* A size container, so a square page can be sized from the book's height. */}
+      <div className="size-full [container-type:size]">
+        <div
+          data-book
+          className={`relative z-[1] size-full overflow-hidden rounded-[0.6vmin] border-[length:max(2px,0.28vmin)] border-ink bg-paper text-ink shadow-[0.8vmin_1vmin_0_var(--color-ink)] ${
+            spread
+              ? `grid${portrait ? ' grid-rows-[auto_4.2vmin_minmax(0,1fr)]' : squareSpread ? '' : ' grid-cols-[minmax(0,1.1fr)_4.7vmin_minmax(0,1fr)]'}`
+              : ''
+          }`}
+          style={columns}
+        >
+          {spread ? (
+            <>
+              <section data-page="left" className={page} style={PAGE_DOTS}>
+                {left}
+              </section>
+              <Gutter layout={layout} />
+              {/* Clear of the tabs that stand over the book's right edge. */}
+              <section
+                data-page="right"
+                className={`${page} ${tabs && !portrait ? (squareSpread ? 'pr-[5vmin] pl-[2.5vmin]' : 'pr-[calc(3vmin+3vmin)]') : ''}`}
+                style={PAGE_DOTS}
+              >
+                {right}
+              </section>
+            </>
+          ) : (
             <section
-              className={`${page} ${tabs && !portrait ? 'pr-[calc(3vmin+3vmin)]' : ''}`}
-              style={PAGE_DOTS}
+              className={`size-full min-h-0 min-w-0 ${plain ? '' : 'paper-dots'} ${singleClassName}`}
+              style={plain ? undefined : PAGE_DOTS}
             >
-              {right}
+              {single}
             </section>
-          </>
-        ) : (
-          <section
-            className={`size-full min-h-0 min-w-0 ${plain ? '' : 'paper-dots'} ${singleClassName}`}
-            style={plain ? undefined : PAGE_DOTS}
-          >
-            {single}
-          </section>
-        )}
+          )}
+        </div>
       </div>
       {tabs && (
         <PlayerTabs
           players={tabs}
           layout={layout}
+          turn={turn}
           {...(onSelectPlayer ? { onSelect: onSelectPlayer } : {})}
           className="absolute z-[2]"
           style={
@@ -120,6 +155,7 @@ export function ScreenDesk({
         />
       )}
       {code !== null && <CodeStrip code={code} layout={layout} />}
+      {overlay}
     </div>
   );
 }

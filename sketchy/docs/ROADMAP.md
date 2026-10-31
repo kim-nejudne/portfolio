@@ -167,18 +167,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F63 Sketchbook Screen host UI
 
-- [ ] F64 Sketchbook Screen turn, landscape
-  - Spec: UI by role and phase (Screen); Guess feed and rude guesses; DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Turn, Motion)
-  - Depends: F62
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - Choosing (`#sketch-choosing`, landscape) shows the drawer's large avatar, the name in colour and the ring on the left page.
-    - The drawing (`#sketch-drawing`, `-close`, `-gotit`) is taped onto the left page by two corners and is the largest square that fits.
-    - The right page shows the Nunito clock (red at ≤ 10 s), round/turn, blanks with counts, "✏️ Mika is drawing", the feed on dashed rules, the turn-1 and turn-2 caption, and the drawer-reconnecting badge.
-    - The tabs get ✏️ and "✓ +points". Wrong-guess bubbles pop from the guesser's tab with a border in their colour, never over the drawing, at most 3 at once, for 2 s. Reactions float from the tabs. "Jun got it!" is a highlighter banner for 2 s.
-    - `TurnFx` uses the mockup's keyframes (`sk-pop`, `sk-bubble`, `sk-float`) on the spec's timings, with a fade under reduced motion.
-    - The paused veil is paper.
-  - Tests: existing ScreenTurn tests stay green (feed masking, bubble cap, no word before REVEAL)
+- [x] F64 Sketchbook Screen turn, landscape
 
 - [ ] F65 Sketchbook Screen portrait and reveal
   - Spec: UI by role and phase (Screen); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Portrait, Reveal)
@@ -254,3 +243,4 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 - Screen FINAL with 10 players: the Tonight column on a 16:9 TV fits by shrinking to ~2 vmin, and a 4:3 Screen in game 2 shows the score rows at 18 px. Fold the night totals into the score rows, or page the standings and the gallery, to keep TV sizes (F50).
 - Press feedback on live buttons: a motion-safe `:active` shrink (`not-disabled:active:scale-95`, as Buzzr), beyond the reactions' existing `active:scale-90` (B01, DECISIONS 75).
 - Lobby doodle pad: Eraser and Clear, now that the 20 KB cap is the phone's own and a clear could free room locally (F55, DECISIONS 78).
+- Screen turn on a 4:3 landscape Screen (F64): centre the square and the caption as one group on the left page (today the square is centred in the space above the caption, leaving paper under it), and say the tab status to screen readers in words ("drawing", "got it, 270 points") instead of ✏️ / ✓.

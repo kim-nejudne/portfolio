@@ -1,8 +1,9 @@
-import { FEED_MAX } from '../../../../shared/constants.js';
+import { FEED_MAX, LAST_SECONDS_MS } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import type { ScreenInk } from '../../lib/ink.js';
 import {
+  codeStripCode,
   formatClock,
   hasCaptionRow,
   hintLetters,
@@ -12,14 +13,24 @@ import {
 } from '../../lib/screen.js';
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { useCountdown } from '../../lib/useCountdown.js';
-import { InkCanvas } from './InkCanvas.js';
 import { Avatar } from '../Avatar.js';
+import { NameInColour } from '../phone/NameInColour.js';
+import { Blanks } from '../sketch/Blanks.js';
+import { CountdownRing } from '../sketch/CountdownRing.js';
+import { Tape } from '../sketch/Tape.js';
+import { InkCanvas } from './InkCanvas.js';
+import { ScreenDesk } from './ScreenDesk.js';
 import { GotItLine, TurnFx } from './TurnFx.js';
 
 /**
- * CHOOSING, DRAWING and REVEAL. Landscape (near-square too): the square drawing on the left at the
- * full height, at most 72 vw so the sidebar keeps its 28 %, and the sidebar right. Portrait: a top
- * bar, the full-width square, then the players strip and the two latest guesses.
+ * CHOOSING, DRAWING and REVEAL, in the notebook on the desk (Sketchbook look, F64). Landscape (and
+ * near-square): a spread whose left page holds the drawing, taped on by two corners, as the
+ * largest square that fits (while choosing, who is choosing, large, with the ring); the right page
+ * is the sidebar (clock, round and turn, blanks, the drawer line or "Jun got it!", the feed on
+ * dashed rules), and the players are index tabs outside the right edge, with ✏️ and "✓ +270".
+ * Wrong-guess bubbles pop from the tabs over the right page, never over the drawing. Portrait: one
+ * page with a top bar, the full-width square, then the players strip and the two latest guesses
+ * (F65 makes it the spread's portrait form).
  */
 export function ScreenTurn({
   view,
@@ -41,83 +52,175 @@ export function ScreenTurn({
   if (!turn) return null;
   // The reveal's "Almost:" lists the last guesses, so DRAWING's bubbles end with it (F35).
   const fx = view.phase === 'REVEAL' ? { ...allFx, bubbles: [] } : allFx;
+  const code = codeStripCode(view);
   if (layout === 'portrait')
-    return <PortraitTurn view={view} turn={turn} receivedAt={receivedAt} ink={ink} fx={fx} t={t} />;
-  const caption = turnCaption(view, t);
-  const captionRow = hasCaptionRow(turn);
+    return (
+      <ScreenDesk
+        layout="portrait"
+        code={code}
+        single={
+          <PortraitTurn view={view} turn={turn} receivedAt={receivedAt} ink={ink} fx={fx} t={t} />
+        }
+      />
+    );
   return (
-    <div className="flex h-full min-h-0 gap-[2vmin] p-[2vmin]">
-      <div className="flex h-full shrink-0 flex-col gap-[1vmin]">
-        {/* In the first two turns the square gives up the caption's row. */}
-        <div
-          className="relative aspect-square h-full max-w-[72vw] shrink-0"
-          style={captionRow ? { height: `calc(100% - ${CAPTION_HEIGHT} - 1vmin)` } : undefined}
-        >
-          <Drawing view={view} turn={turn} ink={ink} t={t} />
-        </div>
-        {captionRow && <Caption text={caption} />}
-      </div>
-      <aside className="@container relative flex min-w-[28vw] flex-1 flex-col gap-[2vmin] overflow-hidden text-[max(3.5vh,16px)]">
-        {view.phase === 'REVEAL' ? (
-          <RevealPanel view={view} turn={turn} t={t} />
-        ) : (
-          <TurnPanel view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />
-        )}
+    <ScreenDesk
+      layout="landscape"
+      code={code}
+      square
+      players={view.players}
+      turn
+      left={<DrawingPage view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />}
+      right={
+        <aside className="@container relative flex h-full min-h-0 flex-col gap-[1.8vmin] overflow-hidden text-[max(3.5vh,16px)] leading-tight">
+          {view.phase === 'REVEAL' ? (
+            <RevealPanel view={view} turn={turn} t={t} />
+          ) : (
+            <TurnPanel view={view} turn={turn} receivedAt={receivedAt} fx={fx} t={t} />
+          )}
+        </aside>
+      }
+      overlay={
         <TurnFx
           fx={fx}
           players={view.players}
           guessFeed={view.settings.guessFeed}
-          layout="landscape"
+          layout="tabs"
           t={t}
         />
-      </aside>
-    </div>
+      }
+    />
   );
 }
 
 /**
- * The live drawing, and over it while the drawer is still choosing, who is choosing. In the 2 s
- * before a `drawerAway` pause, a small "Mika's phone reconnecting…" pill along its top edge.
+ * The landscape left page: the drawing as the largest square that fits, with the first two turns'
+ * caption under it; while the drawer is still choosing, who is choosing instead (the canvas stays
+ * mounted under it, hidden).
  */
-function Drawing({
+function DrawingPage({
   view,
   turn,
+  receivedAt,
   ink,
   t,
 }: {
   view: ScreenView;
   turn: TurnView;
+  receivedAt: number;
   ink: ScreenInk;
   t: Translate;
 }) {
-  const drawer = view.players.find((p) => p.pid === turn.drawerPid);
+  const captionRow = hasCaptionRow(turn);
+  return (
+    <div className="flex size-full min-h-0 flex-col items-center gap-[1vmin]">
+      {/* A size container, so the square is the smaller of its width and height. */}
+      <div className="grid min-h-0 w-full flex-1 place-items-center [container-type:size]">
+        <div className="relative aspect-square w-[min(100cqw,100cqh)]">
+          <Drawing view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />
+        </div>
+      </div>
+      {captionRow && <Caption text={turnCaption(view, t)} />}
+    </div>
+  );
+}
+
+/**
+ * The live drawing on white, taped by its two top corners, and over it while the drawer is still
+ * choosing, who is choosing. In the 2 s before a `drawerAway` pause, a small "Mika's phone
+ * reconnecting…" note along its top edge.
+ */
+function Drawing({
+  view,
+  turn,
+  receivedAt,
+  ink,
+  t,
+}: {
+  view: ScreenView;
+  turn: TurnView;
+  receivedAt: number;
+  ink: ScreenInk;
+  t: Translate;
+}) {
+  const choosing = view.phase === 'CHOOSING';
   return (
     <>
-      <InkCanvas ink={ink} label={t('liveDrawing')} />
-      {view.phase === 'CHOOSING' && (
-        <div className="absolute inset-0 grid place-items-center rounded-[1vmin] bg-[#1D1B22]/85 p-[4vmin] text-center">
-          <p
-            className="font-display text-[max(6vmin,28px)] font-bold"
-            style={{ color: drawer?.color }}
-          >
-            {t('isChoosing', { name: turn.drawerName })}
-          </p>
-        </div>
-      )}
-      {/* Always mounted, so the pill is announced when it appears. The ring keeps it apart from
-          the CHOOSING overlay's dark background. */}
+      <div
+        data-drawing
+        className={`relative size-full border-[length:max(2px,0.28vmin)] border-ink bg-canvas ${choosing ? 'invisible' : ''}`}
+      >
+        <Tape place="tl" />
+        <Tape place="tr" />
+        <InkCanvas ink={ink} label={t('liveDrawing')} className="" />
+      </div>
+      {choosing && <Choosing view={view} turn={turn} receivedAt={receivedAt} t={t} />}
+      {/* Always mounted, so the note is announced when it appears. */}
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none absolute inset-x-0 top-[2vmin] flex justify-center px-[2vmin]"
+        className="pointer-events-none absolute inset-x-0 top-[2vmin] z-[4] flex justify-center px-[2vmin]"
       >
         {turn.drawerReconnecting && (
-          <p className="max-w-[90%] rounded-[3vmin] bg-[#1D1B22]/90 px-[3vmin] py-[1vmin] text-center text-[max(4.5vmin,22px)] leading-tight font-bold text-white ring-[0.4vmin] ring-white/70">
+          <p className="max-w-[90%] sketch-border bg-sticky px-[3vmin] py-[1vmin] text-center text-[max(4.5vmin,22px)] leading-tight text-ink shadow-[0.42vmin_0.56vmin_0_var(--color-ink)]">
             {t('drawerReconnecting', { name: turn.drawerName })}
           </p>
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * CHOOSING on the drawing's page: the drawer's avatar large, "Mika is choosing a word…" with the
+ * name in their colour, and the ring counting down the 12 s choice.
+ */
+function Choosing({
+  view,
+  turn,
+  receivedAt,
+  t,
+}: {
+  view: ScreenView;
+  turn: TurnView;
+  receivedAt: number;
+  t: Translate;
+}) {
+  const left = useCountdown(turn.timer, receivedAt);
+  const drawer = drawerChip(view, turn);
+  return (
+    <div
+      data-choosing
+      className="absolute inset-0 grid content-center justify-items-center gap-[2.5vmin] p-[2vmin] text-center"
+    >
+      {'avatar' in drawer && <Avatar player={drawer} size="max(18vmin, 64px)" />}
+      <p className="text-[max(6.1vmin,24px)] leading-tight break-words">
+        <NameInColour say={(name) => t('isChoosing', { name })} player={drawer} />
+      </p>
+      {turn.timer && (
+        <span role="timer" aria-label={t('seconds', { n: Math.ceil(left / 1000) })}>
+          <CountdownRing
+            remainingMs={left}
+            totalMs={turn.timer.totalMs}
+            choosing
+            size="max(16.7vmin, 64px)"
+          />
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The drawer's chip, or their name alone if the chip is gone. */
+function drawerChip(
+  view: ScreenView,
+  turn: TurnView,
+): PlayerChipView | { name: string; color: string } {
+  return (
+    view.players.find((p) => p.pid === turn.drawerPid) ?? {
+      name: turn.drawerName,
+      color: 'inherit',
+    }
   );
 }
 
@@ -167,7 +270,7 @@ function PortraitTurn({
           height before the strip does (the weights), up to its width (100cqw). */}
       <div className="grid max-h-[100cqw] min-h-0 flex-[1000_1_0%] place-items-center [container-type:size]">
         <div className="relative aspect-square w-[min(100cqw,100cqh)]">
-          <Drawing view={view} turn={turn} ink={ink} t={t} />
+          <Drawing view={view} turn={turn} receivedAt={receivedAt} ink={ink} t={t} />
         </div>
       </div>
       {/* The caption's row (first two turns) is part of this room, so the reveal can use it. */}
@@ -218,14 +321,14 @@ function TopBar({
   t: Translate;
 }) {
   const left = useCountdown(turn.timer, receivedAt);
-  const urgent = view.phase === 'DRAWING' && left <= 10_000;
+  const urgent = view.phase === 'DRAWING' && left <= LAST_SECONDS_MS;
   return (
     <>
       <p
-        className={`font-display shrink-0 text-[max(8vmin,36px)] leading-none font-bold tabular-nums ${urgent ? 'text-[#FF6B35]' : ''}`}
+        className={`shrink-0 font-num text-[max(8vmin,36px)] leading-none font-black tabular-nums ${urgent ? 'text-red' : ''}`}
         role="timer"
       >
-        <span aria-hidden>◔</span> {formatClock(left)}
+        {formatClock(left)}
       </p>
       {/* The live region stays mounted through the turn, so each "got it" is announced. */}
       <div className="@container min-w-0 flex-1" role="status" aria-live="polite">
@@ -239,7 +342,15 @@ function TopBar({
             t={t}
           />
         ) : (
-          turn.mask && <Blanks mask={turn.mask} minSize="max(3.5vmin, 16px)" t={t} />
+          turn.mask && (
+            <Blanks
+              mask={turn.mask}
+              label={blanksLabel(turn.mask, t)}
+              size="max(5vmin, 22px)"
+              countMin={BLANKS_COUNT_MIN}
+              pop
+            />
+          )
         )}
       </div>
     </>
@@ -261,7 +372,7 @@ function PlayerStrip({ players }: { players: PlayerChipView[] }) {
         >
           {(p.isDrawer || p.guessed) && <span>{p.isDrawer ? '✏️' : '✓'}</span>}
           <Avatar player={p} size="1.4em" />
-          <span className="truncate font-semibold" style={{ color: p.color }}>
+          <span className="truncate" style={{ color: p.color }}>
             {p.name}
           </span>
           {p.guessed && p.turnPoints > 0 && <span className="tabular-nums">+{p.turnPoints}</span>}
@@ -271,13 +382,13 @@ function PlayerStrip({ players }: { players: PlayerChipView[] }) {
   );
 }
 
-/** A correct guesser's chip stays lit for the rest of the turn (every chip has its padding, so lighting one moves nothing). */
-const LIT = 'bg-[#2DC653]/20';
+/** A correct guesser's portrait chip stays lit for the rest of the turn (every chip has its padding, so lighting one moves nothing). */
+const LIT = 'bg-success/15';
 
 /**
- * The latest guesses, newest last, in the guesser's colour ("•••" for a masked one). `fill`: up to
- * the last 8 right under the players; when the height runs out the feed gives way first (never
- * below two lines), the oldest cut off at the top.
+ * The latest wrong guesses, newest last, each on a dashed rule, the name in the guesser's colour
+ * ("•••" for a masked one); the newest pops in. `fill` (the right page): up to the last 8 at the
+ * page's foot; when the height runs out the oldest are cut off at the top, never below two lines.
  */
 function Feed({
   view,
@@ -290,20 +401,29 @@ function Feed({
 }) {
   if (view.feed.length === 0) return null;
   const names = new Map(view.players.map((p) => [p.pid, p]));
+  const shown = view.feed.slice(-latest);
   return (
     <ul
-      className={`flex flex-col gap-[0.5vmin] text-white/80 ${
+      data-feed
+      className={`flex flex-col ${
         fill
-          ? 'min-h-[calc(2lh+0.5vmin)] shrink-[100] justify-end overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,black_1.2em)]'
+          ? 'mt-auto min-h-[calc(2lh+1.2vmin)] shrink-[100] justify-end overflow-hidden text-[max(3.6vmin,16px)]'
           : 'shrink-0'
       }`}
     >
-      {view.feed.slice(-latest).map((g, i) => (
-        <li key={i} className="shrink-0 truncate">
-          <span style={{ color: names.get(g.pid)?.color }}>{names.get(g.pid)?.name}</span>:{' '}
-          {g.text ?? '•••'}
-        </li>
-      ))}
+      {shown.map((g, i) => {
+        const last = i === shown.length - 1;
+        return (
+          <li
+            // The newest gets a key of its own, so it pops each time one comes in.
+            key={last ? `new:${view.feed.length}:${g.pid}:${g.text ?? ''}` : i}
+            className={`shrink-0 truncate border-b-[1.5px] border-dashed border-dot py-[0.3vmin] ${last ? 'origin-left motion-safe:animate-pop' : ''}`}
+          >
+            <span style={{ color: names.get(g.pid)?.color }}>{names.get(g.pid)?.name}</span>:{' '}
+            {g.text ?? '•••'}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -315,8 +435,8 @@ const PORTRAIT_CAPTION_HEIGHT = 'max(9vmin, 42px)';
 
 /**
  * The first two turns' caption, under the drawing and never over it (Screen, Drawing). As wide as
- * the square (`w-0 min-w-full` keeps the text from widening the column) and at most two lines.
- * Empty outside DRAWING, keeping its row.
+ * its page (`w-0 min-w-full` keeps the text from widening it) and at most two lines. Empty outside
+ * DRAWING, keeping its row, so the drawing keeps its size.
  */
 export function Caption({
   text,
@@ -331,10 +451,10 @@ export function Caption({
       className="@container w-0 min-w-full shrink-0"
       style={{ height: portrait ? PORTRAIT_CAPTION_HEIGHT : CAPTION_HEIGHT }}
     >
-      {/* About 32 characters a line: the text shrinks when the square is narrow (a near-square
-          Screen caps it at 72 vw), so the first turn's caption stays on two lines. */}
+      {/* About 32 characters a line: the text shrinks when the page is narrow, so the first
+          turn's caption stays on two lines. */}
       <p
-        className={`line-clamp-2 text-center leading-tight font-semibold text-[#FFD166] ${
+        className={`line-clamp-2 text-center leading-tight text-ink ${
           portrait ? 'text-[min(max(3.5vmin,16px),5.5cqw)]' : 'text-[min(max(3.5vh,16px),5.5cqw)]'
         }`}
       >
@@ -344,6 +464,12 @@ export function Caption({
   );
 }
 
+/**
+ * The right page during CHOOSING and DRAWING: the Nunito clock (red in the last 10 s) with the
+ * round and turn beside it in `soft`, the blanks with their counts, "✏️ Mika is drawing" (or,
+ * for 2 s, "Jun got it!" on the highlighter in its place), and the feed at the foot. While the
+ * drawer is choosing, "Next up: ✏️ Mika" (the ring is on the left page).
+ */
 function TurnPanel({
   view,
   turn,
@@ -358,130 +484,70 @@ function TurnPanel({
   t: Translate;
 }) {
   const left = useCountdown(turn.timer, receivedAt);
-  const urgent = view.phase === 'DRAWING' && left <= 10_000;
+  const drawing = view.phase === 'DRAWING';
+  const urgent = drawing && left <= LAST_SECONDS_MS;
+  const drawer = drawerChip(view, turn);
   return (
     <>
-      <p
-        className={`font-display text-[max(9vmin,40px)] leading-none font-bold tabular-nums ${urgent ? 'text-[#FF6B35]' : ''}`}
-        role="timer"
-      >
-        <span aria-hidden>◔</span> {formatClock(left)}
-      </p>
-      {turn.mask && <Blanks mask={turn.mask} t={t} />}
-      <p className="text-white/70">
-        {t('roundTurn', { cycle: turn.cycle, cycles: view.settings.cycles, turn: turn.number })}
-      </p>
-      {/* "Jun got it!" stands in for "Mika is drawing" for its 2 s, on the same line. */}
-      {view.phase === 'DRAWING' && (
+      <div className="flex shrink-0 flex-wrap items-baseline justify-between gap-x-[2vmin] gap-y-[0.6vmin]">
+        {drawing && (
+          <p
+            className={`font-num text-[max(8.9vmin,40px)] leading-none font-black tabular-nums ${urgent ? 'text-red' : ''}`}
+            role="timer"
+          >
+            {formatClock(left)}
+          </p>
+        )}
+        <p className="text-[max(2.6vmin,14px)] text-soft">
+          {t('roundTurn', { cycle: turn.cycle, cycles: view.settings.cycles, turn: turn.number })}
+        </p>
+      </div>
+      {turn.mask && (
+        <Blanks
+          mask={turn.mask}
+          label={blanksLabel(turn.mask, t)}
+          size="max(5.6vmin, 24px)"
+          countMin={BLANKS_COUNT_MIN}
+          className="shrink-0"
+          pop
+        />
+      )}
+      {drawing ? (
         // One live region for the whole turn, so each "got it" is announced.
-        <div role="status" aria-live="polite">
+        <div role="status" aria-live="polite" className="shrink-0 text-[max(3.9vmin,18px)]">
           {fx.gotIt.length > 0 ? (
-            <GotItLine gotIt={fx.gotIt} players={view.players} t={t} />
+            <GotItLine
+              gotIt={fx.gotIt}
+              players={view.players}
+              className="text-[max(5.6vmin,24px)]"
+              t={t}
+            />
           ) : (
-            <p className="truncate">{t('isDrawing', { name: turn.drawerName })}</p>
+            // Two lines at most, so a long name on a narrow (4:3) page is still read whole.
+            <p className="line-clamp-2 break-words">
+              <NameInColour say={(name) => t('isDrawing', { name })} player={drawer} />
+            </p>
           )}
         </div>
+      ) : (
+        <p className="line-clamp-2 shrink-0 break-words text-[max(3.9vmin,18px)]">
+          <NameInColour say={(name) => t('nextUp', { name })} player={drawer} />
+        </p>
       )}
-      <hr className="border-white/20" />
-      <PlayerList players={view.players} />
-      {view.feed.length > 0 && (
-        <>
-          <hr className="shrink-0 border-white/20" />
-          {/* The last 8 in the height left: at least two lines under ten players in two columns. */}
-          <Feed view={view} latest={FEED_MAX} fill />
-        </>
-      )}
+      <Feed view={view} latest={FEED_MAX} fill />
     </>
   );
 }
 
-const LETTER = /[\p{L}\p{N}]/u;
+/** The letter counts' floor: legible from the couch even when a long phrase shrinks the blanks. */
+const BLANKS_COUNT_MIN = 'max(2.6vmin, 14px)';
 
-function blanksLabel(lengths: number[], hints: string[], t: Translate): string {
-  const label = t('wordLettersLabel', { lengths: lengths.join(', ') });
-  return hints.length ? t('hintsLabel', { label, letters: hints.join(', ') }) : label;
-}
-
-/** The blanks, one cell per character, with the letters per word after them: `(5, 4)`. */
-export function Blanks({
-  mask,
-  minSize = '3.5vh',
-  t,
-}: {
-  mask: string[];
-  minSize?: string;
-  t: Translate;
-}) {
+/** The blanks' label for screen readers: the letters per word, then any hint letters. */
+export function blanksLabel(mask: readonly string[], t: Translate): string {
   const lengths = wordLengths(mask);
   const hints = hintLetters(mask);
-  const words = mask.join('').split(' ');
-  // Shrinks with the phrase to stay on one line in the sidebar (each cell is about 0.9 em with its
-  // gap, plus about 4 em for the counts), but never below `minSize` (3.5 vh, names-sized on a TV):
-  // a long phrase wraps between words instead.
-  const fontSize = `max(${minSize}, min(6vmin, calc(100cqw / ${(mask.length * 0.9 + 4).toFixed(1)})))`;
-  return (
-    <p
-      className="flex shrink-0 flex-wrap items-baseline gap-x-[0.9em] gap-y-[0.2em] font-bold"
-      style={{ fontSize }}
-      aria-label={blanksLabel(lengths, hints, t)}
-    >
-      {words.map((word, w) => (
-        <span key={w} className="flex gap-[0.3em] font-mono whitespace-nowrap">
-          {/* A hint letter replaces its blank with a new key, so it pops in. */}
-          {[...word].map((ch, i) =>
-            LETTER.test(ch) ? (
-              <span key={`${i}${ch}`} className="inline-block motion-safe:animate-pop">
-                {ch}
-              </span>
-            ) : (
-              <span key={`${i}${ch}`}>{ch}</span>
-            ),
-          )}
-        </span>
-      ))}
-      <span
-        className="font-normal whitespace-nowrap text-white/70"
-        style={{ fontSize: `max(${minSize}, 0.6em)` }}
-      >
-        ({lengths.join(', ')})
-      </span>
-    </p>
-  );
-}
-
-/**
- * Players in turn order with ✏️ on the drawer and ✓ with this turn's points. No totals. Above six
- * players the list goes to two columns (top to bottom, then the next column) so ten still fit.
- */
-function PlayerList({ players }: { players: PlayerChipView[] }) {
-  const twoColumns = players.length > 6;
-  return (
-    <ul
-      className={`grid min-h-0 shrink gap-x-[2vmin] overflow-hidden ${twoColumns ? 'grid-flow-col grid-cols-2 gap-y-[0.4vmin] text-[0.9em]' : 'gap-y-[0.8vmin]'}`}
-      style={
-        twoColumns
-          ? { gridTemplateRows: `repeat(${Math.ceil(players.length / 2)}, auto)` }
-          : undefined
-      }
-    >
-      {players.map((p) => (
-        <li
-          key={p.pid}
-          data-chip={p.pid}
-          className={`flex min-w-0 items-center gap-[1vmin] rounded-[0.6vmin] px-[0.6vmin] ${p.guessed ? LIT : ''} ${p.connected ? '' : 'opacity-60'}`}
-        >
-          <span className="w-[1.2em] text-center">{p.isDrawer ? '✏️' : p.guessed ? '✓' : ''}</span>
-          <Avatar player={p} size="1.5em" />
-          <span className="truncate font-semibold" style={{ color: p.color }}>
-            {p.name}
-          </span>
-          {p.guessed && p.turnPoints > 0 && (
-            <span className="ml-auto pr-[1vmin] tabular-nums">+{p.turnPoints}</span>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
+  const label = t('wordLettersLabel', { lengths: lengths.join(', ') });
+  return hints.length ? t('hintsLabel', { label, letters: hints.join(', ') }) : label;
 }
 
 /**
@@ -497,7 +563,7 @@ function RevealWord({ word, oneLine = false }: { word: string; oneLine?: boolean
   return (
     <p
       key={word}
-      className="font-display origin-left leading-none font-bold text-[#FF6B35] uppercase motion-safe:animate-reveal"
+      className="origin-left font-num leading-none font-black text-ink uppercase motion-safe:animate-reveal"
       style={{
         fontSize: `min(${oneLine ? '9vh' : '12vh'}, calc(100cqw / ${(letters * 0.82).toFixed(2)}))`,
       }}
@@ -515,17 +581,17 @@ function RevealIntro({ turn, t }: { turn: TurnView; t: Translate }) {
   return (
     <>
       {turn.correct.length === 0 ? (
-        <p className="font-display text-[max(5vmin,24px)] font-bold">
+        <p className="text-[max(5vmin,24px)] leading-tight">
           {t('nobodyGotIt')} <span aria-hidden="true">😱</span>
         </p>
       ) : (
         turn.endReason === 'allGuessed' && (
-          <p className="font-display text-[max(5vmin,24px)] font-bold text-[#2DC653]">
+          <p className="text-[max(5vmin,24px)] leading-tight text-success">
             {t('everyoneGotIt')} <span aria-hidden="true">🎉</span>
           </p>
         )
       )}
-      <p className="text-white/70">{t('itWas')}</p>
+      <p className="text-soft">{t('itWas')}</p>
     </>
   );
 }
@@ -563,7 +629,7 @@ export function RevealPanel({
               : 'flex flex-col gap-[0.8vmin]'
           }
         >
-          <p className="text-white/70">{t('gotItLabel')}</p>
+          <p className="text-soft">{t('gotItLabel')}</p>
           {/* Portrait's chips run smaller, so nine of them still fit under the square. */}
           <ul
             className={`flex min-w-0 flex-wrap gap-x-[2vmin] gap-y-[0.8vmin] ${portrait ? 'flex-1 text-[max(0.85em,16px)]' : ''}`}
@@ -574,7 +640,9 @@ export function RevealPanel({
                 <li key={c.pid} data-chip={c.pid} className="flex items-center gap-[0.8vmin]">
                   {p && <Avatar player={p} size="1.1em" />}
                   <span style={{ color: p?.color }}>{p?.name}</span>
-                  {c.points > 0 && <span className="tabular-nums">+{c.points}</span>}
+                  {c.points > 0 && (
+                    <span className="font-num font-black tabular-nums">+{c.points}</span>
+                  )}
                 </li>
               );
             })}
@@ -582,7 +650,7 @@ export function RevealPanel({
         </div>
       )}
       {view.almost.length > 0 && (
-        <p className="text-white/80">
+        <p className="text-soft">
           {t('almost')} {view.almost.map((g) => g.text ?? '•••').join(' · ')}
         </p>
       )}
