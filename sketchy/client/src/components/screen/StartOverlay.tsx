@@ -1,10 +1,12 @@
 import type { Translate } from '../../lib/copy.js';
+import { Highlight } from '../sketch/Highlight.js';
 
 /**
  * The Screen's first overlay (Creating and joining a room, step 2). Ported from Buzzr
  * (buzzer/client/src/components/StartOverlay.tsx). Browsers only start audio, fullscreen and
  * (on some) a wake lock from a user gesture, so one tap, click, Enter or Space does them all.
- * The Screen joins and renders underneath meanwhile.
+ * The Screen joins and renders underneath meanwhile. A `paper` veil with the label on the
+ * highlighter (F62).
  */
 export function StartOverlay({
   coarse,
@@ -34,12 +36,10 @@ export function StartOverlay({
         type="button"
         autoFocus
         onClick={onStart}
-        className="flex size-full flex-col items-center justify-center gap-[3vmin] bg-[#1D1B22]/95 px-[5vmin] text-center text-white"
+        className="flex size-full flex-col items-center justify-center gap-[4vmin] bg-paper/95 px-[5vmin] text-center font-hand text-ink"
       >
-        <span className="font-display text-[max(10vmin,40px)] leading-none font-bold text-[#FF6B35]">
-          {label}
-        </span>
-        <span className="text-[max(3.5vmin,18px)] text-white/70">{t('startHint')}</span>
+        <Highlight className="text-[max(10vmin,40px)] leading-none">{label}</Highlight>
+        <span className="text-[max(3.6vmin,18px)] text-soft">{t('startHint')}</span>
       </button>
     </div>
   );

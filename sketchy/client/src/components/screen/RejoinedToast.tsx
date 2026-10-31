@@ -5,7 +5,7 @@ import type { Translate } from '../../lib/copy.js';
 export const REJOINED_TOAST_MS = 4000;
 
 /**
- * "Jun is back (new phone)" when a player's pid moved to another phone (F42). Always mounted, so
+ * "Jun is back (new phone)" when a player's pid moved to another phone (F42), on a sticky note. Always mounted, so
  * screen readers announce it; empty and visually hidden otherwise. Below the top bar, where
  * "Need 2 players" sits, so it covers neither the timer nor "Jun’s phone reconnecting…".
  */
@@ -16,7 +16,7 @@ export function RejoinedToast({ name, t }: { name: string | null; t: Translate }
       className={
         name === null
           ? 'sr-only'
-          : 'pointer-events-none absolute top-[16vmin] left-1/2 z-20 max-w-[90vw] -translate-x-1/2 truncate rounded-full bg-[#FFD166] px-[3vmin] py-[1vmin] text-[max(4vmin,20px)] font-bold text-[#1D1B22] shadow-lg'
+          : 'pointer-events-none absolute top-[16vmin] left-1/2 z-20 max-w-[90vw] -translate-x-1/2 truncate sketch-border bg-sticky px-[3vmin] py-[1vmin] font-hand text-[max(4vmin,20px)] text-ink shadow-[0.42vmin_0.56vmin_0_var(--color-ink)]'
       }
     >
       {name === null ? '' : t('backNewPhone', { name })}

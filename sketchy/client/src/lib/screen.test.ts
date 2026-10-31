@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Phase, PlayerChipView, TurnView } from '../../../shared/types.js';
 import { translator } from './copy.js';
 import {
+  codeStripCode,
   formatClock,
   hintLetters,
   hasCaptionRow,
@@ -182,5 +183,23 @@ describe('screenLayout', () => {
   it('falls back to landscape before the window has a size', () => {
     expect(screenLayout(0, 0)).toBe('landscape');
     expect(screenLayout(800, 0)).toBe('landscape');
+  });
+});
+
+describe('codeStripCode (F62)', () => {
+  const view = (phase: Phase, gallery: number) => ({
+    phase,
+    code: 'KPRW',
+    gallery: Array.from({ length: gallery }, (_, i) => ({ turnId: i }) as never),
+  });
+
+  it('keeps the code under the book in every phase', () => {
+    for (const phase of ['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD'] as Phase[])
+      expect(codeStripCode(view(phase, 2))).toBe('KPRW');
+    expect(codeStripCode(view('FINAL', 0))).toBe('KPRW');
+  });
+
+  it('hides it during FINAL’s gallery', () => {
+    expect(codeStripCode(view('FINAL', 3))).toBeNull();
   });
 });

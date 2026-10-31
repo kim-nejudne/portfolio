@@ -2,29 +2,36 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import { joinUrl, qrPath } from '../../lib/qr.js';
-import { HOW_TO_PLAY } from '../../lib/screen.js';
+import { HOW_TO_PLAY, type ScreenLayout } from '../../lib/screen.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { usePointerCoarse } from '../../lib/usePointerCoarse.js';
 import { CustomWordsButton, CustomWordsPanel } from '../CustomWords.js';
-import { LobbyChip } from './PlayerChip.js';
+import { sketchButtonClass } from '../sketch/SketchButton.js';
+import { Tape } from '../sketch/Tape.js';
 import { PlayersDialog } from './PlayersDialog.js';
+import { ScreenDesk } from './ScreenDesk.js';
 import { ScreenSettings, SettingsButton, settingsLine } from './ScreenSettings.js';
 
+/** The Screen's small hand-bordered buttons beside "Who's here" (Settings, Add your own words). */
+export const SMALL_GHOST = `${sketchButtonClass('ghost')} min-h-11! px-[2vmin]! text-[max(2.8vmin,16px)]! shadow-[0.28vmin_0.42vmin_0_var(--color-ink)]!`;
+
 /**
- * The lobby on the Screen: where to join, the code, who's in, and, on the Screen holding the
- * token, Start, the settings (F22) and the crown (F25): tapping a chip offers Give host crown and
- * Kick. Beside the join details, the QR to `/play/CODE` (F37), and under them the How to play
- * strip (F26). Tablet and phone Screens say "Keep this device plugged in" (F37). Beside Settings,
- * "Add your own words" (F48).
+ * The lobby on the Screen, a spread of the notebook (F62): the left page has the logo, where to
+ * join, the code with the taped QR to `/play/CODE` (F37) and How to play (F26); tablet and phone
+ * Screens also say "Keep this device plugged in" (F37). The right page has "Who's here" (the
+ * players are the index tabs beside it) and, on the Screen holding the token, Settings (F22), "Add
+ * your own words" (F48) and Start; tapping a tab offers Give host crown and Kick (F25).
  */
 export function ScreenLobby({
   view,
   socket,
   t,
+  layout = 'landscape',
 }: {
   view: ScreenView;
   socket: GameSocket;
   t: Translate;
+  layout?: ScreenLayout;
 }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,11 +42,12 @@ export function ScreenLobby({
   const coarse = usePointerCoarse();
 
   // The settings panel covers the lobby; the lobby behind it is inert, and closing the panel puts
-  // focus back on its button.
+  // focus back on its button. (The closers list their setters, which never change, so the React
+  // Compiler can keep their memoization now that the pages are built before the desk.)
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsButton = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
-  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen]);
   useEffect(() => {
     if (wasOpen.current && !settingsOpen) settingsButton.current?.focus();
     wasOpen.current = settingsOpen;
@@ -50,16 +58,16 @@ export function ScreenLobby({
   const [wordsOpen, setWordsOpen] = useState(false);
   const wordsButton = useRef<HTMLButtonElement>(null);
   const wordsWasOpen = useRef(false);
-  const closeWords = useCallback(() => setWordsOpen(false), []);
+  const closeWords = useCallback(() => setWordsOpen(false), [setWordsOpen]);
   useEffect(() => {
     if (wordsWasOpen.current && !wordsOpen) wordsButton.current?.focus();
     wordsWasOpen.current = wordsOpen;
   }, [wordsOpen]);
   const wordsPanelOpen = wordsOpen && view.host !== null && !panelOpen;
 
-  // A tapped chip's dialog, for as long as that player is still here.
+  // A tapped tab's dialog, for as long as that player is still here.
   const [chipPid, setChipPid] = useState<string | null>(null);
-  const closeChip = useCallback(() => setChipPid(null), []);
+  const closeChip = useCallback(() => setChipPid(null), [setChipPid]);
   const chipPlayer = view.host ? view.players.find((p) => p.pid === chipPid) : undefined;
 
   const start = async () => {
@@ -84,168 +92,185 @@ export function ScreenLobby({
     }
   };
 
+  const hostingLine = view.host
+    ? host && t('isHostingTapToChange', { name: host.name })
+    : host
+      ? t('waitingForHostToStart', { name: host.name })
+      : t('waitingForPlayers');
+
+  // The left page: the logo, where to join, the code with the taped QR, and How to play.
+  const left = (
+    <div className="flex h-full min-h-0 flex-col items-start gap-[2vmin]">
+      <h1 className="relative text-[max(8.9vmin,32px)] leading-none font-normal">
+        Sketchy
+        {/* The pen scribble under the logo: decoration, so only it tilts. */}
+        <span
+          aria-hidden
+          className="absolute right-[1.4vmin] -bottom-[0.8vmin] left-0 h-[1.4vmin] -rotate-[1.5deg] rounded-b-[60%_100%_40%_100%] border-b-[length:max(2px,0.56vmin)] border-pen"
+        />
+      </h1>
+      <p className="text-[max(3.6vmin,16px)] leading-tight">
+        {t('joinAt')} {joinHost}
+      </p>
+      {/* The code never gives way: where the page is too narrow for both, the QR goes under it. */}
+      <section className="flex max-w-full flex-wrap items-center gap-x-[3.9vmin] gap-y-[2vmin]">
+        <p className="sr-only">
+          {t('code')}: {view.code}
+        </p>
+        <CodeCells code={view.code} />
+        <div className="relative shrink-0">
+          <Tape place="tl" />
+          <JoinQr
+            url={joinUrl(window.location.origin, view.code)}
+            label={t('scanToJoin', { code: view.code })}
+          />
+        </div>
+      </section>
+      {coarse && <PluggedInNote t={t} />}
+      <HowToPlay t={t} className="mt-auto" />
+    </div>
+  );
+
+  // The right page: who's here (the tabs stand beside it), the host line, the settings and Start.
+  const right = (
+    <div className="flex h-full min-h-0 flex-col gap-[1.6vmin] text-[max(3vmin,15px)] leading-snug">
+      <h2 className="text-[max(4.4vmin,20px)] leading-none font-normal">{t('whosHere')}</h2>
+      <p>{hostingLine}</p>
+      <p className="text-soft">{settingsLine(t, settings)}</p>
+      <p className="text-soft">{t('waitingForMore')}</p>
+      {view.host && (
+        <div className="mt-auto flex flex-col gap-[1.4vmin]">
+          {/* Portrait has the width but not the height: the small buttons share Start's row. */}
+          <div className="flex flex-wrap items-center gap-[1.6vmin]">
+            <SettingsButton
+              ref={settingsButton}
+              open={panelOpen}
+              onOpen={() => setSettingsOpen(true)}
+              t={t}
+              className={SMALL_GHOST}
+            />
+            <CustomWordsButton
+              ref={wordsButton}
+              count={view.host.customWordCount}
+              open={wordsPanelOpen}
+              onOpen={() => setWordsOpen(true)}
+              t={t}
+              className={SMALL_GHOST}
+            />
+            <button
+              type="button"
+              onClick={start}
+              disabled={starting || connected < 2}
+              className={`${sketchButtonClass('primary', layout === 'landscape')} ${
+                layout === 'portrait' ? 'min-w-[16rem] flex-1' : ''
+              } min-h-[max(9vmin,48px)]! text-[max(4.4vmin,22px)]! shadow-[0.42vmin_0.56vmin_0_var(--color-ink)]!`}
+            >
+              {t('startGame')}
+            </button>
+          </div>
+          <p className="text-center" role="status">
+            {error ??
+              (connected < 2 ? t('needTwoPlayers') : connected === 2 ? t('betterWithThree') : '')}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="relative h-full">
-      {/* On a short landscape Screen (a phone on its side) the join details and the players sit
-          side by side, so Start stays on screen; otherwise they stack.
-          SPEC-QUESTION: the spec draws one lobby for every landscape Screen (DECISIONS 55). */}
-      <div
-        inert={panelOpen || wordsPanelOpen || chipPlayer !== undefined}
-        className="flex h-full flex-col gap-[3vmin] px-[5vmin] py-[4vmin] [@media(max-height:480px)]:gap-[2vmin] [@media(max-height:480px)]:py-[2.5vmin]"
-      >
-        <div className="flex items-start justify-between gap-[3vmin]">
-          <h1 className="font-display text-[max(5vmin,28px)] font-bold">✏️ Sketchy</h1>
-          {view.host && (
-            <div className="flex flex-wrap justify-end gap-[2vmin]">
-              <CustomWordsButton
-                ref={wordsButton}
-                count={view.host.customWordCount}
-                open={wordsPanelOpen}
-                onOpen={() => setWordsOpen(true)}
-                t={t}
-                className="min-h-11 min-w-11 rounded-[2vmin] bg-white/10 px-[3vmin] py-[1vmin] text-[max(3vmin,16px)] font-bold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
-              />
-              <SettingsButton
-                ref={settingsButton}
-                open={panelOpen}
-                onOpen={() => setSettingsOpen(true)}
-                t={t}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-[3vmin] [@media(max-height:480px)]:flex-row [@media(max-height:480px)]:gap-[4vmin]">
-          <div className="flex flex-col gap-[3vmin] [@media(max-height:480px)]:w-[44%] [@media(max-height:480px)]:shrink-0 [@media(max-height:480px)]:gap-[2vmin]">
-            {/* The code never gives way: on a narrow or short Screen "Code:" goes above the
-                letters and the QR shrinks into what's left (DECISIONS 59). */}
-            <section className="flex items-center gap-[3vmin]">
-              <div className="flex flex-col gap-[1vmin]">
-                <p className="text-[max(4vmin,20px)]">
-                  {t('joinAt')} <strong className="text-[#FF6B35]">{joinHost}</strong>
-                </p>
-                <p className="flex items-baseline gap-[2vmin] text-[max(4vmin,20px)] max-sm:flex-col max-sm:gap-0 [@media(max-height:480px)]:flex-col [@media(max-height:480px)]:gap-0">
-                  {t('code')}:
-                  <span
-                    className="font-display text-[max(12vmin,56px)] leading-none font-bold tracking-[0.3em]"
-                    aria-label={view.code.split('').join(' ')}
-                  >
-                    {view.code}
-                  </span>
-                </p>
-                <p className="text-[max(2.5vmin,14px)] text-white/60 [@media(max-height:480px)]:hidden">
-                  {joinHost}/play/{view.code}
-                </p>
-                {coarse && <PluggedInNote t={t} />}
-              </div>
-              <JoinQr
-                url={joinUrl(window.location.origin, view.code)}
-                label={t('scanToJoin', { code: view.code })}
-              />
-            </section>
-
-            <HowToPlay t={t} />
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col gap-[3vmin] [@media(max-height:480px)]:gap-[2vmin]">
-            <ul className="flex flex-wrap items-center gap-[1.5vmin] text-[max(3.5vh,18px)] [@media(max-height:480px)]:text-[16px]">
-              {view.players.map((p) => (
-                <LobbyChip
-                  key={p.pid}
-                  player={p}
-                  {...(view.host ? { onSelect: () => setChipPid(p.pid) } : {})}
-                />
-              ))}
-              <li className="text-white/50">{t('waitingForMore')}</li>
-            </ul>
-
-            <div className="mt-auto flex flex-wrap items-end justify-between gap-[3vmin] text-[max(3vmin,16px)] [@media(max-height:480px)]:gap-[2vmin]">
-              <div className="flex flex-col gap-[1vmin]">
-                <p>
-                  {view.host
-                    ? host && t('isHostingTapToChange', { name: host.name })
-                    : host
-                      ? t('waitingForHostToStart', { name: host.name })
-                      : t('waitingForPlayers')}
-                </p>
-                <p className="text-white/60">{settingsLine(t, settings)}</p>
-              </div>
-              {view.host && (
-                <div className="flex flex-col items-end gap-[1vmin]">
-                  <button
-                    type="button"
-                    onClick={start}
-                    disabled={starting || connected < 2}
-                    className="min-h-11 rounded-[2vmin] bg-[#FF6B35] px-[4vmin] py-[2vmin] text-[max(4.5vmin,22px)] font-bold text-[#1D1B22] disabled:opacity-40"
-                  >
-                    {t('startGame')}
-                  </button>
-                  <p className="text-white/70" role="status">
-                    {error ??
-                      (connected < 2
-                        ? t('needTwoPlayers')
-                        : connected === 2
-                          ? t('betterWithThree')
-                          : '')}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      <div inert={panelOpen || wordsPanelOpen || chipPlayer !== undefined} className="h-full">
+        <ScreenDesk
+          layout={layout}
+          code={view.code}
+          players={view.players}
+          {...(view.host ? { onSelectPlayer: (pid: string) => setChipPid(pid) } : {})}
+          left={left}
+          right={right}
+        />
       </div>
+      {/* The panels keep the old dark look until F63 restyles them (`legacy-ink`, DECISIONS 85). */}
       {panelOpen && (
-        <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
+        <div className="legacy-ink">
+          <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
+        </div>
       )}
       {wordsPanelOpen && (
-        <CustomWordsPanel
-          count={view.host!.customWordCount}
-          socket={socket}
-          t={t}
-          onClose={closeWords}
-          onScreen
-        />
+        <div className="legacy-ink">
+          <CustomWordsPanel
+            count={view.host!.customWordCount}
+            socket={socket}
+            t={t}
+            onClose={closeWords}
+            onScreen
+          />
+        </div>
       )}
       {chipPlayer && !panelOpen && !wordsPanelOpen && (
-        <PlayersDialog
-          players={[chipPlayer]}
-          title={chipPlayer.name}
-          socket={socket}
-          t={t}
-          onClose={closeChip}
-        />
+        <div className="legacy-ink">
+          <PlayersDialog
+            players={[chipPlayer]}
+            title={chipPlayer.name}
+            socket={socket}
+            t={t}
+            onClose={closeChip}
+          />
+        </div>
       )}
     </div>
   );
 }
 
-/** Three steps, read from across the room: the whole rule, with typing (not saying) taught. */
-export function HowToPlay({ t }: { t: Translate }) {
+/** The room code as four Nunito cells on `pen` underlines; the sr-only line before it says it. */
+function CodeCells({ code }: { code: string }) {
   return (
-    <section aria-labelledby="how-to-play" className="shrink-0">
+    <p aria-hidden className="flex shrink-0 gap-[1.7vmin]">
+      {[...code].map((ch, i) => (
+        <span
+          key={i}
+          className="w-[8.9vmin] min-w-9 border-b-[length:max(3px,0.7vmin)] border-pen text-center font-num text-[max(9.4vmin,40px)] leading-none font-black"
+        >
+          {ch}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/**
+ * Three steps, read from across the room: the whole rule, with typing (not saying) taught. Each is
+ * numbered in a `pen` circle; screen readers hear the copy as written ("1 · One person draws…").
+ */
+export function HowToPlay({ t, className = '' }: { t: Translate; className?: string }) {
+  return (
+    <section aria-labelledby="how-to-play" className={`shrink-0 ${className}`.trim()}>
       <h2 id="how-to-play" className="sr-only">
         {t('howToPlay')}
       </h2>
-      <ol className="flex flex-wrap gap-x-[4vmin] gap-y-[1vmin] text-[max(3.5vmin,18px)]">
-        {HOW_TO_PLAY.map((step) => (
-          <li key={step.key} className="flex items-center gap-[1.5vmin]">
-            <span
-              aria-hidden="true"
-              className="grid size-[1.6em] shrink-0 place-items-center rounded-full bg-white/10"
-            >
-              {step.icon}
-            </span>
-            {t(step.key)}
-          </li>
-        ))}
+      <ol className="grid gap-[1.1vmin] text-[max(3.3vmin,16px)] leading-tight">
+        {HOW_TO_PLAY.map((step, i) => {
+          const text = t(step.key);
+          return (
+            <li key={step.key} className="flex items-center gap-[1.4vmin]">
+              <span className="sr-only">{text}</span>
+              <span
+                aria-hidden
+                className="grid size-[max(5vmin,26px)] shrink-0 place-items-center rounded-full border-[length:max(2px,0.35vmin)] border-pen font-num text-[max(2.5vmin,13px)] font-black text-pen"
+              >
+                {i + 1}
+              </span>
+              <span aria-hidden>{text.replace(/^\d+\s*·\s*/, '')}</span>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
 }
 
 /**
- * The join QR, dark on white with its quiet zone, as large as the lobby can spare: phones scan it
- * from the sofa. Its address is this Screen's own origin, so a Screen opened on the LAN address
+ * The join QR, `ink` on the canvas white with its quiet zone, in an `ink` frame (taped on by its
+ * parent), as large as the lobby can spare: phones scan it from the sofa. Its address is this Screen's own origin, so a Screen opened on the LAN address
  * (`npm run lan`) gives phones a QR they can reach.
  */
 export function JoinQr({ url, label }: { url: string; label: string }) {
@@ -257,14 +282,18 @@ export function JoinQr({ url, label }: { url: string; label: string }) {
       data-url={url}
       viewBox={`0 0 ${size} ${size}`}
       shapeRendering="crispEdges"
-      className="aspect-square w-[max(24vmin,104px)] min-w-16 shrink rounded-[1vmin] bg-white"
+      className="block aspect-square w-[max(19vmin,88px)] border-[length:max(2px,0.28vmin)] border-ink bg-canvas text-ink"
     >
-      <path d={d} fill="#000" />
+      <path d={d} fill="currentColor" />
     </svg>
   );
 }
 
 /** Tablet and phone Screens only: a Screen that sleeps or dies mid-game stops the room's drawing. */
 export function PluggedInNote({ t }: { t: Translate }) {
-  return <p className="text-[max(2.5vmin,14px)] text-[#FFD166]">{t('keepPluggedIn')}</p>;
+  return (
+    <p className="bg-sticky px-[1.4vmin] py-[0.6vmin] text-[max(2.8vmin,14px)] leading-tight text-ink shadow-[0.28vmin_0.28vmin_0_var(--color-ink)]">
+      {t('keepPluggedIn')}
+    </p>
+  );
 }

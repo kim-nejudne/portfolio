@@ -107,11 +107,14 @@ export function SettingsButton({
   open,
   onOpen,
   t,
+  className,
 }: {
   ref?: Ref<HTMLButtonElement>;
   open: boolean;
   onOpen: () => void;
   t: Translate;
+  /** The lobby's look for it (F62: a small hand-bordered paper button). */
+  className: string;
 }) {
   return (
     <button
@@ -120,7 +123,7 @@ export function SettingsButton({
       onClick={onOpen}
       aria-haspopup="dialog"
       aria-expanded={open}
-      className="min-h-11 min-w-11 rounded-[2vmin] bg-white/10 px-[3vmin] py-[1vmin] text-[max(3vmin,16px)] font-bold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+      className={className}
     >
       {t('settings')} <span aria-hidden="true">⚙</span>
     </button>

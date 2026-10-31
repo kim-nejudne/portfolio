@@ -163,19 +163,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F61 Sketchbook phone results and overlays
 
-- [ ] F62 Sketchbook Screen frame and lobby
-  - Spec: UI by role and phase (Screen, Host controls, Look and feel); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Screen)
-  - Depends: F56
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - `Screen.tsx` puts the desk behind a notebook (paper, ink border, hard shadow). Landscape is a spread with a vertical ring gutter; portrait stacks with horizontal rings.
-    - The room code sits on a tape strip under the notebook. It is always visible, except during the Final's gallery.
-    - "Keep this device plugged in" is restyled.
-    - `PlayerChip` becomes an index tab. In landscape the tabs form a column outside the right edge; in portrait they run along the bottom. They follow turn order, show the avatar and a name ≥ 3.5 vh, and handle up to 12 players.
-    - The lobby (`#sketch-lobby`, Screen) shows the logo, "Join at …", the 4 Nunito code cells with the taped QR beside them, and How-to-play in pen circles. The right page has "Who's here", the hosting line, the settings line and Start, or the waiting line without the token.
-    - `StartOverlay` and `RejoinedToast` are restyled.
-    - All sizes are in vmin with the spec minimums.
-  - Tests: existing ScreenLobby and RejoinedToast tests stay green
+- [x] F62 Sketchbook Screen frame and lobby
 
 - [ ] F63 Sketchbook Screen host UI
   - Spec: UI by role and phase (Host controls); Settings; Words (Custom words); docs/design/SKETCHBOOK.md (Surfaces: Host UI)

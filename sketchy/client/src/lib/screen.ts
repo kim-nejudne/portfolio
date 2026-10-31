@@ -20,6 +20,14 @@ export function screenLayout(width: number, height: number): ScreenLayout {
 }
 
 /**
+ * The code for the strip of tape under the Screen's book: always there, except during FINAL's
+ * gallery (UI by role and phase, Screen), where the book takes the room.
+ */
+export function codeStripCode(view: Pick<ScreenView, 'phase' | 'code' | 'gallery'>): string | null {
+  return view.phase === 'FINAL' && view.gallery.length > 0 ? null : view.code;
+}
+
+/**
  * Letters per word in a mask (`_` hidden, a hint letter as itself), for the `(5, 4)` after the
  * blanks. Words are split on spaces; hyphens and punctuation don't count as letters.
  */

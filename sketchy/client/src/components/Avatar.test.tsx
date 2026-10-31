@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { PlayerChipView } from '../../../shared/types.js';
 import { Avatar } from './Avatar.js';
-import { LobbyChip } from './screen/PlayerChip.js';
+import { IndexTab } from './screen/PlayerChip.js';
 
 const chip: PlayerChipView = {
   pid: 'mika',
@@ -40,10 +40,10 @@ describe('the avatar', () => {
     }
   });
 
-  it('shows on the lobby chip beside the name', () => {
+  it('shows on the Screen’s index tab beside the name (the lobby chip until F62)', () => {
     const html = renderToStaticMarkup(
       <ul>
-        <LobbyChip player={chip} />
+        <IndexTab player={chip} layout="landscape" />
       </ul>,
     );
     expect(html).toContain('>🐙</span>');
