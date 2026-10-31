@@ -142,12 +142,169 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 - [x] F55 Lobby doodle stays on the phone
 
+## M12 — Sketchbook look
+
+The light spiral-sketchbook restyle of every page, phones first. Build reference: `docs/design/SKETCHBOOK.md`. Target mockup: `docs/design/sketchbook.html` (the hash picks the phase, e.g. `#sketch-drawing`; `O` toggles a portrait Screen). Visual change only: no invariant, game rule or timing changes. Every M12 entry also needs:
+- the look and layout of `sketchbook.html` for its surfaces, with app data and spec rules winning where they differ;
+- only F56 tokens in the files it touches, with no `#1D1B22`, `#FF6B35`, `#FFD166` or `white/NN` classes left;
+- no overflow at the viewports it names;
+- `/playtest` screenshots compared with the mockup;
+- a `mobile-ux-reviewer` run.
+
+- [ ] F56 Sketchbook foundation
+  - Spec: UI by role and phase (Look and feel); Tech stack and architecture (Performance budget); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Tokens, Type, Primitives)
+  - Depends: none
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The SKETCHBOOK.md tokens are Tailwind colours under `@theme` in `client/src/index.css`. The body stays dark until F58.
+    - Patrick Hand and Nunito 900 are self-hosted as Google Fonts' own Latin-subset woff2 files, from the `/* latin */` block of the css2 API, as Fredoka was. Measured 2026-10-31: Patrick Hand 23.9 KB, Nunito 900 16.7 KB. No subsetting tool or new dependency is needed.
+    - The files live in `client/src/fonts/` with their OFL texts, use the same `unicode-range` as Fredoka and `font-display: swap`, are preloaded in `client/index.html`, and are exposed as `--font-hand` and `--font-num`. Fredoka stays until F67.
+    - `npm run size` passes after `BUDGET.playerCssAndFonts` in `scripts/bundle.ts` is raised to the measured CSS+fonts, with all three faces counted, plus about 5 KB. DECISIONS records the measured bytes and the new budget; F67 tightens it once Fredoka is gone.
+    - `PLAYER_COLORS` is 12 crayon colours, each ≥ 4.5:1 on paper and distinct from the 8 draw colours, and `BACKGROUND_COLOR` is paper. This supersedes DECISIONS 8's dark-background tuning.
+    - `client/src/components/sketch/` holds `Paper` (dots | ruled), `SpiralRings` (row | column), `Tape`, `Highlight`, `SketchButton` (primary | ghost, `:active` press), `Blanks` and `CountdownRing`. `Avatar` draws the wobbly ring in the player colour on paper.
+  - Tests: `constants.test.ts` (contrast on paper, distinct from draw colours), `Blanks` (letter counts, spaces, revealed letters), `CountdownRing` (fraction, the 10 s low state, the 12 s choosing total), `Avatar`, `bundle.test.ts` against the new budget
+
+- [ ] F57 Sketchbook landing and join form
+  - Spec: UI by role and phase (Landing page, Look and feel); Roles and devices (Creating and joining a room); docs/design/SKETCHBOOK.md (Surfaces: Landing)
+  - Depends: F56
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The phone landing (`#sketch-landing`) has spiral rings, the logo with its pen scribble, the tag line with "Laugh." highlighted, and two taped cards. The Join card shows the code as 4 Nunito cells on pen underlines, with the auto-uppercase and exists-check behaviour unchanged; the Start card has a ghost button.
+    - The laptop landing has two columns, with the umbrella-style ink replay. It is decorative and static under reduced motion.
+    - The join form (name, avatar grid with cells ≥ 44 px, Join) is on paper with the sketch button. It fits 360×560 with Join on screen.
+  - Tests: existing Landing and JoinForm tests stay green
+
+- [ ] F58 Sketchbook phone shell and lobby
+  - Spec: UI by role and phase (Guesser phone, Host controls, Look and feel); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Lobby)
+  - Depends: F57
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The global body and `color-scheme` switch to paper (light). The `Play.tsx` shell, toasts, kicked page, rotate-back prompt and connection dot are on paper with rings across the top.
+    - The guest lobby (`#sketch-lobby`, guesser) is a ruled page. It shows the avatar with Change avatar, the waiting line with the host's name in colour, the avatars here with a count, the doodle pad (dashed border) with its note, and Leave (still two taps).
+    - The host lobby (drawer frame) has a dot grid, a "Room KPRW" eyebrow, "You're the host 👑", a roster on dashed rules (`HostPlayerList`, with Kick and the crown actions unchanged), a full-width Start sketch button, and the settings line with Change.
+    - The Change-avatar dialog is a paper sheet.
+    - Both lobbies fit 360×560 with the doodle pad.
+  - Tests: existing `hostPhone`, `phoneViews`, `ChangeAvatar` and `ConnectionDot` tests stay green
+
+- [ ] F59 Sketchbook drawer phone
+  - Spec: UI by role and phase (Drawer phone); Canvas and drawing tools (Tools); docs/design/SKETCHBOOK.md (Surfaces: Drawer)
+  - Depends: F58
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - Choosing (`#sketch-choosing`) shows the heading and a countdown ring (12 s total), then three ruled index cards with tape, a red-pen level tag, the word large and the gloss. "You draw next!" during the reveal gets the same cards.
+    - Drawing (`#sketch-drawing`, `#sketch-close`, `#sketch-gotit`) has a 56 px top bar. Row 1: the word at about 16 px in `soft`, the Nunito timer turning red at ≤ 10 s, "N of 4 got it", the 👑 Host button. Row 2: the latest wrong guess, or "Bea is close!" on an amber swash for 2 s.
+    - The pad has an ink border and a hard shadow, and no tape. The "Start with one big shape" hint is in pen.
+    - The toolbar keeps exactly two 48 px rows. Row 1 has 8 crayon swatches (40 px circles, 44 px hit areas, a visible active ring). Row 2 has hand-bordered Size (a dot plus S/M/L), Eraser, Undo and Clear with pen icons.
+    - The pad size formula is unchanged, with no overflow at 360×560, 390×664 or 412×780.
+  - Tests: existing DrawerTurn, WordChoice, DrawToolbar and `padTools` tests stay green
+
+- [ ] F60 Sketchbook guesser phone
+  - Spec: UI by role and phase (Guesser phone); Guess matching (Near misses); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Guesser)
+  - Depends: F58
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The page is ruled with a red margin.
+    - The top line is the Nunito timer and "✏️ Mika drawing", then the blanks.
+    - The guess field is a pen underline with a blinking caret and a round pen send button. It stays near the top, keeps focus after a send, and keeps its input attributes.
+    - Wrong tries are written on the lines and struck through in red pen with ✗. A close guess is circled "close!", with the "So close!" highlighter toast.
+    - This turn's points sit in the left margin. They are never "+0" and never a rank.
+    - Got it (`#sketch-gotit`) shows a big ✓, "Got it!" and a +points stamp, never the word, then the reaction buttons as wobbly circles.
+    - Choosing shows the drawer's avatar, "Mika is choosing a word…" and the ring. Mid-game join and "👀 Watch the Screen" are restyled.
+    - No overflow at 360×560, 390×664 or 412×780, with the keyboard-safe guess position kept.
+  - Tests: existing GuesserTurn and `phoneViews` tests stay green; no word on the got-it panel (existing secrecy tests)
+
+- [ ] F61 Sketchbook phone results and overlays
+  - Spec: UI by role and phase (Guesser phone, Drawer phone, Host controls); Game flow and state machine (Pausing); docs/design/SKETCHBOOK.md (Surfaces: Results)
+  - Depends: F59, F60
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - Reveal (`#sketch-reveal`) shows "It was…" and the word in Nunito 900 on the highlighter, then a red stamp: "+270 this turn", or "+320 for your drawing" only when above 0. The drawer gets the got-it rows.
+    - Scoreboard (`#sketch-scoreboard`) shows the big pen-blue ordinal and the score, then the list with your row highlighted.
+    - Final (`#sketch-final`) shows your award on a taped sticky note, then rank and score, "See the gallery on the Screen", and for the host the Rematch sketch button with "Back to lobby".
+    - `HostDrawer` is a paper bottom sheet with its two-tap arming states still clear.
+    - `PausedOverlay` and `RematchOverlay` use a paper veil and Nunito countdowns on both the phone and the Screen.
+  - Tests: existing PhoneStandings, PausedOverlay, RematchOverlay and `hostPhone` tests stay green
+
+- [ ] F62 Sketchbook Screen frame and lobby
+  - Spec: UI by role and phase (Screen, Host controls, Look and feel); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Screen)
+  - Depends: F56
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - `Screen.tsx` puts the desk behind a notebook (paper, ink border, hard shadow). Landscape is a spread with a vertical ring gutter; portrait stacks with horizontal rings.
+    - The room code sits on a tape strip under the notebook. It is always visible, except during the Final's gallery.
+    - "Keep this device plugged in" is restyled.
+    - `PlayerChip` becomes an index tab. In landscape the tabs form a column outside the right edge; in portrait they run along the bottom. They follow turn order, show the avatar and a name ≥ 3.5 vh, and handle up to 12 players.
+    - The lobby (`#sketch-lobby`, Screen) shows the logo, "Join at …", the 4 Nunito code cells with the taped QR beside them, and How-to-play in pen circles. The right page has "Who's here", the hosting line, the settings line and Start, or the waiting line without the token.
+    - `StartOverlay` and `RejoinedToast` are restyled.
+    - All sizes are in vmin with the spec minimums.
+  - Tests: existing ScreenLobby and RejoinedToast tests stay green
+
+- [ ] F63 Sketchbook Screen host UI
+  - Spec: UI by role and phase (Host controls); Settings; Words (Custom words); docs/design/SKETCHBOOK.md (Surfaces: Host UI)
+  - Depends: F62
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The host control bar is a taped strip along the bottom edge. Auto-hide and the keyboard shortcuts are unchanged.
+    - The `?` shortcuts overlay is a ruled index card.
+    - Settings, custom words and the players dialog are dot-grid sheets with sketch buttons and hand-bordered inputs. Every control and two-tap state behaves as before.
+  - Tests: existing HostControls, ScreenSettings, CustomWords and PlayersDialog tests stay green
+
+- [ ] F64 Sketchbook Screen turn, landscape
+  - Spec: UI by role and phase (Screen); Guess feed and rude guesses; DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Turn, Motion)
+  - Depends: F62
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - Choosing (`#sketch-choosing`, landscape) shows the drawer's large avatar, the name in colour and the ring on the left page.
+    - The drawing (`#sketch-drawing`, `-close`, `-gotit`) is taped onto the left page by two corners and is the largest square that fits.
+    - The right page shows the Nunito clock (red at ≤ 10 s), round/turn, blanks with counts, "✏️ Mika is drawing", the feed on dashed rules, the turn-1 and turn-2 caption, and the drawer-reconnecting badge.
+    - The tabs get ✏️ and "✓ +points". Wrong-guess bubbles pop from the guesser's tab with a border in their colour, never over the drawing, at most 3 at once, for 2 s. Reactions float from the tabs. "Jun got it!" is a highlighter banner for 2 s.
+    - `TurnFx` uses the mockup's keyframes (`sk-pop`, `sk-bubble`, `sk-float`) on the spec's timings, with a fade under reduced motion.
+    - The paused veil is paper.
+  - Tests: existing ScreenTurn tests stay green (feed masking, bubble cap, no word before REVEAL)
+
+- [ ] F65 Sketchbook Screen portrait and reveal
+  - Spec: UI by role and phase (Screen); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Portrait, Reveal)
+  - Depends: F64
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The portrait turn (`#sketch-drawing` with `O`) puts a top bar over the square: timer, blanks, drawer line and the latest guess, following the spec's portrait priority (round and turn dropped). Then come the horizontal rings, the square and the tabs. It fits 3:4 and 9:16.
+    - Reveal (`#sketch-reveal`, both orientations) shows "It was…" and the word in Nunito 900 on the highlighter. The word is the largest text, ≥ 12 vh, with the pop.
+    - The reveal continues with the "Got it" rows in corrected order, "Almost:" struck in red (close guesses first), the drawer line only when above 0, and "Next: Jun draws". "Nobody got it!" has no point rows.
+  - Tests: existing ScreenTurn reveal tests stay green
+
+- [ ] F66 Sketchbook Screen scoreboard and final
+  - Spec: UI by role and phase (Screen); Scoring; docs/design/SKETCHBOOK.md (Surfaces: Scoreboard / Final, Motion)
+  - Depends: F64
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - The scoreboard (`#sketch-scoreboard`) is one full dot-grid page with "Round 1 of 2 done". Rows show the rank, avatar, name, a crayon bar that grows in a hand-bordered track, the score, and ↑n/↓n. The reorder animation is kept.
+    - The final (`#sketch-final`) shows a drawn podium whose crayon blocks rise in the order 3rd, 2nd, 1st. 4th and later sit on one line.
+    - The gallery is taped white sheets with captions. The lightbox is on paper, with the arrow keys kept.
+    - Tonight's awards are sticky notes. The Tonight panel (game 2 and later) is restyled.
+    - Rematch and Back to lobby are sketch buttons. The rematch countdown overlay is from F61.
+  - Tests: existing ScreenStandings, ScreenAwards and ScreenGallery tests stay green
+
+- [ ] F67 Sketchbook cleanup
+  - Spec: UI by role and phase (Look and feel); Tech stack and architecture (Performance budget); docs/design/SKETCHBOOK.md (Rules)
+  - Depends: F61, F63, F65, F66
+  - Done when:
+    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
+    - `/dev/bots` and `DebugOverlay` use the F56 tokens (readable; no new flourishes).
+    - Fredoka is removed: the font file, its `@font-face`, the preload and its OFL text.
+    - `grep -rE '#1D1B22|#FF6B35|#FFD166|Fredoka|white/[0-9]' client/src` finds nothing.
+    - `.claude/rules/`, the `mobile-ux-reviewer` agent and any README text describing the dark look are updated.
+    - `BUDGET.playerCssAndFonts` is lowered to the measured CSS+fonts without Fredoka, plus about 5 KB, and `npm run size` passes. The numbers go in PROGRESS and DECISIONS.
+    - A full-game `/playtest` covers the Screen in landscape and portrait with 3 phones, through every phase including a rematch, with screenshots compared to the mockup.
+    - Kim checks are queued: TV legibility from 5 m, a budget Android, iPhone Safari, Taglish lengths in Patrick Hand, and the new copy's Taglish.
+  - Tests: full suite green
+
 ## Bugs
 
 - [x] B01 Pointer cursor and hover on live controls
 
 ## Backlog
 
+- Dark sketchbook (black page, white gel pen, fluoro highlighter) for dim rooms, as in the 2026-10-31 mockups (M12 is light only).
 - Reactions on the phone at the reveal (the server already takes them from anyone in REVEAL; F34 offers them only after a correct guess in DRAWING).
 - Screen turn effects: re-measure chips on a resize or layout flip while a bubble or reaction is up, and measure a bubble's height instead of estimating it (F34 mobile-ux nits).
 - Portrait "got it!" hides the blanks for its 2 s; on a turn where many guess right in a row, consider a second top-bar line or a shorter 1 s announcement (F34 mobile-ux nit).

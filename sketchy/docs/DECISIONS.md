@@ -131,3 +131,29 @@ Kim asked for emoji avatars as in Buzzr (its F74/F75). Kim decided: the emoji re
 18. **Test plan (Automated tests)**, Ink routing row: delete "doodles included" and "doodles only in LOBBY".
 19. **Test plan (Manual playtest checklist)**, replace "Lobby doodles appear as avatars on the Screen and never on another phone" with:
     > - [ ] Every player's emoji shows on the Screen chips and the phones' "Who's here"; a lobby doodle never leaves its phone
+
+### 2026-10-31: Sketchbook look (M12, F56–F67)
+
+Kim picked the "Spiral Sketchbook" concept, in its light version, from five redesign mockups. It replaces the dark "marker on paper" look everywhere. The build reference is `docs/design/SKETCHBOOK.md`, which holds the tokens, fonts, primitives, per-surface notes and motion. The target mockup is `docs/design/sketchbook.html`.
+
+Kim decided:
+- Light only. A dark sketchbook goes to the Backlog.
+- The mockup is the target, but the app's data and the spec's rules win.
+- The fonts are Patrick Hand plus Nunito 900. The CSS+font budget is raised to the measured size plus about 5 KB, and F56 sets the number.
+- Surfaces the mockup doesn't show extend the same language. Dev pages get the tokens only.
+- The mockup's motion replaces F34/F35's look. The spec's timings and triggers stay.
+- Copy is added only where a mockup element needs it.
+
+This changes no invariant and no game rule. It supersedes DECISIONS 8's "tuned for the dark background `#1D1B22`" (F56 picks 12 colours for paper). Features cite this section until Kim applies it.
+
+1. **UI by role and phase (Look and feel)**, replace the first paragraph with:
+   > Sketchy's own identity: **a spiral sketchbook** left open on the coffee table. Light only: dot-grid and ruled paper (`#F8F8F3`), graphite ink (`#26282E`), a blue ballpoint (`#2846C8`), a yellow highlighter (`#FFE14D`), red-pen corrections (`#D2372C`), masking tape and spiral rings. Words are in Patrick Hand and numbers in Nunito 900, both self-hosted. Gameplay text (timer, blanks, scores, names in lists, guesses) is never rotated; only decoration is (tape, the highlighter swash). There are no gradient fills, glass or blur. Very large type. The drawing square stays pure white. Buzzr's layout conventions carry over: phone-first player pages, Screen sized in viewport units and legible from 5 m, one primary action per phone screen. Tokens, primitives and per-surface details are in `docs/design/SKETCHBOOK.md`.
+2. **UI by role and phase (Look and feel)**, second paragraph: replace "tuned for contrast on the dark background" with "each ≥ 4.5:1 on the paper colour".
+3. **Tech stack and architecture (Performance budget)**, first bullet: replace "≤ 30 KB of CSS and fonts" with "≤ the CSS+font budget in `BUDGET.playerCssAndFonts` (`scripts/bundle.ts`): the measured size plus about 5 KB, set by F56 and tightened by F67 once Fredoka is gone". Second bullet: replace "Fonts: one subset weight (Latin), `font-display: swap`, preloaded." with:
+   > Fonts: two faces (Patrick Hand, Nunito 900), each one Latin subset weight, `font-display: swap`, preloaded.
+4. **UI by role and phase (Screen)**: after the "In between" bullet, add:
+   > - The Screen is an open spiral notebook on a desk. In landscape it is a spread: the drawing is taped onto the left page, the right page is the sidebar, and the players are index tabs standing outside the right edge in turn order. In portrait, during a turn, the sidebar becomes a top bar over the square and the tabs run along the bottom. The room code is on a strip of tape under the notebook.
+5. **UI by role and phase (Guesser phone)**: after "There is no drawing on the phone, on purpose: everyone looks up at the Screen." add:
+   > - The guesser phone is a ruled notebook page with a red margin: wrong guesses are struck through in red pen with ✗, a close guess is circled, and this turn's points sit in the margin.
+6. **Build roadmap**: after the M10 bullet, add:
+   > - **M12 Sketchbook look** (F56–F67): the light spiral-sketchbook restyle of every page, phones first.

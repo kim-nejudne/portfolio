@@ -1,0 +1,1341 @@
+<!doctype html>
+<!-- Sketchy M12 design reference: the Spiral Sketchbook mockup (light). Generated from the 2026-10-31 redesign
+     mockups; open in a browser. Not part of the app build. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Sketchy Sketchbook Reference</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Nunito:wght@600;700;800;900&family=Patrick+Hand&family=Space+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: a quiet lightbox. Sticky control bar on top, a concept card, then the stage of
+   device frames (phones first, they weigh most), feedback in a right-hand drawer.
+   The shell stays monochrome so each concept's own colour is the only colour on the page. */
+:root {
+  --bg: #e8e9ed;
+  --panel: #f6f6f8;
+  --fg: #16171b;
+  --muted: #5d606b;
+  --line: #c6c8d0;
+  --chip: #dcdee4;
+  --bezel: #1b1c20;
+  --ok: #1f7a4a;
+  --warn: #9a5b00;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-label: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111215; --panel: #1a1b20; --fg: #eceef2; --muted: #9a9ead; --line: #33353d;
+    --chip: #26282f; --bezel: #050506; --ok: #5fd39a; --warn: #f0b04a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111215; --panel: #1a1b20; --fg: #eceef2; --muted: #9a9ead; --line: #33353d;
+  --chip: #26282f; --bezel: #050506; --ok: #5fd39a; --warn: #f0b04a; color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--panel); }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+.sh-bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 8px;
+}
+.sh-bar-row { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; min-width: 0; }
+.sh-brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.sh-brand h1 { font-size: 15px; margin: 0; letter-spacing: -0.01em; }
+.sh-brand span { font-family: var(--font-label); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.sh-label { font-family: var(--font-label); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+
+.sh-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.sh-seg button { border: 0; background: none; padding: 6px 10px; cursor: pointer; white-space: nowrap; font-size: 13px; }
+.sh-seg button + button { border-left: 1px solid var(--line); }
+.sh-seg button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+.sh-scroll-x { overflow-x: auto; max-width: 100%; scrollbar-width: thin; }
+.sh-tabs button { display: inline-flex; gap: 6px; align-items: baseline; }
+.sh-tabs .sh-k { font-family: var(--font-label); font-size: 11px; opacity: 0.6; }
+.sh-tabs .sh-rated { font-size: 11px; letter-spacing: -1px; }
+.sh-btn { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.sh-btn.sh-primary { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+
+main {
+  padding-block: 18px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px; max-width: 1680px; margin: 0 auto;
+}
+.sh-card { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; align-items: start; }
+.sh-card h2 { font-size: 26px; margin: 2px 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+.sh-card p { margin: 0; color: var(--muted); max-width: 62ch; }
+.sh-card .sh-sig { margin-top: 10px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.sh-card .sh-sig b { display: block; color: var(--fg); margin-bottom: 2px; }
+.sh-swatches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sh-sw { display: grid; gap: 3px; width: 64px; font-family: var(--font-label); font-size: 10px; color: var(--muted); }
+.sh-sw i { display: block; height: 30px; border-radius: 6px; border: 1px solid var(--line); }
+.sh-inkrow { display: flex; gap: 4px; margin-top: 8px; padding: 6px; border-radius: 6px; border: 1px solid var(--line); width: max-content; max-width: 100%; flex-wrap: wrap; }
+.sh-inkrow i { width: 16px; height: 16px; border-radius: 50%; }
+.sh-notes { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+.sh-notes li + li { margin-top: 3px; }
+
+.sh-stage { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; justify-content: center; }
+.sh-fw { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.sh-fw figcaption { display: flex; justify-content: space-between; gap: 8px; }
+.sh-fw.sh-phone { flex: 0 1 300px; }
+.sh-fw.sh-screen.sh-landscape { flex: 1 1 520px; max-width: 980px; }
+.sh-fw.sh-screen.sh-portrait { flex: 0 1 420px; }
+.sh-fw.sh-laptop { flex: 1 1 520px; max-width: 980px; }
+.sh-box { position: relative; width: 100%; }
+.sh-device { position: absolute; top: 0; left: 0; transform-origin: 0 0; background: var(--bezel); }
+.sh-device.sh-phone { padding: 12px; border-radius: 46px; }
+.sh-device.sh-phone > .sh-scr { border-radius: 34px; }
+.sh-device.sh-tv { padding: 10px; border-radius: 12px; }
+.sh-device.sh-tablet { padding: 18px; border-radius: 30px; }
+.sh-device.sh-tablet > .sh-scr { border-radius: 12px; }
+.sh-device.sh-laptop { padding: 14px; border-radius: 16px 16px 6px 6px; }
+.sh-scr { position: relative; overflow: hidden; isolation: isolate; }
+.sh-render-error { padding: 16px; font: 12px/1.4 var(--font-label); color: #b00; background: #fff; white-space: pre-wrap; }
+
+/* Drawing replay, shared by every concept (S.ink). */
+.ink { display: block; width: 100%; height: 100%; }
+.ink .anim { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: ink-draw 0.7s ease-out var(--d, 0s) forwards; }
+@keyframes ink-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ink .anim { animation: none; stroke-dashoffset: 0; }
+  .sh-scr *, .sh-scr *::before, .sh-scr *::after { animation-duration: 0.001s !important; animation-delay: 0s !important; transition: none !important; }
+}
+
+aside.sh-fb {
+  position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: min(400px, 100vw);
+  background: var(--panel); border-left: 1px solid var(--line);
+  padding: calc(16px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) 18px;
+  overflow-y: auto; display: grid; gap: 14px; align-content: start;
+  box-shadow: -18px 0 40px rgb(0 0 0 / 0.18);
+}
+.sh-fb header { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.sh-fb h3 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.sh-fb label { display: grid; gap: 5px; }
+.sh-fb textarea, .sh-fb select { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.sh-fb textarea { min-height: 64px; resize: vertical; }
+.sh-stars { display: flex; gap: 4px; }
+.sh-stars button { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 18px; }
+.sh-stars button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+.sh-thumbs { display: flex; gap: 6px; }
+.sh-thumbs button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+.sh-fb hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.sh-status { font-family: var(--font-label); font-size: 11px; color: var(--muted); min-height: 1.4em; }
+.sh-status.sh-ok { color: var(--ok); } .sh-status.sh-warn { color: var(--warn); }
+.sh-keys { color: var(--muted); font-size: 12px; }
+.sh-keys kbd { font-family: var(--font-label); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
+
+@media (max-width: 980px) { .sh-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .sh-card > :first-child { grid-column: 1 / -1; } }
+@media (max-width: 640px) {
+  .sh-card { grid-template-columns: minmax(0, 1fr); }
+  .sh-fw.sh-phone { flex: 1 1 calc(50% - 11px); }
+  .sh-fw.sh-screen.sh-portrait { flex: 1 1 100%; }
+  .sh-stage { gap: 14px; }
+  .sh-brand span { display: none; }
+}
+</style>
+
+<header class="sh-bar">
+  <div class="sh-bar-row">
+    <div class="sh-brand"><h1>Sketchy: Spiral Sketchbook</h1><span>design reference · M12</span></div>
+    <div class="sh-seg sh-scroll-x sh-tabs" id="tabs" role="group" aria-label="Concept"></div>
+  </div>
+  <div class="sh-bar-row">
+    <div class="sh-scroll-x"><div class="sh-seg" id="phases" role="group" aria-label="Game phase"></div></div>
+    <div class="sh-seg" id="mode" hidden role="group" aria-label="Concept theme">
+      <button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button>
+    </div>
+    <div class="sh-seg" id="orient" role="group" aria-label="Screen layout">
+      <button type="button" data-v="landscape">Landscape</button><button type="button" data-v="portrait">Portrait</button>
+    </div>
+    <button type="button" class="sh-btn" id="replay">Replay</button>
+    <button type="button" class="sh-btn sh-primary" id="fbOpen" hidden>Feedback</button>
+  </div>
+</header>
+
+<main>
+  <section class="sh-card" id="card" aria-live="polite"></section>
+  <section class="sh-stage" id="stage"></section>
+  <p class="sh-keys">Design reference for M12 (see docs/design/SKETCHBOOK.md). Light only. Keys: <kbd>←</kbd> <kbd>→</kbd> phase · <kbd>O</kbd> landscape/portrait · <kbd>R</kbd> replay. URL hash picks the phase, e.g. <code>#sketch-drawing</code>. Data is made up: Mika draws “umbrella”, Jun is the guesser phone.</p>
+</main>
+
+<aside class="sh-fb" id="fb" hidden aria-label="Feedback">
+  <header>
+    <div><div class="sh-label">Your verdict</div><h3 id="fbTitle">Concept</h3></div>
+    <button type="button" class="sh-btn" id="fbClose">Close</button>
+  </header>
+  <div class="sh-label">Overall</div>
+  <div class="sh-stars" id="fbStars" role="group" aria-label="Stars"></div>
+  <div>
+    <div class="sh-label" id="fbSigLabel">Signature idea</div>
+    <div class="sh-thumbs" style="margin-top:5px">
+      <button type="button" class="sh-btn" data-v="up" id="fbUp">👍 Keep it</button>
+      <button type="button" class="sh-btn" data-v="down" id="fbDown">👎 Drop it</button>
+    </div>
+  </div>
+  <label><span class="sh-label">Screen (TV)</span><textarea id="fbScreen" placeholder="What works, what doesn’t, on the TV"></textarea></label>
+  <label><span class="sh-label">Drawer phone</span><textarea id="fbDrawer" placeholder="Word cards, pad, toolbar"></textarea></label>
+  <label><span class="sh-label">Guesser phone</span><textarea id="fbGuesser" placeholder="Guess box, feedback, standings"></textarea></label>
+  <label><span class="sh-label">Landing</span><textarea id="fbLanding" placeholder="First impression"></textarea></label>
+  <hr>
+  <label><span class="sh-label">Winner</span>
+    <select id="fbWinner"><option value="">Not decided yet</option></select>
+  </label>
+  <label><span class="sh-label">Tweaks for the winner</span><textarea id="fbTweaks" placeholder="e.g. Pop Brutal, but with the Sketchbook guesser page"></textarea></label>
+  <div class="sh-status" id="fbStatus"></div>
+  <button type="button" class="sh-btn" id="fbCopy">Copy all feedback as text</button>
+</aside>
+
+<script>/* Shared fake game data and helpers for every concept. Plain script: defines window.S.
+   Concepts read from S and return HTML strings. Nothing here is styled except the ink SVG. */
+(function () {
+  const esc = (s) =>
+    String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+  // Turn order. `hue` indexes each concept's own 5-colour player palette.
+  const players = [
+    { id: 'mika', name: 'Mika', emoji: '🦊', hue: 0, host: true },
+    { id: 'jun', name: 'Jun', emoji: '🐸', hue: 1 },
+    { id: 'ana', name: 'Ana', emoji: '🐙', hue: 2 },
+    { id: 'bea', name: 'Bea', emoji: '🦄', hue: 3 },
+    { id: 'carlo', name: 'Carlo', emoji: '🐻', hue: 4 },
+  ];
+  const byId = Object.fromEntries(players.map((p) => [p.id, p]));
+
+  // The real draw palette (shared/constants.ts DRAW_COLORS). Index 8 is the eraser.
+  const drawColors = [
+    { name: 'black', hex: '#1D1B22' },
+    { name: 'red', hex: '#E5383B' },
+    { name: 'orange', hex: '#F48C06' },
+    { name: 'yellow', hex: '#FFC300' },
+    { name: 'green', hex: '#2DC653' },
+    { name: 'blue', hex: '#2F80ED' },
+    { name: 'purple', hex: '#8E44AD' },
+    { name: 'brown', hex: '#8B5A2B' },
+  ];
+
+  const word = 'umbrella';
+  const choices = [
+    { word: 'umbrella', level: 'Easy' },
+    { word: 'lighthouse', level: 'Medium', gloss: 'tower with a light that guides ships' },
+    { word: 'piggy bank', level: 'Hard', gloss: 'a pig-shaped box for saving coins' },
+  ];
+
+  /** Blanks for a word: [{ch:'_'|letter, space:bool}], plus counts "(8)". `reveal` = indexes shown. */
+  function blanks(w = word, reveal = []) {
+    const cells = [...w].map((c, i) => (c === ' ' ? { space: true } : { ch: reveal.includes(i) ? c : '_' }));
+    const counts = w.split(' ').map((p) => p.length);
+    return { cells, counts, label: `(${counts.join(', ')})` };
+  }
+
+  // What each phase looks like, as data. Points never show "+0".
+  const turn = { round: 2, rounds: 2, turn: 3, turns: 5, drawer: 'mika', seconds: 60 };
+  const clock = { choosing: 10, drawing: 47, close: 41, gotit: 38 }; // seconds left
+  const wrongGuesses = [
+    { by: 'bea', text: 'rain' },
+    { by: 'carlo', text: 'mushroom' },
+    { by: 'bea', text: 'jellyfish' },
+    { by: 'ana', text: 'lamp' },
+  ];
+  const closeGuess = { by: 'jun', text: 'umbrela' }; // private to Jun's phone until REVEAL
+  const junGuesses = ['kite', 'parachute']; // Jun's own wrong guesses, on his phone only
+  const gotIt = [
+    { by: 'jun', points: 270 },
+    { by: 'ana', points: 225 },
+  ]; // corrected order
+  const drawerPoints = 320;
+  const scoreboard = [
+    // after round 1; prev = rank before this cycle (for reorder animation)
+    { by: 'jun', score: 980, prev: 3 },
+    { by: 'ana', score: 905, prev: 1 },
+    { by: 'mika', score: 640, prev: 2 },
+    { by: 'bea', score: 520, prev: 4 },
+    { by: 'carlo', score: 310, prev: 5 },
+  ];
+  const final = [
+    { by: 'ana', score: 1840 },
+    { by: 'jun', score: 1610 },
+    { by: 'mika', score: 1425 },
+    { by: 'bea', score: 1100 },
+    { by: 'carlo', score: 760 },
+  ];
+  const awards = [
+    { by: 'carlo', name: '🖼️ Modern art', why: 'The drawing nobody got' },
+    { by: 'bea', name: '🤪 Most creative', why: 'Most wrong guesses' },
+    { by: 'mika', name: '🎨 Picasso', why: 'Most drawer points' },
+    { by: 'jun', name: '⚡ Bilis!', why: 'Fastest guess of the night' },
+    { by: 'ana', name: '🎯 Sharpshooter', why: 'Most correct guesses' },
+  ];
+  const gallery = [
+    { drawing: 'umbrella', word: 'umbrella', by: 'mika' },
+    { drawing: 'cat', word: 'cat', by: 'jun' },
+    { drawing: 'house', word: 'house', by: 'ana' },
+    { drawing: 'fish', word: 'fish', by: 'bea' },
+    { drawing: 'rocket', word: 'rocket', by: 'carlo' },
+  ];
+  const room = { code: 'KPRW', host: 'sketchy.kimnejudne.dev', settings: 'Classic · 60 s · 2 rounds · Mixed words' };
+  const reactions = ['😂', '🔥', '👏', '😱'];
+
+  // Drawings on a 1000×1000 grid: [colourIndex, size 0|1|2, path d]. Size widths below.
+  const C = { k: 0, r: 1, o: 2, y: 3, g: 4, b: 5, p: 6, n: 7 };
+  const drawings = {
+    umbrella: [
+      [C.r, 1, 'M150 520 Q170 230 500 200 Q830 230 850 520'],
+      [C.r, 1, 'M150 520 Q220 470 290 520 Q360 470 430 520 Q500 470 570 520 Q640 470 710 520 Q780 470 850 520'],
+      [C.r, 0, 'M500 200 L500 520 M500 200 Q370 300 290 520 M500 200 Q630 300 710 520'],
+      [C.k, 0, 'M500 200 L500 150'],
+      [C.n, 2, 'M500 520 L500 800 Q500 875 440 875 Q385 875 385 815'],
+      [C.b, 1, 'M245 640 L228 692 M735 615 L718 667 M650 760 L633 812 M300 790 L283 842 M820 770 L803 822'],
+    ],
+    cat: [
+      [C.k, 1, 'M260 560 A240 220 0 1 1 740 560 A240 220 0 1 1 260 560'],
+      [C.k, 1, 'M300 420 L320 220 L440 350 M700 420 L680 220 L560 350'],
+      [C.g, 2, 'M410 520 L411 521 M590 520 L591 521'],
+      [C.r, 1, 'M480 600 L520 600 L500 625 Z'],
+      [C.k, 0, 'M470 650 Q500 680 530 650 M440 610 L250 580 M440 630 L250 650 M560 610 L750 580 M560 630 L750 650'],
+    ],
+    house: [
+      [C.n, 1, 'M260 480 L260 820 L740 820 L740 480'],
+      [C.r, 1, 'M200 500 L500 230 L800 500 Z'],
+      [C.b, 1, 'M450 820 L450 650 L550 650 L550 820'],
+      [C.b, 0, 'M320 560 L410 560 L410 640 L320 640 Z M590 560 L680 560 L680 640 L590 640 Z'],
+      [C.y, 1, 'M820 180 A60 60 0 1 1 819 180 M820 80 L820 100 M920 180 L900 180 M890 110 L875 125'],
+      [C.g, 1, 'M120 860 L880 860'],
+    ],
+    fish: [
+      [C.o, 1, 'M220 500 Q420 300 640 500 Q420 700 220 500 Z'],
+      [C.o, 1, 'M640 500 L800 390 L780 500 L800 610 Z'],
+      [C.k, 2, 'M330 480 L331 481'],
+      [C.b, 0, 'M240 330 A25 25 0 1 1 239 330 M180 240 A18 18 0 1 1 179 240 M260 170 A12 12 0 1 1 259 170'],
+      [C.g, 1, 'M480 880 Q440 800 480 720 Q520 640 480 580 M560 880 Q600 800 560 740'],
+    ],
+    rocket: [
+      [C.p, 1, 'M500 150 Q620 300 600 650 L400 650 Q380 300 500 150 Z'],
+      [C.b, 1, 'M500 360 A50 50 0 1 1 499 360'],
+      [C.r, 1, 'M400 560 L300 700 L405 650 M600 560 L700 700 L595 650'],
+      [C.o, 2, 'M450 690 Q470 790 500 860 Q530 790 550 690'],
+      [C.y, 0, 'M200 220 L210 222 M820 300 L830 302 M760 140 L770 142 M180 520 L190 522'],
+    ],
+  };
+  const widths = [9, 18, 34];
+
+  /**
+   * The drawing as an SVG string (fills its box; give the box a size).
+   * opts.upto: draw only the first N strokes (default all).
+   * opts.animateFrom: strokes from this index replay with a stagger (shell CSS `.ink .anim`).
+   * opts.paper: canvas colour (default white). Concepts may pass a subtle tint.
+   */
+  function ink(name = 'umbrella', opts = {}) {
+    const strokes = drawings[name] || drawings.umbrella;
+    const upto = opts.upto ?? strokes.length;
+    const from = opts.animateFrom ?? Infinity;
+    const paper = opts.paper ?? '#FFFFFF';
+    let i = 0;
+    const paths = strokes
+      .slice(0, upto)
+      .map(([c, s, d], idx) => {
+        const anim = idx >= from;
+        const delay = anim ? (i++ * 0.55).toFixed(2) : 0;
+        return `<path d="${d}" stroke="${drawColors[c].hex}" stroke-width="${widths[s]}"${
+          anim ? ` pathLength="1" class="anim" style="--d:${delay}s"` : ''
+        }/>`;
+      })
+      .join('');
+    return `<svg class="ink" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Live drawing"><rect width="1000" height="1000" fill="${paper}"/><g fill="none" stroke-linecap="round" stroke-linejoin="round">${paths}</g></svg>`;
+  }
+
+  /** A fake but plausible QR code, drawn in currentColor. */
+  function qr() {
+    const n = 25;
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const finder = (x, y) =>
+      `<rect x="${x}" y="${y}" width="7" height="7"/><rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="var(--qr-bg,#fff)"/><rect x="${x + 2}" y="${y + 2}" width="3" height="3"/>`;
+    const inFinder = (x, y) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
+    let cells = '';
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) if (!inFinder(x, y) && rnd() > 0.52) cells += `<rect x="${x + 2}" y="${y + 2}" width="1" height="1"/>`;
+    return `<svg class="qr" viewBox="0 0 29 29" shape-rendering="crispEdges" role="img" aria-label="QR code to join"><rect width="29" height="29" fill="var(--qr-bg,#fff)"/><g fill="currentColor">${finder(2, 2)}${finder(n - 5, 2)}${finder(2, n - 5)}${cells}</g></svg>`;
+  }
+
+  const fmt = (n) => n.toLocaleString('en-US');
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  /**
+   * A live countdown. The shell ticks every [data-clock] once a second (text = m:ss, or plain
+   * seconds with data-clock-format="s"), loops back to its start, and sets on the frame root:
+   *   --timer: fraction left of data-clock-total (default 60), 0..1
+   *   class "t-low" when ≤ 10 s left.
+   */
+  const clockEl = (secs, { total = 60, format = 'mmss', cls = '' } = {}) =>
+    `<span class="${cls}" data-clock="${secs}" data-clock-total="${total}" data-clock-format="${format}">${
+      format === 's' ? secs : mmss(secs)
+    }</span>`;
+
+  window.S = {
+    esc,
+    players,
+    byId,
+    drawColors,
+    word,
+    choices,
+    blanks,
+    turn,
+    clock,
+    wrongGuesses,
+    closeGuess,
+    junGuesses,
+    gotIt,
+    drawerPoints,
+    scoreboard,
+    final,
+    awards,
+    gallery,
+    room,
+    reactions,
+    drawings,
+    ink,
+    qr,
+    fmt,
+    mmss,
+    clockEl,
+    phases: [
+      { id: 'landing', label: 'Landing' },
+      { id: 'lobby', label: 'Lobby' },
+      { id: 'choosing', label: 'Choosing' },
+      { id: 'drawing', label: 'Drawing' },
+      { id: 'close', label: 'Close guess' },
+      { id: 'gotit', label: 'Got it' },
+      { id: 'reveal', label: 'Reveal' },
+      { id: 'scoreboard', label: 'Scoreboard' },
+      { id: 'final', label: 'Final' },
+    ],
+  };
+  window.CONCEPTS = [];
+})();
+</script>
+<script>/* Concept 1: Spiral Sketchbook. Reference implementation of the concept contract (CONTRACT.md). */
+(function () {
+  const { esc, byId, players } = S;
+  const ID = 'sketch';
+  const R = `.cx-${ID}`;
+
+  // ---------- small builders ----------
+  const pc = (id) => `var(--p${byId[id].hue})`;
+  const av = (id, size = '') => `<span class="sk-av ${size}" style="--pc:${pc(id)}">${byId[id].emoji}</span>`;
+  const name = (id) => `<b class="sk-name" style="--pc:${pc(id)}">${esc(byId[id].name)}</b>`;
+  const rings = (n) => `<div class="sk-rings">${'<i></i>'.repeat(n)}</div>`;
+  const tape = (cls = '') => `<span class="sk-tape ${cls}" aria-hidden="true"></span>`;
+  const hl = (t) => `<span class="sk-hl">${t}</span>`;
+  function blanks(reveal = []) {
+    const b = S.blanks(S.word, reveal);
+    return `<span class="sk-blanks">${b.cells.map((c) => (c.space ? '<i class="sp"></i>' : `<i>${c.ch === '_' ? '' : esc(c.ch)}</i>`)).join('')}<small>${b.label}</small></span>`;
+  }
+  const icon = {
+    send: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12 L20 12 M13 5 L20 12 L13 19"/></svg>',
+    eraser: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16 L12 8 L18 14 L12 20 L7 20 Z M9 11 L15 17 M12 20 L20 20"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 L4 11 L9 15 M4 11 L14 11 Q20 11 20 16 Q20 20 15 20"/></svg>',
+    clear: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19"/></svg>',
+    eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12 Q12 3 22 12 Q12 21 2 12 Z M12 9.5 A2.5 2.5 0 1 1 11.9 9.5"/></svg>',
+  };
+  function ring(secs, total, size = 64) {
+    return `<span class="sk-ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" pathLength="100" class="trk"/><circle cx="20" cy="20" r="16" pathLength="100" class="val"/></svg>${S.clockEl(secs, { total, format: 's', cls: 'sk-ring-n' })}</span>`;
+  }
+  const paper = (mode) => (mode === 'dark' ? '#FBFBF7' : '#FFFFFD');
+
+  // ---------- phone chrome ----------
+  function phone(body, { ruled = false, cls = '' } = {}) {
+    return `<div class="sk-phone ${ruled ? 'ruled' : 'dots'} ${cls}">${rings(9)}<div class="sk-pbody">${body}</div></div>`;
+  }
+  const hostPill = '<span class="sk-pill">👑 Host</span>';
+
+  // ---------- DRAWER PHONE ----------
+  function drawerTop({ got = 0, line = '', amber = false, clock = S.clock.drawing }) {
+    return `<div class="sk-dtop">
+      <div class="r1"><span class="w">${esc(S.word)}</span><span class="clk">${S.clockEl(clock)}</span><span class="got">${got} of 4 got it</span>${hostPill}</div>
+      <div class="r2 ${amber ? 'amber' : ''}">${line}</div>
+    </div>`;
+  }
+  function pad(upto, from, mode) {
+    return `<div class="sk-pad">${S.ink('umbrella', { upto, animateFrom: from, paper: paper(mode) })}</div>`;
+  }
+  function tools() {
+    const sw = S.drawColors.map((c, i) => `<button class="sw ${i === 1 ? 'on' : ''}" style="--c:${c.hex}" aria-label="${c.name}"></button>`).join('');
+    return `<div class="sk-tools">
+      <div class="row">${sw}</div>
+      <div class="row t2"><button class="tb size" aria-label="Size M"><i></i>M</button><button class="tb">${icon.eraser}Eraser</button><button class="tb">${icon.undo}Undo</button><button class="tb">${icon.clear}Clear</button></div>
+    </div>`;
+  }
+  function drawer(phase, ctx) {
+    const m = ctx.mode;
+    switch (phase) {
+      case 'lobby':
+        return phone(`
+          <div class="sk-eyebrow">Room ${S.room.code}</div>
+          <h2 class="sk-h">You’re the host 👑</h2>
+          <ul class="sk-roster">${players.map((p) => `<li>${av(p.id)}${name(p.id)}${p.host ? '<em>host</em>' : ''}</li>`).join('')}</ul>
+          <button class="sk-btn big">Start game ▶</button>
+          <p class="sk-small center">${S.room.settings} · <u>Change</u></p>`);
+      case 'choosing':
+        return phone(`
+          <div class="sk-choose-head"><div><h2 class="sk-h">Your turn to draw!</h2><p class="sk-small">Hold your phone close 🤫</p></div>${ring(S.clock.choosing, 12, 58)}</div>
+          <div class="sk-cards">${S.choices
+            .map(
+              (c, i) => `<button class="sk-card c${i}">${tape('top')}<span class="lvl">${c.level}</span><span class="cw">${esc(c.word)}</span>${c.gloss ? `<span class="gl">${esc(c.gloss)}</span>` : ''}</button>`,
+            )
+            .join('')}</div>
+          <p class="sk-small center">Tap one. No letters or numbers in your drawing!</p>`);
+      case 'drawing':
+        return phone(drawerTop({ got: 0, line: `${name('bea')}: rain` }) + pad(4, 2, m) + tools(), { cls: 'tight' });
+      case 'close':
+        return phone(drawerTop({ got: 0, line: `${hl(`${esc(byId.jun.name)} is close!`)}`, amber: true, clock: S.clock.close }) + pad(5, 4, m) + tools(), { cls: 'tight' });
+      case 'gotit':
+        return phone(drawerTop({ got: 1, line: `✓ ${name('jun')} got it!`, clock: S.clock.gotit }) + pad(6, 5, m) + tools(), { cls: 'tight' });
+      case 'reveal':
+        return phone(`
+          <p class="sk-small">It was…</p>
+          <div class="sk-reveal-w">${hl(esc(S.word))}</div>
+          <div class="sk-stamp big">+${S.drawerPoints}<small>for your drawing</small></div>
+          <ul class="sk-lines">${S.gotIt.map((g) => `<li>${av(g.by)}${name(g.by)}<span class="pts">+${g.points}</span></li>`).join('')}</ul>
+          <p class="sk-small center">Next: ${name('jun')} draws</p>`);
+      case 'scoreboard':
+        return phone(standingsPhone('mika', 'Round 1 of 2 done'));
+      case 'final':
+        return phone(`
+          <div class="sk-award">${tape('top')}<span class="an">🎨 Picasso</span><span class="aw">Most drawer points</span></div>
+          <div class="sk-bigrank"><span class="n">3<sup>rd</sup></span><span class="s">${S.fmt(1425)}</span></div>
+          <p class="sk-small center">${icon.eye} See the gallery on the Screen</p>
+          <button class="sk-btn big">Rematch</button>
+          <p class="sk-small center"><u>Back to lobby</u></p>`);
+    }
+    return '';
+  }
+
+  // ---------- GUESSER PHONE ----------
+  function standingsPhone(id, note) {
+    const row = S.scoreboard.findIndex((r) => r.by === id);
+    return `
+      <p class="sk-small">${note}</p>
+      <div class="sk-bigrank"><span class="n">${row + 1}<sup>${['st', 'nd', 'rd', 'th', 'th'][row]}</sup></span><span class="s">${S.fmt(S.scoreboard[row].score)}</span></div>
+      <ol class="sk-lines">${S.scoreboard.map((r) => `<li class="${r.by === id ? 'me' : ''}">${av(r.by)}${name(r.by)}<span class="pts">${S.fmt(r.score)}</span></li>`).join('')}</ol>`;
+  }
+  function guessPage({ toast = '', mine = S.junGuesses, close = false, clock = S.clock.drawing }) {
+    return `
+      <div class="sk-gtop"><span class="clk">${S.clockEl(clock)}</span><span>✏️ ${name('mika')} drawing</span></div>
+      <div class="sk-gblanks">${blanks()}</div>
+      <label class="sk-guess"><span class="ph">Your guess…</span><span class="caret"></span><button class="send" aria-label="Send">${icon.send}</button></label>
+      ${toast}
+      <ul class="sk-tried">${mine.map((g) => `<li><s>${esc(g)}</s><span class="x">✗</span></li>`).join('')}${close ? `<li class="close"><span>${esc(S.closeGuess.text)}</span><span class="note">close!</span></li>` : ''}</ul>
+      <p class="sk-watch">${icon.eye} Watch the Screen</p>`;
+  }
+  function guesser(phase) {
+    switch (phase) {
+      case 'lobby':
+        return phone(`
+          <div class="sk-me">${av('jun', 'xl')}<div><h2 class="sk-h">You’re in, Jun!</h2><p class="sk-small">Waiting for 👑 ${name('mika')} to start · <u>Change avatar</u></p></div></div>
+          <div class="sk-here">${players.map((p) => av(p.id)).join('')}<span class="sk-small">5 here</span></div>
+          <div class="sk-doodle"><p class="sk-small">Warm up: doodle while you wait!</p><div class="sk-dpad">${S.ink('cat', { upto: 3, animateFrom: 0, paper: 'transparent' })}</div><p class="sk-tiny">Your doodle. It stays on your phone.</p></div>
+          <p class="sk-small center"><u>Leave</u></p>`, { ruled: true });
+      case 'choosing':
+        return phone(`
+          <div class="sk-wait">${av('mika', 'xl')}<p class="sk-h">${name('mika')} is choosing a word…</p>${ring(S.clock.choosing, 12, 96)}</div>
+          <p class="sk-watch">${icon.eye} Eyes on the Screen next</p>`, { ruled: true });
+      case 'drawing':
+        return phone(guessPage({}), { ruled: true });
+      case 'close':
+        return phone(guessPage({ toast: `<div class="sk-toast">${hl('So close!')} keep going</div>`, close: true, clock: S.clock.close }), { ruled: true });
+      case 'gotit':
+        return phone(`
+          <div class="sk-gtop"><span class="clk">${S.clockEl(S.clock.gotit)}</span><span>✏️ ${name('mika')} drawing</span></div>
+          <div class="sk-got"><span class="tick">✓</span><span class="t">Got it!</span><span class="sk-stamp">+270</span></div>
+          <p class="sk-small center">React on the Screen</p>
+          <div class="sk-react">${S.reactions.map((r) => `<button>${r}</button>`).join('')}</div>
+          <p class="sk-margin">+270 this turn</p>`, { ruled: true });
+      case 'reveal':
+        return phone(`
+          <p class="sk-small">It was…</p>
+          <div class="sk-reveal-w">${hl(esc(S.word))}</div>
+          <div class="sk-stamp big">+270<small>this turn</small></div>
+          <p class="sk-small center">Next: you draw! Get ready ✏️</p>`, { ruled: true });
+      case 'scoreboard':
+        return phone(standingsPhone('jun', 'Round 1 of 2 done'), { ruled: true });
+      case 'final':
+        return phone(`
+          <div class="sk-award">${tape('top')}<span class="an">⚡ Bilis!</span><span class="aw">Fastest guess of the night</span></div>
+          <div class="sk-bigrank"><span class="n">2<sup>nd</sup></span><span class="s">${S.fmt(1610)}</span></div>
+          <p class="sk-small center">${icon.eye} See the gallery on the Screen</p>`, { ruled: true });
+    }
+    return '';
+  }
+
+  // ---------- SCREEN ----------
+  function tabs(phase) {
+    // Players as index tabs sticking out of the page edge, in turn order.
+    return `<ul class="sk-tabs">${players
+      .map((p) => {
+        const g = S.gotIt.find((x) => x.by === p.id);
+        const showGot = g && (phase === 'gotit' ? p.id === 'jun' : phase === 'reveal');
+        const drawing = p.id === S.turn.drawer && !['lobby', 'scoreboard', 'final'].includes(phase);
+        const bubble =
+          (phase === 'drawing' && p.id === 'bea' && 'jellyfish') || (phase === 'close' && p.id === 'carlo' && 'mushroom') || (phase === 'gotit' && p.id === 'ana' && 'lamp');
+        const react = phase === 'gotit' && p.id === 'jun' ? '<span class="sk-float">🔥</span>' : '';
+        return `<li style="--pc:${pc(p.id)}">${av(p.id)}<span class="nm">${esc(p.name)}${p.host && phase === 'lobby' ? ' 👑' : ''}</span>${drawing ? '<span class="st">✏️</span>' : ''}${
+          showGot ? `<span class="st ok">✓ +${g.points}</span>` : ''
+        }${bubble ? `<span class="sk-bubble">${esc(bubble)}</span>` : ''}${react}</li>`;
+      })
+      .join('')}</ul>`;
+  }
+  const feed = (n = 3) => `<ul class="sk-feed">${S.wrongGuesses.slice(0, n).map((g) => `<li>${name(g.by)}: ${esc(g.text)}</li>`).join('')}</ul>`;
+  const codeTape = `<div class="sk-code">${tape('wide')}<span>${S.room.host} · <b>${S.room.code}</b></span></div>`;
+  function drawingSide(phase) {
+    const clock = { drawing: S.clock.drawing, close: S.clock.close, gotit: S.clock.gotit }[phase];
+    return `
+      <div class="sk-side-top"><span class="sk-clock">${S.clockEl(clock)}</span><span class="sk-meta">Round 2/2 · Turn 3/5</span></div>
+      <div class="sk-sblanks">${blanks()}</div>
+      <p class="sk-who">✏️ ${name('mika')} is drawing</p>
+      ${phase === 'gotit' ? `<div class="sk-gotbanner" style="--pc:${pc('jun')}">${hl(`${esc(byId.jun.name)} got it!`)}</div>` : ''}
+      ${feed(phase === 'drawing' ? 2 : 3)}`;
+  }
+  function screen(phase, ctx) {
+    const portrait = ctx.orient === 'portrait';
+    const m = ctx.mode;
+    let left = '';
+    let right = '';
+    let full = '';
+    switch (phase) {
+      case 'lobby':
+        left = `
+          <div class="sk-logo">Sketchy<span class="sk-scribble" aria-hidden="true"></span></div>
+          <p class="sk-join">Join at <b>${S.room.host}</b></p>
+          <div class="sk-joinrow"><div class="sk-codebig">${[...S.room.code].map((c) => `<i>${c}</i>`).join('')}</div>
+          <div class="sk-qr">${tape('tl')}${S.qr()}</div></div>
+          <ol class="sk-how"><li><b>1</b> One person draws on their phone</li><li><b>2</b> Everyone else types guesses 🤫</li><li><b>3</b> Faster = more points</li></ol>`;
+        right = `
+          <h3 class="sk-h">Who’s here</h3>
+          <p class="sk-small">👑 Mika is hosting · tap a name to change</p>
+          <p class="sk-small">${S.room.settings}</p>
+          <button class="sk-btn big">Start game ▶</button>`;
+        break;
+      case 'choosing':
+        left = `<div class="sk-choosing">${av('mika', 'xxl')}<p>${name('mika')} is choosing a word…</p>${ring(S.clock.choosing, 12, 120)}</div>`;
+        right = `<div class="sk-side-top"><span class="sk-meta">Round 2/2 · Turn 3/5</span></div><p class="sk-who">Next up: ✏️ ${name('mika')}</p>`;
+        break;
+      case 'drawing':
+      case 'close':
+      case 'gotit': {
+        const upto = { drawing: 4, close: 5, gotit: 6 }[phase];
+        const from = { drawing: 2, close: 4, gotit: 5 }[phase];
+        left = `<div class="sk-canvas">${tape('tl')}${tape('tr')}${S.ink('umbrella', { upto, animateFrom: from, paper: paper(m) })}</div>`;
+        right = drawingSide(phase);
+        break;
+      }
+      case 'reveal':
+        left = `<div class="sk-canvas">${tape('tl')}${tape('tr')}${S.ink('umbrella', { paper: paper(m) })}</div>`;
+        right = `
+          <p class="sk-small">It was…</p>
+          <div class="sk-reveal-big">${hl(esc(S.word.toUpperCase()))}</div>
+          <p class="sk-label">Got it</p>
+          <ul class="sk-lines">${S.gotIt.map((g) => `<li>${av(g.by)}${name(g.by)}<span class="pts">+${g.points}</span></li>`).join('')}</ul>
+          <p class="sk-small"><span class="sk-label">Almost:</span> <s class="red">${esc(S.closeGuess.text)}</s></p>
+          <p class="sk-small">+${S.drawerPoints} for ${name('mika')}’s drawing · Next: ${name('jun')} draws</p>`;
+        break;
+      case 'scoreboard':
+        full = `
+          <div class="sk-board">
+            <h2 class="sk-h">Round 1 of 2 done</h2>
+            <ol>${S.scoreboard
+              .map((r, i) => {
+                const mv = r.prev - (i + 1);
+                return `<li style="--pc:${pc(r.by)};--w:${(r.score / 1000) * 100}%;--i:${i};--from:${(r.prev - 1 - i) * 100}%">
+                  <span class="rk">${i + 1}</span>${av(r.by)}<span class="nm">${esc(byId[r.by].name)}</span>
+                  <span class="bar"><i></i></span><span class="sc">${S.fmt(r.score)}</span>
+                  <span class="mv">${mv > 0 ? `↑${mv}` : mv < 0 ? `↓${-mv}` : ''}</span></li>`;
+              })
+              .join('')}</ol>
+          </div>`;
+        break;
+      case 'final':
+        left = `
+          <h2 class="sk-h">Tonight’s podium</h2>
+          <div class="sk-podium">${[1, 0, 2]
+            .map((i) => {
+              const r = S.final[i];
+              return `<div class="pl p${i + 1}" style="--pc:${pc(r.by)}">${av(r.by, 'xl')}<b>${esc(byId[r.by].name)}</b><span>${S.fmt(r.score)}</span><div class="blk">${i + 1}</div></div>`;
+            })
+            .join('')}</div>
+          <p class="sk-small">4. ${name('bea')} ${S.fmt(1100)} · 5. ${name('carlo')} ${S.fmt(760)}</p>`;
+        right = `
+          <p class="sk-label">Gallery</p>
+          <div class="sk-gallery">${S.gallery
+            .map((g, i) => `<figure class="${i === 4 ? 'wide' : ''}">${tape('top')}${S.ink(g.drawing, { paper: paper(m) })}<figcaption>${esc(g.word)} · ${esc(byId[g.by].name)}</figcaption></figure>`)
+            .join('')}</div>
+          <p class="sk-label">Tonight’s awards</p>
+          <div class="sk-awards">${S.awards.slice(2).map((a) => `<span style="--pc:${pc(a.by)}">${esc(a.name)} ${esc(byId[a.by].name)}</span>`).join('')}</div>
+          <div class="sk-actions"><button class="sk-btn">Rematch</button><button class="sk-btn ghost">Back to lobby</button></div>`;
+        break;
+    }
+    const inner = full || `<section class="sk-l">${left}</section><div class="sk-gutter">${rings(portrait ? 14 : 11)}</div><section class="sk-r">${right}</section>`;
+    const showTabs = !['scoreboard'].includes(phase);
+    return `<div class="sk-desk ${portrait ? 'portrait' : 'landscape'} ph-${phase}">
+      <div class="sk-book ${full ? 'single' : ''}">${inner}</div>
+      ${showTabs ? tabs(phase) : ''}
+      ${phase === 'final' ? '' : codeTape}
+    </div>`;
+  }
+
+  // ---------- LANDING ----------
+  function landing(ctx) {
+    const lap = ctx.device === 'laptop';
+    const join = `<div class="sk-lcard">${tape('top')}<h3>Join a game</h3><div class="sk-codein">${[...'KPRW'].map((c) => `<i>${c}</i>`).join('')}</div><button class="sk-btn">Join</button></div>`;
+    const start = `<div class="sk-lcard alt">${tape('top')}<h3>Start a game on this screen</h3><p class="sk-small">Use the device everyone can see: laptop on the TV, tablet or a spare phone.</p><button class="sk-btn ghost">Start</button></div>`;
+    return `<div class="sk-landing ${lap ? 'lap' : 'ph'}">
+      ${lap ? '' : rings(9)}
+      <div class="sk-lhero"><div class="sk-logo">Sketchy<span class="sk-scribble" aria-hidden="true"></span></div><p class="sk-tag">Draw it. Guess it. ${hl('Laugh.')}</p>${
+        lap ? `<div class="sk-lart">${S.ink('umbrella', { animateFrom: 0, paper: 'transparent' })}</div>` : ''
+      }</div>
+      <div class="sk-lcards">${join}${start}</div>
+    </div>`;
+  }
+
+  // ---------- CSS ----------
+  const css = `
+${R} {
+  --desk: #DCDFE6; --paper: #F8F8F3; --dot: #C3C7D2; --rule: #B9CBEA; --margin: #E8978F;
+  --ink: #26282E; --soft: #6A6E79; --pen: #2846C8; --red: #D2372C; --hl: #FFE14D; --amber: #FFB547;
+  --tape: rgb(236 222 170 / .82); --tape-edge: rgb(190 172 110 / .55); --ring: #6F737C; --hole: #DCDFE6;
+  --p0: #E0502A; --p1: #22925A; --p2: #2B66D2; --p3: #C23F92; --p4: #B9850E;
+  --hand: 'Patrick Hand', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  --num: 'Nunito', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+  background: var(--desk); color: var(--ink); font-family: var(--hand); font-size: 18px; line-height: 1.25;
+}
+${R}.dark {
+  --desk: #08090B; --paper: #18191C; --dot: #3A3D45; --rule: #2C3A55; --margin: #7A3A36;
+  --ink: #F2F2EC; --soft: #A3A7B2; --pen: #8FA8FF; --red: #FF6B5E; --hl: #F3E24A; --amber: #FFC266;
+  --tape: rgb(120 112 90 / .7); --tape-edge: rgb(160 150 120 / .4); --ring: #9DA1AA; --hole: #08090B;
+  --p0: #FF8761; --p1: #5BD08E; --p2: #79A6FF; --p3: #F17BC8; --p4: #F0C548;
+}
+${R} * { box-sizing: border-box; }
+${R} button { font: inherit; color: inherit; background: none; border: 0; padding: 0; }
+${R} b, ${R} h2, ${R} h3 { font-weight: 400; }
+${R} .sk-name { color: var(--pc); }
+${R} .sk-small { font-size: 16px; color: var(--soft); margin: 0; }
+${R} .sk-tiny { font-size: 13px; color: var(--soft); margin: 0; }
+${R} .center { text-align: center; }
+${R} .sk-h { font-size: 30px; line-height: 1.05; margin: 0; }
+${R} .sk-eyebrow, ${R} .sk-label { font-family: var(--num); font-weight: 800; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--soft); margin: 0; }
+${R} .sk-hl { position: relative; z-index: 0; white-space: nowrap; }
+${R} .sk-hl::before { content: ""; position: absolute; z-index: -1; left: -.18em; right: -.18em; top: .18em; bottom: .02em; background: var(--hl); border-radius: 3px 10px 4px 12px; transform: rotate(-1.2deg); opacity: .85; }
+${R}.dark .sk-hl { color: #18191C; }
+${R} .sk-tape { position: absolute; z-index: 3; width: 74px; height: 22px; background: var(--tape); border-left: 2px dotted var(--tape-edge); border-right: 2px dotted var(--tape-edge); pointer-events: none; }
+${R} .sk-tape.tl { top: -9px; left: -22px; transform: rotate(-38deg); }
+${R} .sk-tape.tr { top: -9px; right: -22px; transform: rotate(38deg); }
+${R} .sk-tape.br { bottom: -9px; right: -22px; transform: rotate(-38deg); }
+${R} .sk-tape.top { top: -11px; left: 50%; margin-left: -37px; transform: rotate(-3deg); }
+${R} .sk-tape.wide { width: 100%; height: 100%; inset: 0; transform: rotate(-.6deg); }
+${R} .sk-av { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: none; font-size: 19px; line-height: 1; background: var(--paper); border: 2.5px solid var(--pc); border-radius: 52% 48% 55% 45% / 47% 55% 45% 53%; }
+${R} .sk-av.xl { width: 64px; height: 64px; font-size: 36px; border-width: 3px; }
+${R} .sk-av.xxl { width: 132px; height: 132px; font-size: 76px; border-width: 4px; }
+${R} .sk-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 6px 22px; font-size: 22px; background: var(--hl); color: #1d1d20; border: 2.5px solid var(--ink); border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px; box-shadow: 3px 4px 0 var(--ink); }
+${R} .sk-btn.big { width: 100%; min-height: 60px; font-size: 28px; }
+${R} .sk-btn.ghost { background: var(--paper); color: var(--ink); }
+${R} .sk-stamp { display: inline-grid; justify-items: center; font-family: var(--num); font-weight: 900; font-size: 30px; color: var(--red); border: 3px solid var(--red); border-radius: 50%; padding: 10px 16px; line-height: 1; }
+${R} .sk-stamp small { font-family: var(--hand); font-weight: 400; font-size: 15px; margin-top: 2px; }
+${R} .sk-stamp.big { font-size: 44px; padding: 16px 26px; justify-self: center; }
+${R} .sk-blanks { display: inline-flex; align-items: flex-end; gap: 8px; font-family: var(--num); font-weight: 900; white-space: nowrap; }
+${R} .sk-blanks i { font-style: normal; width: 1em; text-align: center; border-bottom: .14em solid currentColor; line-height: 1; height: 1.1em; }
+${R} .sk-blanks i.sp { border: 0; width: .6em; }
+${R} .sk-blanks small { font-size: .55em; color: var(--soft); margin-left: .3em; align-self: center; font-weight: 800; }
+${R} .sk-ring { position: relative; display: inline-grid; place-items: center; flex: none; }
+${R} .sk-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+${R} .sk-ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; }
+${R} .sk-ring .trk { stroke: var(--dot); }
+${R} .sk-ring .val { stroke: var(--pen); stroke-dasharray: calc(var(--timer, 1) * 100) 100; transition: stroke-dasharray 1s linear; }
+${R} .sk-ring-n { font-family: var(--num); font-weight: 900; font-size: 1.15em; }
+${R}.t-low .sk-ring .val { stroke: var(--red); }
+
+/* phones */
+${R} .sk-phone { position: absolute; inset: 0; background-color: var(--paper); display: flex; flex-direction: column; }
+${R} .sk-phone.dots { background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.5px); background-size: 22px 22px; background-position: 11px 11px; }
+${R} .sk-phone.ruled { background-image: linear-gradient(90deg, transparent 46px, var(--margin) 46px, var(--margin) 48px, transparent 48px), repeating-linear-gradient(transparent 0 33px, var(--rule) 33px 34px); }
+${R} .sk-rings { display: flex; justify-content: space-around; padding: 0 18px; flex: none; height: 30px; align-items: flex-start; position: relative; z-index: 2; }
+${R} .sk-rings i { width: 12px; height: 26px; border: 3px solid var(--ring); border-radius: 8px; margin-top: -10px; background: none; position: relative; }
+${R} .sk-rings i::after { content: ""; position: absolute; left: -1px; bottom: -9px; width: 8px; height: 8px; border-radius: 50%; background: var(--hole); }
+${R} .sk-pbody { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 14px 22px 22px 22px; }
+${R} .ruled .sk-pbody { padding-left: 62px; }
+${R} .tight .sk-pbody { gap: 6px; padding: 4px 4px 8px; }
+${R} .sk-pill { font-size: 14px; padding: 1px 8px; border: 2px solid var(--ink); border-radius: 12px 4px 12px 4px; margin-left: auto; white-space: nowrap; }
+${R} .sk-roster { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+${R} .sk-roster li { display: flex; align-items: center; gap: 10px; font-size: 22px; min-height: 42px; border-bottom: 1.5px dashed var(--dot); }
+${R} .sk-roster em { font-style: normal; font-size: 14px; color: var(--soft); margin-left: auto; }
+${R} .sk-pbody .sk-btn.big { margin-top: auto; }
+
+${R} .sk-choose-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+${R} .sk-cards { display: grid; gap: 14px; }
+${R} .sk-card { position: relative; display: grid; text-align: left; padding: 14px 16px 12px; background-color: #FFFFFD; color: #26282E; border: 2px solid #26282E; border-radius: 4px; box-shadow: 3px 3px 0 var(--ink);
+  background-image: linear-gradient(transparent 30px, #E8978F 30px, #E8978F 32px, transparent 32px), repeating-linear-gradient(transparent 0 25px, #CFDAF0 25px 26px); }
+${R} .sk-card .lvl { position: absolute; right: 12px; top: 10px; font-size: 15px; color: #D2372C; border: 2px solid #D2372C; border-radius: 10px 4px 10px 4px; padding: 0 7px; }
+${R} .sk-card .cw { font-size: 34px; line-height: 1.1; margin-top: 6px; }
+${R} .sk-card .gl { font-size: 16px; color: #6A6E79; }
+
+${R} .sk-dtop { height: 56px; flex: none; display: grid; align-content: center; padding: 0 6px; }
+${R} .sk-dtop .r1 { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+${R} .sk-dtop .w { font-size: 16px; color: var(--soft); }
+${R} .sk-dtop .clk { font-family: var(--num); font-weight: 900; font-size: 20px; }
+${R}.t-low .sk-dtop .clk { color: var(--red); }
+${R} .sk-dtop .got { font-size: 16px; }
+${R} .sk-dtop .r2 { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+${R}.dark .sk-dtop .r2.amber .sk-hl { color: #18191C; }
+${R} .sk-pad { position: relative; width: 382px; height: 382px; flex: none; align-self: center; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); background: #fff; }
+${R} .sk-tools { display: grid; flex: none; }
+${R} .sk-tools .row { height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+${R} .sk-tools .sw { width: 40px; height: 40px; border-radius: 50% 46% 52% 48%; background: var(--c); border: 2.5px solid var(--ink); }
+${R} .sk-tools .sw.on { outline: 3px solid var(--ink); outline-offset: 2px; }
+${R} .sk-tools .tb { flex: 1; height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 17px; border: 2px solid var(--ink); border-radius: 14px 4px 14px 4px; margin: 0 3px; background: var(--paper); }
+${R} .sk-tools .tb svg, ${R} .sk-small svg, ${R} .sk-watch svg, ${R} .sk-guess svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -4px; }
+${R} .sk-tools .size i { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); }
+
+${R} .sk-reveal-w { font-family: var(--num); font-weight: 900; font-size: 52px; line-height: 1.1; text-align: center; animation: sk-pop .45s cubic-bezier(.2,.9,.3,1.3) both; }
+${R} .sk-lines { list-style: none; margin: 0; padding: 0; display: grid; }
+${R} .sk-lines li { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 21px; border-bottom: 1.5px dashed var(--dot); }
+${R} .sk-lines li.me { background: color-mix(in srgb, var(--hl) 45%, transparent); }
+${R} .sk-lines .pts { margin-left: auto; font-family: var(--num); font-weight: 900; }
+${R} .sk-bigrank { display: grid; justify-items: center; }
+${R} .sk-bigrank .n { font-family: var(--num); font-weight: 900; font-size: 96px; line-height: 1; color: var(--pen); }
+${R} .sk-bigrank sup { font-size: .36em; }
+${R} .sk-bigrank .s { font-family: var(--num); font-weight: 800; font-size: 30px; }
+${R} .sk-award { position: relative; display: grid; gap: 2px; padding: 22px 16px 16px; background: #FFF3A6; color: #26282E; box-shadow: 3px 4px 0 var(--ink); text-align: center; }
+${R} .sk-award .an { font-size: 34px; }
+${R} .sk-award .aw { font-size: 18px; color: #555963; }
+
+${R} .sk-gtop { display: flex; align-items: center; gap: 12px; font-size: 18px; min-height: 34px; }
+${R} .sk-gtop .clk { font-family: var(--num); font-weight: 900; font-size: 24px; }
+${R}.t-low .sk-gtop .clk { color: var(--red); }
+${R} .sk-gblanks { font-size: 25px; min-height: 36px; }
+${R} .sk-gblanks .sk-blanks { gap: 5px; }
+${R} .sk-guess { position: relative; display: flex; align-items: center; height: 56px; border-bottom: 3px solid var(--pen); font-size: 26px; color: var(--soft); }
+${R} .sk-guess .caret { width: 2px; height: 30px; background: var(--pen); margin-left: 2px; animation: sk-blink 1s steps(1) infinite; }
+${R} .sk-guess .send { margin-left: auto; width: 48px; height: 48px; display: grid; place-items: center; background: var(--pen); color: #fff; border-radius: 50% 44% 52% 46%; }
+${R} .sk-guess .send svg { width: 24px; height: 24px; }
+${R} .sk-toast { font-size: 22px; animation: sk-pop .4s cubic-bezier(.2,.9,.3,1.3) both; }
+${R} .sk-tried { list-style: none; padding: 0; margin: 0; display: grid; }
+${R} .sk-tried li { height: 34px; display: flex; align-items: center; gap: 10px; font-size: 22px; }
+${R} .sk-tried s { text-decoration: none; position: relative; color: var(--soft); }
+${R} .sk-tried s::after { content: ""; position: absolute; left: -4px; right: -4px; top: 52%; height: 2.5px; background: var(--red); transform: rotate(-4deg); }
+${R} .sk-tried .x { color: var(--red); }
+${R} .sk-tried .close .note { font-size: 16px; color: var(--red); border: 2px solid var(--red); border-radius: 50%; padding: 0 8px; }
+${R} .sk-watch { margin: auto 0 0; font-size: 18px; color: var(--soft); }
+${R} .sk-margin { position: absolute; left: 6px; bottom: 26px; width: 36px; font-family: var(--num); font-weight: 900; color: var(--red); font-size: 13px; line-height: 1.1; text-align: center; margin: 0; }
+${R} .sk-got { display: grid; justify-items: center; gap: 4px; margin-top: 18px; animation: sk-pop .5s cubic-bezier(.2,.9,.3,1.3) both; }
+${R} .sk-got .tick { font-size: 90px; line-height: 1; color: var(--p1); }
+${R} .sk-got .t { font-size: 44px; }
+${R} .sk-react { display: flex; justify-content: center; gap: 12px; }
+${R} .sk-react button { width: 56px; height: 56px; font-size: 28px; border: 2.5px solid var(--ink); border-radius: 50% 46% 52% 48%; background: var(--paper); box-shadow: 2px 3px 0 var(--ink); }
+${R} .sk-me { display: flex; gap: 14px; align-items: center; }
+${R} .sk-here { display: flex; gap: 4px; align-items: center; }
+${R} .sk-here .sk-small { margin-left: 8px; }
+${R} .sk-doodle { display: grid; gap: 6px; }
+${R} .sk-dpad { height: 250px; border: 2px dashed var(--soft); border-radius: 6px; background: color-mix(in srgb, var(--paper) 70%, transparent); }
+${R} .sk-wait { display: grid; justify-items: center; gap: 18px; text-align: center; margin-top: 40px; }
+
+/* screen */
+${R} .sk-desk { position: absolute; inset: 0; padding: 22px 150px 58px 22px; }
+${R} .sk-desk.portrait { padding: 22px 22px 186px; }
+${R} .sk-book { position: relative; height: 100%; display: grid; grid-template-columns: auto 34px minmax(0, 1fr); background: var(--paper); border: 2px solid var(--ink); box-shadow: 6px 7px 0 var(--ink); border-radius: 4px; }
+${R} .portrait .sk-book { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 30px minmax(0, 1fr); }
+${R} .sk-book.single { display: block; }
+${R} .sk-l, ${R} .sk-r { position: relative; min-width: 0; padding: 22px; background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.5px); background-size: 24px 24px; }
+${R} .sk-l { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; aspect-ratio: 1 / 1; height: 100%; }
+${R} .portrait .sk-l { height: auto; width: 100%; }
+/* Portrait, during a turn: the sidebar becomes a top bar over the square. */
+${R} .portrait:is(.ph-drawing, .ph-close, .ph-gotit, .ph-reveal) .sk-book { grid-template-rows: minmax(0, 1fr) 30px auto; }
+${R} .portrait:is(.ph-drawing, .ph-close, .ph-gotit, .ph-reveal) .sk-r { order: -2; padding: 14px 22px; gap: 4px; }
+${R} .portrait:is(.ph-drawing, .ph-close, .ph-gotit, .ph-reveal) .sk-gutter { order: -1; }
+${R} .portrait:is(.ph-drawing, .ph-close, .ph-gotit, .ph-reveal) .sk-l { height: 540px; width: auto; aspect-ratio: 1 / 1; justify-self: center; padding: 14px; }
+${R} .portrait .sk-r .sk-meta, ${R} .portrait.ph-drawing .sk-feed li:nth-child(n+2), ${R} .portrait:is(.ph-close, .ph-gotit) .sk-feed li:nth-child(n+2) { display: none; }
+${R} .portrait .sk-clock { font-size: 52px; }
+${R} .portrait .sk-feed { margin-top: 0; font-size: 22px; }
+${R} .portrait .sk-who { font-size: 24px; }
+${R} .portrait .sk-gotbanner { font-size: 30px; }
+${R} .portrait.ph-reveal .sk-r { display: grid; grid-template-columns: auto 1fr; align-content: start; column-gap: 18px; }
+${R} .portrait.ph-reveal .sk-r > * { grid-column: 2; }
+${R} .portrait.ph-reveal .sk-r > .sk-small:first-child, ${R} .portrait.ph-reveal .sk-reveal-big { grid-column: 1; }
+${R} .portrait.ph-reveal .sk-r > .sk-reveal-big { grid-row: 2 / span 4; font-size: 70px; align-self: center; }
+${R} .portrait.ph-reveal .sk-r .sk-lines li { min-height: 32px; font-size: 19px; }
+${R} .sk-r { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+${R} .sk-gutter { display: flex; justify-content: center; border-left: 1.5px solid var(--dot); border-right: 1.5px solid var(--dot); }
+${R} .sk-gutter .sk-rings { flex-direction: column; height: 100%; padding: 14px 0; width: 34px; align-items: center; }
+${R} .sk-gutter .sk-rings i { width: 46px; height: 12px; margin: 0; }
+${R} .sk-gutter .sk-rings i::after { display: none; }
+${R} .portrait .sk-gutter { border: 0; border-top: 1.5px solid var(--dot); border-bottom: 1.5px solid var(--dot); }
+${R} .portrait .sk-gutter .sk-rings { flex-direction: row; width: 100%; height: 30px; padding: 0 18px; }
+${R} .portrait .sk-gutter .sk-rings i { width: 12px; height: 44px; margin-top: -8px; }
+${R} .sk-canvas { position: relative; width: 100%; aspect-ratio: 1 / 1; border: 2px solid var(--ink); background: #fff; }
+${R} .sk-side-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+${R} .sk-clock { font-family: var(--num); font-weight: 900; font-size: 64px; line-height: 1; }
+${R}.t-low .sk-clock { color: var(--red); }
+${R} .sk-meta { font-size: 18px; color: var(--soft); }
+${R} .sk-sblanks { font-size: 40px; }
+${R} .sk-who { font-size: 28px; margin: 0; }
+${R} .sk-gotbanner { font-size: 40px; animation: sk-pop .45s cubic-bezier(.2,.9,.3,1.3) both; }
+${R}.dark .sk-gotbanner .sk-hl { color: #18191C; }
+${R} .sk-feed { list-style: none; margin: auto 0 0; padding: 0; display: grid; gap: 2px; font-size: 26px; }
+${R} .sk-feed li { border-bottom: 1.5px dashed var(--dot); padding: 3px 0; }
+${R} .sk-feed li:first-child { animation: sk-pop .4s ease-out both; }
+
+${R} .sk-tabs { position: absolute; list-style: none; margin: 0; padding: 0; right: 22px; top: 46px; width: 150px; display: grid; gap: 10px; z-index: 4; }
+${R} .sk-tabs li { position: relative; display: flex; align-items: center; gap: 8px; min-height: 62px; padding: 6px 10px 6px 18px; background: var(--paper); border: 2px solid var(--ink); border-left: 10px solid var(--pc); border-radius: 0 14px 14px 0; box-shadow: 3px 3px 0 var(--ink); flex-wrap: wrap; }
+${R} .sk-tabs .nm { font-size: 26px; line-height: 1; }
+${R} .sk-tabs .st { font-family: var(--num); font-weight: 900; font-size: 18px; }
+${R} .sk-tabs .st.ok { color: var(--p1); width: 100%; padding-left: 42px; animation: sk-pop .4s ease-out both; }
+${R} .sk-bubble { position: absolute; right: calc(100% + 18px); top: 8px; font-size: 30px; white-space: nowrap; background: #FFFFFD; color: #26282E; border: 2.5px solid var(--pc); border-radius: 20px 20px 4px 20px; padding: 4px 14px; animation: sk-bubble 2.4s ease-out infinite; z-index: 5; }
+${R} .sk-float { position: absolute; right: 10px; top: -6px; font-size: 34px; animation: sk-float 2s ease-out infinite; }
+${R} .portrait .sk-tabs { top: auto; bottom: 66px; left: 22px; right: 22px; width: auto; display: flex; gap: 8px; }
+${R} .portrait .sk-tabs li { flex: 1; flex-direction: column; justify-content: center; min-height: 100px; padding: 8px 4px; border-left-width: 2px; border-top: 10px solid var(--pc); border-radius: 0 0 14px 14px; text-align: center; gap: 2px; }
+${R} .portrait .sk-tabs .st.ok { padding-left: 0; }
+${R} .portrait .sk-bubble { right: auto; left: 50%; top: auto; bottom: calc(100% + 26px); transform: translateX(-50%); border-radius: 20px 20px 20px 4px; }
+${R} .sk-code { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); height: 36px; padding: 0 26px; display: grid; place-items: center; font-family: var(--num); font-weight: 800; font-size: 20px; color: #3a3420; }
+${R} .sk-code span { position: relative; z-index: 4; }
+${R} .sk-code b { font-weight: 900; letter-spacing: .12em; }
+
+${R} .ph-lobby .sk-l { justify-content: flex-start; align-items: flex-start; aspect-ratio: auto; width: 560px; }
+${R} .portrait.ph-lobby .sk-l { width: 100%; }
+${R} .sk-logo { position: relative; font-family: var(--hand); font-size: 64px; line-height: 1; }
+${R} .sk-scribble { position: absolute; left: 0; right: 10px; bottom: -6px; height: 10px; border-bottom: 4px solid var(--pen); border-radius: 0 0 60% 40% / 0 0 100% 100%; transform: rotate(-1.5deg); }
+${R} .sk-join { font-size: 26px; margin: 10px 0 0; }
+${R} .sk-codebig { display: flex; gap: 12px; }
+${R} .sk-codebig i { font-style: normal; font-family: var(--num); font-weight: 900; font-size: 76px; line-height: 1; width: 78px; text-align: center; border-bottom: 5px solid var(--pen); }
+${R} .sk-joinrow { display: flex; align-items: center; gap: 28px; }
+${R} .sk-qr { position: relative; width: 150px; flex: none; padding: 8px; background: #fff; color: #1b1c20; border: 2px solid var(--ink); }
+${R} .sk-codebig i { width: 64px !important; font-size: 68px !important; }
+${R} .sk-how { list-style: none; margin: auto 0 0; padding: 0; display: grid; gap: 8px; font-size: 24px; }
+${R} .sk-how b { display: inline-grid; place-items: center; width: 36px; height: 36px; margin-right: 8px; border: 2.5px solid var(--ink); border-radius: 50%; font-family: var(--num); font-weight: 900; font-size: 18px; }
+${R} .ph-lobby .sk-r { padding-right: 30px; }
+${R} .ph-lobby .sk-r .sk-btn { margin-top: auto; }
+${R} .landscape.ph-lobby .sk-tabs { top: 100px; }
+${R} .sk-choosing { display: grid; justify-items: center; gap: 22px; text-align: center; font-size: 44px; }
+${R} .sk-choosing p { margin: 0; }
+${R} .sk-reveal-big { font-family: var(--num); font-weight: 900; font-size: 96px; line-height: 1; letter-spacing: -.01em; animation: sk-pop .5s cubic-bezier(.2,.9,.3,1.25) both; white-space: nowrap; }
+${R} .portrait .sk-reveal-big { font-size: 110px; }
+${R} .red { color: var(--red); }
+
+${R} .sk-board { padding: 34px 60px; height: 100%; display: flex; flex-direction: column; gap: 18px; background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.5px); background-size: 24px 24px; }
+${R} .sk-board ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+${R} .sk-board li { display: grid; grid-template-columns: 50px 48px 140px 1fr 110px 50px; align-items: center; gap: 12px; min-height: 76px; font-size: 32px; animation: sk-move .9s cubic-bezier(.3,.8,.3,1) both; animation-delay: .25s; }
+${R} .sk-board .rk { font-family: var(--num); font-weight: 900; font-size: 40px; }
+${R} .sk-board .sk-av { width: 48px; height: 48px; font-size: 28px; }
+${R} .sk-board .bar { height: 30px; border: 2.5px solid var(--ink); border-radius: 4px 14px 4px 14px; overflow: hidden; }
+${R} .sk-board .bar i { display: block; height: 100%; width: var(--w); background: var(--pc); animation: sk-grow 1s ease-out both; animation-delay: .4s; }
+${R} .sk-board .sc { font-family: var(--num); font-weight: 900; text-align: right; }
+${R} .sk-board .mv { font-family: var(--num); font-weight: 900; font-size: 22px; color: var(--p1); }
+${R} .portrait .sk-board { padding: 30px; }
+${R} .portrait .sk-board li { grid-template-columns: 40px 48px 110px 1fr 90px 40px; font-size: 28px; gap: 8px; }
+
+${R} .ph-final .sk-l { justify-content: flex-start; }
+${R} .sk-podium { display: flex; align-items: flex-end; gap: 14px; margin-top: auto; }
+${R} .sk-podium .pl { display: grid; justify-items: center; gap: 4px; width: 150px; font-size: 26px; animation: sk-rise .7s cubic-bezier(.2,.9,.3,1.2) both; }
+${R} .sk-podium .pl span { font-family: var(--num); font-weight: 900; font-size: 22px; }
+${R} .sk-podium .blk { width: 100%; display: grid; place-items: center; font-family: var(--num); font-weight: 900; font-size: 54px; color: #fff; background: var(--pc); border: 2.5px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+${R} .sk-podium .p1 .blk { height: 190px; } ${R} .sk-podium .p2 .blk { height: 130px; } ${R} .sk-podium .p3 .blk { height: 90px; }
+${R} .sk-podium .p1 { animation-delay: .5s; } ${R} .sk-podium .p3 { animation-delay: .25s; }
+${R} .sk-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
+${R} .sk-gallery figure { position: relative; margin: 0; background: #fff; border: 2px solid var(--ink); padding: 6px 6px 2px; }
+${R} .sk-gallery figure .ink { aspect-ratio: 1 / 1; height: auto; }
+${R} .sk-gallery figcaption { font-size: 15px; color: #26282E; text-align: center; }
+${R} .sk-gallery .wide { display: none; }
+${R} .sk-awards { display: flex; flex-wrap: wrap; gap: 8px; }
+${R} .sk-awards span { font-size: 18px; padding: 4px 10px; background: #FFF3A6; color: #26282E; border-left: 6px solid var(--pc); box-shadow: 2px 2px 0 var(--ink); }
+${R} .sk-actions { display: flex; gap: 12px; margin-top: auto; }
+${R} .portrait.ph-final .sk-l { aspect-ratio: auto; }
+${R} .portrait.ph-final .sk-gallery { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+${R} .portrait.ph-final .sk-gallery .wide { display: block; }
+${R} .ph-final .sk-tabs { display: none; }
+${R} .ph-final.landscape { padding-right: 22px; }
+${R} .ph-final.portrait, ${R} .ph-scoreboard.portrait { padding-bottom: 66px; }
+${R} .ph-scoreboard.landscape { padding-right: 22px; }
+
+/* landing */
+${R} .sk-landing { position: absolute; inset: 0; background-color: var(--paper); background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.5px); background-size: 22px 22px; display: flex; flex-direction: column; }
+${R} .sk-landing.ph .sk-lhero { padding: 34px 26px 10px; }
+${R} .sk-landing .sk-tag { font-size: 26px; margin: 16px 0 0; }
+${R} .sk-lcards { display: grid; gap: 26px; padding: 22px 26px; }
+${R} .sk-lcard { position: relative; display: grid; gap: 12px; padding: 24px 20px 20px; background: var(--paper); border: 2.5px solid var(--ink); box-shadow: 4px 5px 0 var(--ink); border-radius: 3px; }
+${R} .sk-lcard h3 { margin: 0; font-size: 28px; }
+${R} .sk-lcard.alt { background: color-mix(in srgb, var(--hl) 30%, var(--paper)); }
+${R} .sk-codein { display: flex; gap: 10px; }
+${R} .sk-codein i { font-style: normal; flex: 1; height: 62px; display: grid; place-items: center; font-family: var(--num); font-weight: 900; font-size: 36px; border-bottom: 4px solid var(--pen); }
+${R} .sk-landing.lap { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; padding: 60px 80px; gap: 60px; }
+${R} .sk-landing.lap .sk-logo { font-size: 120px; }
+${R} .sk-landing.lap .sk-tag { font-size: 40px; }
+${R} .sk-lart { width: 380px; height: 380px; margin-top: 24px; }
+${R} .sk-landing.lap .sk-lcards { padding: 0; }
+
+@keyframes sk-pop { 0% { transform: scale(.5); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes sk-blink { 50% { opacity: 0; } }
+@keyframes sk-bubble { 0% { transform: scale(.6); opacity: 0; } 10%, 80% { transform: scale(1); opacity: 1; } 100% { opacity: 0; } }
+${R} .portrait .sk-bubble { animation-name: sk-bubble-p; }
+@keyframes sk-bubble-p { 0% { transform: translateX(-50%) scale(.6); opacity: 0; } 10%, 80% { transform: translateX(-50%) scale(1); opacity: 1; } 100% { opacity: 0; } }
+@keyframes sk-float { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: 1; transform: translateY(-10px) scale(1.1); } 100% { transform: translateY(-90px); opacity: 0; } }
+@keyframes sk-move { from { transform: translateY(var(--from)); } to { transform: none; } }
+@keyframes sk-grow { from { width: 0; } }
+@keyframes sk-rise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+`;
+
+  CONCEPTS.push({
+    id: ID,
+    meta: {
+      name: 'Spiral Sketchbook',
+      mood: 'The game is a shared sketchbook left open on the coffee table: dot-grid pages, masking tape, a blue ballpoint, a yellow highlighter and red-pen corrections.',
+      signature: 'Phone as a notebook page',
+      signatureWhy: 'The guesser phone is a ruled page: wrong guesses get struck through in red pen, close calls get circled, points go in the margin. On the Screen the drawing is taped onto a spiral spread and players are index tabs on the page edge.',
+      swatches: {
+        light: [
+          { name: 'Paper', hex: '#F8F8F3' },
+          { name: 'Graphite', hex: '#26282E' },
+          { name: 'Ballpoint', hex: '#2846C8' },
+          { name: 'Highlighter', hex: '#FFE14D' },
+          { name: 'Red pen', hex: '#D2372C' },
+          { name: 'Desk', hex: '#DCDFE6' },
+        ],
+        dark: [
+          { name: 'Black page', hex: '#18191C' },
+          { name: 'Gel pen', hex: '#F2F2EC' },
+          { name: 'Blue gel', hex: '#8FA8FF' },
+          { name: 'Fluoro', hex: '#F3E24A' },
+          { name: 'Red gel', hex: '#FF6B5E' },
+          { name: 'Desk', hex: '#08090B' },
+        ],
+      },
+      canvas: '#FFFFFD',
+      fonts: 'Patrick Hand for everything said in words (handwriting, one weight, about 30 KB Latin). Nunito Black for numbers: timer, scores, room code, blanks, so they stay crisp from the couch.',
+      notes: [
+        'Dot grid and ruled lines are CSS background patterns; spiral rings, tape and highlighter are CSS shapes. No image files.',
+        'Highlighter swash and tape are the only tilted things; text stays level.',
+        'Two self-hosted faces, each one Latin subset; F56 measures them and sets the CSS+font budget.',
+        'The canvas stays white, so all 8 ink colours keep their contrast.',
+      ],
+    },
+    css,
+    screen,
+    drawer,
+    guesser,
+    landing,
+  });
+})();
+</script>
+<script>/* The lightbox: tabs, phase picker, device frames, clocks, feedback. Concepts live in
+   window.CONCEPTS (see CONTRACT.md); this file never styles concept content. */
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* private window */ } },
+  };
+  const concepts = window.CONCEPTS;
+  const phases = S.phases;
+  const state = { c: 0, p: 3, mode: 'light', orient: store.get('sk-orient', 'landscape') };
+
+  const SIZES = {
+    phone: { w: 390, h: 664, cls: 'phone', pad: 12 },
+    tv: { w: 1280, h: 720, cls: 'tv', pad: 10 },
+    tablet: { w: 768, h: 1024, cls: 'tablet', pad: 18 },
+    laptop: { w: 1280, h: 800, cls: 'laptop', pad: 14 },
+  };
+
+  // Each concept's CSS goes in once.
+  for (const c of concepts) {
+    const st = document.createElement('style');
+    st.textContent = c.css || '';
+    document.head.appendChild(st);
+  }
+
+  // ---------- hash: #<conceptId>-<phase>, e.g. #sketch-drawing ----------
+  function readHash() {
+    const m = /^#([a-z0-9]+)-([a-z]+)$/.exec(location.hash);
+    if (!m) return;
+    const c = concepts.findIndex((x) => x.id === m[1]);
+    const p = phases.findIndex((x) => x.id === m[2]);
+    if (c >= 0) state.c = c;
+    if (p >= 0) state.p = p;
+  }
+  function writeHash() {
+    const h = `#${concepts[state.c].id}-${phases[state.p].id}`;
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+
+  // ---------- controls ----------
+  function seg(el, items, current, onPick) {
+    el.innerHTML = items.map((it, i) => `<button type="button" data-i="${i}" aria-pressed="${i === current}">${it}</button>`).join('');
+    el.onclick = (e) => {
+      const b = e.target.closest('button');
+      if (b) onPick(+b.dataset.i);
+    };
+  }
+  function pressed(el, v) {
+    for (const b of el.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === v));
+  }
+  function drawControls() {
+    seg(
+      $('#tabs'),
+      concepts.map((c, i) => {
+        const r = fbData[c.id]?.stars;
+        return `<span class="sh-k">${i + 1}</span>${S.esc(c.meta.name)}${r ? ` <span class="sh-rated" aria-label="${r} stars">${'★'.repeat(r)}</span>` : ''}`;
+      }),
+      state.c,
+      (i) => { state.c = i; render(); },
+    );
+    seg($('#phases'), phases.map((p) => p.label), state.p, (i) => { state.p = i; render(); });
+    pressed($('#mode'), state.mode);
+    pressed($('#orient'), state.orient);
+  }
+  $('#mode').onclick = (e) => { const b = e.target.closest('button'); if (b) { state.mode = b.dataset.v; store.set('sk-mode', state.mode); render(); } };
+  $('#orient').onclick = (e) => { const b = e.target.closest('button'); if (b) { state.orient = b.dataset.v; store.set('sk-orient', state.orient); render(); } };
+  $('#replay').onclick = () => render();
+
+  // ---------- concept card ----------
+  function drawCard(c) {
+    const m = c.meta;
+    const paper = m.canvas || '#FFFFFF';
+    $('#card').innerHTML = `
+      <div>
+        <div class="sh-label">Concept ${state.c + 1} of ${concepts.length}</div>
+        <h2>${S.esc(m.name)}</h2>
+        <p>${S.esc(m.mood)}</p>
+        <div class="sh-sig"><b>Signature idea: ${S.esc(m.signature)}</b>${S.esc(m.signatureWhy || '')}</div>
+      </div>
+      <div>
+        <div class="sh-label">Palette · ${state.mode}</div>
+        <div class="sh-swatches">${(m.swatches[state.mode] || m.swatches.light)
+          .map((s) => `<div class="sh-sw"><i style="background:${s.hex}"></i>${S.esc(s.name)}<br>${s.hex}</div>`)
+          .join('')}</div>
+        <div class="sh-label" style="margin-top:10px">8 ink colours on the canvas</div>
+        <div class="sh-inkrow" style="background:${paper}">${S.drawColors.map((d) => `<i style="background:${d.hex}" title="${d.name}"></i>`).join('')}</div>
+      </div>
+      <div>
+        <div class="sh-label">Type</div>
+        <p>${S.esc(m.fonts)}</p>
+        <div class="sh-label" style="margin-top:10px">Build notes</div>
+        <ul class="sh-notes">${(m.notes || []).map((n) => `<li>${S.esc(n)}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  // ---------- frames ----------
+  function frame(c, kind, surface, html, caption, side) {
+    const z = SIZES[kind];
+    const wrapCls = kind === 'phone' ? 'sh-phone' : kind === 'laptop' ? 'sh-laptop' : `sh-screen ${kind === 'tv' ? 'sh-landscape' : 'sh-portrait'}`;
+    return `<figure class="sh-fw ${wrapCls}">
+      <figcaption><span class="sh-label">${caption}</span><span class="sh-label">${side || ''}</span></figcaption>
+      <div class="sh-box" data-w="${z.w + z.pad * 2}" data-h="${z.h + z.pad * 2}">
+        <div class="sh-device sh-${z.cls}">
+          <div class="sh-scr" style="width:${z.w}px;height:${z.h}px">
+            <div class="cx cx-${c.id} ${state.mode}" data-surface="${surface}" style="width:${z.w}px;height:${z.h}px">${html}</div>
+          </div>
+        </div>
+      </div>
+    </figure>`;
+  }
+  function safe(fn) {
+    try { return fn(); } catch (e) { console.error(e); return `<div class="sh-render-error">${S.esc(e.stack || e)}</div>`; }
+  }
+
+  function render() {
+    const c = concepts[state.c];
+    const phase = phases[state.p].id;
+    const ctx = { mode: state.mode, orient: state.orient, S };
+    drawControls();
+    drawCard(c);
+    let html;
+    if (phase === 'landing') {
+      html =
+        frame(c, 'phone', 'landing', safe(() => c.landing({ ...ctx, device: 'phone' })), 'Landing · phone') +
+        frame(c, 'laptop', 'landing', safe(() => c.landing({ ...ctx, device: 'laptop' })), 'Landing · laptop');
+    } else {
+      const tv = state.orient === 'landscape' ? 'tv' : 'tablet';
+      html =
+        frame(c, 'phone', 'drawer', safe(() => c.drawer(phase, { ...ctx, device: 'phone' })), 'Drawer phone', 'Mika 🦊 · host') +
+        frame(c, 'phone', 'guesser', safe(() => c.guesser(phase, { ...ctx, device: 'phone' })), 'Guesser phone', 'Jun 🐸') +
+        frame(c, tv, 'screen', safe(() => c.screen(phase, { ...ctx, device: tv })), tv === 'tv' ? 'Screen · TV, landscape' : 'Screen · tablet, portrait');
+    }
+    $('#stage').innerHTML = html;
+    fit();
+    startClocks();
+    writeHash();
+    if (!$('#fb').hidden) fillFeedback();
+  }
+
+  function fit() {
+    for (const box of document.querySelectorAll('.sh-box')) {
+      const w = +box.dataset.w, h = +box.dataset.h;
+      const s = box.clientWidth / w;
+      box.style.height = `${h * s}px`;
+      box.firstElementChild.style.transform = `scale(${s})`;
+    }
+  }
+  new ResizeObserver(() => fit()).observe($('#stage'));
+
+  // ---------- clocks (see S.clockEl) ----------
+  let tick;
+  function startClocks() {
+    clearInterval(tick);
+    const els = [...document.querySelectorAll('#stage [data-clock]')];
+    for (const el of els) el.dataset.left = el.dataset.clock;
+    const paint = () => {
+      const roots = new Map();
+      for (const el of els) {
+        const left = +el.dataset.left;
+        el.textContent = el.dataset.clockFormat === 's' ? String(left) : S.mmss(left);
+        const root = el.closest('.cx');
+        if (root && !roots.has(root)) roots.set(root, left / (+el.dataset.clockTotal || 60));
+        if (root) root.classList.toggle('t-low', left <= 10);
+      }
+      for (const [root, f] of roots) root.style.setProperty('--timer', f.toFixed(4));
+    };
+    paint();
+    if (!els.length) return;
+    tick = setInterval(() => {
+      for (const el of els) {
+        let left = +el.dataset.left - 1;
+        if (left < 0) left = +el.dataset.clock;
+        el.dataset.left = left;
+      }
+      paint();
+    }, 1000);
+  }
+
+  // ---------- keys ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('textarea, select, input') || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (/^[1-9]$/.test(k) && concepts[+k - 1]) { state.c = +k - 1; render(); }
+    else if (k === 'ArrowRight') { state.p = (state.p + 1) % phases.length; render(); }
+    else if (k === 'ArrowLeft') { state.p = (state.p + phases.length - 1) % phases.length; render(); }
+    else if (false) { state.mode = state.mode === 'light' ? 'dark' : 'light'; store.set('sk-mode', state.mode); render(); }
+    else if (k === 'o' || k === 'O') { state.orient = state.orient === 'landscape' ? 'portrait' : 'landscape'; store.set('sk-orient', state.orient); render(); }
+    else if (k === 'r' || k === 'R') render();
+    
+    else return;
+    e.preventDefault();
+  });
+  window.addEventListener('hashchange', () => { readHash(); render(); });
+
+  // ---------- feedback (db: feedback/<conceptId>, feedback/verdict) ----------
+  const fbData = {}; // id -> {stars, signature, notes:{screen,drawer,guesser,landing}}
+  let verdict = { winner: '', tweaks: '' };
+  let db = null;
+  let dbState = 'waiting'; // waiting | ok | off
+  const timers = {};
+  const status = (msg, cls = '') => { const el = $('#fbStatus'); el.textContent = msg; el.className = `sh-status${cls ? ` sh-${cls}` : ''}`; };
+
+  $('#fbStars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" data-n="${n}" aria-label="${n} star${n > 1 ? 's' : ''}" aria-pressed="false">★</button>`).join('');
+  $('#fbWinner').insertAdjacentHTML('beforeend', concepts.map((c) => `<option value="${c.id}">${S.esc(c.meta.name)}</option>`).join(''));
+
+  function cur() {
+    const id = concepts[state.c].id;
+    return (fbData[id] ||= { stars: 0, signature: '', notes: { screen: '', drawer: '', guesser: '', landing: '' } });
+  }
+  function fillFeedback() {
+    const c = concepts[state.c];
+    const d = cur();
+    $('#fbTitle').textContent = c.meta.name;
+    $('#fbSigLabel').textContent = `Signature idea: ${c.meta.signature}`;
+    for (const b of $('#fbStars').children) b.setAttribute('aria-pressed', String(+b.dataset.n <= d.stars));
+    $('#fbUp').setAttribute('aria-pressed', String(d.signature === 'up'));
+    $('#fbDown').setAttribute('aria-pressed', String(d.signature === 'down'));
+    for (const k of ['screen', 'drawer', 'guesser', 'landing']) {
+      const el = $(`#fb${k[0].toUpperCase()}${k.slice(1)}`);
+      if (document.activeElement !== el) el.value = d.notes[k] || '';
+    }
+    if (document.activeElement !== $('#fbWinner')) $('#fbWinner').value = verdict.winner || '';
+    if (document.activeElement !== $('#fbTweaks')) $('#fbTweaks').value = verdict.tweaks || '';
+    if (dbState === 'off') status('Saving isn’t available in this view. Use “Copy all feedback as text” and paste it to Claude.', 'warn');
+    else if (dbState === 'waiting') status('Connecting to saved feedback…');
+  }
+  function save(docId, data) {
+    store.set(`sk-fb-${docId}`, JSON.stringify(data));
+    if (dbState !== 'ok') { fillFeedback(); return; }
+    status('Saving…');
+    clearTimeout(timers[docId]);
+    timers[docId] = setTimeout(async () => {
+      try {
+        await db.doc(`feedback/${docId}`).set({ ...data, updatedAt: new Date().toISOString() });
+        status('Saved', 'ok');
+      } catch (e) {
+        status(`Not saved (${e?.code || 'error'}). Your notes are kept in this browser; copy them as text to be safe.`, 'warn');
+      }
+    }, 700);
+  }
+  const saveCur = () => { save(concepts[state.c].id, cur()); drawControls(); };
+
+  $('#fbStars').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; const d = cur(); d.stars = d.stars === +b.dataset.n ? 0 : +b.dataset.n; fillFeedback(); saveCur(); };
+  for (const b of [$('#fbUp'), $('#fbDown')]) b.onclick = () => { const d = cur(); d.signature = d.signature === b.dataset.v ? '' : b.dataset.v; fillFeedback(); saveCur(); };
+  for (const k of ['screen', 'drawer', 'guesser', 'landing']) {
+    $(`#fb${k[0].toUpperCase()}${k.slice(1)}`).oninput = (e) => { cur().notes[k] = e.target.value.slice(0, 4000); saveCur(); };
+  }
+  $('#fbWinner').onchange = (e) => { verdict.winner = e.target.value; save('verdict', verdict); };
+  $('#fbTweaks').oninput = (e) => { verdict.tweaks = e.target.value.slice(0, 4000); save('verdict', verdict); };
+
+  function toggleFeedback(open = $('#fb').hidden) {
+    $('#fb').hidden = !open;
+    if (open) { fillFeedback(); $('#fbStars').firstElementChild.focus(); } else $('#fbOpen').focus();
+  }
+  $('#fbOpen').onclick = () => toggleFeedback(true);
+  $('#fbClose').onclick = () => toggleFeedback(false);
+
+  function asText() {
+    const lines = [];
+    for (const c of concepts) {
+      const d = fbData[c.id];
+      if (!d) continue;
+      lines.push(`## ${c.meta.name}: ${d.stars ? '★'.repeat(d.stars) : 'no stars'}${d.signature ? `, signature idea ${d.signature === 'up' ? 'keep' : 'drop'}` : ''}`);
+      for (const k of ['screen', 'drawer', 'guesser', 'landing']) if (d.notes[k]) lines.push(`- ${k}: ${d.notes[k]}`);
+    }
+    const w = concepts.find((c) => c.id === verdict.winner);
+    lines.push(`Winner: ${w ? w.meta.name : 'not decided'}`);
+    if (verdict.tweaks) lines.push(`Tweaks: ${verdict.tweaks}`);
+    return lines.join('\n');
+  }
+  $('#fbCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText(asText()); status('Copied', 'ok'); }
+    catch { $('#fbTweaks').value = asText(); $('#fbTweaks').select(); status('Copy was blocked; the text is selected in the box above.', 'warn'); }
+  };
+
+  // Local drafts first, then the shared store.
+  for (const c of concepts) { try { const v = JSON.parse(store.get(`sk-fb-${c.id}`, 'null')); if (v) fbData[c.id] = v; } catch { /* ignore */ } }
+  try { const v = JSON.parse(store.get('sk-fb-verdict', 'null')); if (v) verdict = v; } catch { /* ignore */ }
+
+  (async () => {
+    const giveUp = setTimeout(() => { if (dbState === 'waiting') { dbState = 'off'; fillFeedback(); } }, 10000);
+    db = null;
+    if (!db) { clearTimeout(giveUp); dbState = 'off'; fillFeedback(); return; }
+    db.collection('feedback').onSnapshot(
+      (snap) => {
+        clearTimeout(giveUp);
+        dbState = 'ok';
+        for (const doc of snap.docs) {
+          const v = doc.data();
+          if (!v) continue;
+          if (doc.id === 'verdict') verdict = { winner: v.winner || '', tweaks: v.tweaks || '' };
+          else fbData[doc.id] = { stars: v.stars || 0, signature: v.signature || '', notes: { screen: '', drawer: '', guesser: '', landing: '', ...(v.notes || {}) } };
+        }
+        drawControls();
+        if (!$('#fb').hidden) { fillFeedback(); status('Saved feedback loaded', 'ok'); }
+      },
+      (e) => { clearTimeout(giveUp); dbState = 'off'; fillFeedback(); console.warn('feedback store', e); },
+    );
+  })();
+
+  readHash();
+  render();
+})();
+</script>
+
+</body></html>
