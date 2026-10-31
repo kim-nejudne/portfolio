@@ -120,7 +120,7 @@ export function DrawerSheet({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex flex-col justify-end bg-black/60 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]"
+      className="fixed inset-0 z-40 flex cursor-pointer flex-col justify-end bg-black/60 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -131,7 +131,7 @@ export function DrawerSheet({
         aria-modal="true"
         aria-labelledby="host-drawer-title"
         tabIndex={-1}
-        className="flex max-h-[85dvh] flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-3xl bg-[#2A2730] px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none"
+        className="flex max-h-[85dvh] cursor-auto flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-3xl bg-[#2A2730] px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none"
       >
         <div className="flex items-center justify-between gap-3">
           <h2 id="host-drawer-title" className="font-display text-2xl font-bold">

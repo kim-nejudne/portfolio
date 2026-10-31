@@ -197,7 +197,7 @@ export function DoodlePad({ storageKey, send, t }: Props) {
           ref={canvasRef}
           role="img"
           aria-label={t('doodlePad')}
-          className="block size-full touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none]"
+          className="block size-full cursor-crosshair touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none]"
         />
       </div>
       {/* One row of 8 where they fit (8 × 44 px), else two rows of 4. */}

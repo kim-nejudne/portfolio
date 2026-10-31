@@ -72,6 +72,30 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F52: the live-game wait, once: leave the Screen open on https://sketchy.kimnejudne.dev, then run `gh workflow run deploy-sketchy.yml -f tag=<current tag>` (a re-point, no build) · the "wait for live games" step logs "N live connection(s); waiting (1/20)"; close the Screen tab and it carries on with "no live games" within 30 s and re-points. Then a rollback: `gh workflow run deploy-sketchy.yml -f tag=<previous tag>` (from `docker images sketchy` on the box) and back again · each ends healthy and the smoke step passes
 
 <!-- entries below, newest first -->
+## B01 — Pointer cursor and hover on live controls (2026-10-31)
+**What changed:**
+- **Bug:** Tailwind v4 Preflight resets `button` to `cursor: default` and nothing restored it: every button (the whole mouse-driven Screen, Landing, phones on a desktop) showed the arrow, and none reacted on hover.
+- **`client/src/index.css`**: a `@layer base` block. Pointer on live buttons, `[role=button]`, checkbox labels and checkboxes; `disabled` and `[aria-disabled=true]` keep the arrow. Inside `@media (hover: hover)`: a 10% white wash (`background-image`) on live buttons and `brightness(1.25)` on links.
+- **Exceptions:** swatches (`DrawToolbar.tsx`) skip the wash and brighten their ring; gallery thumbnails (`ScreenGallery.tsx`) skip it and get a faint outline under the gold focus ring.
+- **Scrims:** the Players, Shortcuts and host-drawer backdrops (which close on a click outside) get `cursor-pointer`, their panels `cursor-auto`.
+- **Pads:** `DrawPad` shows a crosshair while drawing is allowed (not paused or sideways); `DoodlePad` always.
+- `phoneViews.test.tsx`: the swatch class regex allows the new leading `group`; it still counts 8 `size-11` swatches.
+- Backlog: `:active` press feedback.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 75.
+
+Reviews:
+- **mobile-ux-reviewer: PASS**, no Must- or Should-fix. Every visual change sits behind `(hover: hover)`, so no sticky hover on touch; scrim close handlers unchanged on iOS; pad touch locks intact; dark-on-orange contrast 6.2:1 rising to 6.7:1 under the wash. Nits not taken: a tap-highlight reset on scrims, `opacity` instead of `filter` on link hover.
+
+**Verification:**
+- Repro: `.playtest/B01/scenario.ts` (Screen and Ana on a desktop viewport, bots) failed before the fix: `cursor=default` and no `background-image` on live buttons, checkbox label `default`.
+- After: 26/26 checks pass: pointer on live, pressed, scrim targets; arrow on `disabled` (Join, Start game with 1 player) and `aria-disabled` (empty Add) with no wash; `auto` inside dialog panels; `text` on the textarea; crosshair on the drawer pad, `auto` once paused; swatch hover has no wash and its ring goes from 35% to 80% white. No console errors.
+- `.playtest/B01/hover-compare.png`: rest vs hover on Start (outline), Settings and Shortcuts (ghost).
+- Built CSS: `focus-visible:outline-4` comes after `hover:outline-2`, so focus wins on a hovered thumbnail.
+- `npm run size`: CSS and fonts 25.0 KB of 30 KB.
+- `/verify`: format, lint, typecheck, 1414 tests, build all green.
+
 ## F52 — Deploy to sketchy.kimnejudne.dev (2026-10-31)
 **What changed:**
 - **`.github/workflows/deploy-sketchy.yml`**, modelled on `deploy-buzzer.yml` and keeping its job names (`checks`, `droplet`), step names and the `ABORT: N live connection(s) after 10 min` line that `scripts/autopilot.sh` matches:

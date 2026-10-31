@@ -225,7 +225,9 @@ export function DrawPad({ turnId, size, ink, disabled, label, tool, controlsRef,
       ref={canvasRef}
       aria-label={label}
       style={{ width: size, height: size }}
-      className="block touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none]"
+      className={`block touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none] ${
+        disabled ? '' : 'cursor-crosshair'
+      }`}
     />
   );
 }

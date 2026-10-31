@@ -44,7 +44,8 @@ export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: Sw
             aria-pressed={on}
             disabled={disabled}
             onClick={() => onTool(pickColor(tool, i))}
-            className="grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-40"
+            // Hover brightens the ring instead of the button wash, which the swatch would hide.
+            className="group grid size-11 shrink-0 place-items-center rounded-full hover:bg-none disabled:opacity-40"
           >
             <span
               aria-hidden
@@ -52,7 +53,7 @@ export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: Sw
               className={`block size-10 rounded-full ${
                 on
                   ? 'border-[3px] border-white outline-2 outline-[#FF6B35]'
-                  : 'border-2 border-white/35'
+                  : 'border-2 border-white/35 group-enabled:group-hover:border-white/80'
               }`}
             />
           </button>

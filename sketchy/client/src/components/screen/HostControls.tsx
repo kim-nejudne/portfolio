@@ -413,7 +413,7 @@ export function ShortcutsHelp({ onClose, t }: { onClose: () => void; t: Translat
 
   return (
     <div
-      className="absolute inset-0 z-40 grid place-items-center bg-black/80 p-[3vmin]"
+      className="absolute inset-0 z-40 grid cursor-pointer place-items-center bg-black/80 p-[3vmin]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -428,7 +428,7 @@ export function ShortcutsHelp({ onClose, t }: { onClose: () => void; t: Translat
           closeButton.current?.focus();
         }}
         aria-labelledby="shortcuts-title"
-        className="max-h-full max-w-[min(96vw,1200px)] overflow-y-auto rounded-[2vmin] bg-[#2A2730] p-[4vmin] text-[max(2.8vmin,16px)]"
+        className="max-h-full max-w-[min(96vw,1200px)] cursor-auto overflow-y-auto rounded-[2vmin] bg-[#2A2730] p-[4vmin] text-[max(2.8vmin,16px)]"
       >
         <h2
           id="shortcuts-title"

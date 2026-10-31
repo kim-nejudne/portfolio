@@ -38,7 +38,7 @@ export function PlayersDialog({
 
   return (
     <div
-      className="absolute inset-0 z-40 grid place-items-center bg-black/80 p-[3vmin]"
+      className="absolute inset-0 z-40 grid cursor-pointer place-items-center bg-black/80 p-[3vmin]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -49,7 +49,7 @@ export function PlayersDialog({
         aria-modal="true"
         aria-labelledby="players-title"
         tabIndex={-1}
-        className="flex max-h-full w-[min(96vw,110vmin)] flex-col gap-[2vmin] overflow-y-auto overscroll-contain rounded-[2vmin] bg-[#2A2730] p-[4vmin] outline-none"
+        className="flex max-h-full cursor-auto w-[min(96vw,110vmin)] flex-col gap-[2vmin] overflow-y-auto overscroll-contain rounded-[2vmin] bg-[#2A2730] p-[4vmin] outline-none"
       >
         <div className="flex items-center justify-between gap-[3vmin]">
           <h2

@@ -108,3 +108,27 @@ input {
   /* No double-tap zoom on controls. */
   touch-action: manipulation;
 }
+
+/* Layered, so utilities (`hover:bg-none`, `cursor-crosshair`) win over these defaults. */
+@layer base {
+  /* Tailwind v4 Preflight gives buttons the default cursor; restore the pointer on live ones.
+     `aria-disabled` buttons (busy, locked, resting) count as dead, like `disabled` (B01). */
+  button:not(:disabled, [aria-disabled='true']),
+  [role='button']:not([aria-disabled='true']),
+  label:has(> input[type='checkbox']:not(:disabled)),
+  input[type='checkbox']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  @media (hover: hover) {
+    /* A faint white wash over whatever background a live button has: an image layer, so solid
+       orange keeps its colour under it. Swatches and gallery thumbnails opt out with `bg-none`. */
+    button:not(:disabled, [aria-disabled='true']):hover {
+      background-image: linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1));
+    }
+
+    a[href]:hover {
+      filter: brightness(1.25);
+    }
+  }
+}

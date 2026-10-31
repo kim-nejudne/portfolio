@@ -210,7 +210,7 @@ function GalleryStrip({
               <button
                 type="button"
                 onClick={() => onOpen(d.turnId)}
-                className="flex w-full flex-col gap-[0.5vmin] rounded-[1vmin] text-left focus-visible:outline-4 focus-visible:outline-[#FFD166]"
+                className="flex w-full flex-col gap-[0.5vmin] rounded-[1vmin] text-left hover:bg-none hover:outline-2 hover:outline-white/40 focus-visible:outline-4 focus-visible:outline-[#FFD166]"
                 aria-label={
                   drawer ? t('galleryDrawing', { word: d.word, name: drawer.name }) : d.word
                 }

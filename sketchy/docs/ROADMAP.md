@@ -136,6 +136,8 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 ## Bugs
 
+- [x] B01 Pointer cursor and hover on live controls
+
 ## Backlog
 
 - Reactions on the phone at the reveal (the server already takes them from anyone in REVEAL; F34 offers them only after a correct guess in DRAWING).
@@ -167,3 +169,4 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - An English spicy pack (or a Settings hint that Spicy words add Taglish words only), if Kim wants Spicy to change English-only games (F47, DECISIONS 69).
 - Screen FINAL: let the gallery take the leftover height in landscape (thumbnails sized to it) instead of the fixed 17/28 vmin, which leaves a gap under the scores with few players (F49 mobile-ux should-fix).
 - Screen FINAL with 10 players: the Tonight column on a 16:9 TV fits by shrinking to ~2 vmin, and a 4:3 Screen in game 2 shows the score rows at 18 px. Fold the night totals into the score rows, or page the standings and the gallery, to keep TV sizes (F50).
+- Press feedback on live buttons: a motion-safe `:active` shrink (`not-disabled:active:scale-95`, as Buzzr), beyond the reactions' existing `active:scale-90` (B01, DECISIONS 75).

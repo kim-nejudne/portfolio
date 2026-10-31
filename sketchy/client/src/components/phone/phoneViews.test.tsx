@@ -268,7 +268,7 @@ describe('drawer phone', () => {
     // The 8 swatches and the Eraser are toggles; black is on, the eraser off.
     expect(swatches).toHaveLength(9);
     expect(html).toMatch(/aria-label="Black" aria-pressed="true"/);
-    expect(html.match(/class="grid size-11 [^"]*"/g)).toHaveLength(8);
+    expect(html.match(/class="(?:group )?grid size-11 [^"]*"/g)).toHaveLength(8);
     expect(html.match(/class="block size-10 rounded-full[^"]*"/g)).toHaveLength(8);
     expect(html).toContain('aria-label="Brush size: medium. Tap to change"');
     expect(html).toMatch(/aria-pressed="false"[^>]*>Eraser<\/button>/);
