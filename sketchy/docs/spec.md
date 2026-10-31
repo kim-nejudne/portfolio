@@ -146,8 +146,8 @@ The Socket.IO server sets `pingInterval: 5000` and `pingTimeout: 5000`, so a pho
 
 ### Performance budget
 
-- `/play` and `/` together ship ≤ 120 KB of gzipped JavaScript and ≤ 30 KB of CSS and fonts. The Screen page, Howler, `qrcode.react`, the gallery and DevBots are separate lazy chunks that the player page never loads. The client doesn't bundle zod; schemas are checked on the server.
-- Fonts: one subset weight (Latin), `font-display: swap`, preloaded.
+- `/play` and `/` together ship ≤ 120 KB of gzipped JavaScript and ≤ the CSS+font budget in `BUDGET.playerCssAndFonts` (`scripts/bundle.ts`): the measured size plus about 5 KB, set by F56 and tightened by F67 once Fredoka is gone. The Screen page, Howler, `qrcode.react`, the gallery and DevBots are separate lazy chunks that the player page never loads. The client doesn't bundle zod; schemas are checked on the server.
+- Fonts: two faces (Patrick Hand, Nunito 900), each one Latin subset weight, `font-display: swap`, preloaded.
 - Socket.IO clients use `transports: ['websocket']` and fall back to polling only if the WebSocket fails.
 - Target: from QR scan to a usable name field in ≤ 5 s, and to the lobby in ≤ 15 s including typing a name, on a budget Android over mobile data (or Chrome DevTools "Slow 4G" with 4× CPU slowdown). A bundle-size test in CI fails the build when the budget is exceeded.
 
@@ -970,9 +970,9 @@ Why `t` is measured from the server's turn start for everyone: guessers watch th
 
 ### Look and feel
 
-Sketchy's own identity: **marker on paper**. A dark ink background (`#1D1B22`) around a bright white drawing square, one accent (marker orange `#FF6B35`), a rounded friendly display face (self-hosted, e.g. Fredoka or Baloo 2), and hand-drawn touches (wobbly underlines, doodled icons) kept to the chrome. Very large type. Buzzr's layout conventions carry over: phone-first player pages, Screen sized in viewport units and legible from 5 m, one primary action per phone screen.
+Sketchy's own identity: **a spiral sketchbook** left open on the coffee table. Light only: dot-grid and ruled paper (`#F8F8F3`), graphite ink (`#26282E`), a blue ballpoint (`#2846C8`), a yellow highlighter (`#FFE14D`), red-pen corrections (`#D2372C`), masking tape and spiral rings. Words are in Patrick Hand and numbers in Nunito 900, both self-hosted. Gameplay text (timer, blanks, scores, names in lists, guesses) is never rotated; only decoration is (tape, the highlighter swash). There are no gradient fills, glass or blur. Very large type. The drawing square stays pure white. Buzzr's layout conventions carry over: phone-first player pages, Screen sized in viewport units and legible from 5 m, one primary action per phone screen. Tokens, primitives and per-surface details are in `docs/design/SKETCHBOOK.md`.
 
-Each player gets a colour from a 12-colour player palette (distinct from the 8 drawing colours, tuned for contrast on the dark background), used on their phone and wherever their name appears on the Screen.
+Each player gets a colour from a 12-colour player palette (distinct from the 8 drawing colours, each ≥ 4.5:1 on the paper colour), used on their phone and wherever their name appears on the Screen.
 
 UI copy comes from `client/src/lib/copy.ts` (ported pattern: one table per language, `settings.copy` picks it). Taglish examples: "Ikaw ang magdo-drawing!", "Pili ka ng word", "Hula mo?", "Malapit na!", "Nakuha mo!", "Sino'ng nakakuha?", "I-type, 'wag isigaw!", "Walang nakakuha!". The landing page stays English. `copy` is a lobby setting.
 
@@ -1007,6 +1007,7 @@ Two layouts, chosen by aspect ratio, both putting the **largest possible square 
 - **Landscape** (width/height ≥ 1.2: TV, laptop, landscape tablet or phone): the square takes the full height on the left; a sidebar on the right (at least 28% of the width) holds the timer, blanks, players and feed.
 - **Portrait** (≤ 0.85: portrait tablet or propped-up phone): a top bar with the timer and blanks, the full-width square, then a players strip and the feed underneath.
 - **In between** (near-square): the landscape layout with the minimum sidebar width; no separate layout or acceptance item.
+- The Screen is an open spiral notebook on a desk. In landscape it is a spread: the drawing is taped onto the left page, the right page is the sidebar, and the players are index tabs standing outside the right edge in turn order. In portrait, during a turn, the sidebar becomes a top bar over the square and the tabs run along the bottom. The room code is on a strip of tape under the notebook.
 - Text sizes use `vmin`, with minimums so that names stay ≥ 3.5 vh on a TV. The room-code strip along the bottom is always visible (except during FINAL's gallery).
 
 **Lobby (landscape)**
@@ -1220,6 +1221,7 @@ Two layouts, chosen by aspect ratio, both putting the **largest possible square 
 
 - The guess box sits near the **top**, so the on-screen keyboard never covers it. It keeps focus after each send (keyboard stays up). `autocomplete="off"`, `autocorrect="off"`, `autocapitalize="off"`, `spellcheck="false"`, `enterkeyhint="send"`.
 - There is no drawing on the phone, on purpose: everyone looks up at the Screen.
+- The guesser phone is a ruled notebook page with a red margin: wrong guesses are struck through in red pen with ✗, a close guess is circled, and this turn's points sit in the margin.
 - **After a correct guess**: green panel "✓ Nakuha mo! +270", without the word, then the reaction buttons.
 - During CHOOSING, DRAWING and REVEAL the phone shows this turn's points ("+270 this turn"), never a rank.
 - **Reveal**: the word and this turn's points. **Scoreboard**: rank and score. **Final**: the player's award first ("⚡ Bilis! Fastest guess of the night"), then final rank and score and "See the gallery on the Screen".
@@ -1382,6 +1384,7 @@ The roadmap lives in `docs/ROADMAP.md`, in Buzzr's entry format, driven by `road
 - **M2 Fair and secret**, **M3 Game shape**, **M4 Host and onboarding**, **M5 Drawing tools**, **M6 Screen and phone polish**, **M7 Resilience**, **M8 Language and content**, **M9 Gallery and awards**.
 - **Barkada night release** after M9: the version Kim brings to a real barkada night.
 - **M10 Deploy** to `sketchy.kimnejudne.dev`.
+- **M12 Sketchbook look** (F56–F67): the light spiral-sketchbook restyle of every page, phones first.
 
 ## Test plan
 
