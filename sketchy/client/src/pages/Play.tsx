@@ -483,8 +483,8 @@ export function Play() {
     (view.phase === 'REVEAL' || view.phase === 'SCOREBOARD') && view.secret?.choices != null;
   const cards = view.secret?.choices != null && (choosingNext || view.phase === 'CHOOSING');
   const hostBar = view.host !== null && view.phase !== 'LOBBY';
-  // The drawer's pages are dot-grid paper (F59), the guesser's turn a ruled page (F60); the
-  // results stay dark until F61.
+  // The drawer's pages and the results are dot-grid paper (F59, F61), the guesser's turn a ruled
+  // page (F60).
   const drawerPage = cards || (isDrawer && inTurn);
   const guesserPage = inTurn && !isDrawer;
   const resultsPage = !inTurn && !choosingNext && view.phase !== 'LOBBY';
@@ -496,13 +496,13 @@ export function Play() {
   return (
     <main
       className={`relative flex h-dvh w-full flex-col overflow-hidden overscroll-none bg-paper pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] font-hand text-ink ${
-        // The guest lobby and the guesser's turn are ruled pages; the host's lobby and the drawer's
-        // pages are dot grid.
+        // The guest lobby and the guesser's turn are ruled pages; the host's lobby, the drawer's
+        // pages and the results are dot grid.
         view.phase === 'LOBBY'
           ? view.host
             ? 'paper-dots'
             : `paper-ruled ${RULED_INSET}`
-          : drawerPage
+          : drawerPage || resultsPage
             ? 'paper-dots'
             : guesserPage
               ? `paper-ruled ${RULED_INSET}`
@@ -547,8 +547,7 @@ export function Play() {
       {/* While paused, the covered guess box and pad are out of reach of focus and the keyboard too. */}
       <div
         inert={(hostBar && hostOpen) || view.paused !== null || counting}
-        // The results are still the dark pages until F61.
-        className={`min-h-0 flex-1 ${resultsPage ? 'legacy-night' : ''}`}
+        className="min-h-0 flex-1"
       >
         {view.phase === 'LOBBY' && (
           <PhoneLobby
@@ -597,13 +596,13 @@ export function Play() {
             t={t}
           />
         )}
-        {resultsPage && <PhoneStandings view={view} onLeave={leave} t={t} />}
+        {resultsPage && (
+          <PhoneStandings view={view} onLeave={leave} {...(view.host ? { socket } : {})} t={t} />
+        )}
       </div>
-      {/* Still dark veils until F61 puts them on a paper sheet. */}
-      <div className="legacy-ink contents">
-        {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
-        {counting && <RematchOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
-      </div>
+      {/* Paper veils (F61); the Host pill stays above them, so Resume and Cancel stay in reach. */}
+      {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
+      {counting && <RematchOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
     </main>
   );
 }

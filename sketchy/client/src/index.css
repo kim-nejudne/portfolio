@@ -230,10 +230,10 @@ body {
   overscroll-behavior: none;
 }
 
-/* The old dark page, for the surfaces not restyled yet: the phone's turn views, overlays and host
-   drawer (F59–F61), the Screen's settings and custom-words panels (F63) and the dev pages. Each
-   feature drops it as its surface moves to paper; F67 deletes both. `legacy-ink` only sets the
-   text, for elements that paint their own dark background. */
+/* The old dark page, for the surfaces not restyled yet: the phone lobby's settings and
+   custom-words panels (F63) and the dev pages (F67). Each feature drops it as its surface moves to
+   paper; F67 deletes both. `legacy-ink` only sets the text, for elements that paint their own dark
+   background. */
 @utility legacy-ink {
   color: #fff;
   color-scheme: dark;

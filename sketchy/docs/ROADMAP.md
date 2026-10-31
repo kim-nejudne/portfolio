@@ -161,17 +161,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F60 Sketchbook guesser phone
 
-- [ ] F61 Sketchbook phone results and overlays
-  - Spec: UI by role and phase (Guesser phone, Drawer phone, Host controls); Game flow and state machine (Pausing); docs/design/SKETCHBOOK.md (Surfaces: Results)
-  - Depends: F59, F60
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - Reveal (`#sketch-reveal`) shows "It was…" and the word in Nunito 900 on the highlighter, then a red stamp: "+270 this turn", or "+320 for your drawing" only when above 0. The drawer gets the got-it rows.
-    - Scoreboard (`#sketch-scoreboard`) shows the big pen-blue ordinal and the score, then the list with your row highlighted.
-    - Final (`#sketch-final`) shows your award on a taped sticky note, then rank and score, "See the gallery on the Screen", and for the host the Rematch sketch button with "Back to lobby".
-    - `HostDrawer` is a paper bottom sheet with its two-tap arming states still clear.
-    - `PausedOverlay` and `RematchOverlay` use a paper veil and Nunito countdowns on both the phone and the Screen.
-  - Tests: existing PhoneStandings, PausedOverlay, RematchOverlay and `hostPhone` tests stay green
+- [x] F61 Sketchbook phone results and overlays
 
 - [ ] F62 Sketchbook Screen frame and lobby
   - Spec: UI by role and phase (Screen, Host controls, Look and feel); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Screen)

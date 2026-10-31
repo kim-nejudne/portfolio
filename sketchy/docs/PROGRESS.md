@@ -86,8 +86,56 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F59: in Change → custom words, add a long one (e.g. "pinakamahabang salita dito") and play until it is dealt on a 360-wide phone · the word wraps under the level tag with nothing cut off (a long gloss may lose its last line first)
 - [ ] F60: review the Taglish: `gotItHeading` ("Nakuha mo!", the big line on the got-it page) and `closeNote` ("malapit!", circled after a close try) in the `TAGLISH` table of `client/src/lib/copy.ts` · natural for barkada, short enough for a 44 px line on a 360-wide phone
 - [ ] F60: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), the host on an iPhone (Safari) and a guest on a budget Android (Chrome), one ≤ 360 px wide; while someone else draws, tap the guess line, send a wrong guess, a close one (change one letter of the word) and the word · the keyboard stays up after each send and never covers the guess line; the caret is blue and blinks; the wrong try is struck through in red with ✗, the close one circled "close!" under a yellow "So close!"; then a big green ✓, "Got it!", a red +points stamp and six round reaction buttons, "+N this turn" in the red margin, and no word anywhere; a reaction floats up on the Screen
+- [ ] F61: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV, the host on an iPhone (Safari) and two guests on phones (one budget Android ≤ 360 px wide); 2 rounds; let one guest get the word and one miss · on REVEAL each phone is light paper with "It was…" and the word on a yellow swash; the right guesser has a red oval "+N / this turn", the one who missed a grey "+0 this turn", the drawer "+N / for your drawing" and who got it; SCOREBOARD a big blue "2nd" with the score and the list with your row lightly yellow; FINAL your award on a taped yellow note, then rank and score; on the host phone Rematch (one tap turns it red, "Tap again…") and "Back to lobby"; nothing scrolls and nothing is cut off on the small phone
+- [ ] F61: on the host phone during a turn, open 👑 Host, tap Skip once, then Pause, then Resume · the sheet is light paper with an ink edge (no dark backdrop); Skip turns red with "Tap again to skip" and goes back after 2 s with no leftover red line under it; Paused and the 3-2-1 sit on a light veil on the phones and the TV, the digit big and blue; Resume is still reachable through the Host pill while paused
 
 <!-- entries below, newest first -->
+
+## F61 — Sketchbook phone results and overlays (2026-10-31)
+**What changed:**
+- **Results on paper:** REVEAL, SCOREBOARD and FINAL are dot-grid pages for everyone; `legacy-night` and the `legacy-ink` veil wrapper are gone from `Play.tsx` (both utilities stay for PhoneLobby's settings/custom-words panels until F63 and DevBots until F67).
+- **Reveal** (`PhoneStandings`): "It was…" in `soft`, the word in Nunito 900 on the highlighter (52 px; 38 px from 10 letters, 30 px from 15, capped at 14vw, wraps if still too long), then a big red `Stamp` split from the copy: "+270 / this turn" for a guesser, "+320 / for your drawing" for the drawer only above 0. A guesser who missed gets a plain `soft` "+0 this turn". The drawer gets the got-it rows (`turn.correct` by order: avatar, name in colour, +points). "You draw next! Get ready" is a sticky note; never the word.
+- **Scoreboard:** "Round 1 of 2 done", the big `pen` Nunito ordinal with a raised suffix (new `lib/ordinal.ts`; `min(96px, 15dvh)`), the score with "points" in `soft`, then every player by shared rank (rank cell, avatar, name in colour, score) on dashed rules, your row on `hl` at 30 %. Rows are 34 px above 4 players; a long list scrolls inside itself with your row centred, and the page never scrolls. Screen readers hear the existing `rankOf` / "905 points" copy.
+- **Final:** the award on a taped `sticky` note with a hard shadow, the rank and score (`min(96px, 11dvh)` on the host's page), "👀 See the gallery on the Screen", then for the crown holder a full-width Rematch sketch button and an underlined "Back to lobby", both two taps via the new `lib/hostTaps.ts` (`useHostTaps`, now shared with the Host sheet; the same `press`/`controlEvent`). Armed, Rematch turns red pen and Back to lobby red text.
+- **Host sheet** (`HostDrawer`): a dot-grid paper bottom sheet with an `ink` edge over a `paper` 70 % veil; sketch buttons (Next/Resume/Rematch/Cancel `primary`, the rest `ghost`, Rematch/Cancel 64 px), armed in the new `armed` variant (red, `paper` text); hand-bordered feed toggle (`hl` and a hard shadow when pressed); the arm hint goes `sr-only` (the button already asks again) and is cleared when the arming lapses (it used to linger 1 s after the button reset). `HostPlayerList`: hand-bordered paper buttons (armed Kick red); its status takes the panel's colour.
+- **Veils:** `PausedOverlay` and `RematchOverlay` are `paper` veils (phone 95 %; Screen 80 % paused, 95 % rematch) with `ink` Patrick Hand, no text shadow, the 3-2-1 in Nunito 900 `pen`; the first drawer's name in their colour (`NameInColour`).
+- **`SketchButton`:** new `armed` variant and a `tall` size (`sketchButtonClass(variant, 'tall')`).
+- **Tests:** new `components/phone/resultsLook.test.tsx` (20): reveal order, Nunito word on the highlighter at 52 px and 30 px for a long one, the guesser's and drawer's stamps (Taglish split too), "+0" without a stamp, the got-it rows only for the drawer and fastest first, the next drawer's word and gloss never shown; the scoreboard ordinal, score, sr-only copy, rank order, one highlighted row, rank cells; the final's taped note before the rank and gallery line, the host's Rematch/Back to lobby and the smaller rank, nobody else's; the sheet's paper and veil, its sketch buttons, the armed variant; both veils paper with ink text and pen Nunito digits on phone and Screen; the overlays and Host sheet outside the inert view in `Play.tsx`; no hex/`white/`/`legacy-` classes in the five restyled files. `lib/ordinal.test.ts`. F60's `guesserLook` test that pinned `legacy-night` on the results now pins that `Play.tsx` has no `legacy-` class. The PhoneStandings, PausedOverlay, RematchOverlay and `hostPhone` tests stay green unchanged.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 84.
+
+Reviews:
+- **review-feature (spec-checker): FAIL** on the first pass, on the record only: the missing DECISIONS row, this entry, the playtest shots and the mobile-ux run (all done now). Should-fix done: a test that the sheet and veils sit outside the inert view.
+- **mobile-ux-reviewer: PASS WITH FIXES.** Must-fixes done: the host's final with an award fits 360×560 (smaller rank, tighter note, the status line only takes room for a server message; playtest: Rematch at y 349–409, Leave 508–552); the "Tap again…" hint is cleared with the arming. Should-fixes done: no doubled hint in the sheet; the pressed feed option gets a hard shadow, not just a fill; your row's swash is 30 % so every crayon name keeps 4.5:1; the list scrolls itself instead of `scrollIntoView`; rank cells in the standings. Not taken: a lighter Screen veil (the Screen is dark until F62; the playtest shot reads fine); Nits done: the LeaveButton comment, the sheet's double top edge. Not taken: the sr-only `h1` before the award (F50's test pins the award first); Leave in `soft` (shared with the lobby); the 75 ms press translate (as F56).
+- **secrets-fairness-reviewer:** not needed (no `server/`, `shared/` or ink change). The playtest found the word in no guesser or Screen DOM before REVEAL, including after a right guess.
+
+**Verification:**
+- `.playtest/F61/scenario.ts` (a Screen and 4 phones, 2 rounds, `CYCLES=2`) and `scenario12.ts` (10 players with DevBots; the cap is `MAX_PLAYERS` 10):
+  - REVEAL: the word in Nunito 900 (50.4 px at 360 wide), "+295 / this turn" stamp `rgb(210, 55, 44)`, "+0 this turn" without a stamp, the drawer's "+295 / for your drawing" and the rows in order.
+  - SCOREBOARD: 1st–4th in `rgb(40, 70, 200)`, 84 px at 360×560 and 96 px taller; one `data-me` row, in view on every phone with 10 players.
+  - FINAL: the note above the rank; Rematch/Back to lobby only on the host; Rematch armed red with the confirm line, disarmed after the timeout; Back to lobby armed red; the confirmed rematch's countdown veil paper at 0.95 on phone and Screen with a Nunito `pen` digit.
+  - Host sheet: paper with the dot grid over a 0.7 paper veil; Skip armed red, disarmed after 2 s; the paused veil (phone 0.95, Screen 0.8) with the Host pill still on top; the 3-2-1 in Nunito `pen`.
+  - Fit at 360×560, 390×664 and 412×780: no document, `main` or root scroll for every results page (host and guest, with and without an award); with 10 players only the lists scroll inside themselves (drawer's got-it rows at 360/390, the scoreboard at 360 and the host's at 390).
+  - No console errors on any role.
+- Side by side with the mockup (`.playtest/F61/mockup-reveal.png`, `mockup-scoreboard.png`, `mockup-final.png`): `reveal-{right,miss,drawer}-*`, `scoreboard-player-*`, `final-{host,guest}-award-*`, `final-12p-*`, `final-rematch-armed-360x560-Mika.png`, `final-back-armed-360x560-Mika.png`, `hostsheet-*`, `paused-*`, `rematch-countdown-*`, `resume-countdown-*`.
+- **Still differs from the mockup:**
+  - A guesser's results page is dot grid, not ruled.
+  - No "Next: Jun draws" on the drawer's reveal (the phone's view doesn't carry the next drawer).
+  - "Everyone got it! 🎉", "👀 Watch the Screen" and Leave stay on the results (existing copy and behaviour).
+  - The standings rows carry a rank cell; the mockup's rows don't.
+  - The host's final rank is smaller (11dvh) to fit Rematch and Back to lobby.
+  - A full room's lists scroll inside themselves.
+  - On the Screen the paper veils sit over the still-dark page until F62.
+- `npm run size`: JS 118.4 KB of 120 (F60: 117.3), CSS and fonts 69.2 KB of 72.
+- `/verify`: format, lint, typecheck, 1521 tests and build all green.
+
+**Notes for next session:**
+- The phone has no dark surface left. `legacy-ink` remains on PhoneLobby's settings and custom-words panels (F63) and `legacy-night` on DevBots (F67). `HostPlayerList` is already paper-styled and reads on both.
+- `useHostTaps` (`lib/hostTaps.ts`) is the crown phone's two-tap logic; `sketchButtonClass('armed')` is the armed look, for F63's Screen controls too.
+- Screen veils are paper already; F62 can put the Screen frame under them.
+
+**How to try it:** `npm run dev`, open `/` and Start on a laptop, join `/play/CODE` from three 360×560 windows (the first is the host), set 2 rounds, Start, and play to the final; on the host window try Rematch and the 👑 Host sheet.
 
 ## F60 — Sketchbook guesser phone (2026-10-31)
 **What changed:**

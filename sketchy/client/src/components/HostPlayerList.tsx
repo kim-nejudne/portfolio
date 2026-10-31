@@ -11,17 +11,23 @@ const SIZES = {
     list: 'gap-2 text-lg',
     name: 'text-lg',
     avatar: '1.75rem',
-    button: 'min-h-11 min-w-11 rounded-xl px-3 py-1 text-base',
+    button: 'min-h-11 min-w-11 rounded-[12px_4px_12px_4px] border-2 px-3 py-1 text-lg',
     status: 'text-base',
   },
   screen: {
     list: 'gap-[1.5vmin] text-[max(3vmin,16px)]',
     name: 'text-[max(3.2vmin,18px)]',
     avatar: 'max(5vmin, 32px)',
-    button: 'min-h-11 min-w-11 rounded-[1.5vmin] px-[2.5vmin] py-[1vmin] text-[max(2.6vmin,16px)]',
+    button:
+      'min-h-11 min-w-11 rounded-[1.5vmin_0.5vmin_1.5vmin_0.5vmin] border-2 px-[2.5vmin] py-[1vmin] text-[max(2.6vmin,16px)]',
     status: 'text-[max(2.8vmin,16px)]',
   },
 } as const;
+
+/** Hand-bordered paper buttons (F61): they read on the paper sheet and on the dark panels F63
+ * still has to restyle. Armed ("Remove Jun?") is red pen. */
+const BUTTON = 'border-ink bg-paper text-ink';
+const ARMED = 'border-ink bg-red text-paper';
 
 /**
  * The host's players list (Host controls), on the token Screen and the crown phone: each player
@@ -74,10 +80,10 @@ export function HostPlayerList({
             <li
               key={p.pid}
               // Dashed rules between rows (the sketchbook's roster), in `dot`, which reads on paper
-              // and on the dark panels it still sits in until F61/F63.
+              // and on the dark panels it still sits in until F63.
               className={`flex flex-wrap items-center justify-between gap-2 border-b-[1.5px] border-dashed border-dot pb-1 ${p.connected ? '' : 'opacity-60'}`}
             >
-              <span className={`flex min-w-0 items-center gap-2 font-semibold ${sz.name}`}>
+              <span className={`flex min-w-0 items-center gap-2 ${sz.name}`}>
                 <Avatar player={p} size={sz.avatar} />
                 <span className="truncate">
                   {p.crown && '👑 '}
@@ -92,7 +98,7 @@ export function HostPlayerList({
                       type="button"
                       onClick={() => giveCrown(p.pid)}
                       aria-disabled={sending !== null}
-                      className={`${sz.button} bg-white/15 font-bold aria-disabled:opacity-60`}
+                      className={`${sz.button} ${BUTTON} aria-disabled:opacity-60`}
                     >
                       {t('giveCrown')}
                     </button>
@@ -101,8 +107,8 @@ export function HostPlayerList({
                     type="button"
                     onClick={() => kick(p.pid)}
                     aria-disabled={sending !== null}
-                    className={`${sz.button} font-bold aria-disabled:opacity-60 ${
-                      kickArmed ? 'bg-[#FFD166] text-[#1D1B22]' : 'bg-white/15'
+                    className={`${sz.button} aria-disabled:opacity-60 ${
+                      kickArmed ? ARMED : BUTTON
                     }`}
                   >
                     {kickArmed ? t('kickConfirm', { name: p.name }) : t('kick')}
@@ -113,7 +119,8 @@ export function HostPlayerList({
           );
         })}
       </ul>
-      <p role="status" className={`min-h-[1.5em] text-[#FFD166] ${sz.status}`}>
+      {/* In the panel's own text colour: ink on the paper sheet, white on the dark panels left. */}
+      <p role="status" className={`min-h-[1.5em] ${sz.status}`}>
         {status ?? ''}
       </p>
     </div>

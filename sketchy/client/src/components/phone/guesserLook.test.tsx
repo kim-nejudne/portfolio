@@ -248,9 +248,9 @@ describe('the restyled files (F60)', () => {
     }
   });
 
-  it('put the guesser’s turn on a ruled page and keep the old dark page only for the results', () => {
+  it('put the guesser’s turn on a ruled page, and no page of the game is dark any more (F61)', () => {
     const play = read('../../pages/Play.tsx');
     expect(play).toMatch(/guesserPage\s*\?\s*`paper-ruled \$\{RULED_INSET\}`/);
-    expect(play).toContain("className={`min-h-0 flex-1 ${resultsPage ? 'legacy-night' : ''}`}");
+    expect(play).not.toContain('legacy-');
   });
 });

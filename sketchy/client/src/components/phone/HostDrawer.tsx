@@ -1,21 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { GUESS_FEED_CHOICES } from '../../../../shared/constants.js';
 import type { PlayerView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
 import {
   CONFIRM_LABELS,
-  CONFIRM_MS,
   FEED_LABELS,
   LABELS,
-  controlEvent,
   drawerSections,
-  press,
-  type Armed,
   type ControlId,
 } from '../../lib/hostKeys.js';
-import { useHostSender } from '../../lib/hostSend.js';
+import { useHostTaps } from '../../lib/hostTaps.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { HostPlayerList } from '../HostPlayerList.js';
+import { sketchButtonClass } from '../sketch/SketchButton.js';
 import { RINGS_ROW_PX } from '../sketch/SpiralRings.js';
 
 /**
@@ -85,12 +82,7 @@ export function HostDrawer({
           </span>
         </button>
       </div>
-      {/* The sheet stays the dark one until F61 puts it on paper. */}
-      {open && (
-        <div className="legacy-ink contents">
-          <DrawerSheet view={view} socket={socket} t={t} onClose={close} />
-        </div>
-      )}
+      {open && <DrawerSheet view={view} socket={socket} t={t} onClose={close} />}
     </>
   );
 }
@@ -107,12 +99,8 @@ export function DrawerSheet({
   t: Translate;
   onClose: () => void;
 }) {
-  const { sending, status, setStatus, send } = useHostSender(socket, t);
+  const { armed, tap, sending, status, statusIsHint, send } = useHostTaps(view, socket, t);
   const sheet = useRef<HTMLDivElement>(null);
-  // A first tap never carries over into another phase or turn.
-  const scope = `${view.phase}:${view.turn?.id ?? ''}`;
-  const [armedAt, setArmed] = useState<(Armed & { scope: string }) | null>(null);
-  const armed = armedAt?.scope === scope ? armedAt : null;
   const { controls, feed, players } = drawerSections(view);
 
   useEffect(() => {
@@ -124,31 +112,14 @@ export function DrawerSheet({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useEffect(() => {
-    if (!armedAt) return;
-    const timer = setTimeout(() => setArmed(null), CONFIRM_MS);
-    return () => clearTimeout(timer);
-  }, [armedAt]);
-
-  // `now` is the click's own timestamp (performance.now()'s clock).
-  const tap = (control: ControlId, now: number) => {
-    if (sending) return;
-    const { command, armed: next } = press(control, armed, now);
-    setArmed(next && { ...next, scope });
-    if (command.kind === 'arm') {
-      const hint = CONFIRM_LABELS[control];
-      if (hint) setStatus(t(hint));
-      return;
-    }
-    const { event, payload } = controlEvent(control, view);
-    void send(control, event, payload);
-  };
-
-  const primary = (c: ControlId) => c === 'next' || c === 'resume' || c === 'rematch';
+  const primary = (c: ControlId) =>
+    c === 'next' || c === 'resume' || c === 'rematch' || c === 'cancelRematch';
 
   return (
+    // A paper veil, never dark (Sketchbook Results: overlays), then a dot-grid paper sheet with an
+    // ink edge and a hard shadow, rising from the bottom.
     <div
-      className="fixed inset-0 z-40 flex cursor-pointer flex-col justify-end bg-black/60 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]"
+      className="fixed inset-0 z-40 flex cursor-pointer flex-col justify-end bg-paper/70 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -159,38 +130,33 @@ export function DrawerSheet({
         aria-modal="true"
         aria-labelledby="host-drawer-title"
         tabIndex={-1}
-        className="flex max-h-[85dvh] cursor-auto flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-3xl bg-[#2A2730] px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none"
+        className="paper-dots flex max-h-[85dvh] cursor-auto flex-col gap-3 overflow-y-auto overscroll-contain rounded-t-[22px_14px] border-x-[2.5px] border-t-[2.5px] border-ink bg-paper px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] font-hand text-ink outline-none"
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 id="host-drawer-title" className="font-display text-2xl font-bold">
+          <h2 id="host-drawer-title" className="text-[28px] leading-tight">
             <span aria-hidden="true">👑</span> {t('hostControls')}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 min-w-11 rounded-xl bg-[#FF6B35] px-4 font-bold text-[#1D1B22]"
-          >
+          <button type="button" onClick={onClose} className={sketchButtonClass('ghost')}>
             {t('close')}
           </button>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {controls.map((control) => {
             const confirm = CONFIRM_LABELS[control];
             const isArmed = armed?.control === control;
+            const big = control === 'rematch' || control === 'cancelRematch';
             return (
               <button
                 key={control}
                 type="button"
                 onClick={(e) => tap(control, e.timeStamp)}
                 aria-disabled={sending === control}
-                className={`min-h-12 w-full rounded-xl px-4 py-2 text-lg font-bold aria-disabled:opacity-70 ${
-                  isArmed
-                    ? 'bg-[#FFD166] text-[#1D1B22]'
-                    : primary(control) || control === 'cancelRematch'
-                      ? 'bg-[#FF6B35] text-[#1D1B22]'
-                      : 'bg-white/15'
-                } ${control === 'rematch' || control === 'cancelRematch' ? 'min-h-16 text-2xl' : ''}`}
+                // Armed is red pen with the "Tap again…" line, unlike either resting look.
+                className={`${sketchButtonClass(
+                  isArmed ? 'armed' : primary(control) ? 'primary' : 'ghost',
+                  big ? 'tall' : false,
+                )} ${big ? '' : 'w-full'} aria-disabled:opacity-70`}
               >
                 {isArmed && confirm ? t(confirm) : t(LABELS[control])}
               </button>
@@ -198,13 +164,13 @@ export function DrawerSheet({
           })}
         </div>
 
-        <p role="status" className="min-h-[1.5em] text-base text-[#FFD166]">
-          {status ?? ''}
+        <p role="status" className="min-h-[1.5em] text-lg text-red">
+          <span className={statusIsHint ? 'sr-only' : ''}>{status ?? ''}</span>
         </p>
 
         {feed && (
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-white/80">{t('settingGuessFeed')}</legend>
+            <legend className="mb-1 text-lg text-soft">{t('settingGuessFeed')}</legend>
             <div className="flex gap-2">
               {GUESS_FEED_CHOICES.map((value) => (
                 <button
@@ -216,7 +182,7 @@ export function DrawerSheet({
                     if (!sending && view.settings.guessFeed !== value)
                       void send('guessFeed', 'host:settings', { guessFeed: value });
                   }}
-                  className="min-h-11 flex-1 rounded-xl bg-white/10 px-3 font-bold aria-disabled:opacity-60 aria-pressed:bg-[#FF6B35] aria-pressed:text-[#1D1B22]"
+                  className="min-h-11 flex-1 rounded-[12px_4px_12px_4px] border-2 border-ink bg-paper px-3 text-lg text-ink aria-disabled:opacity-60 aria-pressed:bg-hl aria-pressed:shadow-[2px_3px_0_var(--color-ink)]"
                 >
                   {t(FEED_LABELS[value])}
                 </button>
@@ -227,7 +193,7 @@ export function DrawerSheet({
 
         {players && (
           <section className="flex flex-col gap-2">
-            <h3 className="text-white/80">{t('playersTitle')}</h3>
+            <h3 className="text-lg text-soft">{t('playersTitle')}</h3>
             <HostPlayerList
               players={view.players}
               socket={socket}

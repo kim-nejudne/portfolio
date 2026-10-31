@@ -25,8 +25,8 @@ export function LeaveButton({
     <button
       type="button"
       onClick={() => (armed ? onLeave() : setArmed(true))}
-      // Underlined at the bottom of the page (in the page's text colour, so it reads on the dark
-      // standings too until F61); armed, a highlighter sketch button that asks again.
+      // Underlined at the bottom of the page, in the page's text colour; armed, a highlighter
+      // sketch button that asks again.
       className={`min-h-11 px-4 text-lg hover:bg-none ${
         armed
           ? 'sketch-border bg-hl text-ink shadow-[2px_3px_0_var(--color-ink)]'

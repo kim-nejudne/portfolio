@@ -3,6 +3,7 @@ import type { View } from '../../../shared/types.js';
 import type { Translate } from '../lib/copy.js';
 import { countdownDigit } from '../lib/pause.js';
 import { useCountdown } from '../lib/useCountdown.js';
+import { NameInColour } from './phone/NameInColour.js';
 
 interface Props {
   view: View;
@@ -29,12 +30,13 @@ export function RematchOverlay({ view, receivedAt, variant, t }: Props) {
     <div
       role="status"
       aria-live="polite"
-      className={`absolute inset-0 grid place-items-center p-6 text-center [text-shadow:0_0_2vmin_#1D1B22] ${
-        screen ? 'pointer-events-none z-10 bg-[#1D1B22]/95' : 'z-20 bg-[#1D1B22]/95'
+      // A paper veil, never dark (Sketchbook Results: overlays).
+      className={`absolute inset-0 grid place-items-center p-6 text-center font-hand text-ink ${
+        screen ? 'pointer-events-none z-10 bg-paper/95' : 'z-20 bg-paper/95'
       }`}
     >
       <div className="flex flex-col items-center gap-[1vmin]">
-        <p className={`font-bold ${screen ? 'text-[max(6vmin,28px)]' : 'text-2xl'}`}>
+        <p className={screen ? 'text-[max(6vmin,28px)]' : 'text-[30px] leading-tight'}>
           {t('gameStartsIn', { n: view.gameNumber + 1 })}
           {/* The seconds as the countdown came in, read once with the line. */}
           <span className="sr-only">
@@ -45,17 +47,16 @@ export function RematchOverlay({ view, receivedAt, variant, t }: Props) {
         {/* Read out once with the line above; a digit a second would be noise. */}
         <p
           aria-hidden="true"
-          className={`font-display leading-none font-bold text-[#FFD166] ${
+          className={`font-num leading-none font-black text-pen tabular-nums ${
             screen ? 'text-[max(30vmin,120px)]' : 'text-[min(8rem,28dvh)]'
           }`}
         >
           {countdownDigit(left)}
         </p>
         {first && (
-          <p className={screen ? 'text-[max(4.5vmin,22px)]' : 'text-xl'}>
-            <span className="font-bold" style={{ color: first.color }}>
-              {t('drawsFirst', { name: first.name })}
-            </span>
+          <p className={screen ? 'text-[max(4.5vmin,22px)]' : 'text-2xl'}>
+            {/* The name in their colour, the sentence whole for screen readers. */}
+            <NameInColour say={(name) => t('drawsFirst', { name })} player={first} />
           </p>
         )}
       </div>
