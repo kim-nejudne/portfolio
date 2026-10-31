@@ -67,8 +67,44 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F49: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3 real phones; play a game with 2 rounds where every phone draws something different, then Rematch and finish game 2 so the Tonight panel shows too · from the sofa (≈ 5 m) the gallery's words and "by Name" lines are readable, every final score row and the Tonight panel fit above the gallery with nothing cut off, each thumbnail matches what was drawn; tapping a thumbnail (or ← →) opens it large with the word whole (try a long one, e.g. "refrigerator"), Esc closes it; the room code strip along the bottom is gone while the gallery is up
 - [ ] F50: `npm run dev` + `npm run lan CODE`, laptop Screen on the TV (Start), 3–4 real phones (one ≤ 360 px wide); play a 2-round game where one drawing goes unguessed to the end of its time, then Rematch and finish game 2 · after the podium the Screen shows "Tonight's awards" cards, nobody twice, every winner's name readable from the sofa (≈ 5 m), all score rows, the Tonight column and the gallery visible with nothing cut off; each phone whose player won something leads its FINAL with the "Your award" card (try Settings → Game text → Taglish for one game: the card still fits on the small phone without pushing Leave off the screen); a player with no award sees no card. Also open the Screen on a 4:3 tablet in game 2 and check the scores and the one-line Tonight strip are readable at 2 m
 - [ ] F51: on the laptop, with Docker running: `cd sketchy && npm ci && npm run smoke:docker` · it ends with `PASS`, after `ok   deploy/compose.deploy.yaml: 127.0.0.1:3006 -> 3000, mem_limit 256m`, every `scripts/smoke.ts` line (`/healthz`, the client, `/play/ABCD`, a room, the dev word route off, both namespaces), "the server started with the word packs", "runs as node", "HEALTHCHECK is starting" (or "healthy") and "stops on SIGTERM in Ns" with N < 5. Once F52 has deployed, run `docker stats sketchy-app-1` on the droplet during a real 10-player game · memory stays well under the 256MiB limit (the probe measured ~166 MB resident outside Docker for a full game)
+- [ ] F52: once autopilot reports the deploy green, check the GitHub run "Deploy Sketchy" (Actions tab): `checks` ran typecheck, lint, format check and tests; `droplet` ran "build and smoke-test the image" ending `PASS`, shipped `sketchy:<tag>`, printed "no live games", "healthy after N attempt(s)", and the final "smoke" step ended `PASS` against https://sketchy.kimnejudne.dev. Then on the droplet: `docker ps --filter name=sketchy` (Up, healthy), `cat /opt/sketchy/.env` (`IMAGE_TAG=<that tag>`), `tail /var/log/nginx/sketchy.access.log` (`/socket.io/` lines answer 101) · all as described; if `deploy` lacks permission for anything in `/opt/sketchy`, fix ownership as in sketchy/README.md "Rebuilding the box's setup" step 2
+- [ ] F52: the spec's Manual playtest checklist (`node .claude/scripts/spec.mjs "Manual playtest checklist"`) on https://sketchy.kimnejudne.dev: a laptop Screen on the TV, a portrait tablet, the budget Android, a mid-range Android and an iPhone, at least two phones on mobile data with Wi-Fi off · every box ticks; in particular the name field is usable within 5 s of scanning on the budget Android over mobile data, ink delay median ≤ 150 ms with the drawer on mobile data, and the drawer's data use for a game is under 1 MB
+- [ ] F52: the live-game wait, once: leave the Screen open on https://sketchy.kimnejudne.dev, then run `gh workflow run deploy-sketchy.yml -f tag=<current tag>` (a re-point, no build) · the "wait for live games" step logs "N live connection(s); waiting (1/20)"; close the Screen tab and it carries on with "no live games" within 30 s and re-points. Then a rollback: `gh workflow run deploy-sketchy.yml -f tag=<previous tag>` (from `docker images sketchy` on the box) and back again · each ends healthy and the smoke step passes
 
 <!-- entries below, newest first -->
+## F52 — Deploy to sketchy.kimnejudne.dev (2026-10-31)
+**What changed:**
+- **`.github/workflows/deploy-sketchy.yml`**, modelled on `deploy-buzzer.yml` and keeping its job names (`checks`, `droplet`), step names and the `ABORT: N live connection(s) after 10 min` line that `scripts/autopilot.sh` matches:
+  - Runs on pushes to `main` touching `sketchy/**` (not `*.md`, `docs/`, `.claude/`) or the workflow itself, and on `workflow_dispatch` with `tag` (re-point, a rollback) and `force` (restart with live games).
+  - `checks`: typecheck, lint, format check, tests on the runner (Node from the root `.node-version`, as ci.yml).
+  - `droplet` (environment `production`, the same SSH secrets as Buzzr's, user `deploy`): tag = last commit touching shipped code under `sketchy/`; `scripts/docker-smoke.sh sketchy:<tag>` builds and smoke-tests the image with the compose file's settings; `docker save | gzip | ssh docker load`; the compose file to `/opt/sketchy/compose.yaml`; one script on the box waits for established connections to `127.0.0.1:3006` to reach zero (20 × 30 s, abort touching nothing), re-points `IMAGE_TAG` in `/opt/sketchy/.env`, `docker compose up -d`, waits for `/healthz`, rolls back to the previous tag if it never answers; untagged images are pruned, so the previous release stays.
+  - The final "smoke" step is `npm run smoke -- https://sketchy.kimnejudne.dev` through nginx and TLS: `/healthz`, the client and its entry script, the `/play` fallback, a room, the dev word route off, and WebSockets on `/` and `/ink`. `npm ci` runs in both modes so a re-point is smoke-checked too.
+- **`sketchy/README.md`** (new): develop, commands, Docker, environment, and the Deploy runbook: the push deploy step by step, `force=true`, break-glass routine deploy, copying the compose file and the vhost, rollback (push-button and by hand), rebuilding the box's setup (DNS, `/opt/sketchy`, bootstrap vhost, certbot, real vhost), health checks.
+- **Root `README.md`**: "Four" applications, a Sketchy row (no hub link), the build line, the live-games wait, the runbook pointer and the provenance line.
+- `deploy/compose.deploy.yaml` and `deploy/nginx/sketchy{,-bootstrap}.conf` are unchanged (F51 and the 2026-10-30 bootstrap).
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 74.
+
+Reviews:
+- **spec-checker: PASS WITH FIXES.** Must-fix done: this entry and the Kim checks (live deploy, Manual playtest checklist on mobile data, the live-game wait and a rollback). Should-fix done: the root README paragraphs rewrapped. Noted: "All four are live" is true once autopilot's push deploys this commit (DECISIONS 74). Kept: `npm ci` unguarded in `droplet`, for the live smoke on a re-point.
+- secrets-fairness and mobile-ux not run: no `server/`, `shared/`, ink or `client/` code changed.
+
+**Verification** (no push, ssh or Docker in autopilot sessions):
+- The workflow parses (PyYAML); job names `checks`/`droplet` and every step name match autopilot's `CI_STEPS` and its ABORT grep; every `run:` block and the box script pass `shellcheck` (only SC2029 infos, intended: `TAG`/`FORCE` expand on the runner, as in Buzzr's).
+- The box script diffed against Buzzr's with the name and port normalised: identical but for one comment.
+- The tag pathspec resolves (`6df5abf` before this commit).
+- `npm run smoke -- http://127.0.0.1:3996` against `npm start` with `TRUST_PROXY=1` and `NODE_OPTIONS=--max-old-space-size=128`: PASS.
+- `/verify`: format, lint, typecheck, 1414 tests, build all green.
+
+**Notes for next session:**
+- All 52 features are built. Autopilot pushes and watches this workflow; if it fails at "ssh" or "ship", check the `production` environment's secrets and `/opt/sketchy` ownership first.
+- Backlog: a hub link for Sketchy once its case study is written.
+
+**How to try it:**
+- After the push: GitHub Actions → Deploy Sketchy; then `curl -s https://sketchy.kimnejudne.dev/healthz` and `npm run smoke -- https://sketchy.kimnejudne.dev`.
+- Rollback: `gh workflow run deploy-sketchy.yml -f tag=<good-tag>`.
+
 
 ## F51 — Docker image and smoke test (2026-10-31)
 **What changed:**

@@ -132,19 +132,7 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 
 - [x] F51 Docker image and smoke test
 
-- [ ] F52 Deploy to sketchy.kimnejudne.dev
-  - Spec: Overview (Scope decisions); Ported from Buzzr
-  - Depends: F51
-  - Done when:
-    - DNS already done: Namecheap A record `sketchy` → `165.245.189.5` (Oct 30, 2026)
-    - `deploy/compose.deploy.yaml` and the nginx vhost (WebSocket upgrade for `/socket.io`, covering the `/ink` namespace; TLS via certbot) for `sketchy.kimnejudne.dev`; separate container, port and env from Buzzr
-    - `.github/workflows/deploy-sketchy.yml` modelled on `deploy-buzzer.yml`, keeping its job names (`checks`, `droplet`), step names (`typecheck`, `lint`, `format check`, `tests`, `build and smoke-test the image`) and the `ABORT: N live connection(s) after 10 min` message, which autopilot matches on: runs only on pushes touching `sketchy/`; checks on the runner; ships the verified image over ssh as the unprivileged `deploy` user; keeps the previous release for rollback; smoke checks the live URL (`/healthz`, the client, both Socket.IO namespaces)
-    - Rooms live in memory, so the deploy waits until no game is live, with a `force` input to override (as Buzzr's "wait for live games" step)
-    - `sketchy/README.md` runbook: deploy, rollback, port, env and the break-glass manual steps
-    - Root `README.md`: a Sketchy row in the table and "Three" becomes "Four"; no hub link yet (see Backlog)
-    - Autopilot push and deploy: already in `scripts/autopilot.sh` (it pushes and watches `deploy-sketchy.yml` once nothing is left to build)
-    - Droplet root setup done in the bootstrap (2026-10-30): `/opt/sketchy` (root:deploy, sticky) with `.env` (`IMAGE_TAG=`), the nginx vhost and the certbot certificate; the live vhost is committed at `deploy/nginx/sketchy.conf` (with `sketchy-bootstrap.conf`); keep them in step with the box
-    - The full Manual playtest checklist passes on the deployed URL with phones on mobile data
+- [x] F52 Deploy to sketchy.kimnejudne.dev
 
 ## Bugs
 
