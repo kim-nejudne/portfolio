@@ -185,16 +185,16 @@ export function TurnUpright({ clock, t }: { clock: string; t: Translate }) {
   return (
     <div
       role="alert"
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[#1D1B22] px-6 text-center"
+      className="paper-dots absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-paper px-6 text-center font-hand text-ink"
     >
       <svg aria-hidden viewBox="0 0 48 48" className="size-16" fill="none" stroke="currentColor">
         <rect x="14" y="6" width="20" height="36" rx="3" strokeWidth="3" />
         <path d="M40 18a16 16 0 0 1-4 18" strokeWidth="3" strokeLinecap="round" />
         <path d="M36 36l-1-6m1 6l5-3" strokeWidth="3" strokeLinecap="round" />
       </svg>
-      <p className="text-2xl font-bold">{t('turnUpright')}</p>
-      <p className="text-base text-white/70">{t('drawingIsSafe')}</p>
-      <p className="text-xl tabular-nums">◔ {clock}</p>
+      <p className="text-[30px] leading-tight">{t('turnUpright')}</p>
+      <p className="text-lg text-soft">{t('drawingIsSafe')}</p>
+      <p className="font-num text-2xl font-black tabular-nums">◔ {clock}</p>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
-import type { Avatar as AvatarEmoji, PlayerView } from '../../../../shared/types.js';
+import type {
+  Avatar as AvatarEmoji,
+  PlayerChipView,
+  PlayerView,
+} from '../../../../shared/types.js';
 import { doodleKey } from '../../ink/doodle.js';
 import type { Translate } from '../../lib/copy.js';
 import { useHostSender } from '../../lib/hostSend.js';
@@ -10,6 +14,7 @@ import { Avatar } from '../Avatar.js';
 import { ScreenSettings, settingsLine } from '../screen/ScreenSettings.js';
 import { ChangeAvatarDialog } from './ChangeAvatar.js';
 import { DoodlePad } from './DoodlePad.js';
+import { sketchButtonClass } from '../sketch/SketchButton.js';
 import { LeaveButton } from './LeaveButton.js';
 
 /**
@@ -37,7 +42,11 @@ export function PhoneLobby({
 }) {
   const me = view.players.find((p) => p.pid === view.me.pid);
   const crown = view.players.find((p) => p.crown);
-  const others = view.players.filter((p) => p.pid !== view.me.pid);
+  // You first, then the others in join order.
+  const here = [
+    ...view.players.filter((p) => p.pid === view.me.pid),
+    ...view.players.filter((p) => p.pid !== view.me.pid),
+  ];
   const isHost = view.host !== null;
 
   // Change covers the lobby with the settings; closing it puts focus back on Change.
@@ -65,11 +74,11 @@ export function PhoneLobby({
   // Change avatar likewise, back to the avatar.
   const [avatarOpen, setAvatarOpen] = useState(false);
   const closeAvatar = useCallback(() => setAvatarOpen(false), []);
-  const avatarButton = useRef<HTMLButtonElement>(null);
+  const avatarButtonRef = useRef<HTMLButtonElement>(null);
   const avatarWasOpen = useRef(false);
   const avatars = avatarOpen && me !== undefined && !open && !words;
   useEffect(() => {
-    if (avatarWasOpen.current && !avatars) avatarButton.current?.focus();
+    if (avatarWasOpen.current && !avatars) avatarButtonRef.current?.focus();
     avatarWasOpen.current = avatars;
   }, [avatars]);
 
@@ -77,78 +86,86 @@ export function PhoneLobby({
     <div className="relative h-full">
       <div
         inert={open || words || avatars}
-        className="flex h-full flex-col gap-4 overflow-y-auto overscroll-contain px-4 pt-4 pb-3"
+        className={`flex h-full flex-col gap-3 overflow-y-auto overscroll-contain pt-1 pb-3 ${
+          // The guest page is ruled: text starts right of the red margin.
+          isHost ? 'px-5' : 'pr-5 pl-[62px]'
+        }`}
       >
-        <header className="flex items-center gap-3">
+        <header className={`flex items-center ${isHost ? 'gap-3' : 'gap-3.5'}`}>
           {me && (
             // SPEC-QUESTION: the spec doesn't place Change avatar; the avatar itself is the button,
-            // with a pencil badge, so the lobby gets no taller at 360×560 (DECISIONS 77).
+            // with a pencil badge, so neither lobby gets taller (DECISIONS 77).
             <button
-              ref={avatarButton}
+              ref={avatarButtonRef}
               type="button"
               onClick={() => setAvatarOpen(true)}
               aria-haspopup="dialog"
               aria-expanded={avatars}
               aria-label={t('changeAvatar')}
-              className="relative shrink-0 rounded-full focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="wobbly relative shrink-0 hover:bg-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen"
             >
-              <Avatar player={me} size="2.75rem" />
+              <Avatar player={me} size={isHost ? '3rem' : '4rem'} />
               <span
                 aria-hidden="true"
-                className="absolute -right-1 -bottom-1 grid size-6 place-items-center rounded-full border-2 border-[#1D1B22] bg-white text-xs leading-none"
+                className="wobbly absolute -right-1 -bottom-1 grid size-6 place-items-center border-2 border-ink bg-paper text-xs leading-none"
               >
                 ✏️
               </span>
             </button>
           )}
-          <h1 className="font-display min-w-0 text-3xl leading-tight font-bold break-words">
-            {isHost ? t('youreHost') : t('youreIn', { name: me?.name ?? '' })}
-          </h1>
+          <div className="min-w-0">
+            {isHost && (
+              <p className="font-num text-xs font-black tracking-[0.14em] text-soft uppercase">
+                {t('roomEyebrow', { code: view.code })}
+              </p>
+            )}
+            <h1 className="text-[30px] leading-[1.05] break-words">
+              {isHost ? t('youreHost') : t('youreIn', { name: me?.name ?? '' })}
+            </h1>
+            {!isHost && <WaitingLine crown={crown} t={t} />}
+          </div>
         </header>
-        {isHost ? (
-          <HostLobby
-            view={view}
-            socket={socket}
-            t={t}
-            changeRef={changeButton}
-            onChange={() => setPanelOpen(true)}
-            wordsRef={wordsButton}
-            wordsOpen={words}
-            onWords={() => setWordsOpen(true)}
-          />
-        ) : (
-          <p className="text-lg text-white/80">
-            {t('waitingForHostToStart', { name: crown?.name ?? '' })}
-          </p>
+        {isHost && (
+          <>
+            <Roster players={here} mePid={view.me.pid} t={t} />
+            <HostLobby
+              view={view}
+              socket={socket}
+              t={t}
+              changeRef={changeButton}
+              onChange={() => setPanelOpen(true)}
+              wordsRef={wordsButton}
+              wordsOpen={words}
+              onWords={() => setWordsOpen(true)}
+            />
+          </>
         )}
 
         {/* SPEC-QUESTION: the spec puts a guesser's pad below the list; it goes above it, so it is on screen at 360×560 (DECISIONS 50). */}
         <DoodlePad storageKey={doodleKey(view.code, view.me.pid)} t={t} />
 
-        <section>
-          <h2 className="mb-2 text-base font-semibold text-white/70">
-            {t('whosHere')} ({view.players.length})
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {[...(me ? [me] : []), ...others].map((p) => (
-              <li
-                key={p.pid}
-                className={`flex items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1 ${
-                  p.connected ? '' : 'opacity-50'
-                }`}
-              >
-                <Avatar player={p} size="1.75rem" />
-                <span className="max-w-[12rem] truncate">
-                  {p.crown ? '👑 ' : ''}
-                  {p.name}
-                  {p.pid === view.me.pid ? ` (${t('you')})` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {!isHost && (
+          <section>
+            <h2 className="text-base leading-tight text-soft">
+              {t('whosHere')} ({view.players.length})
+            </h2>
+            <ul className="mt-1 flex flex-wrap gap-1">
+              {here.map((p) => (
+                <li key={p.pid} className={p.connected ? '' : 'opacity-50'}>
+                  <Avatar player={p} size={view.players.length > 8 ? '1.75rem' : '2.125rem'} />
+                  <span className="sr-only">
+                    {p.crown ? '👑 ' : ''}
+                    {p.name}
+                    {p.pid === view.me.pid ? ` (${t('you')})` : ''}
+                    {p.connected ? '' : ` (${t('offline')})`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-        <div className="mt-auto flex justify-center">
+        <div className="flex shrink-0 justify-center">
           <LeaveButton onLeave={onLeave} inGame={false} t={t} />
         </div>
       </div>
@@ -161,30 +178,93 @@ export function PhoneLobby({
           onClose={closeAvatar}
         />
       )}
-      {words && (
-        <CustomWordsPanel
-          count={view.host!.customWordCount}
-          socket={socket}
-          t={t}
-          onClose={closeWords}
-          onScreen={false}
-        />
-      )}
-      {open && (
-        <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
-          <section className="flex flex-col gap-2">
-            <h3 className="text-white/80">{t('playersTitle')}</h3>
-            <HostPlayerList
-              players={view.players}
-              socket={socket}
-              t={t}
-              size="phone"
-              mePid={view.me.pid}
-            />
-          </section>
-        </ScreenSettings>
-      )}
+      {/* Still the dark panels until F63 restyles them; they paint their own background. */}
+      <div className="legacy-ink contents">
+        {words && (
+          <CustomWordsPanel
+            count={view.host!.customWordCount}
+            socket={socket}
+            t={t}
+            onClose={closeWords}
+            onScreen={false}
+          />
+        )}
+        {open && (
+          <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
+            <section className="flex flex-col gap-2">
+              <h3 className="opacity-80">{t('playersTitle')}</h3>
+              <HostPlayerList
+                players={view.players}
+                socket={socket}
+                t={t}
+                size="phone"
+                mePid={view.me.pid}
+              />
+            </section>
+          </ScreenSettings>
+        )}
+      </div>
     </div>
+  );
+}
+
+/**
+ * "Waiting for 👑 Mika to start" with the host's name in their colour. Screen readers get the
+ * sentence in one piece; the coloured copy beside it is hidden from them.
+ */
+function WaitingLine({ crown, t }: { crown: PlayerChipView | undefined; t: Translate }) {
+  const plain = t('waitingForHostToStart', { name: crown?.name ?? '' });
+  const parts = t('waitingForHostToStart', { name: '\u0000' }).split('\u0000');
+  return (
+    <p className="mt-1 text-base leading-snug text-soft">
+      {crown && parts.length === 2 ? (
+        <>
+          <span className="sr-only">{plain}</span>
+          <span aria-hidden="true">
+            {parts[0]}
+            <span style={{ color: crown.color }}>{crown.name}</span>
+            {parts[1]}
+          </span>
+        </>
+      ) : (
+        plain
+      )}
+    </p>
+  );
+}
+
+/**
+ * The host lobby's roster on dashed rules (the mockup's `sk-roster`): avatar, the name in the
+ * player's colour, "(you)", 👑 for the crown. Read-only: Kick and Give crown stay in Change's
+ * players list (`HostPlayerList`).
+ */
+function Roster({ players, mePid, t }: { players: PlayerChipView[]; mePid: string; t: Translate }) {
+  return (
+    <ul className="flex flex-col">
+      {players.map((p) => (
+        <li
+          key={p.pid}
+          className={`flex items-center gap-2.5 border-b-[1.5px] border-dashed border-dot text-[22px] leading-tight ${
+            players.length > 4 ? 'min-h-9' : 'min-h-[42px]'
+          }`}
+        >
+          {/* Offline: the avatar fades and "(Offline)" is written; the name keeps its contrast. */}
+          <span className={p.connected ? 'contents' : 'opacity-40'}>
+            <Avatar player={p} size={players.length > 4 ? '1.75rem' : '2.125rem'} />
+          </span>
+          <span className="min-w-0 truncate" style={{ color: p.color }}>
+            {p.name}
+          </span>
+          {p.pid === mePid && <span className="shrink-0 text-base text-soft">({t('you')})</span>}
+          {!p.connected && <span className="shrink-0 text-base text-soft">({t('offline')})</span>}
+          {p.crown && (
+            <span role="img" aria-label={t('hostButton')} className="ml-auto shrink-0 text-lg">
+              👑
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -216,7 +296,7 @@ function HostLobby({
   const tooFew = connected < 2;
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <button
         type="button"
         onClick={() => {
@@ -224,24 +304,28 @@ function HostLobby({
         }}
         disabled={tooFew}
         aria-disabled={sending !== null}
-        className="min-h-16 w-full rounded-2xl bg-[#FF6B35] px-6 py-4 text-2xl font-bold text-[#1D1B22] disabled:opacity-40 aria-disabled:opacity-70"
+        className={`${sketchButtonClass('primary', true)} mt-1 aria-disabled:opacity-70`}
       >
         {t('startGame')}
       </button>
-      <p role="status" className="min-h-[1.5em] text-center text-base text-[#FFD166]">
+      <p role="status" className="text-center text-base leading-tight text-ink">
         {status ?? (tooFew ? t('needTwoPlayers') : '')}
       </p>
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-white/80">
+      <p className="flex flex-wrap items-center justify-center gap-x-1 text-base leading-tight text-soft">
         <span>{settingsLine(t, view.settings)}</span>
-        <button
-          ref={changeRef}
-          type="button"
-          onClick={onChange}
-          aria-haspopup="dialog"
-          className="min-h-11 min-w-11 rounded-xl bg-white/15 px-3 font-bold text-white"
-        >
-          {t('change')}
-        </button>
+        {/* The dot wraps with Change, so no line ends on a dangling separator. */}
+        <span className="inline-flex items-center gap-x-1 whitespace-nowrap">
+          <span aria-hidden="true">·</span>
+          <button
+            ref={changeRef}
+            type="button"
+            onClick={onChange}
+            aria-haspopup="dialog"
+            className={LINK_BUTTON}
+          >
+            {t('change')}
+          </button>
+        </span>
       </p>
       <CustomWordsButton
         ref={wordsRef}
@@ -249,8 +333,12 @@ function HostLobby({
         open={wordsOpen}
         onOpen={onWords}
         t={t}
-        className="min-h-11 w-full rounded-xl bg-white/15 px-3 py-2 text-left text-base font-bold text-white focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className={`${LINK_BUTTON} self-center`}
       />
     </section>
   );
 }
+
+/** An underlined word that acts (Change, Add your own words): the mockup's `<u>`, 44 px tall. */
+const LINK_BUTTON =
+  'min-h-11 min-w-11 px-1 text-lg text-ink underline decoration-pen decoration-2 underline-offset-4 hover:bg-none focus-visible:outline-3 focus-visible:outline-pen';

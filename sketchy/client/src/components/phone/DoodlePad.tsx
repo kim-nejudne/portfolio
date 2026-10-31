@@ -75,6 +75,9 @@ export function DoodlePad({ storageKey, t }: Props) {
     };
     repaintRef.current = repaint;
     const resize = () => {
+      // The pad's size and place follow the lobby around it (a name wraps, an avatar row grows),
+      // even mid-stroke: the next point maps through the new box.
+      rect = canvas.getBoundingClientRect();
       const side = box.clientWidth;
       const next = Math.min(MAX_BACKING_PX, Math.round(side * (window.devicePixelRatio || 1)));
       if (next > 0 && next !== px) {
@@ -105,6 +108,8 @@ export function DoodlePad({ storageKey, t }: Props) {
     const onMove = (e: PointerEvent) => {
       if (!stroke || !gate.owns(e.pointerId)) return;
       e.preventDefault();
+      // Moved without resizing (a toast, a row above it wrapping)? Map through where it is now.
+      rect = canvas.getBoundingClientRect();
       const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
       const p = stroke.points;
       for (const ev of events.length > 0 ? events : [e]) {
@@ -154,39 +159,51 @@ export function DoodlePad({ storageKey, t }: Props) {
   };
 
   return (
-    <section className="flex flex-col items-center gap-2">
-      <div className="flex w-full items-center gap-2">
-        <h2 className="text-lg font-semibold">{t('doodleWarmUp')}</h2>
-        <SizeButton tool={tool} onTool={setTool} t={t} className="ml-auto shrink-0" />
-        <button
-          type="button"
-          onClick={undo}
-          disabled={!canUndo}
-          className="min-h-11 min-w-11 shrink-0 rounded-xl bg-white/15 px-3 font-bold text-white disabled:opacity-40"
+    <section className="flex flex-1 flex-col gap-1.5">
+      <h2 className="text-base leading-tight text-soft">{t('doodleWarmUp')}</h2>
+      {/* The pad takes the height the lobby leaves (never under 7.5rem), and stays 2rem narrower than
+          the column, so a thumb can still scroll the lobby beside it. */}
+      <div className="flex min-h-30 flex-1 justify-center [container-type:size]">
+        <div
+          ref={boxRef}
+          className="aspect-square w-[min(100cqw_-_2rem,100cqh)] rounded-md border-2 border-dashed border-soft bg-paper/70"
         >
-          {t('doodleUndo')}
-        </button>
+          <canvas
+            ref={canvasRef}
+            role="img"
+            aria-label={t('doodlePad')}
+            className="block size-full cursor-crosshair touch-none select-none [-webkit-touch-callout:none]"
+          />
+        </div>
       </div>
-      {/* Narrower than the column, so a thumb can still scroll the lobby beside it. */}
-      <div ref={boxRef} className="aspect-square w-full max-w-[min(100%_-_3rem,38dvh)]">
-        <canvas
-          ref={canvasRef}
-          role="img"
-          aria-label={t('doodlePad')}
-          className="block size-full cursor-crosshair touch-none rounded-lg bg-white select-none [-webkit-touch-callout:none]"
-        />
-      </div>
-      {/* One row of 8 where they fit (8 × 44 px), else two rows of 4. */}
-      <div className="@container w-full">
+      {/* Size and Undo beside the colours (one row of 8 where they fit, else two rows of 4), so the
+          tools take no row of their own. */}
+      <div className="@container flex w-full items-center justify-center gap-2">
+        <div className="flex shrink-0 flex-col gap-1">
+          <SizeButton tool={tool} onTool={setTool} t={t} look="paper" />
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            className="sketch-border min-h-11 min-w-11 bg-paper px-2 text-lg leading-none whitespace-nowrap text-ink hover:bg-none disabled:opacity-40"
+          >
+            {t('doodleUndo')}
+          </button>
+        </div>
         <ColourSwatches
           tool={tool}
           onTool={setTool}
           t={t}
-          className="grid grid-cols-4 justify-items-center @min-[22rem]:grid-cols-8"
+          look="paper"
+          className="grid grid-cols-4 justify-items-center @min-[28rem]:grid-cols-8"
         />
       </div>
-      <p role="status" className="min-h-[1.5em] text-center text-base text-[#FFD166]">
-        {full ? t('doodleFull') : ''}
+      {/* The note under the pad (the canvas's label says it to screen readers), or "full". */}
+      <p className="min-h-[1.25em] text-center text-[15px] leading-tight text-soft">
+        <span aria-hidden="true">{full ? '' : t('doodlePad')}</span>
+        <span role="status" className="text-ink">
+          {full ? t('doodleFull') : ''}
+        </span>
       </p>
     </section>
   );

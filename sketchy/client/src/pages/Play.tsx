@@ -51,6 +51,12 @@ type Status = 'form' | 'takeOver' | 'joining' | 'live' | 'ended' | 'removed';
 
 const ACK_TIMEOUT_MS = 5000;
 const CROWN_TOAST_MS = 4000;
+/** A page of the sketchbook: dot-grid paper under the rings (the join step, connecting, ended). */
+const PAPER_PAGE =
+  'paper-dots flex h-dvh flex-col bg-paper pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] font-hand text-ink';
+/** "You're the host now 👑" and "Need 2 players": a sticky note with a hard shadow, level. */
+const TOAST =
+  'sketch-border pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 bg-sticky px-4 py-1.5 text-xl whitespace-nowrap text-ink shadow-[3px_4px_0_var(--color-ink)]';
 /** Room codes are four letters from the code alphabet; anything else can't be a game. */
 const CODE_PATTERN = /^[A-Z]{4}$/;
 
@@ -404,14 +410,20 @@ export function Play() {
 
   if (status === 'ended' || status === 'removed') {
     return (
-      <main className="grid h-dvh place-items-center p-6 text-center">
-        <div className="flex flex-col items-center gap-6">
-          <h1 className="font-display text-3xl font-bold">
-            {t(status === 'removed' ? 'removed' : 'gameEnded')}
-          </h1>
-          <Link to="/" className="text-xl text-[#FF6B35] underline">
-            {t('backHome')}
-          </Link>
+      <main className={PAPER_PAGE}>
+        <SpiralRings />
+        <div className="grid flex-1 place-items-center p-6 text-center">
+          <div className="flex flex-col items-center gap-6">
+            <h1 className="text-[30px] leading-tight">
+              {t(status === 'removed' ? 'removed' : 'gameEnded')}
+            </h1>
+            <Link
+              to="/"
+              className="text-2xl text-pen underline decoration-2 underline-offset-4 focus-visible:outline-3 focus-visible:outline-pen"
+            >
+              {t('backHome')}
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -419,7 +431,7 @@ export function Play() {
 
   if (takeOverName !== null && (status === 'takeOver' || (status === 'joining' && !silent))) {
     return (
-      <main className="paper-dots flex h-dvh flex-col overflow-y-auto bg-paper pt-[env(safe-area-inset-top)] font-hand text-ink">
+      <main className={`${PAPER_PAGE} overflow-y-auto`}>
         <SpiralRings />
         <TakeOverPrompt
           name={takeOverName}
@@ -434,7 +446,7 @@ export function Play() {
 
   if (status === 'form' || status === 'takeOver' || (status === 'joining' && !silent)) {
     return (
-      <main className="paper-dots flex h-dvh flex-col overflow-y-auto bg-paper pt-[env(safe-area-inset-top)] font-hand text-ink">
+      <main className={`${PAPER_PAGE} overflow-y-auto`}>
         <SpiralRings />
         <JoinForm
           code={code}
@@ -450,7 +462,12 @@ export function Play() {
   }
 
   if (!view) {
-    return <main className="grid h-dvh place-items-center text-xl">{t('connecting')}</main>;
+    return (
+      <main className={PAPER_PAGE}>
+        <SpiralRings />
+        <p className="grid flex-1 place-items-center text-2xl text-soft">{t('connecting')}</p>
+      </main>
+    );
   }
 
   const turn = view.turn;
@@ -468,36 +485,46 @@ export function Play() {
   const counting = view.phase === 'FINAL' && view.rematchInMs !== null;
 
   return (
-    <main className="relative flex h-dvh w-full flex-col overflow-hidden overscroll-none pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
+    <main
+      className={`relative flex h-dvh w-full flex-col overflow-hidden overscroll-none bg-paper pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] font-hand text-ink ${
+        // The guest lobby is a ruled page, the host's dot grid; the turn pages bring their own
+        // paper from F59.
+        view.phase === 'LOBBY' ? (view.host ? 'paper-dots' : 'paper-ruled') : ''
+      }`}
+    >
       {/* Always mounted, so screen readers announce the toast. */}
       <p
         role="status"
-        className={
-          crownToast
-            ? 'pointer-events-none absolute top-[calc(env(safe-area-inset-top)+3.5rem)] left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#FFD166] px-4 py-2 text-base font-bold whitespace-nowrap text-[#1D1B22] shadow-lg'
-            : 'sr-only'
-        }
+        className={crownToast ? `${TOAST} top-[calc(env(safe-area-inset-top)+3.5rem)]` : 'sr-only'}
       >
         {crownToast ? t('youreHostNow') : ''}
       </p>
       <p
         role="status"
         className={
-          needTwoToast
-            ? 'pointer-events-none absolute top-[calc(env(safe-area-inset-top)+6.5rem)] left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#FFD166] px-4 py-2 text-base font-bold whitespace-nowrap text-[#1D1B22] shadow-lg'
-            : 'sr-only'
+          needTwoToast ? `${TOAST} top-[calc(env(safe-area-inset-top)+6.5rem)]` : 'sr-only'
         }
       >
         {needTwoToast ? t('needTwoPlayers') : ''}
       </p>
       <ConnectionDot connection={link} t={t} />
+      <SpiralRings />
       {hostBar && (
-        <HostDrawer view={view} socket={socket} t={t} open={hostOpen} onOpenChange={setHostOpen} />
+        // The Host bar and drawer stay dark until F59/F61 restyle them.
+        <div className="legacy-night shrink-0">
+          <HostDrawer
+            view={view}
+            socket={socket}
+            t={t}
+            open={hostOpen}
+            onOpenChange={setHostOpen}
+          />
+        </div>
       )}
       {!connected && (
         <p
           role="status"
-          className="absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-1/2 z-[25] -translate-x-1/2 rounded-full bg-[#FF6B35] px-3 py-1 text-sm font-bold text-[#1D1B22]"
+          className="sketch-border absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-1/2 z-[25] -translate-x-1/2 bg-paper px-3 py-0.5 text-lg whitespace-nowrap text-ink shadow-[2px_3px_0_var(--color-ink)]"
         >
           {t('reconnecting')}
         </p>
@@ -505,7 +532,8 @@ export function Play() {
       {/* While paused, the covered guess box and pad are out of reach of focus and the keyboard too. */}
       <div
         inert={(hostBar && hostOpen) || view.paused !== null || counting}
-        className="min-h-0 flex-1"
+        // The turn and results pages are still the dark ones until F59–F61 move them to paper.
+        className={`min-h-0 flex-1 ${view.phase === 'LOBBY' ? '' : 'legacy-night'}`}
       >
         {view.phase === 'LOBBY' && (
           <PhoneLobby
@@ -557,8 +585,11 @@ export function Play() {
           <PhoneStandings view={view} onLeave={leave} t={t} />
         )}
       </div>
-      {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
-      {counting && <RematchOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
+      {/* Still dark veils until F61 puts them on a paper sheet. */}
+      <div className="legacy-ink contents">
+        {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
+        {counting && <RematchOverlay view={view} receivedAt={state!.at} variant="phone" t={t} />}
+      </div>
     </main>
   );
 }

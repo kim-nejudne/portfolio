@@ -25,8 +25,12 @@ export function LeaveButton({
     <button
       type="button"
       onClick={() => (armed ? onLeave() : setArmed(true))}
-      className={`min-h-11 rounded-xl px-4 text-base ${
-        armed ? 'bg-[#B71C1C] font-bold text-white' : 'border border-white/30 text-white/80'
+      // Underlined at the bottom of the page (in the page's text colour, so it reads on the dark
+      // standings too until F61); armed, a highlighter sketch button that asks again.
+      className={`min-h-11 px-4 text-lg hover:bg-none ${
+        armed
+          ? 'sketch-border bg-hl text-ink shadow-[2px_3px_0_var(--color-ink)]'
+          : 'underline decoration-2 underline-offset-4'
       }`}
     >
       {armed ? t(inGame ? 'leaveConfirmGame' : 'leaveConfirm') : t('leave')}

@@ -10,7 +10,8 @@ const DOT: Record<Connection, { color: string; label: CopyKey }> = {
 /**
  * The phone's green / amber / red dot (Guesser phone), ported from Buzzr
  * (buzzer/client/src/components/ConnectionDot.tsx). It sits in the top-right corner, inside the
- * views' own padding, so it covers nothing; the ring keeps it visible on any background. Not a live
+ * views' own padding, so it covers nothing; the `ink` ring keeps every colour visible on paper. The three status colours are lights,
+ * not sketchbook ink, and stay as they were (DECISIONS 81). Not a live
  * region: the "Reconnecting…" pill already announces an outage.
  */
 export function ConnectionDot({ connection, t }: { connection: Connection; t: Translate }) {
@@ -21,7 +22,7 @@ export function ConnectionDot({ connection, t }: { connection: Connection; t: Tr
       aria-label={t(label)}
       title={t(label)}
       data-connection={connection}
-      className={`pointer-events-none absolute top-[calc(env(safe-area-inset-top)+4px)] right-[calc(env(safe-area-inset-right)+4px)] z-[45] size-2 rounded-full ring-2 ring-[#1D1B22] ${color}`}
+      className={`pointer-events-none absolute top-[calc(env(safe-area-inset-top)+4px)] right-[calc(env(safe-area-inset-right)+4px)] z-[45] size-2 rounded-full ring-2 ring-ink ${color}`}
     />
   );
 }

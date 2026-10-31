@@ -25,13 +25,27 @@ interface SwatchProps {
   disabled?: boolean;
   t: Translate;
   className?: string;
+  /**
+   * `paper` is the sketchbook look (F58: the lobby doodle pad): wobbly swatches in an `ink` ring,
+   * the picked one outlined in `pen`; a hand-bordered size button. The drawer's toolbar keeps
+   * `night` until F59 restyles it.
+   */
+  look?: 'night' | 'paper';
 }
 
 /**
  * The 8 colour swatches: 40 px circles in 44 px buttons. The pen's colour is ringed, none while
  * the eraser is on. A thin light border keeps the black swatch visible on the dark page.
  */
-export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: SwatchProps) {
+export function ColourSwatches({
+  tool,
+  onTool,
+  disabled,
+  t,
+  className = '',
+  look = 'night',
+}: SwatchProps) {
+  const paper = look === 'paper';
   return (
     <div role="group" aria-label={t('colours')} className={className}>
       {DRAW_COLORS.map((colour, i) => {
@@ -50,11 +64,17 @@ export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: Sw
             <span
               aria-hidden
               style={{ background: colour }}
-              className={`block size-10 rounded-full ${
-                on
-                  ? 'border-[3px] border-white outline-2 outline-[#FF6B35]'
-                  : 'border-2 border-white/35 group-enabled:group-hover:border-white/80'
-              }`}
+              className={
+                paper
+                  ? `wobbly block size-10 border-[2.5px] border-ink ${
+                      on ? 'outline-[3px] outline-offset-[1px] outline-pen' : ''
+                    }`
+                  : `block size-10 rounded-full ${
+                      on
+                        ? 'border-[3px] border-white outline-2 outline-[#FF6B35]'
+                        : 'border-2 border-white/35 group-enabled:group-hover:border-white/80'
+                    }`
+              }
             />
           </button>
         );
@@ -64,7 +84,15 @@ export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: Sw
 }
 
 /** One button that cycles S → M → L, shown as a dot of that size: the pen's colour, white while erasing. */
-export function SizeButton({ tool, onTool, disabled, t, className = '' }: SwatchProps) {
+export function SizeButton({
+  tool,
+  onTool,
+  disabled,
+  t,
+  className = '',
+  look = 'night',
+}: SwatchProps) {
+  const paper = look === 'paper';
   const dot = SIZE_DOT_PX[tool.size] ?? SIZE_DOT_PX[1];
   return (
     <button
@@ -72,7 +100,11 @@ export function SizeButton({ tool, onTool, disabled, t, className = '' }: Swatch
       aria-label={t('brushSize', { size: t(SIZE_NAMES[tool.size] ?? 'sizeMedium') })}
       disabled={disabled}
       onClick={() => onTool(cycleSize(tool))}
-      className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl bg-white/15 px-2 font-bold text-white disabled:opacity-40 ${className}`}
+      className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 px-2 disabled:opacity-40 ${
+        paper
+          ? 'sketch-border bg-paper font-num font-black text-ink hover:bg-none'
+          : 'rounded-xl bg-white/15 font-bold text-white'
+      } ${className}`}
     >
       <span className="grid size-6 place-items-center" aria-hidden>
         <span
@@ -81,7 +113,7 @@ export function SizeButton({ tool, onTool, disabled, t, className = '' }: Swatch
             height: dot,
             background: tool.eraser ? CANVAS_COLOR : DRAW_COLORS[tool.color],
           }}
-          className="block rounded-full border border-white/70"
+          className={`block rounded-full border ${paper ? 'border-ink' : 'border-white/70'}`}
         />
       </span>
       <span aria-hidden>{SIZE_LETTERS[tool.size]}</span>

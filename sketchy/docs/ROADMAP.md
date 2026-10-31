@@ -155,17 +155,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F57 Sketchbook landing and join form
 
-- [ ] F58 Sketchbook phone shell and lobby
-  - Spec: UI by role and phase (Guesser phone, Host controls, Look and feel); DECISIONS "Proposed spec changes" 2026-10-31 (Sketchbook look); docs/design/SKETCHBOOK.md (Surfaces: Lobby)
-  - Depends: F57
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The global body and `color-scheme` switch to paper (light). The `Play.tsx` shell, toasts, kicked page, rotate-back prompt and connection dot are on paper with rings across the top.
-    - The guest lobby (`#sketch-lobby`, guesser) is a ruled page. It shows the avatar with Change avatar, the waiting line with the host's name in colour, the avatars here with a count, the doodle pad (dashed border) with its note, and Leave (still two taps).
-    - The host lobby (drawer frame) has a dot grid, a "Room KPRW" eyebrow, "You're the host 👑", a roster on dashed rules (`HostPlayerList`, with Kick and the crown actions unchanged), a full-width Start sketch button, and the settings line with Change.
-    - The Change-avatar dialog is a paper sheet.
-    - Both lobbies fit 360×560 with the doodle pad.
-  - Tests: existing `hostPhone`, `phoneViews`, `ChangeAvatar` and `ConnectionDot` tests stay green
+- [x] F58 Sketchbook phone shell and lobby
 
 - [ ] F59 Sketchbook drawer phone
   - Spec: UI by role and phase (Drawer phone); Canvas and drawing tools (Tools); docs/design/SKETCHBOOK.md (Surfaces: Drawer)

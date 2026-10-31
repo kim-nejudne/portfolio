@@ -213,6 +213,7 @@ const EN = {
   youreIn: 'You’re in, {name}!',
   // ---------- Phone: the crown holder ----------
   youreHost: 'You’re the host 👑',
+  roomEyebrow: 'Room {code}',
   youreHostNow: 'You’re the host now 👑',
   change: 'Change',
   hostButton: 'Host',
@@ -501,6 +502,7 @@ const TAGLISH: Record<CopyKey, string> = {
   youreIn: 'Pasok ka na, {name}!',
   // ---------- Phone: the crown holder ----------
   youreHost: 'Ikaw ang host 👑',
+  roomEyebrow: 'Room {code}',
   youreHostNow: 'Ikaw na ang host 👑',
   change: 'Palitan',
   hostButton: 'Host',

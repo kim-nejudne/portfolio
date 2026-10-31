@@ -24,7 +24,7 @@ export default function DevBots(props: Injected) {
   const code = (useParams().code ?? '').toUpperCase();
   if (!CODE_PATTERN.test(code)) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
+      <main className="legacy-night mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
         <h1 className="font-display text-4xl font-bold">Not a room code</h1>
         <Link to="/" className="text-lg text-[#FF6B35] underline">
           Back to start
@@ -93,7 +93,7 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-8">
+    <main className="legacy-night mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-8">
       <header>
         <h1 className="font-display text-4xl font-bold">Bots for {code}</h1>
         <p className="mt-1 text-white/70">

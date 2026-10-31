@@ -73,7 +73,9 @@ export function HostPlayerList({
           return (
             <li
               key={p.pid}
-              className={`flex flex-wrap items-center justify-between gap-2 ${p.connected ? '' : 'opacity-60'}`}
+              // Dashed rules between rows (the sketchbook's roster), in `dot`, which reads on paper
+              // and on the dark panels it still sits in until F61/F63.
+              className={`flex flex-wrap items-center justify-between gap-2 border-b-[1.5px] border-dashed border-dot pb-1 ${p.connected ? '' : 'opacity-60'}`}
             >
               <span className={`flex min-w-0 items-center gap-2 font-semibold ${sz.name}`}>
                 <Avatar player={p} size={sz.avatar} />
