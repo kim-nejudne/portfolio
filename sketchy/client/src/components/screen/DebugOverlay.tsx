@@ -27,9 +27,9 @@ export function DebugReadout({
   return (
     <aside
       aria-label="Debug: ink delay"
-      className="pointer-events-none absolute top-[2vmin] left-[2vmin] z-20 max-h-[45vh] max-w-[45vw] overflow-hidden rounded-lg bg-black/80 px-[1.5vmin] py-[1vmin] font-mono text-[max(2.2vmin,13px)] leading-snug text-white"
+      className="pointer-events-none absolute top-[2vmin] left-[2vmin] z-20 max-h-[45vh] max-w-[45vw] overflow-hidden rounded-lg border-2 border-ink bg-paper px-[1.5vmin] py-[1vmin] font-hand text-[max(2.2vmin,13px)] leading-snug text-ink"
     >
-      <p className="text-[max(3.2vmin,16px)] font-bold">
+      <p className="font-num text-[max(3.2vmin,16px)] font-black">
         p50 {ms(stats.p50)} · p95 {ms(stats.p95)}
       </p>
       <p>ink send → paint, last {stats.count} batches</p>
@@ -37,7 +37,7 @@ export function DebugReadout({
         + {FLUSH_WAIT_MS} ms avg flush wait: p50 {ms(plus(stats.p50, FLUSH_WAIT_MS))} · p95{' '}
         {ms(plus(stats.p95, FLUSH_WAIT_MS))}
       </p>
-      <p className="text-white/60">
+      <p className="text-soft">
         {offset === undefined
           ? 'clock offset: waiting for the server'
           : `clock offset: ${Math.round(offset)} ms`}

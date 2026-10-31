@@ -82,7 +82,7 @@ export function InkCanvas({
 
   return (
     <div ref={boxRef} className="grid h-full w-full place-items-center overflow-hidden">
-      <canvas ref={canvasRef} className={`block bg-white ${className}`} aria-label={label} />
+      <canvas ref={canvasRef} className={`block bg-canvas ${className}`} aria-label={label} />
     </div>
   );
 }

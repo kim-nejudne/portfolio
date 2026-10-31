@@ -25,7 +25,7 @@ Open `http://localhost:5173` for the Screen. Phones on the same Wi-Fi join with 
 | `npm start`                  | Runs the build in production mode on `PORT` (default 3000)                                            |
 | `npm run playtest -- <file>` | Playwright harness, one isolated browser context per role                                             |
 | `npm run packs:check`        | Validates the word packs in `data/packs/`                                                             |
-| `npm run size`               | Builds and measures the join budget (`/` + `/play` ≤ 120 KB JS, ≤ 30 KB CSS and font)                 |
+| `npm run size`               | Builds and measures the join budget (`/` + `/play` ≤ 120 KB JS, ≤ 59 KB CSS and fonts)                |
 | `npm run smoke -- <URL>`     | Smoke checks against any running server: `/healthz`, the client, a room, both Socket.IO namespaces    |
 | `npm run smoke:docker`       | Builds the image, runs it with the droplet's settings and runs the smoke checks against it            |
 | `npm run mem:probe`          | Needs `npm run build`. Peak memory of a 10-player game with a full gallery (`-- --games N --heap MB`) |

@@ -10,7 +10,7 @@ const t = translator('en');
 const chip = (pid: string, score: number, rank: number): PlayerChipView => ({
   pid,
   name: pid,
-  color: '#FF6B35',
+  color: '#C2410C',
   connected: true,
   crown: false,
   isDrawer: false,
@@ -70,7 +70,7 @@ describe('Screen standings (F20)', () => {
 
 describe('Tonight panel (F29)', () => {
   const tonight: ScreenView['tonight'] = [
-    { pid: 'Ana', name: 'Ana', color: '#FF6B35', total: 2400, rank: 1 },
+    { pid: 'Ana', name: 'Ana', color: '#C2410C', total: 2400, rank: 1 },
     { pid: 'Cy', name: 'Cy', color: '#3A86FF', total: 1100, rank: 2 },
   ];
 
@@ -88,7 +88,7 @@ describe('Tonight panel (F29)', () => {
     const many = Array.from({ length: 11 }, (_, i) => ({
       pid: `p${i}`,
       name: `P${i}`,
-      color: '#FF6B35',
+      color: '#C2410C',
       total: 1000 - i,
       rank: i + 1,
     }));

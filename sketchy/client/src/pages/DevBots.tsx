@@ -24,9 +24,9 @@ export default function DevBots(props: Injected) {
   const code = (useParams().code ?? '').toUpperCase();
   if (!CODE_PATTERN.test(code)) {
     return (
-      <main className="legacy-night mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
-        <h1 className="font-display text-4xl font-bold">Not a room code</h1>
-        <Link to="/" className="text-lg text-[#FF6B35] underline">
+      <main className={`${page} max-w-md items-center justify-center text-center`}>
+        <h1 className="text-4xl">Not a room code</h1>
+        <Link to="/" className={`text-lg ${link}`}>
           Back to start
         </Link>
       </main>
@@ -36,9 +36,13 @@ export default function DevBots(props: Injected) {
   return <BotPanel key={code} code={code} {...props} />;
 }
 
-const button =
-  'min-h-11 rounded-lg bg-white/10 px-3 font-semibold hover:bg-white/20 disabled:opacity-40';
-const primary = 'min-h-11 rounded-lg bg-[#FF6B35] px-3 font-semibold text-[#1D1B22]';
+// The sketchbook's tokens (F56), plainly: a dev tool, so no tape, rings or hand-drawn borders.
+const page = 'mx-auto flex min-h-dvh flex-col gap-6 bg-paper px-4 font-hand text-ink';
+const link = 'text-pen underline';
+const control =
+  'min-h-11 rounded-lg border-2 border-ink px-3 text-lg text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen disabled:opacity-60';
+const button = `${control} bg-paper not-disabled:hover:bg-sticky`;
+const primary = `${control} bg-hl`;
 
 function BotPanel({ code, ...injected }: Injected & { code: string }) {
   const bots = useRef<Bot[]>([]);
@@ -93,12 +97,12 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
   }
 
   return (
-    <main className="legacy-night mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-8">
+    <main className={`${page} max-w-3xl py-8`}>
       <header>
-        <h1 className="font-display text-4xl font-bold">Bots for {code}</h1>
-        <p className="mt-1 text-white/70">
+        <h1 className="text-4xl">Bots for {code}</h1>
+        <p className="mt-1 text-soft">
           Development only. Each bot is a real player socket. Open the Screen at{' '}
-          <Link to={`/screen/${code}`} className="text-[#FF6B35] underline">
+          <Link to={`/screen/${code}`} className={link}>
             /screen/{code}
           </Link>
           .
@@ -120,7 +124,7 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
             max={MAX_PLAYERS}
             value={count}
             onChange={(e) => setCount(e.target.value)}
-            className="min-h-11 w-28 rounded-lg bg-white px-3 text-lg text-[#1D1B22]"
+            className={`${control} w-28 bg-canvas font-num font-black`}
           />
         </label>
         <button type="submit" className={primary}>
@@ -138,7 +142,7 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
             type="checkbox"
             checked={behaviour.autoGuess}
             onChange={(e) => setBehaviour((b) => ({ ...b, autoGuess: e.target.checked }))}
-            className="size-5"
+            className="size-5 accent-pen focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen"
           />
           Guess random words by themselves
         </label>
@@ -147,7 +151,7 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
             type="checkbox"
             checked={behaviour.autoDraw}
             onChange={(e) => setBehaviour((b) => ({ ...b, autoDraw: e.target.checked }))}
-            className="size-5"
+            className="size-5 accent-pen focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen"
           />
           Draw the doodle on their turn
         </label>
@@ -180,21 +184,21 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
         </button>
       </div>
 
-      {none && <p className="text-white/70">No bots yet. Spawn some above.</p>}
+      {none && <p className="text-soft">No bots yet. Spawn some above.</p>}
       <ul aria-label="Bots" className="flex flex-col gap-2">
         {states.map((s) => {
           const bot = () => bots.current.find((b) => b.index === s.index);
           return (
             <li
               key={s.index}
-              className="flex flex-wrap items-center gap-3 rounded-lg bg-white/5 px-3 py-2"
+              className="flex flex-wrap items-center gap-3 border-b-2 border-dashed border-dot px-1 py-2"
             >
-              <span className="w-16 font-semibold">{s.name}</span>
+              <span className="w-16">{s.name}</span>
               <span className="w-24">{s.status}</span>
-              <span className="w-24 text-white/70">
+              <span className="w-24 text-soft">
                 {s.role === 'drawer' ? '✏️ drawing' : s.guessed ? '✓ got it' : (s.role ?? '—')}
               </span>
-              <span className="min-w-32 flex-1 text-white/70">{s.message}</span>
+              <span className="min-w-32 flex-1 text-soft">{s.message}</span>
               <span className="flex gap-2">
                 <button type="button" onClick={() => bot()?.guessRandom()} className={button}>
                   Guess

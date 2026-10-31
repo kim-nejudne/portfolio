@@ -376,7 +376,7 @@ describe('the final page (F66)', () => {
 });
 
 describe('the restyled standings files', () => {
-  it('use only the sketchbook tokens: no hex, no white/NN, no Fredoka, no dark page', () => {
+  it('use only the sketchbook tokens: no hex, no white/NN, no display face, no dark page', () => {
     for (const file of ['./ScreenStandings.tsx', './ScreenAwards.tsx', './ScreenGallery.tsx']) {
       const src = read(file);
       expect(src, file).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);

@@ -100,7 +100,70 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F66: `npm run dev` + `npm run lan CODE`, a laptop on the TV as the Screen (Start), 4+ real phones, 2 rounds; play to the scoreboard, then to the final; from the couch (~5 m) · the rows slide into their new order and the bars grow, ↑n is green and ↓n red; at the final the podium's blocks rise 3rd, 2nd, then 1st, the names and the line for 4th on are readable, the award notes' tape doesn't cover a name, and a gallery drawing opens large on paper with ← → paging
 - [ ] F66: the same room with a tablet upright as the Screen, then Rematch and play one turn of game 2, then End game · the portrait final shows Rematch / Back to lobby beside "Final scores", the Tonight strip and at least one row of gallery sheets big enough to tell the drawings apart from 2 m (with 8+ players they get small: say whether that's acceptable)
 
+- [ ] F67 (M12 acceptance, TV): `npm run dev` + `npm run lan CODE`, a laptop on the TV as the Screen (Start), 3+ real phones, a full 2-round game, then Rematch and one more game · from ~5 m every name, the clock, the blanks, the bubbles, the tabs' "✓ +270", the reveal word, the scoreboard rows and the podium read without leaning in; nothing is cut at the TV's edges (overscan); with `?debug=1` the overlay's lines are readable over the drawing.
+- [ ] F67 (budget Android): the same game joined from a budget Android in Chrome, also once over mobile data from the QR · the join page shows the name field in ≤ 5 s; Patrick Hand and Nunito appear (no Arial/Comic Sans flash that stays); drawing on the pad is smooth; the connection dot is a filled green dot, then a hollow red ring with Wi-Fi off, then amber while it reconnects.
+- [ ] F67 (iPhone Safari): the same from an iPhone in Safari, portrait · no page scroll or zoom on the lobby, guess box (with the keyboard up) and results; the fonts load; tape and the highlighter swash are the only tilted things.
+- [ ] F67 (Taglish lengths): set the copy to Taglish in the lobby and play one game with the Screen at 16:9 and upright on a tablet · no Taglish line in Patrick Hand is cut off or overprinted on any phone page (360-wide phones too) or Screen page (choosing, drawing, reveal, scoreboard, final, host bar).
+- [ ] F67 (new M12 copy): read every Taglish line M12 added, in context (`nextUp`, `nextDraws`, `movedUp` / `movedDown`, `gotItHeading`, `closeNote`, plus the F58–F61 lines listed above) · each sounds natural to a barkada; tick the F58–F66 copy checks above as you go.
+
 <!-- entries below, newest first -->
+
+## F67 — Sketchbook cleanup (2026-11-01)
+**What changed:**
+- **Fredoka is gone:** `fonts/fredoka-latin-700.woff2`, `fonts/OFL-Fredoka.txt`, its `@font-face`, `--font-display` and the `index.html` preload. Two faces remain (Patrick Hand, Nunito 900). The `legacy-night` utility is deleted too; nothing used it after F66 but `/dev/bots`.
+- **Dev pages on the F56 tokens, plainly** (no tape, rings or hand-drawn borders):
+  - `/dev/bots` (`DevBots.tsx`): a paper page in Patrick Hand and `ink`, secondary text in `soft`, links in `pen`, `ink`-bordered buttons (paper with a `sticky` hover, Spawn on `hl`), a `pen` focus ring on the buttons, the number field and the checkboxes (`accent-pen`), the count in Nunito, rows on dashed `dot` rules.
+  - `DebugOverlay`: solid `paper` with an `ink` border, Patrick Hand, p50/p95 in Nunito 900, the clock offset in `soft`.
+- **Connection dot:** `bg-success` / `bg-amber` with the `ink` ring, and offline is now a hollow `red` ring. Green and red-pen have about the same lightness, so offline also differs by shape.
+- **InkCanvas:** `bg-white` → `bg-canvas` (the same white, as a token). A class change only, with no ink logic touched.
+- **Test fixtures:** the player colour `#FF6B35` is now `#C2410C` (vermilion, the palette's first) in 10 test files. Titles saying "no Fredoka" are now "no display face", and two `#1D1B22` assertions are lower-case with `/i` (they still catch it). No assertion was weakened.
+- **New `client/src/oldLook.test.ts` (3 tests):**
+  - the Done-when grep over every `.ts/.tsx/.css/.html` in `client/src` (its patterns are built from pieces so the file doesn't match itself);
+  - exactly the two fonts and their licences in `fonts/`, two preloads and two `@font-face`, no `--font-display` / `legacy-`;
+  - every component free of hex (3–8 digits), `rgb(`, white/black/grey utilities, `font-display`, `font-bold` / `font-semibold` and `legacy-`.
+- **Budget:** `BUDGET.playerCssAndFonts` drops from 72 000 to **59 000**. Measured 53.8 KB (53.7 before the review fixes) = CSS 13.1 KB + Patrick Hand 23.9 KB + Nunito 900 16.7 KB, so about 5 KB of headroom (was 70.0 KB with Fredoka in F66). `scripts/bundle.test.ts` now expects two fonts. README's and CLAUDE.md's `npm run size` lines now say ≤ 59 KB (they said 30 KB, a stale F39 figure).
+- **Rules and reviewers:** checked `.claude/rules/`, `.claude/agents/` and README; none described the dark look. `.claude/rules/client.md` gains a "Look" rule (light sketchbook only, F56 tokens, two faces, only decoration rotates). `mobile-ux-reviewer` gains a **Look** check item. Both are gitignored local files, so they aren't in the commit.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 90.
+
+Reviews:
+- **review-feature (spec-checker): FAIL → fixed.**
+  - It ran before the paperwork. Its Must-fixes were DECISIONS 90, this entry, the Kim checks and the mobile-ux run, all now done.
+  - It reported no playtest because it did not see the gitignored `.playtest/F67`. The runs are listed below.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Should-fixes done:
+    - the dot is no longer told apart by colour alone (hollow red offline);
+    - DevBots buttons hover on paper (`sticky`);
+    - focus rings on the checkboxes;
+    - disabled buttons at 0.6, not 0.4;
+    - a solid overlay background;
+    - `oldLook.test.ts` also bans 3/8-digit hex, `rgb(` and white/black/grey utilities.
+  - Not taken: the two now-redundant "no `legacy-night`" assertions in `standingsLook` / `turnLook` stay. They are harmless, and removing tests is not a cleanup this feature needs.
+- **secrets-fairness-reviewer:** not run. Nothing in `server/` or `shared/` changed. The only ink-code change is InkCanvas's background class (`bg-white` → `bg-canvas`, the same colour).
+
+**Verification:**
+- `/playtest F67`, `.playtest/F67/scenario.ts`: a token Screen at 1920×1080, with Ana (Pixel 7), Ben (iPhone 13) and Cara (360×560).
+  - The lobby at 16:9 and 4:3 (1440×1080) with no overflow on the Screen or the phones.
+  - Game 1 in landscape, 6 turns over 2 rounds. Each turn: the drawer picks a word and draws; the word is in no Screen or guesser text or attribute before the reveal; one wrong guess shows struck under "Almost:"; everyone guesses right; the reveal shows the word. Round 1's scoreboard passes mid-game.
+  - Game 1's final (podium, awards, gallery) and each phone's rank and award.
+  - Then the Screen goes portrait (810×1080): the final with no overflow; Rematch arms ("Tap again to rematch: the gallery will be cleared"), and the second tap starts game 2.
+  - Game 2 is played in portrait for all 6 turns, with the same secrecy check each turn, to its final.
+  - No console errors on any role.
+- `.playtest/F67/scenario2.ts` (the same three phones):
+  - Every phase at 1920×1080, 1024×768 and 768×1024: lobby, choosing, drawing (with a wrong-guess bubble), reveal, and round 1's scoreboard. No document scroll at any of them.
+  - The page's fonts (`document.fonts` and the computed families) on the landing, the Screen lobby, a phone lobby and DevBots are Patrick Hand and Nunito, never Fredoka.
+  - A `?debug=1` Screen shows the overlay on paper (`ink` text, Patrick Hand).
+  - DevBots on a laptop, at 360×640, and "Not a room code" are paper and `ink`.
+  - ALL PASS, no console errors.
+- **Side by side with the mockup:** `.playtest/F67/mockup-{lobby,choosing,drawing,reveal,scoreboard,final}-{land,port}.png` (`mockup.mjs`) against `lobby-*`, `g1t1-{choosing,drawing,reveal}-*`, `scoreboard-*`, `final-*`, `g1-*`, `g2-*` and the phones' `*-{Ana,Ben,Cara}.png`. The scoreboard and the turn match the mockup's layout. What still differs is as F62–F66 recorded, and F67 changes no game surface.
+- **Seen, not fixed (Backlog):** on an upright Screen the host bar, shown for 3 s after a mouse move, wraps to two rows and covers the gallery captions' foot (`rematch-confirm-portrait-screen.png`). This comes from F63, not F67.
+- `npm run size`: JS 118.8 KB of 120, CSS and fonts 53.8 KB of 59.
+- `/verify`: format, lint, typecheck, 1647 tests and build all green.
+
+**Notes for next session:** M12 is complete. The Kim checks above are the M12 acceptance on real devices. The grep in F67's Done-when is now a test (`client/src/oldLook.test.ts`), so the old look can't creep back.
+
+**How to try it:** `npm run dev`, open `/` and Start, then `/dev/bots/CODE` (paper now) and `/screen/CODE?debug=1`. Join `/play/CODE` from a phone window and toggle the network off in DevTools to see the hollow red dot. Run `npm run size` for the 59 KB budget.
 
 ## F66 — Sketchbook Screen scoreboard and final (2026-11-01)
 **What changed:**

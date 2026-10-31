@@ -215,7 +215,7 @@ describe('the players sheet (F63)', () => {
 });
 
 describe('the restyled host files', () => {
-  it('use only the sketchbook tokens: no hex, no white/NN, no Fredoka, no dark wrapper', () => {
+  it('use only the sketchbook tokens: no hex, no white/NN, no display face, no dark wrapper', () => {
     for (const file of [
       './HostControls.tsx',
       './ScreenSettings.tsx',

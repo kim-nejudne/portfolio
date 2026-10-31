@@ -26,21 +26,7 @@
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* The old look's display face, Fredoka Bold, until every page is restyled (F67 removes it). */
-@font-face {
-  font-family: 'Fredoka';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('./fonts/fredoka-latin-700.woff2') format('woff2');
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
 @theme {
-  --font-display:
-    'Fredoka', ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif;
   /* Words (one weight: hierarchy comes from size) and numbers (use with `font-black`). */
   --font-hand: 'Patrick Hand', 'Comic Sans MS', 'Chalkboard SE', cursive;
   --font-num: 'Nunito', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
@@ -253,14 +239,6 @@ body {
   overscroll-behavior: none;
 }
 
-/* The old dark page, for the one surface not restyled yet: the dev pages (F67 deletes it). */
-@utility legacy-night {
-  background-color: #1d1b22;
-  color: #fff;
-  color-scheme: dark;
-  font-family: var(--font-sans);
-}
-
 button,
 input {
   /* No double-tap zoom on controls. */
@@ -279,8 +257,8 @@ input {
   }
 
   @media (hover: hover) {
-    /* A faint white wash over whatever background a live button has: an image layer, so solid
-       orange keeps its colour under it. Swatches and gallery thumbnails opt out with `bg-none`. */
+    /* A faint white wash over whatever background a live button has: an image layer, so a solid
+       highlighter keeps its colour under it. Swatches and gallery thumbnails opt out with `bg-none`. */
     button:not(:disabled, [aria-disabled='true']):hover {
       background-image: linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1));
     }

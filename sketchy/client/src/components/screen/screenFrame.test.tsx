@@ -296,7 +296,7 @@ describe('the Tap to start veil and "Jun is back"', () => {
 });
 
 describe('the restyled files', () => {
-  it('use only the sketchbook tokens: no hex, no white/NN, no Fredoka', () => {
+  it('use only the sketchbook tokens: no hex, no white/NN, no display face', () => {
     for (const file of [
       './ScreenDesk.tsx',
       './PlayerChip.tsx',

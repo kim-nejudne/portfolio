@@ -7,9 +7,9 @@ const t = translator('en');
 
 describe('the connection dot (F37)', () => {
   it.each([
-    ['connected', 'Connected', 'bg-[#2DC653]'],
-    ['connecting', 'Reconnecting…', 'bg-[#FFD166]'],
-    ['offline', 'Offline', 'bg-[#EF476F]'],
+    ['connected', 'Connected', 'bg-success ring-ink'],
+    ['connecting', 'Reconnecting…', 'bg-amber ring-ink'],
+    ['offline', 'Offline', 'bg-paper ring-red'],
   ] as const)('is %s: labelled "%s", coloured %s', (connection, label, color) => {
     const html = renderToStaticMarkup(<ConnectionDot connection={connection} t={t} />);
     expect(html).toContain(`aria-label="${label}"`);

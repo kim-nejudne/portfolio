@@ -310,7 +310,7 @@ describe('the paused and rematch veils', () => {
         expect(html).toMatch(
           /^<div role="status"[^>]*class="[^"]*font-hand text-ink[^"]*bg-paper\/(80|95)/,
         );
-        expect(html).not.toMatch(/#1D1B22|text-shadow|white\//);
+        expect(html).not.toMatch(/#1d1b22|text-shadow|white\//i);
       }
     }
   });

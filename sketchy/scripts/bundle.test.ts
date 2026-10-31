@@ -36,7 +36,6 @@ describe('the player page (/ and /play)', () => {
     expect(report.fonts.map((f) => f.file.replace(/-[\w-]{8}\.woff2$/, ''))).toEqual([
       'assets/patrick-hand-latin-400',
       'assets/nunito-latin-900',
-      'assets/fredoka-latin-700',
     ]);
     expect(report.playerCssAndFonts).toBeLessThanOrEqual(BUDGET.playerCssAndFonts);
   });

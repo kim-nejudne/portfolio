@@ -34,7 +34,7 @@ function view(phase: Phase, gallery: ScreenView['gallery']): ScreenView {
     rematchFirst: null,
     gameNumber: 2,
     settings: DEFAULT_SETTINGS,
-    players: [chip('Mika', '#FF6B35', 1), chip('Jun', '#3A86FF', 2)],
+    players: [chip('Mika', '#C2410C', 1), chip('Jun', '#3A86FF', 2)],
     turn: null,
     host: null,
     feed: [],

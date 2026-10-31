@@ -6,7 +6,7 @@ import { DebugReadout } from './DebugOverlay.js';
 const chip = (pid: string, name: string): PlayerChipView => ({
   pid,
   name,
-  color: '#FF6B35',
+  color: '#C2410C',
   connected: true,
   crown: false,
   isDrawer: false,

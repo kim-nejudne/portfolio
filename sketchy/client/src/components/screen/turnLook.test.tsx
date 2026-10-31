@@ -275,7 +275,7 @@ describe('the paused veil', () => {
       <PausedOverlay view={v} receivedAt={0} variant="screen" t={t} />,
     );
     expect(html).toMatch(/class="[^"]*bg-paper\/80/);
-    expect(html).not.toMatch(/bg-black|#1D1B22/i);
+    expect(html).not.toMatch(/bg-black|#1d1b22/i);
   });
 });
 
@@ -329,7 +329,7 @@ describe('motion', () => {
 });
 
 describe('the restyled turn files', () => {
-  it('use only the sketchbook tokens: no hex, no white/NN, no Fredoka, no dark page', () => {
+  it('use only the sketchbook tokens: no hex, no white/NN, no display face, no dark page', () => {
     for (const file of [
       './ScreenTurn.tsx',
       './TurnFx.tsx',

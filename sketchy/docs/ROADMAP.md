@@ -173,19 +173,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F66 Sketchbook Screen scoreboard and final
 
-- [ ] F67 Sketchbook cleanup
-  - Spec: UI by role and phase (Look and feel); Tech stack and architecture (Performance budget); docs/design/SKETCHBOOK.md (Rules)
-  - Depends: F61, F63, F65, F66
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - `/dev/bots` and `DebugOverlay` use the F56 tokens (readable; no new flourishes).
-    - Fredoka is removed: the font file, its `@font-face`, the preload and its OFL text.
-    - `grep -rE '#1D1B22|#FF6B35|#FFD166|Fredoka|white/[0-9]' client/src` finds nothing.
-    - `.claude/rules/`, the `mobile-ux-reviewer` agent and any README text describing the dark look are updated.
-    - `BUDGET.playerCssAndFonts` is lowered to the measured CSS+fonts without Fredoka, plus about 5 KB, and `npm run size` passes. The numbers go in PROGRESS and DECISIONS.
-    - A full-game `/playtest` covers the Screen in landscape and portrait with 3 phones, through every phase including a rematch, with screenshots compared to the mockup.
-    - Kim checks are queued: TV legibility from 5 m, a budget Android, iPhone Safari, Taglish lengths in Patrick Hand, and the new copy's Taglish.
-  - Tests: full suite green
+- [x] F67 Sketchbook cleanup
 
 ## Bugs
 
@@ -193,6 +181,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 ## Backlog
 
+- Screen host bar in portrait: at 810 px wide its 7 buttons wrap to two rows and, while shown (3 s after a mouse move), cover the foot of the final's gallery captions (F63; seen in the F67 playtest). Smaller buttons or one scrolling row when upright.
 - Dark sketchbook (black page, white gel pen, fluoro highlighter) for dim rooms, as in the 2026-10-31 mockups (M12 is light only).
 - Reactions on the phone at the reveal (the server already takes them from anyone in REVEAL; F34 offers them only after a correct guess in DRAWING).
 - Screen turn effects: re-measure chips on a resize or layout flip while a bubble or reaction is up, and measure a bubble's height instead of estimating it (F34 mobile-ux nits).

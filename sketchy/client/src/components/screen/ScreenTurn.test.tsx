@@ -38,7 +38,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
   const chip = (pid: string, name: string) => ({
     pid,
     name,
-    color: '#FF6B35',
+    color: '#C2410C',
     connected: true,
     crown: false,
     isDrawer: pid === 'mika',
@@ -359,7 +359,7 @@ describe('announcements, chips and feed (F34)', () => {
   it('says "Jun got it!" in Jun’s colour in the sidebar, in place of "Mika is drawing"', () => {
     const html = render(drawing(), 'landscape', junGotIt);
     expect(html).toMatch(
-      /role="status"[^>]*><p[^>]*><span style="color:#FF6B35">Jun<\/span> got it!<\/p>/,
+      /role="status"[^>]*><p[^>]*><span style="color:#C2410C">Jun<\/span> got it!<\/p>/,
     );
     expect(html.indexOf('got it!')).toBeGreaterThan(html.indexOf('<aside'));
     expect(html).not.toContain('Mika is drawing');

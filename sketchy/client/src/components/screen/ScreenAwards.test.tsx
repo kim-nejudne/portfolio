@@ -36,7 +36,7 @@ function view(phase: Phase, awards = AWARDS, copy: 'en' | 'taglish' = 'en'): Scr
     rematchFirst: null,
     gameNumber: 2,
     settings: { ...DEFAULT_SETTINGS, copy },
-    players: [chip('Mika', '#FF6B35', 900, 1), chip('Jun', '#3A86FF', 500, 2)],
+    players: [chip('Mika', '#C2410C', 900, 1), chip('Jun', '#3A86FF', 500, 2)],
     turn: null,
     host: null,
     feed: [],
@@ -81,7 +81,7 @@ describe('Tonight’s awards on the Screen', () => {
 
   it('names each winner in their colour, a winner who left too, with the reason', () => {
     const html = render(view('FINAL'));
-    expect(html).toMatch(/color:#FF6B35[^>]*>Mika</);
+    expect(html).toMatch(/color:#C2410C[^>]*>Mika</);
     expect(html).toMatch(/color:#8338EC[^>]*>Bea</);
     expect(html).toContain('Most drawer points');
     expect(html).toContain('Fastest guess of the night');
@@ -105,7 +105,7 @@ describe('Tonight’s awards on the Screen', () => {
   it('the scores shrink to the height they are given, down to a floor', () => {
     // F66: the final's list became the podium and the line for 4th on, which keeps its names at
     // 3.6 vmin (wrapping in a full room); the scoreboard's rows are the list that shrinks.
-    const ten = Array.from({ length: 10 }, (_, i) => chip(`P${i}`, '#FF6B35', 1000 - i, i + 1));
+    const ten = Array.from({ length: 10 }, (_, i) => chip(`P${i}`, '#C2410C', 1000 - i, i + 1));
     const final = render({ ...view('FINAL'), players: ten });
     const rest = final.slice(final.indexOf('data-rest'));
     expect(rest).toContain('text-[max(3.6vmin,16px)]');
@@ -125,7 +125,7 @@ describe('Tonight’s awards on the Screen', () => {
     const night = Array.from({ length: 10 }, (_, i) => ({
       pid: `N${i}`,
       name: `N${i}`,
-      color: '#FF6B35',
+      color: '#C2410C',
       total: 2000 - i,
       rank: i + 1,
     }));

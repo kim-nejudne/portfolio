@@ -13,11 +13,11 @@ export const BUDGET = {
   /** Gzipped JavaScript of `/` and `/play` together. */
   playerJsGzip: 120_000,
   /**
-   * Gzipped CSS plus the fonts (already compressed woff2) of `/` and `/play`: the measured 67.2 KB
-   * with Patrick Hand, Nunito 900 and Fredoka (F56), plus about 5 KB. F67 tightens it once Fredoka
-   * is gone (DECISIONS 79).
+   * Gzipped CSS plus the fonts (already compressed woff2) of `/` and `/play`: the measured 53.8 KB
+   * with Patrick Hand and Nunito 900 only (F67: 13.1 KB CSS, 23.9 + 16.7 KB fonts), plus about
+   * 5 KB (DECISIONS 79, 90).
    */
-  playerCssAndFonts: 72_000,
+  playerCssAndFonts: 59_000,
 };
 
 /**

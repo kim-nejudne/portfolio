@@ -17,7 +17,7 @@ const WORD = 'qzsecret';
 const chip = (pid: string, name: string, extra: Partial<PlayerChipView> = {}): PlayerChipView => ({
   pid,
   name,
-  color: '#FF6B35',
+  color: '#C2410C',
   connected: true,
   crown: false,
   isDrawer: false,

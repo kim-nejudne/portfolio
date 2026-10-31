@@ -51,7 +51,7 @@ afterEach(() => {
 const chip = (pid: string, extra: Partial<PlayerChipView> = {}): PlayerChipView => ({
   pid,
   name: pid,
-  color: '#FF6B35',
+  color: '#C2410C',
   connected: true,
   crown: false,
   isDrawer: false,

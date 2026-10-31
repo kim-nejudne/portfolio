@@ -9,7 +9,7 @@ import { IndexTab } from './screen/PlayerChip.js';
 const chip: PlayerChipView = {
   pid: 'mika',
   name: 'Mika',
-  color: '#FF6B35',
+  color: '#C2410C',
   avatar: '🐙',
   connected: true,
   crown: false,
@@ -26,8 +26,8 @@ describe('the avatar', () => {
     expect(html).toContain('>🐙</span>');
     expect(html).toContain('bg-paper');
     expect(html).toContain('wobbly');
-    expect(html).toContain('border-color:#FF6B35');
-    expect(html).not.toContain('background:#FF6B35');
+    expect(html).toContain('border-color:#C2410C');
+    expect(html).not.toContain('background:#C2410C');
     expect(html).toContain('width:2em');
     expect(html).toContain('aria-hidden');
   });

@@ -125,7 +125,7 @@ describe('the crown on the Screen lobby (F25)', () => {
   const chip = (pid: string, name: string, crown = false): PlayerChipView => ({
     pid,
     name,
-    color: '#FF6B35',
+    color: '#C2410C',
     connected: true,
     crown,
     isDrawer: false,
