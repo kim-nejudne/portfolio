@@ -120,12 +120,7 @@ M1 is the **thinnest playable version**: at the end of it a real group can play 
 
 ## M9 — Gallery and awards
 
-- [ ] F49 Gallery on the Screen
-  - Spec: Drawing data protocol (Server relay and ink log, Reconnects and snapshots); UI by role and phase (Screen)
-  - Depends: F29, F31
-  - Done when:
-    - FINAL lists every drawing; `ink:get` fetches each frozen log (Screen sockets only); the room memory cap drops the oldest with "Drawing not kept"
-  - Tests: `inkGateway.test.ts` — a player socket's `ink:get` is refused
+- [x] F49 Gallery on the Screen
 
 - [ ] F50 Tonight's awards
   - Spec: UI by role and phase (Screen, Guesser phone); Data model (Room state)
@@ -194,3 +189,4 @@ The first real barkada night needs everything in M1–M9. The review's must-have
 - Join limit hardening (F44 secrets-fairness should-fixes): a looser per-key cap on rejoins by a known key (a joined player can loop connect + rejoin, each a commit and a broadcast); key IPv6 addresses on their /64 and fold `::ffff:a.b.c.d` into the IPv4 form.
 - Screen lobby: clear a Start refusal ("Too fast", "Could not start") after `STATUS_MS`, as the host bar does, so the player-count hint comes back (F44 mobile-ux should-fix).
 - An English spicy pack (or a Settings hint that Spicy words add Taglish words only), if Kim wants Spicy to change English-only games (F47, DECISIONS 69).
+- Screen FINAL: let the gallery take the leftover height in landscape (thumbnails sized to it) instead of the fixed 20/28 vmin, which leaves a gap under the scores with few players (F49 mobile-ux should-fix).

@@ -849,6 +849,41 @@ describe('/ink sequence, snapshots and resends', () => {
       ]);
   });
 
+  it("FINAL's gallery lists every drawing; past the room's budget the oldest answer inkNotKept", async () => {
+    // Each turn's one stroke counts its encoded bytes plus 64: two fit in 200 bytes, four don't.
+    const d = await drawing(createInkStore({ roomMax: 200 }));
+    const turnIds: number[] = [];
+    while (d.rooms.get(CODE)!.phase !== 'FINAL') {
+      // The cycle's scoreboard: on to the next turn.
+      if (d.rooms.get(CODE)!.phase === 'SCOREBOARD') await startTurn(d, 'host:next');
+      const turn = d.rooms.get(CODE)!.turn!;
+      const drawer = turn.drawerPid === d.ana.pid ? d.ana : d.ben;
+      expect(await drawer.ink.emit('ink:batch', strokeN(turn.id, 1, 1))).toEqual({ ok: true });
+      turnIds.push(turn.id);
+      expect(await d.screen.emit('host:skip')).toEqual({ ok: true });
+      await startTurn(d, 'host:next');
+    }
+    expect(d.rooms.get(CODE)!.phase).toBe('FINAL');
+    expect(turnIds).toHaveLength(4);
+    const views = d.screen.events.filter(([e]) => e === 'state').map(([, v]) => v as View);
+    const last = views.at(-1)!;
+    expect(last.role === 'screen' && last.gallery.map((g) => g.turnId)).toEqual(turnIds);
+    const answers = [];
+    for (const turnId of turnIds) answers.push(await d.screenInk.emit('ink:get', { turnId }));
+    expect(answers).toEqual([
+      { ok: false, error: 'inkNotKept' },
+      { ok: false, error: 'inkNotKept' },
+      { ok: true, turnId: turnIds[2], actions: strokeN(turnIds[2]!, 1, 1)[2] },
+      { ok: true, turnId: turnIds[3], actions: strokeN(turnIds[3]!, 1, 1)[2] },
+    ]);
+    // A player socket's `ink:get` is refused, even for a drawing it made itself.
+    for (const phone of [d.ana.ink, d.ben.ink])
+      expect(await phone.emit('ink:get', { turnId: turnIds[3] })).toEqual({
+        ok: false,
+        error: 'notScreen',
+      });
+  });
+
   it('a full canvas refuses new strokes: the ack says so, and the Screens get the rest of the batch', async () => {
     const d = await drawing(createInkStore({ turnMax: 60 }));
     expect(await d.ana.ink.emit('ink:batch', strokeN(d.turnId, 1, 1))).toEqual({ ok: true });

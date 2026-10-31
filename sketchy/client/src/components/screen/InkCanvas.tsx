@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { drawStroke, redrawPicture, type ScreenInk } from '../../lib/ink.js';
+import { drawStroke, redrawPicture, type InkSource } from '../../lib/ink.js';
 
 /** Backing stores stop here, so a 4K TV at DPR 2 doesn't allocate a huge canvas. */
 const MAX_BACKING_PX = 2048;
@@ -9,7 +9,16 @@ const MAX_BACKING_PX = 2048;
  * so lines stay sharp. New points are drawn on the next animation frame; undo, clear, a new turn
  * and a resize repaint everything from the picture (Canvas and drawing tools, Rendering).
  */
-export function InkCanvas({ ink, label }: { ink: ScreenInk; label: string }) {
+export function InkCanvas({
+  ink,
+  label,
+  className = 'rounded-[1vmin] shadow-2xl',
+}: {
+  ink: InkSource;
+  label: string;
+  /** The canvas's frame; the gallery's thumbnails want a lighter one. */
+  className?: string;
+}) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -73,11 +82,7 @@ export function InkCanvas({ ink, label }: { ink: ScreenInk; label: string }) {
 
   return (
     <div ref={boxRef} className="grid h-full w-full place-items-center overflow-hidden">
-      <canvas
-        ref={canvasRef}
-        className="block rounded-[1vmin] bg-white shadow-2xl"
-        aria-label={label}
-      />
+      <canvas ref={canvasRef} className={`block bg-white ${className}`} aria-label={label} />
     </div>
   );
 }

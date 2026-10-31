@@ -90,6 +90,17 @@ export function redrawPicture(
   return drawn;
 }
 
+/** What a canvas draws: a picture, and word of each change to it. */
+export interface InkSource {
+  picture(): InkStack | null;
+  subscribe(listener: (change: InkChange) => void): () => void;
+}
+
+/** A finished drawing (the gallery's): drawn once, never changes. */
+export function staticInk(stack: InkStack | null): InkSource {
+  return { picture: () => stack, subscribe: () => () => {} };
+}
+
 /**
  * The Screen's live ink across turns: `ink:turn` clears, `ink:snapshot` replaces the picture,
  * `ink:batch` appends. A batch for an older turn is dropped; one for a newer turn starts it (the
@@ -97,7 +108,7 @@ export function redrawPicture(
  * dropped, and the first gap answers `'gap'` (say `ink:hello` again); later batches wait for the
  * snapshot, which covers them.
  */
-export interface ScreenInk {
+export interface ScreenInk extends InkSource {
   turn(turnId: number): void;
   batch(batch: InkBatch): 'ok' | 'gap' | 'ignored';
   snapshot(snapshot: InkSnapshot): void;

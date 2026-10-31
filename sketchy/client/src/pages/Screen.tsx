@@ -13,6 +13,7 @@ import { StartOverlay } from '../components/screen/StartOverlay.js';
 import { createClockOffset, createDelayWindow, isDebug, recordPaint } from '../lib/clock.js';
 import { translator } from '../lib/copy.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
+import { createScreenGallery } from '../lib/gallery.js';
 import { DoodleContext, createScreenDoodles } from '../lib/doodles.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
@@ -28,6 +29,8 @@ import { useWakeLock } from '../lib/wakeLock.js';
 type Status = 'connecting' | 'live' | 'ended';
 
 const JOIN_ACK_TIMEOUT_MS = 5000;
+/** How long a gallery drawing's `ink:get` may take before it is asked again. */
+const INK_GET_TIMEOUT_MS = 5000;
 
 /** How long the Screen shows "All words used, reshuffling". */
 const RESHUFFLE_NOTICE_MS = 4000;
@@ -60,6 +63,15 @@ export function Screen() {
   const doodles = useMemo(() => createScreenDoodles(), []);
   // "Jun got it!", wrong-guess bubbles and reactions (F34), from `fx` events.
   const turnFx = useMemo(() => createScreenFx(), []);
+  const inkSocket = useMemo(() => createInkSocket(), []);
+  // FINAL's gallery (F49): each drawing's frozen ink, asked for on this Screen's `/ink` socket.
+  const gallery = useMemo(
+    () =>
+      createScreenGallery((turnId) =>
+        inkSocket.timeout(INK_GET_TIMEOUT_MS).emitWithAck('ink:get', { turnId }),
+      ),
+    [inkSocket],
+  );
   const fxState = useSyncExternalStore(turnFx.subscribe, turnFx.getSnapshot);
   // `?debug=1` (F16): this Screen's clock offset to the server and the recent ink delays.
   const debug = useMemo(
@@ -129,8 +141,11 @@ export function Screen() {
 
     // Every connect, reconnects included, rejoins the Screen's ink room and brings back the drawing
     // with a snapshot; a gap in `seq` asks for a fresh one the same way.
-    const inkSocket = createInkSocket();
-    const hello = () => inkSocket.emit('ink:hello', { code });
+    // A gallery drawing asked before the hello was refused (`notJoined`): ask again now.
+    const hello = () =>
+      inkSocket.emit('ink:hello', { code }, (res) => {
+        if (res.ok) gallery.retry();
+      });
     inkSocket.on('connect', hello);
     inkSocket.on('ink:turn', ({ turnId }) => ink.turn(turnId));
     inkSocket.on('ink:snapshot', (snapshot) => {
@@ -163,7 +178,7 @@ export function Screen() {
       inkSocket.removeAllListeners();
       inkSocket.disconnect();
     };
-  }, [code, socket, ink, doodles, turnFx, debug]);
+  }, [code, socket, inkSocket, ink, doodles, turnFx, debug, gallery]);
 
   // Howler starts downloading at once, so the tap can unlock audio without waiting for it.
   useEffect(preloadSounds, []);
@@ -171,6 +186,14 @@ export function Screen() {
   const view = state?.view ?? null;
   const t = translator(view?.settings.copy ?? 'en');
   useScreenSounds(view, state?.at ?? 0);
+
+  // The gallery asks for FINAL's drawings once and forgets them when the game moves on.
+  const galleryIds = view?.phase === 'FINAL' ? view.gallery.map((g) => g.turnId).join() : '';
+  useEffect(() => {
+    if (!galleryIds) return;
+    gallery.want(galleryIds.split(',').map(Number));
+    return () => gallery.clear();
+  }, [galleryIds, gallery]);
 
   // Inside the gesture, as browsers require: fullscreen, audio (F38), and from `started` on, the
   // wake lock.
@@ -254,7 +277,7 @@ export function Screen() {
             />
           )}
           {(view.phase === 'SCOREBOARD' || view.phase === 'FINAL') && (
-            <ScreenStandings view={view} layout={layout} t={t} />
+            <ScreenStandings view={view} layout={layout} gallery={gallery} t={t} />
           )}
         </DoodleContext>
       </div>
@@ -262,21 +285,24 @@ export function Screen() {
       {view.phase === 'FINAL' && view.rematchInMs !== null && (
         <RematchOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />
       )}
-      {/* Always visible. Portrait leads with the code and lets the address run out ("KPRW ·
-          sketchy.kimn…"), so the code is never the part cut off. */}
-      <footer className="shrink-0 truncate px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
-        {layout === 'portrait' ? (
-          <>
-            <strong className="tracking-widest text-white">{view.code}</strong> ·{' '}
-            {window.location.host}
-          </>
-        ) : (
-          <>
-            {window.location.host} ·{' '}
-            <strong className="tracking-widest text-white">{view.code}</strong>
-          </>
-        )}
-      </footer>
+      {/* Always visible, except during FINAL's gallery (UI by role and phase, Screen). Portrait
+          leads with the code and lets the address run out ("KPRW · sketchy.kimn…"), so the code is
+          never the part cut off. */}
+      {!(view.phase === 'FINAL' && view.gallery.length > 0) && (
+        <footer className="shrink-0 truncate px-[2vmin] pb-[1vmin] text-[max(2.5vmin,14px)] text-white/70">
+          {layout === 'portrait' ? (
+            <>
+              <strong className="tracking-widest text-white">{view.code}</strong> ·{' '}
+              {window.location.host}
+            </>
+          ) : (
+            <>
+              {window.location.host} ·{' '}
+              <strong className="tracking-widest text-white">{view.code}</strong>
+            </>
+          )}
+        </footer>
+      )}
       {/* The token Screen only; the server checks every host event again. */}
       {view.host && <HostControls view={view} socket={socket} t={t} />}
       {startOverlay}

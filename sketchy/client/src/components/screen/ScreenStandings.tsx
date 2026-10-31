@@ -1,43 +1,64 @@
 import type { ScreenView } from '../../../../shared/types.js';
 import type { Translate } from '../../lib/copy.js';
+import type { ScreenGallery as GalleryStore } from '../../lib/gallery.js';
 import { rankPlayers, type ScreenLayout } from '../../lib/screen.js';
 import { Avatar } from './PlayerChip.js';
+import { ScreenGallery } from './ScreenGallery.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 /**
  * SCOREBOARD and FINAL: the full ranking, in the server's shared ranks. From game 2, FINAL adds
- * the Tonight panel beside it. The gallery and awards arrive with F49 and F50.
+ * the Tonight panel beside it, and the gallery (F49) under both. Awards arrive with F50.
  */
 export function ScreenStandings({
   view,
   layout,
+  gallery,
   t,
 }: {
   view: ScreenView;
   layout: ScreenLayout;
+  /** FINAL's drawings; SCOREBOARD has none. */
+  gallery?: GalleryStore;
   t: Translate;
 }) {
   const ranked = rankPlayers(view.players);
   // Above six players, two columns (ranks run down the first, then the second) so ten fit a TV.
   const tonight = view.phase === 'FINAL' ? view.tonight : null;
-  // With the Tonight panel beside or under it, from four players, so both fit a 4:3 Screen too.
+  const withGallery = view.phase === 'FINAL' && gallery !== undefined && view.gallery.length > 0;
+  // With the Tonight panel or the gallery, from four players, so all fit a 4:3 Screen too.
   // Portrait has the height for one column, and two would cut the names short.
   // SPEC-QUESTION: the spec draws standings for landscape only (DECISIONS 55).
-  const twoColumns = layout === 'landscape' && ranked.length > (tonight ? 3 : 6);
+  const compact = tonight !== null || withGallery;
+  const twoColumns = layout === 'landscape' && ranked.length > (compact ? 3 : 6);
   const rows = Math.ceil(ranked.length / 2);
   const title =
     view.phase === 'FINAL'
       ? t('finalTitle')
       : t('roundDone', { cycle: view.turn?.cycle ?? 1, cycles: view.settings.cycles });
   return (
-    <div className="flex h-full flex-col items-center gap-[3vmin] overflow-hidden px-[5vmin] py-[4vmin]">
-      <h1 className="font-display text-[max(7vmin,32px)] font-bold">{title}</h1>
+    <div
+      className={`flex h-full flex-col items-center overflow-hidden px-[5vmin] ${
+        withGallery ? 'gap-[2vmin] py-[2.5vmin]' : 'gap-[3vmin] py-[4vmin]'
+      }`}
+    >
+      <h1
+        className={`font-display font-bold ${
+          withGallery ? 'text-[max(5.5vmin,26px)]' : 'text-[max(7vmin,32px)]'
+        }`}
+      >
+        {title}
+      </h1>
       {/* Tonight goes beside the scores on a wide Screen, under them on a narrower one. */}
       <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-[3vmin] [@media(min-aspect-ratio:16/10)]:flex-row [@media(min-aspect-ratio:16/10)]:items-start [@media(min-aspect-ratio:16/10)]:justify-center [@media(min-aspect-ratio:16/10)]:gap-[5vmin]">
         <ol
-          className={`grid min-h-0 w-full gap-x-[5vmin] gap-y-[1.5vmin] ${
-            tonight ? 'text-[max(4vmin,18px)]' : 'text-[max(4.5vmin,20px)]'
+          className={`grid min-h-0 w-full gap-x-[5vmin] ${
+            withGallery
+              ? 'gap-y-[0.5vmin] text-[max(3.6vmin,17px)]'
+              : tonight
+                ? 'gap-y-[1.5vmin] text-[max(4vmin,18px)]'
+                : 'gap-y-[1.5vmin] text-[max(4.5vmin,20px)]'
           } ${
             twoColumns
               ? `${tonight ? 'max-w-[110vmin]' : 'max-w-[160vmin]'} grid-flow-col grid-cols-2`
@@ -74,6 +95,15 @@ export function ScreenStandings({
         </ol>
         {tonight && <TonightPanel rows={tonight} games={view.gameNumber} t={t} />}
       </div>
+      {withGallery && (
+        <ScreenGallery
+          view={view}
+          gallery={gallery}
+          // Up to six players in one column leave the height for bigger drawings; portrait always.
+          large={layout === 'portrait' || (!tonight && ranked.length <= 6)}
+          t={t}
+        />
+      )}
     </div>
   );
 }
