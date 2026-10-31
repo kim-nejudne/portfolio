@@ -80,6 +80,11 @@
   --animate-ink-draw: ink-draw 0.7s ease-out both;
   /* A text caret's 1 s blink (the mockup's sk-blink). Behind `motion-safe:`. */
   --animate-blink: blink 1s steps(1) infinite;
+  /* The Screen's scoreboard and podium (F66, the mockup's sk-move, sk-grow and sk-rise). Each is
+     used behind `motion-safe:`; reduced motion shows the rows, bars and blocks in place. */
+  --animate-move: sk-move 0.9s cubic-bezier(0.3, 0.8, 0.3, 1) 0.25s both;
+  --animate-grow: sk-grow 1s ease-out 0.4s both;
+  --animate-rise: sk-rise 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 
   @keyframes blink {
     50% {
@@ -144,6 +149,33 @@
     100% {
       transform: translateY(calc(var(--rise, 12.5vmin) * -1)) scale(1);
       opacity: 0;
+    }
+  }
+  /* A scoreboard row slides from its place before the round's last turn (`--move-x`, `--move-y`
+     in its own widths and heights plus the gaps). */
+  @keyframes sk-move {
+    from {
+      transform: translate(var(--move-x, 0), var(--move-y, 0));
+    }
+    to {
+      transform: none;
+    }
+  }
+  /* A crayon bar fills its track from empty. */
+  @keyframes sk-grow {
+    from {
+      width: 0;
+    }
+  }
+  /* A podium block rises about 60 px on a 720 px frame, with an overshoot. */
+  @keyframes sk-rise {
+    from {
+      transform: translateY(8.5vmin);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
     }
   }
   @keyframes fade {

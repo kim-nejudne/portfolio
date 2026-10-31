@@ -96,8 +96,98 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F65: review the Taglish `nextDraws` ("Susunod mag-drawing: {name}", the last line of the Screen's reveal): set the copy to Taglish, play a turn to the reveal · reads naturally under "Muntik na:" and "+320 para sa drawing ni Mika"
 - [ ] F65: `npm run dev` + `npm run lan CODE`, a tablet held upright as the Screen (Start), 3+ real phones; play two turns from ~2 m · the clock, blanks, "✏️ Mika is drawing" and the latest guess read in the top bar; wrong-guess bubbles pop up from the guesser's tab into the strip under the drawing and never cover it; "Jun got it!" takes the drawer line's place; at the reveal the drawing doesn't move, the word is big on the yellow swash above it, and "Got it … Next: Jun draws" is readable under it
 - [ ] F65: the same room with the tablet sideways (4:3), playing until a long word (8+ letters) comes up · the reveal word fits the right page and is still the largest text, but is well under 12 vh (DECISIONS 88); say whether the right page's rows (capped under the word) are still readable from 2 m, or whether a long word should get two lines instead
+- [ ] F66: review the Taglish `movedUp` / `movedDown` ("umakyat ng {n}" / "bumaba ng {n}", what a screen reader says for the scoreboard's ↑2 / ↓1): set the copy to Taglish, turn on TalkBack or VoiceOver on the Screen device, reach the scoreboard · reads naturally after the name and score
+- [ ] F66: `npm run dev` + `npm run lan CODE`, a laptop on the TV as the Screen (Start), 4+ real phones, 2 rounds; play to the scoreboard, then to the final; from the couch (~5 m) · the rows slide into their new order and the bars grow, ↑n is green and ↓n red; at the final the podium's blocks rise 3rd, 2nd, then 1st, the names and the line for 4th on are readable, the award notes' tape doesn't cover a name, and a gallery drawing opens large on paper with ← → paging
+- [ ] F66: the same room with a tablet upright as the Screen, then Rematch and play one turn of game 2, then End game · the portrait final shows Rematch / Back to lobby beside "Final scores", the Tonight strip and at least one row of gallery sheets big enough to tell the drawings apart from 2 m (with 8+ players they get small: say whether that's acceptable)
 
 <!-- entries below, newest first -->
+
+## F66 — Sketchbook Screen scoreboard and final (2026-11-01)
+**What changed:**
+- **Scoreboard** (`ScreenStandings.tsx`): one dot-grid page in its own book (no tabs, the code strip under it), "Round 1 of 2 done" over the rows on the left. Each row has:
+  - the rank (Nunito), the avatar and the name in colour;
+  - a crayon bar in a white hand-bordered track, as long as the player's share of the leader's score and growing in (`sk-grow`);
+  - the score, then ↑n (`success`) or ↓n (`red`), with "up 2" / "down 1" for screen readers.
+  
+  Rows slide from where they stood before the round's last turn (`sk-move`, across columns too). Text is sized by height (`fitRows`) and by width (`fitRowWidth`); names get 5 em. `legacy-night` is gone from `Screen.tsx`.
+- **Server/shared:** `PlayerChipView.prevRank` (optional) at SCOREBOARD: the shared rank before the round's last turn (`views.ts` `prevRanks`).
+- **Final:** a spread.
+  - **Left page:** "Final scores", then the drawn podium: crayon blocks with `ink` borders and hard shadows, shown 2-1-3, the medal on the block, heights by shared rank, rising 3rd, 2nd, then 1st (`sk-rise`). Then 4th and later on a line (wrapping in a full room) and, from game 2, the Tonight panel restyled as a paper card: a column beside the podium on a wide Screen, otherwise a two-name strip.
+  - **Right page:** Tonight's awards as taped sticky notes edged in the winner's crayon, the gallery as taped white sheets with "word / by Mika" (one or two rows by height, scrolling sideways), and on the token Screen Rematch / Back to lobby sketch buttons (two taps through `useHostTaps`; gone during the countdown).
+  - **Portrait:** the buttons sit beside the title, and the podium is shorter.
+  - **Lightbox:** a paper sheet framed like the book, the drawing taped on; ← → and Esc are kept, and the arrow buttons get a `pen` focus ring.
+- **Motion** (`index.css`): `animate-move`, `-grow` and `-rise` (the mockup's `sk-move`, `sk-grow` and `sk-rise`), all behind `motion-safe:`.
+- **Copy:** `movedUp` / `movedDown` in both languages (Kim check).
+- **Other:** `ScreenDesk` loses its interim `plain` / `singleClassName` props, and its code strip no longer needs a `window` (markup tests).
+- **Tests:**
+  - New `components/screen/standingsLook.test.tsx` (19 tests):
+    - **Scoreboard:** the page; each row's order, bar and track; ↑n/↓n (also in Taglish) and none without a previous rank; the slide variables in one and two columns; `previousPlaces`.
+    - **Final:** the spread's order; the podium's 2-1-3, its blocks, heights (and in portrait), a tie for first, the rise order and the screen-reader order; the line for 4th on; the award notes; the gallery's sheets, rows and `sheetWidth`; the host buttons (token only, not during the countdown, beside the title in portrait); the portrait stack; the Tonight card.
+    - **Files:** a tokens-only check on the three files.
+  - `server/views.test.ts` (1): `prevRank` at SCOREBOARD only, for every viewer, with ties; none in FINAL or with no turn played.
+- **Changed tests** (the old FINAL list became the podium; each assertion now pins the new layout):
+  - `ScreenStandings.test.tsx`, "four players go into two columns beside it" → three on the podium and the fourth on the line, with no two columns.
+  - `ScreenStandings.test.tsx`, the F33 ten-player tests: they run on SCOREBOARD, which still has the list.
+  - `ScreenAwards.test.tsx`, "the scores shrink to the height…": the FINAL line holds all ten at 3.6 vmin, and the SCOREBOARD's `fitRows` string (now also capped by width) is pinned for ten players.
+  - `ScreenAwards.test.tsx`, Tonight: the strip lists two ("+8 more", was "+7 more"); portrait with the gallery takes the strip too (it listed eight), and without the gallery still lists eight ("+2 more").
+  - `turnLook.test.tsx`: "only the standings sit on the dark page" → no `legacy-night` in `Screen.tsx`.
+  
+  Every other F20/F29/F33/F49/F50 assertion passes unchanged: the shared ranks and medals, "Final scores", "Round 1 of 2 done", the awards' order and colours, Modern art's word, the gallery's turn order, "by Bea" from the night's totals, and "Drawing not kept".
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 89.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fixes done: DECISIONS 89 (it now also covers the arrows' colours and the medals), the Taglish Kim check, this entry with the playtest and mobile-ux evidence.
+  - Should-fixes done: the changed assertions are listed above; layout is proven by the viewport playtest; `ScreenGallery.tsx` is in the token scan.
+- **secrets-fairness-reviewer: PASS**, no Must-fix. Should (the DECISIONS row) done. Nits: none to take (a player who left gets no `prevRank`, as with `rank`).
+- **mobile-ux-reviewer: FAIL → fixed.**
+  - Must-fixes done:
+    - The 4:3 Tonight strip overprinted: two names, clipped items, and wrapping under the heading.
+    - The award tape covered names: more top padding, and names wrap instead of truncating.
+    - The bars were stubs: a white track, a fixed 5 em name column, a 4 em bar minimum and a 20 em width cap.
+  - Should-fixes done:
+    - Names held to 3.5 vh on a TV: the rest line at 3.6 vmin wraps instead of shrinking, award names and gallery captions are at 3.5 vmin, and the reasons are `ink`.
+    - Focus rings on every gallery arrow.
+    - The podium centred in its column.
+    - Screen readers hear the place first, and the dead white-digit branch is gone.
+  - Nit done: the lightbox leaves room for its tape.
+  - Not taken: the scoreboard's 2 vmin row floor (it only binds past any real Screen size, DECISIONS 72), and `sheetHeight` reading the window rather than the box (the Screen is full-window).
+
+**Verification:**
+- `/playtest F66` (playtester, `.playtest/F66/scenario.ts`; token Screen, Ana, 3 DevBots, 1920×1080):
+  - the scoreboard page with "Round 1 of 2 done", four rows with bars and "↑2";
+  - the final's podium, the line for 4th, the award notes, the taped sheets, and the paper lightbox paging with ArrowRight;
+  - the Rematch / Back to lobby buttons;
+  - no console errors.
+- `.playtest/F66/scenario2.ts` (token Screen, Ana and Ben on phones, 8 DevBots, auto-advance off): round 1, SCOREBOARD, End game, FINAL, Rematch, game 2, End game, FINAL with Tonight. Each surface checked at 1920×1080, 1280×720, 1024×768, 768×1024 and 810×1080:
+  - no document or page scroll, and the rows' box never scrolls;
+  - every row, podium place, award, button and the Tonight card inside the book;
+  - no short name truncated (rows, podium, line, Tonight);
+  - no gallery sheet over its box or over a note or button.
+  
+  The lightbox at 1280×720 ends 58 px above the foot (the host bar's room) and pages with → and closes with Esc. Rematch arms ("Tap again to rematch…"), then the F61 countdown overlay shows. No console errors on any role.
+- Side by side with the mockup (`.playtest/F66/mockup-{scoreboard,final}-{land,port}.png`, `mockup.mjs`): `scoreboard-*`, `final-*`, `final2-*`, `lightbox-1280x720`, `rematch-armed`, `rematch-countdown` (all `-screen.png`).
+- **Still differs from the mockup:**
+  - **Scoreboard:** bars are a share of the leader, not of 1,000; arrows are red when down; above six players there are two columns.
+  - **Final:**
+    - "Final scores" rather than "Tonight's podium";
+    - medals on the blocks, not white digits;
+    - the rise order is 3rd, 2nd, 1st;
+    - a full room's line for 4th on wraps and is bigger;
+    - the awards come before the gallery, as notes with the reason;
+    - the gallery is one strip (two rows only with the height), not a 3-column grid;
+    - in portrait the host buttons sit beside the title.
+- `npm run size`: JS 118.8 KB of 120, CSS and fonts 70.0 KB of 72.
+- `/verify`: format, lint, typecheck, 1644 tests and build all green.
+
+**Notes for next session:**
+- F67 drops Fredoka. `ScreenGallery`'s viewer no longer uses `font-display`, and the Screen now has no `legacy-night` page (the utility is left for the dev pages).
+- `PlayerChipView.prevRank` exists; the phone scoreboard (F61) could show ↑n too.
+
+**How to try it:** `npm run dev`, open `/` and Start, join `/play/CODE` from a phone window, spawn bots at `/dev/bots/CODE`, Start, and use "Everyone: guess right" to reach the scoreboard (round 1 of 2), then press E twice for the final. Resize the Screen window to 1024×768 and 768×1024, open a drawing and use ← →.
+
 
 ## F65 — Sketchbook Screen portrait and reveal (2026-11-01)
 **What changed:**

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { PlayerView } from '../../../shared/types.js';
 import type { Translate } from './copy.js';
 import {
   CONFIRM_LABELS,
@@ -8,6 +7,7 @@ import {
   press,
   type Armed,
   type ControlId,
+  type HostView,
 } from './hostKeys.js';
 import { useHostSender } from './hostSend.js';
 import type { GameSocket } from './socket.js';
@@ -16,9 +16,13 @@ import type { GameSocket } from './socket.js';
  * The crown phone's host controls (Host controls): a tap sends, or for a two-tap control arms it
  * ("Tap again to skip") until a second tap within `CONFIRM_MS`. A first tap never carries over into
  * another phase or turn. Shared by the Host sheet and the final page's Rematch / Back to lobby
- * (F61); each keeps its own arming.
+ * (F61), and the token Screen's final page (F66); each keeps its own arming.
  */
-export function useHostTaps(view: PlayerView, socket: GameSocket, t: Translate) {
+export function useHostTaps(
+  view: HostView & { turn: { id: number } | null },
+  socket: GameSocket,
+  t: Translate,
+) {
   const { sending, status, setStatus, send } = useHostSender(socket, t);
   const scope = `${view.phase}:${view.turn?.id ?? ''}`;
   const [armedAt, setArmed] = useState<(Armed & { scope: string }) | null>(null);

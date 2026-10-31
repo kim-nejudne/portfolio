@@ -6,7 +6,6 @@ import { PausedOverlay } from '../components/PausedOverlay.js';
 import { RematchOverlay } from '../components/RematchOverlay.js';
 import { REJOINED_TOAST_MS, RejoinedToast } from '../components/screen/RejoinedToast.js';
 import { HostControls } from '../components/screen/HostControls.js';
-import { ScreenDesk } from '../components/screen/ScreenDesk.js';
 import { ScreenLobby } from '../components/screen/ScreenLobby.js';
 import { ScreenStandings } from '../components/screen/ScreenStandings.js';
 import { ScreenTurn } from '../components/screen/ScreenTurn.js';
@@ -17,7 +16,6 @@ import { enterFullscreen } from '../lib/fullscreen.js';
 import { createScreenGallery } from '../lib/gallery.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { createScreenInk } from '../lib/ink.js';
-import { codeStripCode } from '../lib/screen.js';
 import { keepPinging } from '../lib/ping.js';
 import { createScreenFx } from '../lib/screenFx.js';
 import { playSound, preloadSounds, soundForFx, startSounds } from '../lib/sounds.js';
@@ -269,15 +267,8 @@ export function Screen() {
           t={t}
         />
       ) : (
-        <ScreenDesk
-          layout={layout}
-          code={codeStripCode(view)}
-          // The standings keep their dark page inside the book until F66 restyles them
-          // (`legacy-night`, DECISIONS 85).
-          singleClassName="legacy-night"
-          plain
-          single={<ScreenStandings view={view} layout={layout} gallery={gallery} t={t} />}
-        />
+        // The scoreboard's page or the final's spread, each in its own book (F66).
+        <ScreenStandings view={view} layout={layout} gallery={gallery} socket={socket} t={t} />
       )}
       {view.paused && <PausedOverlay view={view} receivedAt={state!.at} variant="screen" t={t} />}
       {view.phase === 'FINAL' && view.rematchInMs !== null && (

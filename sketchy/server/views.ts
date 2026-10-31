@@ -141,8 +141,24 @@ function revealed(room: Room): boolean {
   );
 }
 
+/**
+ * SCOREBOARD only: each pid's shared rank before the round's last turn (its points taken off), so
+ * the scoreboard can show who moved (↑2) and slide the rows from there. Null with no turn played.
+ */
+function prevRanks(room: Room): Map<string, number> | null {
+  const last = room.history.at(-1);
+  if (room.phase !== 'SCOREBOARD' || !last) return null;
+  const before = Object.values(room.players).map((p) => ({
+    pid: p.pid,
+    joinedAt: p.joinedAt,
+    score: p.score - (last.points[p.pid] ?? 0),
+  }));
+  return new Map(rankPlayers(before).map((p) => [p.pid, p.rank]));
+}
+
 function chips(room: Room): PlayerChipView[] {
   const ranks = ranksShown(room);
+  const prev = prevRanks(room);
   const turn = room.turn;
   return Object.values(room.players)
     .sort((a, b) => a.joinedAt - b.joinedAt)
@@ -162,6 +178,7 @@ function chips(room: Room): PlayerChipView[] {
       turnPoints: turnPoints(room, p.pid),
       score: ranks ? p.score : null,
       rank: ranks?.get(p.pid) ?? null,
+      ...(prev?.has(p.pid) ? { prevRank: prev.get(p.pid)! } : {}),
     }));
 }
 

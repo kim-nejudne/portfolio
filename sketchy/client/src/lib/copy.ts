@@ -100,6 +100,9 @@ const EN = {
   nextDraws: 'Next: {name} draws',
   // ---------- Screen: scoreboard and final ----------
   roundDone: 'Round {cycle} of {cycles} done',
+  // The scoreboard's ↑2 / ↓1 for screen readers (F66): places moved since before the last turn.
+  movedUp: 'up {n}',
+  movedDown: 'down {n}',
   finalTitle: 'Final scores',
   tonight: 'Tonight · {n} games',
   andMore: '+{n} more',
@@ -393,6 +396,8 @@ const TAGLISH: Record<CopyKey, string> = {
   nextDraws: 'Susunod mag-drawing: {name}',
   // ---------- Screen: scoreboard and final ----------
   roundDone: 'Tapos na ang Round {cycle}/{cycles}',
+  movedUp: 'umakyat ng {n}',
+  movedDown: 'bumaba ng {n}',
   finalTitle: 'Final scores',
   tonight: 'Ngayong gabi · {n} games',
   andMore: '+{n} pa',

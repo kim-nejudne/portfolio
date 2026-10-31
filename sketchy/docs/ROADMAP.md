@@ -171,17 +171,7 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F65 Sketchbook Screen portrait and reveal
 
-- [ ] F66 Sketchbook Screen scoreboard and final
-  - Spec: UI by role and phase (Screen); Scoring; docs/design/SKETCHBOOK.md (Surfaces: Scoreboard / Final, Motion)
-  - Depends: F64
-  - Done when:
-    - The M12 checks in `docs/design/SKETCHBOOK.md` (Definition of done)
-    - The scoreboard (`#sketch-scoreboard`) is one full dot-grid page with "Round 1 of 2 done". Rows show the rank, avatar, name, a crayon bar that grows in a hand-bordered track, the score, and ↑n/↓n. The reorder animation is kept.
-    - The final (`#sketch-final`) shows a drawn podium whose crayon blocks rise in the order 3rd, 2nd, 1st. 4th and later sit on one line.
-    - The gallery is taped white sheets with captions. The lightbox is on paper, with the arrow keys kept.
-    - Tonight's awards are sticky notes. The Tonight panel (game 2 and later) is restyled.
-    - Rematch and Back to lobby are sketch buttons. The rematch countdown overlay is from F61.
-  - Tests: existing ScreenStandings, ScreenAwards and ScreenGallery tests stay green
+- [x] F66 Sketchbook Screen scoreboard and final
 
 - [ ] F67 Sketchbook cleanup
   - Spec: UI by role and phase (Look and feel); Tech stack and architecture (Performance budget); docs/design/SKETCHBOOK.md (Rules)

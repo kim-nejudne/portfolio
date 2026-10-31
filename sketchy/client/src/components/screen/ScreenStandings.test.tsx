@@ -84,7 +84,7 @@ describe('Tonight panel (F29)', () => {
     expect(html.indexOf('Tonight')).toBeGreaterThan(html.indexOf('Final scores'));
   });
 
-  it('lists eight rows and counts the rest; four players go into two columns beside it', () => {
+  it('lists eight rows and counts the rest; four players stand three on the podium and one on the line beside it', () => {
     const many = Array.from({ length: 11 }, (_, i) => ({
       pid: `p${i}`,
       name: `P${i}`,
@@ -102,10 +102,12 @@ describe('Tonight panel (F29)', () => {
     expect(html).toContain('>P7<');
     expect(html).not.toContain('>P8<');
     expect(html).toContain('+3 more');
-    expect(html).toContain('grid-cols-2');
-    expect(
-      renderToStaticMarkup(<ScreenStandings view={view('FINAL')} layout="landscape" t={t} />),
-    ).not.toContain('grid-cols-2');
+    // F66: the final's two-column list became the podium (top three) and the line for 4th on.
+    expect(html.match(/data-podium-place=/g)).toHaveLength(3);
+    const rest = html.slice(html.indexOf('data-rest'));
+    expect(rest).toContain('>Jun<');
+    expect(html.indexOf('data-rest')).toBeLessThan(html.indexOf('Tonight · 3 games'));
+    expect(html).not.toContain('grid-cols-2');
   });
 
   it('is not shown in game 1, nor on the scoreboard', () => {
@@ -120,8 +122,9 @@ describe('Tonight panel (F29)', () => {
 });
 
 describe('portrait standings (F33)', () => {
+  // F66: the scoreboard keeps the ranked list; the final's top three are on the podium.
   const ten = (): ScreenView => ({
-    ...view('FINAL'),
+    ...view('SCOREBOARD'),
     players: Array.from({ length: 10 }, (_, i) => chip(`P${i}`, 100 - i, i + 1)),
   });
 

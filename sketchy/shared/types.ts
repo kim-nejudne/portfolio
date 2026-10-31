@@ -477,6 +477,8 @@ export interface PlayerChipView {
   turnPoints: number; // points this turn (the drawer's once the turn ends)
   score: number | null; // the game total: SCOREBOARD and FINAL only
   rank: number | null; // shared rank by `score` (1, 1, 3): SCOREBOARD and FINAL only
+  // SPEC-QUESTION: not in the spec's views; the scoreboard's ↑n/↓n and reorder (DECISIONS 89).
+  prevRank?: number; // SCOREBOARD only: the shared rank before the round's last turn
 }
 
 export interface CorrectView {

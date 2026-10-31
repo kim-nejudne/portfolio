@@ -340,10 +340,9 @@ describe('the restyled turn files', () => {
       expect(src, file).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
       expect(src, file).not.toMatch(/white\/\d|text-white|bg-black|font-display|font-bold|legacy-/);
     }
-    // The turn no longer sits on the dark page; only the standings do, until F66.
+    // No phase sits on the dark page any more: the standings left it in F66.
     const screen = read('../../pages/Screen.tsx');
-    expect(screen.match(/legacy-night"/g)).toHaveLength(1);
-    expect(screen.indexOf('legacy-night"')).toBeGreaterThan(screen.indexOf('<ScreenTurn'));
+    expect(screen).not.toContain('legacy-night');
   });
 
   it('puts the portrait turn in the spread’s portrait form: top bar, rings across, drawing (F65)', () => {

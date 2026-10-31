@@ -445,6 +445,34 @@ describe('totals and ranks across a game (F20)', () => {
     expect(view.players.some((p) => p.isDrawer)).toBe(false);
   });
 
+  it('SCOREBOARD carries each rank before the round’s last turn, for ↑n/↓n (F66)', () => {
+    const { room, pids, at } = cycleOne();
+    const [ana, ben, cy] = pids as [string, string, string];
+    // Before the last turn Ana led and Ben was last; the last turn gave Cy 400 and Ben 250.
+    const scores: Record<string, number> = { [ana]: 300, [ben]: 350, [cy]: 500 };
+    const players = Object.fromEntries(
+      Object.entries(room.players).map(([pid, p]) => [pid, { ...p, score: scores[pid]! }]),
+    );
+    const last = { ...room.history.at(-1)!, points: { [cy]: 400, [ben]: 250 } };
+    const r: Room = { ...room, players, history: [...room.history.slice(0, -1), last] };
+    for (const viewer of viewers(r)) {
+      const view = toView(r, viewer, at);
+      // Now Cy 500, Ben 350, Ana 300; before: Ana 300, Ben 100, Cy 100 (Ben and Cy tied 2nd).
+      expect(view.players.map((p) => [p.pid, p.rank, p.prevRank])).toEqual([
+        [ana, 3, 1],
+        [ben, 2, 2],
+        [cy, 1, 2],
+      ]);
+    }
+    // Only between rounds: never during a turn, nor on the final page.
+    expect(toView({ ...r, phase: 'FINAL' }, viewers(r)[0]!, at).players[0]!.prevRank).toBe(
+      undefined,
+    );
+    // With no turn played there is nothing to move from.
+    const none = toView({ ...r, history: [] }, viewers(r)[0]!, at);
+    expect(none.players.every((p) => p.prevRank === undefined)).toBe(true);
+  });
+
   it('the next cycle hides the totals again', () => {
     const { room, at } = cycleOne();
     const cycle2 = step(room, NEXT, at).room;

@@ -47,8 +47,6 @@ export function ScreenDesk({
   left,
   right,
   single,
-  singleClassName = '',
-  plain = false,
   code,
   players,
   turn = false,
@@ -61,9 +59,6 @@ export function ScreenDesk({
   right?: ReactNode;
   /** One page instead of the spread. */
   single?: ReactNode;
-  singleClassName?: string;
-  /** The single page without its dot grid (a page painted dark until F64–F66). */
-  plain?: boolean;
   code: string | null;
   /** Index tabs, in turn order; none while omitted. */
   players?: PlayerChipView[];
@@ -126,10 +121,7 @@ export function ScreenDesk({
               </section>
             </>
           ) : (
-            <section
-              className={`size-full min-h-0 min-w-0 ${plain ? '' : 'paper-dots'} ${singleClassName}`}
-              style={plain ? undefined : PAGE_DOTS}
-            >
+            <section className="paper-dots size-full min-h-0 min-w-0" style={PAGE_DOTS}>
               {single}
             </section>
           )}
@@ -194,7 +186,8 @@ function Gutter({ layout }: { layout: ScreenLayout }) {
  * the code is never the part cut off.
  */
 function CodeStrip({ code, layout }: { code: string; layout: ScreenLayout }) {
-  const host = window.location.host;
+  // Rendered to markup in tests, where there is no window.
+  const host = typeof window === 'undefined' ? '' : window.location.host;
   const strong = <strong className="font-black tracking-[0.12em]">{code}</strong>;
   return (
     <footer
