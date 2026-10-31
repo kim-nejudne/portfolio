@@ -22,7 +22,8 @@ const json =
   (body: unknown, status = 200): Answer =>
   () =>
     Response.json(body, { status });
-const signedIn = json({ expiresAt: T0 + ADMIN_SESSION_MS });
+// Relative to the clock at answer time: a fixed instant would expire once the real clock passes it.
+const signedIn: Answer = () => Response.json({ expiresAt: Date.now() + ADMIN_SESSION_MS });
 
 /**
  * A fake server: each `METHOD path` answers with the next of its queue. Unlisted calls fail as a
@@ -179,7 +180,7 @@ describe('useAdminSession', () => {
     await vi.waitFor(() => expect(first.result.current.kind).toBe('signedIn'));
     expect(second.result.current).toMatchObject({
       kind: 'signedIn',
-      expiresAt: T0 + ADMIN_SESSION_MS,
+      expiresAt: (first.result.current as { expiresAt: number }).expiresAt,
     });
     expect(calls).toHaveLength(1);
   });
